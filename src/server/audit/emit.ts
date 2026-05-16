@@ -16,10 +16,10 @@ export interface AuditEventInput {
    * JSON Patch or before/after diff describing what changed.
    * Omit for create/delete events where the full resource is the change.
    */
-  changes?: Record<string, { before: unknown; after: unknown }>;
-  traceId?: string;
-  ipAddress?: string;
-  userAgent?: string;
+  changes?: Record<string, { before: unknown; after: unknown }> | undefined;
+  traceId?: string | undefined;
+  ipAddress?: string | undefined;
+  userAgent?: string | undefined;
 }
 
 // ---------------------------------------------------------------------------
