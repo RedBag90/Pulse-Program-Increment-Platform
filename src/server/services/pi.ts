@@ -27,6 +27,14 @@ export interface UpdatePiInput {
   userAgent?: string | undefined;
 }
 
+export interface PiLifecycleInput {
+  tenantId: TenantId;
+  actorId: UserId;
+  id: PiId;
+  ipAddress?: string | undefined;
+  userAgent?: string | undefined;
+}
+
 export type PiStatus = "planned" | "active" | "completed";
 
 export async function createPi(
@@ -122,6 +130,15 @@ export async function updatePi(db: PrismaClient, input: UpdatePiInput): Promise<
         });
       }
 
+      // Lifecycle transitions to active/completed go through startPi/completePi,
+      // which enforce the one-active-PI rule and objective commitment checks.
+      if (status !== undefined && status !== existing.status && status !== "planned") {
+        return err({
+          kind: "conflict" as const,
+          reason: `Use the ${status === "active" ? "start" : "complete"} action to move a PI to "${status}"`,
+        });
+      }
+
       const changes: Record<string, { before: unknown; after: unknown }> = {};
       if (name !== undefined && name !== existing.name) {
         changes["name"] = { before: existing.name, after: name };
@@ -156,6 +173,104 @@ export async function updatePi(db: PrismaClient, input: UpdatePiInput): Promise<
     .catch((e: unknown) => {
       throw e;
     });
+}
+
+/**
+ * Starts a PI: enforces that no other PI in the ART is active and that every
+ * team in the ART has at least one committed PI Objective (concept PULSE-29).
+ */
+export async function startPi(db: PrismaClient, input: PiLifecycleInput): Promise<Result<void>> {
+  const { tenantId, actorId, id, ipAddress, userAgent } = input;
+
+  return db.$transaction(async (tx) => {
+    const existing = await tx.programIncrement.findFirst({ where: { id, tenantId } });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
+    }
+
+    if (existing.status !== "planned") {
+      return err({
+        kind: "conflict" as const,
+        reason: `Only a planned PI can be started (current status: ${existing.status})`,
+      });
+    }
+
+    const otherActive = await tx.programIncrement.findFirst({
+      where: { tenantId, artId: existing.artId, status: "active", id: { not: id } },
+    });
+    if (otherActive) {
+      return err({
+        kind: "conflict" as const,
+        reason: `PI "${otherActive.name}" is already active in this ART; complete it first`,
+      });
+    }
+
+    // Every team in the ART must have at least one committed objective.
+    const teams = await tx.team.findMany({ where: { tenantId, artId: existing.artId } });
+    if (teams.length > 0) {
+      const committed = await tx.piObjective.findMany({
+        where: { tenantId, piId: id, committed: true },
+        select: { teamId: true },
+      });
+      const teamsWithObjectives = new Set(committed.map((o) => o.teamId));
+      const missing = teams.filter((t) => !teamsWithObjectives.has(t.id));
+      if (missing.length > 0) {
+        return err({
+          kind: "conflict" as const,
+          reason: `These teams have no committed PI objectives: ${missing.map((t) => t.name).join(", ")}`,
+        });
+      }
+    }
+
+    await tx.programIncrement.update({ where: { id }, data: { status: "active" } });
+
+    await emitAuditEvent(tx as unknown as PrismaClient, {
+      tenantId,
+      actorId,
+      action: "pi.started",
+      resourceType: "program_increment",
+      resourceId: id,
+      changes: { status: { before: existing.status, after: "active" } },
+      ipAddress,
+      userAgent,
+    });
+
+    return ok(undefined);
+  });
+}
+
+/** Completes an active PI. */
+export async function completePi(db: PrismaClient, input: PiLifecycleInput): Promise<Result<void>> {
+  const { tenantId, actorId, id, ipAddress, userAgent } = input;
+
+  return db.$transaction(async (tx) => {
+    const existing = await tx.programIncrement.findFirst({ where: { id, tenantId } });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
+    }
+
+    if (existing.status !== "active") {
+      return err({
+        kind: "conflict" as const,
+        reason: `Only an active PI can be completed (current status: ${existing.status})`,
+      });
+    }
+
+    await tx.programIncrement.update({ where: { id }, data: { status: "completed" } });
+
+    await emitAuditEvent(tx as unknown as PrismaClient, {
+      tenantId,
+      actorId,
+      action: "pi.completed",
+      resourceType: "program_increment",
+      resourceId: id,
+      changes: { status: { before: existing.status, after: "completed" } },
+      ipAddress,
+      userAgent,
+    });
+
+    return ok(undefined);
+  });
 }
 
 export async function listPis(db: PrismaClient, tenantId: TenantId, artId: ArtId) {

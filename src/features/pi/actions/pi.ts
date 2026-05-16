@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { createPi, updatePi } from "@/server/services/pi";
+import { createPi, startPi, completePi } from "@/server/services/pi";
 import { authorize } from "@/server/auth/authorize";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
@@ -90,14 +90,17 @@ export async function transitionPiAction(
   const { ipAddress, userAgent } = extractRequestMeta(await headers());
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const result = await updatePi(db, {
+  const lifecycleInput = {
     tenantId: principal.tenantId,
     actorId: principal.id,
     id: piId as PiId,
-    status: targetStatus,
     ipAddress,
     userAgent,
-  });
+  };
+  const result =
+    targetStatus === "active"
+      ? await startPi(db, lifecycleInput)
+      : await completePi(db, lifecycleInput);
 
   if (isErr(result)) {
     return {
