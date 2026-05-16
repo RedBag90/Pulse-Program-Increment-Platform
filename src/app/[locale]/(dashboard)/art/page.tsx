@@ -35,20 +35,41 @@ export default async function ArtPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {arts.map((art) => (
-            <Link
+            <div
               key={art.id}
-              href={`/art/${art.id}/features`}
-              className="block border rounded-lg p-5 space-y-2 hover:shadow-sm hover:border-blue-300 transition-colors"
+              className="border rounded-lg p-5 space-y-3 hover:shadow-sm transition-shadow"
             >
-              <h2 className="font-semibold">{art.name}</h2>
-              <p className="text-sm text-gray-500">Value Stream: {art.valueStream.name}</p>
-              {art.piCadenceWeeks && (
-                <p className="text-sm text-gray-500">PI Cadence: {art.piCadenceWeeks} weeks</p>
-              )}
-              <p className="text-xs text-gray-400">
-                {art._count.pis} PI{art._count.pis !== 1 ? "s" : ""}
-              </p>
-            </Link>
+              <div className="space-y-1">
+                <h2 className="font-semibold">{art.name}</h2>
+                <p className="text-sm text-gray-500">Value Stream: {art.valueStream.name}</p>
+                {art.piCadenceWeeks && (
+                  <p className="text-sm text-gray-500">PI Cadence: {art.piCadenceWeeks} weeks</p>
+                )}
+                <p className="text-xs text-gray-400">
+                  {art._count.pis} PI{art._count.pis !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <div className="flex gap-2 pt-1 border-t">
+                <Link
+                  href={`/art/${art.id}/features`}
+                  className="flex-1 text-center rounded-md bg-gray-50 hover:bg-blue-50 hover:text-blue-700 px-2 py-1.5 text-xs font-medium text-gray-600 transition-colors"
+                >
+                  Features
+                </Link>
+                <Link
+                  href={`/art/${art.id}/pi`}
+                  className="flex-1 text-center rounded-md bg-gray-50 hover:bg-blue-50 hover:text-blue-700 px-2 py-1.5 text-xs font-medium text-gray-600 transition-colors"
+                >
+                  PI Planning
+                </Link>
+                <Link
+                  href={`/art/${art.id}/teams`}
+                  className="flex-1 text-center rounded-md bg-gray-50 hover:bg-blue-50 hover:text-blue-700 px-2 py-1.5 text-xs font-medium text-gray-600 transition-colors"
+                >
+                  Teams
+                </Link>
+              </div>
+            </div>
           ))}
         </div>
       )}

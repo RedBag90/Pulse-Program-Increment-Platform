@@ -4,6 +4,7 @@ import { getArt } from "@/server/services/art";
 import { listFeatures } from "@/server/services/feature";
 import { listEpics } from "@/server/services/initiative";
 import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
+import { ArtSubNav } from "@/features/art/components/art-sub-nav";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import type { ArtId } from "@/domain/types";
@@ -35,18 +36,11 @@ export default async function FeaturesPage({ params }: Props) {
 
   return (
     <main className="p-8 max-w-5xl mx-auto space-y-6">
-      <nav className="text-sm text-gray-500">
-        <Link href="/art" className="hover:underline">
-          ARTs
-        </Link>
-        {" / "}
-        <span className="text-gray-800 font-medium">{art.name}</span>
-        {" / Features"}
-      </nav>
+      <ArtSubNav artId={artId} artName={art.name} />
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{art.name} — Feature Backlog</h1>
+          <h1 className="text-xl font-semibold">Feature Backlog</h1>
           <p className="text-sm text-gray-500 mt-1">Sorted by WSJF score (highest first)</p>
         </div>
         {canEdit && <CreateFeatureDialog artId={artId} epics={epicOptions} />}

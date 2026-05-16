@@ -3,6 +3,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/server/services/art";
 import { listPis } from "@/server/services/pi";
 import { CreatePiDialog } from "@/features/pi/components/create-pi-dialog";
+import { ArtSubNav } from "@/features/art/components/art-sub-nav";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import type { ArtId } from "@/domain/types";
@@ -39,18 +40,11 @@ export default async function PiListPage({ params }: Props) {
 
   return (
     <main className="p-8 max-w-5xl mx-auto space-y-6">
-      <nav className="text-sm text-gray-500">
-        <Link href="/art" className="hover:underline">
-          ARTs
-        </Link>
-        {" / "}
-        <span className="text-gray-800 font-medium">{art.name}</span>
-        {" / Program Increments"}
-      </nav>
+      <ArtSubNav artId={artId} artName={art.name} />
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{art.name} — Program Increments</h1>
+          <h1 className="text-xl font-semibold">Program Increments</h1>
           {art.piCadenceWeeks && (
             <p className="text-sm text-gray-500 mt-1">PI cadence: {art.piCadenceWeeks} weeks</p>
           )}
