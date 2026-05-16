@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  region    String   @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  valueStreams        ValueStream[]
+  arts                Art[]
+  initiatives         Initiative[]
+  userRoleAssignments UserRoleAssignment[]
+
+  @@map("tenants")
+}
+
+model ValueStream {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  name           String
+  description    String?
+  budgetAmount   Decimal? @map("budget_amount") @db.Decimal(14, 2)
+  budgetCurrency String?  @map("budget_currency") @db.Char(3)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id])
+  arts   Art[]
+  epics  Initiative[] @relation("EpicValueStream")
+
+  @@unique([tenantId, name])
+  @@map("value_streams")
+}
+
+model Art {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  valueStreamId  String   @map("value_stream_id") @db.Uuid
+  name           String
+  piCadenceWeeks Int      @default(10) @map("pi_cadence_weeks")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  valueStream ValueStream      @relation(fields: [valueStreamId], references: [id])
+  pis         ProgramIncrement[]
+  features    Initiative[]     @relation("FeatureArt")
+
+  @@unique([tenantId, name])
+  @@map("arts")
+}
+
+model ProgramIncrement {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  artId     String   @map("art_id") @db.Uuid
+  name      String
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  status    String   @default("planned")
+
+  art         Art          @relation(fields: [artId], references: [id])
+  sprints     Sprint[]
+  initiatives Initiative[]
+
+  @@map("program_increments")
+}
+
+model Sprint {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  piId      String   @map("pi_id") @db.Uuid
+  teamId    String   @map("team_id") @db.Uuid
+  indexInPi Int      @map("index_in_pi")
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+
+  pi          ProgramIncrement @relation(fields: [piId], references: [id])
+  initiatives Initiative[]
+
+  @@map("sprints")
+}
+
+model Initiative {
+  id          String  @id @default(uuid()) @db.Uuid
+  tenantId    String  @map("tenant_id") @db.Uuid
+  level       Int // 0=EPIC, 1=FEATURE, 2=STORY, 3=TASK
+  parentId    String? @map("parent_id") @db.Uuid
+  path        String // materialized path
+
+  title       String
+  description String?  @db.Text
+  ownerId     String   @map("owner_id") @db.Uuid
+  assigneeIds String[] @map("assignee_ids") @db.Uuid
+
+  // Level-specific foreign keys
+  valueStreamId String? @map("value_stream_id") @db.Uuid // EPIC only
+  artId         String? @map("art_id") @db.Uuid // FEATURE only
+  piId          String? @map("pi_id") @db.Uuid // FEATURE, STORY
+  sprintId      String? @map("sprint_id") @db.Uuid // STORY only
+
+  // WSJF fields (FEATURE only)
+  wsjfBusinessValue   Int?     @map("wsjf_business_value")
+  wsjfTimeCriticality Int?     @map("wsjf_time_criticality")
+  wsjfRiskReduction   Int?     @map("wsjf_risk_reduction")
+  wsjfJobSize         Int?     @map("wsjf_job_size")
+  wsjfComputed        Decimal? @map("wsjf_computed") @db.Decimal(5, 2)
+
+  // Lean Business Case (EPIC only – stored as JSON)
+  leanBusinessCase Json? @map("lean_business_case")
+
+  // Story points (STORY only)
+  storyPoints Int? @map("story_points")
+
+  // Acceptance criteria (FEATURE, STORY)
+  acceptanceCriteria String[] @map("acceptance_criteria")
+
+  // Task estimate (TASK only)
+  estimateHours Decimal? @map("estimate_hours") @db.Decimal(5, 1)
+
+  stageGate String @default("L0") @map("stage_gate")
+  status    String @default("draft")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  createdBy String    @map("created_by") @db.Uuid
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  updatedBy String    @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  parent      Initiative?       @relation("Hierarchy", fields: [parentId], references: [id])
+  children    Initiative[]      @relation("Hierarchy")
+  valueStream ValueStream?      @relation("EpicValueStream", fields: [valueStreamId], references: [id])
+  art         Art?              @relation("FeatureArt", fields: [artId], references: [id])
+  pi          ProgramIncrement? @relation(fields: [piId], references: [id])
+  sprint      Sprint?           @relation(fields: [sprintId], references: [id])
+
+  dependenciesOut Dependency[] @relation("From")
+  dependenciesIn  Dependency[] @relation("To")
+
+  @@index([tenantId])
+  @@index([parentId])
+  @@index([piId])
+  @@index([ownerId, status])
+  @@index([path])
+  @@map("initiatives")
+}
+
+model Dependency {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  fromId    String   @map("from_id") @db.Uuid
+  toId      String   @map("to_id") @db.Uuid
+  type      String // 'blocks' | 'depends_on' | 'relates_to'
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+
+  from Initiative @relation("From", fields: [fromId], references: [id])
+  to   Initiative @relation("To", fields: [toId], references: [id])
+
+  @@unique([fromId, toId, type])
+  @@map("dependencies")
+}
+
+model AuditEvent {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  occurredAt   DateTime @default(now()) @map("occurred_at")
+  actorId      String   @map("actor_id") @db.Uuid
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String   @map("resource_id") @db.Uuid
+  changes      Json?
+  ipAddress    String?  @map("ip_address") @db.Inet
+  userAgent    String?  @map("user_agent")
+  traceId      String?  @map("trace_id")
+
+  @@index([tenantId, occurredAt(sort: Desc)])
+  @@index([resourceType, resourceId, occurredAt(sort: Desc)])
+  @@map("audit_events")
+}
+
+model UserRoleAssignment {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  role           String
+  valueStreamIds String[] @map("value_stream_ids") @db.Uuid
+  artIds         String[] @map("art_ids") @db.Uuid
+  teamIds        String[] @map("team_ids") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([userId, tenantId, role])
+  @@map("user_role_assignments")
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  type        String
+  payload     Json
+  status      String    @default("pending") // pending | processed | failed
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  processedAt DateTime? @map("processed_at")
+
+  @@index([status, createdAt])
+  @@map("outbox_events")
+}

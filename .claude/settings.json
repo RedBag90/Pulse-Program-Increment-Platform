@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm create *)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm approve-builds *)",
+      "Bash(pnpm --version)",
+      "Bash(pnpm rebuild *)",
+      "Bash(pnpm add *)",
+      "Bash(cp /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/../../../pulse-technical-concept.md /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/docs/concepts/pulse-technical-concept.md)",
+      "Bash(cp /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/../../../pulse-implementation-concept.md /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/docs/concepts/pulse-implementation-concept.md)",
+      "Bash(find /Users/philippkoch -name \"pulse-technical-concept.md\" -not -path \"*/node_modules/*\" 2>/dev/null | head -5)",
+      "Read(//Users/philippkoch/**)",
+      "Bash(cp /Users/philippkoch/Downloads/pulse-technical-concept.md /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/docs/concepts/)",
+      "Bash(cp /Users/philippkoch/Downloads/pulse-implementation-concept.md /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/docs/concepts/)",
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm test *)",
+      "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform status --short)",
+      "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform add .env.example .github/ .gitignore .husky/ .npmrc .prettierignore .prettierrc README.md commitlint.config.js docs/ eslint.config.mjs messages/ next-env.d.ts next.config.ts package.json playwright.config.ts pnpm-lock.yaml postcss.config.mjs prisma/ src/ tests/ tsconfig.json vitest.config.ts)",
+      "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform commit -m ' *)",
+      "Bash(printf 'pnpm lint-staged\\\\n')",
+      "Bash(printf 'pnpm commitlint --edit \"$1\"\\\\n')",
+      "Bash(pnpm format *)",
+      "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform add -A)",
+      "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform add package.json)"
+    ]
+  }
+}

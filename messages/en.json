@@ -1,0 +1,68 @@
+{
+  "common": {
+    "appName": "Pulse",
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "notFound": "Page not found",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "back": "Back"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "signOut": "Sign out",
+    "email": "Email address",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "alreadyAccount": "Already have an account?",
+    "tenantCode": "Tenant code"
+  },
+  "portfolio": {
+    "title": "Portfolio",
+    "epics": "Epics",
+    "valueStreams": "Value Streams",
+    "kanban": "Portfolio Kanban"
+  },
+  "art": {
+    "title": "ART",
+    "features": "Features",
+    "wsjf": "WSJF",
+    "programBoard": "Program Board"
+  },
+  "pi": {
+    "title": "Program Increment",
+    "planning": "PI Planning",
+    "objectives": "PI Objectives",
+    "start": "Start PI",
+    "complete": "Complete PI"
+  },
+  "team": {
+    "title": "Team",
+    "backlog": "Backlog",
+    "sprint": "Sprint",
+    "stories": "Stories",
+    "tasks": "Tasks"
+  },
+  "admin": {
+    "title": "Administration",
+    "users": "Users",
+    "roles": "Roles",
+    "auditLog": "Audit Log",
+    "inviteUser": "Invite user"
+  },
+  "errors": {
+    "unauthorized": "You are not authorized to perform this action",
+    "forbidden": "Access denied",
+    "notFound": "The requested resource was not found",
+    "validationFailed": "Validation failed",
+    "serverError": "An unexpected error occurred"
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "common": {
+    "appName": "Pulse",
+    "loading": "Wird geladen...",
+    "error": "Etwas ist schiefgelaufen",
+    "notFound": "Seite nicht gefunden",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "search": "Suchen",
+    "filter": "Filtern",
+    "back": "Zurück"
+  },
+  "auth": {
+    "signIn": "Anmelden",
+    "signUp": "Registrieren",
+    "signOut": "Abmelden",
+    "email": "E-Mail-Adresse",
+    "password": "Passwort",
+    "forgotPassword": "Passwort vergessen?",
+    "noAccount": "Noch kein Konto?",
+    "alreadyAccount": "Bereits ein Konto?",
+    "tenantCode": "Mandanten-Code"
+  },
+  "portfolio": {
+    "title": "Portfolio",
+    "epics": "Epics",
+    "valueStreams": "Wertströme",
+    "kanban": "Portfolio Kanban"
+  },
+  "art": {
+    "title": "ART",
+    "features": "Features",
+    "wsjf": "WSJF",
+    "programBoard": "Programm-Board"
+  },
+  "pi": {
+    "title": "Programm-Inkrement",
+    "planning": "PI-Planung",
+    "objectives": "PI-Ziele",
+    "start": "PI starten",
+    "complete": "PI abschließen"
+  },
+  "team": {
+    "title": "Team",
+    "backlog": "Backlog",
+    "sprint": "Sprint",
+    "stories": "Stories",
+    "tasks": "Aufgaben"
+  },
+  "admin": {
+    "title": "Administration",
+    "users": "Benutzer",
+    "roles": "Rollen",
+    "auditLog": "Audit-Log",
+    "inviteUser": "Benutzer einladen"
+  },
+  "errors": {
+    "unauthorized": "Sie sind nicht berechtigt, diese Aktion durchzuführen",
+    "forbidden": "Zugriff verweigert",
+    "notFound": "Die angeforderte Ressource wurde nicht gefunden",
+    "validationFailed": "Validierung fehlgeschlagen",
+    "serverError": "Ein unerwarteter Fehler ist aufgetreten"
+  }
+}
