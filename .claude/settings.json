@@ -23,7 +23,12 @@
       "Bash(printf 'pnpm commitlint --edit \"$1\"\\\\n')",
       "Bash(pnpm format *)",
       "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform add -A)",
-      "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform add package.json)"
+      "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform add package.json)",
+      "Bash(mkdir -p /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/\\\\\\(dashboard\\\\\\) && \\\\ *)",
+      "Bash(mkdir -p '/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/\\(dashboard\\)' && \\\\ *)"
+    ],
+    "additionalDirectories": [
+      "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)"
     ]
   }
 }

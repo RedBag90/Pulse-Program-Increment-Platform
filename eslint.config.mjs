@@ -17,6 +17,8 @@ const config = [
       "*.config.ts",
       "*.config.mjs",
       "*.config.js",
+      "instrumentation.ts",
+      "instrumentation-client.ts",
     ],
   },
   {
