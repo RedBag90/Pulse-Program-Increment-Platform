@@ -1,0 +1,77 @@
+import { requirePrincipal } from "@/server/auth/principal";
+import { createPrismaClient } from "@/server/db/prisma";
+import { listEpics } from "@/server/services/initiative";
+import { listValueStreams } from "@/server/services/value-stream";
+import { CreateEpicDialog } from "@/features/portfolio/components/create-epic-dialog";
+import { redirect } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+
+const STAGE_GATE_LABELS: Record<string, string> = {
+  L0: "L0 Funnel",
+  L1: "L1 Reviewing",
+  L2: "L2 Analyzing",
+  L3: "L3 Portfolio Backlog",
+  L4: "L4 Implementing",
+  L5: "L5 Done",
+};
+
+export default async function EpicsPage() {
+  const principal = await requirePrincipal().catch(() => null);
+  if (!principal) redirect("/sign-in");
+
+  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+  const [epics, valueStreams] = await Promise.all([
+    listEpics(db, principal.tenantId),
+    listValueStreams(db, principal.tenantId),
+  ]);
+
+  const canEdit =
+    principal.roles.includes("portfolio_editor") ||
+    principal.roles.includes("tenant_admin") ||
+    principal.roles.includes("platform_admin");
+
+  return (
+    <main className="p-8 max-w-6xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Epics</h1>
+        {canEdit && <CreateEpicDialog valueStreams={valueStreams} />}
+      </div>
+
+      {epics.length === 0 ? (
+        <p className="text-gray-500 text-sm">No epics yet.</p>
+      ) : (
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b text-left text-gray-500">
+              <th className="pb-2 pr-4">Title</th>
+              <th className="pb-2 pr-4">Value Stream</th>
+              <th className="pb-2 pr-4">Stage Gate</th>
+              <th className="pb-2">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {epics.map((epic) => (
+              <tr key={epic.id} className="border-b hover:bg-gray-50">
+                <td className="py-2 pr-4">
+                  <Link
+                    href={`/portfolio/epics/${epic.id}`}
+                    className="text-blue-700 hover:underline font-medium"
+                  >
+                    {epic.title}
+                  </Link>
+                </td>
+                <td className="py-2 pr-4 text-gray-600">{epic.valueStream?.name ?? "—"}</td>
+                <td className="py-2 pr-4">
+                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">
+                    {STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate}
+                  </span>
+                </td>
+                <td className="py-2 text-gray-600">{epic.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </main>
+  );
+}
