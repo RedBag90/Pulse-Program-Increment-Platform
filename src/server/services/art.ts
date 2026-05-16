@@ -112,9 +112,61 @@ export async function updateArt(db: PrismaClient, input: UpdateArtInput): Promis
     });
 }
 
+export async function softDeleteArt(
+  db: PrismaClient,
+  tenantId: TenantId,
+  id: ArtId,
+  actorId: UserId,
+  ipAddress?: string | undefined,
+  userAgent?: string | undefined,
+): Promise<Result<void>> {
+  return db
+    .$transaction(async (tx) => {
+      const existing = await tx.art.findFirst({
+        where: { id, tenantId },
+        include: { _count: { select: { pis: true, teams: true } } },
+      });
+      if (!existing) return err({ kind: "not_found" as const, resourceType: "Art", id });
+
+      if (existing._count.pis > 0) {
+        return err({
+          kind: "conflict" as const,
+          reason: "ART has Program Increments and cannot be deleted",
+        });
+      }
+
+      if (existing._count.teams > 0) {
+        return err({
+          kind: "conflict" as const,
+          reason: "ART has teams — delete all teams first",
+        });
+      }
+
+      await tx.art.update({
+        where: { id },
+        data: { name: `__deleted__${Date.now()}__${existing.name}` },
+      });
+
+      await emitAuditEvent(tx as unknown as PrismaClient, {
+        tenantId,
+        actorId,
+        action: "art.deleted",
+        resourceType: "art",
+        resourceId: id,
+        ipAddress,
+        userAgent,
+      });
+
+      return ok(undefined);
+    })
+    .catch((e: unknown) => {
+      throw e;
+    });
+}
+
 export async function listArts(db: PrismaClient, tenantId: TenantId) {
   return db.art.findMany({
-    where: { tenantId },
+    where: { tenantId, name: { not: { startsWith: "__deleted__" } } },
     include: {
       valueStream: { select: { id: true, name: true } },
       _count: { select: { pis: true } },
@@ -125,7 +177,7 @@ export async function listArts(db: PrismaClient, tenantId: TenantId) {
 
 export async function getArt(db: PrismaClient, tenantId: TenantId, id: ArtId) {
   return db.art.findFirst({
-    where: { id, tenantId },
+    where: { id, tenantId, name: { not: { startsWith: "__deleted__" } } },
     include: {
       valueStream: { select: { id: true, name: true } },
       pis: { select: { id: true, name: true, status: true, startDate: true, endDate: true } },

@@ -2,9 +2,9 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { createArt } from "@/server/services/art";
+import { createArt, softDeleteArt } from "@/server/services/art";
 import { createServerAction } from "@/server/http/server-action";
-import type { ValueStreamId } from "@/domain/types";
+import type { ValueStreamId, ArtId } from "@/domain/types";
 
 export interface ArtActionState {
   error?: string;
@@ -36,4 +36,27 @@ export const createArtAction = createServerAction({
     }),
   onSuccess: () => revalidatePath("/art"),
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create ART"),
+});
+
+export const deleteArtAction = createServerAction({
+  schema: z.object({ id: z.string().uuid() }),
+  action: "art.delete",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({ id: fd.get("id") }),
+  service: (ctx, input) =>
+    softDeleteArt(
+      ctx.db,
+      ctx.principal.tenantId,
+      input.id as ArtId,
+      ctx.principal.id,
+      ctx.ipAddress,
+      ctx.userAgent,
+    ),
+  onSuccess: () => revalidatePath("/art"),
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "ART not found"
+        : "Failed to delete ART",
 });

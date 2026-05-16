@@ -3,6 +3,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { listArts } from "@/server/services/art";
 import { listValueStreams } from "@/server/services/value-stream";
 import { CreateArtDialog } from "@/features/art/components/create-art-dialog";
+import { DeleteArtButton } from "@/features/art/components/delete-art-button";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 
@@ -49,6 +50,11 @@ export default async function ArtPage() {
                   {art._count.pis} PI{art._count.pis !== 1 ? "s" : ""}
                 </p>
               </div>
+              {canEdit && (
+                <div className="pt-1">
+                  <DeleteArtButton id={art.id} name={art.name} />
+                </div>
+              )}
               <div className="flex gap-2 pt-1 border-t">
                 <Link
                   href={`/art/${art.id}/features`}

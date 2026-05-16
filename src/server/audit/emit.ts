@@ -41,6 +41,7 @@ export type AuditAction =
   | "value_stream.deleted"
   | "art.created"
   | "art.updated"
+  | "art.deleted"
   | "team.created"
   | "team.updated"
   | "team.deleted"

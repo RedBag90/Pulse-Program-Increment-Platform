@@ -17,6 +17,7 @@ export type Action =
   | "epic.delete"
   | "art.create"
   | "art.update"
+  | "art.delete"
   | "feature.create"
   | "feature.update"
   | "feature.wsjf.set"
@@ -83,6 +84,7 @@ export const POLICIES: Record<Action, Grant[]> = {
 
   "art.create": [{ roles: [TENANT_ADMIN] }],
   "art.update": [{ roles: [TENANT_ADMIN] }],
+  "art.delete": [{ roles: [TENANT_ADMIN] }],
 
   "feature.create": [{ roles: [PORTFOLIO_EDITOR, ART_FULL_EDITOR, FEATURE_EDITOR] }],
   "feature.update": [{ roles: [PORTFOLIO_EDITOR, ART_FULL_EDITOR, FEATURE_EDITOR] }],
