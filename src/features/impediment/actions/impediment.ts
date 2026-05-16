@@ -11,59 +11,40 @@ import {
   resolveImpediment,
   type ImpedimentId,
 } from "@/server/services/impediment";
+import { createServerAction } from "@/server/http/server-action";
 import { isErr } from "@/domain/errors";
 import { redirect } from "next/navigation";
 import type { TenantId, ArtId } from "@/domain/types";
 
-const createSchema = z.object({
-  artId: z.string().uuid(),
-  title: z.string().min(1, "Title required").max(300),
-  description: z.string().max(5000).optional(),
-  severity: z.enum(["low", "medium", "high", "critical"]).default("medium"),
-});
-
 export type ImpedimentActionState = { error?: string; success?: boolean };
 
-export async function createImpedimentAction(
-  _prev: ImpedimentActionState,
-  formData: FormData,
-): Promise<ImpedimentActionState> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) redirect("/sign-in");
-
-  const parsed = createSchema.safeParse({
-    artId: formData.get("artId"),
-    title: formData.get("title"),
-    description: formData.get("description") || undefined,
-    severity: formData.get("severity") || "medium",
-  });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-
-  if (
-    !authorize(
-      "impediment.create",
-      { tenantId: principal.tenantId, artId: parsed.data.artId },
-      principal,
-    ).allow
-  ) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const result = await createImpediment(db, {
-    tenantId: principal.tenantId as TenantId,
-    actorId: principal.id,
-    artId: parsed.data.artId as ArtId,
-    title: parsed.data.title,
-    description: parsed.data.description,
-    severity: parsed.data.severity,
-  });
-
-  if (isErr(result)) return { error: "Failed to log impediment" };
-
-  revalidatePath("/art/[artId]/impediments", "page");
-  return { success: true };
-}
+export const createImpedimentAction = createServerAction({
+  schema: z.object({
+    artId: z.string().uuid(),
+    title: z.string().min(1, "Title required").max(300),
+    description: z.string().max(5000).optional(),
+    severity: z.enum(["low", "medium", "high", "critical"]).default("medium"),
+  }),
+  action: "impediment.create",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  parseFormData: (fd) => ({
+    artId: fd.get("artId"),
+    title: fd.get("title"),
+    description: fd.get("description") || undefined,
+    severity: fd.get("severity") || "medium",
+  }),
+  service: (ctx, input) =>
+    createImpediment(ctx.db, {
+      tenantId: ctx.principal.tenantId as TenantId,
+      actorId: ctx.principal.id,
+      artId: input.artId as ArtId,
+      title: input.title,
+      description: input.description,
+      severity: input.severity,
+    }),
+  onSuccess: () => revalidatePath("/art/[artId]/impediments", "page"),
+  mapError: () => "Failed to log impediment",
+});
 
 export async function escalateImpedimentAction(
   id: string,

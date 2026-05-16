@@ -1,12 +1,7 @@
 import { z } from "zod";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
 import { getPi, updatePi } from "@/server/services/pi";
-import { authorize } from "@/server/auth/authorize";
-import { forbidden, unprocessable, problemJson } from "@/server/http/problem";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { headers } from "next/headers";
-import { isErr } from "@/domain/errors";
+import { createMutationHandler } from "@/server/http/mutation-handler";
+import { createQueryHandler } from "@/server/http/query-handler";
 import type { PiId } from "@/domain/types";
 
 const updateSchema = z.object({
@@ -20,55 +15,31 @@ interface Ctx {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(_request: Request, { params }: Ctx): Promise<Response> {
-  const { id } = await params;
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
+const routeParamsSchema = z.object({ id: z.string().uuid() });
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const pi = await getPi(db, principal.tenantId, id as PiId);
-  if (!pi) return problemJson(404, "not_found");
-  return Response.json(pi);
-}
+export const GET = createQueryHandler({
+  params: routeParamsSchema,
+  query: (ctx, { id }) => getPi(ctx.db, ctx.principal.tenantId, id as PiId),
+});
 
 export async function PATCH(request: Request, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
-
-  const decision = authorize("pi.update", { tenantId: principal.tenantId }, principal);
-  if (!decision.allow) return forbidden(decision.reason);
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return unprocessable("Invalid JSON body");
-  }
-
-  const parsed = updateSchema.safeParse(body);
-  if (!parsed.success) return unprocessable(parsed.error.message);
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await updatePi(db, {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    id: id as PiId,
-    ...parsed.data,
-    startDate: parsed.data.startDate !== undefined ? new Date(parsed.data.startDate) : undefined,
-    endDate: parsed.data.endDate !== undefined ? new Date(parsed.data.endDate) : undefined,
-    ipAddress,
-    userAgent,
-  });
-
-  if (isErr(result)) {
-    if (result.error.kind === "not_found") return problemJson(404, "not_found");
-    if (result.error.kind === "conflict")
-      return problemJson(409, "conflict", { detail: result.error.reason });
-    return problemJson(500, "internal_error");
-  }
-
-  return new Response(null, { status: 204 });
+  return createMutationHandler({
+    schema: updateSchema,
+    action: "pi.update",
+    resource: (_input, p) => ({ tenantId: p.tenantId }),
+    service: (ctx, input) =>
+      updatePi(ctx.db, {
+        tenantId: ctx.principal.tenantId,
+        actorId: ctx.principal.id,
+        id: id as PiId,
+        ...input,
+        startDate: input.startDate !== undefined ? new Date(input.startDate) : undefined,
+        endDate: input.endDate !== undefined ? new Date(input.endDate) : undefined,
+        ipAddress: ctx.ipAddress,
+        userAgent: ctx.userAgent,
+      }),
+    successStatus: 204,
+    idempotent: false,
+  })(request);
 }

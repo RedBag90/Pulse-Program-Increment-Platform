@@ -1,13 +1,7 @@
 import { z } from "zod";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
-import { authorize } from "@/server/auth/authorize";
-import { withIdempotency } from "@/server/http/idempotency";
-import { forbidden, unprocessable, problemJson } from "@/server/http/problem";
-import { extractRequestMeta, emitAuditEvent } from "@/server/audit/emit";
-import { headers } from "next/headers";
-import { ok, err, isErr } from "@/domain/errors";
-import type { Result } from "@/domain/errors";
+import { createMutationHandler } from "@/server/http/mutation-handler";
+import { emitAuditEvent } from "@/server/audit/emit";
+import { err, ok } from "@/domain/errors";
 import type { TenantId, UserId } from "@/domain/types";
 
 const STAGE_GATES = ["L0", "L1", "L2", "L3", "L4", "L5"] as const;
@@ -33,31 +27,14 @@ interface Ctx {
 
 export async function POST(request: Request, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
-
-  const decision = authorize("epic.approve", { tenantId: principal.tenantId }, principal);
-  if (!decision.allow) return forbidden(decision.reason);
-
-  return withIdempotency(request, principal, async (request) => {
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return unprocessable("Invalid JSON body");
-    }
-
-    const parsed = transitionSchema.safeParse(body);
-    if (!parsed.success) return unprocessable(parsed.error.message);
-
-    const { ipAddress, userAgent } = extractRequestMeta(await headers());
-    const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-    const rawResult = await db
-      .$transaction(async (tx) => {
+  return createMutationHandler({
+    schema: transitionSchema,
+    action: "epic.approve",
+    resource: (_input, p) => ({ tenantId: p.tenantId }),
+    service: async (ctx, input) => {
+      return ctx.db.$transaction(async (tx) => {
         const epic = await tx.initiative.findFirst({
-          where: { id, tenantId: principal.tenantId, level: 0, deletedAt: null },
+          where: { id, tenantId: ctx.principal.tenantId, level: 0, deletedAt: null },
         });
 
         if (!epic) {
@@ -67,51 +44,38 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
         const currentGate = epic.stageGate as StageGate;
         const validNext = VALID_TRANSITIONS[currentGate] ?? [];
 
-        if (!validNext.includes(parsed.data.toGate)) {
+        if (!validNext.includes(input.toGate)) {
           return err({
             kind: "hierarchy_violation" as const,
             violatedConstraint: "stage_gate_transition",
-            detail: `Cannot transition from ${currentGate} to ${parsed.data.toGate}`,
+            detail: `Cannot transition from ${currentGate} to ${input.toGate}`,
           });
         }
 
         await tx.initiative.update({
           where: { id },
-          data: { stageGate: parsed.data.toGate, updatedBy: principal.id },
+          data: { stageGate: input.toGate, updatedBy: ctx.principal.id },
         });
 
-        await emitAuditEvent(tx as unknown as typeof db, {
-          tenantId: principal.tenantId as TenantId,
-          actorId: principal.id as UserId,
+        await emitAuditEvent(tx as unknown as typeof ctx.db, {
+          tenantId: ctx.principal.tenantId as TenantId,
+          actorId: ctx.principal.id as UserId,
           action: "initiative.stage_gate.advanced",
           resourceType: "initiative",
           resourceId: id,
-          ipAddress,
-          userAgent,
+          ipAddress: ctx.ipAddress,
+          userAgent: ctx.userAgent,
           changes: {
-            stageGate: { before: currentGate, after: parsed.data.toGate },
-            ...(parsed.data.comment !== undefined && {
-              comment: { before: null, after: parsed.data.comment },
+            stageGate: { before: currentGate, after: input.toGate },
+            ...(input.comment !== undefined && {
+              comment: { before: null, after: input.comment },
             }),
           },
         });
 
-        return ok({ from: currentGate, to: parsed.data.toGate });
-      })
-      .catch((e: unknown) => {
-        throw e;
+        return ok({ from: currentGate, to: input.toGate });
       });
-
-    const result = rawResult as unknown as Result<{ from: StageGate; to: StageGate }>;
-
-    if (isErr(result)) {
-      if (result.error.kind === "not_found") return problemJson(404, "not_found");
-      if (result.error.kind === "hierarchy_violation") {
-        return problemJson(422, "invalid_transition", { detail: result.error.detail });
-      }
-      return problemJson(500, "internal_error");
-    }
-
-    return Response.json(result.value, { status: 200 });
-  });
+    },
+    successStatus: 200,
+  })(request);
 }

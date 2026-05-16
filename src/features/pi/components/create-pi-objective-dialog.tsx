@@ -1,10 +1,8 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import {
-  createPiObjectiveAction,
-  type CreatePiObjectiveState,
-} from "@/features/pi/actions/pi-objective";
+import { createPiObjectiveAction } from "@/features/pi/actions/pi-objective";
+import type { ActionState } from "@/server/http/server-action";
 
 interface Team {
   id: string;
@@ -17,7 +15,7 @@ interface Props {
   teams: Team[];
 }
 
-const initialState: CreatePiObjectiveState = {};
+const initialState: ActionState = {};
 
 export function CreatePiObjectiveDialog({ piId, artId, teams }: Props) {
   const [open, setOpen] = useState(false);
@@ -44,7 +42,7 @@ export function CreatePiObjectiveDialog({ piId, artId, teams }: Props) {
           ref={formRef}
           action={async (fd) => {
             await action(fd);
-            if (!state.errors) {
+            if (!state.fieldErrors && !state.error) {
               setOpen(false);
               formRef.current?.reset();
             }
@@ -68,8 +66,8 @@ export function CreatePiObjectiveDialog({ piId, artId, teams }: Props) {
                 </option>
               ))}
             </select>
-            {state.errors?.teamId && (
-              <p className="mt-1 text-xs text-red-600">{state.errors.teamId[0]}</p>
+            {state.fieldErrors?.teamId && (
+              <p className="mt-1 text-xs text-red-600">{state.fieldErrors.teamId[0]}</p>
             )}
           </div>
 
@@ -82,8 +80,8 @@ export function CreatePiObjectiveDialog({ piId, artId, teams }: Props) {
               placeholder="Deploy new payment service"
               className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {state.errors?.title && (
-              <p className="mt-1 text-xs text-red-600">{state.errors.title[0]}</p>
+            {state.fieldErrors?.title && (
+              <p className="mt-1 text-xs text-red-600">{state.fieldErrors.title[0]}</p>
             )}
           </div>
 
@@ -124,7 +122,7 @@ export function CreatePiObjectiveDialog({ piId, artId, teams }: Props) {
             </div>
           </div>
 
-          {state.message && <p className="text-sm text-red-600">{state.message}</p>}
+          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button

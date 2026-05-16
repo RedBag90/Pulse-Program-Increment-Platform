@@ -34,7 +34,11 @@ export default async function EpicsPage() {
     <main className="p-8 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Epics</h1>
-        {canEdit && <CreateEpicDialog valueStreams={valueStreams} />}
+        {canEdit && (
+          <CreateEpicDialog
+            valueStreams={valueStreams.map((vs) => ({ id: vs.id, name: vs.name }))}
+          />
+        )}
       </div>
 
       {epics.length === 0 ? (

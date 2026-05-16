@@ -9,70 +9,48 @@ import { authorize } from "@/server/auth/authorize";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { isErr } from "@/domain/errors";
+import { createServerAction } from "@/server/http/server-action";
 import type { ArtId, PiId } from "@/domain/types";
-
-const createSchema = z.object({
-  artId: z.string().uuid(),
-  name: z.string().min(1).max(100),
-  startDate: z.string().date(),
-  endDate: z.string().date(),
-});
 
 export interface PiActionState {
   error?: string;
   success?: boolean;
 }
 
-export async function createPiAction(
-  _prev: PiActionState,
-  formData: FormData,
-): Promise<PiActionState> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return { error: "Not authenticated" };
-
-  if (!authorize("pi.create", { tenantId: principal.tenantId }, principal).allow) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const parsed = createSchema.safeParse({
-    artId: formData.get("artId"),
-    name: formData.get("name"),
-    startDate: formData.get("startDate"),
-    endDate: formData.get("endDate"),
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await createPi(db, {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    artId: parsed.data.artId as ArtId,
-    name: parsed.data.name,
-    startDate: new Date(parsed.data.startDate),
-    endDate: new Date(parsed.data.endDate),
-    ipAddress,
-    userAgent,
-  });
-
-  if (isErr(result)) {
-    return {
-      error:
-        result.error.kind === "conflict"
-          ? result.error.reason
-          : result.error.kind === "not_found"
-            ? "ART not found"
-            : "Failed to create PI",
-    };
-  }
-
-  revalidatePath("/art/[artId]/pi", "page");
-  return { success: true };
-}
+export const createPiAction = createServerAction({
+  schema: z.object({
+    artId: z.string().uuid(),
+    name: z.string().min(1).max(100),
+    startDate: z.string().date(),
+    endDate: z.string().date(),
+  }),
+  action: "pi.create",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  parseFormData: (fd) => ({
+    artId: fd.get("artId"),
+    name: fd.get("name"),
+    startDate: fd.get("startDate"),
+    endDate: fd.get("endDate"),
+  }),
+  service: (ctx, input) =>
+    createPi(ctx.db, {
+      tenantId: ctx.principal.tenantId,
+      actorId: ctx.principal.id,
+      artId: input.artId as ArtId,
+      name: input.name,
+      startDate: new Date(input.startDate),
+      endDate: new Date(input.endDate),
+      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
+      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
+    }),
+  onSuccess: () => revalidatePath("/art/[artId]/pi", "page"),
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "ART not found"
+        : "Failed to create PI",
+});
 
 export async function transitionPiAction(
   piId: string,

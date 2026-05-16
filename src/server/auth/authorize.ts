@@ -60,7 +60,11 @@ export function authorize(
   resource: AuthResource,
   principal: Principal,
 ): AuthorizationDecision {
-  if (principal.roles.includes(ROLES.PLATFORM_ADMIN)) return { allow: true };
+  if (
+    principal.roles.includes(ROLES.PLATFORM_ADMIN) ||
+    principal.roles.includes(ROLES.TENANT_ADMIN)
+  )
+    return { allow: true };
 
   const grants = POLICIES[action];
   for (const grant of grants) {

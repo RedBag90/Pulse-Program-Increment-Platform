@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { createStoryAction, type CreateStoryState } from "@/features/story/actions/story";
+import { createStoryAction } from "@/features/story/actions/story";
+import type { ActionState } from "@/server/http/server-action";
 
 interface Sprint {
   id: string;
@@ -15,7 +16,7 @@ interface Props {
   sprints: Sprint[];
 }
 
-const initialState: CreateStoryState = {};
+const initialState: ActionState = {};
 
 export function CreateStoryDialog({ featureId, artId, sprints }: Props) {
   const [open, setOpen] = useState(false);
@@ -42,7 +43,7 @@ export function CreateStoryDialog({ featureId, artId, sprints }: Props) {
           ref={formRef}
           action={async (fd) => {
             await action(fd);
-            if (!state.errors && !state.message) {
+            if (!state.fieldErrors && !state.error) {
               setOpen(false);
               formRef.current?.reset();
             }
@@ -61,8 +62,8 @@ export function CreateStoryDialog({ featureId, artId, sprints }: Props) {
               placeholder="As a user, I want to…"
               className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {state.errors?.title && (
-              <p className="mt-1 text-xs text-red-600">{state.errors.title[0]}</p>
+            {state.fieldErrors?.title && (
+              <p className="mt-1 text-xs text-red-600">{state.fieldErrors.title[0]}</p>
             )}
           </div>
 
@@ -120,7 +121,7 @@ export function CreateStoryDialog({ featureId, artId, sprints }: Props) {
             )}
           </div>
 
-          {state.message && <p className="text-sm text-red-600">{state.message}</p>}
+          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button

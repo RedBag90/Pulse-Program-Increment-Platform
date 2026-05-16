@@ -1,13 +1,7 @@
 import { z } from "zod";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
 import { linkDependency, unlinkDependency, listDependencies } from "@/server/services/dependency";
-import { authorize } from "@/server/auth/authorize";
-import { withIdempotency } from "@/server/http/idempotency";
-import { forbidden, unprocessable, problemJson } from "@/server/http/problem";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { headers } from "next/headers";
-import { isErr } from "@/domain/errors";
+import { createMutationHandler } from "@/server/http/mutation-handler";
+import { createQueryHandler } from "@/server/http/query-handler";
 import type { InitiativeId } from "@/domain/types";
 
 const dependencyTypeSchema = z.enum(["blocks", "depends_on", "relates_to"]);
@@ -24,96 +18,45 @@ const unlinkSchema = z.object({
   type: dependencyTypeSchema,
 });
 
-export async function GET(request: Request): Promise<Response> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
+const listParamsSchema = z.object({ initiativeId: z.string().uuid() });
 
-  const { searchParams } = new URL(request.url);
-  const initiativeId = searchParams.get("initiativeId");
-  if (!initiativeId) return unprocessable("initiativeId query parameter is required");
+export const GET = createQueryHandler({
+  params: listParamsSchema,
+  query: (ctx, { initiativeId }) =>
+    listDependencies(ctx.db, ctx.principal.tenantId, initiativeId as InitiativeId),
+});
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  return Response.json(
-    await listDependencies(db, principal.tenantId, initiativeId as InitiativeId),
-  );
-}
+export const POST = createMutationHandler({
+  schema: linkSchema,
+  action: "dependency.link",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    linkDependency(ctx.db, {
+      tenantId: ctx.principal.tenantId,
+      actorId: ctx.principal.id,
+      fromId: input.fromId as InitiativeId,
+      toId: input.toId as InitiativeId,
+      type: input.type,
+      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
+      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
+    }),
+  successStatus: 201,
+});
 
-export async function POST(request: Request): Promise<Response> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
-
-  return withIdempotency(request, principal, async (request) => {
-    const decision = authorize("dependency.link", { tenantId: principal.tenantId }, principal);
-    if (!decision.allow) return forbidden(decision.reason);
-
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return unprocessable("Invalid JSON body");
-    }
-
-    const parsed = linkSchema.safeParse(body);
-    if (!parsed.success) return unprocessable(parsed.error.message);
-
-    const { ipAddress, userAgent } = extractRequestMeta(await headers());
-    const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-    const result = await linkDependency(db, {
-      tenantId: principal.tenantId,
-      actorId: principal.id,
-      fromId: parsed.data.fromId as InitiativeId,
-      toId: parsed.data.toId as InitiativeId,
-      type: parsed.data.type,
-      ipAddress,
-      userAgent,
-    });
-
-    if (isErr(result)) {
-      if (result.error.kind === "not_found") return problemJson(404, "not_found");
-      if (result.error.kind === "conflict")
-        return problemJson(409, "conflict", { detail: result.error.reason });
-      return problemJson(500, "internal_error");
-    }
-
-    return Response.json(result.value, { status: 201 });
-  });
-}
-
-export async function DELETE(request: Request): Promise<Response> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
-
-  const decision = authorize("dependency.unlink", { tenantId: principal.tenantId }, principal);
-  if (!decision.allow) return forbidden(decision.reason);
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return unprocessable("Invalid JSON body");
-  }
-
-  const parsed = unlinkSchema.safeParse(body);
-  if (!parsed.success) return unprocessable(parsed.error.message);
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await unlinkDependency(db, {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    fromId: parsed.data.fromId as InitiativeId,
-    toId: parsed.data.toId as InitiativeId,
-    type: parsed.data.type,
-    ipAddress,
-    userAgent,
-  });
-
-  if (isErr(result)) {
-    if (result.error.kind === "not_found") return problemJson(404, "not_found");
-    return problemJson(500, "internal_error");
-  }
-
-  return new Response(null, { status: 204 });
-}
+export const DELETE = createMutationHandler({
+  schema: unlinkSchema,
+  action: "dependency.unlink",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    unlinkDependency(ctx.db, {
+      tenantId: ctx.principal.tenantId,
+      actorId: ctx.principal.id,
+      fromId: input.fromId as InitiativeId,
+      toId: input.toId as InitiativeId,
+      type: input.type,
+      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
+      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
+    }),
+  successStatus: 204,
+  idempotent: false,
+});

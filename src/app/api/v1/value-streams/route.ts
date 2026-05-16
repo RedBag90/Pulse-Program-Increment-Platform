@@ -1,13 +1,7 @@
 import { z } from "zod";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
 import { createValueStream, listValueStreams } from "@/server/services/value-stream";
-import { authorize } from "@/server/auth/authorize";
-import { withIdempotency } from "@/server/http/idempotency";
-import { forbidden, unprocessable, problemJson } from "@/server/http/problem";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { headers } from "next/headers";
-import { isErr } from "@/domain/errors";
+import { createMutationHandler } from "@/server/http/mutation-handler";
+import { createQueryHandler } from "@/server/http/query-handler";
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
@@ -19,54 +13,23 @@ const createSchema = z.object({
   budgetCurrency: z.string().length(3).optional(),
 });
 
-export async function GET(_request: Request): Promise<Response> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
+export const GET = createQueryHandler({
+  query: (ctx) => listValueStreams(ctx.db, ctx.principal.tenantId),
+});
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const streams = await listValueStreams(db, principal.tenantId);
-  return Response.json(streams);
-}
-
-export async function POST(request: Request): Promise<Response> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
-
-  return withIdempotency(request, principal, async (request) => {
-    const decision = authorize("value_stream.create", { tenantId: principal.tenantId }, principal);
-    if (!decision.allow) return forbidden(decision.reason);
-
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return unprocessable("Invalid JSON body");
-    }
-
-    const parsed = createSchema.safeParse(body);
-    if (!parsed.success) return unprocessable(parsed.error.message);
-
-    const { ipAddress, userAgent } = extractRequestMeta(await headers());
-    const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-    const result = await createValueStream(db, {
-      tenantId: principal.tenantId,
-      actorId: principal.id,
-      name: parsed.data.name,
-      description: parsed.data.description,
-      budgetAmount: parsed.data.budgetAmount,
-      budgetCurrency: parsed.data.budgetCurrency,
-      ipAddress,
-      userAgent,
-    });
-
-    if (isErr(result)) {
-      if (result.error.kind === "conflict") {
-        return problemJson(409, "conflict", { detail: result.error.reason });
-      }
-      return problemJson(500, "internal_error");
-    }
-
-    return Response.json(result.value, { status: 201 });
-  });
-}
+export const POST = createMutationHandler({
+  schema: createSchema,
+  action: "value_stream.create",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    createValueStream(ctx.db, {
+      tenantId: ctx.principal.tenantId,
+      actorId: ctx.principal.id,
+      name: input.name,
+      description: input.description,
+      budgetAmount: input.budgetAmount,
+      budgetCurrency: input.budgetCurrency,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    }),
+});

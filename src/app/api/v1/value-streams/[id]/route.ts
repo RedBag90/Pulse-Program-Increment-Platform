@@ -1,12 +1,7 @@
 import { z } from "zod";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
 import { updateValueStream, softDeleteValueStream } from "@/server/services/value-stream";
-import { authorize } from "@/server/auth/authorize";
-import { forbidden, unprocessable, problemJson } from "@/server/http/problem";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { headers } from "next/headers";
-import { isErr } from "@/domain/errors";
+import { createMutationHandler } from "@/server/http/mutation-handler";
+import { createQueryHandler } from "@/server/http/query-handler";
 import type { ValueStreamId } from "@/domain/types";
 
 const updateSchema = z.object({
@@ -23,85 +18,53 @@ interface Ctx {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(_request: Request, { params }: Ctx): Promise<Response> {
-  const { id } = await params;
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
+const routeParamsSchema = z.object({ id: z.string().uuid() });
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const vs = await db.valueStream.findFirst({
-    where: { id, tenantId: principal.tenantId },
-    include: { arts: true },
-  });
-
-  if (!vs) return problemJson(404, "not_found");
-  return Response.json(vs);
-}
+export const GET = createQueryHandler({
+  params: routeParamsSchema,
+  query: (ctx, { id }) =>
+    ctx.db.valueStream.findFirst({
+      where: { id, tenantId: ctx.principal.tenantId },
+      include: { arts: true },
+    }),
+});
 
 export async function PATCH(request: Request, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
-
-  const decision = authorize("value_stream.update", { tenantId: principal.tenantId }, principal);
-  if (!decision.allow) return forbidden(decision.reason);
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return unprocessable("Invalid JSON body");
-  }
-
-  const parsed = updateSchema.safeParse(body);
-  if (!parsed.success) return unprocessable(parsed.error.message);
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await updateValueStream(db, {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    id: id as ValueStreamId,
-    ...parsed.data,
-    ipAddress,
-    userAgent,
-  });
-
-  if (isErr(result)) {
-    if (result.error.kind === "not_found") return problemJson(404, "not_found");
-    if (result.error.kind === "conflict")
-      return problemJson(409, "conflict", { detail: result.error.reason });
-    return problemJson(500, "internal_error");
-  }
-
-  return new Response(null, { status: 204 });
+  return createMutationHandler({
+    schema: updateSchema,
+    action: "value_stream.update",
+    resource: (_input, p) => ({ tenantId: p.tenantId }),
+    service: (ctx, input) =>
+      updateValueStream(ctx.db, {
+        tenantId: ctx.principal.tenantId,
+        actorId: ctx.principal.id,
+        id: id as ValueStreamId,
+        ...input,
+        ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
+        ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
+      }),
+    successStatus: 204,
+    idempotent: false,
+  })(request);
 }
 
-export async function DELETE(_request: Request, { params }: Ctx): Promise<Response> {
+export async function DELETE(request: Request, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
-
-  const decision = authorize("value_stream.update", { tenantId: principal.tenantId }, principal);
-  if (!decision.allow) return forbidden(decision.reason);
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await softDeleteValueStream(
-    db,
-    principal.tenantId,
-    id as ValueStreamId,
-    principal.id,
-    ipAddress,
-    userAgent,
-  );
-
-  if (isErr(result)) {
-    if (result.error.kind === "not_found") return problemJson(404, "not_found");
-    return problemJson(500, "internal_error");
-  }
-
-  return new Response(null, { status: 204 });
+  return createMutationHandler({
+    schema: z.object({}),
+    action: "value_stream.update",
+    resource: (_input, p) => ({ tenantId: p.tenantId }),
+    service: (ctx) =>
+      softDeleteValueStream(
+        ctx.db,
+        ctx.principal.tenantId,
+        id as ValueStreamId,
+        ctx.principal.id,
+        ctx.ipAddress,
+        ctx.userAgent,
+      ),
+    successStatus: 204,
+    idempotent: false,
+  })(request);
 }

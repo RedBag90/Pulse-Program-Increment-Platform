@@ -2,127 +2,75 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
 import { assignRole, removeRole } from "@/server/services/role-assignment";
-import { authorize } from "@/server/auth/authorize";
+import { createServerAction } from "@/server/http/server-action";
 import { ROLES } from "@/domain/roles";
-import { headers } from "next/headers";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { isErr } from "@/domain/errors";
 import type { Role } from "@/domain/roles";
 import type { UserId } from "@/domain/types";
-
-const assignRoleSchema = z.object({
-  targetUserId: z.string().uuid(),
-  role: z.enum(Object.values(ROLES) as [Role, ...Role[]]),
-  valueStreamIds: z.string().transform((s) => (s ? s.split(",").filter(Boolean) : [])),
-  artIds: z.string().transform((s) => (s ? s.split(",").filter(Boolean) : [])),
-  teamIds: z.string().transform((s) => (s ? s.split(",").filter(Boolean) : [])),
-});
-
-const removeRoleSchema = z.object({
-  assignmentId: z.string().uuid(),
-  targetUserId: z.string().uuid(),
-  role: z.enum(Object.values(ROLES) as [Role, ...Role[]]),
-});
 
 export interface RoleAssignmentState {
   error?: string;
   success?: boolean;
 }
 
-export async function assignRoleAction(
-  _prev: RoleAssignmentState,
-  formData: FormData,
-): Promise<RoleAssignmentState> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return { error: "Not authenticated" };
+export const assignRoleAction = createServerAction({
+  schema: z.object({
+    targetUserId: z.string().uuid(),
+    role: z.enum(Object.values(ROLES) as [Role, ...Role[]]),
+    valueStreamIds: z.string(),
+    artIds: z.string(),
+    teamIds: z.string(),
+  }),
+  action: "tenant.users.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({
+    targetUserId: fd.get("targetUserId"),
+    role: fd.get("role"),
+    valueStreamIds: fd.get("valueStreamIds") ?? "",
+    artIds: fd.get("artIds") ?? "",
+    teamIds: fd.get("teamIds") ?? "",
+  }),
+  service: (ctx, input) =>
+    assignRole(ctx.db, {
+      tenantId: ctx.principal.tenantId,
+      actorId: ctx.principal.id,
+      targetUserId: input.targetUserId as UserId,
+      role: input.role,
+      scope: {
+        valueStreamIds: input.valueStreamIds.split(",").filter(Boolean),
+        artIds: input.artIds.split(",").filter(Boolean),
+        teamIds: input.teamIds.split(",").filter(Boolean),
+      },
+      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
+      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
+    }),
+  onSuccess: () => revalidatePath("/admin/users"),
+  mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to assign role"),
+});
 
-  if (!authorize("tenant.users.manage", { tenantId: principal.tenantId }, principal).allow) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const parsed = assignRoleSchema.safeParse({
-    targetUserId: formData.get("targetUserId"),
-    role: formData.get("role"),
-    valueStreamIds: formData.get("valueStreamIds") ?? "",
-    artIds: formData.get("artIds") ?? "",
-    teamIds: formData.get("teamIds") ?? "",
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await assignRole(db, {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    targetUserId: parsed.data.targetUserId as UserId,
-    role: parsed.data.role,
-    scope: {
-      valueStreamIds: parsed.data.valueStreamIds,
-      artIds: parsed.data.artIds,
-      teamIds: parsed.data.teamIds,
-    },
-    ipAddress,
-    userAgent,
-  });
-
-  if (isErr(result)) {
-    return {
-      error: result.error.kind === "conflict" ? result.error.reason : "Failed to assign role",
-    };
-  }
-
-  revalidatePath("/admin/users");
-  return { success: true };
-}
-
-export async function removeRoleAction(
-  _prev: RoleAssignmentState,
-  formData: FormData,
-): Promise<RoleAssignmentState> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return { error: "Not authenticated" };
-
-  if (!authorize("tenant.users.manage", { tenantId: principal.tenantId }, principal).allow) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const parsed = removeRoleSchema.safeParse({
-    assignmentId: formData.get("assignmentId"),
-    targetUserId: formData.get("targetUserId"),
-    role: formData.get("role"),
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await removeRole(db, {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    assignmentId: parsed.data.assignmentId,
-    targetUserId: parsed.data.targetUserId as UserId,
-    role: parsed.data.role,
-    ipAddress,
-    userAgent,
-  });
-
-  if (isErr(result)) {
-    return {
-      error:
-        result.error.kind === "not_found" ? "Role assignment not found" : "Failed to remove role",
-    };
-  }
-
-  revalidatePath("/admin/users");
-  return { success: true };
-}
+export const removeRoleAction = createServerAction({
+  schema: z.object({
+    assignmentId: z.string().uuid(),
+    targetUserId: z.string().uuid(),
+    role: z.enum(Object.values(ROLES) as [Role, ...Role[]]),
+  }),
+  action: "tenant.users.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({
+    assignmentId: fd.get("assignmentId"),
+    targetUserId: fd.get("targetUserId"),
+    role: fd.get("role"),
+  }),
+  service: (ctx, input) =>
+    removeRole(ctx.db, {
+      tenantId: ctx.principal.tenantId,
+      actorId: ctx.principal.id,
+      assignmentId: input.assignmentId,
+      targetUserId: input.targetUserId as UserId,
+      role: input.role,
+      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
+      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
+    }),
+  onSuccess: () => revalidatePath("/admin/users"),
+  mapError: (e) => (e.kind === "not_found" ? "Role assignment not found" : "Failed to remove role"),
+});

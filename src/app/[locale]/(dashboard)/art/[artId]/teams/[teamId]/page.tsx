@@ -1,6 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { BacklogStoryRow } from "@/features/team/components/backlog-story-row";
+import { BacklogPiFilter } from "@/features/team/components/backlog-pi-filter";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
@@ -88,25 +89,11 @@ export default async function TeamBacklogPage({ params, searchParams }: Props) {
       </div>
 
       {/* Filters */}
-      <form className="flex items-center gap-3 flex-wrap">
-        <select
-          name="piId"
-          defaultValue={filterPiId ?? ""}
-          onChange={(e) => {
-            const url = new URL(window.location.href);
-            if (e.target.value) url.searchParams.set("piId", e.target.value);
-            else url.searchParams.delete("piId");
-            window.location.href = url.toString();
-          }}
-          className="rounded-md border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All PIs</option>
-          {pis.map((pi) => (
-            <option key={pi.id} value={pi.id}>
-              {pi.name}
-            </option>
-          ))}
-        </select>
+      <div className="flex items-center gap-3 flex-wrap">
+        <BacklogPiFilter
+          pis={pis.map((pi) => ({ id: pi.id, name: pi.name }))}
+          currentPiId={filterPiId}
+        />
 
         {filterPiId && (
           <Link
@@ -116,7 +103,7 @@ export default async function TeamBacklogPage({ params, searchParams }: Props) {
             Clear filters
           </Link>
         )}
-      </form>
+      </div>
 
       {unassignedStories.length === 0 ? (
         <div className="rounded-lg border border-dashed p-12 text-center text-sm text-gray-400">

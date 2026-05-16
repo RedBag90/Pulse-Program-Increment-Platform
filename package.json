@@ -15,9 +15,10 @@
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
+    "test": "vitest run --project server --project client",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --project integration",
     "test:e2e": "playwright test",
     "prisma": "prisma",
     "prepare": "husky"

@@ -1,13 +1,8 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
-import { createPiObjective, listPiObjectives } from "@/server/services/pi-objective";
-import { authorize } from "@/server/auth/authorize";
-import { withIdempotency } from "@/server/http/idempotency";
-import { forbidden, problemJson } from "@/server/http/problem";
-import type { TenantId, PiId, TeamId } from "@/domain/types";
 import { z } from "zod";
-import { isErr } from "@/domain/errors";
+import { createPiObjective, listPiObjectives } from "@/server/services/pi-objective";
+import { createMutationHandler } from "@/server/http/mutation-handler";
+import { createQueryHandler } from "@/server/http/query-handler";
+import type { TenantId, PiId, TeamId } from "@/domain/types";
 
 const createSchema = z.object({
   piId: z.string().uuid(),
@@ -18,54 +13,35 @@ const createSchema = z.object({
   committed: z.boolean().optional(),
 });
 
-export async function GET(req: NextRequest) {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "Unauthorized");
+const listParamsSchema = z.object({
+  piId: z.string().uuid(),
+  teamId: z.string().uuid().optional(),
+});
 
-  const piId = req.nextUrl.searchParams.get("piId");
-  const teamId = req.nextUrl.searchParams.get("teamId");
-  if (!piId) return problemJson(400, "piId query param required");
+export const GET = createQueryHandler({
+  params: listParamsSchema,
+  query: (ctx, { piId, teamId }) =>
+    listPiObjectives(
+      ctx.db,
+      ctx.principal.tenantId,
+      piId as PiId,
+      teamId !== undefined ? (teamId as TeamId) : undefined,
+    ),
+});
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const objectives = await listPiObjectives(
-    db,
-    principal.tenantId,
-    piId as PiId,
-    teamId ? (teamId as TeamId) : undefined,
-  );
-  return NextResponse.json(objectives);
-}
-
-export async function POST(req: NextRequest) {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "Unauthorized");
-
-  const decision = authorize("pi_objective.create", { tenantId: principal.tenantId }, principal);
-  if (!decision.allow) return forbidden(decision.reason);
-
-  return withIdempotency(req, principal, async (req) => {
-    const body: unknown = await req.json();
-    const parsed = createSchema.safeParse(body);
-    if (!parsed.success) return problemJson(400, "Validation error", parsed.error.flatten());
-
-    const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-    const result = await createPiObjective(db, {
-      tenantId: principal.tenantId as TenantId,
-      actorId: principal.id,
-      piId: parsed.data.piId as PiId,
-      teamId: parsed.data.teamId as TeamId,
-      title: parsed.data.title,
-      description: parsed.data.description,
-      businessValue: parsed.data.businessValue,
-      committed: parsed.data.committed,
-    });
-
-    if (isErr(result)) {
-      const e = result.error;
-      if (e.kind === "not_found") return problemJson(404, `${e.resourceType} not found`);
-      return problemJson(409, e.kind === "conflict" ? e.reason : "Conflict");
-    }
-
-    return NextResponse.json(result.value, { status: 201 });
-  });
-}
+export const POST = createMutationHandler({
+  schema: createSchema,
+  action: "pi_objective.create",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    createPiObjective(ctx.db, {
+      tenantId: ctx.principal.tenantId as TenantId,
+      actorId: ctx.principal.id,
+      piId: input.piId as PiId,
+      teamId: input.teamId as TeamId,
+      title: input.title,
+      description: input.description,
+      businessValue: input.businessValue,
+      committed: input.committed,
+    }),
+});

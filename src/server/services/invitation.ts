@@ -5,8 +5,7 @@ import type { Role } from "@/domain/roles";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import { emitAuditEvent } from "@/server/audit/emit";
-import { sendEmail } from "@/server/email/send";
-import { renderInviteEmail } from "@/server/email/templates/invite";
+import { publishDomainEvent } from "@/server/events/publish";
 
 const INVITE_EXPIRY_DAYS = 7;
 const INVITE_AUDIENCE = "pulse:invite";
@@ -79,16 +78,17 @@ export async function inviteUser(
     role: input.role,
   });
 
-  const acceptUrl = buildAcceptUrl(token);
-  const { subject, html, text } = renderInviteEmail(input.locale, {
-    tenantName: input.tenantName,
+  await publishDomainEvent(db, {
+    type: "user.invited",
+    tenantId: input.tenantId,
+    actorId: input.actorId,
+    inviteeEmail: input.inviteeEmail,
     inviterEmail: input.inviterEmail,
+    tenantName: input.tenantName,
     role: input.role,
-    acceptUrl,
-    expiresInDays: INVITE_EXPIRY_DAYS,
+    locale: input.locale,
+    token,
   });
-
-  await sendEmail({ to: input.inviteeEmail, subject, html, text });
 
   await emitAuditEvent(db, {
     tenantId: input.tenantId,

@@ -1,12 +1,7 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
-import { updateTask, deleteTask } from "@/server/services/task";
-import { authorize } from "@/server/auth/authorize";
-import { forbidden, problemJson } from "@/server/http/problem";
-import type { TenantId, TaskId } from "@/domain/types";
 import { z } from "zod";
-import { isErr } from "@/domain/errors";
+import { updateTask, deleteTask } from "@/server/services/task";
+import { createMutationHandler } from "@/server/http/mutation-handler";
+import type { TenantId, TaskId } from "@/domain/types";
 
 const patchSchema = z.object({
   title: z.string().min(1).max(300).optional(),
@@ -19,46 +14,33 @@ interface Ctx {
   params: Promise<{ id: string }>;
 }
 
-export async function PATCH(req: NextRequest, { params }: Ctx) {
+export async function PATCH(request: Request, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "Unauthorized");
-
-  const decision = authorize("task.edit", { tenantId: principal.tenantId }, principal);
-  if (!decision.allow) return forbidden(decision.reason);
-
-  const body: unknown = await req.json();
-  const parsed = patchSchema.safeParse(body);
-  if (!parsed.success) return problemJson(400, "Validation error", parsed.error.flatten());
-
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const result = await updateTask(db, {
-    tenantId: principal.tenantId as TenantId,
-    actorId: principal.id,
-    id: id as TaskId,
-    ...parsed.data,
-  });
-
-  if (isErr(result)) {
-    const e = result.error;
-    if (e.kind === "not_found") return problemJson(404, "Task not found");
-    return problemJson(409, "Conflict");
-  }
-
-  return new NextResponse(null, { status: 204 });
+  return createMutationHandler({
+    schema: patchSchema,
+    action: "task.edit",
+    resource: (_input, p) => ({ tenantId: p.tenantId }),
+    service: (ctx, input) =>
+      updateTask(ctx.db, {
+        tenantId: ctx.principal.tenantId as TenantId,
+        actorId: ctx.principal.id,
+        id: id as TaskId,
+        ...input,
+      }),
+    successStatus: 204,
+    idempotent: false,
+  })(request);
 }
 
-export async function DELETE(_req: NextRequest, { params }: Ctx) {
+export async function DELETE(request: Request, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "Unauthorized");
-
-  const decision = authorize("task.edit", { tenantId: principal.tenantId }, principal);
-  if (!decision.allow) return forbidden(decision.reason);
-
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const result = await deleteTask(db, principal.tenantId as TenantId, principal.id, id as TaskId);
-
-  if (isErr(result)) return problemJson(404, "Task not found");
-  return new NextResponse(null, { status: 204 });
+  return createMutationHandler({
+    schema: z.object({}),
+    action: "task.edit",
+    resource: (_input, p) => ({ tenantId: p.tenantId }),
+    service: (ctx) =>
+      deleteTask(ctx.db, ctx.principal.tenantId as TenantId, ctx.principal.id, id as TaskId),
+    successStatus: 204,
+    idempotent: false,
+  })(request);
 }

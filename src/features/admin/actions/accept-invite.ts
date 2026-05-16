@@ -18,9 +18,9 @@ const acceptSchema = z.object({
   password: z.string().min(8),
 });
 
-export interface AcceptInviteState {
-  error?: string;
-}
+// Justified exception: acceptInviteAction uses Supabase auth.signUp() — there is no
+// requirePrincipal() caller, so it cannot go through the createServerAction wrapper.
+export type AcceptInviteState = { error?: string };
 
 export async function acceptInviteAction(
   _prev: AcceptInviteState,

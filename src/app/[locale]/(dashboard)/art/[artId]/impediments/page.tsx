@@ -21,7 +21,7 @@ export default async function ImpedimentsPage({ params, searchParams }: Props) {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [art, impediments] = await Promise.all([
+  const [art, { items: impediments }] = await Promise.all([
     db.art.findFirst({ where: { id: artId, tenantId: principal.tenantId } }),
     listImpediments(db, principal.tenantId as TenantId, artId as ArtId, {
       ...(piId !== undefined && { piId }),

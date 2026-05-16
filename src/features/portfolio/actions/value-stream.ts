@@ -2,106 +2,62 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
 import { createValueStream, softDeleteValueStream } from "@/server/services/value-stream";
-import { authorize } from "@/server/auth/authorize";
-import { headers } from "next/headers";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { isErr } from "@/domain/errors";
+import { createServerAction } from "@/server/http/server-action";
 import type { ValueStreamId } from "@/domain/types";
+import type { ActionState } from "@/server/http/server-action";
 
-const createSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().optional(),
-  budgetAmount: z
-    .string()
-    .regex(/^\d+(\.\d{1,2})?$/)
-    .optional(),
-  budgetCurrency: z.string().length(3).optional(),
+export type { ActionState as ValueStreamActionState };
+
+export const createValueStreamAction = createServerAction({
+  schema: z.object({
+    name: z.string().min(1).max(100),
+    description: z.string().optional(),
+    budgetAmount: z
+      .string()
+      .regex(/^\d+(\.\d{1,2})?$/)
+      .optional(),
+    budgetCurrency: z.string().length(3).optional(),
+  }),
+  action: "value_stream.create",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({
+    name: fd.get("name"),
+    description: fd.get("description") || undefined,
+    budgetAmount: fd.get("budgetAmount") || undefined,
+    budgetCurrency: fd.get("budgetCurrency") || undefined,
+  }),
+  service: (ctx, input) =>
+    createValueStream(ctx.db, {
+      tenantId: ctx.principal.tenantId,
+      actorId: ctx.principal.id,
+      name: input.name,
+      description: input.description,
+      budgetAmount: input.budgetAmount,
+      budgetCurrency: input.budgetCurrency,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    }),
+  onSuccess: () => revalidatePath("/portfolio/value-streams"),
+  mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create"),
 });
 
-export interface ValueStreamActionState {
-  error?: string;
-  success?: boolean;
-}
-
-export async function createValueStreamAction(
-  _prev: ValueStreamActionState,
-  formData: FormData,
-): Promise<ValueStreamActionState> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return { error: "Not authenticated" };
-
-  if (!authorize("value_stream.create", { tenantId: principal.tenantId }, principal).allow) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const parsed = createSchema.safeParse({
-    name: formData.get("name"),
-    description: formData.get("description") ?? undefined,
-    budgetAmount: formData.get("budgetAmount") ?? undefined,
-    budgetCurrency: formData.get("budgetCurrency") ?? undefined,
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await createValueStream(db, {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    name: parsed.data.name,
-    description: parsed.data.description,
-    budgetAmount: parsed.data.budgetAmount,
-    budgetCurrency: parsed.data.budgetCurrency,
-    ipAddress,
-    userAgent,
-  });
-
-  if (isErr(result)) {
-    return { error: result.error.kind === "conflict" ? result.error.reason : "Failed to create" };
-  }
-
-  revalidatePath("/portfolio/value-streams");
-  return { success: true };
-}
-
-export async function deleteValueStreamAction(
-  _prev: ValueStreamActionState,
-  formData: FormData,
-): Promise<ValueStreamActionState> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return { error: "Not authenticated" };
-
-  if (!authorize("value_stream.update", { tenantId: principal.tenantId }, principal).allow) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const id = formData.get("id") as string;
-  if (!id) return { error: "Missing ID" };
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await softDeleteValueStream(
-    db,
-    principal.tenantId,
-    id as ValueStreamId,
-    principal.id,
-    ipAddress,
-    userAgent,
-  );
-
-  if (isErr(result)) {
-    return {
-      error: result.error.kind === "not_found" ? "Value stream not found" : "Failed to delete",
-    };
-  }
-
-  revalidatePath("/portfolio/value-streams");
-  return { success: true };
-}
+export const deleteValueStreamAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+  }),
+  action: "value_stream.update",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({ id: fd.get("id") }),
+  service: (ctx, input) =>
+    softDeleteValueStream(
+      ctx.db,
+      ctx.principal.tenantId,
+      input.id as ValueStreamId,
+      ctx.principal.id,
+      ctx.ipAddress,
+      ctx.userAgent,
+    ),
+  onSuccess: () => revalidatePath("/portfolio/value-streams"),
+  mapError: (e) => (e.kind === "not_found" ? "Value stream not found" : "Failed to delete"),
+});

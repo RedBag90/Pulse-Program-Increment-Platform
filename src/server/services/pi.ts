@@ -1,8 +1,11 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, UserId, ArtId, PiId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
+import { ok, err, isErr } from "@/domain/errors";
 import { emitAuditEvent } from "@/server/audit/emit";
+import { generateSprints, validateDateRange } from "@/domain/pi-planning";
+import { buildChangelog } from "@/domain/change-log";
+import { paginate, type PageParams } from "@/server/db/paginate";
 
 export interface CreatePiInput {
   tenantId: TenantId;
@@ -50,43 +53,19 @@ export async function createPi(
         return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
       }
 
-      if (endDate <= startDate) {
-        return err({
-          kind: "conflict" as const,
-          reason: "End date must be after start date",
-        });
-      }
+      const dateCheck = validateDateRange(startDate, endDate);
+      if (isErr(dateCheck)) return dateCheck;
 
       const pi = await tx.programIncrement.create({
         data: { tenantId, artId, name, startDate, endDate },
       });
 
-      // Auto-generate sprints: one set per team in the ART
       const teams = await tx.team.findMany({ where: { artId, tenantId } });
       if (teams.length > 0) {
-        const durationDays = Math.ceil(
-          (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-        );
-        const sprintCount = Math.ceil(durationDays / 14);
-        const sprintData = teams.flatMap((team) =>
-          Array.from({ length: sprintCount }, (_, i) => {
-            const sprintStart = new Date(startDate);
-            sprintStart.setDate(sprintStart.getDate() + i * 14);
-            const sprintEnd = new Date(startDate);
-            sprintEnd.setDate(sprintEnd.getDate() + (i + 1) * 14 - 1);
-            // Cap last sprint end at PI end
-            const effectiveEnd = sprintEnd > endDate ? endDate : sprintEnd;
-            return {
-              tenantId,
-              piId: pi.id,
-              teamId: team.id,
-              indexInPi: i + 1,
-              startDate: sprintStart,
-              endDate: effectiveEnd,
-            };
-          }),
-        );
-        await tx.sprint.createMany({ data: sprintData });
+        const drafts = generateSprints(startDate, endDate, teams);
+        await tx.sprint.createMany({
+          data: drafts.map((s) => ({ tenantId, piId: pi.id, ...s })),
+        });
       }
 
       await emitAuditEvent(tx as unknown as PrismaClient, {
@@ -139,13 +118,11 @@ export async function updatePi(db: PrismaClient, input: UpdatePiInput): Promise<
         });
       }
 
-      const changes: Record<string, { before: unknown; after: unknown }> = {};
-      if (name !== undefined && name !== existing.name) {
-        changes["name"] = { before: existing.name, after: name };
-      }
-      if (status !== undefined && status !== existing.status) {
-        changes["status"] = { before: existing.status, after: status };
-      }
+      const changes = buildChangelog(
+        { name: existing.name, status: existing.status },
+        { ...(name !== undefined && { name }), ...(status !== undefined && { status }) },
+        ["name", "status"],
+      );
 
       await tx.programIncrement.update({
         where: { id },
@@ -273,14 +250,21 @@ export async function completePi(db: PrismaClient, input: PiLifecycleInput): Pro
   });
 }
 
-export async function listPis(db: PrismaClient, tenantId: TenantId, artId: ArtId) {
-  return db.programIncrement.findMany({
-    where: { tenantId, artId },
-    include: {
-      _count: { select: { sprints: true, initiatives: true } },
-    },
-    orderBy: { startDate: "desc" },
-  });
+export async function listPis(
+  db: PrismaClient,
+  tenantId: TenantId,
+  artId: ArtId,
+  pageParams: PageParams = { page: 1, pageSize: 200 },
+) {
+  const where = { tenantId, artId };
+  const include = { _count: { select: { sprints: true, initiatives: true } } };
+  const orderBy = { startDate: "desc" as const };
+
+  return paginate(
+    ({ take, skip }) => db.programIncrement.findMany({ where, include, orderBy, take, skip }),
+    () => db.programIncrement.count({ where }),
+    pageParams,
+  );
 }
 
 export async function getPi(db: PrismaClient, tenantId: TenantId, id: PiId) {

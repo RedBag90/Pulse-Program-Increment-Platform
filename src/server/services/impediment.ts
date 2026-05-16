@@ -3,8 +3,8 @@ import type { TenantId, UserId, ArtId, PiId, SprintId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import { emitAuditEvent } from "@/server/audit/emit";
-import { sendImpedimentEscalationEmail } from "@/server/email/impediment";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { publishDomainEvent } from "@/server/events/publish";
+import { paginate, type PageParams } from "@/server/db/paginate";
 
 export type ImpedimentId = string & { readonly __brand: "ImpedimentId" };
 export type Severity = "low" | "medium" | "high" | "critical";
@@ -89,58 +89,16 @@ export async function escalateImpediment(
     changes: { status: { before: existing.status, after: "escalated" } },
   });
 
-  // Fire-and-forget: look up RTE user emails and notify them
-  void notifyRtesOnEscalation(
-    db,
+  await publishDomainEvent(db, {
+    type: "impediment.escalated",
     tenantId,
-    existing.artId as ArtId,
-    existing.title,
-    existing.severity,
-  ).catch(() => undefined);
+    impedimentId: id,
+    artId: existing.artId as ArtId,
+    title: existing.title,
+    severity: existing.severity,
+  });
 
   return ok(undefined);
-}
-
-async function notifyRtesOnEscalation(
-  db: PrismaClient,
-  tenantId: TenantId,
-  artId: ArtId,
-  title: string,
-  severity: string,
-): Promise<void> {
-  // Find users with the 'rte' role in this tenant/art scope
-  const assignments = await db.userRoleAssignment.findMany({
-    where: {
-      tenantId,
-      role: "rte",
-      OR: [
-        { artIds: { isEmpty: true } }, // global RTE
-        { artIds: { has: artId } }, // ART-scoped RTE
-      ],
-    },
-    select: { userId: true },
-  });
-
-  if (assignments.length === 0) return;
-
-  const art = await db.art.findFirst({ where: { id: artId }, select: { name: true } });
-
-  // Resolve user emails via Supabase admin API
-  const admin = createAdminClient();
-  const emails: string[] = [];
-  for (const { userId } of assignments) {
-    const { data } = await admin.auth.admin.getUserById(userId);
-    if (data.user?.email) emails.push(data.user.email);
-  }
-
-  await sendImpedimentEscalationEmail({
-    rteEmails: emails,
-    impedimentTitle: title,
-    severity,
-    artName: art?.name ?? artId,
-    appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "",
-    artId,
-  });
 }
 
 export async function resolveImpediment(
@@ -182,14 +140,19 @@ export async function listImpediments(
   tenantId: TenantId,
   artId: ArtId,
   options?: { piId?: string; status?: string },
+  pageParams: PageParams = { page: 1, pageSize: 200 },
 ) {
-  return db.impediment.findMany({
-    where: {
-      tenantId,
-      artId,
-      ...(options?.piId ? { piId: options.piId } : {}),
-      ...(options?.status ? { status: options.status } : {}),
-    },
-    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-  });
+  const where = {
+    tenantId,
+    artId,
+    ...(options?.piId ? { piId: options.piId } : {}),
+    ...(options?.status ? { status: options.status } : {}),
+  };
+  const orderBy = [{ status: "asc" as const }, { createdAt: "desc" as const }];
+
+  return paginate(
+    ({ take, skip }) => db.impediment.findMany({ where, orderBy, take, skip }),
+    () => db.impediment.count({ where }),
+    pageParams,
+  );
 }

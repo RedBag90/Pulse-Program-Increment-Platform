@@ -30,7 +30,7 @@ export default async function FeatureDetailPage({ params }: Props) {
   const feature = await getFeature(db, principal.tenantId, featureId as FeatureId);
   if (!feature) notFound();
 
-  const [stories, availableSprints] = await Promise.all([
+  const [{ items: stories }, availableSprints] = await Promise.all([
     listStories(db, principal.tenantId as TenantId, featureId as FeatureId),
     feature.piId
       ? db.sprint.findMany({

@@ -2,116 +2,63 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
 import { createEpic, updateEpic } from "@/server/services/initiative";
-import { authorize } from "@/server/auth/authorize";
-import { headers } from "next/headers";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { isErr } from "@/domain/errors";
+import { createServerAction } from "@/server/http/server-action";
 import type { ValueStreamId, EpicId } from "@/domain/types";
+import type { ActionState } from "@/server/http/server-action";
 
-const createEpicSchema = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().optional(),
-  valueStreamId: z.string().uuid(),
+export type { ActionState as EpicActionState };
+
+export const createEpicAction = createServerAction({
+  schema: z.object({
+    title: z.string().min(1).max(200),
+    description: z.string().optional(),
+    valueStreamId: z.string().uuid(),
+  }),
+  action: "epic.create",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({
+    title: fd.get("title"),
+    description: fd.get("description") || undefined,
+    valueStreamId: fd.get("valueStreamId"),
+  }),
+  service: (ctx, input) =>
+    createEpic(ctx.db, {
+      tenantId: ctx.principal.tenantId,
+      actorId: ctx.principal.id,
+      title: input.title,
+      description: input.description,
+      valueStreamId: input.valueStreamId as ValueStreamId,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    }),
+  onSuccess: () => revalidatePath("/portfolio/epics"),
+  mapError: (e) => (e.kind === "not_found" ? "Value stream not found" : "Failed to create epic"),
 });
 
-const updateEpicSchema = z.object({
-  id: z.string().uuid(),
-  title: z.string().min(1).max(200).optional(),
-  description: z.string().optional(),
+export const updateEpicAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    title: z.string().min(1).max(200).optional(),
+    description: z.string().optional(),
+  }),
+  action: "epic.update",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({
+    id: fd.get("id"),
+    title: fd.get("title") || undefined,
+    description: fd.get("description") || undefined,
+  }),
+  service: (ctx, input) =>
+    updateEpic(ctx.db, {
+      tenantId: ctx.principal.tenantId,
+      actorId: ctx.principal.id,
+      id: input.id as EpicId,
+      title: input.title,
+      description: input.description,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    }),
+  onSuccess: (input) => revalidatePath(`/portfolio/epics/${input.id}`),
+  mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to update epic"),
 });
-
-export interface EpicActionState {
-  error?: string;
-  success?: boolean;
-}
-
-export async function createEpicAction(
-  _prev: EpicActionState,
-  formData: FormData,
-): Promise<EpicActionState> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return { error: "Not authenticated" };
-
-  if (!authorize("epic.create", { tenantId: principal.tenantId }, principal).allow) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const parsed = createEpicSchema.safeParse({
-    title: formData.get("title"),
-    description: formData.get("description") ?? undefined,
-    valueStreamId: formData.get("valueStreamId"),
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await createEpic(db, {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    title: parsed.data.title,
-    description: parsed.data.description,
-    valueStreamId: parsed.data.valueStreamId as ValueStreamId,
-    ipAddress,
-    userAgent,
-  });
-
-  if (isErr(result)) {
-    return {
-      error: result.error.kind === "not_found" ? "Value stream not found" : "Failed to create epic",
-    };
-  }
-
-  revalidatePath("/portfolio/epics");
-  return { success: true };
-}
-
-export async function updateEpicAction(
-  _prev: EpicActionState,
-  formData: FormData,
-): Promise<EpicActionState> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return { error: "Not authenticated" };
-
-  if (!authorize("epic.update", { tenantId: principal.tenantId }, principal).allow) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const parsed = updateEpicSchema.safeParse({
-    id: formData.get("id"),
-    title: formData.get("title") ?? undefined,
-    description: formData.get("description") ?? undefined,
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await updateEpic(db, {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    id: parsed.data.id as EpicId,
-    title: parsed.data.title,
-    description: parsed.data.description,
-    ipAddress,
-    userAgent,
-  });
-
-  if (isErr(result)) {
-    return {
-      error: result.error.kind === "not_found" ? "Epic not found" : "Failed to update epic",
-    };
-  }
-
-  revalidatePath(`/portfolio/epics/${parsed.data.id}`);
-  return { success: true };
-}

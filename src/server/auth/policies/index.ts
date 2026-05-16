@@ -35,7 +35,9 @@ export type Action =
   | "dependency.unlink"
   | "impediment.create"
   | "impediment.escalate"
-  | "impediment.resolve";
+  | "impediment.resolve"
+  | "admin.audit-log.read"
+  | "admin.users.read";
 
 /** A scope dimension a grant may additionally require the principal to match. */
 export type ScopeCheck = "art" | "team" | "own";
@@ -125,4 +127,7 @@ export const POLICIES: Record<Action, Grant[]> = {
   ],
   "impediment.escalate": [{ roles: [PORTFOLIO_EDITOR, ART_FULL_EDITOR, TEAM_EDITOR] }],
   "impediment.resolve": [{ roles: [PORTFOLIO_EDITOR, ART_FULL_EDITOR, TEAM_EDITOR] }],
+
+  "admin.audit-log.read": [{ roles: [TENANT_ADMIN] }],
+  "admin.users.read": [{ roles: [TENANT_ADMIN] }],
 };

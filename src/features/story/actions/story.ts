@@ -9,6 +9,7 @@ import { createStory } from "@/server/services/story";
 import { isErr } from "@/domain/errors";
 import { redirect } from "next/navigation";
 import type { TenantId, FeatureId, SprintId } from "@/domain/types";
+import type { ActionState } from "@/server/http/server-action";
 
 const schema = z.object({
   featureId: z.string().uuid(),
@@ -20,15 +21,10 @@ const schema = z.object({
   storyPoints: z.coerce.number().int().min(1).max(100).optional(),
 });
 
-export type CreateStoryState = {
-  errors?: Record<string, string[]>;
-  message?: string;
-};
-
 export async function createStoryAction(
-  _prev: CreateStoryState,
+  _prev: ActionState,
   formData: FormData,
-): Promise<CreateStoryState> {
+): Promise<ActionState> {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -43,7 +39,7 @@ export async function createStoryAction(
   };
 
   const parsed = schema.safeParse(raw);
-  if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors };
+  if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
 
   if (
     !authorize(
@@ -52,7 +48,7 @@ export async function createStoryAction(
       principal,
     ).allow
   ) {
-    return { message: "Insufficient permissions" };
+    return { error: "Insufficient permissions" };
   }
 
   const criteria = parsed.data.acceptanceCriteria
@@ -76,10 +72,10 @@ export async function createStoryAction(
 
   if (isErr(result)) {
     return {
-      message: result.error.kind === "not_found" ? "Feature not found" : "Failed to create story",
+      error: result.error.kind === "not_found" ? "Feature not found" : "Failed to create story",
     };
   }
 
   revalidatePath("/art/[artId]/features/[featureId]", "page");
-  return {};
+  return { success: true };
 }

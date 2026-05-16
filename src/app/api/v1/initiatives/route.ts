@@ -1,13 +1,7 @@
 import { z } from "zod";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
 import { createEpic, listEpics } from "@/server/services/initiative";
-import { authorize } from "@/server/auth/authorize";
-import { withIdempotency } from "@/server/http/idempotency";
-import { forbidden, unprocessable, problemJson } from "@/server/http/problem";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { headers } from "next/headers";
-import { isErr } from "@/domain/errors";
+import { createMutationHandler } from "@/server/http/mutation-handler";
+import { createQueryHandler } from "@/server/http/query-handler";
 import type { ValueStreamId } from "@/domain/types";
 
 const createEpicSchema = z.object({
@@ -17,55 +11,23 @@ const createEpicSchema = z.object({
   leanBusinessCase: z.record(z.unknown()).optional(),
 });
 
-export async function GET(_request: Request): Promise<Response> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
+export const GET = createQueryHandler({
+  query: (ctx) => listEpics(ctx.db, ctx.principal.tenantId),
+});
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const epics = await listEpics(db, principal.tenantId);
-  return Response.json(epics);
-}
-
-export async function POST(request: Request): Promise<Response> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
-
-  return withIdempotency(request, principal, async (request) => {
-    const decision = authorize("epic.create", { tenantId: principal.tenantId }, principal);
-    if (!decision.allow) return forbidden(decision.reason);
-
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return unprocessable("Invalid JSON body");
-    }
-
-    const parsed = createEpicSchema.safeParse(body);
-    if (!parsed.success) return unprocessable(parsed.error.message);
-
-    const { ipAddress, userAgent } = extractRequestMeta(await headers());
-    const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-    const result = await createEpic(db, {
-      tenantId: principal.tenantId,
-      actorId: principal.id,
-      title: parsed.data.title,
-      description: parsed.data.description,
-      valueStreamId: parsed.data.valueStreamId as ValueStreamId,
-      leanBusinessCase: parsed.data.leanBusinessCase,
-      ipAddress,
-      userAgent,
-    });
-
-    if (isErr(result)) {
-      if (result.error.kind === "not_found")
-        return problemJson(404, "not_found", {
-          detail: `ValueStream ${result.error.id} not found`,
-        });
-      return problemJson(500, "internal_error");
-    }
-
-    return Response.json(result.value, { status: 201 });
-  });
-}
+export const POST = createMutationHandler({
+  schema: createEpicSchema,
+  action: "epic.create",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    createEpic(ctx.db, {
+      tenantId: ctx.principal.tenantId,
+      actorId: ctx.principal.id,
+      title: input.title,
+      description: input.description,
+      valueStreamId: input.valueStreamId as ValueStreamId,
+      leanBusinessCase: input.leanBusinessCase,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    }),
+});

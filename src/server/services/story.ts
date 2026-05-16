@@ -1,9 +1,11 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, UserId, FeatureId, StoryId, SprintId, PiId } from "@/domain/types";
+import type { TenantId, UserId, FeatureId, StoryId, SprintId, PiId, ArtId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import { emitAuditEvent } from "@/server/audit/emit";
+import { publishDomainEvent } from "@/server/events/publish";
+import { paginate, type PageParams } from "@/server/db/paginate";
 
 export interface CreateStoryInput {
   tenantId: TenantId;
@@ -91,20 +93,14 @@ export async function createStory(
         userAgent,
       });
 
-      // Publish outbox events for external sync (handled by the cron processor)
-      const syncPayload = {
-        storyId: story.id,
+      await publishDomainEvent(tx as unknown as PrismaClient, {
+        type: "story.created",
         tenantId,
-        artId: feature.artId,
+        storyId: story.id as StoryId,
+        artId: feature.artId as ArtId,
         title: story.title,
         description: story.description ?? null,
         storyPoints: story.storyPoints ?? null,
-      };
-      await (tx as unknown as PrismaClient).outboxEvent.createMany({
-        data: [
-          { tenantId, type: "jira.story.created", payload: syncPayload },
-          { tenantId, type: "ado.story.created", payload: syncPayload },
-        ],
       });
 
       return ok({ id: story.id as StoryId });
@@ -177,14 +173,23 @@ export async function updateStory(
     });
 }
 
-export async function listStories(db: PrismaClient, tenantId: TenantId, featureId: FeatureId) {
-  return db.initiative.findMany({
-    where: { tenantId, parentId: featureId, level: InitiativeLevel.STORY, deletedAt: null },
-    include: {
-      sprint: { select: { id: true, indexInPi: true, team: { select: { name: true } } } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
+export async function listStories(
+  db: PrismaClient,
+  tenantId: TenantId,
+  featureId: FeatureId,
+  pageParams: PageParams = { page: 1, pageSize: 200 },
+) {
+  const where = { tenantId, parentId: featureId, level: InitiativeLevel.STORY, deletedAt: null };
+  const include = {
+    sprint: { select: { id: true, indexInPi: true, team: { select: { name: true } } } },
+  };
+  const orderBy = { createdAt: "asc" as const };
+
+  return paginate(
+    ({ take, skip }) => db.initiative.findMany({ where, include, orderBy, take, skip }),
+    () => db.initiative.count({ where }),
+    pageParams,
+  );
 }
 
 export async function getStory(db: PrismaClient, tenantId: TenantId, id: StoryId) {

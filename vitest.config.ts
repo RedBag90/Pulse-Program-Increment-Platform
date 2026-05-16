@@ -17,6 +17,7 @@ export default defineConfig({
           name: "server",
           environment: "node",
           include: ["src/server/**/*.test.ts"],
+          exclude: ["src/server/**/*.integration.test.ts"],
         },
         resolve: { alias },
       },
@@ -31,6 +32,17 @@ export default defineConfig({
             "src/features/**/*.test.tsx",
             "src/app/**/*.test.tsx",
           ],
+        },
+        resolve: { alias },
+      },
+      {
+        // Integration tests — require DATABASE_URL_TEST and a running Supabase instance
+        test: {
+          name: "integration",
+          environment: "node",
+          include: ["src/**/*.integration.test.ts"],
+          setupFiles: ["./src/test/setup-db.ts"],
+          testTimeout: 30_000,
         },
         resolve: { alias },
       },

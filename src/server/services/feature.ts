@@ -13,6 +13,7 @@ import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import { emitAuditEvent } from "@/server/audit/emit";
 import { computeWsjf } from "@/domain/schemas/initiative";
+import { paginate, type PageParams } from "@/server/db/paginate";
 
 export interface CreateFeatureInput {
   tenantId: TenantId;
@@ -305,15 +306,24 @@ export async function scoreFeature(
     });
 }
 
-export async function listFeatures(db: PrismaClient, tenantId: TenantId, artId: ArtId) {
-  return db.initiative.findMany({
-    where: { tenantId, artId, level: InitiativeLevel.FEATURE, deletedAt: null },
-    include: {
-      parent: { select: { id: true, title: true } },
-      pi: { select: { id: true, name: true } },
-    },
-    orderBy: [{ wsjfComputed: "desc" }, { createdAt: "asc" }],
-  });
+export async function listFeatures(
+  db: PrismaClient,
+  tenantId: TenantId,
+  artId: ArtId,
+  pageParams: PageParams = { page: 1, pageSize: 200 },
+) {
+  const where = { tenantId, artId, level: InitiativeLevel.FEATURE, deletedAt: null };
+  const include = {
+    parent: { select: { id: true, title: true } },
+    pi: { select: { id: true, name: true } },
+  };
+  const orderBy = [{ wsjfComputed: "desc" as const }, { createdAt: "asc" as const }];
+
+  return paginate(
+    ({ take, skip }) => db.initiative.findMany({ where, include, orderBy, take, skip }),
+    () => db.initiative.count({ where }),
+    pageParams,
+  );
 }
 
 export async function getFeature(db: PrismaClient, tenantId: TenantId, id: FeatureId) {

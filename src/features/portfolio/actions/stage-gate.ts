@@ -29,10 +29,9 @@ const advanceSchema = z.object({
   comment: z.string().optional(),
 });
 
-export interface StageGateActionState {
-  error?: string;
-  success?: boolean;
-}
+// Justified exception: advanceStageGateAction contains inline transaction + audit logic that
+// cannot be expressed as a single service function — it stays manual.
+export type StageGateActionState = { error?: string; success?: boolean };
 
 export async function advanceStageGateAction(
   _prev: StageGateActionState,

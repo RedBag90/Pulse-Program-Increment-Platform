@@ -2,6 +2,7 @@
 
 import { useState, useRef, useTransition } from "react";
 import { Link } from "@/i18n/navigation";
+import { assignSprintAction } from "@/features/story/actions/assign-sprint";
 
 interface Story {
   id: string;
@@ -75,24 +76,38 @@ export function ProgramBoard({ artId, piId: _piId, piName, teams, sprints, featu
 
   function moveStory(storyId: string, fromSprintId: string, toSprintId: string) {
     if (fromSprintId === toSprintId) return;
+    const targetSprint = sprints.find((s) => s.id === toSprintId);
+    if (!targetSprint) return;
 
-    startTransition(() => {
-      setSprintStories((prev) => {
-        const next = new Map(prev);
-        const fromStories = (next.get(fromSprintId) ?? []).filter((s) => s.id !== storyId);
-        const story = (prev.get(fromSprintId) ?? []).find((s) => s.id === storyId);
-        if (!story) return prev;
-        next.set(fromSprintId, fromStories);
-        next.set(toSprintId, [...(next.get(toSprintId) ?? []), story]);
-        return next;
-      });
+    // Optimistic update: move the story immediately in local state.
+    setSprintStories((prev) => {
+      const next = new Map(prev);
+      const story = (prev.get(fromSprintId) ?? []).find((s) => s.id === storyId);
+      if (!story) return prev;
+      next.set(
+        fromSprintId,
+        (next.get(fromSprintId) ?? []).filter((s) => s.id !== storyId),
+      );
+      next.set(toSprintId, [...(next.get(toSprintId) ?? []), story]);
+      return next;
+    });
 
-      // Fire server update
-      void fetch(`/api/v1/stories/${storyId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sprintId: toSprintId }),
-      });
+    // Persist via server action; revert optimistic update on failure.
+    startTransition(async () => {
+      const result = await assignSprintAction(storyId, toSprintId, artId, targetSprint.teamId);
+      if (result.error) {
+        setSprintStories((prev) => {
+          const next = new Map(prev);
+          const story = (prev.get(toSprintId) ?? []).find((s) => s.id === storyId);
+          if (!story) return prev;
+          next.set(
+            toSprintId,
+            (next.get(toSprintId) ?? []).filter((s) => s.id !== storyId),
+          );
+          next.set(fromSprintId, [...(next.get(fromSprintId) ?? []), story]);
+          return next;
+        });
+      }
     });
   }
 

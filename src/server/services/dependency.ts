@@ -3,6 +3,7 @@ import type { TenantId, UserId, InitiativeId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import { emitAuditEvent } from "@/server/audit/emit";
+import { detectCycle } from "@/domain/dependency-graph";
 
 export type DependencyType = "blocks" | "depends_on" | "relates_to";
 
@@ -50,27 +51,16 @@ export async function linkDependency(
         return err({ kind: "not_found" as const, resourceType: "Initiative", id: toId });
       }
 
-      // Cycle detection: BFS from toId following directed edges.
-      // If we can reach fromId, adding fromId→toId would create a cycle.
-      // Only applies to directional types (blocks, depends_on).
       if (type !== "relates_to") {
-        const visited = new Set<string>();
-        const queue: string[] = [toId];
-        while (queue.length > 0) {
-          const current = queue.shift()!;
-          if (current === fromId) {
-            return err({
-              kind: "conflict" as const,
-              reason: "This dependency would create a circular dependency chain",
-            });
-          }
-          if (visited.has(current)) continue;
-          visited.add(current);
-          const outgoing = await tx.dependency.findMany({
-            where: { fromId: current, tenantId, type: { not: "relates_to" } },
-            select: { toId: true },
+        const allEdges = await tx.dependency.findMany({
+          where: { tenantId, type: { not: "relates_to" } },
+          select: { fromId: true, toId: true },
+        });
+        if (detectCycle(fromId, toId, allEdges)) {
+          return err({
+            kind: "conflict" as const,
+            reason: "This dependency would create a circular dependency chain",
           });
-          for (const edge of outgoing) queue.push(edge.toId);
         }
       }
 

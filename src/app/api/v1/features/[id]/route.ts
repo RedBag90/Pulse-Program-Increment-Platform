@@ -1,12 +1,7 @@
 import { z } from "zod";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
 import { getFeature, updateFeature } from "@/server/services/feature";
-import { authorize } from "@/server/auth/authorize";
-import { forbidden, unprocessable, problemJson } from "@/server/http/problem";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { headers } from "next/headers";
-import { isErr } from "@/domain/errors";
+import { createMutationHandler } from "@/server/http/mutation-handler";
+import { createQueryHandler } from "@/server/http/query-handler";
 import { fibonacci } from "@/domain/schemas/initiative";
 import type { FeatureId, PiId } from "@/domain/types";
 
@@ -25,52 +20,30 @@ interface Ctx {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(_request: Request, { params }: Ctx): Promise<Response> {
-  const { id } = await params;
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
+const routeParamsSchema = z.object({ id: z.string().uuid() });
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const feature = await getFeature(db, principal.tenantId, id as FeatureId);
-  if (!feature) return problemJson(404, "not_found");
-  return Response.json(feature);
-}
+export const GET = createQueryHandler({
+  params: routeParamsSchema,
+  query: (ctx, { id }) => getFeature(ctx.db, ctx.principal.tenantId, id as FeatureId),
+});
 
 export async function PATCH(request: Request, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
-
-  const decision = authorize("feature.update", { tenantId: principal.tenantId }, principal);
-  if (!decision.allow) return forbidden(decision.reason);
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return unprocessable("Invalid JSON body");
-  }
-
-  const parsed = updateSchema.safeParse(body);
-  if (!parsed.success) return unprocessable(parsed.error.message);
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await updateFeature(db, {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    id: id as FeatureId,
-    ...parsed.data,
-    piId: parsed.data.piId as PiId | undefined,
-    ipAddress,
-    userAgent,
-  });
-
-  if (isErr(result)) {
-    if (result.error.kind === "not_found") return problemJson(404, "not_found");
-    return problemJson(500, "internal_error");
-  }
-
-  return new Response(null, { status: 204 });
+  return createMutationHandler({
+    schema: updateSchema,
+    action: "feature.update",
+    resource: (_input, p) => ({ tenantId: p.tenantId }),
+    service: (ctx, input) =>
+      updateFeature(ctx.db, {
+        tenantId: ctx.principal.tenantId,
+        actorId: ctx.principal.id,
+        id: id as FeatureId,
+        ...input,
+        piId: input.piId as PiId | undefined,
+        ipAddress: ctx.ipAddress,
+        userAgent: ctx.userAgent,
+      }),
+    successStatus: 204,
+    idempotent: false,
+  })(request);
 }

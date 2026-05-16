@@ -10,6 +10,6 @@ Sentry.init({
 });
 
 export const onRouterTransitionStart = Sentry.browserTracingIntegration().options
-  .instrumentNavigation
+  ?.instrumentNavigation
   ? Sentry.captureRouterTransitionStart
   : undefined;

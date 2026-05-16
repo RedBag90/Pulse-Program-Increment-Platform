@@ -28,7 +28,7 @@ export default async function PiListPage({ params }: Props) {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const [art, pis] = await Promise.all([
+  const [art, { items: pis }] = await Promise.all([
     getArt(db, principal.tenantId, artId as ArtId),
     listPis(db, principal.tenantId, artId as ArtId),
   ]);

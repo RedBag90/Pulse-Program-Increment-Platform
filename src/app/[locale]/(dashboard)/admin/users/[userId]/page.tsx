@@ -77,7 +77,14 @@ export default async function UserDetailPage({ params }: Props) {
 
       <section>
         <h2 className="text-lg font-medium mb-4">Assign New Role</h2>
-        <AddRoleForm targetUserId={userId} valueStreams={valueStreams} />
+        <AddRoleForm
+          targetUserId={userId}
+          valueStreams={valueStreams.map((vs) => ({
+            id: vs.id,
+            name: vs.name,
+            arts: vs.arts.map((a) => ({ id: a.id, name: a.name })),
+          }))}
+        />
       </section>
     </main>
   );

@@ -25,7 +25,7 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [art, allFeatures, epics, pis] = await Promise.all([
+  const [art, { items: allFeatures }, epics, pis] = await Promise.all([
     getArt(db, principal.tenantId, artId as ArtId),
     listFeatures(db, principal.tenantId, artId as ArtId),
     listEpics(db, principal.tenantId),

@@ -1,13 +1,7 @@
 import { z } from "zod";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
 import { createArt, listArts } from "@/server/services/art";
-import { authorize } from "@/server/auth/authorize";
-import { withIdempotency } from "@/server/http/idempotency";
-import { forbidden, unprocessable, problemJson } from "@/server/http/problem";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { headers } from "next/headers";
-import { isErr } from "@/domain/errors";
+import { createMutationHandler } from "@/server/http/mutation-handler";
+import { createQueryHandler } from "@/server/http/query-handler";
 import type { ValueStreamId } from "@/domain/types";
 
 const createSchema = z.object({
@@ -16,52 +10,22 @@ const createSchema = z.object({
   piCadenceWeeks: z.number().int().min(8).max(12).optional(),
 });
 
-export async function GET(_request: Request): Promise<Response> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
+export const GET = createQueryHandler({
+  query: (ctx) => listArts(ctx.db, ctx.principal.tenantId),
+});
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  return Response.json(await listArts(db, principal.tenantId));
-}
-
-export async function POST(request: Request): Promise<Response> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
-
-  return withIdempotency(request, principal, async (request) => {
-    const decision = authorize("art.create", { tenantId: principal.tenantId }, principal);
-    if (!decision.allow) return forbidden(decision.reason);
-
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return unprocessable("Invalid JSON body");
-    }
-
-    const parsed = createSchema.safeParse(body);
-    if (!parsed.success) return unprocessable(parsed.error.message);
-
-    const { ipAddress, userAgent } = extractRequestMeta(await headers());
-    const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-    const result = await createArt(db, {
-      tenantId: principal.tenantId,
-      actorId: principal.id,
-      valueStreamId: parsed.data.valueStreamId as ValueStreamId,
-      name: parsed.data.name,
-      piCadenceWeeks: parsed.data.piCadenceWeeks,
-      ipAddress,
-      userAgent,
-    });
-
-    if (isErr(result)) {
-      if (result.error.kind === "not_found") return problemJson(404, "not_found");
-      if (result.error.kind === "conflict")
-        return problemJson(409, "conflict", { detail: result.error.reason });
-      return problemJson(500, "internal_error");
-    }
-
-    return Response.json(result.value, { status: 201 });
-  });
-}
+export const POST = createMutationHandler({
+  schema: createSchema,
+  action: "art.create",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    createArt(ctx.db, {
+      tenantId: ctx.principal.tenantId,
+      actorId: ctx.principal.id,
+      valueStreamId: input.valueStreamId as ValueStreamId,
+      name: input.name,
+      piCadenceWeeks: input.piCadenceWeeks,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    }),
+});

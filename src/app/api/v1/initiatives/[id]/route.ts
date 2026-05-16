@@ -1,12 +1,7 @@
 import { z } from "zod";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
 import { getEpic, updateEpic } from "@/server/services/initiative";
-import { authorize } from "@/server/auth/authorize";
-import { forbidden, unprocessable, problemJson } from "@/server/http/problem";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { headers } from "next/headers";
-import { isErr } from "@/domain/errors";
+import { createMutationHandler } from "@/server/http/mutation-handler";
+import { createQueryHandler } from "@/server/http/query-handler";
 import type { EpicId } from "@/domain/types";
 
 const updateEpicSchema = z.object({
@@ -19,52 +14,29 @@ interface Ctx {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(_request: Request, { params }: Ctx): Promise<Response> {
-  const { id } = await params;
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
+const routeParamsSchema = z.object({ id: z.string().uuid() });
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const epic = await getEpic(db, principal.tenantId, id as EpicId);
-
-  if (!epic) return problemJson(404, "not_found");
-  return Response.json(epic);
-}
+export const GET = createQueryHandler({
+  params: routeParamsSchema,
+  query: (ctx, { id }) => getEpic(ctx.db, ctx.principal.tenantId, id as EpicId),
+});
 
 export async function PATCH(request: Request, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return problemJson(401, "unauthorized");
-
-  const decision = authorize("epic.update", { tenantId: principal.tenantId }, principal);
-  if (!decision.allow) return forbidden(decision.reason);
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return unprocessable("Invalid JSON body");
-  }
-
-  const parsed = updateEpicSchema.safeParse(body);
-  if (!parsed.success) return unprocessable(parsed.error.message);
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const result = await updateEpic(db, {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    id: id as EpicId,
-    ...parsed.data,
-    ipAddress,
-    userAgent,
-  });
-
-  if (isErr(result)) {
-    if (result.error.kind === "not_found") return problemJson(404, "not_found");
-    return problemJson(500, "internal_error");
-  }
-
-  return new Response(null, { status: 204 });
+  return createMutationHandler({
+    schema: updateEpicSchema,
+    action: "epic.update",
+    resource: (_input, p) => ({ tenantId: p.tenantId }),
+    service: (ctx, input) =>
+      updateEpic(ctx.db, {
+        tenantId: ctx.principal.tenantId,
+        actorId: ctx.principal.id,
+        id: id as EpicId,
+        ...input,
+        ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
+        ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
+      }),
+    successStatus: 204,
+    idempotent: false,
+  })(request);
 }
