@@ -19,7 +19,7 @@ export function DeleteValueStreamButton({ id, name }: DeleteValueStreamButtonPro
       }}
     >
       <input type="hidden" name="id" value={id} />
-      {state.error && <span className="text-red-600 text-xs mr-2">{state.error}</span>}
+      {state?.error && <span className="text-red-600 text-xs mr-2">{state.error}</span>}
       <button
         type="submit"
         disabled={isPending}

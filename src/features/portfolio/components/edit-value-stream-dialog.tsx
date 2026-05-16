@@ -22,8 +22,8 @@ export function EditValueStreamDialog({
   const [state, action, isPending] = useActionState(updateValueStreamAction, {});
 
   useEffect(() => {
-    if (state.success) setOpen(false);
-  }, [state.success]);
+    if (state?.success) setOpen(false);
+  }, [state?.success]);
 
   return (
     <>
@@ -93,7 +93,7 @@ export function EditValueStreamDialog({
                 </div>
               </div>
 
-              {state.error && (
+              {state?.error && (
                 <p role="alert" className="text-red-600 text-sm">
                   {state.error}
                 </p>

@@ -14,8 +14,8 @@ export function EditTeamDialog({ id, artId, name }: EditTeamDialogProps) {
   const [state, action, isPending] = useActionState(updateTeamAction, {});
 
   useEffect(() => {
-    if (state.success) setOpen(false);
-  }, [state.success]);
+    if (state?.success) setOpen(false);
+  }, [state?.success]);
 
   return (
     <>
@@ -48,7 +48,7 @@ export function EditTeamDialog({ id, artId, name }: EditTeamDialogProps) {
                 />
               </div>
 
-              {state.error && (
+              {state?.error && (
                 <p role="alert" className="text-red-600 text-sm">
                   {state.error}
                 </p>
