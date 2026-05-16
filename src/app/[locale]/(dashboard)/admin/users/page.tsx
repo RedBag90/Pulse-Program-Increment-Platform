@@ -2,6 +2,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { InviteUserForm } from "@/features/admin/components/invite-user-form";
 import { redirect } from "next/navigation";
+import { Link } from "@/i18n/navigation";
 
 export default async function AdminUsersPage() {
   const principal = await requirePrincipal().catch(() => null);
@@ -32,7 +33,8 @@ export default async function AdminUsersPage() {
               <tr className="border-b text-left text-gray-500">
                 <th className="pb-2 pr-4">User ID</th>
                 <th className="pb-2 pr-4">Role</th>
-                <th className="pb-2">Since</th>
+                <th className="pb-2 pr-4">Since</th>
+                <th className="pb-2"></th>
               </tr>
             </thead>
             <tbody>
@@ -40,7 +42,15 @@ export default async function AdminUsersPage() {
                 <tr key={a.id} className="border-b">
                   <td className="py-2 pr-4 font-mono text-xs">{a.userId}</td>
                   <td className="py-2 pr-4">{a.role}</td>
-                  <td className="py-2 text-gray-500">{a.createdAt.toLocaleDateString()}</td>
+                  <td className="py-2 pr-4 text-gray-500">{a.createdAt.toLocaleDateString()}</td>
+                  <td className="py-2">
+                    <Link
+                      href={`/admin/users/${a.userId}`}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Manage →
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
