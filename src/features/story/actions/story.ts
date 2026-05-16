@@ -5,11 +5,12 @@ import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { createStory } from "@/server/services/story";
+import { createStory, deleteStory } from "@/server/services/story";
 import { isErr } from "@/domain/errors";
 import { redirect } from "next/navigation";
-import type { TenantId, FeatureId, SprintId } from "@/domain/types";
+import type { TenantId, FeatureId, SprintId, StoryId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
+import { createServerAction } from "@/server/http/server-action";
 
 const schema = z.object({
   featureId: z.string().uuid(),
@@ -79,3 +80,14 @@ export async function createStoryAction(
   revalidatePath("/art/[artId]/features/[featureId]", "page");
   return { success: true };
 }
+
+export const deleteStoryAction = createServerAction({
+  schema: z.object({ id: z.string().uuid(), artId: z.string().uuid() }),
+  action: "story.delete",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
+  service: (ctx, input) =>
+    deleteStory(ctx.db, ctx.principal.tenantId as TenantId, ctx.principal.id, input.id as StoryId),
+  onSuccess: () => revalidatePath("/art/[artId]/features/[featureId]", "page"),
+  mapError: (e) => (e.kind === "not_found" ? "Story not found" : "Failed to delete story"),
+});

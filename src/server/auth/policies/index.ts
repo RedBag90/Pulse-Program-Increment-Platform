@@ -14,13 +14,16 @@ export type Action =
   | "epic.create"
   | "epic.update"
   | "epic.approve"
+  | "epic.delete"
   | "art.create"
   | "art.update"
   | "feature.create"
   | "feature.update"
   | "feature.wsjf.set"
+  | "feature.delete"
   | "story.create"
   | "story.update"
+  | "story.delete"
   | "task.create"
   | "task.edit"
   | "pi.create"
@@ -31,6 +34,7 @@ export type Action =
   | "pi_objective.update"
   | "team.create"
   | "team.update"
+  | "team.delete"
   | "dependency.link"
   | "dependency.unlink"
   | "impediment.create"
@@ -75,6 +79,7 @@ export const POLICIES: Record<Action, Grant[]> = {
   "epic.create": [{ roles: [PORTFOLIO_EDITOR] }],
   "epic.update": [{ roles: [PORTFOLIO_EDITOR] }],
   "epic.approve": [{ roles: [PORTFOLIO_EDITOR] }],
+  "epic.delete": [{ roles: [PORTFOLIO_EDITOR, TENANT_ADMIN] }],
 
   "art.create": [{ roles: [TENANT_ADMIN] }],
   "art.update": [{ roles: [TENANT_ADMIN] }],
@@ -82,6 +87,7 @@ export const POLICIES: Record<Action, Grant[]> = {
   "feature.create": [{ roles: [PORTFOLIO_EDITOR, ART_FULL_EDITOR, FEATURE_EDITOR] }],
   "feature.update": [{ roles: [PORTFOLIO_EDITOR, ART_FULL_EDITOR, FEATURE_EDITOR] }],
   "feature.wsjf.set": [{ roles: [PORTFOLIO_EDITOR, ART_FULL_EDITOR, FEATURE_EDITOR] }],
+  "feature.delete": [{ roles: [PORTFOLIO_EDITOR, ART_FULL_EDITOR, TENANT_ADMIN] }],
 
   "story.create": [
     { roles: [TEAM_EDITOR, STORY_OWNER] },
@@ -90,6 +96,10 @@ export const POLICIES: Record<Action, Grant[]> = {
   "story.update": [
     { roles: [TEAM_EDITOR, STORY_OWNER] },
     { roles: [PORTFOLIO_EDITOR, ART_FULL_EDITOR, FEATURE_EDITOR], scope: "art" },
+  ],
+  "story.delete": [
+    { roles: [TEAM_EDITOR, STORY_OWNER] },
+    { roles: [PORTFOLIO_EDITOR, ART_FULL_EDITOR, TENANT_ADMIN], scope: "art" },
   ],
 
   "task.create": [
@@ -111,7 +121,8 @@ export const POLICIES: Record<Action, Grant[]> = {
   "pi_objective.update": [{ roles: [ART_FULL_EDITOR, TEAM_EDITOR] }],
 
   "team.create": [{ roles: [TENANT_ADMIN] }],
-  "team.update": [{ roles: [TENANT_ADMIN] }],
+  "team.update": [{ roles: [ART_FULL_EDITOR, TENANT_ADMIN] }],
+  "team.delete": [{ roles: [TENANT_ADMIN] }],
 
   "dependency.link": [
     { roles: [PORTFOLIO_EDITOR, ART_FULL_EDITOR, FEATURE_EDITOR] },

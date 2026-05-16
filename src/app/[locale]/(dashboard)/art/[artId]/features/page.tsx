@@ -7,6 +7,7 @@ import { CreateFeatureDialog } from "@/features/art/components/create-feature-di
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
 import { FeatureFilters } from "@/features/art/components/feature-filters";
 import { WsjfScoreDialog } from "@/features/art/components/wsjf-score-dialog";
+import { DeleteFeatureButton } from "@/features/art/components/delete-feature-button";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import type { ArtId } from "@/domain/types";
@@ -112,6 +113,7 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
                 <th className="text-center px-3 py-3 font-medium text-gray-600 w-20">WSJF</th>
                 <th className="text-left px-3 py-3 font-medium text-gray-600">Status</th>
                 <th className="text-left px-3 py-3 font-medium text-gray-600">PI</th>
+                {canEdit && <th className="px-3 py-3 w-16"></th>}
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -171,6 +173,11 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
                     <td className="px-3 py-3 text-gray-500 text-xs">
                       {feature.pi?.name ?? "Backlog"}
                     </td>
+                    {canEdit && (
+                      <td className="px-3 py-3">
+                        <DeleteFeatureButton id={feature.id} artId={artId} title={feature.title} />
+                      </td>
+                    )}
                   </tr>
                 );
               })}

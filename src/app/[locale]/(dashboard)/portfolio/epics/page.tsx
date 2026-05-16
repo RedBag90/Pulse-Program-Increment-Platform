@@ -3,6 +3,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { listEpics } from "@/server/services/initiative";
 import { listValueStreams } from "@/server/services/value-stream";
 import { CreateEpicDialog } from "@/features/portfolio/components/create-epic-dialog";
+import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-button";
 import { redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 
@@ -51,6 +52,7 @@ export default async function EpicsPage() {
               <th className="pb-2 pr-4">Value Stream</th>
               <th className="pb-2 pr-4">Stage Gate</th>
               <th className="pb-2">Status</th>
+              {canEdit && <th className="pb-2"></th>}
             </tr>
           </thead>
           <tbody>
@@ -71,6 +73,11 @@ export default async function EpicsPage() {
                   </span>
                 </td>
                 <td className="py-2 text-gray-600">{epic.status}</td>
+                {canEdit && (
+                  <td className="py-2 pl-2">
+                    <DeleteEpicButton id={epic.id} title={epic.title} />
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

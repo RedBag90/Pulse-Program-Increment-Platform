@@ -3,6 +3,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getEpic } from "@/server/services/initiative";
 import { EpicEditForm } from "@/features/portfolio/components/epic-edit-form";
 import { LbcEditor } from "@/features/portfolio/components/lbc-editor";
+import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-button";
 import { redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import type { EpicId } from "@/domain/types";
@@ -47,6 +48,11 @@ export default async function EpicDetailPage({ params }: Props) {
           <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">
             {STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate}
           </span>
+          {canEdit && (
+            <div className="ml-auto">
+              <DeleteEpicButton id={epic.id} title={epic.title} />
+            </div>
+          )}
         </div>
         <p className="text-sm text-gray-500 mt-1">
           Value Stream: <span className="font-medium">{epic.valueStream?.name ?? "—"}</span>

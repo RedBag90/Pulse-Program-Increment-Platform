@@ -95,6 +95,45 @@ export async function updateTeam(db: PrismaClient, input: UpdateTeamInput): Prom
     });
 }
 
+export async function deleteTeam(
+  db: PrismaClient,
+  tenantId: TenantId,
+  id: TeamId,
+  actorId: UserId,
+  ipAddress?: string | undefined,
+  userAgent?: string | undefined,
+): Promise<Result<void>> {
+  return db
+    .$transaction(async (tx) => {
+      const existing = await tx.team.findFirst({
+        where: { id, tenantId },
+        include: { _count: { select: { sprints: true } } },
+      });
+      if (!existing) return err({ kind: "not_found" as const, resourceType: "Team", id });
+
+      if (existing._count.sprints > 0) {
+        return err({ kind: "conflict" as const, reason: "Team has active sprints" });
+      }
+
+      await tx.team.delete({ where: { id } });
+
+      await emitAuditEvent(tx as unknown as PrismaClient, {
+        tenantId,
+        actorId,
+        action: "team.deleted",
+        resourceType: "team",
+        resourceId: id,
+        ipAddress,
+        userAgent,
+      });
+
+      return ok(undefined);
+    })
+    .catch((e: unknown) => {
+      throw e;
+    });
+}
+
 export async function listTeams(db: PrismaClient, tenantId: TenantId, artId: ArtId) {
   return db.team.findMany({
     where: { tenantId, artId },

@@ -2,7 +2,11 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { createValueStream, softDeleteValueStream } from "@/server/services/value-stream";
+import {
+  createValueStream,
+  updateValueStream,
+  softDeleteValueStream,
+} from "@/server/services/value-stream";
 import { createServerAction } from "@/server/http/server-action";
 import type { ValueStreamId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
@@ -40,6 +44,43 @@ export const createValueStreamAction = createServerAction({
     }),
   onSuccess: () => revalidatePath("/portfolio/value-streams"),
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create"),
+});
+
+export const updateValueStreamAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    name: z.string().min(1).max(100).optional(),
+    description: z.string().optional(),
+    budgetAmount: z
+      .string()
+      .regex(/^\d+(\.\d{1,2})?$/)
+      .optional(),
+    budgetCurrency: z.string().length(3).optional(),
+  }),
+  action: "value_stream.update",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({
+    id: fd.get("id"),
+    name: fd.get("name") || undefined,
+    description: fd.get("description") || undefined,
+    budgetAmount: fd.get("budgetAmount") || undefined,
+    budgetCurrency: fd.get("budgetCurrency") || undefined,
+  }),
+  service: (ctx, input) =>
+    updateValueStream(ctx.db, {
+      tenantId: ctx.principal.tenantId,
+      actorId: ctx.principal.id,
+      id: input.id as ValueStreamId,
+      name: input.name,
+      description: input.description,
+      budgetAmount: input.budgetAmount,
+      budgetCurrency: input.budgetCurrency,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    }),
+  onSuccess: () => revalidatePath("/portfolio/value-streams"),
+  mapError: (e) =>
+    e.kind === "conflict" ? e.reason : e.kind === "not_found" ? "Not found" : "Failed to update",
 });
 
 export const deleteValueStreamAction = createServerAction({

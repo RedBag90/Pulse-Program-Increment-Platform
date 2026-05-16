@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { createEpic, updateEpic } from "@/server/services/initiative";
+import { createEpic, updateEpic, softDeleteEpic } from "@/server/services/initiative";
 import { createServerAction } from "@/server/http/server-action";
 import type { ValueStreamId, EpicId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
@@ -61,4 +61,22 @@ export const updateEpicAction = createServerAction({
     }),
   onSuccess: (input) => revalidatePath(`/portfolio/epics/${input.id}`),
   mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to update epic"),
+});
+
+export const deleteEpicAction = createServerAction({
+  schema: z.object({ id: z.string().uuid() }),
+  action: "epic.delete",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({ id: fd.get("id") }),
+  service: (ctx, input) =>
+    softDeleteEpic(
+      ctx.db,
+      ctx.principal.tenantId,
+      input.id as EpicId,
+      ctx.principal.id,
+      ctx.ipAddress,
+      ctx.userAgent,
+    ),
+  onSuccess: () => revalidatePath("/portfolio/epics"),
+  mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to delete epic"),
 });

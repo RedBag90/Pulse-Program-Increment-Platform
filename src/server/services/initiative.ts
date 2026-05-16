@@ -1,5 +1,5 @@
 import type { PrismaClient, Prisma } from "@/generated/prisma";
-import type { TenantId, UserId, EpicId, ValueStreamId } from "@/domain/types";
+import type { TenantId, UserId, EpicId, FeatureId, ValueStreamId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
@@ -163,6 +163,103 @@ export async function listEpics(db: PrismaClient, tenantId: TenantId) {
     where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
     include: { valueStream: { select: { id: true, name: true } } },
     orderBy: [{ stageGate: "asc" }, { createdAt: "desc" }],
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Delete Epic (soft)
+// ---------------------------------------------------------------------------
+
+export async function softDeleteEpic(
+  db: PrismaClient,
+  tenantId: TenantId,
+  id: EpicId,
+  actorId: UserId,
+  ipAddress?: string | undefined,
+  userAgent?: string | undefined,
+): Promise<Result<void>> {
+  return db.$transaction(async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id });
+
+    // Cascade soft-delete to all child features and their stories
+    const features = await tx.initiative.findMany({
+      where: { parentId: id, tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
+      select: { id: true },
+    });
+    const featureIds = features.map((f) => f.id);
+
+    if (featureIds.length > 0) {
+      await tx.initiative.updateMany({
+        where: { parentId: { in: featureIds }, tenantId, level: InitiativeLevel.STORY },
+        data: { deletedAt: new Date(), updatedBy: actorId },
+      });
+      await tx.initiative.updateMany({
+        where: { id: { in: featureIds }, tenantId },
+        data: { deletedAt: new Date(), updatedBy: actorId },
+      });
+    }
+
+    await tx.initiative.update({
+      where: { id },
+      data: { deletedAt: new Date(), updatedBy: actorId },
+    });
+
+    await emitAuditEvent(tx as unknown as PrismaClient, {
+      tenantId,
+      actorId,
+      action: "initiative.deleted",
+      resourceType: "initiative",
+      resourceId: id,
+      ipAddress,
+      userAgent,
+    });
+
+    return ok(undefined);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Delete Feature (soft)
+// ---------------------------------------------------------------------------
+
+export async function softDeleteFeature(
+  db: PrismaClient,
+  tenantId: TenantId,
+  id: FeatureId,
+  actorId: UserId,
+  ipAddress?: string | undefined,
+  userAgent?: string | undefined,
+): Promise<Result<void>> {
+  return db.$transaction(async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id, tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
+    });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Feature", id });
+
+    await tx.initiative.updateMany({
+      where: { parentId: id, tenantId, level: InitiativeLevel.STORY },
+      data: { deletedAt: new Date(), updatedBy: actorId },
+    });
+
+    await tx.initiative.update({
+      where: { id },
+      data: { deletedAt: new Date(), updatedBy: actorId },
+    });
+
+    await emitAuditEvent(tx as unknown as PrismaClient, {
+      tenantId,
+      actorId,
+      action: "initiative.deleted",
+      resourceType: "initiative",
+      resourceId: id,
+      ipAddress,
+      userAgent,
+    });
+
+    return ok(undefined);
   });
 }
 

@@ -43,6 +43,7 @@ export type AuditAction =
   | "art.updated"
   | "team.created"
   | "team.updated"
+  | "team.deleted"
   | "pi.created"
   | "pi.updated"
   | "pi.started"

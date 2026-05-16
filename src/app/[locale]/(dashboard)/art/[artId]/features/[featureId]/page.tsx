@@ -3,6 +3,8 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getFeature } from "@/server/services/feature";
 import { listStories } from "@/server/services/story";
 import { CreateStoryDialog } from "@/features/story/components/create-story-dialog";
+import { DeleteFeatureButton } from "@/features/art/components/delete-feature-button";
+import { DeleteStoryButton } from "@/features/story/components/delete-story-button";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import type { FeatureId, TenantId } from "@/domain/types";
@@ -40,6 +42,13 @@ export default async function FeatureDetailPage({ params }: Props) {
         })
       : Promise.resolve([]),
   ]);
+
+  const canEdit =
+    principal.roles.includes("portfolio_editor") ||
+    principal.roles.includes("art_full_editor") ||
+    principal.roles.includes("feature_editor") ||
+    principal.roles.includes("tenant_admin") ||
+    principal.roles.includes("platform_admin");
 
   const wsjfComputed = feature.wsjfComputed !== null ? Number(feature.wsjfComputed) : null;
   const costOfDelay =
@@ -85,6 +94,7 @@ export default async function FeatureDetailPage({ params }: Props) {
           >
             {feature.status}
           </span>
+          {canEdit && <DeleteFeatureButton id={featureId} artId={artId} title={feature.title} />}
         </div>
         {feature.parent && (
           <p className="text-sm text-gray-500">
@@ -207,6 +217,7 @@ export default async function FeatureDetailPage({ params }: Props) {
                   >
                     {story.status}
                   </span>
+                  {canEdit && <DeleteStoryButton id={story.id} artId={artId} title={story.title} />}
                 </div>
               </div>
             ))}

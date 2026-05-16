@@ -3,9 +3,10 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createFeature, scoreFeature } from "@/server/services/feature";
+import { softDeleteFeature } from "@/server/services/initiative";
 import { createServerAction } from "@/server/http/server-action";
 import { fibonacci } from "@/domain/schemas/initiative";
-import type { EpicId, ArtId, FeatureId } from "@/domain/types";
+import type { EpicId, ArtId, FeatureId, TenantId } from "@/domain/types";
 
 export interface FeatureActionState {
   error?: string;
@@ -98,4 +99,22 @@ export const scoreFeatureAction = createServerAction({
     }),
   onSuccess: () => revalidatePath("/art/[artId]/features", "page"),
   mapError: () => "Failed to update WSJF score",
+});
+
+export const deleteFeatureAction = createServerAction({
+  schema: z.object({ id: z.string().uuid(), artId: z.string().uuid() }),
+  action: "feature.delete",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
+  service: (ctx, input) =>
+    softDeleteFeature(
+      ctx.db,
+      ctx.principal.tenantId as TenantId,
+      input.id as FeatureId,
+      ctx.principal.id,
+      ctx.ipAddress,
+      ctx.userAgent,
+    ),
+  onSuccess: () => revalidatePath("/art/[artId]/features", "page"),
+  mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to delete feature"),
 });

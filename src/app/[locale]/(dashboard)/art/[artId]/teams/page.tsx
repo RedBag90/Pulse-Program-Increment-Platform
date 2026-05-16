@@ -3,6 +3,8 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/server/services/art";
 import { listTeams } from "@/server/services/team";
 import { CreateTeamDialog } from "@/features/team/components/create-team-dialog";
+import { EditTeamDialog } from "@/features/team/components/edit-team-dialog";
+import { DeleteTeamButton } from "@/features/team/components/delete-team-button";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
@@ -54,12 +56,20 @@ export default async function TeamsPage({ params }: Props) {
                   {team._count.sprints} sprint{team._count.sprints !== 1 ? "s" : ""}
                 </p>
               </div>
-              <Link
-                href={`/art/${artId}/teams/${team.id}`}
-                className="inline-block text-xs font-medium text-blue-600 hover:underline"
-              >
-                View Backlog →
-              </Link>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Link
+                  href={`/art/${artId}/teams/${team.id}`}
+                  className="inline-block text-xs font-medium text-blue-600 hover:underline"
+                >
+                  View Backlog →
+                </Link>
+                {canEdit && (
+                  <>
+                    <EditTeamDialog id={team.id} artId={artId} name={team.name} />
+                    <DeleteTeamButton id={team.id} artId={artId} name={team.name} />
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>

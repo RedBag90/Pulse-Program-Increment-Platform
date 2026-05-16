@@ -2,6 +2,8 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listValueStreams } from "@/server/services/value-stream";
 import { CreateValueStreamDialog } from "@/features/portfolio/components/create-value-stream-dialog";
+import { EditValueStreamDialog } from "@/features/portfolio/components/edit-value-stream-dialog";
+import { DeleteValueStreamButton } from "@/features/portfolio/components/delete-value-stream-button";
 import { redirect } from "next/navigation";
 
 export default async function ValueStreamsPage() {
@@ -43,6 +45,18 @@ export default async function ValueStreamsPage() {
               <p className="text-xs text-gray-400">
                 {vs.arts.length} ART{vs.arts.length !== 1 ? "s" : ""}
               </p>
+              {canEdit && (
+                <div className="flex items-center gap-3 pt-1">
+                  <EditValueStreamDialog
+                    id={vs.id}
+                    name={vs.name}
+                    description={vs.description}
+                    budgetAmount={vs.budgetAmount?.toString() ?? null}
+                    budgetCurrency={vs.budgetCurrency}
+                  />
+                  <DeleteValueStreamButton id={vs.id} name={vs.name} />
+                </div>
+              )}
             </div>
           ))}
         </div>
