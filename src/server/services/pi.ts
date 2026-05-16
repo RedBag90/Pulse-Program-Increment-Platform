@@ -182,6 +182,11 @@ export async function getPi(db: PrismaClient, tenantId: TenantId, id: PiId) {
           endDate: true,
           teamId: true,
           team: { select: { id: true, name: true } },
+          initiatives: {
+            where: { deletedAt: null, level: 2 },
+            select: { id: true, title: true, status: true, storyPoints: true },
+            orderBy: { createdAt: "asc" },
+          },
         },
       },
       initiatives: {
