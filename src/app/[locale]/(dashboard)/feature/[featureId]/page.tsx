@@ -7,6 +7,7 @@ import { DeleteFeatureButton } from "@/features/art/components/delete-feature-bu
 import { DeleteStoryButton } from "@/features/story/components/delete-story-button";
 import { LinkDependencyDialog } from "@/features/dependencies/components/link-dependency-dialog";
 import { UnlinkDependencyButton } from "@/features/dependencies/components/unlink-dependency-button";
+import { PermissionGate } from "@/components/auth/permission-gate";
 import { Breadcrumbs } from "@/components/nav/breadcrumbs";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
@@ -243,13 +244,13 @@ export default async function FeatureDetailPage({ params }: Props) {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold">Dependencies</h2>
-          {canEdit && (
+          <PermissionGate action="dependency.link" resource={{ artId }}>
             <LinkDependencyDialog
               fromId={featureId}
               artId={artId}
               candidates={dependencyCandidates}
             />
-          )}
+          </PermissionGate>
         </div>
         {dependencies.length === 0 ? (
           <p className="text-sm text-gray-400">No dependencies linked.</p>
