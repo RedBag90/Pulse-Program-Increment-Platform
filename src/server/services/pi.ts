@@ -53,6 +53,34 @@ export async function createPi(
         data: { tenantId, artId, name, startDate, endDate },
       });
 
+      // Auto-generate sprints: one set per team in the ART
+      const teams = await tx.team.findMany({ where: { artId, tenantId } });
+      if (teams.length > 0) {
+        const durationDays = Math.ceil(
+          (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        const sprintCount = Math.ceil(durationDays / 14);
+        const sprintData = teams.flatMap((team) =>
+          Array.from({ length: sprintCount }, (_, i) => {
+            const sprintStart = new Date(startDate);
+            sprintStart.setDate(sprintStart.getDate() + i * 14);
+            const sprintEnd = new Date(startDate);
+            sprintEnd.setDate(sprintEnd.getDate() + (i + 1) * 14 - 1);
+            // Cap last sprint end at PI end
+            const effectiveEnd = sprintEnd > endDate ? endDate : sprintEnd;
+            return {
+              tenantId,
+              piId: pi.id,
+              teamId: team.id,
+              indexInPi: i + 1,
+              startDate: sprintStart,
+              endDate: effectiveEnd,
+            };
+          }),
+        );
+        await tx.sprint.createMany({ data: sprintData });
+      }
+
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
@@ -146,8 +174,15 @@ export async function getPi(db: PrismaClient, tenantId: TenantId, id: PiId) {
     include: {
       art: { select: { id: true, name: true } },
       sprints: {
-        orderBy: { indexInPi: "asc" },
-        select: { id: true, indexInPi: true, startDate: true, endDate: true },
+        orderBy: [{ teamId: "asc" }, { indexInPi: "asc" }],
+        select: {
+          id: true,
+          indexInPi: true,
+          startDate: true,
+          endDate: true,
+          teamId: true,
+          team: { select: { id: true, name: true } },
+        },
       },
       initiatives: {
         where: { deletedAt: null, level: 1 },

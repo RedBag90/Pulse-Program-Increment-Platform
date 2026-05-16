@@ -1,9 +1,11 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getFeature } from "@/server/services/feature";
+import { listStories } from "@/server/services/story";
+import { CreateStoryDialog } from "@/features/story/components/create-story-dialog";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
-import type { FeatureId } from "@/domain/types";
+import type { FeatureId, TenantId } from "@/domain/types";
 
 interface Props {
   params: Promise<{ artId: string; featureId: string }>;
@@ -27,6 +29,17 @@ export default async function FeatureDetailPage({ params }: Props) {
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const feature = await getFeature(db, principal.tenantId, featureId as FeatureId);
   if (!feature) notFound();
+
+  const [stories, availableSprints] = await Promise.all([
+    listStories(db, principal.tenantId as TenantId, featureId as FeatureId),
+    feature.piId
+      ? db.sprint.findMany({
+          where: { piId: feature.piId, tenantId: principal.tenantId as TenantId },
+          include: { team: { select: { name: true } } },
+          orderBy: [{ teamId: "asc" }, { indexInPi: "asc" }],
+        })
+      : Promise.resolve([]),
+  ]);
 
   const wsjfComputed = feature.wsjfComputed !== null ? Number(feature.wsjfComputed) : null;
   const costOfDelay =
@@ -157,25 +170,49 @@ export default async function FeatureDetailPage({ params }: Props) {
         )}
       </section>
 
-      {/* Child Stories */}
-      {feature.children.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">Stories ({feature.children.length})</h2>
+      {/* Stories */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold">Stories ({stories.length})</h2>
+          <CreateStoryDialog
+            featureId={featureId}
+            artId={artId}
+            sprints={availableSprints.map((s) => ({
+              id: s.id,
+              indexInPi: s.indexInPi,
+              team: { name: s.team.name },
+            }))}
+          />
+        </div>
+        {stories.length === 0 ? (
+          <p className="text-sm text-gray-400">No stories yet. Break this feature into stories.</p>
+        ) : (
           <div className="rounded-lg border divide-y">
-            {feature.children.map((story) => (
+            {stories.map((story) => (
               <div key={story.id} className="px-4 py-3 flex items-center justify-between">
-                <span className="text-sm">{story.title}</span>
+                <div className="space-y-0.5">
+                  <span className="text-sm font-medium">{story.title}</span>
+                  {story.sprint && (
+                    <p className="text-xs text-gray-400">
+                      {story.sprint.team.name} — Sprint {story.sprint.indexInPi}
+                    </p>
+                  )}
+                </div>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
-                  {story.storyPoints !== null && <span>{story.storyPoints} pts</span>}
-                  <span className="inline-block rounded-full px-2 py-0.5 bg-gray-100">
+                  {story.storyPoints !== null && (
+                    <span className="font-medium">{story.storyPoints} pts</span>
+                  )}
+                  <span
+                    className={`inline-block rounded-full px-2 py-0.5 ${STATUS_COLORS[story.status] ?? "bg-gray-100 text-gray-700"}`}
+                  >
                     {story.status}
                   </span>
                 </div>
               </div>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* Dependencies */}
       <section className="space-y-3">

@@ -1,6 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getPi } from "@/server/services/pi";
+import { PiTransitionButton } from "@/features/pi/components/pi-transition-button";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import type { PiId } from "@/domain/types";
@@ -56,11 +57,24 @@ export default async function PiDetailPage({ params }: Props) {
             {formatDate(pi.startDate)} – {formatDate(pi.endDate)} ({totalDays} days)
           </p>
         </div>
-        <span
-          className={`inline-block rounded-full px-3 py-1 text-xs font-medium shrink-0 ${badge}`}
-        >
-          {pi.status}
-        </span>
+        <div className="flex items-center gap-3 shrink-0">
+          <Link
+            href={`/art/${artId}/pi/${piId}/objectives`}
+            className="text-sm font-medium text-blue-600 hover:underline"
+          >
+            Objectives
+          </Link>
+          <Link
+            href={`/art/${artId}/pi/${piId}/board`}
+            className="text-sm font-medium text-blue-600 hover:underline"
+          >
+            Program Board →
+          </Link>
+          <span className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${badge}`}>
+            {pi.status}
+          </span>
+          <PiTransitionButton piId={piId} artId={artId} currentStatus={pi.status} />
+        </div>
       </div>
 
       {/* Sprints */}
@@ -72,10 +86,23 @@ export default async function PiDetailPage({ params }: Props) {
           <div className="rounded-lg border divide-y">
             {pi.sprints.map((sprint) => (
               <div key={sprint.id} className="px-4 py-3 flex items-center justify-between text-sm">
-                <span className="font-medium">Sprint {sprint.indexInPi}</span>
-                <span className="text-gray-500">
-                  {formatDate(sprint.startDate)} – {formatDate(sprint.endDate)}
-                </span>
+                <div>
+                  <span className="font-medium">Sprint {sprint.indexInPi}</span>
+                  {sprint.team && (
+                    <span className="ml-2 text-gray-400 text-xs">{sprint.team.name}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-gray-500">
+                    {formatDate(sprint.startDate)} – {formatDate(sprint.endDate)}
+                  </span>
+                  <Link
+                    href={`/art/${artId}/pi/${piId}/sprint/${sprint.id}`}
+                    className="text-blue-600 hover:underline text-xs"
+                  >
+                    Board →
+                  </Link>
+                </div>
               </div>
             ))}
           </div>

@@ -65,9 +65,10 @@ model Team {
   artId    String @map("art_id") @db.Uuid
   name     String
 
-  tenant  Tenant   @relation(fields: [tenantId], references: [id])
-  art     Art      @relation(fields: [artId], references: [id])
-  sprints Sprint[]
+  tenant     Tenant        @relation(fields: [tenantId], references: [id])
+  art        Art           @relation(fields: [artId], references: [id])
+  sprints    Sprint[]
+  objectives PiObjective[]
 
   @@unique([tenantId, name])
   @@index([artId])
@@ -83,11 +84,32 @@ model ProgramIncrement {
   endDate   DateTime @map("end_date") @db.Date
   status    String   @default("planned")
 
-  art         Art          @relation(fields: [artId], references: [id])
+  art         Art              @relation(fields: [artId], references: [id])
   sprints     Sprint[]
   initiatives Initiative[]
+  objectives  PiObjective[]
 
   @@map("program_increments")
+}
+
+model PiObjective {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  piId        String   @map("pi_id") @db.Uuid
+  teamId      String   @map("team_id") @db.Uuid
+  title       String
+  description String?  @db.Text
+  businessValue Int?   @map("business_value") // 1-10
+  committed   Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   String   @map("created_by") @db.Uuid
+
+  pi   ProgramIncrement @relation(fields: [piId], references: [id])
+  team Team             @relation(fields: [teamId], references: [id])
+
+  @@index([piId])
+  @@index([teamId])
+  @@map("pi_objectives")
 }
 
 model Sprint {

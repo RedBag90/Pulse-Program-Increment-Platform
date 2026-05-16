@@ -4,11 +4,11 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { createPi } from "@/server/services/pi";
+import { createPi, updatePi } from "@/server/services/pi";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { isErr } from "@/domain/errors";
-import type { ArtId } from "@/domain/types";
+import type { ArtId, PiId } from "@/domain/types";
 
 const createSchema = z.object({
   artId: z.string().uuid(),
@@ -70,5 +70,40 @@ export async function createPiAction(
   }
 
   revalidatePath("/art/[artId]/pi", "page");
+  return { success: true };
+}
+
+export async function transitionPiAction(
+  piId: string,
+  artId: string,
+  targetStatus: "active" | "completed",
+): Promise<PiActionState> {
+  const principal = await requirePrincipal().catch(() => null);
+  if (!principal) return { error: "Not authenticated" };
+
+  const canEdit =
+    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
+  if (!canEdit) return { error: "Insufficient permissions" };
+
+  const { ipAddress, userAgent } = extractRequestMeta(await headers());
+  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+
+  const result = await updatePi(db, {
+    tenantId: principal.tenantId,
+    actorId: principal.id,
+    id: piId as PiId,
+    status: targetStatus,
+    ipAddress,
+    userAgent,
+  });
+
+  if (isErr(result)) {
+    return {
+      error: result.error.kind === "conflict" ? result.error.reason : "Failed to update PI status",
+    };
+  }
+
+  revalidatePath("/art/[artId]/pi/[piId]", "page");
+  revalidatePath(`/art/${artId}/pi/${piId}`, "page");
   return { success: true };
 }

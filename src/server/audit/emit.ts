@@ -48,6 +48,7 @@ export type AuditResourceType =
   | "value_stream"
   | "art"
   | "team"
+  | "pi_objective"
   | "dependency"
   | "user_role_assignment"
   | "tenant";
