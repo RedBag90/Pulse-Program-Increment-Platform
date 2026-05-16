@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createPrismaClient } from "@/server/db/prisma";
 import type { TenantId, UserId } from "@/domain/types";
 
 export interface Principal {
@@ -9,11 +10,9 @@ export interface Principal {
 }
 
 /**
- * Extracts the authenticated principal from the current Supabase session.
- * Returns null when no valid session exists.
- *
- * Always use `supabase.auth.getUser()` (not `getSession()`) for server-side
- * auth to ensure the token is validated against the Supabase server.
+ * Extracts the authenticated principal from the current Supabase session,
+ * then resolves tenant + roles from the UserRoleAssignment table.
+ * The DB is the source of truth — not JWT app_metadata.
  */
 export async function getPrincipal(): Promise<Principal | null> {
   const supabase = await createClient();
@@ -24,23 +23,30 @@ export async function getPrincipal(): Promise<Principal | null> {
 
   if (error ?? !user) return null;
 
-  const tenantId = (user.user_metadata?.["tenant_id"] ??
-    user.app_metadata?.["tenant_id"] ??
-    "") as string;
+  // Use a bootstrap client (no RLS context yet — we're establishing identity)
+  const db = createPrismaClient({ userId: user.id as UserId, tenantId: "" as TenantId });
 
-  const roles = (user.app_metadata?.["roles"] ?? []) as string[];
+  const assignments = await db.userRoleAssignment.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (assignments.length === 0) return null;
+
+  // All assignments for a user share the same tenantId (single-tenant per user for v1)
+  const tenantId = assignments[0]!.tenantId as TenantId;
+  const roles = assignments.map((a) => a.role);
 
   return {
     id: user.id as UserId,
-    tenantId: tenantId as TenantId,
+    tenantId,
     email: user.email ?? "",
     roles,
   };
 }
 
 /**
- * Like getPrincipal() but throws if no session exists.
- * Use inside route handlers that are already guarded by middleware.
+ * Like getPrincipal() but throws if no session or no role assignment exists.
  */
 export async function requirePrincipal(): Promise<Principal> {
   const principal = await getPrincipal();
