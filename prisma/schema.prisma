@@ -21,6 +21,7 @@ model Tenant {
   initiatives         Initiative[]
   userRoleAssignments UserRoleAssignment[]
   jiraConfig          JiraConfig?
+  azureDevOpsConfig   AzureDevOpsConfig?
 
   @@map("tenants")
 }
@@ -294,6 +295,24 @@ model JiraConfig {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@map("jira_configs")
+}
+
+model AzureDevOpsConfig {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @unique @map("tenant_id") @db.Uuid
+  organization   String    // e.g. "my-org"
+  accessToken    String    @map("access_token") @db.Text
+  refreshToken   String    @map("refresh_token") @db.Text
+  tokenExpiresAt DateTime  @map("token_expires_at")
+  // projectMap: JSON map of artId → "Organization/Project", e.g. {"<artId>": "myorg/MyProject"}
+  projectMap     Json      @default("{}") @map("project_map")
+  webhookSecret  String    @map("webhook_secret") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("azure_devops_configs")
 }
 
 model OutboxEvent {

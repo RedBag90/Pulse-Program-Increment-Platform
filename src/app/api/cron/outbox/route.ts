@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { processOutbox } from "@/server/outbox/processor";
 import { createPrismaClient } from "@/server/db/prisma";
 import { makeJiraStoryCreatedHandler } from "@/server/integrations/jira/outbox-handler";
+import { makeAdoStoryCreatedHandler } from "@/server/integrations/azure-devops/outbox-handler";
 
 // Vercel Cron invokes this route with a secret header.
 // See vercel.json for the schedule definition.
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest) {
 
   const handlers = {
     "jira.story.created": makeJiraStoryCreatedHandler(db),
+    "ado.story.created": makeAdoStoryCreatedHandler(db),
   };
 
   const result = await processOutbox(db, handlers);

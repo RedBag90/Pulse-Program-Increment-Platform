@@ -91,20 +91,20 @@ export async function createStory(
         userAgent,
       });
 
-      // Publish outbox event for Jira sync (handled by the cron processor)
-      await (tx as unknown as PrismaClient).outboxEvent.create({
-        data: {
-          tenantId,
-          type: "jira.story.created",
-          payload: {
-            storyId: story.id,
-            tenantId,
-            artId: feature.artId,
-            title: story.title,
-            description: story.description ?? null,
-            storyPoints: story.storyPoints ?? null,
-          },
-        },
+      // Publish outbox events for external sync (handled by the cron processor)
+      const syncPayload = {
+        storyId: story.id,
+        tenantId,
+        artId: feature.artId,
+        title: story.title,
+        description: story.description ?? null,
+        storyPoints: story.storyPoints ?? null,
+      };
+      await (tx as unknown as PrismaClient).outboxEvent.createMany({
+        data: [
+          { tenantId, type: "jira.story.created", payload: syncPayload },
+          { tenantId, type: "ado.story.created", payload: syncPayload },
+        ],
       });
 
       return ok({ id: story.id as StoryId });
