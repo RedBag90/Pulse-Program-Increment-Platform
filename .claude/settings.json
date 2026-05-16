@@ -83,7 +83,11 @@
       "Bash(sed -n '137,165p' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/server/services/impediment.ts)",
       "Bash(sed -n '308,340p' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/server/services/feature.ts)",
       "Bash(sed -n '175,205p' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/server/services/story.ts)",
-      "Bash(sed -n '252,280p' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/server/services/pi.ts)"
+      "Bash(sed -n '252,280p' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/server/services/pi.ts)",
+      "Bash(sed -n '17,25p' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/server/http/__tests__/mutation-handler.test.ts)",
+      "Bash(sed -n '14,22p' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/server/http/__tests__/query-handler.test.ts)",
+      "Bash(sed -n '1,5p' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/server/http/__tests__/mutation-handler.test.ts)",
+      "Bash(sed -n '1,5p' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/server/http/__tests__/query-handler.test.ts)"
     ],
     "additionalDirectories": [
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)",
