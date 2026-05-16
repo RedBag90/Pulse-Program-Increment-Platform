@@ -25,6 +25,8 @@ export interface UpdatePiObjectiveInput {
   description?: string | undefined;
   businessValue?: number | undefined;
   committed?: boolean | undefined;
+  /** SAFe fist-of-five confidence vote, 1-5. */
+  confidence?: number | undefined;
 }
 
 export async function createPiObjective(
@@ -74,7 +76,7 @@ export async function updatePiObjective(
   db: PrismaClient,
   input: UpdatePiObjectiveInput,
 ): Promise<Result<void>> {
-  const { tenantId, actorId, id, title, description, businessValue, committed } = input;
+  const { tenantId, actorId, id, title, description, businessValue, committed, confidence } = input;
 
   return db
     .$transaction(async (tx) => {
@@ -88,6 +90,7 @@ export async function updatePiObjective(
           ...(description !== undefined && { description }),
           ...(businessValue !== undefined && { businessValue }),
           ...(committed !== undefined && { committed }),
+          ...(confidence !== undefined && { confidence }),
         },
       });
 

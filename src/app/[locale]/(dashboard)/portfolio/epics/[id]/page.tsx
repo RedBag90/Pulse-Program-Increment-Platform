@@ -4,9 +4,14 @@ import { getEpic } from "@/server/services/initiative";
 import { EpicEditForm } from "@/features/portfolio/components/epic-edit-form";
 import { LbcEditor } from "@/features/portfolio/components/lbc-editor";
 import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-button";
+import { parseLeanBusinessCase } from "@/domain/lbc";
 import { redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import type { EpicId } from "@/domain/types";
+
+function formatDate(d: Date) {
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
 
 interface Props {
   params: Promise<{ locale: string; id: string }>;
@@ -37,6 +42,8 @@ export default async function EpicDetailPage({ params }: Props) {
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 
+  const lbc = parseLeanBusinessCase(epic.leanBusinessCase);
+
   return (
     <main className="p-8 max-w-4xl mx-auto space-y-8">
       <div>
@@ -57,6 +64,12 @@ export default async function EpicDetailPage({ params }: Props) {
         <p className="text-sm text-gray-500 mt-1">
           Value Stream: <span className="font-medium">{epic.valueStream?.name ?? "—"}</span>
         </p>
+        {epic.approvedAt && (
+          <p className="text-sm text-green-700 mt-1">
+            Approved on {formatDate(epic.approvedAt)}
+            {epic.approvalComment ? ` — “${epic.approvalComment}”` : ""}
+          </p>
+        )}
       </div>
 
       {canEdit ? (
@@ -74,14 +87,7 @@ export default async function EpicDetailPage({ params }: Props) {
       {canEdit && (
         <section>
           <h2 className="text-lg font-medium mb-4">Lean Business Case</h2>
-          <LbcEditor
-            epicId={epic.id}
-            current={
-              epic.leanBusinessCase != null && typeof epic.leanBusinessCase === "object"
-                ? (epic.leanBusinessCase as Record<string, string>)
-                : {}
-            }
-          />
+          <LbcEditor epicId={epic.id} current={lbc.current} history={lbc.history} />
         </section>
       )}
 

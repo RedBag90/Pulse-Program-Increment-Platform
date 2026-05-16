@@ -3,6 +3,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getPi } from "@/server/services/pi";
 import { listPiObjectives } from "@/server/services/pi-objective";
 import { CreatePiObjectiveDialog } from "@/features/pi/components/create-pi-objective-dialog";
+import { ObjectiveConfidenceVote } from "@/features/pi/components/objective-confidence-vote";
 import { PiSubNav } from "@/features/pi/components/pi-sub-nav";
 import { Breadcrumbs } from "@/components/nav/breadcrumbs";
 import { redirect, notFound } from "next/navigation";
@@ -29,6 +30,12 @@ export default async function PiObjectivesPage({ params }: Props) {
       orderBy: { name: "asc" },
     }),
   ]);
+
+  const canVote =
+    principal.roles.includes("art_full_editor") ||
+    principal.roles.includes("team_editor") ||
+    principal.roles.includes("tenant_admin") ||
+    principal.roles.includes("platform_admin");
 
   // Group objectives by team
   const byTeam = new Map<string, { teamName: string; objectives: typeof objectives }>();
@@ -90,6 +97,14 @@ export default async function PiObjectivesPage({ params }: Props) {
                       {obj.description && (
                         <p className="text-xs text-gray-500">{obj.description}</p>
                       )}
+                      <div className="pt-1">
+                        <ObjectiveConfidenceVote
+                          objectiveId={obj.id}
+                          artId={pi.art.id}
+                          current={obj.confidence}
+                          canVote={canVote}
+                        />
+                      </div>
                     </div>
                     {obj.businessValue !== null && (
                       <div className="shrink-0 text-right">

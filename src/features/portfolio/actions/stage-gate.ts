@@ -78,9 +78,22 @@ export async function advanceStageGateAction(
         });
       }
 
+      // Reaching L3 (Portfolio Backlog) is the approval decision — persist who
+      // approved it, when, and with what comment, so it is visible on the Epic
+      // rather than only in the audit log.
+      const isApproval = parsed.data.toGate === "L3" && currentGate !== "L3";
+
       await tx.initiative.update({
         where: { id: parsed.data.epicId },
-        data: { stageGate: parsed.data.toGate, updatedBy: principal.id },
+        data: {
+          stageGate: parsed.data.toGate,
+          updatedBy: principal.id,
+          ...(isApproval && {
+            approvedBy: principal.id,
+            approvedAt: new Date(),
+            approvalComment: parsed.data.comment ?? null,
+          }),
+        },
       });
 
       await emitAuditEvent(tx as unknown as typeof db, {

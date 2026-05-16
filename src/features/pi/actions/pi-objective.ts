@@ -2,8 +2,17 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { createPiObjective } from "@/server/services/pi-objective";
+import { redirect } from "next/navigation";
+import {
+  createPiObjective,
+  updatePiObjective,
+  type PiObjectiveId,
+} from "@/server/services/pi-objective";
 import { createServerAction } from "@/server/http/server-action";
+import { requirePrincipal } from "@/server/auth/principal";
+import { authorize } from "@/server/auth/authorize";
+import { createPrismaClient } from "@/server/db/prisma";
+import { isErr } from "@/domain/errors";
 import type { TenantId, PiId, TeamId } from "@/domain/types";
 
 export const createPiObjectiveAction = createServerAction({
@@ -41,3 +50,37 @@ export const createPiObjectiveAction = createServerAction({
   onSuccess: () => revalidatePath("/pi/[piId]/objectives", "page"),
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create objective"),
 });
+
+/** Records a team's SAFe fist-of-five confidence vote (1-5) on a PI objective. */
+export async function setObjectiveConfidenceAction(
+  objectiveId: string,
+  confidence: number,
+  artId: string,
+): Promise<{ error?: string }> {
+  const principal = await requirePrincipal().catch(() => null);
+  if (!principal) redirect("/sign-in");
+
+  if (!authorize("pi_objective.update", { tenantId: principal.tenantId, artId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
+  if (!Number.isInteger(confidence) || confidence < 1 || confidence > 5) {
+    return { error: "Confidence must be between 1 and 5." };
+  }
+
+  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+  const result = await updatePiObjective(db, {
+    tenantId: principal.tenantId as TenantId,
+    actorId: principal.id,
+    id: objectiveId as PiObjectiveId,
+    confidence,
+  });
+
+  if (isErr(result)) {
+    return {
+      error: result.error.kind === "not_found" ? "Objective not found" : "Failed to save vote",
+    };
+  }
+
+  revalidatePath("/pi/[piId]/objectives", "page");
+  return {};
+}

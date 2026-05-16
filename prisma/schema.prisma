@@ -105,6 +105,7 @@ model PiObjective {
   description String?  @db.Text
   businessValue Int?   @map("business_value") // 1-10
   committed   Boolean  @default(true)
+  confidence  Int?     @map("confidence") // SAFe fist-of-five vote, 1-5
   createdAt   DateTime @default(now()) @map("created_at")
   createdBy   String   @map("created_by") @db.Uuid
 
@@ -176,6 +177,11 @@ model Initiative {
 
   stageGate String @default("L0") @map("stage_gate")
   status    String @default("draft")
+
+  // Epic approval metadata (set when an Epic is approved)
+  approvedBy      String?   @map("approved_by") @db.Uuid
+  approvedAt      DateTime? @map("approved_at")
+  approvalComment String?   @map("approval_comment") @db.Text
 
   createdAt DateTime  @default(now()) @map("created_at")
   createdBy String    @map("created_by") @db.Uuid

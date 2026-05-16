@@ -4,6 +4,12 @@ import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import { emitAuditEvent } from "@/server/audit/emit";
+import {
+  parseLeanBusinessCase,
+  lbcHasContent,
+  type LbcFields,
+  type LeanBusinessCase,
+} from "@/domain/lbc";
 
 // ---------------------------------------------------------------------------
 // Create Epic (level 0)
@@ -143,6 +149,76 @@ export async function updateEpic(db: PrismaClient, input: UpdateEpicInput): Prom
         resourceType: "initiative",
         resourceId: id,
         changes,
+        ipAddress,
+        userAgent,
+      });
+
+      return ok(undefined);
+    })
+    .catch((e: unknown) => {
+      throw e;
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Save Lean Business Case (versioned)
+// ---------------------------------------------------------------------------
+
+export interface SaveLbcInput {
+  tenantId: TenantId;
+  actorId: UserId;
+  epicId: EpicId;
+  fields: LbcFields;
+  ipAddress?: string | undefined;
+  userAgent?: string | undefined;
+}
+
+/** Most recent LBC versions to keep, to bound the JSON size. */
+const LBC_HISTORY_LIMIT = 20;
+
+/**
+ * Saves the Lean Business Case for an Epic, keeping a version history: the
+ * previous `current` (if it had content) is pushed onto `history`.
+ */
+export async function saveLeanBusinessCase(
+  db: PrismaClient,
+  input: SaveLbcInput,
+): Promise<Result<void>> {
+  const { tenantId, actorId, epicId, fields, ipAddress, userAgent } = input;
+
+  return db
+    .$transaction(async (tx) => {
+      const existing = await tx.initiative.findFirst({
+        where: { id: epicId, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+      });
+      if (!existing) {
+        return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+      }
+
+      const prev = parseLeanBusinessCase(existing.leanBusinessCase);
+      const history = lbcHasContent(prev.current)
+        ? [
+            { content: prev.current, savedAt: new Date().toISOString(), savedBy: actorId },
+            ...prev.history,
+          ].slice(0, LBC_HISTORY_LIMIT)
+        : prev.history;
+
+      const next: LeanBusinessCase = { current: fields, history };
+
+      await tx.initiative.update({
+        where: { id: epicId },
+        data: {
+          updatedBy: actorId,
+          leanBusinessCase: next as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      await emitAuditEvent(tx as unknown as PrismaClient, {
+        tenantId,
+        actorId,
+        action: "initiative.updated",
+        resourceType: "initiative",
+        resourceId: epicId,
         ipAddress,
         userAgent,
       });

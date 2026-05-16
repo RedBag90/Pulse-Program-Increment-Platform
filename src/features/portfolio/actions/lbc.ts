@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { updateEpic } from "@/server/services/initiative";
+import { saveLeanBusinessCase } from "@/server/services/initiative";
 import { createServerAction } from "@/server/http/server-action";
 import type { EpicId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
@@ -32,11 +32,11 @@ export const saveLbcAction = createServerAction({
   }),
   service: (ctx, input) => {
     const { epicId, ...lbcFields } = input;
-    return updateEpic(ctx.db, {
+    return saveLeanBusinessCase(ctx.db, {
       tenantId: ctx.principal.tenantId,
       actorId: ctx.principal.id,
-      id: epicId as EpicId,
-      leanBusinessCase: lbcFields,
+      epicId: epicId as EpicId,
+      fields: lbcFields,
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
     });
