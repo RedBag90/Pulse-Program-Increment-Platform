@@ -4,6 +4,7 @@ import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import type { TenantId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
+import { DependencyGraph } from "@/features/pi/components/dependency-graph";
 
 interface Props {
   params: Promise<{ artId: string; piId: string }>;
@@ -122,6 +123,11 @@ export default async function PiDependenciesPage({ params }: Props) {
         </div>
       ) : (
         <div className="space-y-6">
+          <DependencyGraph
+            nodes={nodes}
+            edges={deps.map((d) => ({ id: d.id, fromId: d.fromId, toId: d.toId, type: d.type }))}
+            artId={artId}
+          />
           {/* Adjacency list grouped by "from" node */}
           {nodes
             .filter((n) => deps.some((d) => d.fromId === n.id))

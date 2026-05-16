@@ -50,6 +50,30 @@ export async function linkDependency(
         return err({ kind: "not_found" as const, resourceType: "Initiative", id: toId });
       }
 
+      // Cycle detection: BFS from toId following directed edges.
+      // If we can reach fromId, adding fromId→toId would create a cycle.
+      // Only applies to directional types (blocks, depends_on).
+      if (type !== "relates_to") {
+        const visited = new Set<string>();
+        const queue: string[] = [toId];
+        while (queue.length > 0) {
+          const current = queue.shift()!;
+          if (current === fromId) {
+            return err({
+              kind: "conflict" as const,
+              reason: "This dependency would create a circular dependency chain",
+            });
+          }
+          if (visited.has(current)) continue;
+          visited.add(current);
+          const outgoing = await tx.dependency.findMany({
+            where: { fromId: current, tenantId, type: { not: "relates_to" } },
+            select: { toId: true },
+          });
+          for (const edge of outgoing) queue.push(edge.toId);
+        }
+      }
+
       const dep = await tx.dependency.create({
         data: { tenantId, fromId, toId, type, createdBy: actorId },
       });
