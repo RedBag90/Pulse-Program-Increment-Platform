@@ -65,6 +65,12 @@ export default async function PiDetailPage({ params }: Props) {
             Objectives
           </Link>
           <Link
+            href={`/art/${artId}/pi/${piId}/dependencies`}
+            className="text-sm font-medium text-blue-600 hover:underline"
+          >
+            Dependencies
+          </Link>
+          <Link
             href={`/art/${artId}/pi/${piId}/board`}
             className="text-sm font-medium text-blue-600 hover:underline"
           >

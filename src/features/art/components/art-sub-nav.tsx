@@ -15,6 +15,7 @@ export function ArtSubNav({ artId, artName }: Props) {
     { href: `/art/${artId}/features`, label: "Features" },
     { href: `/art/${artId}/pi`, label: "Program Increments" },
     { href: `/art/${artId}/teams`, label: "Teams" },
+    { href: `/art/${artId}/velocity`, label: "Velocity" },
   ] as const;
 
   return (
@@ -29,12 +30,8 @@ export function ArtSubNav({ artId, artName }: Props) {
 
       <div className="border-b flex gap-0">
         {tabs.map(({ href, label }) => {
-          const active =
-            href === `/art/${artId}/features`
-              ? pathname.includes(`/${artId}/features`)
-              : href === `/art/${artId}/pi`
-                ? pathname.includes(`/${artId}/pi`)
-                : pathname.includes(`/${artId}/teams`);
+          const segment = href.split(`/${artId}/`)[1] ?? "";
+          const active = pathname.includes(`/${artId}/${segment}`);
 
           return (
             <Link

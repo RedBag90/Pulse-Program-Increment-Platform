@@ -97,6 +97,12 @@ export default async function SprintBoardPage({ params }: Props) {
             {formatDate(sprint.startDate)} – {formatDate(sprint.endDate)}
           </p>
         </div>
+        <Link
+          href={`/art/${artId}/pi/${piId}/sprint/${sprintId}/burndown`}
+          className="text-sm font-medium text-blue-600 hover:underline"
+        >
+          Burn-down →
+        </Link>
         <div className="text-right">
           <p className="text-2xl font-bold text-gray-800">
             {donePoints}/{totalPoints}

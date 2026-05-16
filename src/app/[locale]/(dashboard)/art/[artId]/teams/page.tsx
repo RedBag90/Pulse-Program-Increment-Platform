@@ -4,6 +4,7 @@ import { getArt } from "@/server/services/art";
 import { listTeams } from "@/server/services/team";
 import { CreateTeamDialog } from "@/features/team/components/create-team-dialog";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
+import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import type { ArtId } from "@/domain/types";
 
@@ -43,11 +44,22 @@ export default async function TeamsPage({ params }: Props) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {teams.map((team) => (
-            <div key={team.id} className="border rounded-lg p-5 space-y-2">
-              <h2 className="font-semibold">{team.name}</h2>
-              <p className="text-xs text-gray-400">
-                {team._count.sprints} sprint{team._count.sprints !== 1 ? "s" : ""}
-              </p>
+            <div
+              key={team.id}
+              className="border rounded-lg p-5 space-y-3 hover:shadow-sm transition-shadow"
+            >
+              <div className="space-y-1">
+                <h2 className="font-semibold">{team.name}</h2>
+                <p className="text-xs text-gray-400">
+                  {team._count.sprints} sprint{team._count.sprints !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <Link
+                href={`/art/${artId}/teams/${team.id}`}
+                className="inline-block text-xs font-medium text-blue-600 hover:underline"
+              >
+                View Backlog →
+              </Link>
             </div>
           ))}
         </div>
