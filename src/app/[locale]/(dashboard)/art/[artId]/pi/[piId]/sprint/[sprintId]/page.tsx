@@ -4,6 +4,7 @@ import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import { InitiativeLevel } from "@/domain/types";
 import type { TenantId } from "@/domain/types";
+import { SprintRealtime } from "@/features/team/components/sprint-realtime";
 
 interface Props {
   params: Promise<{ artId: string; piId: string; sprintId: string }>;
@@ -68,6 +69,7 @@ export default async function SprintBoardPage({ params }: Props) {
 
   return (
     <main className="p-6 max-w-full space-y-6">
+      <SprintRealtime sprintId={sprintId} />
       {/* Breadcrumb */}
       <nav className="text-sm text-gray-500 flex items-center gap-1">
         <Link href="/art" className="hover:underline">
