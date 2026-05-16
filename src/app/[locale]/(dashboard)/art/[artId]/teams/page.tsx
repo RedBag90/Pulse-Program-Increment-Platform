@@ -40,7 +40,7 @@ export default async function TeamsPage({ params }: Props) {
       </div>
 
       {teams.length === 0 ? (
-        <p className="text-gray-500 text-sm">
+        <p className="text-muted-foreground text-sm">
           No teams yet. Create one to start assigning sprints.
         </p>
       ) : (
@@ -52,14 +52,14 @@ export default async function TeamsPage({ params }: Props) {
             >
               <div className="space-y-1">
                 <h2 className="font-semibold">{team.name}</h2>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted-foreground/60">
                   {team._count.sprints} sprint{team._count.sprints !== 1 ? "s" : ""}
                 </p>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <Link
                   href={`/team/${team.id}`}
-                  className="inline-block text-xs font-medium text-blue-600 hover:underline"
+                  className="inline-block text-xs font-medium text-primary hover:underline"
                 >
                   View Backlog →
                 </Link>

@@ -2,13 +2,16 @@
 
 import { useTransition } from "react";
 import { disconnectAdoAction } from "@/features/integrations/actions/azure-devops";
+import { Button } from "@/components/ui/button";
 
 export function DisconnectAdoButton() {
   const [pending, startTransition] = useTransition();
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="sm"
       disabled={pending}
       onClick={() => {
         if (!confirm("Disconnect Azure DevOps? This will stop all syncing.")) return;
@@ -16,9 +19,9 @@ export function DisconnectAdoButton() {
           void disconnectAdoAction();
         });
       }}
-      className="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+      className="text-destructive border-destructive/30 hover:bg-destructive/10"
     >
       {pending ? "Disconnecting…" : "Disconnect"}
-    </button>
+    </Button>
   );
 }

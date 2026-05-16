@@ -41,8 +41,8 @@ export default async function ImpedimentsPage({ params, searchParams }: Props) {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Impediments</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-foreground">Impediments</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             {open.length} open · {escalated.length} escalated · {resolved.length} resolved
           </p>
         </div>
@@ -50,9 +50,11 @@ export default async function ImpedimentsPage({ params, searchParams }: Props) {
       </div>
 
       {impediments.length === 0 && (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
-          <p className="text-gray-400 text-sm">No impediments logged yet.</p>
-          <p className="text-gray-400 text-xs mt-1">Use "Log Impediment" to track blockers.</p>
+        <div className="text-center py-16 bg-white border border-border rounded-xl">
+          <p className="text-muted-foreground/60 text-sm">No impediments logged yet.</p>
+          <p className="text-muted-foreground/60 text-xs mt-1">
+            Use "Log Impediment" to track blockers.
+          </p>
         </div>
       )}
 
@@ -80,7 +82,7 @@ export default async function ImpedimentsPage({ params, searchParams }: Props) {
 
       {resolved.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             Resolved ({resolved.length})
           </h2>
           {resolved.map((imp) => (

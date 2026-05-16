@@ -13,7 +13,7 @@ interface Props {
 }
 
 const STATUS_COLUMNS = [
-  { key: "draft", label: "To Do", color: "bg-gray-50 border-gray-200" },
+  { key: "draft", label: "To Do", color: "bg-muted/50 border-border" },
   { key: "in_progress", label: "In Progress", color: "bg-blue-50 border-blue-200" },
   { key: "blocked", label: "Blocked", color: "bg-red-50 border-red-200" },
   { key: "completed", label: "Done", color: "bg-green-50 border-green-200" },
@@ -83,7 +83,7 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
         className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
           !isBurndown
             ? "border-blue-600 text-blue-700"
-            : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300"
+            : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
         }`}
       >
         Board
@@ -93,7 +93,7 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
         className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
           isBurndown
             ? "border-blue-600 text-blue-700"
-            : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300"
+            : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
         }`}
       >
         Burn-down
@@ -156,28 +156,28 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
           <h1 className="text-xl font-semibold">
             Burn-down — {sprint.team.name}, Sprint {sprint.indexInPi}
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             {formatShort(sprint.startDate)} – {formatShort(sprint.endDate)} · {sprintDays} days
           </p>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
           <div className="rounded-lg border p-4 text-center space-y-1">
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Total</p>
-            <p className="text-2xl font-bold text-gray-800">{totalPoints} pts</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Total</p>
+            <p className="text-2xl font-bold text-foreground">{totalPoints} pts</p>
           </div>
           <div className="rounded-lg border p-4 text-center space-y-1">
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Completed</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Completed</p>
             <p className="text-2xl font-bold text-green-700">{completedPoints} pts</p>
           </div>
           <div className="rounded-lg border p-4 text-center space-y-1">
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Remaining</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Remaining</p>
             <p className="text-2xl font-bold text-blue-700">{remainingPoints} pts</p>
           </div>
         </div>
 
         {totalPoints === 0 ? (
-          <div className="rounded-lg border border-dashed p-12 text-center text-sm text-gray-400">
+          <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground/60">
             No story points assigned to this sprint yet.
           </div>
         ) : (
@@ -285,11 +285,11 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
             <div className="rounded-lg border divide-y text-sm">
               {sprint.initiatives.map((s) => (
                 <div key={s.id} className="px-4 py-2.5 flex items-center justify-between">
-                  <span className="text-gray-800">{s.title}</span>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 shrink-0">
+                  <span className="text-foreground">{s.title}</span>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
                     {s.storyPoints !== null && <span>{s.storyPoints} pts</span>}
                     <span
-                      className={`rounded-full px-2 py-0.5 ${s.status === "completed" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}
+                      className={`rounded-full px-2 py-0.5 ${s.status === "completed" ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}
                     >
                       {s.status}
                     </span>
@@ -331,15 +331,15 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
           <h1 className="text-xl font-semibold">
             {sprint.team.name} — Sprint {sprint.indexInPi}
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             {formatDate(sprint.startDate)} – {formatDate(sprint.endDate)}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-bold text-gray-800">
+          <p className="text-2xl font-bold text-foreground">
             {donePoints}/{totalPoints}
           </p>
-          <p className="text-xs text-gray-400">story points done</p>
+          <p className="text-xs text-muted-foreground/60">story points done</p>
         </div>
       </div>
 
@@ -350,8 +350,8 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
           return (
             <div key={col.key} className={`rounded-lg border ${col.color} p-3 space-y-3`}>
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-gray-700">{col.label}</h2>
-                <span className="text-xs text-gray-400">{cards.length}</span>
+                <h2 className="text-sm font-semibold text-foreground/80">{col.label}</h2>
+                <span className="text-xs text-muted-foreground/60">{cards.length}</span>
               </div>
 
               <div className="space-y-2 min-h-[120px]">
@@ -360,9 +360,13 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
                     key={story.id}
                     className="rounded-md bg-white border shadow-sm p-3 space-y-1"
                   >
-                    <p className="text-sm font-medium text-gray-800 leading-snug">{story.title}</p>
+                    <p className="text-sm font-medium text-foreground leading-snug">
+                      {story.title}
+                    </p>
                     {story.parent && (
-                      <p className="text-[10px] text-gray-400 truncate">{story.parent.title}</p>
+                      <p className="text-[10px] text-muted-foreground/60 truncate">
+                        {story.parent.title}
+                      </p>
                     )}
                     {story.storyPoints !== null && (
                       <span className="inline-block text-[10px] font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
@@ -382,12 +386,9 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
       </div>
 
       {sprint.initiatives.length === 0 && (
-        <p className="text-center text-sm text-gray-400">
+        <p className="text-center text-sm text-muted-foreground/60">
           No stories assigned to this sprint yet. Assign stories from the{" "}
-          <Link
-            href={`/art/${sprint.pi.art.id}/features`}
-            className="text-blue-600 hover:underline"
-          >
+          <Link href={`/art/${sprint.pi.art.id}/features`} className="text-primary hover:underline">
             features page
           </Link>
           .

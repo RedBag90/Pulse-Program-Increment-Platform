@@ -3,6 +3,9 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { redirect } from "next/navigation";
 import { InitiativeLevel } from "@/domain/types";
 import type { TenantId } from "@/domain/types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { VelocityTrendChart } from "@/components/charts/velocity-trend-chart";
+import { Activity } from "lucide-react";
 
 export default async function PiVelocityPage() {
   const principal = await requirePrincipal().catch(() => null);
@@ -36,47 +39,62 @@ export default async function PiVelocityPage() {
     return { id: pi.id, name: pi.name, planned, completed };
   });
 
-  const maxPlanned = Math.max(1, ...rows.map((r) => r.planned));
-
   return (
-    <main className="p-8 max-w-4xl mx-auto space-y-6">
+    <main className="p-6 md:p-8 max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">PI Velocity</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-2xl font-semibold tracking-tight">PI Velocity</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
           Completed vs planned story points per Program Increment
         </p>
       </div>
 
-      {rows.length === 0 ? (
-        <p className="text-sm text-gray-400">No Program Increments yet.</p>
-      ) : (
-        <div className="space-y-4">
-          {rows.map((r) => {
-            const plannedPct = Math.round((r.planned / maxPlanned) * 100);
-            const donePct = r.planned > 0 ? Math.round((r.completed / r.planned) * plannedPct) : 0;
-            return (
-              <div key={r.id} className="space-y-1">
-                <div className="flex items-baseline justify-between text-sm">
-                  <span className="font-medium text-gray-800">{r.name}</span>
-                  <span className="text-xs text-gray-500">
-                    {r.completed}/{r.planned} pts
-                  </span>
-                </div>
-                <div className="h-6 bg-gray-100 rounded-md overflow-hidden relative">
-                  <div
-                    className="absolute inset-y-0 left-0 bg-blue-500 opacity-20 rounded-md"
-                    style={{ width: `${plannedPct}%` }}
-                  />
-                  <div
-                    className="absolute inset-y-0 left-0 bg-blue-600 rounded-md"
-                    style={{ width: `${donePct}%` }}
-                  />
-                </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Activity className="size-4 text-muted-foreground" />
+            Velocity Trend
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              No Program Increments yet.
+            </p>
+          ) : (
+            <>
+              <VelocityTrendChart data={rows} />
+              <div className="mt-4 space-y-3">
+                {rows.map((r) => {
+                  const maxPlanned = Math.max(1, ...rows.map((x) => x.planned));
+                  const plannedPct = Math.round((r.planned / maxPlanned) * 100);
+                  const donePct =
+                    r.planned > 0 ? Math.round((r.completed / r.planned) * plannedPct) : 0;
+                  return (
+                    <div key={r.id} className="space-y-1">
+                      <div className="flex items-baseline justify-between text-sm">
+                        <span className="font-medium">{r.name}</span>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {r.completed}/{r.planned} pts
+                        </span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden relative">
+                        <div
+                          className="absolute inset-y-0 left-0 bg-muted-foreground/20 rounded-full"
+                          style={{ width: `${plannedPct}%` }}
+                        />
+                        <div
+                          className="absolute inset-y-0 left-0 bg-primary rounded-full transition-all"
+                          style={{ width: `${donePct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-      )}
+            </>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
 }

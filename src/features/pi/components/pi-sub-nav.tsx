@@ -32,7 +32,7 @@ export function PiSubNav({ piId }: Props) {
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
               active
                 ? "border-blue-600 text-blue-700"
-                : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
             }`}
           >
             {label}

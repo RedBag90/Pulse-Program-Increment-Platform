@@ -35,21 +35,21 @@ export default async function UserDetailPage({ params }: Props) {
   return (
     <main className="p-8 max-w-4xl mx-auto space-y-10">
       <div>
-        <a href="../users" className="text-sm text-blue-600 hover:underline">
+        <a href="../users" className="text-sm text-primary hover:underline">
           ← Back to users
         </a>
         <h1 className="text-2xl font-semibold mt-2">User Detail</h1>
-        <p className="text-sm text-gray-500 font-mono mt-1">{userId}</p>
+        <p className="text-sm text-muted-foreground font-mono mt-1">{userId}</p>
       </div>
 
       <section>
         <h2 className="text-lg font-medium mb-4">Current Role Assignments</h2>
         {assignments.length === 0 ? (
-          <p className="text-gray-500 text-sm">No roles assigned yet.</p>
+          <p className="text-muted-foreground text-sm">No roles assigned yet.</p>
         ) : (
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-b text-left text-gray-500">
+              <tr className="border-b text-left text-muted-foreground">
                 <th className="pb-2 pr-4">Role</th>
                 <th className="pb-2 pr-4">Value Streams</th>
                 <th className="pb-2 pr-4">ARTs</th>
@@ -60,10 +60,10 @@ export default async function UserDetailPage({ params }: Props) {
               {assignments.map((a) => (
                 <tr key={a.id} className="border-b align-top">
                   <td className="py-2 pr-4 font-medium">{a.role}</td>
-                  <td className="py-2 pr-4 text-gray-600 text-xs">
+                  <td className="py-2 pr-4 text-muted-foreground text-xs">
                     {a.valueStreamIds.length === 0 ? "All" : a.valueStreamIds.join(", ")}
                   </td>
-                  <td className="py-2 pr-4 text-gray-600 text-xs">
+                  <td className="py-2 pr-4 text-muted-foreground text-xs">
                     {a.artIds.length === 0 ? "All" : a.artIds.join(", ")}
                   </td>
                   <td className="py-2">
@@ -90,13 +90,13 @@ export default async function UserDetailPage({ params }: Props) {
 
       <section className="space-y-3 border-t pt-6">
         <h2 className="text-lg font-medium">Data &amp; Privacy (GDPR)</h2>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           Export everything Pulse holds about this user, or erase their account.
         </p>
         <div className="flex items-center gap-4">
           <a
             href={`/api/v1/admin/users/${userId}/export`}
-            className="rounded-md border px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="rounded-md border px-3 py-1.5 text-sm font-medium text-foreground/80 hover:bg-muted/50"
           >
             Export user data (JSON)
           </a>

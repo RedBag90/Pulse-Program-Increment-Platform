@@ -1,7 +1,10 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { PlayCircle, CheckCircle } from "lucide-react";
+import { toast } from "sonner";
 import { transitionPiAction } from "@/features/pi/actions/pi";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   piId: string;
@@ -16,27 +19,24 @@ export function PiTransitionButton({ piId, currentStatus }: Props) {
 
   const nextStatus = currentStatus === "planned" ? "active" : "completed";
   const label = nextStatus === "active" ? "Start PI" : "Complete PI";
-  const btnClass =
-    nextStatus === "active" ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700";
+  const Icon = nextStatus === "active" ? PlayCircle : CheckCircle;
 
   function handleClick() {
     setError(null);
     startTransition(async () => {
       const result = await transitionPiAction(piId, nextStatus);
       if (result.error) setError(result.error);
+      else toast.success(`PI ${nextStatus === "active" ? "started" : "completed"}`);
     });
   }
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <button
-        onClick={handleClick}
-        disabled={isPending}
-        className={`rounded-md px-4 py-1.5 text-sm font-medium text-white ${btnClass} disabled:opacity-50`}
-      >
+      <Button onClick={handleClick} disabled={isPending} size="sm">
+        <Icon className="size-4 mr-1.5" />
         {isPending ? "Saving…" : label}
-      </button>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      </Button>
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

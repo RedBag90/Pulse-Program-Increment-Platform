@@ -26,7 +26,7 @@ export default async function AcceptInvitePage({ params }: Props) {
   return (
     <main className="p-8 max-w-md mx-auto space-y-6">
       <h1 className="text-xl font-semibold">Accept your invitation</h1>
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-muted-foreground">
         You have been invited to join Pulse as <strong>{role}</strong>. Create a password to
         activate your account.
       </p>

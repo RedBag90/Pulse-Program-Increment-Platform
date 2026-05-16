@@ -1,8 +1,10 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { Trash2 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { deletePiAction } from "@/features/pi/actions/pi";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   piId: string;
@@ -34,14 +36,17 @@ export function DeletePiButton({ piId, artId, name }: Props) {
     >
       <input type="hidden" name="id" value={piId} />
       <input type="hidden" name="artId" value={artId} />
-      {state?.error && <span className="text-red-600 text-xs block mb-1">{state.error}</span>}
-      <button
+      {state?.error && <span className="text-destructive text-xs block mb-1">{state.error}</span>}
+      <Button
         type="submit"
+        variant="outline"
+        size="sm"
         disabled={isPending}
-        className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+        className="text-destructive border-destructive/30 hover:bg-destructive/10"
       >
+        <Trash2 className="size-4 mr-1.5" />
         {isPending ? "Deleting…" : "Delete PI"}
-      </button>
+      </Button>
     </form>
   );
 }

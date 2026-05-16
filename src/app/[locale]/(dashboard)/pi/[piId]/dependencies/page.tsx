@@ -20,7 +20,7 @@ const TYPE_LABEL: Record<string, string> = {
 const TYPE_COLOR: Record<string, string> = {
   blocks: "text-red-600 border-red-300 bg-red-50",
   depends_on: "text-yellow-700 border-yellow-300 bg-yellow-50",
-  relates_to: "text-gray-600 border-gray-200 bg-gray-50",
+  relates_to: "text-muted-foreground border-border bg-muted/50",
 };
 
 export default async function PiDependenciesPage({ params }: Props) {
@@ -112,7 +112,7 @@ export default async function PiDependenciesPage({ params }: Props) {
       </div>
 
       {deps.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-gray-400">
+        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground/60">
           No dependencies linked for features in this PI yet.
           <br />
           Add dependencies from the feature detail page.
@@ -131,7 +131,7 @@ export default async function PiDependenciesPage({ params }: Props) {
               return (
                 <div key={fromNode.id} className="rounded-lg border overflow-hidden">
                   <div
-                    className={`px-4 py-3 flex items-center justify-between ${fromNode.inPi ? "bg-blue-50" : "bg-gray-50"}`}
+                    className={`px-4 py-3 flex items-center justify-between ${fromNode.inPi ? "bg-blue-50" : "bg-muted/50"}`}
                   >
                     <div className="flex items-center gap-2">
                       {fromNode.inPi && (
@@ -141,12 +141,12 @@ export default async function PiDependenciesPage({ params }: Props) {
                       )}
                       <Link
                         href={`/feature/${fromNode.id}`}
-                        className="text-sm font-medium text-blue-700 hover:underline"
+                        className="text-sm font-medium text-primary hover:underline"
                       >
                         {fromNode.title}
                       </Link>
                     </div>
-                    <span className="text-xs text-gray-400">{fromNode.status}</span>
+                    <span className="text-xs text-muted-foreground/60">{fromNode.status}</span>
                   </div>
                   <div className="divide-y">
                     {outgoing.map((dep) => {
@@ -167,12 +167,14 @@ export default async function PiDependenciesPage({ params }: Props) {
                             )}
                             <Link
                               href={`/feature/${dep.toId}`}
-                              className="text-sm text-gray-800 hover:text-blue-700 hover:underline"
+                              className="text-sm text-foreground hover:text-primary hover:underline"
                             >
                               {dep.to.title}
                             </Link>
                           </div>
-                          <span className="text-xs text-gray-400 shrink-0">{dep.to.status}</span>
+                          <span className="text-xs text-muted-foreground/60 shrink-0">
+                            {dep.to.status}
+                          </span>
                         </div>
                       );
                     })}
@@ -187,7 +189,9 @@ export default async function PiDependenciesPage({ params }: Props) {
       {features.filter((f) => !deps.some((d) => d.fromId === f.id || d.toId === f.id)).length >
         0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-medium text-gray-500">Features with no dependencies</h2>
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Features with no dependencies
+          </h2>
           <div className="flex flex-wrap gap-2">
             {features
               .filter((f) => !deps.some((d) => d.fromId === f.id || d.toId === f.id))
@@ -195,7 +199,7 @@ export default async function PiDependenciesPage({ params }: Props) {
                 <Link
                   key={f.id}
                   href={`/feature/${f.id}`}
-                  className="rounded-md border px-3 py-1.5 text-xs text-gray-600 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                  className="rounded-md border px-3 py-1.5 text-xs text-muted-foreground hover:border-blue-300 hover:text-blue-700 transition-colors"
                 >
                   {f.title}
                 </Link>

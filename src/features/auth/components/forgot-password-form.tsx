@@ -4,6 +4,9 @@ import { useActionState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { forgotPassword } from "../actions/forgot-password";
 import type { ForgotPasswordState } from "../actions/forgot-password";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 export function ForgotPasswordForm() {
   const t = useTranslations("auth");
@@ -24,18 +27,9 @@ export function ForgotPasswordForm() {
   return (
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="locale" value={locale} />
-      <div className="flex flex-col gap-1">
-        <label htmlFor="email" className="text-sm font-medium">
-          {t("email")}
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          autoComplete="email"
-          className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        />
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="email">{t("email")}</Label>
+        <Input id="email" name="email" type="email" required autoComplete="email" />
       </div>
 
       {state && !state.ok && state.error && (
@@ -44,13 +38,9 @@ export function ForgotPasswordForm() {
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-60"
-      >
+      <Button type="submit" disabled={isPending} className="w-full">
         {isPending ? "…" : t("sendResetLink")}
-      </button>
+      </Button>
     </form>
   );
 }

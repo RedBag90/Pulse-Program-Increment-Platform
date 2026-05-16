@@ -94,7 +94,7 @@ export default async function AuditLogPage({ searchParams }: Props) {
         >
           Filter
         </button>
-        <a href="?" className="rounded border px-4 py-1.5 hover:bg-gray-50">
+        <a href="?" className="rounded border px-4 py-1.5 hover:bg-muted/50">
           Clear
         </a>
       </form>
@@ -115,14 +115,14 @@ export default async function AuditLogPage({ searchParams }: Props) {
       {/* Pagination */}
       <div className="flex justify-between text-sm">
         {params.cursor && (
-          <a href="?" className="text-blue-600 hover:underline">
+          <a href="?" className="text-primary hover:underline">
             ← First page
           </a>
         )}
         {nextCursor && (
           <a
             href={`?${new URLSearchParams({ ...params, cursor: nextCursor }).toString()}`}
-            className="text-blue-600 hover:underline ml-auto"
+            className="text-primary hover:underline ml-auto"
           >
             Next page →
           </a>

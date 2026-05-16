@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { disconnectJiraAction } from "@/features/integrations/actions/jira";
+import { Button } from "@/components/ui/button";
 
 export function DisconnectJiraButton() {
   const [isPending, startTransition] = useTransition();
@@ -14,12 +15,14 @@ export function DisconnectJiraButton() {
   }
 
   return (
-    <button
+    <Button
       onClick={handleClick}
       disabled={isPending}
-      className="px-3 py-1.5 text-sm text-red-600 border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50"
+      variant="outline"
+      size="sm"
+      className="text-destructive border-destructive/30 hover:bg-destructive/10"
     >
       {isPending ? "Disconnecting…" : "Disconnect"}
-    </button>
+    </Button>
   );
 }

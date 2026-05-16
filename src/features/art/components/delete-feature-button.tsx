@@ -22,11 +22,11 @@ export function DeleteFeatureButton({ id, artId, title }: DeleteFeatureButtonPro
     >
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="artId" value={artId} />
-      {state?.error && <span className="text-red-600 text-xs mr-2">{state.error}</span>}
+      {state?.error && <span className="text-destructive text-xs mr-2">{state.error}</span>}
       <button
         type="submit"
         disabled={isPending}
-        className="text-red-600 text-xs hover:underline disabled:opacity-50"
+        className="text-destructive text-xs hover:underline disabled:opacity-50"
       >
         {isPending ? "Deleting…" : "Delete"}
       </button>

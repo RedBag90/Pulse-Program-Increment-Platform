@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { eraseUserAction } from "@/features/admin/actions/gdpr";
+import { Button } from "@/components/ui/button";
 
-/** GDPR erasure trigger for the admin user-detail page. */
 export function EraseUserButton({ userId }: { userId: string }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -26,15 +26,17 @@ export function EraseUserButton({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-1">
-      {error && <p className="text-xs text-red-600">{error}</p>}
-      <button
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={handleClick}
         disabled={isPending}
-        className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+        className="text-destructive border-destructive/30 hover:bg-destructive/10"
       >
         {isPending ? "Erasing…" : "Erase user (GDPR)"}
-      </button>
+      </Button>
     </div>
   );
 }

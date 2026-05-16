@@ -4,6 +4,9 @@ import { useActionState } from "react";
 import { useTranslations } from "next-intl";
 import { resetPassword } from "../actions/reset-password";
 import type { ResetPasswordState } from "../actions/reset-password";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 export function ResetPasswordForm() {
   const t = useTranslations("auth");
@@ -14,18 +17,15 @@ export function ResetPasswordForm() {
 
   return (
     <form action={action} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <label htmlFor="password" className="text-sm font-medium">
-          {t("newPassword")}
-        </label>
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="password">{t("newPassword")}</Label>
+        <Input
           id="password"
           name="password"
           type="password"
           required
           minLength={8}
           autoComplete="new-password"
-          className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
 
@@ -35,13 +35,9 @@ export function ResetPasswordForm() {
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-60"
-      >
+      <Button type="submit" disabled={isPending} className="w-full">
         {isPending ? "…" : t("resetPassword")}
-      </button>
+      </Button>
     </form>
   );
 }

@@ -87,15 +87,15 @@ export default async function VelocityPage({ params }: Props) {
 
       <div>
         <h1 className="text-xl font-semibold">PI Velocity</h1>
-        <p className="text-sm text-gray-500 mt-1">Completed story points per team per PI</p>
+        <p className="text-sm text-muted-foreground mt-1">Completed story points per team per PI</p>
       </div>
 
       {pis.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-gray-400">
+        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground/60">
           No Program Increments yet. Create a PI to start tracking velocity.
         </div>
       ) : teamList.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-gray-400">
+        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground/60">
           No teams in this ART. Add teams to track per-team velocity.
         </div>
       ) : (
@@ -105,7 +105,7 @@ export default async function VelocityPage({ params }: Props) {
             {teamList.map(([tid, name], i) => (
               <div key={tid} className="flex items-center gap-1.5">
                 <span className={`w-3 h-3 rounded-sm ${TEAM_COLORS[i % TEAM_COLORS.length]}`} />
-                <span className="text-gray-600">{name}</span>
+                <span className="text-muted-foreground">{name}</span>
               </div>
             ))}
           </div>
@@ -118,11 +118,11 @@ export default async function VelocityPage({ params }: Props) {
               return (
                 <div key={pi.id} className="space-y-2">
                   <div className="flex items-baseline justify-between">
-                    <h3 className="text-sm font-medium text-gray-800">{pi.name}</h3>
-                    <span className="text-xs text-gray-400">
+                    <h3 className="text-sm font-medium text-foreground">{pi.name}</h3>
+                    <span className="text-xs text-muted-foreground/60">
                       {formatDate(pi.startDate)} – {formatDate(pi.endDate)}
                       {" · "}
-                      <span className="font-medium text-gray-600">
+                      <span className="font-medium text-muted-foreground">
                         {totalDone}/{totalPlanned} pts
                       </span>
                     </span>
@@ -138,10 +138,10 @@ export default async function VelocityPage({ params }: Props) {
                       const colorClass = TEAM_COLORS[i % TEAM_COLORS.length]!;
                       return (
                         <div key={tid} className="flex items-center gap-3">
-                          <span className="text-xs text-gray-500 w-28 truncate shrink-0">
+                          <span className="text-xs text-muted-foreground w-28 truncate shrink-0">
                             {name}
                           </span>
-                          <div className="flex-1 h-6 bg-gray-100 rounded-md overflow-hidden relative">
+                          <div className="flex-1 h-6 bg-muted rounded-md overflow-hidden relative">
                             {/* planned bar (lighter) */}
                             <div
                               className={`absolute inset-y-0 left-0 ${colorClass} opacity-20 rounded-md`}
@@ -153,7 +153,7 @@ export default async function VelocityPage({ params }: Props) {
                               style={{ width: `${donePct}%` }}
                             />
                           </div>
-                          <span className="text-xs text-gray-600 w-20 text-right shrink-0">
+                          <span className="text-xs text-muted-foreground w-20 text-right shrink-0">
                             {data.completed}/{data.planned} pts
                           </span>
                         </div>

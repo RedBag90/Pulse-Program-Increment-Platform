@@ -85,7 +85,7 @@ export default async function TeamBacklogPage({ params, searchParams }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">{team.name} — Backlog</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             {unassignedStories.length} unassigned stor{unassignedStories.length !== 1 ? "ies" : "y"}{" "}
             · {totalPoints} pts
           </p>
@@ -100,26 +100,33 @@ export default async function TeamBacklogPage({ params, searchParams }: Props) {
         />
 
         {filterPiId && (
-          <Link href={`/team/${teamId}`} className="text-xs text-gray-400 hover:text-gray-700">
+          <Link
+            href={`/team/${teamId}`}
+            className="text-xs text-muted-foreground/60 hover:text-foreground/80"
+          >
             Clear filters
           </Link>
         )}
       </div>
 
       {unassignedStories.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-gray-400">
+        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground/60">
           No unassigned stories
           {filterPiId ? " for this PI" : ""}. All stories are in a sprint.
         </div>
       ) : (
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Story</th>
-                <th className="text-center px-3 py-3 font-medium text-gray-600 w-16">Pts</th>
-                <th className="text-left px-3 py-3 font-medium text-gray-600 w-28">Status</th>
-                <th className="text-left px-3 py-3 font-medium text-gray-600 w-52">
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Story</th>
+                <th className="text-center px-3 py-3 font-medium text-muted-foreground w-16">
+                  Pts
+                </th>
+                <th className="text-left px-3 py-3 font-medium text-muted-foreground w-28">
+                  Status
+                </th>
+                <th className="text-left px-3 py-3 font-medium text-muted-foreground w-52">
                   Assign Sprint
                 </th>
               </tr>

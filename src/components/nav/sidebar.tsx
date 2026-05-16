@@ -3,86 +3,117 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Layers,
+  GitBranch,
+  Zap,
+  Target,
+  Users,
+  Timer,
+  BarChart2,
+  Activity,
+  Trophy,
+  ShieldCheck,
+  Plug,
+  ClipboardList,
+  ChevronRight,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
+import { UserNav } from "@/components/nav/user-nav";
 
 const NAV_GROUPS = [
   {
     labelKey: "portfolio",
     items: [
-      { href: "/portfolio", labelKey: "overview", exact: true },
-      { href: "/portfolio/epics", labelKey: "epics" },
-      { href: "/portfolio/value-streams", labelKey: "valueStreams" },
+      { href: "/portfolio", labelKey: "overview", icon: LayoutDashboard, exact: true },
+      { href: "/portfolio/epics", labelKey: "epics", icon: Layers },
+      { href: "/portfolio/value-streams", labelKey: "valueStreams", icon: GitBranch },
     ],
   },
   {
     labelKey: "programPlanning",
     items: [
-      { href: "/art", labelKey: "arts" },
-      { href: "/pi", labelKey: "programIncrements" },
-      { href: "/feature", labelKey: "features" },
+      { href: "/art", labelKey: "arts", icon: Zap },
+      { href: "/pi", labelKey: "programIncrements", icon: Target },
+      { href: "/feature", labelKey: "features", icon: ChevronRight },
     ],
   },
   {
     labelKey: "teamExecution",
     items: [
-      { href: "/team", labelKey: "teams" },
-      { href: "/sprint", labelKey: "mySprints" },
+      { href: "/team", labelKey: "teams", icon: Users },
+      { href: "/sprint", labelKey: "mySprints", icon: Timer },
     ],
   },
   {
     labelKey: "reporting",
     items: [
-      { href: "/reporting/portfolio-health", labelKey: "portfolioHealth" },
-      { href: "/reporting/pi-velocity", labelKey: "piVelocity" },
-      { href: "/reporting/wsjf-leaderboard", labelKey: "wsjfLeaderboard" },
+      { href: "/reporting/portfolio-health", labelKey: "portfolioHealth", icon: BarChart2 },
+      { href: "/reporting/pi-velocity", labelKey: "piVelocity", icon: Activity },
+      { href: "/reporting/wsjf-leaderboard", labelKey: "wsjfLeaderboard", icon: Trophy },
     ],
   },
   {
     labelKey: "admin",
     items: [
-      { href: "/admin/users", labelKey: "users" },
-      { href: "/admin/integrations", labelKey: "integrations" },
-      { href: "/admin/audit-log", labelKey: "auditLog" },
+      { href: "/admin/users", labelKey: "users", icon: ShieldCheck },
+      { href: "/admin/integrations", labelKey: "integrations", icon: Plug },
+      { href: "/admin/audit-log", labelKey: "auditLog", icon: ClipboardList },
     ],
   },
 ] as const;
 
-/** Whether a nav item is active, ignoring the locale prefix and matching on segment boundaries. */
 function isActive(pathname: string, href: string, exact: boolean): boolean {
   const path = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, "") || "/";
   if (exact) return path === href;
   return path === href || path.startsWith(`${href}/`);
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  userEmail: string;
+}
+
+export function Sidebar({ userEmail }: SidebarProps) {
   const pathname = usePathname();
   const t = useTranslations("nav");
 
   return (
-    <aside className="w-56 shrink-0 border-r bg-white flex flex-col min-h-screen">
-      <div className="px-5 py-4 border-b">
-        <span className="font-bold text-blue-800 text-lg tracking-tight">Pulse</span>
+    <aside className="flex flex-col h-full bg-sidebar border-r border-sidebar-border">
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 px-5 h-14 border-b border-sidebar-border shrink-0">
+        <div className="size-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
+          <Zap className="size-4 text-primary-foreground" strokeWidth={2.5} />
+        </div>
+        <span className="font-semibold text-sm tracking-tight text-sidebar-foreground">Pulse</span>
       </div>
-      <nav className="flex-1 px-3 py-4 space-y-5">
-        {NAV_GROUPS.map((group) => (
+
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-1">
+        {NAV_GROUPS.map((group, groupIdx) => (
           <div key={group.labelKey}>
-            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+            {groupIdx > 0 && <Separator className="my-3 bg-sidebar-border" />}
+            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
               {t(group.labelKey)}
             </p>
             <div className="space-y-0.5">
-              {group.items.map(({ href, labelKey, ...rest }) => {
+              {group.items.map(({ href, labelKey, icon: Icon, ...rest }) => {
                 const exact = "exact" in rest ? rest.exact : false;
                 const active = isActive(pathname, href, exact);
                 return (
                   <Link
                     key={href}
                     href={href}
-                    className={`block rounded-md px-3 py-2 text-sm transition-colors ${
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
                       active
-                        ? "bg-blue-50 text-blue-800 font-medium"
-                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                    }`}
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                    )}
                   >
-                    {t(labelKey)}
+                    <Icon className="size-4 shrink-0" />
+                    <span>{t(labelKey)}</span>
                   </Link>
                 );
               })}
@@ -90,6 +121,11 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
+
+      {/* User Section */}
+      <div className="border-t border-sidebar-border p-3 shrink-0">
+        <UserNav email={userEmail} />
+      </div>
     </aside>
   );
 }

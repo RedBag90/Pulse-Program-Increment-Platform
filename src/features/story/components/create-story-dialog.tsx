@@ -1,8 +1,21 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
 import { createStoryAction } from "@/features/story/actions/story";
 import type { ActionState } from "@/server/http/server-action";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Sprint {
   id: string;
@@ -23,124 +36,91 @@ export function CreateStoryDialog({ featureId, artId, sprints }: Props) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(createStoryAction, initialState);
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-      >
-        + Add Story
-      </button>
-    );
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl space-y-4">
-        <h2 className="text-lg font-semibold">Add Story</h2>
+    <>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        <Plus className="size-4 mr-1" />
+        Add Story
+      </Button>
 
-        <form
-          ref={formRef}
-          action={async (fd) => {
-            await action(fd);
-            if (!state.fieldErrors && !state.error) {
-              setOpen(false);
-              formRef.current?.reset();
-            }
-          }}
-          className="space-y-4"
-        >
-          <input type="hidden" name="featureId" value={featureId} />
-          <input type="hidden" name="artId" value={artId} />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Story</DialogTitle>
+          </DialogHeader>
+          <form
+            ref={formRef}
+            action={async (fd) => {
+              await action(fd);
+              if (!state.fieldErrors && !state.error) {
+                toast.success("Story created");
+                setOpen(false);
+                formRef.current?.reset();
+              }
+            }}
+            className="space-y-4"
+          >
+            <input type="hidden" name="featureId" value={featureId} />
+            <input type="hidden" name="artId" value={artId} />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-            <input
-              name="title"
-              type="text"
-              required
-              placeholder="As a user, I want to…"
-              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {state.fieldErrors?.title && (
-              <p className="mt-1 text-xs text-red-600">{state.fieldErrors.title[0]}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea
-              name="description"
-              rows={2}
-              placeholder="Optional context…"
-              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Acceptance Criteria
-              <span className="text-gray-400 font-normal ml-1">(one per line)</span>
-            </label>
-            <textarea
-              name="acceptanceCriteria"
-              rows={3}
-              placeholder="Given… When… Then…"
-              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Story Points</label>
-              <input
-                name="storyPoints"
-                type="number"
-                min={1}
-                max={100}
-                placeholder="5"
-                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="space-y-1.5">
+              <Label>Title *</Label>
+              <Input name="title" required placeholder="As a user, I want to…" />
+              {state.fieldErrors?.title && (
+                <p className="text-xs text-destructive">{state.fieldErrors.title[0]}</p>
+              )}
             </div>
 
-            {sprints.length > 0 && (
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sprint</label>
-                <select
-                  name="sprintId"
-                  className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Unassigned</option>
-                  {sprints.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.team.name} — Sprint {s.indexInPi}
-                    </option>
-                  ))}
-                </select>
+            <div className="space-y-1.5">
+              <Label>Description</Label>
+              <Textarea name="description" rows={2} placeholder="Optional context…" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>
+                Acceptance Criteria
+                <span className="text-muted-foreground font-normal ml-1">(one per line)</span>
+              </Label>
+              <Textarea name="acceptanceCriteria" rows={3} placeholder="Given… When… Then…" />
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-1 space-y-1.5">
+                <Label>Story Points</Label>
+                <Input name="storyPoints" type="number" min={1} max={100} placeholder="5" />
               </div>
-            )}
-          </div>
 
-          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+              {sprints.length > 0 && (
+                <div className="flex-1 space-y-1.5">
+                  <Label>Sprint</Label>
+                  <select
+                    name="sprintId"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="">Unassigned</option>
+                    {sprints.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.team.name} — Sprint {s.indexInPi}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {pending ? "Saving…" : "Add Story"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+            {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Saving…" : "Add Story"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

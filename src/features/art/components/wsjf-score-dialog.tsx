@@ -1,7 +1,20 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useState } from "react";
+import { toast } from "sonner";
 import { scoreFeatureAction, type FeatureActionState } from "@/features/art/actions/feature";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+
+const SELECT_CLASS =
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const FIB = [1, 2, 3, 5, 8, 13, 20] as const;
 
@@ -19,12 +32,15 @@ interface Props {
 const initial: FeatureActionState = {};
 
 export function WsjfScoreDialog({ featureId, artId, current }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
 
   const [state, formAction, pending] = useActionState(
     async (prev: FeatureActionState, formData: FormData) => {
       const result = await scoreFeatureAction(prev, formData);
-      if (result.success) dialogRef.current?.close();
+      if (result.success) {
+        toast.success("WSJF score updated");
+        setOpen(false);
+      }
       return result;
     },
     initial,
@@ -38,19 +54,17 @@ export function WsjfScoreDialog({ featureId, artId, current }: Props) {
   return (
     <>
       <button
-        onClick={() => dialogRef.current?.showModal()}
-        className="text-xs text-blue-600 hover:underline whitespace-nowrap"
+        onClick={() => setOpen(true)}
+        className="text-xs text-primary hover:underline whitespace-nowrap"
       >
         {score !== null ? score : "Score"}
       </button>
 
-      <dialog
-        ref={dialogRef}
-        className="rounded-xl shadow-xl p-0 w-full max-w-sm backdrop:bg-black/40"
-      >
-        <div className="p-5 space-y-4">
-          <h2 className="text-base font-semibold text-gray-900">Update WSJF Score</h2>
-
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Update WSJF Score</DialogTitle>
+          </DialogHeader>
           <form action={formAction} className="space-y-3">
             <input type="hidden" name="featureId" value={featureId} />
             <input type="hidden" name="artId" value={artId} />
@@ -63,13 +77,9 @@ export function WsjfScoreDialog({ featureId, artId, current }: Props) {
                 { name: "wsjfJobSize", label: "Job Size", value: current.js },
               ] as const
             ).map(({ name, label, value }) => (
-              <div key={name}>
-                <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-                <select
-                  name={name}
-                  defaultValue={value ?? 1}
-                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
+              <div key={name} className="space-y-1">
+                <Label className="text-xs">{label}</Label>
+                <select name={name} defaultValue={value ?? 1} className={SELECT_CLASS}>
                   {FIB.map((v) => (
                     <option key={v} value={v}>
                       {v}
@@ -79,27 +89,19 @@ export function WsjfScoreDialog({ featureId, artId, current }: Props) {
               </div>
             ))}
 
-            {state.error && <p className="text-xs text-red-600">{state.error}</p>}
+            {state.error && <p className="text-xs text-destructive">{state.error}</p>}
 
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => dialogRef.current?.close()}
-                className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900"
-              >
+            <DialogFooter>
+              <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
                 Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={pending}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
-              >
+              </Button>
+              <Button type="submit" size="sm" disabled={pending}>
                 {pending ? "Saving…" : "Save"}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </form>
-        </div>
-      </dialog>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

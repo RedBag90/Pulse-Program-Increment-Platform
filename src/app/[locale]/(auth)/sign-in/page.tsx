@@ -2,10 +2,22 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { SignInForm } from "@/features/auth/components/sign-in-form";
 
+const TEST_PASSWORD = "Test1234!";
+
+/** One probe account per RBAC role — all share TEST_PASSWORD. Seeded by
+ *  scripts/seed-test-accounts.mjs. */
 const TEST_USERS = [
-  { email: "admin@pulse.dev", password: "Admin1234!", role: "Admin + Portfolio Editor" },
-  { email: "portfolio@pulse.dev", password: "Test1234!", role: "Portfolio Editor" },
-  { email: "viewer@pulse.dev", password: "Test1234!", role: "Viewer (read-only)" },
+  { email: "platform-admin@pulse.dev", role: "Platform Admin" },
+  { email: "tenant-admin@pulse.dev", role: "Tenant Admin" },
+  { email: "portfolio-editor@pulse.dev", role: "Portfolio Editor" },
+  { email: "architect-viewer@pulse.dev", role: "Architect Viewer · read-only" },
+  { email: "art-editor@pulse.dev", role: "ART Full Editor · RTE" },
+  { email: "feature-editor@pulse.dev", role: "Feature Editor · PM" },
+  { email: "art-arch-viewer@pulse.dev", role: "ART Architect Viewer · read-only" },
+  { email: "team-editor@pulse.dev", role: "Team Editor · SM / PO" },
+  { email: "story-owner@pulse.dev", role: "Story Owner" },
+  { email: "task-owner@pulse.dev", role: "Task Owner · Developer" },
+  { email: "portfolio-viewer@pulse.dev", role: "Portfolio Viewer · read-only" },
 ] as const;
 
 export default function SignInPage() {
@@ -29,15 +41,14 @@ export default function SignInPage() {
 
       {process.env.NODE_ENV === "development" && (
         <div className="mt-8 rounded-lg border border-dashed border-amber-400 bg-amber-50 p-4 text-sm">
-          <p className="mb-3 font-semibold text-amber-800">🧪 Demo accounts</p>
-          <div className="space-y-2">
+          <p className="font-semibold text-amber-800">🧪 Demo accounts — one per role</p>
+          <p className="mb-3 text-xs text-amber-700">
+            Password for all: <span className="font-mono">{TEST_PASSWORD}</span>
+          </p>
+          <div className="space-y-1.5">
             {TEST_USERS.map((u) => (
-              <div key={u.email} className="flex items-start justify-between gap-4">
-                <div>
-                  <span className="font-mono text-xs text-gray-800">{u.email}</span>
-                  <span className="mx-1 text-gray-400">/</span>
-                  <span className="font-mono text-xs text-gray-800">{u.password}</span>
-                </div>
+              <div key={u.email} className="flex items-center justify-between gap-4">
+                <span className="font-mono text-xs text-foreground">{u.email}</span>
                 <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
                   {u.role}
                 </span>

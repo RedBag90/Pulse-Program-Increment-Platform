@@ -43,11 +43,11 @@ export default async function EpicsPage() {
       </div>
 
       {epics.length === 0 ? (
-        <p className="text-gray-500 text-sm">No epics yet.</p>
+        <p className="text-muted-foreground text-sm">No epics yet.</p>
       ) : (
         <table className="w-full text-sm border-collapse">
           <thead>
-            <tr className="border-b text-left text-gray-500">
+            <tr className="border-b text-left text-muted-foreground">
               <th className="pb-2 pr-4">Title</th>
               <th className="pb-2 pr-4">Value Stream</th>
               <th className="pb-2 pr-4">Stage Gate</th>
@@ -57,22 +57,22 @@ export default async function EpicsPage() {
           </thead>
           <tbody>
             {epics.map((epic) => (
-              <tr key={epic.id} className="border-b hover:bg-gray-50">
+              <tr key={epic.id} className="border-b hover:bg-muted/50">
                 <td className="py-2 pr-4">
                   <Link
                     href={`/portfolio/epics/${epic.id}`}
-                    className="text-blue-700 hover:underline font-medium"
+                    className="text-primary hover:underline font-medium"
                   >
                     {epic.title}
                   </Link>
                 </td>
-                <td className="py-2 pr-4 text-gray-600">{epic.valueStream?.name ?? "—"}</td>
+                <td className="py-2 pr-4 text-muted-foreground">{epic.valueStream?.name ?? "—"}</td>
                 <td className="py-2 pr-4">
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
                     {STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate}
                   </span>
                 </td>
-                <td className="py-2 text-gray-600">{epic.status}</td>
+                <td className="py-2 text-muted-foreground">{epic.status}</td>
                 {canEdit && (
                   <td className="py-2 pl-2">
                     <DeleteEpicButton id={epic.id} title={epic.title} />

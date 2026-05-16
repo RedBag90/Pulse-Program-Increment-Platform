@@ -25,12 +25,12 @@ export function UnlinkDependencyButton({ fromId, toId, type, artId }: Props) {
 
   return (
     <span className="flex items-center gap-1">
-      {error && <span className="text-[10px] text-red-600">{error}</span>}
+      {error && <span className="text-[10px] text-destructive">{error}</span>}
       <button
         type="button"
         onClick={handleClick}
         disabled={isPending}
-        className="text-xs text-gray-400 hover:text-red-600 disabled:opacity-50"
+        className="text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
       >
         {isPending ? "…" : "Unlink"}
       </button>

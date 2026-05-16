@@ -29,16 +29,18 @@ export default async function TeamsIndexPage() {
     <main className="p-8 max-w-5xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Teams</h1>
-        <p className="text-sm text-gray-500 mt-1">All teams across your Agile Release Trains</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          All teams across your Agile Release Trains
+        </p>
       </div>
 
       {teams.length === 0 ? (
-        <p className="text-gray-500 text-sm">No teams yet.</p>
+        <p className="text-muted-foreground text-sm">No teams yet.</p>
       ) : (
         <div className="space-y-6">
           {[...byArt.entries()].map(([artId, { artName, teams: artTeams }]) => (
             <section key={artId} className="space-y-3">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 {artName}
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -49,7 +51,7 @@ export default async function TeamsIndexPage() {
                     className="border rounded-lg p-5 space-y-1 hover:border-blue-300 hover:shadow-sm transition-colors"
                   >
                     <h3 className="font-semibold">{team.name}</h3>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-muted-foreground/60">
                       {team._count.sprints} sprint{team._count.sprints !== 1 ? "s" : ""}
                     </p>
                   </Link>

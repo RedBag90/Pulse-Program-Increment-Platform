@@ -22,11 +22,11 @@ export function RemoveRoleButton({ assignmentId, targetUserId, role }: RemoveRol
       <input type="hidden" name="assignmentId" value={assignmentId} />
       <input type="hidden" name="targetUserId" value={targetUserId} />
       <input type="hidden" name="role" value={role} />
-      {state.error && <span className="text-red-600 text-xs mr-2">{state.error}</span>}
+      {state.error && <span className="text-destructive text-xs mr-2">{state.error}</span>}
       <button
         type="submit"
         disabled={isPending}
-        className="text-red-600 text-xs hover:underline disabled:opacity-50"
+        className="text-destructive text-xs hover:underline disabled:opacity-50"
       >
         {isPending ? "Removing…" : "Remove"}
       </button>

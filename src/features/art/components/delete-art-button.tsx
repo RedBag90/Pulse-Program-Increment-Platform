@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
+import { Trash2 } from "lucide-react";
 import { deleteArtAction } from "@/features/art/actions/art";
+import { Button } from "@/components/ui/button";
 
 interface DeleteArtButtonProps {
   id: string;
@@ -19,14 +21,17 @@ export function DeleteArtButton({ id, name }: DeleteArtButtonProps) {
       }}
     >
       <input type="hidden" name="id" value={id} />
-      {state?.error && <span className="text-red-600 text-xs block mb-1">{state.error}</span>}
-      <button
+      {state?.error && <span className="text-destructive text-xs block mb-1">{state.error}</span>}
+      <Button
         type="submit"
+        variant="ghost"
+        size="sm"
         disabled={isPending}
-        className="text-red-600 text-xs hover:underline disabled:opacity-50"
+        className="h-7 px-2 text-muted-foreground hover:text-destructive"
       >
-        {isPending ? "Deleting…" : "Delete"}
-      </button>
+        <Trash2 className="size-3.5" />
+        <span className="sr-only">Delete</span>
+      </Button>
     </form>
   );
 }

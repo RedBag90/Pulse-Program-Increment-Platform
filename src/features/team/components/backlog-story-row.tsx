@@ -23,7 +23,7 @@ interface Props {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-600",
+  draft: "bg-muted text-muted-foreground",
   in_progress: "bg-blue-100 text-blue-700",
   blocked: "bg-red-100 text-red-700",
   completed: "bg-green-100 text-green-700",
@@ -46,13 +46,15 @@ export function BacklogStoryRow({ story, sprints, artId, teamId }: Props) {
     <tr className={`border-b last:border-0 ${isPending ? "opacity-50" : ""}`}>
       <td className="px-4 py-3">
         <div className="space-y-0.5">
-          <p className="text-sm font-medium text-gray-800">{story.title}</p>
-          {story.parentTitle && <p className="text-xs text-gray-400">{story.parentTitle}</p>}
+          <p className="text-sm font-medium text-foreground">{story.title}</p>
+          {story.parentTitle && (
+            <p className="text-xs text-muted-foreground/60">{story.parentTitle}</p>
+          )}
         </div>
       </td>
       <td className="px-3 py-3 text-center">
         {story.storyPoints !== null ? (
-          <span className="text-sm font-medium text-gray-700">{story.storyPoints}</span>
+          <span className="text-sm font-medium text-foreground/80">{story.storyPoints}</span>
         ) : (
           <span className="text-gray-300">—</span>
         )}

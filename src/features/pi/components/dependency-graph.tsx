@@ -96,7 +96,7 @@ export function DependencyGraph({ nodes, edges }: Props) {
   if (nodes.length === 0 || edges.length === 0) return null;
 
   return (
-    <div className="overflow-x-auto rounded-xl border bg-gray-50 p-2">
+    <div className="overflow-x-auto rounded-xl border bg-muted/50 p-2">
       <svg width={width} height={Math.max(height, 100)} className="block">
         <defs>
           {["blocks", "depends_on", "relates_to"].map((type) => (
@@ -205,10 +205,12 @@ export function DependencyGraph({ nodes, edges }: Props) {
                 strokeDasharray={type === "relates_to" ? "4 3" : undefined}
               />
             </svg>
-            <span className="text-[10px] text-gray-500">{label}</span>
+            <span className="text-[10px] text-muted-foreground">{label}</span>
           </div>
         ))}
-        <span className="text-[10px] text-gray-400 ml-auto">click a node to open feature</span>
+        <span className="text-[10px] text-muted-foreground/60 ml-auto">
+          click a node to open feature
+        </span>
       </div>
     </div>
   );

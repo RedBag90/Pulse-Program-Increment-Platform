@@ -19,13 +19,13 @@ interface Props {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700",
+  draft: "bg-muted text-foreground/80",
   in_review: "bg-yellow-100 text-yellow-800",
-  approved: "bg-blue-100 text-blue-800",
+  approved: "bg-blue-100 text-primary/80",
   in_progress: "bg-indigo-100 text-indigo-800",
   blocked: "bg-red-100 text-red-800",
   completed: "bg-green-100 text-green-800",
-  cancelled: "bg-gray-100 text-gray-500 line-through",
+  cancelled: "bg-muted text-muted-foreground line-through",
 };
 
 export default async function FeatureDetailPage({ params }: Props) {
@@ -75,7 +75,7 @@ export default async function FeatureDetailPage({ params }: Props) {
     orderBy: { createdAt: "asc" },
   });
 
-  const statusCls = STATUS_COLORS[feature.status] ?? "bg-gray-100 text-gray-700";
+  const statusCls = STATUS_COLORS[feature.status] ?? "bg-muted text-foreground/80";
 
   // Other features in the same ART — candidates to depend on.
   const dependencyCandidates = await db.initiative.findMany({
@@ -112,19 +112,20 @@ export default async function FeatureDetailPage({ params }: Props) {
           {canEdit && <DeleteFeatureButton id={featureId} artId={artId} title={feature.title} />}
         </div>
         {feature.parent && (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Parent Epic:{" "}
             <Link
               href={`/portfolio/epics/${feature.parent.id}`}
-              className="text-blue-700 hover:underline"
+              className="text-primary hover:underline"
             >
               {feature.parent.title}
             </Link>
           </p>
         )}
         {feature.pi && (
-          <p className="text-sm text-gray-500">
-            Program Increment: <span className="font-medium text-gray-700">{feature.pi.name}</span>
+          <p className="text-sm text-muted-foreground">
+            Program Increment:{" "}
+            <span className="font-medium text-foreground/80">{feature.pi.name}</span>
           </p>
         )}
         {!feature.pi && (
@@ -136,7 +137,7 @@ export default async function FeatureDetailPage({ params }: Props) {
       {feature.description && (
         <section className="space-y-2">
           <h2 className="text-base font-semibold">Description</h2>
-          <p className="text-sm text-gray-700 whitespace-pre-line">{feature.description}</p>
+          <p className="text-sm text-foreground/80 whitespace-pre-line">{feature.description}</p>
         </section>
       )}
 
@@ -153,25 +154,25 @@ export default async function FeatureDetailPage({ params }: Props) {
             ] as [string, number | null][]
           ).map(([label, value]) => (
             <div key={label} className="border rounded-lg p-3 text-center space-y-1">
-              <p className="text-xs text-gray-500">{label}</p>
-              <p className="text-2xl font-bold text-gray-800">{value ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-2xl font-bold text-foreground">{value ?? "—"}</p>
             </div>
           ))}
         </div>
         <div className="flex items-center gap-6 rounded-lg bg-blue-50 border border-blue-200 p-4">
           <div>
-            <p className="text-xs text-gray-500">Cost of Delay</p>
-            <p className="text-xl font-semibold text-gray-800">{costOfDelay}</p>
+            <p className="text-xs text-muted-foreground">Cost of Delay</p>
+            <p className="text-xl font-semibold text-foreground">{costOfDelay}</p>
           </div>
-          <div className="text-gray-400 text-xl">÷</div>
+          <div className="text-muted-foreground/60 text-xl">÷</div>
           <div>
-            <p className="text-xs text-gray-500">Job Size</p>
-            <p className="text-xl font-semibold text-gray-800">{feature.wsjfJobSize ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">Job Size</p>
+            <p className="text-xl font-semibold text-foreground">{feature.wsjfJobSize ?? "—"}</p>
           </div>
-          <div className="text-gray-400 text-xl">=</div>
+          <div className="text-muted-foreground/60 text-xl">=</div>
           <div>
-            <p className="text-xs text-gray-500">WSJF Score</p>
-            <p className="text-3xl font-bold text-blue-800">
+            <p className="text-xs text-muted-foreground">WSJF Score</p>
+            <p className="text-3xl font-bold text-primary/80">
               {wsjfComputed !== null ? wsjfComputed.toFixed(2) : "—"}
             </p>
           </div>
@@ -182,7 +183,7 @@ export default async function FeatureDetailPage({ params }: Props) {
       <section className="space-y-3">
         <h2 className="text-base font-semibold">Acceptance Criteria</h2>
         {feature.acceptanceCriteria.length === 0 ? (
-          <p className="text-sm text-gray-400">No acceptance criteria defined yet.</p>
+          <p className="text-sm text-muted-foreground/60">No acceptance criteria defined yet.</p>
         ) : (
           <ul className="space-y-2">
             {feature.acceptanceCriteria.map((criterion, i) => (
@@ -210,7 +211,9 @@ export default async function FeatureDetailPage({ params }: Props) {
           />
         </div>
         {stories.length === 0 ? (
-          <p className="text-sm text-gray-400">No stories yet. Break this feature into stories.</p>
+          <p className="text-sm text-muted-foreground/60">
+            No stories yet. Break this feature into stories.
+          </p>
         ) : (
           <div className="rounded-lg border divide-y">
             {stories.map((story) => (
@@ -218,17 +221,17 @@ export default async function FeatureDetailPage({ params }: Props) {
                 <div className="space-y-0.5">
                   <span className="text-sm font-medium">{story.title}</span>
                   {story.sprint && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-muted-foreground/60">
                       {story.sprint.team.name} — Sprint {story.sprint.indexInPi}
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-3 text-xs text-gray-500">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   {story.storyPoints !== null && (
                     <span className="font-medium">{story.storyPoints} pts</span>
                   )}
                   <span
-                    className={`inline-block rounded-full px-2 py-0.5 ${STATUS_COLORS[story.status] ?? "bg-gray-100 text-gray-700"}`}
+                    className={`inline-block rounded-full px-2 py-0.5 ${STATUS_COLORS[story.status] ?? "bg-muted text-foreground/80"}`}
                   >
                     {story.status}
                   </span>
@@ -253,7 +256,7 @@ export default async function FeatureDetailPage({ params }: Props) {
           </PermissionGate>
         </div>
         {dependencies.length === 0 ? (
-          <p className="text-sm text-gray-400">No dependencies linked.</p>
+          <p className="text-sm text-muted-foreground/60">No dependencies linked.</p>
         ) : (
           <div className="rounded-lg border divide-y">
             {dependencies.map((dep) => {
@@ -278,7 +281,7 @@ export default async function FeatureDetailPage({ params }: Props) {
                       label === "blocks" || label === "blocked by"
                         ? "bg-red-100 text-red-700"
                         : label === "relates to"
-                          ? "bg-gray-100 text-gray-600"
+                          ? "bg-muted text-muted-foreground"
                           : "bg-yellow-100 text-yellow-700"
                     }`}
                   >

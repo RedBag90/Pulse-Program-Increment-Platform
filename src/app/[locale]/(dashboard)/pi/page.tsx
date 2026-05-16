@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import type { TenantId } from "@/domain/types";
 
 const STATUS_BADGE: Record<string, string> = {
-  planned: "bg-gray-100 text-gray-700",
+  planned: "bg-muted text-foreground/80",
   active: "bg-green-100 text-green-800",
   completed: "bg-blue-100 text-blue-700",
 };
@@ -39,16 +39,18 @@ export default async function ProgramIncrementsPage() {
     <main className="p-8 max-w-5xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Program Increments</h1>
-        <p className="text-sm text-gray-500 mt-1">All PIs across your Agile Release Trains</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          All PIs across your Agile Release Trains
+        </p>
       </div>
 
       {pis.length === 0 ? (
-        <p className="text-gray-500 text-sm">No Program Increments yet.</p>
+        <p className="text-muted-foreground text-sm">No Program Increments yet.</p>
       ) : (
         <div className="space-y-6">
           {[...byArt.entries()].map(([artId, { artName, pis: artPis }]) => (
             <section key={artId} className="space-y-3">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 {artName}
               </h2>
               <div className="space-y-2">
@@ -61,11 +63,11 @@ export default async function ProgramIncrementsPage() {
                     <div className="flex items-center justify-between gap-4">
                       <div className="space-y-0.5">
                         <h3 className="font-semibold">{pi.name}</h3>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-muted-foreground">
                           {formatDate(pi.startDate)} – {formatDate(pi.endDate)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-gray-500 shrink-0">
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
                         <span>
                           {pi._count.sprints} sprint{pi._count.sprints !== 1 ? "s" : ""}
                         </span>
@@ -74,7 +76,7 @@ export default async function ProgramIncrementsPage() {
                         </span>
                         <span
                           className={`inline-block rounded-full px-2.5 py-0.5 font-medium ${
-                            STATUS_BADGE[pi.status] ?? "bg-gray-100 text-gray-700"
+                            STATUS_BADGE[pi.status] ?? "bg-muted text-foreground/80"
                           }`}
                         >
                           {pi.status}

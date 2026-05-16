@@ -131,20 +131,22 @@ export function LbcEditor({ epicId, current, history }: LbcEditorProps) {
       </form>
 
       {history.length > 0 && (
-        <details className="rounded-lg border bg-gray-50 p-3">
-          <summary className="cursor-pointer text-sm font-medium text-gray-700">
+        <details className="rounded-lg border bg-muted/50 p-3">
+          <summary className="cursor-pointer text-sm font-medium text-foreground/80">
             Version history ({history.length})
           </summary>
           <div className="mt-3 space-y-3">
             {history.map((v, i) => (
               <div key={i} className="rounded border bg-white p-3 text-xs space-y-1">
-                <p className="text-gray-400">{new Date(v.savedAt).toLocaleString("en-GB")}</p>
+                <p className="text-muted-foreground/60">
+                  {new Date(v.savedAt).toLocaleString("en-GB")}
+                </p>
                 {(Object.keys(FIELD_LABELS) as (keyof LbcFields)[])
                   .filter((k) => v.content[k])
                   .map((k) => (
                     <p key={k}>
-                      <span className="font-medium text-gray-600">{FIELD_LABELS[k]}:</span>{" "}
-                      <span className="text-gray-700">{v.content[k]}</span>
+                      <span className="font-medium text-muted-foreground">{FIELD_LABELS[k]}:</span>{" "}
+                      <span className="text-foreground/80">{v.content[k]}</span>
                     </p>
                   ))}
               </div>

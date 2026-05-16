@@ -6,6 +6,9 @@ import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { TenantId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Layers, Zap, BookOpen, CheckSquare, AlertTriangle } from "lucide-react";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -18,6 +21,16 @@ const STATUS_GROUPS = [
   "completed",
   "cancelled",
 ] as const;
+
+const STATUS_BADGE_CLASSES: Record<string, string> = {
+  draft: "bg-muted text-muted-foreground",
+  in_review: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  approved: "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
+  in_progress: "bg-primary/10 text-primary",
+  blocked: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+  completed: "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
+  cancelled: "bg-muted text-muted-foreground line-through",
+};
 
 export default async function PortfolioPage() {
   const principal = await requirePrincipal().catch(() => null);
@@ -38,7 +51,6 @@ export default async function PortfolioPage() {
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 
-  // Health metrics
   const epicsByStatus: Record<string, number> = {};
   for (const e of epics) {
     epicsByStatus[e.status] = (epicsByStatus[e.status] ?? 0) + 1;
@@ -56,42 +68,84 @@ export default async function PortfolioPage() {
   const tasks = allInitiatives.filter((i) => i.level === InitiativeLevel.TASK);
 
   return (
-    <main className="p-8 space-y-8 max-w-7xl mx-auto">
+    <main className="p-6 md:p-8 space-y-8 max-w-7xl mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Portfolio</h1>
-        <nav className="flex gap-4 text-sm text-blue-700">
-          <Link href="/portfolio/epics" className="hover:underline">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Portfolio</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Overview of epics, features, and delivery health
+          </p>
+        </div>
+        <nav className="flex gap-3 text-sm">
+          <Link
+            href="/portfolio/epics"
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
             All Epics
           </Link>
-          <Link href="/portfolio/value-streams" className="hover:underline">
+          <Link
+            href="/portfolio/value-streams"
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
             Value Streams
           </Link>
         </nav>
       </div>
 
-      {/* Health summary cards */}
+      {/* Metric Cards */}
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-lg border p-4 space-y-1">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Total Epics</p>
-          <p className="text-3xl font-bold text-gray-800">{epics.length}</p>
-        </div>
-        <div className="rounded-lg border p-4 space-y-1">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Features</p>
-          <p className="text-3xl font-bold text-gray-800">{features.length}</p>
-        </div>
-        <div className="rounded-lg border p-4 space-y-1">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Stories</p>
-          <p className="text-3xl font-bold text-gray-800">{stories.length}</p>
-        </div>
-        <div className="rounded-lg border p-4 space-y-1">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Tasks</p>
-          <p className="text-3xl font-bold text-gray-800">{tasks.length}</p>
-        </div>
+        {[
+          {
+            label: "Epics",
+            value: epics.length,
+            icon: Layers,
+            color: "text-violet-600 dark:text-violet-400",
+            bg: "bg-violet-50 dark:bg-violet-950",
+          },
+          {
+            label: "Features",
+            value: features.length,
+            icon: Zap,
+            color: "text-blue-600 dark:text-blue-400",
+            bg: "bg-blue-50 dark:bg-blue-950",
+          },
+          {
+            label: "Stories",
+            value: stories.length,
+            icon: BookOpen,
+            color: "text-emerald-600 dark:text-emerald-400",
+            bg: "bg-emerald-50 dark:bg-emerald-950",
+          },
+          {
+            label: "Tasks",
+            value: tasks.length,
+            icon: CheckSquare,
+            color: "text-amber-600 dark:text-amber-400",
+            bg: "bg-amber-50 dark:bg-amber-950",
+          },
+        ].map(({ label, value, icon: Icon, color, bg }) => (
+          <Card key={label}>
+            <CardContent className="pt-5 pb-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${bg} shrink-0`}>
+                  <Icon className={`size-4 ${color}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-2xl font-bold tabular-nums">{value}</p>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </section>
 
       {/* Epic status breakdown */}
       <section className="space-y-3">
-        <h2 className="text-base font-semibold">Epics by Status</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Epics by Status
+        </h2>
         <div className="flex gap-2 flex-wrap">
           {STATUS_GROUPS.map((s) => {
             const count = epicsByStatus[s] ?? 0;
@@ -100,10 +154,14 @@ export default async function PortfolioPage() {
               <Link
                 key={s}
                 href={`/portfolio/epics?status=${s}`}
-                className="flex items-center gap-2 rounded-lg border px-3 py-2 hover:border-blue-300 transition-colors"
+                className="flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2.5 hover:border-primary/40 hover:bg-accent transition-colors"
               >
-                <span className="text-xl font-bold text-gray-800">{count}</span>
-                <span className="text-xs text-gray-500 capitalize">{s.replace("_", " ")}</span>
+                <span className="text-lg font-bold tabular-nums">{count}</span>
+                <span
+                  className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${STATUS_BADGE_CLASSES[s] ?? ""}`}
+                >
+                  {s.replace("_", " ")}
+                </span>
               </Link>
             );
           })}
@@ -113,40 +171,49 @@ export default async function PortfolioPage() {
       {/* Stale epics */}
       {staleEpics.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-base font-semibold flex items-center gap-2">
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <AlertTriangle className="size-4 text-amber-500" />
             Stale Epics
-            <span className="text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+            <Badge className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-800 font-normal">
               {staleEpics.length} no activity &gt;30 days
-            </span>
+            </Badge>
           </h2>
-          <div className="rounded-lg border divide-y">
-            {staleEpics.map((e) => (
-              <div key={e.id} className="px-4 py-3 flex items-center justify-between text-sm">
-                <Link
-                  href={`/portfolio/epics/${e.id}`}
-                  className="text-blue-700 hover:underline font-medium"
-                >
-                  {e.title}
-                </Link>
-                <div className="flex items-center gap-3 text-xs text-gray-500">
-                  <span>{e.valueStream?.name ?? "—"}</span>
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5">{e.status}</span>
-                  <span className="text-amber-600">
-                    {Math.floor(
-                      (Date.now() - new Date(e.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
-                    )}
-                    d ago
-                  </span>
+          <Card>
+            <div className="divide-y divide-border">
+              {staleEpics.map((e) => (
+                <div key={e.id} className="px-4 py-3 flex items-center justify-between gap-4">
+                  <Link
+                    href={`/portfolio/epics/${e.id}`}
+                    className="text-sm font-medium hover:text-primary transition-colors truncate"
+                  >
+                    {e.title}
+                  </Link>
+                  <div className="flex items-center gap-2 shrink-0 text-xs text-muted-foreground">
+                    <span>{e.valueStream?.name ?? "—"}</span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full ${STATUS_BADGE_CLASSES[e.status] ?? "bg-muted text-muted-foreground"}`}
+                    >
+                      {e.status}
+                    </span>
+                    <span className="text-amber-600 dark:text-amber-400 font-medium">
+                      {Math.floor(
+                        (Date.now() - new Date(e.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
+                      )}
+                      d ago
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </Card>
         </section>
       )}
 
       {/* Kanban board */}
       <section className="space-y-3">
-        <h2 className="text-base font-semibold">Epic Stage Gates</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Epic Stage Gates
+        </h2>
         <KanbanBoard
           epics={epics.map((e) => ({
             id: e.id,

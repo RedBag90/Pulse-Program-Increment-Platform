@@ -43,7 +43,7 @@ interface Props {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-600",
+  draft: "bg-muted text-muted-foreground",
   in_progress: "bg-yellow-100 text-yellow-800",
   done: "bg-green-100 text-green-800",
   cancelled: "bg-red-100 text-red-700",
@@ -144,7 +144,7 @@ export function ProgramBoard({ artId, piId: _piId, piName, teams, sprints, featu
           <option value="done">Done</option>
         </select>
 
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-muted-foreground/60">
           {visibleTeams.length} team{visibleTeams.length !== 1 ? "s" : ""} · drag stories between
           sprints
         </span>
@@ -152,15 +152,15 @@ export function ProgramBoard({ artId, piId: _piId, piName, teams, sprints, featu
 
       {/* Sprint matrix */}
       {visibleTeams.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-gray-400">
+        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground/60">
           No teams match the current filter.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <table className="min-w-full text-sm border-collapse">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="sticky left-0 z-10 bg-gray-50 border-r px-4 py-3 text-left font-semibold text-gray-700 min-w-[140px]">
+              <tr className="bg-muted/50">
+                <th className="sticky left-0 z-10 bg-muted/50 border-r px-4 py-3 text-left font-semibold text-foreground/80 min-w-[140px]">
                   Team
                 </th>
                 {sprintIndices.map((idx) => {
@@ -168,11 +168,11 @@ export function ProgramBoard({ artId, piId: _piId, piName, teams, sprints, featu
                   return (
                     <th
                       key={idx}
-                      className="border-r px-3 py-3 text-center font-semibold text-gray-700 min-w-[160px]"
+                      className="border-r px-3 py-3 text-center font-semibold text-foreground/80 min-w-[160px]"
                     >
                       <div>Sprint {idx}</div>
                       {anyTeamSprint && (
-                        <div className="text-xs font-normal text-gray-400 mt-0.5">
+                        <div className="text-xs font-normal text-muted-foreground/60 mt-0.5">
                           {formatDate(anyTeamSprint.startDate)} –{" "}
                           {formatDate(anyTeamSprint.endDate)}
                         </div>
@@ -185,7 +185,7 @@ export function ProgramBoard({ artId, piId: _piId, piName, teams, sprints, featu
             <tbody className="divide-y">
               {visibleTeams.map((team) => (
                 <tr key={team.id}>
-                  <td className="sticky left-0 z-10 bg-white border-r px-4 py-4 font-medium text-gray-800 align-top">
+                  <td className="sticky left-0 z-10 bg-white border-r px-4 py-4 font-medium text-foreground align-top">
                     {team.name}
                   </td>
                   {sprintIndices.map((idx) => {
@@ -219,7 +219,9 @@ export function ProgramBoard({ artId, piId: _piId, piName, teams, sprints, featu
                         {sprint ? (
                           <div className="min-h-[80px] space-y-1">
                             {pts > 0 && (
-                              <p className="text-[10px] text-gray-400 text-right">{pts} pts</p>
+                              <p className="text-[10px] text-muted-foreground/60 text-right">
+                                {pts} pts
+                              </p>
                             )}
                             {stories.map((story) => (
                               <div
@@ -234,9 +236,9 @@ export function ProgramBoard({ artId, piId: _piId, piName, teams, sprints, featu
                                 onDragEnd={() => {
                                   draggingStory.current = null;
                                 }}
-                                className="bg-white border border-gray-200 rounded px-2 py-1.5 text-xs cursor-grab active:cursor-grabbing shadow-sm hover:border-blue-300 transition-colors"
+                                className="bg-white border border-border rounded px-2 py-1.5 text-xs cursor-grab active:cursor-grabbing shadow-sm hover:border-blue-300 transition-colors"
                               >
-                                <p className="font-medium text-gray-800 line-clamp-2">
+                                <p className="font-medium text-foreground line-clamp-2">
                                   {story.title}
                                 </p>
                                 <div className="flex items-center gap-1.5 mt-1">
@@ -246,7 +248,7 @@ export function ProgramBoard({ artId, piId: _piId, piName, teams, sprints, featu
                                     {story.status}
                                   </span>
                                   {story.storyPoints !== null && (
-                                    <span className="text-[10px] text-gray-400">
+                                    <span className="text-[10px] text-muted-foreground/60">
                                       {story.storyPoints}p
                                     </span>
                                   )}
@@ -271,13 +273,13 @@ export function ProgramBoard({ artId, piId: _piId, piName, teams, sprints, featu
 
       {/* Features section with status filter applied */}
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-gray-800">
+        <h2 className="text-base font-semibold text-foreground">
           Features in {piName} ({visibleFeatures.length})
         </h2>
         {visibleFeatures.length === 0 ? (
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-muted-foreground/60">
             No features match the filter.{" "}
-            <Link href={`/art/${artId}/features`} className="text-blue-600 hover:underline">
+            <Link href={`/art/${artId}/features`} className="text-primary hover:underline">
               Manage features
             </Link>
           </p>
@@ -298,7 +300,7 @@ export function ProgramBoard({ artId, piId: _piId, piName, teams, sprints, featu
                   className="rounded-lg border p-3 hover:border-blue-300 transition-colors group"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-sm font-medium text-gray-800 group-hover:text-blue-700 line-clamp-2">
+                    <span className="text-sm font-medium text-foreground group-hover:text-blue-700 line-clamp-2">
                       {f.title}
                     </span>
                     {score !== null && (

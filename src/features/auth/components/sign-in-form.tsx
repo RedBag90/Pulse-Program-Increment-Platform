@@ -4,6 +4,9 @@ import { useActionState } from "react";
 import { useTranslations } from "next-intl";
 import { signIn } from "../actions/sign-in";
 import type { SignInResult } from "../actions/sign-in";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 export function SignInForm() {
   const t = useTranslations("auth");
@@ -11,32 +14,20 @@ export function SignInForm() {
 
   return (
     <form action={action} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <label htmlFor="email" className="text-sm font-medium">
-          {t("email")}
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          autoComplete="email"
-          className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        />
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="email">{t("email")}</Label>
+        <Input id="email" name="email" type="email" required autoComplete="email" />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="password" className="text-sm font-medium">
-          {t("password")}
-        </label>
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="password">{t("password")}</Label>
+        <Input
           id="password"
           name="password"
           type="password"
           required
           autoComplete="current-password"
           minLength={8}
-          className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
 
@@ -46,13 +37,9 @@ export function SignInForm() {
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-60"
-      >
+      <Button type="submit" disabled={isPending} className="w-full">
         {isPending ? "…" : t("signIn")}
-      </button>
+      </Button>
     </form>
   );
 }

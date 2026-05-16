@@ -1,8 +1,24 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
 import { createPiObjectiveAction } from "@/features/pi/actions/pi-objective";
 import type { ActionState } from "@/server/http/server-action";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
+const SELECT_CLASS =
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 interface Team {
   id: string;
@@ -22,126 +38,88 @@ export function CreatePiObjectiveDialog({ piId, artId, teams }: Props) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(createPiObjectiveAction, initialState);
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-      >
-        + Add Objective
-      </button>
-    );
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl space-y-4">
-        <h2 className="text-lg font-semibold">Add PI Objective</h2>
+    <>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        <Plus className="size-4 mr-1" />
+        Add Objective
+      </Button>
 
-        <form
-          ref={formRef}
-          action={async (fd) => {
-            await action(fd);
-            if (!state.fieldErrors && !state.error) {
-              setOpen(false);
-              formRef.current?.reset();
-            }
-          }}
-          className="space-y-4"
-        >
-          <input type="hidden" name="piId" value={piId} />
-          <input type="hidden" name="artId" value={artId} />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add PI Objective</DialogTitle>
+          </DialogHeader>
+          <form
+            ref={formRef}
+            action={async (fd) => {
+              await action(fd);
+              if (!state.fieldErrors && !state.error) {
+                toast.success("PI Objective added");
+                setOpen(false);
+                formRef.current?.reset();
+              }
+            }}
+            className="space-y-4"
+          >
+            <input type="hidden" name="piId" value={piId} />
+            <input type="hidden" name="artId" value={artId} />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Team *</label>
-            <select
-              name="teamId"
-              required
-              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select team…</option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            {state.fieldErrors?.teamId && (
-              <p className="mt-1 text-xs text-red-600">{state.fieldErrors.teamId[0]}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-            <input
-              name="title"
-              type="text"
-              required
-              placeholder="Deploy new payment service"
-              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {state.fieldErrors?.title && (
-              <p className="mt-1 text-xs text-red-600">{state.fieldErrors.title[0]}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea
-              name="description"
-              rows={2}
-              placeholder="Optional details…"
-              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Business Value (1–10)
-              </label>
-              <input
-                name="businessValue"
-                type="number"
-                min={1}
-                max={10}
-                placeholder="8"
-                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-              <select
-                name="committed"
-                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="true">Committed</option>
-                <option value="false">Uncommitted</option>
+            <div className="space-y-1.5">
+              <Label>Team *</Label>
+              <select name="teamId" required className={SELECT_CLASS}>
+                <option value="">Select team…</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
               </select>
+              {state.fieldErrors?.teamId && (
+                <p className="text-xs text-destructive">{state.fieldErrors.teamId[0]}</p>
+              )}
             </div>
-          </div>
 
-          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+            <div className="space-y-1.5">
+              <Label>Title *</Label>
+              <Input name="title" required placeholder="Deploy new payment service" />
+              {state.fieldErrors?.title && (
+                <p className="text-xs text-destructive">{state.fieldErrors.title[0]}</p>
+              )}
+            </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {pending ? "Saving…" : "Add Objective"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+            <div className="space-y-1.5">
+              <Label>Description</Label>
+              <Textarea name="description" rows={2} placeholder="Optional details…" />
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-1 space-y-1.5">
+                <Label>Business Value (1–10)</Label>
+                <Input name="businessValue" type="number" min={1} max={10} placeholder="8" />
+              </div>
+              <div className="flex-1 space-y-1.5">
+                <Label>Type</Label>
+                <select name="committed" className={SELECT_CLASS}>
+                  <option value="true">Committed</option>
+                  <option value="false">Uncommitted</option>
+                </select>
+              </div>
+            </div>
+
+            {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Saving…" : "Add Objective"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

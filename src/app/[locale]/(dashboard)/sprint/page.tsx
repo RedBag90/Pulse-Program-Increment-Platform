@@ -38,18 +38,18 @@ export default async function MySprintsPage() {
     <main className="p-8 max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">My Sprints</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           {teamIds.length > 0 ? "Sprints for the teams you belong to" : "Sprints across all teams"}
         </p>
       </div>
 
       {sprints.length === 0 ? (
-        <p className="text-gray-500 text-sm">No sprints yet.</p>
+        <p className="text-muted-foreground text-sm">No sprints yet.</p>
       ) : (
         <div className="space-y-6">
           {[...byPi.entries()].map(([piId, { piName, sprints: piSprints }]) => (
             <section key={piId} className="space-y-3">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 {piName}
               </h2>
               <div className="rounded-lg border divide-y">
@@ -57,12 +57,12 @@ export default async function MySprintsPage() {
                   <Link
                     key={sprint.id}
                     href={`/sprint/${sprint.id}`}
-                    className="px-4 py-3 flex items-center justify-between text-sm hover:bg-gray-50"
+                    className="px-4 py-3 flex items-center justify-between text-sm hover:bg-muted/50"
                   >
                     <span className="font-medium text-blue-700">
                       {sprint.team.name} — Sprint {sprint.indexInPi}
                     </span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-muted-foreground">
                       {formatDate(sprint.startDate)} – {formatDate(sprint.endDate)}
                     </span>
                   </Link>

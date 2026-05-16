@@ -33,7 +33,7 @@ const severityColor: Record<string, string> = {
 const statusColor: Record<string, string> = {
   open: "bg-blue-100 text-blue-700",
   escalated: "bg-purple-100 text-purple-700",
-  resolved: "bg-gray-100 text-gray-600",
+  resolved: "bg-muted text-muted-foreground",
 };
 
 export function ImpedimentRow({ impediment, artId }: Props) {
@@ -65,27 +65,27 @@ export function ImpedimentRow({ impediment, artId }: Props) {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+    <div className="bg-white border border-border rounded-lg p-4 space-y-2">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span
-              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${severityColor[impediment.severity] ?? "bg-gray-100 text-gray-600"}`}
+              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${severityColor[impediment.severity] ?? "bg-muted text-muted-foreground"}`}
             >
               {impediment.severity}
             </span>
             <span
-              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColor[impediment.status] ?? "bg-gray-100 text-gray-600"}`}
+              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColor[impediment.status] ?? "bg-muted text-muted-foreground"}`}
             >
               {impediment.status}
             </span>
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-muted-foreground/60">
               {new Date(impediment.createdAt).toLocaleDateString()}
             </span>
           </div>
-          <p className="mt-1 text-sm font-medium text-gray-900">{impediment.title}</p>
+          <p className="mt-1 text-sm font-medium text-foreground">{impediment.title}</p>
           {impediment.description && (
-            <p className="text-sm text-gray-500 mt-0.5">{impediment.description}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{impediment.description}</p>
           )}
           {impediment.resolution && (
             <p className="text-sm text-green-700 bg-green-50 rounded px-2 py-1 mt-1">
@@ -139,7 +139,7 @@ export function ImpedimentRow({ impediment, artId }: Props) {
                 setShowResolveForm(false);
                 setResolution("");
               }}
-              className="px-3 py-1 text-xs text-gray-500 hover:text-gray-800"
+              className="px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
             >
               Cancel
             </button>

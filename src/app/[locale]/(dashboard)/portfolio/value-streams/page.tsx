@@ -26,7 +26,7 @@ export default async function ValueStreamsPage() {
       </div>
 
       {streams.length === 0 ? (
-        <p className="text-gray-500 text-sm">
+        <p className="text-muted-foreground text-sm">
           No value streams yet. Create one to start organizing your portfolio.
         </p>
       ) : (
@@ -35,14 +35,14 @@ export default async function ValueStreamsPage() {
             <div key={vs.id} className="border rounded-lg p-5 space-y-2 hover:shadow-sm">
               <h2 className="font-semibold">{vs.name}</h2>
               {vs.description && (
-                <p className="text-sm text-gray-600 line-clamp-2">{vs.description}</p>
+                <p className="text-sm text-muted-foreground line-clamp-2">{vs.description}</p>
               )}
               {vs.budgetAmount && (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   Budget: {vs.budgetAmount.toString()} {vs.budgetCurrency}
                 </p>
               )}
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground/60">
                 {vs.arts.length} ART{vs.arts.length !== 1 ? "s" : ""}
               </p>
               {canEdit && (

@@ -4,6 +4,7 @@ import { useActionState, useOptimistic, useTransition, useRef } from "react";
 import { advanceStageGateAction } from "@/features/portfolio/actions/stage-gate";
 import { useKanbanRealtime } from "@/features/portfolio/hooks/use-kanban-realtime";
 import { Link } from "@/i18n/navigation";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const STAGE_GATES = [
   { key: "L0", label: "Funnel" },
@@ -34,6 +35,16 @@ const PREV_GATE: Record<Gate, Gate | null> = {
   L5: "L4",
 };
 
+const STATUS_DOT: Record<string, string> = {
+  draft: "bg-muted-foreground/40",
+  in_review: "bg-blue-400",
+  approved: "bg-emerald-400",
+  in_progress: "bg-primary",
+  blocked: "bg-red-400",
+  completed: "bg-emerald-500",
+  cancelled: "bg-muted-foreground/20",
+};
+
 export interface KanbanEpic {
   id: string;
   title: string;
@@ -58,7 +69,6 @@ export function KanbanBoard({ epics: initialEpics, canEdit, tenantId }: KanbanBo
       current.map((e) => (e.id === epicId ? { ...e, stageGate: toGate } : e)),
   );
 
-  // Track which epic is being dragged
   const draggingId = useRef<string | null>(null);
   const dragOverGate = useRef<Gate | null>(null);
 
@@ -74,24 +84,34 @@ export function KanbanBoard({ epics: initialEpics, canEdit, tenantId }: KanbanBo
 
   return (
     <div className="overflow-x-auto">
-      <div className="flex gap-4 min-w-max pb-4">
+      <div className="flex gap-3 min-w-max pb-4">
         {STAGE_GATES.map(({ key, label }) => {
           const columnEpics = epics.filter((e) => e.stageGate === key);
           return (
             <div
               key={key}
-              className="w-64 flex-shrink-0"
+              className="w-56 flex-shrink-0"
               onDragOver={(e) => {
                 if (!canEdit) return;
                 e.preventDefault();
                 dragOverGate.current = key as Gate;
-                e.currentTarget.classList.add("ring-2", "ring-blue-400", "ring-inset");
+                e.currentTarget.classList.add("ring-2", "ring-primary", "ring-inset", "rounded-xl");
               }}
               onDragLeave={(e) => {
-                e.currentTarget.classList.remove("ring-2", "ring-blue-400", "ring-inset");
+                e.currentTarget.classList.remove(
+                  "ring-2",
+                  "ring-primary",
+                  "ring-inset",
+                  "rounded-xl",
+                );
               }}
               onDrop={(e) => {
-                e.currentTarget.classList.remove("ring-2", "ring-blue-400", "ring-inset");
+                e.currentTarget.classList.remove(
+                  "ring-2",
+                  "ring-primary",
+                  "ring-inset",
+                  "rounded-xl",
+                );
                 if (!canEdit) return;
                 const epicId = draggingId.current;
                 const toGate = dragOverGate.current;
@@ -102,13 +122,18 @@ export function KanbanBoard({ epics: initialEpics, canEdit, tenantId }: KanbanBo
                 dragOverGate.current = null;
               }}
             >
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-gray-700">{label}</h2>
-                <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">
+              {/* Column header */}
+              <div className="flex items-center justify-between mb-2 px-1">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {label}
+                </span>
+                <span className="text-xs font-medium text-muted-foreground bg-muted rounded-full w-5 h-5 flex items-center justify-center">
                   {columnEpics.length}
                 </span>
               </div>
-              <div className="space-y-2 min-h-24 rounded-lg transition-colors">
+
+              {/* Cards */}
+              <div className="space-y-2 min-h-24 rounded-xl bg-muted/40 p-2 transition-colors">
                 {columnEpics.map((epic) => {
                   const prev = PREV_GATE[key as Gate];
                   const next = NEXT_GATE[key as Gate];
@@ -125,37 +150,49 @@ export function KanbanBoard({ epics: initialEpics, canEdit, tenantId }: KanbanBo
                         e.currentTarget.classList.remove("opacity-50");
                         draggingId.current = null;
                       }}
-                      className={`bg-white border rounded-lg p-3 shadow-sm space-y-1 ${canEdit ? "cursor-grab active:cursor-grabbing" : ""}`}
+                      className={`bg-card border border-border rounded-lg p-3 space-y-2 shadow-sm transition-shadow hover:shadow-md ${canEdit ? "cursor-grab active:cursor-grabbing" : ""}`}
                     >
-                      <Link
-                        href={`/portfolio/epics/${epic.id}`}
-                        className="text-sm font-medium text-blue-700 hover:underline block"
-                      >
-                        {epic.title}
-                      </Link>
+                      {/* Status dot + title */}
+                      <div className="flex items-start gap-2">
+                        <div
+                          className={`mt-1.5 size-1.5 rounded-full shrink-0 ${STATUS_DOT[epic.status] ?? "bg-muted-foreground/40"}`}
+                        />
+                        <Link
+                          href={`/portfolio/epics/${epic.id}`}
+                          className="text-xs font-medium leading-snug hover:text-primary transition-colors line-clamp-2"
+                        >
+                          {epic.title}
+                        </Link>
+                      </div>
+
+                      {/* Value stream */}
                       {epic.valueStream && (
-                        <p className="text-xs text-gray-500">{epic.valueStream.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate pl-3.5">
+                          {epic.valueStream.name}
+                        </p>
                       )}
+
+                      {/* Navigation buttons */}
                       {canEdit && (
-                        <div className="flex gap-1 pt-1">
+                        <div className="flex gap-1 pt-0.5">
                           {prev && (
                             <button
                               type="button"
                               onClick={() => moveEpic(epic.id, prev)}
-                              className="text-xs text-gray-500 hover:text-gray-700 border rounded px-1.5 py-0.5"
+                              className="size-5 inline-flex items-center justify-center rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
                               title={`Move to ${prev}`}
                             >
-                              ←
+                              <ChevronLeft className="size-3" />
                             </button>
                           )}
                           {next && (
                             <button
                               type="button"
                               onClick={() => moveEpic(epic.id, next)}
-                              className="text-xs text-gray-500 hover:text-gray-700 border rounded px-1.5 py-0.5"
+                              className="size-5 inline-flex items-center justify-center rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
                               title={`Move to ${next}`}
                             >
-                              →
+                              <ChevronRight className="size-3" />
                             </button>
                           )}
                         </div>
@@ -163,6 +200,11 @@ export function KanbanBoard({ epics: initialEpics, canEdit, tenantId }: KanbanBo
                     </div>
                   );
                 })}
+                {columnEpics.length === 0 && (
+                  <div className="h-16 rounded-lg border-2 border-dashed border-border/50 flex items-center justify-center">
+                    <span className="text-[10px] text-muted-foreground/50">Empty</span>
+                  </div>
+                )}
               </div>
             </div>
           );

@@ -47,12 +47,12 @@ export default async function EpicDetailPage({ params }: Props) {
   return (
     <main className="p-8 max-w-4xl mx-auto space-y-8">
       <div>
-        <Link href="/portfolio/epics" className="text-sm text-blue-600 hover:underline">
+        <Link href="/portfolio/epics" className="text-sm text-primary hover:underline">
           ← Back to epics
         </Link>
         <div className="flex items-center gap-3 mt-2">
           <h1 className="text-2xl font-semibold">{epic.title}</h1>
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
             {STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate}
           </span>
           {canEdit && (
@@ -61,7 +61,7 @@ export default async function EpicDetailPage({ params }: Props) {
             </div>
           )}
         </div>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Value Stream: <span className="font-medium">{epic.valueStream?.name ?? "—"}</span>
         </p>
         {epic.approvedAt && (
@@ -80,7 +80,7 @@ export default async function EpicDetailPage({ params }: Props) {
         />
       ) : (
         <div className="space-y-4">
-          <p className="text-gray-800">{epic.description ?? "No description."}</p>
+          <p className="text-foreground">{epic.description ?? "No description."}</p>
         </div>
       )}
 
@@ -97,9 +97,9 @@ export default async function EpicDetailPage({ params }: Props) {
           <ul className="space-y-2">
             {epic.children.map((child) => (
               <li key={child.id} className="flex items-center gap-3 text-sm border rounded p-3">
-                <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">L{child.level}</span>
+                <span className="rounded bg-muted px-2 py-0.5 text-xs">L{child.level}</span>
                 <span className="font-medium">{child.title}</span>
-                <span className="text-gray-500 ml-auto">{child.status}</span>
+                <span className="text-muted-foreground ml-auto">{child.status}</span>
               </li>
             ))}
           </ul>

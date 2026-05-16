@@ -26,11 +26,11 @@ export default async function AdminUsersPage() {
       <section>
         <h2 className="text-lg font-medium mb-4">Current Members</h2>
         {assignments.length === 0 ? (
-          <p className="text-gray-500 text-sm">No members yet.</p>
+          <p className="text-muted-foreground text-sm">No members yet.</p>
         ) : (
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-b text-left text-gray-500">
+              <tr className="border-b text-left text-muted-foreground">
                 <th className="pb-2 pr-4">User ID</th>
                 <th className="pb-2 pr-4">Role</th>
                 <th className="pb-2 pr-4">Since</th>
@@ -42,11 +42,13 @@ export default async function AdminUsersPage() {
                 <tr key={a.id} className="border-b">
                   <td className="py-2 pr-4 font-mono text-xs">{a.userId}</td>
                   <td className="py-2 pr-4">{a.role}</td>
-                  <td className="py-2 pr-4 text-gray-500">{a.createdAt.toLocaleDateString()}</td>
+                  <td className="py-2 pr-4 text-muted-foreground">
+                    {a.createdAt.toLocaleDateString()}
+                  </td>
                   <td className="py-2">
                     <Link
                       href={`/admin/users/${a.userId}`}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-primary hover:underline"
                     >
                       Manage →
                     </Link>

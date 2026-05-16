@@ -67,7 +67,7 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-semibold">Feature Backlog</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             {features.length} feature{features.length !== 1 ? "s" : ""} · sorted by WSJF score
           </p>
         </div>
@@ -78,8 +78,8 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
       </div>
 
       {features.length === 0 ? (
-        <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
-          <p className="text-gray-400 text-sm">
+        <div className="text-center py-16 bg-white border border-border rounded-xl">
+          <p className="text-muted-foreground/60 text-sm">
             {allFeatures.length > 0
               ? "No features match the current filters."
               : "No features yet. Create one to start prioritizing the backlog."}
@@ -88,37 +88,39 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
       ) : (
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 w-8">#</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Feature</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground w-8">#</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Feature</th>
                 <th
-                  className="text-center px-3 py-3 font-medium text-gray-600 w-10"
+                  className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
                   title="Business Value"
                 >
                   BV
                 </th>
                 <th
-                  className="text-center px-3 py-3 font-medium text-gray-600 w-10"
+                  className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
                   title="Time Criticality"
                 >
                   TC
                 </th>
                 <th
-                  className="text-center px-3 py-3 font-medium text-gray-600 w-10"
+                  className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
                   title="Risk Reduction"
                 >
                   RR
                 </th>
                 <th
-                  className="text-center px-3 py-3 font-medium text-gray-600 w-10"
+                  className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
                   title="Job Size"
                 >
                   JS
                 </th>
-                <th className="text-center px-3 py-3 font-medium text-gray-600 w-20">WSJF</th>
-                <th className="text-left px-3 py-3 font-medium text-gray-600">Status</th>
-                <th className="text-left px-3 py-3 font-medium text-gray-600">PI</th>
+                <th className="text-center px-3 py-3 font-medium text-muted-foreground w-20">
+                  WSJF
+                </th>
+                <th className="text-left px-3 py-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left px-3 py-3 font-medium text-muted-foreground">PI</th>
                 {canEdit && <th className="px-3 py-3 w-16"></th>}
               </tr>
             </thead>
@@ -126,29 +128,31 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
               {features.map((feature) => {
                 const rank = allFeatures.findIndex((f) => f.id === feature.id) + 1;
                 return (
-                  <tr key={feature.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-400 text-xs">{rank}</td>
+                  <tr key={feature.id} className="hover:bg-muted/50">
+                    <td className="px-4 py-3 text-muted-foreground/60 text-xs">{rank}</td>
                     <td className="px-4 py-3">
                       <Link
                         href={`/feature/${feature.id}`}
-                        className="font-medium text-blue-700 hover:underline"
+                        className="font-medium text-primary hover:underline"
                       >
                         {feature.title}
                       </Link>
                       {feature.parent && (
-                        <p className="text-xs text-gray-400 mt-0.5">Epic: {feature.parent.title}</p>
+                        <p className="text-xs text-muted-foreground/60 mt-0.5">
+                          Epic: {feature.parent.title}
+                        </p>
                       )}
                     </td>
-                    <td className="px-3 py-3 text-center text-gray-600">
+                    <td className="px-3 py-3 text-center text-muted-foreground">
                       {feature.wsjfBusinessValue ?? "—"}
                     </td>
-                    <td className="px-3 py-3 text-center text-gray-600">
+                    <td className="px-3 py-3 text-center text-muted-foreground">
                       {feature.wsjfTimeCriticality ?? "—"}
                     </td>
-                    <td className="px-3 py-3 text-center text-gray-600">
+                    <td className="px-3 py-3 text-center text-muted-foreground">
                       {feature.wsjfRiskReduction ?? "—"}
                     </td>
-                    <td className="px-3 py-3 text-center text-gray-600">
+                    <td className="px-3 py-3 text-center text-muted-foreground">
                       {feature.wsjfJobSize ?? "—"}
                     </td>
                     <td className="px-3 py-3 text-center">
@@ -164,7 +168,7 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
                           }}
                         />
                       ) : (
-                        <span className="font-semibold text-blue-800">
+                        <span className="font-semibold text-primary/80">
                           {feature.wsjfComputed !== null
                             ? Number(feature.wsjfComputed).toFixed(2)
                             : "—"}
@@ -172,11 +176,11 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
                       )}
                     </td>
                     <td className="px-3 py-3">
-                      <span className="inline-block rounded-full px-2 py-0.5 text-xs bg-gray-100 text-gray-700">
+                      <span className="inline-block rounded-full px-2 py-0.5 text-xs bg-muted text-foreground/80">
                         {feature.status}
                       </span>
                     </td>
-                    <td className="px-3 py-3 text-gray-500 text-xs">
+                    <td className="px-3 py-3 text-muted-foreground text-xs">
                       {canEdit ? (
                         <FeaturePiSelect
                           featureId={feature.id}

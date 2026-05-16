@@ -6,15 +6,17 @@ import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import { InitiativeLevel } from "@/domain/types";
 import type { ArtId, TenantId } from "@/domain/types";
+import { Card } from "@/components/ui/card";
+import { Target, Users, Zap, GitBranch } from "lucide-react";
 
 interface Props {
   params: Promise<{ artId: string }>;
 }
 
 const STATUS_BADGE: Record<string, string> = {
-  planned: "bg-gray-100 text-gray-700",
-  active: "bg-green-100 text-green-800",
-  completed: "bg-blue-100 text-blue-700",
+  planned: "bg-muted text-muted-foreground",
+  active: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  completed: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
 };
 
 function formatDate(d: Date) {
@@ -44,64 +46,97 @@ export default async function ArtOverviewPage({ params }: Props) {
   if (!art) notFound();
 
   const stats = [
-    { label: "Program Increments", value: art.pis.length, href: `/art/${artId}/pi` as const },
-    { label: "Teams", value: teamCount, href: `/art/${artId}/teams` as const },
-    { label: "Features", value: featureCount, href: `/art/${artId}/features` as const },
+    {
+      label: "Program Increments",
+      value: art.pis.length,
+      href: `/art/${artId}/pi` as const,
+      icon: Target,
+      color: "text-violet-600 dark:text-violet-400",
+      bg: "bg-violet-50 dark:bg-violet-950",
+    },
+    {
+      label: "Teams",
+      value: teamCount,
+      href: `/art/${artId}/teams` as const,
+      icon: Users,
+      color: "text-blue-600 dark:text-blue-400",
+      bg: "bg-blue-50 dark:bg-blue-950",
+    },
+    {
+      label: "Features",
+      value: featureCount,
+      href: `/art/${artId}/features` as const,
+      icon: Zap,
+      color: "text-emerald-600 dark:text-emerald-400",
+      bg: "bg-emerald-50 dark:bg-emerald-950",
+    },
   ];
 
   return (
-    <main className="p-8 max-w-5xl mx-auto space-y-6">
+    <main className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
       <ArtSubNav artId={artId} artName={art.name} />
 
       <div>
-        <h1 className="text-xl font-semibold">{art.name}</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Value Stream: {art.valueStream.name}
+        <h1 className="text-xl font-semibold tracking-tight">{art.name}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1.5">
+          <GitBranch className="size-3.5" />
+          {art.valueStream.name}
           {art.piCadenceWeeks ? ` · PI cadence: ${art.piCadenceWeeks} weeks` : ""}
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         {stats.map((s) => (
-          <Link
-            key={s.label}
-            href={s.href}
-            className="rounded-lg border p-5 hover:border-blue-300 hover:shadow-sm transition-colors"
-          >
-            <p className="text-3xl font-bold text-gray-800">{s.value}</p>
-            <p className="text-sm text-gray-500 mt-1">{s.label}</p>
+          <Link key={s.label} href={s.href}>
+            <Card className="p-5 hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${s.bg} shrink-0`}>
+                  <s.icon className={`size-4 ${s.color}`} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                </div>
+              </div>
+            </Card>
           </Link>
         ))}
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold">Program Increments</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Program Increments
+        </h2>
         {art.pis.length === 0 ? (
-          <p className="text-sm text-gray-400">No PIs yet.</p>
+          <p className="text-sm text-muted-foreground">No PIs yet.</p>
         ) : (
-          <div className="rounded-lg border divide-y">
-            {art.pis.map((pi) => (
-              <Link
-                key={pi.id}
-                href={`/pi/${pi.id}`}
-                className="px-4 py-3 flex items-center justify-between text-sm hover:bg-gray-50"
-              >
-                <span className="font-medium text-blue-700">{pi.name}</span>
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <span>
-                    {formatDate(pi.startDate)} – {formatDate(pi.endDate)}
+          <Card className="overflow-hidden">
+            <div className="divide-y divide-border">
+              {art.pis.map((pi) => (
+                <Link
+                  key={pi.id}
+                  href={`/pi/${pi.id}`}
+                  className="px-4 py-3 flex items-center justify-between text-sm hover:bg-muted/30 transition-colors"
+                >
+                  <span className="font-medium hover:text-primary transition-colors">
+                    {pi.name}
                   </span>
-                  <span
-                    className={`inline-block rounded-full px-2.5 py-0.5 font-medium ${
-                      STATUS_BADGE[pi.status] ?? "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {pi.status}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>
+                      {formatDate(pi.startDate)} – {formatDate(pi.endDate)}
+                    </span>
+                    <span
+                      className={`inline-block rounded-full px-2.5 py-0.5 font-medium ${
+                        STATUS_BADGE[pi.status] ?? "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {pi.status}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </Card>
         )}
       </section>
     </main>

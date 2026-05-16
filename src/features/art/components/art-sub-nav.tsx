@@ -22,12 +22,12 @@ export function ArtSubNav({ artId, artName }: Props) {
 
   return (
     <div className="space-y-4">
-      <nav className="text-sm text-gray-500 flex items-center gap-1">
+      <nav className="text-sm text-muted-foreground flex items-center gap-1">
         <Link href="/art" className="hover:underline">
           ARTs
         </Link>
         <span>/</span>
-        <span className="text-gray-800 font-medium">{artName}</span>
+        <span className="text-foreground font-medium">{artName}</span>
       </nav>
 
       <div className="border-b flex gap-0">
@@ -44,7 +44,7 @@ export function ArtSubNav({ artId, artName }: Props) {
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 active
                   ? "border-blue-600 text-blue-700"
-                  : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
               }`}
             >
               {label}

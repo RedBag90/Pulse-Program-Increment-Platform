@@ -29,14 +29,14 @@ export function AdoProjectMapForm({ arts, currentMap }: Props) {
   );
 
   if (arts.length === 0) {
-    return <p className="text-sm text-gray-400">No ARTs configured yet.</p>;
+    return <p className="text-sm text-muted-foreground/60">No ARTs configured yet.</p>;
   }
 
   return (
     <form action={action} className="space-y-3">
       {arts.map((art) => (
         <div key={art.id} className="flex items-center gap-3">
-          <label className="w-40 text-sm text-gray-700 truncate shrink-0" title={art.name}>
+          <label className="w-40 text-sm text-foreground/80 truncate shrink-0" title={art.name}>
             {art.name}
           </label>
           <input

@@ -53,14 +53,14 @@ export default async function IntegrationsPage({ searchParams }: Props) {
   return (
     <main className="p-8 max-w-3xl mx-auto space-y-10">
       <div>
-        <nav className="text-sm text-gray-500 mb-2">
+        <nav className="text-sm text-muted-foreground mb-2">
           <Link href="/admin/users" className="hover:underline">
             Admin
           </Link>
           <span className="mx-1">/</span>
-          <span className="text-gray-800">Integrations</span>
+          <span className="text-foreground">Integrations</span>
         </nav>
-        <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
+        <h1 className="text-2xl font-bold text-foreground">Integrations</h1>
       </div>
 
       {connected === "1" && (
@@ -75,15 +75,15 @@ export default async function IntegrationsPage({ searchParams }: Props) {
       )}
 
       {/* Jira Cloud */}
-      <section className="border border-gray-200 rounded-xl p-6 space-y-6">
+      <section className="border border-border rounded-xl p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-sm">
               J
             </div>
             <div>
-              <h2 className="font-semibold text-gray-900">Jira Cloud</h2>
-              <p className="text-xs text-gray-500">Bidirectional story sync</p>
+              <h2 className="font-semibold text-foreground">Jira Cloud</h2>
+              <p className="text-xs text-muted-foreground">Bidirectional story sync</p>
             </div>
           </div>
 
@@ -102,14 +102,14 @@ export default async function IntegrationsPage({ searchParams }: Props) {
 
         {jiraConfig && (
           <>
-            <div className="text-sm text-gray-600 space-y-1">
+            <div className="text-sm text-muted-foreground space-y-1">
               <p>
                 <span className="font-medium">Instance:</span>{" "}
                 <a
                   href={jiraConfig.instanceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-primary hover:underline"
                 >
                   {jiraConfig.instanceUrl}
                 </a>
@@ -121,19 +121,19 @@ export default async function IntegrationsPage({ searchParams }: Props) {
             </div>
 
             <div className="border-t pt-4">
-              <h3 className="text-sm font-semibold text-gray-800 mb-3">ART → Project Mapping</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-3">ART → Project Mapping</h3>
               <JiraProjectMapForm arts={arts} currentMap={projectKeyMap} />
             </div>
 
             <div className="border-t pt-4 space-y-2">
-              <h3 className="text-sm font-semibold text-gray-800">Webhook Setup</h3>
-              <p className="text-xs text-gray-500">
+              <h3 className="text-sm font-semibold text-foreground">Webhook Setup</h3>
+              <p className="text-xs text-muted-foreground">
                 Register this URL in Jira (Project Settings → Webhooks) to receive status updates:
               </p>
-              <code className="block bg-gray-50 border border-gray-200 rounded px-3 py-2 text-xs font-mono break-all">
+              <code className="block bg-muted/50 border border-border rounded px-3 py-2 text-xs font-mono break-all">
                 {jiraWebhookUrl}
               </code>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground/60">
                 Webhook secret is stored securely and used to verify HMAC signatures.
               </p>
             </div>
@@ -142,15 +142,15 @@ export default async function IntegrationsPage({ searchParams }: Props) {
       </section>
 
       {/* Azure DevOps */}
-      <section className="border border-gray-200 rounded-xl p-6 space-y-6">
+      <section className="border border-border rounded-xl p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-blue-800 rounded flex items-center justify-center text-white font-bold text-sm">
               A
             </div>
             <div>
-              <h2 className="font-semibold text-gray-900">Azure DevOps</h2>
-              <p className="text-xs text-gray-500">Bidirectional work item sync</p>
+              <h2 className="font-semibold text-foreground">Azure DevOps</h2>
+              <p className="text-xs text-muted-foreground">Bidirectional work item sync</p>
             </div>
           </div>
 
@@ -169,7 +169,7 @@ export default async function IntegrationsPage({ searchParams }: Props) {
 
         {adoConfig && (
           <>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-muted-foreground">
               <p>
                 <span className="font-medium">Organization:</span>{" "}
                 <span className="font-mono text-xs">{adoConfig.organization}</span>
@@ -177,23 +177,23 @@ export default async function IntegrationsPage({ searchParams }: Props) {
             </div>
 
             <div className="border-t pt-4">
-              <h3 className="text-sm font-semibold text-gray-800 mb-3">ART → Project Mapping</h3>
-              <p className="text-xs text-gray-500 mb-3">
+              <h3 className="text-sm font-semibold text-foreground mb-3">ART → Project Mapping</h3>
+              <p className="text-xs text-muted-foreground mb-3">
                 Enter the project path as <code className="font-mono">Organization/Project</code>.
               </p>
               <AdoProjectMapForm arts={arts} currentMap={adoProjectMap} />
             </div>
 
             <div className="border-t pt-4 space-y-2">
-              <h3 className="text-sm font-semibold text-gray-800">Service Hook Setup</h3>
-              <p className="text-xs text-gray-500">
+              <h3 className="text-sm font-semibold text-foreground">Service Hook Setup</h3>
+              <p className="text-xs text-muted-foreground">
                 Register this URL in Azure DevOps (Project Settings → Service Hooks → Web Hooks) for
                 the <strong>Work item updated</strong> event:
               </p>
-              <code className="block bg-gray-50 border border-gray-200 rounded px-3 py-2 text-xs font-mono break-all">
+              <code className="block bg-muted/50 border border-border rounded px-3 py-2 text-xs font-mono break-all">
                 {adoWebhookUrl}
               </code>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground/60">
                 Set the shared secret to the value shown in your database — it is used to verify
                 HMAC-SHA1 signatures.
               </p>

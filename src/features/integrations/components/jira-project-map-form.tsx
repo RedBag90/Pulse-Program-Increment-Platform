@@ -39,14 +39,14 @@ export function JiraProjectMapForm({ arts, currentMap }: Props) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-muted-foreground">
         Map each ART to its Jira project key. Stories created in that ART will be pushed to the
         corresponding Jira project.
       </p>
       <div className="space-y-2">
         {arts.map((art) => (
           <div key={art.id} className="flex items-center gap-3">
-            <label className="w-48 text-sm text-gray-700 truncate" title={art.name}>
+            <label className="w-48 text-sm text-foreground/80 truncate" title={art.name}>
               {art.name}
             </label>
             <input

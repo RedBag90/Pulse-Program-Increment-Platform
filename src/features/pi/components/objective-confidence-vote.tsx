@@ -32,7 +32,9 @@ export function ObjectiveConfidenceVote({ objectiveId, artId, current, canVote }
 
   return (
     <div className="flex items-center gap-1">
-      <span className="text-[10px] uppercase tracking-wide text-gray-400 mr-1">Confidence</span>
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground/60 mr-1">
+        Confidence
+      </span>
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           key={n}
@@ -41,7 +43,9 @@ export function ObjectiveConfidenceVote({ objectiveId, artId, current, canVote }
           onClick={() => vote(n)}
           aria-label={`Confidence ${n}`}
           className={`h-6 w-6 rounded text-xs font-medium transition-opacity ${
-            value !== null && n <= value ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-400"
+            value !== null && n <= value
+              ? "bg-blue-600 text-white"
+              : "bg-muted text-muted-foreground/60"
           } ${canVote ? "hover:opacity-80" : "cursor-default"} disabled:opacity-60`}
         >
           {n}
