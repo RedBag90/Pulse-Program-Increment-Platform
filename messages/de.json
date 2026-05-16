@@ -45,6 +45,12 @@
     "email": "E-Mail-Adresse",
     "password": "Passwort",
     "forgotPassword": "Passwort vergessen?",
+    "forgotPasswordHint": "Gib deine E-Mail-Adresse ein und wir senden dir einen Link zum Zurücksetzen deines Passworts.",
+    "resetPassword": "Passwort zurücksetzen",
+    "resetPasswordHint": "Wähle ein neues Passwort für dein Konto.",
+    "newPassword": "Neues Passwort",
+    "sendResetLink": "Link senden",
+    "resetLinkSent": "Falls ein Konto mit dieser E-Mail existiert, wurde ein Link zum Zurücksetzen gesendet. Bitte prüfe dein Postfach.",
     "noAccount": "Noch kein Konto?",
     "alreadyAccount": "Bereits ein Konto?",
     "tenantCode": "Mandanten-Code"

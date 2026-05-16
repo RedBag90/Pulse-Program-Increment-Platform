@@ -15,7 +15,12 @@ export default function SignInPage() {
     <>
       <h1 className="mb-6 text-2xl font-bold">{t("signIn")}</h1>
       <SignInForm />
-      <p className="mt-4 text-center text-sm text-muted-foreground">
+      <p className="mt-4 text-center text-sm">
+        <Link href="/forgot-password" className="font-medium text-primary hover:underline">
+          {t("forgotPassword")}
+        </Link>
+      </p>
+      <p className="mt-2 text-center text-sm text-muted-foreground">
         {t("noAccount")}{" "}
         <Link href="/sign-up" className="font-medium text-primary hover:underline">
           {t("signUp")}

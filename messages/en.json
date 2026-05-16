@@ -45,6 +45,12 @@
     "email": "Email address",
     "password": "Password",
     "forgotPassword": "Forgot password?",
+    "forgotPasswordHint": "Enter your email address and we'll send you a link to reset your password.",
+    "resetPassword": "Reset password",
+    "resetPasswordHint": "Choose a new password for your account.",
+    "newPassword": "New password",
+    "sendResetLink": "Send reset link",
+    "resetLinkSent": "If an account exists for that email, a reset link has been sent. Check your inbox.",
     "noAccount": "Don't have an account?",
     "alreadyAccount": "Already have an account?",
     "tenantCode": "Tenant code"

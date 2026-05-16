@@ -58,6 +58,8 @@ export type AuditAction =
   | "user.invited"
   | "user.role.assigned"
   | "user.role.removed"
+  | "user.erased"
+  | "user.data_exported"
   | "tenant.created";
 
 export type AuditResourceType =
@@ -71,6 +73,7 @@ export type AuditResourceType =
   | "impediment"
   | "dependency"
   | "user_role_assignment"
+  | "user"
   | "tenant";
 
 // ---------------------------------------------------------------------------

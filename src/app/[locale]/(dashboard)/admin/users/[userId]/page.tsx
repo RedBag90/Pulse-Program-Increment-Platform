@@ -3,6 +3,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { listUserRoles } from "@/server/services/role-assignment";
 import { AddRoleForm } from "@/features/admin/components/add-role-form";
 import { RemoveRoleButton } from "@/features/admin/components/remove-role-button";
+import { EraseUserButton } from "@/features/admin/components/erase-user-button";
 import { redirect } from "next/navigation";
 import type { TenantId, UserId } from "@/domain/types";
 
@@ -85,6 +86,22 @@ export default async function UserDetailPage({ params }: Props) {
             arts: vs.arts.map((a) => ({ id: a.id, name: a.name })),
           }))}
         />
+      </section>
+
+      <section className="space-y-3 border-t pt-6">
+        <h2 className="text-lg font-medium">Data &amp; Privacy (GDPR)</h2>
+        <p className="text-sm text-gray-500">
+          Export everything Pulse holds about this user, or erase their account.
+        </p>
+        <div className="flex items-center gap-4">
+          <a
+            href={`/api/v1/admin/users/${userId}/export`}
+            className="rounded-md border px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Export user data (JSON)
+          </a>
+          <EraseUserButton userId={userId} />
+        </div>
       </section>
     </main>
   );
