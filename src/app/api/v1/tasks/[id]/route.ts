@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { updateTask, deleteTask } from "@/server/services/task";
-import { problemJson } from "@/server/http/problem";
+import { authorize } from "@/server/auth/authorize";
+import { forbidden, problemJson } from "@/server/http/problem";
 import type { TenantId, TaskId } from "@/domain/types";
 import { z } from "zod";
 import { isErr } from "@/domain/errors";
@@ -22,6 +23,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const { id } = await params;
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return problemJson(401, "Unauthorized");
+
+  const decision = authorize("task.edit", { tenantId: principal.tenantId }, principal);
+  if (!decision.allow) return forbidden(decision.reason);
 
   const body: unknown = await req.json();
   const parsed = patchSchema.safeParse(body);
@@ -48,6 +52,9 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const { id } = await params;
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return problemJson(401, "Unauthorized");
+
+  const decision = authorize("task.edit", { tenantId: principal.tenantId }, principal);
+  if (!decision.allow) return forbidden(decision.reason);
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const result = await deleteTask(db, principal.tenantId as TenantId, principal.id, id as TaskId);

@@ -1,6 +1,7 @@
 "use server";
 
 import { requirePrincipal } from "@/server/auth/principal";
+import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { createPiObjective } from "@/server/services/pi-objective";
 import { redirect } from "next/navigation";
@@ -43,6 +44,16 @@ export async function createPiObjectiveAction(
 
   const parsed = schema.safeParse(raw);
   if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors };
+
+  if (
+    !authorize(
+      "pi_objective.create",
+      { tenantId: principal.tenantId, artId: parsed.data.artId, teamId: parsed.data.teamId },
+      principal,
+    ).allow
+  ) {
+    return { message: "Insufficient permissions" };
+  }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const result = await createPiObjective(db, {

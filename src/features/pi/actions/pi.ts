@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { createPi, updatePi } from "@/server/services/pi";
+import { authorize } from "@/server/auth/authorize";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { isErr } from "@/domain/errors";
@@ -29,9 +30,9 @@ export async function createPiAction(
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Not authenticated" };
 
-  const canEdit =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
-  if (!canEdit) return { error: "Insufficient permissions" };
+  if (!authorize("pi.create", { tenantId: principal.tenantId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const parsed = createSchema.safeParse({
     artId: formData.get("artId"),
@@ -81,9 +82,10 @@ export async function transitionPiAction(
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Not authenticated" };
 
-  const canEdit =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
-  if (!canEdit) return { error: "Insufficient permissions" };
+  const action = targetStatus === "active" ? "pi.start" : "pi.complete";
+  if (!authorize(action, { tenantId: principal.tenantId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const { ipAddress, userAgent } = extractRequestMeta(await headers());
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });

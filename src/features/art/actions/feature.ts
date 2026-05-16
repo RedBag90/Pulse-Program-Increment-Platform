@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { createFeature, scoreFeature } from "@/server/services/feature";
+import { authorize } from "@/server/auth/authorize";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { isErr } from "@/domain/errors";
@@ -35,12 +36,6 @@ export async function createFeatureAction(
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Not authenticated" };
 
-  const canEdit =
-    principal.roles.includes("portfolio_editor") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
-  if (!canEdit) return { error: "Insufficient permissions" };
-
   const raw = {
     artId: formData.get("artId"),
     parentId: formData.get("parentId"),
@@ -56,6 +51,16 @@ export async function createFeatureAction(
   const parsed = createSchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  if (
+    !authorize(
+      "feature.create",
+      { tenantId: principal.tenantId, artId: parsed.data.artId },
+      principal,
+    ).allow
+  ) {
+    return { error: "Insufficient permissions" };
   }
 
   const acceptanceCriteria = parsed.data.acceptanceCriteria
@@ -113,12 +118,6 @@ export async function scoreFeatureAction(
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Not authenticated" };
 
-  const canEdit =
-    principal.roles.includes("portfolio_editor") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
-  if (!canEdit) return { error: "Insufficient permissions" };
-
   const parsed = scoreSchema.safeParse({
     featureId: formData.get("featureId"),
     artId: formData.get("artId"),
@@ -128,6 +127,16 @@ export async function scoreFeatureAction(
     wsjfJobSize: formData.get("wsjfJobSize"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+
+  if (
+    !authorize(
+      "feature.wsjf.set",
+      { tenantId: principal.tenantId, artId: parsed.data.artId },
+      principal,
+    ).allow
+  ) {
+    return { error: "Insufficient permissions" };
+  }
 
   const { ipAddress, userAgent } = extractRequestMeta(await headers());
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { createArt, listArts } from "@/server/services/art";
+import { authorize } from "@/server/auth/authorize";
 import { forbidden, unprocessable, problemJson } from "@/server/http/problem";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { headers } from "next/headers";
@@ -26,9 +27,8 @@ export async function POST(request: Request): Promise<Response> {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return problemJson(401, "unauthorized");
 
-  const canEdit =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
-  if (!canEdit) return forbidden();
+  const decision = authorize("art.create", { tenantId: principal.tenantId }, principal);
+  if (!decision.allow) return forbidden(decision.reason);
 
   let body: unknown;
   try {

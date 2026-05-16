@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
+import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import {
   createImpediment,
@@ -38,6 +39,16 @@ export async function createImpedimentAction(
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
 
+  if (
+    !authorize(
+      "impediment.create",
+      { tenantId: principal.tenantId, artId: parsed.data.artId },
+      principal,
+    ).allow
+  ) {
+    return { error: "Insufficient permissions" };
+  }
+
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const result = await createImpediment(db, {
     tenantId: principal.tenantId as TenantId,
@@ -60,6 +71,10 @@ export async function escalateImpedimentAction(
 ): Promise<ImpedimentActionState> {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
+
+  if (!authorize("impediment.escalate", { tenantId: principal.tenantId, artId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const result = await escalateImpediment(
@@ -84,6 +99,10 @@ export async function resolveImpedimentAction(
 ): Promise<ImpedimentActionState> {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
+
+  if (!authorize("impediment.resolve", { tenantId: principal.tenantId, artId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const result = await resolveImpediment(db, {

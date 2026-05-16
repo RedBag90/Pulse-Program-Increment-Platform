@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { createTeam } from "@/server/services/team";
+import { authorize } from "@/server/auth/authorize";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { isErr } from "@/domain/errors";
@@ -27,9 +28,9 @@ export async function createTeamAction(
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Not authenticated" };
 
-  const canEdit =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
-  if (!canEdit) return { error: "Insufficient permissions" };
+  if (!authorize("team.create", { tenantId: principal.tenantId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const parsed = createSchema.safeParse({
     artId: formData.get("artId"),

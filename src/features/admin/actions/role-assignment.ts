@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { assignRole, removeRole } from "@/server/services/role-assignment";
+import { authorize } from "@/server/auth/authorize";
 import { ROLES } from "@/domain/roles";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
@@ -38,9 +39,9 @@ export async function assignRoleAction(
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Not authenticated" };
 
-  const isAdmin =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
-  if (!isAdmin) return { error: "Insufficient permissions" };
+  if (!authorize("tenant.users.manage", { tenantId: principal.tenantId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const parsed = assignRoleSchema.safeParse({
     targetUserId: formData.get("targetUserId"),
@@ -88,9 +89,9 @@ export async function removeRoleAction(
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Not authenticated" };
 
-  const isAdmin =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
-  if (!isAdmin) return { error: "Insufficient permissions" };
+  if (!authorize("tenant.users.manage", { tenantId: principal.tenantId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const parsed = removeRoleSchema.safeParse({
     assignmentId: formData.get("assignmentId"),

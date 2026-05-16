@@ -1,6 +1,7 @@
 "use server";
 
 import { requirePrincipal } from "@/server/auth/principal";
+import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -18,9 +19,9 @@ export async function saveJiraProjectMapAction(
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
-  const canManage =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
-  if (!canManage) return { error: "Insufficient permissions" };
+  if (!authorize("integration.manage", { tenantId: principal.tenantId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
@@ -42,9 +43,9 @@ export async function disconnectJiraAction(): Promise<JiraActionState> {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
-  const canManage =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
-  if (!canManage) return { error: "Insufficient permissions" };
+  if (!authorize("integration.manage", { tenantId: principal.tenantId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 

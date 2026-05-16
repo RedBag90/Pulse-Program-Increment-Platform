@@ -1,6 +1,7 @@
 "use server";
 
 import { requirePrincipal } from "@/server/auth/principal";
+import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { updateStory } from "@/server/services/story";
 import { revalidatePath } from "next/cache";
@@ -16,6 +17,12 @@ export async function assignSprintAction(
 ): Promise<{ error?: string }> {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
+
+  if (
+    !authorize("story.update", { tenantId: principal.tenantId, artId, teamId }, principal).allow
+  ) {
+    return { error: "Insufficient permissions" };
+  }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const result = await updateStory(db, {

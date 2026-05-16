@@ -1,6 +1,7 @@
 "use server";
 
 import { requirePrincipal } from "@/server/auth/principal";
+import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import type { TenantId } from "@/domain/types";
 import type { Prisma } from "@/generated/prisma";
@@ -11,6 +12,10 @@ export async function saveAdoProjectMapAction(
 ): Promise<{ error?: string }> {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Unauthorized" };
+
+  if (!authorize("integration.manage", { tenantId: principal.tenantId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   await db.azureDevOpsConfig.update({
@@ -24,6 +29,10 @@ export async function saveAdoProjectMapAction(
 export async function disconnectAdoAction(): Promise<{ error?: string }> {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Unauthorized" };
+
+  if (!authorize("integration.manage", { tenantId: principal.tenantId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   await db.azureDevOpsConfig.delete({ where: { tenantId: principal.tenantId as TenantId } });

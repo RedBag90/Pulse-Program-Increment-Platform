@@ -2,6 +2,7 @@ import { z } from "zod";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { createTenant } from "@/server/services/tenant";
+import { authorize } from "@/server/auth/authorize";
 import { forbidden, unprocessable, problemJson } from "@/server/http/problem";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { headers } from "next/headers";
@@ -18,9 +19,8 @@ export async function POST(request: Request): Promise<Response> {
     return problemJson(401, "unauthorized");
   }
 
-  if (!principal.roles.includes("platform_admin")) {
-    return forbidden();
-  }
+  const decision = authorize("tenant.create", {}, principal);
+  if (!decision.allow) return forbidden(decision.reason);
 
   let body: unknown;
   try {

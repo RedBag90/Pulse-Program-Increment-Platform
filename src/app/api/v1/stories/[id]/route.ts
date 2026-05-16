@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getStory, updateStory, deleteStory } from "@/server/services/story";
-import { problemJson } from "@/server/http/problem";
+import { authorize } from "@/server/auth/authorize";
+import { forbidden, problemJson } from "@/server/http/problem";
 import type { TenantId, StoryId, SprintId } from "@/domain/types";
 import { z } from "zod";
 import { isErr } from "@/domain/errors";
@@ -36,6 +37,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return problemJson(401, "Unauthorized");
 
+  const decision = authorize("story.update", { tenantId: principal.tenantId }, principal);
+  if (!decision.allow) return forbidden(decision.reason);
+
   const body: unknown = await req.json();
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) return problemJson(400, "Validation error", parsed.error.flatten());
@@ -62,6 +66,9 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const { id } = await params;
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return problemJson(401, "Unauthorized");
+
+  const decision = authorize("story.update", { tenantId: principal.tenantId }, principal);
+  if (!decision.allow) return forbidden(decision.reason);
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const result = await deleteStory(db, principal.tenantId as TenantId, principal.id, id as StoryId);

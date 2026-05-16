@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { createValueStream, softDeleteValueStream } from "@/server/services/value-stream";
+import { authorize } from "@/server/auth/authorize";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { isErr } from "@/domain/errors";
@@ -32,11 +33,9 @@ export async function createValueStreamAction(
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Not authenticated" };
 
-  const canEdit =
-    principal.roles.includes("portfolio_editor") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
-  if (!canEdit) return { error: "Insufficient permissions" };
+  if (!authorize("value_stream.create", { tenantId: principal.tenantId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const parsed = createSchema.safeParse({
     name: formData.get("name"),
@@ -78,11 +77,9 @@ export async function deleteValueStreamAction(
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Not authenticated" };
 
-  const canEdit =
-    principal.roles.includes("portfolio_editor") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
-  if (!canEdit) return { error: "Insufficient permissions" };
+  if (!authorize("value_stream.update", { tenantId: principal.tenantId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
 
   const id = formData.get("id") as string;
   if (!id) return { error: "Missing ID" };

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { inviteUser } from "@/server/services/invitation";
+import { authorize } from "@/server/auth/authorize";
 import { ROLES } from "@/domain/roles";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
@@ -28,7 +29,7 @@ export async function inviteUserAction(
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Not authenticated" };
 
-  if (!principal.roles.includes("tenant_admin") && !principal.roles.includes("platform_admin")) {
+  if (!authorize("tenant.users.manage", { tenantId: principal.tenantId }, principal).allow) {
     return { error: "Insufficient permissions" };
   }
 

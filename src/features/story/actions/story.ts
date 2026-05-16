@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
+import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { createStory } from "@/server/services/story";
 import { isErr } from "@/domain/errors";
@@ -43,6 +44,16 @@ export async function createStoryAction(
 
   const parsed = schema.safeParse(raw);
   if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors };
+
+  if (
+    !authorize(
+      "story.create",
+      { tenantId: principal.tenantId, artId: parsed.data.artId },
+      principal,
+    ).allow
+  ) {
+    return { message: "Insufficient permissions" };
+  }
 
   const criteria = parsed.data.acceptanceCriteria
     ? parsed.data.acceptanceCriteria

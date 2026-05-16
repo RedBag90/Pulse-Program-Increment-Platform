@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { createStory, listStories } from "@/server/services/story";
-import { problemJson } from "@/server/http/problem";
+import { authorize } from "@/server/auth/authorize";
+import { forbidden, problemJson } from "@/server/http/problem";
 import type { TenantId, FeatureId, PiId, SprintId } from "@/domain/types";
 import { z } from "zod";
 import { isErr } from "@/domain/errors";
@@ -32,6 +33,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return problemJson(401, "Unauthorized");
+
+  const decision = authorize("story.create", { tenantId: principal.tenantId }, principal);
+  if (!decision.allow) return forbidden(decision.reason);
 
   const body: unknown = await req.json();
   const parsed = createSchema.safeParse(body);

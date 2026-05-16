@@ -6,7 +6,8 @@ import {
   resolveImpediment,
   type ImpedimentId,
 } from "@/server/services/impediment";
-import { problemJson } from "@/server/http/problem";
+import { authorize } from "@/server/auth/authorize";
+import { forbidden, problemJson } from "@/server/http/problem";
 import type { TenantId } from "@/domain/types";
 import { z } from "zod";
 import { isErr } from "@/domain/errors";
@@ -28,6 +29,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const body: unknown = await req.json();
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) return problemJson(400, "Validation error", parsed.error.flatten());
+
+  const decision = authorize(
+    parsed.data.action === "escalate" ? "impediment.escalate" : "impediment.resolve",
+    { tenantId: principal.tenantId },
+    principal,
+  );
+  if (!decision.allow) return forbidden(decision.reason);
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
