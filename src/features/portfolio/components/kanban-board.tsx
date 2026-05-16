@@ -3,7 +3,7 @@
 import { useActionState, useOptimistic, useTransition } from "react";
 import { advanceStageGateAction } from "@/features/portfolio/actions/stage-gate";
 import { useKanbanRealtime } from "@/features/portfolio/hooks/use-kanban-realtime";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 const STAGE_GATES = [
   { key: "L0", label: "Funnel" },
