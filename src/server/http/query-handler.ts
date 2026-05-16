@@ -39,7 +39,7 @@ export interface QueryHandlerConfig<TParams, TResult> {
   query: (ctx: QueryContext, params: TParams) => Promise<TResult | null>;
 }
 
-type RouteHandlerCtx = { params?: Promise<Record<string, string>> };
+type RouteHandlerCtx = { params: Promise<Record<string, string>> };
 
 /**
  * Returns a Next.js Route Handler function that runs the full read pipeline:
@@ -56,16 +56,16 @@ type RouteHandlerCtx = { params?: Promise<Record<string, string>> };
  */
 export function createQueryHandler<TParams = Record<string, never>, TResult = unknown>(
   config: QueryHandlerConfig<TParams, TResult>,
-): (request: Request, ctx?: RouteHandlerCtx) => Promise<Response> {
+): (request: Request, ctx: RouteHandlerCtx) => Promise<Response> {
   const { readAction, resource, query } = config;
 
-  return async function queryHandler(request: Request, ctx?: RouteHandlerCtx): Promise<Response> {
+  return async function queryHandler(request: Request, ctx: RouteHandlerCtx): Promise<Response> {
     const principalOrNull = await requirePrincipal().catch(() => null);
     if (!principalOrNull) return unauthorized();
     const principal: Principal = principalOrNull;
 
     // Merge route params + searchParams into one plain object for validation.
-    const routeParams = ctx?.params ? await ctx.params : {};
+    const routeParams = await ctx.params;
     const { searchParams } = new URL(request.url);
     const searchParamsObj = Object.fromEntries(searchParams.entries());
     const merged: unknown = { ...routeParams, ...searchParamsObj };

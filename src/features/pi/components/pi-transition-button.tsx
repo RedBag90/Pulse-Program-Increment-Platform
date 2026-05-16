@@ -5,11 +5,10 @@ import { transitionPiAction } from "@/features/pi/actions/pi";
 
 interface Props {
   piId: string;
-  artId: string;
   currentStatus: string;
 }
 
-export function PiTransitionButton({ piId, artId, currentStatus }: Props) {
+export function PiTransitionButton({ piId, currentStatus }: Props) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +22,7 @@ export function PiTransitionButton({ piId, artId, currentStatus }: Props) {
   function handleClick() {
     setError(null);
     startTransition(async () => {
-      const result = await transitionPiAction(piId, artId, nextStatus);
+      const result = await transitionPiAction(piId, nextStatus);
       if (result.error) setError(result.error);
     });
   }

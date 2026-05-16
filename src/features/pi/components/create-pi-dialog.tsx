@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { createPiAction } from "@/features/pi/actions/pi";
 
 interface Props {
@@ -11,7 +11,9 @@ export function CreatePiDialog({ artId }: Props) {
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(createPiAction, {});
 
-  if (state.success && open) setOpen(false);
+  useEffect(() => {
+    if (state.success) setOpen(false);
+  }, [state]);
 
   return (
     <>

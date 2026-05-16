@@ -1,5 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
+import { PiSubNav } from "@/features/pi/components/pi-sub-nav";
+import { Breadcrumbs } from "@/components/nav/breadcrumbs";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import type { TenantId } from "@/domain/types";
@@ -7,7 +9,7 @@ import { InitiativeLevel } from "@/domain/types";
 import { DependencyGraph } from "@/features/pi/components/dependency-graph";
 
 interface Props {
-  params: Promise<{ artId: string; piId: string }>;
+  params: Promise<{ piId: string }>;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -22,7 +24,7 @@ const TYPE_COLOR: Record<string, string> = {
 };
 
 export default async function PiDependenciesPage({ params }: Props) {
-  const { artId, piId } = await params;
+  const { piId } = await params;
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -30,7 +32,7 @@ export default async function PiDependenciesPage({ params }: Props) {
 
   const pi = await db.programIncrement.findFirst({
     where: { id: piId, tenantId: principal.tenantId as TenantId },
-    include: { art: { select: { name: true } } },
+    include: { art: { select: { id: true, name: true } } },
   });
   if (!pi) notFound();
 
@@ -83,23 +85,17 @@ export default async function PiDependenciesPage({ params }: Props) {
   }
 
   return (
-    <main className="p-8 max-w-5xl mx-auto space-y-8">
-      {/* Breadcrumb */}
-      <nav className="text-sm text-gray-500 flex items-center gap-1">
-        <Link href="/art" className="hover:underline">
-          ARTs
-        </Link>
-        <span>/</span>
-        <Link href={`/art/${artId}/pi`} className="hover:underline">
-          {pi.art.name}
-        </Link>
-        <span>/</span>
-        <Link href={`/art/${artId}/pi/${piId}`} className="hover:underline">
-          {pi.name}
-        </Link>
-        <span>/</span>
-        <span className="text-gray-800 font-medium">Dependencies</span>
-      </nav>
+    <main className="p-8 max-w-5xl mx-auto space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "ARTs", href: "/art" },
+          { label: pi.art.name, href: `/art/${pi.art.id}` },
+          { label: pi.name, href: `/pi/${piId}` },
+          { label: "Dependencies" },
+        ]}
+      />
+
+      <PiSubNav piId={piId} />
 
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Dependency Map — {pi.name}</h1>
@@ -126,7 +122,6 @@ export default async function PiDependenciesPage({ params }: Props) {
           <DependencyGraph
             nodes={nodes}
             edges={deps.map((d) => ({ id: d.id, fromId: d.fromId, toId: d.toId, type: d.type }))}
-            artId={artId}
           />
           {/* Adjacency list grouped by "from" node */}
           {nodes
@@ -145,7 +140,7 @@ export default async function PiDependenciesPage({ params }: Props) {
                         </span>
                       )}
                       <Link
-                        href={`/art/${artId}/features/${fromNode.id}`}
+                        href={`/feature/${fromNode.id}`}
                         className="text-sm font-medium text-blue-700 hover:underline"
                       >
                         {fromNode.title}
@@ -171,7 +166,7 @@ export default async function PiDependenciesPage({ params }: Props) {
                               </span>
                             )}
                             <Link
-                              href={`/art/${artId}/features/${dep.toId}`}
+                              href={`/feature/${dep.toId}`}
                               className="text-sm text-gray-800 hover:text-blue-700 hover:underline"
                             >
                               {dep.to.title}
@@ -199,7 +194,7 @@ export default async function PiDependenciesPage({ params }: Props) {
               .map((f) => (
                 <Link
                   key={f.id}
-                  href={`/art/${artId}/features/${f.id}`}
+                  href={`/feature/${f.id}`}
                   className="rounded-md border px-3 py-1.5 text-xs text-gray-600 hover:border-blue-300 hover:text-blue-700 transition-colors"
                 >
                   {f.title}

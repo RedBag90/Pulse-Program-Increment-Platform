@@ -38,6 +38,6 @@ export const createPiObjectiveAction = createServerAction({
       businessValue: input.businessValue,
       committed: input.committed ?? true,
     }),
-  onSuccess: () => revalidatePath("/art/[artId]/pi/[piId]/objectives", "page"),
+  onSuccess: () => revalidatePath("/pi/[piId]/objectives", "page"),
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create objective"),
 });

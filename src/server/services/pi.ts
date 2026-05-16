@@ -250,6 +250,76 @@ export async function completePi(db: PrismaClient, input: PiLifecycleInput): Pro
   });
 }
 
+/**
+ * Delete a planned PI and cascade: its sprints and objectives are removed, assigned
+ * features return to the backlog (piId → null), stories leave their sprints
+ * (sprintId → null), and impediments are detached but kept in the ART log.
+ */
+export async function deletePi(
+  db: PrismaClient,
+  tenantId: TenantId,
+  id: PiId,
+  actorId: UserId,
+  ipAddress?: string | undefined,
+  userAgent?: string | undefined,
+): Promise<Result<void>> {
+  return db
+    .$transaction(async (tx) => {
+      const pi = await tx.programIncrement.findFirst({ where: { id, tenantId } });
+      if (!pi) {
+        return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
+      }
+      if (pi.status !== "planned") {
+        return err({
+          kind: "conflict" as const,
+          reason: "Only a planned PI can be deleted",
+        });
+      }
+
+      const sprints = await tx.sprint.findMany({
+        where: { tenantId, piId: id },
+        select: { id: true },
+      });
+      const sprintIds = sprints.map((s) => s.id);
+
+      // Features assigned to this PI fall back to the backlog.
+      await tx.initiative.updateMany({ where: { tenantId, piId: id }, data: { piId: null } });
+
+      // Stories in this PI's sprints lose their sprint assignment.
+      if (sprintIds.length > 0) {
+        await tx.initiative.updateMany({
+          where: { tenantId, sprintId: { in: sprintIds } },
+          data: { sprintId: null },
+        });
+      }
+
+      // Impediments are kept (ART-scoped) but detached from the PI/sprints.
+      await tx.impediment.updateMany({
+        where: { tenantId, OR: [{ piId: id }, { sprintId: { in: sprintIds } }] },
+        data: { piId: null, sprintId: null },
+      });
+
+      await tx.piObjective.deleteMany({ where: { tenantId, piId: id } });
+      await tx.sprint.deleteMany({ where: { tenantId, piId: id } });
+      await tx.programIncrement.delete({ where: { id } });
+
+      await emitAuditEvent(tx as unknown as PrismaClient, {
+        tenantId,
+        actorId,
+        action: "pi.deleted",
+        resourceType: "program_increment",
+        resourceId: id,
+        ipAddress,
+        userAgent,
+      });
+
+      return ok(undefined);
+    })
+    .catch((e: unknown) => {
+      throw e;
+    });
+}
+
 export async function listPis(
   db: PrismaClient,
   tenantId: TenantId,

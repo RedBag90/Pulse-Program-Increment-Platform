@@ -8,6 +8,7 @@ import { ArtSubNav } from "@/features/art/components/art-sub-nav";
 import { FeatureFilters } from "@/features/art/components/feature-filters";
 import { WsjfScoreDialog } from "@/features/art/components/wsjf-score-dialog";
 import { DeleteFeatureButton } from "@/features/art/components/delete-feature-button";
+import { FeaturePiSelect } from "@/features/art/components/feature-pi-select";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import type { ArtId } from "@/domain/types";
@@ -33,7 +34,7 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
     db.programIncrement.findMany({
       where: { tenantId: principal.tenantId, artId },
       orderBy: { startDate: "desc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, status: true },
     }),
   ]);
 
@@ -53,6 +54,11 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
     principal.roles.includes("platform_admin");
 
   const epicOptions = epics.map((e) => ({ id: e.id, title: e.title }));
+
+  // PIs a feature can be moved into — completed PIs are not assignable targets.
+  const assignablePis = pis
+    .filter((p) => p.status !== "completed")
+    .map((p) => ({ id: p.id, name: p.name }));
 
   return (
     <main className="p-8 max-w-6xl mx-auto space-y-6">
@@ -124,7 +130,7 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
                     <td className="px-4 py-3 text-gray-400 text-xs">{rank}</td>
                     <td className="px-4 py-3">
                       <Link
-                        href={`/art/${artId}/features/${feature.id}`}
+                        href={`/feature/${feature.id}`}
                         className="font-medium text-blue-700 hover:underline"
                       >
                         {feature.title}
@@ -171,7 +177,16 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
                       </span>
                     </td>
                     <td className="px-3 py-3 text-gray-500 text-xs">
-                      {feature.pi?.name ?? "Backlog"}
+                      {canEdit ? (
+                        <FeaturePiSelect
+                          featureId={feature.id}
+                          artId={artId}
+                          currentPiId={feature.piId}
+                          pis={assignablePis}
+                        />
+                      ) : (
+                        (feature.pi?.name ?? "Backlog")
+                      )}
                     </td>
                     {canEdit && (
                       <td className="px-3 py-3">

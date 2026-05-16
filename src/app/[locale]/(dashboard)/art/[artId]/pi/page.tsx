@@ -63,7 +63,7 @@ export default async function PiListPage({ params }: Props) {
             return (
               <Link
                 key={pi.id}
-                href={`/art/${artId}/pi/${pi.id}`}
+                href={`/pi/${pi.id}`}
                 className="block border rounded-lg p-5 hover:shadow-sm hover:border-blue-300 transition-colors"
               >
                 <div className="flex items-center justify-between gap-4">

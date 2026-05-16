@@ -2,19 +2,19 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { BacklogStoryRow } from "@/features/team/components/backlog-story-row";
 import { BacklogPiFilter } from "@/features/team/components/backlog-pi-filter";
-import { ArtSubNav } from "@/features/art/components/art-sub-nav";
+import { Breadcrumbs } from "@/components/nav/breadcrumbs";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import { InitiativeLevel } from "@/domain/types";
 import type { TenantId } from "@/domain/types";
 
 interface Props {
-  params: Promise<{ artId: string; teamId: string }>;
+  params: Promise<{ teamId: string }>;
   searchParams: Promise<{ piId?: string; featureId?: string }>;
 }
 
 export default async function TeamBacklogPage({ params, searchParams }: Props) {
-  const { artId, teamId } = await params;
+  const { teamId } = await params;
   const { piId: filterPiId, featureId: filterFeatureId } = await searchParams;
 
   const principal = await requirePrincipal().catch(() => null);
@@ -22,9 +22,15 @@ export default async function TeamBacklogPage({ params, searchParams }: Props) {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [team, art, unassignedStories, sprints, pis] = await Promise.all([
-    db.team.findFirst({ where: { id: teamId, tenantId: principal.tenantId as TenantId } }),
-    db.art.findFirst({ where: { id: artId, tenantId: principal.tenantId as TenantId } }),
+  const team = await db.team.findFirst({
+    where: { id: teamId, tenantId: principal.tenantId as TenantId },
+    include: { art: { select: { id: true, name: true } } },
+  });
+  if (!team) notFound();
+
+  const artId = team.art.id;
+
+  const [unassignedStories, sprints, pis] = await Promise.all([
     db.initiative.findMany({
       where: {
         tenantId: principal.tenantId as TenantId,
@@ -50,8 +56,6 @@ export default async function TeamBacklogPage({ params, searchParams }: Props) {
     }),
   ]);
 
-  if (!team || !art) notFound();
-
   const sprintOptions = sprints.map((s) => ({
     id: s.id,
     indexInPi: s.indexInPi,
@@ -70,17 +74,17 @@ export default async function TeamBacklogPage({ params, searchParams }: Props) {
 
   return (
     <main className="p-8 max-w-5xl mx-auto space-y-6">
-      <ArtSubNav artId={artId} artName={art.name} />
+      <Breadcrumbs
+        items={[
+          { label: "ARTs", href: "/art" },
+          { label: team.art.name, href: `/art/${artId}/teams` },
+          { label: `${team.name} — Backlog` },
+        ]}
+      />
 
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <Link href={`/art/${artId}/teams`} className="text-sm text-gray-400 hover:underline">
-              Teams
-            </Link>
-            <span className="text-gray-300">/</span>
-            <h1 className="text-xl font-semibold">{team.name} — Backlog</h1>
-          </div>
+          <h1 className="text-xl font-semibold">{team.name} — Backlog</h1>
           <p className="text-sm text-gray-500 mt-1">
             {unassignedStories.length} unassigned stor{unassignedStories.length !== 1 ? "ies" : "y"}{" "}
             · {totalPoints} pts
@@ -96,10 +100,7 @@ export default async function TeamBacklogPage({ params, searchParams }: Props) {
         />
 
         {filterPiId && (
-          <Link
-            href={`/art/${artId}/teams/${teamId}`}
-            className="text-xs text-gray-400 hover:text-gray-700"
-          >
+          <Link href={`/team/${teamId}`} className="text-xs text-gray-400 hover:text-gray-700">
             Clear filters
           </Link>
         )}

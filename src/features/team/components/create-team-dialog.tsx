@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { createTeamAction } from "@/features/team/actions/team";
 
 interface Props {
@@ -11,7 +11,9 @@ export function CreateTeamDialog({ artId }: Props) {
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(createTeamAction, {});
 
-  if (state.success && open) setOpen(false);
+  useEffect(() => {
+    if (state.success) setOpen(false);
+  }, [state]);
 
   return (
     <>

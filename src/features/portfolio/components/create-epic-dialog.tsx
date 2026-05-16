@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { createEpicAction } from "@/features/portfolio/actions/epic";
 
 interface ValueStream {
@@ -16,7 +16,9 @@ export function CreateEpicDialog({ valueStreams }: CreateEpicDialogProps) {
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(createEpicAction, {});
 
-  if (state.success && open) setOpen(false);
+  useEffect(() => {
+    if (state.success) setOpen(false);
+  }, [state]);
 
   return (
     <>

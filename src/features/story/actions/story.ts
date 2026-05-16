@@ -77,7 +77,7 @@ export async function createStoryAction(
     };
   }
 
-  revalidatePath("/art/[artId]/features/[featureId]", "page");
+  revalidatePath("/feature/[featureId]", "page");
   return { success: true };
 }
 
@@ -88,6 +88,6 @@ export const deleteStoryAction = createServerAction({
   parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
   service: (ctx, input) =>
     deleteStory(ctx.db, ctx.principal.tenantId as TenantId, ctx.principal.id, input.id as StoryId),
-  onSuccess: () => revalidatePath("/art/[artId]/features/[featureId]", "page"),
+  onSuccess: () => revalidatePath("/feature/[featureId]", "page"),
   mapError: (e) => (e.kind === "not_found" ? "Story not found" : "Failed to delete story"),
 });

@@ -5,12 +5,13 @@ import { listStories } from "@/server/services/story";
 import { CreateStoryDialog } from "@/features/story/components/create-story-dialog";
 import { DeleteFeatureButton } from "@/features/art/components/delete-feature-button";
 import { DeleteStoryButton } from "@/features/story/components/delete-story-button";
+import { Breadcrumbs } from "@/components/nav/breadcrumbs";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import type { FeatureId, TenantId } from "@/domain/types";
 
 interface Props {
-  params: Promise<{ artId: string; featureId: string }>;
+  params: Promise<{ featureId: string }>;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -24,13 +25,15 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default async function FeatureDetailPage({ params }: Props) {
-  const { artId, featureId } = await params;
+  const { featureId } = await params;
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const feature = await getFeature(db, principal.tenantId, featureId as FeatureId);
   if (!feature) notFound();
+
+  const artId = feature.art?.id ?? "";
 
   const [{ items: stories }, availableSprints] = await Promise.all([
     listStories(db, principal.tenantId as TenantId, featureId as FeatureId),
@@ -72,18 +75,13 @@ export default async function FeatureDetailPage({ params }: Props) {
 
   return (
     <main className="p-8 max-w-4xl mx-auto space-y-8">
-      {/* Breadcrumb */}
-      <nav className="text-sm text-gray-500 flex items-center gap-1">
-        <Link href="/art" className="hover:underline">
-          ARTs
-        </Link>
-        <span>/</span>
-        <Link href={`/art/${artId}/features`} className="hover:underline">
-          {feature.art?.name ?? "ART"}
-        </Link>
-        <span>/</span>
-        <span className="text-gray-800 font-medium truncate max-w-xs">{feature.title}</span>
-      </nav>
+      <Breadcrumbs
+        items={[
+          { label: "ARTs", href: "/art" },
+          { label: feature.art?.name ?? "ART", href: `/art/${artId}/features` },
+          { label: feature.title },
+        ]}
+      />
 
       {/* Header */}
       <div className="space-y-2">

@@ -22,8 +22,8 @@ export function EditValueStreamDialog({
   const [state, action, isPending] = useActionState(updateValueStreamAction, {});
 
   useEffect(() => {
-    if (state?.success) setOpen(false);
-  }, [state?.success]);
+    if (state.success) setOpen(false);
+  }, [state]);
 
   return (
     <>

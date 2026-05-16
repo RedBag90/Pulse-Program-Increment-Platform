@@ -14,8 +14,19 @@ const NAV_GROUPS = [
     ],
   },
   {
-    labelKey: "delivery",
-    items: [{ href: "/art", labelKey: "artsAndPi" }],
+    labelKey: "programPlanning",
+    items: [
+      { href: "/art", labelKey: "arts" },
+      { href: "/pi", labelKey: "programIncrements" },
+      { href: "/feature", labelKey: "features" },
+    ],
+  },
+  {
+    labelKey: "teamExecution",
+    items: [
+      { href: "/team", labelKey: "teams" },
+      { href: "/sprint", labelKey: "mySprints" },
+    ],
   },
   {
     labelKey: "admin",
@@ -26,6 +37,13 @@ const NAV_GROUPS = [
     ],
   },
 ] as const;
+
+/** Whether a nav item is active, ignoring the locale prefix and matching on segment boundaries. */
+function isActive(pathname: string, href: string, exact: boolean): boolean {
+  const path = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, "") || "/";
+  if (exact) return path === href;
+  return path === href || path.startsWith(`${href}/`);
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -45,9 +63,7 @@ export function Sidebar() {
             <div className="space-y-0.5">
               {group.items.map(({ href, labelKey, ...rest }) => {
                 const exact = "exact" in rest ? rest.exact : false;
-                const active = exact
-                  ? pathname === href || pathname.endsWith(href)
-                  : pathname.includes(href);
+                const active = isActive(pathname, href, exact);
                 return (
                   <Link
                     key={href}

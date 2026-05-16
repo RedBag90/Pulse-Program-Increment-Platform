@@ -12,11 +12,12 @@ export function ArtSubNav({ artId, artName }: Props) {
   const pathname = usePathname();
 
   const tabs = [
-    { href: `/art/${artId}/features`, label: "Features" },
-    { href: `/art/${artId}/pi`, label: "Program Increments" },
-    { href: `/art/${artId}/teams`, label: "Teams" },
-    { href: `/art/${artId}/velocity`, label: "Velocity" },
-    { href: `/art/${artId}/impediments`, label: "Impediments" },
+    { href: `/art/${artId}`, label: "Overview", segment: "" },
+    { href: `/art/${artId}/features`, label: "Features", segment: "features" },
+    { href: `/art/${artId}/pi`, label: "Program Increments", segment: "pi" },
+    { href: `/art/${artId}/teams`, label: "Teams", segment: "teams" },
+    { href: `/art/${artId}/velocity`, label: "Velocity", segment: "velocity" },
+    { href: `/art/${artId}/impediments`, label: "Impediments", segment: "impediments" },
   ] as const;
 
   return (
@@ -30,9 +31,11 @@ export function ArtSubNav({ artId, artName }: Props) {
       </nav>
 
       <div className="border-b flex gap-0">
-        {tabs.map(({ href, label }) => {
-          const segment = href.split(`/${artId}/`)[1] ?? "";
-          const active = pathname.includes(`/${artId}/${segment}`);
+        {tabs.map(({ href, label, segment }) => {
+          const active =
+            segment === ""
+              ? pathname.endsWith(`/art/${artId}`)
+              : pathname.includes(`/art/${artId}/${segment}`);
 
           return (
             <Link

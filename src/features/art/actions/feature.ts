@@ -2,11 +2,16 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { createFeature, scoreFeature } from "@/server/services/feature";
+import { redirect } from "next/navigation";
+import { createFeature, scoreFeature, setFeaturePi } from "@/server/services/feature";
 import { softDeleteFeature } from "@/server/services/initiative";
 import { createServerAction } from "@/server/http/server-action";
+import { requirePrincipal } from "@/server/auth/principal";
+import { authorize } from "@/server/auth/authorize";
+import { createPrismaClient } from "@/server/db/prisma";
+import { isErr } from "@/domain/errors";
 import { fibonacci } from "@/domain/schemas/initiative";
-import type { EpicId, ArtId, FeatureId, TenantId } from "@/domain/types";
+import type { EpicId, ArtId, FeatureId, PiId, TenantId } from "@/domain/types";
 
 export interface FeatureActionState {
   error?: string;
@@ -118,3 +123,45 @@ export const deleteFeatureAction = createServerAction({
   onSuccess: () => revalidatePath("/art/[artId]/features", "page"),
   mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to delete feature"),
 });
+
+/**
+ * Assign one or more features to a PI, or move them back to the backlog (piId = null).
+ * Serves both the PI-overview picker and the feature-backlog inline dropdown.
+ */
+export async function setFeaturePiAction(
+  featureIds: string[],
+  piId: string | null,
+  artId: string,
+): Promise<{ error?: string }> {
+  const principal = await requirePrincipal().catch(() => null);
+  if (!principal) redirect("/sign-in");
+
+  if (!authorize("feature.update", { tenantId: principal.tenantId, artId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
+
+  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+
+  for (const featureId of featureIds) {
+    const result = await setFeaturePi(db, {
+      tenantId: principal.tenantId as TenantId,
+      actorId: principal.id,
+      featureId: featureId as FeatureId,
+      piId: piId === null ? null : (piId as PiId),
+    });
+    if (isErr(result)) {
+      return {
+        error:
+          result.error.kind === "conflict"
+            ? result.error.reason
+            : result.error.kind === "not_found"
+              ? "Feature or PI not found"
+              : "Failed to assign feature",
+      };
+    }
+  }
+
+  revalidatePath("/art/[artId]/features", "page");
+  revalidatePath("/pi/[piId]", "page");
+  return {};
+}

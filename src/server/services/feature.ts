@@ -234,6 +234,70 @@ export async function updateFeature(
     });
 }
 
+export interface SetFeaturePiInput {
+  tenantId: TenantId;
+  actorId: UserId;
+  featureId: FeatureId;
+  /** Target PI, or null to move the feature back to the backlog. */
+  piId: PiId | null;
+  ipAddress?: string | undefined;
+  userAgent?: string | undefined;
+}
+
+/** Assign a feature to a PI (or back to the backlog). Enforces the same-ART rule. */
+export async function setFeaturePi(
+  db: PrismaClient,
+  input: SetFeaturePiInput,
+): Promise<Result<void>> {
+  const { tenantId, actorId, featureId, piId, ipAddress, userAgent } = input;
+
+  return db
+    .$transaction(async (tx) => {
+      const feature = await tx.initiative.findFirst({
+        where: { id: featureId, tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
+      });
+      if (!feature) {
+        return err({ kind: "not_found" as const, resourceType: "Feature", id: featureId });
+      }
+
+      if (piId !== null) {
+        const pi = await tx.programIncrement.findFirst({ where: { id: piId, tenantId } });
+        if (!pi) {
+          return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id: piId });
+        }
+        if (pi.artId !== feature.artId) {
+          return err({
+            kind: "conflict" as const,
+            reason: "Feature and Program Increment belong to different ARTs",
+          });
+        }
+      }
+
+      if (feature.piId === piId) return ok(undefined);
+
+      await tx.initiative.update({
+        where: { id: featureId },
+        data: { piId, updatedBy: actorId },
+      });
+
+      await emitAuditEvent(tx as unknown as PrismaClient, {
+        tenantId,
+        actorId,
+        action: "initiative.updated",
+        resourceType: "initiative",
+        resourceId: featureId,
+        changes: { piId: { before: feature.piId, after: piId } },
+        ipAddress,
+        userAgent,
+      });
+
+      return ok(undefined);
+    })
+    .catch((e: unknown) => {
+      throw e;
+    });
+}
+
 export interface ScoreFeatureInput {
   tenantId: TenantId;
   actorId: UserId;

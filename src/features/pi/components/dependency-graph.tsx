@@ -19,7 +19,6 @@ interface Edge {
 interface Props {
   nodes: Node[];
   edges: Edge[];
-  artId: string;
 }
 
 const EDGE_COLOR: Record<string, string> = {
@@ -91,7 +90,7 @@ function computeLayout(nodes: Node[], edges: Edge[]) {
   };
 }
 
-export function DependencyGraph({ nodes, edges, artId }: Props) {
+export function DependencyGraph({ nodes, edges }: Props) {
   const { positions, width, height } = useMemo(() => computeLayout(nodes, edges), [nodes, edges]);
 
   if (nodes.length === 0 || edges.length === 0) return null;
@@ -152,7 +151,7 @@ export function DependencyGraph({ nodes, edges, artId }: Props) {
 
           return (
             <g key={node.id}>
-              <a href={`/art/${artId}/features/${node.id}`}>
+              <a href={`/feature/${node.id}`}>
                 <rect
                   x={pos.x}
                   y={pos.y}

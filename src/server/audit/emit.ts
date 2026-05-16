@@ -49,6 +49,7 @@ export type AuditAction =
   | "pi.updated"
   | "pi.started"
   | "pi.completed"
+  | "pi.deleted"
   | "pi_objective.created"
   | "pi_objective.updated"
   | "impediment.raised"

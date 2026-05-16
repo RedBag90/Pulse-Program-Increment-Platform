@@ -58,7 +58,7 @@ export default async function TeamsPage({ params }: Props) {
               </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <Link
-                  href={`/art/${artId}/teams/${team.id}`}
+                  href={`/team/${team.id}`}
                   className="inline-block text-xs font-medium text-blue-600 hover:underline"
                 >
                   View Backlog →

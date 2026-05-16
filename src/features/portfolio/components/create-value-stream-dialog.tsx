@@ -1,13 +1,15 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { createValueStreamAction } from "@/features/portfolio/actions/value-stream";
 
 export function CreateValueStreamDialog() {
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(createValueStreamAction, {});
 
-  if (state.success && open) setOpen(false);
+  useEffect(() => {
+    if (state.success) setOpen(false);
+  }, [state]);
 
   return (
     <>

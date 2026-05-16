@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { createPi, startPi, completePi } from "@/server/services/pi";
+import { createPi, startPi, completePi, deletePi } from "@/server/services/pi";
 import { authorize } from "@/server/auth/authorize";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
@@ -54,7 +54,6 @@ export const createPiAction = createServerAction({
 
 export async function transitionPiAction(
   piId: string,
-  artId: string,
   targetStatus: "active" | "completed",
 ): Promise<PiActionState> {
   const principal = await requirePrincipal().catch(() => null);
@@ -86,7 +85,29 @@ export async function transitionPiAction(
     };
   }
 
-  revalidatePath("/art/[artId]/pi/[piId]", "page");
-  revalidatePath(`/art/${artId}/pi/${piId}`, "page");
+  revalidatePath(`/pi/${piId}`, "page");
   return { success: true };
 }
+
+export const deletePiAction = createServerAction({
+  schema: z.object({ id: z.string().uuid(), artId: z.string().uuid() }),
+  action: "pi.delete",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
+  service: (ctx, input) =>
+    deletePi(
+      ctx.db,
+      ctx.principal.tenantId,
+      input.id as PiId,
+      ctx.principal.id,
+      ctx.ipAddress,
+      ctx.userAgent,
+    ),
+  onSuccess: () => revalidatePath("/art/[artId]/pi", "page"),
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "PI not found"
+        : "Failed to delete PI",
+});

@@ -14,8 +14,8 @@ export function EditTeamDialog({ id, artId, name }: EditTeamDialogProps) {
   const [state, action, isPending] = useActionState(updateTeamAction, {});
 
   useEffect(() => {
-    if (state?.success) setOpen(false);
-  }, [state?.success]);
+    if (state.success) setOpen(false);
+  }, [state]);
 
   return (
     <>

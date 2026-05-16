@@ -1,55 +1,49 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getPi } from "@/server/services/pi";
-import { Link } from "@/i18n/navigation";
+import { PiSubNav } from "@/features/pi/components/pi-sub-nav";
+import { Breadcrumbs } from "@/components/nav/breadcrumbs";
 import { redirect, notFound } from "next/navigation";
 import type { PiId, TenantId } from "@/domain/types";
 import { ProgramBoard } from "@/features/pi/components/program-board";
 
 interface Props {
-  params: Promise<{ artId: string; piId: string }>;
+  params: Promise<{ piId: string }>;
 }
 
 export default async function PiBoardPage({ params }: Props) {
-  const { artId, piId } = await params;
+  const { piId } = await params;
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [pi, teams] = await Promise.all([
-    getPi(db, principal.tenantId, piId as PiId),
-    db.team.findMany({
-      where: { artId, tenantId: principal.tenantId as TenantId },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-  ]);
-
+  const pi = await getPi(db, principal.tenantId, piId as PiId);
   if (!pi) notFound();
+
+  const teams = await db.team.findMany({
+    where: { artId: pi.art.id, tenantId: principal.tenantId as TenantId },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
 
   return (
     <main className="p-6 max-w-full space-y-6">
-      <nav className="text-sm text-gray-500 flex items-center gap-1">
-        <Link href="/art" className="hover:underline">
-          ARTs
-        </Link>
-        <span>/</span>
-        <Link href={`/art/${artId}/pi`} className="hover:underline">
-          {pi.art.name}
-        </Link>
-        <span>/</span>
-        <Link href={`/art/${artId}/pi/${piId}`} className="hover:underline">
-          {pi.name}
-        </Link>
-        <span>/</span>
-        <span className="text-gray-800 font-medium">Program Board</span>
-      </nav>
+      <Breadcrumbs
+        items={[
+          { label: "ARTs", href: "/art" },
+          { label: pi.art.name, href: `/art/${pi.art.id}` },
+          { label: pi.name, href: `/pi/${piId}` },
+          { label: "Program Board" },
+        ]}
+      />
+
+      <PiSubNav piId={piId} />
 
       <h1 className="text-xl font-semibold">Program Board — {pi.name}</h1>
 
       <ProgramBoard
-        artId={artId}
+        artId={pi.art.id}
         piId={piId}
         piName={pi.name}
         teams={teams}

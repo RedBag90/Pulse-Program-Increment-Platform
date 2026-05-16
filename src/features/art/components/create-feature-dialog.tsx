@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { createFeatureAction } from "@/features/art/actions/feature";
 
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 20] as const;
@@ -14,7 +14,9 @@ export function CreateFeatureDialog({ artId, epics }: Props) {
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(createFeatureAction, {});
 
-  if (state.success && open) setOpen(false);
+  useEffect(() => {
+    if (state.success) setOpen(false);
+  }, [state]);
 
   return (
     <>

@@ -41,7 +41,12 @@ export default async function ArtPage() {
               className="border rounded-lg p-5 space-y-3 hover:shadow-sm transition-shadow"
             >
               <div className="space-y-1">
-                <h2 className="font-semibold">{art.name}</h2>
+                <Link
+                  href={`/art/${art.id}`}
+                  className="font-semibold hover:text-blue-700 hover:underline"
+                >
+                  {art.name}
+                </Link>
                 <p className="text-sm text-gray-500">Value Stream: {art.valueStream.name}</p>
                 {art.piCadenceWeeks && (
                   <p className="text-sm text-gray-500">PI Cadence: {art.piCadenceWeeks} weeks</p>

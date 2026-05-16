@@ -294,7 +294,7 @@ export function ProgramBoard({ artId, piId: _piId, piName, teams, sprints, featu
               return (
                 <Link
                   key={f.id}
-                  href={`/art/${artId}/features/${f.id}`}
+                  href={`/feature/${f.id}`}
                   className="rounded-lg border p-3 hover:border-blue-300 transition-colors group"
                 >
                   <div className="flex items-start justify-between gap-2">

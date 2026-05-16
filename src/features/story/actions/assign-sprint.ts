@@ -34,6 +34,6 @@ export async function assignSprintAction(
 
   if (isErr(result)) return { error: "Failed to assign sprint" };
 
-  revalidatePath(`/art/${artId}/teams/${teamId}`, "page");
+  revalidatePath(`/team/${teamId}`, "page");
   return {};
 }

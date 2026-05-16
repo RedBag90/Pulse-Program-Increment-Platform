@@ -2,12 +2,20 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getPi } from "@/server/services/pi";
 import { PiTransitionButton } from "@/features/pi/components/pi-transition-button";
+import { DeletePiButton } from "@/features/pi/components/delete-pi-button";
+import { PiSubNav } from "@/features/pi/components/pi-sub-nav";
+import {
+  AssignFeaturesDialog,
+  RemoveFromPiButton,
+} from "@/features/pi/components/assign-features-dialog";
+import { Breadcrumbs } from "@/components/nav/breadcrumbs";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
-import type { PiId } from "@/domain/types";
+import { InitiativeLevel } from "@/domain/types";
+import type { PiId, TenantId } from "@/domain/types";
 
 interface Props {
-  params: Promise<{ artId: string; piId: string }>;
+  params: Promise<{ piId: string }>;
 }
 
 function formatDate(d: Date) {
@@ -21,7 +29,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export default async function PiDetailPage({ params }: Props) {
-  const { artId, piId } = await params;
+  const { piId } = await params;
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -34,20 +42,49 @@ export default async function PiDetailPage({ params }: Props) {
     (pi.endDate.getTime() - pi.startDate.getTime()) / (1000 * 60 * 60 * 24),
   );
 
+  const canEdit =
+    principal.roles.includes("portfolio_editor") ||
+    principal.roles.includes("art_full_editor") ||
+    principal.roles.includes("feature_editor") ||
+    principal.roles.includes("tenant_admin") ||
+    principal.roles.includes("platform_admin");
+
+  // Features in the same ART that are not already in this PI (backlog + other PIs).
+  const candidateRows = await db.initiative.findMany({
+    where: {
+      tenantId: principal.tenantId as TenantId,
+      artId: pi.art.id,
+      level: InitiativeLevel.FEATURE,
+      deletedAt: null,
+      // Backlog features (piId null) plus features in a different PI.
+      OR: [{ piId: null }, { piId: { not: piId } }],
+    },
+    select: {
+      id: true,
+      title: true,
+      wsjfComputed: true,
+      pi: { select: { name: true } },
+    },
+    orderBy: { wsjfComputed: { sort: "desc", nulls: "last" } },
+  });
+  const candidates = candidateRows.map((c) => ({
+    id: c.id,
+    title: c.title,
+    wsjfComputed: c.wsjfComputed !== null ? Number(c.wsjfComputed) : null,
+    currentPiName: c.pi?.name ?? null,
+  }));
+
   return (
-    <main className="p-8 max-w-4xl mx-auto space-y-8">
-      {/* Breadcrumb */}
-      <nav className="text-sm text-gray-500 flex items-center gap-1">
-        <Link href="/art" className="hover:underline">
-          ARTs
-        </Link>
-        <span>/</span>
-        <Link href={`/art/${artId}/pi`} className="hover:underline">
-          {pi.art.name}
-        </Link>
-        <span>/</span>
-        <span className="text-gray-800 font-medium">{pi.name}</span>
-      </nav>
+    <main className="p-8 max-w-4xl mx-auto space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "ARTs", href: "/art" },
+          { label: pi.art.name, href: `/art/${pi.art.id}` },
+          { label: pi.name },
+        ]}
+      />
+
+      <PiSubNav piId={piId} />
 
       {/* Header */}
       <div className="flex items-start gap-3">
@@ -58,28 +95,13 @@ export default async function PiDetailPage({ params }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <Link
-            href={`/art/${artId}/pi/${piId}/objectives`}
-            className="text-sm font-medium text-blue-600 hover:underline"
-          >
-            Objectives
-          </Link>
-          <Link
-            href={`/art/${artId}/pi/${piId}/dependencies`}
-            className="text-sm font-medium text-blue-600 hover:underline"
-          >
-            Dependencies
-          </Link>
-          <Link
-            href={`/art/${artId}/pi/${piId}/board`}
-            className="text-sm font-medium text-blue-600 hover:underline"
-          >
-            Program Board →
-          </Link>
           <span className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${badge}`}>
             {pi.status}
           </span>
-          <PiTransitionButton piId={piId} artId={artId} currentStatus={pi.status} />
+          <PiTransitionButton piId={piId} currentStatus={pi.status} />
+          {canEdit && pi.status === "planned" && (
+            <DeletePiButton piId={piId} artId={pi.art.id} name={pi.name} />
+          )}
         </div>
       </div>
 
@@ -103,7 +125,7 @@ export default async function PiDetailPage({ params }: Props) {
                     {formatDate(sprint.startDate)} – {formatDate(sprint.endDate)}
                   </span>
                   <Link
-                    href={`/art/${artId}/pi/${piId}/sprint/${sprint.id}`}
+                    href={`/sprint/${sprint.id}`}
                     className="text-blue-600 hover:underline text-xs"
                   >
                     Board →
@@ -117,17 +139,19 @@ export default async function PiDetailPage({ params }: Props) {
 
       {/* Features in this PI */}
       <section className="space-y-3">
-        <h2 className="text-base font-semibold">Features ({pi.initiatives.length})</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold">Features ({pi.initiatives.length})</h2>
+          {canEdit && pi.status !== "completed" && (
+            <AssignFeaturesDialog piId={piId} artId={pi.art.id} candidates={candidates} />
+          )}
+        </div>
         {pi.initiatives.length === 0 ? (
           <p className="text-sm text-gray-400">No features assigned to this PI yet.</p>
         ) : (
           <div className="rounded-lg border divide-y">
             {pi.initiatives.map((feature) => (
               <div key={feature.id} className="px-4 py-3 flex items-center justify-between text-sm">
-                <Link
-                  href={`/art/${artId}/features/${feature.id}`}
-                  className="text-blue-700 hover:underline"
-                >
+                <Link href={`/feature/${feature.id}`} className="text-blue-700 hover:underline">
                   {feature.title}
                 </Link>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
@@ -139,6 +163,9 @@ export default async function PiDetailPage({ params }: Props) {
                   <span className="inline-block rounded-full px-2 py-0.5 bg-gray-100">
                     {feature.status}
                   </span>
+                  {canEdit && pi.status !== "completed" && (
+                    <RemoveFromPiButton featureId={feature.id} artId={pi.art.id} />
+                  )}
                 </div>
               </div>
             ))}

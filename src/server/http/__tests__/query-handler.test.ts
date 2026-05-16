@@ -43,7 +43,7 @@ function makeRequest(searchParams?: Record<string, string>) {
 }
 
 function makeCtx(routeParams?: Record<string, string>) {
-  return routeParams ? { params: Promise.resolve(routeParams) } : undefined;
+  return { params: Promise.resolve(routeParams ?? {}) };
 }
 
 beforeEach(() => {
@@ -60,21 +60,21 @@ describe("createQueryHandler — auth", () => {
   it("returns 401 when requirePrincipal throws", async () => {
     mockRequirePrincipal.mockRejectedValue(new Error("no session"));
     const handler = createQueryHandler({ query: async () => ({ ok: true }) });
-    const res = await handler(makeRequest());
+    const res = await handler(makeRequest(), makeCtx());
     expect(res.status).toBe(401);
   });
 
   it("returns 401 when requirePrincipal returns null", async () => {
     mockRequirePrincipal.mockResolvedValue(null);
     const handler = createQueryHandler({ query: async () => ({ ok: true }) });
-    const res = await handler(makeRequest());
+    const res = await handler(makeRequest(), makeCtx());
     expect(res.status).toBe(401);
   });
 
   it("401 response includes problem+json content type", async () => {
     mockRequirePrincipal.mockRejectedValue(new Error("no session"));
     const handler = createQueryHandler({ query: async () => ({}) });
-    const res = await handler(makeRequest());
+    const res = await handler(makeRequest(), makeCtx());
     expect(res.headers.get("content-type")).toContain("problem+json");
   });
 });
@@ -87,7 +87,7 @@ describe("createQueryHandler — params validation", () => {
       params: paramsSchema,
       query: async () => [],
     });
-    const res = await handler(makeRequest()); // no artId
+    const res = await handler(makeRequest(), makeCtx()); // no artId
     expect(res.status).toBe(422);
   });
 
@@ -96,7 +96,7 @@ describe("createQueryHandler — params validation", () => {
       params: paramsSchema,
       query: async () => [],
     });
-    const res = await handler(makeRequest({ artId: "not-a-uuid" }));
+    const res = await handler(makeRequest({ artId: "not-a-uuid" }), makeCtx());
     expect(res.status).toBe(422);
   });
 
@@ -104,7 +104,7 @@ describe("createQueryHandler — params validation", () => {
     const query = vi.fn().mockResolvedValue([]);
     const handler = createQueryHandler({ params: paramsSchema, query });
     const validUuid = "550e8400-e29b-41d4-a716-446655440000";
-    await handler(makeRequest({ artId: validUuid }));
+    await handler(makeRequest({ artId: validUuid }), makeCtx());
     expect(query).toHaveBeenCalledWith(
       expect.objectContaining({ principal: fakePrincipal, db: mockDb }),
       { artId: validUuid },
@@ -128,7 +128,7 @@ describe("createQueryHandler — authorization", () => {
       resource: (_p, principal) => ({ tenantId: principal.tenantId }),
       query: async () => [],
     });
-    await handler(makeRequest());
+    await handler(makeRequest(), makeCtx());
     expect(mockAuthorize).toHaveBeenCalledWith(
       "admin.audit-log.read",
       { tenantId: "tenant-1" },
@@ -143,13 +143,13 @@ describe("createQueryHandler — authorization", () => {
       resource: (_p, principal) => ({ tenantId: principal.tenantId }),
       query: async () => [],
     });
-    const res = await handler(makeRequest());
+    const res = await handler(makeRequest(), makeCtx());
     expect(res.status).toBe(403);
   });
 
   it("does not call authorize when readAction is absent", async () => {
     const handler = createQueryHandler({ query: async () => [] });
-    await handler(makeRequest());
+    await handler(makeRequest(), makeCtx());
     expect(mockAuthorize).not.toHaveBeenCalled();
   });
 });
@@ -158,27 +158,27 @@ describe("createQueryHandler — query results", () => {
   it("returns 200 with JSON body when query returns a value", async () => {
     const data = [{ id: "1", name: "ART Alpha" }];
     const handler = createQueryHandler({ query: async () => data });
-    const res = await handler(makeRequest());
+    const res = await handler(makeRequest(), makeCtx());
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(data);
   });
 
   it("returns 404 when query returns null", async () => {
     const handler = createQueryHandler({ query: async () => null });
-    const res = await handler(makeRequest());
+    const res = await handler(makeRequest(), makeCtx());
     expect(res.status).toBe(404);
   });
 
   it("passes principal and db from context to query", async () => {
     const query = vi.fn().mockResolvedValue({});
     const handler = createQueryHandler({ query });
-    await handler(makeRequest());
+    await handler(makeRequest(), makeCtx());
     expect(query).toHaveBeenCalledWith({ principal: fakePrincipal, db: mockDb }, expect.anything());
   });
 
   it("creates PrismaClient with principal userId and tenantId", async () => {
     const handler = createQueryHandler({ query: async () => ({ ok: true }) });
-    await handler(makeRequest());
+    await handler(makeRequest(), makeCtx());
     expect(mockCreatePrismaClient).toHaveBeenCalledWith({
       userId: fakePrincipal.id,
       tenantId: fakePrincipal.tenantId,

@@ -31,6 +31,7 @@ export type Action =
   | "pi.update"
   | "pi.start"
   | "pi.complete"
+  | "pi.delete"
   | "pi_objective.create"
   | "pi_objective.update"
   | "team.create"
@@ -118,6 +119,7 @@ export const POLICIES: Record<Action, Grant[]> = {
   "pi.update": [{ roles: [ART_FULL_EDITOR] }],
   "pi.start": [{ roles: [ART_FULL_EDITOR] }],
   "pi.complete": [{ roles: [ART_FULL_EDITOR] }],
+  "pi.delete": [{ roles: [ART_FULL_EDITOR] }],
 
   "pi_objective.create": [{ roles: [ART_FULL_EDITOR, TEAM_EDITOR] }],
   "pi_objective.update": [{ roles: [ART_FULL_EDITOR, TEAM_EDITOR] }],
