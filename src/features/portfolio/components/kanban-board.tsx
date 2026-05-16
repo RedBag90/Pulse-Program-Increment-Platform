@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useOptimistic, useTransition } from "react";
+import { useActionState, useOptimistic, useTransition, useRef } from "react";
 import { advanceStageGateAction } from "@/features/portfolio/actions/stage-gate";
 import { useKanbanRealtime } from "@/features/portfolio/hooks/use-kanban-realtime";
 import { Link } from "@/i18n/navigation";
@@ -58,6 +58,10 @@ export function KanbanBoard({ epics: initialEpics, canEdit, tenantId }: KanbanBo
       current.map((e) => (e.id === epicId ? { ...e, stageGate: toGate } : e)),
   );
 
+  // Track which epic is being dragged
+  const draggingId = useRef<string | null>(null);
+  const dragOverGate = useRef<Gate | null>(null);
+
   const moveEpic = (epicId: string, toGate: Gate) => {
     startTransition(() => {
       setOptimisticEpics({ epicId, toGate });
@@ -74,21 +78,54 @@ export function KanbanBoard({ epics: initialEpics, canEdit, tenantId }: KanbanBo
         {STAGE_GATES.map(({ key, label }) => {
           const columnEpics = epics.filter((e) => e.stageGate === key);
           return (
-            <div key={key} className="w-64 flex-shrink-0">
+            <div
+              key={key}
+              className="w-64 flex-shrink-0"
+              onDragOver={(e) => {
+                if (!canEdit) return;
+                e.preventDefault();
+                dragOverGate.current = key as Gate;
+                e.currentTarget.classList.add("ring-2", "ring-blue-400", "ring-inset");
+              }}
+              onDragLeave={(e) => {
+                e.currentTarget.classList.remove("ring-2", "ring-blue-400", "ring-inset");
+              }}
+              onDrop={(e) => {
+                e.currentTarget.classList.remove("ring-2", "ring-blue-400", "ring-inset");
+                if (!canEdit) return;
+                const epicId = draggingId.current;
+                const toGate = dragOverGate.current;
+                if (!epicId || !toGate) return;
+                const epic = epics.find((ep) => ep.id === epicId);
+                if (epic && epic.stageGate !== toGate) moveEpic(epicId, toGate);
+                draggingId.current = null;
+                dragOverGate.current = null;
+              }}
+            >
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-gray-700">{label}</h2>
                 <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">
                   {columnEpics.length}
                 </span>
               </div>
-              <div className="space-y-2 min-h-24">
+              <div className="space-y-2 min-h-24 rounded-lg transition-colors">
                 {columnEpics.map((epic) => {
                   const prev = PREV_GATE[key as Gate];
                   const next = NEXT_GATE[key as Gate];
                   return (
                     <div
                       key={epic.id}
-                      className="bg-white border rounded-lg p-3 shadow-sm space-y-1"
+                      draggable={canEdit}
+                      onDragStart={(e) => {
+                        draggingId.current = epic.id;
+                        e.dataTransfer.effectAllowed = "move";
+                        e.currentTarget.classList.add("opacity-50");
+                      }}
+                      onDragEnd={(e) => {
+                        e.currentTarget.classList.remove("opacity-50");
+                        draggingId.current = null;
+                      }}
+                      className={`bg-white border rounded-lg p-3 shadow-sm space-y-1 ${canEdit ? "cursor-grab active:cursor-grabbing" : ""}`}
                     >
                       <Link
                         href={`/portfolio/epics/${epic.id}`}
