@@ -32,14 +32,21 @@ describe("emitAuditEvent", () => {
     await emitAuditEvent(mockDb, baseInput);
     expect(mockCreate).toHaveBeenCalledOnce();
     expect(mockCreate).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         tenantId: baseTenantId,
         actorId: baseActorId,
         action: "initiative.created",
         resourceType: "initiative",
         resourceId: baseInput.resourceId,
-      },
+      }),
     });
+  });
+
+  it("always sets a non-empty traceId, even when none is provided", async () => {
+    await emitAuditEvent(mockDb, baseInput);
+    const call = mockCreate.mock.calls[0]?.[0];
+    expect(typeof call?.data.traceId).toBe("string");
+    expect(call?.data.traceId.length).toBeGreaterThan(0);
   });
 
   it("includes changes when provided", async () => {

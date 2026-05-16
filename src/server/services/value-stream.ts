@@ -57,7 +57,7 @@ export async function createValueStream(
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.created",
+        action: "value_stream.created",
         resourceType: "value_stream",
         resourceId: vs.id,
         ipAddress,
@@ -101,7 +101,7 @@ export async function updateValueStream(
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.updated",
+        action: "value_stream.updated",
         resourceType: "value_stream",
         resourceId: id,
         ipAddress,
@@ -151,7 +151,7 @@ export async function softDeleteValueStream(
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.deleted",
+        action: "value_stream.deleted",
         resourceType: "value_stream",
         resourceId: id,
         ipAddress,

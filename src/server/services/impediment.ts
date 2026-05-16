@@ -55,7 +55,7 @@ export async function createImpediment(
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.created",
+        action: "impediment.raised",
         resourceType: "impediment",
         resourceId: imp.id,
       });
@@ -79,6 +79,15 @@ export async function escalateImpediment(
     return err({ kind: "conflict" as const, reason: "Only open impediments can be escalated" });
 
   await db.impediment.update({ where: { id }, data: { status: "escalated" } });
+
+  await emitAuditEvent(db, {
+    tenantId,
+    actorId,
+    action: "impediment.escalated",
+    resourceType: "impediment",
+    resourceId: id,
+    changes: { status: { before: existing.status, after: "escalated" } },
+  });
 
   // Fire-and-forget: look up RTE user emails and notify them
   void notifyRtesOnEscalation(
@@ -155,7 +164,7 @@ export async function resolveImpediment(
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.updated",
+        action: "impediment.resolved",
         resourceType: "impediment",
         resourceId: id,
         changes: { status: { before: existing.status, after: "resolved" } },

@@ -49,7 +49,7 @@ export async function createArt(
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.created",
+        action: "art.created",
         resourceType: "art",
         resourceId: art.id,
         ipAddress,
@@ -88,7 +88,7 @@ export async function updateArt(db: PrismaClient, input: UpdateArtInput): Promis
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.updated",
+        action: "art.updated",
         resourceType: "art",
         resourceId: id,
         ipAddress,

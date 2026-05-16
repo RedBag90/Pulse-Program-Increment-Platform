@@ -129,7 +129,7 @@ export async function unlinkDependency(
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.dependency.linked",
+        action: "initiative.dependency.unlinked",
         resourceType: "dependency",
         resourceId: dep.id,
         changes: {

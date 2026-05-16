@@ -40,7 +40,7 @@ export async function createTeam(
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.created",
+        action: "team.created",
         resourceType: "team",
         resourceId: team.id,
         ipAddress,
@@ -76,7 +76,7 @@ export async function updateTeam(db: PrismaClient, input: UpdateTeamInput): Prom
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.updated",
+        action: "team.updated",
         resourceType: "team",
         resourceId: id,
         changes: name !== undefined ? { name: { before: existing.name, after: name } } : {},

@@ -92,7 +92,7 @@ export async function createPi(
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.created",
+        action: "pi.created",
         resourceType: "program_increment",
         resourceId: pi.id,
         ipAddress,
@@ -160,7 +160,7 @@ export async function updatePi(db: PrismaClient, input: UpdatePiInput): Promise<
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.updated",
+        action: "pi.updated",
         resourceType: "program_increment",
         resourceId: id,
         changes,

@@ -58,7 +58,7 @@ export async function createPiObjective(
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.created",
+        action: "pi_objective.created",
         resourceType: "pi_objective",
         resourceId: objective.id,
       });
@@ -94,7 +94,7 @@ export async function updatePiObjective(
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
         actorId,
-        action: "initiative.updated",
+        action: "pi_objective.updated",
         resourceType: "pi_objective",
         resourceId: id,
       });
