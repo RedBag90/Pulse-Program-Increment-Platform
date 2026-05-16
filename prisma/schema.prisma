@@ -20,6 +20,7 @@ model Tenant {
   teams               Team[]
   initiatives         Initiative[]
   userRoleAssignments UserRoleAssignment[]
+  jiraConfig          JiraConfig?
 
   @@map("tenants")
 }
@@ -54,6 +55,7 @@ model Art {
   pis         ProgramIncrement[]
   features    Initiative[]       @relation("FeatureArt")
   teams       Team[]
+  impediments Impediment[]
 
   @@unique([tenantId, name])
   @@map("arts")
@@ -88,6 +90,7 @@ model ProgramIncrement {
   sprints     Sprint[]
   initiatives Initiative[]
   objectives  PiObjective[]
+  impediments Impediment[]
 
   @@map("program_increments")
 }
@@ -124,6 +127,7 @@ model Sprint {
   pi          ProgramIncrement @relation(fields: [piId], references: [id])
   team        Team             @relation(fields: [teamId], references: [id])
   initiatives Initiative[]
+  impediments Impediment[]
 
   @@map("sprints")
 }
@@ -164,6 +168,10 @@ model Initiative {
 
   // Task estimate (TASK only)
   estimateHours Decimal? @map("estimate_hours") @db.Decimal(5, 1)
+
+  // External system sync (e.g. Jira issue key "PROJ-123")
+  externalId     String? @map("external_id")
+  externalSystem String? @map("external_system") // "jira" | "ado"
 
   stageGate String @default("L0") @map("stage_gate")
   status    String @default("draft")
@@ -241,6 +249,51 @@ model UserRoleAssignment {
 
   @@unique([userId, tenantId, role])
   @@map("user_role_assignments")
+}
+
+model Impediment {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  artId       String    @map("art_id") @db.Uuid
+  piId        String?   @map("pi_id") @db.Uuid
+  sprintId    String?   @map("sprint_id") @db.Uuid
+  title       String
+  description String?   @db.Text
+  severity    String    @default("medium") // low | medium | high | critical
+  status      String    @default("open")   // open | escalated | resolved
+  raisedBy    String    @map("raised_by") @db.Uuid
+  resolvedAt  DateTime? @map("resolved_at")
+  resolvedBy  String?   @map("resolved_by") @db.Uuid
+  resolution  String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  art    Art              @relation(fields: [artId], references: [id])
+  pi     ProgramIncrement? @relation(fields: [piId], references: [id])
+  sprint Sprint?           @relation(fields: [sprintId], references: [id])
+
+  @@index([artId, status])
+  @@index([piId])
+  @@map("impediments")
+}
+
+model JiraConfig {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @unique @map("tenant_id") @db.Uuid
+  cloudId        String    @map("cloud_id") // Atlassian cloud ID
+  instanceUrl    String    @map("instance_url") // https://yoursite.atlassian.net
+  accessToken    String    @map("access_token") @db.Text
+  refreshToken   String    @map("refresh_token") @db.Text
+  tokenExpiresAt DateTime  @map("token_expires_at")
+  // projectKey: JSON map of artId → Jira project key, e.g. {"<artId>": "PROJ"}
+  projectKeyMap  Json      @default("{}") @map("project_key_map")
+  webhookSecret  String    @map("webhook_secret") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("jira_configs")
 }
 
 model OutboxEvent {

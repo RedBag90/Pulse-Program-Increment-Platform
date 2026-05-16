@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { processOutbox } from "@/server/outbox/processor";
 import { createPrismaClient } from "@/server/db/prisma";
+import { makeJiraStoryCreatedHandler } from "@/server/integrations/jira/outbox-handler";
 
 // Vercel Cron invokes this route with a secret header.
 // See vercel.json for the schedule definition.
@@ -20,8 +21,9 @@ export async function GET(req: NextRequest) {
   // System-level client: no per-user RLS context for background jobs.
   const db = createPrismaClient({ userId: "system", tenantId: "system" } as never);
 
-  // Register event type handlers here as integrations are added.
-  const handlers = {};
+  const handlers = {
+    "jira.story.created": makeJiraStoryCreatedHandler(db),
+  };
 
   const result = await processOutbox(db, handlers);
 
