@@ -17,6 +17,7 @@ model Tenant {
 
   valueStreams        ValueStream[]
   arts                Art[]
+  teams               Team[]
   initiatives         Initiative[]
   userRoleAssignments UserRoleAssignment[]
 
@@ -48,13 +49,29 @@ model Art {
   piCadenceWeeks Int      @default(10) @map("pi_cadence_weeks")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  tenant      Tenant           @relation(fields: [tenantId], references: [id])
-  valueStream ValueStream      @relation(fields: [valueStreamId], references: [id])
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  valueStream ValueStream        @relation(fields: [valueStreamId], references: [id])
   pis         ProgramIncrement[]
-  features    Initiative[]     @relation("FeatureArt")
+  features    Initiative[]       @relation("FeatureArt")
+  teams       Team[]
 
   @@unique([tenantId, name])
   @@map("arts")
+}
+
+model Team {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  artId    String @map("art_id") @db.Uuid
+  name     String
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  art     Art      @relation(fields: [artId], references: [id])
+  sprints Sprint[]
+
+  @@unique([tenantId, name])
+  @@index([artId])
+  @@map("teams")
 }
 
 model ProgramIncrement {
@@ -83,6 +100,7 @@ model Sprint {
   endDate   DateTime @map("end_date") @db.Date
 
   pi          ProgramIncrement @relation(fields: [piId], references: [id])
+  team        Team             @relation(fields: [teamId], references: [id])
   initiatives Initiative[]
 
   @@map("sprints")

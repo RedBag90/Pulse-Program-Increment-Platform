@@ -47,6 +47,7 @@ export type AuditResourceType =
   | "sprint"
   | "value_stream"
   | "art"
+  | "team"
   | "dependency"
   | "user_role_assignment"
   | "tenant";
