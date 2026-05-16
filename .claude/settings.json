@@ -25,10 +25,24 @@
       "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform add -A)",
       "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform add package.json)",
       "Bash(mkdir -p /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/\\\\\\(dashboard\\\\\\) && \\\\ *)",
-      "Bash(mkdir -p '/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/\\(dashboard\\)' && \\\\ *)"
+      "Bash(mkdir -p '/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/\\(dashboard\\)' && \\\\ *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(pnpm prettier *)",
+      "Bash(mkdir -p \"src/app/[locale]/\\(dashboard\\)/admin/users\" \"src/app/[locale]/\\(auth\\)/invite/[token]\")",
+      "Bash(mkdir -p \"src/app/[locale]/\\(dashboard\\)/admin/users/[userId]\")",
+      "Bash(mkdir -p \"src/app/[locale]/\\(dashboard\\)/admin/audit-log\")",
+      "Bash(mkdir -p src/server/services src/features/portfolio/actions src/features/portfolio/components \\\\ *)",
+      "Bash(mkdir -p src/app/api/v1/initiatives \"src/app/api/v1/initiatives/[id]\" \\\\ *)",
+      "Bash(mkdir -p \"src/app/api/v1/initiatives/[id]/transitions\")"
     ],
     "additionalDirectories": [
-      "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)"
+      "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)",
+      "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)/admin",
+      "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)/admin/users",
+      "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)/portfolio",
+      "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/api/v1/initiatives",
+      "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/api/v1/initiatives/[id]"
     ]
   }
 }

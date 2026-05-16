@@ -2,6 +2,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getEpic } from "@/server/services/initiative";
 import { EpicEditForm } from "@/features/portfolio/components/epic-edit-form";
+import { LbcEditor } from "@/features/portfolio/components/lbc-editor";
 import { redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import type { EpicId } from "@/domain/types";
@@ -62,6 +63,20 @@ export default async function EpicDetailPage({ params }: Props) {
         <div className="space-y-4">
           <p className="text-gray-800">{epic.description ?? "No description."}</p>
         </div>
+      )}
+
+      {canEdit && (
+        <section>
+          <h2 className="text-lg font-medium mb-4">Lean Business Case</h2>
+          <LbcEditor
+            epicId={epic.id}
+            current={
+              epic.leanBusinessCase != null && typeof epic.leanBusinessCase === "object"
+                ? (epic.leanBusinessCase as Record<string, string>)
+                : {}
+            }
+          />
+        </section>
       )}
 
       {epic.children.length > 0 && (
