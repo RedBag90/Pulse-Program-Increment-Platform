@@ -3,6 +3,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { createPiObjective, listPiObjectives } from "@/server/services/pi-objective";
 import { authorize } from "@/server/auth/authorize";
+import { withIdempotency } from "@/server/http/idempotency";
 import { forbidden, problemJson } from "@/server/http/problem";
 import type { TenantId, PiId, TeamId } from "@/domain/types";
 import { z } from "zod";
@@ -42,27 +43,29 @@ export async function POST(req: NextRequest) {
   const decision = authorize("pi_objective.create", { tenantId: principal.tenantId }, principal);
   if (!decision.allow) return forbidden(decision.reason);
 
-  const body: unknown = await req.json();
-  const parsed = createSchema.safeParse(body);
-  if (!parsed.success) return problemJson(400, "Validation error", parsed.error.flatten());
+  return withIdempotency(req, principal, async (req) => {
+    const body: unknown = await req.json();
+    const parsed = createSchema.safeParse(body);
+    if (!parsed.success) return problemJson(400, "Validation error", parsed.error.flatten());
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const result = await createPiObjective(db, {
-    tenantId: principal.tenantId as TenantId,
-    actorId: principal.id,
-    piId: parsed.data.piId as PiId,
-    teamId: parsed.data.teamId as TeamId,
-    title: parsed.data.title,
-    description: parsed.data.description,
-    businessValue: parsed.data.businessValue,
-    committed: parsed.data.committed,
+    const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+    const result = await createPiObjective(db, {
+      tenantId: principal.tenantId as TenantId,
+      actorId: principal.id,
+      piId: parsed.data.piId as PiId,
+      teamId: parsed.data.teamId as TeamId,
+      title: parsed.data.title,
+      description: parsed.data.description,
+      businessValue: parsed.data.businessValue,
+      committed: parsed.data.committed,
+    });
+
+    if (isErr(result)) {
+      const e = result.error;
+      if (e.kind === "not_found") return problemJson(404, `${e.resourceType} not found`);
+      return problemJson(409, e.kind === "conflict" ? e.reason : "Conflict");
+    }
+
+    return NextResponse.json(result.value, { status: 201 });
   });
-
-  if (isErr(result)) {
-    const e = result.error;
-    if (e.kind === "not_found") return problemJson(404, `${e.resourceType} not found`);
-    return problemJson(409, e.kind === "conflict" ? e.reason : "Conflict");
-  }
-
-  return NextResponse.json(result.value, { status: 201 });
 }

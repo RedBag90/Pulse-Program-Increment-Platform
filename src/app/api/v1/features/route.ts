@@ -3,6 +3,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { createFeature, listFeatures } from "@/server/services/feature";
 import { authorize } from "@/server/auth/authorize";
+import { withIdempotency } from "@/server/http/idempotency";
 import { forbidden, unprocessable, problemJson } from "@/server/http/problem";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { headers } from "next/headers";
@@ -39,47 +40,49 @@ export async function POST(request: Request): Promise<Response> {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return problemJson(401, "unauthorized");
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return unprocessable("Invalid JSON body");
-  }
+  return withIdempotency(request, principal, async (request) => {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return unprocessable("Invalid JSON body");
+    }
 
-  const parsed = createSchema.safeParse(body);
-  if (!parsed.success) return unprocessable(parsed.error.message);
+    const parsed = createSchema.safeParse(body);
+    if (!parsed.success) return unprocessable(parsed.error.message);
 
-  const decision = authorize(
-    "feature.create",
-    { tenantId: principal.tenantId, artId: parsed.data.artId },
-    principal,
-  );
-  if (!decision.allow) return forbidden(decision.reason);
+    const decision = authorize(
+      "feature.create",
+      { tenantId: principal.tenantId, artId: parsed.data.artId },
+      principal,
+    );
+    if (!decision.allow) return forbidden(decision.reason);
 
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+    const { ipAddress, userAgent } = extractRequestMeta(await headers());
+    const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const result = await createFeature(db, {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    parentId: parsed.data.parentId as EpicId,
-    artId: parsed.data.artId as ArtId,
-    piId: parsed.data.piId as PiId | undefined,
-    title: parsed.data.title,
-    description: parsed.data.description,
-    wsjfBusinessValue: parsed.data.wsjfBusinessValue,
-    wsjfTimeCriticality: parsed.data.wsjfTimeCriticality,
-    wsjfRiskReduction: parsed.data.wsjfRiskReduction,
-    wsjfJobSize: parsed.data.wsjfJobSize,
-    acceptanceCriteria: parsed.data.acceptanceCriteria,
-    ipAddress,
-    userAgent,
+    const result = await createFeature(db, {
+      tenantId: principal.tenantId,
+      actorId: principal.id,
+      parentId: parsed.data.parentId as EpicId,
+      artId: parsed.data.artId as ArtId,
+      piId: parsed.data.piId as PiId | undefined,
+      title: parsed.data.title,
+      description: parsed.data.description,
+      wsjfBusinessValue: parsed.data.wsjfBusinessValue,
+      wsjfTimeCriticality: parsed.data.wsjfTimeCriticality,
+      wsjfRiskReduction: parsed.data.wsjfRiskReduction,
+      wsjfJobSize: parsed.data.wsjfJobSize,
+      acceptanceCriteria: parsed.data.acceptanceCriteria,
+      ipAddress,
+      userAgent,
+    });
+
+    if (isErr(result)) {
+      if (result.error.kind === "not_found") return problemJson(404, "not_found");
+      return problemJson(500, "internal_error");
+    }
+
+    return Response.json(result.value, { status: 201 });
   });
-
-  if (isErr(result)) {
-    if (result.error.kind === "not_found") return problemJson(404, "not_found");
-    return problemJson(500, "internal_error");
-  }
-
-  return Response.json(result.value, { status: 201 });
 }

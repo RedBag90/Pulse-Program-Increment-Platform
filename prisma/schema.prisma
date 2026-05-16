@@ -329,3 +329,16 @@ model OutboxEvent {
   @@index([status, createdAt])
   @@map("outbox_events")
 }
+
+model IdempotencyKey {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  key            String
+  requestHash    String   @map("request_hash")
+  responseStatus Int      @map("response_status")
+  responseBody   String   @map("response_body") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, key])
+  @@map("idempotency_keys")
+}
