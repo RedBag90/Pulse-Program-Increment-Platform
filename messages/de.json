@@ -12,7 +12,20 @@
     "create": "Erstellen",
     "search": "Suchen",
     "filter": "Filtern",
-    "back": "Zurück"
+    "back": "Zurück",
+    "language": "Sprache"
+  },
+  "nav": {
+    "portfolio": "Portfolio",
+    "overview": "Übersicht",
+    "epics": "Epics",
+    "valueStreams": "Wertströme",
+    "delivery": "Lieferung",
+    "artsAndPi": "ARTs & PI-Planung",
+    "admin": "Administration",
+    "users": "Benutzer",
+    "integrations": "Integrationen",
+    "auditLog": "Audit-Log"
   },
   "auth": {
     "signIn": "Anmelden",

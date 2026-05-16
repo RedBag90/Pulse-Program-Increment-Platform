@@ -1,33 +1,35 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { usePathname } from "next/navigation";
 
 const NAV_GROUPS = [
   {
-    label: "Portfolio",
+    labelKey: "portfolio",
     items: [
-      { href: "/portfolio", label: "Overview", exact: true },
-      { href: "/portfolio/epics", label: "Epics" },
-      { href: "/portfolio/value-streams", label: "Value Streams" },
+      { href: "/portfolio", labelKey: "overview", exact: true },
+      { href: "/portfolio/epics", labelKey: "epics" },
+      { href: "/portfolio/value-streams", labelKey: "valueStreams" },
     ],
   },
   {
-    label: "Delivery",
-    items: [{ href: "/art", label: "ARTs & PI Planning" }],
+    labelKey: "delivery",
+    items: [{ href: "/art", labelKey: "artsAndPi" }],
   },
   {
-    label: "Admin",
+    labelKey: "admin",
     items: [
-      { href: "/admin/users", label: "Users" },
-      { href: "/admin/integrations", label: "Integrations" },
-      { href: "/admin/audit-log", label: "Audit Log" },
+      { href: "/admin/users", labelKey: "users" },
+      { href: "/admin/integrations", labelKey: "integrations" },
+      { href: "/admin/audit-log", labelKey: "auditLog" },
     ],
   },
 ] as const;
 
 export function Sidebar() {
   const pathname = usePathname();
+  const t = useTranslations("nav");
 
   return (
     <aside className="w-56 shrink-0 border-r bg-white flex flex-col min-h-screen">
@@ -35,13 +37,13 @@ export function Sidebar() {
         <span className="font-bold text-blue-800 text-lg tracking-tight">Pulse</span>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-5">
-        {NAV_GROUPS.map(({ label, items }) => (
-          <div key={label}>
+        {NAV_GROUPS.map((group) => (
+          <div key={group.labelKey}>
             <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-400">
-              {label}
+              {t(group.labelKey)}
             </p>
             <div className="space-y-0.5">
-              {items.map(({ href, label: itemLabel, ...rest }) => {
+              {group.items.map(({ href, labelKey, ...rest }) => {
                 const exact = "exact" in rest ? rest.exact : false;
                 const active = exact
                   ? pathname === href || pathname.endsWith(href)
@@ -56,7 +58,7 @@ export function Sidebar() {
                         : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                     }`}
                   >
-                    {itemLabel}
+                    {t(labelKey)}
                   </Link>
                 );
               })}
