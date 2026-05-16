@@ -63,6 +63,28 @@ describe("linkDependency", () => {
     expect(auditAfter).toBeGreaterThan(auditBefore);
   });
 
+  it("returns conflict when the same dependency already exists", async () => {
+    const first = await linkDependency(db, {
+      tenantId: seed.tenantId,
+      actorId: seed.actorId,
+      fromId: epicA,
+      toId: epicB,
+      type: "blocks",
+    });
+    expect(isOk(first)).toBe(true);
+
+    const second = await linkDependency(db, {
+      tenantId: seed.tenantId,
+      actorId: seed.actorId,
+      fromId: epicA,
+      toId: epicB,
+      type: "blocks",
+    });
+    expect(isErr(second)).toBe(true);
+    if (!isErr(second)) return;
+    expect(second.error.kind).toBe("conflict");
+  });
+
   it("returns conflict when a dependency would create a cycle (A→B, B→C, proposing C→A)", async () => {
     await linkDependency(db, {
       tenantId: seed.tenantId,

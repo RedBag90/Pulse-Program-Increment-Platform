@@ -5,9 +5,12 @@ import { listStories } from "@/server/services/story";
 import { CreateStoryDialog } from "@/features/story/components/create-story-dialog";
 import { DeleteFeatureButton } from "@/features/art/components/delete-feature-button";
 import { DeleteStoryButton } from "@/features/story/components/delete-story-button";
+import { LinkDependencyDialog } from "@/features/dependencies/components/link-dependency-dialog";
+import { UnlinkDependencyButton } from "@/features/dependencies/components/unlink-dependency-button";
 import { Breadcrumbs } from "@/components/nav/breadcrumbs";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
+import { InitiativeLevel } from "@/domain/types";
 import type { FeatureId, TenantId } from "@/domain/types";
 
 interface Props {
@@ -72,6 +75,19 @@ export default async function FeatureDetailPage({ params }: Props) {
   });
 
   const statusCls = STATUS_COLORS[feature.status] ?? "bg-gray-100 text-gray-700";
+
+  // Other features in the same ART — candidates to depend on.
+  const dependencyCandidates = await db.initiative.findMany({
+    where: {
+      tenantId: principal.tenantId as TenantId,
+      artId,
+      level: InitiativeLevel.FEATURE,
+      deletedAt: null,
+      id: { not: featureId },
+    },
+    select: { id: true, title: true },
+    orderBy: { title: "asc" },
+  });
 
   return (
     <main className="p-8 max-w-4xl mx-auto space-y-8">
@@ -225,7 +241,16 @@ export default async function FeatureDetailPage({ params }: Props) {
 
       {/* Dependencies */}
       <section className="space-y-3">
-        <h2 className="text-base font-semibold">Dependencies</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold">Dependencies</h2>
+          {canEdit && (
+            <LinkDependencyDialog
+              fromId={featureId}
+              artId={artId}
+              candidates={dependencyCandidates}
+            />
+          )}
+        </div>
         {dependencies.length === 0 ? (
           <p className="text-sm text-gray-400">No dependencies linked.</p>
         ) : (
@@ -259,6 +284,16 @@ export default async function FeatureDetailPage({ params }: Props) {
                     {label}
                   </span>
                   <span>{other.title}</span>
+                  {canEdit && (
+                    <span className="ml-auto">
+                      <UnlinkDependencyButton
+                        fromId={dep.fromId}
+                        toId={dep.toId}
+                        type={dep.type as "blocks" | "depends_on" | "relates_to"}
+                        artId={artId}
+                      />
+                    </span>
+                  )}
                 </div>
               );
             })}

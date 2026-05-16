@@ -29,6 +29,14 @@ const NAV_GROUPS = [
     ],
   },
   {
+    labelKey: "reporting",
+    items: [
+      { href: "/reporting/portfolio-health", labelKey: "portfolioHealth" },
+      { href: "/reporting/pi-velocity", labelKey: "piVelocity" },
+      { href: "/reporting/wsjf-leaderboard", labelKey: "wsjfLeaderboard" },
+    ],
+  },
+  {
     labelKey: "admin",
     items: [
       { href: "/admin/users", labelKey: "users" },

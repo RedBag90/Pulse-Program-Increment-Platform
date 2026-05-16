@@ -3,6 +3,7 @@ import type { TenantId, UserId, ArtId, TeamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import { emitAuditEvent } from "@/server/audit/emit";
+import { generateSprints } from "@/domain/pi-planning";
 
 export interface CreateTeamInput {
   tenantId: TenantId;
@@ -36,6 +37,19 @@ export async function createTeam(
       }
 
       const team = await tx.team.create({ data: { tenantId, artId, name } });
+
+      // Backfill sprints: a team added after a PI was created still needs the PI's
+      // sprints. Mirrors createPi, which only covers teams existing at PI creation.
+      // Only planned PIs — an active/completed PI's sprint set is frozen.
+      const plannedPis = await tx.programIncrement.findMany({
+        where: { tenantId, artId, status: "planned" },
+      });
+      for (const pi of plannedPis) {
+        const drafts = generateSprints(pi.startDate, pi.endDate, [{ id: team.id }]);
+        await tx.sprint.createMany({
+          data: drafts.map((s) => ({ tenantId, piId: pi.id, ...s })),
+        });
+      }
 
       await emitAuditEvent(tx as unknown as PrismaClient, {
         tenantId,
