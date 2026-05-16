@@ -16,6 +16,7 @@ export function ArtSubNav({ artId, artName }: Props) {
     { href: `/art/${artId}/pi`, label: "Program Increments" },
     { href: `/art/${artId}/teams`, label: "Teams" },
     { href: `/art/${artId}/velocity`, label: "Velocity" },
+    { href: `/art/${artId}/impediments`, label: "Impediments" },
   ] as const;
 
   return (

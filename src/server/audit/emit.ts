@@ -49,6 +49,7 @@ export type AuditResourceType =
   | "art"
   | "team"
   | "pi_objective"
+  | "impediment"
   | "dependency"
   | "user_role_assignment"
   | "tenant";
