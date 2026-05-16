@@ -4,12 +4,12 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { createFeature } from "@/server/services/feature";
+import { createFeature, scoreFeature } from "@/server/services/feature";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { isErr } from "@/domain/errors";
 import { fibonacci } from "@/domain/schemas/initiative";
-import type { EpicId, ArtId } from "@/domain/types";
+import type { EpicId, ArtId, FeatureId } from "@/domain/types";
 
 const createSchema = z.object({
   artId: z.string().uuid(),
@@ -92,6 +92,59 @@ export async function createFeatureAction(
           : "Failed to create feature",
     };
   }
+
+  revalidatePath("/art/[artId]/features", "page");
+  return { success: true };
+}
+
+const scoreSchema = z.object({
+  featureId: z.string().uuid(),
+  artId: z.string().uuid(),
+  wsjfBusinessValue: z.coerce.number().pipe(fibonacci),
+  wsjfTimeCriticality: z.coerce.number().pipe(fibonacci),
+  wsjfRiskReduction: z.coerce.number().pipe(fibonacci),
+  wsjfJobSize: z.coerce.number().pipe(fibonacci),
+});
+
+export async function scoreFeatureAction(
+  _prev: FeatureActionState,
+  formData: FormData,
+): Promise<FeatureActionState> {
+  const principal = await requirePrincipal().catch(() => null);
+  if (!principal) return { error: "Not authenticated" };
+
+  const canEdit =
+    principal.roles.includes("portfolio_editor") ||
+    principal.roles.includes("tenant_admin") ||
+    principal.roles.includes("platform_admin");
+  if (!canEdit) return { error: "Insufficient permissions" };
+
+  const parsed = scoreSchema.safeParse({
+    featureId: formData.get("featureId"),
+    artId: formData.get("artId"),
+    wsjfBusinessValue: formData.get("wsjfBusinessValue"),
+    wsjfTimeCriticality: formData.get("wsjfTimeCriticality"),
+    wsjfRiskReduction: formData.get("wsjfRiskReduction"),
+    wsjfJobSize: formData.get("wsjfJobSize"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+
+  const { ipAddress, userAgent } = extractRequestMeta(await headers());
+  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+
+  const result = await scoreFeature(db, {
+    tenantId: principal.tenantId,
+    actorId: principal.id,
+    id: parsed.data.featureId as FeatureId,
+    wsjfBusinessValue: parsed.data.wsjfBusinessValue,
+    wsjfTimeCriticality: parsed.data.wsjfTimeCriticality,
+    wsjfRiskReduction: parsed.data.wsjfRiskReduction,
+    wsjfJobSize: parsed.data.wsjfJobSize,
+    ipAddress,
+    userAgent,
+  });
+
+  if (isErr(result)) return { error: "Failed to update WSJF score" };
 
   revalidatePath("/art/[artId]/features", "page");
   return { success: true };

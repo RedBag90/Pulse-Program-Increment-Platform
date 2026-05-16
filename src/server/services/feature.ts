@@ -233,6 +233,78 @@ export async function updateFeature(
     });
 }
 
+export interface ScoreFeatureInput {
+  tenantId: TenantId;
+  actorId: UserId;
+  id: FeatureId;
+  wsjfBusinessValue: FibonacciValue;
+  wsjfTimeCriticality: FibonacciValue;
+  wsjfRiskReduction: FibonacciValue;
+  wsjfJobSize: FibonacciValue;
+  ipAddress?: string | undefined;
+  userAgent?: string | undefined;
+}
+
+export async function scoreFeature(
+  db: PrismaClient,
+  input: ScoreFeatureInput,
+): Promise<Result<void>> {
+  const {
+    tenantId,
+    actorId,
+    id,
+    wsjfBusinessValue,
+    wsjfTimeCriticality,
+    wsjfRiskReduction,
+    wsjfJobSize,
+    ipAddress,
+    userAgent,
+  } = input;
+
+  return db
+    .$transaction(async (tx) => {
+      const existing = await tx.initiative.findFirst({
+        where: { id, tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
+      });
+      if (!existing) return err({ kind: "not_found" as const, resourceType: "Feature", id });
+
+      const wsjfComputed = computeWsjf({
+        businessValue: wsjfBusinessValue,
+        timeCriticality: wsjfTimeCriticality,
+        riskReduction: wsjfRiskReduction,
+        jobSize: wsjfJobSize,
+      });
+
+      await tx.initiative.update({
+        where: { id },
+        data: {
+          wsjfBusinessValue,
+          wsjfTimeCriticality,
+          wsjfRiskReduction,
+          wsjfJobSize,
+          wsjfComputed,
+          updatedBy: actorId,
+        },
+      });
+
+      await emitAuditEvent(tx as unknown as PrismaClient, {
+        tenantId,
+        actorId,
+        action: "wsjf.scored",
+        resourceType: "initiative",
+        resourceId: id,
+        changes: { wsjfComputed: { before: existing.wsjfComputed, after: wsjfComputed } },
+        ipAddress,
+        userAgent,
+      });
+
+      return ok(undefined);
+    })
+    .catch((e: unknown) => {
+      throw e;
+    });
+}
+
 export async function listFeatures(db: PrismaClient, tenantId: TenantId, artId: ArtId) {
   return db.initiative.findMany({
     where: { tenantId, artId, level: InitiativeLevel.FEATURE, deletedAt: null },
