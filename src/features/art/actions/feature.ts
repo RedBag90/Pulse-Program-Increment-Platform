@@ -4,8 +4,12 @@ import { z } from "zod";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createFeature, scoreFeature, setFeaturePi } from "@/server/services/feature";
-import { softDeleteFeature } from "@/server/services/initiative";
+import {
+  createFeature,
+  scoreFeature,
+  setFeaturePi,
+  softDeleteFeature,
+} from "@/server/services/feature";
 import { createServerAction } from "@/server/http/server-action";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { requirePrincipal } from "@/server/auth/principal";

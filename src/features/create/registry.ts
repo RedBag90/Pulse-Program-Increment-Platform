@@ -78,13 +78,23 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     label: "Story",
     group: "initiative",
     indentLevel: 2,
+    inPlace: true,
     resolveHref: (c) => (c.featureId ? `/feature/${c.featureId}?create=story` : "/feature"),
+  },
+  {
+    key: "task",
+    label: "Task",
+    group: "initiative",
+    indentLevel: 3,
+    inPlace: true,
+    resolveHref: () => "/feature",
   },
   {
     key: "kpi",
     label: "KPI",
     group: "initiative",
     indentLevel: 1,
+    inPlace: true,
     resolveHref: (c) => (c.epicId ? `/portfolio/epics/${c.epicId}?tab=kpis` : "/portfolio/epics"),
   },
   {
@@ -92,6 +102,7 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     label: "PI Objective",
     group: "more",
     indentLevel: 0,
+    inPlace: true,
     resolveHref: (c) => (c.piId ? `/pi/${c.piId}/objectives?create=pi-objective` : "/pi"),
   },
   {
@@ -107,6 +118,7 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     label: "Dependency",
     group: "more",
     indentLevel: 0,
+    inPlace: true,
     resolveHref: (c) => (c.featureId ? `/feature/${c.featureId}?create=dependency` : "/feature"),
   },
 ];

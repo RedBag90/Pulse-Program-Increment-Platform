@@ -11,6 +11,11 @@ import type { EpicId } from "@/domain/types";
 export type { ActionState as KpiActionState };
 
 export const createKpiAction = createServerAction({
+  describeCreated: (v: { id: string }, input) => ({
+    id: v.id,
+    label: "KPI",
+    href: `/portfolio/epics/${input.initiativeId}?tab=kpis`,
+  }),
   schema: z.object({
     initiativeId: z.string().uuid(),
     name: z.string().min(1).max(200),

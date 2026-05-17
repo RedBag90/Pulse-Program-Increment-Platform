@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createServerAction, type ActionState } from "@/server/http/server-action";
-import { advanceStageGate } from "@/server/services/initiative";
+import { advanceStageGate } from "@/server/services/epic";
 import { STAGE_GATES } from "@/domain/stage-gate";
 import type { EpicId } from "@/domain/types";
 

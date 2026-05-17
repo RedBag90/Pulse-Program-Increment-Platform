@@ -340,3 +340,37 @@ export async function getFeature(db: PrismaClient, tenantId: TenantId, id: Featu
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Delete Feature (soft)
+// ---------------------------------------------------------------------------
+
+export async function softDeleteFeature(
+  ctx: RequestContext,
+  input: { id: FeatureId },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
+    });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Feature", id });
+
+    await tx.initiative.updateMany({
+      where: { parentId: id, tenantId: mctx.tenantId, level: InitiativeLevel.STORY },
+      data: { deletedAt: new Date(), updatedBy: mctx.actorId },
+    });
+
+    await tx.initiative.update({
+      where: { id },
+      data: { deletedAt: new Date(), updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: { action: "initiative.deleted", resourceType: "initiative", resourceId: id },
+    });
+  });
+}

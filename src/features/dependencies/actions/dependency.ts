@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { headers } from "next/headers";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
@@ -10,11 +11,49 @@ import {
   unlinkDependency,
   type DependencyType,
 } from "@/server/services/dependency";
+import { createServerAction } from "@/server/http/server-action";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isErr } from "@/domain/errors";
 import type { InitiativeId } from "@/domain/types";
+
+/**
+ * FormData-based dependency creation for the global "+" menu — picks both
+ * initiatives explicitly. The positional `linkDependencyAction` below stays for
+ * the feature-page inline use, where `from` is already known.
+ */
+export const createDependencyAction = createServerAction({
+  describeCreated: (v: { id: string }) => ({ id: v.id, label: "Dependency" }),
+  schema: z.object({
+    fromId: z.string().uuid(),
+    toId: z.string().uuid(),
+    type: z.enum(["blocks", "depends_on", "relates_to"]),
+  }),
+  action: "dependency.link",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({
+    fromId: fd.get("fromId"),
+    toId: fd.get("toId"),
+    type: fd.get("type"),
+  }),
+  service: (ctx, input) =>
+    linkDependency(ctx, {
+      fromId: input.fromId as InitiativeId,
+      toId: input.toId as InitiativeId,
+      type: input.type,
+    }),
+  onSuccess: () => {
+    revalidatePath("/feature/[featureId]", "page");
+    revalidatePath("/pi/[piId]/dependencies", "page");
+  },
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Initiative not found"
+        : "Failed to link dependency",
+});
 
 /** Builds a RequestContext for service calls from the resolved principal. */
 async function buildContext(

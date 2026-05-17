@@ -1,8 +1,11 @@
 /* eslint-disable no-console */
 /**
- * Development seed — idempotent (safe to run multiple times).
+ * Development seed.
  *
- * Test users created:
+ * Wipes all domain data for the demo tenant, then recreates a fresh example
+ * portfolio. Auth accounts, the tenant itself and role assignments are kept.
+ *
+ * Test users (created once, reused on every run):
  *   admin@pulse.dev        / Admin1234!   → tenant_admin + portfolio_editor
  *   portfolio@pulse.dev    / Test1234!    → portfolio_editor
  *   viewer@pulse.dev       / Test1234!    → (no special role — read-only)
@@ -42,6 +45,29 @@ async function upsertAuthUser(email: string, password: string): Promise<string> 
   if (error) throw new Error(`Failed to create ${email}: ${error.message}`);
   console.log(`  ✓ created auth user: ${email}`);
   return data.user.id;
+}
+
+/**
+ * Hard-deletes every domain row for the tenant. Order respects foreign keys:
+ * rows that are referenced are deleted after the rows that reference them, and
+ * Initiatives are removed leaf-first (task → story → feature → epic). Auth
+ * accounts, the Tenant and UserRoleAssignment rows are left untouched.
+ */
+async function wipeDomainData(tenantId: string): Promise<void> {
+  console.log("\n── Wiping existing domain data");
+  await prisma.dependency.deleteMany({ where: { tenantId } });
+  await prisma.kpi.deleteMany({ where: { tenantId } });
+  for (const level of [3, 2, 1, 0]) {
+    await prisma.initiative.deleteMany({ where: { tenantId, level } });
+  }
+  await prisma.impediment.deleteMany({ where: { tenantId } });
+  await prisma.piObjective.deleteMany({ where: { tenantId } });
+  await prisma.sprint.deleteMany({ where: { tenantId } });
+  await prisma.programIncrement.deleteMany({ where: { tenantId } });
+  await prisma.team.deleteMany({ where: { tenantId } });
+  await prisma.art.deleteMany({ where: { tenantId } });
+  await prisma.valueStream.deleteMany({ where: { tenantId } });
+  console.log("  ✓ domain data cleared (accounts, tenant & roles kept)");
 }
 
 // ---------------------------------------------------------------------------
@@ -112,119 +138,96 @@ async function main() {
   ]);
   console.log("  ✓ roles assigned");
 
+  // 3b. Wipe existing domain data — fresh portfolio on every run
+  await wipeDomainData(tenantId);
+
   // 4. Value Streams
   console.log("\n── Value Streams");
-  const vs1 = await prisma.valueStream.upsert({
-    where: { tenantId_name: { tenantId, name: "Digital Products" } },
-    create: {
+  const vs1 = await prisma.valueStream.create({
+    data: {
       tenantId,
-      name: "Digital Products",
-      description: "Customer-facing web & mobile products",
-      budgetAmount: "2500000",
+      name: "Retail Banking",
+      description: "Consumer banking app, accounts and customer onboarding",
+      budgetAmount: "3000000",
       budgetCurrency: "EUR",
     },
-    update: {},
   });
-  const vs2 = await prisma.valueStream.upsert({
-    where: { tenantId_name: { tenantId, name: "Platform & Infrastructure" } },
-    create: {
+  const vs2 = await prisma.valueStream.create({
+    data: {
       tenantId,
-      name: "Platform & Infrastructure",
-      description: "Internal developer platform and cloud infra",
-      budgetAmount: "1200000",
+      name: "Payments & Lending",
+      description: "Payment rails, cards and credit products",
+      budgetAmount: "1800000",
       budgetCurrency: "EUR",
     },
-    update: {},
   });
-  console.log("  ✓ Digital Products, Platform & Infrastructure");
+  console.log("  ✓ Retail Banking, Payments & Lending");
 
   // 5. ARTs
   console.log("\n── ARTs");
-  const art1 = await prisma.art.upsert({
-    where: { tenantId_name: { tenantId, name: "Commerce ART" } },
-    create: { tenantId, valueStreamId: vs1.id, name: "Commerce ART", piCadenceWeeks: 10 },
-    update: {},
+  const art1 = await prisma.art.create({
+    data: { tenantId, valueStreamId: vs1.id, name: "Mobile Banking ART", piCadenceWeeks: 10 },
   });
-  const art2 = await prisma.art.upsert({
-    where: { tenantId_name: { tenantId, name: "Platform ART" } },
-    create: { tenantId, valueStreamId: vs2.id, name: "Platform ART", piCadenceWeeks: 12 },
-    update: {},
+  const art2 = await prisma.art.create({
+    data: { tenantId, valueStreamId: vs2.id, name: "Payments ART", piCadenceWeeks: 12 },
   });
-  console.log("  ✓ Commerce ART, Platform ART");
+  console.log("  ✓ Mobile Banking ART, Payments ART");
 
   // 6. Teams
   console.log("\n── Teams");
-  await prisma.team.upsert({
-    where: { tenantId_name: { tenantId, name: "Phoenix Team" } },
-    create: { tenantId, artId: art1.id, name: "Phoenix Team" },
-    update: {},
-  });
-  await prisma.team.upsert({
-    where: { tenantId_name: { tenantId, name: "Nebula Team" } },
-    create: { tenantId, artId: art1.id, name: "Nebula Team" },
-    update: {},
-  });
-  await prisma.team.upsert({
-    where: { tenantId_name: { tenantId, name: "Infra Team" } },
-    create: { tenantId, artId: art2.id, name: "Infra Team" },
-    update: {},
-  });
-  console.log("  ✓ Phoenix Team, Nebula Team, Infra Team");
+  await prisma.team.create({ data: { tenantId, artId: art1.id, name: "Atlas Team" } });
+  await prisma.team.create({ data: { tenantId, artId: art1.id, name: "Orion Team" } });
+  await prisma.team.create({ data: { tenantId, artId: art2.id, name: "Vega Team" } });
+  console.log("  ✓ Atlas Team, Orion Team, Vega Team");
 
   // 7. Program Increments
   console.log("\n── Program Increments");
-  await prisma.programIncrement.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000010" },
-    create: {
+  await prisma.programIncrement.create({
+    data: {
       id: "00000000-0000-0000-0000-000000000010",
       tenantId,
       artId: art1.id,
-      name: "PI 2025-Q2",
-      startDate: new Date("2025-04-07"),
-      endDate: new Date("2025-06-13"),
+      name: "PI 2026-Q1",
+      startDate: new Date("2026-01-05"),
+      endDate: new Date("2026-03-13"),
       status: "completed",
     },
-    update: {},
   });
-  const pi2 = await prisma.programIncrement.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000011" },
-    create: {
+  const pi2 = await prisma.programIncrement.create({
+    data: {
       id: "00000000-0000-0000-0000-000000000011",
       tenantId,
       artId: art1.id,
-      name: "PI 2025-Q3",
-      startDate: new Date("2025-06-16"),
-      endDate: new Date("2025-08-22"),
+      name: "PI 2026-Q2",
+      startDate: new Date("2026-03-16"),
+      endDate: new Date("2026-05-22"),
       status: "active",
     },
-    update: {},
   });
-  const pi3 = await prisma.programIncrement.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000012" },
-    create: {
+  const pi3 = await prisma.programIncrement.create({
+    data: {
       id: "00000000-0000-0000-0000-000000000012",
       tenantId,
       artId: art1.id,
-      name: "PI 2025-Q4",
-      startDate: new Date("2025-08-25"),
-      endDate: new Date("2025-10-31"),
+      name: "PI 2026-Q3",
+      startDate: new Date("2026-05-25"),
+      endDate: new Date("2026-07-31"),
       status: "planned",
     },
-    update: {},
   });
-  console.log("  ✓ PI 2025-Q2 (completed), PI 2025-Q3 (active), PI 2025-Q4 (planned)");
+  console.log("  ✓ PI 2026-Q1 (completed), PI 2026-Q2 (active), PI 2026-Q3 (planned)");
 
   // 8. Epics
   console.log("\n── Epics");
-  const epic1 = await prisma.initiative.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000020" },
-    create: {
+  const epic1 = await prisma.initiative.create({
+    data: {
       id: "00000000-0000-0000-0000-000000000020",
       tenantId,
       level: 0,
-      title: "Next-Gen Checkout Experience",
+      title: "Instant Account Opening",
       path: "00000000-0000-0000-0000-000000000020",
-      description: "Redesign the end-to-end checkout flow to reduce cart abandonment by 30%.",
+      description:
+        "Let new customers open a fully verified current account in under 5 minutes from their phone.",
       valueStreamId: vs1.id,
       stageGate: "L3",
       status: "in_progress",
@@ -235,42 +238,44 @@ async function main() {
       benefitHypothesis: {
         current: {
           measuresHypothesis:
-            "Redesign the end-to-end checkout into a streamlined single-page flow.",
+            "Replace branch and paper onboarding with a fully digital, sub-5-minute account opening.",
           changeFromBaseline:
-            "Replaces today's multi-step checkout that drives a 72% abandonment rate.",
+            "Today onboarding takes 3 days and 38% of applicants drop off before completion.",
           businessOutcomes: [
-            "Cart abandonment rate drops below 45%",
-            "Higher conversion and order revenue",
+            "Onboarding completion rate rises above 80%",
+            "New-account cost-to-serve is cut in half",
           ],
-          leadingIndicators: ["Time-to-purchase", "Per-step drop-off rate"],
-          risks: ["Payment gateway integration complexity", "Mobile UX edge cases"],
+          leadingIndicators: ["Application completion time", "Step-by-step drop-off rate"],
+          risks: ["KYC/AML regulatory sign-off", "Identity-fraud exposure on automated checks"],
         },
         history: [],
       },
       businessCase: {
         current: {
-          initiativeDescription: "Current checkout has a 72% abandonment rate, costing €4M/year.",
+          initiativeDescription:
+            "Manual onboarding takes 3 days and loses 38% of applicants, capping new-account growth.",
           businessOutcomeHypothesis:
-            "Faster, smoother checkout reduces friction and increases conversion.",
-          analysisSummary: "Abandonment rate drops below 45% within 2 PIs of launch.",
-          costRows: [{ projectType: "impact", costsMonths1to6: 350000, annualImpact: 4000000 }],
+            "A frictionless digital flow converts more applicants and cuts processing cost.",
+          analysisSummary: "Completion rate climbs past 80% within two PIs of launch.",
+          costSlices: [{ amount: 180000 }, { amount: 120000 }],
+          oneTimeBenefit: 400000,
+          recurringBenefit: 3200000,
           approvals: [],
         },
         history: [],
       },
     },
-    update: {},
   });
-  const epic2 = await prisma.initiative.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000021" },
-    create: {
+  const epic2 = await prisma.initiative.create({
+    data: {
       id: "00000000-0000-0000-0000-000000000021",
       tenantId,
       level: 0,
-      title: "Personalisation Engine",
+      title: "AI-Powered Fraud Detection",
       path: "00000000-0000-0000-0000-000000000021",
-      description: "ML-driven product recommendations and dynamic homepage personalisation.",
-      valueStreamId: vs1.id,
+      description:
+        "Detect and block fraudulent transactions in real time with a machine-learning risk model.",
+      valueStreamId: vs2.id,
       stageGate: "L2",
       status: "approved",
       ownerId: adminId,
@@ -279,40 +284,41 @@ async function main() {
       updatedBy: adminId,
       benefitHypothesis: {
         current: {
-          measuresHypothesis: "Introduce an ML-driven recommendation and personalisation engine.",
+          measuresHypothesis:
+            "Score every transaction in real time with an ML fraud model before authorisation.",
           changeFromBaseline:
-            "Replaces the generic homepage that converts 40% worse than targeted pages.",
-          businessOutcomes: [
-            "Average order value increases by 15%",
-            "Higher engagement and repeat visits",
-          ],
-          leadingIndicators: ["Click-through on recommendations", "Average basket size"],
-          risks: ["Data privacy compliance", "Cold-start problem for new users"],
+            "Replaces static rule lists that miss 1 in 4 fraud cases and over-decline genuine payments.",
+          businessOutcomes: ["Fraud losses fall by 60%", "False-positive declines drop by a third"],
+          leadingIndicators: ["Fraud detection recall", "False-positive rate"],
+          risks: ["Model bias and explainability", "Latency budget at authorisation time"],
         },
         history: [],
       },
       businessCase: {
         current: {
-          initiativeDescription: "Generic homepage converts 40% worse than targeted landing pages.",
-          businessOutcomeHypothesis: "Users see relevant products, increasing average basket size.",
-          analysisSummary: "Average order value increases by 15% within 3 months.",
-          costRows: [{ projectType: "impact", costsMonths1to6: 600000, annualImpact: 2500000 }],
+          initiativeDescription:
+            "Rule-based fraud screening misses 25% of fraud, costing €2.1M/year in losses.",
+          businessOutcomeHypothesis:
+            "A real-time ML model catches more fraud while declining fewer genuine payments.",
+          analysisSummary: "Fraud losses fall 60% within one PI of full rollout.",
+          costSlices: [{ amount: 260000 }, { amount: 200000 }],
+          oneTimeBenefit: 250000,
+          recurringBenefit: 2100000,
           approvals: [],
         },
         history: [],
       },
     },
-    update: {},
   });
-  const epic3 = await prisma.initiative.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000022" },
-    create: {
+  const epic3 = await prisma.initiative.create({
+    data: {
       id: "00000000-0000-0000-0000-000000000022",
       tenantId,
       level: 0,
-      title: "Self-Service Returns Portal",
+      title: "Open Banking Aggregation",
       path: "00000000-0000-0000-0000-000000000022",
-      description: "Allow customers to initiate and track returns without contacting support.",
+      description:
+        "Let customers see balances and transactions from their external bank accounts inside the app.",
       valueStreamId: vs1.id,
       stageGate: "L1",
       status: "in_review",
@@ -323,42 +329,43 @@ async function main() {
       benefitHypothesis: {
         current: {
           measuresHypothesis:
-            "Build a self-service portal for customers to initiate and track returns.",
+            "Aggregate external account data via open-banking APIs into a single dashboard.",
           changeFromBaseline:
-            "Replaces phone/email returns handling that drives 60% of support tickets.",
+            "Customers today switch between 3+ banking apps with no consolidated view.",
           businessOutcomes: [
-            "Support ticket volume drops 50%",
-            "€900k/year saved in handling cost",
+            "Daily active users increase by 20%",
+            "Higher cross-sell of savings and credit products",
           ],
-          leadingIndicators: ["Self-service returns rate", "First-contact resolution rate"],
-          risks: ["Fraud risk from automated approvals", "Warehouse integration"],
+          leadingIndicators: ["Linked external accounts per user", "Dashboard engagement rate"],
+          risks: ["Open-banking API reliability across banks", "Consent-renewal friction"],
         },
         history: [],
       },
       businessCase: {
         current: {
           initiativeDescription:
-            "60% of support tickets are return-related, costing €900k/year in handling.",
+            "Customers manage money across 3+ apps; the bank sees only part of their finances.",
           businessOutcomeHypothesis:
-            "Customers get instant returns confirmation without waiting on hold.",
-          analysisSummary: "Support ticket volume drops 50% within 1 PI.",
-          costRows: [{ projectType: "impact", costsMonths1to6: 180000, annualImpact: 900000 }],
+            "A consolidated view increases engagement and surfaces cross-sell moments.",
+          analysisSummary: "Daily active users rise 20% within three months of launch.",
+          costSlices: [{ amount: 90000 }, { amount: 70000 }],
+          oneTimeBenefit: 120000,
+          recurringBenefit: 1100000,
           approvals: [],
         },
         history: [],
       },
     },
-    update: {},
   });
-  const epic4 = await prisma.initiative.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000023" },
-    create: {
+  const epic4 = await prisma.initiative.create({
+    data: {
       id: "00000000-0000-0000-0000-000000000023",
       tenantId,
       level: 0,
-      title: "Developer Platform — Internal APIs",
+      title: "Real-Time Payments Rail",
       path: "00000000-0000-0000-0000-000000000023",
-      description: "Unified internal API gateway and self-service onboarding for product teams.",
+      description:
+        "Move outbound payments from overnight batch to instant 24/7 settlement on a new rail.",
       valueStreamId: vs2.id,
       stageGate: "L4",
       status: "in_progress",
@@ -368,30 +375,33 @@ async function main() {
       updatedBy: adminId,
       benefitHypothesis: {
         current: {
-          measuresHypothesis: "Build a unified internal API gateway with self-service onboarding.",
+          measuresHypothesis:
+            "Replace overnight batch settlement with an instant 24/7 payments rail.",
           changeFromBaseline:
-            "Replaces manual infra provisioning that takes teams an average of 3 weeks.",
+            "Payments today settle in 1–2 business days; customers now expect instant transfers.",
           businessOutcomes: [
-            "Onboarding time drops from 3 weeks to 2 days",
-            "Faster product delivery across teams",
+            "Median settlement time drops to under 10 seconds",
+            "'Where is my payment' support contacts fall sharply",
           ],
-          leadingIndicators: ["Provisioning lead time", "Self-service onboarding rate"],
-          risks: ["Security review bottlenecks", "Legacy service compatibility"],
+          leadingIndicators: ["Median settlement time", "Payment-status support tickets"],
+          risks: ["24/7 operational resilience", "Liquidity management for instant settlement"],
         },
         history: [],
       },
       businessCase: {
         current: {
-          initiativeDescription: "Teams spend avg 3 weeks waiting for infra provisioning.",
-          businessOutcomeHypothesis: "Internal teams ship faster with less ops dependency.",
-          analysisSummary: "Onboarding time drops from 3 weeks to 2 days.",
-          costRows: [{ projectType: "enabler", costsMonths1to6: 450000, annualImpact: 1500000 }],
+          initiativeDescription:
+            "Batch settlement delays payments 1–2 days and drives 30% of support contacts.",
+          businessOutcomeHypothesis:
+            "Instant settlement meets customer expectations and cuts support load.",
+          analysisSummary: "Median settlement time drops from 1 day to under 10 seconds.",
+          costSlices: [{ amount: 320000 }, { amount: 180000 }],
+          recurringBenefit: 1800000,
           approvals: [],
         },
         history: [],
       },
     },
-    update: {},
   });
   console.log("  ✓ 4 epics (L1–L4 stage gates)");
 
@@ -400,100 +410,99 @@ async function main() {
   const features = [
     {
       id: "00000000-0000-0000-0000-000000000030",
-      title: "One-click checkout for returning customers",
+      title: "Biometric identity verification",
       parentId: epic1.id,
       artId: art1.id,
       piId: pi2.id,
       bv: 13,
       tc: 8,
-      rr: 5,
-      js: 3,
+      rr: 8,
+      js: 5,
       ac: [
-        "Given a returning customer, when they click 'Buy now', then payment is processed with saved details",
-        "Given checkout is complete, then confirmation email is sent within 30s",
+        "Given a new applicant, when they complete a face scan, then identity is verified against the document photo",
+        "Given verification succeeds, then the applicant proceeds without manual review",
       ],
     },
     {
       id: "00000000-0000-0000-0000-000000000031",
-      title: "Apple Pay & Google Pay integration",
+      title: "Digital KYC document capture",
       parentId: epic1.id,
       artId: art1.id,
       piId: pi2.id,
-      bv: 13,
-      tc: 13,
-      rr: 3,
-      js: 8,
+      bv: 8,
+      tc: 8,
+      rr: 5,
+      js: 3,
       ac: [
-        "Given a mobile user, when they select Apple Pay, then payment sheet appears natively",
-        "Given payment succeeds, then order is created and inventory reserved",
+        "Given an applicant photographs an ID document, then key fields are extracted within 5s",
+        "Given a document is unreadable, then the user is prompted to retake the photo",
       ],
     },
     {
       id: "00000000-0000-0000-0000-000000000032",
-      title: "Address auto-complete via Google Places",
+      title: "Same-day virtual card issuance",
       parentId: epic1.id,
       artId: art1.id,
-      piId: pi2.id,
-      bv: 5,
-      tc: 3,
-      rr: 2,
-      js: 2,
+      piId: pi3.id,
+      bv: 13,
+      tc: 5,
+      rr: 3,
+      js: 5,
       ac: [
-        "Given a user types 3+ characters in address field, then suggestions appear within 300ms",
+        "Given an account is opened, then a virtual card is issued and added to the mobile wallet immediately",
       ],
     },
     {
       id: "00000000-0000-0000-0000-000000000033",
-      title: "ML-based 'You may also like' carousel",
+      title: "Transaction anomaly scoring service",
       parentId: epic2.id,
-      artId: art1.id,
+      artId: art2.id,
       piId: pi3.id,
-      bv: 8,
-      tc: 5,
-      rr: 8,
+      bv: 13,
+      tc: 8,
+      rr: 13,
       js: 13,
       ac: [
-        "Given a product detail page, when loaded, then carousel shows ≥5 relevant recommendations",
-        "Given a recommendation is clicked, then click-through is tracked",
+        "Given an inbound transaction, when scored, then a risk score is returned within 200ms",
+        "Given a score above threshold, then the transaction is held for step-up authentication",
       ],
     },
     {
       id: "00000000-0000-0000-0000-000000000034",
-      title: "Return initiation flow (web)",
+      title: "External bank connection & consent",
       parentId: epic3.id,
       artId: art1.id,
       bv: 8,
       tc: 8,
-      rr: 13,
-      js: 5,
+      rr: 8,
+      js: 8,
       ac: [
-        "Given a customer with an order, when they visit My Orders, then they can select items to return",
-        "Given return is submitted, then a prepaid label is emailed within 2 minutes",
-        "Given return is registered, then status is visible in My Orders",
+        "Given a customer selects an external bank, then they are redirected through the open-banking consent flow",
+        "Given consent is granted, then accounts and balances appear within 30s",
+        "Given consent expires, then the customer is prompted to renew it",
       ],
     },
     {
       id: "00000000-0000-0000-0000-000000000035",
-      title: "Internal API gateway — rate limiting & auth",
+      title: "ISO 20022 payment message gateway",
       parentId: epic4.id,
       artId: art2.id,
       piId: pi2.id,
       bv: 13,
-      tc: 8,
-      rr: 13,
+      tc: 13,
+      rr: 8,
       js: 8,
       ac: [
-        "Given an API key, when rate limit is exceeded, then 429 is returned with Retry-After header",
-        "Given an invalid key, then 401 is returned within 50ms",
+        "Given an outbound payment, when submitted, then a valid ISO 20022 pacs.008 message is generated",
+        "Given a malformed message, then it is rejected with a structured error",
       ],
     },
   ];
 
   for (const f of features) {
     const computed = Math.round(((f.bv + f.tc + f.rr) / f.js) * 100) / 100;
-    await prisma.initiative.upsert({
-      where: { id: f.id },
-      create: {
+    await prisma.initiative.create({
+      data: {
         id: f.id,
         tenantId,
         level: 1,
@@ -514,48 +523,179 @@ async function main() {
         acceptanceCriteria: f.ac,
         status: f.piId === pi2.id ? "in_progress" : "draft",
       },
-      update: {},
     });
   }
   console.log(`  ✓ ${features.length} features with WSJF scores`);
 
   // 10. Dependencies
   console.log("\n── Dependencies");
-  await prisma.dependency.upsert({
-    where: {
-      fromId_toId_type: {
-        fromId: "00000000-0000-0000-0000-000000000031",
-        toId: "00000000-0000-0000-0000-000000000030",
-        type: "blocks",
-      },
-    },
-    create: {
+  // Biometric verification needs the document photo first → KYC capture blocks it.
+  await prisma.dependency.create({
+    data: {
       tenantId,
       fromId: "00000000-0000-0000-0000-000000000031",
       toId: "00000000-0000-0000-0000-000000000030",
       type: "blocks",
       createdBy: adminId,
     },
-    update: {},
   });
-  await prisma.dependency.upsert({
-    where: {
-      fromId_toId_type: {
-        fromId: "00000000-0000-0000-0000-000000000034",
-        toId: "00000000-0000-0000-0000-000000000030",
-        type: "relates_to",
-      },
-    },
-    create: {
+  await prisma.dependency.create({
+    data: {
       tenantId,
-      fromId: "00000000-0000-0000-0000-000000000034",
-      toId: "00000000-0000-0000-0000-000000000030",
+      fromId: "00000000-0000-0000-0000-000000000033",
+      toId: "00000000-0000-0000-0000-000000000035",
       type: "relates_to",
       createdBy: adminId,
     },
-    update: {},
   });
   console.log("  ✓ 2 dependencies linked");
+
+  // 11. Stories
+  console.log("\n── Stories");
+  const feat30Path = `${epic1.id}.00000000-0000-0000-0000-000000000030`;
+  const feat33Path = `${epic2.id}.00000000-0000-0000-0000-000000000033`;
+  const stories = [
+    {
+      id: "00000000-0000-0000-0000-000000000040",
+      title: "Store verified identity documents securely",
+      parentId: "00000000-0000-0000-0000-000000000030",
+      parentPath: feat30Path,
+      piId: pi2.id,
+      points: 5,
+      status: "in_progress",
+    },
+    {
+      id: "00000000-0000-0000-0000-000000000041",
+      title: "Liveness check during the face scan",
+      parentId: "00000000-0000-0000-0000-000000000030",
+      parentPath: feat30Path,
+      piId: pi2.id,
+      points: 3,
+      status: "in_progress",
+    },
+    {
+      id: "00000000-0000-0000-0000-000000000042",
+      title: "Risk-score threshold configuration UI",
+      parentId: "00000000-0000-0000-0000-000000000033",
+      parentPath: feat33Path,
+      points: 8,
+      status: "draft",
+    },
+  ];
+  for (const s of stories) {
+    await prisma.initiative.create({
+      data: {
+        id: s.id,
+        tenantId,
+        level: 2,
+        parentId: s.parentId,
+        path: `${s.parentPath}/${s.id}`,
+        title: s.title,
+        ownerId: adminId,
+        assigneeIds: [],
+        createdBy: adminId,
+        updatedBy: adminId,
+        storyPoints: s.points,
+        acceptanceCriteria: [],
+        status: s.status,
+        ...(s.piId ? { piId: s.piId } : {}),
+      },
+    });
+  }
+  console.log(`  ✓ ${stories.length} stories`);
+
+  // 12. Tasks
+  console.log("\n── Tasks");
+  const tasks = [
+    {
+      id: "00000000-0000-0000-0000-000000000050",
+      title: "Encrypt stored document images at rest",
+      parentId: "00000000-0000-0000-0000-000000000040",
+      hours: 8,
+      status: "completed",
+    },
+    {
+      id: "00000000-0000-0000-0000-000000000051",
+      title: "Build the identity-document storage API",
+      parentId: "00000000-0000-0000-0000-000000000040",
+      hours: 12,
+      status: "in_progress",
+    },
+    {
+      id: "00000000-0000-0000-0000-000000000052",
+      title: "Define the fraud risk-score thresholds",
+      parentId: "00000000-0000-0000-0000-000000000042",
+      hours: 4,
+      status: "draft",
+    },
+  ];
+  for (const t of tasks) {
+    const parentStory = stories.find((s) => s.id === t.parentId)!;
+    await prisma.initiative.create({
+      data: {
+        id: t.id,
+        tenantId,
+        level: 3,
+        parentId: t.parentId,
+        path: `${parentStory.parentPath}/${parentStory.id}/${t.id}`,
+        title: t.title,
+        ownerId: adminId,
+        assigneeIds: [],
+        createdBy: adminId,
+        updatedBy: adminId,
+        estimateHours: t.hours,
+        status: t.status,
+      },
+    });
+  }
+  console.log(`  ✓ ${tasks.length} tasks`);
+
+  // 13. KPIs
+  console.log("\n── KPIs");
+  const kpis = [
+    {
+      id: "00000000-0000-0000-0000-000000000060",
+      initiativeId: epic1.id,
+      name: "Onboarding completion rate",
+      unit: "%",
+      baseline: 62,
+      target: 82,
+      measurements: [
+        { date: "2026-01-15", value: 62 },
+        { date: "2026-03-15", value: 70 },
+        { date: "2026-05-01", value: 76 },
+      ],
+    },
+    {
+      id: "00000000-0000-0000-0000-000000000061",
+      initiativeId: epic2.id,
+      name: "Fraud loss rate (bps)",
+      unit: "bps",
+      baseline: 18,
+      target: 7,
+      measurements: [
+        { date: "2026-03-15", value: 18 },
+        { date: "2026-05-01", value: 14 },
+      ],
+    },
+  ];
+  for (const k of kpis) {
+    await prisma.kpi.create({
+      data: {
+        id: k.id,
+        tenantId,
+        initiativeId: k.initiativeId,
+        name: k.name,
+        unit: k.unit,
+        baseline: k.baseline,
+        target: k.target,
+        measurements: k.measurements,
+        createdBy: adminId,
+        updatedBy: adminId,
+      },
+    });
+  }
+  console.log(`  ✓ ${kpis.length} KPIs`);
 
   console.log("\n✅  Seed complete!\n");
   console.log("Test accounts:");

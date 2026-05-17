@@ -1,14 +1,12 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useState } from "react";
 import { saveBusinessCaseAction } from "@/features/portfolio/actions/business-case";
 import {
-  PROJECT_TYPES,
   APPROVAL_PARTIES,
-  computeBusinessCaseTotals,
+  costSliceLabel,
   type BusinessCaseFields,
   type BusinessCaseVersion,
-  type ProjectType,
   type ApprovalParty,
 } from "@/domain/business-case";
 
@@ -21,21 +19,6 @@ interface BusinessCaseEditorProps {
 const INPUT_CLASS =
   "w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
-const COST_COLUMNS = [
-  ["costsMonths1to6", "Costs (1.–6. Monat)"],
-  ["costsMonths7to12", "Costs (7.–12. Monat)"],
-  ["annualImpact", "Annual impact"],
-  ["oneTimeEffect", "One-time effect"],
-] as const;
-
-type CostColumn = (typeof COST_COLUMNS)[number][0];
-
-const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
-  discovery: "Discovery",
-  enabler: "Enabler",
-  impact: "Impact",
-};
-
 const APPROVAL_LABELS: Record<ApprovalParty, string> = {
   mgmt: "MGMT",
   business_owner: "Business Owner",
@@ -44,50 +27,26 @@ const APPROVAL_LABELS: Record<ApprovalParty, string> = {
   lace_vmo: "LACE/VMO",
 };
 
-function costKey(pt: ProjectType, col: CostColumn): string {
-  return `${pt}_${col}`;
-}
-
-function initialCosts(rows: BusinessCaseFields["costRows"]): Record<string, string> {
-  const map: Record<string, string> = {};
-  for (const pt of PROJECT_TYPES) {
-    const row = rows?.find((r) => r.projectType === pt);
-    for (const [col] of COST_COLUMNS) {
-      const value = row?.[col];
-      map[costKey(pt, col)] = value != null ? String(value) : "";
-    }
-  }
-  return map;
-}
-
 function parseNum(value: string): number | undefined {
   if (value.trim() === "") return undefined;
   const n = Number(value);
   return Number.isFinite(n) ? n : undefined;
 }
 
+/** Cost slice amounts as form strings — defaults to two 6-month periods. */
+function initialSlices(slices: BusinessCaseFields["costSlices"]): string[] {
+  if (slices && slices.length > 0) {
+    return slices.map((s) => (s.amount != null ? String(s.amount) : ""));
+  }
+  return ["", ""];
+}
+
 export function BusinessCaseEditor({ epicId, current, history }: BusinessCaseEditorProps) {
   const [state, action, isPending] = useActionState(saveBusinessCaseAction, {});
-  const [costs, setCosts] = useState(() => initialCosts(current.costRows));
+  const [slices, setSlices] = useState<string[]>(() => initialSlices(current.costSlices));
 
-  const totals = useMemo(
-    () =>
-      computeBusinessCaseTotals(
-        PROJECT_TYPES.map((projectType) => ({
-          projectType,
-          costsMonths1to6: parseNum(costs[costKey(projectType, "costsMonths1to6")] ?? ""),
-          costsMonths7to12: parseNum(costs[costKey(projectType, "costsMonths7to12")] ?? ""),
-          annualImpact: parseNum(costs[costKey(projectType, "annualImpact")] ?? ""),
-          oneTimeEffect: parseNum(costs[costKey(projectType, "oneTimeEffect")] ?? ""),
-        })),
-      ),
-    [costs],
-  );
-
-  const approvalsByParty = useMemo(() => {
-    const map = new Map(current.approvals?.map((a) => [a.party, a]));
-    return map;
-  }, [current.approvals]);
+  const costTotal = slices.reduce((sum, v) => sum + (parseNum(v) ?? 0), 0);
+  const approvalsByParty = new Map(current.approvals?.map((a) => [a.party, a]));
 
   return (
     <div className="space-y-6">
@@ -199,55 +158,98 @@ export function BusinessCaseEditor({ epicId, current, history }: BusinessCaseEdi
           </div>
         </div>
 
-        <div>
-          <p className="text-sm font-medium mb-2">Project types — Kosten &amp; Wirkung</p>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="text-left">
-                  <th className="border-b p-2 font-medium">Project type</th>
-                  {COST_COLUMNS.map(([col, label]) => (
-                    <th key={col} className="border-b p-2 font-medium">
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {PROJECT_TYPES.map((pt) => (
-                  <tr key={pt}>
-                    <td className="border-b p-2 font-medium">{PROJECT_TYPE_LABELS[pt]}</td>
-                    {COST_COLUMNS.map(([col]) => (
-                      <td key={col} className="border-b p-2">
-                        <input
-                          type="number"
-                          step="any"
-                          name={`cost_${pt}_${col}`}
-                          aria-label={`${PROJECT_TYPE_LABELS[pt]} ${col}`}
-                          value={costs[costKey(pt, col)] ?? ""}
-                          onChange={(e) =>
-                            setCosts((prev) => ({
-                              ...prev,
-                              [costKey(pt, col)]: e.target.value,
-                            }))
-                          }
-                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-                <tr className="font-medium">
-                  <td className="p-2">Total</td>
-                  <td className="p-2">{totals.costsMonths1to6}</td>
-                  <td className="p-2">{totals.costsMonths7to12}</td>
-                  <td className="p-2">{totals.annualImpact}</td>
-                  <td className="p-2">{totals.oneTimeEffect}</td>
-                </tr>
-              </tbody>
-            </table>
+        {/* Implementation cost — 6-month demand calculation */}
+        <section className="rounded-lg border p-4 space-y-3">
+          <div>
+            <p className="text-sm font-medium">Implementierungskosten — Bedarfskalkulation</p>
+            <p className="text-xs text-muted-foreground">
+              Geschätzter Kostenbedarf je 6-Monats-Periode.
+            </p>
           </div>
-        </div>
+
+          <input type="hidden" name="costSliceCount" value={slices.length} />
+
+          <div className="space-y-2">
+            {slices.map((amount, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="w-32 shrink-0 text-sm text-muted-foreground">
+                  {costSliceLabel(i)}
+                </span>
+                <input
+                  type="number"
+                  step="any"
+                  min={0}
+                  name={`costSlice_${i}`}
+                  aria-label={costSliceLabel(i)}
+                  value={amount}
+                  onChange={(e) =>
+                    setSlices((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
+                  }
+                  placeholder="0"
+                  className={`${INPUT_CLASS} max-w-[12rem]`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSlices((prev) => prev.filter((_, j) => j !== i))}
+                  disabled={slices.length <= 1}
+                  className="text-sm text-muted-foreground hover:text-red-600 disabled:opacity-40"
+                >
+                  Entfernen
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setSlices((prev) => [...prev, ""])}
+            className="text-sm font-medium text-blue-700 hover:underline"
+          >
+            + Periode hinzufügen
+          </button>
+
+          <div className="flex items-center gap-3 border-t pt-2 text-sm font-medium">
+            <span className="w-32 shrink-0">Gesamtkosten</span>
+            <span>{costTotal.toLocaleString("de-DE")}</span>
+          </div>
+        </section>
+
+        {/* Expected benefit */}
+        <section className="rounded-lg border p-4 space-y-3">
+          <p className="text-sm font-medium">Nutzen</p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="bc-onetime" className="block text-sm font-medium mb-1">
+                Einmaliger Nutzen
+              </label>
+              <input
+                id="bc-onetime"
+                type="number"
+                step="any"
+                min={0}
+                name="oneTimeBenefit"
+                defaultValue={current.oneTimeBenefit ?? ""}
+                placeholder="0"
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label htmlFor="bc-recurring" className="block text-sm font-medium mb-1">
+                Wiederkehrender Nutzen (p.a.)
+              </label>
+              <input
+                id="bc-recurring"
+                type="number"
+                step="any"
+                min={0}
+                name="recurringBenefit"
+                defaultValue={current.recurringBenefit ?? ""}
+                placeholder="0"
+                className={INPUT_CLASS}
+              />
+            </div>
+          </div>
+        </section>
 
         <div>
           <label htmlFor="bc-customers" className="block text-sm font-medium mb-1">

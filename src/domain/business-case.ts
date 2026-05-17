@@ -1,11 +1,8 @@
 /**
  * Business Case — the SAFe "Initiative Canvas" artefact, created during the
  * L2 Analyzing stage gate. Persisted in `Initiative.businessCase` (JSON) for
- * Epics, with a saved-version history. Replaces the former Lean Business Case.
+ * Epics, with a saved-version history.
  */
-
-export const PROJECT_TYPES = ["discovery", "enabler", "impact"] as const;
-export type ProjectType = (typeof PROJECT_TYPES)[number];
 
 export const APPROVAL_PARTIES = [
   "mgmt",
@@ -16,12 +13,14 @@ export const APPROVAL_PARTIES = [
 ] as const;
 export type ApprovalParty = (typeof APPROVAL_PARTIES)[number];
 
-export interface BusinessCaseCostRow {
-  projectType: ProjectType;
-  costsMonths1to6?: number | undefined;
-  costsMonths7to12?: number | undefined;
-  annualImpact?: number | undefined;
-  oneTimeEffect?: number | undefined;
+/**
+ * One 6-month period of the cost demand calculation. The period is positional:
+ * slice index `i` covers months `6i+1 … 6i+6`. Modelled as an object so future
+ * participatory-budgeting fields (e.g. requested / allocated) can be added per
+ * slice without a breaking change.
+ */
+export interface BusinessCaseCostSlice {
+  amount?: number | undefined;
 }
 
 export interface BusinessCaseApproval {
@@ -39,7 +38,12 @@ export interface BusinessCaseFields {
   inScope?: string | undefined;
   outOfScope?: string | undefined;
   whatYouNeedToBelieve?: string | undefined;
-  costRows?: BusinessCaseCostRow[] | undefined;
+  /** Cost demand per 6-month period — index 0 covers months 1–6. */
+  costSlices?: BusinessCaseCostSlice[] | undefined;
+  /** One-time benefit expected once the initiative completes. */
+  oneTimeBenefit?: number | undefined;
+  /** Recurring (annual) benefit expected once the initiative completes. */
+  recurringBenefit?: number | undefined;
   customersAffected?: string | undefined;
   impactOnSolutions?: string | undefined;
   analysisSummary?: string | undefined;
@@ -60,15 +64,58 @@ export interface BusinessCase {
 }
 
 export interface BusinessCaseTotals {
-  costsMonths1to6: number;
-  costsMonths7to12: number;
-  annualImpact: number;
-  oneTimeEffect: number;
+  /** Sum of all 6-month cost slices. */
+  implementationCost: number;
+  oneTimeBenefit: number;
+  recurringBenefit: number;
+}
+
+// ---------------------------------------------------------------------------
+// Legacy migration — the former project-type `costRows` shape
+// ---------------------------------------------------------------------------
+
+interface LegacyCostRow {
+  costsMonths1to6?: number;
+  costsMonths7to12?: number;
+  annualImpact?: number;
+  oneTimeEffect?: number;
 }
 
 /**
- * Reads a stored Business Case JSON value. Accepts both the versioned shape
- * (`{ current, history }`) and a legacy flat shape (fields at the top level).
+ * Migrates the former project-type `costRows` shape to the slice-based model so
+ * existing Epics keep their numbers: the summed 1.–6./7.–12.-month costs become
+ * the first two slices, the summed one-time/annual effects become the benefit
+ * fields. A case that already uses `costSlices` is returned untouched.
+ */
+function migrateFields(
+  fields: BusinessCaseFields & { costRows?: LegacyCostRow[] },
+): BusinessCaseFields {
+  const { costRows, ...rest } = fields;
+  if (rest.costSlices !== undefined || costRows === undefined) {
+    return rest;
+  }
+
+  const sum = (pick: (r: LegacyCostRow) => number | undefined): number =>
+    costRows.reduce((acc, row) => acc + (pick(row) ?? 0), 0);
+
+  const costs1to6 = sum((r) => r.costsMonths1to6);
+  const costs7to12 = sum((r) => r.costsMonths7to12);
+  const oneTime = sum((r) => r.oneTimeEffect);
+  const recurring = sum((r) => r.annualImpact);
+
+  const migrated: BusinessCaseFields = { ...rest };
+  if (costs1to6 !== 0 || costs7to12 !== 0) {
+    migrated.costSlices = [{ amount: costs1to6 }, { amount: costs7to12 }];
+  }
+  if (oneTime !== 0) migrated.oneTimeBenefit = oneTime;
+  if (recurring !== 0) migrated.recurringBenefit = recurring;
+  return migrated;
+}
+
+/**
+ * Reads a stored Business Case JSON value. Accepts the versioned shape
+ * (`{ current, history }`) and a legacy flat shape, and migrates the former
+ * project-type cost grid to the slice-based model.
  */
 export function parseBusinessCase(raw: unknown): BusinessCase {
   if (raw == null || typeof raw !== "object") {
@@ -77,25 +124,20 @@ export function parseBusinessCase(raw: unknown): BusinessCase {
   const obj = raw as Record<string, unknown>;
   if ("current" in obj) {
     return {
-      current: (obj["current"] as BusinessCaseFields | null) ?? {},
+      current: migrateFields((obj["current"] as BusinessCaseFields | null) ?? {}),
       history: Array.isArray(obj["history"]) ? (obj["history"] as BusinessCaseVersion[]) : [],
     };
   }
-  return { current: obj as BusinessCaseFields, history: [] };
+  return { current: migrateFields(obj as BusinessCaseFields), history: [] };
 }
 
 /** True when a Business Case field set carries any content. */
 export function businessCaseHasContent(fields: BusinessCaseFields): boolean {
   return Object.entries(fields).some(([key, v]) => {
     if (typeof v === "string") return v.trim() !== "";
-    if (key === "costRows" && Array.isArray(v)) {
-      return (v as BusinessCaseCostRow[]).some(
-        (r) =>
-          r.costsMonths1to6 != null ||
-          r.costsMonths7to12 != null ||
-          r.annualImpact != null ||
-          r.oneTimeEffect != null,
-      );
+    if (typeof v === "number") return v !== 0;
+    if (key === "costSlices" && Array.isArray(v)) {
+      return (v as BusinessCaseCostSlice[]).some((s) => s.amount != null && s.amount !== 0);
     }
     if (key === "approvals" && Array.isArray(v)) {
       return (v as BusinessCaseApproval[]).some(
@@ -106,21 +148,20 @@ export function businessCaseHasContent(fields: BusinessCaseFields): boolean {
   });
 }
 
-/** Sums each cost column across all rows — the canvas "Total" row. */
-export function computeBusinessCaseTotals(
-  costRows: BusinessCaseCostRow[] | undefined,
-): BusinessCaseTotals {
-  const totals: BusinessCaseTotals = {
-    costsMonths1to6: 0,
-    costsMonths7to12: 0,
-    annualImpact: 0,
-    oneTimeEffect: 0,
+/** Aggregates the cost slices and benefit fields — feeds the Overview tab. */
+export function computeBusinessCaseTotals(fields: BusinessCaseFields): BusinessCaseTotals {
+  const implementationCost = (fields.costSlices ?? []).reduce(
+    (acc, slice) => acc + (slice.amount ?? 0),
+    0,
+  );
+  return {
+    implementationCost,
+    oneTimeBenefit: fields.oneTimeBenefit ?? 0,
+    recurringBenefit: fields.recurringBenefit ?? 0,
   };
-  for (const row of costRows ?? []) {
-    totals.costsMonths1to6 += row.costsMonths1to6 ?? 0;
-    totals.costsMonths7to12 += row.costsMonths7to12 ?? 0;
-    totals.annualImpact += row.annualImpact ?? 0;
-    totals.oneTimeEffect += row.oneTimeEffect ?? 0;
-  }
-  return totals;
+}
+
+/** Label for cost slice `index` — months `6i+1 … 6i+6`. */
+export function costSliceLabel(index: number): string {
+  return `Monate ${index * 6 + 1}–${index * 6 + 6}`;
 }

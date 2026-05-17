@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createEpic, listEpics } from "@/server/services/initiative";
+import { createEpic, listEpics } from "@/server/services/epic";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import type { ValueStreamId } from "@/domain/types";

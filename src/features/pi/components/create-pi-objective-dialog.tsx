@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useRef } from "react";
-import { useCreateDialogState } from "@/features/create/use-create-dialog-state";
+import { useActionState, useRef, useState } from "react";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
 import { createPiObjectiveAction } from "@/features/pi/actions/pi-objective";
+import { useCreateResult } from "@/features/create/use-create-result";
+import { EntitySelect } from "@/features/create/entity-select";
+import type { CreateContext } from "@/features/create/create-context";
 import type { ActionState } from "@/server/http/server-action";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,60 +27,119 @@ interface Team {
   name: string;
 }
 
-interface Props {
-  piId: string;
-  artId: string;
-  teams: Team[];
+export interface CreatePiObjectiveDialogProps {
+  /** Controlled mode (global "+" menu). Omit to render a self-triggering button. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Page-supplied parent PI; when omitted an ART → PI + Team cascade is shown. */
+  piId?: string;
+  artId?: string;
+  /** Page-supplied teams for the team select. */
+  teams?: Team[];
+  /** Route context used to pre-select ART / PI in the global menu. */
+  context?: CreateContext;
 }
 
 const initialState: ActionState = {};
 
-export function CreatePiObjectiveDialog({ piId, artId, teams }: Props) {
-  const [open, setOpen] = useCreateDialogState("pi-objective");
+export function CreatePiObjectiveDialog({
+  open,
+  onOpenChange,
+  piId,
+  artId,
+  teams,
+  context,
+}: CreatePiObjectiveDialogProps) {
+  const isControlled = open !== undefined;
+  const [selfOpen, setSelfOpen] = useState(false);
+  const dialogOpen = open ?? selfOpen;
+  const setDialogOpen = (v: boolean) => (isControlled ? onOpenChange?.(v) : setSelfOpen(v));
+
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(createPiObjectiveAction, initialState);
+  useCreateResult(state, () => {
+    setDialogOpen(false);
+    formRef.current?.reset();
+  });
+
+  const pageScoped = piId !== undefined && artId !== undefined;
+  const [artSel, setArtSel] = useState(context?.artId ?? "");
+  const [piSel, setPiSel] = useState(context?.piId ?? "");
+  const [teamSel, setTeamSel] = useState("");
 
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>
-        <Plus className="size-4 mr-1" />
-        Add Objective
-      </Button>
+      {!isControlled && (
+        <Button size="sm" onClick={() => setDialogOpen(true)}>
+          <Plus className="size-4 mr-1" />
+          Add Objective
+        </Button>
+      )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add PI Objective</DialogTitle>
           </DialogHeader>
-          <form
-            ref={formRef}
-            action={async (fd) => {
-              await action(fd);
-              if (!state.fieldErrors && !state.error) {
-                toast.success("PI Objective added");
-                setOpen(false);
-                formRef.current?.reset();
-              }
-            }}
-            className="space-y-4"
-          >
-            <input type="hidden" name="piId" value={piId} />
-            <input type="hidden" name="artId" value={artId} />
-
-            <div className="space-y-1.5">
-              <Label>Team *</Label>
-              <select name="teamId" required className={SELECT_CLASS}>
-                <option value="">Select team…</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-              {state.fieldErrors?.teamId && (
-                <p className="text-xs text-destructive">{state.fieldErrors.teamId[0]}</p>
-              )}
-            </div>
+          <form ref={formRef} action={action} className="space-y-4">
+            {pageScoped ? (
+              <>
+                <input type="hidden" name="piId" value={piId} />
+                <input type="hidden" name="artId" value={artId} />
+                <div className="space-y-1.5">
+                  <Label>Team *</Label>
+                  <select name="teamId" required className={SELECT_CLASS}>
+                    <option value="">Select team…</option>
+                    {(teams ?? []).map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  {state.fieldErrors?.teamId && (
+                    <p className="text-xs text-destructive">{state.fieldErrors.teamId[0]}</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <EntitySelect
+                  kind="art"
+                  name="artId"
+                  label="ART"
+                  required
+                  labelField="name"
+                  value={artSel}
+                  onChange={(v) => {
+                    setArtSel(v);
+                    setPiSel("");
+                    setTeamSel("");
+                  }}
+                />
+                <EntitySelect
+                  kind="pi"
+                  name="piId"
+                  label="Program Increment"
+                  required
+                  labelField="name"
+                  params={{ artId: artSel }}
+                  disabled={!artSel}
+                  value={piSel}
+                  onChange={setPiSel}
+                />
+                <EntitySelect
+                  kind="team"
+                  name="teamId"
+                  label="Team"
+                  required
+                  labelField="name"
+                  params={{ artId: artSel }}
+                  disabled={!artSel}
+                  value={teamSel}
+                  onChange={setTeamSel}
+                />
+              </>
+            )}
 
             <div className="space-y-1.5">
               <Label>Title *</Label>
@@ -111,7 +171,7 @@ export function CreatePiObjectiveDialog({ piId, artId, teams }: Props) {
             {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={pending}>

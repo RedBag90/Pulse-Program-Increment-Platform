@@ -1,6 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getEpic, listInitiativeHistory } from "@/server/services/initiative";
+import { getEpic } from "@/server/services/epic";
+import { listInitiativeHistory } from "@/server/services/initiative";
 import { listKpis } from "@/server/services/kpi";
 import { EpicDetailShell, resolveEpicTab } from "@/features/portfolio/components/epic-detail-shell";
 import { EpicOverviewTab } from "@/features/portfolio/components/epic-overview-tab";

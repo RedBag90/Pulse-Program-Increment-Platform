@@ -64,8 +64,7 @@ export function EpicOverviewTab({ epic, canEdit }: EpicOverviewTabProps) {
     updatedAt: epic.updatedAt,
   });
 
-  const totals = computeBusinessCaseTotals(parseBusinessCase(epic.businessCase).current.costRows);
-  const implementationCosts = totals.costsMonths1to6 + totals.costsMonths7to12;
+  const totals = computeBusinessCaseTotals(parseBusinessCase(epic.businessCase).current);
 
   return (
     <div className="space-y-8">
@@ -83,9 +82,9 @@ export function EpicOverviewTab({ epic, canEdit }: EpicOverviewTabProps) {
           <span className="font-mono text-xs">{epic.ownerId}</span>
         </Field>
         <Field label="Value Stream">{epic.valueStream?.name ?? "—"}</Field>
-        <Field label="Net recurring benefits">{formatAmount(totals.annualImpact)}</Field>
-        <Field label="One-time benefits">{formatAmount(totals.oneTimeEffect)}</Field>
-        <Field label="Implementation costs">{formatAmount(implementationCosts)}</Field>
+        <Field label="Net recurring benefits">{formatAmount(totals.recurringBenefit)}</Field>
+        <Field label="One-time benefits">{formatAmount(totals.oneTimeBenefit)}</Field>
+        <Field label="Implementation costs">{formatAmount(totals.implementationCost)}</Field>
       </section>
 
       <section>

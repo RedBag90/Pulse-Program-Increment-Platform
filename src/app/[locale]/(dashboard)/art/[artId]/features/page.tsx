@@ -2,7 +2,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/server/services/art";
 import { listFeatures } from "@/server/services/feature";
-import { listEpics } from "@/server/services/initiative";
+import { listEpics } from "@/server/services/epic";
 import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
 import { FeatureFilters } from "@/features/art/components/feature-filters";

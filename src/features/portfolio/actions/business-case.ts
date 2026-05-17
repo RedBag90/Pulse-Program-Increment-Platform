@@ -2,10 +2,10 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { saveBusinessCase } from "@/server/services/initiative";
+import { saveBusinessCase } from "@/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import { businessCaseSchema } from "@/domain/schemas/initiative";
-import { PROJECT_TYPES, APPROVAL_PARTIES } from "@/domain/business-case";
+import { APPROVAL_PARTIES } from "@/domain/business-case";
 import type { EpicId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
 
@@ -41,13 +41,12 @@ export const saveBusinessCaseAction = createServerAction({
     customersAffected: text(fd, "customersAffected"),
     impactOnSolutions: text(fd, "impactOnSolutions"),
     analysisSummary: text(fd, "analysisSummary"),
-    costRows: PROJECT_TYPES.map((projectType) => ({
-      projectType,
-      costsMonths1to6: num(fd, `cost_${projectType}_costsMonths1to6`),
-      costsMonths7to12: num(fd, `cost_${projectType}_costsMonths7to12`),
-      annualImpact: num(fd, `cost_${projectType}_annualImpact`),
-      oneTimeEffect: num(fd, `cost_${projectType}_oneTimeEffect`),
-    })),
+    costSlices: Array.from(
+      { length: Math.max(0, num(fd, "costSliceCount") ?? 0) },
+      (_unused, i) => ({ amount: num(fd, `costSlice_${i}`) }),
+    ),
+    oneTimeBenefit: num(fd, "oneTimeBenefit"),
+    recurringBenefit: num(fd, "recurringBenefit"),
     approvals: APPROVAL_PARTIES.map((party) => ({
       party,
       approved: fd.get(`approval_${party}`) === "on",

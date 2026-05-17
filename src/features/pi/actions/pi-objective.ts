@@ -19,6 +19,11 @@ import { isErr } from "@/domain/errors";
 import type { PiId, TeamId } from "@/domain/types";
 
 export const createPiObjectiveAction = createServerAction({
+  describeCreated: (v: { id: string }, input) => ({
+    id: v.id,
+    label: "PI Objective",
+    href: `/pi/${input.piId}/objectives`,
+  }),
   schema: z.object({
     piId: z.string().uuid(),
     artId: z.string().uuid(),

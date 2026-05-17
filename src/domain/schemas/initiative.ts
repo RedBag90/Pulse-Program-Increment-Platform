@@ -45,7 +45,6 @@ export const benefitHypothesisSchema = z.object({
 });
 
 // Business Case (Epic artefact — L2 Analyzing). Replaces the former LBC.
-export const projectTypeSchema = z.enum(["discovery", "enabler", "impact"]);
 export const approvalPartySchema = z.enum([
   "mgmt",
   "business_owner",
@@ -54,12 +53,9 @@ export const approvalPartySchema = z.enum([
   "lace_vmo",
 ]);
 
-export const businessCaseCostRowSchema = z.object({
-  projectType: projectTypeSchema,
-  costsMonths1to6: z.number().nonnegative().optional(),
-  costsMonths7to12: z.number().nonnegative().optional(),
-  annualImpact: z.number().optional(),
-  oneTimeEffect: z.number().optional(),
+/** One 6-month period of the cost demand calculation (index = period). */
+export const businessCaseCostSliceSchema = z.object({
+  amount: z.number().nonnegative().optional(),
 });
 
 export const businessCaseApprovalSchema = z.object({
@@ -77,7 +73,9 @@ export const businessCaseSchema = z.object({
   inScope: z.string().max(2000).optional(),
   outOfScope: z.string().max(2000).optional(),
   whatYouNeedToBelieve: z.string().max(2000).optional(),
-  costRows: z.array(businessCaseCostRowSchema).max(3).optional(),
+  costSlices: z.array(businessCaseCostSliceSchema).max(24).optional(),
+  oneTimeBenefit: z.number().nonnegative().optional(),
+  recurringBenefit: z.number().nonnegative().optional(),
   customersAffected: z.string().max(5000).optional(),
   impactOnSolutions: z.string().max(5000).optional(),
   analysisSummary: z.string().max(5000).optional(),

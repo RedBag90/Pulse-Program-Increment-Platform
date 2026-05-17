@@ -1,6 +1,6 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { listEpics } from "@/server/services/initiative";
+import { listEpics } from "@/server/services/epic";
 import { KanbanBoard } from "@/features/portfolio/components/kanban-board";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";

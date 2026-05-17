@@ -3,14 +3,17 @@
 import { useEffect, useState } from "react";
 
 /** Parent-entity kinds whose option lists a create dialog may need to load. */
-export type ParentKind = "valueStream" | "art" | "epic" | "feature" | "pi" | "team";
+export type ParentKind = "valueStream" | "art" | "epic" | "feature" | "pi" | "team" | "story";
 
 /**
  * Resolves the `GET /api/v1/…` endpoint for a parent-option list. Returns
- * `null` when a cascading parameter (e.g. `artId`) is still missing — the
- * dialog then waits for the upstream select. Pure, so it is unit-testable.
+ * `null` when a cascading parameter (`artId` / `featureId`) is still missing —
+ * the dialog then waits for the upstream select. Pure, so it is unit-testable.
  */
-export function optionsEndpoint(kind: ParentKind, params?: { artId?: string }): string | null {
+export function optionsEndpoint(
+  kind: ParentKind,
+  params?: { artId?: string; featureId?: string },
+): string | null {
   switch (kind) {
     case "valueStream":
       return "/api/v1/value-streams";
@@ -24,6 +27,8 @@ export function optionsEndpoint(kind: ParentKind, params?: { artId?: string }): 
       return params?.artId ? `/api/v1/pis?artId=${params.artId}` : null;
     case "team":
       return params?.artId ? `/api/v1/teams?artId=${params.artId}` : null;
+    case "story":
+      return params?.featureId ? `/api/v1/stories?featureId=${params.featureId}` : null;
   }
 }
 

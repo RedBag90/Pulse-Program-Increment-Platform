@@ -3,6 +3,7 @@ import {
   parseBusinessCase,
   businessCaseHasContent,
   computeBusinessCaseTotals,
+  costSliceLabel,
 } from "@/domain/business-case";
 
 describe("parseBusinessCase", () => {
@@ -33,6 +34,28 @@ describe("parseBusinessCase", () => {
   it("coerces a null current to {}", () => {
     expect(parseBusinessCase({ current: null }).current).toEqual({});
   });
+
+  it("migrates the legacy project-type costRows to slices and benefit fields", () => {
+    const { current } = parseBusinessCase({
+      current: {
+        keyStakeholders: "x",
+        costRows: [
+          { projectType: "discovery", costsMonths1to6: 10, annualImpact: 5 },
+          { projectType: "enabler", costsMonths1to6: 20, costsMonths7to12: 7, oneTimeEffect: 3 },
+        ],
+      },
+    });
+    expect(current.costSlices).toEqual([{ amount: 30 }, { amount: 7 }]);
+    expect(current.oneTimeBenefit).toBe(3);
+    expect(current.recurringBenefit).toBe(5);
+    expect("costRows" in current).toBe(false);
+    expect(current.keyStakeholders).toBe("x");
+  });
+
+  it("leaves a slice-based business case untouched", () => {
+    const fields = { costSlices: [{ amount: 100 }], oneTimeBenefit: 5 };
+    expect(parseBusinessCase({ current: fields }).current).toEqual(fields);
+  });
 });
 
 describe("businessCaseHasContent", () => {
@@ -40,11 +63,11 @@ describe("businessCaseHasContent", () => {
     expect(businessCaseHasContent({})).toBe(false);
   });
 
-  it("is false when text is blank, cost rows empty and approvals unset", () => {
+  it("is false when text is blank, slices empty and approvals unset", () => {
     expect(
       businessCaseHasContent({
         analysisSummary: "  ",
-        costRows: [{ projectType: "discovery" }],
+        costSlices: [{}],
         approvals: [{ party: "mgmt", approved: false }],
       }),
     ).toBe(false);
@@ -54,10 +77,12 @@ describe("businessCaseHasContent", () => {
     expect(businessCaseHasContent({ initiativeDescription: "x" })).toBe(true);
   });
 
-  it("is true when a cost row carries a number", () => {
-    expect(
-      businessCaseHasContent({ costRows: [{ projectType: "impact", annualImpact: 100 }] }),
-    ).toBe(true);
+  it("is true when a cost slice carries an amount", () => {
+    expect(businessCaseHasContent({ costSlices: [{}, { amount: 100 }] })).toBe(true);
+  });
+
+  it("is true when a benefit field is set", () => {
+    expect(businessCaseHasContent({ recurringBenefit: 1000 })).toBe(true);
   });
 
   it("is true when an approval is checked or named", () => {
@@ -73,23 +98,35 @@ describe("businessCaseHasContent", () => {
 });
 
 describe("computeBusinessCaseTotals", () => {
-  it("returns all zeros for undefined or empty rows", () => {
-    const zero = { costsMonths1to6: 0, costsMonths7to12: 0, annualImpact: 0, oneTimeEffect: 0 };
-    expect(computeBusinessCaseTotals(undefined)).toEqual(zero);
-    expect(computeBusinessCaseTotals([])).toEqual(zero);
+  it("returns zeros for an empty business case", () => {
+    expect(computeBusinessCaseTotals({})).toEqual({
+      implementationCost: 0,
+      oneTimeBenefit: 0,
+      recurringBenefit: 0,
+    });
   });
 
-  it("sums each column across rows, treating missing values as 0", () => {
-    const totals = computeBusinessCaseTotals([
-      { projectType: "discovery", costsMonths1to6: 10, annualImpact: 5 },
-      { projectType: "enabler", costsMonths1to6: 20, costsMonths7to12: 7, oneTimeEffect: 3 },
-      { projectType: "impact", annualImpact: 15, oneTimeEffect: 2 },
-    ]);
-    expect(totals).toEqual({
-      costsMonths1to6: 30,
-      costsMonths7to12: 7,
-      annualImpact: 20,
-      oneTimeEffect: 5,
-    });
+  it("sums the cost slices and passes the benefit fields through", () => {
+    expect(
+      computeBusinessCaseTotals({
+        costSlices: [{ amount: 12_000 }, { amount: 8_000 }, { amount: 4_000 }],
+        oneTimeBenefit: 5_000,
+        recurringBenefit: 30_000,
+      }),
+    ).toEqual({ implementationCost: 24_000, oneTimeBenefit: 5_000, recurringBenefit: 30_000 });
+  });
+
+  it("treats a slice with a missing amount as 0", () => {
+    expect(computeBusinessCaseTotals({ costSlices: [{ amount: 10 }, {}] }).implementationCost).toBe(
+      10,
+    );
+  });
+});
+
+describe("costSliceLabel", () => {
+  it("labels each slice with its 6-month window", () => {
+    expect(costSliceLabel(0)).toBe("Monate 1–6");
+    expect(costSliceLabel(1)).toBe("Monate 7–12");
+    expect(costSliceLabel(3)).toBe("Monate 19–24");
   });
 });

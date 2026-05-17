@@ -2,7 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 import { Plus } from "lucide-react";
-import { createStoryAction } from "@/features/story/actions/story";
+import { createTaskAction } from "@/features/story/actions/task";
 import { useCreateResult } from "@/features/create/use-create-result";
 import { EntitySelect } from "@/features/create/entity-select";
 import type { CreateContext } from "@/features/create/create-context";
@@ -19,75 +19,53 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-const SELECT_CLASS =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
-interface Sprint {
-  id: string;
-  indexInPi: number;
-  team: { name: string };
-}
-
-export interface CreateStoryDialogProps {
+export interface CreateTaskDialogProps {
   /** Controlled mode (global "+" menu). Omit to render a self-triggering button. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** Page-supplied parent Feature; when omitted an ART → Feature cascade is shown. */
-  featureId?: string;
-  artId?: string;
-  /** Page-supplied sprints for the optional sprint assignment. */
-  sprints?: Sprint[];
+  /** Page-supplied parent Story; when omitted an ART → Feature → Story cascade is shown. */
+  storyId?: string;
   /** Route context used to pre-select ART / Feature in the global menu. */
   context?: CreateContext;
 }
 
 const initialState: ActionState = {};
 
-export function CreateStoryDialog({
-  open,
-  onOpenChange,
-  featureId,
-  artId,
-  sprints,
-  context,
-}: CreateStoryDialogProps) {
+export function CreateTaskDialog({ open, onOpenChange, storyId, context }: CreateTaskDialogProps) {
   const isControlled = open !== undefined;
   const [selfOpen, setSelfOpen] = useState(false);
   const dialogOpen = open ?? selfOpen;
   const setDialogOpen = (v: boolean) => (isControlled ? onOpenChange?.(v) : setSelfOpen(v));
 
   const formRef = useRef<HTMLFormElement>(null);
-  const [state, action, pending] = useActionState(createStoryAction, initialState);
+  const [state, action, pending] = useActionState(createTaskAction, initialState);
   useCreateResult(state, () => {
     setDialogOpen(false);
     formRef.current?.reset();
   });
 
-  // Cascade state (global mode only — page mode passes featureId/artId).
-  const pageScoped = featureId !== undefined && artId !== undefined;
+  const pageScoped = storyId !== undefined;
   const [artSel, setArtSel] = useState(context?.artId ?? "");
   const [featureSel, setFeatureSel] = useState(context?.featureId ?? "");
+  const [storySel, setStorySel] = useState("");
 
   return (
     <>
       {!isControlled && (
         <Button size="sm" onClick={() => setDialogOpen(true)}>
           <Plus className="size-4 mr-1" />
-          Add Story
+          Add Task
         </Button>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Story</DialogTitle>
+            <DialogTitle>Add Task</DialogTitle>
           </DialogHeader>
           <form ref={formRef} action={action} className="space-y-4">
             {pageScoped ? (
-              <>
-                <input type="hidden" name="featureId" value={featureId} />
-                <input type="hidden" name="artId" value={artId} />
-              </>
+              <input type="hidden" name="storyId" value={storyId} />
             ) : (
               <>
                 <EntitySelect
@@ -100,6 +78,7 @@ export function CreateStoryDialog({
                   onChange={(v) => {
                     setArtSel(v);
                     setFeatureSel("");
+                    setStorySel("");
                   }}
                 />
                 <EntitySelect
@@ -111,14 +90,28 @@ export function CreateStoryDialog({
                   params={{ artId: artSel }}
                   disabled={!artSel}
                   value={featureSel}
-                  onChange={setFeatureSel}
+                  onChange={(v) => {
+                    setFeatureSel(v);
+                    setStorySel("");
+                  }}
+                />
+                <EntitySelect
+                  kind="story"
+                  name="storyId"
+                  label="Story"
+                  required
+                  labelField="title"
+                  params={{ featureId: featureSel }}
+                  disabled={!featureSel}
+                  value={storySel}
+                  onChange={setStorySel}
                 />
               </>
             )}
 
             <div className="space-y-1.5">
               <Label>Title *</Label>
-              <Input name="title" required placeholder="As a user, I want to…" />
+              <Input name="title" required placeholder="e.g. Wire up the API client" />
               {state.fieldErrors?.title && (
                 <p className="text-xs text-destructive">{state.fieldErrors.title[0]}</p>
               )}
@@ -130,32 +123,8 @@ export function CreateStoryDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label>
-                Acceptance Criteria
-                <span className="text-muted-foreground font-normal ml-1">(one per line)</span>
-              </Label>
-              <Textarea name="acceptanceCriteria" rows={3} placeholder="Given… When… Then…" />
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-1 space-y-1.5">
-                <Label>Story Points</Label>
-                <Input name="storyPoints" type="number" min={1} max={100} placeholder="5" />
-              </div>
-
-              {pageScoped && sprints && sprints.length > 0 && (
-                <div className="flex-1 space-y-1.5">
-                  <Label>Sprint</Label>
-                  <select name="sprintId" className={SELECT_CLASS}>
-                    <option value="">Unassigned</option>
-                    {sprints.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.team.name} — Sprint {s.indexInPi}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <Label>Estimate (hours)</Label>
+              <Input name="estimateHours" type="number" step="0.5" min={0.5} placeholder="4" />
             </div>
 
             {state.error && <p className="text-sm text-destructive">{state.error}</p>}
@@ -165,7 +134,7 @@ export function CreateStoryDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={pending}>
-                {pending ? "Saving…" : "Add Story"}
+                {pending ? "Saving…" : "Add Task"}
               </Button>
             </DialogFooter>
           </form>

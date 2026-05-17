@@ -144,7 +144,9 @@
       "Bash(find /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/server/events/__tests__* -type f)",
       "Bash(grep -nE 'createServerAction|service:|onSuccess:|mapError:|^\\\\}\\\\\\);' src/features/__TRACKED_VAR__.ts)",
       "Bash(pnpm exec *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git rm *)",
+      "Bash(git mv *)"
     ],
     "additionalDirectories": [
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)",

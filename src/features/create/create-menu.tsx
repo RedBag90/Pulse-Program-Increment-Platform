@@ -21,6 +21,11 @@ import { CreateFeatureDialog } from "@/features/art/components/create-feature-di
 import { CreatePiDialog } from "@/features/pi/components/create-pi-dialog";
 import { CreateTeamDialog } from "@/features/team/components/create-team-dialog";
 import { CreateImpedimentDialog } from "@/features/impediment/components/create-impediment-dialog";
+import { CreateStoryDialog } from "@/features/story/components/create-story-dialog";
+import { CreateTaskDialog } from "@/features/story/components/create-task-dialog";
+import { CreatePiObjectiveDialog } from "@/features/pi/components/create-pi-objective-dialog";
+import { CreateKpiDialog } from "@/features/portfolio/components/create-kpi-dialog";
+import { CreateDependencyDialog } from "@/features/dependencies/components/create-dependency-dialog";
 
 /** Left padding per hierarchy level — reproduces the screenshot's indentation. */
 const INDENT = ["pl-2", "pl-6", "pl-10", "pl-14"] as const;
@@ -82,6 +87,13 @@ export function CreateMenu() {
       {openKey === "impediment" && (
         <CreateImpedimentDialog open onOpenChange={close} context={ctx} />
       )}
+      {openKey === "story" && <CreateStoryDialog open onOpenChange={close} context={ctx} />}
+      {openKey === "task" && <CreateTaskDialog open onOpenChange={close} context={ctx} />}
+      {openKey === "pi-objective" && (
+        <CreatePiObjectiveDialog open onOpenChange={close} context={ctx} />
+      )}
+      {openKey === "kpi" && <CreateKpiDialog open onOpenChange={close} context={ctx} />}
+      {openKey === "dependency" && <CreateDependencyDialog open onOpenChange={close} />}
     </>
   );
 }

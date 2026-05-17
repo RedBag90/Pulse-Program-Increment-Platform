@@ -1,6 +1,6 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { listEpics } from "@/server/services/initiative";
+import { listEpics } from "@/server/services/epic";
 import { listValueStreams } from "@/server/services/value-stream";
 import { CreateEpicDialog } from "@/features/portfolio/components/create-epic-dialog";
 import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-button";

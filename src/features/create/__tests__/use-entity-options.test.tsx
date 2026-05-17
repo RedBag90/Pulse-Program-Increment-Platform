@@ -12,11 +12,14 @@ describe("optionsEndpoint", () => {
     expect(optionsEndpoint("feature", { artId: "art-1" })).toBe("/api/v1/features?artId=art-1");
     expect(optionsEndpoint("pi", { artId: "art-1" })).toBe("/api/v1/pis?artId=art-1");
     expect(optionsEndpoint("team", { artId: "art-1" })).toBe("/api/v1/teams?artId=art-1");
+    expect(optionsEndpoint("story", { featureId: "f-1" })).toBe("/api/v1/stories?featureId=f-1");
   });
 
   it("returns null when a cascading id is still missing", () => {
     expect(optionsEndpoint("feature")).toBeNull();
     expect(optionsEndpoint("pi")).toBeNull();
     expect(optionsEndpoint("team", {})).toBeNull();
+    expect(optionsEndpoint("story")).toBeNull();
+    expect(optionsEndpoint("story", { artId: "art-1" })).toBeNull();
   });
 });

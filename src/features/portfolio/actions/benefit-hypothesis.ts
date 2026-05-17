@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { saveBenefitHypothesis } from "@/server/services/initiative";
+import { saveBenefitHypothesis } from "@/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import type { EpicId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
