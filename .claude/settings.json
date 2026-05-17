@@ -162,7 +162,11 @@
       "Bash(sed -n '1,22p' src/server/services/epic.ts)",
       "Bash(sed -n '1,12p' src/server/services/feature.ts)",
       "Bash(git rev-list *)",
-      "Bash(grep -vE \"unchanged|^$\")"
+      "Bash(grep -vE \"unchanged|^$\")",
+      "Bash(cd \"/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform\" && git rm -r --quiet \"src/features/quality/components 2\" \"src/app/[locale]/\\(dashboard\\)/quality/epics 2\" \"src/app/[locale]/\\(dashboard\\)/quality/features 2\" && rm -rf \"src/features/quality/components 2\" \"src/app/[locale]/\\(dashboard\\)/quality/epics 2\" \"src/app/[locale]/\\(dashboard\\)/quality/features 2\" && echo \"removed stale ' 2' duplicate dirs\" && git ls-files | grep ' 2' || echo \"tracked tree clean of ' 2' paths\")",
+      "Bash(git ls-tree *)",
+      "Bash(chmod 755 src/features/quality/components \"src/app/[locale]/\\(dashboard\\)/quality/epics\" \"src/app/[locale]/\\(dashboard\\)/quality/features\")",
+      "Bash(git show *)"
     ],
     "additionalDirectories": [
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)",
@@ -188,7 +192,8 @@
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/api/v1/impediments",
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)/art/[artId]/impediments",
       "/tmp",
-      "/private/tmp"
+      "/private/tmp",
+      "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)/quality/epics 2"
     ]
   }
 }
