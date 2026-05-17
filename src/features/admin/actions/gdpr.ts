@@ -1,14 +1,17 @@
 "use server";
 
+import { headers } from "next/headers";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
+import { extractRequestMeta } from "@/server/audit/emit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { eraseUserRecords } from "@/server/services/gdpr";
+import type { RequestContext } from "@/server/http/mutation-handler";
 import { isErr } from "@/domain/errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { TenantId, UserId } from "@/domain/types";
+import type { UserId } from "@/domain/types";
 
 /**
  * GDPR erasure: revokes the user's access and audit-logs it, then removes the
@@ -27,12 +30,14 @@ export async function eraseUserAction(userId: string): Promise<{ error?: string 
   }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const result = await eraseUserRecords(
+  const { ipAddress, userAgent } = extractRequestMeta(await headers());
+  const ctx: RequestContext = {
+    principal,
     db,
-    principal.tenantId as TenantId,
-    userId as UserId,
-    principal.id,
-  );
+    ...(ipAddress !== undefined && { ipAddress }),
+    ...(userAgent !== undefined && { userAgent }),
+  };
+  const result = await eraseUserRecords(ctx, { userId: userId as UserId });
   if (isErr(result)) return { error: "Failed to erase the user's records." };
 
   const admin = createAdminClient();

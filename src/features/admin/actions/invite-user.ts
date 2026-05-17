@@ -25,16 +25,12 @@ export const inviteUserAction = createServerAction({
     locale: (fd.get("locale") ?? "en") as "en" | "de",
   }),
   service: (ctx, input) =>
-    inviteUser(ctx.db, {
-      tenantId: ctx.principal.tenantId,
+    inviteUser(ctx, {
       tenantName: ctx.principal.tenantId,
       inviterEmail: ctx.principal.email,
-      actorId: ctx.principal.id,
       inviteeEmail: input.email,
       role: input.role,
       locale: input.locale,
-      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
-      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
     }),
   onSuccess: () => {},
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to send invitation"),

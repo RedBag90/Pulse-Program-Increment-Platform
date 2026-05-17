@@ -137,7 +137,14 @@
       "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform log --oneline -5)",
       "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform add src/app src/components src/features src/lib components.json package.json pnpm-lock.yaml)",
       "Bash(xargs rm -f)",
-      "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform add .claude/settings.json)"
+      "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform add .claude/settings.json)",
+      "Bash(git -C /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform push origin develop)",
+      "Bash(node -e \"const s=require\\('./package.json'\\).scripts; for\\(const k in s\\) console.log\\(k+': '+s[k]\\);\")",
+      "Bash(pnpm test:coverage)",
+      "Bash(find /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/server/events/__tests__* -type f)",
+      "Bash(grep -nE 'createServerAction|service:|onSuccess:|mapError:|^\\\\}\\\\\\);' src/features/__TRACKED_VAR__.ts)",
+      "Bash(pnpm exec *)",
+      "Bash(git commit *)"
     ],
     "additionalDirectories": [
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)",

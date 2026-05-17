@@ -1,0 +1,105 @@
+import type { ReactNode } from "react";
+import { EpicEditForm } from "./epic-edit-form";
+import { STAGE_GATE_LABELS } from "./epic-detail-shell";
+import { buildInitiativeSummary } from "@/domain/initiative-summary";
+import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
+import type { StageGate, InitiativeStatus } from "@/domain/types";
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Entwurf",
+  in_review: "In Prüfung",
+  approved: "Freigegeben",
+  in_progress: "In Umsetzung",
+  blocked: "Blockiert",
+  completed: "Abgeschlossen",
+  cancelled: "Abgebrochen",
+};
+
+export interface EpicOverviewTabProps {
+  epic: {
+    id: string;
+    title: string;
+    description: string | null;
+    stageGate: string;
+    status: string;
+    ownerId: string;
+    updatedAt: Date;
+    approvedAt: Date | null;
+    valueStream: { name: string } | null;
+    businessCase: unknown;
+    children: { status: string }[];
+  };
+  canEdit: boolean;
+}
+
+function formatAmount(n: number): string {
+  return n > 0 ? n.toLocaleString("de-DE") : "—";
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <div className="rounded border bg-muted/30 px-3 py-2 text-sm">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Overview tab — mirrors the screenshot's structure: a derived summary band,
+ * a responsive field grid, and the description. Field values come from data
+ * the Epic already carries; financials are derived from the businessCase JSON.
+ */
+export function EpicOverviewTab({ epic, canEdit }: EpicOverviewTabProps) {
+  const completedChildren = epic.children.filter((c) => c.status === "completed").length;
+
+  const summary = buildInitiativeSummary({
+    stageGate: epic.stageGate as StageGate,
+    status: epic.status as InitiativeStatus,
+    childCount: epic.children.length,
+    completedChildCount: completedChildren,
+    approvedAt: epic.approvedAt,
+    updatedAt: epic.updatedAt,
+  });
+
+  const totals = computeBusinessCaseTotals(parseBusinessCase(epic.businessCase).current.costRows);
+  const implementationCosts = totals.costsMonths1to6 + totals.costsMonths7to12;
+
+  return (
+    <div className="space-y-8">
+      <section>
+        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Summary
+        </p>
+        <p className="rounded bg-muted px-4 py-3 text-sm">{summary}</p>
+      </section>
+
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Field label="Stage">{STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate}</Field>
+        <Field label="Status">{STATUS_LABELS[epic.status] ?? epic.status}</Field>
+        <Field label="Initiative Owner">
+          <span className="font-mono text-xs">{epic.ownerId}</span>
+        </Field>
+        <Field label="Value Stream">{epic.valueStream?.name ?? "—"}</Field>
+        <Field label="Net recurring benefits">{formatAmount(totals.annualImpact)}</Field>
+        <Field label="One-time benefits">{formatAmount(totals.oneTimeEffect)}</Field>
+        <Field label="Implementation costs">{formatAmount(implementationCosts)}</Field>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-lg font-medium">Beschreibung</h2>
+        {canEdit ? (
+          <EpicEditForm
+            id={epic.id}
+            currentTitle={epic.title}
+            currentDescription={epic.description ?? ""}
+          />
+        ) : (
+          <p className="text-foreground">{epic.description ?? "Keine Beschreibung."}</p>
+        )}
+      </section>
+    </div>
+  );
+}

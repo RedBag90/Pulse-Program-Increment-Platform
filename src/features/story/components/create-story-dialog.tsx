@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef } from "react";
+import { useCreateDialogState } from "@/features/create/use-create-dialog-state";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createStoryAction } from "@/features/story/actions/story";
@@ -32,7 +33,7 @@ interface Props {
 const initialState: ActionState = {};
 
 export function CreateStoryDialog({ featureId, artId, sprints }: Props) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useCreateDialogState("story");
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(createStoryAction, initialState);
 

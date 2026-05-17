@@ -1,54 +1,45 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, UserId, ArtId, PiId } from "@/domain/types";
+import type { TenantId, ArtId, PiId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
-import { emitAuditEvent } from "@/server/audit/emit";
 import { generateSprints, validateDateRange } from "@/domain/pi-planning";
 import { buildChangelog } from "@/domain/change-log";
+import type { RequestContext } from "@/server/http/mutation-handler";
+import {
+  withAuditedTransaction,
+  toMutationContext,
+  onUniqueConstraint,
+} from "@/server/services/mutation";
 import { paginate, type PageParams } from "@/server/db/paginate";
 
 export interface CreatePiInput {
-  tenantId: TenantId;
-  actorId: UserId;
   artId: ArtId;
   name: string;
   startDate: Date;
   endDate: Date;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export interface UpdatePiInput {
-  tenantId: TenantId;
-  actorId: UserId;
   id: PiId;
   name?: string | undefined;
   startDate?: Date | undefined;
   endDate?: Date | undefined;
   status?: string | undefined;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
-}
-
-export interface PiLifecycleInput {
-  tenantId: TenantId;
-  actorId: UserId;
-  id: PiId;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export type PiStatus = "planned" | "active" | "completed";
 
 export async function createPi(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: CreatePiInput,
 ): Promise<Result<{ id: PiId }>> {
-  const { tenantId, actorId, artId, name, startDate, endDate, ipAddress, userAgent } = input;
+  const mctx = toMutationContext(ctx);
+  const { artId, name, startDate, endDate } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const art = await tx.art.findFirst({ where: { id: artId, tenantId } });
+  return withAuditedTransaction(
+    mctx,
+    async (tx) => {
+      const art = await tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId } });
       if (!art) {
         return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
       }
@@ -57,110 +48,86 @@ export async function createPi(
       if (isErr(dateCheck)) return dateCheck;
 
       const pi = await tx.programIncrement.create({
-        data: { tenantId, artId, name, startDate, endDate },
+        data: { tenantId: mctx.tenantId, artId, name, startDate, endDate },
       });
 
-      const teams = await tx.team.findMany({ where: { artId, tenantId } });
+      const teams = await tx.team.findMany({ where: { artId, tenantId: mctx.tenantId } });
       if (teams.length > 0) {
         const drafts = generateSprints(startDate, endDate, teams);
         await tx.sprint.createMany({
-          data: drafts.map((s) => ({ tenantId, piId: pi.id, ...s })),
+          data: drafts.map((s) => ({ tenantId: mctx.tenantId, piId: pi.id, ...s })),
         });
       }
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "pi.created",
-        resourceType: "program_increment",
-        resourceId: pi.id,
-        ipAddress,
-        userAgent,
+      return ok({
+        result: { id: pi.id as PiId },
+        audit: { action: "pi.created", resourceType: "program_increment", resourceId: pi.id },
       });
-
-      return ok({ id: pi.id as PiId });
-    })
-    .catch((e: unknown) => {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes("Unique constraint")) {
-        return err({
-          kind: "conflict" as const,
-          reason: `PI "${name}" already exists in this ART`,
-        });
-      }
-      throw e;
-    });
+    },
+    { onPrismaError: onUniqueConstraint(`PI "${name}" already exists in this ART`) },
+  );
 }
 
-export async function updatePi(db: PrismaClient, input: UpdatePiInput): Promise<Result<void>> {
-  const { tenantId, actorId, id, name, startDate, endDate, status, ipAddress, userAgent } = input;
+export async function updatePi(ctx: RequestContext, input: UpdatePiInput): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id, name, startDate, endDate, status } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.programIncrement.findFirst({ where: { id, tenantId } });
-      if (!existing) {
-        return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
-      }
-
-      if (existing.status === "completed" && status !== "completed") {
-        return err({
-          kind: "conflict" as const,
-          reason: "Cannot reopen a completed PI",
-        });
-      }
-
-      // Lifecycle transitions to active/completed go through startPi/completePi,
-      // which enforce the one-active-PI rule and objective commitment checks.
-      if (status !== undefined && status !== existing.status && status !== "planned") {
-        return err({
-          kind: "conflict" as const,
-          reason: `Use the ${status === "active" ? "start" : "complete"} action to move a PI to "${status}"`,
-        });
-      }
-
-      const changes = buildChangelog(
-        { name: existing.name, status: existing.status },
-        { ...(name !== undefined && { name }), ...(status !== undefined && { status }) },
-        ["name", "status"],
-      );
-
-      await tx.programIncrement.update({
-        where: { id },
-        data: {
-          ...(name !== undefined && { name }),
-          ...(startDate !== undefined && { startDate }),
-          ...(endDate !== undefined && { endDate }),
-          ...(status !== undefined && { status }),
-        },
-      });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "pi.updated",
-        resourceType: "program_increment",
-        resourceId: id,
-        changes,
-        ipAddress,
-        userAgent,
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      throw e;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.programIncrement.findFirst({
+      where: { id, tenantId: mctx.tenantId },
     });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
+    }
+
+    if (existing.status === "completed" && status !== "completed") {
+      return err({ kind: "conflict" as const, reason: "Cannot reopen a completed PI" });
+    }
+
+    // Lifecycle transitions to active/completed go through startPi/completePi,
+    // which enforce the one-active-PI rule and objective commitment checks.
+    if (status !== undefined && status !== existing.status && status !== "planned") {
+      return err({
+        kind: "conflict" as const,
+        reason: `Use the ${status === "active" ? "start" : "complete"} action to move a PI to "${status}"`,
+      });
+    }
+
+    const changes = buildChangelog(
+      { name: existing.name, status: existing.status },
+      { ...(name !== undefined && { name }), ...(status !== undefined && { status }) },
+      ["name", "status"],
+    );
+
+    await tx.programIncrement.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(startDate !== undefined && { startDate }),
+        ...(endDate !== undefined && { endDate }),
+        ...(status !== undefined && { status }),
+      },
+    });
+
+    return ok({
+      result: undefined,
+      audit: { action: "pi.updated", resourceType: "program_increment", resourceId: id, changes },
+    });
+  });
 }
 
 /**
  * Starts a PI: enforces that no other PI in the ART is active and that every
  * team in the ART has at least one committed PI Objective (concept PULSE-29).
  */
-export async function startPi(db: PrismaClient, input: PiLifecycleInput): Promise<Result<void>> {
-  const { tenantId, actorId, id, ipAddress, userAgent } = input;
+export async function startPi(ctx: RequestContext, input: { id: PiId }): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id } = input;
 
-  return db.$transaction(async (tx) => {
-    const existing = await tx.programIncrement.findFirst({ where: { id, tenantId } });
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.programIncrement.findFirst({
+      where: { id, tenantId: mctx.tenantId },
+    });
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
     }
@@ -173,7 +140,7 @@ export async function startPi(db: PrismaClient, input: PiLifecycleInput): Promis
     }
 
     const otherActive = await tx.programIncrement.findFirst({
-      where: { tenantId, artId: existing.artId, status: "active", id: { not: id } },
+      where: { tenantId: mctx.tenantId, artId: existing.artId, status: "active", id: { not: id } },
     });
     if (otherActive) {
       return err({
@@ -183,10 +150,12 @@ export async function startPi(db: PrismaClient, input: PiLifecycleInput): Promis
     }
 
     // Every team in the ART must have at least one committed objective.
-    const teams = await tx.team.findMany({ where: { tenantId, artId: existing.artId } });
+    const teams = await tx.team.findMany({
+      where: { tenantId: mctx.tenantId, artId: existing.artId },
+    });
     if (teams.length > 0) {
       const committed = await tx.piObjective.findMany({
-        where: { tenantId, piId: id, committed: true },
+        where: { tenantId: mctx.tenantId, piId: id, committed: true },
         select: { teamId: true },
       });
       const teamsWithObjectives = new Set(committed.map((o) => o.teamId));
@@ -201,27 +170,27 @@ export async function startPi(db: PrismaClient, input: PiLifecycleInput): Promis
 
     await tx.programIncrement.update({ where: { id }, data: { status: "active" } });
 
-    await emitAuditEvent(tx as unknown as PrismaClient, {
-      tenantId,
-      actorId,
-      action: "pi.started",
-      resourceType: "program_increment",
-      resourceId: id,
-      changes: { status: { before: existing.status, after: "active" } },
-      ipAddress,
-      userAgent,
+    return ok({
+      result: undefined,
+      audit: {
+        action: "pi.started",
+        resourceType: "program_increment",
+        resourceId: id,
+        changes: { status: { before: existing.status, after: "active" } },
+      },
     });
-
-    return ok(undefined);
   });
 }
 
 /** Completes an active PI. */
-export async function completePi(db: PrismaClient, input: PiLifecycleInput): Promise<Result<void>> {
-  const { tenantId, actorId, id, ipAddress, userAgent } = input;
+export async function completePi(ctx: RequestContext, input: { id: PiId }): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id } = input;
 
-  return db.$transaction(async (tx) => {
-    const existing = await tx.programIncrement.findFirst({ where: { id, tenantId } });
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.programIncrement.findFirst({
+      where: { id, tenantId: mctx.tenantId },
+    });
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
     }
@@ -235,18 +204,15 @@ export async function completePi(db: PrismaClient, input: PiLifecycleInput): Pro
 
     await tx.programIncrement.update({ where: { id }, data: { status: "completed" } });
 
-    await emitAuditEvent(tx as unknown as PrismaClient, {
-      tenantId,
-      actorId,
-      action: "pi.completed",
-      resourceType: "program_increment",
-      resourceId: id,
-      changes: { status: { before: existing.status, after: "completed" } },
-      ipAddress,
-      userAgent,
+    return ok({
+      result: undefined,
+      audit: {
+        action: "pi.completed",
+        resourceType: "program_increment",
+        resourceId: id,
+        changes: { status: { before: existing.status, after: "completed" } },
+      },
     });
-
-    return ok(undefined);
   });
 }
 
@@ -255,69 +221,54 @@ export async function completePi(db: PrismaClient, input: PiLifecycleInput): Pro
  * features return to the backlog (piId → null), stories leave their sprints
  * (sprintId → null), and impediments are detached but kept in the ART log.
  */
-export async function deletePi(
-  db: PrismaClient,
-  tenantId: TenantId,
-  id: PiId,
-  actorId: UserId,
-  ipAddress?: string | undefined,
-  userAgent?: string | undefined,
-): Promise<Result<void>> {
-  return db
-    .$transaction(async (tx) => {
-      const pi = await tx.programIncrement.findFirst({ where: { id, tenantId } });
-      if (!pi) {
-        return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
-      }
-      if (pi.status !== "planned") {
-        return err({
-          kind: "conflict" as const,
-          reason: "Only a planned PI can be deleted",
-        });
-      }
+export async function deletePi(ctx: RequestContext, input: { id: PiId }): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id } = input;
 
-      const sprints = await tx.sprint.findMany({
-        where: { tenantId, piId: id },
-        select: { id: true },
-      });
-      const sprintIds = sprints.map((s) => s.id);
+  return withAuditedTransaction(mctx, async (tx) => {
+    const pi = await tx.programIncrement.findFirst({ where: { id, tenantId: mctx.tenantId } });
+    if (!pi) {
+      return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
+    }
+    if (pi.status !== "planned") {
+      return err({ kind: "conflict" as const, reason: "Only a planned PI can be deleted" });
+    }
 
-      // Features assigned to this PI fall back to the backlog.
-      await tx.initiative.updateMany({ where: { tenantId, piId: id }, data: { piId: null } });
-
-      // Stories in this PI's sprints lose their sprint assignment.
-      if (sprintIds.length > 0) {
-        await tx.initiative.updateMany({
-          where: { tenantId, sprintId: { in: sprintIds } },
-          data: { sprintId: null },
-        });
-      }
-
-      // Impediments are kept (ART-scoped) but detached from the PI/sprints.
-      await tx.impediment.updateMany({
-        where: { tenantId, OR: [{ piId: id }, { sprintId: { in: sprintIds } }] },
-        data: { piId: null, sprintId: null },
-      });
-
-      await tx.piObjective.deleteMany({ where: { tenantId, piId: id } });
-      await tx.sprint.deleteMany({ where: { tenantId, piId: id } });
-      await tx.programIncrement.delete({ where: { id } });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "pi.deleted",
-        resourceType: "program_increment",
-        resourceId: id,
-        ipAddress,
-        userAgent,
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      throw e;
+    const sprints = await tx.sprint.findMany({
+      where: { tenantId: mctx.tenantId, piId: id },
+      select: { id: true },
     });
+    const sprintIds = sprints.map((s) => s.id);
+
+    // Features assigned to this PI fall back to the backlog.
+    await tx.initiative.updateMany({
+      where: { tenantId: mctx.tenantId, piId: id },
+      data: { piId: null },
+    });
+
+    // Stories in this PI's sprints lose their sprint assignment.
+    if (sprintIds.length > 0) {
+      await tx.initiative.updateMany({
+        where: { tenantId: mctx.tenantId, sprintId: { in: sprintIds } },
+        data: { sprintId: null },
+      });
+    }
+
+    // Impediments are kept (ART-scoped) but detached from the PI/sprints.
+    await tx.impediment.updateMany({
+      where: { tenantId: mctx.tenantId, OR: [{ piId: id }, { sprintId: { in: sprintIds } }] },
+      data: { piId: null, sprintId: null },
+    });
+
+    await tx.piObjective.deleteMany({ where: { tenantId: mctx.tenantId, piId: id } });
+    await tx.sprint.deleteMany({ where: { tenantId: mctx.tenantId, piId: id } });
+    await tx.programIncrement.delete({ where: { id } });
+
+    return ok({
+      result: undefined,
+      audit: { action: "pi.deleted", resourceType: "program_increment", resourceId: id },
+    });
+  });
 }
 
 export async function listPis(

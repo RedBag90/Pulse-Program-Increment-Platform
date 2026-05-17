@@ -39,9 +39,7 @@ export const POST = createMutationHandler({
   action: "impediment.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
   service: (ctx, input) =>
-    createImpediment(ctx.db, {
-      tenantId: ctx.principal.tenantId as TenantId,
-      actorId: ctx.principal.id,
+    createImpediment(ctx, {
       artId: input.artId as ArtId,
       piId: input.piId as PiId | undefined,
       sprintId: input.sprintId as SprintId | undefined,

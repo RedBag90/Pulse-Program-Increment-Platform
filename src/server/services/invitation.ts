@@ -4,22 +4,24 @@ import type { TenantId, UserId } from "@/domain/types";
 import type { Role } from "@/domain/roles";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
-import { emitAuditEvent } from "@/server/audit/emit";
 import { publishDomainEvent } from "@/server/events/publish";
+import type { RequestContext } from "@/server/http/mutation-handler";
+import {
+  withAuditedTransaction,
+  toMutationContext,
+  onUniqueConstraint,
+  type MutationContext,
+} from "@/server/services/mutation";
 
 const INVITE_EXPIRY_DAYS = 7;
 const INVITE_AUDIENCE = "pulse:invite";
 
 export interface InviteUserInput {
-  tenantId: TenantId;
   tenantName: string;
   inviterEmail: string;
-  actorId: UserId;
   inviteeEmail: string;
   role: Role;
   locale: "en" | "de";
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export interface InviteClaims {
@@ -66,54 +68,53 @@ export async function verifyInviteToken(token: string): Promise<Result<InviteCla
 }
 
 /**
- * Signs an invite JWT, sends the invitation email, and emits an audit event.
+ * Signs an invite JWT, queues the invitation email (via the outbox), and emits
+ * an audit event — the email and audit row commit in one transaction.
  */
 export async function inviteUser(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: InviteUserInput,
 ): Promise<Result<{ token: string }>> {
+  const mctx = toMutationContext(ctx);
+
   const token = await signInviteToken({
     email: input.inviteeEmail,
-    tenantId: input.tenantId,
+    tenantId: mctx.tenantId,
     role: input.role,
   });
 
-  await publishDomainEvent(db, {
-    type: "user.invited",
-    tenantId: input.tenantId,
-    actorId: input.actorId,
-    inviteeEmail: input.inviteeEmail,
-    inviterEmail: input.inviterEmail,
-    tenantName: input.tenantName,
-    role: input.role,
-    locale: input.locale,
-    token,
-  });
+  return withAuditedTransaction(mctx, async (tx) => {
+    await publishDomainEvent(tx, {
+      type: "user.invited",
+      tenantId: mctx.tenantId,
+      actorId: mctx.actorId,
+      inviteeEmail: input.inviteeEmail,
+      inviterEmail: input.inviterEmail,
+      tenantName: input.tenantName,
+      role: input.role,
+      locale: input.locale,
+      token,
+    });
 
-  await emitAuditEvent(db, {
-    tenantId: input.tenantId,
-    actorId: input.actorId,
-    action: "user.invited",
-    resourceType: "user_role_assignment",
-    resourceId: input.inviteeEmail,
-    ipAddress: input.ipAddress,
-    userAgent: input.userAgent,
-    changes: {
-      email: { before: null, after: input.inviteeEmail },
-      role: { before: null, after: input.role },
-    },
+    return ok({
+      result: { token },
+      audit: {
+        action: "user.invited",
+        resourceType: "user_role_assignment",
+        resourceId: input.inviteeEmail,
+        changes: {
+          email: { before: null, after: input.inviteeEmail },
+          role: { before: null, after: input.role },
+        },
+      },
+    });
   });
-
-  return ok({ token });
 }
 
 /**
- * Accepts an invite by creating a Supabase user account (via Supabase Admin API)
- * and inserting the role assignment in the same Prisma transaction.
- *
- * Note: The actual Supabase signUp is handled by the client accept-invitation page
- * using the invite token directly. This service validates the token and creates
- * the role assignment once the Supabase user exists.
+ * Accepts an invite by inserting the role assignment for a freshly created
+ * Supabase user. The acceptor has no role assignment yet, so this runs without
+ * a RequestContext — the tenant + actor come from the verified invite token.
  */
 export async function acceptInvitation(
   db: PrismaClient,
@@ -129,8 +130,17 @@ export async function acceptInvitation(
 
   const { tenantId, role, email } = claimsResult.value;
 
-  return db
-    .$transaction(async (tx) => {
+  const mctx: MutationContext = {
+    db,
+    tenantId,
+    actorId: input.userId,
+    ...(input.ipAddress !== undefined && { ipAddress: input.ipAddress }),
+    ...(input.userAgent !== undefined && { userAgent: input.userAgent }),
+  };
+
+  return withAuditedTransaction(
+    mctx,
+    async (tx) => {
       await tx.userRoleAssignment.create({
         data: {
           userId: input.userId,
@@ -142,27 +152,19 @@ export async function acceptInvitation(
         },
       });
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId: input.userId,
-        action: "user.role.assigned",
-        resourceType: "user_role_assignment",
-        resourceId: input.userId,
-        ipAddress: input.ipAddress,
-        userAgent: input.userAgent,
-        changes: { email: { before: null, after: email }, role: { before: null, after: role } },
+      return ok({
+        result: undefined,
+        audit: {
+          action: "user.role.assigned",
+          resourceType: "user_role_assignment",
+          resourceId: input.userId,
+          changes: {
+            email: { before: null, after: email },
+            role: { before: null, after: role },
+          },
+        },
       });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes("Unique constraint")) {
-        return err({
-          kind: "conflict" as const,
-          reason: "User already has this role in the tenant",
-        });
-      }
-      throw e;
-    });
+    },
+    { onPrismaError: onUniqueConstraint("User already has this role in the tenant") },
+  );
 }

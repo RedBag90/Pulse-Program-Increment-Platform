@@ -1,13 +1,16 @@
 "use server";
 
+import { headers } from "next/headers";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
+import { extractRequestMeta } from "@/server/audit/emit";
 import { updateStory } from "@/server/services/story";
+import type { RequestContext } from "@/server/http/mutation-handler";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isErr } from "@/domain/errors";
-import type { TenantId, StoryId, SprintId } from "@/domain/types";
+import type { StoryId, SprintId } from "@/domain/types";
 
 export async function assignSprintAction(
   storyId: string,
@@ -25,9 +28,14 @@ export async function assignSprintAction(
   }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const result = await updateStory(db, {
-    tenantId: principal.tenantId as TenantId,
-    actorId: principal.id,
+  const { ipAddress, userAgent } = extractRequestMeta(await headers());
+  const ctx: RequestContext = {
+    principal,
+    db,
+    ...(ipAddress !== undefined && { ipAddress }),
+    ...(userAgent !== undefined && { userAgent }),
+  };
+  const result = await updateStory(ctx, {
     id: storyId as StoryId,
     sprintId: sprintId === null ? null : (sprintId as SprintId),
   });

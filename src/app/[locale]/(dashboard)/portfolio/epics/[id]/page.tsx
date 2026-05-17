@@ -1,40 +1,34 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getEpic } from "@/server/services/initiative";
-import { EpicEditForm } from "@/features/portfolio/components/epic-edit-form";
-import { LbcEditor } from "@/features/portfolio/components/lbc-editor";
+import { getEpic, listInitiativeHistory } from "@/server/services/initiative";
+import { listKpis } from "@/server/services/kpi";
+import { EpicDetailShell, resolveEpicTab } from "@/features/portfolio/components/epic-detail-shell";
+import { EpicOverviewTab } from "@/features/portfolio/components/epic-overview-tab";
+import { EpicKpisTab, type KpiRow } from "@/features/portfolio/components/epic-kpis-tab";
+import { BenefitHypothesisEditor } from "@/features/portfolio/components/benefit-hypothesis-editor";
+import { BusinessCaseEditor } from "@/features/portfolio/components/business-case-editor";
 import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-button";
-import { parseLeanBusinessCase } from "@/domain/lbc";
+import { parseBenefitHypothesis } from "@/domain/benefit-hypothesis";
+import { parseBusinessCase } from "@/domain/business-case";
+import { parseKpiMeasurements, latestKpiValue } from "@/domain/kpi";
 import { redirect } from "next/navigation";
-import { Link } from "@/i18n/navigation";
 import type { EpicId } from "@/domain/types";
-
-function formatDate(d: Date) {
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
 
 interface Props {
   params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }
 
-const STAGE_GATE_LABELS: Record<string, string> = {
-  L0: "L0 Funnel",
-  L1: "L1 Reviewing",
-  L2: "L2 Analyzing",
-  L3: "L3 Portfolio Backlog",
-  L4: "L4 Implementing",
-  L5: "L5 Done",
-};
-
-export default async function EpicDetailPage({ params }: Props) {
+export default async function EpicDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { tab } = await searchParams;
+  const activeTab = resolveEpicTab(tab);
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const epic = await getEpic(db, principal.tenantId, id as EpicId);
-
   if (!epic) redirect("/portfolio/epics");
 
   const canEdit =
@@ -42,69 +36,112 @@ export default async function EpicDetailPage({ params }: Props) {
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 
-  const lbc = parseLeanBusinessCase(epic.leanBusinessCase);
+  const [historyEvents, kpis] = await Promise.all([
+    listInitiativeHistory(db, principal.tenantId, epic.id),
+    listKpis(db, principal.tenantId, epic.id as EpicId),
+  ]);
+
+  const activityEvents = historyEvents.map((e) => ({
+    id: e.id,
+    action: e.action,
+    occurredAt: e.occurredAt.toISOString(),
+  }));
+
+  const kpiRows: KpiRow[] = kpis.map((k) => ({
+    id: k.id,
+    name: k.name,
+    unit: k.unit,
+    baseline: k.baseline === null ? null : Number(k.baseline),
+    target: k.target === null ? null : Number(k.target),
+    latest: latestKpiValue(parseKpiMeasurements(k.measurements)),
+  }));
+
+  const benefitHypothesis = parseBenefitHypothesis(epic.benefitHypothesis);
+  const businessCase = parseBusinessCase(epic.businessCase);
 
   return (
-    <main className="p-8 max-w-4xl mx-auto space-y-8">
-      <div>
-        <Link href="/portfolio/epics" className="text-sm text-primary hover:underline">
-          ← Back to epics
-        </Link>
-        <div className="flex items-center gap-3 mt-2">
-          <h1 className="text-2xl font-semibold">{epic.title}</h1>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-            {STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate}
-          </span>
-          {canEdit && (
-            <div className="ml-auto">
-              <DeleteEpicButton id={epic.id} title={epic.title} />
-            </div>
+    <EpicDetailShell
+      epicId={epic.id}
+      title={epic.title}
+      stageGate={epic.stageGate}
+      activeTab={activeTab}
+      activityEvents={activityEvents}
+      headerActions={canEdit ? <DeleteEpicButton id={epic.id} title={epic.title} /> : undefined}
+    >
+      {activeTab === "overview" && <EpicOverviewTab epic={epic} canEdit={canEdit} />}
+
+      {activeTab === "business-case" && (
+        <section>
+          <h2 className="mb-4 text-lg font-medium">Business Case</h2>
+          {canEdit ? (
+            <BusinessCaseEditor
+              epicId={epic.id}
+              current={businessCase.current}
+              history={businessCase.history}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">Keine Bearbeitungsrechte.</p>
           )}
-        </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          Value Stream: <span className="font-medium">{epic.valueStream?.name ?? "—"}</span>
-        </p>
-        {epic.approvedAt && (
-          <p className="text-sm text-green-700 mt-1">
-            Approved on {formatDate(epic.approvedAt)}
-            {epic.approvalComment ? ` — “${epic.approvalComment}”` : ""}
-          </p>
-        )}
-      </div>
-
-      {canEdit ? (
-        <EpicEditForm
-          id={epic.id}
-          currentTitle={epic.title}
-          currentDescription={epic.description ?? ""}
-        />
-      ) : (
-        <div className="space-y-4">
-          <p className="text-foreground">{epic.description ?? "No description."}</p>
-        </div>
-      )}
-
-      {canEdit && (
-        <section>
-          <h2 className="text-lg font-medium mb-4">Lean Business Case</h2>
-          <LbcEditor epicId={epic.id} current={lbc.current} history={lbc.history} />
         </section>
       )}
 
-      {epic.children.length > 0 && (
+      {activeTab === "benefit-hypothesis" && (
         <section>
-          <h2 className="text-lg font-medium mb-3">Child Initiatives</h2>
-          <ul className="space-y-2">
-            {epic.children.map((child) => (
-              <li key={child.id} className="flex items-center gap-3 text-sm border rounded p-3">
-                <span className="rounded bg-muted px-2 py-0.5 text-xs">L{child.level}</span>
-                <span className="font-medium">{child.title}</span>
-                <span className="text-muted-foreground ml-auto">{child.status}</span>
-              </li>
-            ))}
-          </ul>
+          <h2 className="mb-4 text-lg font-medium">Benefit Hypothese</h2>
+          {canEdit ? (
+            <BenefitHypothesisEditor
+              epicId={epic.id}
+              current={benefitHypothesis.current}
+              history={benefitHypothesis.history}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">Keine Bearbeitungsrechte.</p>
+          )}
         </section>
       )}
-    </main>
+
+      {activeTab === "breakdown" && (
+        <section>
+          <h2 className="mb-3 text-lg font-medium">Breakdown</h2>
+          {epic.children.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Keine untergeordneten Initiativen.</p>
+          ) : (
+            <ul className="space-y-2">
+              {epic.children.map((child) => (
+                <li key={child.id} className="flex items-center gap-3 rounded border p-3 text-sm">
+                  <span className="rounded bg-muted px-2 py-0.5 text-xs">L{child.level}</span>
+                  <span className="font-medium">{child.title}</span>
+                  <span className="ml-auto text-muted-foreground">{child.status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {activeTab === "kpis" && (
+        <EpicKpisTab initiativeId={epic.id} kpis={kpiRows} canEdit={canEdit} />
+      )}
+
+      {activeTab === "history" && (
+        <section>
+          <h2 className="mb-3 text-lg font-medium">History</h2>
+          {activityEvents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Keine Historie.</p>
+          ) : (
+            <ul className="divide-y rounded border">
+              {activityEvents.map((e) => (
+                <li key={e.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+                  <span className="font-medium">{e.action}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {new Date(e.occurredAt).toLocaleString("de-DE")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+    </EpicDetailShell>
   );
 }

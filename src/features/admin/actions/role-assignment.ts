@@ -31,9 +31,7 @@ export const assignRoleAction = createServerAction({
     teamIds: fd.get("teamIds") ?? "",
   }),
   service: (ctx, input) =>
-    assignRole(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    assignRole(ctx, {
       targetUserId: input.targetUserId as UserId,
       role: input.role,
       scope: {
@@ -41,8 +39,6 @@ export const assignRoleAction = createServerAction({
         artIds: input.artIds.split(",").filter(Boolean),
         teamIds: input.teamIds.split(",").filter(Boolean),
       },
-      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
-      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
     }),
   onSuccess: () => revalidatePath("/admin/users"),
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to assign role"),
@@ -62,14 +58,10 @@ export const removeRoleAction = createServerAction({
     role: fd.get("role"),
   }),
   service: (ctx, input) =>
-    removeRole(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    removeRole(ctx, {
       assignmentId: input.assignmentId,
       targetUserId: input.targetUserId as UserId,
       role: input.role,
-      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
-      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
     }),
   onSuccess: () => revalidatePath("/admin/users"),
   mapError: (e) => (e.kind === "not_found" ? "Role assignment not found" : "Failed to remove role"),

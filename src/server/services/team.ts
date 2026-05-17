@@ -1,151 +1,125 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, UserId, ArtId, TeamId } from "@/domain/types";
+import type { TenantId, ArtId, TeamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
-import { emitAuditEvent } from "@/server/audit/emit";
+import { buildChangelog } from "@/domain/change-log";
 import { generateSprints } from "@/domain/pi-planning";
+import type { RequestContext } from "@/server/http/mutation-handler";
+import {
+  withAuditedTransaction,
+  toMutationContext,
+  onUniqueConstraint,
+} from "@/server/services/mutation";
 
 export interface CreateTeamInput {
-  tenantId: TenantId;
-  actorId: UserId;
   artId: ArtId;
   name: string;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export interface UpdateTeamInput {
-  tenantId: TenantId;
-  actorId: UserId;
   id: TeamId;
   name?: string | undefined;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export async function createTeam(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: CreateTeamInput,
 ): Promise<Result<{ id: TeamId }>> {
-  const { tenantId, actorId, artId, name, ipAddress, userAgent } = input;
+  const mctx = toMutationContext(ctx);
+  const { artId, name } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const art = await tx.art.findFirst({ where: { id: artId, tenantId } });
+  return withAuditedTransaction(
+    mctx,
+    async (tx) => {
+      const art = await tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId } });
       if (!art) {
         return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
       }
 
-      const team = await tx.team.create({ data: { tenantId, artId, name } });
+      const team = await tx.team.create({ data: { tenantId: mctx.tenantId, artId, name } });
 
       // Backfill sprints: a team added after a PI was created still needs the PI's
       // sprints. Mirrors createPi, which only covers teams existing at PI creation.
       // Only planned PIs — an active/completed PI's sprint set is frozen.
       const plannedPis = await tx.programIncrement.findMany({
-        where: { tenantId, artId, status: "planned" },
+        where: { tenantId: mctx.tenantId, artId, status: "planned" },
       });
       for (const pi of plannedPis) {
         const drafts = generateSprints(pi.startDate, pi.endDate, [{ id: team.id }]);
         await tx.sprint.createMany({
-          data: drafts.map((s) => ({ tenantId, piId: pi.id, ...s })),
+          data: drafts.map((s) => ({ tenantId: mctx.tenantId, piId: pi.id, ...s })),
         });
       }
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "team.created",
-        resourceType: "team",
-        resourceId: team.id,
-        ipAddress,
-        userAgent,
+      return ok({
+        result: { id: team.id as TeamId },
+        audit: { action: "team.created", resourceType: "team", resourceId: team.id },
       });
-
-      return ok({ id: team.id as TeamId });
-    })
-    .catch((e: unknown) => {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes("Unique constraint")) {
-        return err({ kind: "conflict" as const, reason: `Team "${name}" already exists` });
-      }
-      throw e;
-    });
+    },
+    { onPrismaError: onUniqueConstraint(`Team "${name}" already exists`) },
+  );
 }
 
-export async function updateTeam(db: PrismaClient, input: UpdateTeamInput): Promise<Result<void>> {
-  const { tenantId, actorId, id, name, ipAddress, userAgent } = input;
+export async function updateTeam(
+  ctx: RequestContext,
+  input: UpdateTeamInput,
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id, name } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.team.findFirst({ where: { id, tenantId } });
+  return withAuditedTransaction(
+    mctx,
+    async (tx) => {
+      const existing = await tx.team.findFirst({ where: { id, tenantId: mctx.tenantId } });
       if (!existing) {
         return err({ kind: "not_found" as const, resourceType: "Team", id });
       }
+
+      const changes = buildChangelog(
+        { name: existing.name },
+        { ...(name !== undefined && { name }) },
+        ["name"],
+      );
 
       await tx.team.update({
         where: { id },
         data: { ...(name !== undefined && { name }) },
       });
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "team.updated",
-        resourceType: "team",
-        resourceId: id,
-        changes: name !== undefined ? { name: { before: existing.name, after: name } } : {},
-        ipAddress,
-        userAgent,
+      return ok({
+        result: undefined,
+        audit: { action: "team.updated", resourceType: "team", resourceId: id, changes },
       });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes("Unique constraint")) {
-        return err({ kind: "conflict" as const, reason: `Team "${name}" already exists` });
-      }
-      throw e;
-    });
+    },
+    { onPrismaError: onUniqueConstraint(`Team "${name}" already exists`) },
+  );
 }
 
 export async function deleteTeam(
-  db: PrismaClient,
-  tenantId: TenantId,
-  id: TeamId,
-  actorId: UserId,
-  ipAddress?: string | undefined,
-  userAgent?: string | undefined,
+  ctx: RequestContext,
+  input: { id: TeamId },
 ): Promise<Result<void>> {
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.team.findFirst({
-        where: { id, tenantId },
-        include: { _count: { select: { sprints: true } } },
-      });
-      if (!existing) return err({ kind: "not_found" as const, resourceType: "Team", id });
+  const mctx = toMutationContext(ctx);
+  const { id } = input;
 
-      if (existing._count.sprints > 0) {
-        return err({ kind: "conflict" as const, reason: "Team has active sprints" });
-      }
-
-      await tx.team.delete({ where: { id } });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "team.deleted",
-        resourceType: "team",
-        resourceId: id,
-        ipAddress,
-        userAgent,
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      throw e;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.team.findFirst({
+      where: { id, tenantId: mctx.tenantId },
+      include: { _count: { select: { sprints: true } } },
     });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Team", id });
+
+    if (existing._count.sprints > 0) {
+      return err({ kind: "conflict" as const, reason: "Team has active sprints" });
+    }
+
+    await tx.team.delete({ where: { id } });
+
+    return ok({
+      result: undefined,
+      audit: { action: "team.deleted", resourceType: "team", resourceId: id },
+    });
+  });
 }
 
 export async function listTeams(db: PrismaClient, tenantId: TenantId, artId: ArtId) {

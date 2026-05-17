@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
-import { seedTenant } from "@/test/fixtures/seed";
+import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import { createTeam } from "@/server/services/team";
 import { isOk } from "@/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
@@ -26,9 +26,7 @@ describe("createTeam — sprint backfill", () => {
       },
     });
 
-    const result = await createTeam(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createTeam(testRequestContext(db, seed), {
       artId: seed.artId,
       name: "Team Alpha",
     });
@@ -54,9 +52,7 @@ describe("createTeam — sprint backfill", () => {
       },
     });
 
-    const result = await createTeam(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createTeam(testRequestContext(db, seed), {
       artId: seed.artId,
       name: "Team Beta",
     });
@@ -69,9 +65,7 @@ describe("createTeam — sprint backfill", () => {
   });
 
   it("creates a team with no sprints when the ART has no planned PIs", async () => {
-    const result = await createTeam(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createTeam(testRequestContext(db, seed), {
       artId: seed.artId,
       name: "Team Gamma",
     });

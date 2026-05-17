@@ -1,3 +1,6 @@
+import type { BenefitHypothesis } from "@/domain/benefit-hypothesis";
+import type { BusinessCase } from "@/domain/business-case";
+
 /**
  * Numeric ordering is load-bearing: parent.level + 1 === child.level.
  */
@@ -49,15 +52,6 @@ export interface WsjfScore {
   readonly computed: number;
 }
 
-export interface LeanBusinessCase {
-  problemStatement: string;
-  customerValue: string;
-  costEstimate?: number;
-  roiEstimate?: number;
-  successCriteria: string;
-  risks: string;
-}
-
 // ---------------------------------------------------------------------------
 // Core initiative hierarchy (discriminated union)
 // ---------------------------------------------------------------------------
@@ -84,7 +78,10 @@ export interface Epic extends InitiativeBase {
   readonly id: EpicId;
   readonly parentId: null;
   readonly valueStreamId: ValueStreamId;
-  leanBusinessCase: LeanBusinessCase;
+  /** Benefit Hypothesis artefact — formulated during L1 Reviewing. */
+  benefitHypothesis?: BenefitHypothesis;
+  /** Business Case artefact — created during L2 Analyzing. */
+  businessCase?: BusinessCase;
 }
 
 export interface Feature extends InitiativeBase {

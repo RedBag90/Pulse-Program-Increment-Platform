@@ -1,14 +1,17 @@
 "use server";
 
 import { z } from "zod";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
+import { extractRequestMeta } from "@/server/audit/emit";
 import { createStory, deleteStory } from "@/server/services/story";
+import type { RequestContext } from "@/server/http/mutation-handler";
 import { isErr } from "@/domain/errors";
 import { redirect } from "next/navigation";
-import type { TenantId, FeatureId, SprintId, StoryId } from "@/domain/types";
+import type { FeatureId, SprintId, StoryId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
 import { createServerAction } from "@/server/http/server-action";
 
@@ -60,9 +63,14 @@ export async function createStoryAction(
     : undefined;
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const result = await createStory(db, {
-    tenantId: principal.tenantId as TenantId,
-    actorId: principal.id,
+  const { ipAddress, userAgent } = extractRequestMeta(await headers());
+  const ctx: RequestContext = {
+    principal,
+    db,
+    ...(ipAddress !== undefined && { ipAddress }),
+    ...(userAgent !== undefined && { userAgent }),
+  };
+  const result = await createStory(ctx, {
     parentId: parsed.data.featureId as FeatureId,
     sprintId: parsed.data.sprintId as SprintId | undefined,
     title: parsed.data.title,
@@ -86,8 +94,7 @@ export const deleteStoryAction = createServerAction({
   action: "story.delete",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
   parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
-  service: (ctx, input) =>
-    deleteStory(ctx.db, ctx.principal.tenantId as TenantId, ctx.principal.id, input.id as StoryId),
+  service: (ctx, input) => deleteStory(ctx, { id: input.id as StoryId }),
   onSuccess: () => revalidatePath("/feature/[featureId]", "page"),
   mapError: (e) => (e.kind === "not_found" ? "Story not found" : "Failed to delete story"),
 });

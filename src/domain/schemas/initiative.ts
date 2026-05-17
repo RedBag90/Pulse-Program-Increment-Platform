@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STAGE_GATES } from "@/domain/stage-gate";
 
 // ---------------------------------------------------------------------------
 // Shared primitives
@@ -14,7 +15,7 @@ export const fibonacci = z.union([
   z.literal(20),
 ]);
 
-export const stageGate = z.enum(["L0", "L1", "L2", "L3", "L4", "L5"]);
+export const stageGate = z.enum(STAGE_GATES);
 
 export const initiativeStatus = z.enum([
   "draft",
@@ -33,13 +34,54 @@ export const wsjfInputSchema = z.object({
   jobSize: fibonacci,
 });
 
-export const leanBusinessCaseSchema = z.object({
-  problemStatement: z.string().min(1).max(5000),
-  customerValue: z.string().min(1).max(5000),
-  costEstimate: z.number().positive().optional(),
-  roiEstimate: z.number().optional(),
-  successCriteria: z.string().min(1).max(2000),
-  risks: z.string().min(1).max(2000),
+// Benefit Hypothesis (Epic artefact — L1 Reviewing). All fields optional:
+// the artefact is filled in progressively after the Epic is created.
+export const benefitHypothesisSchema = z.object({
+  measuresHypothesis: z.string().max(5000).optional(),
+  changeFromBaseline: z.string().max(5000).optional(),
+  businessOutcomes: z.array(z.string().min(1).max(1000)).max(20).optional(),
+  leadingIndicators: z.array(z.string().min(1).max(1000)).max(20).optional(),
+  risks: z.array(z.string().min(1).max(1000)).max(20).optional(),
+});
+
+// Business Case (Epic artefact — L2 Analyzing). Replaces the former LBC.
+export const projectTypeSchema = z.enum(["discovery", "enabler", "impact"]);
+export const approvalPartySchema = z.enum([
+  "mgmt",
+  "business_owner",
+  "finance",
+  "irt_owner",
+  "lace_vmo",
+]);
+
+export const businessCaseCostRowSchema = z.object({
+  projectType: projectTypeSchema,
+  costsMonths1to6: z.number().nonnegative().optional(),
+  costsMonths7to12: z.number().nonnegative().optional(),
+  annualImpact: z.number().optional(),
+  oneTimeEffect: z.number().optional(),
+});
+
+export const businessCaseApprovalSchema = z.object({
+  party: approvalPartySchema,
+  approved: z.boolean(),
+  approverName: z.string().max(200).optional(),
+});
+
+export const businessCaseSchema = z.object({
+  funnelEntryDate: z.string().max(40).optional(),
+  keyStakeholders: z.string().max(2000).optional(),
+  initiativeDescription: z.string().max(5000).optional(),
+  businessOutcomeHypothesis: z.string().max(5000).optional(),
+  leadingIndicators: z.string().max(2000).optional(),
+  inScope: z.string().max(2000).optional(),
+  outOfScope: z.string().max(2000).optional(),
+  whatYouNeedToBelieve: z.string().max(2000).optional(),
+  costRows: z.array(businessCaseCostRowSchema).max(3).optional(),
+  customersAffected: z.string().max(5000).optional(),
+  impactOnSolutions: z.string().max(5000).optional(),
+  analysisSummary: z.string().max(5000).optional(),
+  approvals: z.array(businessCaseApprovalSchema).max(5).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -60,7 +102,6 @@ export const createEpicSchema = baseInitiativeSchema.extend({
   level: z.literal("EPIC"),
   parentId: z.null(),
   valueStreamId: z.string().uuid(),
-  leanBusinessCase: leanBusinessCaseSchema,
 });
 
 export const createFeatureSchema = baseInitiativeSchema.extend({
@@ -101,7 +142,8 @@ export type CreateStoryInput = z.infer<typeof createStorySchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type CreateInitiativeInput = z.infer<typeof createInitiativeSchema>;
 export type WsjfInput = z.infer<typeof wsjfInputSchema>;
-export type LeanBusinessCaseInput = z.infer<typeof leanBusinessCaseSchema>;
+export type BenefitHypothesisInput = z.infer<typeof benefitHypothesisSchema>;
+export type BusinessCaseInput = z.infer<typeof businessCaseSchema>;
 
 // ---------------------------------------------------------------------------
 // WSJF computation (pure function — no I/O)

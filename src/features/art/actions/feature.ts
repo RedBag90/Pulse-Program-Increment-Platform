@@ -1,17 +1,20 @@
 "use server";
 
 import { z } from "zod";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createFeature, scoreFeature, setFeaturePi } from "@/server/services/feature";
 import { softDeleteFeature } from "@/server/services/initiative";
 import { createServerAction } from "@/server/http/server-action";
+import type { RequestContext } from "@/server/http/mutation-handler";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
+import { extractRequestMeta } from "@/server/audit/emit";
 import { isErr } from "@/domain/errors";
 import { fibonacci } from "@/domain/schemas/initiative";
-import type { EpicId, ArtId, FeatureId, PiId, TenantId } from "@/domain/types";
+import type { EpicId, ArtId, FeatureId, PiId } from "@/domain/types";
 
 export interface FeatureActionState {
   error?: string;
@@ -19,6 +22,11 @@ export interface FeatureActionState {
 }
 
 export const createFeatureAction = createServerAction({
+  describeCreated: (v: { id: string }) => ({
+    id: v.id,
+    label: "Feature",
+    href: `/feature/${v.id}`,
+  }),
   schema: z.object({
     artId: z.string().uuid(),
     parentId: z.string().uuid(),
@@ -50,9 +58,7 @@ export const createFeatureAction = createServerAction({
           .map((s) => s.trim())
           .filter(Boolean)
       : [];
-    return createFeature(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    return createFeature(ctx, {
       parentId: input.parentId as EpicId,
       artId: input.artId as ArtId,
       title: input.title,
@@ -62,8 +68,6 @@ export const createFeatureAction = createServerAction({
       wsjfRiskReduction: input.wsjfRiskReduction,
       wsjfJobSize: input.wsjfJobSize,
       acceptanceCriteria,
-      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
-      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
     });
   },
   onSuccess: () => revalidatePath("/art/[artId]/features", "page"),
@@ -91,16 +95,12 @@ export const scoreFeatureAction = createServerAction({
     wsjfJobSize: fd.get("wsjfJobSize"),
   }),
   service: (ctx, input) =>
-    scoreFeature(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    scoreFeature(ctx, {
       id: input.featureId as FeatureId,
       wsjfBusinessValue: input.wsjfBusinessValue,
       wsjfTimeCriticality: input.wsjfTimeCriticality,
       wsjfRiskReduction: input.wsjfRiskReduction,
       wsjfJobSize: input.wsjfJobSize,
-      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
-      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
     }),
   onSuccess: () => revalidatePath("/art/[artId]/features", "page"),
   mapError: () => "Failed to update WSJF score",
@@ -111,15 +111,7 @@ export const deleteFeatureAction = createServerAction({
   action: "feature.delete",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
   parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
-  service: (ctx, input) =>
-    softDeleteFeature(
-      ctx.db,
-      ctx.principal.tenantId as TenantId,
-      input.id as FeatureId,
-      ctx.principal.id,
-      ctx.ipAddress,
-      ctx.userAgent,
-    ),
+  service: (ctx, input) => softDeleteFeature(ctx, { id: input.id as FeatureId }),
   onSuccess: () => revalidatePath("/art/[artId]/features", "page"),
   mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to delete feature"),
 });
@@ -141,11 +133,16 @@ export async function setFeaturePiAction(
   }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+  const { ipAddress, userAgent } = extractRequestMeta(await headers());
+  const ctx: RequestContext = {
+    principal,
+    db,
+    ...(ipAddress !== undefined && { ipAddress }),
+    ...(userAgent !== undefined && { userAgent }),
+  };
 
   for (const featureId of featureIds) {
-    const result = await setFeaturePi(db, {
-      tenantId: principal.tenantId as TenantId,
-      actorId: principal.id,
+    const result = await setFeaturePi(ctx, {
       featureId: featureId as FeatureId,
       piId: piId === null ? null : (piId as PiId),
     });

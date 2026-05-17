@@ -19,6 +19,7 @@ model Tenant {
   arts                Art[]
   teams               Team[]
   initiatives         Initiative[]
+  kpis                Kpi[]
   userRoleAssignments UserRoleAssignment[]
   jiraConfig          JiraConfig?
   azureDevOpsConfig   AzureDevOpsConfig?
@@ -159,8 +160,9 @@ model Initiative {
   wsjfJobSize         Int?     @map("wsjf_job_size")
   wsjfComputed        Decimal? @map("wsjf_computed") @db.Decimal(5, 2)
 
-  // Lean Business Case (EPIC only – stored as JSON)
-  leanBusinessCase Json? @map("lean_business_case")
+  // Epic artefacts (EPIC only – stored as versioned JSON)
+  benefitHypothesis Json? @map("benefit_hypothesis") // L1 Reviewing
+  businessCase      Json? @map("business_case") // L2 Analyzing
 
   // Story points (STORY only)
   storyPoints Int? @map("story_points")
@@ -199,6 +201,7 @@ model Initiative {
 
   dependenciesOut Dependency[] @relation("From")
   dependenciesIn  Dependency[] @relation("To")
+  kpis            Kpi[]
 
   @@index([tenantId])
   @@index([parentId])
@@ -206,6 +209,28 @@ model Initiative {
   @@index([ownerId, status])
   @@index([path])
   @@map("initiatives")
+}
+
+model Kpi {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  initiativeId String   @map("initiative_id") @db.Uuid
+  name         String
+  unit         String?
+  baseline     Decimal? @db.Decimal(14, 2)
+  target       Decimal? @db.Decimal(14, 2)
+  measurements Json // [{ date: ISO, value: number }] — time series of actuals
+
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  initiative Initiative @relation(fields: [initiativeId], references: [id])
+
+  @@index([tenantId, initiativeId])
+  @@map("kpis")
 }
 
 model Dependency {

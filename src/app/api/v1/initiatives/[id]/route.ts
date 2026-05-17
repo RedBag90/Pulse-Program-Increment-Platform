@@ -7,7 +7,6 @@ import type { EpicId } from "@/domain/types";
 const updateEpicSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().optional(),
-  leanBusinessCase: z.record(z.unknown()).optional(),
 });
 
 interface Ctx {
@@ -27,15 +26,7 @@ export async function PATCH(request: Request, { params }: Ctx): Promise<Response
     schema: updateEpicSchema,
     action: "epic.update",
     resource: (_input, p) => ({ tenantId: p.tenantId }),
-    service: (ctx, input) =>
-      updateEpic(ctx.db, {
-        tenantId: ctx.principal.tenantId,
-        actorId: ctx.principal.id,
-        id: id as EpicId,
-        ...input,
-        ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
-        ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
-      }),
+    service: (ctx, input) => updateEpic(ctx, { id: id as EpicId, ...input }),
     successStatus: 204,
     idempotent: false,
   })(request);

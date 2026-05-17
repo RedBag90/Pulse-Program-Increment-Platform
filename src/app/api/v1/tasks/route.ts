@@ -24,9 +24,7 @@ export const POST = createMutationHandler({
   action: "task.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
-    createTask(ctx.db, {
-      tenantId: ctx.principal.tenantId as TenantId,
-      actorId: ctx.principal.id,
+    createTask(ctx, {
       parentId: input.storyId as StoryId,
       title: input.title,
       description: input.description,

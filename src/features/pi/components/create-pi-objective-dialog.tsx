@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef } from "react";
+import { useCreateDialogState } from "@/features/create/use-create-dialog-state";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createPiObjectiveAction } from "@/features/pi/actions/pi-objective";
@@ -34,7 +35,7 @@ interface Props {
 const initialState: ActionState = {};
 
 export function CreatePiObjectiveDialog({ piId, artId, teams }: Props) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useCreateDialogState("pi-objective");
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(createPiObjectiveAction, initialState);
 

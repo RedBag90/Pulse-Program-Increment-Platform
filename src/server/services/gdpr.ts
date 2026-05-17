@@ -2,7 +2,8 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, UserId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok } from "@/domain/errors";
-import { emitAuditEvent } from "@/server/audit/emit";
+import type { RequestContext } from "@/server/http/mutation-handler";
+import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 
 /**
  * Collects everything Pulse holds about a user within a tenant, for a GDPR
@@ -45,30 +46,18 @@ export async function exportUserData(db: PrismaClient, tenantId: TenantId, userI
  * reference, satisfying the 7-year audit retention requirement.
  */
 export async function eraseUserRecords(
-  db: PrismaClient,
-  tenantId: TenantId,
-  userId: UserId,
-  actorId: UserId,
-  ipAddress?: string | undefined,
-  userAgent?: string | undefined,
+  ctx: RequestContext,
+  input: { userId: UserId },
 ): Promise<Result<void>> {
-  return db
-    .$transaction(async (tx) => {
-      await tx.userRoleAssignment.deleteMany({ where: { tenantId, userId } });
+  const mctx = toMutationContext(ctx);
+  const { userId } = input;
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "user.erased",
-        resourceType: "user",
-        resourceId: userId,
-        ipAddress,
-        userAgent,
-      });
+  return withAuditedTransaction(mctx, async (tx) => {
+    await tx.userRoleAssignment.deleteMany({ where: { tenantId: mctx.tenantId, userId } });
 
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      throw e;
+    return ok({
+      result: undefined,
+      audit: { action: "user.erased", resourceType: "user", resourceId: userId },
     });
+  });
 }

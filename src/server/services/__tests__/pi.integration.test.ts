@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
-import { seedTenant } from "@/test/fixtures/seed";
+import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import { createPi, startPi, completePi } from "@/server/services/pi";
 import { isOk, isErr } from "@/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
@@ -20,9 +20,7 @@ describe("createPi", () => {
     const startDate = new Date("2024-01-15");
     const endDate = new Date("2024-04-15");
 
-    const result = await createPi(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createPi(testRequestContext(db, seed), {
       artId: seed.artId,
       name: "PI 24.1",
       startDate,
@@ -46,9 +44,7 @@ describe("createPi", () => {
       ],
     });
 
-    const result = await createPi(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createPi(testRequestContext(db, seed), {
       artId: seed.artId,
       name: "PI 24.1",
       startDate: new Date("2024-01-15"),
@@ -66,9 +62,7 @@ describe("createPi", () => {
   });
 
   it("returns conflict when endDate <= startDate", async () => {
-    const result = await createPi(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createPi(testRequestContext(db, seed), {
       artId: seed.artId,
       name: "PI bad dates",
       startDate: new Date("2024-04-15"),
@@ -81,9 +75,7 @@ describe("createPi", () => {
   });
 
   it("returns not_found for unknown artId", async () => {
-    const result = await createPi(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createPi(testRequestContext(db, seed), {
       artId: randomUUID() as ArtId,
       name: "PI orphan",
       startDate: new Date("2024-01-15"),
@@ -98,9 +90,7 @@ describe("createPi", () => {
   it("emits an AuditEvent row on success", async () => {
     const before = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 
-    await createPi(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    await createPi(testRequestContext(db, seed), {
       artId: seed.artId,
       name: "PI 24.1",
       startDate: new Date("2024-01-15"),
@@ -144,11 +134,7 @@ describe("startPi", () => {
   it("transitions a planned PI to active", async () => {
     const piId = await createPlannedPi();
 
-    const result = await startPi(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
-      id: piId,
-    });
+    const result = await startPi(testRequestContext(db, seed), { id: piId });
 
     expect(isOk(result)).toBe(true);
     const pi = await db.programIncrement.findFirst({ where: { id: piId } });
@@ -159,13 +145,9 @@ describe("startPi", () => {
     const pi1 = await createPlannedPi("PI 24.1");
     const pi2 = await createPlannedPi("PI 24.2");
 
-    await startPi(db, { tenantId: seed.tenantId, actorId: seed.actorId, id: pi1 });
+    await startPi(testRequestContext(db, seed), { id: pi1 });
 
-    const result = await startPi(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
-      id: pi2,
-    });
+    const result = await startPi(testRequestContext(db, seed), { id: pi2 });
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
@@ -176,7 +158,7 @@ describe("startPi", () => {
     const piId = await createPlannedPi();
     const before = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 
-    await startPi(db, { tenantId: seed.tenantId, actorId: seed.actorId, id: piId });
+    await startPi(testRequestContext(db, seed), { id: piId });
 
     const after = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
     expect(after).toBeGreaterThan(before);
@@ -196,11 +178,7 @@ describe("completePi", () => {
       },
     });
 
-    const result = await completePi(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
-      id: pi.id as PiId,
-    });
+    const result = await completePi(testRequestContext(db, seed), { id: pi.id as PiId });
 
     expect(isOk(result)).toBe(true);
     const updated = await db.programIncrement.findFirst({ where: { id: pi.id } });
@@ -219,11 +197,7 @@ describe("completePi", () => {
       },
     });
 
-    const result = await completePi(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
-      id: pi.id as PiId,
-    });
+    const result = await completePi(testRequestContext(db, seed), { id: pi.id as PiId });
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;

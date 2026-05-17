@@ -1,9 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
 import { createFeatureAction } from "@/features/art/actions/feature";
+import { useCreateResult } from "@/features/create/use-create-result";
+import { useEntityOptions, optionsEndpoint } from "@/features/create/use-entity-options";
+import type { CreateContext } from "@/features/create/create-context";
+import type { ActionState } from "@/server/http/server-action";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,49 +24,122 @@ const FIBONACCI = [1, 2, 3, 5, 8, 13, 20] as const;
 const SELECT_CLASS =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-interface Props {
-  artId: string;
-  epics: { id: string; title: string }[];
+interface Art {
+  id: string;
+  name: string;
+}
+interface Epic {
+  id: string;
+  title: string;
 }
 
-export function CreateFeatureDialog({ artId, epics }: Props) {
-  const [open, setOpen] = useState(false);
-  const [state, action, isPending] = useActionState(createFeatureAction, {});
+export interface CreateFeatureDialogProps {
+  /** Controlled mode (global "+" menu). Omit to render a self-triggering button. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Page-supplied parent ART; when omitted an ART select is shown. */
+  artId?: string;
+  /** Page-supplied parent epics; when omitted they are fetched lazily. */
+  epics?: Epic[];
+  /** Route context used to pre-select ART / Epic in the global menu. */
+  context?: CreateContext;
+}
 
-  useEffect(() => {
-    if (state.success) {
-      toast.success("Feature created");
-      setOpen(false);
-    }
-  }, [state]);
+const initialState: ActionState = {};
+
+export function CreateFeatureDialog({
+  open,
+  onOpenChange,
+  artId,
+  epics,
+  context,
+}: CreateFeatureDialogProps) {
+  const isControlled = open !== undefined;
+  const [selfOpen, setSelfOpen] = useState(false);
+  const dialogOpen = open ?? selfOpen;
+  const setDialogOpen = (v: boolean) => (isControlled ? onOpenChange?.(v) : setSelfOpen(v));
+
+  const [state, action, isPending] = useActionState(createFeatureAction, initialState);
+  useCreateResult(state, () => setDialogOpen(false));
+
+  const needArt = artId === undefined;
+  const arts = useEntityOptions<Art>(
+    needArt ? optionsEndpoint("art") : null,
+    needArt && dialogOpen,
+  );
+
+  const needEpics = epics === undefined;
+  const fetchedEpics = useEntityOptions<Epic>(
+    needEpics ? optionsEndpoint("epic") : null,
+    needEpics && dialogOpen,
+  );
+  const epicOptions = epics ?? fetchedEpics.data;
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
-        <Plus className="size-4 mr-1.5" />
-        New Feature
-      </Button>
+      {!isControlled && (
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus className="size-4 mr-1.5" />
+          New Feature
+        </Button>
+      )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Feature</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
-            <input type="hidden" name="artId" value={artId} />
+            {artId !== undefined ? (
+              <input type="hidden" name="artId" value={artId} />
+            ) : (
+              <div className="space-y-1.5">
+                <Label htmlFor="f-art">
+                  ART <span className="text-destructive">*</span>
+                </Label>
+                <select
+                  id="f-art"
+                  name="artId"
+                  required
+                  defaultValue={context?.artId ?? ""}
+                  disabled={arts.loading}
+                  className={SELECT_CLASS}
+                >
+                  <option value="">{arts.loading ? "Loading…" : "Select an ART…"}</option>
+                  {arts.data.map((art) => (
+                    <option key={art.id} value={art.id}>
+                      {art.name}
+                    </option>
+                  ))}
+                </select>
+                {arts.error && <p className="text-xs text-destructive">{arts.error}</p>}
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="f-parent">
                 Parent Epic <span className="text-destructive">*</span>
               </Label>
-              <select id="f-parent" name="parentId" required className={SELECT_CLASS}>
-                <option value="">Select a parent epic…</option>
-                {epics.map((epic) => (
+              <select
+                id="f-parent"
+                name="parentId"
+                required
+                defaultValue={context?.epicId ?? ""}
+                disabled={fetchedEpics.loading}
+                className={SELECT_CLASS}
+              >
+                <option value="">
+                  {fetchedEpics.loading ? "Loading…" : "Select a parent epic…"}
+                </option>
+                {epicOptions.map((epic) => (
                   <option key={epic.id} value={epic.id}>
                     {epic.title}
                   </option>
                 ))}
               </select>
+              {fetchedEpics.error && (
+                <p className="text-xs text-destructive">{fetchedEpics.error}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -136,7 +212,7 @@ export function CreateFeatureDialog({ artId, epics }: Props) {
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isPending}>

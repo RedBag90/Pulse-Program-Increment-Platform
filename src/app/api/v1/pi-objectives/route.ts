@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createPiObjective, listPiObjectives } from "@/server/services/pi-objective";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
-import type { TenantId, PiId, TeamId } from "@/domain/types";
+import type { PiId, TeamId } from "@/domain/types";
 
 const createSchema = z.object({
   piId: z.string().uuid(),
@@ -34,9 +34,7 @@ export const POST = createMutationHandler({
   action: "pi_objective.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
-    createPiObjective(ctx.db, {
-      tenantId: ctx.principal.tenantId as TenantId,
-      actorId: ctx.principal.id,
+    createPiObjective(ctx, {
       piId: input.piId as PiId,
       teamId: input.teamId as TeamId,
       title: input.title,

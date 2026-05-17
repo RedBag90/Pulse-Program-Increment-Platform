@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
-import { seedTenant } from "@/test/fixtures/seed";
+import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import { createImpediment, escalateImpediment } from "@/server/services/impediment";
 import { isOk, isErr } from "@/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
-import type { TenantId } from "@/domain/types";
 import type { ImpedimentId } from "@/server/services/impediment";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;
@@ -19,9 +18,7 @@ describe("createImpediment", () => {
   it("inserts an impediment row and emits an AuditEvent", async () => {
     const auditBefore = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 
-    const result = await createImpediment(db, {
-      tenantId: seed.tenantId as TenantId,
-      actorId: seed.actorId,
+    const result = await createImpediment(testRequestContext(db, seed), {
       artId: seed.artId,
       title: "Build is broken",
       severity: "high",
@@ -40,9 +37,7 @@ describe("createImpediment", () => {
 
 describe("escalateImpediment", () => {
   async function createOpenImpediment(): Promise<ImpedimentId> {
-    const result = await createImpediment(db, {
-      tenantId: seed.tenantId as TenantId,
-      actorId: seed.actorId,
+    const result = await createImpediment(testRequestContext(db, seed), {
       artId: seed.artId,
       title: "Escalation test",
       severity: "critical",
@@ -54,7 +49,7 @@ describe("escalateImpediment", () => {
   it("sets status to escalated", async () => {
     const impId = await createOpenImpediment();
 
-    const result = await escalateImpediment(db, seed.tenantId as TenantId, seed.actorId, impId);
+    const result = await escalateImpediment(testRequestContext(db, seed), { id: impId });
 
     expect(isOk(result)).toBe(true);
     const imp = await db.impediment.findFirst({ where: { id: impId } });
@@ -63,9 +58,9 @@ describe("escalateImpediment", () => {
 
   it("returns conflict when impediment is already escalated", async () => {
     const impId = await createOpenImpediment();
-    await escalateImpediment(db, seed.tenantId as TenantId, seed.actorId, impId);
+    await escalateImpediment(testRequestContext(db, seed), { id: impId });
 
-    const result = await escalateImpediment(db, seed.tenantId as TenantId, seed.actorId, impId);
+    const result = await escalateImpediment(testRequestContext(db, seed), { id: impId });
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;

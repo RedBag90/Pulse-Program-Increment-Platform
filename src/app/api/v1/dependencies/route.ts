@@ -31,14 +31,10 @@ export const POST = createMutationHandler({
   action: "dependency.link",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
-    linkDependency(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    linkDependency(ctx, {
       fromId: input.fromId as InitiativeId,
       toId: input.toId as InitiativeId,
       type: input.type,
-      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
-      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
     }),
   successStatus: 201,
 });
@@ -48,14 +44,10 @@ export const DELETE = createMutationHandler({
   action: "dependency.unlink",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
-    unlinkDependency(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    unlinkDependency(ctx, {
       fromId: input.fromId as InitiativeId,
       toId: input.toId as InitiativeId,
       type: input.type,
-      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
-      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
     }),
   successStatus: 204,
   idempotent: false,

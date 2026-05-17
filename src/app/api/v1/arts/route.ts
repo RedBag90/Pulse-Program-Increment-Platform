@@ -19,13 +19,9 @@ export const POST = createMutationHandler({
   action: "art.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
-    createArt(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    createArt(ctx, {
       valueStreamId: input.valueStreamId as ValueStreamId,
       name: input.name,
       piCadenceWeeks: input.piCadenceWeeks,
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
     }),
 });

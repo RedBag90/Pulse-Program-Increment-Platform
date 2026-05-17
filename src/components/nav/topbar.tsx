@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { CreateMenu } from "@/features/create/create-menu";
 
 export function Topbar() {
   const { theme, setTheme } = useTheme();
@@ -27,6 +28,9 @@ export function Topbar() {
 
       {/* Actions — right */}
       <div className="flex items-center gap-1 shrink-0">
+        {/* Global create menu */}
+        <CreateMenu />
+
         {/* Locale switcher */}
         <DropdownMenu>
           <DropdownMenuTrigger

@@ -1,96 +1,75 @@
-import type { PrismaClient, Prisma } from "@/generated/prisma";
-import type { TenantId, UserId, EpicId, FeatureId, ValueStreamId } from "@/domain/types";
+import type { Prisma } from "@/generated/prisma";
+import type { PrismaClient } from "@/generated/prisma";
+import type { TenantId, EpicId, FeatureId, ValueStreamId, StageGate } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
-import { emitAuditEvent } from "@/server/audit/emit";
+import { buildChangelog } from "@/domain/change-log";
+import { isValidTransition, isApprovalTransition } from "@/domain/stage-gate";
+import type { RequestContext } from "@/server/http/mutation-handler";
+import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import {
-  parseLeanBusinessCase,
-  lbcHasContent,
-  type LbcFields,
-  type LeanBusinessCase,
-} from "@/domain/lbc";
+  parseBenefitHypothesis,
+  benefitHypothesisHasContent,
+  type BenefitHypothesisFields,
+  type BenefitHypothesis,
+} from "@/domain/benefit-hypothesis";
+import {
+  parseBusinessCase,
+  businessCaseHasContent,
+  type BusinessCaseFields,
+  type BusinessCase,
+} from "@/domain/business-case";
 
 // ---------------------------------------------------------------------------
 // Create Epic (level 0)
 // ---------------------------------------------------------------------------
 
 export interface CreateEpicInput {
-  tenantId: TenantId;
-  actorId: UserId;
   title: string;
   description?: string | undefined;
   valueStreamId: ValueStreamId;
-  leanBusinessCase?: Record<string, unknown> | undefined;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export async function createEpic(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: CreateEpicInput,
 ): Promise<Result<{ id: EpicId }>> {
-  const {
-    tenantId,
-    actorId,
-    title,
-    description,
-    valueStreamId,
-    leanBusinessCase,
-    ipAddress,
-    userAgent,
-  } = input;
+  const mctx = toMutationContext(ctx);
+  const { title, description, valueStreamId } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      // Verify the value stream belongs to the same tenant (cross-tenant guard)
-      const vs = await tx.valueStream.findFirst({ where: { id: valueStreamId, tenantId } });
-      if (!vs) {
-        return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
-      }
-
-      const epic = await tx.initiative.create({
-        data: {
-          tenantId,
-          level: InitiativeLevel.EPIC,
-          title,
-          path: "", // Will be updated after ID is known
-          ownerId: actorId,
-          assigneeIds: [],
-          createdBy: actorId,
-          updatedBy: actorId,
-          valueStreamId,
-          ...(description !== undefined && { description }),
-          ...(leanBusinessCase !== undefined && {
-            leanBusinessCase: leanBusinessCase as Prisma.InputJsonValue,
-          }),
-        },
-      });
-
-      // Materialized path: root level epics just use their own ID
-      await tx.initiative.update({
-        where: { id: epic.id },
-        data: { path: epic.id },
-      });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "initiative.created",
-        resourceType: "initiative",
-        resourceId: epic.id,
-        ipAddress,
-        userAgent,
-      });
-
-      return ok({ id: epic.id as EpicId });
-    })
-    .catch((e: unknown) => {
-      if (e instanceof Error && e.message.includes("not_found")) {
-        return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
-      }
-      throw e;
+  return withAuditedTransaction(mctx, async (tx) => {
+    // Verify the value stream belongs to the same tenant (cross-tenant guard).
+    const vs = await tx.valueStream.findFirst({
+      where: { id: valueStreamId, tenantId: mctx.tenantId },
     });
+    if (!vs) {
+      return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
+    }
+
+    const epic = await tx.initiative.create({
+      data: {
+        tenantId: mctx.tenantId,
+        level: InitiativeLevel.EPIC,
+        title,
+        path: "", // Updated below, once the ID is known.
+        ownerId: mctx.actorId,
+        assigneeIds: [],
+        createdBy: mctx.actorId,
+        updatedBy: mctx.actorId,
+        valueStreamId,
+        ...(description !== undefined && { description }),
+      },
+    });
+
+    // Materialized path: root-level epics use their own ID.
+    await tx.initiative.update({ where: { id: epic.id }, data: { path: epic.id } });
+
+    return ok({
+      result: { id: epic.id as EpicId },
+      audit: { action: "initiative.created", resourceType: "initiative", resourceId: epic.id },
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -98,140 +77,317 @@ export async function createEpic(
 // ---------------------------------------------------------------------------
 
 export interface UpdateEpicInput {
-  tenantId: TenantId;
-  actorId: UserId;
   id: EpicId;
   title?: string | undefined;
   description?: string | undefined;
-  leanBusinessCase?: Record<string, unknown> | undefined;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
-export async function updateEpic(db: PrismaClient, input: UpdateEpicInput): Promise<Result<void>> {
-  const { tenantId, actorId, id, title, description, leanBusinessCase, ipAddress, userAgent } =
-    input;
+export async function updateEpic(
+  ctx: RequestContext,
+  input: UpdateEpicInput,
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id, title, description } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.initiative.findFirst({
-        where: { id, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
-      });
-
-      if (!existing) {
-        return err({ kind: "not_found" as const, resourceType: "Epic", id });
-      }
-
-      const changes: Record<string, { before: unknown; after: unknown }> = {};
-      if (title !== undefined && title !== existing.title) {
-        changes["title"] = { before: existing.title, after: title };
-      }
-      if (description !== undefined && description !== existing.description) {
-        changes["description"] = { before: existing.description, after: description };
-      }
-
-      await tx.initiative.update({
-        where: { id },
-        data: {
-          updatedBy: actorId,
-          ...(title !== undefined && { title }),
-          ...(description !== undefined && { description }),
-          ...(leanBusinessCase !== undefined && {
-            leanBusinessCase: leanBusinessCase as Prisma.InputJsonValue,
-          }),
-        },
-      });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "initiative.updated",
-        resourceType: "initiative",
-        resourceId: id,
-        changes,
-        ipAddress,
-        userAgent,
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      throw e;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
     });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "Epic", id });
+    }
+
+    const changes = buildChangelog(
+      { title: existing.title, description: existing.description },
+      {
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+      },
+      ["title", "description"],
+    );
+
+    await tx.initiative.update({
+      where: { id },
+      data: {
+        updatedBy: mctx.actorId,
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+      },
+    });
+
+    return ok({
+      result: undefined,
+      audit: { action: "initiative.updated", resourceType: "initiative", resourceId: id, changes },
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
-// Save Lean Business Case (versioned)
+// Advance stage gate
 // ---------------------------------------------------------------------------
 
-export interface SaveLbcInput {
-  tenantId: TenantId;
-  actorId: UserId;
+export interface AdvanceStageGateInput {
   epicId: EpicId;
-  fields: LbcFields;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
+  toGate: StageGate;
+  comment?: string | undefined;
 }
-
-/** Most recent LBC versions to keep, to bound the JSON size. */
-const LBC_HISTORY_LIMIT = 20;
 
 /**
- * Saves the Lean Business Case for an Epic, keeping a version history: the
- * previous `current` (if it had content) is pushed onto `history`.
+ * Advances (or steps back) an Epic's stage gate. Reaching L3 is the approval
+ * decision — the approver, timestamp, and comment are persisted on the Epic so
+ * they are visible without reading the audit log.
  */
-export async function saveLeanBusinessCase(
-  db: PrismaClient,
-  input: SaveLbcInput,
-): Promise<Result<void>> {
-  const { tenantId, actorId, epicId, fields, ipAddress, userAgent } = input;
+export async function advanceStageGate(
+  ctx: RequestContext,
+  input: AdvanceStageGateInput,
+): Promise<Result<{ from: StageGate; to: StageGate }>> {
+  const mctx = toMutationContext(ctx);
+  const { epicId, toGate, comment } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.initiative.findFirst({
-        where: { id: epicId, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
-      });
-      if (!existing) {
-        return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
-      }
-
-      const prev = parseLeanBusinessCase(existing.leanBusinessCase);
-      const history = lbcHasContent(prev.current)
-        ? [
-            { content: prev.current, savedAt: new Date().toISOString(), savedBy: actorId },
-            ...prev.history,
-          ].slice(0, LBC_HISTORY_LIMIT)
-        : prev.history;
-
-      const next: LeanBusinessCase = { current: fields, history };
-
-      await tx.initiative.update({
-        where: { id: epicId },
-        data: {
-          updatedBy: actorId,
-          leanBusinessCase: next as unknown as Prisma.InputJsonValue,
-        },
-      });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "initiative.updated",
-        resourceType: "initiative",
-        resourceId: epicId,
-        ipAddress,
-        userAgent,
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      throw e;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const epic = await tx.initiative.findFirst({
+      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
     });
+    if (!epic) {
+      return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+    }
+
+    const from = epic.stageGate as StageGate;
+    if (!isValidTransition(from, toGate)) {
+      return err({
+        kind: "hierarchy_violation" as const,
+        violatedConstraint: "stage_gate_transition",
+        detail: `Cannot transition from ${from} to ${toGate}`,
+      });
+    }
+
+    const isApproval = isApprovalTransition(from, toGate);
+
+    await tx.initiative.update({
+      where: { id: epicId },
+      data: {
+        stageGate: toGate,
+        updatedBy: mctx.actorId,
+        ...(isApproval && {
+          approvedBy: mctx.actorId,
+          approvedAt: new Date(),
+          approvalComment: comment ?? null,
+        }),
+      },
+    });
+
+    return ok({
+      result: { from, to: toGate },
+      audit: {
+        action: "initiative.stage_gate.advanced" as const,
+        resourceType: "initiative" as const,
+        resourceId: epicId,
+        changes: {
+          stageGate: { before: from, after: toGate },
+          ...(comment !== undefined && { comment: { before: null, after: comment } }),
+        },
+      },
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
-// List Epics
+// Save Epic artefacts — Benefit Hypothesis & Business Case (both versioned)
+// ---------------------------------------------------------------------------
+
+/** Most recent artefact versions to keep, to bound the JSON size. */
+const ARTEFACT_HISTORY_LIMIT = 20;
+
+export interface SaveBenefitHypothesisInput {
+  epicId: EpicId;
+  fields: BenefitHypothesisFields;
+}
+
+/**
+ * Saves the Benefit Hypothesis for an Epic, keeping a version history: the
+ * previous `current` (if it had content) is pushed onto `history`.
+ */
+export async function saveBenefitHypothesis(
+  ctx: RequestContext,
+  input: SaveBenefitHypothesisInput,
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { epicId, fields } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+    }
+
+    const prev = parseBenefitHypothesis(existing.benefitHypothesis);
+    const history = benefitHypothesisHasContent(prev.current)
+      ? [
+          { content: prev.current, savedAt: new Date().toISOString(), savedBy: mctx.actorId },
+          ...prev.history,
+        ].slice(0, ARTEFACT_HISTORY_LIMIT)
+      : prev.history;
+
+    const next: BenefitHypothesis = { current: fields, history };
+
+    await tx.initiative.update({
+      where: { id: epicId },
+      data: {
+        updatedBy: mctx.actorId,
+        benefitHypothesis: next as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    return ok({
+      result: undefined,
+      audit: { action: "initiative.updated", resourceType: "initiative", resourceId: epicId },
+    });
+  });
+}
+
+export interface SaveBusinessCaseInput {
+  epicId: EpicId;
+  fields: BusinessCaseFields;
+}
+
+/**
+ * Saves the Business Case for an Epic, keeping a version history: the previous
+ * `current` (if it had content) is pushed onto `history`.
+ */
+export async function saveBusinessCase(
+  ctx: RequestContext,
+  input: SaveBusinessCaseInput,
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { epicId, fields } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+    }
+
+    const prev = parseBusinessCase(existing.businessCase);
+    const history = businessCaseHasContent(prev.current)
+      ? [
+          { content: prev.current, savedAt: new Date().toISOString(), savedBy: mctx.actorId },
+          ...prev.history,
+        ].slice(0, ARTEFACT_HISTORY_LIMIT)
+      : prev.history;
+
+    const next: BusinessCase = { current: fields, history };
+
+    await tx.initiative.update({
+      where: { id: epicId },
+      data: {
+        updatedBy: mctx.actorId,
+        businessCase: next as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    return ok({
+      result: undefined,
+      audit: { action: "initiative.updated", resourceType: "initiative", resourceId: epicId },
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Delete Epic (soft)
+// ---------------------------------------------------------------------------
+
+export async function softDeleteEpic(
+  ctx: RequestContext,
+  input: { id: EpicId },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id });
+
+    // Cascade soft-delete to all child features and their stories.
+    const features = await tx.initiative.findMany({
+      where: {
+        parentId: id,
+        tenantId: mctx.tenantId,
+        level: InitiativeLevel.FEATURE,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    const featureIds = features.map((f) => f.id);
+
+    if (featureIds.length > 0) {
+      await tx.initiative.updateMany({
+        where: {
+          parentId: { in: featureIds },
+          tenantId: mctx.tenantId,
+          level: InitiativeLevel.STORY,
+        },
+        data: { deletedAt: new Date(), updatedBy: mctx.actorId },
+      });
+      await tx.initiative.updateMany({
+        where: { id: { in: featureIds }, tenantId: mctx.tenantId },
+        data: { deletedAt: new Date(), updatedBy: mctx.actorId },
+      });
+    }
+
+    await tx.initiative.update({
+      where: { id },
+      data: { deletedAt: new Date(), updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: { action: "initiative.deleted", resourceType: "initiative", resourceId: id },
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Delete Feature (soft)
+// ---------------------------------------------------------------------------
+
+export async function softDeleteFeature(
+  ctx: RequestContext,
+  input: { id: FeatureId },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
+    });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Feature", id });
+
+    await tx.initiative.updateMany({
+      where: { parentId: id, tenantId: mctx.tenantId, level: InitiativeLevel.STORY },
+      data: { deletedAt: new Date(), updatedBy: mctx.actorId },
+    });
+
+    await tx.initiative.update({
+      where: { id },
+      data: { deletedAt: new Date(), updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: { action: "initiative.deleted", resourceType: "initiative", resourceId: id },
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Reads
 // ---------------------------------------------------------------------------
 
 export async function listEpics(db: PrismaClient, tenantId: TenantId) {
@@ -241,107 +397,6 @@ export async function listEpics(db: PrismaClient, tenantId: TenantId) {
     orderBy: [{ stageGate: "asc" }, { createdAt: "desc" }],
   });
 }
-
-// ---------------------------------------------------------------------------
-// Delete Epic (soft)
-// ---------------------------------------------------------------------------
-
-export async function softDeleteEpic(
-  db: PrismaClient,
-  tenantId: TenantId,
-  id: EpicId,
-  actorId: UserId,
-  ipAddress?: string | undefined,
-  userAgent?: string | undefined,
-): Promise<Result<void>> {
-  return db.$transaction(async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
-    });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id });
-
-    // Cascade soft-delete to all child features and their stories
-    const features = await tx.initiative.findMany({
-      where: { parentId: id, tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
-      select: { id: true },
-    });
-    const featureIds = features.map((f) => f.id);
-
-    if (featureIds.length > 0) {
-      await tx.initiative.updateMany({
-        where: { parentId: { in: featureIds }, tenantId, level: InitiativeLevel.STORY },
-        data: { deletedAt: new Date(), updatedBy: actorId },
-      });
-      await tx.initiative.updateMany({
-        where: { id: { in: featureIds }, tenantId },
-        data: { deletedAt: new Date(), updatedBy: actorId },
-      });
-    }
-
-    await tx.initiative.update({
-      where: { id },
-      data: { deletedAt: new Date(), updatedBy: actorId },
-    });
-
-    await emitAuditEvent(tx as unknown as PrismaClient, {
-      tenantId,
-      actorId,
-      action: "initiative.deleted",
-      resourceType: "initiative",
-      resourceId: id,
-      ipAddress,
-      userAgent,
-    });
-
-    return ok(undefined);
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Delete Feature (soft)
-// ---------------------------------------------------------------------------
-
-export async function softDeleteFeature(
-  db: PrismaClient,
-  tenantId: TenantId,
-  id: FeatureId,
-  actorId: UserId,
-  ipAddress?: string | undefined,
-  userAgent?: string | undefined,
-): Promise<Result<void>> {
-  return db.$transaction(async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id, tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
-    });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "Feature", id });
-
-    await tx.initiative.updateMany({
-      where: { parentId: id, tenantId, level: InitiativeLevel.STORY },
-      data: { deletedAt: new Date(), updatedBy: actorId },
-    });
-
-    await tx.initiative.update({
-      where: { id },
-      data: { deletedAt: new Date(), updatedBy: actorId },
-    });
-
-    await emitAuditEvent(tx as unknown as PrismaClient, {
-      tenantId,
-      actorId,
-      action: "initiative.deleted",
-      resourceType: "initiative",
-      resourceId: id,
-      ipAddress,
-      userAgent,
-    });
-
-    return ok(undefined);
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Get Epic by ID
-// ---------------------------------------------------------------------------
 
 export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) {
   return db.initiative.findFirst({
@@ -353,5 +408,23 @@ export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) 
         select: { id: true, title: true, level: true, status: true },
       },
     },
+  });
+}
+
+/**
+ * Audit history for a single initiative, newest first — backs the Activity
+ * sidebar and the History tab. Index-served by `[resourceType, resourceId,
+ * occurredAt]` on `AuditEvent`.
+ */
+export async function listInitiativeHistory(
+  db: PrismaClient,
+  tenantId: TenantId,
+  initiativeId: string,
+  limit = 50,
+) {
+  return db.auditEvent.findMany({
+    where: { tenantId, resourceType: "initiative", resourceId: initiativeId },
+    orderBy: { occurredAt: "desc" },
+    take: limit,
   });
 }

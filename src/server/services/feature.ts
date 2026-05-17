@@ -1,23 +1,16 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type {
-  TenantId,
-  UserId,
-  FeatureId,
-  EpicId,
-  ArtId,
-  PiId,
-  FibonacciValue,
-} from "@/domain/types";
+import type { TenantId, FeatureId, EpicId, ArtId, PiId, FibonacciValue } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
-import { emitAuditEvent } from "@/server/audit/emit";
+import { ok, err, isErr } from "@/domain/errors";
+import { buildChangelog } from "@/domain/change-log";
+import { validateParentLevel } from "@/domain/hierarchy";
 import { computeWsjf } from "@/domain/schemas/initiative";
+import type { RequestContext } from "@/server/http/mutation-handler";
+import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { paginate, type PageParams } from "@/server/db/paginate";
 
 export interface CreateFeatureInput {
-  tenantId: TenantId;
-  actorId: UserId;
   parentId: EpicId;
   artId: ArtId;
   piId?: PiId | undefined;
@@ -28,13 +21,9 @@ export interface CreateFeatureInput {
   wsjfRiskReduction: FibonacciValue;
   wsjfJobSize: FibonacciValue;
   acceptanceCriteria?: string[] | undefined;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export interface UpdateFeatureInput {
-  tenantId: TenantId;
-  actorId: UserId;
   id: FeatureId;
   title?: string | undefined;
   description?: string | undefined;
@@ -44,17 +33,14 @@ export interface UpdateFeatureInput {
   wsjfJobSize?: FibonacciValue | undefined;
   acceptanceCriteria?: string[] | undefined;
   piId?: PiId | undefined;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export async function createFeature(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: CreateFeatureInput,
 ): Promise<Result<{ id: FeatureId }>> {
+  const mctx = toMutationContext(ctx);
   const {
-    tenantId,
-    actorId,
     parentId,
     artId,
     piId,
@@ -65,8 +51,6 @@ export async function createFeature(
     wsjfRiskReduction,
     wsjfJobSize,
     acceptanceCriteria,
-    ipAddress,
-    userAgent,
   } = input;
 
   const wsjfComputed = computeWsjf({
@@ -76,72 +60,60 @@ export async function createFeature(
     jobSize: wsjfJobSize,
   });
 
-  return db
-    .$transaction(async (tx) => {
-      const epic = await tx.initiative.findFirst({
-        where: { id: parentId, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
-      });
-      if (!epic) {
-        return err({ kind: "not_found" as const, resourceType: "Epic", id: parentId });
-      }
-
-      const art = await tx.art.findFirst({ where: { id: artId, tenantId } });
-      if (!art) {
-        return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
-      }
-
-      const feature = await tx.initiative.create({
-        data: {
-          tenantId,
-          level: InitiativeLevel.FEATURE,
-          parentId,
-          artId,
-          path: "",
-          title,
-          ownerId: actorId,
-          assigneeIds: [],
-          createdBy: actorId,
-          updatedBy: actorId,
-          wsjfBusinessValue,
-          wsjfTimeCriticality,
-          wsjfRiskReduction,
-          wsjfJobSize,
-          wsjfComputed,
-          acceptanceCriteria: acceptanceCriteria ?? [],
-          ...(description !== undefined && { description }),
-          ...(piId !== undefined && { piId }),
-        },
-      });
-
-      await tx.initiative.update({
-        where: { id: feature.id },
-        data: { path: `${epic.path}.${feature.id}` },
-      });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "initiative.created",
-        resourceType: "initiative",
-        resourceId: feature.id,
-        ipAddress,
-        userAgent,
-      });
-
-      return ok({ id: feature.id as FeatureId });
-    })
-    .catch((e: unknown) => {
-      throw e;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const parent = await tx.initiative.findFirst({
+      where: { id: parentId, tenantId: mctx.tenantId, deletedAt: null },
     });
+    const hierarchy = validateParentLevel(InitiativeLevel.FEATURE, parent, parentId);
+    if (isErr(hierarchy)) return hierarchy;
+    const epic = parent!; // non-null once validateParentLevel passes
+
+    const art = await tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId } });
+    if (!art) {
+      return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
+    }
+
+    const feature = await tx.initiative.create({
+      data: {
+        tenantId: mctx.tenantId,
+        level: InitiativeLevel.FEATURE,
+        parentId,
+        artId,
+        path: "",
+        title,
+        ownerId: mctx.actorId,
+        assigneeIds: [],
+        createdBy: mctx.actorId,
+        updatedBy: mctx.actorId,
+        wsjfBusinessValue,
+        wsjfTimeCriticality,
+        wsjfRiskReduction,
+        wsjfJobSize,
+        wsjfComputed,
+        acceptanceCriteria: acceptanceCriteria ?? [],
+        ...(description !== undefined && { description }),
+        ...(piId !== undefined && { piId }),
+      },
+    });
+
+    await tx.initiative.update({
+      where: { id: feature.id },
+      data: { path: `${epic.path}.${feature.id}` },
+    });
+
+    return ok({
+      result: { id: feature.id as FeatureId },
+      audit: { action: "initiative.created", resourceType: "initiative", resourceId: feature.id },
+    });
+  });
 }
 
 export async function updateFeature(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: UpdateFeatureInput,
 ): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
   const {
-    tenantId,
-    actorId,
     id,
     title,
     description,
@@ -151,223 +123,187 @@ export async function updateFeature(
     wsjfJobSize,
     acceptanceCriteria,
     piId,
-    ipAddress,
-    userAgent,
   } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.initiative.findFirst({
-        where: { id, tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
-      });
-      if (!existing) {
-        return err({ kind: "not_found" as const, resourceType: "Feature", id });
-      }
-
-      const newBv = wsjfBusinessValue ?? (existing.wsjfBusinessValue as FibonacciValue);
-      const newTc = wsjfTimeCriticality ?? (existing.wsjfTimeCriticality as FibonacciValue);
-      const newRr = wsjfRiskReduction ?? (existing.wsjfRiskReduction as FibonacciValue);
-      const newJs = wsjfJobSize ?? (existing.wsjfJobSize as FibonacciValue);
-
-      const wsjfChanged =
-        wsjfBusinessValue !== undefined ||
-        wsjfTimeCriticality !== undefined ||
-        wsjfRiskReduction !== undefined ||
-        wsjfJobSize !== undefined;
-
-      const newComputed = wsjfChanged
-        ? computeWsjf({
-            businessValue: newBv,
-            timeCriticality: newTc,
-            riskReduction: newRr,
-            jobSize: newJs,
-          })
-        : undefined;
-
-      const changes: Record<string, { before: unknown; after: unknown }> = {};
-      if (title !== undefined && title !== existing.title) {
-        changes["title"] = { before: existing.title, after: title };
-      }
-      if (wsjfChanged) {
-        changes["wsjf"] = {
-          before: {
-            bv: existing.wsjfBusinessValue,
-            tc: existing.wsjfTimeCriticality,
-            rr: existing.wsjfRiskReduction,
-            js: existing.wsjfJobSize,
-          },
-          after: { bv: newBv, tc: newTc, rr: newRr, js: newJs },
-        };
-      }
-
-      await tx.initiative.update({
-        where: { id },
-        data: {
-          updatedBy: actorId,
-          ...(title !== undefined && { title }),
-          ...(description !== undefined && { description }),
-          ...(wsjfBusinessValue !== undefined && { wsjfBusinessValue }),
-          ...(wsjfTimeCriticality !== undefined && { wsjfTimeCriticality }),
-          ...(wsjfRiskReduction !== undefined && { wsjfRiskReduction }),
-          ...(wsjfJobSize !== undefined && { wsjfJobSize }),
-          ...(newComputed !== undefined && { wsjfComputed: newComputed }),
-          ...(acceptanceCriteria !== undefined && { acceptanceCriteria }),
-          ...(piId !== undefined && { piId }),
-        },
-      });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "initiative.updated",
-        resourceType: "initiative",
-        resourceId: id,
-        changes,
-        ipAddress,
-        userAgent,
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      throw e;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
     });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "Feature", id });
+    }
+
+    const newBv = wsjfBusinessValue ?? (existing.wsjfBusinessValue as FibonacciValue);
+    const newTc = wsjfTimeCriticality ?? (existing.wsjfTimeCriticality as FibonacciValue);
+    const newRr = wsjfRiskReduction ?? (existing.wsjfRiskReduction as FibonacciValue);
+    const newJs = wsjfJobSize ?? (existing.wsjfJobSize as FibonacciValue);
+
+    const wsjfChanged =
+      wsjfBusinessValue !== undefined ||
+      wsjfTimeCriticality !== undefined ||
+      wsjfRiskReduction !== undefined ||
+      wsjfJobSize !== undefined;
+
+    const newComputed = wsjfChanged
+      ? computeWsjf({
+          businessValue: newBv,
+          timeCriticality: newTc,
+          riskReduction: newRr,
+          jobSize: newJs,
+        })
+      : undefined;
+
+    // Scalar fields diff via the shared changelog helper; WSJF is a compound
+    // field, so its before/after is built explicitly.
+    const changes = buildChangelog(
+      { title: existing.title },
+      { ...(title !== undefined && { title }) },
+      ["title"],
+    );
+    if (wsjfChanged) {
+      changes["wsjf"] = {
+        before: {
+          bv: existing.wsjfBusinessValue,
+          tc: existing.wsjfTimeCriticality,
+          rr: existing.wsjfRiskReduction,
+          js: existing.wsjfJobSize,
+        },
+        after: { bv: newBv, tc: newTc, rr: newRr, js: newJs },
+      };
+    }
+
+    await tx.initiative.update({
+      where: { id },
+      data: {
+        updatedBy: mctx.actorId,
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+        ...(wsjfBusinessValue !== undefined && { wsjfBusinessValue }),
+        ...(wsjfTimeCriticality !== undefined && { wsjfTimeCriticality }),
+        ...(wsjfRiskReduction !== undefined && { wsjfRiskReduction }),
+        ...(wsjfJobSize !== undefined && { wsjfJobSize }),
+        ...(newComputed !== undefined && { wsjfComputed: newComputed }),
+        ...(acceptanceCriteria !== undefined && { acceptanceCriteria }),
+        ...(piId !== undefined && { piId }),
+      },
+    });
+
+    return ok({
+      result: undefined,
+      audit: { action: "initiative.updated", resourceType: "initiative", resourceId: id, changes },
+    });
+  });
 }
 
 export interface SetFeaturePiInput {
-  tenantId: TenantId;
-  actorId: UserId;
   featureId: FeatureId;
   /** Target PI, or null to move the feature back to the backlog. */
   piId: PiId | null;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 /** Assign a feature to a PI (or back to the backlog). Enforces the same-ART rule. */
 export async function setFeaturePi(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: SetFeaturePiInput,
 ): Promise<Result<void>> {
-  const { tenantId, actorId, featureId, piId, ipAddress, userAgent } = input;
+  const mctx = toMutationContext(ctx);
+  const { featureId, piId } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const feature = await tx.initiative.findFirst({
-        where: { id: featureId, tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
+  return withAuditedTransaction(mctx, async (tx) => {
+    const feature = await tx.initiative.findFirst({
+      where: {
+        id: featureId,
+        tenantId: mctx.tenantId,
+        level: InitiativeLevel.FEATURE,
+        deletedAt: null,
+      },
+    });
+    if (!feature) {
+      return err({ kind: "not_found" as const, resourceType: "Feature", id: featureId });
+    }
+
+    if (piId !== null) {
+      const pi = await tx.programIncrement.findFirst({
+        where: { id: piId, tenantId: mctx.tenantId },
       });
-      if (!feature) {
-        return err({ kind: "not_found" as const, resourceType: "Feature", id: featureId });
+      if (!pi) {
+        return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id: piId });
       }
-
-      if (piId !== null) {
-        const pi = await tx.programIncrement.findFirst({ where: { id: piId, tenantId } });
-        if (!pi) {
-          return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id: piId });
-        }
-        if (pi.artId !== feature.artId) {
-          return err({
-            kind: "conflict" as const,
-            reason: "Feature and Program Increment belong to different ARTs",
-          });
-        }
+      if (pi.artId !== feature.artId) {
+        return err({
+          kind: "conflict" as const,
+          reason: "Feature and Program Increment belong to different ARTs",
+        });
       }
+    }
 
-      if (feature.piId === piId) return ok(undefined);
+    await tx.initiative.update({
+      where: { id: featureId },
+      data: { piId, updatedBy: mctx.actorId },
+    });
 
-      await tx.initiative.update({
-        where: { id: featureId },
-        data: { piId, updatedBy: actorId },
-      });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
+    return ok({
+      result: undefined,
+      audit: {
         action: "initiative.updated",
         resourceType: "initiative",
         resourceId: featureId,
         changes: { piId: { before: feature.piId, after: piId } },
-        ipAddress,
-        userAgent,
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      throw e;
+      },
     });
+  });
 }
 
 export interface ScoreFeatureInput {
-  tenantId: TenantId;
-  actorId: UserId;
   id: FeatureId;
   wsjfBusinessValue: FibonacciValue;
   wsjfTimeCriticality: FibonacciValue;
   wsjfRiskReduction: FibonacciValue;
   wsjfJobSize: FibonacciValue;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export async function scoreFeature(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: ScoreFeatureInput,
 ): Promise<Result<void>> {
-  const {
-    tenantId,
-    actorId,
-    id,
-    wsjfBusinessValue,
-    wsjfTimeCriticality,
-    wsjfRiskReduction,
-    wsjfJobSize,
-    ipAddress,
-    userAgent,
-  } = input;
+  const mctx = toMutationContext(ctx);
+  const { id, wsjfBusinessValue, wsjfTimeCriticality, wsjfRiskReduction, wsjfJobSize } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.initiative.findFirst({
-        where: { id, tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
-      });
-      if (!existing) return err({ kind: "not_found" as const, resourceType: "Feature", id });
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
+    });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Feature", id });
 
-      const wsjfComputed = computeWsjf({
-        businessValue: wsjfBusinessValue,
-        timeCriticality: wsjfTimeCriticality,
-        riskReduction: wsjfRiskReduction,
-        jobSize: wsjfJobSize,
-      });
+    const wsjfComputed = computeWsjf({
+      businessValue: wsjfBusinessValue,
+      timeCriticality: wsjfTimeCriticality,
+      riskReduction: wsjfRiskReduction,
+      jobSize: wsjfJobSize,
+    });
 
-      await tx.initiative.update({
-        where: { id },
-        data: {
-          wsjfBusinessValue,
-          wsjfTimeCriticality,
-          wsjfRiskReduction,
-          wsjfJobSize,
-          wsjfComputed,
-          updatedBy: actorId,
-        },
-      });
+    await tx.initiative.update({
+      where: { id },
+      data: {
+        wsjfBusinessValue,
+        wsjfTimeCriticality,
+        wsjfRiskReduction,
+        wsjfJobSize,
+        wsjfComputed,
+        updatedBy: mctx.actorId,
+      },
+    });
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
+    return ok({
+      result: undefined,
+      audit: {
         action: "wsjf.scored",
         resourceType: "initiative",
         resourceId: id,
         changes: { wsjfComputed: { before: existing.wsjfComputed, after: wsjfComputed } },
-        ipAddress,
-        userAgent,
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      throw e;
+      },
     });
+  });
 }
 
 export async function listFeatures(

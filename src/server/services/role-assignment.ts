@@ -3,7 +3,12 @@ import type { TenantId, UserId } from "@/domain/types";
 import type { Role } from "@/domain/roles";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
-import { emitAuditEvent } from "@/server/audit/emit";
+import type { RequestContext } from "@/server/http/mutation-handler";
+import {
+  withAuditedTransaction,
+  toMutationContext,
+  onUniqueConstraint,
+} from "@/server/services/mutation";
 
 export interface VisibilityScope {
   valueStreamIds: string[];
@@ -12,37 +17,31 @@ export interface VisibilityScope {
 }
 
 export interface AssignRoleInput {
-  tenantId: TenantId;
-  actorId: UserId;
   targetUserId: UserId;
   role: Role;
   scope: VisibilityScope;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export interface RemoveRoleInput {
-  tenantId: TenantId;
-  actorId: UserId;
   assignmentId: string;
   targetUserId: UserId;
   role: Role;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export async function assignRole(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: AssignRoleInput,
 ): Promise<Result<{ id: string }>> {
-  const { tenantId, actorId, targetUserId, role, scope, ipAddress, userAgent } = input;
+  const mctx = toMutationContext(ctx);
+  const { targetUserId, role, scope } = input;
 
-  return db
-    .$transaction(async (tx) => {
+  return withAuditedTransaction(
+    mctx,
+    async (tx) => {
       const assignment = await tx.userRoleAssignment.create({
         data: {
           userId: targetUserId,
-          tenantId,
+          tenantId: mctx.tenantId,
           role,
           valueStreamIds: scope.valueStreamIds,
           artIds: scope.artIds,
@@ -50,74 +49,56 @@ export async function assignRole(
         },
       });
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "user.role.assigned",
-        resourceType: "user_role_assignment",
-        resourceId: assignment.id,
-        ipAddress,
-        userAgent,
-        changes: {
-          role: { before: null, after: role },
-          targetUserId: { before: null, after: targetUserId },
+      return ok({
+        result: { id: assignment.id },
+        audit: {
+          action: "user.role.assigned",
+          resourceType: "user_role_assignment",
+          resourceId: assignment.id,
+          changes: {
+            role: { before: null, after: role },
+            targetUserId: { before: null, after: targetUserId },
+          },
         },
       });
-
-      return ok({ id: assignment.id });
-    })
-    .catch((e: unknown) => {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes("Unique constraint")) {
-        return err({ kind: "conflict" as const, reason: `User already has role "${role}"` });
-      }
-      throw e;
-    });
+    },
+    { onPrismaError: onUniqueConstraint(`User already has role "${role}"`) },
+  );
 }
 
-export async function removeRole(db: PrismaClient, input: RemoveRoleInput): Promise<Result<void>> {
-  const { tenantId, actorId, assignmentId, targetUserId, role, ipAddress, userAgent } = input;
+export async function removeRole(
+  ctx: RequestContext,
+  input: RemoveRoleInput,
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { assignmentId, targetUserId, role } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const deleted = await tx.userRoleAssignment.deleteMany({
-        where: { id: assignmentId, tenantId, userId: targetUserId },
+  return withAuditedTransaction(mctx, async (tx) => {
+    const deleted = await tx.userRoleAssignment.deleteMany({
+      where: { id: assignmentId, tenantId: mctx.tenantId, userId: targetUserId },
+    });
+
+    if (deleted.count === 0) {
+      return err({
+        kind: "not_found" as const,
+        resourceType: "UserRoleAssignment",
+        id: assignmentId,
       });
+    }
 
-      if (deleted.count === 0) {
-        return err({
-          kind: "not_found" as const,
-          resourceType: "UserRoleAssignment",
-          id: assignmentId,
-        });
-      }
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
+    return ok({
+      result: undefined,
+      audit: {
         action: "user.role.removed",
         resourceType: "user_role_assignment",
         resourceId: assignmentId,
-        ipAddress,
-        userAgent,
         changes: {
           role: { before: role, after: null },
           targetUserId: { before: targetUserId, after: null },
         },
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes("not_found"))
-        return err({
-          kind: "not_found" as const,
-          resourceType: "UserRoleAssignment",
-          id: assignmentId,
-        });
-      throw e;
+      },
     });
+  });
 }
 
 export async function listUserRoles(db: PrismaClient, tenantId: TenantId, userId: UserId) {

@@ -9,25 +9,38 @@ import type { DomainError, Result } from "@/domain/errors";
 import { extractRequestMeta } from "@/server/audit/emit";
 import type { RequestContext } from "./mutation-handler";
 
+/** Identifies the entity a create action just produced — drives the success toast. */
+export interface CreatedRef {
+  id: string;
+  /** Human label, e.g. "Epic". */
+  label: string;
+  /** Detail-page URL; when set, the toast offers an "Open" link. */
+  href?: string;
+}
+
 export type ActionState = {
   error?: string;
   success?: boolean;
   /** Per-field validation errors for forms with field-level feedback. */
   fieldErrors?: Record<string, string[]>;
+  /** Set on a successful create — see `describeCreated`. */
+  created?: CreatedRef;
 };
 
-export interface ServerActionConfig<TInput> {
+export interface ServerActionConfig<TInput, TOutput = unknown> {
   schema: z.ZodType<TInput, z.ZodTypeDef, unknown>;
   action: Action;
   resource: (input: TInput, principal: Principal) => AuthResource;
   parseFormData: (fd: FormData) => unknown;
-  service: (ctx: RequestContext, input: TInput) => Promise<Result<unknown>>;
+  service: (ctx: RequestContext, input: TInput) => Promise<Result<TOutput>>;
   onSuccess: (input: TInput) => void;
   mapError?: (e: DomainError) => string;
+  /** Builds the `CreatedRef` for the success toast from the service result. */
+  describeCreated?: (value: TOutput, input: TInput) => CreatedRef;
 }
 
-export function createServerAction<TInput>(
-  config: ServerActionConfig<TInput>,
+export function createServerAction<TInput, TOutput = unknown>(
+  config: ServerActionConfig<TInput, TOutput>,
 ): (_prev: ActionState, formData: FormData) => Promise<ActionState> {
   return async (_prev, formData) => {
     const principal = await requirePrincipal().catch(() => null);
@@ -62,6 +75,11 @@ export function createServerAction<TInput>(
     }
 
     config.onSuccess(parsed.data);
-    return { success: true };
+    return {
+      success: true,
+      ...(config.describeCreated && {
+        created: config.describeCreated(result.value, parsed.data),
+      }),
+    };
   };
 }

@@ -1,15 +1,16 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, UserId, FeatureId, StoryId, SprintId, PiId, ArtId } from "@/domain/types";
+import type { TenantId, FeatureId, StoryId, SprintId, PiId, ArtId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
-import { emitAuditEvent } from "@/server/audit/emit";
+import { ok, err, isErr } from "@/domain/errors";
+import { buildChangelog } from "@/domain/change-log";
+import { validateParentLevel } from "@/domain/hierarchy";
 import { publishDomainEvent } from "@/server/events/publish";
+import type { RequestContext } from "@/server/http/mutation-handler";
+import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { paginate, type PageParams } from "@/server/db/paginate";
 
 export interface CreateStoryInput {
-  tenantId: TenantId;
-  actorId: UserId;
   parentId: FeatureId;
   piId?: PiId | undefined;
   sprintId?: SprintId | undefined;
@@ -17,13 +18,9 @@ export interface CreateStoryInput {
   description?: string | undefined;
   acceptanceCriteria?: string[] | undefined;
   storyPoints?: number | undefined;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export interface UpdateStoryInput {
-  tenantId: TenantId;
-  actorId: UserId;
   id: StoryId;
   title?: string | undefined;
   description?: string | undefined;
@@ -31,146 +28,125 @@ export interface UpdateStoryInput {
   storyPoints?: number | undefined;
   sprintId?: SprintId | null | undefined;
   status?: string | undefined;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export async function createStory(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: CreateStoryInput,
 ): Promise<Result<{ id: StoryId }>> {
-  const {
-    tenantId,
-    actorId,
-    parentId,
-    piId,
-    sprintId,
-    title,
-    description,
-    acceptanceCriteria,
-    storyPoints,
-    ipAddress,
-    userAgent,
-  } = input;
+  const mctx = toMutationContext(ctx);
+  const { parentId, piId, sprintId, title, description, acceptanceCriteria, storyPoints } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const feature = await tx.initiative.findFirst({
-        where: { id: parentId, tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
-      });
-      if (!feature) {
-        return err({ kind: "not_found" as const, resourceType: "Feature", id: parentId });
-      }
-
-      const path = `${feature.path}/${crypto.randomUUID()}`;
-
-      const story = await tx.initiative.create({
-        data: {
-          tenantId,
-          level: InitiativeLevel.STORY,
-          parentId,
-          path,
-          title,
-          ...(description !== undefined && { description }),
-          ...(acceptanceCriteria !== undefined && { acceptanceCriteria }),
-          ...(storyPoints !== undefined && { storyPoints }),
-          ...(piId !== undefined && { piId }),
-          ...(sprintId !== undefined && { sprintId }),
-          ownerId: actorId,
-          assigneeIds: [],
-          createdBy: actorId,
-          updatedBy: actorId,
-        },
-      });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "initiative.created",
-        resourceType: "initiative",
-        resourceId: story.id,
-        ipAddress,
-        userAgent,
-      });
-
-      await publishDomainEvent(tx as unknown as PrismaClient, {
-        type: "story.created",
-        tenantId,
-        storyId: story.id as StoryId,
-        artId: feature.artId as ArtId,
-        title: story.title,
-        description: story.description ?? null,
-        storyPoints: story.storyPoints ?? null,
-      });
-
-      return ok({ id: story.id as StoryId });
-    })
-    .catch((e: unknown) => {
-      throw e;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const parent = await tx.initiative.findFirst({
+      where: { id: parentId, tenantId: mctx.tenantId, deletedAt: null },
     });
+    const hierarchy = validateParentLevel(InitiativeLevel.STORY, parent, parentId);
+    if (isErr(hierarchy)) return hierarchy;
+    const feature = parent!; // non-null once validateParentLevel passes
+
+    const path = `${feature.path}/${crypto.randomUUID()}`;
+
+    const story = await tx.initiative.create({
+      data: {
+        tenantId: mctx.tenantId,
+        level: InitiativeLevel.STORY,
+        parentId,
+        path,
+        title,
+        ...(description !== undefined && { description }),
+        ...(acceptanceCriteria !== undefined && { acceptanceCriteria }),
+        ...(storyPoints !== undefined && { storyPoints }),
+        ...(piId !== undefined && { piId }),
+        ...(sprintId !== undefined && { sprintId }),
+        ownerId: mctx.actorId,
+        assigneeIds: [],
+        createdBy: mctx.actorId,
+        updatedBy: mctx.actorId,
+      },
+    });
+
+    await publishDomainEvent(tx, {
+      type: "story.created",
+      tenantId: mctx.tenantId,
+      storyId: story.id as StoryId,
+      artId: feature.artId as ArtId,
+      title: story.title,
+      description: story.description ?? null,
+      storyPoints: story.storyPoints ?? null,
+    });
+
+    return ok({
+      result: { id: story.id as StoryId },
+      audit: { action: "initiative.created", resourceType: "initiative", resourceId: story.id },
+    });
+  });
 }
 
 export async function updateStory(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: UpdateStoryInput,
 ): Promise<Result<void>> {
-  const {
-    tenantId,
-    actorId,
-    id,
-    title,
-    description,
-    acceptanceCriteria,
-    storyPoints,
-    sprintId,
-    status,
-    ipAddress,
-    userAgent,
-  } = input;
+  const mctx = toMutationContext(ctx);
+  const { id, title, description, acceptanceCriteria, storyPoints, sprintId, status } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.initiative.findFirst({
-        where: { id, tenantId, level: InitiativeLevel.STORY, deletedAt: null },
-      });
-      if (!existing) {
-        return err({ kind: "not_found" as const, resourceType: "Story", id });
-      }
-
-      const changes: Record<string, { before: unknown; after: unknown }> = {};
-      if (status !== undefined && status !== existing.status) {
-        changes["status"] = { before: existing.status, after: status };
-      }
-
-      await tx.initiative.update({
-        where: { id },
-        data: {
-          ...(title !== undefined && { title }),
-          ...(description !== undefined && { description }),
-          ...(acceptanceCriteria !== undefined && { acceptanceCriteria }),
-          ...(storyPoints !== undefined && { storyPoints }),
-          ...(sprintId !== undefined && { sprintId }),
-          ...(status !== undefined && { status }),
-          updatedBy: actorId,
-        },
-      });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "initiative.updated",
-        resourceType: "initiative",
-        resourceId: id,
-        changes,
-        ipAddress,
-        userAgent,
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      throw e;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.STORY, deletedAt: null },
     });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "Story", id });
+    }
+
+    const changes = buildChangelog(
+      { status: existing.status },
+      { ...(status !== undefined && { status }) },
+      ["status"],
+    );
+
+    await tx.initiative.update({
+      where: { id },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+        ...(acceptanceCriteria !== undefined && { acceptanceCriteria }),
+        ...(storyPoints !== undefined && { storyPoints }),
+        ...(sprintId !== undefined && { sprintId }),
+        ...(status !== undefined && { status }),
+        updatedBy: mctx.actorId,
+      },
+    });
+
+    return ok({
+      result: undefined,
+      audit: { action: "initiative.updated", resourceType: "initiative", resourceId: id, changes },
+    });
+  });
+}
+
+export async function deleteStory(
+  ctx: RequestContext,
+  input: { id: StoryId },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.STORY, deletedAt: null },
+    });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Story", id });
+
+    await tx.initiative.update({
+      where: { id },
+      data: { deletedAt: new Date(), updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: { action: "initiative.deleted", resourceType: "initiative", resourceId: id },
+    });
+  });
 }
 
 export async function listStories(
@@ -213,23 +189,4 @@ export async function getStory(db: PrismaClient, tenantId: TenantId, id: StoryId
       },
     },
   });
-}
-
-export async function deleteStory(
-  db: PrismaClient,
-  tenantId: TenantId,
-  actorId: UserId,
-  id: StoryId,
-): Promise<Result<void>> {
-  const existing = await db.initiative.findFirst({
-    where: { id, tenantId, level: InitiativeLevel.STORY, deletedAt: null },
-  });
-  if (!existing) return err({ kind: "not_found" as const, resourceType: "Story", id });
-
-  await db.initiative.update({
-    where: { id },
-    data: { deletedAt: new Date(), updatedBy: actorId },
-  });
-
-  return ok(undefined);
 }

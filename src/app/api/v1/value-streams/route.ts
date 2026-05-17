@@ -22,14 +22,10 @@ export const POST = createMutationHandler({
   action: "value_stream.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
-    createValueStream(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    createValueStream(ctx, {
       name: input.name,
       description: input.description,
       budgetAmount: input.budgetAmount,
       budgetCurrency: input.budgetCurrency,
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
     }),
 });

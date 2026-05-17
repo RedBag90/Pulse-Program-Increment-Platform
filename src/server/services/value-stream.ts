@@ -1,52 +1,43 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, UserId, ValueStreamId } from "@/domain/types";
+import type { TenantId, ValueStreamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
-import { emitAuditEvent } from "@/server/audit/emit";
+import { buildChangelog } from "@/domain/change-log";
+import type { RequestContext } from "@/server/http/mutation-handler";
+import {
+  withAuditedTransaction,
+  toMutationContext,
+  onUniqueConstraint,
+} from "@/server/services/mutation";
 
 export interface CreateValueStreamInput {
-  tenantId: TenantId;
-  actorId: UserId;
   name: string;
   description?: string | undefined;
   budgetAmount?: string | undefined;
   budgetCurrency?: string | undefined;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export interface UpdateValueStreamInput {
-  tenantId: TenantId;
-  actorId: UserId;
   id: ValueStreamId;
   name?: string | undefined;
   description?: string | undefined;
   budgetAmount?: string | undefined;
   budgetCurrency?: string | undefined;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export async function createValueStream(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: CreateValueStreamInput,
 ): Promise<Result<{ id: ValueStreamId }>> {
-  const {
-    tenantId,
-    actorId,
-    name,
-    description,
-    budgetAmount,
-    budgetCurrency,
-    ipAddress,
-    userAgent,
-  } = input;
+  const mctx = toMutationContext(ctx);
+  const { name, description, budgetAmount, budgetCurrency } = input;
 
-  return db
-    .$transaction(async (tx) => {
+  return withAuditedTransaction(
+    mctx,
+    async (tx) => {
       const vs = await tx.valueStream.create({
         data: {
-          tenantId,
+          tenantId: mctx.tenantId,
           name,
           ...(description !== undefined && { description }),
           ...(budgetAmount !== undefined && { budgetAmount }),
@@ -54,118 +45,86 @@ export async function createValueStream(
         },
       });
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "value_stream.created",
-        resourceType: "value_stream",
-        resourceId: vs.id,
-        ipAddress,
-        userAgent,
+      return ok({
+        result: { id: vs.id as ValueStreamId },
+        audit: { action: "value_stream.created", resourceType: "value_stream", resourceId: vs.id },
       });
-
-      return ok({ id: vs.id as ValueStreamId });
-    })
-    .catch((e: unknown) => {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes("Unique constraint")) {
-        return err({ kind: "conflict" as const, reason: `Value stream "${name}" already exists` });
-      }
-      throw e;
-    });
+    },
+    { onPrismaError: onUniqueConstraint(`Value stream "${name}" already exists`) },
+  );
 }
 
 export async function updateValueStream(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: UpdateValueStreamInput,
 ): Promise<Result<void>> {
-  const { tenantId, actorId, id, ipAddress, userAgent, ...fields } = input;
+  const mctx = toMutationContext(ctx);
+  const { id, name, description, budgetAmount, budgetCurrency } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.valueStream.findFirst({ where: { id, tenantId } });
+  return withAuditedTransaction(
+    mctx,
+    async (tx) => {
+      const existing = await tx.valueStream.findFirst({ where: { id, tenantId: mctx.tenantId } });
       if (!existing) {
         return err({ kind: "not_found" as const, resourceType: "ValueStream", id });
       }
+
+      const changes = buildChangelog(
+        { name: existing.name },
+        { ...(name !== undefined && { name }) },
+        ["name"],
+      );
 
       await tx.valueStream.update({
         where: { id },
         data: {
-          ...(fields.name !== undefined && { name: fields.name }),
-          ...(fields.description !== undefined && { description: fields.description }),
-          ...(fields.budgetAmount !== undefined && { budgetAmount: fields.budgetAmount }),
-          ...(fields.budgetCurrency !== undefined && { budgetCurrency: fields.budgetCurrency }),
+          ...(name !== undefined && { name }),
+          ...(description !== undefined && { description }),
+          ...(budgetAmount !== undefined && { budgetAmount }),
+          ...(budgetCurrency !== undefined && { budgetCurrency }),
         },
       });
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "value_stream.updated",
-        resourceType: "value_stream",
-        resourceId: id,
-        ipAddress,
-        userAgent,
-        changes: {
-          ...(fields.name !== undefined && { name: { before: existing.name, after: fields.name } }),
+      return ok({
+        result: undefined,
+        audit: {
+          action: "value_stream.updated",
+          resourceType: "value_stream",
+          resourceId: id,
+          changes,
         },
       });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes("Unique constraint")) {
-        return err({
-          kind: "conflict" as const,
-          reason: `Value stream "${fields.name}" already exists`,
-        });
-      }
-      throw e;
-    });
+    },
+    { onPrismaError: onUniqueConstraint(`Value stream "${name}" already exists`) },
+  );
 }
 
 export async function softDeleteValueStream(
-  db: PrismaClient,
-  tenantId: TenantId,
-  id: ValueStreamId,
-  actorId: UserId,
-  ipAddress?: string | undefined,
-  userAgent?: string | undefined,
+  ctx: RequestContext,
+  input: { id: ValueStreamId },
 ): Promise<Result<void>> {
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.valueStream.findFirst({ where: { id, tenantId } });
-      if (!existing) {
-        return err({ kind: "not_found" as const, resourceType: "ValueStream", id });
-      }
+  const mctx = toMutationContext(ctx);
+  const { id } = input;
 
-      // ValueStream doesn't have deletedAt in the schema — we use a naming convention
-      // for soft-delete: prefix the name with __deleted__ and store deletion timestamp.
-      // A proper soft-delete column can be added in a future migration.
-      await tx.valueStream.update({
-        where: { id },
-        data: { name: `__deleted__${Date.now()}__${existing.name}` },
-      });
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.valueStream.findFirst({ where: { id, tenantId: mctx.tenantId } });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "ValueStream", id });
+    }
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "value_stream.deleted",
-        resourceType: "value_stream",
-        resourceId: id,
-        ipAddress,
-        userAgent,
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes("not_found"))
-        return err({ kind: "not_found" as const, resourceType: "ValueStream", id });
-      throw e;
+    // ValueStream has no deletedAt column — soft-delete via a naming convention:
+    // prefix the name with __deleted__ and a timestamp. A proper soft-delete
+    // column can be added in a future migration.
+    await tx.valueStream.update({
+      where: { id },
+      data: { name: `__deleted__${Date.now()}__${existing.name}` },
     });
+
+    return ok({
+      result: undefined,
+      audit: { action: "value_stream.deleted", resourceType: "value_stream", resourceId: id },
+    });
+  });
 }
 
 export async function listValueStreams(db: PrismaClient, tenantId: TenantId) {

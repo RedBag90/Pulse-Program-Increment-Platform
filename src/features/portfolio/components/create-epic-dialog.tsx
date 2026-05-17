@@ -1,9 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
 import { createEpicAction } from "@/features/portfolio/actions/epic";
+import { useCreateResult } from "@/features/create/use-create-result";
+import { useEntityOptions, optionsEndpoint } from "@/features/create/use-entity-options";
+import type { ActionState } from "@/server/http/server-action";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,34 +18,50 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+const SELECT_CLASS =
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
 interface ValueStream {
   id: string;
   name: string;
 }
 
-interface CreateEpicDialogProps {
-  valueStreams: ValueStream[];
+export interface CreateEpicDialogProps {
+  /** Controlled mode (global "+" menu). Omit to render a self-triggering button. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Page-supplied value streams; when omitted they are fetched lazily. */
+  valueStreams?: ValueStream[];
 }
 
-export function CreateEpicDialog({ valueStreams }: CreateEpicDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [state, action, isPending] = useActionState(createEpicAction, {});
+const initialState: ActionState = {};
 
-  useEffect(() => {
-    if (state.success) {
-      toast.success("Epic created");
-      setOpen(false);
-    }
-  }, [state]);
+export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpicDialogProps) {
+  const isControlled = open !== undefined;
+  const [selfOpen, setSelfOpen] = useState(false);
+  const dialogOpen = open ?? selfOpen;
+  const setDialogOpen = (v: boolean) => (isControlled ? onOpenChange?.(v) : setSelfOpen(v));
+
+  const [state, action, isPending] = useActionState(createEpicAction, initialState);
+  useCreateResult(state, () => setDialogOpen(false));
+
+  const needFetch = valueStreams === undefined;
+  const fetched = useEntityOptions<ValueStream>(
+    needFetch ? optionsEndpoint("valueStream") : null,
+    needFetch && dialogOpen,
+  );
+  const options = valueStreams ?? fetched.data;
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
-        <Plus className="size-4 mr-1.5" />
-        New Epic
-      </Button>
+      {!isControlled && (
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus className="size-4 mr-1.5" />
+          New Epic
+        </Button>
+      )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Create Epic</DialogTitle>
@@ -64,15 +82,17 @@ export function CreateEpicDialog({ valueStreams }: CreateEpicDialogProps) {
                 id="epic-vs"
                 name="valueStreamId"
                 required
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                disabled={fetched.loading}
+                className={SELECT_CLASS}
               >
-                <option value="">Select a value stream…</option>
-                {valueStreams.map((vs) => (
+                <option value="">{fetched.loading ? "Loading…" : "Select a value stream…"}</option>
+                {options.map((vs) => (
                   <option key={vs.id} value={vs.id}>
                     {vs.name}
                   </option>
                 ))}
               </select>
+              {fetched.error && <p className="text-xs text-destructive">{fetched.error}</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -87,7 +107,7 @@ export function CreateEpicDialog({ valueStreams }: CreateEpicDialogProps) {
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isPending}>

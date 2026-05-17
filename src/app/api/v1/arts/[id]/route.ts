@@ -26,15 +26,7 @@ export async function PATCH(request: Request, { params }: Ctx): Promise<Response
     schema: updateSchema,
     action: "art.update",
     resource: (_input, p) => ({ tenantId: p.tenantId }),
-    service: (ctx, input) =>
-      updateArt(ctx.db, {
-        tenantId: ctx.principal.tenantId,
-        actorId: ctx.principal.id,
-        id: id as ArtId,
-        ...input,
-        ipAddress: ctx.ipAddress,
-        userAgent: ctx.userAgent,
-      }),
+    service: (ctx, input) => updateArt(ctx, { id: id as ArtId, ...input }),
     successStatus: 204,
     idempotent: false,
   })(request);

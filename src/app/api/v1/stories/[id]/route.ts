@@ -31,9 +31,7 @@ export async function PATCH(request: Request, { params }: Ctx): Promise<Response
     action: "story.update",
     resource: (_input, p) => ({ tenantId: p.tenantId }),
     service: (ctx, input) =>
-      updateStory(ctx.db, {
-        tenantId: ctx.principal.tenantId as TenantId,
-        actorId: ctx.principal.id,
+      updateStory(ctx, {
         id: id as StoryId,
         ...input,
         sprintId: input.sprintId === null ? null : (input.sprintId as SprintId | undefined),
@@ -49,8 +47,7 @@ export async function DELETE(request: Request, { params }: Ctx): Promise<Respons
     schema: z.object({}),
     action: "story.update",
     resource: (_input, p) => ({ tenantId: p.tenantId }),
-    service: (ctx) =>
-      deleteStory(ctx.db, ctx.principal.tenantId as TenantId, ctx.principal.id, id as StoryId),
+    service: (ctx) => deleteStory(ctx, { id: id as StoryId }),
     successStatus: 204,
     idempotent: false,
   })(request);

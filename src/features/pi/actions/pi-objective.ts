@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -9,11 +10,13 @@ import {
   type PiObjectiveId,
 } from "@/server/services/pi-objective";
 import { createServerAction } from "@/server/http/server-action";
+import type { RequestContext } from "@/server/http/mutation-handler";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
+import { extractRequestMeta } from "@/server/audit/emit";
 import { isErr } from "@/domain/errors";
-import type { TenantId, PiId, TeamId } from "@/domain/types";
+import type { PiId, TeamId } from "@/domain/types";
 
 export const createPiObjectiveAction = createServerAction({
   schema: z.object({
@@ -37,9 +40,7 @@ export const createPiObjectiveAction = createServerAction({
     committed: fd.get("committed") === "true" ? "true" : "false",
   }),
   service: (ctx, input) =>
-    createPiObjective(ctx.db, {
-      tenantId: ctx.principal.tenantId as TenantId,
-      actorId: ctx.principal.id,
+    createPiObjective(ctx, {
       piId: input.piId as PiId,
       teamId: input.teamId as TeamId,
       title: input.title,
@@ -68,9 +69,14 @@ export async function setObjectiveConfidenceAction(
   }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const result = await updatePiObjective(db, {
-    tenantId: principal.tenantId as TenantId,
-    actorId: principal.id,
+  const { ipAddress, userAgent } = extractRequestMeta(await headers());
+  const ctx: RequestContext = {
+    principal,
+    db,
+    ...(ipAddress !== undefined && { ipAddress }),
+    ...(userAgent !== undefined && { userAgent }),
+  };
+  const result = await updatePiObjective(ctx, {
     id: objectiveId as PiObjectiveId,
     confidence,
   });

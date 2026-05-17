@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, UserId, ArtId, ValueStreamId } from "@/domain/types";
+import type { RequestContext } from "@/server/http/mutation-handler";
 import { randomUUID } from "crypto";
 
 export interface SeedResult {
@@ -7,6 +8,26 @@ export interface SeedResult {
   actorId: UserId;
   artId: ArtId;
   valueStreamId: ValueStreamId;
+}
+
+/**
+ * Builds a RequestContext for service-layer tests from a seeded tenant, so
+ * tests can call the `(ctx, input)` service functions directly.
+ */
+export function testRequestContext(
+  db: PrismaClient,
+  seed: Pick<SeedResult, "tenantId" | "actorId">,
+): RequestContext {
+  return {
+    db,
+    principal: {
+      id: seed.actorId,
+      tenantId: seed.tenantId,
+      email: "test@example.com",
+      roles: [],
+      scopes: { valueStreamIds: [], artIds: [], teamIds: [] },
+    },
+  };
 }
 
 export async function seedTenant(db: PrismaClient): Promise<SeedResult> {

@@ -10,6 +10,11 @@ import type { ActionState } from "@/server/http/server-action";
 export type { ActionState as EpicActionState };
 
 export const createEpicAction = createServerAction({
+  describeCreated: (v: { id: string }) => ({
+    id: v.id,
+    label: "Epic",
+    href: `/portfolio/epics/${v.id}`,
+  }),
   schema: z.object({
     title: z.string().min(1).max(200),
     description: z.string().optional(),
@@ -23,14 +28,10 @@ export const createEpicAction = createServerAction({
     valueStreamId: fd.get("valueStreamId"),
   }),
   service: (ctx, input) =>
-    createEpic(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    createEpic(ctx, {
       title: input.title,
       description: input.description,
       valueStreamId: input.valueStreamId as ValueStreamId,
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
     }),
   onSuccess: () => revalidatePath("/portfolio/epics"),
   mapError: (e) => (e.kind === "not_found" ? "Value stream not found" : "Failed to create epic"),
@@ -50,14 +51,10 @@ export const updateEpicAction = createServerAction({
     description: fd.get("description") || undefined,
   }),
   service: (ctx, input) =>
-    updateEpic(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    updateEpic(ctx, {
       id: input.id as EpicId,
       title: input.title,
       description: input.description,
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
     }),
   onSuccess: (input) => revalidatePath(`/portfolio/epics/${input.id}`),
   mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to update epic"),
@@ -68,15 +65,7 @@ export const deleteEpicAction = createServerAction({
   action: "epic.delete",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => ({ id: fd.get("id") }),
-  service: (ctx, input) =>
-    softDeleteEpic(
-      ctx.db,
-      ctx.principal.tenantId,
-      input.id as EpicId,
-      ctx.principal.id,
-      ctx.ipAddress,
-      ctx.userAgent,
-    ),
+  service: (ctx, input) => softDeleteEpic(ctx, { id: input.id as EpicId }),
   onSuccess: () => revalidatePath("/portfolio/epics"),
   mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to delete epic"),
 });

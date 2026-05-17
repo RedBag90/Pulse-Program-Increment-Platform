@@ -41,9 +41,7 @@ export const POST = createMutationHandler({
   action: "feature.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
   service: (ctx, input) =>
-    createFeature(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    createFeature(ctx, {
       parentId: input.parentId as EpicId,
       artId: input.artId as ArtId,
       piId: input.piId as PiId | undefined,
@@ -54,7 +52,5 @@ export const POST = createMutationHandler({
       wsjfRiskReduction: input.wsjfRiskReduction,
       wsjfJobSize: input.wsjfJobSize,
       acceptanceCriteria: input.acceptanceCriteria,
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
     }),
 });

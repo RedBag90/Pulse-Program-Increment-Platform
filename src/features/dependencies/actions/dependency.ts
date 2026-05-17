@@ -1,17 +1,34 @@
 "use server";
 
+import { headers } from "next/headers";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
+import { extractRequestMeta } from "@/server/audit/emit";
 import {
   linkDependency,
   unlinkDependency,
   type DependencyType,
 } from "@/server/services/dependency";
+import type { RequestContext } from "@/server/http/mutation-handler";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isErr } from "@/domain/errors";
-import type { TenantId, InitiativeId } from "@/domain/types";
+import type { InitiativeId } from "@/domain/types";
+
+/** Builds a RequestContext for service calls from the resolved principal. */
+async function buildContext(
+  principal: Awaited<ReturnType<typeof requirePrincipal>>,
+): Promise<RequestContext> {
+  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+  const { ipAddress, userAgent } = extractRequestMeta(await headers());
+  return {
+    principal,
+    db,
+    ...(ipAddress !== undefined && { ipAddress }),
+    ...(userAgent !== undefined && { userAgent }),
+  };
+}
 
 function mapError(result: { error: { kind: string; reason?: string } }): string {
   return result.error.kind === "conflict"
@@ -34,10 +51,8 @@ export async function linkDependencyAction(
     return { error: "Insufficient permissions" };
   }
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const result = await linkDependency(db, {
-    tenantId: principal.tenantId as TenantId,
-    actorId: principal.id,
+  const ctx = await buildContext(principal);
+  const result = await linkDependency(ctx, {
     fromId: fromId as InitiativeId,
     toId: toId as InitiativeId,
     type,
@@ -63,10 +78,8 @@ export async function unlinkDependencyAction(
     return { error: "Insufficient permissions" };
   }
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const result = await unlinkDependency(db, {
-    tenantId: principal.tenantId as TenantId,
-    actorId: principal.id,
+  const ctx = await buildContext(principal);
+  const result = await unlinkDependency(ctx, {
     fromId: fromId as InitiativeId,
     toId: toId as InitiativeId,
     type,

@@ -37,9 +37,7 @@ export const POST = createMutationHandler({
   action: "story.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
-    createStory(ctx.db, {
-      tenantId: ctx.principal.tenantId as TenantId,
-      actorId: ctx.principal.id,
+    createStory(ctx, {
       parentId: input.featureId as FeatureId,
       piId: input.piId as PiId | undefined,
       sprintId: input.sprintId as SprintId | undefined,

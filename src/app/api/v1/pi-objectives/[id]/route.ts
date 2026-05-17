@@ -5,7 +5,6 @@ import {
   type PiObjectiveId,
 } from "@/server/services/pi-objective";
 import { createMutationHandler } from "@/server/http/mutation-handler";
-import type { TenantId } from "@/domain/types";
 
 const patchSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -24,13 +23,7 @@ export async function PATCH(request: Request, { params }: Ctx): Promise<Response
     schema: patchSchema,
     action: "pi_objective.update",
     resource: (_input, p) => ({ tenantId: p.tenantId }),
-    service: (ctx, input) =>
-      updatePiObjective(ctx.db, {
-        tenantId: ctx.principal.tenantId as TenantId,
-        actorId: ctx.principal.id,
-        id: id as PiObjectiveId,
-        ...input,
-      }),
+    service: (ctx, input) => updatePiObjective(ctx, { id: id as PiObjectiveId, ...input }),
     successStatus: 204,
     idempotent: false,
   })(request);
@@ -42,8 +35,7 @@ export async function DELETE(request: Request, { params }: Ctx): Promise<Respons
     schema: z.object({}),
     action: "pi_objective.update",
     resource: (_input, p) => ({ tenantId: p.tenantId }),
-    service: (ctx) =>
-      deletePiObjective(ctx.db, ctx.principal.tenantId as TenantId, id as PiObjectiveId),
+    service: (ctx) => deletePiObjective(ctx, { id: id as PiObjectiveId }),
     successStatus: 204,
     idempotent: false,
   })(request);

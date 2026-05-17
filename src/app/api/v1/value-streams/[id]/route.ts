@@ -35,15 +35,7 @@ export async function PATCH(request: Request, { params }: Ctx): Promise<Response
     schema: updateSchema,
     action: "value_stream.update",
     resource: (_input, p) => ({ tenantId: p.tenantId }),
-    service: (ctx, input) =>
-      updateValueStream(ctx.db, {
-        tenantId: ctx.principal.tenantId,
-        actorId: ctx.principal.id,
-        id: id as ValueStreamId,
-        ...input,
-        ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
-        ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
-      }),
+    service: (ctx, input) => updateValueStream(ctx, { id: id as ValueStreamId, ...input }),
     successStatus: 204,
     idempotent: false,
   })(request);
@@ -55,15 +47,7 @@ export async function DELETE(request: Request, { params }: Ctx): Promise<Respons
     schema: z.object({}),
     action: "value_stream.update",
     resource: (_input, p) => ({ tenantId: p.tenantId }),
-    service: (ctx) =>
-      softDeleteValueStream(
-        ctx.db,
-        ctx.principal.tenantId,
-        id as ValueStreamId,
-        ctx.principal.id,
-        ctx.ipAddress,
-        ctx.userAgent,
-      ),
+    service: (ctx) => softDeleteValueStream(ctx, { id: id as ValueStreamId }),
     successStatus: 204,
     idempotent: false,
   })(request);

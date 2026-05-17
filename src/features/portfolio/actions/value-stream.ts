@@ -14,6 +14,7 @@ import type { ActionState } from "@/server/http/server-action";
 export type { ActionState as ValueStreamActionState };
 
 export const createValueStreamAction = createServerAction({
+  describeCreated: (v: { id: string }) => ({ id: v.id, label: "Value Stream" }),
   schema: z.object({
     name: z.string().min(1).max(100),
     description: z.string().optional(),
@@ -32,15 +33,11 @@ export const createValueStreamAction = createServerAction({
     budgetCurrency: fd.get("budgetCurrency") || undefined,
   }),
   service: (ctx, input) =>
-    createValueStream(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    createValueStream(ctx, {
       name: input.name,
       description: input.description,
       budgetAmount: input.budgetAmount,
       budgetCurrency: input.budgetCurrency,
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
     }),
   onSuccess: () => revalidatePath("/portfolio/value-streams"),
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create"),
@@ -67,16 +64,12 @@ export const updateValueStreamAction = createServerAction({
     budgetCurrency: fd.get("budgetCurrency") || undefined,
   }),
   service: (ctx, input) =>
-    updateValueStream(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    updateValueStream(ctx, {
       id: input.id as ValueStreamId,
       name: input.name,
       description: input.description,
       budgetAmount: input.budgetAmount,
       budgetCurrency: input.budgetCurrency,
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
     }),
   onSuccess: () => revalidatePath("/portfolio/value-streams"),
   mapError: (e) =>
@@ -90,15 +83,7 @@ export const deleteValueStreamAction = createServerAction({
   action: "value_stream.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => ({ id: fd.get("id") }),
-  service: (ctx, input) =>
-    softDeleteValueStream(
-      ctx.db,
-      ctx.principal.tenantId,
-      input.id as ValueStreamId,
-      ctx.principal.id,
-      ctx.ipAddress,
-      ctx.userAgent,
-    ),
+  service: (ctx, input) => softDeleteValueStream(ctx, { id: input.id as ValueStreamId }),
   onSuccess: () => revalidatePath("/portfolio/value-streams"),
   mapError: (e) => (e.kind === "not_found" ? "Value stream not found" : "Failed to delete"),
 });

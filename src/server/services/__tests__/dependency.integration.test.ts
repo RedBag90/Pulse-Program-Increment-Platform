@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
-import { seedTenant } from "@/test/fixtures/seed";
+import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import { linkDependency, unlinkDependency } from "@/server/services/dependency";
 import { isOk, isErr } from "@/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
@@ -44,9 +44,7 @@ describe("linkDependency", () => {
   it("creates a dependency and emits an AuditEvent", async () => {
     const auditBefore = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 
-    const result = await linkDependency(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await linkDependency(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
       type: "blocks",
@@ -64,18 +62,14 @@ describe("linkDependency", () => {
   });
 
   it("returns conflict when the same dependency already exists", async () => {
-    const first = await linkDependency(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const first = await linkDependency(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
       type: "blocks",
     });
     expect(isOk(first)).toBe(true);
 
-    const second = await linkDependency(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const second = await linkDependency(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
       type: "blocks",
@@ -86,24 +80,18 @@ describe("linkDependency", () => {
   });
 
   it("returns conflict when a dependency would create a cycle (A→B, B→C, proposing C→A)", async () => {
-    await linkDependency(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    await linkDependency(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
       type: "blocks",
     });
-    await linkDependency(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    await linkDependency(testRequestContext(db, seed), {
       fromId: epicB,
       toId: epicC,
       type: "blocks",
     });
 
-    const result = await linkDependency(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await linkDependency(testRequestContext(db, seed), {
       fromId: epicC,
       toId: epicA,
       type: "blocks",
@@ -115,17 +103,13 @@ describe("linkDependency", () => {
   });
 
   it("allows relates_to even when it would form a cycle in directional edges", async () => {
-    await linkDependency(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    await linkDependency(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
       type: "blocks",
     });
 
-    const result = await linkDependency(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await linkDependency(testRequestContext(db, seed), {
       fromId: epicB,
       toId: epicA,
       type: "relates_to",
@@ -137,17 +121,13 @@ describe("linkDependency", () => {
 
 describe("unlinkDependency", () => {
   it("removes an existing dependency and emits an AuditEvent", async () => {
-    await linkDependency(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    await linkDependency(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
       type: "depends_on",
     });
 
-    const result = await unlinkDependency(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await unlinkDependency(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
       type: "depends_on",
@@ -161,9 +141,7 @@ describe("unlinkDependency", () => {
   });
 
   it("returns not_found when trying to unlink a non-existent dependency", async () => {
-    const result = await unlinkDependency(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await unlinkDependency(testRequestContext(db, seed), {
       fromId: epicA,
       toId: epicB,
       type: "blocks",

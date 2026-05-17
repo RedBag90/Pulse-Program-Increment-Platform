@@ -29,14 +29,10 @@ export const POST = createMutationHandler({
   action: "pi.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
   service: (ctx, input) =>
-    createPi(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    createPi(ctx, {
       artId: input.artId as ArtId,
       name: input.name,
       startDate: new Date(input.startDate),
       endDate: new Date(input.endDate),
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
     }),
 });

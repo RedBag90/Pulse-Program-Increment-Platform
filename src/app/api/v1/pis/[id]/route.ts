@@ -29,15 +29,11 @@ export async function PATCH(request: Request, { params }: Ctx): Promise<Response
     action: "pi.update",
     resource: (_input, p) => ({ tenantId: p.tenantId }),
     service: (ctx, input) =>
-      updatePi(ctx.db, {
-        tenantId: ctx.principal.tenantId,
-        actorId: ctx.principal.id,
+      updatePi(ctx, {
         id: id as PiId,
         ...input,
         startDate: input.startDate !== undefined ? new Date(input.startDate) : undefined,
         endDate: input.endDate !== undefined ? new Date(input.endDate) : undefined,
-        ipAddress: ctx.ipAddress,
-        userAgent: ctx.userAgent,
       }),
     successStatus: 204,
     idempotent: false,

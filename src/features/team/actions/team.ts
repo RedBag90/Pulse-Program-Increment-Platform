@@ -12,6 +12,7 @@ export interface TeamActionState {
 }
 
 export const createTeamAction = createServerAction({
+  describeCreated: (v: { id: string }) => ({ id: v.id, label: "Team", href: `/team/${v.id}` }),
   schema: z.object({
     artId: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -22,15 +23,7 @@ export const createTeamAction = createServerAction({
     artId: fd.get("artId"),
     name: fd.get("name"),
   }),
-  service: (ctx, input) =>
-    createTeam(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
-      artId: input.artId as ArtId,
-      name: input.name,
-      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
-      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
-    }),
+  service: (ctx, input) => createTeam(ctx, { artId: input.artId as ArtId, name: input.name }),
   onSuccess: () => revalidatePath("/art/[artId]/teams", "page"),
   mapError: (e) =>
     e.kind === "conflict"
@@ -53,15 +46,7 @@ export const updateTeamAction = createServerAction({
     artId: fd.get("artId"),
     name: fd.get("name") || undefined,
   }),
-  service: (ctx, input) =>
-    updateTeam(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
-      id: input.id as TeamId,
-      name: input.name,
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
-    }),
+  service: (ctx, input) => updateTeam(ctx, { id: input.id as TeamId, name: input.name }),
   onSuccess: () => revalidatePath("/art/[artId]/teams", "page"),
   mapError: (e) =>
     e.kind === "conflict"
@@ -76,15 +61,7 @@ export const deleteTeamAction = createServerAction({
   action: "team.delete",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
   parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
-  service: (ctx, input) =>
-    deleteTeam(
-      ctx.db,
-      ctx.principal.tenantId,
-      input.id as TeamId,
-      ctx.principal.id,
-      ctx.ipAddress,
-      ctx.userAgent,
-    ),
+  service: (ctx, input) => deleteTeam(ctx, { id: input.id as TeamId }),
   onSuccess: () => revalidatePath("/art/[artId]/teams", "page"),
   mapError: (e) =>
     e.kind === "conflict"

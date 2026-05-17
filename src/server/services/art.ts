@@ -1,81 +1,82 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, UserId, ArtId, ValueStreamId } from "@/domain/types";
+import type { TenantId, ArtId, ValueStreamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
-import { emitAuditEvent } from "@/server/audit/emit";
+import { buildChangelog } from "@/domain/change-log";
+import type { RequestContext } from "@/server/http/mutation-handler";
+import {
+  withAuditedTransaction,
+  toMutationContext,
+  onUniqueConstraint,
+} from "@/server/services/mutation";
 
 export interface CreateArtInput {
-  tenantId: TenantId;
-  actorId: UserId;
   valueStreamId: ValueStreamId;
   name: string;
   piCadenceWeeks?: number | undefined;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export interface UpdateArtInput {
-  tenantId: TenantId;
-  actorId: UserId;
   id: ArtId;
   name?: string | undefined;
   piCadenceWeeks?: number | undefined;
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
 }
 
 export async function createArt(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: CreateArtInput,
 ): Promise<Result<{ id: ArtId }>> {
-  const { tenantId, actorId, valueStreamId, name, piCadenceWeeks, ipAddress, userAgent } = input;
+  const mctx = toMutationContext(ctx);
+  const { valueStreamId, name, piCadenceWeeks } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const vs = await tx.valueStream.findFirst({ where: { id: valueStreamId, tenantId } });
+  return withAuditedTransaction(
+    mctx,
+    async (tx) => {
+      const vs = await tx.valueStream.findFirst({
+        where: { id: valueStreamId, tenantId: mctx.tenantId },
+      });
       if (!vs) {
         return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
       }
 
       const art = await tx.art.create({
         data: {
-          tenantId,
+          tenantId: mctx.tenantId,
           valueStreamId,
           name,
           ...(piCadenceWeeks !== undefined && { piCadenceWeeks }),
         },
       });
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "art.created",
-        resourceType: "art",
-        resourceId: art.id,
-        ipAddress,
-        userAgent,
+      return ok({
+        result: { id: art.id as ArtId },
+        audit: { action: "art.created", resourceType: "art", resourceId: art.id },
       });
-
-      return ok({ id: art.id as ArtId });
-    })
-    .catch((e: unknown) => {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes("Unique constraint")) {
-        return err({ kind: "conflict" as const, reason: `ART "${name}" already exists` });
-      }
-      throw e;
-    });
+    },
+    { onPrismaError: onUniqueConstraint(`ART "${name}" already exists`) },
+  );
 }
 
-export async function updateArt(db: PrismaClient, input: UpdateArtInput): Promise<Result<void>> {
-  const { tenantId, actorId, id, name, piCadenceWeeks, ipAddress, userAgent } = input;
+export async function updateArt(ctx: RequestContext, input: UpdateArtInput): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id, name, piCadenceWeeks } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.art.findFirst({ where: { id, tenantId } });
+  return withAuditedTransaction(
+    mctx,
+    async (tx) => {
+      const existing = await tx.art.findFirst({ where: { id, tenantId: mctx.tenantId } });
       if (!existing) {
         return err({ kind: "not_found" as const, resourceType: "Art", id });
       }
+
+      const changes = buildChangelog(
+        { name: existing.name, piCadenceWeeks: existing.piCadenceWeeks },
+        {
+          ...(name !== undefined && { name }),
+          ...(piCadenceWeeks !== undefined && { piCadenceWeeks }),
+        },
+        ["name", "piCadenceWeeks"],
+      );
 
       await tx.art.update({
         where: { id },
@@ -85,83 +86,50 @@ export async function updateArt(db: PrismaClient, input: UpdateArtInput): Promis
         },
       });
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "art.updated",
-        resourceType: "art",
-        resourceId: id,
-        ipAddress,
-        userAgent,
-        changes: {
-          ...(name !== undefined && { name: { before: existing.name, after: name } }),
-          ...(piCadenceWeeks !== undefined && {
-            piCadenceWeeks: { before: existing.piCadenceWeeks, after: piCadenceWeeks },
-          }),
-        },
+      return ok({
+        result: undefined,
+        audit: { action: "art.updated", resourceType: "art", resourceId: id, changes },
       });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes("Unique constraint")) {
-        return err({ kind: "conflict" as const, reason: `ART "${name}" already exists` });
-      }
-      throw e;
-    });
+    },
+    { onPrismaError: onUniqueConstraint(`ART "${name}" already exists`) },
+  );
 }
 
 export async function softDeleteArt(
-  db: PrismaClient,
-  tenantId: TenantId,
-  id: ArtId,
-  actorId: UserId,
-  ipAddress?: string | undefined,
-  userAgent?: string | undefined,
+  ctx: RequestContext,
+  input: { id: ArtId },
 ): Promise<Result<void>> {
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.art.findFirst({
-        where: { id, tenantId },
-        include: { _count: { select: { pis: true, teams: true } } },
-      });
-      if (!existing) return err({ kind: "not_found" as const, resourceType: "Art", id });
+  const mctx = toMutationContext(ctx);
+  const { id } = input;
 
-      if (existing._count.pis > 0) {
-        return err({
-          kind: "conflict" as const,
-          reason: "ART has Program Increments and cannot be deleted",
-        });
-      }
-
-      if (existing._count.teams > 0) {
-        return err({
-          kind: "conflict" as const,
-          reason: "ART has teams — delete all teams first",
-        });
-      }
-
-      await tx.art.update({
-        where: { id },
-        data: { name: `__deleted__${Date.now()}__${existing.name}` },
-      });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "art.deleted",
-        resourceType: "art",
-        resourceId: id,
-        ipAddress,
-        userAgent,
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      throw e;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.art.findFirst({
+      where: { id, tenantId: mctx.tenantId },
+      include: { _count: { select: { pis: true, teams: true } } },
     });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Art", id });
+
+    if (existing._count.pis > 0) {
+      return err({
+        kind: "conflict" as const,
+        reason: "ART has Program Increments and cannot be deleted",
+      });
+    }
+
+    if (existing._count.teams > 0) {
+      return err({ kind: "conflict" as const, reason: "ART has teams — delete all teams first" });
+    }
+
+    await tx.art.update({
+      where: { id },
+      data: { name: `__deleted__${Date.now()}__${existing.name}` },
+    });
+
+    return ok({
+      result: undefined,
+      audit: { action: "art.deleted", resourceType: "art", resourceId: id },
+    });
+  });
 }
 
 export async function listArts(db: PrismaClient, tenantId: TenantId) {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
-import { seedTenant } from "@/test/fixtures/seed";
+import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import { createFeature, updateFeature, scoreFeature } from "@/server/services/feature";
 import { isOk, isErr } from "@/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
@@ -38,9 +38,7 @@ beforeEach(async () => {
 
 describe("createFeature", () => {
   it("creates a feature with computed WSJF and returns its id", async () => {
-    const result = await createFeature(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createFeature(testRequestContext(db, seed), {
       parentId: epicId,
       artId: seed.artId,
       title: "Implement login",
@@ -60,9 +58,7 @@ describe("createFeature", () => {
   });
 
   it("returns not_found for unknown epic parentId", async () => {
-    const result = await createFeature(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createFeature(testRequestContext(db, seed), {
       parentId: randomUUID() as EpicId,
       artId: seed.artId,
       title: "Orphan feature",
@@ -78,9 +74,7 @@ describe("createFeature", () => {
   });
 
   it("returns not_found for unknown artId", async () => {
-    const result = await createFeature(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createFeature(testRequestContext(db, seed), {
       parentId: epicId,
       artId: randomUUID() as ArtId,
       title: "Feature with bad ART",
@@ -98,9 +92,7 @@ describe("createFeature", () => {
   it("emits an AuditEvent row on creation", async () => {
     const before = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 
-    await createFeature(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    await createFeature(testRequestContext(db, seed), {
       parentId: epicId,
       artId: seed.artId,
       title: "Feature with audit",
@@ -117,9 +109,7 @@ describe("createFeature", () => {
 
 describe("updateFeature", () => {
   async function createTestFeature(): Promise<FeatureId> {
-    const result = await createFeature(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createFeature(testRequestContext(db, seed), {
       parentId: epicId,
       artId: seed.artId,
       title: "Original title",
@@ -136,9 +126,7 @@ describe("updateFeature", () => {
     const featureId = await createTestFeature();
     const auditsBefore = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 
-    const result = await updateFeature(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await updateFeature(testRequestContext(db, seed), {
       id: featureId,
       title: "Updated title",
     });
@@ -154,9 +142,7 @@ describe("updateFeature", () => {
 
 describe("scoreFeature", () => {
   it("recalculates wsjfComputed after scoring", async () => {
-    const result = await createFeature(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createFeature(testRequestContext(db, seed), {
       parentId: epicId,
       artId: seed.artId,
       title: "Feature to score",
@@ -169,9 +155,7 @@ describe("scoreFeature", () => {
     const featureId = result.value.id;
     const before = await db.initiative.findFirst({ where: { id: featureId } });
 
-    await scoreFeature(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    await scoreFeature(testRequestContext(db, seed), {
       id: featureId,
       wsjfBusinessValue: 13,
       wsjfTimeCriticality: 8,

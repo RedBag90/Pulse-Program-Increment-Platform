@@ -34,14 +34,10 @@ export async function PATCH(request: Request, { params }: Ctx): Promise<Response
     action: "feature.update",
     resource: (_input, p) => ({ tenantId: p.tenantId }),
     service: (ctx, input) =>
-      updateFeature(ctx.db, {
-        tenantId: ctx.principal.tenantId,
-        actorId: ctx.principal.id,
+      updateFeature(ctx, {
         id: id as FeatureId,
         ...input,
         piId: input.piId as PiId | undefined,
-        ipAddress: ctx.ipAddress,
-        userAgent: ctx.userAgent,
       }),
     successStatus: 204,
     idempotent: false,

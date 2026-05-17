@@ -12,6 +12,7 @@ export interface ArtActionState {
 }
 
 export const createArtAction = createServerAction({
+  describeCreated: (v: { id: string }) => ({ id: v.id, label: "ART", href: `/art/${v.id}` }),
   schema: z.object({
     valueStreamId: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -25,14 +26,10 @@ export const createArtAction = createServerAction({
     piCadenceWeeks: fd.get("piCadenceWeeks") ?? undefined,
   }),
   service: (ctx, input) =>
-    createArt(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    createArt(ctx, {
       valueStreamId: input.valueStreamId as ValueStreamId,
       name: input.name,
       piCadenceWeeks: input.piCadenceWeeks,
-      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
-      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
     }),
   onSuccess: () => revalidatePath("/art"),
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create ART"),
@@ -43,15 +40,7 @@ export const deleteArtAction = createServerAction({
   action: "art.delete",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => ({ id: fd.get("id") }),
-  service: (ctx, input) =>
-    softDeleteArt(
-      ctx.db,
-      ctx.principal.tenantId,
-      input.id as ArtId,
-      ctx.principal.id,
-      ctx.ipAddress,
-      ctx.userAgent,
-    ),
+  service: (ctx, input) => softDeleteArt(ctx, { id: input.id as ArtId }),
   onSuccess: () => revalidatePath("/art"),
   mapError: (e) =>
     e.kind === "conflict"

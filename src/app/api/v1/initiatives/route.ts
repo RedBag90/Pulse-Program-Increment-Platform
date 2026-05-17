@@ -8,7 +8,6 @@ const createEpicSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().optional(),
   valueStreamId: z.string().uuid(),
-  leanBusinessCase: z.record(z.unknown()).optional(),
 });
 
 export const GET = createQueryHandler({
@@ -20,14 +19,9 @@ export const POST = createMutationHandler({
   action: "epic.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
-    createEpic(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    createEpic(ctx, {
       title: input.title,
       description: input.description,
       valueStreamId: input.valueStreamId as ValueStreamId,
-      leanBusinessCase: input.leanBusinessCase,
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
     }),
 });

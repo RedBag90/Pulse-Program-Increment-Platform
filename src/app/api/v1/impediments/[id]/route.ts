@@ -1,14 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
+import { extractRequestMeta } from "@/server/audit/emit";
 import {
   escalateImpediment,
   resolveImpediment,
   type ImpedimentId,
 } from "@/server/services/impediment";
+import type { RequestContext } from "@/server/http/mutation-handler";
 import { authorize } from "@/server/auth/authorize";
 import { forbidden, problemJson } from "@/server/http/problem";
-import type { TenantId } from "@/domain/types";
 import { z } from "zod";
 import { isErr } from "@/domain/errors";
 
@@ -38,19 +40,19 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!decision.allow) return forbidden(decision.reason);
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+  const { ipAddress, userAgent } = extractRequestMeta(await headers());
+  const ctx: RequestContext = {
+    principal,
+    db,
+    ...(ipAddress !== undefined && { ipAddress }),
+    ...(userAgent !== undefined && { userAgent }),
+  };
 
   let result;
   if (parsed.data.action === "escalate") {
-    result = await escalateImpediment(
-      db,
-      principal.tenantId as TenantId,
-      principal.id,
-      id as ImpedimentId,
-    );
+    result = await escalateImpediment(ctx, { id: id as ImpedimentId });
   } else {
-    result = await resolveImpediment(db, {
-      tenantId: principal.tenantId as TenantId,
-      actorId: principal.id,
+    result = await resolveImpediment(ctx, {
       id: id as ImpedimentId,
       resolution: parsed.data.resolution,
     });

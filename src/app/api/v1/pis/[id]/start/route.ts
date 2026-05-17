@@ -13,14 +13,7 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
     schema: z.object({}),
     action: "pi.start",
     resource: (_input, p) => ({ tenantId: p.tenantId }),
-    service: (ctx) =>
-      startPi(ctx.db, {
-        tenantId: ctx.principal.tenantId,
-        actorId: ctx.principal.id,
-        id: id as PiId,
-        ipAddress: ctx.ipAddress,
-        userAgent: ctx.userAgent,
-      }),
+    service: (ctx) => startPi(ctx, { id: id as PiId }),
     successStatus: 204,
     idempotent: false,
   })(request);

@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
 import { createValueStreamAction } from "@/features/portfolio/actions/value-stream";
+import { useCreateResult } from "@/features/create/use-create-result";
+import type { ActionState } from "@/server/http/server-action";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,25 +17,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-export function CreateValueStreamDialog() {
-  const [open, setOpen] = useState(false);
-  const [state, action, isPending] = useActionState(createValueStreamAction, {});
+export interface CreateValueStreamDialogProps {
+  /** Controlled mode (global "+" menu). Omit to render a self-triggering button. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
 
-  useEffect(() => {
-    if (state.success) {
-      toast.success("Value Stream created");
-      setOpen(false);
-    }
-  }, [state]);
+const initialState: ActionState = {};
+
+export function CreateValueStreamDialog({ open, onOpenChange }: CreateValueStreamDialogProps) {
+  const isControlled = open !== undefined;
+  const [selfOpen, setSelfOpen] = useState(false);
+  const dialogOpen = open ?? selfOpen;
+  const setDialogOpen = (v: boolean) => (isControlled ? onOpenChange?.(v) : setSelfOpen(v));
+
+  const [state, action, isPending] = useActionState(createValueStreamAction, initialState);
+  useCreateResult(state, () => setDialogOpen(false));
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
-        <Plus className="size-4 mr-1.5" />
-        New Value Stream
-      </Button>
+      {!isControlled && (
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus className="size-4 mr-1.5" />
+          New Value Stream
+        </Button>
+      )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Create Value Stream</DialogTitle>
@@ -70,7 +79,7 @@ export function CreateValueStreamDialog() {
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isPending}>

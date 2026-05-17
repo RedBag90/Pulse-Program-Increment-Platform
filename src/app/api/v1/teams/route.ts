@@ -20,13 +20,5 @@ export const POST = createMutationHandler({
   schema: createSchema,
   action: "team.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    createTeam(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
-      artId: input.artId as ArtId,
-      name: input.name,
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
-    }),
+  service: (ctx, input) => createTeam(ctx, { artId: input.artId as ArtId, name: input.name }),
 });

@@ -232,13 +232,31 @@ async function main() {
       assigneeIds: [],
       createdBy: adminId,
       updatedBy: adminId,
-      leanBusinessCase: {
-        problemStatement: "Current checkout has a 72% abandonment rate, costing €4M/year.",
-        customerValue: "Faster, smoother checkout reduces friction and increases conversion.",
-        costEstimate: 350000,
-        roiEstimate: 4000000,
-        successCriteria: "Abandonment rate drops below 45% within 2 PIs of launch.",
-        risks: "Payment gateway integration complexity; mobile UX edge cases.",
+      benefitHypothesis: {
+        current: {
+          measuresHypothesis:
+            "Redesign the end-to-end checkout into a streamlined single-page flow.",
+          changeFromBaseline:
+            "Replaces today's multi-step checkout that drives a 72% abandonment rate.",
+          businessOutcomes: [
+            "Cart abandonment rate drops below 45%",
+            "Higher conversion and order revenue",
+          ],
+          leadingIndicators: ["Time-to-purchase", "Per-step drop-off rate"],
+          risks: ["Payment gateway integration complexity", "Mobile UX edge cases"],
+        },
+        history: [],
+      },
+      businessCase: {
+        current: {
+          initiativeDescription: "Current checkout has a 72% abandonment rate, costing €4M/year.",
+          businessOutcomeHypothesis:
+            "Faster, smoother checkout reduces friction and increases conversion.",
+          analysisSummary: "Abandonment rate drops below 45% within 2 PIs of launch.",
+          costRows: [{ projectType: "impact", costsMonths1to6: 350000, annualImpact: 4000000 }],
+          approvals: [],
+        },
+        history: [],
       },
     },
     update: {},
@@ -259,13 +277,29 @@ async function main() {
       assigneeIds: [],
       createdBy: adminId,
       updatedBy: adminId,
-      leanBusinessCase: {
-        problemStatement: "Generic homepage converts 40% worse than targeted landing pages.",
-        customerValue: "Users see relevant products, increasing average basket size.",
-        costEstimate: 600000,
-        roiEstimate: 2500000,
-        successCriteria: "Average order value increases by 15% within 3 months.",
-        risks: "Data privacy compliance; cold-start problem for new users.",
+      benefitHypothesis: {
+        current: {
+          measuresHypothesis: "Introduce an ML-driven recommendation and personalisation engine.",
+          changeFromBaseline:
+            "Replaces the generic homepage that converts 40% worse than targeted pages.",
+          businessOutcomes: [
+            "Average order value increases by 15%",
+            "Higher engagement and repeat visits",
+          ],
+          leadingIndicators: ["Click-through on recommendations", "Average basket size"],
+          risks: ["Data privacy compliance", "Cold-start problem for new users"],
+        },
+        history: [],
+      },
+      businessCase: {
+        current: {
+          initiativeDescription: "Generic homepage converts 40% worse than targeted landing pages.",
+          businessOutcomeHypothesis: "Users see relevant products, increasing average basket size.",
+          analysisSummary: "Average order value increases by 15% within 3 months.",
+          costRows: [{ projectType: "impact", costsMonths1to6: 600000, annualImpact: 2500000 }],
+          approvals: [],
+        },
+        history: [],
       },
     },
     update: {},
@@ -286,14 +320,32 @@ async function main() {
       assigneeIds: [],
       createdBy: adminId,
       updatedBy: adminId,
-      leanBusinessCase: {
-        problemStatement:
-          "60% of support tickets are return-related, costing €900k/year in handling.",
-        customerValue: "Customers get instant returns confirmation without waiting on hold.",
-        costEstimate: 180000,
-        roiEstimate: 900000,
-        successCriteria: "Support ticket volume drops 50% within 1 PI.",
-        risks: "Fraud risk from automated approvals; warehouse integration.",
+      benefitHypothesis: {
+        current: {
+          measuresHypothesis:
+            "Build a self-service portal for customers to initiate and track returns.",
+          changeFromBaseline:
+            "Replaces phone/email returns handling that drives 60% of support tickets.",
+          businessOutcomes: [
+            "Support ticket volume drops 50%",
+            "€900k/year saved in handling cost",
+          ],
+          leadingIndicators: ["Self-service returns rate", "First-contact resolution rate"],
+          risks: ["Fraud risk from automated approvals", "Warehouse integration"],
+        },
+        history: [],
+      },
+      businessCase: {
+        current: {
+          initiativeDescription:
+            "60% of support tickets are return-related, costing €900k/year in handling.",
+          businessOutcomeHypothesis:
+            "Customers get instant returns confirmation without waiting on hold.",
+          analysisSummary: "Support ticket volume drops 50% within 1 PI.",
+          costRows: [{ projectType: "impact", costsMonths1to6: 180000, annualImpact: 900000 }],
+          approvals: [],
+        },
+        history: [],
       },
     },
     update: {},
@@ -314,13 +366,29 @@ async function main() {
       assigneeIds: [],
       createdBy: adminId,
       updatedBy: adminId,
-      leanBusinessCase: {
-        problemStatement: "Teams spend avg 3 weeks waiting for infra provisioning.",
-        customerValue: "Internal teams ship faster with less ops dependency.",
-        costEstimate: 450000,
-        roiEstimate: 1500000,
-        successCriteria: "Onboarding time drops from 3 weeks to 2 days.",
-        risks: "Security review bottlenecks; legacy service compatibility.",
+      benefitHypothesis: {
+        current: {
+          measuresHypothesis: "Build a unified internal API gateway with self-service onboarding.",
+          changeFromBaseline:
+            "Replaces manual infra provisioning that takes teams an average of 3 weeks.",
+          businessOutcomes: [
+            "Onboarding time drops from 3 weeks to 2 days",
+            "Faster product delivery across teams",
+          ],
+          leadingIndicators: ["Provisioning lead time", "Self-service onboarding rate"],
+          risks: ["Security review bottlenecks", "Legacy service compatibility"],
+        },
+        history: [],
+      },
+      businessCase: {
+        current: {
+          initiativeDescription: "Teams spend avg 3 weeks waiting for infra provisioning.",
+          businessOutcomeHypothesis: "Internal teams ship faster with less ops dependency.",
+          analysisSummary: "Onboarding time drops from 3 weeks to 2 days.",
+          costRows: [{ projectType: "enabler", costsMonths1to6: 450000, annualImpact: 1500000 }],
+          approvals: [],
+        },
+        history: [],
       },
     },
     update: {},

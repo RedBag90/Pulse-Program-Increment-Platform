@@ -1,10 +1,12 @@
 "use server";
 
 import { z } from "zod";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
+import { extractRequestMeta } from "@/server/audit/emit";
 import {
   createImpediment,
   escalateImpediment,
@@ -12,13 +14,29 @@ import {
   type ImpedimentId,
 } from "@/server/services/impediment";
 import { createServerAction } from "@/server/http/server-action";
+import type { RequestContext } from "@/server/http/mutation-handler";
 import { isErr } from "@/domain/errors";
 import { redirect } from "next/navigation";
-import type { TenantId, ArtId } from "@/domain/types";
+import type { ArtId } from "@/domain/types";
 
 export type ImpedimentActionState = { error?: string; success?: boolean };
 
+/** Builds a RequestContext for service calls from the resolved principal. */
+async function buildContext(
+  principal: Awaited<ReturnType<typeof requirePrincipal>>,
+): Promise<RequestContext> {
+  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+  const { ipAddress, userAgent } = extractRequestMeta(await headers());
+  return {
+    principal,
+    db,
+    ...(ipAddress !== undefined && { ipAddress }),
+    ...(userAgent !== undefined && { userAgent }),
+  };
+}
+
 export const createImpedimentAction = createServerAction({
+  describeCreated: (v: { id: string }) => ({ id: v.id, label: "Impediment" }),
   schema: z.object({
     artId: z.string().uuid(),
     title: z.string().min(1, "Title required").max(300),
@@ -34,9 +52,7 @@ export const createImpedimentAction = createServerAction({
     severity: fd.get("severity") || "medium",
   }),
   service: (ctx, input) =>
-    createImpediment(ctx.db, {
-      tenantId: ctx.principal.tenantId as TenantId,
-      actorId: ctx.principal.id,
+    createImpediment(ctx, {
       artId: input.artId as ArtId,
       title: input.title,
       description: input.description,
@@ -57,13 +73,8 @@ export async function escalateImpedimentAction(
     return { error: "Insufficient permissions" };
   }
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const result = await escalateImpediment(
-    db,
-    principal.tenantId as TenantId,
-    principal.id,
-    id as ImpedimentId,
-  );
+  const ctx = await buildContext(principal);
+  const result = await escalateImpediment(ctx, { id: id as ImpedimentId });
 
   if (isErr(result)) {
     return { error: result.error.kind === "conflict" ? result.error.reason : "Failed to escalate" };
@@ -85,13 +96,8 @@ export async function resolveImpedimentAction(
     return { error: "Insufficient permissions" };
   }
 
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const result = await resolveImpediment(db, {
-    tenantId: principal.tenantId as TenantId,
-    actorId: principal.id,
-    id: id as ImpedimentId,
-    resolution,
-  });
+  const ctx = await buildContext(principal);
+  const result = await resolveImpediment(ctx, { id: id as ImpedimentId, resolution });
 
   if (isErr(result)) {
     return { error: result.error.kind === "conflict" ? result.error.reason : "Failed to resolve" };

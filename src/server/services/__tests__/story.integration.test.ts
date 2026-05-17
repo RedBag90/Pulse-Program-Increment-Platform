@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
-import { seedTenant } from "@/test/fixtures/seed";
+import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import { createStory } from "@/server/services/story";
 import { createFeature } from "@/server/services/feature";
 import { isOk, isErr } from "@/domain/errors";
@@ -30,9 +30,7 @@ beforeEach(async () => {
   });
   await testDb.initiative.update({ where: { id: epic.id }, data: { path: epic.id } });
 
-  const featureResult = await createFeature(testDb as never, {
-    tenantId: seed.tenantId,
-    actorId: seed.actorId,
+  const featureResult = await createFeature(testRequestContext(testDb, seed), {
     parentId: epic.id as EpicId,
     artId: seed.artId,
     title: "Feature",
@@ -51,9 +49,7 @@ describe("createStory", () => {
   it("creates a story and emits exactly 2 OutboxEvent rows", async () => {
     const outboxBefore = await db.outboxEvent.count({ where: { tenantId: seed.tenantId } });
 
-    const result = await createStory(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createStory(testRequestContext(db, seed), {
       parentId: featureId,
       title: "As a user, I can log in",
     });
@@ -72,9 +68,7 @@ describe("createStory", () => {
   });
 
   it("returns not_found for unknown parentId", async () => {
-    const result = await createStory(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    const result = await createStory(testRequestContext(db, seed), {
       parentId: randomUUID() as FeatureId,
       title: "Orphan story",
     });
@@ -87,9 +81,7 @@ describe("createStory", () => {
   it("emits an AuditEvent row on creation", async () => {
     const auditBefore = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 
-    await createStory(db, {
-      tenantId: seed.tenantId,
-      actorId: seed.actorId,
+    await createStory(testRequestContext(db, seed), {
       parentId: featureId,
       title: "Story with audit",
     });

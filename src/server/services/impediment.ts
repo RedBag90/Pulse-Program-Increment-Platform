@@ -1,9 +1,10 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, UserId, ArtId, PiId, SprintId } from "@/domain/types";
+import type { TenantId, ArtId, PiId, SprintId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
-import { emitAuditEvent } from "@/server/audit/emit";
 import { publishDomainEvent } from "@/server/events/publish";
+import type { RequestContext } from "@/server/http/mutation-handler";
+import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { paginate, type PageParams } from "@/server/db/paginate";
 
 export type ImpedimentId = string & { readonly __brand: "ImpedimentId" };
@@ -11,8 +12,6 @@ export type Severity = "low" | "medium" | "high" | "critical";
 export type ImpedimentStatus = "open" | "escalated" | "resolved";
 
 export interface CreateImpedimentInput {
-  tenantId: TenantId;
-  actorId: UserId;
   artId: ArtId;
   piId?: PiId | undefined;
   sprintId?: SprintId | undefined;
@@ -22,117 +21,107 @@ export interface CreateImpedimentInput {
 }
 
 export interface ResolveImpedimentInput {
-  tenantId: TenantId;
-  actorId: UserId;
   id: ImpedimentId;
   resolution: string;
 }
 
 export async function createImpediment(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: CreateImpedimentInput,
 ): Promise<Result<{ id: ImpedimentId }>> {
-  const { tenantId, actorId, artId, piId, sprintId, title, description, severity } = input;
+  const mctx = toMutationContext(ctx);
+  const { artId, piId, sprintId, title, description, severity } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const art = await tx.art.findFirst({ where: { id: artId, tenantId } });
-      if (!art) return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
+  return withAuditedTransaction(mctx, async (tx) => {
+    const art = await tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId } });
+    if (!art) return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
 
-      const imp = await tx.impediment.create({
-        data: {
-          tenantId,
-          artId,
-          ...(piId !== undefined && { piId }),
-          ...(sprintId !== undefined && { sprintId }),
-          title,
-          ...(description !== undefined && { description }),
-          severity: severity ?? "medium",
-          raisedBy: actorId,
-        },
-      });
-
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
-        action: "impediment.raised",
-        resourceType: "impediment",
-        resourceId: imp.id,
-      });
-
-      return ok({ id: imp.id as ImpedimentId });
-    })
-    .catch((e: unknown) => {
-      throw e;
+    const imp = await tx.impediment.create({
+      data: {
+        tenantId: mctx.tenantId,
+        artId,
+        ...(piId !== undefined && { piId }),
+        ...(sprintId !== undefined && { sprintId }),
+        title,
+        ...(description !== undefined && { description }),
+        severity: severity ?? "medium",
+        raisedBy: mctx.actorId,
+      },
     });
+
+    return ok({
+      result: { id: imp.id as ImpedimentId },
+      audit: { action: "impediment.raised", resourceType: "impediment", resourceId: imp.id },
+    });
+  });
 }
 
 export async function escalateImpediment(
-  db: PrismaClient,
-  tenantId: TenantId,
-  actorId: UserId,
-  id: ImpedimentId,
+  ctx: RequestContext,
+  input: { id: ImpedimentId },
 ): Promise<Result<void>> {
-  const existing = await db.impediment.findFirst({ where: { id, tenantId } });
-  if (!existing) return err({ kind: "not_found" as const, resourceType: "Impediment", id });
-  if (existing.status !== "open")
-    return err({ kind: "conflict" as const, reason: "Only open impediments can be escalated" });
+  const mctx = toMutationContext(ctx);
+  const { id } = input;
 
-  await db.impediment.update({ where: { id }, data: { status: "escalated" } });
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.impediment.findFirst({ where: { id, tenantId: mctx.tenantId } });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Impediment", id });
+    if (existing.status !== "open") {
+      return err({ kind: "conflict" as const, reason: "Only open impediments can be escalated" });
+    }
 
-  await emitAuditEvent(db, {
-    tenantId,
-    actorId,
-    action: "impediment.escalated",
-    resourceType: "impediment",
-    resourceId: id,
-    changes: { status: { before: existing.status, after: "escalated" } },
+    await tx.impediment.update({ where: { id }, data: { status: "escalated" } });
+
+    await publishDomainEvent(tx, {
+      type: "impediment.escalated",
+      tenantId: mctx.tenantId,
+      impedimentId: id,
+      artId: existing.artId as ArtId,
+      title: existing.title,
+      severity: existing.severity,
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "impediment.escalated",
+        resourceType: "impediment",
+        resourceId: id,
+        changes: { status: { before: existing.status, after: "escalated" } },
+      },
+    });
   });
-
-  await publishDomainEvent(db, {
-    type: "impediment.escalated",
-    tenantId,
-    impedimentId: id,
-    artId: existing.artId as ArtId,
-    title: existing.title,
-    severity: existing.severity,
-  });
-
-  return ok(undefined);
 }
 
 export async function resolveImpediment(
-  db: PrismaClient,
+  ctx: RequestContext,
   input: ResolveImpedimentInput,
 ): Promise<Result<void>> {
-  const { tenantId, actorId, id, resolution } = input;
+  const mctx = toMutationContext(ctx);
+  const { id, resolution } = input;
 
-  return db
-    .$transaction(async (tx) => {
-      const existing = await tx.impediment.findFirst({ where: { id, tenantId } });
-      if (!existing) return err({ kind: "not_found" as const, resourceType: "Impediment", id });
-      if (existing.status === "resolved")
-        return err({ kind: "conflict" as const, reason: "Impediment is already resolved" });
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.impediment.findFirst({ where: { id, tenantId: mctx.tenantId } });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Impediment", id });
+    if (existing.status === "resolved") {
+      return err({ kind: "conflict" as const, reason: "Impediment is already resolved" });
+    }
 
-      await tx.impediment.update({
-        where: { id },
-        data: { status: "resolved", resolution, resolvedAt: new Date(), resolvedBy: actorId },
-      });
+    await tx.impediment.update({
+      where: { id },
+      data: { status: "resolved", resolution, resolvedAt: new Date(), resolvedBy: mctx.actorId },
+    });
 
-      await emitAuditEvent(tx as unknown as PrismaClient, {
-        tenantId,
-        actorId,
+    return ok({
+      result: undefined,
+      audit: {
         action: "impediment.resolved",
         resourceType: "impediment",
         resourceId: id,
         changes: { status: { before: existing.status, after: "resolved" } },
-      });
-
-      return ok(undefined);
-    })
-    .catch((e: unknown) => {
-      throw e;
+      },
     });
+  });
 }
 
 export async function listImpediments(

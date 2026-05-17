@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useCreateDialogState } from "@/features/create/use-create-dialog-state";
 import { Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { linkDependencyAction } from "@/features/dependencies/actions/dependency";
@@ -37,7 +38,7 @@ const TYPES: { value: DependencyType; label: string }[] = [
 ];
 
 export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useCreateDialogState("dependency");
   const [toId, setToId] = useState("");
   const [type, setType] = useState<DependencyType>("blocks");
   const [error, setError] = useState<string | null>(null);

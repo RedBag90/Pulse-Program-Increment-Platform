@@ -10,6 +10,7 @@ import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { isErr } from "@/domain/errors";
 import { createServerAction } from "@/server/http/server-action";
+import type { RequestContext } from "@/server/http/mutation-handler";
 import type { ArtId, PiId } from "@/domain/types";
 
 export interface PiActionState {
@@ -18,6 +19,11 @@ export interface PiActionState {
 }
 
 export const createPiAction = createServerAction({
+  describeCreated: (v: { id: string }) => ({
+    id: v.id,
+    label: "Program Increment",
+    href: `/pi/${v.id}`,
+  }),
   schema: z.object({
     artId: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -33,15 +39,11 @@ export const createPiAction = createServerAction({
     endDate: fd.get("endDate"),
   }),
   service: (ctx, input) =>
-    createPi(ctx.db, {
-      tenantId: ctx.principal.tenantId,
-      actorId: ctx.principal.id,
+    createPi(ctx, {
       artId: input.artId as ArtId,
       name: input.name,
       startDate: new Date(input.startDate),
       endDate: new Date(input.endDate),
-      ...(ctx.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
-      ...(ctx.userAgent !== undefined && { userAgent: ctx.userAgent }),
     }),
   onSuccess: () => revalidatePath("/art/[artId]/pi", "page"),
   mapError: (e) =>
@@ -66,18 +68,17 @@ export async function transitionPiAction(
 
   const { ipAddress, userAgent } = extractRequestMeta(await headers());
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const lifecycleInput = {
-    tenantId: principal.tenantId,
-    actorId: principal.id,
-    id: piId as PiId,
-    ipAddress,
-    userAgent,
+  const ctx: RequestContext = {
+    principal,
+    db,
+    ...(ipAddress !== undefined && { ipAddress }),
+    ...(userAgent !== undefined && { userAgent }),
   };
+
   const result =
     targetStatus === "active"
-      ? await startPi(db, lifecycleInput)
-      : await completePi(db, lifecycleInput);
+      ? await startPi(ctx, { id: piId as PiId })
+      : await completePi(ctx, { id: piId as PiId });
 
   if (isErr(result)) {
     return {
@@ -94,15 +95,7 @@ export const deletePiAction = createServerAction({
   action: "pi.delete",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
   parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
-  service: (ctx, input) =>
-    deletePi(
-      ctx.db,
-      ctx.principal.tenantId,
-      input.id as PiId,
-      ctx.principal.id,
-      ctx.ipAddress,
-      ctx.userAgent,
-    ),
+  service: (ctx, input) => deletePi(ctx, { id: input.id as PiId }),
   onSuccess: () => revalidatePath("/art/[artId]/pi", "page"),
   mapError: (e) =>
     e.kind === "conflict"

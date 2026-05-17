@@ -11,12 +11,5 @@ export const POST = createMutationHandler({
   schema: createTenantSchema,
   action: "tenant.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    createTenant(ctx.db, {
-      name: input.name,
-      region: input.region,
-      actorId: ctx.principal.id,
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
-    }),
+  service: (ctx, input) => createTenant(ctx, { name: input.name, region: input.region }),
 });
