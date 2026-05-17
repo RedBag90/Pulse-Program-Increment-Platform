@@ -157,7 +157,12 @@
       "Bash(xargs basename -a)",
       "Bash(grep -nA12 \"export async function getFeature\" src/server/services/feature.ts)",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
-      "Bash(grep -rn '`/pi`\\\\|`/feature`' src --include=\"*.ts\" --include=\"*.tsx\")"
+      "Bash(grep -rn '`/pi`\\\\|`/feature`' src --include=\"*.ts\" --include=\"*.tsx\")",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|js\\)$\")",
+      "Bash(sed -n '1,22p' src/server/services/epic.ts)",
+      "Bash(sed -n '1,12p' src/server/services/feature.ts)",
+      "Bash(git rev-list *)",
+      "Bash(grep -vE \"unchanged|^$\")"
     ],
     "additionalDirectories": [
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)",

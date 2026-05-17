@@ -32,7 +32,7 @@ export default async function PiObjectivesPage({ params }: Props) {
   ]);
 
   const canVote =
-    principal.roles.includes("art_full_editor") ||
+    principal.roles.includes("rte") ||
     principal.roles.includes("team_editor") ||
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");

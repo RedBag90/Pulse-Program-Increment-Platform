@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { EpicEditForm } from "./epic-edit-form";
+import { SubmitReviewButton } from "@/features/quality/components/submit-review-button";
 import { STAGE_GATE_LABELS } from "./epic-detail-shell";
 import { buildInitiativeSummary } from "@/domain/initiative-summary";
 import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
@@ -85,6 +86,26 @@ export function EpicOverviewTab({ epic, canEdit }: EpicOverviewTabProps) {
         <Field label="Net recurring benefits">{formatAmount(totals.recurringBenefit)}</Field>
         <Field label="One-time benefits">{formatAmount(totals.oneTimeBenefit)}</Field>
         <Field label="Implementation costs">{formatAmount(totals.implementationCost)}</Field>
+      </section>
+
+      <section className="flex flex-wrap items-center gap-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Qualitätssicherung
+        </p>
+        {epic.status === "draft" &&
+          (canEdit ? (
+            <SubmitReviewButton id={epic.id} kind="epic" />
+          ) : (
+            <span className="text-sm text-muted-foreground">Entwurf — noch nicht eingereicht.</span>
+          ))}
+        {epic.status === "in_review" && (
+          <span className="text-sm text-muted-foreground">
+            Zur QS eingereicht — wartet auf VMO-Freigabe.
+          </span>
+        )}
+        {epic.status === "approved" && (
+          <span className="text-sm text-emerald-600">Von der VMO freigegeben.</span>
+        )}
       </section>
 
       <section>

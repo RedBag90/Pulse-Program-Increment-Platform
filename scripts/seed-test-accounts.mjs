@@ -18,15 +18,16 @@ const PASSWORD = "Test1234!";
 const ROLE_ACCOUNTS = [
   { email: "platform-admin@pulse.dev", role: "platform_admin" },
   { email: "tenant-admin@pulse.dev", role: "tenant_admin" },
-  { email: "portfolio-editor@pulse.dev", role: "portfolio_editor" },
-  { email: "architect-viewer@pulse.dev", role: "architect_viewer" },
-  { email: "art-editor@pulse.dev", role: "art_full_editor" },
-  { email: "feature-editor@pulse.dev", role: "feature_editor" },
-  { email: "art-arch-viewer@pulse.dev", role: "art_arch_viewer" },
+  { email: "portfolio-manager@pulse.dev", role: "portfolio_manager" },
+  { email: "value-stream-owner@pulse.dev", role: "value_stream_owner" },
+  { email: "epic-owner@pulse.dev", role: "epic_owner" },
+  { email: "vmo@pulse.dev", role: "vmo" },
+  { email: "rte@pulse.dev", role: "rte" },
+  { email: "feature-owner@pulse.dev", role: "feature_owner" },
   { email: "team-editor@pulse.dev", role: "team_editor" },
   { email: "story-owner@pulse.dev", role: "story_owner" },
   { email: "task-owner@pulse.dev", role: "task_owner" },
-  { email: "portfolio-viewer@pulse.dev", role: "portfolio_viewer" },
+  { email: "viewer@pulse.dev", role: "viewer" },
 ];
 
 const supabaseAdmin = createClient(

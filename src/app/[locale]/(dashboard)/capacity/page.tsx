@@ -17,7 +17,8 @@ export default async function CapacityPage() {
   const streams = await listValueStreams(db, principal.tenantId);
 
   const canEdit =
-    principal.roles.includes("portfolio_editor") ||
+    principal.roles.includes("portfolio_manager") ||
+    principal.roles.includes("value_stream_owner") ||
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 

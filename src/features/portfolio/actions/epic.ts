@@ -2,7 +2,13 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { createEpic, updateEpic, softDeleteEpic } from "@/server/services/epic";
+import {
+  createEpic,
+  updateEpic,
+  softDeleteEpic,
+  submitEpicForReview,
+  decideEpicReview,
+} from "@/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import type { ValueStreamId, EpicId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
@@ -21,7 +27,9 @@ export const createEpicAction = createServerAction({
     valueStreamId: z.string().uuid(),
   }),
   action: "epic.create",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  // valueStreamId carries the scope so a value_stream_owner can only create
+  // Epics within their own value stream.
+  resource: (input, p) => ({ tenantId: p.tenantId, valueStreamId: input.valueStreamId }),
   parseFormData: (fd) => ({
     title: fd.get("title"),
     description: fd.get("description") || undefined,
@@ -58,6 +66,43 @@ export const updateEpicAction = createServerAction({
     }),
   onSuccess: (input) => revalidatePath(`/portfolio/epics/${input.id}`),
   mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to update epic"),
+});
+
+export const submitEpicReviewAction = createServerAction({
+  schema: z.object({ id: z.string().uuid() }),
+  action: "epic.review.submit",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({ id: fd.get("id") }),
+  service: (ctx, input) => submitEpicForReview(ctx, { id: input.id as EpicId }),
+  onSuccess: (input) => {
+    revalidatePath(`/portfolio/epics/${input.id}`);
+    revalidatePath("/quality/epics", "page");
+  },
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Epic not found"
+        : "Failed to submit epic for review",
+});
+
+export const decideEpicReviewAction = createServerAction({
+  schema: z.object({ id: z.string().uuid(), decision: z.enum(["approve", "reject"]) }),
+  action: "epic.review.decide",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({ id: fd.get("id"), decision: fd.get("decision") }),
+  service: (ctx, input) =>
+    decideEpicReview(ctx, { id: input.id as EpicId, decision: input.decision }),
+  onSuccess: (input) => {
+    revalidatePath(`/portfolio/epics/${input.id}`);
+    revalidatePath("/quality/epics", "page");
+  },
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Epic not found"
+        : "Failed to record review decision",
 });
 
 export const deleteEpicAction = createServerAction({

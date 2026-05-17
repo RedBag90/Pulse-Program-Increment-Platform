@@ -6,6 +6,7 @@ import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import { buildChangelog } from "@/domain/change-log";
 import { isValidTransition, isApprovalTransition } from "@/domain/stage-gate";
+import { canQaTransition, decisionTarget, type ReviewDecision } from "@/domain/initiative-status";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import {
@@ -390,5 +391,91 @@ export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) 
         orderBy: { wsjfComputed: "desc" },
       },
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// QA review — Epic Owner submits, VMO decides (status draft → in_review → approved)
+// ---------------------------------------------------------------------------
+
+export async function submitEpicForReview(
+  ctx: RequestContext,
+  input: { id: EpicId },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id });
+    if (!canQaTransition(existing.status, "in_review")) {
+      return err({
+        kind: "conflict" as const,
+        reason: `Epic in status "${existing.status}" cannot be submitted for review`,
+      });
+    }
+
+    await tx.initiative.update({
+      where: { id },
+      data: { status: "in_review", updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "initiative.updated",
+        resourceType: "initiative",
+        resourceId: id,
+        changes: { status: { before: existing.status, after: "in_review" } },
+      },
+    });
+  });
+}
+
+export async function decideEpicReview(
+  ctx: RequestContext,
+  input: { id: EpicId; decision: ReviewDecision },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id, decision } = input;
+  const target = decisionTarget(decision);
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id });
+    if (!canQaTransition(existing.status, target)) {
+      return err({
+        kind: "conflict" as const,
+        reason: `Epic in status "${existing.status}" is not awaiting a review decision`,
+      });
+    }
+
+    await tx.initiative.update({
+      where: { id },
+      data: { status: target, updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "initiative.updated",
+        resourceType: "initiative",
+        resourceId: id,
+        changes: { status: { before: existing.status, after: target } },
+      },
+    });
+  });
+}
+
+/** Epics awaiting QA — backs the VMO dashboard. */
+export async function listEpicsInReview(db: PrismaClient, tenantId: TenantId) {
+  return db.initiative.findMany({
+    where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null, status: "in_review" },
+    include: { valueStream: { select: { id: true, name: true } } },
+    orderBy: { updatedAt: "desc" },
   });
 }

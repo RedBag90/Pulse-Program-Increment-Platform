@@ -36,7 +36,7 @@ export default async function TeamDetailPage({ params, searchParams }: Props) {
   if (!team) redirect("/capacity");
 
   const canEdit =
-    principal.roles.includes("art_full_editor") ||
+    principal.roles.includes("rte") ||
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 

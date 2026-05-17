@@ -38,7 +38,7 @@ describe("signInviteToken / verifyInviteToken", () => {
 
   it("returns a validation error when signed with a different secret", async () => {
     vi.stubEnv("INVITE_JWT_SECRET", "different-secret-that-is-long-enough-for-hs256");
-    const token = await signInviteToken({ email: "x@y.com", tenantId, role: "portfolio_viewer" });
+    const token = await signInviteToken({ email: "x@y.com", tenantId, role: "viewer" });
 
     vi.stubEnv("INVITE_JWT_SECRET", "test-secret-that-is-long-enough-for-hs256");
     const result = await verifyInviteToken(token);

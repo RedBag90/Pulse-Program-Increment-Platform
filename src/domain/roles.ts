@@ -1,15 +1,22 @@
+/**
+ * Tenant role set — SAFe-oriented. Platform/tenant admins govern the system;
+ * portfolio / value-stream / epic-owner / VMO operate the portfolio layer;
+ * RTE / feature-owner operate the program layer; the team roles operate
+ * execution; `viewer` is read-only.
+ */
 export const ROLES = {
   PLATFORM_ADMIN: "platform_admin",
   TENANT_ADMIN: "tenant_admin",
-  PORTFOLIO_EDITOR: "portfolio_editor",
-  ARCHITECT_VIEWER: "architect_viewer",
-  ART_FULL_EDITOR: "art_full_editor",
-  FEATURE_EDITOR: "feature_editor",
-  ART_ARCH_VIEWER: "art_arch_viewer",
+  PORTFOLIO_MANAGER: "portfolio_manager",
+  VALUE_STREAM_OWNER: "value_stream_owner",
+  EPIC_OWNER: "epic_owner",
+  VMO: "vmo",
+  RTE: "rte",
+  FEATURE_OWNER: "feature_owner",
   TEAM_EDITOR: "team_editor",
   STORY_OWNER: "story_owner",
   TASK_OWNER: "task_owner",
-  PORTFOLIO_VIEWER: "portfolio_viewer",
+  VIEWER: "viewer",
 } as const;
 
 export type Role = (typeof ROLES)[keyof typeof ROLES];

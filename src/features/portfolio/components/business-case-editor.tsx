@@ -14,6 +14,9 @@ interface BusinessCaseEditorProps {
   epicId: string;
   current: BusinessCaseFields;
   history: BusinessCaseVersion[];
+  /** When true the form is rendered for review only — fields are disabled and
+   *  the save button is hidden. Used by reviewer roles (e.g. VMO). */
+  readOnly?: boolean;
 }
 
 const INPUT_CLASS =
@@ -41,7 +44,12 @@ function initialSlices(slices: BusinessCaseFields["costSlices"]): string[] {
   return ["", ""];
 }
 
-export function BusinessCaseEditor({ epicId, current, history }: BusinessCaseEditorProps) {
+export function BusinessCaseEditor({
+  epicId,
+  current,
+  history,
+  readOnly = false,
+}: BusinessCaseEditorProps) {
   const [state, action, isPending] = useActionState(saveBusinessCaseAction, {});
   const [slices, setSlices] = useState<string[]>(() => initialSlices(current.costSlices));
 
@@ -53,274 +61,276 @@ export function BusinessCaseEditor({ epicId, current, history }: BusinessCaseEdi
       <form action={action} className="space-y-6">
         <input type="hidden" name="epicId" value={epicId} />
 
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="bc-funnel" className="block text-sm font-medium mb-1">
-              Funnel Entry Date
-            </label>
-            <input
-              id="bc-funnel"
-              type="date"
-              name="funnelEntryDate"
-              defaultValue={current.funnelEntryDate}
-              className={INPUT_CLASS}
-            />
+        <fieldset disabled={readOnly} className="space-y-6 border-0 p-0 m-0 min-w-0">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="bc-funnel" className="block text-sm font-medium mb-1">
+                Funnel Entry Date
+              </label>
+              <input
+                id="bc-funnel"
+                type="date"
+                name="funnelEntryDate"
+                defaultValue={current.funnelEntryDate}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label htmlFor="bc-stakeholders" className="block text-sm font-medium mb-1">
+                Key Stakeholders
+              </label>
+              <input
+                id="bc-stakeholders"
+                name="keyStakeholders"
+                defaultValue={current.keyStakeholders}
+                className={INPUT_CLASS}
+              />
+            </div>
           </div>
-          <div>
-            <label htmlFor="bc-stakeholders" className="block text-sm font-medium mb-1">
-              Key Stakeholders
-            </label>
-            <input
-              id="bc-stakeholders"
-              name="keyStakeholders"
-              defaultValue={current.keyStakeholders}
-              className={INPUT_CLASS}
-            />
-          </div>
-        </div>
 
-        <div>
-          <label htmlFor="bc-description" className="block text-sm font-medium mb-1">
-            Initiative Description
-          </label>
-          <textarea
-            id="bc-description"
-            name="initiativeDescription"
-            rows={4}
-            defaultValue={current.initiativeDescription}
-            className={INPUT_CLASS}
-          />
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="bc-outcome" className="block text-sm font-medium mb-1">
-              Business Outcome Hypothesis
+            <label htmlFor="bc-description" className="block text-sm font-medium mb-1">
+              Initiative Description
             </label>
             <textarea
-              id="bc-outcome"
-              name="businessOutcomeHypothesis"
+              id="bc-description"
+              name="initiativeDescription"
               rows={4}
-              defaultValue={current.businessOutcomeHypothesis}
+              defaultValue={current.initiativeDescription}
               className={INPUT_CLASS}
             />
-          </div>
-          <div>
-            <label htmlFor="bc-indicators" className="block text-sm font-medium mb-1">
-              Leading Indicators
-            </label>
-            <textarea
-              id="bc-indicators"
-              name="leadingIndicators"
-              rows={4}
-              defaultValue={current.leadingIndicators}
-              className={INPUT_CLASS}
-            />
-          </div>
-        </div>
-
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="bc-inscope" className="block text-sm font-medium mb-1">
-              In Scope
-            </label>
-            <textarea
-              id="bc-inscope"
-              name="inScope"
-              rows={3}
-              defaultValue={current.inScope}
-              className={INPUT_CLASS}
-            />
-          </div>
-          <div>
-            <label htmlFor="bc-outscope" className="block text-sm font-medium mb-1">
-              Out of Scope
-            </label>
-            <textarea
-              id="bc-outscope"
-              name="outOfScope"
-              rows={3}
-              defaultValue={current.outOfScope}
-              className={INPUT_CLASS}
-            />
-          </div>
-          <div>
-            <label htmlFor="bc-believe" className="block text-sm font-medium mb-1">
-              What you need to believe in
-            </label>
-            <textarea
-              id="bc-believe"
-              name="whatYouNeedToBelieve"
-              rows={3}
-              defaultValue={current.whatYouNeedToBelieve}
-              className={INPUT_CLASS}
-            />
-          </div>
-        </div>
-
-        {/* Implementation cost — 6-month demand calculation */}
-        <section className="rounded-lg border p-4 space-y-3">
-          <div>
-            <p className="text-sm font-medium">Implementierungskosten — Bedarfskalkulation</p>
-            <p className="text-xs text-muted-foreground">
-              Geschätzter Kostenbedarf je 6-Monats-Periode.
-            </p>
           </div>
 
-          <input type="hidden" name="costSliceCount" value={slices.length} />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="bc-outcome" className="block text-sm font-medium mb-1">
+                Business Outcome Hypothesis
+              </label>
+              <textarea
+                id="bc-outcome"
+                name="businessOutcomeHypothesis"
+                rows={4}
+                defaultValue={current.businessOutcomeHypothesis}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label htmlFor="bc-indicators" className="block text-sm font-medium mb-1">
+                Leading Indicators
+              </label>
+              <textarea
+                id="bc-indicators"
+                name="leadingIndicators"
+                rows={4}
+                defaultValue={current.leadingIndicators}
+                className={INPUT_CLASS}
+              />
+            </div>
+          </div>
 
-          <div className="space-y-2">
-            {slices.map((amount, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span className="w-32 shrink-0 text-sm text-muted-foreground">
-                  {costSliceLabel(i)}
-                </span>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="bc-inscope" className="block text-sm font-medium mb-1">
+                In Scope
+              </label>
+              <textarea
+                id="bc-inscope"
+                name="inScope"
+                rows={3}
+                defaultValue={current.inScope}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label htmlFor="bc-outscope" className="block text-sm font-medium mb-1">
+                Out of Scope
+              </label>
+              <textarea
+                id="bc-outscope"
+                name="outOfScope"
+                rows={3}
+                defaultValue={current.outOfScope}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div>
+              <label htmlFor="bc-believe" className="block text-sm font-medium mb-1">
+                What you need to believe in
+              </label>
+              <textarea
+                id="bc-believe"
+                name="whatYouNeedToBelieve"
+                rows={3}
+                defaultValue={current.whatYouNeedToBelieve}
+                className={INPUT_CLASS}
+              />
+            </div>
+          </div>
+
+          {/* Implementation cost — 6-month demand calculation */}
+          <section className="rounded-lg border p-4 space-y-3">
+            <div>
+              <p className="text-sm font-medium">Implementierungskosten — Bedarfskalkulation</p>
+              <p className="text-xs text-muted-foreground">
+                Geschätzter Kostenbedarf je 6-Monats-Periode.
+              </p>
+            </div>
+
+            <input type="hidden" name="costSliceCount" value={slices.length} />
+
+            <div className="space-y-2">
+              {slices.map((amount, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="w-32 shrink-0 text-sm text-muted-foreground">
+                    {costSliceLabel(i)}
+                  </span>
+                  <input
+                    type="number"
+                    step="any"
+                    min={0}
+                    name={`costSlice_${i}`}
+                    aria-label={costSliceLabel(i)}
+                    value={amount}
+                    onChange={(e) =>
+                      setSlices((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
+                    }
+                    placeholder="0"
+                    className={`${INPUT_CLASS} max-w-[12rem]`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSlices((prev) => prev.filter((_, j) => j !== i))}
+                    disabled={slices.length <= 1}
+                    className="text-sm text-muted-foreground hover:text-red-600 disabled:opacity-40"
+                  >
+                    Entfernen
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSlices((prev) => [...prev, ""])}
+              className="text-sm font-medium text-blue-700 hover:underline"
+            >
+              + Periode hinzufügen
+            </button>
+
+            <div className="flex items-center gap-3 border-t pt-2 text-sm font-medium">
+              <span className="w-32 shrink-0">Gesamtkosten</span>
+              <span>{costTotal.toLocaleString("de-DE")}</span>
+            </div>
+          </section>
+
+          {/* Expected benefit */}
+          <section className="rounded-lg border p-4 space-y-3">
+            <p className="text-sm font-medium">Nutzen</p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="bc-onetime" className="block text-sm font-medium mb-1">
+                  Einmaliger Nutzen
+                </label>
                 <input
+                  id="bc-onetime"
                   type="number"
                   step="any"
                   min={0}
-                  name={`costSlice_${i}`}
-                  aria-label={costSliceLabel(i)}
-                  value={amount}
-                  onChange={(e) =>
-                    setSlices((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
-                  }
+                  name="oneTimeBenefit"
+                  defaultValue={current.oneTimeBenefit ?? ""}
                   placeholder="0"
-                  className={`${INPUT_CLASS} max-w-[12rem]`}
+                  className={INPUT_CLASS}
                 />
-                <button
-                  type="button"
-                  onClick={() => setSlices((prev) => prev.filter((_, j) => j !== i))}
-                  disabled={slices.length <= 1}
-                  className="text-sm text-muted-foreground hover:text-red-600 disabled:opacity-40"
-                >
-                  Entfernen
-                </button>
               </div>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setSlices((prev) => [...prev, ""])}
-            className="text-sm font-medium text-blue-700 hover:underline"
-          >
-            + Periode hinzufügen
-          </button>
-
-          <div className="flex items-center gap-3 border-t pt-2 text-sm font-medium">
-            <span className="w-32 shrink-0">Gesamtkosten</span>
-            <span>{costTotal.toLocaleString("de-DE")}</span>
-          </div>
-        </section>
-
-        {/* Expected benefit */}
-        <section className="rounded-lg border p-4 space-y-3">
-          <p className="text-sm font-medium">Nutzen</p>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="bc-onetime" className="block text-sm font-medium mb-1">
-                Einmaliger Nutzen
-              </label>
-              <input
-                id="bc-onetime"
-                type="number"
-                step="any"
-                min={0}
-                name="oneTimeBenefit"
-                defaultValue={current.oneTimeBenefit ?? ""}
-                placeholder="0"
-                className={INPUT_CLASS}
-              />
+              <div>
+                <label htmlFor="bc-recurring" className="block text-sm font-medium mb-1">
+                  Wiederkehrender Nutzen (p.a.)
+                </label>
+                <input
+                  id="bc-recurring"
+                  type="number"
+                  step="any"
+                  min={0}
+                  name="recurringBenefit"
+                  defaultValue={current.recurringBenefit ?? ""}
+                  placeholder="0"
+                  className={INPUT_CLASS}
+                />
+              </div>
             </div>
-            <div>
-              <label htmlFor="bc-recurring" className="block text-sm font-medium mb-1">
-                Wiederkehrender Nutzen (p.a.)
-              </label>
-              <input
-                id="bc-recurring"
-                type="number"
-                step="any"
-                min={0}
-                name="recurringBenefit"
-                defaultValue={current.recurringBenefit ?? ""}
-                placeholder="0"
-                className={INPUT_CLASS}
-              />
+          </section>
+
+          <div>
+            <label htmlFor="bc-customers" className="block text-sm font-medium mb-1">
+              Which internal and/or external customers are affected, and how?
+            </label>
+            <textarea
+              id="bc-customers"
+              name="customersAffected"
+              rows={3}
+              defaultValue={current.customersAffected}
+              className={INPUT_CLASS}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="bc-impact" className="block text-sm font-medium mb-1">
+              What is the potential impact on solutions, programs and services?
+            </label>
+            <textarea
+              id="bc-impact"
+              name="impactOnSolutions"
+              rows={3}
+              defaultValue={current.impactOnSolutions}
+              className={INPUT_CLASS}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="bc-summary" className="block text-sm font-medium mb-1">
+              Analysis Summary
+            </label>
+            <textarea
+              id="bc-summary"
+              name="analysisSummary"
+              rows={4}
+              defaultValue={current.analysisSummary}
+              className={INPUT_CLASS}
+            />
+          </div>
+
+          <fieldset>
+            <legend className="text-sm font-medium mb-2">Business Case Approval</legend>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {APPROVAL_PARTIES.map((party) => {
+                const existing = approvalsByParty.get(party);
+                return (
+                  <div key={party} className="flex items-center gap-2 rounded border p-2">
+                    <input
+                      type="checkbox"
+                      id={`approval_${party}`}
+                      name={`approval_${party}`}
+                      defaultChecked={existing?.approved ?? false}
+                      className="h-4 w-4"
+                    />
+                    <label
+                      htmlFor={`approval_${party}`}
+                      className="text-sm font-medium w-28 shrink-0"
+                    >
+                      {APPROVAL_LABELS[party]}
+                    </label>
+                    <input
+                      name={`approver_${party}`}
+                      defaultValue={existing?.approverName}
+                      placeholder="Genehmiger:in"
+                      aria-label={`${APPROVAL_LABELS[party]} Genehmiger`}
+                      className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        </section>
-
-        <div>
-          <label htmlFor="bc-customers" className="block text-sm font-medium mb-1">
-            Which internal and/or external customers are affected, and how?
-          </label>
-          <textarea
-            id="bc-customers"
-            name="customersAffected"
-            rows={3}
-            defaultValue={current.customersAffected}
-            className={INPUT_CLASS}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="bc-impact" className="block text-sm font-medium mb-1">
-            What is the potential impact on solutions, programs and services?
-          </label>
-          <textarea
-            id="bc-impact"
-            name="impactOnSolutions"
-            rows={3}
-            defaultValue={current.impactOnSolutions}
-            className={INPUT_CLASS}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="bc-summary" className="block text-sm font-medium mb-1">
-            Analysis Summary
-          </label>
-          <textarea
-            id="bc-summary"
-            name="analysisSummary"
-            rows={4}
-            defaultValue={current.analysisSummary}
-            className={INPUT_CLASS}
-          />
-        </div>
-
-        <fieldset>
-          <legend className="text-sm font-medium mb-2">Business Case Approval</legend>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {APPROVAL_PARTIES.map((party) => {
-              const existing = approvalsByParty.get(party);
-              return (
-                <div key={party} className="flex items-center gap-2 rounded border p-2">
-                  <input
-                    type="checkbox"
-                    id={`approval_${party}`}
-                    name={`approval_${party}`}
-                    defaultChecked={existing?.approved ?? false}
-                    className="h-4 w-4"
-                  />
-                  <label
-                    htmlFor={`approval_${party}`}
-                    className="text-sm font-medium w-28 shrink-0"
-                  >
-                    {APPROVAL_LABELS[party]}
-                  </label>
-                  <input
-                    name={`approver_${party}`}
-                    defaultValue={existing?.approverName}
-                    placeholder="Genehmiger:in"
-                    aria-label={`${APPROVAL_LABELS[party]} Genehmiger`}
-                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              );
-            })}
-          </div>
+          </fieldset>
         </fieldset>
 
         {state.error && (
@@ -334,13 +344,15 @@ export function BusinessCaseEditor({ epicId, current, history }: BusinessCaseEdi
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={isPending}
-          className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
-        >
-          {isPending ? "Speichern…" : "Business Case speichern"}
-        </button>
+        {!readOnly && (
+          <button
+            type="submit"
+            disabled={isPending}
+            className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+          >
+            {isPending ? "Speichern…" : "Business Case speichern"}
+          </button>
+        )}
       </form>
 
       {history.length > 0 && (

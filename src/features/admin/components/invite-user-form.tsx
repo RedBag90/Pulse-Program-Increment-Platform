@@ -8,15 +8,16 @@ import type { Role } from "@/domain/roles";
 const ROLE_LABELS: Record<Role, string> = {
   platform_admin: "Platform Admin",
   tenant_admin: "Tenant Admin",
-  portfolio_editor: "Portfolio Editor",
-  architect_viewer: "Architect Viewer",
-  art_full_editor: "ART Full Editor",
-  feature_editor: "Feature Editor",
-  art_arch_viewer: "ART Architect Viewer",
+  portfolio_manager: "Portfolio Manager",
+  value_stream_owner: "Value Stream Owner",
+  epic_owner: "Epic Owner",
+  vmo: "VMO (Epic-QS)",
+  rte: "RTE (Feature-QS)",
+  feature_owner: "Feature Owner",
   team_editor: "Team Editor",
   story_owner: "Story Owner",
   task_owner: "Task Owner",
-  portfolio_viewer: "Portfolio Viewer",
+  viewer: "Viewer",
 };
 
 export function InviteUserForm() {

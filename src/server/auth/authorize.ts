@@ -23,6 +23,11 @@ export interface AuthorizationDecision {
 
 function scopeSatisfied(scope: ScopeCheck, resource: AuthResource, principal: Principal): boolean {
   switch (scope) {
+    case "value_stream": {
+      if (!resource.valueStreamId) return true;
+      const { valueStreamIds } = principal.scopes;
+      return valueStreamIds.length === 0 || valueStreamIds.includes(resource.valueStreamId);
+    }
     case "art": {
       if (!resource.artId) return true;
       const { artIds } = principal.scopes;

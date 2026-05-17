@@ -9,15 +9,16 @@ const TEST_PASSWORD = "Test1234!";
 const TEST_USERS = [
   { email: "platform-admin@pulse.dev", role: "Platform Admin" },
   { email: "tenant-admin@pulse.dev", role: "Tenant Admin" },
-  { email: "portfolio-editor@pulse.dev", role: "Portfolio Editor" },
-  { email: "architect-viewer@pulse.dev", role: "Architect Viewer · read-only" },
-  { email: "art-editor@pulse.dev", role: "ART Full Editor · RTE" },
-  { email: "feature-editor@pulse.dev", role: "Feature Editor · PM" },
-  { email: "art-arch-viewer@pulse.dev", role: "ART Architect Viewer · read-only" },
-  { email: "team-editor@pulse.dev", role: "Team Editor · SM / PO" },
+  { email: "portfolio-manager@pulse.dev", role: "Portfolio Manager" },
+  { email: "value-stream-owner@pulse.dev", role: "Value Stream Owner" },
+  { email: "epic-owner@pulse.dev", role: "Epic Owner" },
+  { email: "vmo@pulse.dev", role: "VMO · Epic QA" },
+  { email: "rte@pulse.dev", role: "RTE · Feature QA" },
+  { email: "feature-owner@pulse.dev", role: "Feature Owner" },
+  { email: "team-editor@pulse.dev", role: "Team Editor" },
   { email: "story-owner@pulse.dev", role: "Story Owner" },
-  { email: "task-owner@pulse.dev", role: "Task Owner · Developer" },
-  { email: "portfolio-viewer@pulse.dev", role: "Portfolio Viewer · read-only" },
+  { email: "task-owner@pulse.dev", role: "Task Owner" },
+  { email: "viewer@pulse.dev", role: "Viewer · read-only" },
 ] as const;
 
 export default function SignInPage() {

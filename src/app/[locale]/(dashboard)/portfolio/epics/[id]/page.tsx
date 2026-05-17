@@ -38,7 +38,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   if (!epic) redirect("/portfolio/epics");
 
   const canEdit =
-    principal.roles.includes("portfolio_editor") ||
+    principal.roles.includes("portfolio_manager") ||
+    principal.roles.includes("epic_owner") ||
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 
@@ -104,30 +105,24 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       {activeTab === "business-case" && (
         <section>
           <h2 className="mb-4 text-lg font-medium">Business Case</h2>
-          {canEdit ? (
-            <BusinessCaseEditor
-              epicId={epic.id}
-              current={businessCase.current}
-              history={businessCase.history}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">Keine Bearbeitungsrechte.</p>
-          )}
+          <BusinessCaseEditor
+            epicId={epic.id}
+            current={businessCase.current}
+            history={businessCase.history}
+            readOnly={!canEdit}
+          />
         </section>
       )}
 
       {activeTab === "benefit-hypothesis" && (
         <section>
           <h2 className="mb-4 text-lg font-medium">Benefit Hypothese</h2>
-          {canEdit ? (
-            <BenefitHypothesisEditor
-              epicId={epic.id}
-              current={benefitHypothesis.current}
-              history={benefitHypothesis.history}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">Keine Bearbeitungsrechte.</p>
-          )}
+          <BenefitHypothesisEditor
+            epicId={epic.id}
+            current={benefitHypothesis.current}
+            history={benefitHypothesis.history}
+            readOnly={!canEdit}
+          />
         </section>
       )}
 

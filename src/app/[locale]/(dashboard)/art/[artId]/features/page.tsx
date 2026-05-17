@@ -49,7 +49,9 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
   });
 
   const canEdit =
-    principal.roles.includes("portfolio_editor") ||
+    principal.roles.includes("portfolio_manager") ||
+    principal.roles.includes("rte") ||
+    principal.roles.includes("feature_owner") ||
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 

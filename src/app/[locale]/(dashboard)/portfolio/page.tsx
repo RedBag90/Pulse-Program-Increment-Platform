@@ -47,7 +47,8 @@ export default async function PortfolioPage() {
   ]);
 
   const canEdit =
-    principal.roles.includes("portfolio_editor") ||
+    principal.roles.includes("portfolio_manager") ||
+    principal.roles.includes("epic_owner") ||
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 

@@ -20,6 +20,8 @@ import {
   ShieldCheck,
   Plug,
   ClipboardList,
+  ClipboardCheck,
+  BadgeCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -47,6 +49,13 @@ const NAV_GROUPS = [
       { href: "/art", labelKey: "arts", icon: Zap },
       { href: "/pi-planning", labelKey: "piPlanning", icon: CalendarRange },
       { href: "/roadmap/art", labelKey: "artRoadmap", icon: Route },
+    ],
+  },
+  {
+    labelKey: "quality",
+    items: [
+      { href: "/quality/epics", labelKey: "epicQuality", icon: BadgeCheck },
+      { href: "/quality/features", labelKey: "featureQuality", icon: ClipboardCheck },
     ],
   },
   {

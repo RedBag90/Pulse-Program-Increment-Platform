@@ -81,7 +81,10 @@ async function main() {
   console.log("── Auth users");
   const adminId = await upsertAuthUser("admin@pulse.dev", "Admin1234!");
   const portfolioId = await upsertAuthUser("portfolio@pulse.dev", "Test1234!");
-  await upsertAuthUser("viewer@pulse.dev", "Test1234!");
+  const vmoId = await upsertAuthUser("vmo@pulse.dev", "Test1234!");
+  const rteId = await upsertAuthUser("rte@pulse.dev", "Test1234!");
+  const ownerId = await upsertAuthUser("owner@pulse.dev", "Test1234!");
+  const viewerId = await upsertAuthUser("viewer@pulse.dev", "Test1234!");
 
   // 2. Tenant
   console.log("\n── Tenant");
@@ -98,43 +101,20 @@ async function main() {
 
   // 3. Role assignments
   console.log("\n── Role assignments");
+  const assignRole = (userId: string, role: string) =>
+    prisma.userRoleAssignment.upsert({
+      where: { userId_tenantId_role: { userId, tenantId, role } },
+      create: { userId, tenantId, role, valueStreamIds: [], artIds: [], teamIds: [] },
+      update: {},
+    });
   await Promise.all([
-    prisma.userRoleAssignment.upsert({
-      where: { userId_tenantId_role: { userId: adminId, tenantId, role: "tenant_admin" } },
-      create: {
-        userId: adminId,
-        tenantId,
-        role: "tenant_admin",
-        valueStreamIds: [],
-        artIds: [],
-        teamIds: [],
-      },
-      update: {},
-    }),
-    prisma.userRoleAssignment.upsert({
-      where: { userId_tenantId_role: { userId: adminId, tenantId, role: "portfolio_editor" } },
-      create: {
-        userId: adminId,
-        tenantId,
-        role: "portfolio_editor",
-        valueStreamIds: [],
-        artIds: [],
-        teamIds: [],
-      },
-      update: {},
-    }),
-    prisma.userRoleAssignment.upsert({
-      where: { userId_tenantId_role: { userId: portfolioId, tenantId, role: "portfolio_editor" } },
-      create: {
-        userId: portfolioId,
-        tenantId,
-        role: "portfolio_editor",
-        valueStreamIds: [],
-        artIds: [],
-        teamIds: [],
-      },
-      update: {},
-    }),
+    assignRole(adminId, "tenant_admin"),
+    assignRole(portfolioId, "portfolio_manager"),
+    assignRole(vmoId, "vmo"),
+    assignRole(rteId, "rte"),
+    assignRole(ownerId, "epic_owner"),
+    assignRole(ownerId, "feature_owner"),
+    assignRole(viewerId, "viewer"),
   ]);
   console.log("  ✓ roles assigned");
 
@@ -698,10 +678,13 @@ async function main() {
   console.log(`  ✓ ${kpis.length} KPIs`);
 
   console.log("\n✅  Seed complete!\n");
-  console.log("Test accounts:");
-  console.log("  admin@pulse.dev     / Admin1234!   (tenant_admin + portfolio_editor)");
-  console.log("  portfolio@pulse.dev / Test1234!    (portfolio_editor)");
-  console.log("  viewer@pulse.dev    / Test1234!    (viewer — read-only)\n");
+  console.log("Test accounts (password Test1234!, admin Admin1234!):");
+  console.log("  admin@pulse.dev     tenant_admin");
+  console.log("  portfolio@pulse.dev portfolio_manager");
+  console.log("  vmo@pulse.dev       vmo — Epic quality review");
+  console.log("  rte@pulse.dev       rte — Feature quality review");
+  console.log("  owner@pulse.dev     epic_owner + feature_owner");
+  console.log("  viewer@pulse.dev    viewer — read-only\n");
 }
 
 main()

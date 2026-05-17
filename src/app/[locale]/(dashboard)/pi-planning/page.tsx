@@ -47,9 +47,9 @@ export default async function PiPlanningPage({ searchParams }: Props) {
   const activeArt = arts.find((a) => a.id === art) ?? arts[0]!;
 
   const canEdit =
-    principal.roles.includes("portfolio_editor") ||
-    principal.roles.includes("art_full_editor") ||
-    principal.roles.includes("feature_editor") ||
+    principal.roles.includes("portfolio_manager") ||
+    principal.roles.includes("rte") ||
+    principal.roles.includes("feature_owner") ||
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 

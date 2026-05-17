@@ -39,7 +39,8 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
   if (!vs) redirect("/capacity");
 
   const canEdit =
-    principal.roles.includes("portfolio_editor") ||
+    principal.roles.includes("portfolio_manager") ||
+    principal.roles.includes("value_stream_owner") ||
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 

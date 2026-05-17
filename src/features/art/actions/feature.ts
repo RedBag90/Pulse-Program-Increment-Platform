@@ -10,6 +10,8 @@ import {
   scoreFeature,
   setFeaturePi,
   softDeleteFeature,
+  submitFeatureForReview,
+  decideFeatureReview,
 } from "@/server/services/feature";
 import { createServerAction } from "@/server/http/server-action";
 import type { RequestContext } from "@/server/http/mutation-handler";
@@ -176,6 +178,45 @@ export const deleteFeatureAction = createServerAction({
     revalidatePath("/portfolio/epics/[id]", "page");
   },
   mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to delete feature"),
+});
+
+export const submitFeatureReviewAction = createServerAction({
+  schema: z.object({ id: z.string().uuid() }),
+  action: "feature.review.submit",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({ id: fd.get("id") }),
+  service: (ctx, input) => submitFeatureForReview(ctx, { id: input.id as FeatureId }),
+  onSuccess: () => {
+    revalidatePath("/quality/features", "page");
+    revalidatePath("/feature/[featureId]", "page");
+    revalidatePath("/portfolio/epics/[id]", "page");
+  },
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Feature not found"
+        : "Failed to submit feature for review",
+});
+
+export const decideFeatureReviewAction = createServerAction({
+  schema: z.object({ id: z.string().uuid(), decision: z.enum(["approve", "reject"]) }),
+  action: "feature.review.decide",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({ id: fd.get("id"), decision: fd.get("decision") }),
+  service: (ctx, input) =>
+    decideFeatureReview(ctx, { id: input.id as FeatureId, decision: input.decision }),
+  onSuccess: () => {
+    revalidatePath("/quality/features", "page");
+    revalidatePath("/feature/[featureId]", "page");
+    revalidatePath("/portfolio/epics/[id]", "page");
+  },
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Feature not found"
+        : "Failed to record review decision",
 });
 
 /**
