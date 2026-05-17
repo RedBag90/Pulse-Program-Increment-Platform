@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { createArt, softDeleteArt } from "@/server/services/art";
+import { createArt, updateArt, softDeleteArt } from "@/server/services/art";
 import { createServerAction } from "@/server/http/server-action";
 import type { ValueStreamId, ArtId } from "@/domain/types";
 
@@ -33,6 +33,40 @@ export const createArtAction = createServerAction({
     }),
   onSuccess: () => revalidatePath("/art"),
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create ART"),
+});
+
+export const updateArtAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    name: z.string().min(1).max(100).optional(),
+    description: z.string().optional(),
+    piCadenceWeeks: z.coerce.number().int().min(8).max(12).optional(),
+  }),
+  action: "art.update",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({
+    id: fd.get("id"),
+    name: fd.get("name") || undefined,
+    description: fd.get("description") || undefined,
+    piCadenceWeeks: fd.get("piCadenceWeeks") || undefined,
+  }),
+  service: (ctx, input) =>
+    updateArt(ctx, {
+      id: input.id as ArtId,
+      name: input.name,
+      description: input.description,
+      piCadenceWeeks: input.piCadenceWeeks,
+    }),
+  onSuccess: () => {
+    revalidatePath("/capacity/arts/[id]", "page");
+    revalidatePath("/capacity/value-streams/[id]", "page");
+  },
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "ART not found"
+        : "Failed to update ART",
 });
 
 export const deleteArtAction = createServerAction({

@@ -6,9 +6,12 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Layers,
-  GitBranch,
+  Network,
   Zap,
-  Target,
+  CalendarRange,
+  Map,
+  GitBranch,
+  Route,
   Users,
   Timer,
   BarChart2,
@@ -17,7 +20,6 @@ import {
   ShieldCheck,
   Plug,
   ClipboardList,
-  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -29,15 +31,22 @@ const NAV_GROUPS = [
     items: [
       { href: "/portfolio", labelKey: "overview", icon: LayoutDashboard, exact: true },
       { href: "/portfolio/epics", labelKey: "epics", icon: Layers },
-      { href: "/portfolio/value-streams", labelKey: "valueStreams", icon: GitBranch },
+      { href: "/roadmap/portfolio", labelKey: "portfolioRoadmap", icon: Map },
+    ],
+  },
+  {
+    labelKey: "capacityPlanning",
+    items: [
+      { href: "/capacity", labelKey: "valueStreams", icon: Network },
+      { href: "/roadmap/value-stream", labelKey: "valueStreamRoadmap", icon: GitBranch },
     ],
   },
   {
     labelKey: "programPlanning",
     items: [
       { href: "/art", labelKey: "arts", icon: Zap },
-      { href: "/pi", labelKey: "programIncrements", icon: Target },
-      { href: "/feature", labelKey: "features", icon: ChevronRight },
+      { href: "/pi-planning", labelKey: "piPlanning", icon: CalendarRange },
+      { href: "/roadmap/art", labelKey: "artRoadmap", icon: Route },
     ],
   },
   {

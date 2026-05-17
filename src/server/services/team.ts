@@ -19,6 +19,9 @@ export interface CreateTeamInput {
 export interface UpdateTeamInput {
   id: TeamId;
   name?: string | undefined;
+  description?: string | undefined;
+  headcount?: number | undefined;
+  targetVelocity?: number | undefined;
 }
 
 export async function createTeam(
@@ -65,7 +68,7 @@ export async function updateTeam(
   input: UpdateTeamInput,
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, name } = input;
+  const { id, name, description, headcount, targetVelocity } = input;
 
   return withAuditedTransaction(
     mctx,
@@ -76,14 +79,29 @@ export async function updateTeam(
       }
 
       const changes = buildChangelog(
-        { name: existing.name },
-        { ...(name !== undefined && { name }) },
-        ["name"],
+        {
+          name: existing.name,
+          description: existing.description,
+          headcount: existing.headcount,
+          targetVelocity: existing.targetVelocity,
+        },
+        {
+          ...(name !== undefined && { name }),
+          ...(description !== undefined && { description }),
+          ...(headcount !== undefined && { headcount }),
+          ...(targetVelocity !== undefined && { targetVelocity }),
+        },
+        ["name", "description", "headcount", "targetVelocity"],
       );
 
       await tx.team.update({
         where: { id },
-        data: { ...(name !== undefined && { name }) },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(description !== undefined && { description }),
+          ...(headcount !== undefined && { headcount }),
+          ...(targetVelocity !== undefined && { targetVelocity }),
+        },
       });
 
       return ok({
@@ -127,5 +145,12 @@ export async function listTeams(db: PrismaClient, tenantId: TenantId, artId: Art
     where: { tenantId, artId },
     include: { _count: { select: { sprints: true } } },
     orderBy: { name: "asc" },
+  });
+}
+
+export async function getTeam(db: PrismaClient, tenantId: TenantId, id: TeamId) {
+  return db.team.findFirst({
+    where: { id, tenantId },
+    include: { art: { select: { id: true, name: true } } },
   });
 }

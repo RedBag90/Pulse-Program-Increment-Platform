@@ -49,6 +49,7 @@ model Art {
   tenantId       String   @map("tenant_id") @db.Uuid
   valueStreamId  String   @map("value_stream_id") @db.Uuid
   name           String
+  description    String?
   piCadenceWeeks Int      @default(10) @map("pi_cadence_weeks")
   createdAt      DateTime @default(now()) @map("created_at")
 
@@ -64,10 +65,13 @@ model Art {
 }
 
 model Team {
-  id       String @id @default(uuid()) @db.Uuid
-  tenantId String @map("tenant_id") @db.Uuid
-  artId    String @map("art_id") @db.Uuid
-  name     String
+  id             String  @id @default(uuid()) @db.Uuid
+  tenantId       String  @map("tenant_id") @db.Uuid
+  artId          String  @map("art_id") @db.Uuid
+  name           String
+  description    String?
+  headcount      Int?
+  targetVelocity Int?    @map("target_velocity")
 
   tenant     Tenant        @relation(fields: [tenantId], references: [id])
   art        Art           @relation(fields: [artId], references: [id])

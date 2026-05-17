@@ -134,3 +134,16 @@ export async function listValueStreams(db: PrismaClient, tenantId: TenantId) {
     orderBy: { name: "asc" },
   });
 }
+
+export async function getValueStream(db: PrismaClient, tenantId: TenantId, id: ValueStreamId) {
+  return db.valueStream.findFirst({
+    where: { id, tenantId, name: { not: { startsWith: "__deleted__" } } },
+    include: {
+      arts: {
+        where: { name: { not: { startsWith: "__deleted__" } } },
+        select: { id: true, name: true, description: true, _count: { select: { teams: true } } },
+        orderBy: { name: "asc" },
+      },
+    },
+  });
+}

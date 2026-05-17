@@ -19,6 +19,7 @@ export interface CreateArtInput {
 export interface UpdateArtInput {
   id: ArtId;
   name?: string | undefined;
+  description?: string | undefined;
   piCadenceWeeks?: number | undefined;
 }
 
@@ -59,7 +60,7 @@ export async function createArt(
 
 export async function updateArt(ctx: RequestContext, input: UpdateArtInput): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, name, piCadenceWeeks } = input;
+  const { id, name, description, piCadenceWeeks } = input;
 
   return withAuditedTransaction(
     mctx,
@@ -70,18 +71,24 @@ export async function updateArt(ctx: RequestContext, input: UpdateArtInput): Pro
       }
 
       const changes = buildChangelog(
-        { name: existing.name, piCadenceWeeks: existing.piCadenceWeeks },
+        {
+          name: existing.name,
+          description: existing.description,
+          piCadenceWeeks: existing.piCadenceWeeks,
+        },
         {
           ...(name !== undefined && { name }),
+          ...(description !== undefined && { description }),
           ...(piCadenceWeeks !== undefined && { piCadenceWeeks }),
         },
-        ["name", "piCadenceWeeks"],
+        ["name", "description", "piCadenceWeeks"],
       );
 
       await tx.art.update({
         where: { id },
         data: {
           ...(name !== undefined && { name }),
+          ...(description !== undefined && { description }),
           ...(piCadenceWeeks !== undefined && { piCadenceWeeks }),
         },
       });
@@ -149,6 +156,10 @@ export async function getArt(db: PrismaClient, tenantId: TenantId, id: ArtId) {
     include: {
       valueStream: { select: { id: true, name: true } },
       pis: { select: { id: true, name: true, status: true, startDate: true, endDate: true } },
+      teams: {
+        select: { id: true, name: true, headcount: true, targetVelocity: true },
+        orderBy: { name: "asc" },
+      },
     },
   });
 }

@@ -1,9 +1,14 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getPi } from "@/server/services/pi";
+import { listPiObjectives } from "@/server/services/pi-objective";
+import { listImpediments } from "@/server/services/impediment";
+import { listTeams } from "@/server/services/team";
+import { summarizePiOverview } from "@/domain/pi-overview";
 import { PiTransitionButton } from "@/features/pi/components/pi-transition-button";
 import { DeletePiButton } from "@/features/pi/components/delete-pi-button";
 import { PiSubNav } from "@/features/pi/components/pi-sub-nav";
+import { PiOverviewSummary } from "@/features/pi/components/pi-overview-summary";
 import {
   AssignFeaturesDialog,
   RemoveFromPiButton,
@@ -12,7 +17,7 @@ import { Breadcrumbs } from "@/components/nav/breadcrumbs";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import { InitiativeLevel } from "@/domain/types";
-import type { PiId, TenantId } from "@/domain/types";
+import type { PiId, TenantId, ArtId } from "@/domain/types";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -51,22 +56,28 @@ export default async function PiDetailPage({ params }: Props) {
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 
-  const candidateRows = await db.initiative.findMany({
-    where: {
-      tenantId: principal.tenantId as TenantId,
-      artId: pi.art.id,
-      level: InitiativeLevel.FEATURE,
-      deletedAt: null,
-      OR: [{ piId: null }, { piId: { not: piId } }],
-    },
-    select: {
-      id: true,
-      title: true,
-      wsjfComputed: true,
-      pi: { select: { name: true } },
-    },
-    orderBy: { wsjfComputed: { sort: "desc", nulls: "last" } },
-  });
+  const [objectives, impedimentPage, teams, candidateRows] = await Promise.all([
+    listPiObjectives(db, principal.tenantId, piId as PiId),
+    listImpediments(db, principal.tenantId, pi.art.id as ArtId, { piId }),
+    listTeams(db, principal.tenantId, pi.art.id as ArtId),
+    db.initiative.findMany({
+      where: {
+        tenantId: principal.tenantId as TenantId,
+        artId: pi.art.id,
+        level: InitiativeLevel.FEATURE,
+        deletedAt: null,
+        OR: [{ piId: null }, { piId: { not: piId } }],
+      },
+      select: {
+        id: true,
+        title: true,
+        wsjfComputed: true,
+        pi: { select: { name: true } },
+      },
+      orderBy: { wsjfComputed: { sort: "desc", nulls: "last" } },
+    }),
+  ]);
+
   const candidates = candidateRows.map((c) => ({
     id: c.id,
     title: c.title,
@@ -74,8 +85,19 @@ export default async function PiDetailPage({ params }: Props) {
     currentPiName: c.pi?.name ?? null,
   }));
 
+  const teamVelocity = new Map(teams.map((t) => [t.id, t.targetVelocity]));
+  const summary = summarizePiOverview({
+    sprints: pi.sprints.map((s) => ({
+      teamTargetVelocity: teamVelocity.get(s.teamId) ?? null,
+      stories: s.initiatives.map((st) => ({ storyPoints: st.storyPoints, status: st.status })),
+    })),
+    features: pi.initiatives.map((f) => ({ status: f.status })),
+    objectives: objectives.map((o) => ({ committed: o.committed, confidence: o.confidence })),
+    impediments: impedimentPage.items.map((i) => ({ status: i.status })),
+  });
+
   return (
-    <main className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
+    <main className="mx-auto max-w-5xl space-y-6 p-6 md:p-8">
       <Breadcrumbs
         items={[
           { label: "ARTs", href: "/art" },
@@ -87,27 +109,34 @@ export default async function PiDetailPage({ params }: Props) {
       <PiSubNav piId={piId} />
 
       {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="flex-1 space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{pi.name}</h1>
-          <p className="text-sm text-muted-foreground">
-            {formatDate(pi.startDate)} – {formatDate(pi.endDate)} ({totalDays} days)
-          </p>
+      <Card className="p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex-1 space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">{pi.name}</h1>
+            <p className="text-sm text-muted-foreground">
+              {formatDate(pi.startDate)} – {formatDate(pi.endDate)} ({totalDays} days)
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span
+              className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${badgeClass}`}
+            >
+              {pi.status}
+            </span>
+            <PiTransitionButton piId={piId} currentStatus={pi.status} />
+            {canEdit && pi.status === "planned" && (
+              <DeletePiButton piId={piId} artId={pi.art.id} name={pi.name} />
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${badgeClass}`}>
-            {pi.status}
-          </span>
-          <PiTransitionButton piId={piId} currentStatus={pi.status} />
-          {canEdit && pi.status === "planned" && (
-            <DeletePiButton piId={piId} artId={pi.art.id} name={pi.name} />
-          )}
-        </div>
-      </div>
+      </Card>
+
+      {/* Metrics */}
+      <PiOverviewSummary summary={summary} piId={piId} artId={pi.art.id} />
 
       {/* Sprints */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Sprints ({pi.sprints.length})
         </h2>
         {pi.sprints.length === 0 ? (
@@ -118,12 +147,12 @@ export default async function PiDetailPage({ params }: Props) {
               {pi.sprints.map((sprint) => (
                 <div
                   key={sprint.id}
-                  className="px-4 py-3 flex items-center justify-between text-sm"
+                  className="flex items-center justify-between px-4 py-3 text-sm"
                 >
                   <div>
                     <span className="font-medium">Sprint {sprint.indexInPi}</span>
                     {sprint.team && (
-                      <span className="ml-2 text-muted-foreground text-xs">{sprint.team.name}</span>
+                      <span className="ml-2 text-xs text-muted-foreground">{sprint.team.name}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -132,7 +161,7 @@ export default async function PiDetailPage({ params }: Props) {
                     </span>
                     <Link
                       href={`/sprint/${sprint.id}`}
-                      className="text-primary hover:underline font-medium"
+                      className="font-medium text-primary hover:underline"
                     >
                       Board →
                     </Link>
@@ -147,7 +176,7 @@ export default async function PiDetailPage({ params }: Props) {
       {/* Features in this PI */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Features ({pi.initiatives.length})
           </h2>
           {canEdit && pi.status !== "completed" && (
@@ -162,17 +191,17 @@ export default async function PiDetailPage({ params }: Props) {
               {pi.initiatives.map((feature) => (
                 <div
                   key={feature.id}
-                  className="px-4 py-3 flex items-center justify-between text-sm"
+                  className="flex items-center justify-between px-4 py-3 text-sm"
                 >
                   <Link
                     href={`/feature/${feature.id}`}
-                    className="font-medium hover:text-primary transition-colors"
+                    className="font-medium transition-colors hover:text-primary"
                   >
                     {feature.title}
                   </Link>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {feature.wsjfComputed !== null && (
-                      <Badge className="bg-primary/10 text-primary border-primary/20 font-medium">
+                      <Badge className="border-primary/20 bg-primary/10 font-medium text-primary">
                         WSJF {Number(feature.wsjfComputed).toFixed(2)}
                       </Badge>
                     )}

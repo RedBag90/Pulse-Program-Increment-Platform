@@ -18,6 +18,10 @@ interface Props {
   params: Promise<{ featureId: string }>;
 }
 
+function formatDate(d: Date): string {
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-muted text-foreground/80",
   in_review: "bg-yellow-100 text-yellow-800",
@@ -126,6 +130,8 @@ export default async function FeatureDetailPage({ params }: Props) {
           <p className="text-sm text-muted-foreground">
             Program Increment:{" "}
             <span className="font-medium text-foreground/80">{feature.pi.name}</span>
+            {" · "}
+            {formatDate(feature.pi.startDate)} – {formatDate(feature.pi.endDate)}
           </p>
         )}
         {!feature.pi && (

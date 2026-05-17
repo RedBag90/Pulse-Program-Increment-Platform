@@ -1,0 +1,87 @@
+import type { ReactNode } from "react";
+import { Link } from "@/i18n/navigation";
+
+export interface DetailTab {
+  key: string;
+  label: string;
+}
+
+/** Narrows an arbitrary `?tab=` value to a known tab key, defaulting to the first tab. */
+export function resolveTab(tabs: readonly DetailTab[], raw: string | undefined): string {
+  return tabs.some((t) => t.key === raw) ? (raw as string) : (tabs[0]?.key ?? "");
+}
+
+interface Props {
+  /** Where the "back" link points, e.g. `/capacity`. */
+  backHref: string;
+  backLabel: string;
+  title: string;
+  /** Optional pill shown next to the title. */
+  badge?: string | undefined;
+  tabs: readonly DetailTab[];
+  activeTab: string;
+  /** Detail route without query, e.g. `/capacity/arts/<id>`; tab links append `?tab=`. */
+  basePath: string;
+  headerActions?: ReactNode;
+  children: ReactNode;
+}
+
+/**
+ * Generic two-zone detail layout — header on top, then a left tab rail and the
+ * center content. The page passes the active tab's content as `children`; the
+ * shell owns navigation. A reusable counterpart to `EpicDetailShell`, shared by
+ * the Capacity-Planning Value Stream / ART / Team detail pages.
+ */
+export function EntityDetailShell({
+  backHref,
+  backLabel,
+  title,
+  badge,
+  tabs,
+  activeTab,
+  basePath,
+  headerActions,
+  children,
+}: Props) {
+  return (
+    <div className="flex flex-col">
+      <header className="border-b px-6 py-4">
+        <Link href={backHref} className="text-sm text-primary hover:underline">
+          ← {backLabel}
+        </Link>
+        <div className="mt-2 flex items-center gap-3">
+          <h1 className="text-2xl font-semibold">{title}</h1>
+          {badge && <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{badge}</span>}
+          {headerActions && <div className="ml-auto">{headerActions}</div>}
+        </div>
+      </header>
+
+      <div className="flex min-h-[70vh]">
+        <nav aria-label="Bereiche" className="w-48 shrink-0 border-r p-2">
+          <ul className="space-y-0.5">
+            {tabs.map((tab) => {
+              const active = tab.key === activeTab;
+              return (
+                <li key={tab.key}>
+                  <Link
+                    href={`${basePath}?tab=${tab.key}`}
+                    aria-current={active ? "page" : undefined}
+                    className={`block rounded px-3 py-2 text-sm transition-colors ${
+                      active
+                        ? "bg-primary/10 font-medium text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {tab.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <main className="min-w-0 flex-1 overflow-auto p-6">{children}</main>
+      </div>
+    </div>
+  );
+}

@@ -332,7 +332,7 @@ export async function getFeature(db: PrismaClient, tenantId: TenantId, id: Featu
     include: {
       parent: { select: { id: true, title: true } },
       art: { select: { id: true, name: true } },
-      pi: { select: { id: true, name: true } },
+      pi: { select: { id: true, name: true, startDate: true, endDate: true } },
       children: {
         where: { deletedAt: null },
         select: { id: true, title: true, level: true, status: true, storyPoints: true },

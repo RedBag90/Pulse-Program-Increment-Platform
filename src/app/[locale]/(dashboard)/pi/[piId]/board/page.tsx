@@ -24,8 +24,17 @@ export default async function PiBoardPage({ params }: Props) {
   const teams = await db.team.findMany({
     where: { artId: pi.art.id, tenantId: principal.tenantId as TenantId },
     orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, targetVelocity: true },
   });
+
+  // wsjfComputed arrives as a Prisma Decimal — coerce to a plain number so the
+  // feature objects can cross the server → client component boundary.
+  const features = pi.initiatives.map((f) => ({
+    id: f.id,
+    title: f.title,
+    status: f.status,
+    wsjfComputed: f.wsjfComputed === null ? null : Number(f.wsjfComputed),
+  }));
 
   return (
     <main className="p-6 max-w-full space-y-6">
@@ -48,7 +57,7 @@ export default async function PiBoardPage({ params }: Props) {
         piName={pi.name}
         teams={teams}
         sprints={pi.sprints}
-        features={pi.initiatives}
+        features={features}
       />
     </main>
   );

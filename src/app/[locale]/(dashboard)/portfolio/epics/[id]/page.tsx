@@ -3,9 +3,14 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getEpic } from "@/server/services/epic";
 import { listInitiativeHistory } from "@/server/services/initiative";
 import { listKpis } from "@/server/services/kpi";
+import { listProgramIncrementsForArts } from "@/server/services/pi";
 import { EpicDetailShell, resolveEpicTab } from "@/features/portfolio/components/epic-detail-shell";
 import { EpicOverviewTab } from "@/features/portfolio/components/epic-overview-tab";
 import { EpicKpisTab, type KpiRow } from "@/features/portfolio/components/epic-kpis-tab";
+import {
+  EpicBreakdownTab,
+  type BreakdownFeature,
+} from "@/features/portfolio/components/epic-breakdown-tab";
 import { BenefitHypothesisEditor } from "@/features/portfolio/components/benefit-hypothesis-editor";
 import { BusinessCaseEditor } from "@/features/portfolio/components/business-case-editor";
 import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-button";
@@ -37,10 +42,35 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 
-  const [historyEvents, kpis] = await Promise.all([
+  const breakdownFeatures: BreakdownFeature[] = epic.children.map((c) => ({
+    id: c.id,
+    title: c.title,
+    status: c.status,
+    description: c.description ?? "",
+    artId: c.artId ?? "",
+    artName: c.art?.name ?? "—",
+    piId: c.piId,
+    acceptanceCriteria: c.acceptanceCriteria,
+    wsjf: {
+      bv: c.wsjfBusinessValue ?? 0,
+      tc: c.wsjfTimeCriticality ?? 0,
+      rr: c.wsjfRiskReduction ?? 0,
+      js: c.wsjfJobSize ?? 0,
+      computed: Number(c.wsjfComputed ?? 0),
+    },
+  }));
+  const artIds = [...new Set(breakdownFeatures.map((f) => f.artId).filter(Boolean))];
+
+  const [historyEvents, kpis, pis] = await Promise.all([
     listInitiativeHistory(db, principal.tenantId, epic.id),
     listKpis(db, principal.tenantId, epic.id as EpicId),
+    listProgramIncrementsForArts(db, principal.tenantId, artIds),
   ]);
+
+  const pisByArt: Record<string, { id: string; name: string }[]> = {};
+  for (const pi of pis) {
+    (pisByArt[pi.artId] ??= []).push({ id: pi.id, name: pi.name });
+  }
 
   const activityEvents = historyEvents.map((e) => ({
     id: e.id,
@@ -102,22 +132,13 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       )}
 
       {activeTab === "breakdown" && (
-        <section>
-          <h2 className="mb-3 text-lg font-medium">Breakdown</h2>
-          {epic.children.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Keine untergeordneten Initiativen.</p>
-          ) : (
-            <ul className="space-y-2">
-              {epic.children.map((child) => (
-                <li key={child.id} className="flex items-center gap-3 rounded border p-3 text-sm">
-                  <span className="rounded bg-muted px-2 py-0.5 text-xs">L{child.level}</span>
-                  <span className="font-medium">{child.title}</span>
-                  <span className="ml-auto text-muted-foreground">{child.status}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <EpicBreakdownTab
+          epicId={epic.id}
+          epicTitle={epic.title}
+          canEdit={canEdit}
+          features={breakdownFeatures}
+          pisByArt={pisByArt}
+        />
       )}
 
       {activeTab === "kpis" && (

@@ -28,9 +28,11 @@ const STATUS_COLORS: Record<string, string> = {
 
 interface Props {
   data: StatusDataPoint[];
+  /** Noun shown in the tooltip for the counted entity. */
+  label?: string;
 }
 
-export function StatusDistributionChart({ data }: Props) {
+export function StatusDistributionChart({ data, label = "Epics" }: Props) {
   if (data.length === 0) return null;
 
   return (
@@ -59,7 +61,7 @@ export function StatusDistributionChart({ data }: Props) {
             fontSize: 12,
             color: "var(--popover-foreground)",
           }}
-          formatter={(value) => [value, "Epics"]}
+          formatter={(value) => [value, label]}
           labelFormatter={(label) => String(label).replace("_", " ")}
         />
         <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={48}>

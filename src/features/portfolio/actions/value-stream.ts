@@ -71,7 +71,10 @@ export const updateValueStreamAction = createServerAction({
       budgetAmount: input.budgetAmount,
       budgetCurrency: input.budgetCurrency,
     }),
-  onSuccess: () => revalidatePath("/portfolio/value-streams"),
+  onSuccess: () => {
+    revalidatePath("/capacity");
+    revalidatePath("/capacity/value-streams/[id]", "page");
+  },
   mapError: (e) =>
     e.kind === "conflict" ? e.reason : e.kind === "not_found" ? "Not found" : "Failed to update",
 });

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   createFeature,
+  updateFeature,
   scoreFeature,
   setFeaturePi,
   softDeleteFeature,
@@ -74,9 +75,63 @@ export const createFeatureAction = createServerAction({
       acceptanceCriteria,
     });
   },
-  onSuccess: () => revalidatePath("/art/[artId]/features", "page"),
+  onSuccess: () => {
+    revalidatePath("/art/[artId]/features", "page");
+    revalidatePath("/portfolio/epics/[id]", "page");
+  },
   mapError: (e) =>
     e.kind === "not_found" ? `${e.resourceType} not found` : "Failed to create feature",
+});
+
+export const updateFeatureAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    artId: z.string().uuid(),
+    title: z.string().min(1).max(200).optional(),
+    description: z.string().max(10_000).optional(),
+    acceptanceCriteria: z.string().optional(),
+    wsjfBusinessValue: z.coerce.number().pipe(fibonacci).optional(),
+    wsjfTimeCriticality: z.coerce.number().pipe(fibonacci).optional(),
+    wsjfRiskReduction: z.coerce.number().pipe(fibonacci).optional(),
+    wsjfJobSize: z.coerce.number().pipe(fibonacci).optional(),
+  }),
+  action: "feature.update",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  parseFormData: (fd) => ({
+    id: fd.get("id"),
+    artId: fd.get("artId"),
+    title: fd.get("title") || undefined,
+    description: (fd.get("description") as string | null) ?? undefined,
+    acceptanceCriteria: (fd.get("acceptanceCriteria") as string | null) ?? undefined,
+    wsjfBusinessValue: fd.get("wsjfBusinessValue") || undefined,
+    wsjfTimeCriticality: fd.get("wsjfTimeCriticality") || undefined,
+    wsjfRiskReduction: fd.get("wsjfRiskReduction") || undefined,
+    wsjfJobSize: fd.get("wsjfJobSize") || undefined,
+  }),
+  service: (ctx, input) => {
+    const acceptanceCriteria =
+      input.acceptanceCriteria !== undefined
+        ? input.acceptanceCriteria
+            .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : undefined;
+    return updateFeature(ctx, {
+      id: input.id as FeatureId,
+      title: input.title,
+      description: input.description,
+      acceptanceCriteria,
+      wsjfBusinessValue: input.wsjfBusinessValue,
+      wsjfTimeCriticality: input.wsjfTimeCriticality,
+      wsjfRiskReduction: input.wsjfRiskReduction,
+      wsjfJobSize: input.wsjfJobSize,
+    });
+  },
+  onSuccess: () => {
+    revalidatePath("/art/[artId]/features", "page");
+    revalidatePath("/portfolio/epics/[id]", "page");
+  },
+  mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to update feature"),
 });
 
 export const scoreFeatureAction = createServerAction({
@@ -116,7 +171,10 @@ export const deleteFeatureAction = createServerAction({
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
   parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
   service: (ctx, input) => softDeleteFeature(ctx, { id: input.id as FeatureId }),
-  onSuccess: () => revalidatePath("/art/[artId]/features", "page"),
+  onSuccess: () => {
+    revalidatePath("/art/[artId]/features", "page");
+    revalidatePath("/portfolio/epics/[id]", "page");
+  },
   mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to delete feature"),
 });
 
@@ -164,5 +222,7 @@ export async function setFeaturePiAction(
 
   revalidatePath("/art/[artId]/features", "page");
   revalidatePath("/pi/[piId]", "page");
+  revalidatePath("/portfolio/epics/[id]", "page");
+  revalidatePath("/pi-planning", "page");
   return {};
 }

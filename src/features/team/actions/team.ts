@@ -38,6 +38,9 @@ export const updateTeamAction = createServerAction({
     id: z.string().uuid(),
     artId: z.string().uuid(),
     name: z.string().min(1).max(100).optional(),
+    description: z.string().optional(),
+    headcount: z.coerce.number().int().min(0).max(1000).optional(),
+    targetVelocity: z.coerce.number().int().min(0).max(1000).optional(),
   }),
   action: "team.update",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
@@ -45,9 +48,23 @@ export const updateTeamAction = createServerAction({
     id: fd.get("id"),
     artId: fd.get("artId"),
     name: fd.get("name") || undefined,
+    description: fd.get("description") || undefined,
+    headcount: fd.get("headcount") || undefined,
+    targetVelocity: fd.get("targetVelocity") || undefined,
   }),
-  service: (ctx, input) => updateTeam(ctx, { id: input.id as TeamId, name: input.name }),
-  onSuccess: () => revalidatePath("/art/[artId]/teams", "page"),
+  service: (ctx, input) =>
+    updateTeam(ctx, {
+      id: input.id as TeamId,
+      name: input.name,
+      description: input.description,
+      headcount: input.headcount,
+      targetVelocity: input.targetVelocity,
+    }),
+  onSuccess: () => {
+    revalidatePath("/art/[artId]/teams", "page");
+    revalidatePath("/capacity/teams/[id]", "page");
+    revalidatePath("/capacity/arts/[id]", "page");
+  },
   mapError: (e) =>
     e.kind === "conflict"
       ? e.reason

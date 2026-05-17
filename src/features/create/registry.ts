@@ -31,7 +31,7 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     group: "portfolio",
     indentLevel: 0,
     inPlace: true,
-    resolveHref: () => "/portfolio/value-streams?create=value-stream",
+    resolveHref: () => "/capacity?create=value-stream",
   },
   {
     key: "art",
@@ -39,7 +39,7 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     group: "portfolio",
     indentLevel: 1,
     inPlace: true,
-    resolveHref: () => "/art?create=art",
+    resolveHref: () => "/capacity?create=art",
   },
   {
     key: "pi",
@@ -55,7 +55,7 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     group: "portfolio",
     indentLevel: 2,
     inPlace: true,
-    resolveHref: (c) => (c.artId ? `/art/${c.artId}/teams?create=team` : "/art"),
+    resolveHref: (c) => (c.artId ? `/capacity/arts/${c.artId}?tab=teams` : "/capacity"),
   },
   {
     key: "epic",
@@ -79,7 +79,7 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     group: "initiative",
     indentLevel: 2,
     inPlace: true,
-    resolveHref: (c) => (c.featureId ? `/feature/${c.featureId}?create=story` : "/feature"),
+    resolveHref: (c) => (c.featureId ? `/feature/${c.featureId}?create=story` : "/pi-planning"),
   },
   {
     key: "task",
@@ -87,7 +87,7 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     group: "initiative",
     indentLevel: 3,
     inPlace: true,
-    resolveHref: () => "/feature",
+    resolveHref: () => "/pi-planning",
   },
   {
     key: "kpi",
@@ -103,7 +103,7 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     group: "more",
     indentLevel: 0,
     inPlace: true,
-    resolveHref: (c) => (c.piId ? `/pi/${c.piId}/objectives?create=pi-objective` : "/pi"),
+    resolveHref: (c) => (c.piId ? `/pi/${c.piId}/objectives?create=pi-objective` : "/pi-planning"),
   },
   {
     key: "impediment",
@@ -119,6 +119,7 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     group: "more",
     indentLevel: 0,
     inPlace: true,
-    resolveHref: (c) => (c.featureId ? `/feature/${c.featureId}?create=dependency` : "/feature"),
+    resolveHref: (c) =>
+      c.featureId ? `/feature/${c.featureId}?create=dependency` : "/pi-planning",
   },
 ];

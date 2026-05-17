@@ -288,6 +288,23 @@ export async function listPis(
   );
 }
 
+/**
+ * Program Increments across several ARTs at once — feeds the per-feature PI
+ * picker on the Epic Breakdown tab, where child Features may span ARTs.
+ */
+export async function listProgramIncrementsForArts(
+  db: PrismaClient,
+  tenantId: TenantId,
+  artIds: string[],
+) {
+  if (artIds.length === 0) return [];
+  return db.programIncrement.findMany({
+    where: { tenantId, artId: { in: artIds } },
+    select: { id: true, name: true, artId: true },
+    orderBy: { startDate: "desc" },
+  });
+}
+
 export async function getPi(db: PrismaClient, tenantId: TenantId, id: PiId) {
   return db.programIncrement.findFirst({
     where: { id, tenantId },

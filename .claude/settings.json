@@ -146,7 +146,18 @@
       "Bash(pnpm exec *)",
       "Bash(git commit *)",
       "Bash(git rm *)",
-      "Bash(git mv *)"
+      "Bash(git mv *)",
+      "Bash(find /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/\\\\\\(dashboard\\\\\\) -type f -o -type d)",
+      "Bash(find /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/\\\\\\(dashboard\\\\\\) -type f -name \"page.tsx\")",
+      "Bash(node -e \"const m=require\\('./messages/en.json'\\); console.log\\(JSON.stringify\\(m.nav,null,1\\)\\)\")",
+      "Bash(node -e \"const m=require\\('./messages/de.json'\\); console.log\\(JSON.stringify\\(m.nav,null,1\\)\\)\")",
+      "Bash(find /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/\\\\\\(dashboard\\\\\\)/art -type f -name \"*.tsx\")",
+      "Bash(grep -E \"\\\\.tsx$\")",
+      "Bash(xargs -I {} basename {})",
+      "Bash(xargs basename -a)",
+      "Bash(grep -nA12 \"export async function getFeature\" src/server/services/feature.ts)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(grep -rn '`/pi`\\\\|`/feature`' src --include=\"*.ts\" --include=\"*.tsx\")"
     ],
     "additionalDirectories": [
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)",
