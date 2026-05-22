@@ -1,6 +1,6 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { listEpicsInReview } from "@/server/services/epic";
+import { listEpicsInReview } from "@/server/services/initiative-review";
 import { ReviewDecisionButtons } from "@/features/quality/components/review-decision-buttons";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
@@ -37,10 +37,7 @@ export default async function EpicQualityPage() {
           {epics.map((epic) => (
             <div key={epic.id} className="flex items-center gap-4 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <Link
-                  href={`/portfolio/epics/${epic.id}`}
-                  className="font-medium text-primary hover:underline"
-                >
+                <Link href={epic.href} className="font-medium text-primary hover:underline">
                   {epic.title}
                 </Link>
                 {epic.valueStream && (

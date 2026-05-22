@@ -1,6 +1,6 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { listFeaturesInReview } from "@/server/services/feature";
+import { listFeaturesInReview } from "@/server/services/initiative-review";
 import { ReviewDecisionButtons } from "@/features/quality/components/review-decision-buttons";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
@@ -42,14 +42,11 @@ export default async function FeatureQualityPage() {
           {features.map((feature) => (
             <div key={feature.id} className="flex items-center gap-4 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <Link
-                  href={`/feature/${feature.id}`}
-                  className="font-medium text-primary hover:underline"
-                >
+                <Link href={feature.href} className="font-medium text-primary hover:underline">
                   {feature.title}
                 </Link>
                 <p className="text-xs text-muted-foreground">
-                  {feature.parent?.title ?? "—"}
+                  {feature.parentTitle ?? "—"}
                   {feature.art ? ` · ${feature.art.name}` : ""}
                 </p>
               </div>

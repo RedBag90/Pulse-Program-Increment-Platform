@@ -10,9 +10,8 @@ import {
   scoreFeature,
   setFeaturePi,
   softDeleteFeature,
-  submitFeatureForReview,
-  decideFeatureReview,
 } from "@/server/services/feature";
+import { submitForReview, decideReview } from "@/server/services/initiative-review";
 import { createServerAction } from "@/server/http/server-action";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { requirePrincipal } from "@/server/auth/principal";
@@ -132,6 +131,7 @@ export const updateFeatureAction = createServerAction({
   onSuccess: () => {
     revalidatePath("/art/[artId]/features", "page");
     revalidatePath("/portfolio/epics/[id]", "page");
+    revalidatePath("/feature/[featureId]", "page");
   },
   mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to update feature"),
 });
@@ -185,7 +185,7 @@ export const submitFeatureReviewAction = createServerAction({
   action: "feature.review.submit",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => ({ id: fd.get("id") }),
-  service: (ctx, input) => submitFeatureForReview(ctx, { id: input.id as FeatureId }),
+  service: (ctx, input) => submitForReview(ctx, { kind: "feature", id: input.id as FeatureId }),
   onSuccess: () => {
     revalidatePath("/quality/features", "page");
     revalidatePath("/feature/[featureId]", "page");
@@ -205,7 +205,7 @@ export const decideFeatureReviewAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => ({ id: fd.get("id"), decision: fd.get("decision") }),
   service: (ctx, input) =>
-    decideFeatureReview(ctx, { id: input.id as FeatureId, decision: input.decision }),
+    decideReview(ctx, { kind: "feature", id: input.id as FeatureId, decision: input.decision }),
   onSuccess: () => {
     revalidatePath("/quality/features", "page");
     revalidatePath("/feature/[featureId]", "page");

@@ -2,13 +2,8 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import {
-  createEpic,
-  updateEpic,
-  softDeleteEpic,
-  submitEpicForReview,
-  decideEpicReview,
-} from "@/server/services/epic";
+import { createEpic, updateEpic, softDeleteEpic } from "@/server/services/epic";
+import { submitForReview, decideReview } from "@/server/services/initiative-review";
 import { createServerAction } from "@/server/http/server-action";
 import type { ValueStreamId, EpicId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
@@ -73,7 +68,7 @@ export const submitEpicReviewAction = createServerAction({
   action: "epic.review.submit",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => ({ id: fd.get("id") }),
-  service: (ctx, input) => submitEpicForReview(ctx, { id: input.id as EpicId }),
+  service: (ctx, input) => submitForReview(ctx, { kind: "epic", id: input.id as EpicId }),
   onSuccess: (input) => {
     revalidatePath(`/portfolio/epics/${input.id}`);
     revalidatePath("/quality/epics", "page");
@@ -92,7 +87,7 @@ export const decideEpicReviewAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => ({ id: fd.get("id"), decision: fd.get("decision") }),
   service: (ctx, input) =>
-    decideEpicReview(ctx, { id: input.id as EpicId, decision: input.decision }),
+    decideReview(ctx, { kind: "epic", id: input.id as EpicId, decision: input.decision }),
   onSuccess: (input) => {
     revalidatePath(`/portfolio/epics/${input.id}`);
     revalidatePath("/quality/epics", "page");

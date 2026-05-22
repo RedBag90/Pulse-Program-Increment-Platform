@@ -9,7 +9,6 @@ import { computeWsjf } from "@/domain/schemas/initiative";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { paginate, type PageParams } from "@/server/db/paginate";
-import { canQaTransition, decisionTarget, type ReviewDecision } from "@/domain/initiative-status";
 
 export interface CreateFeatureInput {
   parentId: EpicId;
@@ -373,104 +372,5 @@ export async function softDeleteFeature(
       result: undefined,
       audit: { action: "initiative.deleted", resourceType: "initiative", resourceId: id },
     });
-  });
-}
-
-// ---------------------------------------------------------------------------
-// QA review — Feature Owner submits, RTE decides
-// ---------------------------------------------------------------------------
-
-export async function submitFeatureForReview(
-  ctx: RequestContext,
-  input: { id: FeatureId },
-): Promise<Result<void>> {
-  const mctx = toMutationContext(ctx);
-  const { id } = input;
-
-  return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
-    });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "Feature", id });
-    if (!canQaTransition(existing.status, "in_review")) {
-      return err({
-        kind: "conflict" as const,
-        reason: `Feature in status "${existing.status}" cannot be submitted for review`,
-      });
-    }
-
-    await tx.initiative.update({
-      where: { id },
-      data: { status: "in_review", updatedBy: mctx.actorId },
-    });
-
-    return ok({
-      result: undefined,
-      audit: {
-        action: "initiative.updated",
-        resourceType: "initiative",
-        resourceId: id,
-        changes: { status: { before: existing.status, after: "in_review" } },
-      },
-    });
-  });
-}
-
-export async function decideFeatureReview(
-  ctx: RequestContext,
-  input: { id: FeatureId; decision: ReviewDecision },
-): Promise<Result<void>> {
-  const mctx = toMutationContext(ctx);
-  const { id, decision } = input;
-  const target = decisionTarget(decision);
-
-  return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
-    });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "Feature", id });
-    if (!canQaTransition(existing.status, target)) {
-      return err({
-        kind: "conflict" as const,
-        reason: `Feature in status "${existing.status}" is not awaiting a review decision`,
-      });
-    }
-
-    await tx.initiative.update({
-      where: { id },
-      data: { status: target, updatedBy: mctx.actorId },
-    });
-
-    return ok({
-      result: undefined,
-      audit: {
-        action: "initiative.updated",
-        resourceType: "initiative",
-        resourceId: id,
-        changes: { status: { before: existing.status, after: target } },
-      },
-    });
-  });
-}
-
-/** Features awaiting QA — backs the Feature-QS dashboard; optionally ART-scoped. */
-export async function listFeaturesInReview(
-  db: PrismaClient,
-  tenantId: TenantId,
-  artIds?: string[],
-) {
-  return db.initiative.findMany({
-    where: {
-      tenantId,
-      level: InitiativeLevel.FEATURE,
-      deletedAt: null,
-      status: "in_review",
-      ...(artIds && artIds.length > 0 ? { artId: { in: artIds } } : {}),
-    },
-    include: {
-      parent: { select: { id: true, title: true } },
-      art: { select: { id: true, name: true } },
-    },
-    orderBy: { updatedAt: "desc" },
   });
 }
