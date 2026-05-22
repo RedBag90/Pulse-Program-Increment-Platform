@@ -166,7 +166,9 @@
       "Bash(cd \"/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform\" && git rm -r --quiet \"src/features/quality/components 2\" \"src/app/[locale]/\\(dashboard\\)/quality/epics 2\" \"src/app/[locale]/\\(dashboard\\)/quality/features 2\" && rm -rf \"src/features/quality/components 2\" \"src/app/[locale]/\\(dashboard\\)/quality/epics 2\" \"src/app/[locale]/\\(dashboard\\)/quality/features 2\" && echo \"removed stale ' 2' duplicate dirs\" && git ls-files | grep ' 2' || echo \"tracked tree clean of ' 2' paths\")",
       "Bash(git ls-tree *)",
       "Bash(chmod 755 src/features/quality/components \"src/app/[locale]/\\(dashboard\\)/quality/epics\" \"src/app/[locale]/\\(dashboard\\)/quality/features\")",
-      "Bash(git show *)"
+      "Bash(git show *)",
+      "Bash(sed -n '/^model initiative/,/^}/p' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/prisma/schema.prisma)",
+      "Bash(awk '/^model initiative/,/^}/' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/prisma/schema.prisma)"
     ],
     "additionalDirectories": [
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)",
@@ -193,7 +195,8 @@
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)/art/[artId]/impediments",
       "/tmp",
       "/private/tmp",
-      "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)/quality/epics 2"
+      "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)/quality/epics 2",
+      "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/prisma"
     ]
   }
 }

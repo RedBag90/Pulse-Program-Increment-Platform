@@ -23,14 +23,17 @@ interface Props {
   /** Detail route without query, e.g. `/capacity/arts/<id>`; tab links append `?tab=`. */
   basePath: string;
   headerActions?: ReactNode;
+  /** Optional right-hand zone (e.g. an activity feed). When set the layout is
+   *  three-zone; omitted it stays two-zone. */
+  aside?: ReactNode;
   children: ReactNode;
 }
 
 /**
- * Generic two-zone detail layout — header on top, then a left tab rail and the
- * center content. The page passes the active tab's content as `children`; the
- * shell owns navigation. A reusable counterpart to `EpicDetailShell`, shared by
- * the Capacity-Planning Value Stream / ART / Team detail pages.
+ * Generic detail layout — header on top, then a left tab rail, the center
+ * content, and an optional right-hand `aside` zone. The page passes the active
+ * tab's content as `children`; the shell owns navigation. Shared by the Epic,
+ * Feature, and Capacity-Planning (Value Stream / ART / Team) detail pages.
  */
 export function EntityDetailShell({
   backHref,
@@ -41,6 +44,7 @@ export function EntityDetailShell({
   activeTab,
   basePath,
   headerActions,
+  aside,
   children,
 }: Props) {
   return (
@@ -81,6 +85,8 @@ export function EntityDetailShell({
         </nav>
 
         <main className="min-w-0 flex-1 overflow-auto p-6">{children}</main>
+
+        {aside}
       </div>
     </div>
   );

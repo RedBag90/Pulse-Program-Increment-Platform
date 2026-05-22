@@ -4,7 +4,10 @@ import { getEpic } from "@/server/services/epic";
 import { listInitiativeHistory } from "@/server/services/initiative";
 import { listKpis } from "@/server/services/kpi";
 import { listProgramIncrementsForArts } from "@/server/services/pi";
-import { EpicDetailShell, resolveEpicTab } from "@/features/portfolio/components/epic-detail-shell";
+import { EntityDetailShell } from "@/components/detail/entity-detail-shell";
+import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
+import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { EPIC_TABS, resolveEpicTab } from "@/features/portfolio/components/epic-detail-shell";
 import { EpicOverviewTab } from "@/features/portfolio/components/epic-overview-tab";
 import { EpicKpisTab, type KpiRow } from "@/features/portfolio/components/epic-kpis-tab";
 import {
@@ -92,13 +95,16 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   const businessCase = parseBusinessCase(epic.businessCase);
 
   return (
-    <EpicDetailShell
-      epicId={epic.id}
+    <EntityDetailShell
+      backHref="/portfolio/epics"
+      backLabel="Zurück zu den Epics"
       title={epic.title}
-      stageGate={epic.stageGate}
+      badge={STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate}
+      tabs={EPIC_TABS}
       activeTab={activeTab}
-      activityEvents={activityEvents}
+      basePath={`/portfolio/epics/${epic.id}`}
       headerActions={canEdit ? <DeleteEpicButton id={epic.id} title={epic.title} /> : undefined}
+      aside={<InitiativeActivitySidebar events={activityEvents} />}
     >
       {activeTab === "overview" && <EpicOverviewTab epic={epic} canEdit={canEdit} />}
 
@@ -159,6 +165,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           )}
         </section>
       )}
-    </EpicDetailShell>
+    </EntityDetailShell>
   );
 }

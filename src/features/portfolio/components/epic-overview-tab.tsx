@@ -1,20 +1,10 @@
 import type { ReactNode } from "react";
 import { EpicEditForm } from "./epic-edit-form";
 import { SubmitReviewButton } from "@/features/quality/components/submit-review-button";
-import { STAGE_GATE_LABELS } from "./epic-detail-shell";
+import { STAGE_GATE_LABELS, STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { buildInitiativeSummary } from "@/domain/initiative-summary";
 import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
 import type { StageGate, InitiativeStatus } from "@/domain/types";
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Entwurf",
-  in_review: "In Prüfung",
-  approved: "Freigegeben",
-  in_progress: "In Umsetzung",
-  blocked: "Blockiert",
-  completed: "Abgeschlossen",
-  cancelled: "Abgebrochen",
-};
 
 export interface EpicOverviewTabProps {
   epic: {

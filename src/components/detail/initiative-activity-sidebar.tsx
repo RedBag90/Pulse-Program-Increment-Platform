@@ -42,10 +42,11 @@ function relativeTime(iso: string, now: number): string {
 }
 
 /**
- * Right-hand activity feed — the Epic's audit trail, newest first, with a
- * category filter. Read-only: comments are intentionally out of scope.
+ * Right-hand activity feed — an initiative's audit trail (Epic or Feature),
+ * newest first, with a category filter. Read-only: comments are intentionally
+ * out of scope.
  */
-export function EpicActivitySidebar({ events }: { events: ActivityItem[] }) {
+export function InitiativeActivitySidebar({ events }: { events: ActivityItem[] }) {
   const [filter, setFilter] = useState("all");
   const now = Date.now();
 
