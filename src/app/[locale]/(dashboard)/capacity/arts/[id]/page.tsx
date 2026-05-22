@@ -61,6 +61,7 @@ export default async function ArtDetailPage({ params, searchParams }: Props) {
       {activeTab === "overview" &&
         (canEdit ? (
           <ArtOverviewForm
+            key={[art.id, art.name, art.description ?? "", art.piCadenceWeeks].join("|")}
             id={art.id}
             name={art.name}
             description={art.description ?? ""}

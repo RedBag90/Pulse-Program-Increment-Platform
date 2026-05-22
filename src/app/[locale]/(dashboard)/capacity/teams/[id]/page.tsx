@@ -40,6 +40,17 @@ export default async function TeamDetailPage({ params, searchParams }: Props) {
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 
+  // Remounts the uncontrolled edit form whenever the persisted Team data
+  // changes (navigation between teams, or a save) so its `defaultValue`s never
+  // change on a live instance — and never resets while the user is editing.
+  const formKey = [
+    team.id,
+    team.name,
+    team.description ?? "",
+    team.headcount ?? "",
+    team.targetVelocity ?? "",
+  ].join("|");
+
   const history = await listAuditHistory(db, principal.tenantId, "team", team.id);
   const events = history.map((e) => ({
     id: e.id,
@@ -60,6 +71,7 @@ export default async function TeamDetailPage({ params, searchParams }: Props) {
       {activeTab === "overview" &&
         (canEdit ? (
           <TeamOverviewForm
+            key={formKey}
             id={team.id}
             artId={team.artId}
             name={team.name}

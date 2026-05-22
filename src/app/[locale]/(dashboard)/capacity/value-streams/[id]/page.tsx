@@ -64,6 +64,13 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
       {activeTab === "overview" &&
         (canEdit ? (
           <ValueStreamOverviewForm
+            key={[
+              vs.id,
+              vs.name,
+              vs.description ?? "",
+              vs.budgetAmount?.toString() ?? "",
+              vs.budgetCurrency ?? "",
+            ].join("|")}
             id={vs.id}
             name={vs.name}
             description={vs.description ?? ""}
