@@ -1,6 +1,15 @@
 # Backlog: Strukturierte Mehrparteien-Freigabe für den Business Case
 
-**Status:** Geparkt — bei Bedarf reaktivieren.
+**Status:** ✅ Umgesetzt (erweitert) — als mehrstufiger Epic-Freigabe-Workflow.
+Statt der reinen Checkliste gibt es jetzt eine eigene Entität `EpicApproval`
+(Status / zugewiesene:r User / Zeitstempel / Kommentar je Freigabe), eine
+`approvalPhase` auf dem Epic (`draft → hypothesis_review → business_case →
+stakeholder_review → approved`), den Service `src/server/services/epic-approval.ts`,
+den „Freigaben"-Tab, und Audit je Entscheidung. **Abweichung vom ursprünglichen
+Plan:** nicht an das L2→L3-Stage-Gate gekoppelt (bewusst eine separate Achse);
+Approver sind die 5 Parteien mit je einem/mehreren zugewiesenen Usern (statt
+fester Rollen); Breakdown & KPIs sind zusätzliche explizite Sign-off-Punkte.
+Der Abschnitt unten dokumentiert die ursprüngliche (engere) Idee.
 
 ## Kontext
 

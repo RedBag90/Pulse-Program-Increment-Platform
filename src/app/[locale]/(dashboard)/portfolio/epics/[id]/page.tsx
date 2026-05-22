@@ -4,6 +4,7 @@ import { getEpic } from "@/server/services/epic";
 import { listInitiativeHistory } from "@/server/services/initiative";
 import { listKpis } from "@/server/services/kpi";
 import { listProgramIncrementsForArts } from "@/server/services/pi";
+import { listEpicApprovals, listTenantApprovers } from "@/server/services/epic-approval";
 import { EntityDetailShell } from "@/components/detail/entity-detail-shell";
 import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
@@ -16,10 +17,12 @@ import {
 } from "@/features/portfolio/components/epic-breakdown-tab";
 import { BenefitHypothesisEditor } from "@/features/portfolio/components/benefit-hypothesis-editor";
 import { BusinessCaseEditor } from "@/features/portfolio/components/business-case-editor";
+import { EpicApprovalsTab } from "@/features/portfolio/components/epic-approvals-tab";
 import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-button";
 import { parseBenefitHypothesis } from "@/domain/benefit-hypothesis";
 import { parseBusinessCase } from "@/domain/business-case";
 import { parseKpiMeasurements, latestKpiValue } from "@/domain/kpi";
+import type { ApprovalPhase } from "@/domain/epic-approval";
 import { redirect } from "next/navigation";
 import type { EpicId } from "@/domain/types";
 
@@ -65,11 +68,23 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   }));
   const artIds = [...new Set(breakdownFeatures.map((f) => f.artId).filter(Boolean))];
 
-  const [historyEvents, kpis, pis] = await Promise.all([
+  const [historyEvents, kpis, pis, approvals, approvers] = await Promise.all([
     listInitiativeHistory(db, principal.tenantId, epic.id),
     listKpis(db, principal.tenantId, epic.id as EpicId),
     listProgramIncrementsForArts(db, principal.tenantId, artIds),
+    listEpicApprovals(db, principal.tenantId, epic.id as EpicId),
+    listTenantApprovers(db, principal.tenantId),
   ]);
+
+  const approvalPhase = (epic.approvalPhase as ApprovalPhase | null) ?? "draft";
+  const canDecideHypothesis =
+    principal.roles.includes("vmo") ||
+    principal.roles.includes("tenant_admin") ||
+    principal.roles.includes("platform_admin");
+  const canSignoff =
+    canDecideHypothesis ||
+    principal.roles.includes("value_stream_owner") ||
+    principal.roles.includes("portfolio_manager");
 
   const pisByArt: Record<string, { id: string; name: string }[]> = {};
   for (const pi of pis) {
@@ -108,6 +123,20 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     >
       {activeTab === "overview" && <EpicOverviewTab epic={epic} canEdit={canEdit} />}
 
+      {activeTab === "approvals" && (
+        <EpicApprovalsTab
+          epicId={epic.id}
+          phase={approvalPhase}
+          revision={epic.approvalRevision ?? 1}
+          approvals={approvals}
+          approvers={approvers}
+          currentUserId={principal.id}
+          canManage={canEdit}
+          canDecideHypothesis={canDecideHypothesis}
+          canSignoff={canSignoff}
+        />
+      )}
+
       {activeTab === "business-case" && (
         <section>
           <h2 className="mb-4 text-lg font-medium">Business Case</h2>
@@ -115,7 +144,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             epicId={epic.id}
             current={businessCase.current}
             history={businessCase.history}
-            readOnly={!canEdit}
+            readOnly={!canEdit || approvalPhase !== "business_case"}
           />
         </section>
       )}
@@ -127,7 +156,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             epicId={epic.id}
             current={benefitHypothesis.current}
             history={benefitHypothesis.history}
-            readOnly={!canEdit}
+            readOnly={!canEdit || approvalPhase !== "draft"}
           />
         </section>
       )}

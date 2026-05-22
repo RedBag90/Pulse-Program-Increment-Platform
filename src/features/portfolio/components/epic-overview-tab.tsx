@@ -1,10 +1,19 @@
 import type { ReactNode } from "react";
+import { Link } from "@/i18n/navigation";
 import { EpicEditForm } from "./epic-edit-form";
-import { SubmitReviewButton } from "@/features/quality/components/submit-review-button";
 import { STAGE_GATE_LABELS, STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { buildInitiativeSummary } from "@/domain/initiative-summary";
 import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
 import type { StageGate, InitiativeStatus } from "@/domain/types";
+
+/** Approval-workflow phase labels — see the Freigaben tab for the full workflow. */
+const PHASE_LABELS: Record<string, string> = {
+  draft: "Entwurf",
+  hypothesis_review: "Hypothese in QS (VMO)",
+  business_case: "Business Case",
+  stakeholder_review: "Stakeholder-Freigaben",
+  approved: "Freigegeben",
+};
 
 export interface EpicOverviewTabProps {
   epic: {
@@ -13,6 +22,7 @@ export interface EpicOverviewTabProps {
     description: string | null;
     stageGate: string;
     status: string;
+    approvalPhase: string | null;
     ownerId: string;
     updatedAt: Date;
     approvedAt: Date | null;
@@ -80,22 +90,17 @@ export function EpicOverviewTab({ epic, canEdit }: EpicOverviewTabProps) {
 
       <section className="flex flex-wrap items-center gap-3">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Qualitätssicherung
+          Freigabe-Status
         </p>
-        {epic.status === "draft" &&
-          (canEdit ? (
-            <SubmitReviewButton id={epic.id} kind="epic" />
-          ) : (
-            <span className="text-sm text-muted-foreground">Entwurf — noch nicht eingereicht.</span>
-          ))}
-        {epic.status === "in_review" && (
-          <span className="text-sm text-muted-foreground">
-            Zur QS eingereicht — wartet auf VMO-Freigabe.
-          </span>
-        )}
-        {epic.status === "approved" && (
-          <span className="text-sm text-emerald-600">Von der VMO freigegeben.</span>
-        )}
+        <span className="text-sm font-medium">
+          {PHASE_LABELS[epic.approvalPhase ?? "draft"] ?? epic.approvalPhase}
+        </span>
+        <Link
+          href={`/portfolio/epics/${epic.id}?tab=approvals`}
+          className="text-sm text-primary hover:underline"
+        >
+          Freigaben verwalten →
+        </Link>
       </section>
 
       <section>

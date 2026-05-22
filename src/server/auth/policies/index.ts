@@ -16,6 +16,13 @@ export type Action =
   | "epic.delete"
   | "epic.review.submit"
   | "epic.review.decide"
+  | "epic.hypothesis.submit"
+  | "epic.hypothesis.decide"
+  | "epic.approval.configure"
+  | "epic.businesscase.submit"
+  | "epic.approval.decide"
+  | "epic.section.signoff"
+  | "epic.revision.start"
   | "art.create"
   | "art.update"
   | "art.delete"
@@ -117,6 +124,23 @@ export const POLICIES: Record<Action, Grant[]> = {
     { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
   ],
   "epic.review.decide": [{ roles: [VMO] }],
+
+  // Multi-party approval workflow (sequential): the Epic Owner submits the
+  // hypothesis (VMO decides), then configures + submits the Business Case for
+  // stakeholder approval. `epic.approval.decide` is additionally gated in the
+  // service to the assigned approver (the policy can't see the approval row).
+  "epic.hypothesis.submit": [
+    { roles: [EPIC_OWNER, PORTFOLIO_MANAGER] },
+    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
+  ],
+  "epic.hypothesis.decide": [{ roles: [VMO] }],
+  "epic.approval.configure": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
+  "epic.businesscase.submit": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
+  "epic.approval.decide": [
+    { roles: [PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, VMO, RTE, FEATURE_OWNER] },
+  ],
+  "epic.section.signoff": [{ roles: [VMO, VALUE_STREAM_OWNER, PORTFOLIO_MANAGER] }],
+  "epic.revision.start": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
 
   // ── ART / Program ───────────────────────────────────────────────────────
   // ART lifecycle is a tenant-admin org-structure concern; the RTE orchestrates

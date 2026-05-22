@@ -58,6 +58,7 @@ export async function createEpic(
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
         valueStreamId,
+        approvalPhase: "draft",
         ...(description !== undefined && { description }),
       },
     });

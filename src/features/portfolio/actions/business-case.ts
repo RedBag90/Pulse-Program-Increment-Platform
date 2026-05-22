@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { saveBusinessCase } from "@/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import { businessCaseSchema } from "@/domain/schemas/initiative";
-import { APPROVAL_PARTIES } from "@/domain/business-case";
 import type { EpicId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
 
@@ -47,11 +46,6 @@ export const saveBusinessCaseAction = createServerAction({
     ),
     oneTimeBenefit: num(fd, "oneTimeBenefit"),
     recurringBenefit: num(fd, "recurringBenefit"),
-    approvals: APPROVAL_PARTIES.map((party) => ({
-      party,
-      approved: fd.get(`approval_${party}`) === "on",
-      approverName: text(fd, `approver_${party}`),
-    })),
   }),
   service: (ctx, input) => {
     const { epicId, ...fields } = input;

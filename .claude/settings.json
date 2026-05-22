@@ -168,7 +168,9 @@
       "Bash(chmod 755 src/features/quality/components \"src/app/[locale]/\\(dashboard\\)/quality/epics\" \"src/app/[locale]/\\(dashboard\\)/quality/features\")",
       "Bash(git show *)",
       "Bash(sed -n '/^model initiative/,/^}/p' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/prisma/schema.prisma)",
-      "Bash(awk '/^model initiative/,/^}/' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/prisma/schema.prisma)"
+      "Bash(awk '/^model initiative/,/^}/' /Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/prisma/schema.prisma)",
+      "Bash(grep -E \"\\\\.\\(md|ts|tsx\\)$\")",
+      "Bash(grep -n \"epic.create\\\\`, \\\\`epic.update\\\\`, \\\\`epic.review.submit\\\\|epic.review.decide\\\\` \\(QS gate\\)\\\\|Erik — Epic Owner\\\\|Vera — Value Management\" docs/personas.md)"
     ],
     "additionalDirectories": [
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)",

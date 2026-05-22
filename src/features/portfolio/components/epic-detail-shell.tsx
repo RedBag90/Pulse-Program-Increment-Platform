@@ -7,6 +7,7 @@ export { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 /** Tab set of the Epic detail page. Adding a tab = one entry here + one branch in the page. */
 export const EPIC_TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },
+  { key: "approvals", label: "Freigaben" },
   { key: "business-case", label: "Business Case" },
   { key: "benefit-hypothesis", label: "Benefit Hypothese" },
   { key: "breakdown", label: "Breakdown" },

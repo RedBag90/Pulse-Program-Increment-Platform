@@ -3,11 +3,9 @@
 import { useActionState, useState } from "react";
 import { saveBusinessCaseAction } from "@/features/portfolio/actions/business-case";
 import {
-  APPROVAL_PARTIES,
   costSliceLabel,
   type BusinessCaseFields,
   type BusinessCaseVersion,
-  type ApprovalParty,
 } from "@/domain/business-case";
 
 interface BusinessCaseEditorProps {
@@ -21,14 +19,6 @@ interface BusinessCaseEditorProps {
 
 const INPUT_CLASS =
   "w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-
-const APPROVAL_LABELS: Record<ApprovalParty, string> = {
-  mgmt: "MGMT",
-  business_owner: "Business Owner",
-  finance: "Finance",
-  irt_owner: "IRT-Owner",
-  lace_vmo: "LACE/VMO",
-};
 
 function parseNum(value: string): number | undefined {
   if (value.trim() === "") return undefined;
@@ -54,7 +44,6 @@ export function BusinessCaseEditor({
   const [slices, setSlices] = useState<string[]>(() => initialSlices(current.costSlices));
 
   const costTotal = slices.reduce((sum, v) => sum + (parseNum(v) ?? 0), 0);
-  const approvalsByParty = new Map(current.approvals?.map((a) => [a.party, a]));
 
   return (
     <div className="space-y-6">
@@ -299,38 +288,10 @@ export function BusinessCaseEditor({
             />
           </div>
 
-          <fieldset>
-            <legend className="text-sm font-medium mb-2">Business Case Approval</legend>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {APPROVAL_PARTIES.map((party) => {
-                const existing = approvalsByParty.get(party);
-                return (
-                  <div key={party} className="flex items-center gap-2 rounded border p-2">
-                    <input
-                      type="checkbox"
-                      id={`approval_${party}`}
-                      name={`approval_${party}`}
-                      defaultChecked={existing?.approved ?? false}
-                      className="h-4 w-4"
-                    />
-                    <label
-                      htmlFor={`approval_${party}`}
-                      className="text-sm font-medium w-28 shrink-0"
-                    >
-                      {APPROVAL_LABELS[party]}
-                    </label>
-                    <input
-                      name={`approver_${party}`}
-                      defaultValue={existing?.approverName}
-                      placeholder="Genehmiger:in"
-                      aria-label={`${APPROVAL_LABELS[party]} Genehmiger`}
-                      className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </fieldset>
+          <div className="rounded border border-dashed bg-muted/30 p-3 text-sm text-muted-foreground">
+            Business-Case-Freigaben werden im Tab <span className="font-medium">„Freigaben"</span>{" "}
+            verwaltet (Mehrparteien-Workflow mit Status, Genehmiger und Datum).
+          </div>
         </fieldset>
 
         {state.error && (

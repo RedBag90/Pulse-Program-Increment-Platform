@@ -11,7 +11,7 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 
 ## Grundprinzipien
 
-- **Funktionen** sind die 42 zustandsändernden Aktionen der `Action`-Union.
+- **Funktionen** sind die 48 zustandsändernden Aktionen der `Action`-Union.
   Reine Lesezugriffe sind hier nicht gelistet — sie werden mandantenweit über
   Row-Level Security (RLS) gesteuert.
 - **Admin-Bypass:** `platform_admin` und `tenant_admin` dürfen jede Funktion;
@@ -46,7 +46,7 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 
 ---
 
-## 1 — Funktions-Übersicht (42 Aktionen)
+## 1 — Funktions-Übersicht (48 Aktionen)
 
 ### Governance
 
@@ -80,6 +80,22 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 | -------------------- | ------------------------------------------------ |
 | `epic.review.submit` | Epic zur QS einreichen (`draft → in_review`)     |
 | `epic.review.decide` | Epic-QS entscheiden — freigeben oder zurückgeben |
+
+### Epic-Freigabe-Workflow (mehrstufig, Mehrparteien)
+
+Sequenzieller Workflow über `initiative.approvalPhase`
+(`draft → hypothesis_review → business_case → stakeholder_review → approved`),
+unabhängig von den Stage Gates. Jede Entscheidung wird mit Datum in der
+Historie geloggt.
+
+| Funktion                   | Beschreibung                                                        |
+| -------------------------- | ------------------------------------------------------------------- |
+| `epic.hypothesis.submit`   | Benefit Hypothese zur QS einreichen (`draft → hypothesis_review`)   |
+| `epic.hypothesis.decide`   | VMO gibt Hypothese frei (→ `business_case`) oder zurück (→ `draft`) |
+| `epic.approval.configure`  | Pflicht-Approver je Partei festlegen (mehrere User möglich)         |
+| `epic.businesscase.submit` | Business Case zur Stakeholder-Freigabe einreichen                   |
+| `epic.approval.decide`     | Zugewiesene:r Approver erteilt/lehnt die eigene Freigabe ab         |
+| `epic.section.signoff`     | Breakdown / KPIs explizit abnehmen                                  |
 
 ### ART / Programm
 
@@ -186,13 +202,26 @@ einen Scope.
 #### `epic_owner` — Epic-Verantwortlicher
 
 - `epic.create`, `epic.update`, `epic.review.submit`.
-- Reicht Epics zur QS ein, entscheidet aber **nicht** (Funktionstrennung).
+- **Freigabe-Workflow:** `epic.hypothesis.submit`, `epic.approval.configure`
+  (wählt die Pflicht-Approver), `epic.businesscase.submit`. Reicht ein und holt
+  Freigaben ein, entscheidet aber **nicht** selbst (Funktionstrennung).
 
 #### `vmo` — Value Management Office
 
 - `epic.review.decide` — QS-Freigabe/-Rückgabe von Epics.
+- `epic.hypothesis.decide` — gibt die Benefit Hypothese frei oder zurück.
+- `epic.section.signoff` — Breakdown-/KPI-Abnahme (mit `value_stream_owner`,
+  `portfolio_manager`).
 - `epic.approve` — schaltet die Epic-Stage-Gates L0–L5 mit (zusammen mit
   `portfolio_manager`).
+
+#### Stakeholder-Approver (Querschnitt)
+
+- `epic.approval.decide` — der vom Epic Owner **zugewiesene** User erteilt/lehnt
+  die Freigabe seiner Partei ab. Policy-seitig auf die Approver-Rollen
+  beschränkt (`portfolio_manager`, `value_stream_owner`, `vmo`, `rte`,
+  `feature_owner`); im Service zusätzlich auf den konkret zugewiesenen User
+  gegengeprüft.
 
 ### Ebene 4 — ART / Programm
 

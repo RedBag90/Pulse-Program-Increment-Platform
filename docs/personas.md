@@ -94,8 +94,10 @@ grant** — it is a pure read-only role, scoped by Row-Level Security.
 - **How they use Pulse:** `/portfolio/epics/[id]` (overview, Business Case,
   Benefit Hypothesis); submits the Epic for review.
 - **Permissions & scope:** `epic.create`, `epic.update`, `epic.review.submit`.
-  Submits to QS but does **not** decide it (separation of duties).
-  **Scope: portfolio-wide** read; Epic-level ownership.
+  Drives the multi-party approval workflow: `epic.hypothesis.submit`,
+  `epic.approval.configure` (picks the required approvers), `epic.businesscase.submit`.
+  Submits and collects approvals but does **not** decide them (separation of
+  duties). **Scope: portfolio-wide** read; Epic-level ownership.
 
 ## Vera — Value Management Office
 
@@ -107,9 +109,10 @@ grant** — it is a pure read-only role, scoped by Row-Level Security.
 - **How they use Pulse:** `/quality/epics` (VMO dashboard — review Epics
   `in_review`, approve or return); reviews Business Case and Benefit Hypothesis
   read-only on the Epic detail page.
-- **Permissions & scope:** `epic.review.decide` (QS gate) and `epic.approve`
-  (stage gates L0–L5, together with `portfolio_manager`). **Scope:
-  portfolio-wide.**
+- **Permissions & scope:** `epic.review.decide` (QS gate), `epic.hypothesis.decide`
+  (approves/returns the Benefit Hypothesis), `epic.section.signoff` (Breakdown/KPIs),
+  and `epic.approve` (stage gates L0–L5, together with `portfolio_manager`).
+  **Scope: portfolio-wide.**
 
 ## Anna — Release Train Engineer
 
