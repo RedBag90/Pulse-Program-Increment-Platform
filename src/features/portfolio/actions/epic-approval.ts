@@ -7,6 +7,7 @@ import {
   decideHypothesis,
   configureApprovers,
   submitBusinessCase,
+  reviseBusinessCase,
   decideApproval,
   signoffSection,
   startRevision,
@@ -57,15 +58,21 @@ export const configureApproversAction = createServerAction({
     assignments: z.array(
       z.object({ party: z.enum(APPROVAL_PARTIES), userIds: z.array(z.string().uuid()) }),
     ),
+    sections: z.array(z.object({ section: z.enum(APPROVAL_SECTIONS), userId: z.string().uuid() })),
   }),
   action: "epic.approval.configure",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => ({
     epicId: fd.get("epicId"),
     assignments: JSON.parse((fd.get("assignments") as string | null) ?? "[]"),
+    sections: JSON.parse((fd.get("sections") as string | null) ?? "[]"),
   }),
   service: (ctx, input) =>
-    configureApprovers(ctx, { epicId: input.epicId as EpicId, assignments: input.assignments }),
+    configureApprovers(ctx, {
+      epicId: input.epicId as EpicId,
+      assignments: input.assignments,
+      sections: input.sections,
+    }),
   onSuccess: revalidateEpic,
   mapError: mapWorkflowError,
 });
@@ -76,6 +83,16 @@ export const submitEpicBusinessCaseAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => ({ epicId: fd.get("epicId") }),
   service: (ctx, input) => submitBusinessCase(ctx, { epicId: input.epicId as EpicId }),
+  onSuccess: revalidateEpic,
+  mapError: mapWorkflowError,
+});
+
+export const reviseEpicBusinessCaseAction = createServerAction({
+  schema: z.object({ epicId: z.string().uuid() }),
+  action: "epic.businesscase.submit",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({ epicId: fd.get("epicId") }),
+  service: (ctx, input) => reviseBusinessCase(ctx, { epicId: input.epicId as EpicId }),
   onSuccess: revalidateEpic,
   mapError: mapWorkflowError,
 });

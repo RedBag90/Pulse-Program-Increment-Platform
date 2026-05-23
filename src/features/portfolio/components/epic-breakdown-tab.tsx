@@ -7,6 +7,7 @@ import { CreateFeatureDialog } from "@/features/art/components/create-feature-di
 import { DeleteFeatureButton } from "@/features/art/components/delete-feature-button";
 import { FeaturePiSelect } from "@/features/art/components/feature-pi-select";
 import { SubmitReviewButton } from "@/features/quality/components/submit-review-button";
+import { SectionSignoffBanner, type SectionSignoff } from "./section-signoff-banner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,6 +42,8 @@ interface Props {
   features: BreakdownFeature[];
   /** PI options keyed by ART — a child Feature's PI picker only lists its ART's PIs. */
   pisByArt: Record<string, Pi[]>;
+  /** Sign-off state for the Breakdown section (omit to hide the banner). */
+  signoff?: SectionSignoff;
 }
 
 function FeatureRow({
@@ -170,7 +173,14 @@ function FeatureRow({
  * Breakdown tab — manages the Features attached to an Epic in place: create,
  * inline-edit content + WSJF, assign a PI, and remove, without leaving the page.
  */
-export function EpicBreakdownTab({ epicId, epicTitle, canEdit, features, pisByArt }: Props) {
+export function EpicBreakdownTab({
+  epicId,
+  epicTitle,
+  canEdit,
+  features,
+  pisByArt,
+  signoff,
+}: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -179,6 +189,13 @@ export function EpicBreakdownTab({ epicId, epicTitle, canEdit, features, pisByAr
           <CreateFeatureDialog epics={[{ id: epicId, title: epicTitle }]} context={{ epicId }} />
         )}
       </div>
+
+      {signoff && <SectionSignoffBanner epicId={epicId} section="breakdown" {...signoff} />}
+
+      <p className="text-xs text-muted-foreground">
+        Die QS einzelner Features (durch den RTE) ist unabhängig von der Epic-Freigabe: hier nimmst
+        du den <span className="font-medium">Breakdown als Ganzes</span> für die Freigabe ab.
+      </p>
 
       {features.length === 0 ? (
         <p className="text-sm text-muted-foreground">Noch keine Features in diesem Epic.</p>

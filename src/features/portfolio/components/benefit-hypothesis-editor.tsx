@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Lock } from "lucide-react";
 import { saveBenefitHypothesisAction } from "@/features/portfolio/actions/benefit-hypothesis";
 import type {
   BenefitHypothesisFields,
@@ -14,6 +15,8 @@ interface BenefitHypothesisEditorProps {
   /** When true the form is rendered for review only — fields are disabled and
    *  the save button is hidden. Used by reviewer roles (e.g. VMO). */
   readOnly?: boolean;
+  /** Why the form is locked (the current approval phase) — shown as a hint. */
+  lockReason?: string;
 }
 
 const TEXTAREA_CLASS =
@@ -28,11 +31,18 @@ export function BenefitHypothesisEditor({
   current,
   history,
   readOnly = false,
+  lockReason,
 }: BenefitHypothesisEditorProps) {
   const [state, action, isPending] = useActionState(saveBenefitHypothesisAction, {});
 
   return (
     <div className="space-y-6">
+      {readOnly && lockReason && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{lockReason}</span>
+        </div>
+      )}
       <form action={action} className="space-y-6">
         <input type="hidden" name="epicId" value={epicId} />
 

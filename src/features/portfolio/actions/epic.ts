@@ -3,7 +3,6 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createEpic, updateEpic, softDeleteEpic } from "@/server/services/epic";
-import { submitForReview, decideReview } from "@/server/services/initiative-review";
 import { createServerAction } from "@/server/http/server-action";
 import type { ValueStreamId, EpicId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
@@ -61,43 +60,6 @@ export const updateEpicAction = createServerAction({
     }),
   onSuccess: (input) => revalidatePath(`/portfolio/epics/${input.id}`),
   mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to update epic"),
-});
-
-export const submitEpicReviewAction = createServerAction({
-  schema: z.object({ id: z.string().uuid() }),
-  action: "epic.review.submit",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ id: fd.get("id") }),
-  service: (ctx, input) => submitForReview(ctx, { kind: "epic", id: input.id as EpicId }),
-  onSuccess: (input) => {
-    revalidatePath(`/portfolio/epics/${input.id}`);
-    revalidatePath("/quality/epics", "page");
-  },
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Epic not found"
-        : "Failed to submit epic for review",
-});
-
-export const decideEpicReviewAction = createServerAction({
-  schema: z.object({ id: z.string().uuid(), decision: z.enum(["approve", "reject"]) }),
-  action: "epic.review.decide",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ id: fd.get("id"), decision: fd.get("decision") }),
-  service: (ctx, input) =>
-    decideReview(ctx, { kind: "epic", id: input.id as EpicId, decision: input.decision }),
-  onSuccess: (input) => {
-    revalidatePath(`/portfolio/epics/${input.id}`);
-    revalidatePath("/quality/epics", "page");
-  },
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Epic not found"
-        : "Failed to record review decision",
 });
 
 export const deleteEpicAction = createServerAction({

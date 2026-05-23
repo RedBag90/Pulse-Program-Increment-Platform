@@ -66,7 +66,7 @@ grant** — it is a pure read-only role, scoped by Row-Level Security.
 - **How they use Pulse:** `/portfolio` overview, `/portfolio/epics` (Portfolio
   Kanban, create/approve Epics), `/portfolio/value-streams`.
 - **Permissions & scope:** `value_stream.create/update`, full `epic.*` including
-  `approve`, `delete` and `review.submit`, full `feature.*` (incl. `delete`),
+  `approve`, `delete` and the approval workflow, full `feature.*` (incl. `delete`),
   `story`/`task` actions (ART-scoped), `dependency.link/unlink`, all
   `impediment.*`. **Scope: value streams** (empty = whole tenant).
 
@@ -81,7 +81,7 @@ grant** — it is a pure read-only role, scoped by Row-Level Security.
 - **How they use Pulse:** `/capacity` and the value-stream views; creates and
   edits Epics under her stream and submits them to QS.
 - **Permissions & scope:** `value_stream.update`, `epic.create/update`,
-  `epic.review.submit` — all **value_stream-scoped** to her own stream.
+  `epic.hypothesis.submit` — all **value_stream-scoped** to her own stream.
   **Scope: value streams.** (See `role-function-matrix.md` for the known
   `epic.update` scope-degradation note.)
 
@@ -92,8 +92,8 @@ grant** — it is a pure read-only role, scoped by Row-Level Security.
   formulates the business case and benefit hypothesis, shepherds it through QS.
 - **Goals:** A well-formed Epic that clears QS; clear hand-off into delivery.
 - **How they use Pulse:** `/portfolio/epics/[id]` (overview, Business Case,
-  Benefit Hypothesis); submits the Epic for review.
-- **Permissions & scope:** `epic.create`, `epic.update`, `epic.review.submit`.
+  Benefit Hypothesis, Freigaben); drives the approval workflow.
+- **Permissions & scope:** `epic.create`, `epic.update`.
   Drives the multi-party approval workflow: `epic.hypothesis.submit`,
   `epic.approval.configure` (picks the required approvers), `epic.businesscase.submit`.
   Submits and collects approvals but does **not** decide them (separation of
@@ -106,10 +106,10 @@ grant** — it is a pure read-only role, scoped by Row-Level Security.
   and runs Epic quality assurance.
 - **Goals:** Only well-formed, evidenced Epics pass QS; the stage-gate funnel
   reflects real investment decisions.
-- **How they use Pulse:** `/quality/epics` (VMO dashboard — review Epics
-  `in_review`, approve or return); reviews Business Case and Benefit Hypothesis
-  read-only on the Epic detail page.
-- **Permissions & scope:** `epic.review.decide` (QS gate), `epic.hypothesis.decide`
+- **How they use Pulse:** the Epic's **Freigaben** tab — decides the Benefit
+  Hypothesis and signs off Breakdown/KPIs; reviews Business Case & Benefit
+  Hypothesis (read-only / side-by-side diff) on the Epic detail page.
+- **Permissions & scope:** `epic.hypothesis.decide`
   (approves/returns the Benefit Hypothesis), `epic.section.signoff` (Breakdown/KPIs),
   and `epic.approve` (stage gates L0–L5, together with `portfolio_manager`).
   **Scope: portfolio-wide.**

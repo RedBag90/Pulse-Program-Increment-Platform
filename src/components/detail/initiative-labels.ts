@@ -20,3 +20,71 @@ export const STATUS_LABELS: Record<string, string> = {
   completed: "Abgeschlossen",
   cancelled: "Abgebrochen",
 };
+
+/**
+ * The Epic's primary lifecycle — the multi-party approval workflow phase. This is
+ * the one status surfaced prominently on the Epic; the stage gate is contextual
+ * and the QS `status` is not shown as a competing status.
+ */
+export const APPROVAL_PHASE_LABELS: Record<string, string> = {
+  draft: "Entwurf",
+  hypothesis_review: "Hypothese in QS (VMO)",
+  business_case: "Business Case",
+  stakeholder_review: "Stakeholder-Freigaben",
+  approved: "Freigegeben",
+};
+
+/** Pastel pill colours per approval phase (Tailwind classes). */
+export const APPROVAL_PHASE_BADGE: Record<string, string> = {
+  draft: "bg-muted text-foreground/80",
+  hypothesis_review: "bg-amber-100 text-amber-800",
+  business_case: "bg-blue-100 text-blue-800",
+  stakeholder_review: "bg-indigo-100 text-indigo-800",
+  approved: "bg-emerald-100 text-emerald-800",
+};
+
+/**
+ * Friendly German labels for audit actions — shared by the Activity sidebar and
+ * the History tab so both read the same. Unknown actions degrade gracefully via
+ * {@link actionLabel}.
+ */
+export const ACTION_LABELS: Record<string, string> = {
+  "initiative.created": "Initiative erstellt",
+  "initiative.updated": "Initiative aktualisiert",
+  "initiative.deleted": "Initiative gelöscht",
+  "initiative.stage_gate.advanced": "Stage Gate geändert",
+  "wsjf.scored": "WSJF bewertet",
+  "kpi.created": "KPI erstellt",
+  "kpi.updated": "KPI aktualisiert",
+  "kpi.deleted": "KPI gelöscht",
+  // Epic multi-party approval workflow
+  "epic.hypothesis.submitted": "Hypothese zur QS eingereicht",
+  "epic.hypothesis.approved": "Hypothese freigegeben",
+  "epic.hypothesis.rejected": "Hypothese zurückgegeben",
+  "epic.approval.configured": "Approver konfiguriert",
+  "epic.business_case.submitted": "Business Case zur Freigabe eingereicht",
+  "epic.business_case.reopened": "Business Case zur Überarbeitung geöffnet",
+  "epic.approval.granted": "Freigabe erteilt",
+  "epic.approval.rejected": "Freigabe abgelehnt",
+  "epic.section.signed_off": "Abschnitt abgenommen",
+  "epic.revision.started": "Neue Revision gestartet",
+};
+
+/** An audit action's display label, falling back to a de-dotted form. */
+export function actionLabel(action: string): string {
+  return ACTION_LABELS[action] ?? action.replace(/[._]/g, " ");
+}
+
+/** A short, stable fallback when a user id can't be resolved to a name. */
+export function shortUserId(id: string): string {
+  return `${id.slice(0, 8)}…`;
+}
+
+/**
+ * Resolves a user id to its display label (email) from a resolved map, falling
+ * back to a short id when unknown. Pure — safe in client components.
+ */
+export function userLabel(id: string | null | undefined, labels: Record<string, string>): string {
+  if (!id) return "—";
+  return labels[id] ?? shortUserId(id);
+}

@@ -8,23 +8,16 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 
 /**
- * Initiative Review — the QS gate (`draft → in_review → approved`) for any
- * reviewable Initiative kind. Distinct from the L0–L5 stage gate; the pure
- * state machine lives in [initiative-status.ts]. Epic review is decided by the
- * VMO, Feature review by the RTE — but that authorization split lives in the
- * action shells, not here.
- *
- * The mutations are unified across kinds (their bodies were byte-identical);
- * the two read queries stay kind-specific because their projections genuinely
- * differ — each returns a render-ready row, so the dashboards never touch a
- * Prisma include shape.
+ * Initiative Review — the QS gate (`draft → in_review → approved`) for Features
+ * (decided by the RTE). Distinct from the L0–L5 stage gate; the pure state
+ * machine lives in [initiative-status.ts]. Epics use the multi-party approval
+ * workflow ([epic-approval.ts]) instead, so they no longer flow through here.
  */
 
-/** A reviewable Initiative kind. Drives the level filter and the error label. */
-export type InitiativeKind = "epic" | "feature";
+/** A reviewable Initiative kind. (Epics use the multi-party approval workflow.) */
+export type InitiativeKind = "feature";
 
 const KIND_CONFIG: Record<InitiativeKind, { level: InitiativeLevel; label: string }> = {
-  epic: { level: InitiativeLevel.EPIC, label: "Epic" },
   feature: { level: InitiativeLevel.FEATURE, label: "Feature" },
 };
 
@@ -114,14 +107,6 @@ export async function decideReview(
 // Prisma include shapes never cross the seam.
 // ---------------------------------------------------------------------------
 
-/** A row of the VMO Epic-QS queue. */
-export interface EpicReviewRow {
-  id: string;
-  title: string;
-  href: string;
-  valueStream: { id: string; name: string } | null;
-}
-
 /** A row of the RTE Feature-QS queue. */
 export interface FeatureReviewRow {
   id: string;
@@ -129,24 +114,6 @@ export interface FeatureReviewRow {
   href: string;
   parentTitle: string | null;
   art: { id: string; name: string } | null;
-}
-
-/** Epics awaiting QA — backs the VMO dashboard. */
-export async function listEpicsInReview(
-  db: PrismaClient,
-  tenantId: TenantId,
-): Promise<EpicReviewRow[]> {
-  const rows = await db.initiative.findMany({
-    where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null, status: "in_review" },
-    include: { valueStream: { select: { id: true, name: true } } },
-    orderBy: { updatedAt: "desc" },
-  });
-  return rows.map((r) => ({
-    id: r.id,
-    title: r.title,
-    href: `/portfolio/epics/${r.id}`,
-    valueStream: r.valueStream ? { id: r.valueStream.id, name: r.valueStream.name } : null,
-  }));
 }
 
 /** Features awaiting QA — backs the Feature-QS dashboard; optionally ART-scoped. */

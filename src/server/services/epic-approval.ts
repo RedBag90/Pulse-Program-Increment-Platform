@@ -150,10 +150,15 @@ export async function decideHypothesis(
 
 export async function configureApprovers(
   ctx: RequestContext,
-  input: { epicId: EpicId; assignments: { party: ApprovalParty; userIds: string[] }[] },
+  input: {
+    epicId: EpicId;
+    assignments: { party: ApprovalParty; userIds: string[] }[];
+    /** One responsible reviewer per section (Breakdown / KPIs). */
+    sections: { section: ApprovalSection; userId: string }[];
+  },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { epicId, assignments } = input;
+  const { epicId, assignments, sections } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
@@ -167,12 +172,17 @@ export async function configureApprovers(
     }
 
     const rev = revisionOf(epic);
-    // Replace this revision's party assignments wholesale (no decisions exist
-    // yet in this phase). Archived revisions are left untouched.
+    // Replace this revision's party + section assignments wholesale (no decisions
+    // exist yet in this phase). Archived revisions are left untouched.
     await tx.epicApproval.deleteMany({
-      where: { initiativeId: epicId, tenantId: mctx.tenantId, kind: "party", revision: rev },
+      where: {
+        initiativeId: epicId,
+        tenantId: mctx.tenantId,
+        kind: { in: ["party", "section"] },
+        revision: rev,
+      },
     });
-    const rows = assignments.flatMap((a) =>
+    const partyRows = assignments.flatMap((a) =>
       a.userIds.map((userId) => ({
         tenantId: mctx.tenantId,
         initiativeId: epicId,
@@ -184,6 +194,20 @@ export async function configureApprovers(
         createdBy: mctx.actorId,
       })),
     );
+    // Each section gets one assigned owner — only they may sign it off later.
+    const sectionRows = sections
+      .filter((s) => APPROVAL_SECTIONS.includes(s.section) && s.userId)
+      .map((s) => ({
+        tenantId: mctx.tenantId,
+        initiativeId: epicId,
+        revision: rev,
+        kind: "section",
+        section: s.section,
+        approverUserId: s.userId,
+        status: "pending",
+        createdBy: mctx.actorId,
+      }));
+    const rows = [...partyRows, ...sectionRows];
     if (rows.length > 0) await tx.epicApproval.createMany({ data: rows });
 
     return ok({
@@ -229,22 +253,31 @@ export async function submitBusinessCase(
       });
     }
 
-    // Open the two explicit review sign-offs (Breakdown, KPIs) for this revision.
+    // Both review sections (Breakdown, KPIs) need an assigned owner before the
+    // Business Case goes out — the sign-offs are configured, not auto-created.
     const existingSections = await tx.epicApproval.findMany({
       where: { initiativeId: epicId, tenantId: mctx.tenantId, kind: "section", revision: rev },
       select: { section: true },
     });
     const have = new Set(existingSections.map((s) => s.section));
-    const toCreate = APPROVAL_SECTIONS.filter((s) => !have.has(s)).map((section) => ({
-      tenantId: mctx.tenantId,
-      initiativeId: epicId,
-      revision: rev,
-      kind: "section",
-      section,
-      status: "pending",
-      createdBy: mctx.actorId,
-    }));
-    if (toCreate.length > 0) await tx.epicApproval.createMany({ data: toCreate });
+    if (!APPROVAL_SECTIONS.every((s) => have.has(s))) {
+      return err({
+        kind: "conflict" as const,
+        reason: "Für Breakdown und KPIs muss je ein Verantwortlicher zugewiesen sein",
+      });
+    }
+
+    // Each submission opens a fresh review round: reset every decision on this
+    // revision (incl. prior rejections/approvals after a rework) back to pending.
+    await tx.epicApproval.updateMany({
+      where: {
+        initiativeId: epicId,
+        tenantId: mctx.tenantId,
+        revision: rev,
+        kind: { in: ["party", "section"] },
+      },
+      data: { status: "pending", decidedAt: null, comment: null },
+    });
 
     await tx.initiative.update({
       where: { id: epicId },
@@ -263,14 +296,57 @@ export async function submitBusinessCase(
   });
 }
 
+/**
+ * Owner-initiated rework: returns a `stakeholder_review` Epic to `business_case`
+ * so the Business Case becomes editable again — the recovery path after a party
+ * rejects. Decisions are kept as-is here and only reset on the next
+ * {@link submitBusinessCase}.
+ */
+export async function reviseBusinessCase(
+  ctx: RequestContext,
+  input: { epicId: EpicId },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { epicId } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
+    if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+    const phase = phaseOf(epic);
+    if (phase !== "stakeholder_review") {
+      return err({
+        kind: "conflict" as const,
+        reason: `Der Business Case kann nur aus der Stakeholder-Phase überarbeitet werden (aktuell "${phase}")`,
+      });
+    }
+
+    await tx.initiative.update({
+      where: { id: epicId },
+      data: { approvalPhase: "business_case", updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "epic.business_case.reopened",
+        resourceType: "initiative",
+        resourceId: epicId,
+        changes: { approvalPhase: { before: phase, after: "business_case" } },
+      },
+    });
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Phase 3 — Stakeholder decisions + section sign-offs (+ auto-finalize)
 // ---------------------------------------------------------------------------
 
 /**
- * Recomputes the epic phase after a decision: a rejection rebounds to
- * `business_case` (rework); the last outstanding approval finalizes to
- * `approved`. Returns the resulting phase change for the audit, or null.
+ * Recomputes the epic phase after a decision: only the last outstanding
+ * approval finalizes the Epic to `approved`. A rejection does **not** change the
+ * phase — it blocks finalization (the Epic stays in `stakeholder_review`) until
+ * the Owner explicitly reworks via {@link reviseBusinessCase}. Returns the
+ * resulting phase change for the audit, or null.
  */
 async function applyDecisionOutcome(
   tx: Prisma.TransactionClient,
@@ -280,10 +356,7 @@ async function applyDecisionOutcome(
   decision: ApprovalDecision,
   fromPhase: ApprovalPhase,
 ): Promise<{ before: ApprovalPhase; after: ApprovalPhase } | null> {
-  if (decision === "reject") {
-    await tx.initiative.update({ where: { id: epicId }, data: { approvalPhase: "business_case" } });
-    return { before: fromPhase, after: "business_case" };
-  }
+  if (decision === "reject") return null;
   const rows = await tx.epicApproval.findMany({
     where: { initiativeId: epicId, tenantId, revision },
     select: { kind: true, party: true, section: true, status: true },
@@ -404,13 +477,19 @@ export async function signoffSection(
     });
     if (!row)
       return err({ kind: "not_found" as const, resourceType: "EpicApprovalSection", id: section });
+    // Service-layer scope: only the assigned reviewer may sign off their section.
+    if (row.approverUserId !== mctx.actorId) {
+      return err({
+        kind: "conflict" as const,
+        reason: "Nur der zugewiesene Reviewer darf diesen Abschnitt abnehmen",
+      });
+    }
 
     const status = decisionStatus(decision);
     await tx.epicApproval.update({
       where: { id: row.id },
       data: {
         status,
-        approverUserId: mctx.actorId,
         decidedAt: new Date(),
         comment: comment ?? null,
       },
@@ -460,20 +539,26 @@ export async function startRevision(
     const rev = revisionOf(epic);
     const nextRev = rev + 1;
 
-    // Carry the previous revision's party assignments forward as pending rows,
-    // so the Owner starts from the prior approver set (still adjustable).
-    const prevParties = await tx.epicApproval.findMany({
-      where: { initiativeId: epicId, tenantId: mctx.tenantId, kind: "party", revision: rev },
-      select: { party: true, approverUserId: true },
+    // Carry the previous revision's party + section assignments forward as
+    // pending rows, so the Owner starts from the prior approver set (adjustable).
+    const prevRows = await tx.epicApproval.findMany({
+      where: {
+        initiativeId: epicId,
+        tenantId: mctx.tenantId,
+        kind: { in: ["party", "section"] },
+        revision: rev,
+      },
+      select: { kind: true, party: true, section: true, approverUserId: true },
     });
-    if (prevParties.length > 0) {
+    if (prevRows.length > 0) {
       await tx.epicApproval.createMany({
-        data: prevParties.map((p) => ({
+        data: prevRows.map((p) => ({
           tenantId: mctx.tenantId,
           initiativeId: epicId,
           revision: nextRev,
-          kind: "party",
+          kind: p.kind,
           party: p.party,
+          section: p.section,
           approverUserId: p.approverUserId,
           status: "pending",
           createdBy: mctx.actorId,
@@ -482,6 +567,8 @@ export async function startRevision(
     }
 
     const nextPhase = revisionStartPhase(mode);
+    // Snapshot the just-approved artefacts as the baseline for the new revision's
+    // side-by-side diff (content is frozen between approval and re-open).
     await tx.initiative.update({
       where: { id: epicId },
       data: {
@@ -489,6 +576,12 @@ export async function startRevision(
         approvalPhase: nextPhase,
         status: "draft",
         updatedBy: mctx.actorId,
+        ...(epic.businessCase != null && {
+          baselineBusinessCase: epic.businessCase as Prisma.InputJsonValue,
+        }),
+        ...(epic.benefitHypothesis != null && {
+          baselineBenefitHypothesis: epic.benefitHypothesis as Prisma.InputJsonValue,
+        }),
       },
     });
 

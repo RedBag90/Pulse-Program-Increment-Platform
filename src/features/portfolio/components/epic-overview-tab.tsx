@@ -1,19 +1,10 @@
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import { EpicEditForm } from "./epic-edit-form";
-import { STAGE_GATE_LABELS, STATUS_LABELS } from "@/components/detail/initiative-labels";
+import { STAGE_GATE_LABELS, APPROVAL_PHASE_LABELS } from "@/components/detail/initiative-labels";
 import { buildInitiativeSummary } from "@/domain/initiative-summary";
 import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
 import type { StageGate, InitiativeStatus } from "@/domain/types";
-
-/** Approval-workflow phase labels — see the Freigaben tab for the full workflow. */
-const PHASE_LABELS: Record<string, string> = {
-  draft: "Entwurf",
-  hypothesis_review: "Hypothese in QS (VMO)",
-  business_case: "Business Case",
-  stakeholder_review: "Stakeholder-Freigaben",
-  approved: "Freigegeben",
-};
 
 export interface EpicOverviewTabProps {
   epic: {
@@ -30,6 +21,8 @@ export interface EpicOverviewTabProps {
     businessCase: unknown;
     children: { status: string }[];
   };
+  /** Resolved owner display label (email), falling back to the owner id. */
+  ownerName?: string | null;
   canEdit: boolean;
 }
 
@@ -53,7 +46,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
  * a responsive field grid, and the description. Field values come from data
  * the Epic already carries; financials are derived from the businessCase JSON.
  */
-export function EpicOverviewTab({ epic, canEdit }: EpicOverviewTabProps) {
+export function EpicOverviewTab({ epic, ownerName, canEdit }: EpicOverviewTabProps) {
   const completedChildren = epic.children.filter((c) => c.status === "completed").length;
 
   const summary = buildInitiativeSummary({
@@ -77,10 +70,9 @@ export function EpicOverviewTab({ epic, canEdit }: EpicOverviewTabProps) {
       </section>
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Field label="Stage">{STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate}</Field>
-        <Field label="Status">{STATUS_LABELS[epic.status] ?? epic.status}</Field>
+        <Field label="Stage (Funnel)">{STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate}</Field>
         <Field label="Initiative Owner">
-          <span className="font-mono text-xs">{epic.ownerId}</span>
+          <span className="text-sm">{ownerName ?? epic.ownerId}</span>
         </Field>
         <Field label="Value Stream">{epic.valueStream?.name ?? "—"}</Field>
         <Field label="Net recurring benefits">{formatAmount(totals.recurringBenefit)}</Field>
@@ -93,7 +85,7 @@ export function EpicOverviewTab({ epic, canEdit }: EpicOverviewTabProps) {
           Freigabe-Status
         </p>
         <span className="text-sm font-medium">
-          {PHASE_LABELS[epic.approvalPhase ?? "draft"] ?? epic.approvalPhase}
+          {APPROVAL_PHASE_LABELS[epic.approvalPhase ?? "draft"] ?? epic.approvalPhase}
         </span>
         <Link
           href={`/portfolio/epics/${epic.id}?tab=approvals`}

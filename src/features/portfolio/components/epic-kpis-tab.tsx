@@ -6,6 +6,7 @@ import {
   deleteKpiAction,
   recordKpiMeasurementAction,
 } from "@/features/portfolio/actions/kpi";
+import { SectionSignoffBanner, type SectionSignoff } from "./section-signoff-banner";
 
 export interface KpiRow {
   id: string;
@@ -20,6 +21,8 @@ interface Props {
   initiativeId: string;
   kpis: KpiRow[];
   canEdit: boolean;
+  /** Sign-off state for the KPIs section (omit to hide the banner). */
+  signoff?: SectionSignoff;
 }
 
 const inputCls =
@@ -130,10 +133,12 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
 }
 
 /** KPIs tab — lists the Epic's KPIs with baseline/target/actual and inline CRUD. */
-export function EpicKpisTab({ initiativeId, kpis, canEdit }: Props) {
+export function EpicKpisTab({ initiativeId, kpis, canEdit, signoff }: Props) {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-medium">KPIs</h2>
+
+      {signoff && <SectionSignoffBanner epicId={initiativeId} section="kpis" {...signoff} />}
 
       {kpis.length === 0 ? (
         <p className="text-sm text-muted-foreground">Noch keine KPIs erfasst.</p>

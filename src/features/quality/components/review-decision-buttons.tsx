@@ -1,23 +1,22 @@
 "use client";
 
 import { useActionState } from "react";
-import { decideEpicReviewAction } from "@/features/portfolio/actions/epic";
 import { decideFeatureReviewAction } from "@/features/art/actions/feature";
 import { Button } from "@/components/ui/button";
 
 interface Props {
   id: string;
-  kind: "epic" | "feature";
+  /** Only Features use the QS gate; Epics use the multi-party approval workflow. */
+  kind: "feature";
 }
 
 /**
- * QA reviewer controls for an `in_review` item — "Freigeben" approves it,
+ * QA reviewer controls for an `in_review` Feature — "Freigeben" approves it,
  * "Zurückgeben" sends it back to `draft`. Each decision is its own form with a
  * hidden `decision` field, so the value is always carried in the FormData.
  */
-export function ReviewDecisionButtons({ id, kind }: Props) {
-  const action = kind === "epic" ? decideEpicReviewAction : decideFeatureReviewAction;
-  const [state, formAction, isPending] = useActionState(action, {});
+export function ReviewDecisionButtons({ id }: Props) {
+  const [state, formAction, isPending] = useActionState(decideFeatureReviewAction, {});
 
   return (
     <div className="flex shrink-0 items-center gap-2">

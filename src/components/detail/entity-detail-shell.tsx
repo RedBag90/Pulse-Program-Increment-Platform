@@ -16,8 +16,9 @@ interface Props {
   backHref: string;
   backLabel: string;
   title: string;
-  /** Optional pill shown next to the title. */
-  badge?: string | undefined;
+  /** Optional pill next to the title. A string is wrapped in the default muted
+   *  pill; a node (e.g. a colored status pill) is rendered as-is. */
+  badge?: ReactNode;
   tabs: readonly DetailTab[];
   activeTab: string;
   /** Detail route without query, e.g. `/capacity/arts/<id>`; tab links append `?tab=`. */
@@ -55,7 +56,12 @@ export function EntityDetailShell({
         </Link>
         <div className="mt-2 flex items-center gap-3">
           <h1 className="text-2xl font-semibold">{title}</h1>
-          {badge && <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{badge}</span>}
+          {badge &&
+            (typeof badge === "string" ? (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{badge}</span>
+            ) : (
+              badge
+            ))}
           {headerActions && <div className="ml-auto">{headerActions}</div>}
         </div>
       </header>

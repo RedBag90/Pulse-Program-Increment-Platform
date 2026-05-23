@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { actionLabel, userLabel } from "@/components/detail/initiative-labels";
 
 /** A single audit entry, pre-serialised on the server for the client boundary. */
 export interface ActivityItem {
@@ -8,21 +9,8 @@ export interface ActivityItem {
   action: string;
   /** ISO timestamp. */
   occurredAt: string;
-}
-
-const ACTION_LABELS: Record<string, string> = {
-  "initiative.created": "Initiative erstellt",
-  "initiative.updated": "Initiative aktualisiert",
-  "initiative.deleted": "Initiative gelöscht",
-  "initiative.stage_gate.advanced": "Stage Gate geändert",
-  "wsjf.scored": "WSJF bewertet",
-  "kpi.created": "KPI erstellt",
-  "kpi.updated": "KPI aktualisiert",
-  "kpi.deleted": "KPI gelöscht",
-};
-
-function actionLabel(action: string): string {
-  return ACTION_LABELS[action] ?? action.replace(/[._]/g, " ");
+  /** The acting user's id (resolved to a label via `userLabels`). */
+  actorId?: string;
 }
 
 /** Coarse category used by the "Show everything" filter — the action's first segment. */
@@ -46,7 +34,14 @@ function relativeTime(iso: string, now: number): string {
  * newest first, with a category filter. Read-only: comments are intentionally
  * out of scope.
  */
-export function InitiativeActivitySidebar({ events }: { events: ActivityItem[] }) {
+export function InitiativeActivitySidebar({
+  events,
+  userLabels = {},
+}: {
+  events: ActivityItem[];
+  /** Resolved user-id → display label (email) map for the actor line. */
+  userLabels?: Record<string, string>;
+}) {
   const [filter, setFilter] = useState("all");
   const now = Date.now();
 
@@ -78,7 +73,10 @@ export function InitiativeActivitySidebar({ events }: { events: ActivityItem[] }
           {shown.map((e) => (
             <li key={e.id} className="px-3 py-2.5">
               <p className="text-sm font-medium text-foreground">{actionLabel(e.action)}</p>
-              <p className="text-xs text-muted-foreground">{relativeTime(e.occurredAt, now)}</p>
+              <p className="text-xs text-muted-foreground">
+                {relativeTime(e.occurredAt, now)}
+                {e.actorId && <> · {userLabel(e.actorId, userLabels)}</>}
+              </p>
             </li>
           ))}
         </ul>

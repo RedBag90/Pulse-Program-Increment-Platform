@@ -14,8 +14,6 @@ export type Action =
   | "epic.update"
   | "epic.approve"
   | "epic.delete"
-  | "epic.review.submit"
-  | "epic.review.decide"
   | "epic.hypothesis.submit"
   | "epic.hypothesis.decide"
   | "epic.approval.configure"
@@ -94,8 +92,8 @@ export const POLICIES: Record<Action, Grant[]> = {
 
   // ── Portfolio ───────────────────────────────────────────────────────────
   // The portfolio manager funds value streams and owns the Epic backlog.
-  // `epic.approve` gates the L0–L5 stage gates — a separate axis from the QS
-  // status flow (epic.review.*); the VMO co-governs the investment funnel.
+  // `epic.approve` gates the L0–L5 stage gates — a separate axis from the
+  // multi-party approval workflow (epic.hypothesis.*/approval.*).
   "value_stream.create": [{ roles: [PORTFOLIO_MANAGER] }],
   "epic.delete": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
   "epic.approve": [{ roles: [PORTFOLIO_MANAGER, VMO] }],
@@ -115,15 +113,6 @@ export const POLICIES: Record<Action, Grant[]> = {
     { roles: [PORTFOLIO_MANAGER, EPIC_OWNER] },
     { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
   ],
-
-  // ── Epic QS (quality gate) ──────────────────────────────────────────────
-  // Owners submit; the VMO decides. Separation of duties — the submitter does
-  // not approve their own Epic.
-  "epic.review.submit": [
-    { roles: [EPIC_OWNER, PORTFOLIO_MANAGER] },
-    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
-  ],
-  "epic.review.decide": [{ roles: [VMO] }],
 
   // Multi-party approval workflow (sequential): the Epic Owner submits the
   // hypothesis (VMO decides), then configures + submits the Business Case for

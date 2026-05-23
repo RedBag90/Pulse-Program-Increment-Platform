@@ -4,6 +4,7 @@ import {
   partyStatus,
   sectionStatus,
   configuredParties,
+  hasRejection,
   type ApprovalPhase,
   type ApprovalRecord,
   type ApprovalSection,
@@ -12,19 +13,16 @@ import {
   SubmitHypothesisButton,
   DecideHypothesisButtons,
   SubmitBusinessCaseButton,
+  ReviseBusinessCaseButton,
   ApprovalDecisionButtons,
   SectionSignoffButtons,
   StartRevisionButtons,
 } from "./approval-controls";
 import { ApproverPicker, type TenantApprover } from "./approver-picker";
+import { PhaseStepper } from "./phase-stepper";
+import { APPROVAL_PHASE_LABELS, userLabel } from "@/components/detail/initiative-labels";
 
-const PHASE_LABELS: Record<ApprovalPhase, string> = {
-  draft: "Entwurf",
-  hypothesis_review: "Hypothese in QS (VMO)",
-  business_case: "Business Case",
-  stakeholder_review: "Stakeholder-Freigaben",
-  approved: "Freigegeben",
-};
+const PHASE_LABELS = APPROVAL_PHASE_LABELS;
 
 const PARTY_LABELS: Record<ApprovalParty, string> = {
   mgmt: "MGMT",
@@ -72,10 +70,11 @@ interface Props {
   revision: number;
   approvals: ApprovalRow[];
   approvers: TenantApprover[];
+  /** Resolved user-id → display label (email) map. */
+  userLabels: Record<string, string>;
   currentUserId: string;
   canManage: boolean;
   canDecideHypothesis: boolean;
-  canSignoff: boolean;
 }
 
 function Badge({ status }: { status: string }) {
@@ -94,10 +93,10 @@ export function EpicApprovalsTab({
   revision,
   approvals,
   approvers,
+  userLabels,
   currentUserId,
   canManage,
   canDecideHypothesis,
-  canSignoff,
 }: Props) {
   // Live overview reflects the active revision; older rows are history.
   const currentApprovals = approvals.filter((a) => a.revision === revision);
@@ -118,11 +117,18 @@ export function EpicApprovalsTab({
       .map((a) => a.approverUserId as string);
   }
 
+  const currentSections: Record<ApprovalSection, string> = {} as Record<ApprovalSection, string>;
+  for (const s of APPROVAL_SECTIONS) {
+    const row = currentApprovals.find((a) => a.kind === "section" && a.section === s);
+    currentSections[s] = row?.approverUserId ?? "";
+  }
+
   const parties = configuredParties(records);
   const stakeholderRows = parties.length + APPROVAL_SECTIONS.length;
   const granted =
     parties.filter((p) => partyStatus(records, p) === "approved").length +
     APPROVAL_SECTIONS.filter((s) => sectionStatus(records, s) === "approved").length;
+  const blocked = hasRejection(records);
 
   return (
     <div className="space-y-8">
@@ -132,6 +138,10 @@ export function EpicApprovalsTab({
           Freigabe-Phase · Revision {revision}
         </p>
         <p className="mb-3 text-lg font-medium">{PHASE_LABELS[phase]}</p>
+
+        <div className="mb-4">
+          <PhaseStepper phase={phase} />
+        </div>
 
         {phase === "draft" && canManage && <SubmitHypothesisButton epicId={epicId} />}
         {phase === "hypothesis_review" &&
@@ -145,11 +155,20 @@ export function EpicApprovalsTab({
             Hypothese freigegeben. Approver konfigurieren, dann Business Case einreichen.
           </p>
         )}
-        {phase === "stakeholder_review" && (
-          <p className="text-sm text-muted-foreground">
-            Erteilt {granted} / {stakeholderRows} — wartet auf ausstehende Freigaben.
-          </p>
-        )}
+        {phase === "stakeholder_review" &&
+          (blocked ? (
+            <div className="space-y-2 rounded-md border border-red-200 bg-red-50 p-3">
+              <p className="text-sm text-red-800">
+                Eine oder mehrere Freigaben wurden abgelehnt. Überarbeite den Business Case, um eine
+                neue Freigaberunde zu starten.
+              </p>
+              {canManage && <ReviseBusinessCaseButton epicId={epicId} />}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Erteilt {granted} / {stakeholderRows} — wartet auf ausstehende Freigaben.
+            </p>
+          ))}
         {phase === "approved" && (
           <div className="space-y-3">
             <p className="text-sm text-emerald-600">Alle Freigaben erteilt — Epic freigegeben.</p>
@@ -169,7 +188,13 @@ export function EpicApprovalsTab({
       {phase === "business_case" && canManage && (
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Approver konfigurieren</h2>
-          <ApproverPicker epicId={epicId} approvers={approvers} current={current} />
+          <ApproverPicker
+            epicId={epicId}
+            approvers={approvers}
+            current={current}
+            currentSections={currentSections}
+            userLabels={userLabels}
+          />
           <div className="pt-2">
             <SubmitBusinessCaseButton epicId={epicId} />
           </div>
@@ -195,8 +220,8 @@ export function EpicApprovalsTab({
                     {rows.map((r) => (
                       <li key={r.id} className="flex items-start justify-between gap-3 text-xs">
                         <div className="min-w-0">
-                          <span className="font-mono">
-                            {(r.approverUserId ?? "—").slice(0, 8)}…
+                          <span className="font-medium">
+                            {userLabel(r.approverUserId, userLabels)}
                           </span>{" "}
                           <Badge status={r.status} />
                           {r.decidedAt && (
@@ -230,15 +255,26 @@ export function EpicApprovalsTab({
                 <div>
                   <span className="text-sm font-medium">{SECTION_LABELS[section]}</span>{" "}
                   <Badge status={status} />
+                  {row?.approverUserId ? (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {userLabel(row.approverUserId, userLabels)}
+                    </span>
+                  ) : (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      kein Verantwortlicher
+                    </span>
+                  )}
                   {row?.decidedAt && (
                     <span className="ml-2 text-xs text-muted-foreground">
                       {new Date(row.decidedAt).toLocaleString("de-DE")}
                     </span>
                   )}
                 </div>
-                {phase === "stakeholder_review" && canSignoff && status !== "approved" && (
-                  <SectionSignoffButtons epicId={epicId} section={section} />
-                )}
+                {phase === "stakeholder_review" &&
+                  status !== "approved" &&
+                  row?.approverUserId === currentUserId && (
+                    <SectionSignoffButtons epicId={epicId} section={section} />
+                  )}
               </div>
             );
           })}
@@ -263,7 +299,9 @@ export function EpicApprovalsTab({
                           : PARTY_LABELS[r.party as ApprovalParty]}
                       </span>
                       {r.approverUserId && (
-                        <span className="font-mono">{r.approverUserId.slice(0, 8)}…</span>
+                        <span className="font-medium">
+                          {userLabel(r.approverUserId, userLabels)}
+                        </span>
                       )}
                       <Badge status={r.status} />
                       {r.decidedAt && (

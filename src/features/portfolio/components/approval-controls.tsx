@@ -5,6 +5,7 @@ import {
   submitEpicHypothesisAction,
   decideEpicHypothesisAction,
   submitEpicBusinessCaseAction,
+  reviseEpicBusinessCaseAction,
   decideEpicApprovalAction,
   signoffEpicSectionAction,
   startEpicRevisionAction,
@@ -90,6 +91,20 @@ export function SubmitBusinessCaseButton({ epicId }: { epicId: string }) {
       <input type="hidden" name="epicId" value={epicId} />
       <button type="submit" disabled={pending} className={PRIMARY}>
         {pending ? "…" : "Business Case zur Freigabe einreichen"}
+      </button>
+      <Err msg={state.error} />
+    </form>
+  );
+}
+
+/** stakeholder_review → Owner reworks: returns to business_case, BC editable again. */
+export function ReviseBusinessCaseButton({ epicId }: { epicId: string }) {
+  const [state, action, pending] = useActionState(reviseEpicBusinessCaseAction, {});
+  return (
+    <form action={action} className="space-y-1">
+      <input type="hidden" name="epicId" value={epicId} />
+      <button type="submit" disabled={pending} className={PRIMARY}>
+        {pending ? "…" : "Business Case überarbeiten"}
       </button>
       <Err msg={state.error} />
     </form>

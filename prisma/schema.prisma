@@ -169,6 +169,11 @@ model Initiative {
   benefitHypothesis Json? @map("benefit_hypothesis") // L1 Reviewing
   businessCase      Json? @map("business_case") // L2 Analyzing
 
+  // Snapshot of the last approved revision's artefacts (EPIC only), captured at
+  // startRevision — the baseline the side-by-side revision diff compares against.
+  baselineBenefitHypothesis Json? @map("baseline_benefit_hypothesis")
+  baselineBusinessCase      Json? @map("baseline_business_case")
+
   // Story points (STORY only)
   storyPoints Int? @map("story_points")
 

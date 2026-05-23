@@ -41,6 +41,7 @@ export type AuditAction =
   | "epic.hypothesis.rejected"
   | "epic.approval.configured"
   | "epic.business_case.submitted"
+  | "epic.business_case.reopened"
   | "epic.approval.granted"
   | "epic.approval.rejected"
   | "epic.section.signed_off"

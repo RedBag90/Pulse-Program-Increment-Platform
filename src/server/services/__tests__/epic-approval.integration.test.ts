@@ -6,6 +6,7 @@ import {
   decideHypothesis,
   configureApprovers,
   submitBusinessCase,
+  reviseBusinessCase,
   decideApproval,
   signoffSection,
   startRevision,
@@ -48,6 +49,12 @@ async function makeEpic(approvalPhase: string, withBusinessCase = false): Promis
 
 const ctx = () => testRequestContext(db, seed);
 
+/** Assigns both review sections (Breakdown, KPIs) to one owner. */
+const sectionsOwnedBy = (userId: string) => [
+  { section: "breakdown" as const, userId },
+  { section: "kpis" as const, userId },
+];
+
 describe("hypothesis phase", () => {
   it("submit moves draft → hypothesis_review", async () => {
     const id = await makeEpic("draft");
@@ -82,22 +89,33 @@ describe("business-case phase", () => {
     const res = await configureApprovers(ctx(), {
       epicId: id,
       assignments: [{ party: "business_owner", userIds: [u1, u2] }],
+      sections: [],
     });
     expect(isOk(res)).toBe(true);
     const rows = await listEpicApprovals(db, seed.tenantId, id);
     expect(rows.filter((r) => r.party === "business_owner")).toHaveLength(2);
   });
 
-  it("blocks BC submit without content / without approvers", async () => {
+  it("blocks BC submit without content / without approvers / without section owners", async () => {
     const noContent = await makeEpic("business_case", false);
     await configureApprovers(ctx(), {
       epicId: noContent,
       assignments: [{ party: "finance", userIds: [randomUUID()] }],
+      sections: sectionsOwnedBy(randomUUID()),
     });
     expect(isErr(await submitBusinessCase(ctx(), { epicId: noContent }))).toBe(true);
 
     const noApprovers = await makeEpic("business_case", true);
     expect(isErr(await submitBusinessCase(ctx(), { epicId: noApprovers }))).toBe(true);
+
+    // Content + party but no section owners assigned → still blocked.
+    const noSections = await makeEpic("business_case", true);
+    await configureApprovers(ctx(), {
+      epicId: noSections,
+      assignments: [{ party: "finance", userIds: [randomUUID()] }],
+      sections: [],
+    });
+    expect(isErr(await submitBusinessCase(ctx(), { epicId: noSections }))).toBe(true);
   });
 
   it("submits BC → stakeholder_review and opens section sign-offs", async () => {
@@ -105,6 +123,7 @@ describe("business-case phase", () => {
     await configureApprovers(ctx(), {
       epicId: id,
       assignments: [{ party: "finance", userIds: [seed.actorId] }],
+      sections: sectionsOwnedBy(seed.actorId),
     });
     expect(isOk(await submitBusinessCase(ctx(), { epicId: id }))).toBe(true);
     expect((await db.initiative.findFirst({ where: { id } }))!.approvalPhase).toBe(
@@ -124,6 +143,7 @@ describe("stakeholder phase + auto-finalize", () => {
     await configureApprovers(ctx(), {
       epicId: id,
       assignments: [{ party: "business_owner", userIds: [seed.actorId] }],
+      sections: sectionsOwnedBy(seed.actorId),
     });
     await submitBusinessCase(ctx(), { epicId: id });
     return id;
@@ -141,13 +161,62 @@ describe("stakeholder phase + auto-finalize", () => {
     if (isErr(res)) expect(res.error.kind).toBe("conflict");
   });
 
-  it("a rejection rebounds to business_case", async () => {
+  it("only the assigned reviewer may sign off a section", async () => {
+    const id = await toStakeholderReview();
+    const row = (await listEpicApprovals(db, seed.tenantId, id)).find(
+      (r) => r.kind === "section" && r.section === "breakdown",
+    )!;
+    // Reassign the section to someone else → seed actor is no longer its owner.
+    await db.epicApproval.update({
+      where: { id: row.id },
+      data: { approverUserId: randomUUID() },
+    });
+    const res = await signoffSection(ctx(), {
+      epicId: id,
+      section: "breakdown",
+      decision: "approve",
+    });
+    expect(isErr(res)).toBe(true);
+    if (isErr(res)) expect(res.error.kind).toBe("conflict");
+  });
+
+  it("a rejection blocks but keeps the Epic in stakeholder_review (no auto-rebound)", async () => {
     const id = await toStakeholderReview();
     const row = (await listEpicApprovals(db, seed.tenantId, id)).find((r) => r.kind === "party")!;
     expect(isOk(await decideApproval(ctx(), { approvalId: row.id, decision: "reject" }))).toBe(
       true,
     );
+    expect((await db.initiative.findFirst({ where: { id } }))!.approvalPhase).toBe(
+      "stakeholder_review",
+    );
+  });
+
+  it("Owner reverts a rejected Epic to business_case, and resubmit resets decisions to pending", async () => {
+    const id = await toStakeholderReview();
+    const partyRow = (await listEpicApprovals(db, seed.tenantId, id)).find(
+      (r) => r.kind === "party",
+    )!;
+    await decideApproval(ctx(), { approvalId: partyRow.id, decision: "reject" });
+    await signoffSection(ctx(), { epicId: id, section: "breakdown", decision: "approve" });
+
+    // Owner reworks → back to business_case (BC editable again).
+    expect(isOk(await reviseBusinessCase(ctx(), { epicId: id }))).toBe(true);
     expect((await db.initiative.findFirst({ where: { id } }))!.approvalPhase).toBe("business_case");
+
+    // Resubmitting opens a fresh round: every decision on this revision is pending again.
+    expect(isOk(await submitBusinessCase(ctx(), { epicId: id }))).toBe(true);
+    const epic = await db.initiative.findFirst({ where: { id } });
+    expect(epic!.approvalPhase).toBe("stakeholder_review");
+    const rev = epic!.approvalRevision ?? 1;
+    const live = (await listEpicApprovals(db, seed.tenantId, id)).filter((r) => r.revision === rev);
+    expect(live.every((r) => r.status === "pending" && r.decidedAt === null)).toBe(true);
+  });
+
+  it("reviseBusinessCase outside stakeholder_review → conflict", async () => {
+    const id = await makeEpic("business_case", true);
+    const res = await reviseBusinessCase(ctx(), { epicId: id });
+    expect(isErr(res)).toBe(true);
+    if (isErr(res)) expect(res.error.kind).toBe("conflict");
   });
 
   it("approving every party + signing off both sections finalizes to approved", async () => {
@@ -178,6 +247,7 @@ describe("revisions", () => {
     await configureApprovers(ctx(), {
       epicId: id,
       assignments: [{ party: "business_owner", userIds: [seed.actorId] }],
+      sections: sectionsOwnedBy(seed.actorId),
     });
     await submitBusinessCase(ctx(), { epicId: id });
     const partyRow = (await listEpicApprovals(db, seed.tenantId, id)).find(

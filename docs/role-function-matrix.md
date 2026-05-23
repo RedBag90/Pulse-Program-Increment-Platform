@@ -23,9 +23,10 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
   zugeschnittene Rechte, übergeordnete Rollen erben nicht automatisch.
 - **Zwei getrennte Achsen für Epics:**
   - **Stage Gates L0–L5** (`epic.approve`) — der Investment-Funnel.
-  - **QS-Status** (`epic.review.*`) — `draft → in_review → approved`.
-    Beide sind unabhängig; eine Rolle kann an einer Achse berechtigt sein, an der
-    anderen nicht.
+  - **Freigabe-Workflow** (`approvalPhase`, `epic.hypothesis.*` / `epic.approval.*`
+    / `epic.section.signoff`) — die mehrstufige Mehrparteien-Freigabe (siehe unten).
+    Beide sind unabhängig. Die alte Ein-Schritt-Epic-QS (`epic.review.*`) wurde
+    entfernt; nur Features nutzen noch die QS (`feature.review.*`).
 
 ## Rollen
 
@@ -46,7 +47,7 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 
 ---
 
-## 1 — Funktions-Übersicht (48 Aktionen)
+## 1 — Funktions-Übersicht (46 Aktionen)
 
 ### Governance
 
@@ -73,13 +74,6 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 | `value_stream.update` | Wertstrom bearbeiten |
 | `epic.create`         | Epic anlegen         |
 | `epic.update`         | Epic bearbeiten      |
-
-### Epic-QS
-
-| Funktion             | Beschreibung                                     |
-| -------------------- | ------------------------------------------------ |
-| `epic.review.submit` | Epic zur QS einreichen (`draft → in_review`)     |
-| `epic.review.decide` | Epic-QS entscheiden — freigeben oder zurückgeben |
 
 ### Epic-Freigabe-Workflow (mehrstufig, Mehrparteien)
 
@@ -177,7 +171,7 @@ einen Scope.
 #### `portfolio_manager` — Portfolio-Lead / LPM
 
 - **Portfolio:** `value_stream.create`, `value_stream.update`, `epic.create`,
-  `epic.update`, `epic.delete`, `epic.approve` (Stage Gates), `epic.review.submit`.
+  `epic.update`, `epic.delete`, `epic.approve` (Stage Gates), `epic.hypothesis.submit`.
 - **Feature:** `feature.create`, `feature.update`, `feature.wsjf.set`,
   `feature.delete`, `feature.review.submit`.
 - **Ausführung:** `story.create/update/delete` (art), `task.create/edit` (art),
@@ -190,25 +184,24 @@ einen Scope.
 
 - `value_stream.update` (value_stream) — nur der eigene Wertstrom.
 - `epic.create` (value_stream), `epic.update` (value_stream),
-  `epic.review.submit` (value_stream) — Epics des eigenen Wertstroms.
+  `epic.hypothesis.submit` (value_stream) — Epics des eigenen Wertstroms.
 - Scope: Wertströme. **Hinweis:** Der Scope wird sicher beim `epic.create`
   geprüft (die Ziel-`valueStreamId` liegt im Input). Bei `epic.update` trägt die
   Ressource keine `valueStreamId` — der Scope degradiert dort auf „unskopiert"
   (gleiches Verhalten wie `art`/`team`-Scopes). Eine strikte Durchsetzung auf
   der Service-Ebene ist eine offene Folge-Aufgabe.
 
-### Ebene 3 — Epic & Epic-QS
+### Ebene 3 — Epic & Freigabe
 
 #### `epic_owner` — Epic-Verantwortlicher
 
-- `epic.create`, `epic.update`, `epic.review.submit`.
+- `epic.create`, `epic.update`.
 - **Freigabe-Workflow:** `epic.hypothesis.submit`, `epic.approval.configure`
   (wählt die Pflicht-Approver), `epic.businesscase.submit`. Reicht ein und holt
   Freigaben ein, entscheidet aber **nicht** selbst (Funktionstrennung).
 
 #### `vmo` — Value Management Office
 
-- `epic.review.decide` — QS-Freigabe/-Rückgabe von Epics.
 - `epic.hypothesis.decide` — gibt die Benefit Hypothese frei oder zurück.
 - `epic.section.signoff` — Breakdown-/KPI-Abnahme (mit `value_stream_owner`,
   `portfolio_manager`).
@@ -287,7 +280,7 @@ einen Scope.
 Stand des letzten Abgleichs gegen die Portfolio-Verantwortlichkeiten:
 
 - `value_stream_owner` hat Epic-Rechte erhalten (`epic.create/update`,
-  `epic.review.submit`, value_stream-skopiert) — vorher trug die Rolle nur eine
+  `epic.hypothesis.submit`, value_stream-skopiert) — vorher trug die Rolle nur eine
   einzige Funktion.
 - `epic.approve` (Stage Gates) wurde um `vmo` erweitert — das VMO co-governt den
   Epic-Investment-Funnel.

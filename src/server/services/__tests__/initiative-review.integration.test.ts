@@ -4,15 +4,16 @@ import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import {
   submitForReview,
   decideReview,
-  listEpicsInReview,
   listFeaturesInReview,
-  type InitiativeKind,
 } from "@/server/services/initiative-review";
 import { isOk, isErr } from "@/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { InitiativeLevel } from "@/domain/types";
 import type { InitiativeId } from "@/domain/types";
 import { randomUUID } from "crypto";
+
+// Feature QS gate only — Epics use the multi-party approval workflow
+// (see epic-approval.integration.test.ts), not this review path.
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;
 
@@ -60,21 +61,12 @@ async function makeFeature(status = "draft"): Promise<InitiativeId> {
   return feature.id as InitiativeId;
 }
 
-const makers: Record<InitiativeKind, (status?: string) => Promise<InitiativeId>> = {
-  epic: makeEpic,
-  feature: makeFeature,
-};
-
-// The submit/decide path is a single body parameterised by kind, so the
-// contract is proven once per kind through the module's interface.
-describe.each(["epic", "feature"] as const)("initiative review — %s mutations", (kind) => {
-  const make = makers[kind];
-
+describe("feature review mutations", () => {
   it("submit moves draft → in_review and emits one audit", async () => {
-    const id = await make("draft");
+    const id = await makeFeature("draft");
     const before = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 
-    const result = await submitForReview(testRequestContext(db, seed), { kind, id });
+    const result = await submitForReview(testRequestContext(db, seed), { kind: "feature", id });
 
     expect(isOk(result)).toBe(true);
     const row = await db.initiative.findFirst({ where: { id } });
@@ -84,8 +76,8 @@ describe.each(["epic", "feature"] as const)("initiative review — %s mutations"
   });
 
   it("submit on a non-draft → conflict, row unchanged", async () => {
-    const id = await make("in_review");
-    const result = await submitForReview(testRequestContext(db, seed), { kind, id });
+    const id = await makeFeature("in_review");
+    const result = await submitForReview(testRequestContext(db, seed), { kind: "feature", id });
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
@@ -95,35 +87,33 @@ describe.each(["epic", "feature"] as const)("initiative review — %s mutations"
   });
 
   it("decide approve → approved", async () => {
-    const id = await make("in_review");
+    const id = await makeFeature("in_review");
     const result = await decideReview(testRequestContext(db, seed), {
-      kind,
+      kind: "feature",
       id,
       decision: "approve",
     });
 
     expect(isOk(result)).toBe(true);
-    const row = await db.initiative.findFirst({ where: { id } });
-    expect(row!.status).toBe("approved");
+    expect((await db.initiative.findFirst({ where: { id } }))!.status).toBe("approved");
   });
 
   it("decide reject → draft", async () => {
-    const id = await make("in_review");
+    const id = await makeFeature("in_review");
     const result = await decideReview(testRequestContext(db, seed), {
-      kind,
+      kind: "feature",
       id,
       decision: "reject",
     });
 
     expect(isOk(result)).toBe(true);
-    const row = await db.initiative.findFirst({ where: { id } });
-    expect(row!.status).toBe("draft");
+    expect((await db.initiative.findFirst({ where: { id } }))!.status).toBe("draft");
   });
 
   it("decide on a draft (not awaiting) → conflict", async () => {
-    const id = await make("draft");
+    const id = await makeFeature("draft");
     const result = await decideReview(testRequestContext(db, seed), {
-      kind,
+      kind: "feature",
       id,
       decision: "approve",
     });
@@ -135,7 +125,7 @@ describe.each(["epic", "feature"] as const)("initiative review — %s mutations"
 
   it("unknown id → not_found", async () => {
     const result = await submitForReview(testRequestContext(db, seed), {
-      kind,
+      kind: "feature",
       id: randomUUID() as InitiativeId,
     });
 
@@ -143,9 +133,7 @@ describe.each(["epic", "feature"] as const)("initiative review — %s mutations"
     if (!isErr(result)) return;
     expect(result.error.kind).toBe("not_found");
   });
-});
 
-describe("initiative review — cross-kind guard", () => {
   it("an Epic id submitted as a Feature → not_found (level filter)", async () => {
     const epicId = await makeEpic("draft");
     const result = await submitForReview(testRequestContext(db, seed), {
@@ -159,19 +147,7 @@ describe("initiative review — cross-kind guard", () => {
   });
 });
 
-describe("initiative review — render-ready reads", () => {
-  it("listEpicsInReview returns only in_review epics as render rows", async () => {
-    const reviewing = await makeEpic("in_review");
-    await makeEpic("draft");
-
-    const rows = await listEpicsInReview(db, seed.tenantId);
-
-    expect(rows).toHaveLength(1);
-    expect(rows[0]!.id).toBe(reviewing);
-    expect(rows[0]!.href).toBe(`/portfolio/epics/${reviewing}`);
-    expect(rows[0]!.valueStream?.name).toBe("Test Value Stream");
-  });
-
+describe("feature review — render-ready reads", () => {
   it("listFeaturesInReview returns flattened rows and honors the ART scope", async () => {
     const id = await makeFeature("in_review");
 

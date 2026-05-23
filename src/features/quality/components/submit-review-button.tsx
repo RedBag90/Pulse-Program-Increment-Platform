@@ -1,19 +1,18 @@
 "use client";
 
 import { useActionState } from "react";
-import { submitEpicReviewAction } from "@/features/portfolio/actions/epic";
 import { submitFeatureReviewAction } from "@/features/art/actions/feature";
 import { Button } from "@/components/ui/button";
 
 interface Props {
   id: string;
-  kind: "epic" | "feature";
+  /** Only Features use the QS gate; Epics use the multi-party approval workflow. */
+  kind: "feature";
 }
 
-/** "Submit for QA review" — moves a draft Epic/Feature to `in_review`. */
-export function SubmitReviewButton({ id, kind }: Props) {
-  const action = kind === "epic" ? submitEpicReviewAction : submitFeatureReviewAction;
-  const [state, formAction, isPending] = useActionState(action, {});
+/** "Submit for QA review" — moves a draft Feature to `in_review`. */
+export function SubmitReviewButton({ id }: Props) {
+  const [state, formAction, isPending] = useActionState(submitFeatureReviewAction, {});
 
   return (
     <form action={formAction} className="flex items-center gap-2">
