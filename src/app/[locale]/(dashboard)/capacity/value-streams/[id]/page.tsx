@@ -3,6 +3,9 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getValueStream } from "@/server/services/value-stream";
 import { listAuditHistory } from "@/server/services/audit-history";
+import { listTenantApprovers } from "@/server/services/epic-approval";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { userLabel } from "@/components/detail/initiative-labels";
 import {
   EntityDetailShell,
   resolveTab,
@@ -44,12 +47,17 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 
-  const history = await listAuditHistory(db, principal.tenantId, "value_stream", vs.id);
+  const [history, approvers, userLabels] = await Promise.all([
+    listAuditHistory(db, principal.tenantId, "value_stream", vs.id),
+    listTenantApprovers(db, principal.tenantId),
+    listTenantUserLabels(db, principal.tenantId),
+  ]);
   const events = history.map((e) => ({
     id: e.id,
     action: e.action,
     occurredAt: e.occurredAt.toISOString(),
   }));
+  const vmoUsers = approvers.filter((u) => u.roles.includes("vmo"));
 
   return (
     <EntityDetailShell
@@ -70,12 +78,19 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
               vs.description ?? "",
               vs.budgetAmount?.toString() ?? "",
               vs.budgetCurrency ?? "",
+              vs.financeApproverId ?? "",
+              vs.vmoId ?? "",
             ].join("|")}
             id={vs.id}
             name={vs.name}
             description={vs.description ?? ""}
             budgetAmount={vs.budgetAmount?.toString() ?? ""}
             budgetCurrency={vs.budgetCurrency ?? ""}
+            financeApproverId={vs.financeApproverId ?? ""}
+            vmoId={vs.vmoId ?? ""}
+            users={approvers}
+            vmoUsers={vmoUsers}
+            userLabels={userLabels}
           />
         ) : (
           <dl className="max-w-xl space-y-3 text-sm">
@@ -84,6 +99,10 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
             <Field label="Budget">
               {vs.budgetAmount ? `${vs.budgetAmount.toString()} ${vs.budgetCurrency ?? ""}` : "—"}
             </Field>
+            <Field label="Finance Approver">
+              {vs.financeApproverId ? userLabel(vs.financeApproverId, userLabels) : "—"}
+            </Field>
+            <Field label="VMO">{vs.vmoId ? userLabel(vs.vmoId, userLabels) : "—"}</Field>
           </dl>
         ))}
 

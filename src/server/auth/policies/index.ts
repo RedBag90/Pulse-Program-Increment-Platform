@@ -21,6 +21,7 @@ export type Action =
   | "epic.approval.decide"
   | "epic.section.signoff"
   | "epic.revision.start"
+  | "epic.owner.assign"
   | "art.create"
   | "art.update"
   | "art.delete"
@@ -130,6 +131,8 @@ export const POLICIES: Record<Action, Grant[]> = {
   ],
   "epic.section.signoff": [{ roles: [VMO, VALUE_STREAM_OWNER, PORTFOLIO_MANAGER] }],
   "epic.revision.start": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
+  // The VMO nominates the Epic Owner (precondition for the Detailing phase).
+  "epic.owner.assign": [{ roles: [VMO] }],
 
   // ── ART / Program ───────────────────────────────────────────────────────
   // ART lifecycle is a tenant-admin org-structure concern; the RTE orchestrates

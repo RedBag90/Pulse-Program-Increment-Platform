@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { actionLabel, userLabel } from "@/components/detail/initiative-labels";
+import { Activity, FileText, Layers, Target, type LucideIcon } from "lucide-react";
+import { actionLabel, userLabel, initials } from "@/components/detail/initiative-labels";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 /** A single audit entry, pre-serialised on the server for the client boundary. */
 export interface ActivityItem {
@@ -16,6 +18,16 @@ export interface ActivityItem {
 /** Coarse category used by the "Show everything" filter — the action's first segment. */
 function category(action: string): string {
   return action.split(".")[0] ?? action;
+}
+
+/** A small lucide glyph per action category — purely decorative context. */
+const CATEGORY_ICON: Record<string, LucideIcon> = {
+  epic: Layers,
+  kpi: Target,
+  initiative: FileText,
+};
+function categoryIcon(action: string): LucideIcon {
+  return CATEGORY_ICON[category(action)] ?? Activity;
 }
 
 function relativeTime(iso: string, now: number): string {
@@ -49,13 +61,16 @@ export function InitiativeActivitySidebar({
   const shown = filter === "all" ? events : events.filter((e) => category(e.action) === filter);
 
   return (
-    <aside className="w-72 shrink-0 border-l bg-muted/30">
-      <div className="border-b p-3">
+    <aside className="w-72 shrink-0 border-l bg-muted/20">
+      <div className="space-y-2 border-b p-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Aktivität
+        </p>
         <select
           aria-label="Aktivität filtern"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="w-full rounded border border-input bg-background px-2 py-1.5 text-sm"
+          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="all">Alles anzeigen</option>
           {categories.map((c) => (
@@ -67,18 +82,33 @@ export function InitiativeActivitySidebar({
       </div>
 
       {shown.length === 0 ? (
-        <p className="p-4 text-sm text-muted-foreground">Keine Aktivität</p>
+        <div className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted-foreground">
+          <Activity className="h-5 w-5" />
+          Keine Aktivität
+        </div>
       ) : (
         <ul className="divide-y">
-          {shown.map((e) => (
-            <li key={e.id} className="px-3 py-2.5">
-              <p className="text-sm font-medium text-foreground">{actionLabel(e.action)}</p>
-              <p className="text-xs text-muted-foreground">
-                {relativeTime(e.occurredAt, now)}
-                {e.actorId && <> · {userLabel(e.actorId, userLabels)}</>}
-              </p>
-            </li>
-          ))}
+          {shown.map((e) => {
+            const actor = e.actorId ? userLabel(e.actorId, userLabels) : null;
+            const Icon = categoryIcon(e.action);
+            return (
+              <li key={e.id} className="flex gap-3 px-3 py-2.5 transition-colors hover:bg-muted/50">
+                <Avatar size="sm" className="mt-0.5">
+                  <AvatarFallback>{actor ? initials(actor) : "—"}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm leading-snug">
+                    {actor && <span className="font-medium text-foreground">{actor}</span>}{" "}
+                    <span className="text-muted-foreground">{actionLabel(e.action)}</span>
+                  </p>
+                  <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                    <Icon className="h-3 w-3 shrink-0" />
+                    {relativeTime(e.occurredAt, now)}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </aside>

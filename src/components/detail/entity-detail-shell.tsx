@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ArrowLeft } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 
 export interface DetailTab {
@@ -51,11 +52,15 @@ export function EntityDetailShell({
   return (
     <div className="flex flex-col">
       <header className="border-b px-6 py-4">
-        <Link href={backHref} className="text-sm text-primary hover:underline">
-          ← {backLabel}
+        <Link
+          href={backHref}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          {backLabel}
         </Link>
         <div className="mt-2 flex items-center gap-3">
-          <h1 className="text-2xl font-semibold">{title}</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">{title}</h1>
           {badge &&
             (typeof badge === "string" ? (
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{badge}</span>
@@ -67,7 +72,7 @@ export function EntityDetailShell({
       </header>
 
       <div className="flex min-h-[70vh]">
-        <nav aria-label="Bereiche" className="w-48 shrink-0 border-r p-2">
+        <nav aria-label="Bereiche" className="w-48 shrink-0 border-r p-3">
           <ul className="space-y-0.5">
             {tabs.map((tab) => {
               const active = tab.key === activeTab;
@@ -76,10 +81,10 @@ export function EntityDetailShell({
                   <Link
                     href={`${basePath}?tab=${tab.key}`}
                     aria-current={active ? "page" : undefined}
-                    className={`block rounded px-3 py-2 text-sm transition-colors ${
+                    className={`block border-l-2 rounded-r-md px-3 py-1.5 text-sm transition-colors ${
                       active
-                        ? "bg-primary/10 font-medium text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        ? "border-primary bg-primary/10 font-medium text-primary"
+                        : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
                     }`}
                   >
                     {tab.label}

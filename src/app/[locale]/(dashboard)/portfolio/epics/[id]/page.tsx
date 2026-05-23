@@ -20,6 +20,7 @@ import {
 import { BenefitHypothesisEditor } from "@/features/portfolio/components/benefit-hypothesis-editor";
 import { BusinessCaseEditor } from "@/features/portfolio/components/business-case-editor";
 import { EpicApprovalsTab } from "@/features/portfolio/components/epic-approvals-tab";
+import { EpicTimelineTab } from "@/features/portfolio/components/epic-timeline-tab";
 import {
   RevisionDiff,
   RevisionEditLayout,
@@ -30,6 +31,7 @@ import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-bu
 import { parseBenefitHypothesis } from "@/domain/benefit-hypothesis";
 import { parseBusinessCase } from "@/domain/business-case";
 import { parseKpiMeasurements, latestKpiValue } from "@/domain/kpi";
+import { parseTimeline } from "@/domain/timeline";
 import { sectionStatus, type ApprovalPhase, type ApprovalRecord } from "@/domain/epic-approval";
 import type { ApprovalParty } from "@/domain/business-case";
 import type { ApprovalSection } from "@/domain/epic-approval";
@@ -144,6 +146,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
   const benefitHypothesis = parseBenefitHypothesis(epic.benefitHypothesis);
   const businessCase = parseBusinessCase(epic.businessCase);
+  const timeline = parseTimeline(epic.timeline);
 
   // Last-approved baseline for the revision diff (null until a revision is started).
   const bcBaseline =
@@ -213,6 +216,24 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         />
       )}
 
+      {activeTab === "timeline" && (
+        <section>
+          <h2 className="mb-4 font-heading text-lg font-medium">Timeline</h2>
+          <EpicTimelineTab
+            epicId={epic.id}
+            createdAt={epic.createdAt.toISOString()}
+            hypothesisApprovedAt={epic.hypothesisApprovedAt?.toISOString() ?? null}
+            businessCaseApprovedAt={epic.businessCaseApprovedAt?.toISOString() ?? null}
+            timeline={timeline}
+            canEdit={canEdit}
+            ownerId={epic.ownerId}
+            canAssignOwner={canDecideHypothesis}
+            approvers={approvers}
+            userLabels={userLabels}
+          />
+        </section>
+      )}
+
       {activeTab === "approvals" && (
         <EpicApprovalsTab
           epicId={epic.id}
@@ -224,6 +245,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           currentUserId={principal.id}
           canManage={canEdit}
           canDecideHypothesis={canDecideHypothesis}
+          defaultFinanceApproverId={epic.valueStream?.financeApproverId ?? null}
+          defaultVmoId={epic.valueStream?.vmoId ?? null}
         />
       )}
 

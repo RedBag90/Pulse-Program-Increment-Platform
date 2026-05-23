@@ -35,6 +35,10 @@ model ValueStream {
   description    String?
   budgetAmount   Decimal? @map("budget_amount") @db.Decimal(14, 2)
   budgetCurrency String?  @map("budget_currency") @db.Char(3)
+  // Governance: who signs off Epics in this value stream (Finance party) and the
+  // responsible VMO — loose user ids (users live in Supabase auth).
+  financeApproverId String? @map("finance_approver_id") @db.Uuid
+  vmoId             String? @map("vmo_id") @db.Uuid
   createdAt      DateTime @default(now()) @map("created_at")
 
   tenant Tenant       @relation(fields: [tenantId], references: [id])
@@ -173,6 +177,12 @@ model Initiative {
   // startRevision — the baseline the side-by-side revision diff compares against.
   baselineBenefitHypothesis Json? @map("baseline_benefit_hypothesis")
   baselineBusinessCase      Json? @map("baseline_business_case")
+
+  // Epic timeline (EPIC only): owner-set estimates + manual actuals (backlog,
+  // implementation) as a flat JSON; auto actuals live in the columns below.
+  timeline               Json?     @map("timeline")
+  hypothesisApprovedAt   DateTime? @map("hypothesis_approved_at")
+  businessCaseApprovedAt DateTime? @map("business_case_approved_at")
 
   // Story points (STORY only)
   storyPoints Int? @map("story_points")

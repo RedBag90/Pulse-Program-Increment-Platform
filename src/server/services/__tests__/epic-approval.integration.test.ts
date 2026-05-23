@@ -73,7 +73,10 @@ describe("hypothesis phase", () => {
   it("VMO approve → business_case, reject → draft", async () => {
     const id = await makeEpic("hypothesis_review");
     expect(isOk(await decideHypothesis(ctx(), { epicId: id, decision: "approve" }))).toBe(true);
-    expect((await db.initiative.findFirst({ where: { id } }))!.approvalPhase).toBe("business_case");
+    const approved = await db.initiative.findFirst({ where: { id } });
+    expect(approved!.approvalPhase).toBe("business_case");
+    // Timeline actual for the "Selected for Detailing" phase is stamped on approve.
+    expect(approved!.hypothesisApprovedAt).not.toBeNull();
 
     const id2 = await makeEpic("hypothesis_review");
     expect(isOk(await decideHypothesis(ctx(), { epicId: id2, decision: "reject" }))).toBe(true);
@@ -237,6 +240,8 @@ describe("stakeholder phase + auto-finalize", () => {
     const epic = await db.initiative.findFirst({ where: { id } });
     expect(epic!.approvalPhase).toBe("approved");
     expect(epic!.status).toBe("approved");
+    // Timeline actual for the "Business Case" phase is stamped on finalization.
+    expect(epic!.businessCaseApprovedAt).not.toBeNull();
   });
 });
 

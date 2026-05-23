@@ -20,6 +20,7 @@ import {
   type BusinessCaseFields,
   type BusinessCase,
 } from "@/domain/business-case";
+import type { TimelineFields } from "@/domain/timeline";
 
 // ---------------------------------------------------------------------------
 // Create Epic (level 0)
@@ -298,6 +299,93 @@ export async function saveBusinessCase(
 }
 
 // ---------------------------------------------------------------------------
+// Timeline — owner estimates + manual actuals; Implementation actual ⇒ Done
+// ---------------------------------------------------------------------------
+
+export interface SaveTimelineInput {
+  epicId: EpicId;
+  fields: TimelineFields;
+}
+
+/**
+ * Saves the owner-controlled timeline (estimates + the manual Backlog/
+ * Implementation actuals). Setting the Implementation actual is the one
+ * lifecycle coupling: it marks the Epic Done (stage gate → L5).
+ */
+export async function saveTimeline(
+  ctx: RequestContext,
+  input: SaveTimelineInput,
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { epicId, fields } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+
+    const reachedDone = Boolean(fields.actuals.implementation) && existing.stageGate !== "L5";
+
+    await tx.initiative.update({
+      where: { id: epicId },
+      data: {
+        updatedBy: mctx.actorId,
+        timeline: fields as unknown as Prisma.InputJsonValue,
+        ...(reachedDone && { stageGate: "L5" }),
+      },
+    });
+
+    return ok({
+      result: undefined,
+      audit: reachedDone
+        ? {
+            action: "initiative.stage_gate.advanced",
+            resourceType: "initiative",
+            resourceId: epicId,
+            changes: { stageGate: { before: existing.stageGate, after: "L5" } },
+          }
+        : { action: "initiative.updated", resourceType: "initiative", resourceId: epicId },
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Assign Epic Owner (VMO)
+// ---------------------------------------------------------------------------
+
+export async function assignEpicOwner(
+  ctx: RequestContext,
+  input: { epicId: EpicId; ownerId: string },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { epicId, ownerId } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+
+    const changes = buildChangelog({ ownerId: existing.ownerId }, { ownerId }, ["ownerId"]);
+    await tx.initiative.update({
+      where: { id: epicId },
+      data: { ownerId, updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "epic.owner.assigned",
+        resourceType: "initiative",
+        resourceId: epicId,
+        changes,
+      },
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Delete Epic (soft)
 // ---------------------------------------------------------------------------
 
@@ -369,7 +457,7 @@ export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) 
   return db.initiative.findFirst({
     where: { id, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
     include: {
-      valueStream: { select: { id: true, name: true } },
+      valueStream: { select: { id: true, name: true, financeApproverId: true, vmoId: true } },
       children: {
         where: { deletedAt: null },
         select: {

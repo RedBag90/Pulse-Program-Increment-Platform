@@ -53,6 +53,8 @@ export const updateValueStreamAction = createServerAction({
       .regex(/^\d+(\.\d{1,2})?$/)
       .optional(),
     budgetCurrency: z.string().length(3).optional(),
+    financeApproverId: z.string().uuid().nullable().optional(),
+    vmoId: z.string().uuid().nullable().optional(),
   }),
   action: "value_stream.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -62,6 +64,9 @@ export const updateValueStreamAction = createServerAction({
     description: fd.get("description") || undefined,
     budgetAmount: fd.get("budgetAmount") || undefined,
     budgetCurrency: fd.get("budgetCurrency") || undefined,
+    // Selects always post a value: "" clears the assignment (→ null).
+    financeApproverId: (fd.get("financeApproverId") as string) || null,
+    vmoId: (fd.get("vmoId") as string) || null,
   }),
   service: (ctx, input) =>
     updateValueStream(ctx, {
@@ -70,6 +75,8 @@ export const updateValueStreamAction = createServerAction({
       description: input.description,
       budgetAmount: input.budgetAmount,
       budgetCurrency: input.budgetCurrency,
+      financeApproverId: input.financeApproverId,
+      vmoId: input.vmoId,
     }),
   onSuccess: () => {
     revalidatePath("/capacity");

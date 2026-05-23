@@ -47,6 +47,7 @@ export type AuditAction =
   | "epic.section.signed_off"
   | "epic.approved"
   | "epic.revision.started"
+  | "epic.owner.assigned"
   | "wsjf.scored"
   | "value_stream.created"
   | "value_stream.updated"

@@ -68,6 +68,7 @@ export const ACTION_LABELS: Record<string, string> = {
   "epic.approval.rejected": "Freigabe abgelehnt",
   "epic.section.signed_off": "Abschnitt abgenommen",
   "epic.revision.started": "Neue Revision gestartet",
+  "epic.owner.assigned": "Epic Owner zugewiesen",
 };
 
 /** An audit action's display label, falling back to a de-dotted form. */
@@ -78,6 +79,17 @@ export function actionLabel(action: string): string {
 /** A short, stable fallback when a user id can't be resolved to a name. */
 export function shortUserId(id: string): string {
   return `${id.slice(0, 8)}…`;
+}
+
+/**
+ * Up-to-two-character initials for an avatar fallback. Works for emails
+ * (`anna.k@x.dev` → "AK"), names (`Anna Klein` → "AK"), and short ids.
+ */
+export function initials(label: string): string {
+  const local = label.includes("@") ? (label.split("@")[0] ?? label) : label;
+  const parts = local.split(/[.\s_-]+/).filter(Boolean);
+  const chars = parts.length >= 2 ? `${parts[0]![0]}${parts[1]![0]}` : local.slice(0, 2);
+  return chars.toUpperCase();
 }
 
 /**

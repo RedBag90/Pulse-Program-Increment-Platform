@@ -75,6 +75,9 @@ interface Props {
   currentUserId: string;
   canManage: boolean;
   canDecideHypothesis: boolean;
+  /** Value-stream defaults that pre-fill an as-yet-unconfigured Epic. */
+  defaultFinanceApproverId?: string | null;
+  defaultVmoId?: string | null;
 }
 
 function Badge({ status }: { status: string }) {
@@ -97,6 +100,8 @@ export function EpicApprovalsTab({
   currentUserId,
   canManage,
   canDecideHypothesis,
+  defaultFinanceApproverId,
+  defaultVmoId,
 }: Props) {
   // Live overview reflects the active revision; older rows are history.
   const currentApprovals = approvals.filter((a) => a.revision === revision);
@@ -116,11 +121,16 @@ export function EpicApprovalsTab({
       .filter((a) => a.kind === "party" && a.party === p && a.approverUserId)
       .map((a) => a.approverUserId as string);
   }
+  // Pre-fill the Finance party from the value stream when not yet configured.
+  if (current.finance.length === 0 && defaultFinanceApproverId) {
+    current.finance = [defaultFinanceApproverId];
+  }
 
   const currentSections: Record<ApprovalSection, string> = {} as Record<ApprovalSection, string>;
   for (const s of APPROVAL_SECTIONS) {
     const row = currentApprovals.find((a) => a.kind === "section" && a.section === s);
-    currentSections[s] = row?.approverUserId ?? "";
+    // Pre-fill the section owner with the value stream's VMO when unset.
+    currentSections[s] = row?.approverUserId ?? defaultVmoId ?? "";
   }
 
   const parties = configuredParties(records);

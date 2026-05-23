@@ -129,7 +129,12 @@ export async function decideHypothesis(
     const target: ApprovalPhase = decision === "approve" ? "business_case" : "draft";
     await tx.initiative.update({
       where: { id: epicId },
-      data: { approvalPhase: target, updatedBy: mctx.actorId },
+      data: {
+        approvalPhase: target,
+        updatedBy: mctx.actorId,
+        // Timeline actual for the "Selected for Detailing" phase.
+        ...(decision === "approve" && { hypothesisApprovedAt: new Date() }),
+      },
     });
 
     return ok({
@@ -364,7 +369,8 @@ async function applyDecisionOutcome(
   if (isFullyApproved(rows.map(toRecord))) {
     await tx.initiative.update({
       where: { id: epicId },
-      data: { approvalPhase: "approved", status: "approved" },
+      // businessCaseApprovedAt = timeline actual for the "Business Case" phase.
+      data: { approvalPhase: "approved", status: "approved", businessCaseApprovedAt: new Date() },
     });
     return { before: fromPhase, after: "approved" };
   }

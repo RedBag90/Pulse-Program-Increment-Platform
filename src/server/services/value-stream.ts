@@ -23,6 +23,10 @@ export interface UpdateValueStreamInput {
   description?: string | undefined;
   budgetAmount?: string | undefined;
   budgetCurrency?: string | undefined;
+  /** Finance party approver for this value stream's Epics; null clears it. */
+  financeApproverId?: string | null | undefined;
+  /** Responsible VMO for this value stream; null clears it. */
+  vmoId?: string | null | undefined;
 }
 
 export async function createValueStream(
@@ -59,7 +63,7 @@ export async function updateValueStream(
   input: UpdateValueStreamInput,
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, name, description, budgetAmount, budgetCurrency } = input;
+  const { id, name, description, budgetAmount, budgetCurrency, financeApproverId, vmoId } = input;
 
   return withAuditedTransaction(
     mctx,
@@ -70,9 +74,17 @@ export async function updateValueStream(
       }
 
       const changes = buildChangelog(
-        { name: existing.name },
-        { ...(name !== undefined && { name }) },
-        ["name"],
+        {
+          name: existing.name,
+          financeApproverId: existing.financeApproverId,
+          vmoId: existing.vmoId,
+        },
+        {
+          ...(name !== undefined && { name }),
+          ...(financeApproverId !== undefined && { financeApproverId }),
+          ...(vmoId !== undefined && { vmoId }),
+        },
+        ["name", "financeApproverId", "vmoId"],
       );
 
       await tx.valueStream.update({
@@ -82,6 +94,8 @@ export async function updateValueStream(
           ...(description !== undefined && { description }),
           ...(budgetAmount !== undefined && { budgetAmount }),
           ...(budgetCurrency !== undefined && { budgetCurrency }),
+          ...(financeApproverId !== undefined && { financeApproverId }),
+          ...(vmoId !== undefined && { vmoId }),
         },
       });
 
