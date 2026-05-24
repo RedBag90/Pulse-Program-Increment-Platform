@@ -10,6 +10,7 @@ import {
 import { getActiveTargetModel } from "@/server/services/target-model";
 import { listTargetOutcomes } from "@/server/services/target-outcome";
 import { listGoals } from "@/server/services/target-goal";
+import { listSnapshots, sparklinePoints } from "@/server/services/transformation-snapshot";
 import { listTransformationActions } from "@/server/services/target-action";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { effectivePractices, type OperatingModelTemplate } from "@/domain/operating-model";
@@ -25,15 +26,17 @@ export default async function TransformationPage() {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const [gap, adoption, outcomes, activeModel, actions, userLabels, goals] = await Promise.all([
-    computeStructureGap(db, principal.tenantId),
-    computePracticeAdoption(db, principal.tenantId),
-    listTargetOutcomes(db, principal.tenantId),
-    getActiveTargetModel(db, principal.tenantId),
-    listTransformationActions(db, principal.tenantId),
-    listTenantUserLabels(db, principal.tenantId),
-    listGoals(db, principal.tenantId),
-  ]);
+  const [gap, adoption, outcomes, activeModel, actions, userLabels, goals, snapshots] =
+    await Promise.all([
+      computeStructureGap(db, principal.tenantId),
+      computePracticeAdoption(db, principal.tenantId),
+      listTargetOutcomes(db, principal.tenantId),
+      getActiveTargetModel(db, principal.tenantId),
+      listTransformationActions(db, principal.tenantId),
+      listTenantUserLabels(db, principal.tenantId),
+      listGoals(db, principal.tenantId),
+      listSnapshots(db, principal.tenantId),
+    ]);
   const canManage = authorize("target.manage", { tenantId: principal.tenantId }, principal).allow;
   const userOptions = Object.entries(userLabels).map(([id, label]) => ({ id, label }));
 
@@ -48,6 +51,30 @@ export default async function TransformationPage() {
       kpiCount: g.kpis.length,
       epicCount: g.epicLinks.length,
     }));
+
+  // "Reise über Zeit": serialise the captured snapshots and pre-compute the
+  // sparkline geometry server-side (the client panel stays free of the service).
+  const TREND_W = 280;
+  const TREND_H = 48;
+  const snapshotPoints = snapshots.map((s) => ({
+    capturedOn: s.capturedOn.toISOString().slice(0, 10),
+    goalAchievement: s.goalAchievement,
+    achievedGoalCount: s.achievedGoalCount,
+    goalCount: s.goalCount,
+  }));
+  const firstAchieved = snapshots.find((s) => s.achievedGoalCount > 0);
+  const trend = {
+    snapshots: snapshotPoints,
+    points: sparklinePoints(
+      snapshots.map((s) => s.goalAchievement),
+      TREND_W,
+      TREND_H,
+    ),
+    viewBox: { width: TREND_W, height: TREND_H },
+    firstAchievement: firstAchieved
+      ? { capturedOn: firstAchieved.capturedOn.toISOString().slice(0, 10) }
+      : null,
+  };
 
   const model = activeModel
     ? {
@@ -74,6 +101,8 @@ export default async function TransformationPage() {
         goals={goalSummaries}
         gap={gap}
         adoption={adoption}
+        trend={trend}
+        canManage={canManage}
         outcomes={outcomes
           .filter((o) => o.goalId == null) // goal-bound KPIs show under their goal
           .map((o) => ({

@@ -91,7 +91,8 @@ export type AuditAction =
   | "transformation_goal.updated"
   | "transformation_goal.deleted"
   | "goal_epic.linked"
-  | "goal_epic.unlinked";
+  | "goal_epic.unlinked"
+  | "transformation_snapshot.captured";
 
 export type AuditResourceType =
   | "initiative"
@@ -111,7 +112,8 @@ export type AuditResourceType =
   | "target_outcome"
   | "transformation_action"
   | "transformation_goal"
-  | "goal_epic_link";
+  | "goal_epic_link"
+  | "transformation_snapshot";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

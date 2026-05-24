@@ -13,6 +13,10 @@ import {
   type OperatingModelTemplate,
 } from "@/domain/operating-model";
 import type { OutcomeView } from "@/features/transformation/components/target-outcomes-manager";
+import {
+  TransformationTrend,
+  type SnapshotPoint,
+} from "@/features/transformation/components/transformation-trend";
 
 /** The declared target operating model, summarised for the cockpit header. */
 export interface ModelSummary {
@@ -32,12 +36,22 @@ export interface GoalSummary {
   epicCount: number;
 }
 
+/** The "Reise über Zeit" data, prepared server-side for the trend panel. */
+export interface TrendData {
+  snapshots: SnapshotPoint[];
+  points: { x: number; y: number }[];
+  viewBox: { width: number; height: number };
+  firstAchievement: { capturedOn: string } | null;
+}
+
 interface Props {
   model: ModelSummary | null;
   goals: GoalSummary[];
   gap: StructureGap;
   adoption: PracticeAdoption;
   outcomes: OutcomeView[];
+  trend: TrendData;
+  canManage: boolean;
 }
 
 function pct(n: number): string {
@@ -58,8 +72,17 @@ function outcomeProgress(o: OutcomeView): number {
  * management-defined target (Soll). Reads the structure gap; practice/outcome
  * gaps follow in later stories. Empty until a target is activated.
  */
-export function TransformationCockpit({ model, goals, gap, adoption, outcomes }: Props) {
-  if (!gap.hasTarget && outcomes.length === 0 && goals.length === 0) {
+export function TransformationCockpit({
+  model,
+  goals,
+  gap,
+  adoption,
+  outcomes,
+  trend,
+  canManage,
+}: Props) {
+  const showTrend = trend.snapshots.length > 0 || canManage;
+  if (!gap.hasTarget && outcomes.length === 0 && goals.length === 0 && !showTrend) {
     return (
       <div className="rounded-lg border border-dashed p-6 text-center">
         <Target className="mx-auto h-6 w-6 text-muted-foreground" />
@@ -163,6 +186,17 @@ export function TransformationCockpit({ model, goals, gap, adoption, outcomes }:
             ))}
           </ul>
         </section>
+      )}
+
+      {/* Zielerreichung über Zeit — die Reise über Zeit */}
+      {showTrend && (
+        <TransformationTrend
+          snapshots={trend.snapshots}
+          points={trend.points}
+          viewBox={trend.viewBox}
+          firstAchievement={trend.firstAchievement}
+          canManage={canManage}
+        />
       )}
 
       {/* Nächste Schritte — die Coaching-Schicht */}
