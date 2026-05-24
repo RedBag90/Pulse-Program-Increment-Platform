@@ -27,7 +27,7 @@ function ArtHeader({
 }) {
   return (
     <div className="w-56 shrink-0 space-y-1 border-r p-3">
-      <Link href={`/capacity/arts/${art.id}`} className="text-sm font-medium hover:underline">
+      <Link href={`/art/${art.id}`} className="text-sm font-medium hover:underline">
         {art.name}
       </Link>
       <p className="text-xs text-muted-foreground">{art.valueStream.name}</p>

@@ -50,10 +50,7 @@ export function StructureTree({
             <details key={vs.id} open className="rounded-lg border bg-card">
               <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3">
                 <Network className="h-4 w-4 shrink-0 text-primary" />
-                <Link
-                  href={`/capacity/value-streams/${vs.id}`}
-                  className="font-medium hover:underline"
-                >
+                <Link href={`/value-streams/${vs.id}`} className="font-medium hover:underline">
                   {vs.name}
                 </Link>
                 <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
@@ -84,7 +81,7 @@ export function StructureTree({
                           <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2">
                             <Zap className="h-3.5 w-3.5 shrink-0 text-amber-500" />
                             <Link
-                              href={`/capacity/arts/${art.id}`}
+                              href={`/art/${art.id}/settings`}
                               className="text-sm font-medium hover:underline"
                             >
                               {art.name}
@@ -117,7 +114,7 @@ export function StructureTree({
                                   >
                                     <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                                     <Link
-                                      href={`/capacity/teams/${team.id}`}
+                                      href={`/team/${team.id}`}
                                       className="font-medium hover:underline"
                                     >
                                       {team.name}

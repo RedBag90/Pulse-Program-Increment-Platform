@@ -1,132 +1,15 @@
-import type { ReactNode } from "react";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
-import { getTeam } from "@/server/services/team";
-import { listAuditHistory } from "@/server/services/audit-history";
-import { listTenantApprovers } from "@/server/services/epic-approval";
-import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { userLabel } from "@/components/detail/initiative-labels";
-import { teamTypeLabel } from "@/domain/team-type";
-import {
-  EntityDetailShell,
-  resolveTab,
-  type DetailTab,
-} from "@/components/detail/entity-detail-shell";
-import { AuditTimeline } from "@/components/detail/audit-timeline";
-import { TeamOverviewForm } from "@/features/capacity/components/team-overview-form";
-import { redirect } from "next/navigation";
-import type { TeamId } from "@/domain/types";
-
-const TABS: readonly DetailTab[] = [
-  { key: "overview", label: "Overview" },
-  { key: "history", label: "Verlauf" },
-];
+import { redirect } from "@/i18n/navigation";
+import { routing } from "@/i18n/routing";
 
 interface Props {
   params: Promise<{ locale: string; id: string }>;
-  searchParams: Promise<{ tab?: string }>;
 }
 
-export default async function TeamDetailPage({ params, searchParams }: Props) {
-  const { id } = await params;
-  const { tab } = await searchParams;
-  const activeTab = resolveTab(TABS, tab);
-
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) redirect("/sign-in");
-
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const team = await getTeam(db, principal.tenantId, id as TeamId);
-  if (!team) redirect("/structure");
-
-  const canEdit =
-    principal.roles.includes("rte") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
-
-  // Remounts the uncontrolled edit form whenever the persisted Team data
-  // changes (navigation between teams, or a save) so its `defaultValue`s never
-  // change on a live instance — and never resets while the user is editing.
-  const formKey = [
-    team.id,
-    team.name,
-    team.description ?? "",
-    team.headcount ?? "",
-    team.targetVelocity ?? "",
-    team.scrumMasterId ?? "",
-    team.productOwnerId ?? "",
-    team.teamType ?? "",
-  ].join("|");
-
-  const [history, approvers, userLabels] = await Promise.all([
-    listAuditHistory(db, principal.tenantId, "team", team.id),
-    listTenantApprovers(db, principal.tenantId),
-    listTenantUserLabels(db, principal.tenantId),
-  ]);
-  const events = history.map((e) => ({
-    id: e.id,
-    action: e.action,
-    occurredAt: e.occurredAt.toISOString(),
-  }));
-  const teamUsers = approvers.filter((u) => u.roles.includes("team_editor"));
-
-  return (
-    <EntityDetailShell
-      backHref={`/capacity/arts/${team.artId}`}
-      backLabel={`Zurück zu ${team.art.name}`}
-      title={team.name}
-      badge={team.headcount != null ? `${team.headcount} Mitglieder` : undefined}
-      tabs={TABS}
-      activeTab={activeTab}
-      basePath={`/capacity/teams/${team.id}`}
-    >
-      {activeTab === "overview" &&
-        (canEdit ? (
-          <TeamOverviewForm
-            key={formKey}
-            id={team.id}
-            artId={team.artId}
-            name={team.name}
-            description={team.description ?? ""}
-            headcount={team.headcount?.toString() ?? ""}
-            targetVelocity={team.targetVelocity?.toString() ?? ""}
-            scrumMasterId={team.scrumMasterId ?? ""}
-            productOwnerId={team.productOwnerId ?? ""}
-            teamType={team.teamType ?? ""}
-            teamUsers={teamUsers}
-            userLabels={userLabels}
-          />
-        ) : (
-          <dl className="max-w-xl space-y-3 text-sm">
-            <Field label="Name">{team.name}</Field>
-            <Field label="Beschreibung">{team.description ?? "—"}</Field>
-            <Field label="Team-Typ">{teamTypeLabel(team.teamType)}</Field>
-            <Field label="Scrum Master">
-              {team.scrumMasterId ? userLabel(team.scrumMasterId, userLabels) : "—"}
-            </Field>
-            <Field label="Product Owner">
-              {team.productOwnerId ? userLabel(team.productOwnerId, userLabels) : "—"}
-            </Field>
-            <Field label="Mitgliederzahl">{team.headcount ?? "—"}</Field>
-            <Field label="Ziel-Velocity">{team.targetVelocity ?? "—"}</Field>
-          </dl>
-        ))}
-
-      {activeTab === "history" && (
-        <section>
-          <h2 className="mb-3 text-lg font-medium">Verlauf</h2>
-          <AuditTimeline events={events} />
-        </section>
-      )}
-    </EntityDetailShell>
-  );
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5">{children}</dd>
-    </div>
-  );
+/** Retired route — Team detail now lives at `/team/[id]/settings`. */
+export default async function CapacityTeamRedirect({ params }: Props) {
+  const { locale, id } = await params;
+  const resolvedLocale = routing.locales.includes(locale as (typeof routing.locales)[number])
+    ? locale
+    : routing.defaultLocale;
+  redirect({ href: `/team/${id}/settings`, locale: resolvedLocale });
 }

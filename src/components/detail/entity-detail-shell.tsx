@@ -22,7 +22,7 @@ interface Props {
   badge?: ReactNode;
   tabs: readonly DetailTab[];
   activeTab: string;
-  /** Detail route without query, e.g. `/capacity/arts/<id>`; tab links append `?tab=`. */
+  /** Detail route without query, e.g. `/value-streams/<id>`; tab links append `?tab=`. */
   basePath: string;
   headerActions?: ReactNode;
   /** Optional right-hand zone (e.g. an activity feed). When set the layout is

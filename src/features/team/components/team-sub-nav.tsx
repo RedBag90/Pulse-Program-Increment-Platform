@@ -4,22 +4,19 @@ import { Link } from "@/i18n/navigation";
 import { usePathname } from "next/navigation";
 
 interface Props {
+  teamId: string;
+  teamName: string;
   artId: string;
   artName: string;
 }
 
-export function ArtSubNav({ artId, artName }: Props) {
+export function TeamSubNav({ teamId, teamName, artId, artName }: Props) {
   const pathname = usePathname();
 
   const tabs = [
-    { href: `/art/${artId}`, label: "Overview", segment: "" },
-    { href: `/art/${artId}/features`, label: "Features", segment: "features" },
-    { href: `/art/${artId}/pi`, label: "Program Increments", segment: "pi" },
-    { href: `/art/${artId}/teams`, label: "Teams", segment: "teams" },
-    { href: `/art/${artId}/velocity`, label: "Velocity", segment: "velocity" },
-    { href: `/art/${artId}/impediments`, label: "Impediments", segment: "impediments" },
-    { href: `/art/${artId}/settings`, label: "Settings", segment: "settings" },
-    { href: `/art/${artId}/history`, label: "History", segment: "history" },
+    { href: `/team/${teamId}`, label: "Backlog", segment: "" },
+    { href: `/team/${teamId}/settings`, label: "Settings", segment: "settings" },
+    { href: `/team/${teamId}/history`, label: "History", segment: "history" },
   ] as const;
 
   return (
@@ -29,15 +26,19 @@ export function ArtSubNav({ artId, artName }: Props) {
           ARTs
         </Link>
         <span>/</span>
-        <span className="text-foreground font-medium">{artName}</span>
+        <Link href={`/art/${artId}/teams`} className="hover:underline">
+          {artName}
+        </Link>
+        <span>/</span>
+        <span className="text-foreground font-medium">{teamName}</span>
       </nav>
 
       <div className="border-b flex gap-0">
         {tabs.map(({ href, label, segment }) => {
           const active =
             segment === ""
-              ? pathname.endsWith(`/art/${artId}`)
-              : pathname.includes(`/art/${artId}/${segment}`);
+              ? pathname.endsWith(`/team/${teamId}`)
+              : pathname.includes(`/team/${teamId}/${segment}`);
 
           return (
             <Link

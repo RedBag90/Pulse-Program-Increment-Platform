@@ -2,7 +2,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { BacklogStoryRow } from "@/features/team/components/backlog-story-row";
 import { BacklogPiFilter } from "@/features/team/components/backlog-pi-filter";
-import { Breadcrumbs } from "@/components/nav/breadcrumbs";
+import { TeamSubNav } from "@/features/team/components/team-sub-nav";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import { InitiativeLevel } from "@/domain/types";
@@ -74,13 +74,7 @@ export default async function TeamBacklogPage({ params, searchParams }: Props) {
 
   return (
     <main className="p-8 max-w-5xl mx-auto space-y-6">
-      <Breadcrumbs
-        items={[
-          { label: "ARTs", href: "/structure?tab=arts" },
-          { label: team.art.name, href: `/art/${artId}/teams` },
-          { label: `${team.name} — Backlog` },
-        ]}
-      />
+      <TeamSubNav teamId={teamId} teamName={team.name} artId={artId} artName={team.art.name} />
 
       <div className="flex items-center justify-between">
         <div>

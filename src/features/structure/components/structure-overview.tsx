@@ -61,9 +61,9 @@ export function StructureOverview({
   const totalFte = teams.reduce((n, t) => n + (t.headcount ?? 0), 0);
   const totalEpics = Object.values(epicsByValueStream).reduce((n, c) => n + c, 0);
 
-  const vsHref = (id: string) => `/capacity/value-streams/${id}`;
-  const artHref = (id: string) => `/capacity/arts/${id}`;
-  const teamHref = (id: string) => `/capacity/teams/${id}`;
+  const vsHref = (id: string) => `/value-streams/${id}`;
+  const artHref = (id: string) => `/art/${id}`;
+  const teamHref = (id: string) => `/team/${id}`;
 
   // Gaps are gauged against the declared target: governance-role gaps only
   // matter when the portfolio level is part of the target, RTE/team-structure

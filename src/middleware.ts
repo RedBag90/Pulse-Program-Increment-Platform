@@ -8,7 +8,7 @@ const intlMiddleware = createIntlMiddleware(routing);
 
 /** Pathname patterns that require an authenticated session. */
 const PROTECTED_PATTERNS = [
-  /^\/[a-z]{2}\/(start|portfolio|structure|transformation|art|team|admin|pi)/,
+  /^\/[a-z]{2}\/(start|portfolio|structure|transformation|art|team|value-streams|admin|pi)/,
 ];
 
 /** Pathname patterns accessible only to unauthenticated users. */

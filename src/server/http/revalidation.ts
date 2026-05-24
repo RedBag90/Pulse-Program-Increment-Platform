@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 // hardcoding paths in each `onSuccess`; "which pages show ARTs?" is answered
 // here, once, rather than smeared across every ART/Team/Feature action.
 //
-// Paths use the App Router template form (`/capacity/arts/[id]`) revalidated
+// Paths use the App Router template form (`/art/[artId]/settings`) revalidated
 // with the `"page"` type, which refreshes *all* instances of that dynamic
 // route — no per-call ids to thread. Static routes are revalidated as-is.
 // The set per resource is a deliberate superset: over-revalidation is cheap and
@@ -27,8 +27,14 @@ export type RevalidationResource =
   | "dependency";
 
 const REGISTRY: Record<RevalidationResource, readonly string[]> = {
-  art: ["/structure", "/capacity/arts/[id]", "/capacity/value-streams/[id]"],
-  team: ["/structure", "/art/[artId]/teams", "/capacity/teams/[id]", "/capacity/arts/[id]"],
+  art: ["/structure", "/art/[artId]", "/art/[artId]/settings", "/value-streams/[id]"],
+  team: [
+    "/structure",
+    "/art/[artId]/teams",
+    "/art/[artId]/settings",
+    "/team/[teamId]",
+    "/team/[teamId]/settings",
+  ],
   feature: [
     "/art/[artId]/features",
     "/portfolio/epics/[id]",
@@ -38,7 +44,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/pi-planning",
   ],
   epic: ["/portfolio", "/portfolio/epics", "/portfolio/epics/[id]"],
-  valueStream: ["/structure", "/capacity/value-streams/[id]"],
+  valueStream: ["/structure", "/value-streams/[id]"],
   pi: ["/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi/[piId]/objectives"],
   story: ["/feature/[featureId]", "/team/[teamId]"],
   impediment: ["/art/[artId]/impediments"],

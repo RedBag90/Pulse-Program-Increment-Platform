@@ -13,14 +13,14 @@ describe("revalidateFor", () => {
     revalidateFor("art");
     const paths = revalidatePath.mock.calls.map((c) => c[0]);
     expect(paths).toEqual(
-      expect.arrayContaining(["/structure", "/capacity/arts/[id]", "/capacity/value-streams/[id]"]),
+      expect.arrayContaining(["/structure", "/art/[artId]/settings", "/value-streams/[id]"]),
     );
   });
 
   it("passes the 'page' type for dynamic-segment templates and omits it for static routes", () => {
     revalidateFor("art");
     const calls = Object.fromEntries(revalidatePath.mock.calls.map((c) => [c[0], c[1]]));
-    expect(calls["/capacity/arts/[id]"]).toBe("page"); // dynamic template
+    expect(calls["/art/[artId]/settings"]).toBe("page"); // dynamic template
     expect(calls["/structure"]).toBeUndefined(); // static route, no type arg
   });
 
@@ -41,6 +41,6 @@ describe("revalidateFor", () => {
 
   it("issues one revalidatePath call per registered path", () => {
     revalidateFor("valueStream");
-    expect(revalidatePath).toHaveBeenCalledTimes(2); // /structure + /capacity/value-streams/[id]
+    expect(revalidatePath).toHaveBeenCalledTimes(2); // /structure + /value-streams/[id]
   });
 });
