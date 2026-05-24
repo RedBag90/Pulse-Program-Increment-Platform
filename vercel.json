@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/outbox",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/snapshots",
+      "schedule": "0 2 * * *"
     }
   ]
 }

@@ -15,20 +15,21 @@ model Tenant {
   region    String   @db.VarChar(10)
   createdAt DateTime @default(now()) @map("created_at")
 
-  valueStreams        ValueStream[]
-  arts                Art[]
-  teams               Team[]
-  initiatives         Initiative[]
-  kpis                Kpi[]
-  epicApprovals       EpicApproval[]
-  userRoleAssignments UserRoleAssignment[]
-  jiraConfig          JiraConfig?
-  azureDevOpsConfig   AzureDevOpsConfig?
-  targetModels         TargetOperatingModel[]
-  targetOutcomes       TargetOutcome[]
-  transformationActions TransformationAction[]
-  transformationGoals  TransformationGoal[]
-  goalEpicLinks        GoalEpicLink[]
+  valueStreams            ValueStream[]
+  arts                    Art[]
+  teams                   Team[]
+  initiatives             Initiative[]
+  kpis                    Kpi[]
+  epicApprovals           EpicApproval[]
+  userRoleAssignments     UserRoleAssignment[]
+  jiraConfig              JiraConfig?
+  azureDevOpsConfig       AzureDevOpsConfig?
+  targetModels            TargetOperatingModel[]
+  targetOutcomes          TargetOutcome[]
+  transformationActions   TransformationAction[]
+  transformationGoals     TransformationGoal[]
+  goalEpicLinks           GoalEpicLink[]
+  transformationSnapshots TransformationSnapshot[]
 
   @@map("tenants")
 }
@@ -161,19 +162,40 @@ model TransformationAction {
   @@map("transformation_actions")
 }
 
+/// A daily point-in-time capture of the transformation's headline metrics — the
+/// "Reise über Zeit". One row per tenant per day (idempotent upsert), so the
+/// cockpit can plot how goal achievement and structure progress trend. Derived
+/// values only; recomputable, never edited.
+model TransformationSnapshot {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  capturedOn        DateTime @map("captured_on") @db.Date
+  goalAchievement   Float    @map("goal_achievement") // 0..1 mean goal KPI progress
+  structureProgress Float    @map("structure_progress") // 0..1 structure gap progress
+  goalCount         Int      @map("goal_count")
+  achievedGoalCount Int      @map("achieved_goal_count")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, capturedOn])
+  @@index([tenantId])
+  @@map("transformation_snapshots")
+}
+
 model ValueStream {
-  id             String   @id @default(uuid()) @db.Uuid
-  tenantId       String   @map("tenant_id") @db.Uuid
-  name           String
-  description    String?
-  budgetAmount   Decimal? @map("budget_amount") @db.Decimal(14, 2)
-  budgetCurrency String?  @map("budget_currency") @db.Char(3)
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  name              String
+  description       String?
+  budgetAmount      Decimal?  @map("budget_amount") @db.Decimal(14, 2)
+  budgetCurrency    String?   @map("budget_currency") @db.Char(3)
   // Governance: who signs off Epics in this value stream (Finance party) and the
   // responsible VMO — loose user ids (users live in Supabase auth).
-  financeApproverId String? @map("finance_approver_id") @db.Uuid
-  vmoId             String? @map("vmo_id") @db.Uuid
-  createdAt      DateTime  @default(now()) @map("created_at")
-  deletedAt      DateTime? @map("deleted_at")
+  financeApproverId String?   @map("finance_approver_id") @db.Uuid
+  vmoId             String?   @map("vmo_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at")
+  deletedAt         DateTime? @map("deleted_at")
 
   tenant Tenant       @relation(fields: [tenantId], references: [id])
   arts   Art[]
@@ -186,13 +208,13 @@ model ValueStream {
 }
 
 model Art {
-  id             String   @id @default(uuid()) @db.Uuid
-  tenantId       String   @map("tenant_id") @db.Uuid
-  valueStreamId  String   @map("value_stream_id") @db.Uuid
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  valueStreamId  String    @map("value_stream_id") @db.Uuid
   name           String
   description    String?
-  piCadenceWeeks Int      @default(10) @map("pi_cadence_weeks")
-  rteId          String?  @map("rte_id") @db.Uuid // Release Train Engineer
+  piCadenceWeeks Int       @default(10) @map("pi_cadence_weeks")
+  rteId          String?   @map("rte_id") @db.Uuid // Release Train Engineer
   createdAt      DateTime  @default(now()) @map("created_at")
   deletedAt      DateTime? @map("deleted_at")
 
@@ -238,7 +260,7 @@ model ProgramIncrement {
   endDate   DateTime @map("end_date") @db.Date
   status    String   @default("planned")
 
-  art         Art              @relation(fields: [artId], references: [id])
+  art         Art           @relation(fields: [artId], references: [id])
   sprints     Sprint[]
   initiatives Initiative[]
   objectives  PiObjective[]
@@ -248,17 +270,17 @@ model ProgramIncrement {
 }
 
 model PiObjective {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenantId    String   @map("tenant_id") @db.Uuid
-  piId        String   @map("pi_id") @db.Uuid
-  teamId      String   @map("team_id") @db.Uuid
-  title       String
-  description String?  @db.Text
-  businessValue Int?   @map("business_value") // 1-10
-  committed   Boolean  @default(true)
-  confidence  Int?     @map("confidence") // SAFe fist-of-five vote, 1-5
-  createdAt   DateTime @default(now()) @map("created_at")
-  createdBy   String   @map("created_by") @db.Uuid
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  piId          String   @map("pi_id") @db.Uuid
+  teamId        String   @map("team_id") @db.Uuid
+  title         String
+  description   String?  @db.Text
+  businessValue Int?     @map("business_value") // 1-10
+  committed     Boolean  @default(true)
+  confidence    Int?     @map("confidence") // SAFe fist-of-five vote, 1-5
+  createdAt     DateTime @default(now()) @map("created_at")
+  createdBy     String   @map("created_by") @db.Uuid
 
   pi   ProgramIncrement @relation(fields: [piId], references: [id])
   team Team             @relation(fields: [teamId], references: [id])
@@ -286,11 +308,11 @@ model Sprint {
 }
 
 model Initiative {
-  id          String  @id @default(uuid()) @db.Uuid
-  tenantId    String  @map("tenant_id") @db.Uuid
-  level       Int // 0=EPIC, 1=FEATURE, 2=STORY, 3=TASK
-  parentId    String? @map("parent_id") @db.Uuid
-  path        String // materialized path
+  id       String  @id @default(uuid()) @db.Uuid
+  tenantId String  @map("tenant_id") @db.Uuid
+  level    Int // 0=EPIC, 1=FEATURE, 2=STORY, 3=TASK
+  parentId String? @map("parent_id") @db.Uuid
+  path     String // materialized path
 
   title       String
   description String?  @db.Text
@@ -343,10 +365,10 @@ model Initiative {
 
   // Multi-party approval workflow phase (EPIC only): draft → hypothesis_review →
   // business_case → stakeholder_review → approved. Independent of stageGate.
-  approvalPhase String? @map("approval_phase")
+  approvalPhase    String? @map("approval_phase")
   // Active approval revision (EPIC only). Bumped each time a new approval cycle
   // is started on an already-approved Epic; EpicApproval rows are tagged with it.
-  approvalRevision Int @default(1) @map("approval_revision")
+  approvalRevision Int     @default(1) @map("approval_revision")
 
   // Epic approval metadata (set when an Epic is approved)
   approvedBy      String?   @map("approved_by") @db.Uuid
@@ -367,8 +389,8 @@ model Initiative {
   pi          ProgramIncrement? @relation(fields: [piId], references: [id])
   sprint      Sprint?           @relation(fields: [sprintId], references: [id])
 
-  dependenciesOut Dependency[] @relation("From")
-  dependenciesIn  Dependency[] @relation("To")
+  dependenciesOut Dependency[]   @relation("From")
+  dependenciesIn  Dependency[]   @relation("To")
   kpis            Kpi[]
   epicApprovals   EpicApproval[]
   goalLinks       GoalEpicLink[]
@@ -487,7 +509,7 @@ model Impediment {
   title       String
   description String?   @db.Text
   severity    String    @default("medium") // low | medium | high | critical
-  status      String    @default("open")   // open | escalated | resolved
+  status      String    @default("open") // open | escalated | resolved
   raisedBy    String    @map("raised_by") @db.Uuid
   resolvedAt  DateTime? @map("resolved_at")
   resolvedBy  String?   @map("resolved_by") @db.Uuid
@@ -495,7 +517,7 @@ model Impediment {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  art    Art              @relation(fields: [artId], references: [id])
+  art    Art               @relation(fields: [artId], references: [id])
   pi     ProgramIncrement? @relation(fields: [piId], references: [id])
   sprint Sprint?           @relation(fields: [sprintId], references: [id])
 
@@ -505,18 +527,18 @@ model Impediment {
 }
 
 model JiraConfig {
-  id             String    @id @default(uuid()) @db.Uuid
-  tenantId       String    @unique @map("tenant_id") @db.Uuid
-  cloudId        String    @map("cloud_id") // Atlassian cloud ID
-  instanceUrl    String    @map("instance_url") // https://yoursite.atlassian.net
-  accessToken    String    @map("access_token") @db.Text
-  refreshToken   String    @map("refresh_token") @db.Text
-  tokenExpiresAt DateTime  @map("token_expires_at")
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @unique @map("tenant_id") @db.Uuid
+  cloudId        String   @map("cloud_id") // Atlassian cloud ID
+  instanceUrl    String   @map("instance_url") // https://yoursite.atlassian.net
+  accessToken    String   @map("access_token") @db.Text
+  refreshToken   String   @map("refresh_token") @db.Text
+  tokenExpiresAt DateTime @map("token_expires_at")
   // projectKey: JSON map of artId → Jira project key, e.g. {"<artId>": "PROJ"}
-  projectKeyMap  Json      @default("{}") @map("project_key_map")
-  webhookSecret  String    @map("webhook_secret") @db.Text
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  projectKeyMap  Json     @default("{}") @map("project_key_map")
+  webhookSecret  String   @map("webhook_secret") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
@@ -524,17 +546,17 @@ model JiraConfig {
 }
 
 model AzureDevOpsConfig {
-  id             String    @id @default(uuid()) @db.Uuid
-  tenantId       String    @unique @map("tenant_id") @db.Uuid
-  organization   String    // e.g. "my-org"
-  accessToken    String    @map("access_token") @db.Text
-  refreshToken   String    @map("refresh_token") @db.Text
-  tokenExpiresAt DateTime  @map("token_expires_at")
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @unique @map("tenant_id") @db.Uuid
+  organization   String // e.g. "my-org"
+  accessToken    String   @map("access_token") @db.Text
+  refreshToken   String   @map("refresh_token") @db.Text
+  tokenExpiresAt DateTime @map("token_expires_at")
   // projectMap: JSON map of artId → "Organization/Project", e.g. {"<artId>": "myorg/MyProject"}
-  projectMap     Json      @default("{}") @map("project_map")
-  webhookSecret  String    @map("webhook_secret") @db.Text
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  projectMap     Json     @default("{}") @map("project_map")
+  webhookSecret  String   @map("webhook_secret") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
