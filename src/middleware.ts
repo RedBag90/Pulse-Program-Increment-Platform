@@ -7,7 +7,9 @@ import { updateSession } from "@/lib/supabase/middleware";
 const intlMiddleware = createIntlMiddleware(routing);
 
 /** Pathname patterns that require an authenticated session. */
-const PROTECTED_PATTERNS = [/^\/[a-z]{2}\/(portfolio|structure|transformation|art|team|admin|pi)/];
+const PROTECTED_PATTERNS = [
+  /^\/[a-z]{2}\/(start|portfolio|structure|transformation|art|team|admin|pi)/,
+];
 
 /** Pathname patterns accessible only to unauthenticated users. */
 const AUTH_ONLY_PATTERNS = [/^\/[a-z]{2}\/(sign-in|sign-up)/];
@@ -36,7 +38,7 @@ export async function middleware(request: NextRequest) {
 
   if (user && isAuthOnly(pathname)) {
     const url = request.nextUrl.clone();
-    url.pathname = `/${locale}/portfolio`;
+    url.pathname = `/${locale}/start`;
     return NextResponse.redirect(url);
   }
 

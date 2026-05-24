@@ -30,20 +30,21 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 
 ## Rollen
 
-| Rolle                | Persona (Kurzform)                                                      |
-| -------------------- | ----------------------------------------------------------------------- |
-| `platform_admin`     | Plattform-Betreiber — betreibt Pulse mandantenübergreifend              |
-| `tenant_admin`       | Mandanten-Administrator — Benutzer, Rollen, ARTs, Integrationen         |
-| `portfolio_manager`  | Portfolio-Lead / LPM — Portfolio-Backlog & Wertstrom-Finanzierung       |
-| `value_stream_owner` | Wertstrom-Verantwortlicher (~Business Owner) — steuert seinen Wertstrom |
-| `epic_owner`         | Epic-Verantwortlicher — formuliert/pflegt Epics, reicht zur QS ein      |
-| `vmo`                | Value Management Office — Epic-QS & Stage-Gate-Governance               |
-| `rte`                | Release Train Engineer — ART-Orchestrierung, PI-Planung, Feature-QS     |
-| `feature_owner`      | Feature-Verantwortlicher / Product Manager — Feature-Backlog & WSJF     |
-| `team_editor`        | Scrum Master / Product Owner — Team-Backlog & Sprints                   |
-| `story_owner`        | Tech Lead — Stories end-to-end                                          |
-| `task_owner`         | Entwickler — eigene Tasks                                               |
-| `viewer`             | nur Lesen (über RLS)                                                    |
+| Rolle                 | Persona (Kurzform)                                                                 |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| `platform_admin`      | Plattform-Betreiber — betreibt Pulse mandantenübergreifend                         |
+| `tenant_admin`        | Mandanten-Administrator — Benutzer, Rollen, ARTs, Integrationen                    |
+| `transformation_lead` | Transformations-Lead (Coach / SPC) — definiert den Zielzustand, steuert den Wandel |
+| `portfolio_manager`   | Portfolio-Lead / LPM — Portfolio-Backlog & Wertstrom-Finanzierung                  |
+| `value_stream_owner`  | Wertstrom-Verantwortlicher (~Business Owner) — steuert seinen Wertstrom            |
+| `epic_owner`          | Epic-Verantwortlicher — formuliert/pflegt Epics, reicht zur QS ein                 |
+| `vmo`                 | Value Management Office — Epic-QS & Stage-Gate-Governance                          |
+| `rte`                 | Release Train Engineer — ART-Orchestrierung, PI-Planung, Feature-QS                |
+| `feature_owner`       | Feature-Verantwortlicher / Product Manager — Feature-Backlog & WSJF                |
+| `team_editor`         | Scrum Master / Product Owner — Team-Backlog & Sprints                              |
+| `story_owner`         | Tech Lead — Stories end-to-end                                                     |
+| `task_owner`          | Entwickler — eigene Tasks                                                          |
+| `viewer`              | nur Lesen (über RLS)                                                               |
 
 ---
 
@@ -51,13 +52,14 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 
 ### Governance
 
-| Funktion               | Beschreibung                                        |
-| ---------------------- | --------------------------------------------------- |
-| `tenant.create`        | Neuen Mandanten anlegen (nur `platform_admin`)      |
-| `tenant.users.manage`  | Benutzer, Rollen und Sichtbarkeits-Scopes verwalten |
-| `integration.manage`   | Integrationen (Jira / Azure DevOps) konfigurieren   |
-| `admin.audit-log.read` | Audit-Log einsehen                                  |
-| `admin.users.read`     | Benutzerliste einsehen                              |
+| Funktion               | Beschreibung                                                                                                                       |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `tenant.create`        | Neuen Mandanten anlegen (nur `platform_admin`)                                                                                     |
+| `tenant.users.manage`  | Benutzer, Rollen und Sichtbarkeits-Scopes verwalten                                                                                |
+| `integration.manage`   | Integrationen (Jira / Azure DevOps) konfigurieren                                                                                  |
+| `admin.audit-log.read` | Audit-Log einsehen                                                                                                                 |
+| `admin.users.read`     | Benutzerliste einsehen                                                                                                             |
+| `target.manage`        | Zielzustand (Target Operating Model) + Outcomes definieren/aktivieren (`tenant_admin`, `transformation_lead`, `portfolio_manager`) |
 
 ### Portfolio
 

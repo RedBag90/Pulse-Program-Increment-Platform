@@ -75,6 +75,7 @@ const {
   STORY_OWNER,
   TASK_OWNER,
   TENANT_ADMIN,
+  TRANSFORMATION_LEAD,
 } = ROLES;
 
 /**
@@ -92,9 +93,9 @@ export const POLICIES: Record<Action, Grant[]> = {
   "admin.audit-log.read": [{ roles: [TENANT_ADMIN] }],
   "admin.users.read": [{ roles: [TENANT_ADMIN] }],
   // Define/manage the organisation's target operating model (the Soll the
-  // transformation drives toward). Management-owned: the LPM/portfolio lead and
-  // the tenant admin. A dedicated `transformation_lead` role is added in Phase 1.
-  "target.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
+  // transformation drives toward). Management-owned: the transformation lead
+  // (coach / SPC), the LPM/portfolio lead, and the tenant admin.
+  "target.manage": [{ roles: [TENANT_ADMIN, TRANSFORMATION_LEAD, PORTFOLIO_MANAGER] }],
 
   // ── Portfolio ───────────────────────────────────────────────────────────
   // The portfolio manager funds value streams and owns the Epic backlog.

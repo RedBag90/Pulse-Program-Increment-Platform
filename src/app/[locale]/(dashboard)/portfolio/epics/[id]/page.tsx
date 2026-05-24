@@ -6,11 +6,12 @@ import { listKpis } from "@/server/services/kpi";
 import { listProgramIncrementsForArts } from "@/server/services/pi";
 import { listEpicApprovals, listTenantApprovers } from "@/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { EntityDetailShell } from "@/components/detail/entity-detail-shell";
+import { getTenantPractices } from "@/server/services/target-model";
+import { EntityDetailShell, resolveTab } from "@/components/detail/entity-detail-shell";
 import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
 import { PhaseBadge } from "@/components/detail/phase-badge";
 import { actionLabel, userLabel } from "@/components/detail/initiative-labels";
-import { EPIC_TABS, resolveEpicTab } from "@/features/portfolio/components/epic-detail-shell";
+import { EPIC_TABS } from "@/features/portfolio/components/epic-detail-shell";
 import { EpicOverviewTab } from "@/features/portfolio/components/epic-overview-tab";
 import { EpicKpisTab, type KpiRow } from "@/features/portfolio/components/epic-kpis-tab";
 import {
@@ -46,7 +47,6 @@ interface Props {
 export default async function EpicDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
   const { tab } = await searchParams;
-  const activeTab = resolveEpicTab(tab);
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -80,14 +80,24 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   }));
   const artIds = [...new Set(breakdownFeatures.map((f) => f.artId).filter(Boolean))];
 
-  const [historyEvents, kpis, pis, approvals, approvers, userLabels] = await Promise.all([
-    listInitiativeHistory(db, principal.tenantId, epic.id),
-    listKpis(db, principal.tenantId, epic.id as EpicId),
-    listProgramIncrementsForArts(db, principal.tenantId, artIds),
-    listEpicApprovals(db, principal.tenantId, epic.id as EpicId),
-    listTenantApprovers(db, principal.tenantId),
-    listTenantUserLabels(db, principal.tenantId),
-  ]);
+  const [historyEvents, kpis, pis, approvals, approvers, userLabels, practices] = await Promise.all(
+    [
+      listInitiativeHistory(db, principal.tenantId, epic.id),
+      listKpis(db, principal.tenantId, epic.id as EpicId),
+      listProgramIncrementsForArts(db, principal.tenantId, artIds),
+      listEpicApprovals(db, principal.tenantId, epic.id as EpicId),
+      listTenantApprovers(db, principal.tenantId),
+      listTenantUserLabels(db, principal.tenantId),
+      getTenantPractices(db, principal.tenantId),
+    ],
+  );
+
+  // The multi-party approval workflow is only present when the target enables it
+  // — otherwise the "Freigaben" tab and the phase badge are hidden.
+  const tabs = practices.multiPartyApproval
+    ? EPIC_TABS
+    : EPIC_TABS.filter((t) => t.key !== "approvals");
+  const activeTab = resolveTab(tabs, tab);
 
   const approvalPhase = (epic.approvalPhase as ApprovalPhase | null) ?? "draft";
   const canDecideHypothesis =
@@ -201,8 +211,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       backHref="/portfolio/epics"
       backLabel="Zurück zu den Epics"
       title={epic.title}
-      badge={<PhaseBadge phase={approvalPhase} />}
-      tabs={EPIC_TABS}
+      badge={practices.multiPartyApproval ? <PhaseBadge phase={approvalPhase} /> : undefined}
+      tabs={tabs}
       activeTab={activeTab}
       basePath={`/portfolio/epics/${epic.id}`}
       headerActions={canEdit ? <DeleteEpicButton id={epic.id} title={epic.title} /> : undefined}

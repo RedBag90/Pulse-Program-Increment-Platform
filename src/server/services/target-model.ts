@@ -4,10 +4,11 @@ import type { Result } from "@/domain/errors";
 import { ok } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
-import type {
-  PracticeFlags,
-  StructureTargets,
-  OperatingModelTemplate,
+import {
+  effectivePractices,
+  type PracticeFlags,
+  type StructureTargets,
+  type OperatingModelTemplate,
 } from "@/domain/operating-model";
 
 /**
@@ -31,6 +32,14 @@ export async function getWorkingTargetModel(db: PrismaClient, tenantId: TenantId
     where: { tenantId, status: { not: "archived" } },
     orderBy: { updatedAt: "desc" },
   });
+}
+
+/** The practice flags in force for a tenant (all-on when no target is active). */
+export async function getTenantPractices(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<PracticeFlags> {
+  return effectivePractices(await getActiveTargetModel(db, tenantId));
 }
 
 export interface SaveTargetModelInput {

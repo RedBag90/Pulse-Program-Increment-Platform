@@ -3,6 +3,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/server/services/art";
 import { listFeatures } from "@/server/services/feature";
 import { listEpics } from "@/server/services/epic";
+import { getTenantPractices } from "@/server/services/target-model";
 import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
 import { FeatureFilters } from "@/features/art/components/feature-filters";
@@ -27,7 +28,7 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [art, { items: allFeatures }, epics, pis] = await Promise.all([
+  const [art, { items: allFeatures }, epics, pis, practices] = await Promise.all([
     getArt(db, principal.tenantId, artId as ArtId),
     listFeatures(db, principal.tenantId, artId as ArtId),
     listEpics(db, principal.tenantId),
@@ -36,9 +37,13 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
       orderBy: { startDate: "desc" },
       select: { id: true, name: true, status: true },
     }),
+    getTenantPractices(db, principal.tenantId),
   ]);
 
   if (!art) notFound();
+
+  // WSJF scoring columns/dialog only appear when the practice is in the target.
+  const showWsjf = practices.wsjf;
 
   // Apply client-side filters (avoids extra DB queries for simple cases)
   const features = allFeatures.filter((f) => {
@@ -70,7 +75,8 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
         <div>
           <h1 className="text-xl font-semibold">Feature Backlog</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {features.length} feature{features.length !== 1 ? "s" : ""} · sorted by WSJF score
+            {features.length} feature{features.length !== 1 ? "s" : ""}
+            {showWsjf ? " · sorted by WSJF score" : ""}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -94,33 +100,37 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground w-8">#</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Feature</th>
-                <th
-                  className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
-                  title="Business Value"
-                >
-                  BV
-                </th>
-                <th
-                  className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
-                  title="Time Criticality"
-                >
-                  TC
-                </th>
-                <th
-                  className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
-                  title="Risk Reduction"
-                >
-                  RR
-                </th>
-                <th
-                  className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
-                  title="Job Size"
-                >
-                  JS
-                </th>
-                <th className="text-center px-3 py-3 font-medium text-muted-foreground w-20">
-                  WSJF
-                </th>
+                {showWsjf && (
+                  <>
+                    <th
+                      className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
+                      title="Business Value"
+                    >
+                      BV
+                    </th>
+                    <th
+                      className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
+                      title="Time Criticality"
+                    >
+                      TC
+                    </th>
+                    <th
+                      className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
+                      title="Risk Reduction"
+                    >
+                      RR
+                    </th>
+                    <th
+                      className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
+                      title="Job Size"
+                    >
+                      JS
+                    </th>
+                    <th className="text-center px-3 py-3 font-medium text-muted-foreground w-20">
+                      WSJF
+                    </th>
+                  </>
+                )}
                 <th className="text-left px-3 py-3 font-medium text-muted-foreground">Status</th>
                 <th className="text-left px-3 py-3 font-medium text-muted-foreground">PI</th>
                 {canEdit && <th className="px-3 py-3 w-16"></th>}
@@ -145,38 +155,42 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
                         </p>
                       )}
                     </td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">
-                      {feature.wsjfBusinessValue ?? "—"}
-                    </td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">
-                      {feature.wsjfTimeCriticality ?? "—"}
-                    </td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">
-                      {feature.wsjfRiskReduction ?? "—"}
-                    </td>
-                    <td className="px-3 py-3 text-center text-muted-foreground">
-                      {feature.wsjfJobSize ?? "—"}
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      {canEdit ? (
-                        <WsjfScoreDialog
-                          featureId={feature.id}
-                          artId={artId}
-                          current={{
-                            bv: feature.wsjfBusinessValue,
-                            tc: feature.wsjfTimeCriticality,
-                            rr: feature.wsjfRiskReduction,
-                            js: feature.wsjfJobSize,
-                          }}
-                        />
-                      ) : (
-                        <span className="font-semibold text-primary/80">
-                          {feature.wsjfComputed !== null
-                            ? Number(feature.wsjfComputed).toFixed(2)
-                            : "—"}
-                        </span>
-                      )}
-                    </td>
+                    {showWsjf && (
+                      <>
+                        <td className="px-3 py-3 text-center text-muted-foreground">
+                          {feature.wsjfBusinessValue ?? "—"}
+                        </td>
+                        <td className="px-3 py-3 text-center text-muted-foreground">
+                          {feature.wsjfTimeCriticality ?? "—"}
+                        </td>
+                        <td className="px-3 py-3 text-center text-muted-foreground">
+                          {feature.wsjfRiskReduction ?? "—"}
+                        </td>
+                        <td className="px-3 py-3 text-center text-muted-foreground">
+                          {feature.wsjfJobSize ?? "—"}
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {canEdit ? (
+                            <WsjfScoreDialog
+                              featureId={feature.id}
+                              artId={artId}
+                              current={{
+                                bv: feature.wsjfBusinessValue,
+                                tc: feature.wsjfTimeCriticality,
+                                rr: feature.wsjfRiskReduction,
+                                js: feature.wsjfJobSize,
+                              }}
+                            />
+                          ) : (
+                            <span className="font-semibold text-primary/80">
+                              {feature.wsjfComputed !== null
+                                ? Number(feature.wsjfComputed).toFixed(2)
+                                : "—"}
+                            </span>
+                          )}
+                        </td>
+                      </>
+                    )}
                     <td className="px-3 py-3">
                       <span className="inline-block rounded-full px-2 py-0.5 text-xs bg-muted text-foreground/80">
                         {feature.status}

@@ -8,6 +8,7 @@ import type { Role } from "@/domain/roles";
 const ROLE_LABELS: Record<Role, string> = {
   platform_admin: "Platform Admin",
   tenant_admin: "Tenant Admin",
+  transformation_lead: "Transformation Lead",
   portfolio_manager: "Portfolio Manager",
   value_stream_owner: "Value Stream Owner",
   epic_owner: "Epic Owner",

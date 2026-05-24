@@ -5,9 +5,25 @@ import {
   type StructureGap,
   type PracticeAdoption,
 } from "@/server/services/transformation";
+import {
+  PRACTICES,
+  PRACTICE_LABELS,
+  TEMPLATE_LABELS,
+  type PracticeFlags,
+  type OperatingModelTemplate,
+} from "@/domain/operating-model";
 import type { OutcomeView } from "@/features/transformation/components/target-outcomes-manager";
 
+/** The declared target operating model, summarised for the cockpit header. */
+export interface ModelSummary {
+  template: OperatingModelTemplate | null;
+  status: string;
+  targetDate: string | null;
+  practices: PracticeFlags;
+}
+
 interface Props {
+  model: ModelSummary | null;
   gap: StructureGap;
   adoption: PracticeAdoption;
   outcomes: OutcomeView[];
@@ -31,7 +47,7 @@ function outcomeProgress(o: OutcomeView): number {
  * management-defined target (Soll). Reads the structure gap; practice/outcome
  * gaps follow in later stories. Empty until a target is activated.
  */
-export function TransformationCockpit({ gap, adoption, outcomes }: Props) {
+export function TransformationCockpit({ model, gap, adoption, outcomes }: Props) {
   if (!gap.hasTarget && outcomes.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-6 text-center">
@@ -54,6 +70,31 @@ export function TransformationCockpit({ gap, adoption, outcomes }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Deklariertes Zielmodell (das Soll) */}
+      {model && (
+        <section className="rounded-lg border bg-card p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-heading text-sm font-medium">
+              Zielmodell: {model.template ? TEMPLATE_LABELS[model.template] : "Eigenes Modell"}
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              {model.status === "active" ? "aktiv" : model.status}
+              {model.targetDate ? ` · Zieltermin ${model.targetDate}` : ""}
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {PRACTICES.filter((p) => model.practices[p]).map((p) => (
+              <span
+                key={p}
+                className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+              >
+                {PRACTICE_LABELS[p]}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Nächste Schritte — die Coaching-Schicht */}
       {gap.hasTarget &&
         (nextSteps.length > 0 ? (

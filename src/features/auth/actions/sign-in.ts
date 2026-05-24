@@ -29,5 +29,6 @@ export async function signIn(
     return { ok: false, error: "Invalid credentials. Please try again." };
   }
 
-  redirect("/portfolio");
+  // Forward to the role-aware landing resolver.
+  redirect("/start");
 }
