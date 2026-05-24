@@ -8,6 +8,7 @@ import { buildChangelog } from "@/domain/change-log";
 import { isValidTransition, isApprovalTransition } from "@/domain/stage-gate";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { effectivePractices } from "@/domain/operating-model";
 import {
   parseBenefitHypothesis,
   benefitHypothesisHasContent,
@@ -147,6 +148,21 @@ export async function advanceStageGate(
   const { epicId, toGate, comment } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
+    // Stage gates only exist when the target operating model enables them. With
+    // them switched off the portfolio shows a flat epic list and exposes no
+    // "advance" affordance — reject any request that reaches the action anyway.
+    const targetModel = await tx.targetOperatingModel.findFirst({
+      where: { tenantId: mctx.tenantId, status: "active" },
+      orderBy: { updatedAt: "desc" },
+    });
+    const practices = effectivePractices(targetModel);
+    if (!practices.stageGates) {
+      return err({
+        kind: "forbidden" as const,
+        reason: "Stage gates are not part of this tenant's target operating model",
+      });
+    }
+
     const epic = await tx.initiative.findFirst({
       where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
     });

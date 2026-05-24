@@ -92,4 +92,29 @@ describe("advanceStageGate", () => {
     if (!isErr(result)) return;
     expect(result.error.kind).toBe("not_found");
   });
+
+  it("is forbidden when the target operating model disables stage gates", async () => {
+    const epicId = await makeEpic("L0");
+    await db.targetOperatingModel.create({
+      data: {
+        tenantId: seed.tenantId,
+        status: "active",
+        stageGates: false,
+        createdBy: seed.actorId,
+        updatedBy: seed.actorId,
+      },
+    });
+
+    const result = await advanceStageGate(testRequestContext(db, seed), {
+      epicId,
+      toGate: "L1",
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("forbidden");
+
+    const epic = await db.initiative.findFirst({ where: { id: epicId } });
+    expect(epic!.stageGate).toBe("L0");
+  });
 });

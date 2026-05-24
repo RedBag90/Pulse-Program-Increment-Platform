@@ -1,6 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listEpics } from "@/server/services/epic";
+import { getTenantPractices } from "@/server/services/target-model";
 import { KanbanBoard } from "@/features/portfolio/components/kanban-board";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
@@ -32,18 +33,30 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
   cancelled: "bg-muted text-muted-foreground line-through",
 };
 
+// German labels for the flat epic list shown when stage gates are switched off.
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Entwurf",
+  in_review: "In Prüfung",
+  approved: "Freigegeben",
+  in_progress: "In Umsetzung",
+  blocked: "Blockiert",
+  completed: "Abgeschlossen",
+  cancelled: "Abgebrochen",
+};
+
 export default async function PortfolioPage() {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [epics, allInitiatives] = await Promise.all([
+  const [epics, allInitiatives, practices] = await Promise.all([
     listEpics(db, principal.tenantId),
     db.initiative.findMany({
       where: { tenantId: principal.tenantId as TenantId, deletedAt: null },
       select: { id: true, level: true, status: true, updatedAt: true },
     }),
+    getTenantPractices(db, principal.tenantId),
   ]);
 
   const canEdit =
@@ -210,23 +223,79 @@ export default async function PortfolioPage() {
         </section>
       )}
 
-      {/* Kanban board */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          Epic Stage Gates
-        </h2>
-        <KanbanBoard
-          epics={epics.map((e) => ({
-            id: e.id,
-            title: e.title,
-            stageGate: e.stageGate,
-            status: e.status,
-            valueStream: e.valueStream,
-          }))}
-          canEdit={canEdit}
-          tenantId={principal.tenantId}
-        />
-      </section>
+      {/* Epic lifecycle view — stage-gate kanban when stage gates are part of the
+          target operating model, otherwise a flat list grouped by review status. */}
+      {practices.stageGates ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Epic Stage Gates
+          </h2>
+          <KanbanBoard
+            epics={epics.map((e) => ({
+              id: e.id,
+              title: e.title,
+              stageGate: e.stageGate,
+              status: e.status,
+              valueStream: e.valueStream,
+            }))}
+            canEdit={canEdit}
+            tenantId={principal.tenantId}
+          />
+        </section>
+      ) : (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Epics nach Status
+          </h2>
+          <div className="space-y-6">
+            {STATUS_GROUPS.map((s) => {
+              const groupEpics = epics.filter((e) => e.status === s);
+              if (groupEpics.length === 0) return null;
+              return (
+                <div key={s} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE_CLASSES[s] ?? ""}`}
+                    >
+                      {STATUS_LABELS[s] ?? s}
+                    </span>
+                    <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                      {groupEpics.length}
+                    </span>
+                  </div>
+                  <Card>
+                    <div className="divide-y divide-border">
+                      {groupEpics.map((e) => (
+                        <div
+                          key={e.id}
+                          className="px-4 py-3 flex items-center justify-between gap-4"
+                        >
+                          <Link
+                            href={`/portfolio/epics/${e.id}`}
+                            className="text-sm font-medium hover:text-primary transition-colors truncate"
+                          >
+                            {e.title}
+                          </Link>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {e.valueStream?.name ?? "—"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </div>
+              );
+            })}
+            {epics.length === 0 && (
+              <Card>
+                <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                  Noch keine Epics vorhanden.
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
