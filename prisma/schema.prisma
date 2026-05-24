@@ -15,6 +15,13 @@ model Tenant {
   region    String   @db.VarChar(10)
   createdAt DateTime @default(now()) @map("created_at")
 
+  // Portfolio Dashboard settings (the "Soll" for the economics view).
+  costNeutralTarget   Decimal?  @map("cost_neutral_target") @db.Decimal(14, 2) // self-funding threshold / month
+  dashboardHorizonEnd DateTime? @map("dashboard_horizon_end") @db.Date // recurring-benefit accrual end
+
+  // Participatory Budgeting: total budget pool per half-year, e.g. { "2026-H1": 500000 }.
+  budgetPoolByPeriod Json? @map("budget_pool_by_period")
+
   valueStreams            ValueStream[]
   arts                    Art[]
   teams                   Team[]
@@ -30,6 +37,7 @@ model Tenant {
   transformationGoals     TransformationGoal[]
   goalEpicLinks           GoalEpicLink[]
   transformationSnapshots TransformationSnapshot[]
+  budgetAllocations       BudgetAllocation[]
 
   @@map("tenants")
 }
@@ -375,6 +383,11 @@ model Initiative {
   approvedAt      DateTime? @map("approved_at")
   approvalComment String?   @map("approval_comment") @db.Text
 
+  // Governance flags (EPIC only): surface the Epic in the next steering /
+  // budgeting meeting. Toggled on the Epic overview tab.
+  needsSteeringAttention Boolean @default(false) @map("needs_steering_attention")
+  stagedForBudgeting     Boolean @default(false) @map("staged_for_budgeting")
+
   createdAt DateTime  @default(now()) @map("created_at")
   createdBy String    @map("created_by") @db.Uuid
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -389,11 +402,12 @@ model Initiative {
   pi          ProgramIncrement? @relation(fields: [piId], references: [id])
   sprint      Sprint?           @relation(fields: [sprintId], references: [id])
 
-  dependenciesOut Dependency[]   @relation("From")
-  dependenciesIn  Dependency[]   @relation("To")
-  kpis            Kpi[]
-  epicApprovals   EpicApproval[]
-  goalLinks       GoalEpicLink[]
+  dependenciesOut  Dependency[]      @relation("From")
+  dependenciesIn   Dependency[]      @relation("To")
+  kpis             Kpi[]
+  epicApprovals    EpicApproval[]
+  goalLinks        GoalEpicLink[]
+  budgetAllocation BudgetAllocation?
 
   @@index([tenantId])
   @@index([parentId])
@@ -429,14 +443,17 @@ model EpicApproval {
 }
 
 model Kpi {
-  id           String   @id @default(uuid()) @db.Uuid
-  tenantId     String   @map("tenant_id") @db.Uuid
-  initiativeId String   @map("initiative_id") @db.Uuid
-  name         String
-  unit         String?
-  baseline     Decimal? @db.Decimal(14, 2)
-  target       Decimal? @db.Decimal(14, 2)
-  measurements Json // [{ date: ISO, value: number }] — time series of actuals
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  initiativeId  String   @map("initiative_id") @db.Uuid
+  name          String
+  unit          String?
+  baseline      Decimal? @db.Decimal(14, 2)
+  target        Decimal? @db.Decimal(14, 2)
+  measurements  Json // [{ date: ISO, value: number }] — time series of actuals
+  // Share of the Epic's recurring benefit this KPI realises (fraction 0..1);
+  // null = unset → the dashboard splits the benefit equally across the KPIs.
+  benefitWeight Decimal? @map("benefit_weight") @db.Decimal(6, 4)
 
   createdAt DateTime @default(now()) @map("created_at")
   createdBy String   @map("created_by") @db.Uuid
@@ -448,6 +465,31 @@ model Kpi {
 
   @@index([tenantId, initiativeId])
   @@map("kpis")
+}
+
+/// Participatory Budgeting: one row per Epic in the current budgeting round.
+/// `allocations` holds the granted amount per half-year period, e.g.
+/// { "2026-H1": 120000 }. `hypothesisBudget` is the fixed budget for
+/// hypothesis-only Epics (no business-case cost slices). The scheduled start
+/// lives on the Epic timeline (timeline.estimates.backlog), not here.
+model BudgetAllocation {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  epicId           String   @unique @map("epic_id") @db.Uuid
+  priority         Int      @default(0)
+  hypothesisBudget Decimal? @map("hypothesis_budget") @db.Decimal(14, 2)
+  allocations      Json     @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  initiative Initiative @relation(fields: [epicId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("budget_allocations")
 }
 
 model Dependency {

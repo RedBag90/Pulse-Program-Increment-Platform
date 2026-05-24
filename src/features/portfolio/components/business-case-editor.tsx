@@ -61,30 +61,16 @@ export function BusinessCaseEditor({
         <input type="hidden" name="epicId" value={epicId} />
 
         <fieldset disabled={readOnly} className="space-y-6 border-0 p-0 m-0 min-w-0">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="bc-funnel" className="block text-sm font-medium mb-1">
-                Funnel Entry Date
-              </label>
-              <input
-                id="bc-funnel"
-                type="date"
-                name="funnelEntryDate"
-                defaultValue={current.funnelEntryDate}
-                className={INPUT_CLASS}
-              />
-            </div>
-            <div>
-              <label htmlFor="bc-stakeholders" className="block text-sm font-medium mb-1">
-                Key Stakeholders
-              </label>
-              <input
-                id="bc-stakeholders"
-                name="keyStakeholders"
-                defaultValue={current.keyStakeholders}
-                className={INPUT_CLASS}
-              />
-            </div>
+          <div>
+            <label htmlFor="bc-stakeholders" className="block text-sm font-medium mb-1">
+              Key Stakeholders
+            </label>
+            <input
+              id="bc-stakeholders"
+              name="keyStakeholders"
+              defaultValue={current.keyStakeholders}
+              className={INPUT_CLASS}
+            />
           </div>
 
           <div>
@@ -243,7 +229,7 @@ export function BusinessCaseEditor({
               </div>
               <div>
                 <label htmlFor="bc-recurring" className="block text-sm font-medium mb-1">
-                  Wiederkehrender Nutzen (p.a.)
+                  Wiederkehrender Nutzen p.a. (bei 100 % KPI-Zielerreichung)
                 </label>
                 <input
                   id="bc-recurring"
@@ -257,6 +243,10 @@ export function BusinessCaseEditor({
                 />
               </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Die Gewichtung, welche KPI den wiederkehrenden Nutzen realisiert, wird im Tab „KPIs"
+              je KPI als „Nutzen-Anteil" gepflegt.
+            </p>
           </section>
 
           <div>

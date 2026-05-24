@@ -78,6 +78,7 @@ export type AuditAction =
   | "user.erased"
   | "user.data_exported"
   | "tenant.created"
+  | "tenant.updated"
   | "target.created"
   | "target.updated"
   | "target.activated"
@@ -92,7 +93,9 @@ export type AuditAction =
   | "transformation_goal.deleted"
   | "goal_epic.linked"
   | "goal_epic.unlinked"
-  | "transformation_snapshot.captured";
+  | "transformation_snapshot.captured"
+  | "budget_allocation.saved"
+  | "budget_pool.saved";
 
 export type AuditResourceType =
   | "initiative"
@@ -113,7 +116,9 @@ export type AuditResourceType =
   | "transformation_action"
   | "transformation_goal"
   | "goal_epic_link"
-  | "transformation_snapshot";
+  | "transformation_snapshot"
+  | "budget_allocation"
+  | "budget_pool";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

@@ -83,6 +83,8 @@ export interface UpdateEpicInput {
   id: EpicId;
   title?: string | undefined;
   description?: string | undefined;
+  needsSteeringAttention?: boolean | undefined;
+  stagedForBudgeting?: boolean | undefined;
 }
 
 export async function updateEpic(
@@ -90,7 +92,7 @@ export async function updateEpic(
   input: UpdateEpicInput,
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, title, description } = input;
+  const { id, title, description, needsSteeringAttention, stagedForBudgeting } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const existing = await tx.initiative.findFirst({
@@ -101,12 +103,19 @@ export async function updateEpic(
     }
 
     const changes = buildChangelog(
-      { title: existing.title, description: existing.description },
+      {
+        title: existing.title,
+        description: existing.description,
+        needsSteeringAttention: existing.needsSteeringAttention,
+        stagedForBudgeting: existing.stagedForBudgeting,
+      },
       {
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
+        ...(needsSteeringAttention !== undefined && { needsSteeringAttention }),
+        ...(stagedForBudgeting !== undefined && { stagedForBudgeting }),
       },
-      ["title", "description"],
+      ["title", "description", "needsSteeringAttention", "stagedForBudgeting"],
     );
 
     await tx.initiative.update({
@@ -115,6 +124,8 @@ export async function updateEpic(
         updatedBy: mctx.actorId,
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
+        ...(needsSteeringAttention !== undefined && { needsSteeringAttention }),
+        ...(stagedForBudgeting !== undefined && { stagedForBudgeting }),
       },
     });
 

@@ -30,7 +30,6 @@ export interface BusinessCaseApproval {
 }
 
 export interface BusinessCaseFields {
-  funnelEntryDate?: string | undefined;
   keyStakeholders?: string | undefined;
   initiativeDescription?: string | undefined;
   businessOutcomeHypothesis?: string | undefined;
@@ -42,7 +41,7 @@ export interface BusinessCaseFields {
   costSlices?: BusinessCaseCostSlice[] | undefined;
   /** One-time benefit expected once the initiative completes. */
   oneTimeBenefit?: number | undefined;
-  /** Recurring (annual) benefit expected once the initiative completes. */
+  /** Recurring (annual) benefit at 100 % fulfilment of the Epic's KPI(s). */
   recurringBenefit?: number | undefined;
   customersAffected?: string | undefined;
   impactOnSolutions?: string | undefined;

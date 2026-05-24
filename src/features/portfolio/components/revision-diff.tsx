@@ -33,7 +33,6 @@ export function businessCaseDiffRows(
     after: val(current[key] as string | number | undefined),
   });
   return [
-    row("Funnel Entry Date", "funnelEntryDate"),
     row("Key Stakeholders", "keyStakeholders"),
     row("Initiative Description", "initiativeDescription"),
     row("Business Outcome Hypothesis", "businessOutcomeHypothesis"),

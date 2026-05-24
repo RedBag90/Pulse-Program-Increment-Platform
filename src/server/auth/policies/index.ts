@@ -53,7 +53,8 @@ export type Action =
   | "impediment.resolve"
   | "admin.audit-log.read"
   | "admin.users.read"
-  | "target.manage";
+  | "target.manage"
+  | "budget.manage";
 
 /** A scope dimension a grant may additionally require the principal to match. */
 export type ScopeCheck = "value_stream" | "art" | "team" | "own";
@@ -96,6 +97,10 @@ export const POLICIES: Record<Action, Grant[]> = {
   // transformation drives toward). Management-owned: the transformation lead
   // (coach / SPC), the LPM/portfolio lead, and the tenant admin.
   "target.manage": [{ roles: [TENANT_ADMIN, TRANSFORMATION_LEAD, PORTFOLIO_MANAGER] }],
+
+  // Run participatory budgeting: distribute the budget pool across Epics. The
+  // portfolio funders own this — the LPM/portfolio lead and the tenant admin.
+  "budget.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
 
   // ── Portfolio ───────────────────────────────────────────────────────────
   // The portfolio manager funds value streams and owns the Epic backlog.

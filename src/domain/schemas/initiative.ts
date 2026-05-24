@@ -65,7 +65,6 @@ export const businessCaseApprovalSchema = z.object({
 });
 
 export const businessCaseSchema = z.object({
-  funnelEntryDate: z.string().max(40).optional(),
   keyStakeholders: z.string().max(2000).optional(),
   initiativeDescription: z.string().max(5000).optional(),
   businessOutcomeHypothesis: z.string().max(5000).optional(),

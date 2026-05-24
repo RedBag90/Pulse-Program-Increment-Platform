@@ -172,6 +172,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     baseline: k.baseline === null ? null : Number(k.baseline),
     target: k.target === null ? null : Number(k.target),
     latest: latestKpiValue(parseKpiMeasurements(k.measurements)),
+    weight: k.benefitWeight === null ? null : Number(k.benefitWeight),
+    measurements: parseKpiMeasurements(k.measurements),
   }));
 
   const benefitHypothesis = parseBenefitHypothesis(epic.benefitHypothesis);

@@ -15,6 +15,8 @@ export interface CreateKpiInput {
   unit?: string | undefined;
   baseline?: number | undefined;
   target?: number | undefined;
+  /** Share of the recurring benefit (fraction 0..1). */
+  benefitWeight?: number | undefined;
 }
 
 export interface UpdateKpiInput {
@@ -24,6 +26,8 @@ export interface UpdateKpiInput {
   baseline?: number | undefined;
   target?: number | undefined;
   measurements?: KpiMeasurement[] | undefined;
+  /** Share of the recurring benefit (fraction 0..1); null clears it. */
+  benefitWeight?: number | null | undefined;
 }
 
 export async function createKpi(
@@ -31,7 +35,7 @@ export async function createKpi(
   input: CreateKpiInput,
 ): Promise<Result<{ id: KpiId }>> {
   const mctx = toMutationContext(ctx);
-  const { initiativeId, name, unit, baseline, target } = input;
+  const { initiativeId, name, unit, baseline, target, benefitWeight } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const epic = await tx.initiative.findFirst({
@@ -57,6 +61,7 @@ export async function createKpi(
         ...(unit !== undefined && { unit }),
         ...(baseline !== undefined && { baseline }),
         ...(target !== undefined && { target }),
+        ...(benefitWeight !== undefined && { benefitWeight }),
       },
     });
 
@@ -69,7 +74,7 @@ export async function createKpi(
 
 export async function updateKpi(ctx: RequestContext, input: UpdateKpiInput): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, name, unit, baseline, target, measurements } = input;
+  const { id, name, unit, baseline, target, measurements, benefitWeight } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const existing = await tx.kpi.findFirst({ where: { id, tenantId: mctx.tenantId } });
@@ -85,6 +90,7 @@ export async function updateKpi(ctx: RequestContext, input: UpdateKpiInput): Pro
         ...(unit !== undefined && { unit }),
         ...(baseline !== undefined && { baseline }),
         ...(target !== undefined && { target }),
+        ...(benefitWeight !== undefined && { benefitWeight }),
         ...(measurements !== undefined && {
           measurements: measurements as unknown as Prisma.InputJsonValue,
         }),

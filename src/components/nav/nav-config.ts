@@ -7,6 +7,8 @@ import {
   Gauge,
   CalendarRange,
   Map,
+  LineChart,
+  Wallet,
   GitBranch,
   Route,
   Timer,
@@ -56,6 +58,18 @@ export const NAV_GROUPS: NavGroup[] = [
         practice: "portfolioLevel",
       },
       { href: "/portfolio/epics", labelKey: "epics", icon: Layers, practice: "portfolioLevel" },
+      {
+        href: "/portfolio/dashboard",
+        labelKey: "portfolioDashboard",
+        icon: LineChart,
+        practice: "portfolioLevel",
+      },
+      {
+        href: "/portfolio/budgeting",
+        labelKey: "participatoryBudgeting",
+        icon: Wallet,
+        capability: "budget.manage",
+      },
       {
         href: "/roadmap/portfolio",
         labelKey: "portfolioRoadmap",

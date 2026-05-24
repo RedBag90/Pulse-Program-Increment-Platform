@@ -28,7 +28,6 @@ export const saveBusinessCaseAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => ({
     epicId: fd.get("epicId"),
-    funnelEntryDate: text(fd, "funnelEntryDate"),
     keyStakeholders: text(fd, "keyStakeholders"),
     initiativeDescription: text(fd, "initiativeDescription"),
     businessOutcomeHypothesis: text(fd, "businessOutcomeHypothesis"),

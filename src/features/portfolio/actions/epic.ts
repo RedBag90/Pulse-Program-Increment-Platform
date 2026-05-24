@@ -68,6 +68,31 @@ export const updateEpicAction = createServerAction({
   mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to update epic"),
 });
 
+/** Toggles a governance flag (steering / budgeting) on an Epic from the overview. */
+export const setEpicFlagAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    flag: z.enum(["steering", "budgeting"]),
+    // String enum — z.coerce.boolean("false") would be truthy.
+    value: z.enum(["true", "false"]),
+  }),
+  action: "epic.update",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return { id: f.string("id"), flag: f.string("flag"), value: f.string("value") };
+  },
+  service: (ctx, input) =>
+    updateEpic(ctx, {
+      id: input.id as EpicId,
+      ...(input.flag === "steering"
+        ? { needsSteeringAttention: input.value === "true" }
+        : { stagedForBudgeting: input.value === "true" }),
+    }),
+  revalidate: "epic",
+  mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to update epic"),
+});
+
 export const deleteEpicAction = createServerAction({
   schema: z.object({ id: z.string().uuid() }),
   action: "epic.delete",

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createKpi, deleteKpi, recordKpiMeasurement } from "@/server/services/kpi";
+import { createKpi, updateKpi, deleteKpi, recordKpiMeasurement } from "@/server/services/kpi";
 import type { KpiId } from "@/server/services/kpi";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
@@ -22,6 +22,7 @@ export const createKpiAction = createServerAction({
     unit: z.string().max(40).optional(),
     baseline: z.coerce.number().optional(),
     target: z.coerce.number().optional(),
+    weightPercent: z.coerce.number().min(0).optional(),
   }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -33,6 +34,7 @@ export const createKpiAction = createServerAction({
       unit: f.nonEmptyString("unit"),
       baseline: f.nonEmptyString("baseline"),
       target: f.nonEmptyString("target"),
+      weightPercent: f.nonEmptyString("weightPercent"),
     };
   },
   service: (ctx, input) =>
@@ -42,10 +44,38 @@ export const createKpiAction = createServerAction({
       unit: input.unit,
       baseline: input.baseline,
       target: input.target,
+      ...(input.weightPercent !== undefined && { benefitWeight: input.weightPercent / 100 }),
     }),
   revalidate: "epic",
   mapError: (e) =>
     e.kind === "not_found" ? "Epic nicht gefunden" : "KPI konnte nicht erstellt werden",
+});
+
+/** Sets a KPI's share of the recurring benefit (percent input; empty clears it). */
+export const updateKpiWeightAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    initiativeId: z.string().uuid(),
+    weightPercent: z.coerce.number().min(0).optional(),
+  }),
+  action: "epic.update",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      id: f.string("id"),
+      initiativeId: f.string("initiativeId"),
+      weightPercent: f.nonEmptyString("weightPercent"),
+    };
+  },
+  service: (ctx, input) =>
+    updateKpi(ctx, {
+      id: input.id as KpiId,
+      benefitWeight: input.weightPercent !== undefined ? input.weightPercent / 100 : null,
+    }),
+  revalidate: "epic",
+  mapError: (e) =>
+    e.kind === "not_found" ? "KPI nicht gefunden" : "Anteil konnte nicht gespeichert werden",
 });
 
 export const deleteKpiAction = createServerAction({

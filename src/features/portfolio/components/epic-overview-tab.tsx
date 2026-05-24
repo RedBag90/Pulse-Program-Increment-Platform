@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { Info, ArrowRight } from "lucide-react";
+import { Info, ArrowRight, Flag } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { EpicEditForm } from "./epic-edit-form";
+import { EpicGovernanceFlags } from "./epic-governance-flags";
 import { PhaseBadge } from "@/components/detail/phase-badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { STAGE_GATE_LABELS, initials } from "@/components/detail/initiative-labels";
@@ -23,6 +24,8 @@ export interface EpicOverviewTabProps {
     valueStream: { name: string } | null;
     businessCase: unknown;
     children: { status: string }[];
+    needsSteeringAttention: boolean;
+    stagedForBudgeting: boolean;
   };
   /** Resolved owner display label (email), falling back to the owner id. */
   ownerName?: string | null;
@@ -119,6 +122,35 @@ export function EpicOverviewTab({ epic, ownerName, canEdit }: EpicOverviewTabPro
           Freigaben verwalten
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
+      </section>
+
+      <section>
+        <p className="mb-2 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <Flag className="h-3.5 w-3.5" />
+          Governance
+        </p>
+        {canEdit ? (
+          <EpicGovernanceFlags
+            epicId={epic.id}
+            needsSteeringAttention={epic.needsSteeringAttention}
+            stagedForBudgeting={epic.stagedForBudgeting}
+          />
+        ) : epic.needsSteeringAttention || epic.stagedForBudgeting ? (
+          <ul className="flex flex-wrap gap-1.5">
+            {epic.needsSteeringAttention && (
+              <li className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                Steering-Meeting
+              </li>
+            )}
+            {epic.stagedForBudgeting && (
+              <li className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                Budget-Meeting
+              </li>
+            )}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">Keine Markierung.</p>
+        )}
       </section>
 
       <section>

@@ -5,6 +5,7 @@ import {
   createKpiAction,
   deleteKpiAction,
   recordKpiMeasurementAction,
+  updateKpiWeightAction,
 } from "@/features/portfolio/actions/kpi";
 import { SectionSignoffBanner, type SectionSignoff } from "./section-signoff-banner";
 
@@ -15,6 +16,10 @@ export interface KpiRow {
   baseline: number | null;
   target: number | null;
   latest: number | null;
+  /** Share of the recurring benefit (fraction 0..1); null = unset → auto equal split. */
+  weight: number | null;
+  /** Full measurement history (the KPI's timeline), any order. */
+  measurements: { date: string; value: number }[];
 }
 
 interface Props {
@@ -35,6 +40,7 @@ function fmt(n: number | null): string {
 function KpiItem({ kpi, initiativeId }: { kpi: KpiRow; initiativeId: string }) {
   const [delState, delAction, delPending] = useActionState(deleteKpiAction, {});
   const [measState, measAction, measPending] = useActionState(recordKpiMeasurementAction, {});
+  const [weightState, weightAction, weightPending] = useActionState(updateKpiWeightAction, {});
 
   return (
     <div className="rounded border p-3">
@@ -60,6 +66,30 @@ function KpiItem({ kpi, initiativeId }: { kpi: KpiRow; initiativeId: string }) {
         </form>
       </div>
 
+      <form action={weightAction} className="mt-2 flex flex-wrap items-center gap-2">
+        <input type="hidden" name="id" value={kpi.id} />
+        <input type="hidden" name="initiativeId" value={initiativeId} />
+        <label className="text-xs text-muted-foreground">Nutzen-Anteil</label>
+        <input
+          type="number"
+          step="any"
+          min={0}
+          name="weightPercent"
+          defaultValue={kpi.weight != null ? kpi.weight * 100 : ""}
+          placeholder="auto"
+          className={`${inputCls} w-20`}
+          aria-label="Nutzen-Anteil in Prozent"
+        />
+        <span className="text-xs text-muted-foreground">%</span>
+        <button
+          type="submit"
+          disabled={weightPending}
+          className="rounded bg-secondary px-2 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
+        >
+          Anteil speichern
+        </button>
+      </form>
+
       <form action={measAction} className="mt-2 flex flex-wrap items-center gap-2">
         <input type="hidden" name="id" value={kpi.id} />
         <input type="hidden" name="initiativeId" value={initiativeId} />
@@ -82,10 +112,28 @@ function KpiItem({ kpi, initiativeId }: { kpi: KpiRow; initiativeId: string }) {
         </button>
       </form>
 
-      {(delState.error ?? measState.error) && (
+      {(delState.error ?? measState.error ?? weightState.error) && (
         <p role="alert" className="mt-1 text-xs text-destructive">
-          {delState.error ?? measState.error}
+          {delState.error ?? measState.error ?? weightState.error}
         </p>
+      )}
+
+      {(kpi.measurements ?? []).length > 0 && (
+        <div className="mt-3 border-t pt-2">
+          <p className="mb-1 text-xs font-medium text-muted-foreground">Verlauf</p>
+          <ul className="space-y-0.5 text-xs tabular-nums">
+            {[...(kpi.measurements ?? [])]
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .map((m, i) => (
+                <li key={`${m.date}-${i}`} className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">
+                    {new Date(m.date).toLocaleDateString("de-DE")}
+                  </span>
+                  <span className="font-medium">{m.value.toLocaleString("de-DE")}</span>
+                </li>
+              ))}
+          </ul>
+        </div>
       )}
     </div>
   );
@@ -116,6 +164,17 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
         Ziel
         <input type="number" step="any" name="target" className={`${inputCls} w-28`} />
       </label>
+      <label className="flex flex-col gap-1 text-xs font-medium">
+        Nutzen-Anteil %
+        <input
+          type="number"
+          step="any"
+          min={0}
+          name="weightPercent"
+          placeholder="auto"
+          className={`${inputCls} w-24`}
+        />
+      </label>
       <button
         type="submit"
         disabled={pending}
@@ -137,6 +196,10 @@ export function EpicKpisTab({ initiativeId, kpis, canEdit, signoff }: Props) {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-medium">KPIs</h2>
+      <p className="text-xs text-muted-foreground">
+        Der „Nutzen-Anteil" je KPI bestimmt, welchen Teil des wiederkehrenden Nutzens diese KPI
+        realisiert. Ohne Anteil tragen alle KPIs des Epics gleichmäßig bei.
+      </p>
 
       {signoff && <SectionSignoffBanner epicId={initiativeId} section="kpis" {...signoff} />}
 
