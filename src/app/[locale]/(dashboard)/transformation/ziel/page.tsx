@@ -3,12 +3,14 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
 import { getWorkingTargetModel } from "@/server/services/target-model";
+import { listTargetOutcomes } from "@/server/services/target-outcome";
 import {
   OPERATING_MODEL_TEMPLATE_DEFS,
   effectivePractices,
   type OperatingModelTemplate,
 } from "@/domain/operating-model";
 import { TargetModelForm } from "@/features/transformation/components/target-model-form";
+import { TargetOutcomesManager } from "@/features/transformation/components/target-outcomes-manager";
 
 /**
  * Target operating model configurator — where management declares the "Soll"
@@ -21,7 +23,10 @@ export default async function TargetStatePage() {
 
   const canManage = authorize("target.manage", { tenantId: principal.tenantId }, principal).allow;
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const model = await getWorkingTargetModel(db, principal.tenantId);
+  const [model, outcomes] = await Promise.all([
+    getWorkingTargetModel(db, principal.tenantId),
+    listTargetOutcomes(db, principal.tenantId),
+  ]);
 
   const initial = model
     ? {
@@ -53,6 +58,19 @@ export default async function TargetStatePage() {
       </header>
 
       <TargetModelForm canManage={canManage} status={model?.status ?? null} initial={initial} />
+
+      <TargetOutcomesManager
+        canManage={canManage}
+        outcomes={outcomes.map((o) => ({
+          id: o.id,
+          title: o.title,
+          metricUnit: o.metricUnit,
+          baseline: o.baseline,
+          target: o.target,
+          current: o.current,
+          dueDate: o.dueDate ? o.dueDate.toISOString().slice(0, 10) : null,
+        }))}
+      />
     </div>
   );
 }

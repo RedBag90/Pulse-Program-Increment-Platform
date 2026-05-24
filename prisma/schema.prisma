@@ -25,6 +25,7 @@ model Tenant {
   jiraConfig          JiraConfig?
   azureDevOpsConfig   AzureDevOpsConfig?
   targetModels        TargetOperatingModel[]
+  targetOutcomes      TargetOutcome[]
 
   @@map("tenants")
 }
@@ -66,6 +67,29 @@ model TargetOperatingModel {
 
   @@index([tenantId])
   @@map("target_operating_models")
+}
+
+/// A management-defined organisation-wide outcome/OKR the transformation targets
+/// — the *business* part of the Soll (distinct from Epic-scoped KPIs and
+/// PI-scoped Objectives). Tenant-scoped so it survives target-model re-activation.
+model TargetOutcome {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  title      String
+  metricUnit String?   @map("metric_unit")
+  baseline   Float?
+  target     Float
+  current    Float?
+  dueDate    DateTime? @map("due_date")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  createdBy  String    @map("created_by") @db.Uuid
+  updatedBy  String    @map("updated_by") @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("target_outcomes")
 }
 
 model ValueStream {

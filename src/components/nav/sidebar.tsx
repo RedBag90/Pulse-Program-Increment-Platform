@@ -8,6 +8,7 @@ import {
   Layers,
   FolderTree,
   Target,
+  Gauge,
   Zap,
   CalendarRange,
   Map,
@@ -41,7 +42,10 @@ const NAV_GROUPS = [
   },
   {
     labelKey: "transformation",
-    items: [{ href: "/transformation/ziel", labelKey: "targetState", icon: Target }],
+    items: [
+      { href: "/transformation", labelKey: "transformationCockpit", icon: Gauge, exact: true },
+      { href: "/transformation/ziel", labelKey: "targetState", icon: Target },
+    ],
   },
   {
     labelKey: "programPlanning",

@@ -48,6 +48,7 @@
     "integrations": "Integrations",
     "auditLog": "Audit Log",
     "transformation": "Transformation",
+    "transformationCockpit": "Cockpit",
     "targetState": "Target State"
   },
   "auth": {

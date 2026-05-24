@@ -80,7 +80,10 @@ export type AuditAction =
   | "tenant.created"
   | "target.created"
   | "target.updated"
-  | "target.activated";
+  | "target.activated"
+  | "target_outcome.created"
+  | "target_outcome.updated"
+  | "target_outcome.deleted";
 
 export type AuditResourceType =
   | "initiative"
@@ -96,7 +99,8 @@ export type AuditResourceType =
   | "user_role_assignment"
   | "user"
   | "tenant"
-  | "target_operating_model";
+  | "target_operating_model"
+  | "target_outcome";
 
 // ---------------------------------------------------------------------------
 // Emit helpers
