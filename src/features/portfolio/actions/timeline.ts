@@ -1,9 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { saveTimeline, assignEpicOwner } from "@/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
 import type { EpicId } from "@/domain/types";
 import type { TimelineFields } from "@/domain/timeline";
 import type { ActionState } from "@/server/http/server-action";
@@ -46,7 +46,7 @@ export const saveTimelineAction = createServerAction({
       actuals?: Record<string, string>;
     };
     return {
-      epicId: fd.get("epicId"),
+      epicId: fields(fd).string("epicId"),
       estimates: raw.estimates ?? {},
       actuals: raw.actuals ?? {},
     };
@@ -58,7 +58,7 @@ export const saveTimelineAction = createServerAction({
     };
     return saveTimeline(ctx, { epicId: input.epicId as EpicId, fields });
   },
-  onSuccess: (input) => revalidatePath(`/portfolio/epics/${input.epicId}`),
+  revalidate: "epic",
   mapError: (e) =>
     e.kind === "not_found" ? "Epic nicht gefunden" : "Timeline-Speichern fehlgeschlagen",
 });
@@ -67,10 +67,13 @@ export const assignEpicOwnerAction = createServerAction({
   schema: z.object({ epicId: z.string().uuid(), ownerId: z.string().uuid() }),
   action: "epic.owner.assign",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ epicId: fd.get("epicId"), ownerId: fd.get("ownerId") }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return { epicId: f.string("epicId"), ownerId: f.string("ownerId") };
+  },
   service: (ctx, input) =>
     assignEpicOwner(ctx, { epicId: input.epicId as EpicId, ownerId: input.ownerId }),
-  onSuccess: (input) => revalidatePath(`/portfolio/epics/${input.epicId}`),
+  revalidate: "epic",
   mapError: (e) =>
     e.kind === "not_found" ? "Epic nicht gefunden" : "Owner-Zuweisung fehlgeschlagen",
 });

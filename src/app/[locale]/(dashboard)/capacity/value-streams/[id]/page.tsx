@@ -39,7 +39,7 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const vs = await getValueStream(db, principal.tenantId, id as ValueStreamId);
-  if (!vs) redirect("/capacity");
+  if (!vs) redirect("/structure");
 
   const canEdit =
     principal.roles.includes("portfolio_manager") ||
@@ -61,8 +61,8 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
 
   return (
     <EntityDetailShell
-      backHref="/capacity"
-      backLabel="Zurück zu Capacity Planning"
+      backHref="/structure"
+      backLabel="Zurück zur Struktur"
       title={vs.name}
       badge={`${vs.arts.length} ART${vs.arts.length !== 1 ? "s" : ""}`}
       tabs={TABS}

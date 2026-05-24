@@ -77,7 +77,10 @@ export type AuditAction =
   | "user.role.removed"
   | "user.erased"
   | "user.data_exported"
-  | "tenant.created";
+  | "tenant.created"
+  | "target.created"
+  | "target.updated"
+  | "target.activated";
 
 export type AuditResourceType =
   | "initiative"
@@ -92,7 +95,8 @@ export type AuditResourceType =
   | "kpi"
   | "user_role_assignment"
   | "user"
-  | "tenant";
+  | "tenant"
+  | "target_operating_model";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

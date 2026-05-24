@@ -22,6 +22,9 @@ export interface UpdateTeamInput {
   description?: string | undefined;
   headcount?: number | undefined;
   targetVelocity?: number | undefined;
+  scrumMasterId?: string | null | undefined;
+  productOwnerId?: string | null | undefined;
+  teamType?: string | null | undefined;
 }
 
 export async function createTeam(
@@ -68,7 +71,16 @@ export async function updateTeam(
   input: UpdateTeamInput,
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, name, description, headcount, targetVelocity } = input;
+  const {
+    id,
+    name,
+    description,
+    headcount,
+    targetVelocity,
+    scrumMasterId,
+    productOwnerId,
+    teamType,
+  } = input;
 
   return withAuditedTransaction(
     mctx,
@@ -84,14 +96,28 @@ export async function updateTeam(
           description: existing.description,
           headcount: existing.headcount,
           targetVelocity: existing.targetVelocity,
+          scrumMasterId: existing.scrumMasterId,
+          productOwnerId: existing.productOwnerId,
+          teamType: existing.teamType,
         },
         {
           ...(name !== undefined && { name }),
           ...(description !== undefined && { description }),
           ...(headcount !== undefined && { headcount }),
           ...(targetVelocity !== undefined && { targetVelocity }),
+          ...(scrumMasterId !== undefined && { scrumMasterId }),
+          ...(productOwnerId !== undefined && { productOwnerId }),
+          ...(teamType !== undefined && { teamType }),
         },
-        ["name", "description", "headcount", "targetVelocity"],
+        [
+          "name",
+          "description",
+          "headcount",
+          "targetVelocity",
+          "scrumMasterId",
+          "productOwnerId",
+          "teamType",
+        ],
       );
 
       await tx.team.update({
@@ -101,6 +127,9 @@ export async function updateTeam(
           ...(description !== undefined && { description }),
           ...(headcount !== undefined && { headcount }),
           ...(targetVelocity !== undefined && { targetVelocity }),
+          ...(scrumMasterId !== undefined && { scrumMasterId }),
+          ...(productOwnerId !== undefined && { productOwnerId }),
+          ...(teamType !== undefined && { teamType }),
         },
       });
 

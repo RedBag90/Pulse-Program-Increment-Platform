@@ -9,6 +9,7 @@ import {
   toMutationContext,
   onUniqueConstraint,
 } from "@/server/services/mutation";
+import { notDeleted } from "@/server/db/soft-delete";
 
 export interface CreateValueStreamInput {
   name: string;
@@ -68,7 +69,9 @@ export async function updateValueStream(
   return withAuditedTransaction(
     mctx,
     async (tx) => {
-      const existing = await tx.valueStream.findFirst({ where: { id, tenantId: mctx.tenantId } });
+      const existing = await tx.valueStream.findFirst({
+        where: { id, tenantId: mctx.tenantId, ...notDeleted },
+      });
       if (!existing) {
         return err({ kind: "not_found" as const, resourceType: "ValueStream", id });
       }
@@ -121,17 +124,16 @@ export async function softDeleteValueStream(
   const { id } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.valueStream.findFirst({ where: { id, tenantId: mctx.tenantId } });
+    const existing = await tx.valueStream.findFirst({
+      where: { id, tenantId: mctx.tenantId, ...notDeleted },
+    });
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "ValueStream", id });
     }
 
-    // ValueStream has no deletedAt column — soft-delete via a naming convention:
-    // prefix the name with __deleted__ and a timestamp. A proper soft-delete
-    // column can be added in a future migration.
     await tx.valueStream.update({
       where: { id },
-      data: { name: `__deleted__${Date.now()}__${existing.name}` },
+      data: { deletedAt: new Date() },
     });
 
     return ok({
@@ -143,18 +145,18 @@ export async function softDeleteValueStream(
 
 export async function listValueStreams(db: PrismaClient, tenantId: TenantId) {
   return db.valueStream.findMany({
-    where: { tenantId, name: { not: { startsWith: "__deleted__" } } },
-    include: { arts: { select: { id: true, name: true } } },
+    where: { tenantId, ...notDeleted },
+    include: { arts: { where: { ...notDeleted }, select: { id: true, name: true } } },
     orderBy: { name: "asc" },
   });
 }
 
 export async function getValueStream(db: PrismaClient, tenantId: TenantId, id: ValueStreamId) {
   return db.valueStream.findFirst({
-    where: { id, tenantId, name: { not: { startsWith: "__deleted__" } } },
+    where: { id, tenantId, ...notDeleted },
     include: {
       arts: {
-        where: { name: { not: { startsWith: "__deleted__" } } },
+        where: { ...notDeleted },
         select: { id: true, name: true, description: true, _count: { select: { teams: true } } },
         orderBy: { name: "asc" },
       },

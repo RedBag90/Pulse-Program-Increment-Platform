@@ -4,10 +4,10 @@ import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
 import { buildChangelog } from "@/domain/change-log";
-import { validateParentLevel } from "@/domain/hierarchy";
 import { computeWsjf } from "@/domain/schemas/initiative";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { findValidatedParent } from "@/server/services/initiative-write";
 import { paginate, type PageParams } from "@/server/db/paginate";
 
 export interface CreateFeatureInput {
@@ -61,12 +61,9 @@ export async function createFeature(
   });
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const parent = await tx.initiative.findFirst({
-      where: { id: parentId, tenantId: mctx.tenantId, deletedAt: null },
-    });
-    const hierarchy = validateParentLevel(InitiativeLevel.FEATURE, parent, parentId);
-    if (isErr(hierarchy)) return hierarchy;
-    const epic = parent!; // non-null once validateParentLevel passes
+    const parentResult = await findValidatedParent(tx, mctx, InitiativeLevel.FEATURE, parentId);
+    if (isErr(parentResult)) return parentResult;
+    const epic = parentResult.value!; // non-null for a FEATURE's EPIC parent
 
     const art = await tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId } });
     if (!art) {

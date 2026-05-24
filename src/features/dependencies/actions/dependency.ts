@@ -12,8 +12,9 @@ import {
   type DependencyType,
 } from "@/server/services/dependency";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
+import { revalidateFor } from "@/server/http/revalidation";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isErr } from "@/domain/errors";
 import type { InitiativeId } from "@/domain/types";
@@ -32,21 +33,21 @@ export const createDependencyAction = createServerAction({
   }),
   action: "dependency.link",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({
-    fromId: fd.get("fromId"),
-    toId: fd.get("toId"),
-    type: fd.get("type"),
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      fromId: f.string("fromId"),
+      toId: f.string("toId"),
+      type: f.string("type"),
+    };
+  },
   service: (ctx, input) =>
     linkDependency(ctx, {
       fromId: input.fromId as InitiativeId,
       toId: input.toId as InitiativeId,
       type: input.type,
     }),
-  onSuccess: () => {
-    revalidatePath("/feature/[featureId]", "page");
-    revalidatePath("/pi/[piId]/dependencies", "page");
-  },
+  revalidate: "dependency",
   mapError: (e) =>
     e.kind === "conflict"
       ? e.reason
@@ -99,8 +100,7 @@ export async function linkDependencyAction(
 
   if (isErr(result)) return { error: mapError(result) };
 
-  revalidatePath("/feature/[featureId]", "page");
-  revalidatePath("/pi/[piId]/dependencies", "page");
+  revalidateFor("dependency");
   return {};
 }
 
@@ -126,7 +126,6 @@ export async function unlinkDependencyAction(
 
   if (isErr(result)) return { error: mapError(result) };
 
-  revalidatePath("/feature/[featureId]", "page");
-  revalidatePath("/pi/[piId]/dependencies", "page");
+  revalidateFor("dependency");
   return {};
 }

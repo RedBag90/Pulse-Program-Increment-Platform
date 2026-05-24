@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { headers } from "next/headers";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   createPiObjective,
@@ -10,6 +9,8 @@ import {
   type PiObjectiveId,
 } from "@/server/services/pi-objective";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
+import { revalidateFor } from "@/server/http/revalidation";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
@@ -35,15 +36,19 @@ export const createPiObjectiveAction = createServerAction({
   }),
   action: "pi_objective.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId, teamId: input.teamId }),
-  parseFormData: (fd) => ({
-    piId: fd.get("piId"),
-    artId: fd.get("artId"),
-    teamId: fd.get("teamId"),
-    title: fd.get("title"),
-    description: fd.get("description") || undefined,
-    businessValue: fd.get("businessValue") || undefined,
-    committed: fd.get("committed") === "true" ? "true" : "false",
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      piId: f.string("piId"),
+      artId: f.string("artId"),
+      teamId: f.string("teamId"),
+      title: f.string("title"),
+      description: f.nonEmptyString("description"),
+      businessValue: f.nonEmptyString("businessValue"),
+      // Checkbox: normalise to a string Zod's z.coerce.boolean() consumes.
+      committed: f.raw("committed") === "true" ? "true" : "false",
+    };
+  },
   service: (ctx, input) =>
     createPiObjective(ctx, {
       piId: input.piId as PiId,
@@ -53,7 +58,7 @@ export const createPiObjectiveAction = createServerAction({
       businessValue: input.businessValue,
       committed: input.committed ?? true,
     }),
-  onSuccess: () => revalidatePath("/pi/[piId]/objectives", "page"),
+  revalidate: "pi",
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create objective"),
 });
 
@@ -92,6 +97,6 @@ export async function setObjectiveConfidenceAction(
     };
   }
 
-  revalidatePath("/pi/[piId]/objectives", "page");
+  revalidateFor("pi");
   return {};
 }

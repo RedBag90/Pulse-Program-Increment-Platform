@@ -9,6 +9,7 @@ import {
   toMutationContext,
   onUniqueConstraint,
 } from "@/server/services/mutation";
+import { notDeleted } from "@/server/db/soft-delete";
 
 export interface CreateArtInput {
   valueStreamId: ValueStreamId;
@@ -21,6 +22,8 @@ export interface UpdateArtInput {
   name?: string | undefined;
   description?: string | undefined;
   piCadenceWeeks?: number | undefined;
+  /** Release Train Engineer; null clears it. */
+  rteId?: string | null | undefined;
 }
 
 export async function createArt(
@@ -34,7 +37,7 @@ export async function createArt(
     mctx,
     async (tx) => {
       const vs = await tx.valueStream.findFirst({
-        where: { id: valueStreamId, tenantId: mctx.tenantId },
+        where: { id: valueStreamId, tenantId: mctx.tenantId, ...notDeleted },
       });
       if (!vs) {
         return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
@@ -60,12 +63,14 @@ export async function createArt(
 
 export async function updateArt(ctx: RequestContext, input: UpdateArtInput): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, name, description, piCadenceWeeks } = input;
+  const { id, name, description, piCadenceWeeks, rteId } = input;
 
   return withAuditedTransaction(
     mctx,
     async (tx) => {
-      const existing = await tx.art.findFirst({ where: { id, tenantId: mctx.tenantId } });
+      const existing = await tx.art.findFirst({
+        where: { id, tenantId: mctx.tenantId, ...notDeleted },
+      });
       if (!existing) {
         return err({ kind: "not_found" as const, resourceType: "Art", id });
       }
@@ -75,13 +80,15 @@ export async function updateArt(ctx: RequestContext, input: UpdateArtInput): Pro
           name: existing.name,
           description: existing.description,
           piCadenceWeeks: existing.piCadenceWeeks,
+          rteId: existing.rteId,
         },
         {
           ...(name !== undefined && { name }),
           ...(description !== undefined && { description }),
           ...(piCadenceWeeks !== undefined && { piCadenceWeeks }),
+          ...(rteId !== undefined && { rteId }),
         },
-        ["name", "description", "piCadenceWeeks"],
+        ["name", "description", "piCadenceWeeks", "rteId"],
       );
 
       await tx.art.update({
@@ -90,6 +97,7 @@ export async function updateArt(ctx: RequestContext, input: UpdateArtInput): Pro
           ...(name !== undefined && { name }),
           ...(description !== undefined && { description }),
           ...(piCadenceWeeks !== undefined && { piCadenceWeeks }),
+          ...(rteId !== undefined && { rteId }),
         },
       });
 
@@ -111,7 +119,7 @@ export async function softDeleteArt(
 
   return withAuditedTransaction(mctx, async (tx) => {
     const existing = await tx.art.findFirst({
-      where: { id, tenantId: mctx.tenantId },
+      where: { id, tenantId: mctx.tenantId, ...notDeleted },
       include: { _count: { select: { pis: true, teams: true } } },
     });
     if (!existing) return err({ kind: "not_found" as const, resourceType: "Art", id });
@@ -129,7 +137,7 @@ export async function softDeleteArt(
 
     await tx.art.update({
       where: { id },
-      data: { name: `__deleted__${Date.now()}__${existing.name}` },
+      data: { deletedAt: new Date() },
     });
 
     return ok({
@@ -141,7 +149,7 @@ export async function softDeleteArt(
 
 export async function listArts(db: PrismaClient, tenantId: TenantId) {
   return db.art.findMany({
-    where: { tenantId, name: { not: { startsWith: "__deleted__" } } },
+    where: { tenantId, ...notDeleted },
     include: {
       valueStream: { select: { id: true, name: true } },
       _count: { select: { pis: true } },
@@ -152,7 +160,7 @@ export async function listArts(db: PrismaClient, tenantId: TenantId) {
 
 export async function getArt(db: PrismaClient, tenantId: TenantId, id: ArtId) {
   return db.art.findFirst({
-    where: { id, tenantId, name: { not: { startsWith: "__deleted__" } } },
+    where: { id, tenantId, ...notDeleted },
     include: {
       valueStream: { select: { id: true, name: true } },
       pis: { select: { id: true, name: true, status: true, startDate: true, endDate: true } },

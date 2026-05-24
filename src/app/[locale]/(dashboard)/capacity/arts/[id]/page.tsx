@@ -3,6 +3,9 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/server/services/art";
 import { listAuditHistory } from "@/server/services/audit-history";
+import { listTenantApprovers } from "@/server/services/epic-approval";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { userLabel } from "@/components/detail/initiative-labels";
 import {
   EntityDetailShell,
   resolveTab,
@@ -36,17 +39,22 @@ export default async function ArtDetailPage({ params, searchParams }: Props) {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const art = await getArt(db, principal.tenantId, id as ArtId);
-  if (!art) redirect("/capacity");
+  if (!art) redirect("/structure");
 
   const canEdit =
     principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
 
-  const history = await listAuditHistory(db, principal.tenantId, "art", art.id);
+  const [history, approvers, userLabels] = await Promise.all([
+    listAuditHistory(db, principal.tenantId, "art", art.id),
+    listTenantApprovers(db, principal.tenantId),
+    listTenantUserLabels(db, principal.tenantId),
+  ]);
   const events = history.map((e) => ({
     id: e.id,
     action: e.action,
     occurredAt: e.occurredAt.toISOString(),
   }));
+  const rteUsers = approvers.filter((u) => u.roles.includes("rte"));
 
   return (
     <EntityDetailShell
@@ -61,17 +69,27 @@ export default async function ArtDetailPage({ params, searchParams }: Props) {
       {activeTab === "overview" &&
         (canEdit ? (
           <ArtOverviewForm
-            key={[art.id, art.name, art.description ?? "", art.piCadenceWeeks].join("|")}
+            key={[
+              art.id,
+              art.name,
+              art.description ?? "",
+              art.piCadenceWeeks,
+              art.rteId ?? "",
+            ].join("|")}
             id={art.id}
             name={art.name}
             description={art.description ?? ""}
             piCadenceWeeks={art.piCadenceWeeks}
+            rteId={art.rteId ?? ""}
+            rteUsers={rteUsers}
+            userLabels={userLabels}
           />
         ) : (
           <dl className="max-w-xl space-y-3 text-sm">
             <Field label="Name">{art.name}</Field>
             <Field label="Beschreibung">{art.description ?? "—"}</Field>
             <Field label="PI-Kadenz">{art.piCadenceWeeks} Wochen</Field>
+            <Field label="RTE">{art.rteId ? userLabel(art.rteId, userLabels) : "—"}</Field>
           </dl>
         ))}
 

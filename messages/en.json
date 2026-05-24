@@ -20,6 +20,8 @@
     "overview": "Overview",
     "epics": "Epics",
     "valueStreams": "Value Streams",
+    "structure": "Structure",
+    "structureOverview": "Overview",
     "capacityPlanning": "Capacity Planning",
     "delivery": "Delivery",
     "artsAndPi": "ARTs & PI Planning",
@@ -44,7 +46,9 @@
     "admin": "Admin",
     "users": "Users",
     "integrations": "Integrations",
-    "auditLog": "Audit Log"
+    "auditLog": "Audit Log",
+    "transformation": "Transformation",
+    "targetState": "Target State"
   },
   "auth": {
     "signIn": "Sign in",

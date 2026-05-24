@@ -1,9 +1,10 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { createTeam, updateTeam, deleteTeam } from "@/server/services/team";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
+import { TEAM_TYPES } from "@/domain/team-type";
 import type { ArtId, TeamId } from "@/domain/types";
 
 export interface TeamActionState {
@@ -19,12 +20,15 @@ export const createTeamAction = createServerAction({
   }),
   action: "team.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({
-    artId: fd.get("artId"),
-    name: fd.get("name"),
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      artId: f.string("artId"),
+      name: f.string("name"),
+    };
+  },
   service: (ctx, input) => createTeam(ctx, { artId: input.artId as ArtId, name: input.name }),
-  onSuccess: () => revalidatePath("/art/[artId]/teams", "page"),
+  revalidate: "team",
   mapError: (e) =>
     e.kind === "conflict"
       ? e.reason
@@ -41,17 +45,29 @@ export const updateTeamAction = createServerAction({
     description: z.string().optional(),
     headcount: z.coerce.number().int().min(0).max(1000).optional(),
     targetVelocity: z.coerce.number().int().min(0).max(1000).optional(),
+    scrumMasterId: z.string().uuid().nullable().optional(),
+    productOwnerId: z.string().uuid().nullable().optional(),
+    teamType: z.enum(TEAM_TYPES).nullable().optional(),
   }),
   action: "team.update",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => ({
-    id: fd.get("id"),
-    artId: fd.get("artId"),
-    name: fd.get("name") || undefined,
-    description: fd.get("description") || undefined,
-    headcount: fd.get("headcount") || undefined,
-    targetVelocity: fd.get("targetVelocity") || undefined,
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      id: f.string("id"),
+      artId: f.string("artId"),
+      name: f.nonEmptyString("name"),
+      description: f.nonEmptyString("description"),
+      headcount: f.nonEmptyString("headcount"),
+      targetVelocity: f.nonEmptyString("targetVelocity"),
+      // nullableString: absent → undefined (don't touch), matching the rteId
+      // guard. Previously these used `|| null`, which cleared the field whenever
+      // a partial form omitted it.
+      scrumMasterId: f.nullableString("scrumMasterId"),
+      productOwnerId: f.nullableString("productOwnerId"),
+      teamType: f.nullableString("teamType"),
+    };
+  },
   service: (ctx, input) =>
     updateTeam(ctx, {
       id: input.id as TeamId,
@@ -59,12 +75,11 @@ export const updateTeamAction = createServerAction({
       description: input.description,
       headcount: input.headcount,
       targetVelocity: input.targetVelocity,
+      scrumMasterId: input.scrumMasterId,
+      productOwnerId: input.productOwnerId,
+      teamType: input.teamType,
     }),
-  onSuccess: () => {
-    revalidatePath("/art/[artId]/teams", "page");
-    revalidatePath("/capacity/teams/[id]", "page");
-    revalidatePath("/capacity/arts/[id]", "page");
-  },
+  revalidate: "team",
   mapError: (e) =>
     e.kind === "conflict"
       ? e.reason
@@ -77,9 +92,12 @@ export const deleteTeamAction = createServerAction({
   schema: z.object({ id: z.string().uuid(), artId: z.string().uuid() }),
   action: "team.delete",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return { id: f.string("id"), artId: f.string("artId") };
+  },
   service: (ctx, input) => deleteTeam(ctx, { id: input.id as TeamId }),
-  onSuccess: () => revalidatePath("/art/[artId]/teams", "page"),
+  revalidate: "team",
   mapError: (e) =>
     e.kind === "conflict"
       ? e.reason

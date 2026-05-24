@@ -24,8 +24,48 @@ model Tenant {
   userRoleAssignments UserRoleAssignment[]
   jiraConfig          JiraConfig?
   azureDevOpsConfig   AzureDevOpsConfig?
+  targetModels        TargetOperatingModel[]
 
   @@map("tenants")
+}
+
+/// The management-defined target operating model — the "Soll" the transformation
+/// drives toward. At most one `active` model per tenant (enforced in the
+/// service, which archives the prior active on activation). Nullable structure
+/// targets and the practice flags express *which* of SAFe the org actually
+/// adopts — the flags are the master switch that scopes which concepts appear.
+model TargetOperatingModel {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  status     String    @default("draft") // draft | active | archived
+  template   String? // team_level | essential_safe | portfolio_safe | custom
+  targetDate DateTime? @map("target_date")
+
+  // Structure targets — null = not part of the target.
+  targetValueStreams   Int? @map("target_value_streams")
+  targetArtsTotal      Int? @map("target_arts_total")
+  targetTeamsTotal     Int? @map("target_teams_total")
+  targetPiCadenceWeeks Int? @map("target_pi_cadence_weeks")
+
+  // Enabled practices — which parts of the model the org actually runs.
+  portfolioLevel     Boolean @default(true) @map("portfolio_level")
+  programLevel       Boolean @default(true) @map("program_level")
+  stageGates         Boolean @default(true) @map("stage_gates")
+  wsjf               Boolean @default(true)
+  multiPartyApproval Boolean @default(true) @map("multi_party_approval")
+  featureQs          Boolean @default(true) @map("feature_qs")
+  dependencies       Boolean @default(true)
+  piObjectives       Boolean @default(true) @map("pi_objectives")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String   @map("created_by") @db.Uuid
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("target_operating_models")
 }
 
 model ValueStream {
@@ -39,13 +79,16 @@ model ValueStream {
   // responsible VMO — loose user ids (users live in Supabase auth).
   financeApproverId String? @map("finance_approver_id") @db.Uuid
   vmoId             String? @map("vmo_id") @db.Uuid
-  createdAt      DateTime @default(now()) @map("created_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  deletedAt      DateTime? @map("deleted_at")
 
   tenant Tenant       @relation(fields: [tenantId], references: [id])
   arts   Art[]
   epics  Initiative[] @relation("EpicValueStream")
 
-  @@unique([tenantId, name])
+  // Uniqueness among *active* (non-deleted) rows is enforced by a partial unique
+  // index created out-of-band (see prisma/manual-indexes.sql) — Prisma can't
+  // express `WHERE deleted_at IS NULL`, so the table-level @@unique is dropped.
   @@map("value_streams")
 }
 
@@ -56,7 +99,9 @@ model Art {
   name           String
   description    String?
   piCadenceWeeks Int      @default(10) @map("pi_cadence_weeks")
-  createdAt      DateTime @default(now()) @map("created_at")
+  rteId          String?  @map("rte_id") @db.Uuid // Release Train Engineer
+  createdAt      DateTime  @default(now()) @map("created_at")
+  deletedAt      DateTime? @map("deleted_at")
 
   tenant      Tenant             @relation(fields: [tenantId], references: [id])
   valueStream ValueStream        @relation(fields: [valueStreamId], references: [id])
@@ -65,7 +110,7 @@ model Art {
   teams       Team[]
   impediments Impediment[]
 
-  @@unique([tenantId, name])
+  // Active-row uniqueness via a partial unique index (see prisma/manual-indexes.sql).
   @@map("arts")
 }
 
@@ -77,6 +122,9 @@ model Team {
   description    String?
   headcount      Int?
   targetVelocity Int?    @map("target_velocity")
+  scrumMasterId  String? @map("scrum_master_id") @db.Uuid
+  productOwnerId String? @map("product_owner_id") @db.Uuid
+  teamType       String? @map("team_type") // stream_aligned | complicated_subsystem | platform | enabling
 
   tenant     Tenant        @relation(fields: [tenantId], references: [id])
   art        Art           @relation(fields: [artId], references: [id])

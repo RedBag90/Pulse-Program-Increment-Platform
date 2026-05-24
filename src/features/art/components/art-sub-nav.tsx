@@ -23,7 +23,7 @@ export function ArtSubNav({ artId, artName }: Props) {
   return (
     <div className="space-y-4">
       <nav className="text-sm text-muted-foreground flex items-center gap-1">
-        <Link href="/art" className="hover:underline">
+        <Link href="/structure?tab=arts" className="hover:underline">
           ARTs
         </Link>
         <span>/</span>

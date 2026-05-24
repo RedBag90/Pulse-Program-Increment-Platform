@@ -1,9 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { createStory, deleteStory } from "@/server/services/story";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
 import type { FeatureId, SprintId, StoryId } from "@/domain/types";
 
 export const createStoryAction = createServerAction({
@@ -23,15 +23,18 @@ export const createStoryAction = createServerAction({
   }),
   action: "story.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => ({
-    featureId: fd.get("featureId"),
-    artId: fd.get("artId"),
-    sprintId: fd.get("sprintId") || undefined,
-    title: fd.get("title"),
-    description: fd.get("description") || undefined,
-    acceptanceCriteria: fd.get("acceptanceCriteria") || undefined,
-    storyPoints: fd.get("storyPoints") || undefined,
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      featureId: f.string("featureId"),
+      artId: f.string("artId"),
+      sprintId: f.nonEmptyString("sprintId"),
+      title: f.string("title"),
+      description: f.nonEmptyString("description"),
+      acceptanceCriteria: f.nonEmptyString("acceptanceCriteria"),
+      storyPoints: f.nonEmptyString("storyPoints"),
+    };
+  },
   service: (ctx, input) => {
     const criteria = input.acceptanceCriteria
       ? input.acceptanceCriteria
@@ -48,7 +51,7 @@ export const createStoryAction = createServerAction({
       storyPoints: input.storyPoints,
     });
   },
-  onSuccess: () => revalidatePath("/feature/[featureId]", "page"),
+  revalidate: "story",
   mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to create story"),
 });
 
@@ -56,8 +59,11 @@ export const deleteStoryAction = createServerAction({
   schema: z.object({ id: z.string().uuid(), artId: z.string().uuid() }),
   action: "story.delete",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return { id: f.string("id"), artId: f.string("artId") };
+  },
   service: (ctx, input) => deleteStory(ctx, { id: input.id as StoryId }),
-  onSuccess: () => revalidatePath("/feature/[featureId]", "page"),
+  revalidate: "story",
   mapError: (e) => (e.kind === "not_found" ? "Story not found" : "Failed to delete story"),
 });

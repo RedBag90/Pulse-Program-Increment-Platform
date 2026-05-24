@@ -1,7 +1,6 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { createPi, startPi, completePi, deletePi } from "@/server/services/pi";
@@ -10,6 +9,8 @@ import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { isErr } from "@/domain/errors";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
+import { revalidateFor } from "@/server/http/revalidation";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import type { ArtId, PiId } from "@/domain/types";
 
@@ -32,12 +33,15 @@ export const createPiAction = createServerAction({
   }),
   action: "pi.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => ({
-    artId: fd.get("artId"),
-    name: fd.get("name"),
-    startDate: fd.get("startDate"),
-    endDate: fd.get("endDate"),
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      artId: f.string("artId"),
+      name: f.string("name"),
+      startDate: f.string("startDate"),
+      endDate: f.string("endDate"),
+    };
+  },
   service: (ctx, input) =>
     createPi(ctx, {
       artId: input.artId as ArtId,
@@ -45,7 +49,7 @@ export const createPiAction = createServerAction({
       startDate: new Date(input.startDate),
       endDate: new Date(input.endDate),
     }),
-  onSuccess: () => revalidatePath("/art/[artId]/pi", "page"),
+  revalidate: "pi",
   mapError: (e) =>
     e.kind === "conflict"
       ? e.reason
@@ -86,7 +90,7 @@ export async function transitionPiAction(
     };
   }
 
-  revalidatePath(`/pi/${piId}`, "page");
+  revalidateFor("pi");
   return { success: true };
 }
 
@@ -94,9 +98,12 @@ export const deletePiAction = createServerAction({
   schema: z.object({ id: z.string().uuid(), artId: z.string().uuid() }),
   action: "pi.delete",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return { id: f.string("id"), artId: f.string("artId") };
+  },
   service: (ctx, input) => deletePi(ctx, { id: input.id as PiId }),
-  onSuccess: () => revalidatePath("/art/[artId]/pi", "page"),
+  revalidate: "pi",
   mapError: (e) =>
     e.kind === "conflict"
       ? e.reason

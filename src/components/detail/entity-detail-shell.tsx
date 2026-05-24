@@ -13,9 +13,9 @@ export function resolveTab(tabs: readonly DetailTab[], raw: string | undefined):
 }
 
 interface Props {
-  /** Where the "back" link points, e.g. `/capacity`. */
-  backHref: string;
-  backLabel: string;
+  /** Where the "back" link points, e.g. `/capacity`. Omit on a top-level hub. */
+  backHref?: string;
+  backLabel?: string;
   title: string;
   /** Optional pill next to the title. A string is wrapped in the default muted
    *  pill; a node (e.g. a colored status pill) is rendered as-is. */
@@ -52,13 +52,15 @@ export function EntityDetailShell({
   return (
     <div className="flex flex-col">
       <header className="border-b px-6 py-4">
-        <Link
-          href={backHref}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          {backLabel}
-        </Link>
+        {backHref && backLabel && (
+          <Link
+            href={backHref}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {backLabel}
+          </Link>
+        )}
         <div className="mt-2 flex items-center gap-3">
           <h1 className="font-heading text-2xl font-semibold tracking-tight">{title}</h1>
           {badge &&

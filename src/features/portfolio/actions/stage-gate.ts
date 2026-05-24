@@ -1,8 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { createServerAction, type ActionState } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
 import { advanceStageGate } from "@/server/services/epic";
 import { STAGE_GATES } from "@/domain/stage-gate";
 import type { EpicId } from "@/domain/types";
@@ -17,18 +17,21 @@ export const advanceStageGateAction = createServerAction({
   }),
   action: "epic.approve",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({
-    epicId: fd.get("epicId"),
-    toGate: fd.get("toGate"),
-    comment: fd.get("comment") ?? undefined,
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      epicId: f.string("epicId"),
+      toGate: f.string("toGate"),
+      comment: f.optionalString("comment"),
+    };
+  },
   service: (ctx, input) =>
     advanceStageGate(ctx, {
       epicId: input.epicId as EpicId,
       toGate: input.toGate,
       comment: input.comment,
     }),
-  onSuccess: () => revalidatePath("/portfolio"),
+  revalidate: "epic",
   mapError: (e) =>
     e.kind === "not_found"
       ? "Epic not found"

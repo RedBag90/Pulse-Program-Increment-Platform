@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { headers } from "next/headers";
-import { revalidatePath } from "next/cache";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -14,6 +13,8 @@ import {
   type ImpedimentId,
 } from "@/server/services/impediment";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
+import { revalidateFor } from "@/server/http/revalidation";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { isErr } from "@/domain/errors";
 import { redirect } from "next/navigation";
@@ -45,12 +46,16 @@ export const createImpedimentAction = createServerAction({
   }),
   action: "impediment.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => ({
-    artId: fd.get("artId"),
-    title: fd.get("title"),
-    description: fd.get("description") || undefined,
-    severity: fd.get("severity") || "medium",
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      artId: f.string("artId"),
+      title: f.string("title"),
+      description: f.nonEmptyString("description"),
+      // Absent/empty → undefined; the schema's .default("medium") fills it in.
+      severity: f.nonEmptyString("severity"),
+    };
+  },
   service: (ctx, input) =>
     createImpediment(ctx, {
       artId: input.artId as ArtId,
@@ -58,7 +63,7 @@ export const createImpedimentAction = createServerAction({
       description: input.description,
       severity: input.severity,
     }),
-  onSuccess: () => revalidatePath("/art/[artId]/impediments", "page"),
+  revalidate: "impediment",
   mapError: () => "Failed to log impediment",
 });
 
@@ -80,7 +85,7 @@ export async function escalateImpedimentAction(
     return { error: result.error.kind === "conflict" ? result.error.reason : "Failed to escalate" };
   }
 
-  revalidatePath(`/art/${artId}/impediments`, "page");
+  revalidateFor("impediment");
   return { success: true };
 }
 
@@ -103,6 +108,6 @@ export async function resolveImpedimentAction(
     return { error: result.error.kind === "conflict" ? result.error.reason : "Failed to resolve" };
   }
 
-  revalidatePath(`/art/${artId}/impediments`, "page");
+  revalidateFor("impediment");
   return { success: true };
 }

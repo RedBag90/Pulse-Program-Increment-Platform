@@ -6,13 +6,13 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Layers,
-  Network,
+  FolderTree,
+  Target,
   Zap,
   CalendarRange,
   Map,
   GitBranch,
   Route,
-  Users,
   Timer,
   BarChart2,
   Activity,
@@ -36,17 +36,18 @@ const NAV_GROUPS = [
     ],
   },
   {
-    labelKey: "capacityPlanning",
-    items: [
-      { href: "/capacity", labelKey: "valueStreams", icon: Network },
-      { href: "/roadmap/value-stream", labelKey: "valueStreamRoadmap", icon: GitBranch },
-    ],
+    labelKey: "structure",
+    items: [{ href: "/structure", labelKey: "structure", icon: FolderTree }],
+  },
+  {
+    labelKey: "transformation",
+    items: [{ href: "/transformation/ziel", labelKey: "targetState", icon: Target }],
   },
   {
     labelKey: "programPlanning",
     items: [
-      { href: "/art", labelKey: "arts", icon: Zap },
       { href: "/pi-planning", labelKey: "piPlanning", icon: CalendarRange },
+      { href: "/roadmap/value-stream", labelKey: "valueStreamRoadmap", icon: GitBranch },
       { href: "/roadmap/art", labelKey: "artRoadmap", icon: Route },
     ],
   },
@@ -56,10 +57,7 @@ const NAV_GROUPS = [
   },
   {
     labelKey: "teamExecution",
-    items: [
-      { href: "/team", labelKey: "teams", icon: Users },
-      { href: "/sprint", labelKey: "mySprints", icon: Timer },
-    ],
+    items: [{ href: "/sprint", labelKey: "mySprints", icon: Timer }],
   },
   {
     labelKey: "reporting",

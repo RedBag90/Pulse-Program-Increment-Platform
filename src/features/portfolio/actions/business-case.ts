@@ -1,7 +1,6 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { saveBusinessCase } from "@/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import { businessCaseSchema } from "@/domain/schemas/initiative";
@@ -51,6 +50,6 @@ export const saveBusinessCaseAction = createServerAction({
     const { epicId, ...fields } = input;
     return saveBusinessCase(ctx, { epicId: epicId as EpicId, fields });
   },
-  onSuccess: (input) => revalidatePath(`/portfolio/epics/${input.epicId}`),
+  revalidate: "epic",
   mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to save business case"),
 });

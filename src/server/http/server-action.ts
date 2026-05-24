@@ -7,6 +7,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { isErr } from "@/domain/errors";
 import type { DomainError, Result } from "@/domain/errors";
 import { extractRequestMeta } from "@/server/audit/emit";
+import { revalidateFor, type RevalidationResource } from "@/server/http/revalidation";
 import type { RequestContext } from "./mutation-handler";
 
 /** Identifies the entity a create action just produced — drives the success toast. */
@@ -33,7 +34,10 @@ export interface ServerActionConfig<TInput, TOutput = unknown> {
   resource: (input: TInput, principal: Principal) => AuthResource;
   parseFormData: (fd: FormData) => unknown;
   service: (ctx: RequestContext, input: TInput) => Promise<Result<TOutput>>;
-  onSuccess: (input: TInput) => void;
+  /** Domain resource to revalidate via the registry — preferred over hand-rolled `onSuccess`. */
+  revalidate?: RevalidationResource;
+  /** Extra post-success side effects (rarely needed once `revalidate` covers paths). */
+  onSuccess?: (input: TInput) => void;
   mapError?: (e: DomainError) => string;
   /** Builds the `CreatedRef` for the success toast from the service result. */
   describeCreated?: (value: TOutput, input: TInput) => CreatedRef;
@@ -74,7 +78,8 @@ export function createServerAction<TInput, TOutput = unknown>(
       return { error: msg };
     }
 
-    config.onSuccess(parsed.data);
+    if (config.revalidate) revalidateFor(config.revalidate);
+    config.onSuccess?.(parsed.data);
     return {
       success: true,
       ...(config.describeCreated && {

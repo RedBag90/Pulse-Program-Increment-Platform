@@ -3,6 +3,10 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getTeam } from "@/server/services/team";
 import { listAuditHistory } from "@/server/services/audit-history";
+import { listTenantApprovers } from "@/server/services/epic-approval";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { userLabel } from "@/components/detail/initiative-labels";
+import { teamTypeLabel } from "@/domain/team-type";
 import {
   EntityDetailShell,
   resolveTab,
@@ -33,7 +37,7 @@ export default async function TeamDetailPage({ params, searchParams }: Props) {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const team = await getTeam(db, principal.tenantId, id as TeamId);
-  if (!team) redirect("/capacity");
+  if (!team) redirect("/structure");
 
   const canEdit =
     principal.roles.includes("rte") ||
@@ -49,14 +53,22 @@ export default async function TeamDetailPage({ params, searchParams }: Props) {
     team.description ?? "",
     team.headcount ?? "",
     team.targetVelocity ?? "",
+    team.scrumMasterId ?? "",
+    team.productOwnerId ?? "",
+    team.teamType ?? "",
   ].join("|");
 
-  const history = await listAuditHistory(db, principal.tenantId, "team", team.id);
+  const [history, approvers, userLabels] = await Promise.all([
+    listAuditHistory(db, principal.tenantId, "team", team.id),
+    listTenantApprovers(db, principal.tenantId),
+    listTenantUserLabels(db, principal.tenantId),
+  ]);
   const events = history.map((e) => ({
     id: e.id,
     action: e.action,
     occurredAt: e.occurredAt.toISOString(),
   }));
+  const teamUsers = approvers.filter((u) => u.roles.includes("team_editor"));
 
   return (
     <EntityDetailShell
@@ -78,11 +90,23 @@ export default async function TeamDetailPage({ params, searchParams }: Props) {
             description={team.description ?? ""}
             headcount={team.headcount?.toString() ?? ""}
             targetVelocity={team.targetVelocity?.toString() ?? ""}
+            scrumMasterId={team.scrumMasterId ?? ""}
+            productOwnerId={team.productOwnerId ?? ""}
+            teamType={team.teamType ?? ""}
+            teamUsers={teamUsers}
+            userLabels={userLabels}
           />
         ) : (
           <dl className="max-w-xl space-y-3 text-sm">
             <Field label="Name">{team.name}</Field>
             <Field label="Beschreibung">{team.description ?? "—"}</Field>
+            <Field label="Team-Typ">{teamTypeLabel(team.teamType)}</Field>
+            <Field label="Scrum Master">
+              {team.scrumMasterId ? userLabel(team.scrumMasterId, userLabels) : "—"}
+            </Field>
+            <Field label="Product Owner">
+              {team.productOwnerId ? userLabel(team.productOwnerId, userLabels) : "—"}
+            </Field>
             <Field label="Mitgliederzahl">{team.headcount ?? "—"}</Field>
             <Field label="Ziel-Velocity">{team.targetVelocity ?? "—"}</Field>
           </dl>

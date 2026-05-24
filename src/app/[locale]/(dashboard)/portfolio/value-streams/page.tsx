@@ -6,5 +6,5 @@ import { redirect } from "next/navigation";
  * a redirect so existing links and bookmarks keep working.
  */
 export default function ValueStreamsPage() {
-  redirect("/capacity");
+  redirect("/structure");
 }

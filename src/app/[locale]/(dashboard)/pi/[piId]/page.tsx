@@ -100,7 +100,7 @@ export default async function PiDetailPage({ params }: Props) {
     <main className="mx-auto max-w-5xl space-y-6 p-6 md:p-8">
       <Breadcrumbs
         items={[
-          { label: "ARTs", href: "/art" },
+          { label: "ARTs", href: "/structure?tab=arts" },
           { label: pi.art.name, href: `/art/${pi.art.id}` },
           { label: pi.name },
         ]}

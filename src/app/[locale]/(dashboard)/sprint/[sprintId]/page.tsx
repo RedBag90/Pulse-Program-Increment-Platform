@@ -68,7 +68,7 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
   const breadcrumbs = (
     <Breadcrumbs
       items={[
-        { label: "ARTs", href: "/art" },
+        { label: "ARTs", href: "/structure?tab=arts" },
         { label: sprint.pi.art.name, href: `/art/${sprint.pi.art.id}` },
         { label: sprint.pi.name, href: `/pi/${sprint.pi.id}` },
         { label: `${sprint.team.name} — Sprint ${sprint.indexInPi}` },

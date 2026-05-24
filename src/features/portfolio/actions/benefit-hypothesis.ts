@@ -1,9 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { saveBenefitHypothesis } from "@/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
 import type { EpicId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
 
@@ -29,19 +29,22 @@ export const saveBenefitHypothesisAction = createServerAction({
   }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({
-    epicId: fd.get("epicId"),
-    measuresHypothesis: fd.get("measuresHypothesis") || undefined,
-    changeFromBaseline: fd.get("changeFromBaseline") || undefined,
-    businessOutcomes: toLines(fd.get("businessOutcomes")),
-    leadingIndicators: toLines(fd.get("leadingIndicators")),
-    risks: toLines(fd.get("risks")),
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      epicId: f.string("epicId"),
+      measuresHypothesis: f.nonEmptyString("measuresHypothesis"),
+      changeFromBaseline: f.nonEmptyString("changeFromBaseline"),
+      businessOutcomes: toLines(f.raw("businessOutcomes")),
+      leadingIndicators: toLines(f.raw("leadingIndicators")),
+      risks: toLines(f.raw("risks")),
+    };
+  },
   service: (ctx, input) => {
     const { epicId, ...fields } = input;
     return saveBenefitHypothesis(ctx, { epicId: epicId as EpicId, fields });
   },
-  onSuccess: (input) => revalidatePath(`/portfolio/epics/${input.epicId}`),
+  revalidate: "epic",
   mapError: (e) =>
     e.kind === "not_found" ? "Epic not found" : "Failed to save benefit hypothesis",
 });

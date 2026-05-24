@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { assignRole, removeRole } from "@/server/services/role-assignment";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
 import { ROLES } from "@/domain/roles";
 import type { Role } from "@/domain/roles";
 import type { UserId } from "@/domain/types";
@@ -23,13 +24,17 @@ export const assignRoleAction = createServerAction({
   }),
   action: "tenant.users.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({
-    targetUserId: fd.get("targetUserId"),
-    role: fd.get("role"),
-    valueStreamIds: fd.get("valueStreamIds") ?? "",
-    artIds: fd.get("artIds") ?? "",
-    teamIds: fd.get("teamIds") ?? "",
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      targetUserId: f.string("targetUserId"),
+      role: f.string("role"),
+      // Hidden comma-joined inputs; absent → "" so the schema's z.string() holds.
+      valueStreamIds: f.string("valueStreamIds") ?? "",
+      artIds: f.string("artIds") ?? "",
+      teamIds: f.string("teamIds") ?? "",
+    };
+  },
   service: (ctx, input) =>
     assignRole(ctx, {
       targetUserId: input.targetUserId as UserId,
@@ -52,11 +57,14 @@ export const removeRoleAction = createServerAction({
   }),
   action: "tenant.users.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({
-    assignmentId: fd.get("assignmentId"),
-    targetUserId: fd.get("targetUserId"),
-    role: fd.get("role"),
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      assignmentId: f.string("assignmentId"),
+      targetUserId: f.string("targetUserId"),
+      role: f.string("role"),
+    };
+  },
   service: (ctx, input) =>
     removeRole(ctx, {
       assignmentId: input.assignmentId,

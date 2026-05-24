@@ -49,7 +49,7 @@ export default async function PiObjectivesPage({ params }: Props) {
     <main className="p-8 max-w-4xl mx-auto space-y-6">
       <Breadcrumbs
         items={[
-          { label: "ARTs", href: "/art" },
+          { label: "ARTs", href: "/structure?tab=arts" },
           { label: pi.art.name, href: `/art/${pi.art.id}` },
           { label: pi.name, href: `/pi/${piId}` },
           { label: "Objectives" },

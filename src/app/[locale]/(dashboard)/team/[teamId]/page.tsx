@@ -76,7 +76,7 @@ export default async function TeamBacklogPage({ params, searchParams }: Props) {
     <main className="p-8 max-w-5xl mx-auto space-y-6">
       <Breadcrumbs
         items={[
-          { label: "ARTs", href: "/art" },
+          { label: "ARTs", href: "/structure?tab=arts" },
           { label: team.art.name, href: `/art/${artId}/teams` },
           { label: `${team.name} — Backlog` },
         ]}

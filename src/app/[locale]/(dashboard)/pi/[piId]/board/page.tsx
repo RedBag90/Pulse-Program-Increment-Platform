@@ -40,7 +40,7 @@ export default async function PiBoardPage({ params }: Props) {
     <main className="p-6 max-w-full space-y-6">
       <Breadcrumbs
         items={[
-          { label: "ARTs", href: "/art" },
+          { label: "ARTs", href: "/structure?tab=arts" },
           { label: pi.art.name, href: `/art/${pi.art.id}` },
           { label: pi.name, href: `/pi/${piId}` },
           { label: "Program Board" },

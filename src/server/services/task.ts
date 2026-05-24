@@ -2,11 +2,16 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, StoryId, TaskId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
-import { ok, err, isErr } from "@/domain/errors";
+import { ok, isErr } from "@/domain/errors";
 import { buildChangelog } from "@/domain/change-log";
-import { validateParentLevel } from "@/domain/hierarchy";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import {
+  findValidatedParent,
+  createChildInitiative,
+  findInitiativeAtLevel,
+  softDeleteInitiativeAtLevel,
+} from "@/server/services/initiative-write";
 
 export interface CreateTaskInput {
   parentId: StoryId;
@@ -31,28 +36,18 @@ export async function createTask(
   const { parentId, title, description, estimateHours } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const parent = await tx.initiative.findFirst({
-      where: { id: parentId, tenantId: mctx.tenantId, deletedAt: null },
-    });
-    const hierarchy = validateParentLevel(InitiativeLevel.TASK, parent, parentId);
-    if (isErr(hierarchy)) return hierarchy;
-    const story = parent!; // non-null once validateParentLevel passes
+    const parentResult = await findValidatedParent(tx, mctx, InitiativeLevel.TASK, parentId);
+    if (isErr(parentResult)) return parentResult;
+    const story = parentResult.value!; // non-null for a TASK's STORY parent
 
-    const path = `${story.path}/${crypto.randomUUID()}`;
-
-    const task = await tx.initiative.create({
+    const task = await createChildInitiative(tx, mctx, {
+      level: InitiativeLevel.TASK,
+      parentId,
+      parentPath: story.path,
+      title,
       data: {
-        tenantId: mctx.tenantId,
-        level: InitiativeLevel.TASK,
-        parentId,
-        path,
-        title,
         ...(description !== undefined && { description }),
         ...(estimateHours !== undefined && { estimateHours }),
-        ownerId: mctx.actorId,
-        assigneeIds: [],
-        createdBy: mctx.actorId,
-        updatedBy: mctx.actorId,
       },
     });
 
@@ -71,12 +66,13 @@ export async function updateTask(
   const { id, title, description, estimateHours, status } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.TASK, deletedAt: null },
+    const found = await findInitiativeAtLevel(tx, mctx, {
+      id,
+      level: InitiativeLevel.TASK,
+      resourceType: "Task",
     });
-    if (!existing) {
-      return err({ kind: "not_found" as const, resourceType: "Task", id });
-    }
+    if (isErr(found)) return found;
+    const existing = found.value;
 
     const changes = buildChangelog(
       { status: existing.status },
@@ -109,22 +105,13 @@ export async function deleteTask(
   const mctx = toMutationContext(ctx);
   const { id } = input;
 
-  return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.TASK, deletedAt: null },
-    });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "Task", id });
-
-    await tx.initiative.update({
-      where: { id },
-      data: { deletedAt: new Date(), updatedBy: mctx.actorId },
-    });
-
-    return ok({
-      result: undefined,
-      audit: { action: "initiative.deleted", resourceType: "initiative", resourceId: id },
-    });
-  });
+  return withAuditedTransaction(mctx, (tx) =>
+    softDeleteInitiativeAtLevel(tx, mctx, {
+      id,
+      level: InitiativeLevel.TASK,
+      resourceType: "Task",
+    }),
+  );
 }
 
 export async function listTasks(db: PrismaClient, tenantId: TenantId, storyId: StoryId) {

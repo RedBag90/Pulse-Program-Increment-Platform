@@ -1,13 +1,13 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import {
   createValueStream,
   updateValueStream,
   softDeleteValueStream,
 } from "@/server/services/value-stream";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
 import type { ValueStreamId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
 
@@ -26,12 +26,15 @@ export const createValueStreamAction = createServerAction({
   }),
   action: "value_stream.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({
-    name: fd.get("name"),
-    description: fd.get("description") || undefined,
-    budgetAmount: fd.get("budgetAmount") || undefined,
-    budgetCurrency: fd.get("budgetCurrency") || undefined,
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      name: f.string("name"),
+      description: f.nonEmptyString("description"),
+      budgetAmount: f.nonEmptyString("budgetAmount"),
+      budgetCurrency: f.nonEmptyString("budgetCurrency"),
+    };
+  },
   service: (ctx, input) =>
     createValueStream(ctx, {
       name: input.name,
@@ -39,7 +42,7 @@ export const createValueStreamAction = createServerAction({
       budgetAmount: input.budgetAmount,
       budgetCurrency: input.budgetCurrency,
     }),
-  onSuccess: () => revalidatePath("/portfolio/value-streams"),
+  revalidate: "valueStream",
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create"),
 });
 
@@ -58,16 +61,19 @@ export const updateValueStreamAction = createServerAction({
   }),
   action: "value_stream.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({
-    id: fd.get("id"),
-    name: fd.get("name") || undefined,
-    description: fd.get("description") || undefined,
-    budgetAmount: fd.get("budgetAmount") || undefined,
-    budgetCurrency: fd.get("budgetCurrency") || undefined,
-    // Selects always post a value: "" clears the assignment (→ null).
-    financeApproverId: (fd.get("financeApproverId") as string) || null,
-    vmoId: (fd.get("vmoId") as string) || null,
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      id: f.string("id"),
+      name: f.nonEmptyString("name"),
+      description: f.nonEmptyString("description"),
+      budgetAmount: f.nonEmptyString("budgetAmount"),
+      budgetCurrency: f.nonEmptyString("budgetCurrency"),
+      // nullableString: "" clears the assignment (→ null); absent leaves it untouched.
+      financeApproverId: f.nullableString("financeApproverId"),
+      vmoId: f.nullableString("vmoId"),
+    };
+  },
   service: (ctx, input) =>
     updateValueStream(ctx, {
       id: input.id as ValueStreamId,
@@ -78,10 +84,7 @@ export const updateValueStreamAction = createServerAction({
       financeApproverId: input.financeApproverId,
       vmoId: input.vmoId,
     }),
-  onSuccess: () => {
-    revalidatePath("/capacity");
-    revalidatePath("/capacity/value-streams/[id]", "page");
-  },
+  revalidate: "valueStream",
   mapError: (e) =>
     e.kind === "conflict" ? e.reason : e.kind === "not_found" ? "Not found" : "Failed to update",
 });
@@ -92,8 +95,8 @@ export const deleteValueStreamAction = createServerAction({
   }),
   action: "value_stream.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ id: fd.get("id") }),
+  parseFormData: (fd) => ({ id: fields(fd).string("id") }),
   service: (ctx, input) => softDeleteValueStream(ctx, { id: input.id as ValueStreamId }),
-  onSuccess: () => revalidatePath("/portfolio/value-streams"),
+  revalidate: "valueStream",
   mapError: (e) => (e.kind === "not_found" ? "Value stream not found" : "Failed to delete"),
 });

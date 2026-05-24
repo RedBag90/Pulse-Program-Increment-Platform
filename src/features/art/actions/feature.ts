@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { headers } from "next/headers";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   createFeature,
@@ -13,6 +12,8 @@ import {
 } from "@/server/services/feature";
 import { submitForReview, decideReview } from "@/server/services/initiative-review";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
+import { revalidateFor } from "@/server/http/revalidation";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
@@ -46,17 +47,20 @@ export const createFeatureAction = createServerAction({
   }),
   action: "feature.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => ({
-    artId: fd.get("artId"),
-    parentId: fd.get("parentId"),
-    title: fd.get("title"),
-    description: (fd.get("description") as string | null) ?? undefined,
-    wsjfBusinessValue: fd.get("wsjfBusinessValue"),
-    wsjfTimeCriticality: fd.get("wsjfTimeCriticality"),
-    wsjfRiskReduction: fd.get("wsjfRiskReduction"),
-    wsjfJobSize: fd.get("wsjfJobSize"),
-    acceptanceCriteria: (fd.get("acceptanceCriteria") as string | null) ?? undefined,
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      artId: f.string("artId"),
+      parentId: f.string("parentId"),
+      title: f.string("title"),
+      description: f.optionalString("description"),
+      wsjfBusinessValue: f.string("wsjfBusinessValue"),
+      wsjfTimeCriticality: f.string("wsjfTimeCriticality"),
+      wsjfRiskReduction: f.string("wsjfRiskReduction"),
+      wsjfJobSize: f.string("wsjfJobSize"),
+      acceptanceCriteria: f.optionalString("acceptanceCriteria"),
+    };
+  },
   service: (ctx, input) => {
     const acceptanceCriteria = input.acceptanceCriteria
       ? input.acceptanceCriteria
@@ -76,10 +80,7 @@ export const createFeatureAction = createServerAction({
       acceptanceCriteria,
     });
   },
-  onSuccess: () => {
-    revalidatePath("/art/[artId]/features", "page");
-    revalidatePath("/portfolio/epics/[id]", "page");
-  },
+  revalidate: "feature",
   mapError: (e) =>
     e.kind === "not_found" ? `${e.resourceType} not found` : "Failed to create feature",
 });
@@ -98,17 +99,20 @@ export const updateFeatureAction = createServerAction({
   }),
   action: "feature.update",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => ({
-    id: fd.get("id"),
-    artId: fd.get("artId"),
-    title: fd.get("title") || undefined,
-    description: (fd.get("description") as string | null) ?? undefined,
-    acceptanceCriteria: (fd.get("acceptanceCriteria") as string | null) ?? undefined,
-    wsjfBusinessValue: fd.get("wsjfBusinessValue") || undefined,
-    wsjfTimeCriticality: fd.get("wsjfTimeCriticality") || undefined,
-    wsjfRiskReduction: fd.get("wsjfRiskReduction") || undefined,
-    wsjfJobSize: fd.get("wsjfJobSize") || undefined,
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      id: f.string("id"),
+      artId: f.string("artId"),
+      title: f.nonEmptyString("title"),
+      description: f.optionalString("description"),
+      acceptanceCriteria: f.optionalString("acceptanceCriteria"),
+      wsjfBusinessValue: f.nonEmptyString("wsjfBusinessValue"),
+      wsjfTimeCriticality: f.nonEmptyString("wsjfTimeCriticality"),
+      wsjfRiskReduction: f.nonEmptyString("wsjfRiskReduction"),
+      wsjfJobSize: f.nonEmptyString("wsjfJobSize"),
+    };
+  },
   service: (ctx, input) => {
     const acceptanceCriteria =
       input.acceptanceCriteria !== undefined
@@ -128,11 +132,7 @@ export const updateFeatureAction = createServerAction({
       wsjfJobSize: input.wsjfJobSize,
     });
   },
-  onSuccess: () => {
-    revalidatePath("/art/[artId]/features", "page");
-    revalidatePath("/portfolio/epics/[id]", "page");
-    revalidatePath("/feature/[featureId]", "page");
-  },
+  revalidate: "feature",
   mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to update feature"),
 });
 
@@ -147,14 +147,17 @@ export const scoreFeatureAction = createServerAction({
   }),
   action: "feature.wsjf.set",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => ({
-    featureId: fd.get("featureId"),
-    artId: fd.get("artId"),
-    wsjfBusinessValue: fd.get("wsjfBusinessValue"),
-    wsjfTimeCriticality: fd.get("wsjfTimeCriticality"),
-    wsjfRiskReduction: fd.get("wsjfRiskReduction"),
-    wsjfJobSize: fd.get("wsjfJobSize"),
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      featureId: f.string("featureId"),
+      artId: f.string("artId"),
+      wsjfBusinessValue: f.string("wsjfBusinessValue"),
+      wsjfTimeCriticality: f.string("wsjfTimeCriticality"),
+      wsjfRiskReduction: f.string("wsjfRiskReduction"),
+      wsjfJobSize: f.string("wsjfJobSize"),
+    };
+  },
   service: (ctx, input) =>
     scoreFeature(ctx, {
       id: input.featureId as FeatureId,
@@ -163,7 +166,7 @@ export const scoreFeatureAction = createServerAction({
       wsjfRiskReduction: input.wsjfRiskReduction,
       wsjfJobSize: input.wsjfJobSize,
     }),
-  onSuccess: () => revalidatePath("/art/[artId]/features", "page"),
+  revalidate: "feature",
   mapError: () => "Failed to update WSJF score",
 });
 
@@ -171,12 +174,12 @@ export const deleteFeatureAction = createServerAction({
   schema: z.object({ id: z.string().uuid(), artId: z.string().uuid() }),
   action: "feature.delete",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => ({ id: fd.get("id"), artId: fd.get("artId") }),
-  service: (ctx, input) => softDeleteFeature(ctx, { id: input.id as FeatureId }),
-  onSuccess: () => {
-    revalidatePath("/art/[artId]/features", "page");
-    revalidatePath("/portfolio/epics/[id]", "page");
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return { id: f.string("id"), artId: f.string("artId") };
   },
+  service: (ctx, input) => softDeleteFeature(ctx, { id: input.id as FeatureId }),
+  revalidate: "feature",
   mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to delete feature"),
 });
 
@@ -184,13 +187,9 @@ export const submitFeatureReviewAction = createServerAction({
   schema: z.object({ id: z.string().uuid() }),
   action: "feature.review.submit",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ id: fd.get("id") }),
+  parseFormData: (fd) => ({ id: fields(fd).string("id") }),
   service: (ctx, input) => submitForReview(ctx, { kind: "feature", id: input.id as FeatureId }),
-  onSuccess: () => {
-    revalidatePath("/quality/features", "page");
-    revalidatePath("/feature/[featureId]", "page");
-    revalidatePath("/portfolio/epics/[id]", "page");
-  },
+  revalidate: "feature",
   mapError: (e) =>
     e.kind === "conflict"
       ? e.reason
@@ -203,14 +202,13 @@ export const decideFeatureReviewAction = createServerAction({
   schema: z.object({ id: z.string().uuid(), decision: z.enum(["approve", "reject"]) }),
   action: "feature.review.decide",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ id: fd.get("id"), decision: fd.get("decision") }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return { id: f.string("id"), decision: f.string("decision") };
+  },
   service: (ctx, input) =>
     decideReview(ctx, { kind: "feature", id: input.id as FeatureId, decision: input.decision }),
-  onSuccess: () => {
-    revalidatePath("/quality/features", "page");
-    revalidatePath("/feature/[featureId]", "page");
-    revalidatePath("/portfolio/epics/[id]", "page");
-  },
+  revalidate: "feature",
   mapError: (e) =>
     e.kind === "conflict"
       ? e.reason
@@ -261,9 +259,6 @@ export async function setFeaturePiAction(
     }
   }
 
-  revalidatePath("/art/[artId]/features", "page");
-  revalidatePath("/pi/[piId]", "page");
-  revalidatePath("/portfolio/epics/[id]", "page");
-  revalidatePath("/pi-planning", "page");
+  revalidateFor("feature");
   return {};
 }

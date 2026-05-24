@@ -52,7 +52,8 @@ export type Action =
   | "impediment.escalate"
   | "impediment.resolve"
   | "admin.audit-log.read"
-  | "admin.users.read";
+  | "admin.users.read"
+  | "target.manage";
 
 /** A scope dimension a grant may additionally require the principal to match. */
 export type ScopeCheck = "value_stream" | "art" | "team" | "own";
@@ -90,6 +91,10 @@ export const POLICIES: Record<Action, Grant[]> = {
   "integration.manage": [{ roles: [TENANT_ADMIN] }],
   "admin.audit-log.read": [{ roles: [TENANT_ADMIN] }],
   "admin.users.read": [{ roles: [TENANT_ADMIN] }],
+  // Define/manage the organisation's target operating model (the Soll the
+  // transformation drives toward). Management-owned: the LPM/portfolio lead and
+  // the tenant admin. A dedicated `transformation_lead` role is added in Phase 1.
+  "target.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
 
   // ── Portfolio ───────────────────────────────────────────────────────────
   // The portfolio manager funds value streams and owns the Epic backlog.

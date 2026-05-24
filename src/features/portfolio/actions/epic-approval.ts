@@ -1,7 +1,6 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import {
   submitHypothesis,
   decideHypothesis,
@@ -13,16 +12,12 @@ import {
   startRevision,
 } from "@/server/services/epic-approval";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
 import { APPROVAL_PARTIES } from "@/domain/business-case";
 import { APPROVAL_SECTIONS } from "@/domain/epic-approval";
 import type { EpicId } from "@/domain/types";
 
 const DECISION = z.enum(["approve", "reject"]);
-
-/** Revalidates the Epic detail route after a workflow mutation. */
-function revalidateEpic() {
-  revalidatePath("/portfolio/epics/[id]", "page");
-}
 
 const mapWorkflowError = (e: { kind: string; reason?: string }) =>
   e.kind === "conflict"
@@ -35,9 +30,9 @@ export const submitEpicHypothesisAction = createServerAction({
   schema: z.object({ epicId: z.string().uuid() }),
   action: "epic.hypothesis.submit",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ epicId: fd.get("epicId") }),
+  parseFormData: (fd) => ({ epicId: fields(fd).string("epicId") }),
   service: (ctx, input) => submitHypothesis(ctx, { epicId: input.epicId as EpicId }),
-  onSuccess: revalidateEpic,
+  revalidate: "epic",
   mapError: mapWorkflowError,
 });
 
@@ -45,10 +40,13 @@ export const decideEpicHypothesisAction = createServerAction({
   schema: z.object({ epicId: z.string().uuid(), decision: DECISION }),
   action: "epic.hypothesis.decide",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ epicId: fd.get("epicId"), decision: fd.get("decision") }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return { epicId: f.string("epicId"), decision: f.string("decision") };
+  },
   service: (ctx, input) =>
     decideHypothesis(ctx, { epicId: input.epicId as EpicId, decision: input.decision }),
-  onSuccess: revalidateEpic,
+  revalidate: "epic",
   mapError: mapWorkflowError,
 });
 
@@ -63,7 +61,7 @@ export const configureApproversAction = createServerAction({
   action: "epic.approval.configure",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => ({
-    epicId: fd.get("epicId"),
+    epicId: fields(fd).string("epicId"),
     assignments: JSON.parse((fd.get("assignments") as string | null) ?? "[]"),
     sections: JSON.parse((fd.get("sections") as string | null) ?? "[]"),
   }),
@@ -73,7 +71,7 @@ export const configureApproversAction = createServerAction({
       assignments: input.assignments,
       sections: input.sections,
     }),
-  onSuccess: revalidateEpic,
+  revalidate: "epic",
   mapError: mapWorkflowError,
 });
 
@@ -81,9 +79,9 @@ export const submitEpicBusinessCaseAction = createServerAction({
   schema: z.object({ epicId: z.string().uuid() }),
   action: "epic.businesscase.submit",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ epicId: fd.get("epicId") }),
+  parseFormData: (fd) => ({ epicId: fields(fd).string("epicId") }),
   service: (ctx, input) => submitBusinessCase(ctx, { epicId: input.epicId as EpicId }),
-  onSuccess: revalidateEpic,
+  revalidate: "epic",
   mapError: mapWorkflowError,
 });
 
@@ -91,9 +89,9 @@ export const reviseEpicBusinessCaseAction = createServerAction({
   schema: z.object({ epicId: z.string().uuid() }),
   action: "epic.businesscase.submit",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ epicId: fd.get("epicId") }),
+  parseFormData: (fd) => ({ epicId: fields(fd).string("epicId") }),
   service: (ctx, input) => reviseBusinessCase(ctx, { epicId: input.epicId as EpicId }),
-  onSuccess: revalidateEpic,
+  revalidate: "epic",
   mapError: mapWorkflowError,
 });
 
@@ -105,18 +103,21 @@ export const decideEpicApprovalAction = createServerAction({
   }),
   action: "epic.approval.decide",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({
-    approvalId: fd.get("approvalId"),
-    decision: fd.get("decision"),
-    comment: (fd.get("comment") as string | null) || undefined,
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      approvalId: f.string("approvalId"),
+      decision: f.string("decision"),
+      comment: f.nonEmptyString("comment"),
+    };
+  },
   service: (ctx, input) =>
     decideApproval(ctx, {
       approvalId: input.approvalId,
       decision: input.decision,
       comment: input.comment,
     }),
-  onSuccess: revalidateEpic,
+  revalidate: "epic",
   mapError: mapWorkflowError,
 });
 
@@ -129,12 +130,15 @@ export const signoffEpicSectionAction = createServerAction({
   }),
   action: "epic.section.signoff",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({
-    epicId: fd.get("epicId"),
-    section: fd.get("section"),
-    decision: fd.get("decision"),
-    comment: (fd.get("comment") as string | null) || undefined,
-  }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      epicId: f.string("epicId"),
+      section: f.string("section"),
+      decision: f.string("decision"),
+      comment: f.nonEmptyString("comment"),
+    };
+  },
   service: (ctx, input) =>
     signoffSection(ctx, {
       epicId: input.epicId as EpicId,
@@ -142,7 +146,7 @@ export const signoffEpicSectionAction = createServerAction({
       decision: input.decision,
       comment: input.comment,
     }),
-  onSuccess: revalidateEpic,
+  revalidate: "epic",
   mapError: mapWorkflowError,
 });
 
@@ -150,8 +154,11 @@ export const startEpicRevisionAction = createServerAction({
   schema: z.object({ epicId: z.string().uuid(), mode: z.enum(["full", "business_case"]) }),
   action: "epic.revision.start",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ epicId: fd.get("epicId"), mode: fd.get("mode") }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return { epicId: f.string("epicId"), mode: f.string("mode") };
+  },
   service: (ctx, input) => startRevision(ctx, { epicId: input.epicId as EpicId, mode: input.mode }),
-  onSuccess: revalidateEpic,
+  revalidate: "epic",
   mapError: mapWorkflowError,
 });

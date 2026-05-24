@@ -6,8 +6,8 @@ import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { updateStory } from "@/server/services/story";
+import { revalidateFor } from "@/server/http/revalidation";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isErr } from "@/domain/errors";
 import type { StoryId, SprintId } from "@/domain/types";
@@ -42,6 +42,6 @@ export async function assignSprintAction(
 
   if (isErr(result)) return { error: "Failed to assign sprint" };
 
-  revalidatePath(`/team/${teamId}`, "page");
+  revalidateFor("story");
   return {};
 }

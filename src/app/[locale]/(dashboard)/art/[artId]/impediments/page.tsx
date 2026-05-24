@@ -29,7 +29,7 @@ export default async function ImpedimentsPage({ params, searchParams }: Props) {
     }),
   ]);
 
-  if (!art) redirect("/art");
+  if (!art) redirect("/structure?tab=arts");
 
   const open = impediments.filter((i) => i.status === "open");
   const escalated = impediments.filter((i) => i.status === "escalated");
