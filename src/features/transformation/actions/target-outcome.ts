@@ -11,11 +11,13 @@ export type { ActionState as TargetOutcomeActionState };
 
 function revalidate() {
   revalidatePath("/transformation/ziel", "page");
+  revalidatePath("/transformation/ziele", "page");
   revalidatePath("/transformation", "page");
 }
 
 const saveSchema = z.object({
   id: z.string().uuid().nullable().optional(),
+  goalId: z.string().uuid().nullable().optional(),
   title: z.string().min(1).max(200),
   metricUnit: z.string().max(40).nullable().optional(),
   baseline: z.number().nullable().optional(),
@@ -33,6 +35,7 @@ export const saveTargetOutcomeAction = createServerAction({
   service: (ctx, input) =>
     saveTargetOutcome(ctx, {
       id: input.id ?? null,
+      goalId: input.goalId ?? null,
       title: input.title,
       metricUnit: input.metricUnit ?? null,
       baseline: input.baseline ?? null,

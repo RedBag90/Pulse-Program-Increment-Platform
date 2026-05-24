@@ -161,9 +161,9 @@ export function TargetOutcomesManager({ outcomes, canManage }: Props) {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="font-heading text-sm font-medium">Ziel-Outcomes (OKRs)</h2>
+        <h2 className="font-heading text-sm font-medium">KPIs ohne Ziel</h2>
         <p className="text-xs text-muted-foreground">
-          Organisationsweite Geschäftsziele — woran der Erfolg der Transformation gemessen wird.
+          Kennzahlen, die (noch) keinem strategischen Ziel zugeordnet sind.
         </p>
       </div>
 

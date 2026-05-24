@@ -3,6 +3,7 @@ import {
   Layers,
   FolderTree,
   Target,
+  Goal,
   Gauge,
   CalendarRange,
   Map,
@@ -71,6 +72,7 @@ export const NAV_GROUPS: NavGroup[] = [
     labelKey: "transformation",
     items: [
       { href: "/transformation", labelKey: "transformationCockpit", icon: Gauge, exact: true },
+      { href: "/transformation/ziele", labelKey: "goals", icon: Goal },
       {
         href: "/transformation/ziel",
         labelKey: "targetState",

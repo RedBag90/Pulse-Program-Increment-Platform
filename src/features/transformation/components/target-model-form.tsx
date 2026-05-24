@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Info } from "lucide-react";
 import { saveTargetModelAction } from "@/features/transformation/actions/target-model";
 import {
   OPERATING_MODEL_TEMPLATES,
@@ -8,6 +9,7 @@ import {
   TEMPLATE_LABELS,
   PRACTICES,
   PRACTICE_LABELS,
+  PRACTICE_HINTS,
   type OperatingModelTemplate,
   type PracticeFlags,
   type StructureTargets,
@@ -15,6 +17,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 interface Props {
   canManage: boolean;
@@ -110,20 +113,33 @@ export function TargetModelForm({ canManage, status, initial }: Props) {
         <p className="text-xs text-muted-foreground">
           Nur Praktiken im Ziel erscheinen später in Navigation und Lückenanalyse.
         </p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {PRACTICES.map((p) => (
-            <label key={p} className="flex items-start gap-2 rounded-md border p-2 text-sm">
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={practices[p]}
-                disabled={disabled}
-                onChange={(e) => setPractice(p, e.target.checked)}
-              />
-              <span>{PRACTICE_LABELS[p]}</span>
-            </label>
-          ))}
-        </div>
+        <TooltipProvider>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {PRACTICES.map((p) => (
+              <div key={p} className="flex items-start gap-2 rounded-md border p-2 text-sm">
+                <label className="flex flex-1 items-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={practices[p]}
+                    disabled={disabled}
+                    onChange={(e) => setPractice(p, e.target.checked)}
+                  />
+                  <span>{PRACTICE_LABELS[p]}</span>
+                </label>
+                <Tooltip>
+                  <TooltipTrigger
+                    className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground"
+                    aria-label={`Erklärung: ${PRACTICE_LABELS[p]}`}
+                  >
+                    <Info className="size-3.5" />
+                  </TooltipTrigger>
+                  <TooltipContent>{PRACTICE_HINTS[p]}</TooltipContent>
+                </Tooltip>
+              </div>
+            ))}
+          </div>
+        </TooltipProvider>
       </fieldset>
 
       {/* Struktur-Ziele */}

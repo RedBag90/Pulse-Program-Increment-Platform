@@ -49,7 +49,9 @@
     "auditLog": "Audit-Log",
     "transformation": "Transformation",
     "transformationCockpit": "Cockpit",
-    "targetState": "Zielzustand"
+    "goals": "Ziele",
+    "targetState": "Zielzustand",
+    "openMenu": "Menü öffnen"
   },
   "auth": {
     "signIn": "Anmelden",

@@ -22,8 +22,19 @@ export interface ModelSummary {
   practices: PracticeFlags;
 }
 
+/** A strategic goal summarised for the cockpit: KPI progress + linked-Epic count. */
+export interface GoalSummary {
+  id: string;
+  title: string;
+  status: string;
+  kpiProgress: number;
+  kpiCount: number;
+  epicCount: number;
+}
+
 interface Props {
   model: ModelSummary | null;
+  goals: GoalSummary[];
   gap: StructureGap;
   adoption: PracticeAdoption;
   outcomes: OutcomeView[];
@@ -47,8 +58,8 @@ function outcomeProgress(o: OutcomeView): number {
  * management-defined target (Soll). Reads the structure gap; practice/outcome
  * gaps follow in later stories. Empty until a target is activated.
  */
-export function TransformationCockpit({ model, gap, adoption, outcomes }: Props) {
-  if (!gap.hasTarget && outcomes.length === 0) {
+export function TransformationCockpit({ model, goals, gap, adoption, outcomes }: Props) {
+  if (!gap.hasTarget && outcomes.length === 0 && goals.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-6 text-center">
         <Target className="mx-auto h-6 w-6 text-muted-foreground" />
@@ -67,6 +78,12 @@ export function TransformationCockpit({ model, gap, adoption, outcomes }: Props)
   }
 
   const nextSteps = deriveNextSteps(gap, adoption);
+
+  // Overall goal achievement = mean progress across goals that carry KPIs.
+  const goalsWithKpis = goals.filter((g) => g.kpiCount > 0);
+  const goalAchievement = goalsWithKpis.length
+    ? goalsWithKpis.reduce((sum, g) => sum + g.kpiProgress, 0) / goalsWithKpis.length
+    : null;
 
   return (
     <div className="space-y-6">
@@ -92,6 +109,59 @@ export function TransformationCockpit({ model, gap, adoption, outcomes }: Props)
               </span>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* Strategische Ziele (Senior-Management-Richtung) */}
+      {goals.length > 0 && (
+        <section className="rounded-lg border bg-card p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-baseline gap-2">
+              <h2 className="font-heading text-sm font-medium">Strategische Ziele</h2>
+              {goalAchievement != null && (
+                <span className="text-xs text-muted-foreground">
+                  · Zielerreichung{" "}
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {pct(goalAchievement)}
+                  </span>
+                </span>
+              )}
+            </div>
+            <Link
+              href="/transformation/ziele"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              Verwalten <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <ul className="space-y-3">
+            {goals.map((g) => (
+              <li key={g.id} className="space-y-1">
+                <div className="flex items-baseline justify-between text-sm">
+                  <Link
+                    href={`/transformation/ziele/${g.id}`}
+                    className="font-medium hover:underline"
+                  >
+                    {g.status === "achieved" && <span className="text-emerald-600">✓ </span>}
+                    {g.title}
+                  </Link>
+                  <span className="tabular-nums text-muted-foreground">
+                    {g.kpiCount > 0 ? pct(g.kpiProgress) : "—"} · {g.epicCount} Epic
+                    {g.epicCount !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: pct(g.kpiCount > 0 ? g.kpiProgress : 0) }}
+                  />
+                </div>
+                {g.kpiCount === 0 && (
+                  <p className="text-xs text-muted-foreground">Noch keine KPIs gebunden.</p>
+                )}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

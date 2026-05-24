@@ -39,7 +39,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
       {/* Main content area */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Topbar />
+        <Topbar userEmail={principal.email ?? ""} visibleHrefs={visibleHrefs} />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>

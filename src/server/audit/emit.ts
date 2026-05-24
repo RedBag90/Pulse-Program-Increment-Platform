@@ -83,7 +83,15 @@ export type AuditAction =
   | "target.activated"
   | "target_outcome.created"
   | "target_outcome.updated"
-  | "target_outcome.deleted";
+  | "target_outcome.deleted"
+  | "transformation_action.created"
+  | "transformation_action.updated"
+  | "transformation_action.deleted"
+  | "transformation_goal.created"
+  | "transformation_goal.updated"
+  | "transformation_goal.deleted"
+  | "goal_epic.linked"
+  | "goal_epic.unlinked";
 
 export type AuditResourceType =
   | "initiative"
@@ -100,7 +108,10 @@ export type AuditResourceType =
   | "user"
   | "tenant"
   | "target_operating_model"
-  | "target_outcome";
+  | "target_outcome"
+  | "transformation_action"
+  | "transformation_goal"
+  | "goal_epic_link";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

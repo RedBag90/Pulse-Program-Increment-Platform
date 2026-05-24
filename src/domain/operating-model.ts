@@ -55,6 +55,19 @@ export const PRACTICE_LABELS: Record<Practice, string> = {
   piObjectives: "PI-Ziele",
 };
 
+/** One-line explanations — shown when management configures the target, so the
+ *  declared Soll is understood, not just toggled. */
+export const PRACTICE_HINTS: Record<Practice, string> = {
+  portfolioLevel: "Wertströme und Epics (Portfolio-Backlog) — das oberste SAFe-Level.",
+  programLevel: "ARTs, PIs und Features — die Programm-Ebene mit synchronisierter Lieferung.",
+  stageGates: "Investment-Funnel L0–L5: Epics durchlaufen Reifegrade mit Freigaben.",
+  wsjf: "Weighted Shortest Job First — Features nach Wert/Aufwand priorisieren.",
+  multiPartyApproval: "Mehrstufige Epic-Freigabe (Hypothese → Business Case → Stakeholder).",
+  featureQs: "Qualitätssicherung von Features (Einreichen + Entscheiden) vor der Umsetzung.",
+  dependencies: "Abhängigkeiten zwischen Arbeitselementen sichtbar machen und verfolgen.",
+  piObjectives: "PI-Ziele je Team mit Business Value und Confidence-Vote.",
+};
+
 export const OPERATING_MODEL_TEMPLATES = [
   "team_level",
   "essential_safe",

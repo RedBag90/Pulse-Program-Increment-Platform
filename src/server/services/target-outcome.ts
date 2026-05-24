@@ -16,6 +16,7 @@ export async function listTargetOutcomes(db: PrismaClient, tenantId: TenantId) {
 
 export interface SaveTargetOutcomeInput {
   id?: string | null;
+  goalId?: string | null;
   title: string;
   metricUnit?: string | null;
   baseline?: number | null;
@@ -29,7 +30,7 @@ export async function saveTargetOutcome(
   input: SaveTargetOutcomeInput,
 ): Promise<Result<{ id: string }>> {
   const mctx = toMutationContext(ctx);
-  const { id, title, metricUnit, baseline, target, current, dueDate } = input;
+  const { id, goalId, title, metricUnit, baseline, target, current, dueDate } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const data = {
@@ -39,6 +40,7 @@ export async function saveTargetOutcome(
       target,
       current: current ?? null,
       dueDate: dueDate ?? null,
+      ...(goalId !== undefined && { goalId }),
       updatedBy: mctx.actorId,
     };
 

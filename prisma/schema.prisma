@@ -24,8 +24,11 @@ model Tenant {
   userRoleAssignments UserRoleAssignment[]
   jiraConfig          JiraConfig?
   azureDevOpsConfig   AzureDevOpsConfig?
-  targetModels        TargetOperatingModel[]
-  targetOutcomes      TargetOutcome[]
+  targetModels         TargetOperatingModel[]
+  targetOutcomes       TargetOutcome[]
+  transformationActions TransformationAction[]
+  transformationGoals  TransformationGoal[]
+  goalEpicLinks        GoalEpicLink[]
 
   @@map("tenants")
 }
@@ -75,6 +78,7 @@ model TargetOperatingModel {
 model TargetOutcome {
   id         String    @id @default(uuid()) @db.Uuid
   tenantId   String    @map("tenant_id") @db.Uuid
+  goalId     String?   @map("goal_id") @db.Uuid // KPI of a strategic goal (null = unbound)
   title      String
   metricUnit String?   @map("metric_unit")
   baseline   Float?
@@ -86,10 +90,75 @@ model TargetOutcome {
   createdBy  String    @map("created_by") @db.Uuid
   updatedBy  String    @map("updated_by") @db.Uuid
 
+  tenant Tenant              @relation(fields: [tenantId], references: [id])
+  goal   TransformationGoal? @relation(fields: [goalId], references: [id])
+
+  @@index([tenantId])
+  @@index([goalId])
+  @@map("target_outcomes")
+}
+
+/// A strategic transformation goal set by senior management — the direction the
+/// transformation drives toward. Measured by KPIs (TargetOutcome rows with this
+/// goalId) and realised by Epics (via GoalEpicLink). Managed via `target.manage`.
+model TransformationGoal {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  title       String
+  description String?   @db.Text
+  ownerId     String?   @map("owner_id") @db.Uuid // senior-management owner
+  dueDate     DateTime? @map("due_date")
+  status      String    @default("active") // active | achieved | archived
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdBy   String    @map("created_by") @db.Uuid
+  updatedBy   String    @map("updated_by") @db.Uuid
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  kpis      TargetOutcome[]
+  epicLinks GoalEpicLink[]
+
+  @@index([tenantId])
+  @@map("transformation_goals")
+}
+
+/// Many-to-many link between a strategic goal and an Epic that realises it.
+model GoalEpicLink {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  goalId    String   @map("goal_id") @db.Uuid
+  epicId    String   @map("epic_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+
+  tenant Tenant             @relation(fields: [tenantId], references: [id])
+  goal   TransformationGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  epic   Initiative         @relation(fields: [epicId], references: [id])
+
+  @@unique([goalId, epicId])
+  @@index([tenantId])
+  @@index([epicId])
+  @@map("goal_epic_links")
+}
+
+/// A tracked transformation action — the "Steuern" backlog that moves the
+/// organisation from Ist toward the Soll. Management-owned, tenant-scoped.
+model TransformationAction {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  title     String
+  status    String    @default("open") // open | in_progress | done
+  ownerId   String?   @map("owner_id") @db.Uuid
+  dueDate   DateTime? @map("due_date")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdBy String    @map("created_by") @db.Uuid
+  updatedBy String    @map("updated_by") @db.Uuid
+
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
-  @@map("target_outcomes")
+  @@map("transformation_actions")
 }
 
 model ValueStream {
@@ -302,6 +371,7 @@ model Initiative {
   dependenciesIn  Dependency[] @relation("To")
   kpis            Kpi[]
   epicApprovals   EpicApproval[]
+  goalLinks       GoalEpicLink[]
 
   @@index([tenantId])
   @@index([parentId])

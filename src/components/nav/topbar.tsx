@@ -13,8 +13,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CreateMenu } from "@/features/create/create-menu";
+import { MobileNav } from "@/components/nav/mobile-nav";
 
-export function Topbar() {
+interface TopbarProps {
+  userEmail: string;
+  visibleHrefs: string[];
+}
+
+export function Topbar({ userEmail, visibleHrefs }: TopbarProps) {
   const { theme, setTheme } = useTheme();
   const locale = useLocale();
   const t = useTranslations("common");
@@ -23,7 +29,8 @@ export function Topbar() {
 
   return (
     <header className="h-14 border-b bg-background/80 backdrop-blur-sm flex items-center px-6 shrink-0 gap-4">
-      {/* Spacer */}
+      {/* Mobile nav trigger (hidden on desktop) + spacer */}
+      <MobileNav userEmail={userEmail} visibleHrefs={visibleHrefs} />
       <div className="flex-1" />
 
       {/* Actions — right */}
