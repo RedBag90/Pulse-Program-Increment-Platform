@@ -356,7 +356,7 @@ function EpicRow({
           <Button type="button" size="sm" variant="outline" disabled={pending} onClick={submit}>
             {pending ? "…" : "Speichern"}
           </Button>
-          {state.error && <p className="mt-1 text-xs text-destructive">{state.error}</p>}
+          {state?.error && <p className="mt-1 text-xs text-destructive">{state.error}</p>}
         </td>
       )}
     </tr>
