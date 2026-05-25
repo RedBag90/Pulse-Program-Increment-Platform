@@ -1,9 +1,10 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
+import { ok, isErr } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { findOr404 } from "@/server/services/tenant-scope";
 
 /**
  * Transformation actions — the tracked "Steuern" backlog that moves the
@@ -66,12 +67,12 @@ export async function updateTransformationAction(
   const { id, title, status, ownerId, dueDate } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.transformationAction.findFirst({
-      where: { id, tenantId: mctx.tenantId },
+    const found = await findOr404(tx.transformationAction, {
+      id,
+      tenantId: mctx.tenantId,
+      resourceType: "TransformationAction",
     });
-    if (!existing) {
-      return err({ kind: "not_found" as const, resourceType: "TransformationAction", id });
-    }
+    if (isErr(found)) return found;
 
     await tx.transformationAction.update({
       where: { id },
@@ -102,12 +103,12 @@ export async function deleteTransformationAction(
   const mctx = toMutationContext(ctx);
   const { id } = input;
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.transformationAction.findFirst({
-      where: { id, tenantId: mctx.tenantId },
+    const found = await findOr404(tx.transformationAction, {
+      id,
+      tenantId: mctx.tenantId,
+      resourceType: "TransformationAction",
     });
-    if (!existing) {
-      return err({ kind: "not_found" as const, resourceType: "TransformationAction", id });
-    }
+    if (isErr(found)) return found;
     await tx.transformationAction.delete({ where: { id } });
     return ok({
       result: undefined,

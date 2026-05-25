@@ -102,7 +102,9 @@ export function TransformationCockpit({
 
   const nextSteps = deriveNextSteps(gap, adoption);
 
-  // Overall goal achievement = mean progress across goals that carry KPIs.
+  // Overall goal achievement = mean progress across all non-archived goals that
+  // carry KPIs (achieved goals included). Deliberately distinct from the snapshot
+  // trend's metric, which averages active-only — see computeSnapshotMetrics.
   const goalsWithKpis = goals.filter((g) => g.kpiCount > 0);
   const goalAchievement = goalsWithKpis.length
     ? goalsWithKpis.reduce((sum, g) => sum + g.kpiProgress, 0) / goalsWithKpis.length

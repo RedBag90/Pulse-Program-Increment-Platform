@@ -1,15 +1,9 @@
 import { Link } from "@/i18n/navigation";
-import { barMetrics, type DateRange, type MonthAxis } from "@/domain/roadmap";
+import { barMetrics, type MonthAxis, type RoadmapRow } from "@/domain/roadmap";
 
-export interface RoadmapRow {
-  id: string;
-  label: string;
-  sublabel?: string | undefined;
-  href?: string | undefined;
-  range: DateRange | null;
-  depth: 0 | 1;
-  kind: "epic" | "feature" | "group";
-}
+// RoadmapRow now lives in the domain roadmap view-model; re-exported so existing
+// importers of the component keep working.
+export type { RoadmapRow } from "@/domain/roadmap";
 
 interface Props {
   rows: RoadmapRow[];

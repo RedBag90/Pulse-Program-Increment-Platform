@@ -15,15 +15,10 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import {
-  buildMonthAxis,
-  aggregatePortfolio,
-  recurringFactorByMonth,
-  allocatedCostByMonth,
-  type EpicEconomicsInput,
-  type MonthAxis,
+  buildPortfolioSeries,
   type PortfolioSeries,
+  type PortfolioEconomicsData,
 } from "@/domain/portfolio-economics";
-import type { PortfolioEconomicsData } from "@/server/services/portfolio-dashboard";
 import { savePortfolioDashboardSettingsAction } from "@/features/portfolio/actions/dashboard-settings";
 import { epicColor, VALUE_COLOR, COST_COLOR, BREAKEVEN_COLOR } from "./epic-colors";
 import { Card } from "@/components/ui/card";
@@ -47,24 +42,6 @@ const fmtEur = (v: number) => eur.format(Math.round(v));
 function quarterTick(label: string): string {
   const [mon] = label.split(" ");
   return mon === "Jan" || mon === "Apr" || mon === "Jul" || mon === "Oct" ? label : "";
-}
-
-function toInput(e: PortfolioEconomicsData["epics"][number], axis: MonthAxis): EpicEconomicsInput {
-  // Linked KPIs realise the recurring benefit over time; no link → flat forecast.
-  const factor = recurringFactorByMonth(e.benefitKpis, axis);
-  // A participatory-budgeting allocation drives the cost over the forecast slices.
-  const costByMonth = e.hasAllocation ? allocatedCostByMonth(e.allocatedByPeriod, axis) : null;
-  return {
-    id: e.id,
-    title: e.title,
-    costSlices: e.costSlices,
-    oneTimeBenefit: e.oneTimeBenefit,
-    recurringBenefit: e.recurringBenefit,
-    costStart: new Date(`${e.costStartIso}T00:00:00.000Z`),
-    goLive: new Date(`${e.goLiveIso}T00:00:00.000Z`),
-    ...(factor ? { recurringFactorByMonth: factor } : {}),
-    ...(costByMonth ? { costByMonth } : {}),
-  };
 }
 
 type Row = Record<string, number | string>;
@@ -95,13 +72,10 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
     return map;
   }, [data.epics]);
 
-  const series = useMemo(() => {
-    const from = new Date(`${fromIso}T00:00:00.000Z`);
-    const to = new Date(`${toIso}T00:00:00.000Z`);
-    const axis = buildMonthAxis(from, to);
-    const inputs = data.epics.filter((e) => selected.has(e.id)).map((e) => toInput(e, axis));
-    return aggregatePortfolio(inputs, axis, new Date(`${data.horizonEndIso}T00:00:00.000Z`));
-  }, [data, selected, fromIso, toIso]);
+  const series = useMemo(
+    () => buildPortfolioSeries(data, { selectedEpicIds: selected, fromIso, toIso }),
+    [data, selected, fromIso, toIso],
+  );
 
   const months = series.axis.months;
   const ticks = months.map((m) => m.label).filter((l) => quarterTick(l) !== "");

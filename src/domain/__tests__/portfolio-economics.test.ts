@@ -1,13 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  monthStart,
-  addMonths,
-  monthDiff,
-  parseIsoMonth,
-  resolveCostStart,
-  resolveGoLive,
   goLiveMonth,
-  buildMonthAxis,
   epicMonthlyFlows,
   aggregatePortfolio,
   kpiFulfillmentByMonth,
@@ -15,106 +8,10 @@ import {
   allocatedCostByMonth,
   type EpicEconomicsInput,
 } from "@/domain/portfolio-economics";
+import { buildMonthAxis } from "@/domain/calendar";
 import type { KpiMeasurement } from "@/domain/kpi";
-import { emptyTimeline, type TimelineFields } from "@/domain/timeline";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
-
-describe("date helpers", () => {
-  it("monthStart truncates to the first of the month (UTC)", () => {
-    expect(monthStart(utc("2024-03-17")).toISOString()).toBe("2024-03-01T00:00:00.000Z");
-  });
-
-  it("addMonths rolls across year boundaries", () => {
-    expect(addMonths(utc("2024-11-01"), 3).toISOString()).toBe("2025-02-01T00:00:00.000Z");
-  });
-
-  it("monthDiff counts whole months, signed", () => {
-    expect(monthDiff(utc("2024-01-01"), utc("2025-01-01"))).toBe(12);
-    expect(monthDiff(utc("2024-06-01"), utc("2024-03-01"))).toBe(-3);
-  });
-
-  it("parseIsoMonth returns a month-start or null", () => {
-    expect(parseIsoMonth("2024-05-20")?.toISOString()).toBe("2024-05-01T00:00:00.000Z");
-    expect(parseIsoMonth("")).toBeNull();
-    expect(parseIsoMonth(undefined)).toBeNull();
-    expect(parseIsoMonth("not-a-date")).toBeNull();
-  });
-});
-
-describe("resolveCostStart — anchored on the Backlog milestone", () => {
-  const base = {
-    timeline: emptyTimeline(),
-    businessCaseApprovedAt: null,
-    hypothesisApprovedAt: null,
-    createdAt: utc("2024-01-15"),
-  };
-
-  it("ignores the Implementation milestone (that is completion, not start)", () => {
-    const timeline: TimelineFields = {
-      estimates: { implementation: "2024-06-01", backlog: "2024-03-01" },
-      actuals: { implementation: "2024-07-10" },
-    };
-    // backlog estimate wins; implementation actual/estimate do NOT anchor cost start
-    expect(resolveCostStart({ ...base, timeline }).toISOString()).toBe("2024-03-01T00:00:00.000Z");
-  });
-
-  it("prefers the actual backlog date, then the estimated backlog", () => {
-    expect(
-      resolveCostStart({
-        ...base,
-        timeline: { estimates: { backlog: "2024-05-01" }, actuals: { backlog: "2024-04-09" } },
-      }).toISOString(),
-    ).toBe("2024-04-01T00:00:00.000Z");
-  });
-
-  it("falls back to approval dates, then createdAt", () => {
-    expect(
-      resolveCostStart({ ...base, businessCaseApprovedAt: utc("2024-02-20") }).toISOString(),
-    ).toBe("2024-02-01T00:00:00.000Z");
-    expect(resolveCostStart(base).toISOString()).toBe("2024-01-01T00:00:00.000Z");
-  });
-});
-
-describe("resolveGoLive — anchored on the Implementation milestone", () => {
-  const costStart = utc("2024-01-01");
-
-  it("prefers the actual implementation date, then the estimate", () => {
-    expect(
-      resolveGoLive(
-        { estimates: { implementation: "2025-06-01" }, actuals: { implementation: "2025-08-10" } },
-        costStart,
-        2,
-      ).toISOString(),
-    ).toBe("2025-08-01T00:00:00.000Z");
-    expect(
-      resolveGoLive(
-        { estimates: { implementation: "2025-06-15" }, actuals: {} },
-        costStart,
-        2,
-      ).toISOString(),
-    ).toBe("2025-06-01T00:00:00.000Z");
-  });
-
-  it("derives cost start + #slices × 6 months when nothing is set", () => {
-    expect(resolveGoLive(emptyTimeline(), costStart, 3).toISOString()).toBe(
-      "2025-07-01T00:00:00.000Z", // Jan 2024 + 18 months
-    );
-  });
-});
-
-describe("buildMonthAxis", () => {
-  it("spans the from-month to the to-month inclusively", () => {
-    const axis = buildMonthAxis(utc("2024-01-10"), utc("2024-03-25"));
-    expect(axis.monthCount).toBe(3);
-    expect(axis.months.map((m) => m.key)).toEqual(["2024-01", "2024-02", "2024-03"]);
-    expect(axis.months[0]!.label).toBe("Jan 2024");
-  });
-
-  it("never collapses below one month", () => {
-    expect(buildMonthAxis(utc("2024-05-01"), utc("2024-05-28")).monthCount).toBe(1);
-  });
-});
 
 const epic = (over: Partial<EpicEconomicsInput> = {}): EpicEconomicsInput => ({
   id: "e1",

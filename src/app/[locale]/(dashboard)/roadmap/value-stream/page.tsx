@@ -2,86 +2,14 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listValueStreams } from "@/server/services/value-stream";
 import { getValueStreamRoadmap } from "@/server/services/roadmap";
-import { RoadmapGantt, type RoadmapRow } from "@/features/roadmap/components/roadmap-gantt";
-import { buildMonthAxis, deriveTimeframe, type DateRange } from "@/domain/roadmap";
+import { RoadmapGantt } from "@/features/roadmap/components/roadmap-gantt";
+import { valueStreamRoadmapRows, roadmapAxis } from "@/domain/roadmap";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { ValueStreamId } from "@/domain/types";
 
 interface Props {
   searchParams: Promise<{ vs?: string; group?: string }>;
-}
-
-type VsEpic = Awaited<ReturnType<typeof getValueStreamRoadmap>>[number];
-type VsFeature = VsEpic["children"][number];
-
-function featureRange(f: VsFeature): DateRange | null {
-  return f.pi ? { start: f.pi.startDate, end: f.pi.endDate } : null;
-}
-
-/** Rows for the hierarchical view: each Epic followed by its indented Features. */
-function epicGroupedRows(epics: VsEpic[]): RoadmapRow[] {
-  const rows: RoadmapRow[] = [];
-  for (const e of epics) {
-    rows.push({
-      id: e.id,
-      label: e.title,
-      href: `/portfolio/epics/${e.id}`,
-      range: deriveTimeframe(e.children.map(featureRange)),
-      depth: 0,
-      kind: "epic",
-    });
-    for (const f of e.children) {
-      rows.push({
-        id: f.id,
-        label: f.title,
-        sublabel: f.art?.name,
-        href: `/feature/${f.id}`,
-        range: featureRange(f),
-        depth: 1,
-        kind: "feature",
-      });
-    }
-  }
-  return rows;
-}
-
-/** Rows for the by-ART view: an Epics section, then one section per ART. */
-function artGroupedRows(epics: VsEpic[]): RoadmapRow[] {
-  const rows: RoadmapRow[] = [
-    { id: "__epics__", label: "Epics", range: null, depth: 0, kind: "group" },
-  ];
-  for (const e of epics) {
-    rows.push({
-      id: e.id,
-      label: e.title,
-      href: `/portfolio/epics/${e.id}`,
-      range: deriveTimeframe(e.children.map(featureRange)),
-      depth: 0,
-      kind: "epic",
-    });
-  }
-
-  const byArt = new Map<string, { name: string; features: VsFeature[] }>();
-  for (const f of epics.flatMap((e) => e.children)) {
-    const key = f.artId ?? "__none__";
-    if (!byArt.has(key)) byArt.set(key, { name: f.art?.name ?? "Ohne ART", features: [] });
-    byArt.get(key)!.features.push(f);
-  }
-  for (const [key, group] of byArt) {
-    rows.push({ id: `art-${key}`, label: group.name, range: null, depth: 0, kind: "group" });
-    for (const f of group.features) {
-      rows.push({
-        id: f.id,
-        label: f.title,
-        href: `/feature/${f.id}`,
-        range: featureRange(f),
-        depth: 1,
-        kind: "feature",
-      });
-    }
-  }
-  return rows;
 }
 
 /**
@@ -110,8 +38,8 @@ export default async function ValueStreamRoadmapPage({ searchParams }: Props) {
   const activeVs = valueStreams.find((v) => v.id === vs) ?? valueStreams[0]!;
   const epics = await getValueStreamRoadmap(db, principal.tenantId, activeVs.id as ValueStreamId);
 
-  const rows = activeGroup === "art" ? artGroupedRows(epics) : epicGroupedRows(epics);
-  const axis = buildMonthAxis(rows.map((r) => r.range).filter((r): r is DateRange => r !== null));
+  const rows = valueStreamRoadmapRows(epics, activeGroup);
+  const axis = roadmapAxis(rows);
 
   return (
     <main className="space-y-6 p-8">

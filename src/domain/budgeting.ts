@@ -6,13 +6,26 @@
  * "YYYY-H1" / "YYYY-H2".
  */
 
-export interface HalfYearAxis {
-  /** First day of the earliest half-year (UTC). */
-  start: Date;
-  count: number;
-  /** One entry per half-year, oldest first; length === count. */
-  periods: { key: string; label: string }[];
-}
+import {
+  halfYearStart,
+  parseHalfYearKey,
+  addHalfYears,
+  halfYearsBetween,
+  type HalfYearAxis,
+} from "@/domain/calendar";
+
+// Half-year period maths lives in the calendar module; re-exported so existing
+// callers (budgeting service/board, tests) keep importing them from here.
+export {
+  halfYearStart,
+  halfYearKey,
+  halfYearLabel,
+  parseHalfYearKey,
+  addHalfYears,
+  halfYearsBetween,
+  buildHalfYearAxis,
+} from "@/domain/calendar";
+export type { HalfYearAxis } from "@/domain/calendar";
 
 /** A candidate Epic on the budgeting board (built by the service). */
 export interface BudgetEpicView {
@@ -33,43 +46,7 @@ export interface BudgetEpicView {
   priority: number;
 }
 
-// --- half-year helpers (UTC) ----------------------------------------------
-
-function halfIndex(d: Date): number {
-  return d.getUTCFullYear() * 2 + (d.getUTCMonth() < 6 ? 0 : 1);
-}
-
-export function halfYearStart(d: Date): Date {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() < 6 ? 0 : 6, 1));
-}
-
-export function halfYearKey(d: Date): string {
-  return `${d.getUTCFullYear()}-H${d.getUTCMonth() < 6 ? 1 : 2}`;
-}
-
-export function halfYearLabel(key: string): string {
-  const [year, half] = key.split("-");
-  return `${half} ${year}`;
-}
-
-/** Parses a "YYYY-H1|H2" key to the half-year's UTC start, or null. */
-export function parseHalfYearKey(key: string): Date | null {
-  const m = /^(\d{4})-H([12])$/.exec(key);
-  if (!m) return null;
-  return new Date(Date.UTC(Number(m[1]), m[2] === "1" ? 0 : 6, 1));
-}
-
-export function addHalfYears(d: Date, n: number): Date {
-  const total = halfIndex(halfYearStart(d)) + n;
-  const year = Math.floor(total / 2);
-  const half = total % 2;
-  return new Date(Date.UTC(year, half === 0 ? 0 : 6, 1));
-}
-
-/** Whole half-years from `a` to `b` (b − a); negative if b precedes a. */
-export function halfYearsBetween(a: Date, b: Date): number {
-  return halfIndex(halfYearStart(b)) - halfIndex(halfYearStart(a));
-}
+// --- funded window ---------------------------------------------------------
 
 /**
  * Last day of the last of `periods` half-years starting at `start` — i.e. the
@@ -94,19 +71,6 @@ export function fundedPeriodRange(
     .sort((a, b) => a.localeCompare(b));
   if (keys.length === 0) return null;
   return { firstKey: keys[0]!, lastKey: keys[keys.length - 1]! };
-}
-
-/** Inclusive half-year axis spanning the half-year of `from` to that of `to`. */
-export function buildHalfYearAxis(from: Date, to: Date): HalfYearAxis {
-  const start = halfYearStart(from);
-  const count = Math.max(1, halfYearsBetween(start, halfYearStart(to)) + 1);
-  const periods: { key: string; label: string }[] = [];
-  for (let i = 0; i < count; i++) {
-    const cur = addHalfYears(start, i);
-    const key = halfYearKey(cur);
-    periods.push({ key, label: halfYearLabel(key) });
-  }
-  return { start, count, periods };
 }
 
 // --- per-Epic need, roll-up, remaining ------------------------------------

@@ -1,7 +1,8 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ValueStreamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
+import { ok, err, isErr } from "@/domain/errors";
+import { authorizeResource } from "@/server/auth/authorize";
 import { buildChangelog } from "@/domain/change-log";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
@@ -75,6 +76,14 @@ export async function updateValueStream(
       if (!existing) {
         return err({ kind: "not_found" as const, resourceType: "ValueStream", id });
       }
+
+      // A value_stream owner may only edit their own stream (the row id is the
+      // scope key) — enforced here with the real id, not the input alone.
+      const authz = authorizeResource(ctx.principal, "value_stream.update", {
+        tenantId: mctx.tenantId,
+        valueStreamId: id,
+      });
+      if (isErr(authz)) return authz;
 
       const changes = buildChangelog(
         {

@@ -1,10 +1,21 @@
 import { z } from "zod";
-import { STAGE_GATES } from "@/domain/stage-gate";
 
 // ---------------------------------------------------------------------------
-// Shared primitives
+// Initiative validation primitives + WSJF.
+//
+// Scope note (see ADR-0004): this module holds the *shared* validation
+// primitives that real callers import — the WSJF Fibonacci scale + computation,
+// and the Business Case artefact schema. It is deliberately NOT a central
+// "create initiative" input contract. Input for create/update is validated at
+// each edge: the form edge (server actions — FormData with `z.coerce`, a
+// server-derived owner, single-string fields) and the JSON API edge validate
+// independently because their raw shapes genuinely differ. An earlier attempt
+// at one shared create-schema set (createEpic/Feature/Story/TaskSchema, the
+// discriminated `createInitiativeSchema`, and `Create*Input`) was orphaned and
+// drifted from reality — it has been removed.
 // ---------------------------------------------------------------------------
 
+/** The SAFe WSJF scale — Fibonacci values for the four scoring dimensions. */
 export const fibonacci = z.union([
   z.literal(1),
   z.literal(2),
@@ -15,36 +26,18 @@ export const fibonacci = z.union([
   z.literal(20),
 ]);
 
-export const stageGate = z.enum(STAGE_GATES);
-
-export const initiativeStatus = z.enum([
-  "draft",
-  "in_review",
-  "approved",
-  "in_progress",
-  "blocked",
-  "completed",
-  "cancelled",
-]);
-
 export const wsjfInputSchema = z.object({
   businessValue: fibonacci,
   timeCriticality: fibonacci,
   riskReduction: fibonacci,
   jobSize: fibonacci,
 });
+export type WsjfInput = z.infer<typeof wsjfInputSchema>;
 
-// Benefit Hypothesis (Epic artefact — L1 Reviewing). All fields optional:
-// the artefact is filled in progressively after the Epic is created.
-export const benefitHypothesisSchema = z.object({
-  measuresHypothesis: z.string().max(5000).optional(),
-  changeFromBaseline: z.string().max(5000).optional(),
-  businessOutcomes: z.array(z.string().min(1).max(1000)).max(20).optional(),
-  leadingIndicators: z.array(z.string().min(1).max(1000)).max(20).optional(),
-  risks: z.array(z.string().min(1).max(1000)).max(20).optional(),
-});
-
+// ---------------------------------------------------------------------------
 // Business Case (Epic artefact — L2 Analyzing). Replaces the former LBC.
+// ---------------------------------------------------------------------------
+
 export const approvalPartySchema = z.enum([
   "mgmt",
   "business_owner",
@@ -80,66 +73,6 @@ export const businessCaseSchema = z.object({
   analysisSummary: z.string().max(5000).optional(),
   approvals: z.array(businessCaseApprovalSchema).max(5).optional(),
 });
-
-// ---------------------------------------------------------------------------
-// Base fields shared across all initiative levels
-// ---------------------------------------------------------------------------
-
-const baseInitiativeSchema = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().max(10_000).default(""),
-  ownerId: z.string().uuid(),
-});
-
-// ---------------------------------------------------------------------------
-// Level-specific create schemas
-// ---------------------------------------------------------------------------
-
-export const createEpicSchema = baseInitiativeSchema.extend({
-  level: z.literal("EPIC"),
-  parentId: z.null(),
-  valueStreamId: z.string().uuid(),
-});
-
-export const createFeatureSchema = baseInitiativeSchema.extend({
-  level: z.literal("FEATURE"),
-  parentId: z.string().uuid(),
-  artId: z.string().uuid(),
-  piId: z.string().uuid(),
-  wsjf: wsjfInputSchema,
-  acceptanceCriteria: z.array(z.string().min(1)).default([]),
-});
-
-export const createStorySchema = baseInitiativeSchema.extend({
-  level: z.literal("STORY"),
-  parentId: z.string().uuid(),
-  piId: z.string().uuid(),
-  sprintId: z.string().uuid(),
-  storyPoints: fibonacci,
-  acceptanceCriteria: z.array(z.string().min(1)).default([]),
-});
-
-export const createTaskSchema = baseInitiativeSchema.extend({
-  level: z.literal("TASK"),
-  parentId: z.string().uuid(),
-  estimateHours: z.number().positive().max(160),
-});
-
-/** Discriminated union – validated by the `level` field. */
-export const createInitiativeSchema = z.discriminatedUnion("level", [
-  createEpicSchema,
-  createFeatureSchema,
-  createStorySchema,
-  createTaskSchema,
-]);
-
-export type CreateEpicInput = z.infer<typeof createEpicSchema>;
-export type CreateFeatureInput = z.infer<typeof createFeatureSchema>;
-export type CreateStoryInput = z.infer<typeof createStorySchema>;
-export type CreateTaskInput = z.infer<typeof createTaskSchema>;
-export type CreateInitiativeInput = z.infer<typeof createInitiativeSchema>;
-export type WsjfInput = z.infer<typeof wsjfInputSchema>;
-export type BenefitHypothesisInput = z.infer<typeof benefitHypothesisSchema>;
 export type BusinessCaseInput = z.infer<typeof businessCaseSchema>;
 
 // ---------------------------------------------------------------------------

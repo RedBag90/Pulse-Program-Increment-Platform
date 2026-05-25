@@ -2,10 +2,11 @@ import type { Prisma, PrismaClient } from "@/generated/prisma";
 import type { TenantId, EpicId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
+import { ok, err, isErr } from "@/domain/errors";
 import { parseKpiMeasurements, type KpiMeasurement } from "@/domain/kpi";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { findOr404 } from "@/server/services/tenant-scope";
 
 export type KpiId = string & { readonly __brand: "KpiId" };
 
@@ -77,10 +78,8 @@ export async function updateKpi(ctx: RequestContext, input: UpdateKpiInput): Pro
   const { id, name, unit, baseline, target, measurements, benefitWeight } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.kpi.findFirst({ where: { id, tenantId: mctx.tenantId } });
-    if (!existing) {
-      return err({ kind: "not_found" as const, resourceType: "Kpi", id });
-    }
+    const found = await findOr404(tx.kpi, { id, tenantId: mctx.tenantId, resourceType: "Kpi" });
+    if (isErr(found)) return found;
 
     await tx.kpi.update({
       where: { id },
@@ -109,10 +108,8 @@ export async function deleteKpi(ctx: RequestContext, input: { id: KpiId }): Prom
   const { id } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.kpi.findFirst({ where: { id, tenantId: mctx.tenantId } });
-    if (!existing) {
-      return err({ kind: "not_found" as const, resourceType: "Kpi", id });
-    }
+    const found = await findOr404(tx.kpi, { id, tenantId: mctx.tenantId, resourceType: "Kpi" });
+    if (isErr(found)) return found;
 
     await tx.kpi.delete({ where: { id } });
 
@@ -132,10 +129,9 @@ export async function recordKpiMeasurement(
   const { id, date, value } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.kpi.findFirst({ where: { id, tenantId: mctx.tenantId } });
-    if (!existing) {
-      return err({ kind: "not_found" as const, resourceType: "Kpi", id });
-    }
+    const found = await findOr404(tx.kpi, { id, tenantId: mctx.tenantId, resourceType: "Kpi" });
+    if (isErr(found)) return found;
+    const existing = found.value;
 
     const next: KpiMeasurement[] = [
       ...parseKpiMeasurements(existing.measurements),

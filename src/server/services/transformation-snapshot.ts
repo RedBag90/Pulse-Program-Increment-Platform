@@ -2,6 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, UserId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, isErr } from "@/domain/errors";
+import { dayStart } from "@/domain/calendar";
 import { createPrismaClient } from "@/server/db/prisma";
 import { withAuditedTransaction, type MutationContext } from "@/server/services/mutation";
 import { computeStructureGap, goalKpiProgress } from "@/server/services/transformation";
@@ -34,8 +35,16 @@ export interface SnapshotMetrics {
 /**
  * Pure aggregation of the goal-derived snapshot metrics. `goalCount` counts the
  * non-archived (active + achieved) goals; `goalAchievement` averages the KPI
- * progress over the active goals that actually carry KPIs (so goals without
- * KPIs neither help nor hurt). Mirrors the cockpit's own goal-achievement maths.
+ * progress over the **active** goals that carry KPIs (goals without KPIs neither
+ * help nor hurt).
+ *
+ * NB: this is deliberately a *different* metric from the live cockpit's
+ * goal-achievement number, which averages over **all non-archived** goals with
+ * KPIs (achieved goals included). The snapshot tracks in-flight progress and
+ * counts completed goals separately via `achievedGoalCount`, so an achieved goal
+ * leaves this average rather than pinning it near 1.0. Both share the per-goal
+ * `goalKpiProgress` primitive; only the set they average over differs. Keep the
+ * two definitions distinct — see docs/adr.
  */
 export function computeSnapshotMetrics(goals: SnapshotGoalInput[]): SnapshotMetrics {
   const tracked = goals.filter((g) => g.status !== "archived");
@@ -51,9 +60,7 @@ export function computeSnapshotMetrics(goals: SnapshotGoalInput[]): SnapshotMetr
 }
 
 /** Today as a UTC-midnight `Date`, the canonical key for a `@db.Date` column. */
-export function snapshotDay(now: Date = new Date()): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-}
+export const snapshotDay = dayStart;
 
 /**
  * Captures the current transformation state for the tenant. Idempotent per day:

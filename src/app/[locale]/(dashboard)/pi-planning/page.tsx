@@ -1,11 +1,10 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listArts } from "@/server/services/art";
+import { listArtPlanningPis } from "@/server/services/pi";
 import { listFeatures } from "@/server/services/feature";
-import {
-  FeaturePlanningBoard,
-  type PlanningFeature,
-} from "@/features/pi/components/feature-planning-board";
+import { buildPlanningModel } from "@/server/views/pi-planning";
+import { FeaturePlanningBoard } from "@/features/pi/components/feature-planning-board";
 import { FeaturePlanningTable } from "@/features/pi/components/feature-planning-table";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
@@ -54,38 +53,11 @@ export default async function PiPlanningPage({ searchParams }: Props) {
     principal.roles.includes("platform_admin");
 
   const [pisRaw, featurePage] = await Promise.all([
-    db.programIncrement.findMany({
-      where: { tenantId: principal.tenantId, artId: activeArt.id },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        startDate: true,
-        endDate: true,
-        _count: { select: { sprints: true } },
-      },
-      orderBy: { startDate: "asc" },
-    }),
+    listArtPlanningPis(db, principal.tenantId, activeArt.id as ArtId),
     listFeatures(db, principal.tenantId, activeArt.id as ArtId),
   ]);
 
-  const pis = pisRaw.map((p) => ({
-    id: p.id,
-    name: p.name,
-    status: p.status,
-    startDate: p.startDate,
-    endDate: p.endDate,
-    sprintCount: p._count.sprints,
-  }));
-
-  const features: PlanningFeature[] = featurePage.items.map((f) => ({
-    id: f.id,
-    title: f.title,
-    status: f.status,
-    wsjf: Number(f.wsjfComputed ?? 0),
-    epicTitle: f.parent?.title ?? null,
-    piId: f.piId,
-  }));
+  const { pis, features } = buildPlanningModel(pisRaw, featurePage.items);
 
   return (
     <main className="space-y-6 p-8">

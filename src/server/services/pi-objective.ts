@@ -1,9 +1,10 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, PiId, TeamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
+import { ok, isErr } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { findOr404 } from "@/server/services/tenant-scope";
 
 export type PiObjectiveId = string & { readonly __brand: "PiObjectiveId" };
 
@@ -34,15 +35,19 @@ export async function createPiObjective(
   const { piId, teamId, title, description, businessValue, committed } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const pi = await tx.programIncrement.findFirst({
-      where: { id: piId, tenantId: mctx.tenantId },
+    const pi = await findOr404(tx.programIncrement, {
+      id: piId,
+      tenantId: mctx.tenantId,
+      resourceType: "ProgramIncrement",
     });
-    if (!pi) {
-      return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id: piId });
-    }
+    if (isErr(pi)) return pi;
 
-    const team = await tx.team.findFirst({ where: { id: teamId, tenantId: mctx.tenantId } });
-    if (!team) return err({ kind: "not_found" as const, resourceType: "Team", id: teamId });
+    const team = await findOr404(tx.team, {
+      id: teamId,
+      tenantId: mctx.tenantId,
+      resourceType: "Team",
+    });
+    if (isErr(team)) return team;
 
     const objective = await tx.piObjective.create({
       data: {
@@ -76,8 +81,12 @@ export async function updatePiObjective(
   const { id, title, description, businessValue, committed, confidence } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.piObjective.findFirst({ where: { id, tenantId: mctx.tenantId } });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "PiObjective", id });
+    const found = await findOr404(tx.piObjective, {
+      id,
+      tenantId: mctx.tenantId,
+      resourceType: "PiObjective",
+    });
+    if (isErr(found)) return found;
 
     await tx.piObjective.update({
       where: { id },
@@ -105,8 +114,12 @@ export async function deletePiObjective(
   const { id } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.piObjective.findFirst({ where: { id, tenantId: mctx.tenantId } });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "PiObjective", id });
+    const found = await findOr404(tx.piObjective, {
+      id,
+      tenantId: mctx.tenantId,
+      resourceType: "PiObjective",
+    });
+    if (isErr(found)) return found;
 
     await tx.piObjective.delete({ where: { id } });
 

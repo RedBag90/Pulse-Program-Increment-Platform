@@ -102,3 +102,110 @@ describe("barMetrics", () => {
     });
   });
 });
+
+// --- view-model builders ---------------------------------------------------
+
+import {
+  portfolioRoadmapRows,
+  artRoadmapRows,
+  valueStreamRoadmapRows,
+  roadmapAxis,
+  type RoadmapRow,
+} from "@/domain/roadmap";
+
+const pi = (s: Date, e: Date) => ({ startDate: s, endDate: e });
+
+describe("portfolioRoadmapRows", () => {
+  it("makes one epic row, timed across its features' PI windows", () => {
+    const rows = portfolioRoadmapRows([
+      {
+        id: "e1",
+        title: "Epic 1",
+        valueStream: { name: "VS" },
+        children: [
+          { pi: pi(d(2026, 3, 1), d(2026, 4, 30)) },
+          { pi: pi(d(2026, 5, 1), d(2026, 6, 30)) },
+          { pi: null },
+        ],
+      },
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: "e1",
+      label: "Epic 1",
+      sublabel: "VS",
+      href: "/portfolio/epics/e1",
+      depth: 0,
+      kind: "epic",
+    });
+    expect(rows[0]!.range).toEqual({ start: d(2026, 3, 1), end: d(2026, 6, 30) });
+  });
+
+  it("leaves range null when no feature is scheduled", () => {
+    const rows = portfolioRoadmapRows([
+      { id: "e", title: "E", valueStream: null, children: [{ pi: null }] },
+    ]);
+    expect(rows[0]!.range).toBeNull();
+    expect(rows[0]!.sublabel).toBeUndefined();
+  });
+});
+
+describe("artRoadmapRows", () => {
+  it("makes one feature row per feature, ranged by its PI", () => {
+    const rows = artRoadmapRows([
+      { id: "f1", title: "F1", parent: { title: "Epic A" }, pi: pi(d(2026, 1, 1), d(2026, 2, 1)) },
+      { id: "f2", title: "F2", parent: null, pi: null },
+    ]);
+    expect(rows.map((r) => r.kind)).toEqual(["feature", "feature"]);
+    expect(rows[0]).toMatchObject({ sublabel: "Epic A", href: "/feature/f1" });
+    expect(rows[1]!.range).toBeNull();
+  });
+});
+
+describe("valueStreamRoadmapRows", () => {
+  const epics = [
+    {
+      id: "e1",
+      title: "Epic 1",
+      children: [
+        {
+          id: "f1",
+          title: "F1",
+          artId: "a1",
+          art: { name: "ART 1" },
+          pi: pi(d(2026, 1, 1), d(2026, 2, 1)),
+        },
+        { id: "f2", title: "F2", artId: null, art: null, pi: null },
+      ],
+    },
+  ];
+
+  it("hierarchical: epic followed by its indented features", () => {
+    const rows = valueStreamRoadmapRows(epics, "epic");
+    expect(rows.map((r) => [r.kind, r.depth])).toEqual([
+      ["epic", 0],
+      ["feature", 1],
+      ["feature", 1],
+    ]);
+    expect(rows[1]).toMatchObject({ sublabel: "ART 1" });
+  });
+
+  it("by-ART: an Epics section, then one group section per ART", () => {
+    const rows = valueStreamRoadmapRows(epics, "art");
+    expect(rows[0]).toMatchObject({ id: "__epics__", kind: "group" });
+    expect(rows.some((r) => r.kind === "group" && r.label === "ART 1")).toBe(true);
+    expect(rows.some((r) => r.kind === "group" && r.label === "Ohne ART")).toBe(true);
+  });
+});
+
+describe("roadmapAxis", () => {
+  it("spans the scheduled rows and ignores unscheduled ones", () => {
+    const rows: RoadmapRow[] = [
+      { id: "a", label: "A", range: range(d(2026, 1, 10), d(2026, 2, 5)), depth: 0, kind: "epic" },
+      { id: "b", label: "B", range: null, depth: 0, kind: "epic" },
+    ];
+    const axis = roadmapAxis(rows);
+    expect(axis.months[0]!.key).toBe("2026-01");
+    expect(axis.months.at(-1)!.key).toBe("2026-02");
+  });
+});

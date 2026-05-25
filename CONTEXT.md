@@ -23,6 +23,60 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
 - **Dependency** — a directed link between work items (cycle-checked).
 - **Impediment** — a blocker that can be raised, escalated, resolved.
 
+## Time & periods
+
+- **Calendar** — `src/domain/calendar.ts`, the single source of UTC date
+  arithmetic. Owns the **day** (`isoDay`, `dayStart`), **month**
+  (`monthStart`/`addMonths`/`monthDiff`/`parseIsoMonth`, `MONTH_LABELS`) and
+  **half-year** primitives, plus the two **period axes** below. Every other
+  module builds on it instead of reimplementing date maths.
+- **Period key** — the canonical string for a bucket: **month** `YYYY-MM`,
+  **half-year** `YYYY-H1` / `YYYY-H2` (one half-year = one 6-month business-case
+  cost slice).
+- **Month axis** (`MonthAxis`) — an inclusive `{ start, monthCount, months[] }`
+  span used by portfolio economics. Distinct from the roadmap's own
+  end-exclusive `{ start, end, months[] }` axis (Gantt projection) — the two are
+  intentionally not unified.
+- **Half-year axis** (`HalfYearAxis`) — the inclusive `{ start, count, periods[] }`
+  span used by participatory budgeting.
+- **Epic Schedule** — `src/domain/epic-schedule.ts`, the pure read/derivation
+  model of an Epic's delivery timeline. Resolves the two anchors —
+  **costStart** (the Backlog milestone, where cost begins) and **goLive** (the
+  Implementation milestone, completion) — from the timeline's
+  actual → estimate → approval → createdAt fallback chain, and owns the rule
+  that turns a budgeting decision into timeline estimates
+  (`scheduleFromFundedWindow`) plus the actuals-preserving merge
+  (`withScheduleEstimates`). Conflict policy between the owner's `saveTimeline`
+  and budgeting's `saveBudgetAllocation` is **last writer wins**; budgeting only
+  touches the backlog/implementation estimates, so owner actuals always survive.
+- **Epic Economics read-model** — `src/domain/epic-economics.ts`,
+  `deriveEpicEconomics(source)`: given one Epic's raw artefacts it derives the
+  single economic view both the Portfolio Dashboard and Participatory Budgeting
+  consume — parsed Business Case, cost slices, totals, costStart/goLive (via the
+  Epic Schedule), and the KPIs that realise the recurring benefit with their
+  resolved weights. The **benefit-weight fallback** (literal weights → equal
+  split → empty) lives here, so it is consistent across consumers.
+- **Portfolio Series** — `buildPortfolioSeries(data, query)` in
+  `src/domain/portfolio-economics.ts`: a pure montage from the dashboard DTO
+  (`PortfolioEconomicsData`) plus the slicer state (`selectedEpicIds`, the
+  Stichtag `from`/`to` window) to the rendered `PortfolioSeries`. Runs the same
+  in the server loader and the client `useMemo`, so the assembly is tested at
+  this seam rather than through the React component.
+- **Roadmap view** — the render-ready Gantt rows + month axis in
+  `src/domain/roadmap.ts`: `RoadmapRow` plus one pure builder per perspective
+  (`portfolioRoadmapRows`, `artRoadmapRows`, `valueStreamRoadmapRows`) and
+  `roadmapAxis(rows)`. The roadmap service loads the initiative rows; these
+  builders shape them, so the roadmap pages are load → build → render and the
+  shaping is tested at the builder seam (not through the page). Uses the
+  roadmap's own end-exclusive `MonthAxis` (Gantt projection).
+- **Page-model** — `src/server/views/*`: pure server-side assembly that turns
+  loaded rows into the render-ready props a page passes to its client
+  components (filter, reshape, serialise Date→ISO). `buildPlanningModel`
+  (PI planning) and `buildCockpitModel` (transformation cockpit) are the current
+  ones; the page becomes load → build → render and the assembly is tested at the
+  builder seam. Distinct from a domain read-model (e.g. Portfolio Series): a
+  page-model is presentation glue, not business computation.
+
 ## State axes on an Initiative (independent — do not conflate)
 
 - **Stage Gate** (`stageGate`, L0–L5) — the investment funnel. Governed by
@@ -58,3 +112,10 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   the single place a role↔capability decision is made. `POLICIES` is the source
   of truth for both server mutations and UI affordances; pages should ask for a
   **capability**, never re-list roles inline.
+- **Service-seam authorization** — `authorizeResource(principal, action,
+resource)` is the _authoritative, scope-aware_ check, run inside a service
+  **after** the target row is loaded so `value_stream`/`art`/`own` scope fields
+  come from the real row (not the raw input). The action factory's `authorize`
+  is a cheap pre-filter; by-id mutations would otherwise satisfy scope grants
+  vacuously. See ADR-0002 (and its deferred story/task/dependency ancestor-scope
+  cases).

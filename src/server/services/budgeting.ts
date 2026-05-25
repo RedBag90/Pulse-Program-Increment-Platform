@@ -10,19 +10,11 @@ import type { TenantId, EpicId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok } from "@/domain/errors";
-import { parseBusinessCase } from "@/domain/business-case";
 import { parseTimeline } from "@/domain/timeline";
-import { resolveCostStart } from "@/domain/portfolio-economics";
-import {
-  halfYearKey,
-  parseHalfYearKey,
-  halfYearStart,
-  addHalfYears,
-  buildHalfYearAxis,
-  fundedEndDate,
-  fundedPeriodRange,
-  type BudgetEpicView,
-} from "@/domain/budgeting";
+import { scheduleFromFundedWindow, withScheduleEstimates } from "@/domain/epic-schedule";
+import { deriveEpicEconomics } from "@/domain/epic-economics";
+import { halfYearKey, parseHalfYearKey, halfYearStart, addHalfYears } from "@/domain/calendar";
+import { buildHalfYearAxis, type BudgetEpicView } from "@/domain/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 
@@ -42,8 +34,6 @@ function parsePeriodMap(raw: unknown): Record<string, number> {
   }
   return out;
 }
-
-const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
 
 /** Loads the budgeting board: eligible Epics + their need/allocation + the pool. */
 export async function getBudgetingBoard(
@@ -78,13 +68,13 @@ export async function getBudgetingBoard(
   ]);
 
   const epics: BudgetEpicView[] = rows.map((row) => {
-    const bc = parseBusinessCase(row.businessCase).current;
-    const timeline = parseTimeline(row.timeline);
-    const costStart = resolveCostStart({
-      timeline,
+    const view = deriveEpicEconomics({
+      businessCase: row.businessCase,
+      timeline: row.timeline,
       businessCaseApprovedAt: row.businessCaseApprovedAt,
       hypothesisApprovedAt: row.hypothesisApprovedAt,
       createdAt: row.createdAt,
+      kpis: [], // budgeting does not use KPI-driven benefit
     });
     const alloc = row.budgetAllocation;
     return {
@@ -93,9 +83,9 @@ export async function getBudgetingBoard(
       valueStreamId: row.valueStream?.id ?? null,
       valueStream: row.valueStream?.name ?? null,
       isHypothesisOnly: row.businessCaseApprovedAt === null,
-      costSlices: (bc.costSlices ?? []).map((s) => s.amount ?? 0),
+      costSlices: view.costSlices,
       hypothesisBudget: alloc?.hypothesisBudget != null ? Number(alloc.hypothesisBudget) : 0,
-      startKey: halfYearKey(costStart),
+      startKey: halfYearKey(view.costStart),
       allocations: parsePeriodMap(alloc?.allocations),
       priority: alloc?.priority ?? 0,
     };
@@ -155,13 +145,11 @@ export async function saveBudgetAllocation(
       },
     });
 
-    // Derive the Epic schedule from where the money actually lands: backlog =
-    // start of the first funded half-year, implementation = last day of the last
-    // funded half-year. With nothing funded the timeline is left untouched.
-    const range = fundedPeriodRange(allocations);
-    const first = range ? parseHalfYearKey(range.firstKey) : null;
-    const last = range ? parseHalfYearKey(range.lastKey) : null;
-    if (first && last) {
+    // Derive the Epic schedule from where the money actually lands. The rule and
+    // the actuals-preserving merge live in the Epic Schedule module; with nothing
+    // funded it returns null and the timeline is left untouched.
+    const estimates = scheduleFromFundedWindow(allocations);
+    if (estimates) {
       const epic = await tx.initiative.findFirst({
         where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
         select: { timeline: true },
@@ -171,14 +159,7 @@ export async function saveBudgetAllocation(
         where: { id: epicId },
         data: {
           updatedBy: mctx.actorId,
-          timeline: {
-            estimates: {
-              ...timeline.estimates,
-              backlog: isoDay(halfYearStart(first)),
-              implementation: isoDay(fundedEndDate(last, 1)),
-            },
-            actuals: timeline.actuals,
-          } as unknown as Prisma.InputJsonValue,
+          timeline: withScheduleEstimates(timeline, estimates) as unknown as Prisma.InputJsonValue,
         },
       });
     }

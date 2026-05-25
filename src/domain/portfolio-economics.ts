@@ -12,32 +12,20 @@
  *   horizon end (inclusive).
  */
 
-import type { TimelineFields } from "@/domain/timeline";
 import type { KpiMeasurement } from "@/domain/kpi";
+import {
+  monthStart,
+  addMonths,
+  monthDiff,
+  parseHalfYearKey,
+  buildMonthAxis,
+  type MonthAxis,
+} from "@/domain/calendar";
 
-const MONTH_LABELS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-] as const;
-
-export interface MonthAxis {
-  /** First day of the earliest month (UTC). */
-  start: Date;
-  /** Number of months on the axis (≥ 1). */
-  monthCount: number;
-  /** One entry per month, oldest first; length === monthCount. */
-  months: { key: string; label: string }[];
-}
+// Month helpers live in the calendar module; re-exported so existing callers
+// (dashboard client/service, tests) keep importing them from here.
+export { monthStart, addMonths, monthDiff, parseIsoMonth, buildMonthAxis } from "@/domain/calendar";
+export type { MonthAxis } from "@/domain/calendar";
 
 export interface EpicEconomicsInput {
   id: string;
@@ -90,93 +78,16 @@ export interface PortfolioSeries {
   breakEvenIndex: number | null;
 }
 
-// --- date helpers (UTC, month-granular) -----------------------------------
-
-export function monthStart(d: Date): Date {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
-}
-
-export function addMonths(d: Date, n: number): Date {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1));
-}
-
-/** Whole-month distance from `a` to `b` (b − a); negative if b precedes a. */
-export function monthDiff(a: Date, b: Date): number {
-  return (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth());
-}
-
-/** Parses an ISO `yyyy-mm-dd` string to a UTC month-start, or null. */
-export function parseIsoMonth(iso: string | undefined): Date | null {
-  if (!iso || iso.trim() === "") return null;
-  const t = Date.parse(iso);
-  return Number.isNaN(t) ? null : monthStart(new Date(t));
-}
-
-/**
- * Resolves the calendar month an Epic's costs begin — the start of delivery,
- * anchored on the **Backlog** milestone (when the Epic becomes ready to build).
- * Falls back through actual → estimated backlog → business-case approval →
- * hypothesis approval → createdAt. The Implementation milestone is *not* used
- * here — it marks completion (go-live), see `resolveGoLive`.
- */
-export function resolveCostStart(anchors: {
-  timeline: TimelineFields;
-  businessCaseApprovedAt: Date | null;
-  hypothesisApprovedAt: Date | null;
-  createdAt: Date;
-}): Date {
-  const { timeline, businessCaseApprovedAt, hypothesisApprovedAt, createdAt } = anchors;
-  return (
-    parseIsoMonth(timeline.actuals.backlog) ??
-    parseIsoMonth(timeline.estimates.backlog) ??
-    (businessCaseApprovedAt ? monthStart(businessCaseApprovedAt) : null) ??
-    (hypothesisApprovedAt ? monthStart(hypothesisApprovedAt) : null) ??
-    monthStart(createdAt)
-  );
-}
-
-/**
- * Resolves the go-live / completion month — the **Implementation** milestone.
- * Uses the actual completion date if recorded (it also marks the Epic Done),
- * else the planned implementation date, else the derived end (cost start +
- * #slices × 6 months) so every Epic still gets a go-live.
- */
-export function resolveGoLive(
-  timeline: TimelineFields,
-  costStart: Date,
-  costSlicesCount: number,
-): Date {
-  return (
-    parseIsoMonth(timeline.actuals.implementation) ??
-    parseIsoMonth(timeline.estimates.implementation) ??
-    addMonths(monthStart(costStart), costSlicesCount * 6)
-  );
-}
+// The Backlog/Implementation anchor resolution (`resolveCostStart`,
+// `resolveGoLive`) lives in `@/domain/epic-schedule` — economics consumes the
+// already-resolved `costStart`/`goLive` on `EpicEconomicsInput`.
 
 /** Derived go-live month (cost start + #slices × 6) — the `resolveGoLive` fallback. */
 export function goLiveMonth(input: EpicEconomicsInput): Date {
   return addMonths(monthStart(input.costStart), input.costSlices.length * 6);
 }
 
-// --- axis & flows ----------------------------------------------------------
-
-/** Inclusive month axis spanning the month of `from` to the month of `to`. */
-export function buildMonthAxis(from: Date, to: Date): MonthAxis {
-  const start = monthStart(from);
-  const last = monthStart(to);
-  const monthCount = Math.max(1, monthDiff(start, last) + 1);
-  const months: { key: string; label: string }[] = [];
-  for (let i = 0; i < monthCount; i++) {
-    const cur = addMonths(start, i);
-    const y = cur.getUTCFullYear();
-    const m = cur.getUTCMonth();
-    months.push({
-      key: `${y}-${String(m + 1).padStart(2, "0")}`,
-      label: `${MONTH_LABELS[m]} ${y}`,
-    });
-  }
-  return { start, monthCount, months };
-}
+// --- flows -----------------------------------------------------------------
 
 function zeros(n: number): number[] {
   return new Array<number>(n).fill(0);
@@ -262,9 +173,8 @@ export function allocatedCostByMonth(
 ): number[] {
   const out = zeros(axis.monthCount);
   for (const [key, amount] of Object.entries(allocatedByPeriod)) {
-    const m = /^(\d{4})-H([12])$/.exec(key);
-    if (!m || !amount) continue;
-    const periodStart = new Date(Date.UTC(Number(m[1]), m[2] === "1" ? 0 : 6, 1));
+    const periodStart = parseHalfYearKey(key);
+    if (!periodStart || !amount) continue;
     const startIdx = monthDiff(axis.start, periodStart);
     const perMonth = amount / 6;
     for (let k = 0; k < 6; k++) {
@@ -367,4 +277,106 @@ export function aggregatePortfolio(
   }
 
   return { axis, perEpic, velocity, costs, net, accBV, accCost, breakEven, breakEvenIndex };
+}
+
+// --- dashboard DTO + series montage ----------------------------------------
+//
+// The serialisable contract the dashboard loader returns and the assembly that
+// turns it (plus the slicer window) into a `PortfolioSeries`. Pure, so it runs
+// the same in the server loader and the client `useMemo`, and is tested at this
+// seam rather than through the React component.
+
+/** A KPI driving the recurring benefit, with its share and measurement history. */
+export interface BenefitKpiDTO {
+  kpiId: string;
+  name: string;
+  /** Share of the recurring benefit (fraction 0..1). */
+  weight: number;
+  baseline: number | null;
+  target: number | null;
+  measurements: KpiMeasurement[];
+}
+
+/** One Epic's economics, serialisable (dates as ISO `yyyy-mm-dd`). */
+export interface EpicEconomicsDTO {
+  id: string;
+  title: string;
+  valueStream: string | null;
+  costSlices: number[];
+  oneTimeBenefit: number;
+  recurringBenefit: number;
+  /** Resolved cost-start month — Backlog milestone (ISO date). */
+  costStartIso: string;
+  /** Resolved go-live / completion month — Implementation milestone (ISO date). */
+  goLiveIso: string;
+  /** Whether the Epic carries any business-case content (else flows are 0). */
+  hasBusinessCase: boolean;
+  /**
+   * Linked KPIs (with weights + history) that realise the recurring benefit.
+   * Empty → the dashboard uses the flat-forecast fallback.
+   */
+  benefitKpis: BenefitKpiDTO[];
+  /** True when a participatory-budgeting allocation exists → costs come from it. */
+  hasAllocation: boolean;
+  /** Allocated budget per half-year key (the budgeting decision). */
+  allocatedByPeriod: Record<string, number>;
+}
+
+export interface PortfolioEconomicsData {
+  epics: EpicEconomicsDTO[];
+  /** Earliest cost start across all Epics (axis lower bound, ISO date). */
+  axisFromIso: string;
+  /** Recurring-benefit accrual end / axis upper bound (ISO date). */
+  horizonEndIso: string;
+  /** Configurable self-funding threshold per month, or null if unset. */
+  costNeutralTarget: number | null;
+}
+
+/** The slicer state that narrows the DTO to a series: which Epics, which window. */
+export interface PortfolioSeriesQuery {
+  /** Epic ids to include (the Projekt-ID slicer). */
+  selectedEpicIds: ReadonlySet<string>;
+  /** Axis lower/upper bound — the Stichtag window (ISO `yyyy-mm-dd`). */
+  fromIso: string;
+  toIso: string;
+}
+
+const isoToDate = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
+
+/** Maps one DTO Epic onto the axis, applying its KPI factor and cost override. */
+function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
+  // Linked KPIs realise the recurring benefit over time; no link → flat forecast.
+  const factor = recurringFactorByMonth(e.benefitKpis, axis);
+  // A participatory-budgeting allocation drives the cost over the forecast slices.
+  const costByMonth = e.hasAllocation ? allocatedCostByMonth(e.allocatedByPeriod, axis) : null;
+  return {
+    id: e.id,
+    title: e.title,
+    costSlices: e.costSlices,
+    oneTimeBenefit: e.oneTimeBenefit,
+    recurringBenefit: e.recurringBenefit,
+    costStart: isoToDate(e.costStartIso),
+    goLive: isoToDate(e.goLiveIso),
+    ...(factor ? { recurringFactorByMonth: factor } : {}),
+    ...(costByMonth ? { costByMonth } : {}),
+  };
+}
+
+/**
+ * Assembles the full `PortfolioSeries` from the loader DTO and the slicer state.
+ * The axis is the Stichtag window (`from`..`to`); the recurring-benefit accrual
+ * still runs to the DTO's `horizonEnd` so a window that ends before go-live does
+ * not silently truncate benefit that lands later. Epics outside the selection
+ * are dropped before aggregation.
+ */
+export function buildPortfolioSeries(
+  data: PortfolioEconomicsData,
+  query: PortfolioSeriesQuery,
+): PortfolioSeries {
+  const axis = buildMonthAxis(isoToDate(query.fromIso), isoToDate(query.toIso));
+  const horizonEnd = isoToDate(data.horizonEndIso);
+  const inputs = data.epics
+    .filter((e) => query.selectedEpicIds.has(e.id))
+    .map((e) => dtoToInput(e, axis));
+  return aggregatePortfolio(inputs, axis, horizonEnd);
 }

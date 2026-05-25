@@ -2,8 +2,8 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listArts } from "@/server/services/art";
 import { getArtRoadmap } from "@/server/services/roadmap";
-import { RoadmapGantt, type RoadmapRow } from "@/features/roadmap/components/roadmap-gantt";
-import { buildMonthAxis, type DateRange } from "@/domain/roadmap";
+import { RoadmapGantt } from "@/features/roadmap/components/roadmap-gantt";
+import { artRoadmapRows, roadmapAxis } from "@/domain/roadmap";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { ArtId } from "@/domain/types";
@@ -38,19 +38,8 @@ export default async function ArtRoadmapPage({ searchParams }: Props) {
   const activeArt = arts.find((a) => a.id === art) ?? arts[0]!;
   const features = await getArtRoadmap(db, principal.tenantId, activeArt.id as ArtId);
 
-  const rows: RoadmapRow[] = features.map(
-    (f): RoadmapRow => ({
-      id: f.id,
-      label: f.title,
-      sublabel: f.parent?.title,
-      href: `/feature/${f.id}`,
-      range: f.pi ? { start: f.pi.startDate, end: f.pi.endDate } : null,
-      depth: 0,
-      kind: "feature",
-    }),
-  );
-
-  const axis = buildMonthAxis(rows.map((r) => r.range).filter((r): r is DateRange => r !== null));
+  const rows = artRoadmapRows(features);
+  const axis = roadmapAxis(rows);
 
   return (
     <main className="space-y-6 p-8">

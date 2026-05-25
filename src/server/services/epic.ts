@@ -3,7 +3,8 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, EpicId, ValueStreamId, StageGate } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
+import { ok, err, isErr } from "@/domain/errors";
+import { authorizeResource } from "@/server/auth/authorize";
 import { buildChangelog } from "@/domain/change-log";
 import { isValidTransition, isApprovalTransition } from "@/domain/stage-gate";
 import type { RequestContext } from "@/server/http/mutation-handler";
@@ -101,6 +102,15 @@ export async function updateEpic(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "Epic", id });
     }
+
+    // Scope check with the loaded Epic's real value stream — a value_stream
+    // owner may only edit Epics in their own stream (see authorizeResource).
+    const authz = authorizeResource(ctx.principal, "epic.update", {
+      tenantId: mctx.tenantId,
+      valueStreamId: existing.valueStreamId,
+      ownerId: existing.ownerId,
+    });
+    if (isErr(authz)) return authz;
 
     const changes = buildChangelog(
       {
@@ -251,6 +261,13 @@ export async function saveBenefitHypothesis(
       return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
     }
 
+    const authz = authorizeResource(ctx.principal, "epic.update", {
+      tenantId: mctx.tenantId,
+      valueStreamId: existing.valueStreamId,
+      ownerId: existing.ownerId,
+    });
+    if (isErr(authz)) return authz;
+
     const prev = parseBenefitHypothesis(existing.benefitHypothesis);
     const history = benefitHypothesisHasContent(prev.current)
       ? [
@@ -299,6 +316,13 @@ export async function saveBusinessCase(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
     }
+
+    const authz = authorizeResource(ctx.principal, "epic.update", {
+      tenantId: mctx.tenantId,
+      valueStreamId: existing.valueStreamId,
+      ownerId: existing.ownerId,
+    });
+    if (isErr(authz)) return authz;
 
     const prev = parseBusinessCase(existing.businessCase);
     const history = businessCaseHasContent(prev.current)
@@ -351,6 +375,13 @@ export async function saveTimeline(
       where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
     });
     if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+
+    const authz = authorizeResource(ctx.principal, "epic.update", {
+      tenantId: mctx.tenantId,
+      valueStreamId: existing.valueStreamId,
+      ownerId: existing.ownerId,
+    });
+    if (isErr(authz)) return authz;
 
     const reachedDone = Boolean(fields.actuals.implementation) && existing.stageGate !== "L5";
 

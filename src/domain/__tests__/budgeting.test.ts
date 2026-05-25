@@ -1,42 +1,18 @@
 import { describe, it, expect } from "vitest";
 import {
-  halfYearStart,
-  halfYearKey,
-  parseHalfYearKey,
-  addHalfYears,
-  halfYearsBetween,
   fundedEndDate,
   fundedPeriodRange,
-  buildHalfYearAxis,
   requestedByPeriod,
   rollupByValueStream,
   poolRemaining,
   totalAllocatedByPeriod,
   type BudgetEpicView,
 } from "@/domain/budgeting";
+import { buildHalfYearAxis } from "@/domain/calendar";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
-describe("half-year helpers", () => {
-  it("maps a date to its half-year start and key", () => {
-    expect(halfYearStart(utc("2026-03-20")).toISOString()).toBe("2026-01-01T00:00:00.000Z");
-    expect(halfYearStart(utc("2026-08-01")).toISOString()).toBe("2026-07-01T00:00:00.000Z");
-    expect(halfYearKey(utc("2026-03-20"))).toBe("2026-H1");
-    expect(halfYearKey(utc("2026-08-01"))).toBe("2026-H2");
-  });
-
-  it("parses keys and rolls across year boundaries", () => {
-    expect(parseHalfYearKey("2026-H2")?.toISOString()).toBe("2026-07-01T00:00:00.000Z");
-    expect(parseHalfYearKey("bad")).toBeNull();
-    expect(halfYearKey(addHalfYears(utc("2026-07-01"), 1))).toBe("2027-H1");
-    expect(halfYearKey(addHalfYears(utc("2026-01-01"), 3))).toBe("2027-H2");
-  });
-
-  it("counts half-years between dates, signed", () => {
-    expect(halfYearsBetween(utc("2026-01-01"), utc("2027-01-01"))).toBe(2);
-    expect(halfYearsBetween(utc("2026-07-01"), utc("2026-02-01"))).toBe(-1);
-  });
-
+describe("funded window", () => {
   it("fundedEndDate is the last day of the last funded period", () => {
     expect(fundedEndDate(utc("2026-07-01"), 3).toISOString().slice(0, 10)).toBe("2027-12-31");
     expect(fundedEndDate(utc("2026-01-01"), 1).toISOString().slice(0, 10)).toBe("2026-06-30");
@@ -57,13 +33,6 @@ describe("half-year helpers", () => {
     });
     expect(fundedPeriodRange({})).toBeNull();
     expect(fundedPeriodRange({ "2026-H1": 0 })).toBeNull();
-  });
-
-  it("builds an inclusive half-year axis", () => {
-    const axis = buildHalfYearAxis(utc("2026-02-01"), utc("2027-03-01"));
-    expect(axis.count).toBe(3);
-    expect(axis.periods.map((p) => p.key)).toEqual(["2026-H1", "2026-H2", "2027-H1"]);
-    expect(axis.periods[0]!.label).toBe("H1 2026");
   });
 });
 

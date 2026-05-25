@@ -305,6 +305,22 @@ export async function listProgramIncrementsForArts(
   });
 }
 
+/** PIs of one ART with sprint counts — backs the PI-planning board/table. */
+export async function listArtPlanningPis(db: PrismaClient, tenantId: TenantId, artId: ArtId) {
+  return db.programIncrement.findMany({
+    where: { tenantId, artId },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      startDate: true,
+      endDate: true,
+      _count: { select: { sprints: true } },
+    },
+    orderBy: { startDate: "asc" },
+  });
+}
+
 export async function getPi(db: PrismaClient, tenantId: TenantId, id: PiId) {
   return db.programIncrement.findFirst({
     where: { id, tenantId },

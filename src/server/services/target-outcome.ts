@@ -1,9 +1,10 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
+import { ok, isErr } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { findOr404 } from "@/server/services/tenant-scope";
 
 /**
  * Organisation-wide target outcomes (OKRs) — the business part of the Soll.
@@ -45,10 +46,12 @@ export async function saveTargetOutcome(
     };
 
     if (id) {
-      const existing = await tx.targetOutcome.findFirst({
-        where: { id, tenantId: mctx.tenantId },
+      const found = await findOr404(tx.targetOutcome, {
+        id,
+        tenantId: mctx.tenantId,
+        resourceType: "TargetOutcome",
       });
-      if (!existing) return err({ kind: "not_found" as const, resourceType: "TargetOutcome", id });
+      if (isErr(found)) return found;
       const row = await tx.targetOutcome.update({ where: { id }, data });
       return ok({
         result: { id: row.id },
@@ -82,8 +85,12 @@ export async function deleteTargetOutcome(
   const { id } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.targetOutcome.findFirst({ where: { id, tenantId: mctx.tenantId } });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "TargetOutcome", id });
+    const found = await findOr404(tx.targetOutcome, {
+      id,
+      tenantId: mctx.tenantId,
+      resourceType: "TargetOutcome",
+    });
+    if (isErr(found)) return found;
 
     await tx.targetOutcome.delete({ where: { id } });
     return ok({

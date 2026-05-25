@@ -1,4 +1,5 @@
 import { ROLES, type Role } from "@/domain/roles";
+import { ok, err, type Result } from "@/domain/errors";
 import type { Principal } from "@/server/auth/principal";
 import { POLICIES, type Action, type Grant, type ScopeCheck } from "@/server/auth/policies";
 
@@ -91,4 +92,28 @@ export function hasPermission(
   principal: Principal,
 ): boolean {
   return authorize(action, resource, principal).allow;
+}
+
+/**
+ * Service-seam authorization: the definitive, scope-aware permission check, run
+ * **after** the service has loaded the target row so the resource carries its
+ * real scope fields (`valueStreamId`, `artId`, `teamId`, `ownerId`). Returns a
+ * `forbidden` domain error on denial so a service can `return` it directly.
+ *
+ * The action factory's pre-check authorizes from raw input, which lacks these
+ * fields for by-id mutations — there the `value_stream`/`art`/`own` scope is
+ * satisfied vacuously. This check is where scope is genuinely enforced; the
+ * factory check stays as a cheap early reject. See ADR-0002.
+ */
+export function authorizeResource(
+  principal: Principal,
+  action: Action,
+  resource: AuthResource,
+): Result<void> {
+  const decision = authorize(action, resource, principal);
+  if (decision.allow) return ok(undefined);
+  return err({
+    kind: "forbidden" as const,
+    reason: decision.reason ?? `Principal ${principal.id} lacks permission for ${action}`,
+  });
 }

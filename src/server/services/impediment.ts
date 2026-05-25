@@ -1,10 +1,11 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId, PiId, SprintId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
+import { ok, err, isErr } from "@/domain/errors";
 import { publishDomainEvent } from "@/server/events/publish";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { findOr404 } from "@/server/services/tenant-scope";
 import { paginate, type PageParams } from "@/server/db/paginate";
 
 export type ImpedimentId = string & { readonly __brand: "ImpedimentId" };
@@ -33,8 +34,12 @@ export async function createImpediment(
   const { artId, piId, sprintId, title, description, severity } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const art = await tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId } });
-    if (!art) return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
+    const art = await findOr404(tx.art, {
+      id: artId,
+      tenantId: mctx.tenantId,
+      resourceType: "Art",
+    });
+    if (isErr(art)) return art;
 
     const imp = await tx.impediment.create({
       data: {
@@ -64,8 +69,13 @@ export async function escalateImpediment(
   const { id } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.impediment.findFirst({ where: { id, tenantId: mctx.tenantId } });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "Impediment", id });
+    const found = await findOr404(tx.impediment, {
+      id,
+      tenantId: mctx.tenantId,
+      resourceType: "Impediment",
+    });
+    if (isErr(found)) return found;
+    const existing = found.value;
     if (existing.status !== "open") {
       return err({ kind: "conflict" as const, reason: "Only open impediments can be escalated" });
     }
@@ -101,8 +111,13 @@ export async function resolveImpediment(
   const { id, resolution } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.impediment.findFirst({ where: { id, tenantId: mctx.tenantId } });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "Impediment", id });
+    const found = await findOr404(tx.impediment, {
+      id,
+      tenantId: mctx.tenantId,
+      resourceType: "Impediment",
+    });
+    if (isErr(found)) return found;
+    const existing = found.value;
     if (existing.status === "resolved") {
       return err({ kind: "conflict" as const, reason: "Impediment is already resolved" });
     }

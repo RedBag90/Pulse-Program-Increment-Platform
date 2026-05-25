@@ -2,13 +2,14 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
+import { ok, err, isErr } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,
   toMutationContext,
   onUniqueConstraint,
 } from "@/server/services/mutation";
+import { findOr404 } from "@/server/services/tenant-scope";
 import { notDeleted } from "@/server/db/soft-delete";
 
 /**
@@ -75,10 +76,12 @@ export async function saveGoal(
     };
 
     if (id) {
-      const existing = await tx.transformationGoal.findFirst({
-        where: { id, tenantId: mctx.tenantId },
+      const found = await findOr404(tx.transformationGoal, {
+        id,
+        tenantId: mctx.tenantId,
+        resourceType: "Goal",
       });
-      if (!existing) return err({ kind: "not_found" as const, resourceType: "Goal", id });
+      if (isErr(found)) return found;
       const row = await tx.transformationGoal.update({ where: { id }, data });
       return ok({
         result: { id: row.id },
@@ -111,10 +114,12 @@ export async function deleteGoal(
   const mctx = toMutationContext(ctx);
   const { id } = input;
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.transformationGoal.findFirst({
-      where: { id, tenantId: mctx.tenantId },
+    const found = await findOr404(tx.transformationGoal, {
+      id,
+      tenantId: mctx.tenantId,
+      resourceType: "Goal",
     });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "Goal", id });
+    if (isErr(found)) return found;
 
     // FKs handle the rest: KPIs (TargetOutcome.goalId) → SET NULL, links → CASCADE.
     await tx.transformationGoal.delete({ where: { id } });
@@ -139,10 +144,12 @@ export async function linkGoalEpic(
   return withAuditedTransaction(
     mctx,
     async (tx) => {
-      const goal = await tx.transformationGoal.findFirst({
-        where: { id: goalId, tenantId: mctx.tenantId },
+      const goal = await findOr404(tx.transformationGoal, {
+        id: goalId,
+        tenantId: mctx.tenantId,
+        resourceType: "Goal",
       });
-      if (!goal) return err({ kind: "not_found" as const, resourceType: "Goal", id: goalId });
+      if (isErr(goal)) return goal;
 
       const epic = await tx.initiative.findFirst({
         where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, ...notDeleted },
