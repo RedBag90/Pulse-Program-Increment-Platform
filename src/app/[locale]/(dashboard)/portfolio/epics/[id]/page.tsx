@@ -125,6 +125,18 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 
+  // The VMO and roles above it (portfolio manager, the epic's value stream owner,
+  // admins) may nominate the Epic Owner — mirrors the `epic.owner.assign` policy.
+  const canAssignOwner = authorize(
+    "epic.owner.assign",
+    { tenantId: principal.tenantId, valueStreamId: epic.valueStreamId },
+    principal,
+  ).allow;
+
+  // Advancing the stage gate (incl. the manual "select for analyzing" → L2) mirrors
+  // the `epic.approve` policy (portfolio manager / VMO / admins).
+  const canAdvance = authorize("epic.approve", { tenantId: principal.tenantId }, principal).allow;
+
   const pisByArt: Record<string, { id: string; name: string }[]> = {};
   for (const pi of pis) {
     (pisByArt[pi.artId] ??= []).push({ id: pi.id, name: pi.name });
@@ -269,8 +281,10 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           )}
           <EpicOverviewTab
             epic={epic}
-            ownerName={userLabel(epic.ownerId, userLabels)}
             canEdit={canEdit}
+            canAssignOwner={canAssignOwner}
+            approvers={approvers}
+            userLabels={userLabels}
           />
         </div>
       )}
@@ -280,15 +294,15 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           <h2 className="mb-4 font-heading text-lg font-medium">Timeline</h2>
           <EpicTimelineTab
             epicId={epic.id}
+            stageGate={epic.stageGate}
             createdAt={epic.createdAt.toISOString()}
+            selectedForDetailingAt={epic.selectedForDetailingAt?.toISOString() ?? null}
             hypothesisApprovedAt={epic.hypothesisApprovedAt?.toISOString() ?? null}
+            selectedForAnalyzingAt={epic.selectedForAnalyzingAt?.toISOString() ?? null}
             businessCaseApprovedAt={epic.businessCaseApprovedAt?.toISOString() ?? null}
             timeline={timeline}
             canEdit={canEdit}
-            ownerId={epic.ownerId}
-            canAssignOwner={canDecideHypothesis}
-            approvers={approvers}
-            userLabels={userLabels}
+            canAdvance={canAdvance}
           />
         </section>
       )}

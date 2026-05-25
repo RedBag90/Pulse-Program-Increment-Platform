@@ -1,7 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { createArt, updateArt, softDeleteArt } from "@/server/services/art";
+import { updateArt, softDeleteArt } from "@/server/services/art";
+import { createArtWithStandard } from "@/server/services/art-setup";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { ValueStreamId, ArtId } from "@/domain/types";
@@ -17,6 +18,7 @@ export const createArtAction = createServerAction({
     valueStreamId: z.string().uuid(),
     name: z.string().min(1).max(100),
     piCadenceWeeks: z.coerce.number().int().min(8).max(12).optional(),
+    piStandardId: z.string().uuid().optional(),
   }),
   action: "art.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -26,13 +28,15 @@ export const createArtAction = createServerAction({
       valueStreamId: f.string("valueStreamId"),
       name: f.string("name"),
       piCadenceWeeks: f.nonEmptyString("piCadenceWeeks"),
+      piStandardId: f.nonEmptyString("piStandardId"),
     };
   },
   service: (ctx, input) =>
-    createArt(ctx, {
+    createArtWithStandard(ctx, {
       valueStreamId: input.valueStreamId as ValueStreamId,
       name: input.name,
       piCadenceWeeks: input.piCadenceWeeks,
+      piStandardId: input.piStandardId,
     }),
   revalidate: "art",
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create ART"),

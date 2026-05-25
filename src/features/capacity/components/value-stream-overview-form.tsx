@@ -17,8 +17,6 @@ interface Props {
   id: string;
   name: string;
   description: string;
-  budgetAmount: string;
-  budgetCurrency: string;
   financeApproverId: string;
   vmoId: string;
   /** All tenant users — options for the Finance Approver picker. */
@@ -36,8 +34,6 @@ export function ValueStreamOverviewForm({
   id,
   name,
   description,
-  budgetAmount,
-  budgetCurrency,
   financeApproverId,
   vmoId,
   users,
@@ -58,29 +54,6 @@ export function ValueStreamOverviewForm({
       <div className="space-y-1.5">
         <Label htmlFor="vs-description">Beschreibung</Label>
         <Textarea id="vs-description" name="description" defaultValue={description} rows={4} />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="vs-budget">Budget</Label>
-          <Input
-            id="vs-budget"
-            name="budgetAmount"
-            inputMode="decimal"
-            defaultValue={budgetAmount}
-            placeholder="0.00"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="vs-currency">Währung</Label>
-          <Input
-            id="vs-currency"
-            name="budgetCurrency"
-            maxLength={3}
-            defaultValue={budgetCurrency}
-            placeholder="EUR"
-          />
-        </div>
       </div>
 
       <div className="space-y-1.5">

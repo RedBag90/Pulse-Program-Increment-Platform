@@ -174,6 +174,55 @@ export function StartRevisionButtons({ epicId }: { epicId: string }) {
   );
 }
 
+/**
+ * Any started phase → the Epic Owner resets the in-progress workflow back to
+ * draft and restarts it. Destructive (discards the running cycle's decisions),
+ * so it asks for confirmation first. Reuses the revision machinery (mode "full").
+ */
+export function ResetApprovalButton({ epicId }: { epicId: string }) {
+  const [state, action, pending] = useActionState(startEpicRevisionAction, {});
+  const [confirming, setConfirming] = useState(false);
+
+  if (!confirming) {
+    return (
+      <div className="space-y-1">
+        <button type="button" className={OUTLINE} onClick={() => setConfirming(true)}>
+          Genehmigungsprozess zurücksetzen & neu starten
+        </button>
+        <Err msg={state.error} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+      <p className="text-sm text-amber-800">
+        Der Prozess startet neu im Entwurf; alle laufenden Freigaben dieses Zyklus gehen verloren
+        (die Inhalte bleiben erhalten). Fortfahren?
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          className={REJECT}
+          onClick={() => dispatch(action, { epicId, mode: "full" })}
+        >
+          {pending ? "…" : "Ja, zurücksetzen"}
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          className={OUTLINE}
+          onClick={() => setConfirming(false)}
+        >
+          Abbrechen
+        </button>
+      </div>
+      <Err msg={state.error} />
+    </div>
+  );
+}
+
 /** stakeholder_review → reviewer signs off a section (Breakdown / KPIs). */
 export function SectionSignoffButtons({
   epicId,

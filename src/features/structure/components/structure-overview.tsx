@@ -15,10 +15,19 @@ import { CreateValueStreamDialog } from "@/features/portfolio/components/create-
 import type { StructureTree } from "@/server/services/structure";
 import type { PracticeFlags } from "@/domain/operating-model";
 
+const eur = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
+const fmtEur = (v: number) => eur.format(Math.round(v));
+
 interface Props {
   tree: StructureTree;
   userLabels: Record<string, string>;
   epicsByValueStream: Record<string, number>;
+  /** Derived allocated budget per Value Stream id (participatory budgeting). */
+  budgetTotals: Record<string, number>;
   activePiCount: number;
   canCreateVs: boolean;
   /** The practices the tenant's target operating model enables — gaps for
@@ -52,6 +61,7 @@ export function StructureOverview({
   tree,
   userLabels,
   epicsByValueStream,
+  budgetTotals,
   activePiCount,
   canCreateVs,
   practices,
@@ -186,9 +196,7 @@ export function StructureOverview({
               >
                 <h3 className="font-semibold">{vs.name}</h3>
                 <p className="text-xs text-muted-foreground">
-                  {vs.budgetAmount
-                    ? `${vs.budgetAmount.toString()} ${vs.budgetCurrency ?? ""}`
-                    : "Kein Budget"}
+                  {budgetTotals[vs.id] ? fmtEur(budgetTotals[vs.id]!) : "Kein Budget"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {vs.arts.length} ART{vs.arts.length !== 1 ? "s" : ""} · {vsTeams.length} Team

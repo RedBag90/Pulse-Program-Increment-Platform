@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 
 /** Parent-entity kinds whose option lists a create dialog may need to load. */
-export type ParentKind = "valueStream" | "art" | "epic" | "feature" | "pi" | "team" | "story";
+export type ParentKind =
+  | "valueStream"
+  | "art"
+  | "epic"
+  | "feature"
+  | "pi"
+  | "team"
+  | "story"
+  | "piStandard";
 
 /**
  * Resolves the `GET /api/v1/…` endpoint for a parent-option list. Returns
@@ -29,6 +37,8 @@ export function optionsEndpoint(
       return params?.artId ? `/api/v1/teams?artId=${params.artId}` : null;
     case "story":
       return params?.featureId ? `/api/v1/stories?featureId=${params.featureId}` : null;
+    case "piStandard":
+      return "/api/v1/pi-standards";
   }
 }
 

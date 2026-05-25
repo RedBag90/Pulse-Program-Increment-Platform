@@ -5,7 +5,12 @@ import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import type { ChangeMap } from "@/domain/change-log";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import {
+  withAuditedTransaction,
+  toMutationContext,
+  type MutationContext,
+} from "@/server/services/mutation";
+import { autoAdvanceStageGate } from "@/server/services/epic";
 import {
   parseBusinessCase,
   businessCaseHasContent,
@@ -132,10 +137,17 @@ export async function decideHypothesis(
       data: {
         approvalPhase: target,
         updatedBy: mctx.actorId,
-        // Timeline actual for the "Selected for Detailing" phase.
-        ...(decision === "approve" && { hypothesisApprovedAt: new Date() }),
+        // On approval: stamp the "Selected for Detailing" timeline actual and flag
+        // the Epic for the next steering meeting.
+        ...(decision === "approve" && {
+          hypothesisApprovedAt: new Date(),
+          needsSteeringAttention: true,
+        }),
       },
     });
+
+    // An approved hypothesis is the "Business hypothesis done" milestone; it does
+    // NOT advance the gate — moving into Analyzing (L2) is a separate manual step.
 
     return ok({
       result: undefined,
@@ -355,23 +367,31 @@ export async function reviseBusinessCase(
  */
 async function applyDecisionOutcome(
   tx: Prisma.TransactionClient,
+  mctx: MutationContext,
   epicId: string,
-  tenantId: string,
   revision: number,
   decision: ApprovalDecision,
   fromPhase: ApprovalPhase,
 ): Promise<{ before: ApprovalPhase; after: ApprovalPhase } | null> {
   if (decision === "reject") return null;
   const rows = await tx.epicApproval.findMany({
-    where: { initiativeId: epicId, tenantId, revision },
+    where: { initiativeId: epicId, tenantId: mctx.tenantId, revision },
     select: { kind: true, party: true, section: true, status: true },
   });
   if (isFullyApproved(rows.map(toRecord))) {
     await tx.initiative.update({
       where: { id: epicId },
-      // businessCaseApprovedAt = timeline actual for the "Business Case" phase.
-      data: { approvalPhase: "approved", status: "approved", businessCaseApprovedAt: new Date() },
+      // businessCaseApprovedAt = timeline actual for the "Business Case" phase;
+      // flag the Epic for the next steering meeting.
+      data: {
+        approvalPhase: "approved",
+        status: "approved",
+        businessCaseApprovedAt: new Date(),
+        needsSteeringAttention: true,
+      },
     });
+    // A fully approved business case moves the Epic into the Portfolio Backlog (L3).
+    await autoAdvanceStageGate(tx, mctx, epicId, "L3");
     return { before: fromPhase, after: "approved" };
   }
   return null;
@@ -425,8 +445,8 @@ export async function decideApproval(
 
     const phaseChange = await applyDecisionOutcome(
       tx,
+      mctx,
       row.initiativeId,
-      mctx.tenantId,
       rev,
       decision,
       phase,
@@ -501,7 +521,7 @@ export async function signoffSection(
       },
     });
 
-    const phaseChange = await applyDecisionOutcome(tx, epicId, mctx.tenantId, rev, decision, phase);
+    const phaseChange = await applyDecisionOutcome(tx, mctx, epicId, rev, decision, phase);
     const changes: ChangeMap = {
       section: { before: null, after: section },
       status: { before: row.status, after: status },
@@ -521,7 +541,8 @@ export async function signoffSection(
 }
 
 // ---------------------------------------------------------------------------
-// Revisions — re-open an approved Epic for a new approval cycle
+// Revisions — start a fresh approval cycle: re-open a fully approved Epic, or
+// reset an in-progress cycle back to draft and restart it (Epic-owner reset).
 // ---------------------------------------------------------------------------
 
 export async function startRevision(
@@ -538,7 +559,7 @@ export async function startRevision(
     if (!canStartRevision(phase)) {
       return err({
         kind: "conflict" as const,
-        reason: `Eine neue Revision kann nur aus einem freigegebenen Epic gestartet werden (aktuell "${phase}")`,
+        reason: `Der Freigabeprozess kann erst zurückgesetzt werden, sobald er gestartet wurde (aktuell "${phase}")`,
       });
     }
 
@@ -573,8 +594,11 @@ export async function startRevision(
     }
 
     const nextPhase = revisionStartPhase(mode);
-    // Snapshot the just-approved artefacts as the baseline for the new revision's
-    // side-by-side diff (content is frozen between approval and re-open).
+    // Re-opening an *approved* Epic snapshots the just-approved artefacts as the
+    // baseline for the new revision's side-by-side diff (content is frozen between
+    // approval and re-open). A mid-flight reset has no meaningful baseline (the
+    // content is still being edited), so it is skipped there.
+    const snapshotBaseline = phase === "approved";
     await tx.initiative.update({
       where: { id: epicId },
       data: {
@@ -582,12 +606,14 @@ export async function startRevision(
         approvalPhase: nextPhase,
         status: "draft",
         updatedBy: mctx.actorId,
-        ...(epic.businessCase != null && {
-          baselineBusinessCase: epic.businessCase as Prisma.InputJsonValue,
-        }),
-        ...(epic.benefitHypothesis != null && {
-          baselineBenefitHypothesis: epic.benefitHypothesis as Prisma.InputJsonValue,
-        }),
+        ...(snapshotBaseline &&
+          epic.businessCase != null && {
+            baselineBusinessCase: epic.businessCase as Prisma.InputJsonValue,
+          }),
+        ...(snapshotBaseline &&
+          epic.benefitHypothesis != null && {
+            baselineBenefitHypothesis: epic.benefitHypothesis as Prisma.InputJsonValue,
+          }),
       },
     });
 

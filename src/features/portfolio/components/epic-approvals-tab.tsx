@@ -17,6 +17,7 @@ import {
   ApprovalDecisionButtons,
   SectionSignoffButtons,
   StartRevisionButtons,
+  ResetApprovalButton,
 } from "./approval-controls";
 import { ApproverPicker, type TenantApprover } from "./approver-picker";
 import { PhaseStepper } from "./phase-stepper";
@@ -192,6 +193,16 @@ export function EpicApprovalsTab({
             )}
           </div>
         )}
+
+        {/* Mid-flight reset: the Epic Owner can abort the running cycle and start over. */}
+        {canManage &&
+          (phase === "hypothesis_review" ||
+            phase === "business_case" ||
+            phase === "stakeholder_review") && (
+            <div className="mt-3 border-t pt-3">
+              <ResetApprovalButton epicId={epicId} />
+            </div>
+          )}
       </section>
 
       {/* Approver configuration — Business-Case phase only */}

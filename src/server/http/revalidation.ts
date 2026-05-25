@@ -22,6 +22,7 @@ export type RevalidationResource =
   | "epic"
   | "valueStream"
   | "pi"
+  | "piStandard"
   | "story"
   | "impediment"
   | "dependency";
@@ -52,6 +53,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   ],
   valueStream: ["/structure", "/value-streams/[id]"],
   pi: ["/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi/[piId]/objectives"],
+  piStandard: ["/structure", "/value-streams/[id]"],
   story: ["/feature/[featureId]", "/team/[teamId]"],
   impediment: ["/art/[artId]/impediments"],
   dependency: ["/feature/[featureId]", "/pi/[piId]/dependencies"],

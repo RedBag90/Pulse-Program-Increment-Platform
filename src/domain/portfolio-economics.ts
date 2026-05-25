@@ -62,6 +62,8 @@ export interface EpicSeries extends EpicMonthlyFlows {
   net: number[];
   accCost: number[];
   accBenefit: number[];
+  /** Cumulative net cash flow = accBenefit − accCost (per month, signed). */
+  accNet: number[];
 }
 
 export interface PortfolioSeries {
@@ -252,14 +254,17 @@ export function aggregatePortfolio(
       velocity[i] = (velocity[i] ?? 0) + (benefit[i] ?? 0);
       costs[i] = (costs[i] ?? 0) + (cost[i] ?? 0);
     }
+    const accCost = cumulative(cost);
+    const accBenefit = cumulative(benefit);
     return {
       id: input.id,
       title: input.title,
       cost,
       benefit,
       net,
-      accCost: cumulative(cost),
-      accBenefit: cumulative(benefit),
+      accCost,
+      accBenefit,
+      accNet: accBenefit.map((b, i) => b - (accCost[i] ?? 0)),
     };
   });
 

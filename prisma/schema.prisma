@@ -38,8 +38,31 @@ model Tenant {
   goalEpicLinks           GoalEpicLink[]
   transformationSnapshots TransformationSnapshot[]
   budgetAllocations       BudgetAllocation[]
+  artBudgets              ArtBudget[]
+  piStandards             PiStandard[]
 
   @@map("tenants")
+}
+
+/// A reusable, named PI calendar: a uniform cadence × count anchored at a
+/// day/month. Applying it to an ART for a given year generates contiguous PIs
+/// named "PI 1" … "PI n" (see [pi-standard.ts](src/domain/pi-standard.ts)),
+/// adding only those whose date range is free of existing PIs.
+model PiStandard {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  name         String
+  anchorMonth  Int      @map("anchor_month") // 1–12
+  anchorDay    Int      @map("anchor_day") // 1–31
+  cadenceWeeks Int      @map("cadence_weeks") // e.g. 8
+  piCount      Int      @map("pi_count") // e.g. 6
+  createdAt    DateTime @default(now()) @map("created_at")
+  createdBy    String   @map("created_by") @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("pi_standards")
 }
 
 /// The management-defined target operating model — the "Soll" the transformation
@@ -232,6 +255,7 @@ model Art {
   features    Initiative[]       @relation("FeatureArt")
   teams       Team[]
   impediments Impediment[]
+  budget      ArtBudget?
 
   // Active-row uniqueness via a partial unique index (see prisma/manual-indexes.sql).
   @@map("arts")
@@ -324,7 +348,7 @@ model Initiative {
 
   title       String
   description String?  @db.Text
-  ownerId     String   @map("owner_id") @db.Uuid
+  ownerId     String?  @map("owner_id") @db.Uuid // null until an owner is nominated (Epics start unassigned)
   assigneeIds String[] @map("assignee_ids") @db.Uuid
 
   // Level-specific foreign keys
@@ -352,7 +376,9 @@ model Initiative {
   // Epic timeline (EPIC only): owner-set estimates + manual actuals (backlog,
   // implementation) as a flat JSON; auto actuals live in the columns below.
   timeline               Json?     @map("timeline")
+  selectedForDetailingAt DateTime? @map("selected_for_detailing_at") // stamped when the Epic enters L1
   hypothesisApprovedAt   DateTime? @map("hypothesis_approved_at")
+  selectedForAnalyzingAt DateTime? @map("selected_for_analyzing_at") // stamped when the Epic enters L2
   businessCaseApprovedAt DateTime? @map("business_case_approved_at")
 
   // Story points (STORY only)
@@ -490,6 +516,27 @@ model BudgetAllocation {
 
   @@index([tenantId])
   @@map("budget_allocations")
+}
+
+/// Finance's breakdown of a Value Stream's budget to its ARTs, per half-year
+/// ("YYYY-H1" → amount). One row per ART. Mirrors BudgetAllocation; the VS budget
+/// it draws against is derived from participatory budgeting (getValueStreamBudgets).
+model ArtBudget {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  artId     String   @unique @map("art_id") @db.Uuid
+  byPeriod  Json     @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  art    Art    @relation(fields: [artId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("art_budgets")
 }
 
 model Dependency {

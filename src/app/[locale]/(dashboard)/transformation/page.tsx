@@ -7,11 +7,8 @@ import { getActiveTargetModel } from "@/server/services/target-model";
 import { listTargetOutcomes } from "@/server/services/target-outcome";
 import { listGoals } from "@/server/services/target-goal";
 import { listSnapshots } from "@/server/services/transformation-snapshot";
-import { listTransformationActions } from "@/server/services/target-action";
-import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { buildCockpitModel } from "@/server/views/transformation-cockpit";
 import { TransformationCockpit } from "@/features/transformation/components/transformation-cockpit";
-import { TransformationActionsManager } from "@/features/transformation/components/transformation-actions-manager";
 
 /**
  * Transformation cockpit — the management view of how far the organisation is
@@ -22,19 +19,15 @@ export default async function TransformationPage() {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const [gap, adoption, outcomes, activeModel, actions, userLabels, goals, snapshots] =
-    await Promise.all([
-      computeStructureGap(db, principal.tenantId),
-      computePracticeAdoption(db, principal.tenantId),
-      listTargetOutcomes(db, principal.tenantId),
-      getActiveTargetModel(db, principal.tenantId),
-      listTransformationActions(db, principal.tenantId),
-      listTenantUserLabels(db, principal.tenantId),
-      listGoals(db, principal.tenantId),
-      listSnapshots(db, principal.tenantId),
-    ]);
+  const [gap, adoption, outcomes, activeModel, goals, snapshots] = await Promise.all([
+    computeStructureGap(db, principal.tenantId),
+    computePracticeAdoption(db, principal.tenantId),
+    listTargetOutcomes(db, principal.tenantId),
+    getActiveTargetModel(db, principal.tenantId),
+    listGoals(db, principal.tenantId),
+    listSnapshots(db, principal.tenantId),
+  ]);
   const canManage = authorize("target.manage", { tenantId: principal.tenantId }, principal).allow;
-  const userOptions = Object.entries(userLabels).map(([id, label]) => ({ id, label }));
 
   const {
     model,
@@ -65,18 +58,6 @@ export default async function TransformationPage() {
         trend={trend}
         canManage={canManage}
         outcomes={outcomeViews}
-      />
-
-      <TransformationActionsManager
-        canManage={canManage}
-        userOptions={userOptions}
-        actions={actions.map((a) => ({
-          id: a.id,
-          title: a.title,
-          status: a.status,
-          ownerId: a.ownerId,
-          dueDate: a.dueDate ? a.dueDate.toISOString().slice(0, 10) : null,
-        }))}
       />
     </div>
   );

@@ -7,9 +7,18 @@ import { CreateArtDialog } from "@/features/art/components/create-art-dialog";
 import { CreateTeamDialog } from "@/features/team/components/create-team-dialog";
 import type { StructureTree as Tree } from "@/server/services/structure";
 
+const eur = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
+const fmtEur = (v: number) => eur.format(Math.round(v));
+
 interface Props {
   tree: Tree;
   userLabels: Record<string, string>;
+  /** Derived allocated budget per Value Stream id (participatory budgeting). */
+  budgetTotals: Record<string, number>;
   canCreateVs: boolean;
   canCreateArt: boolean;
   canCreateTeam: boolean;
@@ -27,6 +36,7 @@ function person(id: string | null, labels: Record<string, string>): string | nul
 export function StructureTree({
   tree,
   userLabels,
+  budgetTotals,
   canCreateVs,
   canCreateArt,
   canCreateTeam,
@@ -57,9 +67,7 @@ export function StructureTree({
                   {vs.arts.length} ART{vs.arts.length !== 1 ? "s" : ""}
                 </span>
                 <span className="ml-auto text-xs text-muted-foreground">
-                  {vs.budgetAmount
-                    ? `${vs.budgetAmount.toString()} ${vs.budgetCurrency ?? ""}`
-                    : ""}
+                  {budgetTotals[vs.id] ? fmtEur(budgetTotals[vs.id]!) : ""}
                 </span>
               </summary>
 

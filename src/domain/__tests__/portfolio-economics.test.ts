@@ -88,6 +88,15 @@ describe("aggregatePortfolio", () => {
     );
     expect(series.breakEvenIndex).toBeNull();
   });
+
+  it("per-Epic accNet is cumulative benefit − cumulative cost (negative early, positive late)", () => {
+    const series = aggregatePortfolio([epic()], axis, horizon);
+    const e = series.perEpic[0]!;
+    // accNet = accBenefit − accCost at every month
+    e.accNet.forEach((v, i) => expect(v).toBeCloseTo((e.accBenefit[i] ?? 0) - (e.accCost[i] ?? 0)));
+    expect(e.accNet[0]!).toBeLessThan(0); // pure cost before go-live
+    expect(e.accNet.at(-1)!).toBeGreaterThan(0); // recovers over the horizon
+  });
 });
 
 describe("kpiFulfillmentByMonth", () => {

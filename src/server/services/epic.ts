@@ -6,9 +6,14 @@ import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
 import { authorizeResource } from "@/server/auth/authorize";
 import { buildChangelog } from "@/domain/change-log";
-import { isValidTransition, isApprovalTransition } from "@/domain/stage-gate";
+import { isValidTransition, isApprovalTransition, autoAdvanceTarget } from "@/domain/stage-gate";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import {
+  withAuditedTransaction,
+  toMutationContext,
+  type MutationContext,
+} from "@/server/services/mutation";
+import { emitAuditEvent } from "@/server/audit/emit";
 import { effectivePractices } from "@/domain/operating-model";
 import {
   parseBenefitHypothesis,
@@ -56,7 +61,9 @@ export async function createEpic(
         level: InitiativeLevel.EPIC,
         title,
         path: "", // Updated below, once the ID is known.
-        ownerId: mctx.actorId,
+        // Epics start without an owner — the VMO (or a superior role) nominates
+        // one during detailing, which is what advances the Epic out of the Funnel.
+        ownerId: null,
         assigneeIds: [],
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
@@ -212,6 +219,11 @@ export async function advanceStageGate(
           approvedAt: new Date(),
           approvalComment: comment ?? null,
         }),
+        // Stamp the per-gate-entry milestone the first time the Epic reaches it.
+        ...(toGate === "L1" &&
+          !epic.selectedForDetailingAt && { selectedForDetailingAt: new Date() }),
+        ...(toGate === "L2" &&
+          !epic.selectedForAnalyzingAt && { selectedForAnalyzingAt: new Date() }),
       },
     });
 
@@ -227,6 +239,62 @@ export async function advanceStageGate(
         },
       },
     });
+  });
+}
+
+/**
+ * Auto-advances an Epic's stage gate forward to `target` from *within* an
+ * existing audited transaction — the workflow-driven counterpart to the manual,
+ * single-step {@link advanceStageGate}. Jumps are allowed (a workflow event may
+ * skip gates) but it never regresses ({@link autoAdvanceTarget}), is a no-op when
+ * stage gates are disabled in the target operating model, and emits its own
+ * `stage_gate.advanced` audit so the move shows up in history. Entering L3 stamps
+ * the approver/timestamp like a manual L3 entry.
+ */
+export async function autoAdvanceStageGate(
+  tx: Prisma.TransactionClient,
+  mctx: MutationContext,
+  epicId: string,
+  target: StageGate,
+): Promise<void> {
+  const targetModel = await tx.targetOperatingModel.findFirst({
+    where: { tenantId: mctx.tenantId, status: "active" },
+    orderBy: { updatedAt: "desc" },
+  });
+  if (!effectivePractices(targetModel).stageGates) return;
+
+  const epic = await tx.initiative.findFirst({
+    where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    select: { stageGate: true, selectedForDetailingAt: true, selectedForAnalyzingAt: true },
+  });
+  if (!epic) return;
+
+  const from = epic.stageGate as StageGate;
+  const to = autoAdvanceTarget(from, target);
+  if (!to) return; // already at or beyond the target — never regress
+
+  const isApproval = isApprovalTransition(from, to);
+  await tx.initiative.update({
+    where: { id: epicId },
+    data: {
+      stageGate: to,
+      updatedBy: mctx.actorId,
+      ...(isApproval && { approvedBy: mctx.actorId, approvedAt: new Date() }),
+      // Stamp the per-gate-entry milestone the first time the Epic reaches it.
+      ...(to === "L1" && !epic.selectedForDetailingAt && { selectedForDetailingAt: new Date() }),
+      ...(to === "L2" && !epic.selectedForAnalyzingAt && { selectedForAnalyzingAt: new Date() }),
+    },
+  });
+
+  await emitAuditEvent(tx, {
+    tenantId: mctx.tenantId,
+    actorId: mctx.actorId,
+    action: "initiative.stage_gate.advanced",
+    resourceType: "initiative",
+    resourceId: epicId,
+    changes: { stageGate: { before: from, after: to } },
+    ipAddress: mctx.ipAddress,
+    userAgent: mctx.userAgent,
   });
 }
 
@@ -425,11 +493,24 @@ export async function assignEpicOwner(
     });
     if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
 
+    // Scope-aware seam check (ADR-0002): a value_stream_owner may only assign
+    // owners within their own stream; portfolio_manager / VMO / admins are
+    // unscoped. The action pre-check is vacuous here (no valueStreamId).
+    const auth = authorizeResource(ctx.principal, "epic.owner.assign", {
+      tenantId: mctx.tenantId,
+      valueStreamId: existing.valueStreamId,
+    });
+    if (isErr(auth)) return auth;
+
     const changes = buildChangelog({ ownerId: existing.ownerId }, { ownerId }, ["ownerId"]);
     await tx.initiative.update({
       where: { id: epicId },
       data: { ownerId, updatedBy: mctx.actorId },
     });
+
+    // Selecting the Epic for detailing (assigning its owner) moves a fresh Epic
+    // out of the Funnel into Reviewing. Forward-only, so re-assignment is a no-op.
+    await autoAdvanceStageGate(tx, mctx, epicId, "L1");
 
     return ok({
       result: undefined,

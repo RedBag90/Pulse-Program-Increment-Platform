@@ -4,6 +4,7 @@ import { ok, isErr } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { createArt, updateArt } from "@/server/services/art";
 import { createPi } from "@/server/services/pi";
+import { applyPiStandard } from "@/server/services/pi-standard";
 
 export interface StartArtInput {
   valueStreamId: ValueStreamId;
@@ -48,4 +49,41 @@ export async function startArt(
   if (isErr(pi)) return pi;
 
   return ok({ artId });
+}
+
+export interface CreateArtWithStandardInput {
+  valueStreamId: ValueStreamId;
+  name: string;
+  piCadenceWeeks?: number | undefined;
+  /** Optional named PI standard — when set, its PIs are provisioned for the current year. */
+  piStandardId?: string | undefined;
+}
+
+/**
+ * Creates an ART and, when a PI standard is chosen, immediately provisions the
+ * current year's standard PIs (and aligns the ART cadence to the standard).
+ * Mirrors `startArt`: each step is its own audited transaction (not atomic); a
+ * brand-new ART has no PIs, so every standard PI's period is free and created.
+ */
+export async function createArtWithStandard(
+  ctx: RequestContext,
+  input: CreateArtWithStandardInput,
+): Promise<Result<{ id: ArtId }>> {
+  const created = await createArt(ctx, {
+    valueStreamId: input.valueStreamId,
+    name: input.name,
+    piCadenceWeeks: input.piCadenceWeeks,
+  });
+  if (isErr(created)) return created;
+
+  if (input.piStandardId) {
+    const applied = await applyPiStandard(ctx, {
+      artId: created.value.id,
+      standardId: input.piStandardId,
+      year: new Date().getUTCFullYear(),
+    });
+    if (isErr(applied)) return applied;
+  }
+
+  return ok({ id: created.value.id });
 }

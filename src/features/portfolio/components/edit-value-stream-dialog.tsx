@@ -19,17 +19,9 @@ interface EditValueStreamDialogProps {
   id: string;
   name: string;
   description?: string | null;
-  budgetAmount?: string | null;
-  budgetCurrency?: string | null;
 }
 
-export function EditValueStreamDialog({
-  id,
-  name,
-  description,
-  budgetAmount,
-  budgetCurrency,
-}: EditValueStreamDialogProps) {
+export function EditValueStreamDialog({ id, name, description }: EditValueStreamDialogProps) {
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(updateValueStreamAction, {});
 
@@ -69,28 +61,6 @@ export function EditValueStreamDialog({
                 rows={3}
                 defaultValue={description ?? ""}
               />
-            </div>
-
-            <div className="flex gap-3">
-              <div className="flex-1 space-y-1.5">
-                <Label htmlFor="edit-vs-budget">Budget</Label>
-                <Input
-                  id="edit-vs-budget"
-                  name="budgetAmount"
-                  defaultValue={budgetAmount ?? ""}
-                  placeholder="100000.00"
-                />
-              </div>
-              <div className="w-24 space-y-1.5">
-                <Label htmlFor="edit-vs-currency">Currency</Label>
-                <Input
-                  id="edit-vs-currency"
-                  name="budgetCurrency"
-                  maxLength={3}
-                  defaultValue={budgetCurrency ?? ""}
-                  placeholder="EUR"
-                />
-              </div>
             </div>
 
             {state?.error && (

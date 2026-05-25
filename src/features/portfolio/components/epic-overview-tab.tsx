@@ -3,9 +3,9 @@ import { Info, ArrowRight, Flag } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { EpicEditForm } from "./epic-edit-form";
 import { EpicGovernanceFlags } from "./epic-governance-flags";
+import { EpicOwnerAssign } from "./epic-owner-assign";
 import { PhaseBadge } from "@/components/detail/phase-badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { STAGE_GATE_LABELS, initials } from "@/components/detail/initiative-labels";
+import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import { buildInitiativeSummary } from "@/domain/initiative-summary";
 import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
 import type { StageGate, InitiativeStatus } from "@/domain/types";
@@ -18,7 +18,7 @@ export interface EpicOverviewTabProps {
     stageGate: string;
     status: string;
     approvalPhase: string | null;
-    ownerId: string;
+    ownerId: string | null;
     updatedAt: Date;
     approvedAt: Date | null;
     valueStream: { name: string } | null;
@@ -27,9 +27,11 @@ export interface EpicOverviewTabProps {
     needsSteeringAttention: boolean;
     stagedForBudgeting: boolean;
   };
-  /** Resolved owner display label (email), falling back to the owner id. */
-  ownerName?: string | null;
   canEdit: boolean;
+  /** May nominate/replace the Epic owner (`epic.owner.assign`). */
+  canAssignOwner: boolean;
+  approvers: { userId: string; roles: string[] }[];
+  userLabels: Record<string, string>;
 }
 
 function formatAmount(n: number): string {
@@ -55,7 +57,13 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
  * from data the Epic already carries; financials are derived from the
  * businessCase JSON.
  */
-export function EpicOverviewTab({ epic, ownerName, canEdit }: EpicOverviewTabProps) {
+export function EpicOverviewTab({
+  epic,
+  canEdit,
+  canAssignOwner,
+  approvers,
+  userLabels,
+}: EpicOverviewTabProps) {
   const completedChildren = epic.children.filter((c) => c.status === "completed").length;
 
   const summary = buildInitiativeSummary({
@@ -68,7 +76,6 @@ export function EpicOverviewTab({ epic, ownerName, canEdit }: EpicOverviewTabPro
   });
 
   const totals = computeBusinessCaseTotals(parseBusinessCase(epic.businessCase).current);
-  const owner = ownerName ?? epic.ownerId;
 
   return (
     <div className="space-y-8">
@@ -88,12 +95,13 @@ export function EpicOverviewTab({ epic, ownerName, canEdit }: EpicOverviewTabPro
             {STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate}
           </Field>
           <Field label="Initiative Owner">
-            <span className="flex items-center gap-2">
-              <Avatar size="sm">
-                <AvatarFallback>{initials(owner)}</AvatarFallback>
-              </Avatar>
-              <span className="truncate">{owner}</span>
-            </span>
+            <EpicOwnerAssign
+              epicId={epic.id}
+              ownerId={epic.ownerId}
+              canAssignOwner={canAssignOwner}
+              approvers={approvers}
+              userLabels={userLabels}
+            />
           </Field>
           <Field label="Value Stream">{epic.valueStream?.name ?? "—"}</Field>
         </div>

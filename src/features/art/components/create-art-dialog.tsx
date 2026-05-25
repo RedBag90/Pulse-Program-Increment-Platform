@@ -25,17 +25,29 @@ interface ValueStream {
   name: string;
 }
 
+interface PiStandardOption {
+  id: string;
+  name: string;
+}
+
 export interface CreateArtDialogProps {
   /** Controlled mode (global "+" menu). Omit to render a self-triggering button. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   /** Page-supplied value streams; when omitted they are fetched lazily. */
   valueStreams?: ValueStream[];
+  /** Page-supplied PI standards; when omitted they are fetched lazily. */
+  standards?: PiStandardOption[];
 }
 
 const initialState: ActionState = {};
 
-export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtDialogProps) {
+export function CreateArtDialog({
+  open,
+  onOpenChange,
+  valueStreams,
+  standards,
+}: CreateArtDialogProps) {
   const isControlled = open !== undefined;
   const [selfOpen, setSelfOpen] = useState(false);
   const dialogOpen = open ?? selfOpen;
@@ -50,6 +62,13 @@ export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtD
     needFetch && dialogOpen,
   );
   const options = valueStreams ?? fetched.data;
+
+  const needStandards = standards === undefined;
+  const fetchedStandards = useEntityOptions<PiStandardOption>(
+    needStandards ? optionsEndpoint("piStandard") : null,
+    needStandards && dialogOpen,
+  );
+  const standardOptions = standards ?? fetchedStandards.data;
 
   return (
     <>
@@ -111,6 +130,21 @@ export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtD
                 placeholder="10"
               />
               <p className="text-xs text-muted-foreground">Typical PI cadence is 10 weeks (8–12)</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="art-pi-standard">PI-Standard</Label>
+              <select id="art-pi-standard" name="piStandardId" className={SELECT_CLASS}>
+                <option value="">— kein PI-Standard —</option>
+                {standardOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Legt die Standard-PIs für das laufende Jahr an und setzt die Kadenz entsprechend.
+              </p>
             </div>
 
             {state.error && (

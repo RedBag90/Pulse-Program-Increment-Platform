@@ -2,27 +2,23 @@
 
 import { useActionState, useState, startTransition, type ReactNode } from "react";
 import { CheckCircle2, CircleDot, Circle, Lock } from "lucide-react";
-import { saveTimelineAction, assignEpicOwnerAction } from "@/features/portfolio/actions/timeline";
-import { userLabel } from "@/components/detail/initiative-labels";
+import { saveTimelineAction } from "@/features/portfolio/actions/timeline";
+import { advanceStageGateAction } from "@/features/portfolio/actions/stage-gate";
 import type { TimelineFields, TimelineEstimatePhase, TimelineManualPhase } from "@/domain/timeline";
-
-interface Approver {
-  userId: string;
-  roles: string[];
-}
 
 interface Props {
   epicId: string;
+  stageGate: string;
   /** ISO timestamps for the automatic actuals. */
   createdAt: string;
+  selectedForDetailingAt: string | null;
   hypothesisApprovedAt: string | null;
+  selectedForAnalyzingAt: string | null;
   businessCaseApprovedAt: string | null;
   timeline: TimelineFields;
   canEdit: boolean;
-  ownerId: string;
-  canAssignOwner: boolean;
-  approvers: Approver[];
-  userLabels: Record<string, string>;
+  /** May advance the stage gate (`epic.approve`) — gates the "Für Analyse auswählen" action. */
+  canAdvance: boolean;
 }
 
 const INPUT =
@@ -52,18 +48,30 @@ function StatusIcon({ status }: { status: RowStatus }) {
  */
 export function EpicTimelineTab({
   epicId,
+  stageGate,
   createdAt,
+  selectedForDetailingAt,
   hypothesisApprovedAt,
+  selectedForAnalyzingAt,
   businessCaseApprovedAt,
   timeline,
   canEdit,
-  ownerId,
-  canAssignOwner,
-  approvers,
-  userLabels,
+  canAdvance,
 }: Props) {
   const [saveState, saveAction, saving] = useActionState(saveTimelineAction, {});
-  const [ownerState, ownerAction, assigningOwner] = useActionState(assignEpicOwnerAction, {});
+  const [analyzeState, analyzeAction, analyzing] = useActionState(advanceStageGateAction, {});
+
+  // "Selected for analyzing" is a deliberate manual step: once the hypothesis is
+  // done and the Epic still sits at L1, an authorised user moves it into L2.
+  const canSelectForAnalyzing =
+    canAdvance && stageGate === "L1" && Boolean(hypothesisApprovedAt) && !selectedForAnalyzingAt;
+
+  function selectForAnalyzing() {
+    const fd = new FormData();
+    fd.set("epicId", epicId);
+    fd.set("toGate", "L2");
+    startTransition(() => analyzeAction(fd));
+  }
 
   const [estimates, setEstimates] = useState<Record<TimelineEstimatePhase, string>>(() => ({
     detailing: timeline.estimates.detailing ?? "",
@@ -75,7 +83,6 @@ export function EpicTimelineTab({
     backlog: timeline.actuals.backlog ?? "",
     implementation: timeline.actuals.implementation ?? "",
   }));
-  const [ownerSel, setOwnerSel] = useState(ownerId);
 
   function save() {
     const payload = {
@@ -88,20 +95,14 @@ export function EpicTimelineTab({
     startTransition(() => saveAction(fd));
   }
 
-  function assignOwner() {
-    if (!ownerSel) return;
-    const fd = new FormData();
-    fd.set("epicId", epicId);
-    fd.set("ownerId", ownerSel);
-    startTransition(() => ownerAction(fd));
-  }
-
   // Per-phase actual presence, in lifecycle order, drives the status column.
   const implementationActual = actuals.implementation;
   const actualPresent = [
     true, // funnel — createdAt is always set
-    Boolean(hypothesisApprovedAt),
-    Boolean(businessCaseApprovedAt),
+    Boolean(selectedForDetailingAt), // selected for detailing (owner nominated → L1)
+    Boolean(hypothesisApprovedAt), // business hypothesis done
+    Boolean(selectedForAnalyzingAt), // selected for analyzing (→ L2)
+    Boolean(businessCaseApprovedAt), // business case approved
     Boolean(actuals.backlog),
     Boolean(implementationActual),
     Boolean(implementationActual), // done reached when implementation is actualised
@@ -109,8 +110,6 @@ export function EpicTimelineTab({
   const firstOpen = actualPresent.indexOf(false);
   const statusAt = (i: number): RowStatus =>
     actualPresent[i] ? "done" : i === firstOpen ? "current" : "upcoming";
-
-  const ownerName = userLabel(ownerId, userLabels);
 
   function EstimateCell({ phase }: { phase: TimelineEstimatePhase }) {
     return canEdit ? (
@@ -179,47 +178,53 @@ export function EpicTimelineTab({
           <span className="text-sm sm:pt-0.5">{fmt(createdAt)}</span>
         </Row>
 
-        {/* Selected for Detailing — actual = hypothesis approved; owner nominated by VMO */}
+        {/* Selected for Detailing — actual = owner nominated (→ L1) */}
         <Row index={1}>
-          <div className="min-w-0 space-y-1.5">
+          <div className="min-w-0">
             <p className="text-sm font-medium">Selected for Detailing</p>
-            <p className="text-xs text-muted-foreground">
-              Verantwortlich: <span className="font-medium text-foreground">{ownerName}</span>
-            </p>
-            {canAssignOwner && (
+            <p className="text-xs text-muted-foreground">Owner nominiert</p>
+          </div>
+          <EstimateCell phase="detailing" />
+          <span className="text-sm sm:pt-0.5">{fmt(selectedForDetailingAt)}</span>
+        </Row>
+
+        {/* Business hypothesis done — actual = hypothesis approved */}
+        <Row index={2}>
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Business hypothesis done</p>
+            <p className="text-xs text-muted-foreground">Benefit-Hypothese freigegeben</p>
+          </div>
+          <span className="text-sm text-muted-foreground/80 sm:pt-0.5">—</span>
+          <span className="text-sm sm:pt-0.5">{fmt(hypothesisApprovedAt)}</span>
+        </Row>
+
+        {/* Selected for analyzing — manual step → L2 Analyzing */}
+        <Row index={3}>
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-sm font-medium">Selected for analyzing</p>
+            <p className="text-xs text-muted-foreground">Für Analyse ausgewählt (L2)</p>
+            {canSelectForAnalyzing && (
               <div className="flex flex-wrap items-center gap-2">
-                <select
-                  aria-label="Epic Owner"
-                  value={ownerSel}
-                  onChange={(e) => setOwnerSel(e.target.value)}
-                  className={`${INPUT} max-w-[16rem]`}
-                >
-                  {approvers.map((u) => (
-                    <option key={u.userId} value={u.userId}>
-                      {userLabel(u.userId, userLabels)} ({u.roles.join(", ")})
-                    </option>
-                  ))}
-                </select>
                 <button
                   type="button"
-                  onClick={assignOwner}
-                  disabled={assigningOwner || ownerSel === ownerId}
+                  onClick={selectForAnalyzing}
+                  disabled={analyzing}
                   className="rounded-md bg-secondary px-2 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
                 >
-                  {assigningOwner ? "…" : "Owner zuweisen"}
+                  {analyzing ? "…" : "Für Analyse auswählen"}
                 </button>
-                {ownerState.error && (
-                  <span className="text-xs text-destructive">{ownerState.error}</span>
+                {analyzeState.error && (
+                  <span className="text-xs text-destructive">{analyzeState.error}</span>
                 )}
               </div>
             )}
           </div>
-          <EstimateCell phase="detailing" />
-          <span className="text-sm sm:pt-0.5">{fmt(hypothesisApprovedAt)}</span>
+          <span className="text-sm text-muted-foreground/80 sm:pt-0.5">—</span>
+          <span className="text-sm sm:pt-0.5">{fmt(selectedForAnalyzingAt)}</span>
         </Row>
 
         {/* Business Case — actual = full approval finalized */}
-        <Row index={2}>
+        <Row index={4}>
           <div className="min-w-0">
             <p className="text-sm font-medium">Business Case</p>
             <p className="text-xs text-muted-foreground">Lean Business Case freigegeben</p>
@@ -229,7 +234,7 @@ export function EpicTimelineTab({
         </Row>
 
         {/* Backlog — manual actual */}
-        <Row index={3}>
+        <Row index={5}>
           <div className="min-w-0">
             <p className="text-sm font-medium">Backlog</p>
             <p className="text-xs text-muted-foreground">Portfolio-Backlog</p>
@@ -239,7 +244,7 @@ export function EpicTimelineTab({
         </Row>
 
         {/* Implementation — manual actual → Done */}
-        <Row index={4}>
+        <Row index={6}>
           <div className="min-w-0">
             <p className="text-sm font-medium">Implementation</p>
             <p className="text-xs text-muted-foreground">
@@ -251,7 +256,7 @@ export function EpicTimelineTab({
         </Row>
 
         {/* Done — terminal, no end date */}
-        <Row index={5} last>
+        <Row index={7} last>
           <div className="min-w-0">
             <p className="text-sm font-medium">Done</p>
             <p className="text-xs text-muted-foreground">Abgeschlossen — kein Enddatum</p>

@@ -71,10 +71,12 @@ describe("phase transitions", () => {
 });
 
 describe("revisions", () => {
-  it("canStartRevision only from approved", () => {
+  it("canStartRevision from any started phase, but not from draft", () => {
     expect(canStartRevision("approved")).toBe(true);
+    expect(canStartRevision("stakeholder_review")).toBe(true);
+    expect(canStartRevision("hypothesis_review")).toBe(true);
+    expect(canStartRevision("business_case")).toBe(true);
     expect(canStartRevision("draft")).toBe(false);
-    expect(canStartRevision("stakeholder_review")).toBe(false);
   });
 
   it("revisionStartPhase maps the mode", () => {

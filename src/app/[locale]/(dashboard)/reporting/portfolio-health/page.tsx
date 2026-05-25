@@ -5,7 +5,15 @@ import { InitiativeLevel } from "@/domain/types";
 import type { TenantId } from "@/domain/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusDistributionChart } from "@/components/charts/status-distribution-chart";
+import { getValueStreamBudgets } from "@/server/services/budgeting";
 import { BarChart2, GitBranch } from "lucide-react";
+
+const eur = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
+const fmtEur = (v: number) => eur.format(Math.round(v));
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
@@ -23,7 +31,7 @@ export default async function PortfolioHealthPage() {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [epicGroups, valueStreams] = await Promise.all([
+  const [epicGroups, valueStreams, vsBudgets] = await Promise.all([
     db.initiative.groupBy({
       by: ["status"],
       where: {
@@ -35,10 +43,16 @@ export default async function PortfolioHealthPage() {
     }),
     db.valueStream.findMany({
       where: { tenantId: principal.tenantId as TenantId },
-      select: { id: true, name: true, budgetAmount: true, budgetCurrency: true },
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+    getValueStreamBudgets(db, principal.tenantId),
   ]);
+
+  // Derived allocated budget per Value Stream (participatory budgeting).
+  const budgetTotals: Record<string, number> = Object.fromEntries(
+    vsBudgets.valueStreams.map((b) => [b.valueStreamId, b.total]),
+  );
 
   const totalEpics = epicGroups.reduce((sum, g) => sum + g._count._all, 0);
 
@@ -104,9 +118,7 @@ export default async function PortfolioHealthPage() {
                 <div key={vs.id} className="px-6 py-3 flex items-center justify-between text-sm">
                   <span className="font-medium">{vs.name}</span>
                   <span className="text-muted-foreground text-xs">
-                    {vs.budgetAmount
-                      ? `${vs.budgetAmount.toString()} ${vs.budgetCurrency ?? ""}`.trim()
-                      : "No budget set"}
+                    {budgetTotals[vs.id] ? fmtEur(budgetTotals[vs.id]!) : "No budget set"}
                   </span>
                 </div>
               ))}

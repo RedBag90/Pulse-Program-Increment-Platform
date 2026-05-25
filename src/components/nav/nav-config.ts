@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Layers,
   FolderTree,
-  Target,
   Goal,
   Gauge,
   CalendarRange,
@@ -87,12 +86,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/transformation", labelKey: "transformationCockpit", icon: Gauge, exact: true },
       { href: "/transformation/ziele", labelKey: "goals", icon: Goal },
-      {
-        href: "/transformation/ziel",
-        labelKey: "targetState",
-        icon: Target,
-        capability: "target.manage",
-      },
     ],
   },
   {

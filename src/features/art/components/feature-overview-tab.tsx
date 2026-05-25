@@ -14,7 +14,7 @@ export interface FeatureOverviewTabProps {
     description: string | null;
     stageGate: string;
     status: string;
-    ownerId: string;
+    ownerId: string | null;
     updatedAt: Date;
     artId: string;
     artName: string;
@@ -87,7 +87,7 @@ export function FeatureOverviewTab({
         <Field label="Stage">{STAGE_GATE_LABELS[feature.stageGate] ?? feature.stageGate}</Field>
         <Field label="Status">{STATUS_LABELS[feature.status] ?? feature.status}</Field>
         <Field label="Initiative Owner">
-          <span className="font-mono text-xs">{feature.ownerId}</span>
+          <span className="font-mono text-xs">{feature.ownerId ?? "—"}</span>
         </Field>
         <Field label="ART">{feature.artName}</Field>
         <Field label="Parent Epic">

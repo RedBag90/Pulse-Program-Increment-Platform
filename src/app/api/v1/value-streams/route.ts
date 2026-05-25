@@ -3,14 +3,11 @@ import { createValueStream, listValueStreams } from "@/server/services/value-str
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 
+// Budget is no longer set manually — it derives from participatory-budgeting
+// allocations per Value Stream (see getValueStreamBudgets).
 const createSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().optional(),
-  budgetAmount: z
-    .string()
-    .regex(/^\d+(\.\d{1,2})?$/)
-    .optional(),
-  budgetCurrency: z.string().length(3).optional(),
 });
 
 export const GET = createQueryHandler({
@@ -25,7 +22,5 @@ export const POST = createMutationHandler({
     createValueStream(ctx, {
       name: input.name,
       description: input.description,
-      budgetAmount: input.budgetAmount,
-      budgetCurrency: input.budgetCurrency,
     }),
 });

@@ -18,11 +18,6 @@ export const createValueStreamAction = createServerAction({
   schema: z.object({
     name: z.string().min(1).max(100),
     description: z.string().optional(),
-    budgetAmount: z
-      .string()
-      .regex(/^\d+(\.\d{1,2})?$/)
-      .optional(),
-    budgetCurrency: z.string().length(3).optional(),
   }),
   action: "value_stream.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -31,16 +26,12 @@ export const createValueStreamAction = createServerAction({
     return {
       name: f.string("name"),
       description: f.nonEmptyString("description"),
-      budgetAmount: f.nonEmptyString("budgetAmount"),
-      budgetCurrency: f.nonEmptyString("budgetCurrency"),
     };
   },
   service: (ctx, input) =>
     createValueStream(ctx, {
       name: input.name,
       description: input.description,
-      budgetAmount: input.budgetAmount,
-      budgetCurrency: input.budgetCurrency,
     }),
   revalidate: "valueStream",
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create"),
@@ -51,11 +42,6 @@ export const updateValueStreamAction = createServerAction({
     id: z.string().uuid(),
     name: z.string().min(1).max(100).optional(),
     description: z.string().optional(),
-    budgetAmount: z
-      .string()
-      .regex(/^\d+(\.\d{1,2})?$/)
-      .optional(),
-    budgetCurrency: z.string().length(3).optional(),
     financeApproverId: z.string().uuid().nullable().optional(),
     vmoId: z.string().uuid().nullable().optional(),
   }),
@@ -67,8 +53,6 @@ export const updateValueStreamAction = createServerAction({
       id: f.string("id"),
       name: f.nonEmptyString("name"),
       description: f.nonEmptyString("description"),
-      budgetAmount: f.nonEmptyString("budgetAmount"),
-      budgetCurrency: f.nonEmptyString("budgetCurrency"),
       // nullableString: "" clears the assignment (→ null); absent leaves it untouched.
       financeApproverId: f.nullableString("financeApproverId"),
       vmoId: f.nullableString("vmoId"),
@@ -79,8 +63,6 @@ export const updateValueStreamAction = createServerAction({
       id: input.id as ValueStreamId,
       name: input.name,
       description: input.description,
-      budgetAmount: input.budgetAmount,
-      budgetCurrency: input.budgetCurrency,
       financeApproverId: input.financeApproverId,
       vmoId: input.vmoId,
     }),

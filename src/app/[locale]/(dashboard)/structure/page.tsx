@@ -5,6 +5,8 @@ import {
   getStructureTimeline,
   getStructureMetrics,
 } from "@/server/services/structure";
+import { getValueStreamBudgets, type ValueStreamBudgetData } from "@/server/services/budgeting";
+import { listPiStandards } from "@/server/services/pi-standard";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getActiveTargetModel } from "@/server/services/target-model";
 import { effectivePractices } from "@/domain/operating-model";
@@ -29,6 +31,11 @@ interface Props {
   searchParams: Promise<{ tab?: string }>;
 }
 
+/** Derived total allocated budget per Value Stream id (participatory budgeting). */
+function budgetTotalsById(data: ValueStreamBudgetData): Record<string, number> {
+  return Object.fromEntries(data.valueStreams.map((b) => [b.valueStreamId, b.total]));
+}
+
 /**
  * Structure hub — the single home for the portfolio's underlying organisation.
  * A tabbed shell (like the Epic page): Übersicht (value streams + counts),
@@ -46,39 +53,53 @@ export default async function StructurePage({ searchParams }: Props) {
   const isAdmin =
     principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
   const canCreateVs = isAdmin || principal.roles.includes("portfolio_manager");
+  const canManageStandards = isAdmin || principal.roles.includes("portfolio_manager");
 
   let content: ReactNode;
   if (activeTab === "timeline") {
-    const timeline = await getStructureTimeline(db, principal.tenantId);
+    const [timeline, standards] = await Promise.all([
+      getStructureTimeline(db, principal.tenantId),
+      listPiStandards(db, principal.tenantId),
+    ]);
     content = (
-      <StructureTimeline timeline={timeline} canEditCadence={isAdmin} canCreatePi={isAdmin} />
+      <StructureTimeline
+        timeline={timeline}
+        canEditCadence={isAdmin}
+        canCreatePi={isAdmin}
+        canManageStandards={canManageStandards}
+        standards={standards}
+      />
     );
   } else if (activeTab === "overview") {
-    const [tree, userLabels, metrics, targetModel] = await Promise.all([
+    const [tree, userLabels, metrics, targetModel, vsBudgets] = await Promise.all([
       getStructureTree(db, principal.tenantId),
       listTenantUserLabels(db, principal.tenantId),
       getStructureMetrics(db, principal.tenantId),
       getActiveTargetModel(db, principal.tenantId),
+      getValueStreamBudgets(db, principal.tenantId),
     ]);
     content = (
       <StructureOverview
         tree={tree}
         userLabels={userLabels}
         epicsByValueStream={metrics.epicsByValueStream}
+        budgetTotals={budgetTotalsById(vsBudgets)}
         activePiCount={metrics.activePiCount}
         canCreateVs={canCreateVs}
         practices={effectivePractices(targetModel)}
       />
     );
   } else {
-    const [tree, userLabels] = await Promise.all([
+    const [tree, userLabels, vsBudgets] = await Promise.all([
       getStructureTree(db, principal.tenantId),
       listTenantUserLabels(db, principal.tenantId),
+      getValueStreamBudgets(db, principal.tenantId),
     ]);
     content = (
       <StructureTree
         tree={tree}
         userLabels={userLabels}
+        budgetTotals={budgetTotalsById(vsBudgets)}
         canCreateVs={canCreateVs}
         canCreateArt={isAdmin}
         canCreateTeam={isAdmin}

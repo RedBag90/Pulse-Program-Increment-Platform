@@ -3,11 +3,22 @@
 /** L0–L5 stage-gate labels (the investment funnel). */
 export const STAGE_GATE_LABELS: Record<string, string> = {
   L0: "L0 Funnel",
-  L1: "L1 Reviewing",
+  L1: "L1 Hypothesis stage",
   L2: "L2 Analyzing",
   L3: "L3 Portfolio Backlog",
   L4: "L4 Implementing",
   L5: "L5 Done",
+};
+
+/** Status indicator dot colors (Tailwind) — shared by the Kanban board and the Epics table. */
+export const STATUS_DOT: Record<string, string> = {
+  draft: "bg-muted-foreground/40",
+  in_review: "bg-blue-400",
+  approved: "bg-emerald-400",
+  in_progress: "bg-primary",
+  blocked: "bg-red-400",
+  completed: "bg-emerald-500",
+  cancelled: "bg-muted-foreground/20",
 };
 
 /** QS / lifecycle status labels (`draft → in_review → approved`, plus delivery states). */

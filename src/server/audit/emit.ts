@@ -63,6 +63,8 @@ export type AuditAction =
   | "pi.started"
   | "pi.completed"
   | "pi.deleted"
+  | "pi_standard.created"
+  | "pi_standard.deleted"
   | "pi_objective.created"
   | "pi_objective.updated"
   | "pi_objective.deleted"
@@ -85,9 +87,6 @@ export type AuditAction =
   | "target_outcome.created"
   | "target_outcome.updated"
   | "target_outcome.deleted"
-  | "transformation_action.created"
-  | "transformation_action.updated"
-  | "transformation_action.deleted"
   | "transformation_goal.created"
   | "transformation_goal.updated"
   | "transformation_goal.deleted"
@@ -95,11 +94,13 @@ export type AuditAction =
   | "goal_epic.unlinked"
   | "transformation_snapshot.captured"
   | "budget_allocation.saved"
-  | "budget_pool.saved";
+  | "budget_pool.saved"
+  | "art_budget.saved";
 
 export type AuditResourceType =
   | "initiative"
   | "program_increment"
+  | "pi_standard"
   | "sprint"
   | "value_stream"
   | "art"
@@ -113,12 +114,12 @@ export type AuditResourceType =
   | "tenant"
   | "target_operating_model"
   | "target_outcome"
-  | "transformation_action"
   | "transformation_goal"
   | "goal_epic_link"
   | "transformation_snapshot"
   | "budget_allocation"
-  | "budget_pool";
+  | "budget_pool"
+  | "art_budget";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

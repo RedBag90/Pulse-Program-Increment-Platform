@@ -87,15 +87,9 @@ export function TransformationCockpit({
       <div className="rounded-lg border border-dashed p-6 text-center">
         <Target className="mx-auto h-6 w-6 text-muted-foreground" />
         <p className="mt-2 text-sm text-muted-foreground">
-          Noch kein Zielzustand definiert. Lege fest, wohin sich die Organisation entwickeln soll —
-          daran misst Pulse den Fortschritt.
+          Noch kein Zielzustand definiert. Sobald die Organisation Fortschritt erfasst, misst Pulse
+          ihn hier.
         </p>
-        <Link
-          href="/transformation/ziel"
-          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-        >
-          Zielzustand definieren <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
       </div>
     );
   }
@@ -327,13 +321,6 @@ export function TransformationCockpit({
           </ul>
         </section>
       )}
-
-      <Link
-        href="/transformation/ziel"
-        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-      >
-        Zielzustand bearbeiten <ArrowRight className="h-3.5 w-3.5" />
-      </Link>
     </div>
   );
 }

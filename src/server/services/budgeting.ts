@@ -14,7 +14,12 @@ import { parseTimeline } from "@/domain/timeline";
 import { scheduleFromFundedWindow, withScheduleEstimates } from "@/domain/epic-schedule";
 import { deriveEpicEconomics } from "@/domain/epic-economics";
 import { halfYearKey, parseHalfYearKey, halfYearStart, addHalfYears } from "@/domain/calendar";
-import { buildHalfYearAxis, type BudgetEpicView } from "@/domain/budgeting";
+import {
+  buildHalfYearAxis,
+  rollupByValueStream,
+  type BudgetEpicView,
+  type HalfYearAxis,
+} from "@/domain/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 
@@ -23,6 +28,22 @@ export interface BudgetingBoardData {
   periods: { key: string; label: string }[];
   /** Total budget pool per half-year key. */
   pool: Record<string, number>;
+}
+
+/** A Value Stream's budget derived from its Epics' allocations, per half-year. */
+export interface ValueStreamBudget {
+  valueStreamId: string;
+  name: string;
+  /** Σ allocated to this Value Stream's Epics per half-year key. */
+  byPeriod: Record<string, number>;
+  /** Σ across all periods. */
+  total: number;
+}
+
+export interface ValueStreamBudgetData {
+  /** The participatory-budgeting forecast horizon (half-years), oldest first. */
+  periods: { key: string; label: string }[];
+  valueStreams: ValueStreamBudget[];
 }
 
 /** Reads a JSON map of period-key → number, discarding malformed entries. */
@@ -35,11 +56,15 @@ function parsePeriodMap(raw: unknown): Record<string, number> {
   return out;
 }
 
-/** Loads the budgeting board: eligible Epics + their need/allocation + the pool. */
-export async function getBudgetingBoard(
+/**
+ * The shared participatory-budgeting model: the eligible Epics, the forecast
+ * half-year axis, and the tenant pool. Backs both the budgeting board and the
+ * derived Value-Stream budgets, so both use the identical horizon + population.
+ */
+async function loadBudgetingModel(
   db: PrismaClient,
   tenantId: TenantId,
-): Promise<BudgetingBoardData> {
+): Promise<{ epics: BudgetEpicView[]; axis: HalfYearAxis; pool: Record<string, number> }> {
   const [rows, tenant] = await Promise.all([
     db.initiative.findMany({
       where: {
@@ -110,7 +135,38 @@ export async function getBudgetingBoard(
   const to = [...ends, ...poolDates].reduce((m, d) => (d > m ? d : m), from);
 
   const axis = buildHalfYearAxis(from, to);
+  return { epics, axis, pool };
+}
+
+/** Loads the budgeting board: eligible Epics + their need/allocation + the pool. */
+export async function getBudgetingBoard(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<BudgetingBoardData> {
+  const { epics, axis, pool } = await loadBudgetingModel(db, tenantId);
   return { epics, periods: axis.periods, pool };
+}
+
+/**
+ * Value-Stream budgets derived from the participatory-budgeting allocations of
+ * their Epics, per half-year across the forecast horizon. Read-only — always in
+ * sync with the allocations, no separately-stored value. Reuses the per-Value-
+ * Stream rollup; the unassigned ("Ohne Wertstrom") bucket is dropped.
+ */
+export async function getValueStreamBudgets(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<ValueStreamBudgetData> {
+  const { epics, axis } = await loadBudgetingModel(db, tenantId);
+  const valueStreams: ValueStreamBudget[] = rollupByValueStream(epics, axis)
+    .filter((r): r is typeof r & { valueStreamId: string } => r.valueStreamId != null)
+    .map((r) => ({
+      valueStreamId: r.valueStreamId,
+      name: r.valueStream ?? "",
+      byPeriod: r.byPeriod,
+      total: r.total,
+    }));
+  return { periods: axis.periods, valueStreams };
 }
 
 export interface SaveBudgetAllocationInput {

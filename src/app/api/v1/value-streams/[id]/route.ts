@@ -4,14 +4,10 @@ import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import type { ValueStreamId } from "@/domain/types";
 
+// Budget derives from participatory-budgeting allocations — not set manually.
 const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().optional(),
-  budgetAmount: z
-    .string()
-    .regex(/^\d+(\.\d{1,2})?$/)
-    .optional(),
-  budgetCurrency: z.string().length(3).optional(),
 });
 
 interface Ctx {

@@ -3,12 +3,13 @@
 import { useActionState, useOptimistic, useTransition, useRef } from "react";
 import { advanceStageGateAction } from "@/features/portfolio/actions/stage-gate";
 import { useKanbanRealtime } from "@/features/portfolio/hooks/use-kanban-realtime";
+import { STATUS_DOT } from "@/components/detail/initiative-labels";
 import { Link } from "@/i18n/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const STAGE_GATES = [
   { key: "L0", label: "Funnel" },
-  { key: "L1", label: "Reviewing" },
+  { key: "L1", label: "Hypothesis stage" },
   { key: "L2", label: "Analyzing" },
   { key: "L3", label: "Portfolio Backlog" },
   { key: "L4", label: "Implementing" },
@@ -33,16 +34,6 @@ const PREV_GATE: Record<Gate, Gate | null> = {
   L3: "L2",
   L4: "L3",
   L5: "L4",
-};
-
-const STATUS_DOT: Record<string, string> = {
-  draft: "bg-muted-foreground/40",
-  in_review: "bg-blue-400",
-  approved: "bg-emerald-400",
-  in_progress: "bg-primary",
-  blocked: "bg-red-400",
-  completed: "bg-emerald-500",
-  cancelled: "bg-muted-foreground/20",
 };
 
 export interface KanbanEpic {

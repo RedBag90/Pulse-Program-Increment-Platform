@@ -15,16 +15,12 @@ import { notDeleted } from "@/server/db/soft-delete";
 export interface CreateValueStreamInput {
   name: string;
   description?: string | undefined;
-  budgetAmount?: string | undefined;
-  budgetCurrency?: string | undefined;
 }
 
 export interface UpdateValueStreamInput {
   id: ValueStreamId;
   name?: string | undefined;
   description?: string | undefined;
-  budgetAmount?: string | undefined;
-  budgetCurrency?: string | undefined;
   /** Finance party approver for this value stream's Epics; null clears it. */
   financeApproverId?: string | null | undefined;
   /** Responsible VMO for this value stream; null clears it. */
@@ -36,7 +32,7 @@ export async function createValueStream(
   input: CreateValueStreamInput,
 ): Promise<Result<{ id: ValueStreamId }>> {
   const mctx = toMutationContext(ctx);
-  const { name, description, budgetAmount, budgetCurrency } = input;
+  const { name, description } = input;
 
   return withAuditedTransaction(
     mctx,
@@ -46,8 +42,6 @@ export async function createValueStream(
           tenantId: mctx.tenantId,
           name,
           ...(description !== undefined && { description }),
-          ...(budgetAmount !== undefined && { budgetAmount }),
-          ...(budgetCurrency !== undefined && { budgetCurrency }),
         },
       });
 
@@ -65,7 +59,7 @@ export async function updateValueStream(
   input: UpdateValueStreamInput,
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, name, description, budgetAmount, budgetCurrency, financeApproverId, vmoId } = input;
+  const { id, name, description, financeApproverId, vmoId } = input;
 
   return withAuditedTransaction(
     mctx,
@@ -104,8 +98,6 @@ export async function updateValueStream(
         data: {
           ...(name !== undefined && { name }),
           ...(description !== undefined && { description }),
-          ...(budgetAmount !== undefined && { budgetAmount }),
-          ...(budgetCurrency !== undefined && { budgetCurrency }),
           ...(financeApproverId !== undefined && { financeApproverId }),
           ...(vmoId !== undefined && { vmoId }),
         },

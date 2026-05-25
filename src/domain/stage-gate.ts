@@ -43,3 +43,14 @@ export function isValidTransition(from: StageGate, to: StageGate): boolean {
 export function isApprovalTransition(from: StageGate, to: StageGate): boolean {
   return to === "L3" && from !== "L3";
 }
+
+/**
+ * Target gate for an *automatic* (workflow-driven) advance: `to` iff it is
+ * strictly forward of `from` in the canonical order, else `null`. Unlike
+ * {@link isValidTransition}, jumps are allowed (workflow events may skip gates),
+ * but an auto-advance never regresses — a no-op when the Epic is already at or
+ * beyond `to`.
+ */
+export function autoAdvanceTarget(from: StageGate, to: StageGate): StageGate | null {
+  return STAGE_GATES.indexOf(to) > STAGE_GATES.indexOf(from) ? to : null;
+}

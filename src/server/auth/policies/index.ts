@@ -41,6 +41,7 @@ export type Action =
   | "pi.start"
   | "pi.complete"
   | "pi.delete"
+  | "pi_standard.manage"
   | "pi_objective.create"
   | "pi_objective.update"
   | "team.create"
@@ -54,7 +55,8 @@ export type Action =
   | "admin.audit-log.read"
   | "admin.users.read"
   | "target.manage"
-  | "budget.manage";
+  | "budget.manage"
+  | "art_budget.manage";
 
 /** A scope dimension a grant may additionally require the principal to match. */
 export type ScopeCheck = "value_stream" | "art" | "team" | "own";
@@ -101,6 +103,9 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Run participatory budgeting: distribute the budget pool across Epics. The
   // portfolio funders own this — the LPM/portfolio lead and the tenant admin.
   "budget.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
+  // Distribute a Value Stream's budget down to its ARTs. Coarse pre-filter; the
+  // service-seam check authoritatively allows the VS's finance approver too.
+  "art_budget.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER] }],
 
   // ── Portfolio ───────────────────────────────────────────────────────────
   // The portfolio manager funds value streams and owns the Epic backlog.
@@ -142,8 +147,13 @@ export const POLICIES: Record<Action, Grant[]> = {
   ],
   "epic.section.signoff": [{ roles: [VMO, VALUE_STREAM_OWNER, PORTFOLIO_MANAGER] }],
   "epic.revision.start": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
-  // The VMO nominates the Epic Owner (precondition for the Detailing phase).
-  "epic.owner.assign": [{ roles: [VMO] }],
+  // The VMO nominates the Epic Owner (precondition for the Detailing phase);
+  // roles above the VMO — the portfolio manager and the value stream owner
+  // (scoped to their stream), plus the admins via authorize() — may also assign.
+  "epic.owner.assign": [
+    { roles: [PORTFOLIO_MANAGER, VMO] },
+    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
+  ],
 
   // ── ART / Program ───────────────────────────────────────────────────────
   // ART lifecycle is a tenant-admin org-structure concern; the RTE orchestrates
@@ -157,6 +167,11 @@ export const POLICIES: Record<Action, Grant[]> = {
   "pi.start": [{ roles: [RTE] }],
   "pi.complete": [{ roles: [RTE] }],
   "pi.delete": [{ roles: [RTE] }],
+
+  // Reusable named PI calendars are an org-structure concern — managed by the
+  // portfolio lead and tenant admin. Applying a standard to an ART goes through
+  // `pi.create` (the RTE), not this action.
+  "pi_standard.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
 
   "pi_objective.create": [{ roles: [RTE, TEAM_EDITOR] }],
   "pi_objective.update": [{ roles: [RTE, TEAM_EDITOR] }],

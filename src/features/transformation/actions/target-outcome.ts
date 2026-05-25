@@ -10,7 +10,6 @@ import type { ActionState } from "@/server/http/server-action";
 export type { ActionState as TargetOutcomeActionState };
 
 function revalidate() {
-  revalidatePath("/transformation/ziel", "page");
   revalidatePath("/transformation/ziele", "page");
   revalidatePath("/transformation", "page");
 }

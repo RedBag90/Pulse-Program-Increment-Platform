@@ -68,9 +68,13 @@ export function canSubmitBusinessCase(phase: string): boolean {
 export function canDecideApproval(phase: string): boolean {
   return phase === "stakeholder_review";
 }
-/** A new revision can only be started from a fully approved Epic. */
+/**
+ * A revision can be started from any phase that has actually begun — to re-open
+ * a fully `approved` Epic for a new cycle, or to reset an in-progress cycle back
+ * to draft and restart it. Not from `draft`: nothing has started there.
+ */
 export function canStartRevision(phase: string): boolean {
-  return phase === "approved";
+  return phase !== "draft";
 }
 
 /** Where a new revision restarts: full cycle (re-review hypothesis) or BC-only. */

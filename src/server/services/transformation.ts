@@ -233,7 +233,7 @@ export function deriveNextSteps(gap: StructureGap, adoption: PracticeAdoption): 
       steps.push({
         key: `prac-${s.key}`,
         title: `${s.label}: niedrige Adoption (${s.detail})`,
-        href: PRACTICE_HREF[s.key] ?? "/transformation/ziel",
+        href: PRACTICE_HREF[s.key] ?? "/structure",
       });
     }
   }

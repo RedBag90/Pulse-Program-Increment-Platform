@@ -61,17 +61,6 @@ export function CreateValueStreamDialog({ open, onOpenChange }: CreateValueStrea
               <Textarea id="vs-description" name="description" rows={3} />
             </div>
 
-            <div className="flex gap-3">
-              <div className="flex-1 space-y-1.5">
-                <Label htmlFor="vs-budget">Budget</Label>
-                <Input id="vs-budget" name="budgetAmount" placeholder="100000.00" />
-              </div>
-              <div className="w-24 space-y-1.5">
-                <Label htmlFor="vs-currency">Currency</Label>
-                <Input id="vs-currency" name="budgetCurrency" maxLength={3} placeholder="EUR" />
-              </div>
-            </div>
-
             {state.error && (
               <p role="alert" className="text-sm text-destructive">
                 {state.error}
