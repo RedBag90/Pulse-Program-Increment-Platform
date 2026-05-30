@@ -11,14 +11,12 @@ import {
 } from "@/domain/epic-approval";
 import {
   SubmitHypothesisButton,
-  DecideHypothesisButtons,
   SubmitBusinessCaseButton,
   ReviseBusinessCaseButton,
-  ApprovalDecisionButtons,
-  SectionSignoffButtons,
   StartRevisionButtons,
   ResetApprovalButton,
 } from "./approval-controls";
+import { Link } from "@/i18n/navigation";
 import { ApproverPicker, type TenantApprover } from "./approver-picker";
 import { PhaseStepper } from "./phase-stepper";
 import { APPROVAL_PHASE_LABELS, userLabel } from "@/components/detail/initiative-labels";
@@ -75,7 +73,6 @@ interface Props {
   userLabels: Record<string, string>;
   currentUserId: string;
   canManage: boolean;
-  canDecideHypothesis: boolean;
   /** Value-stream defaults that pre-fill an as-yet-unconfigured Epic. */
   defaultFinanceApproverId?: string | null;
   defaultVmoId?: string | null;
@@ -100,7 +97,6 @@ export function EpicApprovalsTab({
   userLabels,
   currentUserId,
   canManage,
-  canDecideHypothesis,
   defaultFinanceApproverId,
   defaultVmoId,
 }: Props) {
@@ -155,12 +151,15 @@ export function EpicApprovalsTab({
         </div>
 
         {phase === "draft" && canManage && <SubmitHypothesisButton epicId={epicId} />}
-        {phase === "hypothesis_review" &&
-          (canDecideHypothesis ? (
-            <DecideHypothesisButtons epicId={epicId} />
-          ) : (
-            <p className="text-sm text-muted-foreground">Wartet auf VMO-Freigabe der Hypothese.</p>
-          ))}
+        {phase === "hypothesis_review" && (
+          <p className="text-sm text-muted-foreground">
+            Wartet auf VMO-Freigabe der Hypothese — die Entscheidung erfolgt in{" "}
+            <Link href="/my-approvals" className="font-medium text-primary hover:underline">
+              Meine Freigaben
+            </Link>
+            .
+          </p>
+        )}
         {phase === "business_case" && (
           <p className="text-sm text-muted-foreground">
             Hypothese freigegeben. Approver konfigurieren, dann Business Case einreichen.
@@ -255,7 +254,12 @@ export function EpicApprovalsTab({
                         {phase === "stakeholder_review" &&
                           r.status === "pending" &&
                           r.approverUserId === currentUserId && (
-                            <ApprovalDecisionButtons approvalId={r.id} />
+                            <Link
+                              href="/my-approvals"
+                              className="shrink-0 text-xs font-medium text-primary hover:underline"
+                            >
+                              In „Meine Freigaben" entscheiden →
+                            </Link>
                           )}
                       </li>
                     ))}
@@ -294,7 +298,12 @@ export function EpicApprovalsTab({
                 {phase === "stakeholder_review" &&
                   status !== "approved" &&
                   row?.approverUserId === currentUserId && (
-                    <SectionSignoffButtons epicId={epicId} section={section} />
+                    <Link
+                      href="/my-approvals"
+                      className="shrink-0 text-xs font-medium text-primary hover:underline"
+                    >
+                      In „Meine Freigaben" entscheiden →
+                    </Link>
                   )}
               </div>
             );

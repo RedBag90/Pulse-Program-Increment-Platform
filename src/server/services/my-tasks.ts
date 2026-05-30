@@ -1,0 +1,104 @@
+import type { PrismaClient } from "@/generated/prisma";
+import { InitiativeLevel } from "@/domain/types";
+import type { Principal } from "@/server/auth/principal";
+
+/**
+ * "Meine Tasks" — the personal ownership inbox. Surfaces every Epic and
+ * Feature where the principal is the Owner (or an explicit assignee), split
+ * into an open bucket (work to drive forward) and a recently-completed bucket
+ * (last 30 days, terminal state) for quick reference. Sibling to
+ * `listMyApprovals` — that one surfaces *decisions* the principal owes, this
+ * one surfaces *items* they own.
+ */
+
+export type TaskLevel = "epic" | "feature";
+
+export interface MyTaskRow {
+  id: string;
+  level: TaskLevel;
+  title: string;
+  href: string;
+  /** Drives the two sections on the page. */
+  bucket: "open" | "done";
+  /** Epic: stageGate + approvalPhase. Feature: status. */
+  state: {
+    stageGate?: string;
+    approvalPhase?: string | null;
+    status?: string;
+  };
+  context: {
+    valueStreamName?: string | null;
+    artName?: string | null;
+    parentEpicTitle?: string | null;
+    piName?: string | null;
+  };
+  updatedAt: Date;
+}
+
+/** Features in these statuses are considered done; Epics at L5 are done. */
+const FEATURE_TERMINAL = new Set(["completed", "cancelled"]);
+const DONE_WINDOW_DAYS = 30;
+
+/**
+ * Every Epic + Feature assigned to the principal — `ownerId === me` or
+ * `assigneeIds` contains me. Open items always returned; done items only when
+ * updated within the last 30 days, so the inbox stays handlungsorientiert.
+ * One Prisma read, partitioned in application code.
+ */
+export async function listMyTasks(db: PrismaClient, principal: Principal): Promise<MyTaskRow[]> {
+  const { id: userId, tenantId } = principal;
+
+  const rows = await db.initiative.findMany({
+    where: {
+      tenantId,
+      deletedAt: null,
+      level: { in: [InitiativeLevel.EPIC, InitiativeLevel.FEATURE] },
+      OR: [{ ownerId: userId }, { assigneeIds: { has: userId } }],
+    },
+    select: {
+      id: true,
+      level: true,
+      title: true,
+      status: true,
+      stageGate: true,
+      approvalPhase: true,
+      updatedAt: true,
+      valueStream: { select: { name: true } },
+      art: { select: { name: true } },
+      parent: { select: { id: true, title: true } },
+      pi: { select: { name: true } },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  const cutoff = new Date(Date.now() - DONE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const out: MyTaskRow[] = [];
+
+  for (const r of rows) {
+    const isEpic = r.level === InitiativeLevel.EPIC;
+    const isDone = isEpic ? r.stageGate === "L5" : FEATURE_TERMINAL.has(r.status);
+
+    // Hide stale completions — only keep the last 30 days of done items.
+    if (isDone && r.updatedAt < cutoff) continue;
+
+    out.push({
+      id: r.id,
+      level: isEpic ? "epic" : "feature",
+      title: r.title,
+      href: isEpic ? `/portfolio/epics/${r.id}` : `/feature/${r.id}`,
+      bucket: isDone ? "done" : "open",
+      state: isEpic
+        ? { stageGate: r.stageGate, approvalPhase: r.approvalPhase }
+        : { status: r.status },
+      context: {
+        valueStreamName: r.valueStream?.name ?? null,
+        artName: r.art?.name ?? null,
+        parentEpicTitle: isEpic ? null : (r.parent?.title ?? null),
+        piName: isEpic ? null : (r.pi?.name ?? null),
+      },
+      updatedAt: r.updatedAt,
+    });
+  }
+
+  return out;
+}

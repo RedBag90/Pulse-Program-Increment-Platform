@@ -187,16 +187,16 @@ export function allocatedCostByMonth(
   return out;
 }
 
-/** Maps the Epic's slices/benefits onto the axis as monthly cost/benefit flows. */
-export function epicMonthlyFlows(
-  input: EpicEconomicsInput,
-  axis: MonthAxis,
-  horizonEnd: Date,
-): EpicMonthlyFlows {
+/**
+ * Maps the Epic's slices/benefits onto the axis as monthly cost/benefit flows.
+ * The axis (Stichtag window) is the only cap — the recurring benefit accrues
+ * from `benefitStart` through `axis.monthCount - 1`, so it keeps flowing for
+ * as long as the chart's window does.
+ */
+export function epicMonthlyFlows(input: EpicEconomicsInput, axis: MonthAxis): EpicMonthlyFlows {
   const cost = zeros(axis.monthCount);
   const benefit = zeros(axis.monthCount);
   const startIdx = monthDiff(axis.start, monthStart(input.costStart));
-  const horizonIdx = monthDiff(axis.start, monthStart(horizonEnd));
 
   // Costs: a per-month allocation override (participatory budgeting) wins over the
   // cost-slice forecast; otherwise each 6-month slice is spread evenly.
@@ -223,10 +223,10 @@ export function epicMonthlyFlows(
   const recPerMonth = input.recurringBenefit / 12;
   const factor = input.recurringFactorByMonth;
   const benefitStart = factor ? Math.max(0, startIdx) : Math.max(0, goLiveIdx);
-  for (let idx = benefitStart; idx < axis.monthCount && idx <= horizonIdx; idx++) {
+  for (let idx = benefitStart; idx < axis.monthCount; idx++) {
     benefit[idx] = (benefit[idx] ?? 0) + recPerMonth * (factor ? (factor[idx] ?? 0) : 1);
   }
-  if (goLiveIdx >= 0 && goLiveIdx < axis.monthCount && goLiveIdx <= horizonIdx) {
+  if (goLiveIdx >= 0 && goLiveIdx < axis.monthCount) {
     benefit[goLiveIdx] = (benefit[goLiveIdx] ?? 0) + input.oneTimeBenefit;
   }
 
@@ -238,17 +238,13 @@ export function epicMonthlyFlows(
  * has already applied the Projekt-ID slicer (which Epics) and chosen the axis
  * (the Stichtag window); this just sums and accumulates.
  */
-export function aggregatePortfolio(
-  inputs: EpicEconomicsInput[],
-  axis: MonthAxis,
-  horizonEnd: Date,
-): PortfolioSeries {
+export function aggregatePortfolio(inputs: EpicEconomicsInput[], axis: MonthAxis): PortfolioSeries {
   const n = axis.monthCount;
   const velocity = zeros(n);
   const costs = zeros(n);
 
   const perEpic: EpicSeries[] = inputs.map((input) => {
-    const { cost, benefit } = epicMonthlyFlows(input, axis, horizonEnd);
+    const { cost, benefit } = epicMonthlyFlows(input, axis);
     const net = cost.map((c, i) => (benefit[i] ?? 0) - c);
     for (let i = 0; i < n; i++) {
       velocity[i] = (velocity[i] ?? 0) + (benefit[i] ?? 0);
@@ -331,8 +327,6 @@ export interface PortfolioEconomicsData {
   epics: EpicEconomicsDTO[];
   /** Earliest cost start across all Epics (axis lower bound, ISO date). */
   axisFromIso: string;
-  /** Recurring-benefit accrual end / axis upper bound (ISO date). */
-  horizonEndIso: string;
   /** Configurable self-funding threshold per month, or null if unset. */
   costNeutralTarget: number | null;
 }
@@ -369,19 +363,17 @@ function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
 
 /**
  * Assembles the full `PortfolioSeries` from the loader DTO and the slicer state.
- * The axis is the Stichtag window (`from`..`to`); the recurring-benefit accrual
- * still runs to the DTO's `horizonEnd` so a window that ends before go-live does
- * not silently truncate benefit that lands later. Epics outside the selection
- * are dropped before aggregation.
+ * The axis is the Stichtag window (`from`..`to`) and is the only cap on benefit
+ * accrual — the recurring benefit flows for as long as the chosen window does.
+ * Epics outside the selection are dropped before aggregation.
  */
 export function buildPortfolioSeries(
   data: PortfolioEconomicsData,
   query: PortfolioSeriesQuery,
 ): PortfolioSeries {
   const axis = buildMonthAxis(isoToDate(query.fromIso), isoToDate(query.toIso));
-  const horizonEnd = isoToDate(data.horizonEndIso);
   const inputs = data.epics
     .filter((e) => query.selectedEpicIds.has(e.id))
     .map((e) => dtoToInput(e, axis));
-  return aggregatePortfolio(inputs, axis, horizonEnd);
+  return aggregatePortfolio(inputs, axis);
 }

@@ -24,7 +24,7 @@ import type { ReactNode } from "react";
 const TABS: readonly DetailTab[] = [
   { key: "overview", label: "Übersicht" },
   { key: "timeline", label: "Timeline" },
-  { key: "arts", label: "ARTs" },
+  { key: "arts", label: "Strukturbaum" },
 ];
 
 interface Props {

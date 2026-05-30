@@ -60,10 +60,32 @@ function stackRows(
   });
 }
 
+/** Sensible default chart upper bound: latest go-live + 36 months, or +5 years from axis start. */
+function defaultToIso(data: PortfolioEconomicsData): string {
+  const goLives = data.epics
+    .map((e) => Date.parse(`${e.goLiveIso}T00:00:00.000Z`))
+    .filter((t) => !Number.isNaN(t));
+  const anchorMs = goLives.length
+    ? Math.max(...goLives)
+    : Date.parse(`${data.axisFromIso}T00:00:00.000Z`);
+  const anchor = new Date(anchorMs);
+  const future = new Date(
+    Date.UTC(
+      anchor.getUTCFullYear() + (goLives.length ? 0 : 5),
+      anchor.getUTCMonth() + (goLives.length ? 36 : 0),
+      1,
+    ),
+  );
+  return future.toISOString().slice(0, 10);
+}
+
 export function PortfolioDashboard({ data, canEdit }: Props) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set(data.epics.map((e) => e.id)));
   const [fromIso, setFromIso] = useState(data.axisFromIso);
-  const [toIso, setToIso] = useState(data.horizonEndIso);
+  // Default upper bound: latest go-live + 36 months so the recurring benefit
+  // has a long runway out of the box (axisFromIso + 5 years as a fallback).
+  // The user can shorten or extend it freely via the Stichtag slicer.
+  const [toIso, setToIso] = useState(() => defaultToIso(data));
 
   // Stable colour per Epic, keyed by its position in the full (unfiltered) list.
   const colorById = useMemo(() => {
@@ -160,12 +182,7 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
         onTo={setToIso}
       />
 
-      {canEdit && (
-        <SettingsEditor
-          costNeutralTarget={data.costNeutralTarget}
-          horizonEndIso={data.horizonEndIso}
-        />
-      )}
+      {canEdit && <SettingsEditor costNeutralTarget={data.costNeutralTarget} />}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel
@@ -410,12 +427,14 @@ function StackedChart({
 }
 
 /**
- * Cash-flow chart: each Epic's running cumulative net (accBenefit − accCost) split
- * into a positive part (stacked upward) and a negative part (stacked downward), via
- * two stackIds. So in any month the still-underwater Epics form the stack below 0
- * and the broken-even Epics the stack above 0 — an Epic that flips sign over time
- * moves from the lower to the upper stack. (A single mixed-sign stack does not split
- * cleanly in Recharts.) Estimated (un-allocated) Epics are hatched.
+ * Cash-flow chart: each Epic's **running cumulative net** (`accNet =
+ * accBenefit − accCost`) split into a positive half (stacked upward from 0)
+ * and a negative half (stacked downward from 0), both sharing one stackId so
+ * every month forms a single column. So Epic 1 with cumulative −350 € shows
+ * one bar from 0 down to −350 €, while Epic 2 with cumulative +100 € shows
+ * one bar from 0 up to +100 € in the same column. A flat month (no movement)
+ * keeps the running total unchanged — the bar stays at the previous value.
+ * Estimated (un-allocated) Epics are hatched.
  */
 function CashFlowChart({
   series,
@@ -443,7 +462,13 @@ function CashFlowChart({
   return (
     <>
       <ResponsiveContainer width="100%" height={320}>
-        <BarChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 24 }}>
+        {/* stackOffset="sign" keeps the column shared (positives + negatives
+            in the same `stackId`) but tells Recharts to use diverging
+            accumulators — positives stack upward from 0, negatives downward
+            from 0. Without it, Recharts sums every bar in the stack
+            sequentially regardless of sign, which leaves negative segments
+            recessed inside the positive stack and never dipping below 0. */}
+        <BarChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 24 }} stackOffset="sign">
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
           <XAxis {...xAxis(ticks)} />
           <YAxis {...yAxis} />
@@ -464,14 +489,14 @@ function CashFlowChart({
               <Bar
                 key={`${s.id}#pos`}
                 dataKey={`${s.id}#pos`}
-                stackId="pos"
+                stackId="cashflow"
                 fill={fill}
                 maxBarSize={14}
               />,
               <Bar
                 key={`${s.id}#neg`}
                 dataKey={`${s.id}#neg`}
-                stackId="neg"
+                stackId="cashflow"
                 fill={fill}
                 maxBarSize={14}
               />,
@@ -636,15 +661,9 @@ function Slicers({
   );
 }
 
-// --- settings editor (target line + horizon) -------------------------------
+// --- settings editor (cost-neutral target line) ----------------------------
 
-function SettingsEditor({
-  costNeutralTarget,
-  horizonEndIso,
-}: {
-  costNeutralTarget: number | null;
-  horizonEndIso: string;
-}) {
+function SettingsEditor({ costNeutralTarget }: { costNeutralTarget: number | null }) {
   const [state, formAction, pending] = useActionState(savePortfolioDashboardSettingsAction, {});
   return (
     <Card className="p-4">
@@ -660,16 +679,6 @@ function SettingsEditor({
             className="w-52"
             defaultValue={costNeutralTarget ?? ""}
             placeholder="z. B. 100"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="pd-horizon">Horizont-Ende</Label>
-          <Input
-            id="pd-horizon"
-            name="horizonEndIso"
-            type="date"
-            className="w-44"
-            defaultValue={horizonEndIso}
           />
         </div>
         <Button type="submit" variant="outline" disabled={pending}>

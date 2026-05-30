@@ -7,9 +7,9 @@ import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { TenantId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Layers, Zap, BookOpen, CheckSquare, AlertTriangle } from "lucide-react";
+import { SectionLabel } from "@/components/ui/section-label";
+import { Stat, StatStrip } from "@/components/ui/stat";
+import { MarginRail, MarginNote } from "@/components/layout/margin-rail";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -23,16 +23,6 @@ const STATUS_GROUPS = [
   "cancelled",
 ] as const;
 
-const STATUS_BADGE_CLASSES: Record<string, string> = {
-  draft: "bg-muted text-muted-foreground",
-  in_review: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-  approved: "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
-  in_progress: "bg-primary/10 text-primary",
-  blocked: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
-  completed: "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
-  cancelled: "bg-muted text-muted-foreground line-through",
-};
-
 // German labels for the flat epic list shown when stage gates are switched off.
 const STATUS_LABELS: Record<string, string> = {
   draft: "Entwurf",
@@ -43,6 +33,9 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "Abgeschlossen",
   cancelled: "Abgebrochen",
 };
+
+const daysAgo = (d: Date) =>
+  Math.floor((Date.now() - new Date(d).getTime()) / (1000 * 60 * 60 * 24));
 
 export default async function PortfolioPage() {
   const principal = await requirePrincipal().catch(() => null);
@@ -76,226 +69,167 @@ export default async function PortfolioPage() {
       e.status !== "completed" &&
       e.status !== "cancelled",
   );
+  const blockedEpics = epics.filter((e) => e.status === "blocked");
 
   const features = allInitiatives.filter((i) => i.level === InitiativeLevel.FEATURE);
   const stories = allInitiatives.filter((i) => i.level === InitiativeLevel.STORY);
   const tasks = allInitiatives.filter((i) => i.level === InitiativeLevel.TASK);
 
   return (
-    <main className="p-6 md:p-8 space-y-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <main className="mx-auto max-w-7xl p-6 md:p-8">
+      {/* Context bar */}
+      <header className="flex items-end justify-between border-b pb-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Portfolio</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <h1 className="font-heading text-2xl font-normal tracking-tight">Portfolio</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
             Overview of epics, features, and delivery health
           </p>
         </div>
-        <nav className="flex gap-3 text-sm">
+        <nav className="flex gap-4 text-sm">
           <Link
             href="/portfolio/epics"
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground transition-colors hover:text-foreground"
           >
             All Epics
           </Link>
           <Link
             href="/portfolio/value-streams"
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground transition-colors hover:text-foreground"
           >
             Value Streams
           </Link>
         </nav>
-      </div>
+      </header>
 
-      {/* Metric Cards */}
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          {
-            label: "Epics",
-            value: epics.length,
-            icon: Layers,
-            color: "text-violet-600 dark:text-violet-400",
-            bg: "bg-violet-50 dark:bg-violet-950",
-          },
-          {
-            label: "Features",
-            value: features.length,
-            icon: Zap,
-            color: "text-blue-600 dark:text-blue-400",
-            bg: "bg-blue-50 dark:bg-blue-950",
-          },
-          {
-            label: "Stories",
-            value: stories.length,
-            icon: BookOpen,
-            color: "text-emerald-600 dark:text-emerald-400",
-            bg: "bg-emerald-50 dark:bg-emerald-950",
-          },
-          {
-            label: "Tasks",
-            value: tasks.length,
-            icon: CheckSquare,
-            color: "text-amber-600 dark:text-amber-400",
-            bg: "bg-amber-50 dark:bg-amber-950",
-          },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <Card key={label}>
-            <CardContent className="pt-5 pb-4">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${bg} shrink-0`}>
-                  <Icon className={`size-4 ${color}`} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-2xl font-bold tabular-nums">{value}</p>
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
+      <div className="mt-6 flex flex-col gap-8 lg:flex-row">
+        {/* Content column */}
+        <div className="min-w-0 flex-1 space-y-8">
+          {/* KPI strip */}
+          <StatStrip>
+            <Stat label="Epics" value={epics.length} />
+            <Stat label="Features" value={features.length} />
+            <Stat label="Stories" value={stories.length} />
+            <Stat label="Tasks" value={tasks.length} />
+          </StatStrip>
 
-      {/* Epic status breakdown */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          Epics by Status
-        </h2>
-        <div className="flex gap-2 flex-wrap">
-          {STATUS_GROUPS.map((s) => {
-            const count = epicsByStatus[s] ?? 0;
-            if (count === 0) return null;
-            return (
-              <Link
-                key={s}
-                href={`/portfolio/epics?status=${s}`}
-                className="flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2.5 hover:border-primary/40 hover:bg-accent transition-colors"
-              >
-                <span className="text-lg font-bold tabular-nums">{count}</span>
-                <span
-                  className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${STATUS_BADGE_CLASSES[s] ?? ""}`}
-                >
-                  {s.replace("_", " ")}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Stale epics */}
-      {staleEpics.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold flex items-center gap-2">
-            <AlertTriangle className="size-4 text-amber-500" />
-            Stale Epics
-            <Badge className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-800 font-normal">
-              {staleEpics.length} no activity &gt;30 days
-            </Badge>
-          </h2>
-          <Card>
-            <div className="divide-y divide-border">
-              {staleEpics.map((e) => (
-                <div key={e.id} className="px-4 py-3 flex items-center justify-between gap-4">
+          {/* Epic status breakdown */}
+          <section className="space-y-3">
+            <SectionLabel>Epics by Status</SectionLabel>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {STATUS_GROUPS.map((s) => {
+                const count = epicsByStatus[s] ?? 0;
+                if (count === 0) return null;
+                return (
                   <Link
-                    href={`/portfolio/epics/${e.id}`}
-                    className="text-sm font-medium hover:text-primary transition-colors truncate"
+                    key={s}
+                    href={`/portfolio/epics?status=${s}`}
+                    className="group flex items-baseline gap-2 transition-colors"
                   >
-                    {e.title}
+                    <span className="font-mono text-lg font-light tabular-nums">{count}</span>
+                    <span className="text-xs text-muted-foreground group-hover:text-foreground">
+                      {STATUS_LABELS[s] ?? s.replace("_", " ")}
+                    </span>
                   </Link>
-                  <div className="flex items-center gap-2 shrink-0 text-xs text-muted-foreground">
-                    <span>{e.valueStream?.name ?? "—"}</span>
-                    <span
-                      className={`px-1.5 py-0.5 rounded-full ${STATUS_BADGE_CLASSES[e.status] ?? "bg-muted text-muted-foreground"}`}
-                    >
-                      {e.status}
-                    </span>
-                    <span className="text-amber-600 dark:text-amber-400 font-medium">
-                      {Math.floor(
-                        (Date.now() - new Date(e.updatedAt).getTime()) / (1000 * 60 * 60 * 24),
-                      )}
-                      d ago
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-          </Card>
-        </section>
-      )}
+          </section>
 
-      {/* Epic lifecycle view — stage-gate kanban when stage gates are part of the
-          target operating model, otherwise a flat list grouped by review status. */}
-      {practices.stageGates ? (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Epic Stage Gates
-          </h2>
-          <KanbanBoard
-            epics={epics.map((e) => ({
-              id: e.id,
-              title: e.title,
-              stageGate: e.stageGate,
-              status: e.status,
-              valueStream: e.valueStream,
-            }))}
-            canEdit={canEdit}
-            tenantId={principal.tenantId}
-          />
-        </section>
-      ) : (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Epics nach Status
-          </h2>
-          <div className="space-y-6">
-            {STATUS_GROUPS.map((s) => {
-              const groupEpics = epics.filter((e) => e.status === s);
-              if (groupEpics.length === 0) return null;
-              return (
-                <div key={s} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE_CLASSES[s] ?? ""}`}
-                    >
-                      {STATUS_LABELS[s] ?? s}
-                    </span>
-                    <span className="text-xs font-medium text-muted-foreground tabular-nums">
-                      {groupEpics.length}
-                    </span>
-                  </div>
-                  <Card>
+          {/* Epic lifecycle view — stage-gate kanban when stage gates are part of the
+              target operating model, otherwise a flat list grouped by review status. */}
+          {practices.stageGates ? (
+            <section className="space-y-3">
+              <SectionLabel>Epic Stage Gates</SectionLabel>
+              <KanbanBoard
+                epics={epics.map((e) => ({
+                  id: e.id,
+                  title: e.title,
+                  stageGate: e.stageGate,
+                  status: e.status,
+                  valueStream: e.valueStream,
+                }))}
+                canEdit={canEdit}
+                tenantId={principal.tenantId}
+              />
+            </section>
+          ) : (
+            <section className="space-y-6">
+              <SectionLabel>Epics nach Status</SectionLabel>
+              {STATUS_GROUPS.map((s) => {
+                const groupEpics = epics.filter((e) => e.status === s);
+                if (groupEpics.length === 0) return null;
+                return (
+                  <div key={s} className="space-y-2">
+                    <div className="flex items-baseline gap-2 border-b pb-1.5">
+                      <span className="text-xs font-medium">{STATUS_LABELS[s] ?? s}</span>
+                      <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                        {groupEpics.length}
+                      </span>
+                    </div>
                     <div className="divide-y divide-border">
                       {groupEpics.map((e) => (
-                        <div
-                          key={e.id}
-                          className="px-4 py-3 flex items-center justify-between gap-4"
-                        >
+                        <div key={e.id} className="flex items-center justify-between gap-4 py-2.5">
                           <Link
                             href={`/portfolio/epics/${e.id}`}
-                            className="text-sm font-medium hover:text-primary transition-colors truncate"
+                            className="truncate text-sm font-medium transition-colors hover:text-primary"
                           >
                             {e.title}
                           </Link>
-                          <span className="text-xs text-muted-foreground shrink-0">
+                          <span className="shrink-0 text-xs text-muted-foreground">
                             {e.valueStream?.name ?? "—"}
                           </span>
                         </div>
                       ))}
                     </div>
-                  </Card>
-                </div>
-              );
-            })}
-            {epics.length === 0 && (
-              <Card>
-                <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                  </div>
+                );
+              })}
+              {epics.length === 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">
                   Noch keine Epics vorhanden.
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </section>
-      )}
+                </p>
+              )}
+            </section>
+          )}
+        </div>
+
+        {/* Margin rail — contextual notes from existing signals */}
+        <MarginRail>
+          <SectionLabel>Randnotizen</SectionLabel>
+          {blockedEpics.length > 0 && (
+            <MarginNote label="Blockiert" tone="destructive">
+              {blockedEpics.length} Epic{blockedEpics.length !== 1 ? "s" : ""} blockiert —{" "}
+              <Link
+                href="/portfolio/epics?status=blocked"
+                className="underline hover:text-foreground"
+              >
+                ansehen
+              </Link>
+            </MarginNote>
+          )}
+          {staleEpics.length > 0 ? (
+            <MarginNote label={`Inaktiv · ${staleEpics.length} > 30 Tage`} tone="amber">
+              <ul className="space-y-1.5">
+                {staleEpics.slice(0, 6).map((e) => (
+                  <li key={e.id} className="flex items-baseline justify-between gap-2">
+                    <Link
+                      href={`/portfolio/epics/${e.id}`}
+                      className="truncate text-foreground/80 hover:text-foreground"
+                    >
+                      {e.title}
+                    </Link>
+                    <span className="shrink-0 font-mono text-[10px] text-amber-600 tabular-nums dark:text-amber-400">
+                      {daysAgo(e.updatedAt)}d
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </MarginNote>
+          ) : blockedEpics.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Keine offenen Hinweise.</p>
+          ) : null}
+        </MarginRail>
+      </div>
     </main>
   );
 }

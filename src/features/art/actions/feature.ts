@@ -199,15 +199,31 @@ export const submitFeatureReviewAction = createServerAction({
 });
 
 export const decideFeatureReviewAction = createServerAction({
-  schema: z.object({ id: z.string().uuid(), decision: z.enum(["approve", "reject"]) }),
+  schema: z.object({
+    id: z.string().uuid(),
+    decision: z.enum(["approve", "reject"]),
+    comment: z.string().max(2000).optional(),
+    intent: z.enum(["decision", "clarification"]).optional(),
+  }),
   action: "feature.review.decide",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => {
     const f = fields(fd);
-    return { id: f.string("id"), decision: f.string("decision") };
+    return {
+      id: f.string("id"),
+      decision: f.string("decision"),
+      comment: f.nonEmptyString("comment"),
+      intent: f.nonEmptyString("intent"),
+    };
   },
   service: (ctx, input) =>
-    decideReview(ctx, { kind: "feature", id: input.id as FeatureId, decision: input.decision }),
+    decideReview(ctx, {
+      kind: "feature",
+      id: input.id as FeatureId,
+      decision: input.decision,
+      comment: input.comment,
+      intent: input.intent,
+    }),
   revalidate: "feature",
   mapError: (e) =>
     e.kind === "conflict"

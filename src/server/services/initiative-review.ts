@@ -63,13 +63,24 @@ export async function submitForReview(
   });
 }
 
-/** QS role decides an in-review Initiative: approve → `approved`, reject → `draft`. */
+/**
+ * QS role decides an in-review Initiative: approve → `approved`, reject → `draft`.
+ * An optional `comment` is persisted on the audit `changes` map (no DB column for
+ * v1) — the "Meine Freigaben" inbox uses it to capture the reviewer's reasoning.
+ */
 export async function decideReview(
   ctx: RequestContext,
-  input: { kind: InitiativeKind; id: InitiativeId; decision: ReviewDecision },
+  input: {
+    kind: InitiativeKind;
+    id: InitiativeId;
+    decision: ReviewDecision;
+    comment?: string | undefined;
+    /** Tags the audit so a "Rückfrage" can be distinguished from an outright rejection. */
+    intent?: "decision" | "clarification" | undefined;
+  },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { kind, id, decision } = input;
+  const { kind, id, decision, comment, intent } = input;
   const cfg = KIND_CONFIG[kind];
   const target = decisionTarget(decision);
 
@@ -96,7 +107,11 @@ export async function decideReview(
         action: "initiative.updated",
         resourceType: "initiative",
         resourceId: id,
-        changes: { status: { before: existing.status, after: target } },
+        changes: {
+          status: { before: existing.status, after: target },
+          ...(comment ? { comment: { before: null, after: comment } } : {}),
+          ...(intent ? { intent: { before: null, after: intent } } : {}),
+        },
       },
     });
   });

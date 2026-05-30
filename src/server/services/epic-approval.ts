@@ -113,12 +113,24 @@ export async function submitHypothesis(
   });
 }
 
+/**
+ * VMO decides the Benefit Hypothesis: approve → `business_case`, reject → `draft`.
+ * Optional `comment` is persisted on the audit (no schema change for v1); the
+ * "Meine Freigaben" inbox uses it to capture the reviewer's reasoning, and
+ * `intent: "clarification"` lets a "Rückfrage" be distinguished from an outright
+ * rejection in the audit tail.
+ */
 export async function decideHypothesis(
   ctx: RequestContext,
-  input: { epicId: EpicId; decision: ApprovalDecision },
+  input: {
+    epicId: EpicId;
+    decision: ApprovalDecision;
+    comment?: string | undefined;
+    intent?: "decision" | "clarification" | undefined;
+  },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { epicId, decision } = input;
+  const { epicId, decision, comment, intent } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
@@ -155,7 +167,11 @@ export async function decideHypothesis(
         action: decision === "approve" ? "epic.hypothesis.approved" : "epic.hypothesis.rejected",
         resourceType: "initiative",
         resourceId: epicId,
-        changes: { approvalPhase: { before: phase, after: target } },
+        changes: {
+          approvalPhase: { before: phase, after: target },
+          ...(comment ? { comment: { before: null, after: comment } } : {}),
+          ...(intent ? { intent: { before: null, after: intent } } : {}),
+        },
       },
     });
   });
@@ -399,10 +415,16 @@ async function applyDecisionOutcome(
 
 export async function decideApproval(
   ctx: RequestContext,
-  input: { approvalId: string; decision: ApprovalDecision; comment?: string | undefined },
+  input: {
+    approvalId: string;
+    decision: ApprovalDecision;
+    comment?: string | undefined;
+    /** Tags the audit so a "Rückfrage" can be distinguished from an outright rejection. */
+    intent?: "decision" | "clarification" | undefined;
+  },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { approvalId, decision, comment } = input;
+  const { approvalId, decision, comment, intent } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const row = await tx.epicApproval.findFirst({
@@ -455,6 +477,7 @@ export async function decideApproval(
       party: { before: null, after: row.party },
       status: { before: row.status, after: status },
       ...(phaseChange && { approvalPhase: phaseChange }),
+      ...(intent ? { intent: { before: null, after: intent } } : {}),
     };
 
     return ok({
@@ -476,10 +499,11 @@ export async function signoffSection(
     section: ApprovalSection;
     decision: ApprovalDecision;
     comment?: string | undefined;
+    intent?: "decision" | "clarification" | undefined;
   },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { epicId, section, decision, comment } = input;
+  const { epicId, section, decision, comment, intent } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
@@ -526,6 +550,7 @@ export async function signoffSection(
       section: { before: null, after: section },
       status: { before: row.status, after: status },
       ...(phaseChange && { approvalPhase: phaseChange }),
+      ...(intent ? { intent: { before: null, after: intent } } : {}),
     };
 
     return ok({

@@ -86,6 +86,7 @@ export type AuditAction =
   | "target.activated"
   | "target_outcome.created"
   | "target_outcome.updated"
+  | "target_outcome.value_set"
   | "target_outcome.deleted"
   | "transformation_goal.created"
   | "transformation_goal.updated"

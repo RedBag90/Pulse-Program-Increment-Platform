@@ -56,7 +56,8 @@ export type Action =
   | "admin.users.read"
   | "target.manage"
   | "budget.manage"
-  | "art_budget.manage";
+  | "art_budget.manage"
+  | "kpi.value.manage";
 
 /** A scope dimension a grant may additionally require the principal to match. */
 export type ScopeCheck = "value_stream" | "art" | "team" | "own";
@@ -106,6 +107,14 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Distribute a Value Stream's budget down to its ARTs. Coarse pre-filter; the
   // service-seam check authoritatively allows the VS's finance approver too.
   "art_budget.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER] }],
+  // Finance Controller valuation of a KPI's movement (€ per natural unit).
+  // Coarse pre-filter; the service-seam check authoritatively allows the Epic's
+  // value-stream finance approver too. Strategic KPIs aren't VS-scoped — the
+  // unscoped grants (portfolio_manager / transformation_lead / admins) apply.
+  "kpi.value.manage": [
+    { roles: [PORTFOLIO_MANAGER, TRANSFORMATION_LEAD] },
+    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
+  ],
 
   // ── Portfolio ───────────────────────────────────────────────────────────
   // The portfolio manager funds value streams and owns the Epic backlog.

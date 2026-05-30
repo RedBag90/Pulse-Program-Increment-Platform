@@ -18,6 +18,7 @@ import { APPROVAL_SECTIONS } from "@/domain/epic-approval";
 import type { EpicId } from "@/domain/types";
 
 const DECISION = z.enum(["approve", "reject"]);
+const INTENT = z.enum(["decision", "clarification"]);
 
 const mapWorkflowError = (e: { kind: string; reason?: string }) =>
   e.kind === "conflict"
@@ -37,15 +38,30 @@ export const submitEpicHypothesisAction = createServerAction({
 });
 
 export const decideEpicHypothesisAction = createServerAction({
-  schema: z.object({ epicId: z.string().uuid(), decision: DECISION }),
+  schema: z.object({
+    epicId: z.string().uuid(),
+    decision: DECISION,
+    comment: z.string().max(2000).optional(),
+    intent: INTENT.optional(),
+  }),
   action: "epic.hypothesis.decide",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => {
     const f = fields(fd);
-    return { epicId: f.string("epicId"), decision: f.string("decision") };
+    return {
+      epicId: f.string("epicId"),
+      decision: f.string("decision"),
+      comment: f.nonEmptyString("comment"),
+      intent: f.nonEmptyString("intent"),
+    };
   },
   service: (ctx, input) =>
-    decideHypothesis(ctx, { epicId: input.epicId as EpicId, decision: input.decision }),
+    decideHypothesis(ctx, {
+      epicId: input.epicId as EpicId,
+      decision: input.decision,
+      comment: input.comment,
+      intent: input.intent,
+    }),
   revalidate: "epic",
   mapError: mapWorkflowError,
 });
@@ -100,6 +116,7 @@ export const decideEpicApprovalAction = createServerAction({
     approvalId: z.string().uuid(),
     decision: DECISION,
     comment: z.string().max(2000).optional(),
+    intent: INTENT.optional(),
   }),
   action: "epic.approval.decide",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -109,6 +126,7 @@ export const decideEpicApprovalAction = createServerAction({
       approvalId: f.string("approvalId"),
       decision: f.string("decision"),
       comment: f.nonEmptyString("comment"),
+      intent: f.nonEmptyString("intent"),
     };
   },
   service: (ctx, input) =>
@@ -116,6 +134,7 @@ export const decideEpicApprovalAction = createServerAction({
       approvalId: input.approvalId,
       decision: input.decision,
       comment: input.comment,
+      intent: input.intent,
     }),
   revalidate: "epic",
   mapError: mapWorkflowError,
@@ -127,6 +146,7 @@ export const signoffEpicSectionAction = createServerAction({
     section: z.enum(APPROVAL_SECTIONS),
     decision: DECISION,
     comment: z.string().max(2000).optional(),
+    intent: INTENT.optional(),
   }),
   action: "epic.section.signoff",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -137,6 +157,7 @@ export const signoffEpicSectionAction = createServerAction({
       section: f.string("section"),
       decision: f.string("decision"),
       comment: f.nonEmptyString("comment"),
+      intent: f.nonEmptyString("intent"),
     };
   },
   service: (ctx, input) =>
@@ -145,6 +166,7 @@ export const signoffEpicSectionAction = createServerAction({
       section: input.section,
       decision: input.decision,
       comment: input.comment,
+      intent: input.intent,
     }),
   revalidate: "epic",
   mapError: mapWorkflowError,

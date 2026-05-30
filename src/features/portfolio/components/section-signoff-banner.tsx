@@ -1,7 +1,5 @@
-"use client";
-
 import { CheckCircle2 } from "lucide-react";
-import { SectionSignoffButtons } from "./approval-controls";
+import { Link } from "@/i18n/navigation";
 import type { ApprovalSection } from "@/domain/epic-approval";
 
 /** A section's sign-off state for the Epic's active approval revision. */
@@ -24,7 +22,7 @@ interface Props extends SectionSignoff {
  * KPIs tabs, a reviewer signs the section off for the Epic's release without
  * hopping to the Freigaben tab. Renders nothing outside the sign-off window.
  */
-export function SectionSignoffBanner({ epicId, section, status, active, canSignoff }: Props) {
+export function SectionSignoffBanner({ status, active, canSignoff }: Props) {
   if (status === "approved") {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
@@ -37,7 +35,9 @@ export function SectionSignoffBanner({ epicId, section, status, active, canSigno
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
       <p className="text-sm text-indigo-900">Du prüfst diesen Abschnitt für die Epic-Freigabe.</p>
-      <SectionSignoffButtons epicId={epicId} section={section} />
+      <Link href="/my-approvals" className="text-sm font-medium text-indigo-900 hover:underline">
+        In „Meine Freigaben" entscheiden →
+      </Link>
     </div>
   );
 }

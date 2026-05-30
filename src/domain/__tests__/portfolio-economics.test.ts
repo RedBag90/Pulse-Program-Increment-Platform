@@ -32,10 +32,9 @@ describe("goLiveMonth", () => {
 
 describe("epicMonthlyFlows", () => {
   const axis = buildMonthAxis(utc("2024-01-01"), utc("2026-12-01")); // 36 months
-  const horizon = utc("2026-12-01");
 
   it("spreads each 6-month slice evenly across its months", () => {
-    const { cost } = epicMonthlyFlows(epic(), axis, horizon);
+    const { cost } = epicMonthlyFlows(epic(), axis);
     // months 0..11 (2024) carry 100 each; month 12 onward carry 0
     expect(cost.slice(0, 12)).toEqual(new Array(12).fill(100));
     expect(cost[12]).toBe(0);
@@ -43,27 +42,29 @@ describe("epicMonthlyFlows", () => {
   });
 
   it("starts recurring/12 at go-live and adds the one-time benefit there", () => {
-    const { benefit } = epicMonthlyFlows(epic(), axis, horizon);
+    const { benefit } = epicMonthlyFlows(epic(), axis);
     // go-live = index 12 (Jan 2025): recurring 100 + one-time 500
     expect(benefit[11]).toBe(0);
     expect(benefit[12]).toBeCloseTo(600);
     expect(benefit[13]).toBeCloseTo(100);
   });
 
-  it("caps recurring benefit at the horizon end", () => {
-    const shortHorizon = utc("2025-03-01"); // index 14
-    const { benefit } = epicMonthlyFlows(epic(), axis, shortHorizon);
+  it("accrues recurring benefit through the axis end (no horizon cap)", () => {
+    const { benefit } = epicMonthlyFlows(epic(), axis);
+    // The axis runs 36 months. After go-live (idx 12) every month carries
+    // recurring 100 — including months past the prior horizon, all the way
+    // to the axis end.
     expect(benefit[14]).toBeCloseTo(100);
-    expect(benefit[15]).toBe(0);
+    expect(benefit[15]).toBeCloseTo(100);
+    expect(benefit[axis.monthCount - 1]).toBeCloseTo(100);
   });
 });
 
 describe("aggregatePortfolio", () => {
   const axis = buildMonthAxis(utc("2024-01-01"), utc("2026-12-01"));
-  const horizon = utc("2026-12-01");
 
   it("sums per-Epic flows into the portfolio series", () => {
-    const series = aggregatePortfolio([epic(), epic({ id: "e2", title: "Epic 2" })], axis, horizon);
+    const series = aggregatePortfolio([epic(), epic({ id: "e2", title: "Epic 2" })], axis);
     expect(series.perEpic).toHaveLength(2);
     expect(series.costs[0]).toBeCloseTo(200); // two epics @ 100
     expect(series.velocity[12]).toBeCloseTo(1200); // two epics @ 600 at go-live
@@ -71,7 +72,7 @@ describe("aggregatePortfolio", () => {
   });
 
   it("accumulates value and cost and finds the break-even month", () => {
-    const series = aggregatePortfolio([epic()], axis, horizon);
+    const series = aggregatePortfolio([epic()], axis);
     // total cost = 1200; cumulative value crosses it during 2025
     expect(series.accCost.at(-1)).toBeCloseTo(1200);
     expect(series.breakEvenIndex).not.toBeNull();
@@ -81,21 +82,17 @@ describe("aggregatePortfolio", () => {
   });
 
   it("reports no break-even when value never covers cost", () => {
-    const series = aggregatePortfolio(
-      [epic({ recurringBenefit: 0, oneTimeBenefit: 0 })],
-      axis,
-      horizon,
-    );
+    const series = aggregatePortfolio([epic({ recurringBenefit: 0, oneTimeBenefit: 0 })], axis);
     expect(series.breakEvenIndex).toBeNull();
   });
 
   it("per-Epic accNet is cumulative benefit − cumulative cost (negative early, positive late)", () => {
-    const series = aggregatePortfolio([epic()], axis, horizon);
+    const series = aggregatePortfolio([epic()], axis);
     const e = series.perEpic[0]!;
     // accNet = accBenefit − accCost at every month
     e.accNet.forEach((v, i) => expect(v).toBeCloseTo((e.accBenefit[i] ?? 0) - (e.accCost[i] ?? 0)));
     expect(e.accNet[0]!).toBeLessThan(0); // pure cost before go-live
-    expect(e.accNet.at(-1)!).toBeGreaterThan(0); // recovers over the horizon
+    expect(e.accNet.at(-1)!).toBeGreaterThan(0); // recovers as the axis runs on
   });
 });
 
@@ -180,12 +177,11 @@ describe("allocatedCostByMonth", () => {
 
 describe("epicMonthlyFlows cost override (budget allocation)", () => {
   const axis = buildMonthAxis(utc("2024-01-01"), utc("2026-12-01")); // 36 months
-  const horizon = utc("2026-12-01");
 
   it("uses costByMonth instead of the cost slices when provided", () => {
     const override = zerosArr(axis.monthCount);
     override[5] = 1234;
-    const { cost } = epicMonthlyFlows({ ...epic(), costByMonth: override }, axis, horizon);
+    const { cost } = epicMonthlyFlows({ ...epic(), costByMonth: override }, axis);
     expect(cost[5]).toBe(1234);
     expect(cost[0]).toBe(0); // slice forecast (100 in months 0..11) is ignored
   });
@@ -193,15 +189,10 @@ describe("epicMonthlyFlows cost override (budget allocation)", () => {
 
 describe("epicMonthlyFlows with a recurring factor", () => {
   const axis = buildMonthAxis(utc("2024-01-01"), utc("2026-12-01"));
-  const horizon = utc("2026-12-01");
 
   it("scales the recurring benefit by the per-month factor", () => {
     const factor = new Array(axis.monthCount).fill(0.5);
-    const { benefit } = epicMonthlyFlows(
-      { ...epic(), recurringFactorByMonth: factor },
-      axis,
-      horizon,
-    );
+    const { benefit } = epicMonthlyFlows({ ...epic(), recurringFactorByMonth: factor }, axis);
     expect(benefit[12]).toBeCloseTo(50 + 500); // recurring 100*0.5 + one-time at go-live
     expect(benefit[13]).toBeCloseTo(50); // 100 * 0.5
   });
@@ -211,11 +202,7 @@ describe("epicMonthlyFlows with a recurring factor", () => {
     const factor = zerosArr(axis.monthCount);
     factor[3] = 0.4;
     factor[6] = 0.4;
-    const { benefit } = epicMonthlyFlows(
-      { ...epic(), recurringFactorByMonth: factor },
-      axis,
-      horizon,
-    );
+    const { benefit } = epicMonthlyFlows({ ...epic(), recurringFactorByMonth: factor }, axis);
     expect(benefit[3]).toBeCloseTo(40); // 100 * 0.4 — well before go-live (12)
     expect(benefit[6]).toBeCloseTo(40);
     expect(benefit[2]).toBe(0); // factor 0 there
@@ -229,14 +216,13 @@ describe("epicMonthlyFlows with a recurring factor", () => {
     const { benefit } = epicMonthlyFlows(
       { ...epic({ costStart: utc("2024-07-01") }), recurringFactorByMonth: factor },
       lateAxis,
-      horizon,
     );
     expect(benefit[5]).toBe(0); // June 2024 — before cost start (July = idx 6)
     expect(benefit[6]).toBeCloseTo(100); // cost start month, factor 1.0
   });
 
   it("keeps the flat forecast gated at go-live when no factor is supplied", () => {
-    const { benefit } = epicMonthlyFlows(epic(), axis, horizon);
+    const { benefit } = epicMonthlyFlows(epic(), axis);
     expect(benefit[11]).toBe(0); // month before go-live — still gated
     expect(benefit[13]).toBeCloseTo(100);
   });

@@ -120,6 +120,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   const activeTab = resolveTab(tabs, tab);
 
   const approvalPhase = (epic.approvalPhase as ApprovalPhase | null) ?? "draft";
+  // Gates the side-by-side review diff on the Benefit Hypothesis tab — the
+  // decide-buttons themselves now live in "Meine Freigaben".
   const canDecideHypothesis =
     principal.roles.includes("vmo") ||
     principal.roles.includes("tenant_admin") ||
@@ -317,7 +319,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           userLabels={userLabels}
           currentUserId={principal.id}
           canManage={canEdit}
-          canDecideHypothesis={canDecideHypothesis}
           defaultFinanceApproverId={epic.valueStream?.financeApproverId ?? null}
           defaultVmoId={epic.valueStream?.vmoId ?? null}
         />

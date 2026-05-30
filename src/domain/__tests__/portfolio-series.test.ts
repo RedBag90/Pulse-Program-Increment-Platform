@@ -21,10 +21,9 @@ const dto = (over: Partial<EpicEconomicsDTO> = {}): EpicEconomicsDTO => ({
   ...over,
 });
 
-const data = (epics: EpicEconomicsDTO[], horizonEndIso = "2027-12-01"): PortfolioEconomicsData => ({
+const data = (epics: EpicEconomicsDTO[]): PortfolioEconomicsData => ({
   epics,
   axisFromIso: "2026-01-01",
-  horizonEndIso,
   costNeutralTarget: null,
 });
 

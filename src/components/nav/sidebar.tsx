@@ -8,12 +8,7 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { UserNav } from "@/components/nav/user-nav";
 import { NAV_GROUPS } from "@/components/nav/nav-config";
-
-function isActive(pathname: string, href: string, exact: boolean): boolean {
-  const path = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, "") || "/";
-  if (exact) return path === href;
-  return path === href || path.startsWith(`${href}/`);
-}
+import { isActive } from "@/components/nav/active";
 
 interface SidebarProps {
   userEmail: string;

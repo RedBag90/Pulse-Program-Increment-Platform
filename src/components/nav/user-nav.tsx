@@ -17,6 +17,8 @@ import {
 
 interface UserNavProps {
   email: string;
+  /** `sidebar` (default) = full-width row, menu opens upward; `topbar` = compact avatar, menu opens down. */
+  placement?: "sidebar" | "topbar";
 }
 
 function getInitials(email: string): string {
@@ -27,7 +29,7 @@ function getInitials(email: string): string {
   return email.slice(0, 2).toUpperCase();
 }
 
-export function UserNav({ email }: UserNavProps) {
+export function UserNav({ email, placement = "sidebar" }: UserNavProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -40,23 +42,34 @@ export function UserNav({ email }: UserNavProps) {
     });
   };
 
+  const topbar = placement === "topbar";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex items-center gap-2.5 w-full rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent transition-colors text-left disabled:opacity-50"
+        className={
+          topbar
+            ? "flex items-center rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            : "flex items-center gap-2.5 w-full rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent transition-colors text-left disabled:opacity-50"
+        }
         disabled={isPending}
+        aria-label={topbar ? email : undefined}
       >
         <Avatar className="size-7 shrink-0">
           <AvatarFallback className="text-[10px] font-semibold bg-primary text-primary-foreground">
             {getInitials(email)}
           </AvatarFallback>
         </Avatar>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-sidebar-foreground truncate">{email}</p>
-        </div>
-        <ChevronUp className="size-3 text-sidebar-foreground/50 shrink-0" />
+        {!topbar && (
+          <>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-sidebar-foreground truncate">{email}</p>
+            </div>
+            <ChevronUp className="size-3 text-sidebar-foreground/50 shrink-0" />
+          </>
+        )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top" className="w-56 mb-1">
+      <DropdownMenuContent align="end" side={topbar ? "bottom" : "top"} className="w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel className="font-normal">
             <p className="text-xs text-muted-foreground truncate">{email}</p>

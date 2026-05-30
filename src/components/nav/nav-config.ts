@@ -14,10 +14,12 @@ import {
   BarChart2,
   Activity,
   Trophy,
+  Calculator,
   ShieldCheck,
   Plug,
   ClipboardList,
-  ClipboardCheck,
+  Inbox,
+  ListTodo,
   type LucideIcon,
 } from "lucide-react";
 import type { Practice } from "@/domain/operating-model";
@@ -46,6 +48,14 @@ export interface NavGroup {
 }
 
 export const NAV_GROUPS: NavGroup[] = [
+  {
+    labelKey: "goals",
+    items: [{ href: "/transformation/ziele", labelKey: "goals", icon: Goal }],
+  },
+  {
+    labelKey: "structure",
+    items: [{ href: "/structure", labelKey: "structure", icon: FolderTree }],
+  },
   {
     labelKey: "portfolio",
     items: [
@@ -78,14 +88,9 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    labelKey: "structure",
-    items: [{ href: "/structure", labelKey: "structure", icon: FolderTree }],
-  },
-  {
     labelKey: "transformation",
     items: [
       { href: "/transformation", labelKey: "transformationCockpit", icon: Gauge, exact: true },
-      { href: "/transformation/ziele", labelKey: "goals", icon: Goal },
     ],
   },
   {
@@ -107,19 +112,27 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    labelKey: "quality",
-    items: [
-      {
-        href: "/quality/features",
-        labelKey: "featureQuality",
-        icon: ClipboardCheck,
-        practice: "featureQs",
-      },
-    ],
+    labelKey: "myTasks",
+    items: [{ href: "/my-tasks", labelKey: "myTasks", icon: ListTodo }],
+  },
+  {
+    labelKey: "myApprovals",
+    items: [{ href: "/my-approvals", labelKey: "myApprovals", icon: Inbox }],
   },
   {
     labelKey: "teamExecution",
     items: [{ href: "/sprint", labelKey: "mySprints", icon: Timer }],
+  },
+  {
+    labelKey: "controlling",
+    items: [
+      {
+        href: "/controlling/kpi-tree",
+        labelKey: "kpiTree",
+        icon: Calculator,
+        practice: "portfolioLevel",
+      },
+    ],
   },
   {
     labelKey: "reporting",

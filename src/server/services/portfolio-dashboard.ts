@@ -12,7 +12,7 @@ import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok } from "@/domain/errors";
 import { parseKpiMeasurements } from "@/domain/kpi";
-import { isoDay, monthStart, addMonths } from "@/domain/calendar";
+import { isoDay, monthStart } from "@/domain/calendar";
 import { deriveEpicEconomics } from "@/domain/epic-economics";
 import type { EpicEconomicsDTO, PortfolioEconomicsData } from "@/domain/portfolio-economics";
 import type { RequestContext } from "@/server/http/mutation-handler";
@@ -75,7 +75,7 @@ export async function getPortfolioEconomics(
     }),
     db.tenant.findUnique({
       where: { id: tenantId },
-      select: { costNeutralTarget: true, dashboardHorizonEnd: true },
+      select: { costNeutralTarget: true },
     }),
   ]);
 
@@ -118,23 +118,9 @@ export async function getPortfolioEconomics(
     ? starts.reduce((min, d) => (d < min ? d : min), starts[0]!)
     : monthStart(new Date());
 
-  // Horizon end: tenant setting, else three years past the latest go-live.
-  let horizonEnd: Date;
-  if (tenant?.dashboardHorizonEnd) {
-    horizonEnd = monthStart(tenant.dashboardHorizonEnd);
-  } else if (epics.length) {
-    const lastGoLive = epics
-      .map((e) => new Date(`${e.goLiveIso}T00:00:00.000Z`))
-      .reduce((max, d) => (d > max ? d : max), axisFrom);
-    horizonEnd = addMonths(lastGoLive, 36);
-  } else {
-    horizonEnd = addMonths(axisFrom, 12);
-  }
-
   return {
     epics,
     axisFromIso: isoDay(axisFrom),
-    horizonEndIso: isoDay(horizonEnd),
     costNeutralTarget: tenant?.costNeutralTarget != null ? Number(tenant.costNeutralTarget) : null,
   };
 }
@@ -142,11 +128,9 @@ export async function getPortfolioEconomics(
 export interface SaveDashboardSettingsInput {
   /** Self-funding threshold per month; null clears it. */
   costNeutralTarget: number | null;
-  /** Recurring-benefit accrual end (ISO `yyyy-mm-dd`); null clears it. */
-  horizonEndIso: string | null;
 }
 
-/** Persists the two configurable Portfolio Dashboard settings on the tenant. */
+/** Persists the configurable Portfolio Dashboard settings on the tenant. */
 export async function savePortfolioDashboardSettings(
   ctx: RequestContext,
   input: SaveDashboardSettingsInput,
@@ -157,9 +141,6 @@ export async function savePortfolioDashboardSettings(
       where: { id: mctx.tenantId },
       data: {
         costNeutralTarget: input.costNeutralTarget,
-        dashboardHorizonEnd: input.horizonEndIso
-          ? new Date(`${input.horizonEndIso}T00:00:00.000Z`)
-          : null,
       },
     });
     return ok({

@@ -117,6 +117,9 @@ model TargetOutcome {
   target     Float
   current    Float?
   dueDate    DateTime? @map("due_date")
+  /// Finance Controller valuation: € per natural unit of improvement
+  /// baseline→target (e.g. € per day saved, € per +1 % NPS).
+  valuePerUnit Decimal? @map("value_per_unit") @db.Decimal(14, 2)
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
   createdBy  String    @map("created_by") @db.Uuid
@@ -480,6 +483,9 @@ model Kpi {
   // Share of the Epic's recurring benefit this KPI realises (fraction 0..1);
   // null = unset → the dashboard splits the benefit equally across the KPIs.
   benefitWeight Decimal? @map("benefit_weight") @db.Decimal(6, 4)
+  /// Finance Controller valuation: € per natural unit of improvement
+  /// baseline→target (e.g. € per day saved, € per +1 % NPS).
+  valuePerUnit  Decimal? @map("value_per_unit") @db.Decimal(14, 2)
 
   createdAt DateTime @default(now()) @map("created_at")
   createdBy String   @map("created_by") @db.Uuid
