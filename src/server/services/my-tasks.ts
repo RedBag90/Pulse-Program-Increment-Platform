@@ -18,8 +18,12 @@ export interface MyTaskRow {
   level: TaskLevel;
   title: string;
   href: string;
-  /** Drives the two sections on the page. */
-  bucket: "open" | "done";
+  /**
+   * `open` is the active backlog; `ready` is the subset of Features that are
+   * approved + assigned to a PI + whose parent Epic is in L4/L5 (i.e. one
+   * click away from `in_progress`); `done` is the 30-day archive.
+   */
+  bucket: "open" | "ready" | "done";
   /** Epic: stageGate + approvalPhase. Feature: status. */
   state: {
     stageGate?: string;
@@ -62,10 +66,13 @@ export async function listMyTasks(db: PrismaClient, principal: Principal): Promi
       status: true,
       stageGate: true,
       approvalPhase: true,
+      piId: true,
       updatedAt: true,
       valueStream: { select: { name: true } },
       art: { select: { name: true } },
-      parent: { select: { id: true, title: true } },
+      // Pull the parent Epic's stageGate so we can label a Feature as "ready"
+      // exactly when it's one click from in_progress (Epic in L4/L5).
+      parent: { select: { id: true, title: true, stageGate: true } },
       pi: { select: { name: true } },
     },
     orderBy: { updatedAt: "desc" },
@@ -81,12 +88,23 @@ export async function listMyTasks(db: PrismaClient, principal: Principal): Promi
     // Hide stale completions — only keep the last 30 days of done items.
     if (isDone && r.updatedAt < cutoff) continue;
 
+    // "Bereit zu starten": Features that satisfy every server-side precondition
+    // of `startFeature`. Surface them in a dedicated bucket with an inline button.
+    const isReady =
+      !isEpic &&
+      !isDone &&
+      r.status === "approved" &&
+      r.piId !== null &&
+      (r.parent?.stageGate === "L4" || r.parent?.stageGate === "L5");
+
+    const bucket: MyTaskRow["bucket"] = isDone ? "done" : isReady ? "ready" : "open";
+
     out.push({
       id: r.id,
       level: isEpic ? "epic" : "feature",
       title: r.title,
       href: isEpic ? `/portfolio/epics/${r.id}` : `/feature/${r.id}`,
-      bucket: isDone ? "done" : "open",
+      bucket,
       state: isEpic
         ? { stageGate: r.stageGate, approvalPhase: r.approvalPhase }
         : { status: r.status },

@@ -3,6 +3,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { listArts } from "@/server/services/art";
 import { listArtPlanningPis } from "@/server/services/pi";
 import { listFeatures } from "@/server/services/feature";
+import { getBlockerWindowsForFeatures } from "@/server/services/dependency";
 import { buildPlanningModel } from "@/server/views/pi-planning";
 import { FeaturePlanningBoard } from "@/features/pi/components/feature-planning-board";
 import { FeaturePlanningTable } from "@/features/pi/components/feature-planning-table";
@@ -52,12 +53,49 @@ export default async function PiPlanningPage({ searchParams }: Props) {
     principal.roles.includes("tenant_admin") ||
     principal.roles.includes("platform_admin");
 
-  const [pisRaw, featurePage] = await Promise.all([
+  const [pisRaw, featurePage, artBudget, tenant] = await Promise.all([
     listArtPlanningPis(db, principal.tenantId, activeArt.id as ArtId),
     listFeatures(db, principal.tenantId, activeArt.id as ArtId),
+    db.artBudget.findFirst({
+      where: { tenantId: principal.tenantId, artId: activeArt.id },
+      select: { byPeriod: true },
+    }),
+    db.tenant.findUnique({
+      where: { id: principal.tenantId },
+      select: { costPerJobSizePoint: true },
+    }),
   ]);
 
-  const { pis, features } = buildPlanningModel(pisRaw, featurePage.items);
+  // Pull the half-year cells from the ArtBudget JSON for the capacity overlay.
+  const artBudgetByPeriod: Record<string, number> | null = (() => {
+    const raw = artBudget?.byPeriod;
+    if (!raw || typeof raw !== "object") return null;
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+    }
+    return Object.keys(out).length > 0 ? out : null;
+  })();
+
+  const costPerJobSizePoint =
+    tenant?.costPerJobSizePoint != null ? Number(tenant.costPerJobSizePoint) : null;
+
+  // Load direct blockers for the ART's Features in one query; feeds the
+  // earliest-PI chip on each card and the warning when a drop violates it.
+  const featureIds = featurePage.items.map((f) => f.id);
+  const blockerWindowsByFeature = await getBlockerWindowsForFeatures(
+    db,
+    principal.tenantId,
+    featureIds,
+  );
+
+  const { pis, features, capacity, blockers } = buildPlanningModel({
+    pis: pisRaw,
+    features: featurePage.items,
+    artBudgetByPeriod,
+    costPerJobSizePoint,
+    blockerWindowsByFeature,
+  });
 
   return (
     <main className="space-y-6 p-8">
@@ -113,6 +151,8 @@ export default async function PiPlanningPage({ searchParams }: Props) {
           canEdit={canEdit}
           features={features}
           pis={pis}
+          capacity={capacity}
+          blockers={blockers}
         />
       ) : (
         <FeaturePlanningBoard
@@ -120,6 +160,8 @@ export default async function PiPlanningPage({ searchParams }: Props) {
           canEdit={canEdit}
           features={features}
           pis={pis}
+          capacity={capacity}
+          blockers={blockers}
         />
       )}
     </main>

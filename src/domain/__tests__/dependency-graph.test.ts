@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { detectCycle } from "@/domain/dependency-graph";
+import { detectCycle, earliestStartFromBlockers } from "@/domain/dependency-graph";
+
+const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
 describe("detectCycle", () => {
   it("returns false when there are no existing edges", () => {
@@ -58,5 +60,40 @@ describe("detectCycle", () => {
       { fromId: "C", toId: "D" },
     ];
     expect(detectCycle("E", "A", edges)).toBe(false);
+  });
+});
+
+describe("earliestStartFromBlockers — spätestes Blocker-Ende plus unscheduled-Liste", () => {
+  it("returns null when there are no blockers (no constraint)", () => {
+    expect(earliestStartFromBlockers([])).toEqual({ earliest: null, unscheduledBlockers: [] });
+  });
+
+  it("picks the latest end across multiple scheduled blockers", () => {
+    const result = earliestStartFromBlockers([
+      { blockerId: "b1", blockerTitle: "B1", blockerEndDate: utc("2026-03-31") },
+      { blockerId: "b2", blockerTitle: "B2", blockerEndDate: utc("2026-06-30") },
+      { blockerId: "b3", blockerTitle: "B3", blockerEndDate: utc("2026-04-30") },
+    ]);
+    expect(result.earliest).toEqual(utc("2026-06-30"));
+    expect(result.unscheduledBlockers).toEqual([]);
+  });
+
+  it("collects unscheduled blockers but still folds the scheduled ones", () => {
+    const result = earliestStartFromBlockers([
+      { blockerId: "b1", blockerTitle: "B1", blockerEndDate: utc("2026-04-30") },
+      { blockerId: "b2", blockerTitle: "Unscheduled-A", blockerEndDate: null },
+      { blockerId: "b3", blockerTitle: "Unscheduled-B", blockerEndDate: null },
+    ]);
+    expect(result.earliest).toEqual(utc("2026-04-30"));
+    expect(result.unscheduledBlockers).toEqual(["Unscheduled-A", "Unscheduled-B"]);
+  });
+
+  it("returns null when every blocker is unscheduled (constraint is 'unknown')", () => {
+    const result = earliestStartFromBlockers([
+      { blockerId: "b1", blockerTitle: "U1", blockerEndDate: null },
+      { blockerId: "b2", blockerTitle: "U2", blockerEndDate: null },
+    ]);
+    expect(result.earliest).toBeNull();
+    expect(result.unscheduledBlockers).toEqual(["U1", "U2"]);
   });
 });

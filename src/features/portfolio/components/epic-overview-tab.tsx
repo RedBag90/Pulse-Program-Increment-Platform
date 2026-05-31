@@ -4,11 +4,26 @@ import { Link } from "@/i18n/navigation";
 import { EpicEditForm } from "./epic-edit-form";
 import { EpicGovernanceFlags } from "./epic-governance-flags";
 import { EpicOwnerAssign } from "./epic-owner-assign";
+import { EpicPlannedWindowForm } from "./epic-planned-window-form";
 import { PhaseBadge } from "@/components/detail/phase-badge";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import { buildInitiativeSummary } from "@/domain/initiative-summary";
 import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
 import type { StageGate, InitiativeStatus } from "@/domain/types";
+
+/** Compress the Epic's children-with-PIs into the derived Ist-Fenster (or null). */
+function deriveIstWindow(
+  children: { pi: { startDate: Date; endDate: Date } | null }[],
+): { start: Date; end: Date } | null {
+  let start: Date | null = null;
+  let end: Date | null = null;
+  for (const c of children) {
+    if (!c.pi) continue;
+    if (!start || c.pi.startDate < start) start = c.pi.startDate;
+    if (!end || c.pi.endDate > end) end = c.pi.endDate;
+  }
+  return start && end ? { start, end } : null;
+}
 
 export interface EpicOverviewTabProps {
   epic: {
@@ -21,9 +36,14 @@ export interface EpicOverviewTabProps {
     ownerId: string | null;
     updatedAt: Date;
     approvedAt: Date | null;
+    plannedStartAt: Date | null;
+    plannedEndAt: Date | null;
     valueStream: { name: string } | null;
     businessCase: unknown;
-    children: { status: string }[];
+    children: {
+      status: string;
+      pi: { startDate: Date; endDate: Date } | null;
+    }[];
     needsSteeringAttention: boolean;
     stagedForBudgeting: boolean;
   };
@@ -104,6 +124,19 @@ export function EpicOverviewTab({
             />
           </Field>
           <Field label="Value Stream">{epic.valueStream?.name ?? "—"}</Field>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            Geplantes Zeitfenster
+          </p>
+          <EpicPlannedWindowForm
+            epicId={epic.id}
+            plannedStartAt={epic.plannedStartAt}
+            plannedEndAt={epic.plannedEndAt}
+            derived={deriveIstWindow(epic.children)}
+            canEdit={canEdit}
+          />
         </div>
 
         <div>

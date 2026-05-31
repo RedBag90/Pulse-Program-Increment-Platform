@@ -48,6 +48,7 @@ export type AuditAction =
   | "epic.approved"
   | "epic.revision.started"
   | "epic.owner.assigned"
+  | "feature.delivery.transitioned"
   | "wsjf.scored"
   | "value_stream.created"
   | "value_stream.updated"
@@ -60,6 +61,7 @@ export type AuditAction =
   | "team.deleted"
   | "pi.created"
   | "pi.updated"
+  | "pi.capacity.updated"
   | "pi.started"
   | "pi.completed"
   | "pi.deleted"
@@ -96,7 +98,8 @@ export type AuditAction =
   | "transformation_snapshot.captured"
   | "budget_allocation.saved"
   | "budget_pool.saved"
-  | "art_budget.saved";
+  | "art_budget.saved"
+  | "budget_plan.revision.captured";
 
 export type AuditResourceType =
   | "initiative"
@@ -120,7 +123,8 @@ export type AuditResourceType =
   | "transformation_snapshot"
   | "budget_allocation"
   | "budget_pool"
-  | "art_budget";
+  | "art_budget"
+  | "budget_plan_revision";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

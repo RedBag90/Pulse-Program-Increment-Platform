@@ -119,3 +119,70 @@ export function withScheduleEstimates(
     actuals: timeline.actuals,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Soll / Ist — the planned delivery window vs. the one derived from Features.
+// ---------------------------------------------------------------------------
+
+/** A delivery window — either the owner's "Soll" or the Features-derived "Ist". */
+export interface EpicWindow {
+  start: Date;
+  end: Date;
+  /** "planned" when both columns are set on the Epic; "derived" when computed from Features' PIs. */
+  source: "planned" | "derived";
+}
+
+/**
+ * The Epic's planned delivery window, if both endpoints are set. The owner's
+ * "Soll" — what they intended; independent of what's actually scheduled.
+ */
+export function plannedEpicWindow(epic: {
+  plannedStartAt: Date | null;
+  plannedEndAt: Date | null;
+}): EpicWindow | null {
+  if (!epic.plannedStartAt || !epic.plannedEndAt) return null;
+  return { start: epic.plannedStartAt, end: epic.plannedEndAt, source: "planned" };
+}
+
+/**
+ * The single window to render for an Epic: prefers the owner's planned window
+ * ("Soll") and falls back to the derived span of its Features' PIs ("Ist").
+ * Returns null when neither exists — the Epic has no scheduled work and no plan.
+ */
+export function resolveEpicWindow(
+  epic: { plannedStartAt: Date | null; plannedEndAt: Date | null },
+  derived: { start: Date; end: Date } | null,
+): EpicWindow | null {
+  const planned = plannedEpicWindow(epic);
+  if (planned) return planned;
+  if (derived) return { start: derived.start, end: derived.end, source: "derived" };
+  return null;
+}
+
+/**
+ * Whether a single date lies *inside* an Epic's planned window. Used to detect
+ * a Feature → PI assignment that falls outside the owner's Soll-Fenster. When
+ * the window isn't set, every date is considered "inside" (no constraint).
+ */
+export function dateWithinPlannedWindow(
+  epic: { plannedStartAt: Date | null; plannedEndAt: Date | null },
+  date: Date,
+): boolean {
+  const w = plannedEpicWindow(epic);
+  if (!w) return true;
+  return date >= w.start && date <= w.end;
+}
+
+/**
+ * Whether a date range *overlaps* the planned window at all (any intersection).
+ * `false` means the range lies entirely before the Soll-Start or entirely after
+ * the Soll-Ende — i.e. the Feature's PI sits completely outside the Epic plan.
+ */
+export function rangeOverlapsPlannedWindow(
+  epic: { plannedStartAt: Date | null; plannedEndAt: Date | null },
+  range: { start: Date; end: Date },
+): boolean {
+  const w = plannedEpicWindow(epic);
+  if (!w) return true;
+  return range.start <= w.end && range.end >= w.start;
+}

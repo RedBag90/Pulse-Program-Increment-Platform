@@ -122,6 +122,8 @@ describe("portfolioRoadmapRows", () => {
         id: "e1",
         title: "Epic 1",
         valueStream: { name: "VS" },
+        plannedStartAt: null,
+        plannedEndAt: null,
         children: [
           { pi: pi(d(2026, 3, 1), d(2026, 4, 30)) },
           { pi: pi(d(2026, 5, 1), d(2026, 6, 30)) },
@@ -143,7 +145,14 @@ describe("portfolioRoadmapRows", () => {
 
   it("leaves range null when no feature is scheduled", () => {
     const rows = portfolioRoadmapRows([
-      { id: "e", title: "E", valueStream: null, children: [{ pi: null }] },
+      {
+        id: "e",
+        title: "E",
+        valueStream: null,
+        plannedStartAt: null,
+        plannedEndAt: null,
+        children: [{ pi: null }],
+      },
     ]);
     expect(rows[0]!.range).toBeNull();
     expect(rows[0]!.sublabel).toBeUndefined();
@@ -167,6 +176,8 @@ describe("valueStreamRoadmapRows", () => {
     {
       id: "e1",
       title: "Epic 1",
+      plannedStartAt: null,
+      plannedEndAt: null,
       children: [
         {
           id: "f1",
@@ -195,6 +206,56 @@ describe("valueStreamRoadmapRows", () => {
     expect(rows[0]).toMatchObject({ id: "__epics__", kind: "group" });
     expect(rows.some((r) => r.kind === "group" && r.label === "ART 1")).toBe(true);
     expect(rows.some((r) => r.kind === "group" && r.label === "Ohne ART")).toBe(true);
+  });
+});
+
+describe("portfolioRoadmapRows — Soll-/Ist-Fenster", () => {
+  it("uses the planned window as the primary bar and exposes the derived Ist as a secondary", () => {
+    const rows = portfolioRoadmapRows([
+      {
+        id: "e1",
+        title: "Epic 1",
+        valueStream: null,
+        plannedStartAt: d(2026, 1, 1),
+        plannedEndAt: d(2026, 12, 31),
+        children: [{ pi: pi(d(2026, 3, 1), d(2026, 9, 30)) }],
+      },
+    ]);
+    expect(rows[0]!.range).toEqual({ start: d(2026, 1, 1), end: d(2026, 12, 31) });
+    expect(rows[0]!.derivedRange).toEqual({ start: d(2026, 3, 1), end: d(2026, 9, 30) });
+  });
+
+  it("falls back to the derived window when no planned endpoints are set", () => {
+    const rows = portfolioRoadmapRows([
+      {
+        id: "e1",
+        title: "Epic 1",
+        valueStream: null,
+        plannedStartAt: null,
+        plannedEndAt: null,
+        children: [{ pi: pi(d(2026, 3, 1), d(2026, 9, 30)) }],
+      },
+    ]);
+    expect(rows[0]!.range).toEqual({ start: d(2026, 3, 1), end: d(2026, 9, 30) });
+    expect(rows[0]!.derivedRange).toBeNull();
+  });
+});
+
+describe("roadmapAxis — Soll + Ist", () => {
+  it("spans both the planned and the derived bars", () => {
+    const rows: RoadmapRow[] = [
+      {
+        id: "e",
+        label: "E",
+        range: range(d(2026, 1, 1), d(2026, 3, 31)), // Soll
+        derivedRange: range(d(2026, 5, 1), d(2026, 8, 31)), // Ist further right
+        depth: 0,
+        kind: "epic",
+      },
+    ];
+    const axis = roadmapAxis(rows);
+    expect(axis.months[0]!.key).toBe("2026-01");
+    expect(axis.months.at(-1)!.key).toBe("2026-08");
   });
 });
 

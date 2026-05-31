@@ -75,7 +75,7 @@ export async function getPortfolioEconomics(
     }),
     db.tenant.findUnique({
       where: { id: tenantId },
-      select: { costNeutralTarget: true },
+      select: { costNeutralTarget: true, costPerJobSizePoint: true },
     }),
   ]);
 
@@ -122,12 +122,16 @@ export async function getPortfolioEconomics(
     epics,
     axisFromIso: isoDay(axisFrom),
     costNeutralTarget: tenant?.costNeutralTarget != null ? Number(tenant.costNeutralTarget) : null,
+    costPerJobSizePoint:
+      tenant?.costPerJobSizePoint != null ? Number(tenant.costPerJobSizePoint) : null,
   };
 }
 
 export interface SaveDashboardSettingsInput {
   /** Self-funding threshold per month; null clears it. */
   costNeutralTarget: number | null;
+  /** €/WSJF-Job-Size point for the PI-Planning capacity overlay; null hides the €-axis. */
+  costPerJobSizePoint: number | null;
 }
 
 /** Persists the configurable Portfolio Dashboard settings on the tenant. */
@@ -141,6 +145,7 @@ export async function savePortfolioDashboardSettings(
       where: { id: mctx.tenantId },
       data: {
         costNeutralTarget: input.costNeutralTarget,
+        costPerJobSizePoint: input.costPerJobSizePoint,
       },
     });
     return ok({

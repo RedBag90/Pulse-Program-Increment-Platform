@@ -4,6 +4,9 @@ import {
   resolveGoLive,
   scheduleFromFundedWindow,
   withScheduleEstimates,
+  resolveEpicWindow,
+  plannedEpicWindow,
+  rangeOverlapsPlannedWindow,
 } from "@/domain/epic-schedule";
 import { emptyTimeline, type TimelineFields } from "@/domain/timeline";
 
@@ -103,5 +106,69 @@ describe("withScheduleEstimates — actuals-preserving merge", () => {
       estimates: { detailing: "2025-01-01", backlog: "2026-07-01", implementation: "2027-06-30" },
       actuals: { backlog: "2025-05-15" }, // owner's manual actual survives
     });
+  });
+});
+
+describe("resolveEpicWindow — Soll bevorzugt, Ist als Fallback", () => {
+  const derived = { start: utc("2026-02-01"), end: utc("2026-08-01") };
+
+  it("returns null when neither Soll nor Ist is set", () => {
+    expect(resolveEpicWindow({ plannedStartAt: null, plannedEndAt: null }, null)).toBeNull();
+  });
+
+  it("uses the derived Ist window when only that exists", () => {
+    const w = resolveEpicWindow({ plannedStartAt: null, plannedEndAt: null }, derived);
+    expect(w?.source).toBe("derived");
+    expect(w?.start).toEqual(derived.start);
+    expect(w?.end).toEqual(derived.end);
+  });
+
+  it("uses the planned Soll window when both are set", () => {
+    const epic = { plannedStartAt: utc("2026-01-01"), plannedEndAt: utc("2026-12-31") };
+    const w = resolveEpicWindow(epic, derived);
+    expect(w?.source).toBe("planned");
+    expect(w?.start).toEqual(epic.plannedStartAt);
+    expect(w?.end).toEqual(epic.plannedEndAt);
+  });
+
+  it("falls back to derived if only one endpoint of Soll is set", () => {
+    const w = resolveEpicWindow({ plannedStartAt: utc("2026-01-01"), plannedEndAt: null }, derived);
+    expect(w?.source).toBe("derived");
+  });
+});
+
+describe("plannedEpicWindow + rangeOverlapsPlannedWindow", () => {
+  const epic = { plannedStartAt: utc("2026-03-01"), plannedEndAt: utc("2026-09-30") };
+
+  it("plannedEpicWindow is null when either endpoint missing", () => {
+    expect(plannedEpicWindow({ plannedStartAt: null, plannedEndAt: utc("2026-09-30") })).toBeNull();
+    expect(plannedEpicWindow({ plannedStartAt: utc("2026-03-01"), plannedEndAt: null })).toBeNull();
+  });
+
+  it("treats every range as inside when no Soll is set (no constraint)", () => {
+    expect(
+      rangeOverlapsPlannedWindow(
+        { plannedStartAt: null, plannedEndAt: null },
+        { start: utc("2099-01-01"), end: utc("2099-12-31") },
+      ),
+    ).toBe(true);
+  });
+
+  it("flags ranges fully before / after the Soll-Fenster as non-overlapping", () => {
+    expect(
+      rangeOverlapsPlannedWindow(epic, { start: utc("2026-01-01"), end: utc("2026-02-15") }),
+    ).toBe(false); // entirely before
+    expect(
+      rangeOverlapsPlannedWindow(epic, { start: utc("2026-10-01"), end: utc("2026-12-31") }),
+    ).toBe(false); // entirely after
+  });
+
+  it("treats touching boundaries as overlapping", () => {
+    expect(
+      rangeOverlapsPlannedWindow(epic, { start: utc("2026-01-01"), end: utc("2026-03-01") }),
+    ).toBe(true);
+    expect(
+      rangeOverlapsPlannedWindow(epic, { start: utc("2026-09-30"), end: utc("2026-12-31") }),
+    ).toBe(true);
   });
 });

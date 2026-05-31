@@ -93,6 +93,9 @@ export interface UpdateEpicInput {
   description?: string | undefined;
   needsSteeringAttention?: boolean | undefined;
   stagedForBudgeting?: boolean | undefined;
+  /** Planned delivery window ("Soll"). `null` clears, `undefined` leaves unchanged. */
+  plannedStartAt?: Date | null | undefined;
+  plannedEndAt?: Date | null | undefined;
 }
 
 export async function updateEpic(
@@ -100,7 +103,15 @@ export async function updateEpic(
   input: UpdateEpicInput,
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, title, description, needsSteeringAttention, stagedForBudgeting } = input;
+  const {
+    id,
+    title,
+    description,
+    needsSteeringAttention,
+    stagedForBudgeting,
+    plannedStartAt,
+    plannedEndAt,
+  } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const existing = await tx.initiative.findFirst({
@@ -119,20 +130,42 @@ export async function updateEpic(
     });
     if (isErr(authz)) return authz;
 
+    // Effective post-update endpoints — used for the start ≤ end check so the
+    // validation is correct when only one column is being touched.
+    const nextStart = plannedStartAt === undefined ? existing.plannedStartAt : plannedStartAt;
+    const nextEnd = plannedEndAt === undefined ? existing.plannedEndAt : plannedEndAt;
+    if (nextStart && nextEnd && nextStart > nextEnd) {
+      return err({
+        kind: "conflict" as const,
+        reason: "Endedatum des geplanten Zeitfensters liegt vor dem Startdatum",
+      });
+    }
+
     const changes = buildChangelog(
       {
         title: existing.title,
         description: existing.description,
         needsSteeringAttention: existing.needsSteeringAttention,
         stagedForBudgeting: existing.stagedForBudgeting,
+        plannedStartAt: existing.plannedStartAt,
+        plannedEndAt: existing.plannedEndAt,
       },
       {
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
         ...(needsSteeringAttention !== undefined && { needsSteeringAttention }),
         ...(stagedForBudgeting !== undefined && { stagedForBudgeting }),
+        ...(plannedStartAt !== undefined && { plannedStartAt }),
+        ...(plannedEndAt !== undefined && { plannedEndAt }),
       },
-      ["title", "description", "needsSteeringAttention", "stagedForBudgeting"],
+      [
+        "title",
+        "description",
+        "needsSteeringAttention",
+        "stagedForBudgeting",
+        "plannedStartAt",
+        "plannedEndAt",
+      ],
     );
 
     await tx.initiative.update({
@@ -143,6 +176,8 @@ export async function updateEpic(
         ...(description !== undefined && { description }),
         ...(needsSteeringAttention !== undefined && { needsSteeringAttention }),
         ...(stagedForBudgeting !== undefined && { stagedForBudgeting }),
+        ...(plannedStartAt !== undefined && { plannedStartAt }),
+        ...(plannedEndAt !== undefined && { plannedEndAt }),
       },
     });
 
@@ -614,6 +649,9 @@ export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) 
           wsjfJobSize: true,
           wsjfComputed: true,
           art: { select: { id: true, name: true } },
+          // The Features' PI windows feed the "Ist"-Ableitung of the Epic's
+          // planned delivery window on the Overview tab and on the roadmap.
+          pi: { select: { id: true, name: true, startDate: true, endDate: true } },
         },
         orderBy: { wsjfComputed: "desc" },
       },

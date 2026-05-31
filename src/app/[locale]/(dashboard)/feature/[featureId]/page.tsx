@@ -13,6 +13,9 @@ import { STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { FeatureOverviewTab } from "@/features/art/components/feature-overview-tab";
 import { CreateStoryDialog } from "@/features/story/components/create-story-dialog";
 import { DeleteFeatureButton } from "@/features/art/components/delete-feature-button";
+import { FeatureDeliveryControls } from "@/features/feature/components/feature-delivery-controls";
+import { getBlockerWindowsForFeatures } from "@/server/services/dependency";
+import { earliestStartFromBlockers } from "@/domain/dependency-graph";
 import { DeleteStoryButton } from "@/features/story/components/delete-story-button";
 import { LinkDependencyDialog } from "@/features/dependencies/components/link-dependency-dialog";
 import { UnlinkDependencyButton } from "@/features/dependencies/components/unlink-dependency-button";
@@ -101,6 +104,12 @@ export default async function FeatureDetailPage({ params, searchParams }: Props)
     orderBy: { title: "asc" },
   });
 
+  // Earliest-start derivation from one-hop blockers — surfaced as a header on
+  // the Dependencies tab so the planner sees the calendar constraint in place.
+  const blockerMap = await getBlockerWindowsForFeatures(db, principal.tenantId, [featureId]);
+  const blockerWindows = blockerMap.get(featureId) ?? [];
+  const blockerSummary = earliestStartFromBlockers(blockerWindows);
+
   const activityEvents = historyEvents.map((e) => ({
     id: e.id,
     action: e.action,
@@ -120,7 +129,17 @@ export default async function FeatureDetailPage({ params, searchParams }: Props)
       basePath={`/feature/${featureId}`}
       headerActions={
         canEdit ? (
-          <DeleteFeatureButton id={featureId} artId={artId} title={feature.title} />
+          <div className="flex flex-wrap items-start gap-2">
+            <FeatureDeliveryControls
+              featureId={featureId}
+              status={feature.status}
+              piAssigned={feature.piId !== null}
+              parentEpicReady={
+                feature.parent?.stageGate === "L4" || feature.parent?.stageGate === "L5"
+              }
+            />
+            <DeleteFeatureButton id={featureId} artId={artId} title={feature.title} />
+          </div>
         ) : undefined
       }
       aside={<InitiativeActivitySidebar events={activityEvents} />}
@@ -224,6 +243,24 @@ export default async function FeatureDetailPage({ params, searchParams }: Props)
               />
             </PermissionGate>
           </div>
+
+          {blockerWindows.length > 0 && (
+            <div className="rounded-lg border bg-muted/30 px-4 py-2 text-sm">
+              <p>
+                <span className="font-medium">Frühestmöglicher Start: </span>
+                {blockerSummary.earliest
+                  ? blockerSummary.earliest.toISOString().slice(0, 10)
+                  : "unbestimmt"}
+                {blockerSummary.unscheduledBlockers.length > 0 && (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    ({blockerSummary.unscheduledBlockers.length} Blocker noch ungeplant
+                    {blockerSummary.unscheduledBlockers.length > 0 ? ": " : ""}
+                    {blockerSummary.unscheduledBlockers.slice(0, 3).join(", ")})
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
           {dependencies.length === 0 ? (
             <p className="text-sm text-muted-foreground/60">No dependencies linked.</p>
           ) : (

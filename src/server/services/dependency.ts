@@ -142,3 +142,57 @@ export async function listDependencies(
     orderBy: { createdAt: "asc" },
   });
 }
+
+/**
+ * One-hop blocker-windows per Feature — feeds the "earliest possible PI"
+ * derivation in `dependency-graph` / the PI-Planning overlay.
+ *
+ * Semantics: a Feature F is "blocked by" X when either
+ *   • an edge `X → F` of type `blocks` exists (X actively blocks F), or
+ *   • an edge `F → X` of type `depends_on` exists (F waits on X).
+ * `relates_to` edges are purely informational and ignored. Returns one entry
+ * per direct upstream constraint with the blocker's PI window (null when the
+ * blocker is itself unscheduled).
+ */
+export async function getBlockerWindowsForFeatures(
+  db: PrismaClient,
+  tenantId: TenantId,
+  featureIds: readonly string[],
+): Promise<
+  Map<string, { blockerId: string; blockerTitle: string; blockerEndDate: Date | null }[]>
+> {
+  const out = new Map<
+    string,
+    { blockerId: string; blockerTitle: string; blockerEndDate: Date | null }[]
+  >();
+  if (featureIds.length === 0) return out;
+
+  const rows = await db.dependency.findMany({
+    where: {
+      tenantId,
+      OR: [
+        { type: "blocks", toId: { in: featureIds as string[] } },
+        { type: "depends_on", fromId: { in: featureIds as string[] } },
+      ],
+    },
+    include: {
+      from: { select: { id: true, title: true, pi: { select: { endDate: true } } } },
+      to: { select: { id: true, title: true, pi: { select: { endDate: true } } } },
+    },
+  });
+
+  for (const r of rows) {
+    // For 'blocks' the *from* side is the blocker; for 'depends_on' the *to* side is.
+    const isBlocks = r.type === "blocks";
+    const featureSide = isBlocks ? r.toId : r.fromId;
+    const blocker = isBlocks ? r.from : r.to;
+    const list = out.get(featureSide) ?? [];
+    list.push({
+      blockerId: blocker.id,
+      blockerTitle: blocker.title,
+      blockerEndDate: blocker.pi?.endDate ?? null,
+    });
+    out.set(featureSide, list);
+  }
+  return out;
+}

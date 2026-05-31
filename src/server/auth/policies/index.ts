@@ -31,6 +31,7 @@ export type Action =
   | "feature.delete"
   | "feature.review.submit"
   | "feature.review.decide"
+  | "feature.delivery.set"
   | "story.create"
   | "story.update"
   | "story.delete"
@@ -56,6 +57,7 @@ export type Action =
   | "admin.users.read"
   | "target.manage"
   | "budget.manage"
+  | "budget_plan.revision.capture"
   | "art_budget.manage"
   | "kpi.value.manage";
 
@@ -104,6 +106,10 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Run participatory budgeting: distribute the budget pool across Epics. The
   // portfolio funders own this — the LPM/portfolio lead and the tenant admin.
   "budget.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
+  // Freezing the live participatory-budgeting board into a half-year snapshot.
+  // Same audience as `budget.manage` — whoever shapes the plan also owns the
+  // revision record.
+  "budget_plan.revision.capture": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
   // Distribute a Value Stream's budget down to its ARTs. Coarse pre-filter; the
   // service-seam check authoritatively allows the VS's finance approver too.
   "art_budget.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER] }],
@@ -199,6 +205,9 @@ export const POLICIES: Record<Action, Grant[]> = {
   "feature.update": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
   "feature.wsjf.set": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
   "feature.review.submit": [{ roles: [FEATURE_OWNER, RTE, PORTFOLIO_MANAGER] }],
+  // Delivery-lifecycle transitions on Features (approved → in_progress, pause,
+  // resume, complete, cancel). Same audience as "feature.update".
+  "feature.delivery.set": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
 
   // ── Story ───────────────────────────────────────────────────────────────
   // Team-level roles edit freely; program/portfolio roles only within their

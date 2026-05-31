@@ -9,6 +9,14 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { findValidatedParent } from "@/server/services/initiative-write";
 import { paginate, type PageParams } from "@/server/db/paginate";
+import { rangeOverlapsPlannedWindow } from "@/domain/epic-schedule";
+import { canDeliveryTransition } from "@/domain/initiative-status";
+import { earliestStartFromBlockers, type BlockerWindow } from "@/domain/dependency-graph";
+
+/** Non-fatal advisories surfaced alongside a successful mutation (e.g. setFeaturePi). */
+export interface MutationWarnings {
+  warnings: string[];
+}
 
 export interface CreateFeatureInput {
   parentId: EpicId;
@@ -198,11 +206,17 @@ export interface SetFeaturePiInput {
   piId: PiId | null;
 }
 
-/** Assign a feature to a PI (or back to the backlog). Enforces the same-ART rule. */
+/**
+ * Assign a feature to a PI (or back to the backlog). Enforces the same-ART rule
+ * (hard) and checks softer constraints — notably the parent Epic's planned
+ * delivery window ("Soll-Fenster") — returning advisory `warnings` instead of
+ * rejecting. The platform stays deliberately permissive at this seam; the UI
+ * surfaces the warnings as toasts so the planner sees but isn't blocked by them.
+ */
 export async function setFeaturePi(
   ctx: RequestContext,
   input: SetFeaturePiInput,
-): Promise<Result<void>> {
+): Promise<Result<MutationWarnings>> {
   const mctx = toMutationContext(ctx);
   const { featureId, piId } = input;
 
@@ -219,6 +233,8 @@ export async function setFeaturePi(
       return err({ kind: "not_found" as const, resourceType: "Feature", id: featureId });
     }
 
+    const warnings: string[] = [];
+
     if (piId !== null) {
       const pi = await tx.programIncrement.findFirst({
         where: { id: piId, tenantId: mctx.tenantId },
@@ -232,6 +248,67 @@ export async function setFeaturePi(
           reason: "Feature and Program Increment belong to different ARTs",
         });
       }
+
+      // Soft check: does the PI window overlap the parent Epic's planned window?
+      // Only when both endpoints of the Soll-Fenster are set on the Epic.
+      if (feature.parentId) {
+        const epic = await tx.initiative.findFirst({
+          where: { id: feature.parentId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
+          select: { plannedStartAt: true, plannedEndAt: true, title: true },
+        });
+        if (
+          epic &&
+          !rangeOverlapsPlannedWindow(
+            { plannedStartAt: epic.plannedStartAt, plannedEndAt: epic.plannedEndAt },
+            { start: pi.startDate, end: pi.endDate },
+          )
+        ) {
+          warnings.push(
+            `Ziel-PI liegt außerhalb des geplanten Umsetzungsfensters des Epics „${epic.title}".`,
+          );
+        }
+      }
+
+      // Soft check: would the target PI start before all upstream blockers end?
+      // One-hop dependencies only — same shape `getBlockerWindowsForFeatures`
+      // uses for the planning board. Unscheduled blockers contribute uncertainty,
+      // not a date; they're surfaced separately so the planner can react.
+      const blockerEdges = await tx.dependency.findMany({
+        where: {
+          tenantId: mctx.tenantId,
+          OR: [
+            { type: "blocks", toId: featureId },
+            { type: "depends_on", fromId: featureId },
+          ],
+        },
+        include: {
+          from: { select: { id: true, title: true, pi: { select: { endDate: true } } } },
+          to: { select: { id: true, title: true, pi: { select: { endDate: true } } } },
+        },
+      });
+      const blockerWindows: BlockerWindow[] = blockerEdges.map((e) => {
+        const isBlocks = e.type === "blocks";
+        const blocker = isBlocks ? e.from : e.to;
+        return {
+          blockerId: blocker.id,
+          blockerTitle: blocker.title,
+          blockerEndDate: blocker.pi?.endDate ?? null,
+        };
+      });
+      const { earliest, unscheduledBlockers } = earliestStartFromBlockers(blockerWindows);
+      if (earliest && pi.startDate < earliest) {
+        const blockerNote =
+          unscheduledBlockers.length > 0
+            ? ` (${unscheduledBlockers.length} weitere noch unscheduled)`
+            : "";
+        warnings.push(
+          `Ziel-PI startet vor dem frühestmöglichen Termin laut Blockern (frühestens ${earliest.toISOString().slice(0, 10)})${blockerNote}.`,
+        );
+      } else if (!earliest && unscheduledBlockers.length > 0) {
+        warnings.push(
+          `Frühestmöglicher Start ist noch unbestimmt — Blocker sind ungeplant: ${unscheduledBlockers.slice(0, 3).join(", ")}.`,
+        );
+      }
     }
 
     await tx.initiative.update({
@@ -240,7 +317,7 @@ export async function setFeaturePi(
     });
 
     return ok({
-      result: undefined,
+      result: { warnings },
       audit: {
         action: "initiative.updated",
         resourceType: "initiative",
@@ -327,7 +404,9 @@ export async function getFeature(db: PrismaClient, tenantId: TenantId, id: Featu
   return db.initiative.findFirst({
     where: { id, tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
     include: {
-      parent: { select: { id: true, title: true } },
+      // The parent Epic's stageGate gates the "Umsetzung starten"-Aktion in the
+      // delivery controls — surfaced here so the page can pre-disable cleanly.
+      parent: { select: { id: true, title: true, stageGate: true } },
       art: { select: { id: true, name: true } },
       pi: { select: { id: true, name: true, startDate: true, endDate: true } },
       children: {
@@ -336,6 +415,108 @@ export async function getFeature(db: PrismaClient, tenantId: TenantId, id: Featu
       },
     },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Delivery lifecycle — `approved → in_progress ↔ blocked → completed | cancelled`.
+// Picks up where the QS gate leaves off; the matrix lives in `initiative-status`.
+// ---------------------------------------------------------------------------
+
+export type FeatureDeliveryStatus =
+  | "approved"
+  | "in_progress"
+  | "blocked"
+  | "completed"
+  | "cancelled";
+
+export interface SetFeatureDeliveryStatusInput {
+  id: FeatureId;
+  to: FeatureDeliveryStatus;
+  /** Optional context — required by the action layer for pause/cancel transitions. */
+  reason?: string | undefined;
+}
+
+/**
+ * Transitions a Feature's delivery status. Validates the transition against the
+ * delivery matrix and, when starting (`→ in_progress`), the operational
+ * preconditions that make starting meaningful: the Feature must be assigned to
+ * a PI and the parent Epic must be in implementation (`L4`) or done (`L5`).
+ *
+ * The `reason` field is persisted on the audit `changes` map — no schema
+ * change for v1, same idiom as the "Meine Freigaben" comments.
+ */
+export async function setFeatureDeliveryStatus(
+  ctx: RequestContext,
+  input: SetFeatureDeliveryStatusInput,
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id, to, reason } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const feature = await tx.initiative.findFirst({
+      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
+      select: { id: true, status: true, piId: true, parentId: true },
+    });
+    if (!feature) {
+      return err({ kind: "not_found" as const, resourceType: "Feature", id });
+    }
+
+    if (!canDeliveryTransition(feature.status, to)) {
+      return err({
+        kind: "conflict" as const,
+        reason: `Übergang von "${feature.status}" nach "${to}" ist im Delivery-Lebenszyklus nicht erlaubt`,
+      });
+    }
+
+    // Starting preconditions: PI assigned + parent Epic in implementation.
+    if (to === "in_progress") {
+      if (feature.piId === null) {
+        return err({
+          kind: "conflict" as const,
+          reason: "Feature ist keinem PI zugewiesen — bitte erst einplanen",
+        });
+      }
+      if (feature.parentId) {
+        const epic = await tx.initiative.findFirst({
+          where: { id: feature.parentId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
+          select: { stageGate: true },
+        });
+        if (!epic || (epic.stageGate !== "L4" && epic.stageGate !== "L5")) {
+          return err({
+            kind: "conflict" as const,
+            reason:
+              "Epic noch nicht in Implementation (L4) — Feature kann noch nicht gestartet werden",
+          });
+        }
+      }
+    }
+
+    await tx.initiative.update({
+      where: { id },
+      data: { status: to, updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "feature.delivery.transitioned",
+        resourceType: "initiative",
+        resourceId: id,
+        changes: {
+          status: { before: feature.status, after: to },
+          ...(reason ? { reason: { before: null, after: reason } } : {}),
+        },
+      },
+    });
+  });
+}
+
+/** Convenience wrapper for the most common transition (Bereit → Umsetzung). */
+export async function startFeature(
+  ctx: RequestContext,
+  input: { id: FeatureId },
+): Promise<Result<void>> {
+  return setFeatureDeliveryStatus(ctx, { id: input.id, to: "in_progress" });
 }
 
 // ---------------------------------------------------------------------------

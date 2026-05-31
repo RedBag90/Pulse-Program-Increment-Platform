@@ -15,6 +15,9 @@ export async function getPortfolioRoadmap(db: PrismaClient, tenantId: TenantId) 
       id: true,
       title: true,
       status: true,
+      // The owner's "Soll"-Fenster; rendered as the primary bar when set.
+      plannedStartAt: true,
+      plannedEndAt: true,
       valueStream: { select: { name: true } },
       children: {
         where: { deletedAt: null, level: InitiativeLevel.FEATURE },
@@ -55,6 +58,8 @@ export async function getValueStreamRoadmap(
       id: true,
       title: true,
       status: true,
+      plannedStartAt: true,
+      plannedEndAt: true,
       children: {
         where: { deletedAt: null, level: InitiativeLevel.FEATURE },
         select: {

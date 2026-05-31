@@ -68,6 +68,53 @@ export const updateEpicAction = createServerAction({
   mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to update epic"),
 });
 
+/**
+ * Sets (or clears) the Epic's planned delivery window — the owner's "Soll".
+ * Both endpoints are optional and round-trip as ISO `yyyy-mm-dd` strings. An
+ * empty value clears that endpoint (sets it to null in the DB). The service
+ * validates `start ≤ end` when both are present.
+ */
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Datum muss im Format yyyy-mm-dd vorliegen" });
+
+export const setEpicPlannedWindowAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    plannedStartAt: isoDate.nullable(),
+    plannedEndAt: isoDate.nullable(),
+  }),
+  action: "epic.update",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    const start = f.nonEmptyString("plannedStartAt");
+    const end = f.nonEmptyString("plannedEndAt");
+    return {
+      id: f.string("id"),
+      // Empty form value → explicit clear (null); missing → undefined (untouched).
+      // The form always submits both fields, so we treat empty as "clear".
+      plannedStartAt: start ?? null,
+      plannedEndAt: end ?? null,
+    };
+  },
+  service: (ctx, input) =>
+    updateEpic(ctx, {
+      id: input.id as EpicId,
+      plannedStartAt: input.plannedStartAt
+        ? new Date(`${input.plannedStartAt}T00:00:00.000Z`)
+        : null,
+      plannedEndAt: input.plannedEndAt ? new Date(`${input.plannedEndAt}T00:00:00.000Z`) : null,
+    }),
+  revalidate: "epic",
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Epic nicht gefunden"
+        : "Zeitfenster konnte nicht gespeichert werden",
+});
+
 /** Toggles a governance flag (steering / budgeting) on an Epic from the overview. */
 export const setEpicFlagAction = createServerAction({
   schema: z.object({

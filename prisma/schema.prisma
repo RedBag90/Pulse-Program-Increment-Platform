@@ -22,6 +22,11 @@ model Tenant {
   // Participatory Budgeting: total budget pool per half-year, e.g. { "2026-H1": 500000 }.
   budgetPoolByPeriod Json? @map("budget_pool_by_period")
 
+  // Conversion rate that turns WSJF Job-Size points into € for the PI-Planning
+  // capacity overlay (Σ Job Size × this = €-Demand vs. ART budget). When null,
+  // the €-axis of the capacity badge is hidden — Job Size alone is rendered.
+  costPerJobSizePoint Decimal? @map("cost_per_job_size_point") @db.Decimal(10, 2)
+
   valueStreams            ValueStream[]
   arts                    Art[]
   teams                   Team[]
@@ -39,6 +44,7 @@ model Tenant {
   transformationSnapshots TransformationSnapshot[]
   budgetAllocations       BudgetAllocation[]
   artBudgets              ArtBudget[]
+  budgetPlanRevisions     BudgetPlanRevision[]
   piStandards             PiStandard[]
 
   @@map("tenants")
@@ -295,6 +301,12 @@ model ProgramIncrement {
   endDate   DateTime @map("end_date") @db.Date
   status    String   @default("planned")
 
+  // PI Planning capacity (overrides). When null, the auto-prorated value from
+  // the ART budget is used for the €-axis; Job-Size capacity is "unlimited"
+  // (no over-allocation flag).
+  capacityJobSize Int?     @map("capacity_job_size")
+  capacityAmount  Decimal? @map("capacity_amount") @db.Decimal(14, 2)
+
   art         Art           @relation(fields: [artId], references: [id])
   sprints     Sprint[]
   initiatives Initiative[]
@@ -383,6 +395,13 @@ model Initiative {
   hypothesisApprovedAt   DateTime? @map("hypothesis_approved_at")
   selectedForAnalyzingAt DateTime? @map("selected_for_analyzing_at") // stamped when the Epic enters L2
   businessCaseApprovedAt DateTime? @map("business_case_approved_at")
+
+  // Geplantes Umsetzungsfenster (EPIC only): the owner-set "Soll" window for
+  // when the Epic should be in delivery. Roadmap shows this alongside the
+  // derived "Ist" window (the span of its Features' PIs); divergences surface
+  // as warnings without blocking scheduling.
+  plannedStartAt DateTime? @map("planned_start_at") @db.Date
+  plannedEndAt   DateTime? @map("planned_end_at")   @db.Date
 
   // Story points (STORY only)
   storyPoints Int? @map("story_points")
@@ -543,6 +562,29 @@ model ArtBudget {
 
   @@index([tenantId])
   @@map("art_budgets")
+}
+
+/// An immutable snapshot of the participatory-budgeting plan for one
+/// half-year cycle ("YYYY-H1" | "-H2"). Captures the Epic priorisation,
+/// the per-Epic allocations across all occupied half-years, the
+/// Value-Stream + ART roll-ups, and the Features that were assigned to
+/// PIs within the captured cycle — enough to render the snapshot without
+/// touching the live tables. Re-capturing within the same cycle updates
+/// the row (idempotent per `(tenantId, cycleKey)`).
+model BudgetPlanRevision {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  cycleKey   String   @map("cycle_key") // "YYYY-H1" | "YYYY-H2"
+  capturedAt DateTime @default(now()) @map("captured_at")
+  capturedBy String   @map("captured_by") @db.Uuid
+  // Frozen BudgetPlanSnapshot — see src/domain/budget-plan-snapshot.ts.
+  payload    Json
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, cycleKey])
+  @@index([tenantId, capturedAt(sort: Desc)])
+  @@map("budget_plan_revisions")
 }
 
 model Dependency {

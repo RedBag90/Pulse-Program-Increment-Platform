@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { createPi, startPi, completePi, deletePi } from "@/server/services/pi";
+import { createPi, startPi, completePi, deletePi, setPiCapacity } from "@/server/services/pi";
 import { authorize } from "@/server/auth/authorize";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
@@ -93,6 +93,46 @@ export async function transitionPiAction(
   revalidateFor("pi");
   return { success: true };
 }
+
+/**
+ * Sets the per-PI capacity overrides used by the PI-Planning overlay
+ * (Job Size + €-Budget). Empty values clear the respective override; the
+ * service interprets `null` as a deliberate clear.
+ */
+export const setPiCapacityAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    artId: z.string().uuid(),
+    capacityJobSize: z.number().nonnegative().nullable(),
+    capacityAmount: z.number().nonnegative().nullable(),
+  }),
+  action: "pi.update",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    const job = f.nonEmptyString("capacityJobSize");
+    const amount = f.nonEmptyString("capacityAmount");
+    return {
+      id: f.string("id"),
+      artId: f.string("artId"),
+      capacityJobSize: job === undefined ? null : Number(job),
+      capacityAmount: amount === undefined ? null : Number(amount),
+    };
+  },
+  service: (ctx, input) =>
+    setPiCapacity(ctx, {
+      id: input.id as PiId,
+      capacityJobSize: input.capacityJobSize,
+      capacityAmount: input.capacityAmount,
+    }),
+  revalidate: "pi",
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "PI nicht gefunden"
+        : "Kapazität konnte nicht gespeichert werden",
+});
 
 export const deletePiAction = createServerAction({
   schema: z.object({ id: z.string().uuid(), artId: z.string().uuid() }),

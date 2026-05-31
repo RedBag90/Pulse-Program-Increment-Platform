@@ -50,7 +50,7 @@ export interface NavGroup {
 export const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: "goals",
-    items: [{ href: "/transformation/ziele", labelKey: "goals", icon: Goal }],
+    items: [{ href: "/transformation", labelKey: "goals", icon: Goal, exact: true }],
   },
   {
     labelKey: "structure",
@@ -74,23 +74,11 @@ export const NAV_GROUPS: NavGroup[] = [
         practice: "portfolioLevel",
       },
       {
-        href: "/portfolio/budgeting",
-        labelKey: "participatoryBudgeting",
-        icon: Wallet,
-        capability: "budget.manage",
-      },
-      {
         href: "/roadmap/portfolio",
         labelKey: "portfolioRoadmap",
         icon: Map,
         practice: "portfolioLevel",
       },
-    ],
-  },
-  {
-    labelKey: "transformation",
-    items: [
-      { href: "/transformation", labelKey: "transformationCockpit", icon: Gauge, exact: true },
     ],
   },
   {
@@ -126,6 +114,18 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: "controlling",
     items: [
+      { href: "/controlling", labelKey: "controllingOverview", icon: Gauge, exact: true },
+      {
+        href: "/portfolio/budgeting",
+        labelKey: "participatoryBudgeting",
+        icon: Wallet,
+        capability: "budget.manage",
+      },
+      {
+        href: "/controlling/budget-plan",
+        labelKey: "budgetPlan",
+        icon: ClipboardList,
+      },
       {
         href: "/controlling/kpi-tree",
         labelKey: "kpiTree",

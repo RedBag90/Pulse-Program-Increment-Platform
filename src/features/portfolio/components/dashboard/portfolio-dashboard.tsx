@@ -182,7 +182,12 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
         onTo={setToIso}
       />
 
-      {canEdit && <SettingsEditor costNeutralTarget={data.costNeutralTarget} />}
+      {canEdit && (
+        <SettingsEditor
+          costNeutralTarget={data.costNeutralTarget}
+          costPerJobSizePoint={data.costPerJobSizePoint}
+        />
+      )}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel
@@ -663,7 +668,13 @@ function Slicers({
 
 // --- settings editor (cost-neutral target line) ----------------------------
 
-function SettingsEditor({ costNeutralTarget }: { costNeutralTarget: number | null }) {
+function SettingsEditor({
+  costNeutralTarget,
+  costPerJobSizePoint,
+}: {
+  costNeutralTarget: number | null;
+  costPerJobSizePoint: number | null;
+}) {
   const [state, formAction, pending] = useActionState(savePortfolioDashboardSettingsAction, {});
   return (
     <Card className="p-4">
@@ -679,6 +690,19 @@ function SettingsEditor({ costNeutralTarget }: { costNeutralTarget: number | nul
             className="w-52"
             defaultValue={costNeutralTarget ?? ""}
             placeholder="z. B. 100"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pd-cpj">€ pro WSJF-Job-Size-Punkt</Label>
+          <Input
+            id="pd-cpj"
+            name="costPerJobSizePoint"
+            type="number"
+            min={0}
+            step={100}
+            className="w-52"
+            defaultValue={costPerJobSizePoint ?? ""}
+            placeholder="leer = €-Achse aus"
           />
         </div>
         <Button type="submit" variant="outline" disabled={pending}>

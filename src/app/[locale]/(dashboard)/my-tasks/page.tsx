@@ -10,6 +10,7 @@ import {
 } from "@/components/detail/initiative-labels";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
+import { StartFeatureButton } from "@/features/my-tasks/components/start-feature-button";
 
 /**
  * "Meine Tasks" — the personal ownership inbox. Lists every Epic and Feature
@@ -78,7 +79,11 @@ function Row({ row }: { row: MyTaskRow }) {
         <ContextLine row={row} />
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <StateBadges row={row} />
+        {row.bucket === "ready" ? (
+          <StartFeatureButton featureId={row.id} />
+        ) : (
+          <StateBadges row={row} />
+        )}
         <span className="text-xs text-muted-foreground">aktualisiert {fmtDate(row.updatedAt)}</span>
       </div>
     </div>
@@ -92,9 +97,12 @@ export default async function MyTasksPage() {
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const rows = await listMyTasks(db, principal);
 
-  const byLevel = new Map<TaskLevel, { open: MyTaskRow[]; done: MyTaskRow[] }>();
+  const byLevel = new Map<
+    TaskLevel,
+    { open: MyTaskRow[]; ready: MyTaskRow[]; done: MyTaskRow[] }
+  >();
   for (const r of rows) {
-    const slot = byLevel.get(r.level) ?? { open: [], done: [] };
+    const slot = byLevel.get(r.level) ?? { open: [], ready: [], done: [] };
     slot[r.bucket].push(r);
     byLevel.set(r.level, slot);
   }
@@ -117,11 +125,12 @@ export default async function MyTasksPage() {
         </div>
       ) : (
         <div className="space-y-8">
-          {LEVEL_ORDER.filter(
-            (lvl) =>
-              (byLevel.get(lvl)?.open.length ?? 0) + (byLevel.get(lvl)?.done.length ?? 0) > 0,
-          ).map((lvl) => {
+          {LEVEL_ORDER.filter((lvl) => {
+            const g = byLevel.get(lvl);
+            return g && g.open.length + g.ready.length + g.done.length > 0;
+          }).map((lvl) => {
             const group = byLevel.get(lvl)!;
+            const totalOffen = group.open.length + group.ready.length;
             return (
               <section key={lvl} className="space-y-3">
                 <div className="flex items-baseline justify-between">
@@ -129,10 +138,23 @@ export default async function MyTasksPage() {
                     {LEVEL_LABELS[lvl]}
                   </h2>
                   <span className="text-xs text-muted-foreground">
-                    {group.open.length} offen
+                    {totalOffen} offen
                     {group.done.length > 0 ? ` · ${group.done.length} kürzlich abgeschlossen` : ""}
                   </span>
                 </div>
+
+                {group.ready.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-emerald-700">
+                      Bereit zu starten ({group.ready.length})
+                    </p>
+                    <div className="divide-y rounded-lg border border-emerald-200 bg-emerald-50/30">
+                      {group.ready.map((row) => (
+                        <Row key={row.id} row={row} />
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {group.open.length > 0 ? (
                   <div className="divide-y rounded-lg border">
@@ -140,11 +162,11 @@ export default async function MyTasksPage() {
                       <Row key={row.id} row={row} />
                     ))}
                   </div>
-                ) : (
+                ) : group.ready.length === 0 ? (
                   <p className="rounded-lg border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
                     Keine offenen {LEVEL_LABELS[lvl]}.
                   </p>
-                )}
+                ) : null}
 
                 {group.done.length > 0 && (
                   <details className="rounded-lg border">

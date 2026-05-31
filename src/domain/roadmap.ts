@@ -100,13 +100,20 @@ export function barMetrics(
 // used to repeat. Inputs are structural, so this module stays Prisma-free.
 // ---------------------------------------------------------------------------
 
-/** One Gantt row: a label track entry with an optional bar (`range`). */
+/**
+ * One Gantt row: a label track entry with an optional bar (`range`). For Epic
+ * rows that carry an owner-set Soll-Fenster, `range` is the Soll and
+ * `derivedRange` (when set) is the Ist computed from the Features' PIs — the
+ * renderer draws them stacked, Soll prominently and Ist as a faded overlay.
+ */
 export interface RoadmapRow {
   id: string;
   label: string;
   sublabel?: string | undefined;
   href?: string | undefined;
   range: DateRange | null;
+  /** Secondary band — present only on Epic rows when both Soll and Ist exist. */
+  derivedRange?: DateRange | null;
   depth: 0 | 1;
   kind: "epic" | "feature" | "group";
 }
@@ -122,7 +129,14 @@ const piRange = (pi: PiWindow | null): DateRange | null =>
 
 /** Inclusive month axis spanning the scheduled rows; unscheduled rows are ignored. */
 export function roadmapAxis(rows: readonly RoadmapRow[]): MonthAxis {
-  return buildMonthAxis(rows.map((r) => r.range).filter((r): r is DateRange => r !== null));
+  // Include both bars (Soll + Ist) so the axis covers any Ist overlay that
+  // extends beyond the Epic's Soll-Fenster.
+  const allRanges: DateRange[] = [];
+  for (const r of rows) {
+    if (r.range) allRanges.push(r.range);
+    if (r.derivedRange) allRanges.push(r.derivedRange);
+  }
+  return buildMonthAxis(allRanges);
 }
 
 // --- Portfolio: one row per Epic, timed via its Features' PI windows ---------
@@ -131,19 +145,40 @@ export interface PortfolioRoadmapEpic {
   id: string;
   title: string;
   valueStream: { name: string } | null;
+  plannedStartAt: Date | null;
+  plannedEndAt: Date | null;
   children: { pi: PiWindow | null }[];
 }
 
+/** Picks Soll for the primary bar; falls back to the derived Ist when no Soll. */
+function epicBars(
+  e: { plannedStartAt: Date | null; plannedEndAt: Date | null },
+  derived: DateRange | null,
+): { range: DateRange | null; derivedRange: DateRange | null } {
+  if (e.plannedStartAt && e.plannedEndAt) {
+    return {
+      range: { start: e.plannedStartAt, end: e.plannedEndAt },
+      derivedRange: derived,
+    };
+  }
+  return { range: derived, derivedRange: null };
+}
+
 export function portfolioRoadmapRows(epics: readonly PortfolioRoadmapEpic[]): RoadmapRow[] {
-  return epics.map((e) => ({
-    id: e.id,
-    label: e.title,
-    sublabel: e.valueStream?.name,
-    href: `/portfolio/epics/${e.id}`,
-    range: deriveTimeframe(e.children.map((c) => piRange(c.pi))),
-    depth: 0,
-    kind: "epic",
-  }));
+  return epics.map((e) => {
+    const derived = deriveTimeframe(e.children.map((c) => piRange(c.pi)));
+    const { range, derivedRange } = epicBars(e, derived);
+    return {
+      id: e.id,
+      label: e.title,
+      sublabel: e.valueStream?.name,
+      href: `/portfolio/epics/${e.id}`,
+      range,
+      derivedRange,
+      depth: 0,
+      kind: "epic",
+    };
+  });
 }
 
 // --- ART: one row per Feature, timed via its assigned PI ---------------------
@@ -182,6 +217,8 @@ export interface ValueStreamRoadmapFeature {
 export interface ValueStreamRoadmapEpic {
   id: string;
   title: string;
+  plannedStartAt: Date | null;
+  plannedEndAt: Date | null;
   children: ValueStreamRoadmapFeature[];
 }
 
@@ -189,11 +226,14 @@ export interface ValueStreamRoadmapEpic {
 function vsEpicGroupedRows(epics: readonly ValueStreamRoadmapEpic[]): RoadmapRow[] {
   const rows: RoadmapRow[] = [];
   for (const e of epics) {
+    const derived = deriveTimeframe(e.children.map((f) => piRange(f.pi)));
+    const { range, derivedRange } = epicBars(e, derived);
     rows.push({
       id: e.id,
       label: e.title,
       href: `/portfolio/epics/${e.id}`,
-      range: deriveTimeframe(e.children.map((f) => piRange(f.pi))),
+      range,
+      derivedRange,
       depth: 0,
       kind: "epic",
     });
@@ -218,11 +258,14 @@ function vsArtGroupedRows(epics: readonly ValueStreamRoadmapEpic[]): RoadmapRow[
     { id: "__epics__", label: "Epics", range: null, depth: 0, kind: "group" },
   ];
   for (const e of epics) {
+    const derived = deriveTimeframe(e.children.map((f) => piRange(f.pi)));
+    const { range, derivedRange } = epicBars(e, derived);
     rows.push({
       id: e.id,
       label: e.title,
       href: `/portfolio/epics/${e.id}`,
-      range: deriveTimeframe(e.children.map((f) => piRange(f.pi))),
+      range,
+      derivedRange,
       depth: 0,
       kind: "epic",
     });

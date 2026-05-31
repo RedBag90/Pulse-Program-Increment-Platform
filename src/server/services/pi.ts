@@ -117,6 +117,69 @@ export async function updatePi(ctx: RequestContext, input: UpdatePiInput): Promi
 }
 
 /**
+ * Sets the PI's capacity overrides used by the PI-Planning column overlay
+ * (Job Size + €). Either field can be cleared individually by passing `null`;
+ * `undefined` leaves the existing column untouched. Non-negative numbers only.
+ */
+export async function setPiCapacity(
+  ctx: RequestContext,
+  input: {
+    id: PiId;
+    capacityJobSize?: number | null | undefined;
+    capacityAmount?: number | null | undefined;
+  },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id, capacityJobSize, capacityAmount } = input;
+
+  if (capacityJobSize !== undefined && capacityJobSize !== null && capacityJobSize < 0) {
+    return err({ kind: "conflict" as const, reason: "Job-Size-Kapazität darf nicht negativ sein" });
+  }
+  if (capacityAmount !== undefined && capacityAmount !== null && capacityAmount < 0) {
+    return err({ kind: "conflict" as const, reason: "Budget-Override darf nicht negativ sein" });
+  }
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.programIncrement.findFirst({
+      where: { id, tenantId: mctx.tenantId },
+    });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
+    }
+
+    const changes = buildChangelog(
+      {
+        capacityJobSize: existing.capacityJobSize,
+        capacityAmount: existing.capacityAmount != null ? Number(existing.capacityAmount) : null,
+      },
+      {
+        ...(capacityJobSize !== undefined && { capacityJobSize }),
+        ...(capacityAmount !== undefined && { capacityAmount }),
+      },
+      ["capacityJobSize", "capacityAmount"],
+    );
+
+    await tx.programIncrement.update({
+      where: { id },
+      data: {
+        ...(capacityJobSize !== undefined && { capacityJobSize }),
+        ...(capacityAmount !== undefined && { capacityAmount }),
+      },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "pi.capacity.updated",
+        resourceType: "program_increment",
+        resourceId: id,
+        changes,
+      },
+    });
+  });
+}
+
+/**
  * Starts a PI: enforces that no other PI in the ART is active and that every
  * team in the ART has at least one committed PI Objective (concept PULSE-29).
  */
@@ -315,6 +378,8 @@ export async function listArtPlanningPis(db: PrismaClient, tenantId: TenantId, a
       status: true,
       startDate: true,
       endDate: true,
+      capacityJobSize: true,
+      capacityAmount: true,
       _count: { select: { sprints: true } },
     },
     orderBy: { startDate: "asc" },

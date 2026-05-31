@@ -80,6 +80,9 @@ export const ACTION_LABELS: Record<string, string> = {
   "epic.section.signed_off": "Abschnitt abgenommen",
   "epic.revision.started": "Neue Revision gestartet",
   "epic.owner.assigned": "Epic Owner zugewiesen",
+  "pi.capacity.updated": "PI-Kapazität gesetzt",
+  "feature.delivery.transitioned": "Feature-Status geändert",
+  "budget_plan.revision.captured": "Budget-Plan-Revision erfasst",
 };
 
 /** An audit action's display label, falling back to a de-dotted form. */

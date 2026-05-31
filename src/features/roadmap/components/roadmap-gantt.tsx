@@ -66,6 +66,9 @@ export function RoadmapGantt({ rows, axis }: Props) {
           }
 
           const bar = row.range ? barMetrics(row.range, axis) : null;
+          // The Ist-Fenster overlay, only when an Epic carries both a Soll
+          // (the primary `range`) AND a derived Ist-Bereich from its Features.
+          const derivedBar = row.derivedRange ? barMetrics(row.derivedRange, axis) : null;
           const barClass = row.kind === "epic" ? "bg-primary" : "bg-blue-400";
 
           return (
@@ -93,12 +96,23 @@ export function RoadmapGantt({ rows, axis }: Props) {
                   <div
                     className={`absolute top-1/2 h-4 -translate-y-1/2 rounded ${barClass}`}
                     style={{ left: `${bar.leftPct}%`, width: `${bar.widthPct}%`, minWidth: 4 }}
-                    title={row.label}
+                    title={`${row.label}${derivedBar ? " — Soll" : ""}`}
                   />
                 ) : (
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/60">
                     ungeplant
                   </span>
+                )}
+                {derivedBar && derivedBar.widthPct > 0 && (
+                  <div
+                    className="absolute bottom-0 h-1 rounded-sm bg-primary/40"
+                    style={{
+                      left: `${derivedBar.leftPct}%`,
+                      width: `${derivedBar.widthPct}%`,
+                      minWidth: 4,
+                    }}
+                    title={`${row.label} — Ist (aus Features)`}
+                  />
                 )}
               </div>
             </div>

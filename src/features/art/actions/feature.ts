@@ -9,6 +9,9 @@ import {
   scoreFeature,
   setFeaturePi,
   softDeleteFeature,
+  setFeatureDeliveryStatus,
+  startFeature,
+  type FeatureDeliveryStatus,
 } from "@/server/services/feature";
 import { submitForReview, decideReview } from "@/server/services/initiative-review";
 import { createServerAction } from "@/server/http/server-action";
@@ -233,6 +236,64 @@ export const decideFeatureReviewAction = createServerAction({
         : "Failed to record review decision",
 });
 
+const DELIVERY_STATUS = z.enum(["approved", "in_progress", "blocked", "completed", "cancelled"]);
+
+/**
+ * Starts an approved Feature — the most common delivery transition. Picks up
+ * `approved → in_progress` only; the service enforces "Feature in PI" and
+ * "Epic in L4/L5" so the start has operational meaning.
+ */
+export const startFeatureAction = createServerAction({
+  schema: z.object({ id: z.string().uuid() }),
+  action: "feature.delivery.set",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => ({ id: fields(fd).string("id") }),
+  service: (ctx, input) => startFeature(ctx, { id: input.id as FeatureId }),
+  revalidate: "feature",
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Feature nicht gefunden"
+        : "Feature konnte nicht gestartet werden",
+});
+
+/**
+ * Generic delivery transition (pause, resume, complete, cancel). `reason` is
+ * required for pause/cancel by the client UI; the server treats it as optional
+ * (anyone calling directly may omit it).
+ */
+export const setFeatureDeliveryStatusAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    to: DELIVERY_STATUS,
+    reason: z.string().max(2000).optional(),
+  }),
+  action: "feature.delivery.set",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      id: f.string("id"),
+      to: f.string("to"),
+      reason: f.nonEmptyString("reason"),
+    };
+  },
+  service: (ctx, input) =>
+    setFeatureDeliveryStatus(ctx, {
+      id: input.id as FeatureId,
+      to: input.to as FeatureDeliveryStatus,
+      reason: input.reason,
+    }),
+  revalidate: "feature",
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Feature nicht gefunden"
+        : "Status konnte nicht geändert werden",
+});
+
 /**
  * Assign one or more features to a PI, or move them back to the backlog (piId = null).
  * Serves both the PI-overview picker and the feature-backlog inline dropdown.
@@ -241,7 +302,7 @@ export async function setFeaturePiAction(
   featureIds: string[],
   piId: string | null,
   artId: string,
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; warnings?: string[] }> {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
@@ -258,6 +319,9 @@ export async function setFeaturePiAction(
     ...(userAgent !== undefined && { userAgent }),
   };
 
+  // Aggregate non-fatal advisories across the batch — the caller decides how
+  // (or whether) to surface them (e.g. one toast per warning).
+  const warnings: string[] = [];
   for (const featureId of featureIds) {
     const result = await setFeaturePi(ctx, {
       featureId: featureId as FeatureId,
@@ -273,8 +337,9 @@ export async function setFeaturePiAction(
               : "Failed to assign feature",
       };
     }
+    warnings.push(...result.value.warnings);
   }
 
   revalidateFor("feature");
-  return {};
+  return warnings.length > 0 ? { warnings } : {};
 }

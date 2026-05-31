@@ -1,7 +1,10 @@
 import { Fragment } from "react";
 import { Link } from "@/i18n/navigation";
 import { FeaturePiSelect } from "@/features/art/components/feature-pi-select";
+import { Lock } from "lucide-react";
+import { PiCapacityHeader } from "./pi-capacity-header";
 import type { PlanningFeature } from "./feature-planning-board";
+import type { PiCapacityOverlay, FeatureBlockerOverlay } from "@/server/views/pi-planning";
 
 export interface TablePi {
   id: string;
@@ -17,6 +20,8 @@ interface Props {
   canEdit: boolean;
   features: PlanningFeature[];
   pis: TablePi[];
+  capacity: Record<string, PiCapacityOverlay>;
+  blockers: Record<string, FeatureBlockerOverlay>;
 }
 
 const FEATURE_STATUS: Record<string, string> = {
@@ -50,7 +55,7 @@ function round1(n: number): number {
  * PI's dates, status and counts. Each Feature row keeps an inline PI picker so
  * the table stays a planning surface.
  */
-export function FeaturePlanningTable({ artId, canEdit, features, pis }: Props) {
+export function FeaturePlanningTable({ artId, canEdit, features, pis, capacity, blockers }: Props) {
   const assignablePis = pis
     .filter((p) => p.status !== "completed")
     .map((p) => ({ id: p.id, name: p.name }));
@@ -101,6 +106,16 @@ export function FeaturePlanningTable({ artId, canEdit, features, pis }: Props) {
                         {groupFeatures.length} Feature{groupFeatures.length !== 1 ? "s" : ""} · Σ
                         WSJF {wsjfSum}
                       </span>
+                      {group.pi && (
+                        <div className="ml-auto w-72 max-w-full">
+                          <PiCapacityHeader
+                            piId={group.pi.id}
+                            artId={artId}
+                            overlay={capacity[group.pi.id] ?? null}
+                            canEdit={canEdit}
+                          />
+                        </div>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -112,47 +127,71 @@ export function FeaturePlanningTable({ artId, canEdit, features, pis }: Props) {
                     </td>
                   </tr>
                 ) : (
-                  groupFeatures.map((f) => (
-                    <tr key={f.id} className="border-b hover:bg-muted/30">
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/feature/${f.id}`}
-                          className="font-medium text-primary hover:underline"
-                        >
-                          {f.title}
-                        </Link>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`inline-block rounded-full px-2 py-0.5 text-xs ${
-                            FEATURE_STATUS[f.status] ?? "bg-muted text-foreground/80"
-                          }`}
-                        >
-                          {f.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-center font-semibold text-primary/80">
-                        {round1(f.wsjf)}
-                      </td>
-                      <td className="px-3 py-3 text-xs text-muted-foreground">
-                        {f.epicTitle ?? "—"}
-                      </td>
-                      <td className="px-3 py-3">
-                        {canEdit ? (
-                          <FeaturePiSelect
-                            featureId={f.id}
-                            artId={artId}
-                            currentPiId={f.piId}
-                            pis={assignablePis}
-                          />
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            {pis.find((p) => p.id === f.piId)?.name ?? "Backlog"}
+                  groupFeatures.map((f) => {
+                    const blocker = blockers[f.id];
+                    const titles = [
+                      ...(blocker?.scheduledBlockerTitles.map((t) => `wegen ${t}`) ?? []),
+                      ...(blocker?.unscheduledBlockerTitles.map((t) => `${t} (ungeplant)`) ?? []),
+                    ].join(" · ");
+                    return (
+                      <tr key={f.id} className="border-b hover:bg-muted/30">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {blocker?.violates && (
+                              <Lock
+                                className="h-3 w-3 shrink-0 text-amber-700"
+                                aria-label="Vor frühestmöglichem PI"
+                              />
+                            )}
+                            <Link
+                              href={`/feature/${f.id}`}
+                              className="font-medium text-primary hover:underline"
+                            >
+                              {f.title}
+                            </Link>
+                          </div>
+                          {blocker?.violates && (
+                            <p className="mt-0.5 text-[10px] text-amber-700" title={titles}>
+                              Frühestens{" "}
+                              {blocker.earliestPiName ??
+                                (blocker.earliestStart
+                                  ? blocker.earliestStart.toISOString().slice(0, 10)
+                                  : "unbestimmt")}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          <span
+                            className={`inline-block rounded-full px-2 py-0.5 text-xs ${
+                              FEATURE_STATUS[f.status] ?? "bg-muted text-foreground/80"
+                            }`}
+                          >
+                            {f.status}
                           </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="px-3 py-3 text-center font-semibold text-primary/80">
+                          {round1(f.wsjf)}
+                        </td>
+                        <td className="px-3 py-3 text-xs text-muted-foreground">
+                          {f.epicTitle ?? "—"}
+                        </td>
+                        <td className="px-3 py-3">
+                          {canEdit ? (
+                            <FeaturePiSelect
+                              featureId={f.id}
+                              artId={artId}
+                              currentPiId={f.piId}
+                              pis={assignablePis}
+                            />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {pis.find((p) => p.id === f.piId)?.name ?? "Backlog"}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </Fragment>
             );
