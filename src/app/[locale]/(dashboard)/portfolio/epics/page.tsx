@@ -32,7 +32,7 @@ export default async function EpicsPage() {
     principal.roles.includes("platform_admin");
 
   return (
-    <main className="p-8 max-w-6xl mx-auto space-y-6">
+    <main className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Epics</h1>
         {canEdit && (

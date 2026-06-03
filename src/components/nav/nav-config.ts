@@ -2,6 +2,8 @@ import {
   LayoutDashboard,
   Layers,
   FolderTree,
+  CalendarDays,
+  Network,
   Goal,
   Gauge,
   CalendarRange,
@@ -54,7 +56,14 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     labelKey: "structure",
-    items: [{ href: "/structure", labelKey: "structure", icon: FolderTree }],
+    items: [
+      // Three top-nav entries replace the page's left sidebar. Each carries
+      // the matching `?tab=` so the existing Structure page tab-routing stays
+      // intact — see `isActiveLink` for tab-aware highlighting.
+      { href: "/structure?tab=overview", labelKey: "structureOverview", icon: FolderTree },
+      { href: "/structure?tab=timeline", labelKey: "structureTimeline", icon: CalendarDays },
+      { href: "/structure?tab=arts", labelKey: "structureTree", icon: Network },
+    ],
   },
   {
     labelKey: "portfolio",

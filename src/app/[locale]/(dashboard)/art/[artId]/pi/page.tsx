@@ -39,7 +39,7 @@ export default async function PiListPage({ params }: Props) {
     principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
 
   return (
-    <main className="p-8 max-w-5xl mx-auto space-y-6">
+    <main className="p-8 space-y-6">
       <ArtSubNav artId={artId} artName={art.name} />
 
       <div className="flex items-center justify-between">

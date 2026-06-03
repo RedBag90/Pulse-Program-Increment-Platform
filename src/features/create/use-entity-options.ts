@@ -11,7 +11,8 @@ export type ParentKind =
   | "pi"
   | "team"
   | "story"
-  | "piStandard";
+  | "piStandard"
+  | "timeline";
 
 /**
  * Resolves the `GET /api/v1/…` endpoint for a parent-option list. Returns
@@ -39,6 +40,8 @@ export function optionsEndpoint(
       return params?.featureId ? `/api/v1/stories?featureId=${params.featureId}` : null;
     case "piStandard":
       return "/api/v1/pi-standards";
+    case "timeline":
+      return "/api/v1/timelines";
   }
 }
 
@@ -53,10 +56,15 @@ export interface EntityOptionsState<T> {
  * Accepts both a bare array response and a paginated `{ items }` response.
  * Used by create dialogs opened from the global "+" menu, which have no
  * page-supplied option props.
+ *
+ * `refetchKey` (optional) — bump this number to force a re-fetch without
+ * unmounting the consumer. Used when a sibling action (e.g. an inline
+ * "Create Timeline" CTA) mutates the underlying list mid-dialog.
  */
 export function useEntityOptions<T>(
   endpoint: string | null,
   enabled: boolean,
+  refetchKey: number = 0,
 ): EntityOptionsState<T> {
   const [state, setState] = useState<EntityOptionsState<T>>({
     data: [],
@@ -96,7 +104,7 @@ export function useEntityOptions<T>(
     return () => {
       cancelled = true;
     };
-  }, [endpoint, enabled]);
+  }, [endpoint, enabled, refetchKey]);
 
   return state;
 }

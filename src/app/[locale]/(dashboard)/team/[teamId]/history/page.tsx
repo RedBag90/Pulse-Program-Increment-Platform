@@ -28,7 +28,7 @@ export default async function TeamHistoryPage({ params }: Props) {
   }));
 
   return (
-    <main className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
+    <main className="p-6 md:p-8 space-y-6">
       <TeamSubNav teamId={teamId} teamName={team.name} artId={team.artId} artName={team.art.name} />
 
       <section className="space-y-4">

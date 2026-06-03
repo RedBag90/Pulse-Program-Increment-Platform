@@ -58,6 +58,7 @@ export type Action =
   | "target.manage"
   | "budget.manage"
   | "budget_plan.revision.capture"
+  | "timeline.manage"
   | "art_budget.manage"
   | "kpi.value.manage";
 
@@ -110,6 +111,10 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Same audience as `budget.manage` — whoever shapes the plan also owns the
   // revision record.
   "budget_plan.revision.capture": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
+  // Timelines are the shared PI cadences ARTs subscribe to. Managing the
+  // catalogue (create / rename / delete / join / leave) sits with the same
+  // audience that already shapes the portfolio plan.
+  "timeline.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
   // Distribute a Value Stream's budget down to its ARTs. Coarse pre-filter; the
   // service-seam check authoritatively allows the VS's finance approver too.
   "art_budget.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER] }],

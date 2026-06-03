@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, UserId, ArtId, ValueStreamId } from "@/domain/types";
+import type { TenantId, UserId, ArtId, ValueStreamId, TimelineId } from "@/domain/types";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { randomUUID } from "crypto";
 
@@ -7,6 +7,7 @@ export interface SeedResult {
   tenantId: TenantId;
   actorId: UserId;
   artId: ArtId;
+  timelineId: TimelineId;
   valueStreamId: ValueStreamId;
 }
 
@@ -49,11 +50,20 @@ export async function seedTenant(db: PrismaClient): Promise<SeedResult> {
     },
   });
 
+  const timeline = await db.timeline.create({
+    data: {
+      tenantId,
+      name: "Test Timeline",
+      cadenceWeeks: 10,
+    },
+  });
+
   const art = await db.art.create({
     data: {
       tenantId,
       valueStreamId: valueStream.id,
       name: "Test ART",
+      timelineId: timeline.id,
     },
   });
 
@@ -61,6 +71,7 @@ export async function seedTenant(db: PrismaClient): Promise<SeedResult> {
     tenantId,
     actorId,
     artId: art.id as ArtId,
+    timelineId: timeline.id as TimelineId,
     valueStreamId: valueStream.id as ValueStreamId,
   };
 }

@@ -13,15 +13,15 @@ export interface PiStandardOption {
 }
 
 /**
- * Per-ART control in the Structure Timeline: pick a named PI standard and add
- * its current-year PIs to the ART. Only PIs whose period is free are added
- * (overlap-skip), so re-applying is idempotent. Gated by `canCreatePi`.
+ * Per-Timeline control in the Structure Timeline tab: pick a named PI standard
+ * and add its current-year PIs to the Timeline. Only PIs whose period is free
+ * are added (overlap-skip), so re-applying is idempotent. Gated by `canCreatePi`.
  */
 export function AddStandardPisControl({
-  artId,
+  timelineId,
   standards,
 }: {
-  artId: string;
+  timelineId: string;
   standards: PiStandardOption[];
 }) {
   const [standardId, setStandardId] = useState(standards[0]?.id ?? "");
@@ -32,7 +32,7 @@ export function AddStandardPisControl({
   function apply() {
     if (!standardId) return;
     const fd = new FormData();
-    fd.set("artId", artId);
+    fd.set("timelineId", timelineId);
     fd.set("standardId", standardId);
     startTransition(() => run(fd));
   }

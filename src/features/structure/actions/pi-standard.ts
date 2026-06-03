@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createPiStandard, deletePiStandard, applyPiStandard } from "@/server/services/pi-standard";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import type { ArtId } from "@/domain/types";
+import type { TimelineId } from "@/domain/types";
 
 export interface PiStandardActionState {
   error?: string;
@@ -48,16 +48,16 @@ export const deletePiStandardAction = createServerAction({
 });
 
 export const addStandardPisAction = createServerAction({
-  schema: z.object({ artId: z.string().uuid(), standardId: z.string().uuid() }),
+  schema: z.object({ timelineId: z.string().uuid(), standardId: z.string().uuid() }),
   action: "pi.create",
-  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => {
     const f = fields(fd);
-    return { artId: f.string("artId"), standardId: f.string("standardId") };
+    return { timelineId: f.string("timelineId"), standardId: f.string("standardId") };
   },
   service: (ctx, input) =>
     applyPiStandard(ctx, {
-      artId: input.artId as ArtId,
+      timelineId: input.timelineId as TimelineId,
       standardId: input.standardId,
       year: new Date().getUTCFullYear(),
     }),
@@ -66,6 +66,6 @@ export const addStandardPisAction = createServerAction({
     e.kind === "conflict"
       ? e.reason
       : e.kind === "not_found"
-        ? "ART or PI standard not found"
+        ? "Timeline or PI standard not found"
         : "Failed to add standard PIs",
 });

@@ -28,7 +28,7 @@ export default async function ValueStreamRoadmapPage({ searchParams }: Props) {
 
   if (valueStreams.length === 0) {
     return (
-      <main className="mx-auto max-w-5xl space-y-2 p-8">
+      <main className="space-y-2 p-8">
         <h1 className="text-2xl font-semibold">Wertstrom-Roadmap</h1>
         <p className="text-sm text-muted-foreground">Keine Wertströme verfügbar.</p>
       </main>

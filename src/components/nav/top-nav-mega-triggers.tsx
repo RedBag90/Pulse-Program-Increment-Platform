@@ -40,6 +40,9 @@ export function TopNavMegaTriggers({ visibleHrefs, openKey, onOpenChange }: Prop
   return (
     <nav className="hidden h-12 items-stretch gap-5 md:flex">
       {groups.map((group) => {
+        // Trigger highlighting is path-only — a section stays lit no matter
+        // which `?tab=` the user is on inside it. The panel below uses the
+        // query-aware variant to mark the exact sub-item.
         const groupActive = group.items.some((i) => isActive(pathname, i.href, i.exact ?? false));
 
         // Single-item group → a direct link labelled with the group name.

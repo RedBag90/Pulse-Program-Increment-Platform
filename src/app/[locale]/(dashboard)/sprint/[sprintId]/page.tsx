@@ -44,8 +44,14 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
   const sprint = await db.sprint.findFirst({
     where: { id: sprintId, tenantId: principal.tenantId as TenantId },
     include: {
-      team: { select: { id: true, name: true } },
-      pi: { select: { id: true, name: true, art: { select: { id: true, name: true } } } },
+      team: {
+        select: {
+          id: true,
+          name: true,
+          art: { select: { id: true, name: true } },
+        },
+      },
+      pi: { select: { id: true, name: true } },
       initiatives: {
         where: { level: InitiativeLevel.STORY, deletedAt: null },
         select: {
@@ -63,13 +69,18 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
 
   if (!sprint) notFound();
 
+  // A Sprint belongs to exactly one Team belongs to exactly one ART — no
+  // aggregation needed; the breadcrumb is unambiguous via `sprint.team.art`.
+  const art = sprint.team.art;
+  if (!art) notFound();
+
   const isBurndown = view === "burndown";
 
   const breadcrumbs = (
     <Breadcrumbs
       items={[
         { label: "ARTs", href: "/structure?tab=arts" },
-        { label: sprint.pi.art.name, href: `/art/${sprint.pi.art.id}` },
+        { label: art.name, href: `/art/${art.id}` },
         { label: sprint.pi.name, href: `/pi/${sprint.pi.id}` },
         { label: `${sprint.team.name} — Sprint ${sprint.indexInPi}` },
       ]}
@@ -147,7 +158,7 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
       .join(" ");
 
     return (
-      <main className="p-8 max-w-4xl mx-auto space-y-6">
+      <main className="p-8 space-y-6">
         <SprintRealtime sprintId={sprintId} />
         {breadcrumbs}
         {viewTabs}
@@ -184,7 +195,7 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
           <div className="rounded-lg border p-4 overflow-x-auto">
             <svg
               viewBox={`0 0 ${W} ${H}`}
-              className="w-full max-w-[600px] mx-auto"
+              className="w-full max-w-[600px]"
               aria-label="Sprint burn-down chart"
             >
               {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
@@ -388,7 +399,7 @@ export default async function SprintBoardPage({ params, searchParams }: Props) {
       {sprint.initiatives.length === 0 && (
         <p className="text-center text-sm text-muted-foreground/60">
           No stories assigned to this sprint yet. Assign stories from the{" "}
-          <Link href={`/art/${sprint.pi.art.id}/features`} className="text-primary hover:underline">
+          <Link href={`/art/${art.id}/features`} className="text-primary hover:underline">
             features page
           </Link>
           .

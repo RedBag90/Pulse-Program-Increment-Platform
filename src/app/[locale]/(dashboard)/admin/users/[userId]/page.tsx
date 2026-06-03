@@ -33,7 +33,7 @@ export default async function UserDetailPage({ params }: Props) {
   ]);
 
   return (
-    <main className="p-8 max-w-4xl mx-auto space-y-10">
+    <main className="p-8 space-y-10">
       <div>
         <a href="../users" className="text-sm text-primary hover:underline">
           ← Back to users

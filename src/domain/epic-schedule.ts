@@ -102,6 +102,23 @@ export function scheduleFromFundedWindow(
 }
 
 /**
+ * Same start/end semantics as `scheduleFromFundedWindow` but returned as `Date`
+ * — the shape Prisma writes to `Initiative.plannedStartAt`/`plannedEndAt`.
+ * Used by `saveBudgetAllocation` to mirror the funded window onto the Epic's
+ * Soll-Fenster, so the planned window is always the budget window.
+ */
+export function fundedDateRange(
+  allocations: Record<string, number>,
+): { start: Date; end: Date } | null {
+  const range = fundedPeriodRange(allocations);
+  if (!range) return null;
+  const first = parseHalfYearKey(range.firstKey);
+  const last = parseHalfYearKey(range.lastKey);
+  if (!first || !last) return null;
+  return { start: halfYearStart(first), end: fundedEndDate(last, 1) };
+}
+
+/**
  * Merges schedule estimate anchors into a timeline, preserving the owner's
  * actuals and any other estimate fields (detailing, business_case). The basis
  * of budgeting's "last writer wins, but never clobber actuals" guarantee.

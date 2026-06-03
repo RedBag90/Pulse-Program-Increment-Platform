@@ -1,105 +1,61 @@
-"use client";
+import { Link } from "@/i18n/navigation";
 
-import { useActionState } from "react";
-import { setEpicPlannedWindowAction } from "@/features/portfolio/actions/epic";
-
-/** ISO yyyy-mm-dd extractor for `<input type="date">` (UTC-safe). */
+/** ISO yyyy-mm-dd extractor for display (UTC-safe). */
 function toIsoDate(d: Date | null): string {
   if (!d) return "";
   return d.toISOString().slice(0, 10);
 }
 
 interface Props {
+  /** Kept on the prop interface for callers; unused now that the form is read-only. */
   epicId: string;
   plannedStartAt: Date | null;
   plannedEndAt: Date | null;
   /** The derived "Ist"-Fenster from the Features' PIs, or null when nothing is scheduled. */
   derived: { start: Date; end: Date } | null;
+  /** Kept for caller symmetry; the read-only display is identical for every role. */
   canEdit: boolean;
 }
 
 /**
- * "Geplantes Zeitfenster" form on the Epic Overview tab — the owner's Soll-
- * Fenster. Editable for `canEdit` viewers; everyone else sees a read-only
- * summary. When the derived Ist-Fenster diverges from the Soll, a small note
- * tells the planner so they can decide whether to re-plan or replan-features.
+ * "Geplantes Zeitfenster" on the Epic Overview tab — now **read-only**.
+ *
+ * The Soll-Fenster is derived from where the participatory-budget money lands
+ * (first funded half-year → last funded half-year). It's written by
+ * `saveBudgetAllocation` in the same transaction as the allocations, so it
+ * stays in lock-step. To change it, the user adjusts the budget allocation.
  */
-export function EpicPlannedWindowForm({
-  epicId,
-  plannedStartAt,
-  plannedEndAt,
-  derived,
-  canEdit,
-}: Props) {
-  const [state, action, pending] = useActionState(setEpicPlannedWindowAction, {});
-
+export function EpicPlannedWindowForm({ plannedStartAt, plannedEndAt, derived }: Props) {
   const startStr = toIsoDate(plannedStartAt);
   const endStr = toIsoDate(plannedEndAt);
   const hasPlanned = startStr !== "" && endStr !== "";
 
-  // Divergenz > 30 Tage zwischen Soll und Ist → kleiner Hinweis (rein informativ).
+  // Divergenz > 30 Tage zwischen Soll (= Budget-Fenster) und Ist (Features) → kleiner Hinweis.
   const diverged =
     hasPlanned &&
     derived &&
     (Math.abs(derived.start.getTime() - plannedStartAt!.getTime()) > 30 * 86_400_000 ||
       Math.abs(derived.end.getTime() - plannedEndAt!.getTime()) > 30 * 86_400_000);
 
-  if (!canEdit) {
-    return (
-      <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-        {hasPlanned ? (
-          <>
-            <span className="font-medium">{startStr}</span> →{" "}
-            <span className="font-medium">{endStr}</span>
-          </>
-        ) : (
-          <span className="text-muted-foreground">Kein geplantes Zeitfenster.</span>
-        )}
-        {derived && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Ableitung aus Features: {toIsoDate(derived.start)} → {toIsoDate(derived.end)}
-          </p>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <form action={action} className="space-y-2">
-      <input type="hidden" name="id" value={epicId} />
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="block text-xs">
-          <span className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Von
-          </span>
-          <input
-            type="date"
-            name="plannedStartAt"
-            defaultValue={startStr}
-            disabled={pending}
-            className="rounded border border-input bg-background px-2 py-1.5 text-sm"
-          />
-        </label>
-        <label className="block text-xs">
-          <span className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Bis
-          </span>
-          <input
-            type="date"
-            name="plannedEndAt"
-            defaultValue={endStr}
-            disabled={pending}
-            className="rounded border border-input bg-background px-2 py-1.5 text-sm"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          {pending ? "…" : "Speichern"}
-        </button>
-      </div>
+    <div className="space-y-1.5 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+      {hasPlanned ? (
+        <p>
+          <span className="font-medium">{startStr}</span> →{" "}
+          <span className="font-medium">{endStr}</span>
+        </p>
+      ) : (
+        <p className="text-muted-foreground">
+          Noch keine Budget-Zuteilung — Zeitfenster wird gesetzt, sobald Geld verteilt ist.
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Automatisch aus der{" "}
+        <Link href="/portfolio/budgeting" className="text-primary hover:underline">
+          Budget-Zuteilung
+        </Link>{" "}
+        abgeleitet — erste finanzierte Periode bis letzte finanzierte Periode.
+      </p>
       {derived && (
         <p className="text-xs text-muted-foreground">
           Ableitung aus Features: {toIsoDate(derived.start)} → {toIsoDate(derived.end)}
@@ -107,19 +63,10 @@ export function EpicPlannedWindowForm({
       )}
       {diverged && (
         <p className="text-xs text-amber-700">
-          Ist-Fenster weicht vom Soll ab — entweder Soll-Fenster anpassen oder Feature-PIs umplanen.
+          Ist-Fenster (Feature-PIs) weicht vom Budget-Fenster ab — Feature-PIs ggf. umplanen oder
+          Budget-Zuteilung anpassen.
         </p>
       )}
-      {state.error && (
-        <p role="alert" className="text-xs text-red-600">
-          {state.error}
-        </p>
-      )}
-      {state.success && (
-        <p role="status" className="text-xs text-emerald-700">
-          Gespeichert.
-        </p>
-      )}
-    </form>
+    </div>
   );
 }

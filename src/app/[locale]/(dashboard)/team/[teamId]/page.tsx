@@ -73,7 +73,7 @@ export default async function TeamBacklogPage({ params, searchParams }: Props) {
   const totalPoints = unassignedStories.reduce((sum, s) => sum + (s.storyPoints ?? 0), 0);
 
   return (
-    <main className="p-8 max-w-5xl mx-auto space-y-6">
+    <main className="p-8 space-y-6">
       <TeamSubNav teamId={teamId} teamName={team.name} artId={artId} artName={team.art.name} />
 
       <div className="flex items-center justify-between">

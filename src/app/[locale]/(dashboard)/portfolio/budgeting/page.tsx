@@ -23,7 +23,7 @@ export default async function BudgetingPage() {
   const data = await getBudgetingBoard(db, principal.tenantId);
 
   return (
-    <main className="mx-auto max-w-7xl space-y-6 p-6 md:p-8">
+    <main className="space-y-6 p-6 md:p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Participatory Budgeting</h1>

@@ -46,6 +46,7 @@ model Tenant {
   artBudgets              ArtBudget[]
   budgetPlanRevisions     BudgetPlanRevision[]
   piStandards             PiStandard[]
+  timelines               Timeline[]
 
   @@map("tenants")
 }
@@ -253,13 +254,22 @@ model Art {
   valueStreamId  String    @map("value_stream_id") @db.Uuid
   name           String
   description    String?
+  /// Default cadence for new PIs. Migrates to Timeline.cadenceWeeks during
+  /// the timeline rollout; remains as a legacy fallback for ARTs not yet
+  /// subscribed to a Timeline.
   piCadenceWeeks Int       @default(10) @map("pi_cadence_weeks")
   rteId          String?   @map("rte_id") @db.Uuid // Release Train Engineer
+  /// Subscription to a shared Timeline. Each ART belongs to at most one
+  /// Timeline; nullable during the rollout so brand-new ARTs (or those that
+  /// left a Timeline) live without one. The PI grid the ART planss against
+  /// comes from `timeline.programIncrements`.
+  timelineId     String?   @map("timeline_id") @db.Uuid
   createdAt      DateTime  @default(now()) @map("created_at")
   deletedAt      DateTime? @map("deleted_at")
 
   tenant      Tenant             @relation(fields: [tenantId], references: [id])
   valueStream ValueStream        @relation(fields: [valueStreamId], references: [id])
+  timeline    Timeline?          @relation(fields: [timelineId], references: [id], onDelete: SetNull)
   pis         ProgramIncrement[]
   features    Initiative[]       @relation("FeatureArt")
   teams       Team[]
@@ -267,6 +277,7 @@ model Art {
   budget      ArtBudget?
 
   // Active-row uniqueness via a partial unique index (see prisma/manual-indexes.sql).
+  @@index([timelineId])
   @@map("arts")
 }
 
@@ -295,7 +306,12 @@ model Team {
 model ProgramIncrement {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @map("tenant_id") @db.Uuid
-  artId     String   @map("art_id") @db.Uuid
+  /// Legacy direct link to ART. Backfilled into `timelineId` during rollout;
+  /// kept nullable for transitional safety and dropped in a cleanup PR.
+  artId     String?  @map("art_id") @db.Uuid
+  /// The PI's owning Timeline. Nullable only during the migration window;
+  /// new PIs must always carry a timelineId.
+  timelineId String? @map("timeline_id") @db.Uuid
   name      String
   startDate DateTime @map("start_date") @db.Date
   endDate   DateTime @map("end_date") @db.Date
@@ -307,13 +323,36 @@ model ProgramIncrement {
   capacityJobSize Int?     @map("capacity_job_size")
   capacityAmount  Decimal? @map("capacity_amount") @db.Decimal(14, 2)
 
-  art         Art           @relation(fields: [artId], references: [id])
+  art         Art?          @relation(fields: [artId], references: [id])
+  timeline    Timeline?     @relation(fields: [timelineId], references: [id], onDelete: Cascade)
   sprints     Sprint[]
   initiatives Initiative[]
   objectives  PiObjective[]
   impediments Impediment[]
 
+  @@index([timelineId])
   @@map("program_increments")
+}
+
+/// A shared PI cadence. ARTs subscribe to a Timeline (via `Art.timelineId`)
+/// and plan their Features against the Timeline's PIs instead of owning a
+/// private PI list. Reduces duplication when multiple ARTs follow the same
+/// rhythm; one Timeline → many ARTs → one shared PI grid.
+model Timeline {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  name         String
+  /// Default cadence for new PIs on this Timeline (in weeks). Used by
+  /// `applyPiStandard` and the "Neue PI" UI when no explicit window is set.
+  cadenceWeeks Int      @default(10) @map("cadence_weeks")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  arts              Art[]
+  programIncrements ProgramIncrement[]
+
+  @@index([tenantId])
+  @@map("timelines")
 }
 
 model PiObjective {

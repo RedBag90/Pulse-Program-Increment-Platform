@@ -10,22 +10,19 @@ import { listPiStandards } from "@/server/services/pi-standard";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getActiveTargetModel } from "@/server/services/target-model";
 import { effectivePractices } from "@/domain/operating-model";
-import {
-  EntityDetailShell,
-  resolveTab,
-  type DetailTab,
-} from "@/components/detail/entity-detail-shell";
 import { StructureOverview } from "@/features/structure/components/structure-overview";
 import { StructureTree } from "@/features/structure/components/structure-tree";
 import { StructureTimeline } from "@/features/structure/components/structure-timeline";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
-const TABS: readonly DetailTab[] = [
-  { key: "overview", label: "Übersicht" },
-  { key: "timeline", label: "Timeline" },
-  { key: "arts", label: "Strukturbaum" },
-];
+/** Valid `?tab=` values — the three sub-pages also surfaced as top-nav entries. */
+const TAB_KEYS = ["overview", "timeline", "arts"] as const;
+type TabKey = (typeof TAB_KEYS)[number];
+
+function resolveStructureTab(raw: string | undefined): TabKey {
+  return (TAB_KEYS as readonly string[]).includes(raw ?? "") ? (raw as TabKey) : "overview";
+}
 
 interface Props {
   searchParams: Promise<{ tab?: string }>;
@@ -43,7 +40,7 @@ function budgetTotalsById(data: ValueStreamBudgetData): Record<string, number> {
  */
 export default async function StructurePage({ searchParams }: Props) {
   const { tab } = await searchParams;
-  const activeTab = resolveTab(TABS, tab);
+  const activeTab = resolveStructureTab(tab);
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -108,8 +105,11 @@ export default async function StructurePage({ searchParams }: Props) {
   }
 
   return (
-    <EntityDetailShell title="Struktur" tabs={TABS} activeTab={activeTab} basePath="/structure">
-      {content}
-    </EntityDetailShell>
+    <div className="flex flex-col">
+      <header className="border-b px-6 py-4">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Struktur</h1>
+      </header>
+      <main className="min-w-0 flex-1 overflow-auto p-6">{content}</main>
+    </div>
   );
 }

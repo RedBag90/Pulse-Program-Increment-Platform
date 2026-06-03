@@ -141,6 +141,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
   const pisByArt: Record<string, { id: string; name: string }[]> = {};
   for (const pi of pis) {
+    if (!pi.artId) continue;
     (pisByArt[pi.artId] ??= []).push({ id: pi.id, name: pi.name });
   }
 

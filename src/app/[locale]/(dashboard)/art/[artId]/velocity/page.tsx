@@ -82,7 +82,7 @@ export default async function VelocityPage({ params }: Props) {
   ];
 
   return (
-    <main className="p-8 max-w-6xl mx-auto space-y-8">
+    <main className="p-8 space-y-8">
       <ArtSubNav artId={artId} artName={art.name} />
 
       <div>

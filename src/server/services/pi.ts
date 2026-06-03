@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, ArtId, PiId } from "@/domain/types";
+import type { TenantId, ArtId, PiId, TimelineId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
 import { generateSprints, validateDateRange } from "@/domain/pi-planning";
@@ -13,7 +13,8 @@ import {
 import { paginate, type PageParams } from "@/server/db/paginate";
 
 export interface CreatePiInput {
-  artId: ArtId;
+  /** The shared Timeline this PI belongs to. PIs are no longer per-ART. */
+  timelineId: TimelineId;
   name: string;
   startDate: Date;
   endDate: Date;
@@ -34,26 +35,31 @@ export async function createPi(
   input: CreatePiInput,
 ): Promise<Result<{ id: PiId }>> {
   const mctx = toMutationContext(ctx);
-  const { artId, name, startDate, endDate } = input;
+  const { timelineId, name, startDate, endDate } = input;
 
   return withAuditedTransaction(
     mctx,
     async (tx) => {
-      const art = await tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId } });
-      if (!art) {
-        return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
+      const timeline = await tx.timeline.findFirst({
+        where: { id: timelineId, tenantId: mctx.tenantId },
+        include: { arts: { include: { teams: { select: { id: true } } } } },
+      });
+      if (!timeline) {
+        return err({ kind: "not_found" as const, resourceType: "Timeline", id: timelineId });
       }
 
       const dateCheck = validateDateRange(startDate, endDate);
       if (isErr(dateCheck)) return dateCheck;
 
       const pi = await tx.programIncrement.create({
-        data: { tenantId: mctx.tenantId, artId, name, startDate, endDate },
+        data: { tenantId: mctx.tenantId, timelineId, name, startDate, endDate },
       });
 
-      const teams = await tx.team.findMany({ where: { artId, tenantId: mctx.tenantId } });
-      if (teams.length > 0) {
-        const drafts = generateSprints(startDate, endDate, teams);
+      // One sprint per (team, PI) across every team in every subscribed ART —
+      // teams of multiple ARTs now share the same Timeline-PI rhythm.
+      const allTeams = timeline.arts.flatMap((a) => a.teams);
+      if (allTeams.length > 0) {
+        const drafts = generateSprints(startDate, endDate, allTeams);
         await tx.sprint.createMany({
           data: drafts.map((s) => ({ tenantId: mctx.tenantId, piId: pi.id, ...s })),
         });
@@ -64,7 +70,7 @@ export async function createPi(
         audit: { action: "pi.created", resourceType: "program_increment", resourceId: pi.id },
       });
     },
-    { onPrismaError: onUniqueConstraint(`PI "${name}" already exists in this ART`) },
+    { onPrismaError: onUniqueConstraint(`PI "${name}" already exists in this Timeline`) },
   );
 }
 
@@ -202,19 +208,30 @@ export async function startPi(ctx: RequestContext, input: { id: PiId }): Promise
       });
     }
 
+    if (!existing.timelineId) {
+      return err({
+        kind: "conflict" as const,
+        reason: "PI hat keine Timeline — kann nicht gestartet werden",
+      });
+    }
     const otherActive = await tx.programIncrement.findFirst({
-      where: { tenantId: mctx.tenantId, artId: existing.artId, status: "active", id: { not: id } },
+      where: {
+        tenantId: mctx.tenantId,
+        timelineId: existing.timelineId,
+        status: "active",
+        id: { not: id },
+      },
     });
     if (otherActive) {
       return err({
         kind: "conflict" as const,
-        reason: `PI "${otherActive.name}" is already active in this ART; complete it first`,
+        reason: `PI "${otherActive.name}" ist bereits in dieser Timeline aktiv; bitte zuerst abschließen`,
       });
     }
 
-    // Every team in the ART must have at least one committed objective.
+    // Every team in every subscribed ART must have at least one committed objective.
     const teams = await tx.team.findMany({
-      where: { tenantId: mctx.tenantId, artId: existing.artId },
+      where: { tenantId: mctx.tenantId, art: { timelineId: existing.timelineId } },
     });
     if (teams.length > 0) {
       const committed = await tx.piObjective.findMany({
@@ -334,13 +351,24 @@ export async function deletePi(ctx: RequestContext, input: { id: PiId }): Promis
   });
 }
 
+/**
+ * PIs of one ART — routes through the ART's Timeline. Returns [] when the ART
+ * has no Timeline yet (the page surfaces an empty-state CTA in that case).
+ */
 export async function listPis(
   db: PrismaClient,
   tenantId: TenantId,
   artId: ArtId,
   pageParams: PageParams = { page: 1, pageSize: 200 },
 ) {
-  const where = { tenantId, artId };
+  const art = await db.art.findFirst({
+    where: { id: artId, tenantId },
+    select: { timelineId: true },
+  });
+  if (!art?.timelineId) {
+    return { items: [], total: 0, page: 1, pageSize: pageParams.pageSize ?? 200 };
+  }
+  const where = { tenantId, timelineId: art.timelineId };
   const include = { _count: { select: { sprints: true, initiatives: true } } };
   const orderBy = { startDate: "desc" as const };
 
@@ -353,7 +381,10 @@ export async function listPis(
 
 /**
  * Program Increments across several ARTs at once — feeds the per-feature PI
- * picker on the Epic Breakdown tab, where child Features may span ARTs.
+ * picker on the Epic Breakdown tab, where child Features may span ARTs. Each
+ * row carries an `artId` stamp for back-compat with existing callers; it
+ * names the first subscribed ART of that PI's Timeline (deterministic, but
+ * only a display hint — multiple ARTs may share the same Timeline-PI).
  */
 export async function listProgramIncrementsForArts(
   db: PrismaClient,
@@ -361,17 +392,40 @@ export async function listProgramIncrementsForArts(
   artIds: string[],
 ) {
   if (artIds.length === 0) return [];
-  return db.programIncrement.findMany({
-    where: { tenantId, artId: { in: artIds } },
-    select: { id: true, name: true, artId: true },
+  const arts = await db.art.findMany({
+    where: { id: { in: artIds }, tenantId, deletedAt: null, timelineId: { not: null } },
+    select: { id: true, timelineId: true },
+  });
+  const timelineIds = [...new Set(arts.map((a) => a.timelineId!))];
+  if (timelineIds.length === 0) return [];
+  const rows = await db.programIncrement.findMany({
+    where: { tenantId, timelineId: { in: timelineIds } },
+    select: { id: true, name: true, timelineId: true },
     orderBy: { startDate: "desc" },
   });
+  // Stamp each PI with one representative artId from the input list.
+  const firstArtByTimeline = new Map<string, string>();
+  for (const a of arts) {
+    if (a.timelineId && !firstArtByTimeline.has(a.timelineId)) {
+      firstArtByTimeline.set(a.timelineId, a.id);
+    }
+  }
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    artId: firstArtByTimeline.get(r.timelineId!) ?? null,
+  }));
 }
 
-/** PIs of one ART with sprint counts — backs the PI-planning board/table. */
+/** PIs of one ART (via its Timeline) with sprint counts — backs PI-Planning. */
 export async function listArtPlanningPis(db: PrismaClient, tenantId: TenantId, artId: ArtId) {
+  const art = await db.art.findFirst({
+    where: { id: artId, tenantId },
+    select: { timelineId: true },
+  });
+  if (!art?.timelineId) return [];
   return db.programIncrement.findMany({
-    where: { tenantId, artId },
+    where: { tenantId, timelineId: art.timelineId },
     select: {
       id: true,
       name: true,
@@ -390,7 +444,12 @@ export async function getPi(db: PrismaClient, tenantId: TenantId, id: PiId) {
   return db.programIncrement.findFirst({
     where: { id, tenantId },
     include: {
-      art: { select: { id: true, name: true } },
+      // The Timeline + all ARTs subscribed — replaces the single-ART include.
+      timeline: {
+        include: {
+          arts: { select: { id: true, name: true } },
+        },
+      },
       sprints: {
         orderBy: [{ teamId: "asc" }, { indexInPi: "asc" }],
         select: {
@@ -399,7 +458,7 @@ export async function getPi(db: PrismaClient, tenantId: TenantId, id: PiId) {
           startDate: true,
           endDate: true,
           teamId: true,
-          team: { select: { id: true, name: true } },
+          team: { select: { id: true, name: true, artId: true } },
           initiatives: {
             where: { deletedAt: null, level: 2 },
             select: { id: true, title: true, status: true, storyPoints: true },
@@ -409,8 +468,15 @@ export async function getPi(db: PrismaClient, tenantId: TenantId, id: PiId) {
       },
       initiatives: {
         where: { deletedAt: null, level: 1 },
-        select: { id: true, title: true, status: true, wsjfComputed: true },
-        orderBy: { wsjfComputed: "desc" },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          wsjfComputed: true,
+          artId: true,
+          art: { select: { id: true, name: true } },
+        },
+        orderBy: [{ artId: "asc" }, { wsjfComputed: "desc" }],
       },
     },
   });

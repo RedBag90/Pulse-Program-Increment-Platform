@@ -39,7 +39,7 @@ export default async function WsjfLeaderboardPage() {
   }));
 
   return (
-    <main className="p-6 md:p-8 max-w-5xl mx-auto space-y-8">
+    <main className="p-6 md:p-8 space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">WSJF Leaderboard</h1>
         <p className="text-sm text-muted-foreground mt-0.5">

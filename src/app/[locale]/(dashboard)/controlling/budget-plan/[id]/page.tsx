@@ -44,7 +44,7 @@ export default async function BudgetPlanRevisionDetailPage({ params }: Props) {
   const showRecapture = canCapture && revision.cycleKey === currentCycleKey;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 p-8">
+    <main className="space-y-8 p-8">
       <div className="flex items-baseline justify-between gap-3">
         <Link href="/controlling" className="text-xs font-medium text-primary hover:underline">
           ← Controlling-Übersicht

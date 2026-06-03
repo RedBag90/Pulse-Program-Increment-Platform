@@ -51,7 +51,7 @@ export default async function IntegrationsPage({ searchParams }: Props) {
   const adoWebhookUrl = `${appUrl}/api/integrations/azure-devops/webhook?tenantId=${principal.tenantId}`;
 
   return (
-    <main className="p-8 max-w-3xl mx-auto space-y-10">
+    <main className="p-8 space-y-10">
       <div>
         <nav className="text-sm text-muted-foreground mb-2">
           <Link href="/admin/users" className="hover:underline">

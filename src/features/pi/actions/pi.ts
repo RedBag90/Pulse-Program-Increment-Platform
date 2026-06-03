@@ -12,7 +12,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { revalidateFor } from "@/server/http/revalidation";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import type { ArtId, PiId } from "@/domain/types";
+import type { PiId, TimelineId } from "@/domain/types";
 
 export interface PiActionState {
   error?: string;
@@ -26,17 +26,17 @@ export const createPiAction = createServerAction({
     href: `/pi/${v.id}`,
   }),
   schema: z.object({
-    artId: z.string().uuid(),
+    timelineId: z.string().uuid(),
     name: z.string().min(1).max(100),
     startDate: z.string().date(),
     endDate: z.string().date(),
   }),
   action: "pi.create",
-  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => {
     const f = fields(fd);
     return {
-      artId: f.string("artId"),
+      timelineId: f.string("timelineId"),
       name: f.string("name"),
       startDate: f.string("startDate"),
       endDate: f.string("endDate"),
@@ -44,7 +44,7 @@ export const createPiAction = createServerAction({
   },
   service: (ctx, input) =>
     createPi(ctx, {
-      artId: input.artId as ArtId,
+      timelineId: input.timelineId as TimelineId,
       name: input.name,
       startDate: new Date(input.startDate),
       endDate: new Date(input.endDate),
@@ -54,7 +54,7 @@ export const createPiAction = createServerAction({
     e.kind === "conflict"
       ? e.reason
       : e.kind === "not_found"
-        ? "ART not found"
+        ? "Timeline not found"
         : "Failed to create PI",
 });
 

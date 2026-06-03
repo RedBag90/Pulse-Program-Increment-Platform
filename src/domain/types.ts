@@ -26,6 +26,7 @@ export type ArtId = string & { readonly __brand: "ArtId" };
 export type TeamId = string & { readonly __brand: "TeamId" };
 export type ValueStreamId = string & { readonly __brand: "ValueStreamId" };
 export type PiId = string & { readonly __brand: "PiId" };
+export type TimelineId = string & { readonly __brand: "TimelineId" };
 export type SprintId = string & { readonly __brand: "SprintId" };
 
 // ---------------------------------------------------------------------------

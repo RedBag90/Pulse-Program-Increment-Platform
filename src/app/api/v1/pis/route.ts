@@ -3,10 +3,10 @@ import { createPi, listPis } from "@/server/services/pi";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import { parsePageParams } from "@/server/db/paginate";
-import type { ArtId } from "@/domain/types";
+import type { ArtId, TimelineId } from "@/domain/types";
 
 const createSchema = z.object({
-  artId: z.string().uuid(),
+  timelineId: z.string().uuid(),
   name: z.string().min(1).max(100),
   startDate: z.string().date(),
   endDate: z.string().date(),
@@ -27,10 +27,10 @@ export const GET = createQueryHandler({
 export const POST = createMutationHandler({
   schema: createSchema,
   action: "pi.create",
-  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
     createPi(ctx, {
-      artId: input.artId as ArtId,
+      timelineId: input.timelineId as TimelineId,
       name: input.name,
       startDate: new Date(input.startDate),
       endDate: new Date(input.endDate),

@@ -22,14 +22,22 @@ export default async function PiObjectivesPage({ params }: Props) {
 
   const pi = await getPi(db, principal.tenantId, piId as PiId);
   if (!pi) notFound();
+  const timeline = pi.timeline;
+  if (!timeline) notFound();
+
+  const artIds = timeline.arts.map((a) => a.id);
 
   const [objectives, teams] = await Promise.all([
     listPiObjectives(db, principal.tenantId as TenantId, piId as PiId),
     db.team.findMany({
-      where: { artId: pi.art.id, tenantId: principal.tenantId as TenantId },
+      where: { artId: { in: artIds }, tenantId: principal.tenantId as TenantId },
       orderBy: { name: "asc" },
     }),
   ]);
+
+  // Team → ART map so the dialog/ConfidenceVote dispatch with the right ART,
+  // even though a PI now spans many ARTs.
+  const teamArtId = new Map(teams.map((t) => [t.id, t.artId]));
 
   const canVote =
     principal.roles.includes("rte") ||
@@ -46,11 +54,11 @@ export default async function PiObjectivesPage({ params }: Props) {
   }
 
   return (
-    <main className="p-8 max-w-4xl mx-auto space-y-6">
+    <main className="p-8 space-y-6">
       <Breadcrumbs
         items={[
-          { label: "ARTs", href: "/structure?tab=arts" },
-          { label: pi.art.name, href: `/art/${pi.art.id}` },
+          { label: "Struktur", href: "/structure" },
+          { label: `Timeline: ${timeline.name}`, href: "/structure?tab=timeline" },
           { label: pi.name, href: `/pi/${piId}` },
           { label: "Objectives" },
         ]}
@@ -60,7 +68,7 @@ export default async function PiObjectivesPage({ params }: Props) {
 
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">PI Objectives — {pi.name}</h1>
-        <CreatePiObjectiveDialog piId={piId} artId={pi.art.id} teams={teams} />
+        <CreatePiObjectiveDialog piId={piId} teams={teams} />
       </div>
 
       {objectives.length === 0 ? (
@@ -100,7 +108,7 @@ export default async function PiObjectivesPage({ params }: Props) {
                       <div className="pt-1">
                         <ObjectiveConfidenceVote
                           objectiveId={obj.id}
-                          artId={pi.art.id}
+                          artId={teamArtId.get(obj.teamId) ?? ""}
                           current={obj.confidence}
                           canVote={canVote}
                         />

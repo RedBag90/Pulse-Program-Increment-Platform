@@ -99,7 +99,12 @@ export type AuditAction =
   | "budget_allocation.saved"
   | "budget_pool.saved"
   | "art_budget.saved"
-  | "budget_plan.revision.captured";
+  | "budget_plan.revision.captured"
+  | "timeline.created"
+  | "timeline.updated"
+  | "timeline.deleted"
+  | "timeline.art.joined"
+  | "timeline.art.left";
 
 export type AuditResourceType =
   | "initiative"
@@ -124,7 +129,8 @@ export type AuditResourceType =
   | "budget_allocation"
   | "budget_pool"
   | "art_budget"
-  | "budget_plan_revision";
+  | "budget_plan_revision"
+  | "timeline";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

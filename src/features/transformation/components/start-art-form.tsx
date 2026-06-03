@@ -13,22 +13,29 @@ interface Option {
   label: string;
 }
 
+interface TimelineOption {
+  id: string;
+  name: string;
+  cadenceWeeks: number;
+}
+
 interface Props {
   valueStreams: Option[];
   rteUsers: Option[];
+  timelines: TimelineOption[];
   canManage: boolean;
 }
 
 const SELECT =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-/** Guided "launch an ART" flow — one form orchestrating ART + cadence + RTE + first PI. */
-export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
+/** Guided "launch an ART" flow — one form orchestrating ART + Timeline + RTE + first PI. */
+export function StartArtForm({ valueStreams, rteUsers, timelines, canManage }: Props) {
   const [state, formAction, isPending] = useActionState(startArtAction, {});
 
   const [valueStreamId, setValueStreamId] = useState(valueStreams[0]?.id ?? "");
   const [name, setName] = useState("");
-  const [cadence, setCadence] = useState("10");
+  const [timelineId, setTimelineId] = useState(timelines[0]?.id ?? "");
   const [rteId, setRteId] = useState("");
   const [piName, setPiName] = useState("");
   const [piStart, setPiStart] = useState("");
@@ -41,7 +48,7 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
       JSON.stringify({
         valueStreamId,
         name,
-        piCadenceWeeks: cadence,
+        timelineId,
         rteId: rteId || null,
         piName,
         piStartDate: piStart,
@@ -67,6 +74,18 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
     );
   }
 
+  if (timelines.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Lege zuerst eine Timeline an —{" "}
+        <Link href="/structure?tab=timeline" className="text-primary hover:underline">
+          Struktur › Timeline
+        </Link>
+        . ARTs übernehmen die Kadenz ihrer Timeline.
+      </p>
+    );
+  }
+
   if (state.created) {
     return (
       <p role="status" className="flex items-center gap-2 text-sm text-emerald-700">
@@ -83,7 +102,8 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
     );
   }
 
-  const canSubmit = !isPending && valueStreamId && name.trim() && piName.trim() && piStart && piEnd;
+  const canSubmit =
+    !isPending && valueStreamId && name.trim() && timelineId && piName.trim() && piStart && piEnd;
 
   return (
     <div className="max-w-xl space-y-5">
@@ -110,15 +130,19 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="sa-cadence">PI-Kadenz (Wochen)</Label>
-          <Input
-            id="sa-cadence"
-            type="number"
-            min={8}
-            max={12}
-            value={cadence}
-            onChange={(e) => setCadence(e.target.value)}
-          />
+          <Label htmlFor="sa-timeline">Timeline</Label>
+          <select
+            id="sa-timeline"
+            className={SELECT}
+            value={timelineId}
+            onChange={(e) => setTimelineId(e.target.value)}
+          >
+            {timelines.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name} ({t.cadenceWeeks} Wo)
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="sa-rte">RTE (optional)</Label>

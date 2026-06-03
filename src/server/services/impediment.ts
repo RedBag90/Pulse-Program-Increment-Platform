@@ -160,3 +160,29 @@ export async function listImpediments(
     pageParams,
   );
 }
+
+/**
+ * Multi-ART variant: collect impediments across every ART in `artIds`,
+ * optionally filtered to one PI. Used by the PI detail page, which now
+ * lives on a Timeline and aggregates across all subscribed ARTs.
+ *
+ * Returns the flat array (no pagination) — callers feed it directly into
+ * `summarizePiOverview`, which is a pure aggregator.
+ */
+export async function listImpedimentsForArts(
+  db: PrismaClient,
+  tenantId: TenantId,
+  artIds: ArtId[],
+  options?: { piId?: string; status?: string },
+) {
+  if (artIds.length === 0) return [];
+  return db.impediment.findMany({
+    where: {
+      tenantId,
+      artId: { in: artIds },
+      ...(options?.piId ? { piId: options.piId } : {}),
+      ...(options?.status ? { status: options.status } : {}),
+    },
+    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+  });
+}

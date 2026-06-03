@@ -68,7 +68,7 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
     .map((p) => ({ id: p.id, name: p.name }));
 
   return (
-    <main className="p-8 max-w-6xl mx-auto space-y-6">
+    <main className="p-8 space-y-6">
       <ArtSubNav artId={artId} artName={art.name} />
 
       <div className="flex items-center justify-between gap-4 flex-wrap">

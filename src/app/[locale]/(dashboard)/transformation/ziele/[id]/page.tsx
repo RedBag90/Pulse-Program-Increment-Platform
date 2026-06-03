@@ -32,7 +32,7 @@ export default async function GoalDetailPage({ params }: { params: Promise<{ id:
   const overall = goalKpiProgress(goal.kpis);
 
   return (
-    <div className="max-w-3xl space-y-6 p-6">
+    <div className="space-y-6 p-6">
       <div>
         <Link
           href="/transformation/ziele"

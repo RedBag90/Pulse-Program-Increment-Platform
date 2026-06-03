@@ -33,7 +33,7 @@ export default async function ArtSettingsPage({ params }: Props) {
   const rteUsers = approvers.filter((u) => u.roles.includes("rte"));
 
   return (
-    <main className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
+    <main className="p-6 md:p-8 space-y-6">
       <ArtSubNav artId={artId} artName={art.name} />
 
       <section className="space-y-4">

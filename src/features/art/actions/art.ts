@@ -2,10 +2,10 @@
 
 import { z } from "zod";
 import { updateArt, softDeleteArt } from "@/server/services/art";
-import { createArtWithStandard } from "@/server/services/art-setup";
+import { createArtOnTimeline } from "@/server/services/art-setup";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import type { ValueStreamId, ArtId } from "@/domain/types";
+import type { ValueStreamId, ArtId, TimelineId } from "@/domain/types";
 
 export interface ArtActionState {
   error?: string;
@@ -17,8 +17,7 @@ export const createArtAction = createServerAction({
   schema: z.object({
     valueStreamId: z.string().uuid(),
     name: z.string().min(1).max(100),
-    piCadenceWeeks: z.coerce.number().int().min(8).max(12).optional(),
-    piStandardId: z.string().uuid().optional(),
+    timelineId: z.string().uuid(),
   }),
   action: "art.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -27,16 +26,14 @@ export const createArtAction = createServerAction({
     return {
       valueStreamId: f.string("valueStreamId"),
       name: f.string("name"),
-      piCadenceWeeks: f.nonEmptyString("piCadenceWeeks"),
-      piStandardId: f.nonEmptyString("piStandardId"),
+      timelineId: f.string("timelineId"),
     };
   },
   service: (ctx, input) =>
-    createArtWithStandard(ctx, {
+    createArtOnTimeline(ctx, {
       valueStreamId: input.valueStreamId as ValueStreamId,
       name: input.name,
-      piCadenceWeeks: input.piCadenceWeeks,
-      piStandardId: input.piStandardId,
+      timelineId: input.timelineId as TimelineId,
     }),
   revalidate: "art",
   mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create ART"),

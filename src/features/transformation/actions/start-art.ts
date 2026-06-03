@@ -5,13 +5,13 @@ import { revalidatePath } from "next/cache";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { startArt } from "@/server/services/art-setup";
-import type { ValueStreamId } from "@/domain/types";
+import type { ValueStreamId, TimelineId } from "@/domain/types";
 
 const schema = z
   .object({
     valueStreamId: z.string().uuid(),
     name: z.string().min(1).max(100),
-    piCadenceWeeks: z.coerce.number().int().min(8).max(12).optional(),
+    timelineId: z.string().uuid(),
     rteId: z.string().uuid().nullable().optional(),
     piName: z.string().min(1).max(100),
     piStartDate: z.string().date(),
@@ -22,7 +22,7 @@ const schema = z
     path: ["piEndDate"],
   });
 
-/** Guided ART launch — creates the ART, sets cadence/RTE, and plans the first PI. */
+/** Guided ART launch — creates the ART, joins a Timeline, sets RTE, plans the first PI. */
 export const startArtAction = createServerAction({
   describeCreated: (v: { artId: string }) => ({
     id: v.artId,
@@ -37,7 +37,7 @@ export const startArtAction = createServerAction({
     startArt(ctx, {
       valueStreamId: input.valueStreamId as ValueStreamId,
       name: input.name,
-      piCadenceWeeks: input.piCadenceWeeks,
+      timelineId: input.timelineId as TimelineId,
       rteId: input.rteId ?? null,
       piName: input.piName,
       piStartDate: new Date(input.piStartDate),

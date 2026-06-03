@@ -32,9 +32,13 @@ export default async function PiDependenciesPage({ params }: Props) {
 
   const pi = await db.programIncrement.findFirst({
     where: { id: piId, tenantId: principal.tenantId as TenantId },
-    include: { art: { select: { id: true, name: true } } },
+    include: {
+      timeline: { select: { id: true, name: true } },
+    },
   });
   if (!pi) notFound();
+  const timeline = pi.timeline;
+  if (!timeline) notFound();
 
   // Get all features (level=1) in this PI
   const features = await db.initiative.findMany({
@@ -85,11 +89,11 @@ export default async function PiDependenciesPage({ params }: Props) {
   }
 
   return (
-    <main className="p-8 max-w-5xl mx-auto space-y-6">
+    <main className="p-8 space-y-6">
       <Breadcrumbs
         items={[
-          { label: "ARTs", href: "/structure?tab=arts" },
-          { label: pi.art.name, href: `/art/${pi.art.id}` },
+          { label: "Struktur", href: "/structure" },
+          { label: `Timeline: ${timeline.name}`, href: "/structure?tab=timeline" },
           { label: pi.name, href: `/pi/${piId}` },
           { label: "Dependencies" },
         ]}

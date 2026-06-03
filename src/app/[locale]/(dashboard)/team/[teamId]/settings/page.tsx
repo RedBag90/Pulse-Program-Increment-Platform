@@ -50,7 +50,7 @@ export default async function TeamSettingsPage({ params }: Props) {
   const teamUsers = approvers.filter((u) => u.roles.includes("team_editor"));
 
   return (
-    <main className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
+    <main className="p-6 md:p-8 space-y-6">
       <TeamSubNav teamId={teamId} teamName={team.name} artId={team.artId} artName={team.art.name} />
 
       <section className="space-y-4">

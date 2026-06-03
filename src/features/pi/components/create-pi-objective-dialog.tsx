@@ -25,6 +25,9 @@ const SELECT_CLASS =
 interface Team {
   id: string;
   name: string;
+  /** The Team's owning ART — emitted as the `artId` form field on submit, so
+   * the action can authorize against the right ART when the PI spans many. */
+  artId: string;
 }
 
 export interface CreatePiObjectiveDialogProps {
@@ -33,8 +36,7 @@ export interface CreatePiObjectiveDialogProps {
   onOpenChange?: (open: boolean) => void;
   /** Page-supplied parent PI; when omitted an ART → PI + Team cascade is shown. */
   piId?: string;
-  artId?: string;
-  /** Page-supplied teams for the team select. */
+  /** Page-supplied teams across every subscribed ART. */
   teams?: Team[];
   /** Route context used to pre-select ART / PI in the global menu. */
   context?: CreateContext;
@@ -46,7 +48,6 @@ export function CreatePiObjectiveDialog({
   open,
   onOpenChange,
   piId,
-  artId,
   teams,
   context,
 }: CreatePiObjectiveDialogProps) {
@@ -62,10 +63,13 @@ export function CreatePiObjectiveDialog({
     formRef.current?.reset();
   });
 
-  const pageScoped = piId !== undefined && artId !== undefined;
+  const pageScoped = piId !== undefined && teams !== undefined;
   const [artSel, setArtSel] = useState(context?.artId ?? "");
   const [piSel, setPiSel] = useState(context?.piId ?? "");
   const [teamSel, setTeamSel] = useState("");
+  // In page-scoped mode the ART comes from the selected Team. Driving the
+  // hidden `artId` input from state keeps the action signature unchanged.
+  const teamArtId = (teams ?? []).find((t) => t.id === teamSel)?.artId ?? "";
 
   return (
     <>
@@ -85,10 +89,16 @@ export function CreatePiObjectiveDialog({
             {pageScoped ? (
               <>
                 <input type="hidden" name="piId" value={piId} />
-                <input type="hidden" name="artId" value={artId} />
+                <input type="hidden" name="artId" value={teamArtId} />
                 <div className="space-y-1.5">
                   <Label>Team *</Label>
-                  <select name="teamId" required className={SELECT_CLASS}>
+                  <select
+                    name="teamId"
+                    required
+                    className={SELECT_CLASS}
+                    value={teamSel}
+                    onChange={(e) => setTeamSel(e.target.value)}
+                  >
                     <option value="">Select team…</option>
                     {(teams ?? []).map((t) => (
                       <option key={t.id} value={t.id}>

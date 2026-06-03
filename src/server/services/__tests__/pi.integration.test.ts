@@ -4,7 +4,7 @@ import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import { createPi, startPi, completePi } from "@/server/services/pi";
 import { isOk, isErr } from "@/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
-import type { ArtId, PiId } from "@/domain/types";
+import type { PiId, TimelineId } from "@/domain/types";
 import { randomUUID } from "crypto";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;
@@ -21,7 +21,7 @@ describe("createPi", () => {
     const endDate = new Date("2024-04-15");
 
     const result = await createPi(testRequestContext(db, seed), {
-      artId: seed.artId,
+      timelineId: seed.timelineId,
       name: "PI 24.1",
       startDate,
       endDate,
@@ -45,7 +45,7 @@ describe("createPi", () => {
     });
 
     const result = await createPi(testRequestContext(db, seed), {
-      artId: seed.artId,
+      timelineId: seed.timelineId,
       name: "PI 24.1",
       startDate: new Date("2024-01-15"),
       endDate: new Date("2024-04-15"),
@@ -63,7 +63,7 @@ describe("createPi", () => {
 
   it("returns conflict when endDate <= startDate", async () => {
     const result = await createPi(testRequestContext(db, seed), {
-      artId: seed.artId,
+      timelineId: seed.timelineId,
       name: "PI bad dates",
       startDate: new Date("2024-04-15"),
       endDate: new Date("2024-01-15"),
@@ -74,9 +74,9 @@ describe("createPi", () => {
     expect(result.error.kind).toBe("conflict");
   });
 
-  it("returns not_found for unknown artId", async () => {
+  it("returns not_found for unknown timelineId", async () => {
     const result = await createPi(testRequestContext(db, seed), {
-      artId: randomUUID() as ArtId,
+      timelineId: randomUUID() as TimelineId,
       name: "PI orphan",
       startDate: new Date("2024-01-15"),
       endDate: new Date("2024-04-15"),
@@ -91,7 +91,7 @@ describe("createPi", () => {
     const before = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 
     await createPi(testRequestContext(db, seed), {
-      artId: seed.artId,
+      timelineId: seed.timelineId,
       name: "PI 24.1",
       startDate: new Date("2024-01-15"),
       endDate: new Date("2024-04-15"),
@@ -111,7 +111,7 @@ describe("startPi", () => {
     const pi = await db.programIncrement.create({
       data: {
         tenantId: seed.tenantId,
-        artId: seed.artId,
+        timelineId: seed.timelineId,
         name,
         startDate: new Date("2024-01-15"),
         endDate: new Date("2024-04-15"),
@@ -170,7 +170,7 @@ describe("completePi", () => {
     const pi = await db.programIncrement.create({
       data: {
         tenantId: seed.tenantId,
-        artId: seed.artId,
+        timelineId: seed.timelineId,
         name: "PI 24.1",
         startDate: new Date("2024-01-15"),
         endDate: new Date("2024-04-15"),
@@ -189,7 +189,7 @@ describe("completePi", () => {
     const pi = await db.programIncrement.create({
       data: {
         tenantId: seed.tenantId,
-        artId: seed.artId,
+        timelineId: seed.timelineId,
         name: "PI planned",
         startDate: new Date("2024-01-15"),
         endDate: new Date("2024-04-15"),

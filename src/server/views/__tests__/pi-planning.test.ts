@@ -23,7 +23,7 @@ describe("buildPlanningModel", () => {
           status: "in_progress",
           wsjfComputed: 3.5,
           wsjfJobSize: 8,
-          parent: { title: "Epic A" },
+          parent: { id: "e1", title: "Epic A" },
           piId: "p1",
         },
         {
@@ -53,7 +53,9 @@ describe("buildPlanningModel", () => {
       title: "F1",
       status: "in_progress",
       wsjf: 3.5,
+      epicId: "e1",
       epicTitle: "Epic A",
+      cycleKey: null,
       piId: "p1",
     });
     expect(features[1]).toMatchObject({ wsjf: 0, epicTitle: null, piId: null });

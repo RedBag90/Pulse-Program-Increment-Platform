@@ -20,7 +20,7 @@ export default async function AdminUsersPage() {
   });
 
   return (
-    <main className="p-8 max-w-4xl mx-auto space-y-10">
+    <main className="p-8 space-y-10">
       <h1 className="text-2xl font-semibold">User Management</h1>
 
       <section>

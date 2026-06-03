@@ -1,11 +1,17 @@
 "use client";
 
-import { useOptimistic, useRef, useState, useTransition } from "react";
+import { useOptimistic, useRef, useState, useTransition, type RefObject } from "react";
 import { Link } from "@/i18n/navigation";
 import { setFeaturePiAction } from "@/features/art/actions/feature";
 import { Lock } from "lucide-react";
 import { PiCapacityHeader } from "./pi-capacity-header";
-import type { PiCapacityOverlay, FeatureBlockerOverlay } from "@/server/views/pi-planning";
+import {
+  groupBacklogByCycleAndEpic,
+  NO_BUDGET_CYCLE,
+  type PiCapacityOverlay,
+  type FeatureBlockerOverlay,
+} from "@/server/views/pi-planning";
+import { halfYearLabel } from "@/domain/calendar";
 
 const STATUS_DOT: Record<string, string> = {
   draft: "bg-muted-foreground/40",
@@ -31,7 +37,12 @@ export interface PlanningFeature {
   title: string;
   status: string;
   wsjf: number;
+  /** Parent Epic id — drives Backlog grouping. */
+  epicId: string | null;
   epicTitle: string | null;
+  /** Earliest funded half-year of the parent Epic (`"YYYY-H1"`/`-H2"`), or
+   *  `null` when the Epic has no budget yet — placed in "Ohne Budget". */
+  cycleKey: string | null;
   piId: string | null;
 }
 
@@ -44,6 +55,9 @@ interface Props {
   capacity: Record<string, PiCapacityOverlay>;
   /** Per-Feature blocker overlay; missing entries mean "no upstream blockers". */
   blockers: Record<string, FeatureBlockerOverlay>;
+  /** Today's half-year key (e.g. `"2026-H1"`) — server-computed so the Backlog
+   *  grouping marks the right cycle as "aktuell" without hydration drift. */
+  currentCycleKey: string;
 }
 
 /** Rounds a WSJF sum to one decimal for the column-load badge. */
@@ -63,6 +77,7 @@ export function FeaturePlanningBoard({
   pis,
   capacity,
   blockers,
+  currentCycleKey,
 }: Props) {
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -161,66 +176,31 @@ export function FeaturePlanningBoard({
                 </div>
 
                 <div className="min-h-24 space-y-2 rounded-xl bg-muted/40 p-2">
-                  {colFeatures.map((feature) => {
-                    const blocker = blockers[feature.id];
-                    return (
-                      <div
-                        key={feature.id}
-                        draggable={canEdit}
-                        onDragStart={(e) => {
-                          draggingId.current = feature.id;
-                          e.dataTransfer.effectAllowed = "move";
-                          e.currentTarget.classList.add("opacity-50");
-                        }}
-                        onDragEnd={(e) => {
-                          e.currentTarget.classList.remove("opacity-50");
-                          draggingId.current = null;
-                        }}
-                        className={`space-y-2 rounded-lg border bg-card p-3 shadow-sm transition-shadow hover:shadow-md ${
-                          blocker?.violates
-                            ? "border-amber-300 ring-1 ring-amber-300"
-                            : "border-border"
-                        } ${canEdit ? "cursor-grab active:cursor-grabbing" : ""}`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <div
-                            className={`mt-1.5 size-1.5 shrink-0 rounded-full ${
-                              STATUS_DOT[feature.status] ?? "bg-muted-foreground/40"
-                            }`}
-                          />
-                          <Link
-                            href={`/feature/${feature.id}`}
-                            className="line-clamp-2 text-xs font-medium leading-snug hover:text-primary"
-                          >
-                            {feature.title}
-                          </Link>
+                  {col.piId === null ? (
+                    <BacklogGrouped
+                      features={colFeatures}
+                      currentCycleKey={currentCycleKey}
+                      canEdit={canEdit}
+                      blockers={blockers}
+                      draggingId={draggingId}
+                    />
+                  ) : (
+                    <>
+                      {colFeatures.map((feature) => (
+                        <FeatureCard
+                          key={feature.id}
+                          feature={feature}
+                          blocker={blockers[feature.id]}
+                          canEdit={canEdit}
+                          draggingId={draggingId}
+                        />
+                      ))}
+                      {colFeatures.length === 0 && (
+                        <div className="flex h-16 items-center justify-center rounded-lg border-2 border-dashed border-border/50">
+                          <span className="text-[10px] text-muted-foreground/50">Leer</span>
                         </div>
-                        <div className="flex items-center justify-between gap-2 pl-3.5">
-                          {feature.epicTitle && (
-                            <span className="truncate text-[10px] text-muted-foreground">
-                              {feature.epicTitle}
-                            </span>
-                          )}
-                          <span className="ml-auto shrink-0 text-[10px] font-medium text-muted-foreground">
-                            WSJF {roundWsjf(feature.wsjf)}
-                          </span>
-                        </div>
-                        {blocker && (blocker.violates || feature.piId === null) && (
-                          <BlockerChip
-                            violates={blocker.violates}
-                            earliestPiName={blocker.earliestPiName}
-                            earliestStart={blocker.earliestStart}
-                            scheduledBlockerTitles={blocker.scheduledBlockerTitles}
-                            unscheduledBlockerTitles={blocker.unscheduledBlockerTitles}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                  {colFeatures.length === 0 && (
-                    <div className="flex h-16 items-center justify-center rounded-lg border-2 border-dashed border-border/50">
-                      <span className="text-[10px] text-muted-foreground/50">Leer</span>
-                    </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -228,6 +208,153 @@ export function FeaturePlanningBoard({
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * One Feature card — extracted so the Backlog can re-render it inside Epic
+ * groups while every PI column still calls it flat. Drag identity is owned by
+ * the parent board via the shared `draggingId` ref.
+ */
+function FeatureCard({
+  feature,
+  blocker,
+  canEdit,
+  draggingId,
+}: {
+  feature: PlanningFeature;
+  blocker: FeatureBlockerOverlay | undefined;
+  canEdit: boolean;
+  draggingId: RefObject<string | null>;
+}) {
+  return (
+    <div
+      draggable={canEdit}
+      onDragStart={(e) => {
+        draggingId.current = feature.id;
+        e.dataTransfer.effectAllowed = "move";
+        e.currentTarget.classList.add("opacity-50");
+      }}
+      onDragEnd={(e) => {
+        e.currentTarget.classList.remove("opacity-50");
+        draggingId.current = null;
+      }}
+      className={`space-y-2 rounded-lg border bg-card p-3 shadow-sm transition-shadow hover:shadow-md ${
+        blocker?.violates ? "border-amber-300 ring-1 ring-amber-300" : "border-border"
+      } ${canEdit ? "cursor-grab active:cursor-grabbing" : ""}`}
+    >
+      <div className="flex items-start gap-2">
+        <div
+          className={`mt-1.5 size-1.5 shrink-0 rounded-full ${
+            STATUS_DOT[feature.status] ?? "bg-muted-foreground/40"
+          }`}
+        />
+        <Link
+          href={`/feature/${feature.id}`}
+          className="line-clamp-2 text-xs font-medium leading-snug hover:text-primary"
+        >
+          {feature.title}
+        </Link>
+      </div>
+      <div className="flex items-center justify-between gap-2 pl-3.5">
+        {feature.epicTitle && (
+          <span className="truncate text-[10px] text-muted-foreground">{feature.epicTitle}</span>
+        )}
+        <span className="ml-auto shrink-0 text-[10px] font-medium text-muted-foreground">
+          WSJF {roundWsjf(feature.wsjf)}
+        </span>
+      </div>
+      {blocker && (blocker.violates || feature.piId === null) && (
+        <BlockerChip
+          violates={blocker.violates}
+          earliestPiName={blocker.earliestPiName}
+          earliestStart={blocker.earliestStart}
+          scheduledBlockerTitles={blocker.scheduledBlockerTitles}
+          unscheduledBlockerTitles={blocker.unscheduledBlockerTitles}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Backlog renderer — schichtet die ungeplanten Features nach Budgeting-Zyklus
+ * (Halbjahr; aktueller Zyklus zuerst) und darunter nach Epic, beides als rein
+ * visuelle Gruppen. Drop-Target bleibt die ganze Backlog-Spalte (siehe parent).
+ */
+function BacklogGrouped({
+  features,
+  currentCycleKey,
+  canEdit,
+  blockers,
+  draggingId,
+}: {
+  features: PlanningFeature[];
+  currentCycleKey: string;
+  canEdit: boolean;
+  blockers: Record<string, FeatureBlockerOverlay>;
+  draggingId: RefObject<string | null>;
+}) {
+  if (features.length === 0) {
+    return (
+      <div className="flex h-16 items-center justify-center rounded-lg border-2 border-dashed border-border/50">
+        <span className="text-[10px] text-muted-foreground/50">Leer</span>
+      </div>
+    );
+  }
+  const groups = groupBacklogByCycleAndEpic(features, currentCycleKey);
+  return (
+    <div className="space-y-3">
+      {groups.map((g) => {
+        const cycleLabel =
+          g.cycleKey === NO_BUDGET_CYCLE ? "Ohne Budget" : halfYearLabel(g.cycleKey);
+        return (
+          <section key={String(g.cycleKey)} className="space-y-1.5">
+            <header className="flex items-baseline justify-between gap-2 px-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground">
+                {cycleLabel}
+                {g.isCurrent && (
+                  <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">
+                    aktueller Zyklus
+                  </span>
+                )}
+              </span>
+              <span className="shrink-0 text-[10px] text-muted-foreground">
+                {g.count} · Σ WSJF {roundWsjf(g.wsjfSum)}
+              </span>
+            </header>
+            <div className="space-y-2">
+              {g.epics.map((eg) => (
+                <div
+                  key={String(eg.epicId)}
+                  className="space-y-1.5 rounded-md border border-border/60 bg-card/50 p-1.5"
+                >
+                  <div className="flex items-baseline justify-between gap-2 px-1">
+                    <span className="truncate text-[11px] font-medium">
+                      {eg.epicTitle ?? "Kein Epic"}
+                    </span>
+                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                      {eg.features.length} · Σ WSJF {roundWsjf(eg.wsjfSum)}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {eg.features.map((f) => (
+                      <FeatureCard
+                        key={f.id}
+                        feature={f}
+                        blocker={blockers[f.id]}
+                        canEdit={canEdit}
+                        draggingId={draggingId}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

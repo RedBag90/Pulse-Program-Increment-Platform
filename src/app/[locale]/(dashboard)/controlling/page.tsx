@@ -59,7 +59,7 @@ export default async function ControllingOverviewPage() {
   const latestIsCurrentCycle = latest?.cycleKey === cycleKey;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 p-8">
+    <main className="space-y-8 p-8">
       <div>
         <h1 className="text-2xl font-semibold">Controlling-Übersicht</h1>
         <p className="mt-1 text-sm text-muted-foreground">

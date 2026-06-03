@@ -40,7 +40,7 @@ export default async function PiVelocityPage() {
   });
 
   return (
-    <main className="p-6 md:p-8 max-w-4xl mx-auto space-y-8">
+    <main className="p-6 md:p-8 space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">PI Velocity</h1>
         <p className="text-sm text-muted-foreground mt-0.5">

@@ -44,7 +44,7 @@ export default async function KpiTreePage() {
   );
 
   return (
-    <main className="mx-auto max-w-7xl p-6 md:p-8">
+    <main className="p-6 md:p-8">
       {/* Context bar */}
       <header className="flex items-end justify-between border-b pb-4">
         <div>

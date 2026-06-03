@@ -25,6 +25,7 @@ export type RevalidationResource =
   | "piStandard"
   | "kpiTree"
   | "budgetPlanRevision"
+  | "timeline"
   | "story"
   | "impediment"
   | "dependency";
@@ -58,6 +59,16 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   piStandard: ["/structure", "/value-streams/[id]"],
   kpiTree: ["/controlling/kpi-tree"],
   budgetPlanRevision: ["/controlling", "/controlling/budget-plan", "/controlling/budget-plan/[id]"],
+  // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
+  // the structure tab that hosts the management UI.
+  timeline: [
+    "/structure",
+    "/pi-planning",
+    "/pi/[piId]",
+    "/pi/[piId]/objectives",
+    "/art/[artId]/pi",
+    "/feature/[featureId]",
+  ],
   story: ["/feature/[featureId]", "/team/[teamId]"],
   impediment: ["/art/[artId]/impediments"],
   dependency: ["/feature/[featureId]", "/pi/[piId]/dependencies"],

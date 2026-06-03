@@ -27,7 +27,7 @@ export default async function BudgetPlanIndexPage() {
   const cycleLabel = halfYearLabel(halfYearKey(new Date()));
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-8">
+    <main className="space-y-6 p-8">
       <div>
         <h1 className="text-2xl font-semibold">Budget-Plan</h1>
         <p className="mt-1 text-sm text-muted-foreground">

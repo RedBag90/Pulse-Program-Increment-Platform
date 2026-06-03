@@ -83,6 +83,11 @@ export const ACTION_LABELS: Record<string, string> = {
   "pi.capacity.updated": "PI-Kapazität gesetzt",
   "feature.delivery.transitioned": "Feature-Status geändert",
   "budget_plan.revision.captured": "Budget-Plan-Revision erfasst",
+  "timeline.created": "Timeline erstellt",
+  "timeline.updated": "Timeline geändert",
+  "timeline.deleted": "Timeline gelöscht",
+  "timeline.art.joined": "ART einer Timeline zugeordnet",
+  "timeline.art.left": "ART aus einer Timeline gelöst",
 };
 
 /** An audit action's display label, falling back to a de-dotted form. */

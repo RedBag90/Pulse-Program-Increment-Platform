@@ -41,7 +41,7 @@ export interface PlanningFeatureRow {
   status: string;
   wsjfComputed: Prisma.Decimal | number | null;
   wsjfJobSize: number | null;
-  parent: { title: string } | null;
+  parent: { id: string; title: string } | null;
   piId: string | null;
 }
 
@@ -92,16 +92,28 @@ export interface BuildPlanningModelInputs {
   costPerJobSizePoint: number | null;
   /** Direct blockers per Feature (one entry per blocker); empty map for "no blockers". */
   blockerWindowsByFeature: Map<string, readonly BlockerWindow[]>;
+  /** Earliest funded half-year key per parent-Epic id, or `null` for "no budget".
+   *  Missing entries are treated as `null` (= "Ohne Budget" in the Backlog). */
+  epicCycleByEpicId?: Record<string, string | null>;
 }
 
 export function buildPlanningModel(inputs: BuildPlanningModelInputs): PlanningModel {
-  const { pis, features, artBudgetByPeriod, costPerJobSizePoint, blockerWindowsByFeature } = inputs;
+  const {
+    pis,
+    features,
+    artBudgetByPeriod,
+    costPerJobSizePoint,
+    blockerWindowsByFeature,
+    epicCycleByEpicId,
+  } = inputs;
   const planningFeatures: PlanningFeature[] = features.map((f) => ({
     id: f.id,
     title: f.title,
     status: f.status,
     wsjf: Number(f.wsjfComputed ?? 0),
+    epicId: f.parent?.id ?? null,
     epicTitle: f.parent?.title ?? null,
+    cycleKey: f.parent?.id ? (epicCycleByEpicId?.[f.parent.id] ?? null) : null,
     piId: f.piId,
   }));
 
@@ -204,4 +216,95 @@ export function buildPlanningModel(inputs: BuildPlanningModelInputs): PlanningMo
     blockers,
     costPerJobSizePoint,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Backlog grouping (Cycle → Epic) — shared by Board and Table.
+// ---------------------------------------------------------------------------
+
+/** Earliest half-year key with money > 0, or null when nothing is funded. */
+export function earliestFundedCycle(allocations: Record<string, number>): string | null {
+  const funded = Object.entries(allocations)
+    .filter(([, v]) => v > 0)
+    .map(([k]) => k)
+    .sort();
+  return funded[0] ?? null;
+}
+
+/** Synthetic key for Features whose Epic has no funded period (or no Epic). */
+export const NO_BUDGET_CYCLE = "__none__";
+/** Synthetic key for Features without a parent Epic (extremely rare). */
+export const NO_EPIC = "__noepic__";
+
+export interface BacklogEpicGroup {
+  epicId: string | typeof NO_EPIC;
+  epicTitle: string | null;
+  features: PlanningFeature[];
+  wsjfSum: number;
+}
+
+export interface BacklogCycleGroup {
+  cycleKey: string | typeof NO_BUDGET_CYCLE;
+  isCurrent: boolean;
+  count: number;
+  wsjfSum: number;
+  epics: BacklogEpicGroup[];
+}
+
+/**
+ * Two-level grouping for the Backlog column/row: outer = budgeting half-year
+ * (current cycle first, then chronological, "Ohne Budget" last), inner = Epic
+ * (sorted by Σ WSJF of the backlog slice). Features within each Epic keep the
+ * caller's order (the caller already sorts by WSJF desc).
+ *
+ * Pure — `now` is injected so tests can pin the "current cycle" deterministically.
+ */
+export function groupBacklogByCycleAndEpic(
+  features: readonly PlanningFeature[],
+  currentCycleKey: string,
+): BacklogCycleGroup[] {
+  const byCycle = new Map<string, Map<string, PlanningFeature[]>>();
+  for (const f of features) {
+    const ck = f.cycleKey ?? NO_BUDGET_CYCLE;
+    const ek = f.epicId ?? NO_EPIC;
+    let epicMap = byCycle.get(ck);
+    if (!epicMap) {
+      epicMap = new Map();
+      byCycle.set(ck, epicMap);
+    }
+    const bucket = epicMap.get(ek) ?? [];
+    bucket.push(f);
+    epicMap.set(ek, bucket);
+  }
+
+  const cycleKeys = [...byCycle.keys()].sort((a, b) => {
+    if (a === b) return 0;
+    if (a === currentCycleKey) return -1;
+    if (b === currentCycleKey) return 1;
+    if (a === NO_BUDGET_CYCLE) return 1;
+    if (b === NO_BUDGET_CYCLE) return -1;
+    return a < b ? -1 : 1;
+  });
+
+  return cycleKeys.map((ck) => {
+    const epicMap = byCycle.get(ck)!;
+    const cycleFeatures = [...epicMap.values()].flat();
+    const wsjfSum = cycleFeatures.reduce((s, f) => s + f.wsjf, 0);
+
+    const epicEntries: BacklogEpicGroup[] = [...epicMap.entries()].map(([ek, list]) => ({
+      epicId: ek === NO_EPIC ? NO_EPIC : ek,
+      epicTitle: list[0]?.epicTitle ?? null,
+      features: list,
+      wsjfSum: list.reduce((s, f) => s + f.wsjf, 0),
+    }));
+    epicEntries.sort((a, b) => b.wsjfSum - a.wsjfSum);
+
+    return {
+      cycleKey: ck === NO_BUDGET_CYCLE ? NO_BUDGET_CYCLE : ck,
+      isCurrent: ck === currentCycleKey,
+      count: cycleFeatures.length,
+      wsjfSum,
+      epics: epicEntries,
+    };
+  });
 }

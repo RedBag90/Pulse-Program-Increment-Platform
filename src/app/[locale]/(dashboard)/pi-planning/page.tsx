@@ -4,7 +4,8 @@ import { listArts } from "@/server/services/art";
 import { listArtPlanningPis } from "@/server/services/pi";
 import { listFeatures } from "@/server/services/feature";
 import { getBlockerWindowsForFeatures } from "@/server/services/dependency";
-import { buildPlanningModel } from "@/server/views/pi-planning";
+import { buildPlanningModel, earliestFundedCycle } from "@/server/views/pi-planning";
+import { halfYearKey } from "@/domain/calendar";
 import { FeaturePlanningBoard } from "@/features/pi/components/feature-planning-board";
 import { FeaturePlanningTable } from "@/features/pi/components/feature-planning-table";
 import { Link } from "@/i18n/navigation";
@@ -35,7 +36,7 @@ export default async function PiPlanningPage({ searchParams }: Props) {
 
   if (arts.length === 0) {
     return (
-      <main className="mx-auto max-w-5xl space-y-2 p-8">
+      <main className="space-y-2 p-8">
         <h1 className="text-2xl font-semibold">PI Planning</h1>
         <p className="text-sm text-muted-foreground">
           Keine ARTs verfügbar. Lege im Capacity-Planning-Modul eine ART an.
@@ -89,12 +90,42 @@ export default async function PiPlanningPage({ searchParams }: Props) {
     featureIds,
   );
 
+  // Pull the budget allocations of the Features' parent Epics in one query;
+  // drives the Backlog grouping by "earliest funded half-year" → Epic.
+  const epicIds = Array.from(
+    new Set(
+      featurePage.items
+        .map((f) => f.parent?.id)
+        .filter((id): id is string => typeof id === "string"),
+    ),
+  );
+  const epicAllocs =
+    epicIds.length === 0
+      ? []
+      : await db.budgetAllocation.findMany({
+          where: { tenantId: principal.tenantId, epicId: { in: epicIds } },
+          select: { epicId: true, allocations: true },
+        });
+  const epicCycleByEpicId: Record<string, string | null> = Object.fromEntries(
+    epicAllocs.map((a) => {
+      const raw = a.allocations;
+      const map: Record<string, number> = {};
+      if (raw && typeof raw === "object") {
+        for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+          if (typeof v === "number" && Number.isFinite(v)) map[k] = v;
+        }
+      }
+      return [a.epicId, earliestFundedCycle(map)];
+    }),
+  );
+
   const { pis, features, capacity, blockers } = buildPlanningModel({
     pis: pisRaw,
     features: featurePage.items,
     artBudgetByPeriod,
     costPerJobSizePoint,
     blockerWindowsByFeature,
+    epicCycleByEpicId,
   });
 
   return (
@@ -153,6 +184,7 @@ export default async function PiPlanningPage({ searchParams }: Props) {
           pis={pis}
           capacity={capacity}
           blockers={blockers}
+          currentCycleKey={halfYearKey(new Date())}
         />
       ) : (
         <FeaturePlanningBoard
@@ -162,6 +194,7 @@ export default async function PiPlanningPage({ searchParams }: Props) {
           pis={pis}
           capacity={capacity}
           blockers={blockers}
+          currentCycleKey={halfYearKey(new Date())}
         />
       )}
     </main>

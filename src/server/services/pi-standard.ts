@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, ArtId } from "@/domain/types";
+import type { TenantId, TimelineId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, isErr } from "@/domain/errors";
 import {
@@ -11,7 +11,6 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { findOr404 } from "@/server/services/tenant-scope";
 import { createPi } from "@/server/services/pi";
-import { updateArt } from "@/server/services/art";
 
 export interface CreatePiStandardInput {
   name: string;
@@ -98,16 +97,15 @@ export async function deletePiStandard(
 }
 
 /**
- * Provisions an ART's `year` with the PIs of a named standard, then aligns the
- * ART's cadence to the standard. Only standard PIs whose date range is free of
- * existing PIs are created (overlap = inclusive), so this composes with manual
- * PIs and re-applying is idempotent. Each PI is its own audited transaction via
- * `createPi` (mirrors `startArt`); the overlap filter makes partial failures
- * recoverable by re-applying.
+ * Provisions a Timeline's `year` with the PIs of a named standard. Only those
+ * standard PIs whose date range is free of existing PIs on the Timeline are
+ * created (overlap = inclusive), so this composes with manual PIs and
+ * re-applying is idempotent. Each PI is its own audited transaction via
+ * `createPi`. The Timeline's cadence is aligned to the standard.
  */
 export async function applyPiStandard(
   ctx: RequestContext,
-  input: { artId: ArtId; standardId: string; year: number },
+  input: { timelineId: TimelineId; standardId: string; year: number },
 ): Promise<Result<ApplyPiStandardResult>> {
   const tenantId = ctx.principal.tenantId;
 
@@ -119,12 +117,12 @@ export async function applyPiStandard(
   if (isErr(standardFound)) return standardFound;
   const standard = standardFound.value;
 
-  const artFound = await findOr404(ctx.db.art, {
-    id: input.artId,
+  const timelineFound = await findOr404(ctx.db.timeline, {
+    id: input.timelineId,
     tenantId,
-    resourceType: "Art",
+    resourceType: "Timeline",
   });
-  if (isErr(artFound)) return artFound;
+  if (isErr(timelineFound)) return timelineFound;
 
   const spec: PiStandardSpec = {
     anchorMonth: standard.anchorMonth,
@@ -135,7 +133,7 @@ export async function applyPiStandard(
   const schedule = standardPiSchedule(spec, input.year);
 
   const existing = await ctx.db.programIncrement.findMany({
-    where: { tenantId, artId: input.artId },
+    where: { tenantId, timelineId: input.timelineId },
     select: { startDate: true, endDate: true },
   });
   const free = selectFreeStandardPis(schedule, existing);
@@ -143,7 +141,7 @@ export async function applyPiStandard(
   const added: string[] = [];
   for (const pi of free) {
     const created = await createPi(ctx, {
-      artId: input.artId,
+      timelineId: input.timelineId,
       name: pi.name,
       startDate: pi.startDate,
       endDate: pi.endDate,
@@ -152,12 +150,11 @@ export async function applyPiStandard(
     added.push(pi.name);
   }
 
-  // Align the ART's cadence to the standard (skipped PIs don't change this).
-  const cadence = await updateArt(ctx, {
-    id: input.artId,
-    piCadenceWeeks: spec.cadenceWeeks,
+  // Align the Timeline cadence to the standard.
+  await ctx.db.timeline.update({
+    where: { id: input.timelineId },
+    data: { cadenceWeeks: spec.cadenceWeeks },
   });
-  if (isErr(cadence)) return cadence;
 
   const skipped = schedule.filter((p) => !added.includes(p.name)).map((p) => p.name);
   return ok({ added, skipped });

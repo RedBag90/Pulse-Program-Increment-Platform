@@ -1,11 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { NAV_GROUPS } from "@/components/nav/nav-config";
-import { isActive } from "@/components/nav/active";
+import { isActiveLink } from "@/components/nav/active";
 
 interface Props {
   visibleHrefs: string[];
@@ -23,6 +23,7 @@ interface Props {
  */
 export function TopNavMegaPanel({ visibleHrefs, openKey }: Props) {
   const pathname = usePathname();
+  const search = useSearchParams();
   const t = useTranslations("nav");
 
   if (!openKey) return null;
@@ -45,7 +46,7 @@ export function TopNavMegaPanel({ visibleHrefs, openKey }: Props) {
     >
       <ul className="flex flex-wrap gap-1">
         {items.map(({ href, labelKey, icon: Icon, exact }) => {
-          const active = isActive(pathname, href, exact ?? false);
+          const active = isActiveLink(pathname, search, href, exact ?? false);
           return (
             <li key={href}>
               <Link

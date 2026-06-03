@@ -228,6 +228,7 @@ export async function setFeaturePi(
         level: InitiativeLevel.FEATURE,
         deletedAt: null,
       },
+      include: { art: { select: { timelineId: true } } },
     });
     if (!feature) {
       return err({ kind: "not_found" as const, resourceType: "Feature", id: featureId });
@@ -242,10 +243,13 @@ export async function setFeaturePi(
       if (!pi) {
         return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id: piId });
       }
-      if (pi.artId !== feature.artId) {
+      // Hard invariant: Feature's ART must subscribe to the same Timeline as
+      // the PI's Timeline. Replaces the old per-ART check now that PIs are
+      // shared across ARTs of a Timeline.
+      if (!feature.art?.timelineId || feature.art.timelineId !== pi.timelineId) {
         return err({
           kind: "conflict" as const,
-          reason: "Feature and Program Increment belong to different ARTs",
+          reason: "Feature gehört zu einer ART, die diese Timeline nicht abonniert hat",
         });
       }
 

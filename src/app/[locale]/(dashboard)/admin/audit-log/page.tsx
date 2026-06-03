@@ -53,7 +53,7 @@ export default async function AuditLogPage({ searchParams }: Props) {
   const nextCursor = hasNextPage ? rows[rows.length - 1]?.id : undefined;
 
   return (
-    <main className="p-8 max-w-6xl mx-auto space-y-6">
+    <main className="p-8 space-y-6">
       <h1 className="text-2xl font-semibold">Audit Log</h1>
 
       {/* Filters */}

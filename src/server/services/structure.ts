@@ -47,28 +47,51 @@ export async function getStructureTree(db: PrismaClient, tenantId: TenantId) {
 export type StructureTree = Awaited<ReturnType<typeof getStructureTree>>;
 
 /**
- * ARTs with their PI cadence and scheduled Program Increments — backs the
- * Structure hub's Timeline/calendar tab. Excludes soft-deleted ARTs/VS.
+ * Timelines + subscribed ARTs + unassigned ARTs — backs the new Structure
+ * Timeline tab. Each Timeline carries its PI grid (the shared cadence); ARTs
+ * appear nested under the Timeline they joined; ARTs without a Timeline are
+ * surfaced separately so the user can assign them.
  */
 export async function getStructureTimeline(db: PrismaClient, tenantId: TenantId) {
-  return db.art.findMany({
-    where: {
-      tenantId,
-      ...notDeleted,
-      valueStream: { ...notDeleted },
-    },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      piCadenceWeeks: true,
-      valueStream: { select: { id: true, name: true } },
-      pis: {
-        orderBy: { startDate: "asc" },
-        select: { id: true, name: true, startDate: true, endDate: true, status: true },
+  const [timelines, unassignedArts] = await Promise.all([
+    db.timeline.findMany({
+      where: { tenantId },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        cadenceWeeks: true,
+        programIncrements: {
+          orderBy: { startDate: "asc" },
+          select: { id: true, name: true, startDate: true, endDate: true, status: true },
+        },
+        arts: {
+          where: { ...notDeleted, valueStream: { ...notDeleted } },
+          orderBy: { name: "asc" },
+          select: {
+            id: true,
+            name: true,
+            valueStream: { select: { id: true, name: true } },
+          },
+        },
       },
-    },
-  });
+    }),
+    db.art.findMany({
+      where: {
+        tenantId,
+        ...notDeleted,
+        valueStream: { ...notDeleted },
+        timelineId: null,
+      },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        valueStream: { select: { id: true, name: true } },
+      },
+    }),
+  ]);
+  return { timelines, unassignedArts };
 }
 
 export type StructureTimeline = Awaited<ReturnType<typeof getStructureTimeline>>;
