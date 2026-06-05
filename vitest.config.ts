@@ -27,10 +27,13 @@ export default defineConfig({
         test: {
           name: "client",
           environment: "jsdom",
+          globals: true,
+          setupFiles: ["./src/test/setup.ts"],
           include: [
             "src/domain/**/*.test.ts",
             "src/features/**/*.test.tsx",
             "src/app/**/*.test.tsx",
+            "src/components/**/*.test.tsx",
           ],
         },
         resolve: { alias },

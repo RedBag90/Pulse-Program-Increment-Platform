@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { deleteFeatureAction } from "@/features/art/actions/feature";
 
 interface DeleteFeatureButtonProps {
@@ -10,26 +10,16 @@ interface DeleteFeatureButtonProps {
 }
 
 export function DeleteFeatureButton({ id, artId, title }: DeleteFeatureButtonProps) {
-  const [state, action, isPending] = useActionState(deleteFeatureAction, {});
-
   return (
-    <form
-      action={action}
-      onSubmit={(e) => {
-        if (!confirm(`Delete feature "${title}"? All child stories will also be deleted.`))
-          e.preventDefault();
-      }}
-    >
-      <input type="hidden" name="id" value={id} />
-      <input type="hidden" name="artId" value={artId} />
-      {state?.error && <span className="text-destructive text-xs mr-2">{state.error}</span>}
-      <button
-        type="submit"
-        disabled={isPending}
-        className="text-destructive text-xs hover:underline disabled:opacity-50"
-      >
-        {isPending ? "Deleting…" : "Delete"}
-      </button>
-    </form>
+    <ConfirmMutateForm
+      action={deleteFeatureAction}
+      fields={{ id, artId }}
+      label="Delete"
+      pendingLabel="Deleting…"
+      confirmPrompt={`Delete feature "${title}"? All child stories will also be deleted.`}
+      variant="ghost"
+      destructive
+      className="text-xs hover:underline"
+    />
   );
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
+import { useCallback } from "react";
+import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { deletePiAction } from "@/features/pi/actions/pi";
-import { Button } from "@/components/ui/button";
 
 interface Props {
   piId: string;
@@ -14,39 +14,20 @@ interface Props {
 
 /** Deletes a planned PI (cascading) and navigates back to the ART overview. */
 export function DeletePiButton({ piId, artId, name }: Props) {
-  const [state, action, isPending] = useActionState(deletePiAction, {});
   const router = useRouter();
-
-  useEffect(() => {
-    if (state.success) router.replace(`/art/${artId}`);
-  }, [state, artId, router]);
+  const onSuccess = useCallback(() => router.replace(`/art/${artId}`), [router, artId]);
 
   return (
-    <form
-      action={action}
-      onSubmit={(e) => {
-        if (
-          !confirm(
-            `Delete "${name}"? Its sprints and objectives are removed and assigned features return to the backlog.`,
-          )
-        ) {
-          e.preventDefault();
-        }
-      }}
-    >
-      <input type="hidden" name="id" value={piId} />
-      <input type="hidden" name="artId" value={artId} />
-      {state?.error && <span className="text-destructive text-xs block mb-1">{state.error}</span>}
-      <Button
-        type="submit"
-        variant="outline"
-        size="sm"
-        disabled={isPending}
-        className="text-destructive border-destructive/30 hover:bg-destructive/10"
-      >
-        <Trash2 className="size-4 mr-1.5" />
-        {isPending ? "Deleting…" : "Delete PI"}
-      </Button>
-    </form>
+    <ConfirmMutateForm
+      action={deletePiAction}
+      fields={{ id: piId, artId }}
+      label="Delete PI"
+      pendingLabel="Deleting…"
+      confirmPrompt={`Delete "${name}"? Its sprints and objectives are removed and assigned features return to the backlog.`}
+      variant="outline"
+      destructive
+      icon={<Trash2 className="size-4 mr-1.5" />}
+      onSuccess={onSuccess}
+    />
   );
 }

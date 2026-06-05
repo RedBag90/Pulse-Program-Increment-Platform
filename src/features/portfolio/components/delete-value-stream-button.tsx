@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { deleteValueStreamAction } from "@/features/portfolio/actions/value-stream";
 
 interface DeleteValueStreamButtonProps {
@@ -9,24 +9,16 @@ interface DeleteValueStreamButtonProps {
 }
 
 export function DeleteValueStreamButton({ id, name }: DeleteValueStreamButtonProps) {
-  const [state, action, isPending] = useActionState(deleteValueStreamAction, {});
-
   return (
-    <form
-      action={action}
-      onSubmit={(e) => {
-        if (!confirm(`Delete value stream "${name}"? This cannot be undone.`)) e.preventDefault();
-      }}
-    >
-      <input type="hidden" name="id" value={id} />
-      {state?.error && <span className="text-destructive text-xs mr-2">{state.error}</span>}
-      <button
-        type="submit"
-        disabled={isPending}
-        className="text-destructive text-xs hover:underline disabled:opacity-50"
-      >
-        {isPending ? "Deleting…" : "Delete"}
-      </button>
-    </form>
+    <ConfirmMutateForm
+      action={deleteValueStreamAction}
+      fields={{ id }}
+      label="Delete"
+      pendingLabel="Deleting…"
+      confirmPrompt={`Delete value stream "${name}"? This cannot be undone.`}
+      variant="ghost"
+      destructive
+      className="text-xs hover:underline"
+    />
   );
 }
