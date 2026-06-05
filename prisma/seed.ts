@@ -1144,15 +1144,82 @@ async function main() {
   }
   console.log(`  ✓ ${approvalRows.length} approval rows`);
 
-  // 12. Features — 60 across L3+ Epics, mixed WSJF + PI assignment.
+  // 12. Features — every Epic gets features. L3+ Epics get the bulk delivery
+  // slate (60 features); L0–L2 Epics get a smaller, earlier-stage backlog
+  // (2–4 per Epic, mostly status=draft, mostly without a PI) so each Epic's
+  // detail page actually shows its feature breakdown.
   console.log("\n── Features");
   const deliveryEpics = epics.filter((e) => ["L3", "L4", "L5"].includes(e.spec.stageGate));
-  const featureCount = 60;
+  const earlyEpics = epics.filter((e) => ["L0", "L1", "L2"].includes(e.spec.stageGate));
   const piPool = [piActive, piNext, piLater, piCompletedC];
   const artForEpic = (e: { spec: EpicSpec }) =>
     e.spec.valueStreamId === vs1.id ? art1 : e.spec.valueStreamId === vs2.id ? art2 : art3;
 
   const features: Array<{ id: string; epicId: string; artId: string; piId: string | null }> = [];
+
+  // 12a. Early-stage Epics — 2 features for L0, 3 for L1, 4 for L2.
+  // L0 features are exploratory (no PI, no WSJF); L1/L2 carry WSJF but stay
+  // out of the active PI so the planning board doesn't fill up with not-yet-
+  // approved work.
+  let earlyIdx = 0;
+  for (const epic of earlyEpics) {
+    const gate = epic.spec.stageGate;
+    const n = gate === "L0" ? 2 : gate === "L1" ? 3 : 4;
+    const art = artForEpic(epic);
+    for (let k = 0; k < n; k++) {
+      const id = randomUUID();
+      // L0 lives entirely in the backlog without WSJF (idea stage).
+      // L1 has WSJF but no PI (hypothesis still under review).
+      // L2 has WSJF; a handful drift into a *planned* PI to show the funnel
+      // pulling work forward.
+      const hasWsjf = gate !== "L0";
+      const piId = gate === "L2" && k === 0 ? piLater.id : null;
+      const seed = earlyIdx + k;
+      const bv = hasWsjf ? fib(seed + 1) : null;
+      const tc = hasWsjf ? fib(seed + 2) : null;
+      const rr = hasWsjf ? fib(seed + 3) : null;
+      const js = hasWsjf ? Math.max(1, fib(seed + 4)) : null;
+      const computed =
+        hasWsjf && bv !== null && tc !== null && rr !== null && js !== null
+          ? round2((bv + tc + rr) / js)
+          : null;
+      features.push({ id, epicId: epic.id, artId: art.id, piId });
+      await prisma.initiative.create({
+        data: {
+          id,
+          tenantId,
+          level: 1,
+          parentId: epic.id,
+          artId: art.id,
+          ...(piId ? { piId } : {}),
+          path: `${epic.id}.${id}`,
+          title: `${epic.spec.title} — early-stage feature ${k + 1}`,
+          description: `Early breakdown ${k + 1} of "${epic.spec.title}" — still in ${gate}.`,
+          ownerId: featureOwnerId,
+          assigneeIds: [],
+          createdBy: adminId,
+          updatedBy: adminId,
+          ...(bv !== null ? { wsjfBusinessValue: bv } : {}),
+          ...(tc !== null ? { wsjfTimeCriticality: tc } : {}),
+          ...(rr !== null ? { wsjfRiskReduction: rr } : {}),
+          ...(js !== null ? { wsjfJobSize: js } : {}),
+          ...(computed !== null ? { wsjfComputed: computed } : {}),
+          acceptanceCriteria:
+            gate === "L0"
+              ? []
+              : [`Initial slice of "${epic.spec.title}" — refine the AC before pulling into a PI.`],
+          status: "draft",
+          stageGate: "L0",
+        },
+      });
+    }
+    earlyIdx += n;
+  }
+  console.log(`  ✓ ${features.length} early-stage features (L0/L1/L2 Epics)`);
+
+  // 12b. Delivery Epics — 60 features with realistic WSJF + PI assignment.
+  const earlyFeatureBaseline = features.length;
+  const featureCount = 60;
   for (let i = 0; i < featureCount; i++) {
     const epic = deliveryEpics[i % deliveryEpics.length]!;
     const art = artForEpic(epic);
@@ -1206,7 +1273,9 @@ async function main() {
       },
     });
   }
-  console.log(`  ✓ ${features.length} features (mixed WSJF, ~55% in a PI)`);
+  console.log(
+    `  ✓ ${features.length - earlyFeatureBaseline} delivery features (mixed WSJF, ~55% in a PI) — ${features.length} features total`,
+  );
 
   // 13. Stories — 80 spread across active + next-planned PI Features and a few completed.
   console.log("\n── Stories");
