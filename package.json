@@ -21,6 +21,7 @@
     "test:integration": "vitest run --project integration",
     "test:e2e": "playwright test",
     "prisma": "prisma",
+    "db:seed": "tsx prisma/seed.ts",
     "prepare": "husky"
   },
   "dependencies": {
