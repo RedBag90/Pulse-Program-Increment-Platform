@@ -1,9 +1,10 @@
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getPi } from "@/server/services/pi";
 import { listPiObjectives } from "@/server/services/pi-objective";
 import { listImpedimentsForArts } from "@/server/services/impediment";
-import { summarizePiOverview } from "@/domain/pi-overview";
+import { buildPiDetailModel } from "@/server/views/pi-detail";
 import { PiTransitionButton } from "@/features/pi/components/pi-transition-button";
 import { DeletePiButton } from "@/features/pi/components/delete-pi-button";
 import { PiSubNav } from "@/features/pi/components/pi-sub-nav";
@@ -37,30 +38,16 @@ export default async function PiDetailPage({ params }: Props) {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const pi = await getPi(db, principal.tenantId, piId as PiId);
-  if (!pi) notFound();
+  const piRow = await getPi(db, principal.tenantId, piId as PiId);
+  if (!piRow) notFound();
 
-  const badgeClass = STATUS_BADGE[pi.status] ?? "bg-muted text-muted-foreground";
-  const totalDays = Math.round(
-    (pi.endDate.getTime() - pi.startDate.getTime()) / (1000 * 60 * 60 * 24),
-  );
-
-  const canEdit =
-    principal.roles.includes("portfolio_manager") ||
-    principal.roles.includes("rte") ||
-    principal.roles.includes("feature_owner") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
-
-  // The PI lives on a Timeline that may serve several ARTs. The page surfaces
-  // aggregate data (objectives, impediments, teams, sprints) across every
-  // subscribed ART and groups Features per ART so ownership stays visible.
-  const timeline = pi.timeline;
+  // The PI lives on a Timeline that may serve several ARTs. The page-model
+  // owns the per-ART grouping; the page is load → build → render.
+  const timeline = piRow.timeline;
   if (!timeline) notFound();
-  const arts = timeline.arts;
-  const artIds = arts.map((a) => a.id as ArtId);
+  const artIds = timeline.arts.map((a) => a.id as ArtId);
 
-  const [objectives, impediments, teams, candidateRows] = await Promise.all([
+  const [objectives, impediments, teams, candidates] = await Promise.all([
     listPiObjectives(db, principal.tenantId, piId as PiId),
     listImpedimentsForArts(db, principal.tenantId, artIds, { piId }),
     db.team.findMany({
@@ -86,42 +73,25 @@ export default async function PiDetailPage({ params }: Props) {
     }),
   ]);
 
-  // Group candidates by ART so each Features sub-card only sees its own pool.
-  const candidatesByArt = new Map<
-    string,
-    Array<{ id: string; title: string; wsjfComputed: number | null; currentPiName: string | null }>
-  >();
-  for (const c of candidateRows) {
-    if (!c.artId) continue;
-    const list = candidatesByArt.get(c.artId) ?? [];
-    list.push({
-      id: c.id,
-      title: c.title,
-      wsjfComputed: c.wsjfComputed !== null ? Number(c.wsjfComputed) : null,
-      currentPiName: c.pi?.name ?? null,
-    });
-    candidatesByArt.set(c.artId, list);
-  }
+  const model = buildPiDetailModel({
+    pi: piRow,
+    teams,
+    objectives,
+    impediments,
+    candidates,
+  });
+  if (!model) notFound();
 
-  // Features in this PI grouped by their owning ART (Feature.artId never null
-  // in practice — but we guard anyway).
-  const featuresByArt = new Map<string, typeof pi.initiatives>();
-  for (const f of pi.initiatives) {
-    if (!f.artId) continue;
-    const list = featuresByArt.get(f.artId) ?? [];
-    list.push(f);
-    featuresByArt.set(f.artId, list);
-  }
+  const { pi, sprints, arts, primaryArt, featuresByArt, candidatesByArt, summary } = model;
 
-  const teamVelocity = new Map(teams.map((t) => [t.id, t.targetVelocity]));
-  const summary = summarizePiOverview({
-    sprints: pi.sprints.map((s) => ({
-      teamTargetVelocity: teamVelocity.get(s.teamId) ?? null,
-      stories: s.initiatives.map((st) => ({ storyPoints: st.storyPoints, status: st.status })),
-    })),
-    features: pi.initiatives.map((f) => ({ status: f.status })),
-    objectives: objectives.map((o) => ({ committed: o.committed, confidence: o.confidence })),
-    impediments: impediments.map((i) => ({ status: i.status })),
+  const badgeClass = STATUS_BADGE[pi.status] ?? "bg-muted text-muted-foreground";
+  const totalDays = Math.round(
+    (pi.endDate.getTime() - pi.startDate.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  const canEdit = hasCapability(principal, "feature.update", {
+    tenantId: principal.tenantId,
+    artId: primaryArt.id,
   });
 
   return (
@@ -130,7 +100,7 @@ export default async function PiDetailPage({ params }: Props) {
         items={[
           { label: "Struktur", href: "/structure" },
           {
-            label: `Timeline: ${timeline.name}`,
+            label: `Timeline: ${model.timeline.name}`,
             href: "/structure?tab=timeline",
           },
           { label: pi.name },
@@ -151,7 +121,7 @@ export default async function PiDetailPage({ params }: Props) {
               <span>
                 Timeline:{" "}
                 <Link href={`/structure?tab=timeline`} className="font-medium hover:underline">
-                  {timeline.name}
+                  {model.timeline.name}
                 </Link>
                 {" · "}
                 {arts.length} ART{arts.length === 1 ? "" : "s"}:
@@ -166,27 +136,27 @@ export default async function PiDetailPage({ params }: Props) {
               {pi.status}
             </span>
             <PiTransitionButton piId={piId} currentStatus={pi.status} />
-            {canEdit && pi.status === "planned" && arts[0] && (
-              <DeletePiButton piId={piId} artId={arts[0].id} name={pi.name} />
+            {canEdit && pi.status === "planned" && (
+              <DeletePiButton piId={piId} artId={primaryArt.id} name={pi.name} />
             )}
           </div>
         </div>
       </Card>
 
       {/* Metrics — first ART is used only as an auth scope for the click-throughs. */}
-      {arts[0] && <PiOverviewSummary summary={summary} piId={piId} artId={arts[0].id} />}
+      <PiOverviewSummary summary={summary} piId={piId} artId={primaryArt.id} />
 
       {/* Sprints */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Sprints ({pi.sprints.length})
+          Sprints ({sprints.length})
         </h2>
-        {pi.sprints.length === 0 ? (
+        {sprints.length === 0 ? (
           <p className="text-sm text-muted-foreground">No sprints yet.</p>
         ) : (
           <Card className="overflow-hidden">
             <div className="divide-y divide-border">
-              {pi.sprints.map((sprint) => (
+              {sprints.map((sprint) => (
                 <div
                   key={sprint.id}
                   className="flex items-center justify-between px-4 py-3 text-sm"
@@ -218,31 +188,20 @@ export default async function PiDetailPage({ params }: Props) {
       {/* Features grouped per ART */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Features ({pi.initiatives.length})
+          Features ({piRow.initiatives.length})
         </h2>
-        {arts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Diese Timeline hat noch keine ARTs zugeordnet.
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {arts.map((a) => (
-              <PiFeaturesByArt
-                key={a.id}
-                art={a}
-                features={(featuresByArt.get(a.id) ?? []).map((f) => ({
-                  id: f.id,
-                  title: f.title,
-                  status: f.status,
-                  wsjfComputed: f.wsjfComputed !== null ? Number(f.wsjfComputed) : null,
-                }))}
-                candidates={candidatesByArt.get(a.id) ?? []}
-                canEdit={canEdit && pi.status !== "completed"}
-                piId={piId}
-              />
-            ))}
-          </div>
-        )}
+        <div className="space-y-4">
+          {arts.map((a) => (
+            <PiFeaturesByArt
+              key={a.id}
+              art={a}
+              features={featuresByArt.get(a.id) ?? []}
+              candidates={candidatesByArt.get(a.id) ?? []}
+              canEdit={canEdit && pi.status !== "completed"}
+              piId={piId}
+            />
+          ))}
+        </div>
       </section>
     </main>
   );

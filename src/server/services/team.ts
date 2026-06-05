@@ -3,7 +3,7 @@ import type { TenantId, ArtId, TeamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import { buildChangelog } from "@/domain/change-log";
-import { generateSprints } from "@/domain/pi-planning";
+import { backfillSprints } from "@/server/services/sprint-backfill";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,
@@ -49,13 +49,9 @@ export async function createTeam(
       // Only planned PIs — an active/completed PI's sprint set is frozen.
       const plannedPis = await tx.programIncrement.findMany({
         where: { tenantId: mctx.tenantId, artId, status: "planned" },
+        select: { id: true, startDate: true, endDate: true },
       });
-      for (const pi of plannedPis) {
-        const drafts = generateSprints(pi.startDate, pi.endDate, [{ id: team.id }]);
-        await tx.sprint.createMany({
-          data: drafts.map((s) => ({ tenantId: mctx.tenantId, piId: pi.id, ...s })),
-        });
-      }
+      await backfillSprints(tx, mctx.tenantId, plannedPis, [{ id: team.id }]);
 
       return ok({
         result: { id: team.id as TeamId },

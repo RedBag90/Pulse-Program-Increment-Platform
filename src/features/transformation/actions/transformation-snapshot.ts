@@ -6,6 +6,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { captureTransformationSnapshot } from "@/server/services/transformation-snapshot";
 import { toMutationContext } from "@/server/services/mutation";
 import type { ActionState } from "@/server/http/server-action";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export type { ActionState as SnapshotActionState };
 
@@ -20,5 +21,5 @@ export const captureSnapshotAction = createServerAction({
   parseFormData: () => ({}),
   service: (ctx) => captureTransformationSnapshot(toMutationContext(ctx)),
   onSuccess: () => revalidatePath("/transformation", "page"),
-  mapError: () => "Snapshot konnte nicht erfasst werden",
+  mapError: (e) => formatDomainError(e, { fallback: "Snapshot konnte nicht erfasst werden" }),
 });

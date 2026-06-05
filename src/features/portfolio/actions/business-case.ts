@@ -6,6 +6,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { businessCaseSchema } from "@/domain/schemas/initiative";
 import type { EpicId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export type { ActionState as BusinessCaseActionState };
 
@@ -50,5 +51,6 @@ export const saveBusinessCaseAction = createServerAction({
     return saveBusinessCase(ctx, { epicId: epicId as EpicId, fields });
   },
   revalidate: "epic",
-  mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to save business case"),
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to save business case" }),
 });

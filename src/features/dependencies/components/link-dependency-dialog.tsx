@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState, useState, useEffect } from "react";
 import { useCreateDialogState } from "@/features/create/use-create-dialog-state";
 import { Link2 } from "lucide-react";
 import { toast } from "sonner";
@@ -41,24 +41,19 @@ export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
   const [open, setOpen] = useCreateDialogState("dependency");
   const [toId, setToId] = useState("");
   const [type, setType] = useState<DependencyType>("blocks");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [state, formAction, isPending] = useActionState(linkDependencyAction, {});
 
-  function handleSubmit() {
-    if (!toId) return;
-    setError(null);
-    startTransition(async () => {
-      const result = await linkDependencyAction(fromId, toId, type, artId);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        toast.success("Dependency linked");
-        setToId("");
-        setType("blocks");
-        setOpen(false);
-      }
-    });
-  }
+  // Close the dialog + reset selection on successful link. The factory sets
+  // `success: true` (and never sets `error` simultaneously), so this fires
+  // exactly once per successful submit.
+  useEffect(() => {
+    if (state.success) {
+      toast.success("Dependency linked");
+      setToId("");
+      setType("blocks");
+      setOpen(false);
+    }
+  }, [state.success, setOpen]);
 
   return (
     <>
@@ -78,11 +73,14 @@ export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
               No other features in this ART to depend on.
             </p>
           ) : (
-            <div className="space-y-4">
+            <form action={formAction} className="space-y-4">
+              <input type="hidden" name="fromId" value={fromId} />
+              <input type="hidden" name="artId" value={artId} />
               <div className="space-y-1.5">
                 <Label htmlFor="dep-type">This feature…</Label>
                 <select
                   id="dep-type"
+                  name="type"
                   value={type}
                   onChange={(e) => setType(e.target.value as DependencyType)}
                   className={SELECT_CLASS}
@@ -99,6 +97,7 @@ export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
                 <Label htmlFor="dep-target">Target feature</Label>
                 <select
                   id="dep-target"
+                  name="toId"
                   value={toId}
                   onChange={(e) => setToId(e.target.value)}
                   className={SELECT_CLASS}
@@ -111,23 +110,23 @@ export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
                   ))}
                 </select>
               </div>
-            </div>
-          )}
 
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
+              {state.error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {state.error}
+                </p>
+              )}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={handleSubmit} disabled={isPending || !toId}>
-              {isPending ? "Linking…" : "Link"}
-            </Button>
-          </DialogFooter>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isPending || !toId}>
+                  {isPending ? "Linking…" : "Link"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </>

@@ -4,7 +4,6 @@ import { z } from "zod";
 import { createKpi, updateKpi, deleteKpi, recordKpiMeasurement } from "@/server/services/kpi";
 import type { KpiId } from "@/server/services/kpi";
 import { createServerAction } from "@/server/http/server-action";
-import { fields } from "@/server/http/form-data";
 import type { ActionState } from "@/server/http/server-action";
 import type { EpicId } from "@/domain/types";
 
@@ -26,17 +25,6 @@ export const createKpiAction = createServerAction({
   }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      initiativeId: f.string("initiativeId"),
-      name: f.string("name"),
-      unit: f.nonEmptyString("unit"),
-      baseline: f.nonEmptyString("baseline"),
-      target: f.nonEmptyString("target"),
-      weightPercent: f.nonEmptyString("weightPercent"),
-    };
-  },
   service: (ctx, input) =>
     createKpi(ctx, {
       initiativeId: input.initiativeId as EpicId,
@@ -60,14 +48,6 @@ export const updateKpiWeightAction = createServerAction({
   }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      id: f.string("id"),
-      initiativeId: f.string("initiativeId"),
-      weightPercent: f.nonEmptyString("weightPercent"),
-    };
-  },
   service: (ctx, input) =>
     updateKpi(ctx, {
       id: input.id as KpiId,
@@ -82,10 +62,6 @@ export const deleteKpiAction = createServerAction({
   schema: z.object({ id: z.string().uuid(), initiativeId: z.string().uuid() }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { id: f.string("id"), initiativeId: f.string("initiativeId") };
-  },
   service: (ctx, input) => deleteKpi(ctx, { id: input.id as KpiId }),
   revalidate: "epic",
   mapError: (e) =>
@@ -101,15 +77,6 @@ export const recordKpiMeasurementAction = createServerAction({
   }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      id: f.string("id"),
-      initiativeId: f.string("initiativeId"),
-      date: f.string("date"),
-      value: f.string("value"),
-    };
-  },
   service: (ctx, input) =>
     recordKpiMeasurement(ctx, { id: input.id as KpiId, date: input.date, value: input.value }),
   revalidate: "epic",

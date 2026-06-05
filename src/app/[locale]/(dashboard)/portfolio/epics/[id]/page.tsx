@@ -1,5 +1,5 @@
 import { requirePrincipal } from "@/server/auth/principal";
-import { authorize } from "@/server/auth/authorize";
+import { authorize, hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getEpic } from "@/server/services/epic";
 import { EpicGoalsLinker } from "@/features/transformation/components/epic-goals-linker";
@@ -57,11 +57,10 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   const epic = await getEpic(db, principal.tenantId, id as EpicId);
   if (!epic) redirect("/portfolio/epics");
 
-  const canEdit =
-    principal.roles.includes("portfolio_manager") ||
-    principal.roles.includes("epic_owner") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
+  const canEdit = hasCapability(principal, "epic.update", {
+    tenantId: principal.tenantId,
+    valueStreamId: epic.valueStreamId,
+  });
 
   const breakdownFeatures: BreakdownFeature[] = epic.children.map((c) => ({
     id: c.id,
@@ -122,10 +121,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   const approvalPhase = (epic.approvalPhase as ApprovalPhase | null) ?? "draft";
   // Gates the side-by-side review diff on the Benefit Hypothesis tab — the
   // decide-buttons themselves now live in "Meine Freigaben".
-  const canDecideHypothesis =
-    principal.roles.includes("vmo") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
+  const canDecideHypothesis = hasCapability(principal, "epic.hypothesis.decide");
 
   // The VMO and roles above it (portfolio manager, the epic's value stream owner,
   // admins) may nominate the Epic Owner — mirrors the `epic.owner.assign` policy.

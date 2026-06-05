@@ -2,7 +2,8 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId, PiId, TimelineId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
-import { generateSprints, validateDateRange } from "@/domain/pi-planning";
+import { validateDateRange } from "@/domain/pi-planning";
+import { backfillSprints } from "@/server/services/sprint-backfill";
 import { buildChangelog } from "@/domain/change-log";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
@@ -58,12 +59,7 @@ export async function createPi(
       // One sprint per (team, PI) across every team in every subscribed ART —
       // teams of multiple ARTs now share the same Timeline-PI rhythm.
       const allTeams = timeline.arts.flatMap((a) => a.teams);
-      if (allTeams.length > 0) {
-        const drafts = generateSprints(startDate, endDate, allTeams);
-        await tx.sprint.createMany({
-          data: drafts.map((s) => ({ tenantId: mctx.tenantId, piId: pi.id, ...s })),
-        });
-      }
+      await backfillSprints(tx, mctx.tenantId, [{ id: pi.id, startDate, endDate }], allTeams);
 
       return ok({
         result: { id: pi.id as PiId },
@@ -300,6 +296,11 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
  * Delete a planned PI and cascade: its sprints and objectives are removed, assigned
  * features return to the backlog (piId → null), stories leave their sprints
  * (sprintId → null), and impediments are detached but kept in the ART log.
+ *
+ * Sibling: `detachArtFromTimeline` ([timeline.ts](./timeline.ts)) handles a
+ * different lifecycle event — an ART leaving a Timeline while the PI rows
+ * stay. The two functions look similar but encode different policies. See
+ * `docs/adr/0005-cascade-unlink-stays-split.md` for why they stay separate.
  */
 export async function deletePi(ctx: RequestContext, input: { id: PiId }): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);

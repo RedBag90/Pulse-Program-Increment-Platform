@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getTeam } from "@/server/services/team";
 import { listTenantApprovers } from "@/server/services/epic-approval";
@@ -24,10 +25,11 @@ export default async function TeamSettingsPage({ params }: Props) {
   const team = await getTeam(db, principal.tenantId, teamId as TeamId);
   if (!team) notFound();
 
-  const canEdit =
-    principal.roles.includes("rte") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
+  const canEdit = hasCapability(principal, "team.update", {
+    tenantId: principal.tenantId,
+    teamId,
+    artId: team.artId,
+  });
 
   // Remounts the uncontrolled edit form whenever the persisted Team data
   // changes (navigation between teams, or a save) so its `defaultValue`s never

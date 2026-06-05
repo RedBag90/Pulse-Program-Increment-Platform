@@ -118,7 +118,12 @@ export function ProgramBoard({ artId, piId: _piId, piName, teams, sprints, featu
 
     // Persist via server action; revert optimistic update on failure.
     startTransition(async () => {
-      const result = await assignSprintAction(storyId, toSprintId, artId, targetSprint.teamId);
+      const fd = new FormData();
+      fd.set("storyId", storyId);
+      fd.set("sprintId", toSprintId);
+      fd.set("artId", artId);
+      fd.set("teamId", targetSprint.teamId);
+      const result = await assignSprintAction({}, fd);
       if (result.error) {
         setSprintStories((prev) => {
           const next = new Map(prev);

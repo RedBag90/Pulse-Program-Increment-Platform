@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { captureBudgetPlanRevision } from "@/server/services/budget-plan-revision";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 /**
  * Freezes the live participatory-budgeting plan into a Budget-Plan-Revision
@@ -21,5 +22,5 @@ export const captureBudgetPlanRevisionAction = createServerAction({
     label: "Budget-Plan-Revision",
     href: `/controlling/budget-plan/${v.id}`,
   }),
-  mapError: () => "Snapshot konnte nicht erstellt werden",
+  mapError: (e) => formatDomainError(e, { fallback: "Snapshot konnte nicht erstellt werden" }),
 });

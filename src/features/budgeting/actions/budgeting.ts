@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { saveBudgetAllocation, saveBudgetPool } from "@/server/services/budgeting";
 import type { EpicId } from "@/domain/types";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 const periodMap = z.record(z.string(), z.number().nonnegative());
 
@@ -32,7 +33,7 @@ export const saveBudgetAllocationAction = createServerAction({
       allocations: input.allocations,
     }),
   revalidate: "epic",
-  mapError: () => "Zuteilung konnte nicht gespeichert werden",
+  mapError: (e) => formatDomainError(e, { fallback: "Zuteilung konnte nicht gespeichert werden" }),
 });
 
 /** Saves the total budget pool per half-year. */
@@ -43,5 +44,6 @@ export const saveBudgetPoolAction = createServerAction({
   parseFormData: payload,
   service: (ctx, input) => saveBudgetPool(ctx, { byPeriod: input.byPeriod }),
   revalidate: "epic",
-  mapError: () => "Budget-Topf konnte nicht gespeichert werden",
+  mapError: (e) =>
+    formatDomainError(e, { fallback: "Budget-Topf konnte nicht gespeichert werden" }),
 });

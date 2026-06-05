@@ -3,6 +3,7 @@ import {
   resolveCostStart,
   resolveGoLive,
   scheduleFromFundedWindow,
+  fundedWindow,
   withScheduleEstimates,
   resolveEpicWindow,
   plannedEpicWindow,
@@ -91,6 +92,36 @@ describe("scheduleFromFundedWindow — budgeting decision → schedule estimates
   it("returns null when nothing is funded (timeline left untouched)", () => {
     expect(scheduleFromFundedWindow({})).toBeNull();
     expect(scheduleFromFundedWindow({ "2026-H1": 0 })).toBeNull();
+  });
+});
+
+describe("fundedWindow — single source of truth for the funded window", () => {
+  it("returns first/last keys, Date pair, and ISO estimates in one shot", () => {
+    const fw = fundedWindow({ "2026-H2": 50000, "2027-H1": 70000 });
+    expect(fw).not.toBeNull();
+    expect(fw!.firstKey).toBe("2026-H2");
+    expect(fw!.lastKey).toBe("2027-H1");
+    expect(fw!.start.toISOString().slice(0, 10)).toBe("2026-07-01");
+    expect(fw!.end.toISOString().slice(0, 10)).toBe("2027-06-30");
+    expect(fw!.estimates).toEqual({ backlog: "2026-07-01", implementation: "2027-06-30" });
+  });
+
+  it("ignores zero allocations when bounding the window", () => {
+    const fw = fundedWindow({ "2026-H1": 0, "2026-H2": 40, "2027-H2": 0 });
+    expect(fw!.firstKey).toBe("2026-H2");
+    expect(fw!.lastKey).toBe("2026-H2");
+    expect(fw!.estimates).toEqual({ backlog: "2026-07-01", implementation: "2026-12-31" });
+  });
+
+  it("returns null when nothing is funded", () => {
+    expect(fundedWindow({})).toBeNull();
+    expect(fundedWindow({ "2026-H1": 0 })).toBeNull();
+  });
+
+  it("Date and ISO views describe the same window — projections never drift", () => {
+    const fw = fundedWindow({ "2026-H1": 100, "2026-H2": 200 });
+    expect(fw!.start.toISOString().slice(0, 10)).toBe(fw!.estimates.backlog);
+    expect(fw!.end.toISOString().slice(0, 10)).toBe(fw!.estimates.implementation);
   });
 });
 

@@ -4,10 +4,10 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { assignRole, removeRole } from "@/server/services/role-assignment";
 import { createServerAction } from "@/server/http/server-action";
-import { fields } from "@/server/http/form-data";
 import { ROLES } from "@/domain/roles";
 import type { Role } from "@/domain/roles";
 import type { UserId } from "@/domain/types";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export interface RoleAssignmentState {
   error?: string;
@@ -24,17 +24,6 @@ export const assignRoleAction = createServerAction({
   }),
   action: "tenant.users.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      targetUserId: f.string("targetUserId"),
-      role: f.string("role"),
-      // Hidden comma-joined inputs; absent → "" so the schema's z.string() holds.
-      valueStreamIds: f.string("valueStreamIds") ?? "",
-      artIds: f.string("artIds") ?? "",
-      teamIds: f.string("teamIds") ?? "",
-    };
-  },
   service: (ctx, input) =>
     assignRole(ctx, {
       targetUserId: input.targetUserId as UserId,
@@ -46,7 +35,7 @@ export const assignRoleAction = createServerAction({
       },
     }),
   onSuccess: () => revalidatePath("/admin/users"),
-  mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to assign role"),
+  mapError: (e) => formatDomainError(e, { fallback: "Failed to assign role" }),
 });
 
 export const removeRoleAction = createServerAction({
@@ -57,14 +46,6 @@ export const removeRoleAction = createServerAction({
   }),
   action: "tenant.users.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      assignmentId: f.string("assignmentId"),
-      targetUserId: f.string("targetUserId"),
-      role: f.string("role"),
-    };
-  },
   service: (ctx, input) =>
     removeRole(ctx, {
       assignmentId: input.assignmentId,
@@ -72,5 +53,9 @@ export const removeRoleAction = createServerAction({
       role: input.role,
     }),
   onSuccess: () => revalidatePath("/admin/users"),
-  mapError: (e) => (e.kind === "not_found" ? "Role assignment not found" : "Failed to remove role"),
+  mapError: (e) =>
+    formatDomainError(e, {
+      notFound: "Role assignment not found",
+      fallback: "Failed to remove role",
+    }),
 });

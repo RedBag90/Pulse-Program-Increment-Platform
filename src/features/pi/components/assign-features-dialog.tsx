@@ -46,7 +46,11 @@ export function AssignFeaturesDialog({ piId, artId, candidates }: Props) {
     if (selected.size === 0) return;
     setError(null);
     startTransition(async () => {
-      const result = await setFeaturePiAction([...selected], piId, artId);
+      const fd = new FormData();
+      for (const id of selected) fd.append("featureIds", id);
+      fd.set("piId", piId);
+      fd.set("artId", artId);
+      const result = await setFeaturePiAction({}, fd);
       if (result.error) {
         setError(result.error);
       } else {
@@ -134,7 +138,11 @@ export function RemoveFromPiButton({ featureId, artId }: { featureId: string; ar
   function handleClick() {
     setError(null);
     startTransition(async () => {
-      const result = await setFeaturePiAction([featureId], null, artId);
+      const fd = new FormData();
+      fd.append("featureIds", featureId);
+      fd.set("piId", "");
+      fd.set("artId", artId);
+      const result = await setFeaturePiAction({}, fd);
       if (result.error) setError(result.error);
       else toast.success("Feature removed from PI");
     });

@@ -1,4 +1,5 @@
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
@@ -18,9 +19,7 @@ export default async function IntegrationsPage({ searchParams }: Props) {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
-  const canManage =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
-  if (!canManage) redirect("/portfolio");
+  if (!hasCapability(principal, "integration.manage")) redirect("/portfolio");
 
   const { connected, error } = await searchParams;
 

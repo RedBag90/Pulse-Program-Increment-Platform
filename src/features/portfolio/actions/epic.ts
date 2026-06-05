@@ -6,6 +6,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { ValueStreamId, EpicId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export type { ActionState as EpicActionState };
 
@@ -24,14 +25,6 @@ export const createEpicAction = createServerAction({
   // valueStreamId carries the scope so a value_stream_owner can only create
   // Epics within their own value stream.
   resource: (input, p) => ({ tenantId: p.tenantId, valueStreamId: input.valueStreamId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      title: f.string("title"),
-      description: f.nonEmptyString("description"),
-      valueStreamId: f.string("valueStreamId"),
-    };
-  },
   service: (ctx, input) =>
     createEpic(ctx, {
       title: input.title,
@@ -39,7 +32,8 @@ export const createEpicAction = createServerAction({
       valueStreamId: input.valueStreamId as ValueStreamId,
     }),
   revalidate: "epic",
-  mapError: (e) => (e.kind === "not_found" ? "Value stream not found" : "Failed to create epic"),
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Value stream not found", fallback: "Failed to create epic" }),
 });
 
 export const updateEpicAction = createServerAction({
@@ -50,14 +44,6 @@ export const updateEpicAction = createServerAction({
   }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      id: f.string("id"),
-      title: f.nonEmptyString("title"),
-      description: f.nonEmptyString("description"),
-    };
-  },
   service: (ctx, input) =>
     updateEpic(ctx, {
       id: input.id as EpicId,
@@ -65,7 +51,8 @@ export const updateEpicAction = createServerAction({
       description: input.description,
     }),
   revalidate: "epic",
-  mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to update epic"),
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to update epic" }),
 });
 
 /**
@@ -125,10 +112,6 @@ export const setEpicFlagAction = createServerAction({
   }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { id: f.string("id"), flag: f.string("flag"), value: f.string("value") };
-  },
   service: (ctx, input) =>
     updateEpic(ctx, {
       id: input.id as EpicId,
@@ -137,7 +120,8 @@ export const setEpicFlagAction = createServerAction({
         : { stagedForBudgeting: input.value === "true" }),
     }),
   revalidate: "epic",
-  mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to update epic"),
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to update epic" }),
 });
 
 export const deleteEpicAction = createServerAction({
@@ -147,5 +131,6 @@ export const deleteEpicAction = createServerAction({
   parseFormData: (fd) => ({ id: fields(fd).string("id") }),
   service: (ctx, input) => softDeleteEpic(ctx, { id: input.id as EpicId }),
   revalidate: "epic",
-  mapError: (e) => (e.kind === "not_found" ? "Epic not found" : "Failed to delete epic"),
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to delete epic" }),
 });

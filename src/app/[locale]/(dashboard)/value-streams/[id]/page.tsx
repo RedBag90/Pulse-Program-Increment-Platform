@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getValueStream } from "@/server/services/value-stream";
 import { getValueStreamBudgets, type ValueStreamBudget } from "@/server/services/budgeting";
@@ -103,11 +104,10 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
   const vs = await getValueStream(db, principal.tenantId, id as ValueStreamId);
   if (!vs) redirect("/structure");
 
-  const canEdit =
-    principal.roles.includes("portfolio_manager") ||
-    principal.roles.includes("value_stream_owner") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
+  const canEdit = hasCapability(principal, "value_stream.update", {
+    tenantId: principal.tenantId,
+    valueStreamId: vs.id,
+  });
 
   const [history, approvers, userLabels, vsBudgets, artBreakdown] = await Promise.all([
     listAuditHistory(db, principal.tenantId, "value_stream", vs.id),
@@ -118,13 +118,16 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
   ]);
   const budgetPlan = vsBudgets.valueStreams.find((b) => b.valueStreamId === vs.id);
 
-  // ART budgets are distributed by the VS Finance approver (or a portfolio
-  // manager / admin) — mirrors the saveArtBudget service-seam gate.
+  // ART budgets are distributed by the VS Finance approver (or anyone the
+  // `art_budget.manage` policy grants). Migration note: the previous inline
+  // check was strictly narrower than the policy — it omitted VALUE_STREAM_OWNER
+  // which the service-seam allows. Aligning with policy now.
   const canEditArtBudget =
     vs.financeApproverId === principal.id ||
-    principal.roles.includes("portfolio_manager") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
+    hasCapability(principal, "art_budget.manage", {
+      tenantId: principal.tenantId,
+      valueStreamId: vs.id,
+    });
   const events = history.map((e) => ({
     id: e.id,
     action: e.action,

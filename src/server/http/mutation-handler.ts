@@ -1,25 +1,15 @@
-import { headers } from "next/headers";
 import type { ZodSchema } from "zod";
 import { authorize, type AuthResource } from "@/server/auth/authorize";
 import type { Action } from "@/server/auth/policies";
-import { requirePrincipal, type Principal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
-import type { PrismaClient } from "@/generated/prisma";
+import type { Principal } from "@/server/auth/principal";
 import { isErr, type DomainError, type Result } from "@/domain/errors";
-import { extractRequestMeta } from "@/server/audit/emit";
 import { withIdempotency } from "@/server/http/idempotency";
 import { forbidden, problemJson, unauthorized, unprocessable } from "@/server/http/problem";
+import { buildRequestContext, type RequestContext } from "@/server/http/request-context";
 
-// ---------------------------------------------------------------------------
-// Request context passed to every service call via the pipeline
-// ---------------------------------------------------------------------------
-
-export interface RequestContext {
-  principal: Principal;
-  db: PrismaClient;
-  ipAddress?: string;
-  userAgent?: string;
-}
+// Re-export so existing imports `from "@/server/http/mutation-handler"` keep
+// working; the canonical home is `request-context.ts`.
+export type { RequestContext };
 
 // ---------------------------------------------------------------------------
 // Error → HTTP response mapping
@@ -98,9 +88,10 @@ export function createMutationHandler<TInput>(
   const resolvedErrorMap = { ...DEFAULT_ERROR_MAP, ...config.errorMap };
 
   return async function mutationHandler(request: Request): Promise<Response> {
-    const principalOrNull = await requirePrincipal().catch(() => null);
-    if (!principalOrNull) return unauthorized();
-    const principal: Principal = principalOrNull;
+    const built = await buildRequestContext();
+    if (!built) return unauthorized();
+    const ctx: RequestContext = built;
+    const { principal } = ctx;
 
     async function execute(req: Request): Promise<Response> {
       let body: unknown = {};
@@ -117,15 +108,6 @@ export function createMutationHandler<TInput>(
       const decision = authorize(action, resource(parsed.data, principal), principal);
       if (!decision.allow) return forbidden(decision.reason);
 
-      const { ipAddress, userAgent } = extractRequestMeta(await headers());
-      const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-      const ctx: RequestContext = {
-        principal,
-        db,
-        ...(ipAddress !== undefined && { ipAddress }),
-        ...(userAgent !== undefined && { userAgent }),
-      };
       const result = await service(ctx, parsed.data);
 
       if (isErr(result)) {

@@ -1,4 +1,5 @@
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/server/services/art";
 import { listFeatures } from "@/server/services/feature";
@@ -53,12 +54,10 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
     return true;
   });
 
-  const canEdit =
-    principal.roles.includes("portfolio_manager") ||
-    principal.roles.includes("rte") ||
-    principal.roles.includes("feature_owner") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
+  const canEdit = hasCapability(principal, "feature.update", {
+    tenantId: principal.tenantId,
+    artId,
+  });
 
   const epicOptions = epics.map((e) => ({ id: e.id, title: e.title }));
 

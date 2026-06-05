@@ -82,40 +82,67 @@ export interface ScheduleEstimates {
 }
 
 /**
- * Derives the Epic schedule from where the money actually lands: backlog = the
- * start of the first funded half-year, implementation = the last day of the
- * last funded half-year. Returns null when nothing is funded (the timeline is
- * then left untouched). Backlog ≤ implementation by construction.
+ * The funded window of an Epic — derived from the first/last allocation
+ * period. Single source of truth for both representations a caller might want:
+ * Date pair (for Prisma columns like `Initiative.plannedStartAt/EndAt`) and
+ * ISO strings (for the JSON `timeline.estimates` payload). Both views describe
+ * the same window — start = first day of first funded half-year, end = last
+ * day of last funded half-year. `start <= end` by construction.
  */
-export function scheduleFromFundedWindow(
-  allocations: Record<string, number>,
-): ScheduleEstimates | null {
+export interface FundedWindow {
+  /** Funded period boundaries by half-year key, e.g. "2026-H1". */
+  firstKey: string;
+  lastKey: string;
+  /** Start of the first funded half-year (UTC). */
+  start: Date;
+  /** Last day of the last funded half-year (UTC). */
+  end: Date;
+  /** ISO-string projection for `timeline.estimates`. */
+  estimates: ScheduleEstimates;
+}
+
+/**
+ * Returns the funded window of an Epic, or `null` when nothing is funded. The
+ * one place that pins "what does this allocations map describe?" — every
+ * downstream representation (Date pair, ISO estimates) is derived from this.
+ */
+export function fundedWindow(allocations: Record<string, number>): FundedWindow | null {
   const range = fundedPeriodRange(allocations);
   if (!range) return null;
   const first = parseHalfYearKey(range.firstKey);
   const last = parseHalfYearKey(range.lastKey);
   if (!first || !last) return null;
+  const start = halfYearStart(first);
+  const end = fundedEndDate(last, 1);
   return {
-    backlog: isoDay(halfYearStart(first)),
-    implementation: isoDay(fundedEndDate(last, 1)),
+    firstKey: range.firstKey,
+    lastKey: range.lastKey,
+    start,
+    end,
+    estimates: { backlog: isoDay(start), implementation: isoDay(end) },
   };
 }
 
 /**
- * Same start/end semantics as `scheduleFromFundedWindow` but returned as `Date`
- * — the shape Prisma writes to `Initiative.plannedStartAt`/`plannedEndAt`.
- * Used by `saveBudgetAllocation` to mirror the funded window onto the Epic's
- * Soll-Fenster, so the planned window is always the budget window.
+ * @deprecated Use `fundedWindow(allocations)?.estimates` directly. Thin alias
+ * preserved so existing callers (the budgeting save path) keep compiling while
+ * the call sites migrate.
+ */
+export function scheduleFromFundedWindow(
+  allocations: Record<string, number>,
+): ScheduleEstimates | null {
+  return fundedWindow(allocations)?.estimates ?? null;
+}
+
+/**
+ * @deprecated Use `fundedWindow(allocations)` and project `{ start, end }`.
+ * Thin alias preserved for the same reason as `scheduleFromFundedWindow`.
  */
 export function fundedDateRange(
   allocations: Record<string, number>,
 ): { start: Date; end: Date } | null {
-  const range = fundedPeriodRange(allocations);
-  if (!range) return null;
-  const first = parseHalfYearKey(range.firstKey);
-  const last = parseHalfYearKey(range.lastKey);
-  if (!first || !last) return null;
-  return { start: halfYearStart(first), end: fundedEndDate(last, 1) };
+  const fw = fundedWindow(allocations);
+  return fw ? { start: fw.start, end: fw.end } : null;
 }
 
 /**

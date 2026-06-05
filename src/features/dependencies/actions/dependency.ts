@@ -1,46 +1,28 @@
 "use server";
 
 import { z } from "zod";
-import { headers } from "next/headers";
-import { requirePrincipal } from "@/server/auth/principal";
-import { authorize } from "@/server/auth/authorize";
-import { createPrismaClient } from "@/server/db/prisma";
-import { extractRequestMeta } from "@/server/audit/emit";
-import {
-  linkDependency,
-  unlinkDependency,
-  type DependencyType,
-} from "@/server/services/dependency";
+import { linkDependency, unlinkDependency } from "@/server/services/dependency";
 import { createServerAction } from "@/server/http/server-action";
-import { fields } from "@/server/http/form-data";
-import { revalidateFor } from "@/server/http/revalidation";
-import type { RequestContext } from "@/server/http/mutation-handler";
-import { redirect } from "next/navigation";
-import { isErr } from "@/domain/errors";
+import { formatDomainError } from "@/server/http/domain-error-display";
 import type { InitiativeId } from "@/domain/types";
+
+const TYPE = z.enum(["blocks", "depends_on", "relates_to"]);
 
 /**
  * FormData-based dependency creation for the global "+" menu — picks both
- * initiatives explicitly. The positional `linkDependencyAction` below stays for
- * the feature-page inline use, where `from` is already known.
+ * initiatives explicitly. Distinct from `linkDependencyAction` below: this
+ * one is tenant-scoped (no `artId` known yet) and surfaces the created id
+ * for the success toast.
  */
 export const createDependencyAction = createServerAction({
   describeCreated: (v: { id: string }) => ({ id: v.id, label: "Dependency" }),
   schema: z.object({
     fromId: z.string().uuid(),
     toId: z.string().uuid(),
-    type: z.enum(["blocks", "depends_on", "relates_to"]),
+    type: TYPE,
   }),
   action: "dependency.link",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      fromId: f.string("fromId"),
-      toId: f.string("toId"),
-      type: f.string("type"),
-    };
-  },
   service: (ctx, input) =>
     linkDependency(ctx, {
       fromId: input.fromId as InitiativeId,
@@ -48,84 +30,51 @@ export const createDependencyAction = createServerAction({
       type: input.type,
     }),
   revalidate: "dependency",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Initiative not found"
-        : "Failed to link dependency",
+  mapError: (e) => formatDomainError(e, { fallback: "Failed to link dependency" }),
 });
 
-/** Builds a RequestContext for service calls from the resolved principal. */
-async function buildContext(
-  principal: Awaited<ReturnType<typeof requirePrincipal>>,
-): Promise<RequestContext> {
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  return {
-    principal,
-    db,
-    ...(ipAddress !== undefined && { ipAddress }),
-    ...(userAgent !== undefined && { userAgent }),
-  };
-}
+/**
+ * Feature-page inline `Link` action — called from `LinkDependencyDialog`
+ * with the `from` initiative already known. ART-scoped so the policy check
+ * honours the team's reach.
+ */
+export const linkDependencyAction = createServerAction({
+  schema: z.object({
+    fromId: z.string().uuid(),
+    toId: z.string().uuid(),
+    type: TYPE,
+    artId: z.string().uuid(),
+  }),
+  action: "dependency.link",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  service: (ctx, input) =>
+    linkDependency(ctx, {
+      fromId: input.fromId as InitiativeId,
+      toId: input.toId as InitiativeId,
+      type: input.type,
+    }),
+  revalidate: "dependency",
+  mapError: (e) => formatDomainError(e, { fallback: "Failed to link dependency" }),
+});
 
-function mapError(result: { error: { kind: string; reason?: string } }): string {
-  return result.error.kind === "conflict"
-    ? (result.error.reason ?? "Conflict")
-    : result.error.kind === "not_found"
-      ? "Initiative not found"
-      : "Failed to update dependency";
-}
-
-export async function linkDependencyAction(
-  fromId: string,
-  toId: string,
-  type: DependencyType,
-  artId: string,
-): Promise<{ error?: string }> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) redirect("/sign-in");
-
-  if (!authorize("dependency.link", { tenantId: principal.tenantId, artId }, principal).allow) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const ctx = await buildContext(principal);
-  const result = await linkDependency(ctx, {
-    fromId: fromId as InitiativeId,
-    toId: toId as InitiativeId,
-    type,
-  });
-
-  if (isErr(result)) return { error: mapError(result) };
-
-  revalidateFor("dependency");
-  return {};
-}
-
-export async function unlinkDependencyAction(
-  fromId: string,
-  toId: string,
-  type: DependencyType,
-  artId: string,
-): Promise<{ error?: string }> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) redirect("/sign-in");
-
-  if (!authorize("dependency.unlink", { tenantId: principal.tenantId, artId }, principal).allow) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const ctx = await buildContext(principal);
-  const result = await unlinkDependency(ctx, {
-    fromId: fromId as InitiativeId,
-    toId: toId as InitiativeId,
-    type,
-  });
-
-  if (isErr(result)) return { error: mapError(result) };
-
-  revalidateFor("dependency");
-  return {};
-}
+/**
+ * Feature-page inline `Unlink` action — called from `UnlinkDependencyButton`.
+ */
+export const unlinkDependencyAction = createServerAction({
+  schema: z.object({
+    fromId: z.string().uuid(),
+    toId: z.string().uuid(),
+    type: TYPE,
+    artId: z.string().uuid(),
+  }),
+  action: "dependency.unlink",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  service: (ctx, input) =>
+    unlinkDependency(ctx, {
+      fromId: input.fromId as InitiativeId,
+      toId: input.toId as InitiativeId,
+      type: input.type,
+    }),
+  revalidate: "dependency",
+  mapError: (e) => formatDomainError(e, { fallback: "Failed to unlink dependency" }),
+});

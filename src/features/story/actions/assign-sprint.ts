@@ -1,47 +1,31 @@
 "use server";
 
-import { headers } from "next/headers";
-import { requirePrincipal } from "@/server/auth/principal";
-import { authorize } from "@/server/auth/authorize";
-import { createPrismaClient } from "@/server/db/prisma";
-import { extractRequestMeta } from "@/server/audit/emit";
+import { z } from "zod";
+import { createServerAction } from "@/server/http/server-action";
+import { formatDomainError } from "@/server/http/domain-error-display";
 import { updateStory } from "@/server/services/story";
-import { revalidateFor } from "@/server/http/revalidation";
-import type { RequestContext } from "@/server/http/mutation-handler";
-import { redirect } from "next/navigation";
-import { isErr } from "@/domain/errors";
 import type { StoryId, SprintId } from "@/domain/types";
 
-export async function assignSprintAction(
-  storyId: string,
-  sprintId: string | null,
-  artId: string,
-  teamId: string,
-): Promise<{ error?: string }> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) redirect("/sign-in");
-
-  if (
-    !authorize("story.update", { tenantId: principal.tenantId, artId, teamId }, principal).allow
-  ) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const ctx: RequestContext = {
-    principal,
-    db,
-    ...(ipAddress !== undefined && { ipAddress }),
-    ...(userAgent !== undefined && { userAgent }),
-  };
-  const result = await updateStory(ctx, {
-    id: storyId as StoryId,
-    sprintId: sprintId === null ? null : (sprintId as SprintId),
-  });
-
-  if (isErr(result)) return { error: "Failed to assign sprint" };
-
-  revalidateFor("story");
-  return {};
-}
+/**
+ * Assigns a Story to a Sprint (or back to the backlog when `sprintId` is
+ * empty). Used both from the Backlog dropdown and from drag-and-drop on the
+ * Program Board — drag callers build a `FormData` from the event handler and
+ * invoke the action imperatively via `useActionState`'s `action(fd)`.
+ */
+export const assignSprintAction = createServerAction({
+  schema: z.object({
+    storyId: z.string().uuid(),
+    sprintId: z.string().uuid().nullable(),
+    artId: z.string().uuid(),
+    teamId: z.string().uuid(),
+  }),
+  action: "story.update",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId, teamId: input.teamId }),
+  service: (ctx, input) =>
+    updateStory(ctx, {
+      id: input.storyId as StoryId,
+      sprintId: (input.sprintId ?? null) as SprintId | null,
+    }),
+  revalidate: "story",
+  mapError: (e) => formatDomainError(e, { fallback: "Story konnte nicht zugewiesen werden" }),
+});

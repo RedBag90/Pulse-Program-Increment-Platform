@@ -1,8 +1,6 @@
 "use server";
 
 import { z } from "zod";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import {
   createFeature,
   updateFeature,
@@ -16,13 +14,7 @@ import {
 import { submitForReview, decideReview } from "@/server/services/initiative-review";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import { revalidateFor } from "@/server/http/revalidation";
-import type { RequestContext } from "@/server/http/mutation-handler";
-import { requirePrincipal } from "@/server/auth/principal";
-import { authorize } from "@/server/auth/authorize";
-import { createPrismaClient } from "@/server/db/prisma";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { isErr } from "@/domain/errors";
+import { formatDomainError } from "@/server/http/domain-error-display";
 import { fibonacci } from "@/domain/schemas/initiative";
 import type { EpicId, ArtId, FeatureId, PiId } from "@/domain/types";
 
@@ -50,20 +42,6 @@ export const createFeatureAction = createServerAction({
   }),
   action: "feature.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      artId: f.string("artId"),
-      parentId: f.string("parentId"),
-      title: f.string("title"),
-      description: f.optionalString("description"),
-      wsjfBusinessValue: f.string("wsjfBusinessValue"),
-      wsjfTimeCriticality: f.string("wsjfTimeCriticality"),
-      wsjfRiskReduction: f.string("wsjfRiskReduction"),
-      wsjfJobSize: f.string("wsjfJobSize"),
-      acceptanceCriteria: f.optionalString("acceptanceCriteria"),
-    };
-  },
   service: (ctx, input) => {
     const acceptanceCriteria = input.acceptanceCriteria
       ? input.acceptanceCriteria
@@ -102,20 +80,6 @@ export const updateFeatureAction = createServerAction({
   }),
   action: "feature.update",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      id: f.string("id"),
-      artId: f.string("artId"),
-      title: f.nonEmptyString("title"),
-      description: f.optionalString("description"),
-      acceptanceCriteria: f.optionalString("acceptanceCriteria"),
-      wsjfBusinessValue: f.nonEmptyString("wsjfBusinessValue"),
-      wsjfTimeCriticality: f.nonEmptyString("wsjfTimeCriticality"),
-      wsjfRiskReduction: f.nonEmptyString("wsjfRiskReduction"),
-      wsjfJobSize: f.nonEmptyString("wsjfJobSize"),
-    };
-  },
   service: (ctx, input) => {
     const acceptanceCriteria =
       input.acceptanceCriteria !== undefined
@@ -136,7 +100,8 @@ export const updateFeatureAction = createServerAction({
     });
   },
   revalidate: "feature",
-  mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to update feature"),
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Feature not found", fallback: "Failed to update feature" }),
 });
 
 export const scoreFeatureAction = createServerAction({
@@ -150,17 +115,6 @@ export const scoreFeatureAction = createServerAction({
   }),
   action: "feature.wsjf.set",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      featureId: f.string("featureId"),
-      artId: f.string("artId"),
-      wsjfBusinessValue: f.string("wsjfBusinessValue"),
-      wsjfTimeCriticality: f.string("wsjfTimeCriticality"),
-      wsjfRiskReduction: f.string("wsjfRiskReduction"),
-      wsjfJobSize: f.string("wsjfJobSize"),
-    };
-  },
   service: (ctx, input) =>
     scoreFeature(ctx, {
       id: input.featureId as FeatureId,
@@ -170,20 +124,17 @@ export const scoreFeatureAction = createServerAction({
       wsjfJobSize: input.wsjfJobSize,
     }),
   revalidate: "feature",
-  mapError: () => "Failed to update WSJF score",
+  mapError: (e) => formatDomainError(e, { fallback: "Failed to update WSJF score" }),
 });
 
 export const deleteFeatureAction = createServerAction({
   schema: z.object({ id: z.string().uuid(), artId: z.string().uuid() }),
   action: "feature.delete",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { id: f.string("id"), artId: f.string("artId") };
-  },
   service: (ctx, input) => softDeleteFeature(ctx, { id: input.id as FeatureId }),
   revalidate: "feature",
-  mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to delete feature"),
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Feature not found", fallback: "Failed to delete feature" }),
 });
 
 export const submitFeatureReviewAction = createServerAction({
@@ -210,15 +161,6 @@ export const decideFeatureReviewAction = createServerAction({
   }),
   action: "feature.review.decide",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      id: f.string("id"),
-      decision: f.string("decision"),
-      comment: f.nonEmptyString("comment"),
-      intent: f.nonEmptyString("intent"),
-    };
-  },
   service: (ctx, input) =>
     decideReview(ctx, {
       kind: "feature",
@@ -271,14 +213,6 @@ export const setFeatureDeliveryStatusAction = createServerAction({
   }),
   action: "feature.delivery.set",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      id: f.string("id"),
-      to: f.string("to"),
-      reason: f.nonEmptyString("reason"),
-    };
-  },
   service: (ctx, input) =>
     setFeatureDeliveryStatus(ctx, {
       id: input.id as FeatureId,
@@ -295,51 +229,33 @@ export const setFeatureDeliveryStatusAction = createServerAction({
 });
 
 /**
- * Assign one or more features to a PI, or move them back to the backlog (piId = null).
- * Serves both the PI-overview picker and the feature-backlog inline dropdown.
+ * Assign one or more features to a PI, or move them back to the backlog
+ * (piId = ""). Serves the PI-overview picker, the planning board (single-id
+ * batches), and the feature-backlog inline dropdown. Uses the factory's
+ * batch mode — early-fail on the first conflict, fold per-item `warnings`.
  */
-export async function setFeaturePiAction(
-  featureIds: string[],
-  piId: string | null,
-  artId: string,
-): Promise<{ error?: string; warnings?: string[] }> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) redirect("/sign-in");
-
-  if (!authorize("feature.update", { tenantId: principal.tenantId, artId }, principal).allow) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const ctx: RequestContext = {
-    principal,
-    db,
-    ...(ipAddress !== undefined && { ipAddress }),
-    ...(userAgent !== undefined && { userAgent }),
-  };
-
-  // Aggregate non-fatal advisories across the batch — the caller decides how
-  // (or whether) to surface them (e.g. one toast per warning).
-  const warnings: string[] = [];
-  for (const featureId of featureIds) {
-    const result = await setFeaturePi(ctx, {
-      featureId: featureId as FeatureId,
-      piId: piId === null ? null : (piId as PiId),
-    });
-    if (isErr(result)) {
-      return {
-        error:
-          result.error.kind === "conflict"
-            ? result.error.reason
-            : result.error.kind === "not_found"
-              ? "Feature or PI not found"
-              : "Failed to assign feature",
-      };
-    }
-    warnings.push(...result.value.warnings);
-  }
-
-  revalidateFor("feature");
-  return warnings.length > 0 ? { warnings } : {};
-}
+export const setFeaturePiAction = createServerAction({
+  schema: z.object({
+    featureIds: z.array(z.string().uuid()).min(1),
+    /** Empty string → backlog (null). FormData can't carry literal null. */
+    piId: z.string(),
+    artId: z.string().uuid(),
+  }),
+  action: "feature.update",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  batch: {
+    iterateOver: "featureIds",
+    service: (ctx, featureId, rest) =>
+      setFeaturePi(ctx, {
+        featureId: featureId as FeatureId,
+        piId: rest.piId === "" ? null : (rest.piId as PiId),
+      }),
+    foldWarnings: (out) => out.warnings,
+  },
+  revalidate: "feature",
+  mapError: (e) =>
+    formatDomainError(e, {
+      notFound: "Feature or PI not found",
+      fallback: "Failed to assign feature",
+    }),
+});

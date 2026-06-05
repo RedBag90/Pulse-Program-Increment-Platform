@@ -1,4 +1,5 @@
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { AuditLogTable } from "@/features/admin/components/audit-log-table";
 import { redirect } from "next/navigation";
@@ -22,7 +23,7 @@ export default async function AuditLogPage({ searchParams }: Props) {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
-  if (!principal.roles.includes("tenant_admin") && !principal.roles.includes("platform_admin")) {
+  if (!hasCapability(principal, "admin.audit-log.read")) {
     redirect("/portfolio");
   }
 

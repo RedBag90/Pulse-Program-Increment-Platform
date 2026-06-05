@@ -11,6 +11,7 @@ import {
   unlinkGoalEpic,
   GOAL_STATUSES,
 } from "@/server/services/target-goal";
+import { formatDomainError } from "@/server/http/domain-error-display";
 import type { ActionState } from "@/server/http/server-action";
 
 export type { ActionState as TargetGoalActionState };
@@ -65,10 +66,6 @@ export const linkGoalEpicAction = createServerAction({
   schema: z.object({ goalId: z.string().uuid(), epicId: z.string().uuid() }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { goalId: f.string("goalId"), epicId: f.string("epicId") };
-  },
   service: (ctx, input) => linkGoalEpic(ctx, { goalId: input.goalId, epicId: input.epicId }),
   onSuccess: revalidate,
   mapError: (e) =>
@@ -83,11 +80,11 @@ export const unlinkGoalEpicAction = createServerAction({
   schema: z.object({ goalId: z.string().uuid(), epicId: z.string().uuid() }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { goalId: f.string("goalId"), epicId: f.string("epicId") };
-  },
   service: (ctx, input) => unlinkGoalEpic(ctx, { goalId: input.goalId, epicId: input.epicId }),
   onSuccess: revalidate,
-  mapError: (e) => (e.kind === "not_found" ? "Verknüpfung nicht gefunden" : "Lösen fehlgeschlagen"),
+  mapError: (e) =>
+    formatDomainError(e, {
+      notFound: "Verknüpfung nicht gefunden",
+      fallback: "Lösen fehlgeschlagen",
+    }),
 });

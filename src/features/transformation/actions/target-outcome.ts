@@ -6,6 +6,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { saveTargetOutcome, deleteTargetOutcome } from "@/server/services/target-outcome";
 import type { ActionState } from "@/server/http/server-action";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export type { ActionState as TargetOutcomeActionState };
 
@@ -43,7 +44,11 @@ export const saveTargetOutcomeAction = createServerAction({
       dueDate: input.dueDate ? new Date(input.dueDate) : null,
     }),
   onSuccess: revalidate,
-  mapError: (e) => (e.kind === "not_found" ? "Outcome nicht gefunden" : "Speichern fehlgeschlagen"),
+  mapError: (e) =>
+    formatDomainError(e, {
+      notFound: "Outcome nicht gefunden",
+      fallback: "Speichern fehlgeschlagen",
+    }),
 });
 
 export const deleteTargetOutcomeAction = createServerAction({
@@ -53,5 +58,9 @@ export const deleteTargetOutcomeAction = createServerAction({
   parseFormData: (fd) => ({ id: fields(fd).string("id") }),
   service: (ctx, input) => deleteTargetOutcome(ctx, { id: input.id }),
   onSuccess: revalidate,
-  mapError: (e) => (e.kind === "not_found" ? "Outcome nicht gefunden" : "Löschen fehlgeschlagen"),
+  mapError: (e) =>
+    formatDomainError(e, {
+      notFound: "Outcome nicht gefunden",
+      fallback: "Löschen fehlgeschlagen",
+    }),
 });

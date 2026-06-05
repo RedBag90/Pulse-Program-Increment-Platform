@@ -1,4 +1,5 @@
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { InviteUserForm } from "@/features/admin/components/invite-user-form";
 import { redirect } from "next/navigation";
@@ -8,9 +9,7 @@ export default async function AdminUsersPage() {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
-  const canManage =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
-  if (!canManage) redirect("/portfolio");
+  if (!hasCapability(principal, "admin.users.read")) redirect("/portfolio");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 

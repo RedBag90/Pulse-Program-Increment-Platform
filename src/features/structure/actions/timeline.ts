@@ -10,6 +10,7 @@ import {
 } from "@/server/services/timeline";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
+import { formatDomainError } from "@/server/http/domain-error-display";
 import type { ArtId, TimelineId } from "@/domain/types";
 
 export const createTimelineAction = createServerAction({
@@ -19,13 +20,9 @@ export const createTimelineAction = createServerAction({
   }),
   action: "timeline.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { name: f.string("name"), cadenceWeeks: f.nonEmptyString("cadenceWeeks") };
-  },
   service: (ctx, input) => createTimeline(ctx, input),
   revalidate: "timeline",
-  mapError: (e) => (e.kind === "conflict" ? e.reason : "Timeline konnte nicht angelegt werden"),
+  mapError: (e) => formatDomainError(e, { fallback: "Timeline konnte nicht angelegt werden" }),
 });
 
 export const createTimelineFromStandardAction = createServerAction({
@@ -62,10 +59,6 @@ export const joinArtToTimelineAction = createServerAction({
   schema: z.object({ artId: z.string().uuid(), timelineId: z.string().uuid() }),
   action: "timeline.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { artId: f.string("artId"), timelineId: f.string("timelineId") };
-  },
   service: (ctx, input) =>
     joinArtToTimeline(ctx, {
       artId: input.artId as ArtId,

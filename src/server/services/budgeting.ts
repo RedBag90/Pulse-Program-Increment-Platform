@@ -11,11 +11,7 @@ import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok } from "@/domain/errors";
 import { parseTimeline } from "@/domain/timeline";
-import {
-  scheduleFromFundedWindow,
-  fundedDateRange,
-  withScheduleEstimates,
-} from "@/domain/epic-schedule";
+import { fundedWindow, withScheduleEstimates } from "@/domain/epic-schedule";
 import { deriveEpicEconomics } from "@/domain/epic-economics";
 import { halfYearKey, parseHalfYearKey, halfYearStart, addHalfYears } from "@/domain/calendar";
 import {
@@ -209,8 +205,7 @@ export async function saveBudgetAllocation(
     //  - `timeline.estimates` keeps its actuals-preserving merge (unchanged).
     //  - `plannedStartAt`/`plannedEndAt` always mirror the funded window —
     //    empty allocations clear both, so the Soll-Fenster never lags behind.
-    const estimates = scheduleFromFundedWindow(allocations);
-    const window = fundedDateRange(allocations);
+    const fw = fundedWindow(allocations);
     const epic = await tx.initiative.findFirst({
       where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
       select: { timeline: true },
@@ -220,13 +215,13 @@ export async function saveBudgetAllocation(
       where: { id: epicId },
       data: {
         updatedBy: mctx.actorId,
-        plannedStartAt: window?.start ?? null,
-        plannedEndAt: window?.end ?? null,
-        ...(estimates
+        plannedStartAt: fw?.start ?? null,
+        plannedEndAt: fw?.end ?? null,
+        ...(fw
           ? {
               timeline: withScheduleEstimates(
                 timeline,
-                estimates,
+                fw.estimates,
               ) as unknown as Prisma.InputJsonValue,
             }
           : {}),

@@ -8,6 +8,7 @@ import {
   updatePiObjective,
   type PiObjectiveId,
 } from "@/server/services/pi-objective";
+import { formatDomainError } from "@/server/http/domain-error-display";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { revalidateFor } from "@/server/http/revalidation";
@@ -59,7 +60,7 @@ export const createPiObjectiveAction = createServerAction({
       committed: input.committed ?? true,
     }),
   revalidate: "pi",
-  mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create objective"),
+  mapError: (e) => formatDomainError(e, { fallback: "Failed to create objective" }),
 });
 
 /** Records a team's SAFe fist-of-five confidence vote (1-5) on a PI objective. */

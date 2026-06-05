@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState } from "react";
 import { unlinkDependencyAction } from "@/features/dependencies/actions/dependency";
 
 interface Props {
@@ -12,28 +12,22 @@ interface Props {
 
 /** Removes a dependency link from the feature detail page. */
 export function UnlinkDependencyButton({ fromId, toId, type, artId }: Props) {
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  function handleClick() {
-    setError(null);
-    startTransition(async () => {
-      const result = await unlinkDependencyAction(fromId, toId, type, artId);
-      if (result.error) setError(result.error);
-    });
-  }
+  const [state, formAction, isPending] = useActionState(unlinkDependencyAction, {});
 
   return (
-    <span className="flex items-center gap-1">
-      {error && <span className="text-[10px] text-destructive">{error}</span>}
+    <form action={formAction} className="flex items-center gap-1">
+      <input type="hidden" name="fromId" value={fromId} />
+      <input type="hidden" name="toId" value={toId} />
+      <input type="hidden" name="type" value={type} />
+      <input type="hidden" name="artId" value={artId} />
+      {state.error && <span className="text-[10px] text-destructive">{state.error}</span>}
       <button
-        type="button"
-        onClick={handleClick}
+        type="submit"
         disabled={isPending}
         className="text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
       >
         {isPending ? "…" : "Unlink"}
       </button>
-    </span>
+    </form>
   );
 }

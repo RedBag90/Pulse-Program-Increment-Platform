@@ -1,4 +1,5 @@
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listArts } from "@/server/services/art";
 import { listArtPlanningPis } from "@/server/services/pi";
@@ -47,12 +48,10 @@ export default async function PiPlanningPage({ searchParams }: Props) {
 
   const activeArt = arts.find((a) => a.id === art) ?? arts[0]!;
 
-  const canEdit =
-    principal.roles.includes("portfolio_manager") ||
-    principal.roles.includes("rte") ||
-    principal.roles.includes("feature_owner") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
+  const canEdit = hasCapability(principal, "feature.update", {
+    tenantId: principal.tenantId,
+    artId: activeArt.id,
+  });
 
   const [pisRaw, featurePage, artBudget, tenant] = await Promise.all([
     listArtPlanningPis(db, principal.tenantId, activeArt.id as ArtId),

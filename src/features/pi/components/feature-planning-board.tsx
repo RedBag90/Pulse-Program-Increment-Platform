@@ -105,7 +105,11 @@ export function FeaturePlanningBoard({
   function moveFeature(featureId: string, toPiId: string | null) {
     startTransition(async () => {
       setOptimistic({ featureId, piId: toPiId });
-      const res = await setFeaturePiAction([featureId], toPiId, artId);
+      const fd = new FormData();
+      fd.append("featureIds", featureId);
+      fd.set("piId", toPiId ?? "");
+      fd.set("artId", artId);
+      const res = await setFeaturePiAction({}, fd);
       setError(res.error ?? null);
       setWarnings(res.warnings ?? []);
     });

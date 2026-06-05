@@ -3,9 +3,9 @@
 import { z } from "zod";
 import { inviteUser } from "@/server/services/invitation";
 import { createServerAction } from "@/server/http/server-action";
-import { fields } from "@/server/http/form-data";
 import { ROLES } from "@/domain/roles";
 import type { Role } from "@/domain/roles";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export interface InviteUserState {
   error?: string;
@@ -20,14 +20,6 @@ export const inviteUserAction = createServerAction({
   }),
   action: "tenant.users.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      email: f.string("email"),
-      role: f.string("role"),
-      locale: f.string("locale") ?? "en",
-    };
-  },
   service: (ctx, input) =>
     inviteUser(ctx, {
       tenantName: ctx.principal.tenantId,
@@ -36,5 +28,5 @@ export const inviteUserAction = createServerAction({
       role: input.role,
       locale: input.locale,
     }),
-  mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to send invitation"),
+  mapError: (e) => formatDomainError(e, { fallback: "Failed to send invitation" }),
 });

@@ -1,4 +1,5 @@
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/server/services/art";
 import { listPis } from "@/server/services/pi";
@@ -35,8 +36,10 @@ export default async function PiListPage({ params }: Props) {
 
   if (!art) notFound();
 
-  const canEdit =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
+  const canEdit = hasCapability(principal, "pi.create", {
+    tenantId: principal.tenantId,
+    artId,
+  });
 
   return (
     <main className="p-8 space-y-6">

@@ -1,14 +1,12 @@
-import { headers } from "next/headers";
 import type { z } from "zod";
 import { authorize, type AuthResource } from "@/server/auth/authorize";
 import type { Action } from "@/server/auth/policies";
-import { requirePrincipal, type Principal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
+import type { Principal } from "@/server/auth/principal";
 import { isErr } from "@/domain/errors";
 import type { DomainError, Result } from "@/domain/errors";
-import { extractRequestMeta } from "@/server/audit/emit";
 import { revalidateFor, type RevalidationResource } from "@/server/http/revalidation";
-import type { RequestContext } from "./mutation-handler";
+import { buildRequestContext, type RequestContext } from "@/server/http/request-context";
+import { parseFromSchema } from "@/server/http/form-data-schema";
 
 /** Identifies the entity a create action just produced — drives the success toast. */
 export interface CreatedRef {
@@ -26,14 +24,37 @@ export type ActionState = {
   fieldErrors?: Record<string, string[]>;
   /** Set on a successful create — see `describeCreated`. */
   created?: CreatedRef;
+  /** Non-fatal advisories aggregated across a batch (see `batch.foldWarnings`). */
+  warnings?: string[];
 };
 
-export interface ServerActionConfig<TInput, TOutput = unknown> {
+/**
+ * Batch-mode service: the action's schema declares one array field (named in
+ * `iterateOver`); the factory loops over it, calling `service` per item with
+ * the rest of the validated input. Warnings can be folded via `foldWarnings`;
+ * by default the loop stops on the first item error (mirrors today's
+ * setFeaturePiAction behaviour).
+ */
+export interface ServerActionBatchConfig<TInput, TOutput> {
+  iterateOver: keyof TInput & string;
+  service: (ctx: RequestContext, item: string, rest: TInput) => Promise<Result<TOutput>>;
+  /** When true, keep iterating past per-item errors and report the first one at the end. Defaults to false. */
+  continueOnError?: boolean;
+  /** Project per-call warnings; the factory concatenates them onto `state.warnings`. */
+  foldWarnings?: (out: TOutput) => readonly string[] | null;
+}
+
+interface BaseConfig<TInput, TOutput> {
   schema: z.ZodType<TInput, z.ZodTypeDef, unknown>;
   action: Action;
   resource: (input: TInput, principal: Principal) => AuthResource;
-  parseFormData: (fd: FormData) => unknown;
-  service: (ctx: RequestContext, input: TInput) => Promise<Result<TOutput>>;
+  /**
+   * Optional. When omitted, the factory walks the `schema` itself via
+   * `parseFromSchema` — that covers ~90% of actions. Provide a callback only
+   * when the schema doesn't map 1:1 to FormData (JSON payloads, multi-line
+   * textarea splits, custom coercion).
+   */
+  parseFormData?: (fd: FormData) => unknown;
   /** Domain resource to revalidate via the registry — preferred over hand-rolled `onSuccess`. */
   revalidate?: RevalidationResource;
   /** Extra post-success side effects (rarely needed once `revalidate` covers paths). */
@@ -43,14 +64,33 @@ export interface ServerActionConfig<TInput, TOutput = unknown> {
   describeCreated?: (value: TOutput, input: TInput) => CreatedRef;
 }
 
+/**
+ * Server-action config. Provide **either** `service` (single mutation) **or**
+ * `batch` (loop a schema array field), not both.
+ */
+export type ServerActionConfig<TInput, TOutput = unknown> = BaseConfig<TInput, TOutput> &
+  (
+    | {
+        service: (ctx: RequestContext, input: TInput) => Promise<Result<TOutput>>;
+        batch?: never;
+      }
+    | {
+        service?: never;
+        batch: ServerActionBatchConfig<TInput, TOutput>;
+      }
+  );
+
 export function createServerAction<TInput, TOutput = unknown>(
   config: ServerActionConfig<TInput, TOutput>,
 ): (_prev: ActionState, formData: FormData) => Promise<ActionState> {
   return async (_prev, formData) => {
-    const principal = await requirePrincipal().catch(() => null);
-    if (!principal) return { error: "Not authenticated" };
+    const ctx = await buildRequestContext();
+    if (!ctx) return { error: "Not authenticated" };
+    const { principal } = ctx;
 
-    const raw = config.parseFormData(formData);
+    const raw = config.parseFormData
+      ? config.parseFormData(formData)
+      : parseFromSchema(formData, config.schema);
     const parsed = config.schema.safeParse(raw);
     if (!parsed.success) {
       return {
@@ -62,17 +102,17 @@ export function createServerAction<TInput, TOutput = unknown>(
     const decision = authorize(config.action, config.resource(parsed.data, principal), principal);
     if (!decision.allow) return { error: "Insufficient permissions" };
 
-    const { ipAddress, userAgent } = extractRequestMeta(await headers());
-    const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-    const ctx: RequestContext = {
-      principal,
-      db,
-      ...(ipAddress !== undefined && { ipAddress }),
-      ...(userAgent !== undefined && { userAgent }),
-    };
+    // Batch mode: loop the iterated field, calling the per-item service.
+    if (config.batch) {
+      const batchResult = await runBatch(ctx, parsed.data, config.batch, config.mapError);
+      if (batchResult.error) return batchResult;
+      if (config.revalidate) revalidateFor(config.revalidate);
+      config.onSuccess?.(parsed.data);
+      return batchResult;
+    }
 
+    // Single mode: one service call.
     const result = await config.service(ctx, parsed.data);
-
     if (isErr(result)) {
       const msg = config.mapError ? config.mapError(result.error) : "Operation failed";
       return { error: msg };
@@ -86,5 +126,44 @@ export function createServerAction<TInput, TOutput = unknown>(
         created: config.describeCreated(result.value, parsed.data),
       }),
     };
+  };
+}
+
+/**
+ * Per-item loop for `batch` mode. Extracted so the main factory body reads
+ * load → parse → authorize → dispatch; the dispatch branch is short.
+ */
+async function runBatch<TInput, TOutput>(
+  ctx: RequestContext,
+  input: TInput,
+  batch: ServerActionBatchConfig<TInput, TOutput>,
+  mapError: ((e: DomainError) => string) | undefined,
+): Promise<ActionState> {
+  const items = (input as Record<string, unknown>)[batch.iterateOver];
+  if (!Array.isArray(items)) {
+    return { error: `Batch field "${batch.iterateOver}" is not an array` };
+  }
+
+  const warnings: string[] = [];
+  let firstError: string | null = null;
+
+  for (const item of items as string[]) {
+    const result = await batch.service(ctx, item, input);
+    if (isErr(result)) {
+      const msg = mapError ? mapError(result.error) : "Operation failed";
+      if (!batch.continueOnError) return { error: msg };
+      if (firstError === null) firstError = msg;
+      continue;
+    }
+    const w = batch.foldWarnings?.(result.value);
+    if (w && w.length > 0) warnings.push(...w);
+  }
+
+  if (firstError) {
+    return { error: firstError, ...(warnings.length > 0 && { warnings }) };
+  }
+  return {
+    success: true,
+    ...(warnings.length > 0 && { warnings }),
   };
 }

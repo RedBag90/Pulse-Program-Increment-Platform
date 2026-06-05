@@ -1,4 +1,5 @@
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import {
   getStructureTree,
@@ -47,10 +48,12 @@ export default async function StructurePage({ searchParams }: Props) {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const isAdmin =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
-  const canCreateVs = isAdmin || principal.roles.includes("portfolio_manager");
-  const canManageStandards = isAdmin || principal.roles.includes("portfolio_manager");
+  // The Strukturbaum/Timeline-tab affordances (Edit Cadence, Add ART, Add Team)
+  // are admin-only today. `hasCapability` with `timeline.manage` matches that
+  // grant exactly (tenant_admin / portfolio_manager; platform_admin bypasses).
+  const isAdmin = hasCapability(principal, "timeline.manage");
+  const canCreateVs = hasCapability(principal, "value_stream.create");
+  const canManageStandards = hasCapability(principal, "pi_standard.manage");
 
   let content: ReactNode;
   if (activeTab === "timeline") {

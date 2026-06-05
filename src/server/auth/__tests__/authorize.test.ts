@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   authorize,
   authorizeResource,
+  hasCapability,
   hasPermission,
   type AuthResource,
 } from "@/server/auth/authorize";
@@ -120,5 +121,38 @@ describe("hasPermission", () => {
         principal({ roles: [ROLES.PORTFOLIO_MANAGER] }),
       ),
     ).toBe(true);
+  });
+});
+
+describe("hasCapability", () => {
+  it("admin bypass: tenant_admin sees every action true", () => {
+    const p = principal({ roles: [ROLES.TENANT_ADMIN] });
+    expect(hasCapability(p, "epic.update")).toBe(true);
+    expect(hasCapability(p, "epic.delete")).toBe(true);
+  });
+
+  it("granted role without scope check returns true", () => {
+    const p = principal({ roles: [ROLES.PORTFOLIO_MANAGER] });
+    expect(hasCapability(p, "epic.update", { valueStreamId: "vs1" })).toBe(true);
+  });
+
+  it("no role → false even on scope-free actions", () => {
+    const p = principal({ roles: [] });
+    expect(hasCapability(p, "epic.update")).toBe(false);
+  });
+
+  it("scoped grant with mismatched scope → false", () => {
+    const p = principal({
+      roles: [ROLES.VALUE_STREAM_OWNER],
+      scopes: { valueStreamIds: ["vs-owned"], artIds: [], teamIds: [] },
+    });
+    expect(hasCapability(p, "epic.update", { valueStreamId: "vs-other" })).toBe(false);
+    expect(hasCapability(p, "epic.update", { valueStreamId: "vs-owned" })).toBe(true);
+  });
+
+  it("argument order is (principal, action, resource?)", () => {
+    const p = principal({ roles: [ROLES.PORTFOLIO_MANAGER] });
+    // The resource parameter defaults to {} — tenant-wide checks need no resource.
+    expect(hasCapability(p, "epic.update")).toBe(true);
   });
 });

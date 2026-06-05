@@ -3,8 +3,8 @@
 import { z } from "zod";
 import { createStory, deleteStory } from "@/server/services/story";
 import { createServerAction } from "@/server/http/server-action";
-import { fields } from "@/server/http/form-data";
 import type { FeatureId, SprintId, StoryId } from "@/domain/types";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export const createStoryAction = createServerAction({
   describeCreated: (v: { id: string }, input) => ({
@@ -23,18 +23,6 @@ export const createStoryAction = createServerAction({
   }),
   action: "story.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      featureId: f.string("featureId"),
-      artId: f.string("artId"),
-      sprintId: f.nonEmptyString("sprintId"),
-      title: f.string("title"),
-      description: f.nonEmptyString("description"),
-      acceptanceCriteria: f.nonEmptyString("acceptanceCriteria"),
-      storyPoints: f.nonEmptyString("storyPoints"),
-    };
-  },
   service: (ctx, input) => {
     const criteria = input.acceptanceCriteria
       ? input.acceptanceCriteria
@@ -52,18 +40,16 @@ export const createStoryAction = createServerAction({
     });
   },
   revalidate: "story",
-  mapError: (e) => (e.kind === "not_found" ? "Feature not found" : "Failed to create story"),
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Feature not found", fallback: "Failed to create story" }),
 });
 
 export const deleteStoryAction = createServerAction({
   schema: z.object({ id: z.string().uuid(), artId: z.string().uuid() }),
   action: "story.delete",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { id: f.string("id"), artId: f.string("artId") };
-  },
   service: (ctx, input) => deleteStory(ctx, { id: input.id as StoryId }),
   revalidate: "story",
-  mapError: (e) => (e.kind === "not_found" ? "Story not found" : "Failed to delete story"),
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Story not found", fallback: "Failed to delete story" }),
 });

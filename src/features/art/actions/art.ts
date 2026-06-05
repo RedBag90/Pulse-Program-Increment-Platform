@@ -6,6 +6,7 @@ import { createArtOnTimeline } from "@/server/services/art-setup";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { ValueStreamId, ArtId, TimelineId } from "@/domain/types";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export interface ArtActionState {
   error?: string;
@@ -21,14 +22,6 @@ export const createArtAction = createServerAction({
   }),
   action: "art.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      valueStreamId: f.string("valueStreamId"),
-      name: f.string("name"),
-      timelineId: f.string("timelineId"),
-    };
-  },
   service: (ctx, input) =>
     createArtOnTimeline(ctx, {
       valueStreamId: input.valueStreamId as ValueStreamId,
@@ -36,7 +29,7 @@ export const createArtAction = createServerAction({
       timelineId: input.timelineId as TimelineId,
     }),
   revalidate: "art",
-  mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create ART"),
+  mapError: (e) => formatDomainError(e, { fallback: "Failed to create ART" }),
 });
 
 export const updateArtAction = createServerAction({

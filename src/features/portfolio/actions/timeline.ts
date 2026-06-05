@@ -67,10 +67,6 @@ export const assignEpicOwnerAction = createServerAction({
   schema: z.object({ epicId: z.string().uuid(), ownerId: z.string().uuid() }),
   action: "epic.owner.assign",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { epicId: f.string("epicId"), ownerId: f.string("ownerId") };
-  },
   service: (ctx, input) =>
     assignEpicOwner(ctx, { epicId: input.epicId as EpicId, ownerId: input.ownerId }),
   revalidate: "epic",

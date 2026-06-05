@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/server/services/art";
 import { listTenantApprovers } from "@/server/services/epic-approval";
@@ -23,8 +24,10 @@ export default async function ArtSettingsPage({ params }: Props) {
   const art = await getArt(db, principal.tenantId, artId as ArtId);
   if (!art) notFound();
 
-  const canEdit =
-    principal.roles.includes("tenant_admin") || principal.roles.includes("platform_admin");
+  const canEdit = hasCapability(principal, "art.update", {
+    tenantId: principal.tenantId,
+    artId,
+  });
 
   const [approvers, userLabels] = await Promise.all([
     listTenantApprovers(db, principal.tenantId),

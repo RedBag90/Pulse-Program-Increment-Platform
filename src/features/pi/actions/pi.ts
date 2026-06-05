@@ -33,15 +33,6 @@ export const createPiAction = createServerAction({
   }),
   action: "pi.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      timelineId: f.string("timelineId"),
-      name: f.string("name"),
-      startDate: f.string("startDate"),
-      endDate: f.string("endDate"),
-    };
-  },
   service: (ctx, input) =>
     createPi(ctx, {
       timelineId: input.timelineId as TimelineId,
@@ -138,10 +129,6 @@ export const deletePiAction = createServerAction({
   schema: z.object({ id: z.string().uuid(), artId: z.string().uuid() }),
   action: "pi.delete",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { id: f.string("id"), artId: f.string("artId") };
-  },
   service: (ctx, input) => deletePi(ctx, { id: input.id as PiId }),
   revalidate: "pi",
   mapError: (e) =>

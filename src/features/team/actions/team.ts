@@ -20,13 +20,6 @@ export const createTeamAction = createServerAction({
   }),
   action: "team.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      artId: f.string("artId"),
-      name: f.string("name"),
-    };
-  },
   service: (ctx, input) => createTeam(ctx, { artId: input.artId as ArtId, name: input.name }),
   revalidate: "team",
   mapError: (e) =>
@@ -92,10 +85,6 @@ export const deleteTeamAction = createServerAction({
   schema: z.object({ id: z.string().uuid(), artId: z.string().uuid() }),
   action: "team.delete",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { id: f.string("id"), artId: f.string("artId") };
-  },
   service: (ctx, input) => deleteTeam(ctx, { id: input.id as TeamId }),
   revalidate: "team",
   mapError: (e) =>

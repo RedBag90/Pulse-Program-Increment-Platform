@@ -1,15 +1,20 @@
 import type { z } from "zod";
 import { authorize, type AuthResource } from "@/server/auth/authorize";
 import type { Action } from "@/server/auth/policies";
-import { requirePrincipal, type Principal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
-import type { PrismaClient } from "@/generated/prisma";
+import type { Principal } from "@/server/auth/principal";
 import { forbidden, notFound, unauthorized, unprocessable } from "@/server/http/problem";
+import { buildRequestContext } from "@/server/http/request-context";
+import type { PrismaClient } from "@/generated/prisma";
 
 // ---------------------------------------------------------------------------
 // Query context passed to every read handler via the pipeline
 // ---------------------------------------------------------------------------
 
+/**
+ * Reads don't audit, so the QueryContext is a strict subset of `RequestContext`
+ * (no `ipAddress`/`userAgent`). Built via `buildRequestContext({
+ * includeRequestMeta: false })`.
+ */
 export interface QueryContext {
   principal: Principal;
   db: PrismaClient;
@@ -60,9 +65,9 @@ export function createQueryHandler<TParams = Record<string, never>, TResult = un
   const { readAction, resource, query } = config;
 
   return async function queryHandler(request: Request, ctx: RouteHandlerCtx): Promise<Response> {
-    const principalOrNull = await requirePrincipal().catch(() => null);
-    if (!principalOrNull) return unauthorized();
-    const principal: Principal = principalOrNull;
+    const built = await buildRequestContext({ includeRequestMeta: false });
+    if (!built) return unauthorized();
+    const { principal, db } = built;
 
     // Merge route params + searchParams into one plain object for validation.
     const routeParams = await ctx.params;
@@ -85,7 +90,6 @@ export function createQueryHandler<TParams = Record<string, never>, TResult = un
       if (!decision.allow) return forbidden(decision.reason);
     }
 
-    const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
     const queryCtx: QueryContext = { principal, db };
 
     const result = await query(queryCtx, validatedParams);

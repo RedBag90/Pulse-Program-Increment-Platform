@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useActionState, useState, startTransition } from "react";
 import { assignSprintAction } from "@/features/story/actions/assign-sprint";
 
 interface Sprint {
@@ -30,14 +30,17 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function BacklogStoryRow({ story, sprints, artId, teamId }: Props) {
-  const [isPending, startTransition] = useTransition();
+  const [, formAction, isPending] = useActionState(assignSprintAction, {});
   const [selected, setSelected] = useState("");
 
   function handleAssign(sprintId: string) {
     setSelected(sprintId);
-    startTransition(async () => {
-      await assignSprintAction(story.id, sprintId || null, artId, teamId);
-    });
+    const fd = new FormData();
+    fd.set("storyId", story.id);
+    fd.set("sprintId", sprintId);
+    fd.set("artId", artId);
+    fd.set("teamId", teamId);
+    startTransition(() => formAction(fd));
   }
 
   const statusCls = STATUS_COLORS[story.status] ?? STATUS_COLORS["draft"]!;

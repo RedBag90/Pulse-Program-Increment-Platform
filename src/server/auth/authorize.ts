@@ -84,14 +84,39 @@ export function authorize(
 }
 
 /**
- * Boolean convenience wrapper for permission-aware UI (e.g. PermissionGate).
+ * UI-side permission predicate — answers "does this principal have the
+ * capability to perform `action` on `resource`?" in one boolean, so
+ * server-components and `PermissionGate` can drive `canEdit` / `canDelete`
+ * affordances without re-listing roles inline.
+ *
+ * This DOES NOT replace server-seam authorization. Mutations still call
+ * `authorize()` + `authorizeResource()` after loading the target row
+ * (ADR-0002). Both paths read the same `POLICIES` registry, so the UI
+ * gate and the service gate cannot drift — that's why CONTEXT.md says
+ * pages should ask for a capability and never re-list roles.
+ *
+ * Argument order is `(principal, action, resource?)` so the most-stable
+ * value comes first in call sites — matches the new pages' usage.
+ */
+export function hasCapability(
+  principal: Principal,
+  action: Action,
+  resource: AuthResource = {},
+): boolean {
+  return authorize(action, resource, principal).allow;
+}
+
+/**
+ * @deprecated Use `hasCapability(principal, action, resource?)` — argument
+ * order matches the new call sites. Kept as a shim because `PermissionGate`
+ * and existing tests still call it.
  */
 export function hasPermission(
   action: Action,
   resource: AuthResource,
   principal: Principal,
 ): boolean {
-  return authorize(action, resource, principal).allow;
+  return hasCapability(principal, action, resource);
 }
 
 /**

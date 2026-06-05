@@ -5,6 +5,7 @@ import { createPiStandard, deletePiStandard, applyPiStandard } from "@/server/se
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { TimelineId } from "@/domain/types";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export interface PiStandardActionState {
   error?: string;
@@ -21,19 +22,9 @@ export const createPiStandardAction = createServerAction({
   }),
   action: "pi_standard.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      name: f.string("name"),
-      anchorMonth: f.string("anchorMonth"),
-      anchorDay: f.string("anchorDay"),
-      cadenceWeeks: f.string("cadenceWeeks"),
-      piCount: f.string("piCount"),
-    };
-  },
   service: (ctx, input) => createPiStandard(ctx, input),
   revalidate: "piStandard",
-  mapError: () => "Failed to create PI standard",
+  mapError: (e) => formatDomainError(e, { fallback: "Failed to create PI standard" }),
 });
 
 export const deletePiStandardAction = createServerAction({
@@ -51,10 +42,6 @@ export const addStandardPisAction = createServerAction({
   schema: z.object({ timelineId: z.string().uuid(), standardId: z.string().uuid() }),
   action: "pi.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { timelineId: f.string("timelineId"), standardId: f.string("standardId") };
-  },
   service: (ctx, input) =>
     applyPiStandard(ctx, {
       timelineId: input.timelineId as TimelineId,

@@ -1,4 +1,5 @@
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getPi } from "@/server/services/pi";
 import { listPiObjectives } from "@/server/services/pi-objective";
@@ -39,11 +40,10 @@ export default async function PiObjectivesPage({ params }: Props) {
   // even though a PI now spans many ARTs.
   const teamArtId = new Map(teams.map((t) => [t.id, t.artId]));
 
-  const canVote =
-    principal.roles.includes("rte") ||
-    principal.roles.includes("team_editor") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
+  const canVote = hasCapability(principal, "pi_objective.update", {
+    tenantId: principal.tenantId,
+    ...(timeline.arts[0] ? { artId: timeline.arts[0].id } : {}),
+  });
 
   // Group objectives by team
   const byTeam = new Map<string, { teamName: string; objectives: typeof objectives }>();

@@ -3,8 +3,8 @@
 import { z } from "zod";
 import { createTask } from "@/server/services/task";
 import { createServerAction } from "@/server/http/server-action";
-import { fields } from "@/server/http/form-data";
 import type { StoryId } from "@/domain/types";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 export const createTaskAction = createServerAction({
   describeCreated: (v: { id: string }) => ({ id: v.id, label: "Task" }),
@@ -16,15 +16,6 @@ export const createTaskAction = createServerAction({
   }),
   action: "task.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      storyId: f.string("storyId"),
-      title: f.string("title"),
-      description: f.nonEmptyString("description"),
-      estimateHours: f.nonEmptyString("estimateHours"),
-    };
-  },
   service: (ctx, input) =>
     createTask(ctx, {
       parentId: input.storyId as StoryId,
@@ -32,5 +23,6 @@ export const createTaskAction = createServerAction({
       description: input.description,
       estimateHours: input.estimateHours,
     }),
-  mapError: (e) => (e.kind === "not_found" ? "Story not found" : "Failed to create task"),
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Story not found", fallback: "Failed to create task" }),
 });

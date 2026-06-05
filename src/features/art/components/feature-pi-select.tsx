@@ -25,7 +25,11 @@ export function FeaturePiSelect({ featureId, artId, currentPiId, pis }: Props) {
     setValue(next);
     setError(null);
     startTransition(async () => {
-      const result = await setFeaturePiAction([featureId], next || null, artId);
+      const fd = new FormData();
+      fd.append("featureIds", featureId);
+      fd.set("piId", next);
+      fd.set("artId", artId);
+      const result = await setFeaturePiAction({}, fd);
       if (result.error) {
         setError(result.error);
         setValue(currentPiId ?? "");

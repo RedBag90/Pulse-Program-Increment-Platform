@@ -3,10 +3,10 @@ import type { ArtId, TenantId, TimelineId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
 import { buildChangelog } from "@/domain/change-log";
-import { generateSprints } from "@/domain/pi-planning";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { applyPiStandard } from "@/server/services/pi-standard";
+import { backfillSprints } from "@/server/services/sprint-backfill";
 
 /**
  * Timelines — shared PI cadences that multiple ARTs can subscribe to.
@@ -209,23 +209,26 @@ export async function joinArtToTimeline(
     }
 
     const previousTimelineId = art.timelineId;
+    let detachedFromPrevious = { sprintsRemoved: 0, featuresUnassigned: 0, objectivesRemoved: 0 };
     if (previousTimelineId) {
-      await detachArtFromTimeline(tx, mctx.tenantId, input.artId, previousTimelineId, art.teams);
+      detachedFromPrevious = await detachArtFromTimeline(
+        tx,
+        mctx.tenantId,
+        input.artId,
+        previousTimelineId,
+        art.teams,
+      );
     }
 
     await tx.art.update({ where: { id: input.artId }, data: { timelineId: input.timelineId } });
 
     // Backfill: one sprint per (team, PI) for every existing Timeline PI.
-    let sprintsCreated = 0;
-    for (const pi of timeline.programIncrements) {
-      if (art.teams.length === 0) continue;
-      const drafts = generateSprints(pi.startDate, pi.endDate, art.teams);
-      if (drafts.length === 0) continue;
-      const result = await tx.sprint.createMany({
-        data: drafts.map((s) => ({ tenantId: mctx.tenantId, piId: pi.id, ...s })),
-      });
-      sprintsCreated += result.count;
-    }
+    const { created: sprintsCreated } = await backfillSprints(
+      tx,
+      mctx.tenantId,
+      timeline.programIncrements,
+      art.teams,
+    );
 
     return ok({
       result: { sprintsCreated },
@@ -237,6 +240,14 @@ export async function joinArtToTimeline(
           artId: { before: null, after: input.artId },
           previousTimelineId: { before: null, after: previousTimelineId ?? null },
           sprintsCreated: { before: null, after: sprintsCreated },
+          ...(previousTimelineId
+            ? {
+                objectivesRemovedFromPrevious: {
+                  before: null,
+                  after: detachedFromPrevious.objectivesRemoved,
+                },
+              }
+            : {}),
         },
       },
     });
@@ -246,7 +257,9 @@ export async function joinArtToTimeline(
 export async function leaveArtFromTimeline(
   ctx: RequestContext,
   input: { artId: ArtId },
-): Promise<Result<{ sprintsRemoved: number; featuresUnassigned: number }>> {
+): Promise<
+  Result<{ sprintsRemoved: number; featuresUnassigned: number; objectivesRemoved: number }>
+> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
     const art = await tx.art.findFirst({
@@ -256,7 +269,7 @@ export async function leaveArtFromTimeline(
     if (!art) return err({ kind: "not_found" as const, resourceType: "Art", id: input.artId });
     if (!art.timelineId) {
       return ok({
-        result: { sprintsRemoved: 0, featuresUnassigned: 0 },
+        result: { sprintsRemoved: 0, featuresUnassigned: 0, objectivesRemoved: 0 },
         audit: {
           action: "timeline.art.left",
           resourceType: "art",
@@ -266,7 +279,7 @@ export async function leaveArtFromTimeline(
       });
     }
 
-    const { sprintsRemoved, featuresUnassigned } = await detachArtFromTimeline(
+    const { sprintsRemoved, featuresUnassigned, objectivesRemoved } = await detachArtFromTimeline(
       tx,
       mctx.tenantId,
       input.artId,
@@ -276,7 +289,7 @@ export async function leaveArtFromTimeline(
     await tx.art.update({ where: { id: input.artId }, data: { timelineId: null } });
 
     return ok({
-      result: { sprintsRemoved, featuresUnassigned },
+      result: { sprintsRemoved, featuresUnassigned, objectivesRemoved },
       audit: {
         action: "timeline.art.left",
         resourceType: "art",
@@ -285,6 +298,7 @@ export async function leaveArtFromTimeline(
           timelineId: { before: art.timelineId, after: null },
           sprintsRemoved: { before: null, after: sprintsRemoved },
           featuresUnassigned: { before: null, after: featuresUnassigned },
+          objectivesRemoved: { before: null, after: objectivesRemoved },
         },
       },
     });
@@ -294,10 +308,21 @@ export async function leaveArtFromTimeline(
 /**
  * Cleans up an ART's footprint inside one Timeline:
  * - Deletes Sprints of the ART's teams in that Timeline's PIs.
- * - Stories in those sprints lose their `sprintId` (analogous to deletePi).
+ * - Stories in those sprints lose their `sprintId` (same step as in `deletePi`).
  * - Features of this ART that pointed at one of those PIs have their `piId`
- *   cleared (they fall back to the backlog); count is returned for an audit
- *   trail / warning UI. Doesn't touch sprints of other ARTs or other Timelines.
+ *   cleared (they fall back to the backlog).
+ * - PiObjectives held by this ART's teams on those Timeline PIs are deleted —
+ *   without the ART, the team has no owner on the shared Timeline; without
+ *   the team, the objective has no author. Leaving them behind produced
+ *   orphan rows that other ARTs would render on the same PI.
+ *
+ * Returns a count for each cleanup step so the caller can fold them into the
+ * audit changeset. Doesn't touch sprints of other ARTs or other Timelines.
+ *
+ * Sibling: `deletePi` ([pi.ts](./pi.ts)) handles a different lifecycle event
+ * — the PI row going away. The two functions look similar but encode
+ * different policies (Impediments, PI-row deletion). See
+ * `docs/adr/0005-cascade-unlink-stays-split.md` for why they stay separate.
  */
 async function detachArtFromTimeline(
   tx: Prisma.TransactionClient,
@@ -305,7 +330,7 @@ async function detachArtFromTimeline(
   artId: string,
   timelineId: string,
   teams: { id: string }[],
-): Promise<{ sprintsRemoved: number; featuresUnassigned: number }> {
+): Promise<{ sprintsRemoved: number; featuresUnassigned: number; objectivesRemoved: number }> {
   const teamIds = teams.map((t) => t.id);
   const pis = await tx.programIncrement.findMany({
     where: { tenantId, timelineId },
@@ -313,7 +338,7 @@ async function detachArtFromTimeline(
   });
   const piIds = pis.map((p) => p.id);
   if (piIds.length === 0 || teamIds.length === 0) {
-    return { sprintsRemoved: 0, featuresUnassigned: 0 };
+    return { sprintsRemoved: 0, featuresUnassigned: 0, objectivesRemoved: 0 };
   }
   // Stories in the doomed sprints lose their sprint link.
   const doomedSprints = await tx.sprint.findMany({
@@ -338,7 +363,19 @@ async function detachArtFromTimeline(
     data: { piId: null },
   });
 
-  return { sprintsRemoved: sprintsRemoved.count, featuresUnassigned: featuresUnassigned.count };
+  // Objectives held by the leaving ART's teams on these Timeline PIs are
+  // bound to (PI, Team) — once the team leaves the Timeline its objective
+  // there has no carrier. Without this delete the row would resurface on
+  // re-join and render under the next ART that happens to share a Timeline-PI.
+  const objectivesRemoved = await tx.piObjective.deleteMany({
+    where: { tenantId, piId: { in: piIds }, teamId: { in: teamIds } },
+  });
+
+  return {
+    sprintsRemoved: sprintsRemoved.count,
+    featuresUnassigned: featuresUnassigned.count,
+    objectivesRemoved: objectivesRemoved.count,
+  };
 }
 
 // ---------------------------------------------------------------------------

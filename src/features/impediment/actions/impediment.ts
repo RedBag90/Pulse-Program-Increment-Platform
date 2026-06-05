@@ -13,7 +13,7 @@ import {
   type ImpedimentId,
 } from "@/server/services/impediment";
 import { createServerAction } from "@/server/http/server-action";
-import { fields } from "@/server/http/form-data";
+import { formatDomainError } from "@/server/http/domain-error-display";
 import { revalidateFor } from "@/server/http/revalidation";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { isErr } from "@/domain/errors";
@@ -46,16 +46,6 @@ export const createImpedimentAction = createServerAction({
   }),
   action: "impediment.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      artId: f.string("artId"),
-      title: f.string("title"),
-      description: f.nonEmptyString("description"),
-      // Absent/empty → undefined; the schema's .default("medium") fills it in.
-      severity: f.nonEmptyString("severity"),
-    };
-  },
   service: (ctx, input) =>
     createImpediment(ctx, {
       artId: input.artId as ArtId,
@@ -64,7 +54,7 @@ export const createImpedimentAction = createServerAction({
       severity: input.severity,
     }),
   revalidate: "impediment",
-  mapError: () => "Failed to log impediment",
+  mapError: (e) => formatDomainError(e, { fallback: "Failed to log impediment" }),
 });
 
 export async function escalateImpedimentAction(

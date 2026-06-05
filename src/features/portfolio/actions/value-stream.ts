@@ -8,6 +8,7 @@ import {
 } from "@/server/services/value-stream";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
+import { formatDomainError } from "@/server/http/domain-error-display";
 import type { ValueStreamId } from "@/domain/types";
 import type { ActionState } from "@/server/http/server-action";
 
@@ -21,20 +22,13 @@ export const createValueStreamAction = createServerAction({
   }),
   action: "value_stream.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      name: f.string("name"),
-      description: f.nonEmptyString("description"),
-    };
-  },
   service: (ctx, input) =>
     createValueStream(ctx, {
       name: input.name,
       description: input.description,
     }),
   revalidate: "valueStream",
-  mapError: (e) => (e.kind === "conflict" ? e.reason : "Failed to create"),
+  mapError: (e) => formatDomainError(e, { fallback: "Failed to create" }),
 });
 
 export const updateValueStreamAction = createServerAction({
@@ -80,5 +74,6 @@ export const deleteValueStreamAction = createServerAction({
   parseFormData: (fd) => ({ id: fields(fd).string("id") }),
   service: (ctx, input) => softDeleteValueStream(ctx, { id: input.id as ValueStreamId }),
   revalidate: "valueStream",
-  mapError: (e) => (e.kind === "not_found" ? "Value stream not found" : "Failed to delete"),
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Value stream not found", fallback: "Failed to delete" }),
 });

@@ -1,4 +1,5 @@
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getFeature } from "@/server/services/feature";
 import { listStories } from "@/server/services/story";
@@ -72,12 +73,10 @@ export default async function FeatureDetailPage({ params, searchParams }: Props)
     listInitiativeHistory(db, principal.tenantId, featureId),
   ]);
 
-  const canEdit =
-    principal.roles.includes("portfolio_manager") ||
-    principal.roles.includes("rte") ||
-    principal.roles.includes("feature_owner") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
+  const canEdit = hasCapability(principal, "feature.update", {
+    tenantId: principal.tenantId,
+    artId: feature.artId,
+  });
 
   const dependencies = await db.dependency.findMany({
     where: {

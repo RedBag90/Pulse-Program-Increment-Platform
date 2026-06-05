@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { savePortfolioDashboardSettings } from "@/server/services/portfolio-dashboard";
+import { formatDomainError } from "@/server/http/domain-error-display";
 
 /**
  * Saves the configurable Portfolio Dashboard settings — two tenant-wide
@@ -32,5 +33,6 @@ export const savePortfolioDashboardSettingsAction = createServerAction({
     revalidatePath("/portfolio/dashboard", "page");
     revalidatePath("/pi-planning", "page");
   },
-  mapError: () => "Einstellungen konnten nicht gespeichert werden",
+  mapError: (e) =>
+    formatDomainError(e, { fallback: "Einstellungen konnten nicht gespeichert werden" }),
 });

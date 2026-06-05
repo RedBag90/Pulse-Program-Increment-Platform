@@ -46,15 +46,6 @@ export const decideEpicHypothesisAction = createServerAction({
   }),
   action: "epic.hypothesis.decide",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      epicId: f.string("epicId"),
-      decision: f.string("decision"),
-      comment: f.nonEmptyString("comment"),
-      intent: f.nonEmptyString("intent"),
-    };
-  },
   service: (ctx, input) =>
     decideHypothesis(ctx, {
       epicId: input.epicId as EpicId,
@@ -120,15 +111,6 @@ export const decideEpicApprovalAction = createServerAction({
   }),
   action: "epic.approval.decide",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      approvalId: f.string("approvalId"),
-      decision: f.string("decision"),
-      comment: f.nonEmptyString("comment"),
-      intent: f.nonEmptyString("intent"),
-    };
-  },
   service: (ctx, input) =>
     decideApproval(ctx, {
       approvalId: input.approvalId,
@@ -150,16 +132,6 @@ export const signoffEpicSectionAction = createServerAction({
   }),
   action: "epic.section.signoff",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      epicId: f.string("epicId"),
-      section: f.string("section"),
-      decision: f.string("decision"),
-      comment: f.nonEmptyString("comment"),
-      intent: f.nonEmptyString("intent"),
-    };
-  },
   service: (ctx, input) =>
     signoffSection(ctx, {
       epicId: input.epicId as EpicId,
@@ -176,10 +148,6 @@ export const startEpicRevisionAction = createServerAction({
   schema: z.object({ epicId: z.string().uuid(), mode: z.enum(["full", "business_case"]) }),
   action: "epic.revision.start",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return { epicId: f.string("epicId"), mode: f.string("mode") };
-  },
   service: (ctx, input) => startRevision(ctx, { epicId: input.epicId as EpicId, mode: input.mode }),
   revalidate: "epic",
   mapError: mapWorkflowError,

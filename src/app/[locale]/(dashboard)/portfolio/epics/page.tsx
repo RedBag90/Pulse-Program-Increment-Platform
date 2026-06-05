@@ -1,4 +1,5 @@
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listEpics } from "@/server/services/epic";
 import { listValueStreams } from "@/server/services/value-stream";
@@ -18,18 +19,9 @@ export default async function EpicsPage() {
     getTenantPractices(db, principal.tenantId),
   ]);
 
-  const canEdit =
-    principal.roles.includes("portfolio_manager") ||
-    principal.roles.includes("epic_owner") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
-
+  const canEdit = hasCapability(principal, "epic.update");
   // Advancing a stage gate mirrors the `epic.approve` policy (portfolio / VMO).
-  const canAdvance =
-    principal.roles.includes("portfolio_manager") ||
-    principal.roles.includes("vmo") ||
-    principal.roles.includes("tenant_admin") ||
-    principal.roles.includes("platform_admin");
+  const canAdvance = hasCapability(principal, "epic.approve");
 
   return (
     <main className="p-8 space-y-6">
