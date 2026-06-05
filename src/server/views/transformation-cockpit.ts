@@ -12,7 +12,21 @@ import {
   type RagTier,
   type RecentChange,
 } from "@/domain/transformation-delta";
-import type { OutcomeView } from "@/features/transformation/components/target-outcomes-manager";
+/**
+ * Goal-unbound outcome as the cockpit's "Outcomes (frei)" panel renders it.
+ * Previously declared in the (now-deleted) `<TargetOutcomesManager>` file;
+ * moved here so the cockpit + its consumers don't depend on a UI-layer file
+ * for the type. The richer editor-shaped DTO lives in `transformation-goals`.
+ */
+export interface OutcomeView {
+  id: string;
+  title: string;
+  metricUnit: string | null;
+  baseline: number | null;
+  target: number;
+  current: number | null;
+  dueDate: string | null;
+}
 
 /**
  * Transformation cockpit page-model — assembles the render-ready props the

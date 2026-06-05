@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Pencil } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getGoal } from "@/server/services/target-goal";
 import { goalKpiProgress } from "@/server/services/transformation";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { ragTier, type RagTier } from "@/domain/transformation-delta";
 
 const GOAL_STATUS_LABELS: Record<string, string> = {
   active: "Aktiv",
@@ -13,11 +14,39 @@ const GOAL_STATUS_LABELS: Record<string, string> = {
   archived: "Archiviert",
 };
 
+const TIER_CHIP: Record<RagTier, string> = {
+  green: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  amber: "bg-amber-50 text-amber-700 border-amber-200",
+  red: "bg-red-50 text-red-700 border-red-200",
+  done: "bg-emerald-100 text-emerald-800 border-emerald-300",
+};
+
+const TIER_DOT: Record<RagTier, string> = {
+  green: "🟢",
+  amber: "🟡",
+  red: "🔴",
+  done: "✓",
+};
+
+const TIER_BAR: Record<RagTier, string> = {
+  green: "bg-emerald-500",
+  amber: "bg-amber-500",
+  red: "bg-red-500",
+  done: "bg-emerald-600",
+};
+
 function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
 }
 
-/** Read-focused detail of one strategic goal: KPIs with progress + realising Epics. */
+/**
+ * Read-only deep view of one strategic goal — used as a deep-link target
+ * (from the cockpit goal cards, audit log links, etc.). Mirrors the visual
+ * language of the master-detail editor at `/transformation/ziele` (RAG
+ * badge + chip palette + tiered progress bars) so the two pages feel
+ * coherent. A "Bearbeiten" link jumps to the editor with this goal
+ * pre-selected via `?selected=g_<id>`.
+ */
 export default async function GoalDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const principal = await requirePrincipal().catch(() => null);
@@ -30,6 +59,7 @@ export default async function GoalDetailPage({ params }: { params: Promise<{ id:
   const userLabels = await listTenantUserLabels(db, principal.tenantId);
   const owner = goal.ownerId ? (userLabels[goal.ownerId] ?? goal.ownerId) : null;
   const overall = goalKpiProgress(goal.kpis);
+  const tier = ragTier(overall, goal.status === "achieved");
 
   return (
     <div className="space-y-6 p-6">
@@ -40,11 +70,27 @@ export default async function GoalDetailPage({ params }: { params: Promise<{ id:
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Zurück zu den Zielen
         </Link>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">{goal.title}</h1>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {GOAL_STATUS_LABELS[goal.status] ?? goal.status}
-          </span>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="font-heading text-2xl font-semibold tracking-tight">{goal.title}</h1>
+            <span className={`rounded-full border px-2 py-0.5 text-xs ${TIER_CHIP[tier]}`}>
+              {TIER_DOT[tier]}{" "}
+              {goal.status === "achieved"
+                ? "erreicht"
+                : goal.kpis.length > 0
+                  ? pct(overall)
+                  : "noch keine KPIs"}
+            </span>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {GOAL_STATUS_LABELS[goal.status] ?? goal.status}
+            </span>
+          </div>
+          <Link
+            href={`/transformation/ziele?selected=g_${goal.id}`}
+            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            <Pencil className="h-3.5 w-3.5" /> Bearbeiten
+          </Link>
         </div>
         {goal.description && (
           <p className="mt-1 text-sm text-muted-foreground">{goal.description}</p>
@@ -70,6 +116,7 @@ export default async function GoalDetailPage({ params }: { params: Promise<{ id:
             {goal.kpis.map((k) => {
               const unit = k.metricUnit ? ` ${k.metricUnit}` : "";
               const prog = goalKpiProgress([k]);
+              const kpiTier = ragTier(prog);
               return (
                 <li key={k.id} className="space-y-1">
                   <div className="flex items-baseline justify-between text-sm">
@@ -80,7 +127,10 @@ export default async function GoalDetailPage({ params }: { params: Promise<{ id:
                     </span>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: pct(prog) }} />
+                    <div
+                      className={`h-full rounded-full ${TIER_BAR[kpiTier]}`}
+                      style={{ width: pct(prog) }}
+                    />
                   </div>
                 </li>
               );

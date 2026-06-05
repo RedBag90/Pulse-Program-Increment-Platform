@@ -5,8 +5,7 @@ import { GoalCard } from "@/features/transformation/components/goal-card";
 import { ActionDrawer } from "@/features/transformation/components/action-drawer";
 import { StructureChipRow } from "@/features/transformation/components/structure-chip-row";
 import { PracticesChipRow } from "@/features/transformation/components/practices-chip-row";
-import type { OutcomeView } from "@/features/transformation/components/target-outcomes-manager";
-import type { CockpitModel } from "@/server/views/transformation-cockpit";
+import type { CockpitModel, OutcomeView } from "@/server/views/transformation-cockpit";
 
 interface Props {
   model: CockpitModel;

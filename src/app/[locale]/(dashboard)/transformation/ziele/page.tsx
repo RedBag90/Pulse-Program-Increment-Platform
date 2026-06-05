@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
@@ -6,13 +7,15 @@ import { listGoals } from "@/server/services/target-goal";
 import { listEpics } from "@/server/services/epic";
 import { listTargetOutcomes } from "@/server/services/target-outcome";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { GoalsManager } from "@/features/transformation/components/goals-manager";
-import { TargetOutcomesManager } from "@/features/transformation/components/target-outcomes-manager";
+import { buildGoalsPageModel } from "@/server/views/transformation-goals";
+import { GoalsPageShell } from "@/features/transformation/components/goals-page-shell";
 
 /**
- * Strategische Ziele — wo Senior Management die Richtung der Transformation
- * vorgibt: Ziele definieren, KPIs daranhängen, realisierende Epics verknüpfen.
- * Bearbeiten mit `target.manage`; sonst read-only.
+ * Strategische Ziele — master-detail layout with a list on the left and an
+ * editor pane on the right. Senior management defines goals, hangs KPIs on
+ * them, and links realising Epics. Bearbeiten gates on `target.manage`;
+ * sonst read-only. URL state (status filter, search, selection) lives in the
+ * shell so this page is a thin load → build → render.
  */
 export default async function GoalsPage() {
   const principal = await requirePrincipal().catch(() => null);
@@ -27,57 +30,19 @@ export default async function GoalsPage() {
     listTenantUserLabels(db, principal.tenantId),
     listTargetOutcomes(db, principal.tenantId),
   ]);
-  const unboundKpis = outcomes.filter((o) => o.goalId == null);
+
+  const model = buildGoalsPageModel({
+    goals,
+    outcomes,
+    epics: epics.map((e) => ({ id: e.id, title: e.title })),
+    userLabels,
+  });
 
   return (
-    <div className="space-y-6 p-6">
-      <header>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Strategische Ziele</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Die vom Senior Management vorgegebene Richtung der Transformation — Ziele, ihre KPIs und
-          die Epics, die sie realisieren.
-        </p>
-      </header>
-
-      <GoalsManager
-        canManage={canManage}
-        epicOptions={epics.map((e) => ({ id: e.id, title: e.title }))}
-        userOptions={Object.entries(userLabels).map(([id, label]) => ({ id, label }))}
-        goals={goals.map((g) => ({
-          id: g.id,
-          title: g.title,
-          description: g.description,
-          ownerId: g.ownerId,
-          dueDate: g.dueDate ? g.dueDate.toISOString().slice(0, 10) : null,
-          status: g.status,
-          kpis: g.kpis.map((k) => ({
-            id: k.id,
-            title: k.title,
-            metricUnit: k.metricUnit,
-            baseline: k.baseline,
-            target: k.target,
-            current: k.current,
-          })),
-          epics: g.epicLinks.map((l) => ({
-            id: l.epic.id,
-            title: l.epic.title,
-            status: l.epic.status,
-          })),
-        }))}
-      />
-
-      <TargetOutcomesManager
-        canManage={canManage}
-        outcomes={unboundKpis.map((o) => ({
-          id: o.id,
-          title: o.title,
-          metricUnit: o.metricUnit,
-          baseline: o.baseline,
-          target: o.target,
-          current: o.current,
-          dueDate: o.dueDate ? o.dueDate.toISOString().slice(0, 10) : null,
-        }))}
-      />
-    </div>
+    // The shell reads useSearchParams; Suspense satisfies Next.js's
+    // requirement that hooks reading dynamic URL state sit inside a boundary.
+    <Suspense fallback={null}>
+      <GoalsPageShell model={model} canManage={canManage} />
+    </Suspense>
   );
 }
