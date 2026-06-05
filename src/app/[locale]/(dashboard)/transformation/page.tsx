@@ -29,16 +29,13 @@ export default async function TransformationPage() {
   ]);
   const canManage = authorize("target.manage", { tenantId: principal.tenantId }, principal).allow;
 
-  const {
-    model,
-    goals: goalSummaries,
-    trend,
-    outcomes: outcomeViews,
-  } = buildCockpitModel({
+  const cockpit = buildCockpitModel({
     goals,
     snapshots,
     activeModel,
     outcomes,
+    gap,
+    adoption,
   });
 
   return (
@@ -50,15 +47,7 @@ export default async function TransformationPage() {
         </p>
       </header>
 
-      <TransformationCockpit
-        model={model}
-        goals={goalSummaries}
-        gap={gap}
-        adoption={adoption}
-        trend={trend}
-        canManage={canManage}
-        outcomes={outcomeViews}
-      />
+      <TransformationCockpit model={cockpit} canManage={canManage} />
     </div>
   );
 }
