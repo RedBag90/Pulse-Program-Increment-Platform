@@ -1,0 +1,271 @@
+"use client";
+
+import { useCallback, useMemo } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useKanbanRealtime } from "@/features/portfolio/hooks/use-kanban-realtime";
+import { CreateEpicDialog } from "@/features/portfolio/components/create-epic-dialog";
+import { EpicsFunnelBar } from "@/features/portfolio/components/epics-funnel-bar";
+import {
+  EpicsFilterBar,
+  type SortKey,
+  type FlagFilter,
+} from "@/features/portfolio/components/epics-filter-bar";
+import { EpicsListTable } from "@/features/portfolio/components/epics-list-table";
+import { EpicsBulkActionBar } from "@/features/portfolio/components/epics-bulk-action-bar";
+import type { EpicsListModel, EpicListRow } from "@/server/views/portfolio-epics-list";
+import { STAGE_GATES } from "@/domain/stage-gate";
+import type { StageGate } from "@/domain/types";
+
+interface Props {
+  model: EpicsListModel;
+  canEdit: boolean;
+  canAdvance: boolean;
+  tenantId: string;
+}
+
+const STAGE_GATE_SET = new Set<string>(STAGE_GATES);
+const SORT_KEYS: SortKey[] = [
+  "createdAt:desc",
+  "createdAt:asc",
+  "cost:desc",
+  "benefit:desc",
+  "kpi:asc",
+  "pending:desc",
+];
+const FLAG_VALUES: FlagFilter[] = ["all", "steering", "budgeting"];
+
+function parseGate(raw: string | null): StageGate | null {
+  if (raw && STAGE_GATE_SET.has(raw)) return raw as StageGate;
+  return null;
+}
+function parseSort(raw: string | null): SortKey {
+  if (raw && SORT_KEYS.includes(raw as SortKey)) return raw as SortKey;
+  return "createdAt:desc";
+}
+function parseFlag(raw: string | null): FlagFilter {
+  if (raw && FLAG_VALUES.includes(raw as FlagFilter)) return raw as FlagFilter;
+  return "all";
+}
+function parseGroup(raw: string | null): "flat" | "stage" {
+  return raw === "stage" ? "stage" : "flat";
+}
+function parseDensity(raw: string | null): "comfortable" | "compact" {
+  return raw === "compact" ? "compact" : "comfortable";
+}
+function parseSelected(raw: string | null): Set<string> {
+  if (!raw) return new Set();
+  return new Set(raw.split(",").filter(Boolean).slice(0, 50));
+}
+
+/**
+ * Portfolio epics list shell — owns the URL state and the layout. Everything
+ * below (funnel bar, filter bar, table, bulk action bar) is prop-driven; this
+ * file is where filter + selection writes go back to the URL via
+ * `router.replace`. Realtime updates from other users still flow via the
+ * existing `useKanbanRealtime` subscription so concurrent moves on the
+ * `/portfolio` board surface here too.
+ */
+export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) {
+  useKanbanRealtime(tenantId);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const gate = parseGate(searchParams.get("gate"));
+  const vsFilter = searchParams.get("vs");
+  const ownerFilter = searchParams.get("owner");
+  const statusFilter = searchParams.get("status");
+  const flag = parseFlag(searchParams.get("flag"));
+  const query = searchParams.get("q") ?? "";
+  const sort = parseSort(searchParams.get("sort"));
+  const group = parseGroup(searchParams.get("group"));
+  const density = parseDensity(searchParams.get("density"));
+  const selectedIds = parseSelected(searchParams.get("selected"));
+
+  const pushParam = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(updates)) {
+        if (v === null || v === "") params.delete(k);
+        else params.set(k, v);
+      }
+      const next = params.toString();
+      router.replace(`${pathname}${next ? `?${next}` : ""}` as never, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
+  const onGateChange = useCallback(
+    (next: StageGate | null) => pushParam({ gate: next }),
+    [pushParam],
+  );
+  const onQueryChange = useCallback((next: string) => pushParam({ q: next || null }), [pushParam]);
+  const onSortChange = useCallback(
+    (next: SortKey) => pushParam({ sort: next === "createdAt:desc" ? null : next }),
+    [pushParam],
+  );
+  const onGroupChange = useCallback(
+    (next: "flat" | "stage") => pushParam({ group: next === "flat" ? null : next }),
+    [pushParam],
+  );
+  const onDensityChange = useCallback(
+    (next: "comfortable" | "compact") =>
+      pushParam({ density: next === "comfortable" ? null : next }),
+    [pushParam],
+  );
+  const onValueStreamChange = useCallback(
+    (next: string | null) => pushParam({ vs: next }),
+    [pushParam],
+  );
+  const onOwnerChange = useCallback(
+    (next: string | null) => pushParam({ owner: next }),
+    [pushParam],
+  );
+  const onStatusChange = useCallback(
+    (next: string | null) => pushParam({ status: next }),
+    [pushParam],
+  );
+  const onFlagChange = useCallback(
+    (next: FlagFilter) => pushParam({ flag: next === "all" ? null : next }),
+    [pushParam],
+  );
+
+  const setSelected = useCallback(
+    (ids: Set<string>) => {
+      const arr = [...ids].slice(0, 50);
+      pushParam({ selected: arr.length === 0 ? null : arr.join(",") });
+    },
+    [pushParam],
+  );
+  const toggleSelect = useCallback(
+    (id: string) => {
+      const next = new Set(selectedIds);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      setSelected(next);
+    },
+    [selectedIds, setSelected],
+  );
+  const toggleSelectAll = useCallback(
+    (ids: string[]) => {
+      const allSelected = ids.every((id) => selectedIds.has(id));
+      const next = new Set(selectedIds);
+      if (allSelected) for (const id of ids) next.delete(id);
+      else for (const id of ids) next.add(id);
+      setSelected(next);
+    },
+    [selectedIds, setSelected],
+  );
+  const clearSelected = useCallback(() => setSelected(new Set()), [setSelected]);
+
+  // Filtered + sorted rows.
+  const filteredRows: EpicListRow[] = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = model.rows.filter((r) => {
+      if (gate != null && r.stageGate !== gate) return false;
+      if (vsFilter && r.valueStream?.id !== vsFilter) return false;
+      if (ownerFilter && r.ownerId !== ownerFilter) return false;
+      if (statusFilter && r.status !== statusFilter) return false;
+      if (flag === "steering" && !r.needsSteeringAttention) return false;
+      if (flag === "budgeting" && !r.stagedForBudgeting) return false;
+      if (q !== "") {
+        if (r.title.toLowerCase().includes(q)) return true;
+        if (r.ownerLabel?.toLowerCase().includes(q)) return true;
+        if (r.valueStream?.name.toLowerCase().includes(q)) return true;
+        return false;
+      }
+      return true;
+    });
+
+    const sorted = filtered.slice();
+    sorted.sort(compareBy(sort));
+    return sorted;
+  }, [model.rows, gate, vsFilter, ownerFilter, statusFilter, flag, query, sort]);
+
+  const selectedRows = useMemo(
+    () => model.rows.filter((r) => selectedIds.has(r.id)),
+    [model.rows, selectedIds],
+  );
+
+  return (
+    <div className="space-y-4 p-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Epics</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Das Portfolio-Backlog — Stage Gates, Ökonomie und Freigabe-Status auf einen Blick.
+          </p>
+        </div>
+        {canEdit && (
+          <CreateEpicDialog
+            valueStreams={model.valueStreamOptions.map((v) => ({ id: v.id, name: v.name }))}
+          />
+        )}
+      </header>
+
+      <EpicsFunnelBar counts={model.funnelCounts} activeGate={gate} onGateChange={onGateChange} />
+
+      <EpicsFilterBar
+        query={query}
+        valueStreamId={vsFilter}
+        ownerId={ownerFilter}
+        status={statusFilter}
+        flag={flag}
+        sort={sort}
+        group={group}
+        density={density}
+        valueStreamOptions={model.valueStreamOptions}
+        ownerOptions={model.ownerOptions}
+        statusOptions={model.statusOptions}
+        onQueryChange={onQueryChange}
+        onValueStreamChange={onValueStreamChange}
+        onOwnerChange={onOwnerChange}
+        onStatusChange={onStatusChange}
+        onFlagChange={onFlagChange}
+        onSortChange={onSortChange}
+        onGroupChange={onGroupChange}
+        onDensityChange={onDensityChange}
+      />
+
+      <EpicsListTable
+        rows={filteredRows}
+        canEdit={canEdit}
+        canAdvance={canAdvance}
+        stageGatesEnabled={model.stageGatesEnabled}
+        group={group}
+        compact={density === "compact"}
+        selectedIds={canAdvance ? selectedIds : null}
+        onToggleSelect={canAdvance ? toggleSelect : null}
+        onToggleSelectAll={canAdvance ? toggleSelectAll : null}
+      />
+
+      {canAdvance && (
+        <EpicsBulkActionBar
+          selectedRows={selectedRows}
+          canAdvance={canAdvance}
+          onClear={clearSelected}
+        />
+      )}
+    </div>
+  );
+}
+
+function compareBy(sort: SortKey): (a: EpicListRow, b: EpicListRow) => number {
+  switch (sort) {
+    case "createdAt:asc":
+      return (a, b) => a.createdAtMs - b.createdAtMs;
+    case "cost:desc":
+      return (a, b) =>
+        (b.economics.implementationCost ?? -1) - (a.economics.implementationCost ?? -1);
+    case "benefit:desc":
+      return (a, b) =>
+        (b.economics.recurringBenefitYear ?? -1) - (a.economics.recurringBenefitYear ?? -1);
+    case "kpi:asc":
+      return (a, b) => (a.kpiProgress ?? 2) - (b.kpiProgress ?? 2);
+    case "pending:desc":
+      return (a, b) => b.pendingApprovalsCount - a.pendingApprovalsCount;
+    case "createdAt:desc":
+    default:
+      return (a, b) => b.createdAtMs - a.createdAtMs;
+  }
+}

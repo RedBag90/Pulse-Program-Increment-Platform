@@ -627,6 +627,47 @@ export async function listEpics(db: PrismaClient, tenantId: TenantId) {
   });
 }
 
+/**
+ * Epics with everything the portfolio epics-list page-model needs in one
+ * query: KPI rows (`baseline`, `target`, `measurements` — the page-model
+ * picks the latest measurement as the current value) and `EpicApproval`
+ * rows (for the active-revision pending count). Child Feature counts come
+ * from a separate `groupBy` (see `countEpicChildFeatures` below) — Prisma's
+ * `_count` filter syntax is awkward enough that a second tiny query is
+ * cleaner than tortured includes.
+ */
+export async function listEpicsForPortfolioList(db: PrismaClient, tenantId: TenantId) {
+  return db.initiative.findMany({
+    where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    include: {
+      valueStream: { select: { id: true, name: true } },
+      kpis: { select: { baseline: true, target: true, measurements: true } },
+      epicApprovals: { select: { revision: true, status: true } },
+    },
+    orderBy: [{ stageGate: "asc" }, { createdAt: "desc" }],
+  });
+}
+
+/**
+ * Per-Epic child Feature count map. One `groupBy` over the Features table —
+ * cheaper than nesting `_count` with a `where` clause through Prisma.
+ */
+export async function countEpicChildFeatures(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<Map<string, number>> {
+  const rows = await db.initiative.groupBy({
+    by: ["parentId"],
+    where: { tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
+    _count: { _all: true },
+  });
+  const out = new Map<string, number>();
+  for (const r of rows) {
+    if (r.parentId) out.set(r.parentId, r._count._all);
+  }
+  return out;
+}
+
 export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) {
   return db.initiative.findFirst({
     where: { id, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },

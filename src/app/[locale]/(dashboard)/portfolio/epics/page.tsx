@@ -1,56 +1,107 @@
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { listEpics } from "@/server/services/epic";
+import { listEpicsForPortfolioList, countEpicChildFeatures } from "@/server/services/epic";
 import { listValueStreams } from "@/server/services/value-stream";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";
-import { CreateEpicDialog } from "@/features/portfolio/components/create-epic-dialog";
-import { EpicsStageGateTable } from "@/features/portfolio/components/epics-stage-gate-table";
-import { redirect } from "next/navigation";
+import { buildEpicsListModel } from "@/server/views/portfolio-epics-list";
+import { EpicsListShell } from "@/features/portfolio/components/epics-list-shell";
 
+/** A KPI measurement entry as stored in the `measurements` JSON column. */
+interface KpiMeasurement {
+  date?: string;
+  value?: number;
+}
+
+/**
+ * Pick the latest measurement's value (chronologically). KPIs without any
+ * measurement have no current value yet, so progress is rendered as "—".
+ */
+function latestMeasurement(raw: unknown): number | null {
+  if (!Array.isArray(raw)) return null;
+  const items = raw as KpiMeasurement[];
+  let bestDate = "";
+  let bestValue: number | null = null;
+  for (const m of items) {
+    if (typeof m.value !== "number") continue;
+    const d = typeof m.date === "string" ? m.date : "";
+    if (d >= bestDate) {
+      bestDate = d;
+      bestValue = m.value;
+    }
+  }
+  return bestValue;
+}
+
+/**
+ * Portfolio epics list — the rich filterable surface portfolio managers,
+ * VMOs, and epic owners use to scan and steer the investment funnel. Loads
+ * epics + KPIs + approvals in one query, child-feature counts in a tiny
+ * groupBy, then hands everything to the URL-state shell. Permission gates
+ * for inline mutations (`epic.update`, `epic.approve`) pass straight
+ * through.
+ */
 export default async function EpicsPage() {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const [epics, valueStreams, practices] = await Promise.all([
-    listEpics(db, principal.tenantId),
+  const [epics, featureCounts, valueStreams, userLabels, practices] = await Promise.all([
+    listEpicsForPortfolioList(db, principal.tenantId),
+    countEpicChildFeatures(db, principal.tenantId),
     listValueStreams(db, principal.tenantId),
+    listTenantUserLabels(db, principal.tenantId),
     getTenantPractices(db, principal.tenantId),
   ]);
 
   const canEdit = hasCapability(principal, "epic.update");
-  // Advancing a stage gate mirrors the `epic.approve` policy (portfolio / VMO).
+  // Advancing a stage gate (single + batch) mirrors the `epic.approve` policy.
   const canAdvance = hasCapability(principal, "epic.approve");
 
-  return (
-    <main className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Epics</h1>
-        {canEdit && (
-          <CreateEpicDialog
-            valueStreams={valueStreams.map((vs) => ({ id: vs.id, name: vs.name }))}
-          />
-        )}
-      </div>
+  const model = buildEpicsListModel({
+    epics: epics.map((e) => ({
+      id: e.id,
+      title: e.title,
+      stageGate: e.stageGate,
+      status: e.status,
+      approvalPhase: e.approvalPhase,
+      approvalRevision: e.approvalRevision,
+      ownerId: e.ownerId,
+      valueStream: e.valueStream,
+      needsSteeringAttention: e.needsSteeringAttention,
+      stagedForBudgeting: e.stagedForBudgeting,
+      businessCase: e.businessCase,
+      plannedStartAt: e.plannedStartAt,
+      plannedEndAt: e.plannedEndAt,
+      createdAt: e.createdAt,
+      kpis: e.kpis
+        .filter((k) => k.target != null)
+        .map((k) => ({
+          baseline: k.baseline != null ? Number(k.baseline) : null,
+          target: Number(k.target),
+          current: latestMeasurement(k.measurements),
+        })),
+      epicApprovals: e.epicApprovals,
+      childFeatureCount: featureCounts.get(e.id) ?? 0,
+    })),
+    valueStreams,
+    userLabels,
+    stageGatesEnabled: practices.stageGates,
+  });
 
-      {epics.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No epics yet.</p>
-      ) : (
-        <EpicsStageGateTable
-          epics={epics.map((e) => ({
-            id: e.id,
-            title: e.title,
-            stageGate: e.stageGate,
-            status: e.status,
-            valueStream: e.valueStream,
-          }))}
-          canEdit={canEdit}
-          canAdvance={canAdvance}
-          stageGatesEnabled={practices.stageGates}
-          tenantId={principal.tenantId}
-        />
-      )}
-    </main>
+  return (
+    // `useSearchParams` reads dynamic URL state; Suspense satisfies Next.js's
+    // boundary requirement around it.
+    <Suspense fallback={null}>
+      <EpicsListShell
+        model={model}
+        canEdit={canEdit}
+        canAdvance={canAdvance}
+        tenantId={principal.tenantId}
+      />
+    </Suspense>
   );
 }

@@ -57,26 +57,26 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
       {!isControlled && (
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="size-4 mr-1.5" />
-          New Epic
+          Neues Epic
         </Button>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Create Epic</DialogTitle>
+            <DialogTitle>Epic anlegen</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="epic-title">
-                Title <span className="text-destructive">*</span>
+                Titel <span className="text-destructive">*</span>
               </Label>
               <Input id="epic-title" name="title" required />
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="epic-vs">
-                Value Stream <span className="text-destructive">*</span>
+                Wertstrom <span className="text-destructive">*</span>
               </Label>
               <select
                 id="epic-vs"
@@ -85,7 +85,7 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
                 disabled={fetched.loading}
                 className={SELECT_CLASS}
               >
-                <option value="">{fetched.loading ? "Loading…" : "Select a value stream…"}</option>
+                <option value="">{fetched.loading ? "Lade…" : "Wertstrom wählen…"}</option>
                 {options.map((vs) => (
                   <option key={vs.id} value={vs.id}>
                     {vs.name}
@@ -96,7 +96,7 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="epic-description">Description</Label>
+              <Label htmlFor="epic-description">Beschreibung</Label>
               <Textarea id="epic-description" name="description" rows={3} />
             </div>
 
@@ -108,10 +108,10 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
+                Abbrechen
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Creating…" : "Create"}
+                {isPending ? "Lege an…" : "Anlegen"}
               </Button>
             </DialogFooter>
           </form>
