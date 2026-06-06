@@ -101,3 +101,45 @@ export async function resolveImpedimentAction(
   revalidateFor("impediment");
   return { success: true };
 }
+
+/**
+ * Bulk resolve — drives the impediments list bulk action bar. Each id is
+ * resolved with the shared `resolution` string; the Round 3 batch mode of
+ * `createServerAction` early-fails on the first conflict so partial
+ * resolutions can't happen.
+ */
+export const resolveImpedimentBatchAction = createServerAction({
+  schema: z.object({
+    impedimentIds: z.array(z.string().uuid()).min(1).max(50),
+    artId: z.string().uuid(),
+    resolution: z.string().min(1).max(2000),
+  }),
+  action: "impediment.resolve",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  batch: {
+    iterateOver: "impedimentIds",
+    service: (ctx, id, rest) =>
+      resolveImpediment(ctx, { id: id as ImpedimentId, resolution: rest.resolution }),
+  },
+  revalidate: "impediment",
+  mapError: (e) => formatDomainError(e, { fallback: "Impediment-Auflösung fehlgeschlagen" }),
+});
+
+/**
+ * Bulk escalate — open → escalated for every id. Mirrors the single-item
+ * action's auth gate (`impediment.escalate`).
+ */
+export const escalateImpedimentBatchAction = createServerAction({
+  schema: z.object({
+    impedimentIds: z.array(z.string().uuid()).min(1).max(50),
+    artId: z.string().uuid(),
+  }),
+  action: "impediment.escalate",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  batch: {
+    iterateOver: "impedimentIds",
+    service: (ctx, id) => escalateImpediment(ctx, { id: id as ImpedimentId }),
+  },
+  revalidate: "impediment",
+  mapError: (e) => formatDomainError(e, { fallback: "Impediment-Eskalation fehlgeschlagen" }),
+});

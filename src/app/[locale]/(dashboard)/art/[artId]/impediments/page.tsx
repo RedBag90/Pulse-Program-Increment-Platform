@@ -1,95 +1,90 @@
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listImpediments } from "@/server/services/impediment";
-import { redirect } from "next/navigation";
-import type { TenantId, ArtId } from "@/domain/types";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { buildImpedimentsListModel } from "@/server/views/impediments-list";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
-import { CreateImpedimentDialog } from "@/features/impediment/components/create-impediment-dialog";
-import { ImpedimentRow } from "@/features/impediment/components/impediment-row";
+import { ImpedimentsListShell } from "@/features/impediment/components/impediments-list-shell";
+import type { TenantId, ArtId } from "@/domain/types";
 
 interface Props {
   params: Promise<{ artId: string }>;
-  searchParams: Promise<{ piId?: string; status?: string }>;
 }
 
-export default async function ImpedimentsPage({ params, searchParams }: Props) {
+/**
+ * Impediment list — rich filterable list with a status funnel header,
+ * severity / PI / owner facets, and bulk resolve / escalate actions.
+ * Replaces the old section-by-status layout.
+ */
+export default async function ImpedimentsPage({ params }: Props) {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const { artId } = await params;
-  const { piId, status } = await searchParams;
-
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [art, { items: impediments }] = await Promise.all([
-    db.art.findFirst({ where: { id: artId, tenantId: principal.tenantId } }),
-    listImpediments(db, principal.tenantId as TenantId, artId as ArtId, {
-      ...(piId !== undefined && { piId }),
-      ...(status !== undefined && { status }),
+  const [art, { items: impediments }, pis, userLabels] = await Promise.all([
+    db.art.findFirst({
+      where: { id: artId, tenantId: principal.tenantId },
+      select: { id: true, name: true },
     }),
+    listImpediments(db, principal.tenantId as TenantId, artId as ArtId, {}),
+    db.programIncrement.findMany({
+      where: { tenantId: principal.tenantId, artId },
+      orderBy: { startDate: "desc" },
+      select: { id: true, name: true },
+    }),
+    listTenantUserLabels(db, principal.tenantId),
   ]);
 
   if (!art) redirect("/structure?tab=arts");
 
-  const open = impediments.filter((i) => i.status === "open");
-  const escalated = impediments.filter((i) => i.status === "escalated");
-  const resolved = impediments.filter((i) => i.status === "resolved");
+  const canCreate = hasCapability(principal, "impediment.create", {
+    tenantId: principal.tenantId,
+    artId,
+  });
+  const canEscalate = hasCapability(principal, "impediment.escalate", {
+    tenantId: principal.tenantId,
+    artId,
+  });
+  const canResolve = hasCapability(principal, "impediment.resolve", {
+    tenantId: principal.tenantId,
+    artId,
+  });
+
+  const model = buildImpedimentsListModel({
+    impediments: impediments.map((i) => ({
+      id: i.id,
+      title: i.title,
+      description: i.description,
+      status: i.status,
+      severity: i.severity,
+      raisedBy: i.raisedBy,
+      piId: i.piId,
+      sprintId: i.sprintId,
+      createdAt: i.createdAt,
+      resolution: i.resolution,
+      resolvedAt: i.resolvedAt,
+    })),
+    pis,
+    userLabels,
+  });
 
   return (
-    <div className="space-y-6">
+    <main className="p-0 space-y-4">
       <ArtSubNav artId={artId} artName={art.name} />
-
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Impediments</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {open.length} open · {escalated.length} escalated · {resolved.length} resolved
-          </p>
-        </div>
-        <CreateImpedimentDialog artId={artId} />
-      </div>
-
-      {impediments.length === 0 && (
-        <div className="text-center py-16 bg-white border border-border rounded-xl">
-          <p className="text-muted-foreground/60 text-sm">No impediments logged yet.</p>
-          <p className="text-muted-foreground/60 text-xs mt-1">
-            Use "Log Impediment" to track blockers.
-          </p>
-        </div>
-      )}
-
-      {escalated.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-purple-700 uppercase tracking-wide">
-            Escalated ({escalated.length})
-          </h2>
-          {escalated.map((imp) => (
-            <ImpedimentRow key={imp.id} impediment={imp} artId={artId} />
-          ))}
-        </section>
-      )}
-
-      {open.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-blue-700 uppercase tracking-wide">
-            Open ({open.length})
-          </h2>
-          {open.map((imp) => (
-            <ImpedimentRow key={imp.id} impediment={imp} artId={artId} />
-          ))}
-        </section>
-      )}
-
-      {resolved.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Resolved ({resolved.length})
-          </h2>
-          {resolved.map((imp) => (
-            <ImpedimentRow key={imp.id} impediment={imp} artId={artId} />
-          ))}
-        </section>
-      )}
-    </div>
+      <Suspense fallback={null}>
+        <ImpedimentsListShell
+          model={model}
+          artId={artId}
+          canCreate={canCreate}
+          canEscalate={canEscalate}
+          canResolve={canResolve}
+        />
+      </Suspense>
+    </main>
   );
 }
