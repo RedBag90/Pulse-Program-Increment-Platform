@@ -23,6 +23,22 @@ export interface FeatureActionState {
   success?: boolean;
 }
 
+/**
+ * Refine-Predikat für `decideFeatureReviewBatchAction`: bei Approval ohne
+ * Klärungs-Intent ist ein Kommentar optional; sonst (reject ODER
+ * clarification) ist er erforderlich. Lebt am Modul-Scope, weil das
+ * Next.js 15.3 "use server"-Linting top-level Arrow-Functions als
+ * Server-Action interpretiert und dann `async` erzwingt.
+ */
+function batchDecisionHasComment(d: {
+  decision: "approve" | "reject";
+  intent?: "decision" | "clarification" | undefined;
+  comment?: string | undefined;
+}): boolean {
+  if (d.decision === "approve" && d.intent !== "clarification") return true;
+  return (d.comment?.trim().length ?? 0) > 0;
+}
+
 export const createFeatureAction = createServerAction({
   describeCreated: (v: { id: string }) => ({
     id: v.id,
@@ -193,13 +209,7 @@ export const decideFeatureReviewBatchAction = createServerAction({
       comment: z.string().max(2000).optional(),
       intent: z.enum(["decision", "clarification"]).optional(),
     })
-    .refine(
-      (d) =>
-        d.decision === "approve" && d.intent !== "clarification"
-          ? true
-          : (d.comment?.trim().length ?? 0) > 0,
-      { message: "Begründung erforderlich", path: ["comment"] },
-    ),
+    .refine(batchDecisionHasComment, { message: "Begründung erforderlich", path: ["comment"] }),
   action: "feature.review.decide",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   batch: {
