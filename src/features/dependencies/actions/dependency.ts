@@ -1,7 +1,11 @@
 "use server";
 
 import { z } from "zod";
-import { linkDependency, unlinkDependency } from "@/server/services/dependency";
+import {
+  linkDependency,
+  unlinkDependency,
+  unlinkDependencyById,
+} from "@/server/services/dependency";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import type { InitiativeId } from "@/domain/types";
@@ -77,4 +81,26 @@ export const unlinkDependencyAction = createServerAction({
     }),
   revalidate: "dependency",
   mapError: (e) => formatDomainError(e, { fallback: "Failed to unlink dependency" }),
+});
+
+/**
+ * Bulk unlink — drives the dependencies list bulk-action bar. Round 3
+ * batch mode over the per-id `unlinkDependencyById` service so the user
+ * can clean up dozens of stale `relates_to` links in one go. ART-scoped
+ * so the policy check honours the team's reach (matches the single-item
+ * `unlinkDependencyAction`).
+ */
+export const unlinkDependencyBatchAction = createServerAction({
+  schema: z.object({
+    dependencyIds: z.array(z.string().uuid()).min(1).max(50),
+    artId: z.string().uuid(),
+  }),
+  action: "dependency.unlink",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  batch: {
+    iterateOver: "dependencyIds",
+    service: (ctx, id) => unlinkDependencyById(ctx, { id }),
+  },
+  revalidate: "dependency",
+  mapError: (e) => formatDomainError(e, { fallback: "Abhängigkeit konnte nicht gelöst werden" }),
 });

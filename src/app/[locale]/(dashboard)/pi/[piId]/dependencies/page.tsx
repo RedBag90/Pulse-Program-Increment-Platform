@@ -1,28 +1,26 @@
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
-import { PiSubNav } from "@/features/pi/components/pi-sub-nav";
-import { Breadcrumbs } from "@/components/nav/breadcrumbs";
-import { Link } from "@/i18n/navigation";
+import { Suspense } from "react";
 import { redirect, notFound } from "next/navigation";
+import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
+import { createPrismaClient } from "@/server/db/prisma";
 import type { TenantId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
+import { Breadcrumbs } from "@/components/nav/breadcrumbs";
+import { PiSubNav } from "@/features/pi/components/pi-sub-nav";
 import { DependencyGraph } from "@/features/pi/components/dependency-graph";
+import { buildDependenciesListModel } from "@/server/views/dependencies-list";
+import { DependenciesListShell } from "@/features/dependencies/components/dependencies-list-shell";
 
 interface Props {
   params: Promise<{ piId: string }>;
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  blocks: "blocks",
-  depends_on: "depends on",
-  relates_to: "relates to",
-};
-const TYPE_COLOR: Record<string, string> = {
-  blocks: "text-red-600 border-red-300 bg-red-50",
-  depends_on: "text-yellow-700 border-yellow-300 bg-yellow-50",
-  relates_to: "text-muted-foreground border-border bg-muted/50",
-};
-
+/**
+ * PI dependency map — rich filterable list with a type funnel + multi-facet
+ * filter bar + bulk unlink. The existing force-directed graph stays above
+ * the list as a collapsible <details> card so the visual exploration view
+ * is one click away when the list grows.
+ */
 export default async function PiDependenciesPage({ params }: Props) {
   const { piId } = await params;
   const principal = await requirePrincipal().catch(() => null);
@@ -32,61 +30,144 @@ export default async function PiDependenciesPage({ params }: Props) {
 
   const pi = await db.programIncrement.findFirst({
     where: { id: piId, tenantId: principal.tenantId as TenantId },
-    include: {
-      timeline: { select: { id: true, name: true } },
-    },
+    include: { timeline: { select: { id: true, name: true } } },
   });
   if (!pi) notFound();
   const timeline = pi.timeline;
   if (!timeline) notFound();
 
-  // Get all features (level=1) in this PI
-  const features = await db.initiative.findMany({
+  const piFeatures = await db.initiative.findMany({
     where: {
       tenantId: principal.tenantId as TenantId,
       piId,
       level: InitiativeLevel.FEATURE,
       deletedAt: null,
     },
-    select: { id: true, title: true, status: true },
+    select: { id: true, title: true, status: true, artId: true, parentId: true, piId: true },
   });
+  const piFeatureIds = piFeatures.map((f) => f.id);
 
-  const featureIds = features.map((f) => f.id);
+  // Pull all dependencies touching a Feature in this PI.
+  const deps =
+    piFeatureIds.length === 0
+      ? []
+      : await db.dependency.findMany({
+          where: {
+            tenantId: principal.tenantId as TenantId,
+            OR: [{ fromId: { in: piFeatureIds } }, { toId: { in: piFeatureIds } }],
+          },
+          include: {
+            from: { select: { id: true, title: true, level: true, status: true } },
+            to: { select: { id: true, title: true, level: true, status: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        });
 
-  // Get all dependencies where either end is in this PI
-  const deps = await db.dependency.findMany({
-    where: {
-      tenantId: principal.tenantId as TenantId,
-      OR: [{ fromId: { in: featureIds } }, { toId: { in: featureIds } }],
-    },
-    include: {
-      from: { select: { id: true, title: true, level: true, status: true } },
-      to: { select: { id: true, title: true, level: true, status: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
-  // Build node set (unique initiatives referenced)
-  const nodeMap = new Map<string, { id: string; title: string; status: string; inPi: boolean }>();
-  for (const f of features) {
-    nodeMap.set(f.id, { ...f, inPi: true });
-  }
-  for (const dep of deps) {
-    if (!nodeMap.has(dep.from.id)) {
-      nodeMap.set(dep.from.id, { ...dep.from, inPi: false });
-    }
-    if (!nodeMap.has(dep.to.id)) {
-      nodeMap.set(dep.to.id, { ...dep.to, inPi: false });
-    }
-  }
-
-  const nodes = [...nodeMap.values()];
-
-  // Group deps by type for the legend
-  const byType = { blocks: 0, depends_on: 0, relates_to: 0 } as Record<string, number>;
+  // Resolve the "other ends" of cross-PI deps so the row can render their
+  // titles + parent ART. One additional query keeps this cheap.
+  const externalIds = new Set<string>();
   for (const d of deps) {
-    byType[d.type] = (byType[d.type] ?? 0) + 1;
+    if (!piFeatures.some((f) => f.id === d.fromId)) externalIds.add(d.fromId);
+    if (!piFeatures.some((f) => f.id === d.toId)) externalIds.add(d.toId);
   }
+  const externalFeatures =
+    externalIds.size === 0
+      ? []
+      : await db.initiative.findMany({
+          where: { tenantId: principal.tenantId as TenantId, id: { in: [...externalIds] } },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            artId: true,
+            parentId: true,
+            piId: true,
+          },
+        });
+
+  const allFeatures = [...piFeatures, ...externalFeatures];
+  const artIds = [
+    ...new Set(allFeatures.map((f) => f.artId).filter((id): id is string => id != null)),
+  ];
+  const piIds = [
+    ...new Set(allFeatures.map((f) => f.piId).filter((id): id is string => id != null)),
+  ];
+
+  const [arts, pis] = await Promise.all([
+    artIds.length === 0
+      ? Promise.resolve([])
+      : db.art.findMany({
+          where: { id: { in: artIds }, tenantId: principal.tenantId },
+          select: { id: true, name: true },
+        }),
+    piIds.length === 0
+      ? Promise.resolve([])
+      : db.programIncrement.findMany({
+          where: { id: { in: piIds }, tenantId: principal.tenantId },
+          select: { id: true, name: true },
+        }),
+  ]);
+
+  // Orphan features = PI features that have no incident dependency.
+  const featuresWithDeps = new Set<string>();
+  for (const d of deps) {
+    featuresWithDeps.add(d.fromId);
+    featuresWithDeps.add(d.toId);
+  }
+  const orphanCount = piFeatures.filter((f) => !featuresWithDeps.has(f.id)).length;
+
+  const model = buildDependenciesListModel({
+    dependencies: deps.map((d) => ({
+      id: d.id,
+      type: d.type,
+      fromId: d.fromId,
+      toId: d.toId,
+      createdAt: d.createdAt,
+    })),
+    features: allFeatures,
+    arts,
+    pis,
+    piIdInScope: piId,
+    orphanCount,
+  });
+
+  // The bulk-unlink action expects an artId — the PI's owning ART (via the
+  // first PI Feature) is the closest match; fall back to the first known
+  // ART. This is a coarse gate, sufficient because dependency.unlink is
+  // checked at the resource level (tenant + artId).
+  const scopeArtId = piFeatures[0]?.artId ?? arts[0]?.id ?? "";
+  const canEdit =
+    scopeArtId !== "" &&
+    hasCapability(principal, "dependency.unlink", {
+      tenantId: principal.tenantId,
+      artId: scopeArtId,
+    });
+
+  // Build the graph nodes/edges from the same data the table uses.
+  const nodeMap = new Map<string, { id: string; title: string; status: string; inPi: boolean }>();
+  for (const f of piFeatures) {
+    nodeMap.set(f.id, { id: f.id, title: f.title, status: f.status, inPi: true });
+  }
+  for (const d of deps) {
+    if (!nodeMap.has(d.from.id)) {
+      nodeMap.set(d.from.id, {
+        id: d.from.id,
+        title: d.from.title,
+        status: d.from.status,
+        inPi: false,
+      });
+    }
+    if (!nodeMap.has(d.to.id)) {
+      nodeMap.set(d.to.id, {
+        id: d.to.id,
+        title: d.to.title,
+        status: d.to.status,
+        inPi: false,
+      });
+    }
+  }
+  const nodes = [...nodeMap.values()];
+  const edges = deps.map((d) => ({ id: d.id, fromId: d.fromId, toId: d.toId, type: d.type }));
 
   return (
     <main className="p-8 space-y-6">
@@ -101,116 +182,34 @@ export default async function PiDependenciesPage({ params }: Props) {
 
       <PiSubNav piId={piId} />
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Dependency Map — {pi.name}</h1>
-        <div className="flex items-center gap-3 text-xs">
-          {Object.entries(byType).map(([type, count]) => (
-            <span
-              key={type}
-              className={`border rounded-full px-2 py-0.5 font-medium ${TYPE_COLOR[type] ?? ""}`}
-            >
-              {count} {TYPE_LABEL[type] ?? type}
-            </span>
-          ))}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            Abhängigkeiten — {pi.name}
+          </h1>
+          {model.orphanCount > 0 && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {model.orphanCount} Feature
+              {model.orphanCount === 1 ? "" : "s"} im PI ohne Abhängigkeit.
+            </p>
+          )}
         </div>
       </div>
 
-      {deps.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground/60">
-          No dependencies linked for features in this PI yet.
-          <br />
-          Add dependencies from the feature detail page.
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <DependencyGraph
-            nodes={nodes}
-            edges={deps.map((d) => ({ id: d.id, fromId: d.fromId, toId: d.toId, type: d.type }))}
-          />
-          {/* Adjacency list grouped by "from" node */}
-          {nodes
-            .filter((n) => deps.some((d) => d.fromId === n.id))
-            .map((fromNode) => {
-              const outgoing = deps.filter((d) => d.fromId === fromNode.id);
-              return (
-                <div key={fromNode.id} className="rounded-lg border overflow-hidden">
-                  <div
-                    className={`px-4 py-3 flex items-center justify-between ${fromNode.inPi ? "bg-blue-50" : "bg-muted/50"}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {fromNode.inPi && (
-                        <span className="text-[10px] font-semibold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">
-                          IN PI
-                        </span>
-                      )}
-                      <Link
-                        href={`/feature/${fromNode.id}`}
-                        className="text-sm font-medium text-primary hover:underline"
-                      >
-                        {fromNode.title}
-                      </Link>
-                    </div>
-                    <span className="text-xs text-muted-foreground/60">{fromNode.status}</span>
-                  </div>
-                  <div className="divide-y">
-                    {outgoing.map((dep) => {
-                      const colorCls = TYPE_COLOR[dep.type] ?? TYPE_COLOR["relates_to"]!;
-                      return (
-                        <div key={dep.id} className="px-4 py-3 flex items-center gap-3">
-                          <span className="text-gray-300 text-lg">↳</span>
-                          <span
-                            className={`text-xs border rounded-full px-2 py-0.5 font-medium shrink-0 ${colorCls}`}
-                          >
-                            {TYPE_LABEL[dep.type] ?? dep.type}
-                          </span>
-                          <div className="flex items-center gap-2 flex-1">
-                            {nodeMap.get(dep.toId)?.inPi && (
-                              <span className="text-[10px] font-semibold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded shrink-0">
-                                IN PI
-                              </span>
-                            )}
-                            <Link
-                              href={`/feature/${dep.toId}`}
-                              className="text-sm text-foreground hover:text-primary hover:underline"
-                            >
-                              {dep.to.title}
-                            </Link>
-                          </div>
-                          <span className="text-xs text-muted-foreground/60 shrink-0">
-                            {dep.to.status}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-        </div>
+      {nodes.length > 0 && (
+        <details className="rounded-lg border bg-card">
+          <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium hover:bg-muted/30">
+            Graph anzeigen
+          </summary>
+          <div className="border-t p-4">
+            <DependencyGraph nodes={nodes} edges={edges} />
+          </div>
+        </details>
       )}
 
-      {/* Features with no dependencies */}
-      {features.filter((f) => !deps.some((d) => d.fromId === f.id || d.toId === f.id)).length >
-        0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-medium text-muted-foreground">
-            Features with no dependencies
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {features
-              .filter((f) => !deps.some((d) => d.fromId === f.id || d.toId === f.id))
-              .map((f) => (
-                <Link
-                  key={f.id}
-                  href={`/feature/${f.id}`}
-                  className="rounded-md border px-3 py-1.5 text-xs text-muted-foreground hover:border-blue-300 hover:text-blue-700 transition-colors"
-                >
-                  {f.title}
-                </Link>
-              ))}
-          </div>
-        </section>
-      )}
+      <Suspense fallback={null}>
+        <DependenciesListShell model={model} artId={scopeArtId} canEdit={canEdit} />
+      </Suspense>
     </main>
   );
 }
