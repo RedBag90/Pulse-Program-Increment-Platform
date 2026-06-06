@@ -3,7 +3,14 @@
 import { z } from "zod";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { createPi, startPi, completePi, deletePi, setPiCapacity } from "@/server/services/pi";
+import {
+  createPi,
+  startPi,
+  completePi,
+  deletePi,
+  setPiCapacity,
+  setPiClosureMeta,
+} from "@/server/services/pi";
 import { authorize } from "@/server/auth/authorize";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
@@ -123,6 +130,54 @@ export const setPiCapacityAction = createServerAction({
       : e.kind === "not_found"
         ? "PI nicht gefunden"
         : "Kapazität konnte nicht gespeichert werden",
+});
+
+/**
+ * Schreibt die PI-Closure-Metadaten — System-Demo, Inspect & Adapt,
+ * Retrospektive-Notizen. Wird vom Closure-Wizard pro Step aufgerufen;
+ * leere Strings für Notes → null (löschen).
+ */
+export const setPiClosureMetaAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    systemDemoAt: z.string().date().nullable().optional(),
+    inspectAdaptAt: z.string().date().nullable().optional(),
+    retrospectiveNotes: z.string().max(10_000).nullable().optional(),
+  }),
+  action: "pi.update",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    const demo = f.nonEmptyString("systemDemoAt");
+    const ia = f.nonEmptyString("inspectAdaptAt");
+    const notes = fd.get("retrospectiveNotes");
+    return {
+      id: f.string("id"),
+      ...(demo !== undefined ? { systemDemoAt: demo } : {}),
+      ...(ia !== undefined ? { inspectAdaptAt: ia } : {}),
+      ...(notes !== null ? { retrospectiveNotes: String(notes) } : {}),
+    };
+  },
+  service: (ctx, input) =>
+    setPiClosureMeta(ctx, {
+      id: input.id as PiId,
+      ...(input.systemDemoAt !== undefined
+        ? { systemDemoAt: input.systemDemoAt ? new Date(input.systemDemoAt) : null }
+        : {}),
+      ...(input.inspectAdaptAt !== undefined
+        ? { inspectAdaptAt: input.inspectAdaptAt ? new Date(input.inspectAdaptAt) : null }
+        : {}),
+      ...(input.retrospectiveNotes !== undefined
+        ? { retrospectiveNotes: input.retrospectiveNotes || null }
+        : {}),
+    }),
+  revalidate: "pi",
+  mapError: (e) =>
+    e.kind === "not_found"
+      ? "PI nicht gefunden"
+      : e.kind === "conflict"
+        ? e.reason
+        : "Closure-Metadaten konnten nicht gespeichert werden",
 });
 
 export const deletePiAction = createServerAction({

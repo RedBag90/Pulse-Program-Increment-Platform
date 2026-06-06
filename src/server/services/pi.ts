@@ -258,7 +258,108 @@ export async function startPi(ctx: RequestContext, input: { id: PiId }): Promise
   });
 }
 
-/** Completes an active PI. */
+/**
+ * Setzt Closure-Metadaten am PI: System-Demo-Datum, Inspect & Adapt-
+ * Datum, Retrospektive-Notizen. Wird vom PI-Closure-Wizard pro Step
+ * inkrementell aufgerufen — der Wizard speichert jede Eingabe sofort,
+ * sodass ein Abbruch keinen Datenverlust bedeutet.
+ */
+export async function setPiClosureMeta(
+  ctx: RequestContext,
+  input: {
+    id: PiId;
+    systemDemoAt?: Date | null | undefined;
+    inspectAdaptAt?: Date | null | undefined;
+    retrospectiveNotes?: string | null | undefined;
+  },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id, systemDemoAt, inspectAdaptAt, retrospectiveNotes } = input;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.programIncrement.findFirst({
+      where: { id, tenantId: mctx.tenantId },
+    });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
+    }
+    const data: Record<string, unknown> = {};
+    if (systemDemoAt !== undefined) data.systemDemoAt = systemDemoAt;
+    if (inspectAdaptAt !== undefined) data.inspectAdaptAt = inspectAdaptAt;
+    if (retrospectiveNotes !== undefined) {
+      data.retrospectiveNotes = retrospectiveNotes;
+      data.retrospectiveAt = retrospectiveNotes ? new Date() : null;
+    }
+    if (Object.keys(data).length === 0) {
+      return ok({
+        result: undefined,
+        audit: {
+          action: "pi.updated",
+          resourceType: "program_increment",
+          resourceId: id,
+          changes: {},
+        },
+      });
+    }
+    await tx.programIncrement.update({ where: { id }, data });
+    return ok({
+      result: undefined,
+      audit: {
+        action: "pi.updated",
+        resourceType: "program_increment",
+        resourceId: id,
+        changes: data as Record<string, unknown>,
+      },
+    });
+  });
+}
+
+/**
+ * Closure-Pre-Checks: jedes committed Objective hat eine Confidence
+ * (1‒5), jedes offene/eskalierte Impediment ist ROAMed, System-Demo
+ * + I&A sind terminiert, Retrospektive ist festgehalten. Liefert
+ * eine Liste lesbarer Verstöße — leer = bereit für `completePi`.
+ */
+export async function evaluatePiClosure(
+  db: PrismaClient,
+  tenantId: TenantId,
+  piId: PiId,
+): Promise<{ ready: boolean; issues: string[] }> {
+  const pi = await db.programIncrement.findFirst({
+    where: { id: piId, tenantId },
+    select: {
+      id: true,
+      systemDemoAt: true,
+      inspectAdaptAt: true,
+      retrospectiveNotes: true,
+    },
+  });
+  if (!pi) return { ready: false, issues: ["PI nicht gefunden"] };
+
+  const [uncommittedConfidence, openImpediments] = await Promise.all([
+    db.piObjective.count({
+      where: { tenantId, piId, committed: true, confidence: null },
+    }),
+    db.impediment.count({
+      where: { tenantId, piId, status: { in: ["open", "escalated"] }, roamStatus: "open" },
+    }),
+  ]);
+
+  const issues: string[] = [];
+  if (uncommittedConfidence > 0) {
+    issues.push(`${uncommittedConfidence} committed Objective(s) ohne Confidence-Bewertung`);
+  }
+  if (openImpediments > 0) {
+    issues.push(`${openImpediments} offene Impediment(s) ohne ROAM-Status`);
+  }
+  if (!pi.systemDemoAt) issues.push("System-Demo-Termin fehlt");
+  if (!pi.inspectAdaptAt) issues.push("Inspect & Adapt-Termin fehlt");
+  if (!pi.retrospectiveNotes || pi.retrospectiveNotes.trim() === "") {
+    issues.push("Retrospektive-Notizen fehlen");
+  }
+  return { ready: issues.length === 0, issues };
+}
+
+/** Completes an active PI. Erzwingt vorher die Closure-Pre-Checks. */
 export async function completePi(ctx: RequestContext, input: { id: PiId }): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   const { id } = input;
@@ -275,6 +376,39 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
       return err({
         kind: "conflict" as const,
         reason: `Only an active PI can be completed (current status: ${existing.status})`,
+      });
+    }
+
+    // Belt & suspenders: dieselben Checks wie der Wizard, serverseitig.
+    const [uncommittedConfidence, openImpediments] = await Promise.all([
+      tx.piObjective.count({
+        where: { tenantId: mctx.tenantId, piId: id, committed: true, confidence: null },
+      }),
+      tx.impediment.count({
+        where: {
+          tenantId: mctx.tenantId,
+          piId: id,
+          status: { in: ["open", "escalated"] },
+          roamStatus: "open",
+        },
+      }),
+    ]);
+    const issues: string[] = [];
+    if (uncommittedConfidence > 0) {
+      issues.push(`${uncommittedConfidence} committed Objective(s) ohne Confidence`);
+    }
+    if (openImpediments > 0) {
+      issues.push(`${openImpediments} offene Impediment(s) ohne ROAM`);
+    }
+    if (!existing.systemDemoAt) issues.push("System-Demo-Termin fehlt");
+    if (!existing.inspectAdaptAt) issues.push("Inspect & Adapt-Termin fehlt");
+    if (!existing.retrospectiveNotes || existing.retrospectiveNotes.trim() === "") {
+      issues.push("Retrospektive-Notizen fehlen");
+    }
+    if (issues.length > 0) {
+      return err({
+        kind: "conflict" as const,
+        reason: `PI-Abschluss nicht möglich: ${issues.join(" · ")}`,
       });
     }
 

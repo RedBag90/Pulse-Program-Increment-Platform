@@ -178,6 +178,50 @@ export const decideFeatureReviewAction = createServerAction({
         : "Failed to record review decision",
 });
 
+/**
+ * Bulk QS-Entscheidung — drives the `/my-approvals` Feature-QS bulk bar.
+ * Round 3 batch mode (cap 50) over the same per-item `decideReview` service
+ * used by the single-item action. Tenant-scoped because `feature.review.decide`
+ * is RTE/Admin-only and not ART-narrowed. A `reject` (or `clarification`
+ * intent) requires a shared `comment`; `approve` may go without.
+ */
+export const decideFeatureReviewBatchAction = createServerAction({
+  schema: z
+    .object({
+      featureIds: z.array(z.string().uuid()).min(1).max(50),
+      decision: z.enum(["approve", "reject"]),
+      comment: z.string().max(2000).optional(),
+      intent: z.enum(["decision", "clarification"]).optional(),
+    })
+    .refine(
+      (d) =>
+        d.decision === "approve" && d.intent !== "clarification"
+          ? true
+          : (d.comment?.trim().length ?? 0) > 0,
+      { message: "Begründung erforderlich", path: ["comment"] },
+    ),
+  action: "feature.review.decide",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  batch: {
+    iterateOver: "featureIds",
+    service: (ctx, id, rest) =>
+      decideReview(ctx, {
+        kind: "feature",
+        id: id as FeatureId,
+        decision: rest.decision,
+        comment: rest.comment,
+        intent: rest.intent,
+      }),
+  },
+  revalidate: "feature",
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Feature not found"
+        : "QS-Entscheidung fehlgeschlagen",
+});
+
 const DELIVERY_STATUS = z.enum(["approved", "in_progress", "blocked", "completed", "cancelled"]);
 
 /**
