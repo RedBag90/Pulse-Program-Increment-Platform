@@ -2,6 +2,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listMyApprovals, type MyApprovalRow } from "@/server/services/my-approvals";
 import { ApprovalActions } from "@/features/my-approvals/components/approval-actions";
+import { FeatureQsBulkSection } from "@/features/my-approvals/components/feature-qs-bulk-section";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { ApprovalParty } from "@/domain/business-case";
@@ -86,6 +87,11 @@ export default async function MyApprovalsPage() {
         <div className="space-y-8">
           {KIND_ORDER.filter((k) => (byKind.get(k)?.length ?? 0) > 0).map((kind) => {
             const group = byKind.get(kind)!;
+            // Feature-QS lane gets multi-select + a sticky bulk-action bar
+            // (RTE routine: ≥60 % of feature reviews are batch-approvable).
+            if (kind === "feature_qs") {
+              return <FeatureQsBulkSection key={kind} rows={group} />;
+            }
             return (
               <section key={kind} className="space-y-2">
                 <div className="flex items-baseline justify-between">
