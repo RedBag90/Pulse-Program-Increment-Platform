@@ -24,3 +24,25 @@ export const ROLES = {
 export type Role = (typeof ROLES)[keyof typeof ROLES];
 
 export const ALL_ROLES = Object.values(ROLES) as Role[];
+
+/**
+ * German UI labels for the role enum — shared by the admin / users page,
+ * the invite form, and any future role picker. Lives alongside the enum so
+ * a new role gets its label slot at the same time. Keep these short — the
+ * filter chips and list rows render them tightly.
+ */
+export const ROLE_LABELS: Record<Role, string> = {
+  platform_admin: "Platform-Admin",
+  tenant_admin: "Tenant-Admin",
+  transformation_lead: "Transformation Lead",
+  portfolio_manager: "Portfolio Manager",
+  value_stream_owner: "Value Stream Owner",
+  epic_owner: "Epic Owner",
+  vmo: "VMO (Epic-QS)",
+  rte: "RTE (Feature-QS)",
+  feature_owner: "Feature Owner",
+  team_editor: "Team Editor",
+  story_owner: "Story Owner",
+  task_owner: "Task Owner",
+  viewer: "Viewer",
+};

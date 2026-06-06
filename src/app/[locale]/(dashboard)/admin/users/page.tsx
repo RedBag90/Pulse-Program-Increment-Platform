@@ -1,68 +1,44 @@
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { InviteUserForm } from "@/features/admin/components/invite-user-form";
-import { redirect } from "next/navigation";
-import { Link } from "@/i18n/navigation";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { buildUsersPageModel } from "@/server/views/admin-users";
+import { UsersPageShell } from "@/features/admin/components/users-page-shell";
 
+/**
+ * Admin users page — master-detail layout. Loads role assignments, value
+ * streams + ARTs (scope picker), and user labels in one round-trip, builds
+ * the per-user view via the page-model, and hands it to the URL-state shell.
+ * Editing gates on `tenant.users.manage`; reading on `admin.users.read`.
+ */
 export default async function AdminUsersPage() {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
-
   if (!hasCapability(principal, "admin.users.read")) redirect("/portfolio");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+  const [assignments, valueStreams, userLabels] = await Promise.all([
+    db.userRoleAssignment.findMany({
+      where: { tenantId: principal.tenantId },
+      orderBy: { createdAt: "asc" },
+    }),
+    db.valueStream.findMany({
+      where: { tenantId: principal.tenantId, deletedAt: null },
+      include: { arts: { select: { id: true, name: true } } },
+      orderBy: { name: "asc" },
+    }),
+    listTenantUserLabels(db, principal.tenantId),
+  ]);
 
-  const assignments = await db.userRoleAssignment.findMany({
-    where: { tenantId: principal.tenantId },
-    orderBy: { createdAt: "asc" },
-  });
+  const canManage = hasCapability(principal, "tenant.users.manage");
+  const model = buildUsersPageModel({ assignments, valueStreams, userLabels });
 
   return (
-    <main className="p-8 space-y-10">
-      <h1 className="text-2xl font-semibold">User Management</h1>
-
-      <section>
-        <h2 className="text-lg font-medium mb-4">Current Members</h2>
-        {assignments.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No members yet.</p>
-        ) : (
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b text-left text-muted-foreground">
-                <th className="pb-2 pr-4">User ID</th>
-                <th className="pb-2 pr-4">Role</th>
-                <th className="pb-2 pr-4">Since</th>
-                <th className="pb-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {assignments.map((a) => (
-                <tr key={a.id} className="border-b">
-                  <td className="py-2 pr-4 font-mono text-xs">{a.userId}</td>
-                  <td className="py-2 pr-4">{a.role}</td>
-                  <td className="py-2 pr-4 text-muted-foreground">
-                    {a.createdAt.toLocaleDateString()}
-                  </td>
-                  <td className="py-2">
-                    <Link
-                      href={`/admin/users/${a.userId}`}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Manage →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      <section>
-        <h2 className="text-lg font-medium mb-4">Invite a New User</h2>
-        <InviteUserForm />
-      </section>
-    </main>
+    // useSearchParams reads dynamic URL state; Suspense satisfies Next's boundary requirement.
+    <Suspense fallback={null}>
+      <UsersPageShell model={model} canManage={canManage} />
+    </Suspense>
   );
 }

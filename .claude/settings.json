@@ -172,7 +172,9 @@
       "Bash(grep -E \"\\\\.\\(md|ts|tsx\\)$\")",
       "Bash(grep -n \"epic.create\\\\`, \\\\`epic.update\\\\`, \\\\`epic.review.submit\\\\|epic.review.decide\\\\` \\(QS gate\\)\\\\|Erik — Epic Owner\\\\|Vera — Value Management\" docs/personas.md)",
       "Bash(sed -i '' 's/, ArtId//; s/ArtId, //' src/features/pi/actions/pi.ts)",
-      "Bash(sed -i '' 's/, TimelineId//; s/TimelineId, //' src/server/services/art-setup.ts)"
+      "Bash(sed -i '' 's/, TimelineId//; s/TimelineId, //' src/server/services/art-setup.ts)",
+      "Bash(grep -E '\\\\.\\(ts\\)$')",
+      "Bash(grep -E '\\\\.\\(tsx|ts\\)$')"
     ],
     "additionalDirectories": [
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)",

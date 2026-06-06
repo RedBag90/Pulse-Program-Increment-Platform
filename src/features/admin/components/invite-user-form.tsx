@@ -2,47 +2,36 @@
 
 import { useActionState } from "react";
 import { inviteUserAction } from "@/features/admin/actions/invite-user";
-import { ROLES } from "@/domain/roles";
+import { ROLES, ROLE_LABELS } from "@/domain/roles";
 import type { Role } from "@/domain/roles";
 
-const ROLE_LABELS: Record<Role, string> = {
-  platform_admin: "Platform Admin",
-  tenant_admin: "Tenant Admin",
-  transformation_lead: "Transformation Lead",
-  portfolio_manager: "Portfolio Manager",
-  value_stream_owner: "Value Stream Owner",
-  epic_owner: "Epic Owner",
-  vmo: "VMO (Epic-QS)",
-  rte: "RTE (Feature-QS)",
-  feature_owner: "Feature Owner",
-  team_editor: "Team Editor",
-  story_owner: "Story Owner",
-  task_owner: "Task Owner",
-  viewer: "Viewer",
-};
-
+/**
+ * Invite-by-email form. Embedded in the master-detail "Einladen"-Pane.
+ * `inviteUserAction` returns `{ success: true }` on a successful invite;
+ * the parent shell clears the selection back to the list on success.
+ */
 export function InviteUserForm() {
   const [state, action, isPending] = useActionState(inviteUserAction, {});
 
   return (
-    <form action={action} className="space-y-4 max-w-md">
+    <form action={action} className="space-y-4">
       <div>
         <label htmlFor="email" className="block text-sm font-medium mb-1">
-          Email address
+          E-Mail-Adresse
         </label>
         <input
           id="email"
           name="email"
           type="email"
           required
-          placeholder="colleague@company.com"
+          placeholder="kolleg:in@firma.de"
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
       <div>
         <label htmlFor="role" className="block text-sm font-medium mb-1">
-          Role
+          Rolle
         </label>
         <select
           id="role"
@@ -66,7 +55,7 @@ export function InviteUserForm() {
 
       {state.success && (
         <p role="status" className="text-green-600 text-sm">
-          Invitation sent successfully.
+          Einladung erfolgreich versendet.
         </p>
       )}
 
@@ -75,7 +64,7 @@ export function InviteUserForm() {
         disabled={isPending}
         className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
       >
-        {isPending ? "Sending…" : "Send invitation"}
+        {isPending ? "Wird versendet…" : "Einladung versenden"}
       </button>
     </form>
   );
