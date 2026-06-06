@@ -323,6 +323,14 @@ model ProgramIncrement {
   capacityJobSize Int?     @map("capacity_job_size")
   capacityAmount  Decimal? @map("capacity_amount") @db.Decimal(14, 2)
 
+  // PI-Closure-Metadaten — vom RTE via Closure-Wizard gesetzt; werden vom
+  // pre-check in `completePi` zwingend erwartet, bevor das PI auf
+  // "completed" gehen darf.
+  systemDemoAt        DateTime? @map("system_demo_at") @db.Date
+  inspectAdaptAt      DateTime? @map("inspect_adapt_at") @db.Date
+  retrospectiveNotes  String?   @map("retrospective_notes") @db.Text
+  retrospectiveAt     DateTime? @map("retrospective_at")
+
   art         Art?          @relation(fields: [artId], references: [id])
   timeline    Timeline?     @relation(fields: [timelineId], references: [id], onDelete: Cascade)
   sprints     Sprint[]
@@ -686,6 +694,12 @@ model Impediment {
   description String?   @db.Text
   severity    String    @default("medium") // low | medium | high | critical
   status      String    @default("open") // open | escalated | resolved
+  // ROAM-Status für die PI-Closure: open | resolved | owned | accepted |
+  // mitigated. Ergänzt — nicht ersetzt — den Workflow-Status; nur für die
+  // Closure-Sicht relevant.
+  roamStatus  String    @default("open") @map("roam_status")
+  roamedAt    DateTime? @map("roamed_at")
+  roamedBy    String?   @map("roamed_by") @db.Uuid
   raisedBy    String    @map("raised_by") @db.Uuid
   resolvedAt  DateTime? @map("resolved_at")
   resolvedBy  String?   @map("resolved_by") @db.Uuid

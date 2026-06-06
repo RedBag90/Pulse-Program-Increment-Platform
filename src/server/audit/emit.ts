@@ -73,6 +73,7 @@ export type AuditAction =
   | "impediment.raised"
   | "impediment.escalated"
   | "impediment.resolved"
+  | "impediment.updated"
   | "kpi.created"
   | "kpi.updated"
   | "kpi.deleted"
