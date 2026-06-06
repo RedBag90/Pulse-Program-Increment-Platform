@@ -22,6 +22,7 @@ import {
   ClipboardList,
   Inbox,
   ListTodo,
+  Compass,
   type LucideIcon,
 } from "lucide-react";
 import type { Practice } from "@/domain/operating-model";
@@ -93,6 +94,15 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: "programPlanning",
     items: [
+      {
+        // RTE-Cockpit: nur sichtbar, wenn der Principal die einzige
+        // ausschließlich RTE/Admin getragene Capability hat.
+        href: "/rte",
+        labelKey: "rteCockpit",
+        icon: Compass,
+        capability: "feature.review.decide",
+        practice: "programLevel",
+      },
       {
         href: "/pi-planning",
         labelKey: "piPlanning",
