@@ -11,6 +11,14 @@ import { paginate, type PageParams } from "@/server/db/paginate";
 export type ImpedimentId = string & { readonly __brand: "ImpedimentId" };
 export type Severity = "low" | "medium" | "high" | "critical";
 export type ImpedimentStatus = "open" | "escalated" | "resolved";
+export type RoamStatus = "open" | "resolved" | "owned" | "accepted" | "mitigated";
+export const ROAM_STATUSES: readonly RoamStatus[] = [
+  "open",
+  "resolved",
+  "owned",
+  "accepted",
+  "mitigated",
+];
 
 export interface CreateImpedimentInput {
   artId: ArtId;
@@ -134,6 +142,46 @@ export async function resolveImpediment(
         resourceType: "impediment",
         resourceId: id,
         changes: { status: { before: existing.status, after: "resolved" } },
+      },
+    });
+  });
+}
+
+/**
+ * Setzt den ROAM-Status (Resolved / Owned / Accepted / Mitigated) eines
+ * Impediments. Ergänzt den Workflow-Status (`open | escalated |
+ * resolved`); wird vom PI-Closure-Wizard verwendet, um sicherzustellen,
+ * dass jedes offene Impediment vor PI-Abschluss adressiert ist.
+ */
+export async function setImpedimentRoam(
+  ctx: RequestContext,
+  input: { id: ImpedimentId; roamStatus: RoamStatus },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id, roamStatus } = input;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const found = await findOr404(tx.impediment, {
+      id,
+      tenantId: mctx.tenantId,
+      resourceType: "Impediment",
+    });
+    if (isErr(found)) return found;
+    const existing = found.value;
+    await tx.impediment.update({
+      where: { id },
+      data: {
+        roamStatus,
+        roamedAt: new Date(),
+        roamedBy: mctx.actorId,
+      },
+    });
+    return ok({
+      result: undefined,
+      audit: {
+        action: "impediment.updated",
+        resourceType: "impediment",
+        resourceId: id,
+        changes: { roamStatus: { before: existing.roamStatus, after: roamStatus } },
       },
     });
   });

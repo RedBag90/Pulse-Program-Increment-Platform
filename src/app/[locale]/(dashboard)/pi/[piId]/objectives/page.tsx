@@ -1,11 +1,12 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getPi } from "@/server/services/pi";
+import { getPi, evaluatePiClosure } from "@/server/services/pi";
 import { listPiObjectives } from "@/server/services/pi-objective";
 import { CreatePiObjectiveDialog } from "@/features/pi/components/create-pi-objective-dialog";
 import { ObjectiveConfidenceVote } from "@/features/pi/components/objective-confidence-vote";
 import { PiSubNav } from "@/features/pi/components/pi-sub-nav";
+import { PiClosureWizard } from "@/features/pi/components/pi-closure-wizard";
 import { Breadcrumbs } from "@/components/nav/breadcrumbs";
 import { redirect, notFound } from "next/navigation";
 import type { PiId, TenantId } from "@/domain/types";
@@ -45,6 +46,41 @@ export default async function PiObjectivesPage({ params }: Props) {
     ...(timeline.arts[0] ? { artId: timeline.arts[0].id } : {}),
   });
 
+  const canComplete = hasCapability(principal, "pi.complete", {
+    tenantId: principal.tenantId,
+  });
+
+  // Closure-CTA wird erst sichtbar, wenn das PI aktiv ist und das Ende
+  // höchstens 14 Tage entfernt (oder bereits vorbei) ist — der Wizard
+  // braucht das selbst nicht, aber wir wollen ihn nicht permanent zeigen.
+  const today = new Date();
+  const piEnd = pi.endDate ? new Date(pi.endDate) : null;
+  const daysToEnd = piEnd ? Math.round((piEnd.getTime() - today.getTime()) / 86_400_000) : null;
+  const closureCtaVisible =
+    canComplete && pi.status === "active" && daysToEnd !== null && daysToEnd <= 14;
+
+  const closureStatus = closureCtaVisible
+    ? await evaluatePiClosure(db, principal.tenantId as TenantId, piId as PiId)
+    : { ready: false, issues: [] };
+
+  const openImpediments = closureCtaVisible
+    ? await db.impediment.findMany({
+        where: {
+          tenantId: principal.tenantId as TenantId,
+          piId,
+          status: { in: ["open", "escalated"] },
+        },
+        select: {
+          id: true,
+          title: true,
+          severity: true,
+          roamStatus: true,
+          artId: true,
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+
   // Group objectives by team
   const byTeam = new Map<string, { teamName: string; objectives: typeof objectives }>();
   for (const obj of objectives) {
@@ -66,9 +102,26 @@ export default async function PiObjectivesPage({ params }: Props) {
 
       <PiSubNav piId={piId} />
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">PI Objectives — {pi.name}</h1>
-        <CreatePiObjectiveDialog piId={piId} teams={teams} />
+        <div className="flex items-center gap-2">
+          {closureCtaVisible && (
+            <PiClosureWizard
+              piId={piId}
+              piName={pi.name}
+              systemDemoAt={
+                pi.systemDemoAt ? new Date(pi.systemDemoAt).toISOString().slice(0, 10) : null
+              }
+              inspectAdaptAt={
+                pi.inspectAdaptAt ? new Date(pi.inspectAdaptAt).toISOString().slice(0, 10) : null
+              }
+              retrospectiveNotes={pi.retrospectiveNotes ?? null}
+              issues={closureStatus.issues}
+              openImpediments={openImpediments}
+            />
+          )}
+          <CreatePiObjectiveDialog piId={piId} teams={teams} />
+        </div>
       </div>
 
       {objectives.length === 0 ? (

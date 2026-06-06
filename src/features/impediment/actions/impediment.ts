@@ -10,6 +10,7 @@ import {
   createImpediment,
   escalateImpediment,
   resolveImpediment,
+  setImpedimentRoam,
   type ImpedimentId,
 } from "@/server/services/impediment";
 import { createServerAction } from "@/server/http/server-action";
@@ -123,6 +124,29 @@ export const resolveImpedimentBatchAction = createServerAction({
   },
   revalidate: "impediment",
   mapError: (e) => formatDomainError(e, { fallback: "Impediment-Auflösung fehlgeschlagen" }),
+});
+
+/**
+ * Setzt den ROAM-Status (Resolved/Owned/Accepted/Mitigated) eines
+ * Impediments. Gated wie `resolveImpediment` (ART-scoped) — die
+ * Capability `impediment.resolve` ist der RTE/SM-Träger und passt zur
+ * Closure-Verantwortung.
+ */
+export const setImpedimentRoamAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    artId: z.string().uuid(),
+    roamStatus: z.enum(["open", "resolved", "owned", "accepted", "mitigated"]),
+  }),
+  action: "impediment.resolve",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  service: (ctx, input) =>
+    setImpedimentRoam(ctx, {
+      id: input.id as ImpedimentId,
+      roamStatus: input.roamStatus,
+    }),
+  revalidate: "impediment",
+  mapError: (e) => formatDomainError(e, { fallback: "ROAM-Status konnte nicht gesetzt werden" }),
 });
 
 /**
