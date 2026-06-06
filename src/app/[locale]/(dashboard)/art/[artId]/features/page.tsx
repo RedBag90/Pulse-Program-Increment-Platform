@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { redirect, notFound } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
@@ -5,31 +7,29 @@ import { getArt } from "@/server/services/art";
 import { listFeatures } from "@/server/services/feature";
 import { listEpics } from "@/server/services/epic";
 import { getTenantPractices } from "@/server/services/target-model";
-import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
-import { FeatureFilters } from "@/features/art/components/feature-filters";
-import { WsjfScoreDialog } from "@/features/art/components/wsjf-score-dialog";
-import { DeleteFeatureButton } from "@/features/art/components/delete-feature-button";
-import { FeaturePiSelect } from "@/features/art/components/feature-pi-select";
-import { Link } from "@/i18n/navigation";
-import { redirect, notFound } from "next/navigation";
+import { buildFeaturesListModel } from "@/server/views/features-list";
+import { FeaturesListShell } from "@/features/art/components/features-list-shell";
 import type { ArtId } from "@/domain/types";
 
 interface Props {
   params: Promise<{ artId: string }>;
-  searchParams: Promise<{ status?: string; piId?: string }>;
 }
 
-export default async function FeaturesPage({ params, searchParams }: Props) {
+/**
+ * Feature backlog — rich filterable list with a funnel header (status) +
+ * multi-facet filter bar + bulk PI-assignment via the existing
+ * setFeaturePiAction batch action. Replaces the old flat HTML table.
+ */
+export default async function FeaturesPage({ params }: Props) {
   const { artId } = await params;
-  const { status, piId } = await searchParams;
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [art, { items: allFeatures }, epics, pis, practices] = await Promise.all([
+  const [art, { items: features }, epics, pis, practices] = await Promise.all([
     getArt(db, principal.tenantId, artId as ArtId),
     listFeatures(db, principal.tenantId, artId as ArtId),
     listEpics(db, principal.tenantId),
@@ -43,182 +43,55 @@ export default async function FeaturesPage({ params, searchParams }: Props) {
 
   if (!art) notFound();
 
-  // WSJF scoring columns/dialog only appear when the practice is in the target.
-  const showWsjf = practices.wsjf;
-
-  // Apply client-side filters (avoids extra DB queries for simple cases)
-  const features = allFeatures.filter((f) => {
-    if (status && f.status !== status) return false;
-    if (piId === "backlog" && f.piId !== null) return false;
-    if (piId && piId !== "backlog" && f.piId !== piId) return false;
-    return true;
-  });
+  // Identify which features are the target of any `blocks` dependency —
+  // drives the inline "🛑 Blockiert" badge on the row.
+  const featureIds = features.map((f) => f.id);
+  const blockingDeps =
+    featureIds.length === 0
+      ? []
+      : await db.dependency.findMany({
+          where: {
+            tenantId: principal.tenantId,
+            type: "blocks",
+            toId: { in: featureIds },
+          },
+          select: { toId: true },
+        });
+  const blockedFeatureIds = new Set(blockingDeps.map((d) => d.toId));
 
   const canEdit = hasCapability(principal, "feature.update", {
     tenantId: principal.tenantId,
     artId,
   });
 
-  const epicOptions = epics.map((e) => ({ id: e.id, title: e.title }));
-
-  // PIs a feature can be moved into — completed PIs are not assignable targets.
-  const assignablePis = pis
-    .filter((p) => p.status !== "completed")
-    .map((p) => ({ id: p.id, name: p.name }));
+  const model = buildFeaturesListModel({
+    features: features.map((f) => ({
+      id: f.id,
+      title: f.title,
+      status: f.status,
+      piId: f.piId,
+      parent: f.parent,
+      pi: f.pi,
+      wsjfBusinessValue: f.wsjfBusinessValue,
+      wsjfTimeCriticality: f.wsjfTimeCriticality,
+      wsjfRiskReduction: f.wsjfRiskReduction,
+      wsjfJobSize: f.wsjfJobSize,
+      wsjfComputed: f.wsjfComputed != null ? Number(f.wsjfComputed) : null,
+      acceptanceCriteria: f.acceptanceCriteria,
+      createdAt: f.createdAt,
+    })),
+    epics: epics.map((e) => ({ id: e.id, title: e.title })),
+    pis,
+    blockedFeatureIds,
+    showWsjf: practices.wsjf,
+  });
 
   return (
-    <main className="p-8 space-y-6">
+    <main className="p-0 space-y-4">
       <ArtSubNav artId={artId} artName={art.name} />
-
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-xl font-semibold">Feature Backlog</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {features.length} feature{features.length !== 1 ? "s" : ""}
-            {showWsjf ? " · sorted by WSJF score" : ""}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <FeatureFilters pis={pis} currentStatus={status ?? ""} currentPiId={piId ?? ""} />
-          {canEdit && <CreateFeatureDialog artId={artId} epics={epicOptions} />}
-        </div>
-      </div>
-
-      {features.length === 0 ? (
-        <div className="text-center py-16 bg-white border border-border rounded-xl">
-          <p className="text-muted-foreground/60 text-sm">
-            {allFeatures.length > 0
-              ? "No features match the current filters."
-              : "No features yet. Create one to start prioritizing the backlog."}
-          </p>
-        </div>
-      ) : (
-        <div className="rounded-lg border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground w-8">#</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Feature</th>
-                {showWsjf && (
-                  <>
-                    <th
-                      className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
-                      title="Business Value"
-                    >
-                      BV
-                    </th>
-                    <th
-                      className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
-                      title="Time Criticality"
-                    >
-                      TC
-                    </th>
-                    <th
-                      className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
-                      title="Risk Reduction"
-                    >
-                      RR
-                    </th>
-                    <th
-                      className="text-center px-3 py-3 font-medium text-muted-foreground w-10"
-                      title="Job Size"
-                    >
-                      JS
-                    </th>
-                    <th className="text-center px-3 py-3 font-medium text-muted-foreground w-20">
-                      WSJF
-                    </th>
-                  </>
-                )}
-                <th className="text-left px-3 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-left px-3 py-3 font-medium text-muted-foreground">PI</th>
-                {canEdit && <th className="px-3 py-3 w-16"></th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {features.map((feature) => {
-                const rank = allFeatures.findIndex((f) => f.id === feature.id) + 1;
-                return (
-                  <tr key={feature.id} className="hover:bg-muted/50">
-                    <td className="px-4 py-3 text-muted-foreground/60 text-xs">{rank}</td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/feature/${feature.id}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {feature.title}
-                      </Link>
-                      {feature.parent && (
-                        <p className="text-xs text-muted-foreground/60 mt-0.5">
-                          Epic: {feature.parent.title}
-                        </p>
-                      )}
-                    </td>
-                    {showWsjf && (
-                      <>
-                        <td className="px-3 py-3 text-center text-muted-foreground">
-                          {feature.wsjfBusinessValue ?? "—"}
-                        </td>
-                        <td className="px-3 py-3 text-center text-muted-foreground">
-                          {feature.wsjfTimeCriticality ?? "—"}
-                        </td>
-                        <td className="px-3 py-3 text-center text-muted-foreground">
-                          {feature.wsjfRiskReduction ?? "—"}
-                        </td>
-                        <td className="px-3 py-3 text-center text-muted-foreground">
-                          {feature.wsjfJobSize ?? "—"}
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          {canEdit ? (
-                            <WsjfScoreDialog
-                              featureId={feature.id}
-                              artId={artId}
-                              current={{
-                                bv: feature.wsjfBusinessValue,
-                                tc: feature.wsjfTimeCriticality,
-                                rr: feature.wsjfRiskReduction,
-                                js: feature.wsjfJobSize,
-                              }}
-                            />
-                          ) : (
-                            <span className="font-semibold text-primary/80">
-                              {feature.wsjfComputed !== null
-                                ? Number(feature.wsjfComputed).toFixed(2)
-                                : "—"}
-                            </span>
-                          )}
-                        </td>
-                      </>
-                    )}
-                    <td className="px-3 py-3">
-                      <span className="inline-block rounded-full px-2 py-0.5 text-xs bg-muted text-foreground/80">
-                        {feature.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground text-xs">
-                      {canEdit ? (
-                        <FeaturePiSelect
-                          featureId={feature.id}
-                          artId={artId}
-                          currentPiId={feature.piId}
-                          pis={assignablePis}
-                        />
-                      ) : (
-                        (feature.pi?.name ?? "Backlog")
-                      )}
-                    </td>
-                    {canEdit && (
-                      <td className="px-3 py-3">
-                        <DeleteFeatureButton id={feature.id} artId={artId} title={feature.title} />
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Suspense fallback={null}>
+        <FeaturesListShell model={model} artId={artId} canEdit={canEdit} />
+      </Suspense>
     </main>
   );
 }
