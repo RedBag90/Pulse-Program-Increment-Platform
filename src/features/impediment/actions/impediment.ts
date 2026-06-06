@@ -150,6 +150,33 @@ export const setImpedimentRoamAction = createServerAction({
 });
 
 /**
+ * Bulk ROAM — setzt den ROAM-Status für viele Impediments in einem
+ * Schritt. ART-scoped wie die Einzel-Action; cap 50 (Round-3 Batch-
+ * Pattern). Die Cross-ART-Overview muss die UI darauf einschränken,
+ * dass nur Impediments **eines** ARTs gleichzeitig markiert sind —
+ * Mixed-Selection blockt die Bulk-Bar mit einem Hinweis.
+ */
+export const setImpedimentRoamBatchAction = createServerAction({
+  schema: z.object({
+    impedimentIds: z.array(z.string().uuid()).min(1).max(50),
+    artId: z.string().uuid(),
+    roamStatus: z.enum(["open", "resolved", "owned", "accepted", "mitigated"]),
+  }),
+  action: "impediment.resolve",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  batch: {
+    iterateOver: "impedimentIds",
+    service: (ctx, id, rest) =>
+      setImpedimentRoam(ctx, {
+        id: id as ImpedimentId,
+        roamStatus: rest.roamStatus,
+      }),
+  },
+  revalidate: "impediment",
+  mapError: (e) => formatDomainError(e, { fallback: "ROAM-Bulk fehlgeschlagen" }),
+});
+
+/**
  * Bulk escalate — open → escalated for every id. Mirrors the single-item
  * action's auth gate (`impediment.escalate`).
  */
