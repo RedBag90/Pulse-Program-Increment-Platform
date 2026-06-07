@@ -472,7 +472,12 @@ export async function setFeatureDeliveryStatus(
       });
     }
 
-    // Starting preconditions: PI assigned + parent Epic in implementation.
+    // Starting preconditions: PI assigned + parent Epic mindestens in „Budget
+    // alloziert" (L3). Reifegrad-Modell v2 (Plan vom 2026-06-07): Start eines
+    // Features schiebt das Epic von L3 auf L4 (Implementation läuft). So
+    // entfällt der manuelle „Implementing"-Klick durch den RTE und L3→L4 ist
+    // der natürliche Übergang.
+    let advanceParentToL4 = false;
     if (to === "in_progress") {
       if (feature.piId === null) {
         return err({
@@ -485,12 +490,16 @@ export async function setFeatureDeliveryStatus(
           where: { id: feature.parentId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
           select: { stageGate: true },
         });
-        if (!epic || (epic.stageGate !== "L4" && epic.stageGate !== "L5")) {
+        const gate = epic?.stageGate;
+        if (!epic || (gate !== "L3" && gate !== "L4" && gate !== "L5")) {
           return err({
             kind: "conflict" as const,
             reason:
-              "Epic noch nicht in Implementation (L4) — Feature kann noch nicht gestartet werden",
+              "Epic noch nicht in Implementation (mind. L3 Budget alloziert nötig) — Feature kann noch nicht gestartet werden",
           });
+        }
+        if (gate === "L3") {
+          advanceParentToL4 = true;
         }
       }
     }
@@ -499,6 +508,13 @@ export async function setFeatureDeliveryStatus(
       where: { id },
       data: { status: to, updatedBy: mctx.actorId },
     });
+
+    if (advanceParentToL4 && feature.parentId) {
+      // Importiert lazy aus epic.ts, sonst gäbe es einen Zirkel beim
+      // top-level `import` (feature.ts ↔ epic.ts).
+      const { autoAdvanceStageGate } = await import("@/server/services/epic");
+      await autoAdvanceStageGate(tx, mctx, feature.parentId, "L4");
+    }
 
     return ok({
       result: undefined,

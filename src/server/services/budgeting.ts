@@ -22,6 +22,7 @@ import {
 } from "@/domain/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { autoAdvanceStageGate } from "@/server/services/epic";
 
 export interface BudgetingBoardData {
   epics: BudgetEpicView[];
@@ -208,7 +209,7 @@ export async function saveBudgetAllocation(
     const fw = fundedWindow(allocations);
     const epic = await tx.initiative.findFirst({
       where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
-      select: { timeline: true },
+      select: { timeline: true, businessCaseApprovedAt: true },
     });
     const timeline = parseTimeline(epic?.timeline);
     await tx.initiative.update({
@@ -227,6 +228,16 @@ export async function saveBudgetAllocation(
           : {}),
       },
     });
+
+    // Reifegrad-Modell v2 (Plan vom 2026-06-07): L3 = „Budget alloziert"
+    // verlangt zwei Bedingungen — (a) Business Case freigegeben und (b)
+    // mindestens eine Period-Allokation > 0. Erst dann rückt das Epic
+    // automatisch auf L3. `autoAdvanceStageGate` ist no-op, wenn das
+    // Epic bereits weiter ist.
+    const allocationSum = Object.values(allocations).reduce((s, v) => s + (v ?? 0), 0);
+    if (epic?.businessCaseApprovedAt != null && allocationSum > 0) {
+      await autoAdvanceStageGate(tx, mctx, epicId, "L3");
+    }
 
     return ok({
       result: { id: row.id },

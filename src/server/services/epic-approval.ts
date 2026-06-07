@@ -158,8 +158,12 @@ export async function decideHypothesis(
       },
     });
 
-    // An approved hypothesis is the "Business hypothesis done" milestone; it does
-    // NOT advance the gate — moving into Analyzing (L2) is a separate manual step.
+    // Reifegrad-Modell v2 (Plan vom 2026-06-07): „Hypothese akzeptiert" ist die
+    // Definition von L1. Der Auto-Advance hängt deshalb hier am Approval — die
+    // alte Variante (L0→L1 beim Owner-Assignment) ist entfallen.
+    if (decision === "approve") {
+      await autoAdvanceStageGate(tx, mctx, epicId, "L1");
+    }
 
     return ok({
       result: undefined,
@@ -406,8 +410,11 @@ async function applyDecisionOutcome(
         needsSteeringAttention: true,
       },
     });
-    // A fully approved business case moves the Epic into the Portfolio Backlog (L3).
-    await autoAdvanceStageGate(tx, mctx, epicId, "L3");
+    // Reifegrad-Modell v2 (Plan vom 2026-06-07): Der BC-Approval schiebt
+    // das Epic nicht mehr automatisch auf L3 — L3 = „Budget alloziert"
+    // verlangt zusätzlich eine BudgetAllocation mit Σ > 0. Der
+    // Auto-Advance hängt jetzt am `saveBudgetAllocation` (siehe
+    // `src/server/services/budgeting.ts`).
     return { before: fromPhase, after: "approved" };
   }
   return null;

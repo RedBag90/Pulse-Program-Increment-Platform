@@ -486,27 +486,22 @@ export async function saveTimeline(
     });
     if (isErr(authz)) return authz;
 
-    const reachedDone = Boolean(fields.actuals.implementation) && existing.stageGate !== "L5";
+    // Reifegrad-Modell v2: L5 ist im neuen Modell nicht mehr „Implementation
+    // done", sondern „Impact recognized on Balance Sheet" — gesetzt vom
+    // Controlling über `confirmEpicImpact`. Das Setzen der Implementation-
+    // Actuals löst deshalb kein Stage-Advance mehr aus.
 
     await tx.initiative.update({
       where: { id: epicId },
       data: {
         updatedBy: mctx.actorId,
         timeline: fields as unknown as Prisma.InputJsonValue,
-        ...(reachedDone && { stageGate: "L5" }),
       },
     });
 
     return ok({
       result: undefined,
-      audit: reachedDone
-        ? {
-            action: "initiative.stage_gate.advanced",
-            resourceType: "initiative",
-            resourceId: epicId,
-            changes: { stageGate: { before: existing.stageGate, after: "L5" } },
-          }
-        : { action: "initiative.updated", resourceType: "initiative", resourceId: epicId },
+      audit: { action: "initiative.updated", resourceType: "initiative", resourceId: epicId },
     });
   });
 }
@@ -543,9 +538,10 @@ export async function assignEpicOwner(
       data: { ownerId, updatedBy: mctx.actorId },
     });
 
-    // Selecting the Epic for detailing (assigning its owner) moves a fresh Epic
-    // out of the Funnel into Reviewing. Forward-only, so re-assignment is a no-op.
-    await autoAdvanceStageGate(tx, mctx, epicId, "L1");
+    // Reifegrad-Modell v2 (siehe Plan vom 2026-06-07): L0→L1 wird beim
+    // Hypothesis-Approval ausgelöst, nicht beim Owner-Assignment. Die
+    // Owner-Zuweisung ist eine reine L0-interne Aktion — das Epic ist
+    // erst „L1 Hypothese definiert", wenn der VMO die Hypothese akzeptiert.
 
     return ok({
       result: undefined,
