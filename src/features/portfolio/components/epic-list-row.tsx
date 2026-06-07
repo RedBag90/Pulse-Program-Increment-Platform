@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, startTransition } from "react";
 import { AlertTriangle, Coins, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { STAGE_GATES } from "@/domain/stage-gate";
@@ -89,12 +89,15 @@ export function EpicListRowComponent({
   const next: StageGate | null =
     stageIndex < STAGE_GATES.length - 1 ? (STAGE_GATES[stageIndex + 1] as StageGate) : null;
 
+  // React 19 verlangt, dass useActionState-Dispatches außerhalb von
+  // <form action=…> in startTransition gewrappt werden — sonst meckert
+  // der Dev-Mode mit „called outside of a transition".
   function moveTo(toGate: StageGate | null) {
     if (!toGate) return;
     const fd = new FormData();
     fd.set("epicId", row.id);
     fd.set("toGate", toGate);
-    stageGate(fd);
+    startTransition(() => stageGate(fd));
   }
 
   function toggleFlag(which: "steering" | "budgeting") {
@@ -103,7 +106,7 @@ export function EpicListRowComponent({
     fd.set("id", row.id);
     fd.set("flag", which);
     fd.set("value", current ? "false" : "true");
-    flag(fd);
+    startTransition(() => flag(fd));
   }
 
   function deleteRow() {
@@ -116,7 +119,7 @@ export function EpicListRowComponent({
     }
     const fd = new FormData();
     fd.set("id", row.id);
-    del(fd);
+    startTransition(() => del(fd));
   }
 
   const lastError = stageGateState.error ?? flagState.error ?? deleteState.error;

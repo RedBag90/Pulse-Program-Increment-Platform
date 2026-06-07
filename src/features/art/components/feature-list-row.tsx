@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, startTransition } from "react";
 import { ClipboardList, MoreHorizontal, ShieldAlert } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { STATUS_DOT, STATUS_LABELS } from "@/components/detail/initiative-labels";
@@ -72,7 +72,7 @@ export function FeatureListRowComponent({
     const fd = new FormData();
     fd.set("id", row.id);
     fd.set("artId", row.artId);
-    del(fd);
+    startTransition(() => del(fd));
   }
 
   function moveToBacklog() {
@@ -80,7 +80,7 @@ export function FeatureListRowComponent({
     fd.append("featureIds", row.id);
     fd.set("piId", "");
     fd.set("artId", row.artId);
-    move(fd);
+    startTransition(() => move(fd));
   }
 
   const lastError = deleteState.error ?? moveState.error;
