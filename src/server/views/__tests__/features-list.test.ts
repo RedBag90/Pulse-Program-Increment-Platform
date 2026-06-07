@@ -6,6 +6,7 @@ const feature = (
     id: string;
     title: string;
     status: string;
+    artId: string;
     piId: string | null;
     parent: { id: string; title: string } | null;
     pi: { id: string; name: string } | null;
@@ -21,6 +22,7 @@ const feature = (
   id: "f1",
   title: "Feature 1",
   status: "draft",
+  artId: "art-default",
   piId: null,
   parent: { id: "e1", title: "Epic 1" },
   pi: null,

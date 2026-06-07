@@ -69,6 +69,7 @@ export default async function FeaturesPage({ params }: Props) {
       id: f.id,
       title: f.title,
       status: f.status,
+      artId,
       piId: f.piId,
       parent: f.parent,
       pi: f.pi,

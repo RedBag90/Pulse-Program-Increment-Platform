@@ -9,7 +9,6 @@ import type { FeatureListRow } from "@/server/views/features-list";
 
 interface Props {
   rows: FeatureListRow[];
-  artId: string;
   canEdit: boolean;
   showWsjf: boolean;
   compact: boolean;
@@ -34,7 +33,6 @@ interface Props {
  */
 export function FeaturesListTable({
   rows,
-  artId,
   canEdit,
   showWsjf,
   compact,
@@ -86,7 +84,6 @@ export function FeaturesListTable({
               <FeatureListRowComponent
                 key={r.id}
                 row={r}
-                artId={artId}
                 canEdit={canEdit}
                 selected={showSelection ? selectedIds!.has(r.id) : null}
                 onToggleSelect={onToggleSelect ?? undefined}
@@ -97,7 +94,6 @@ export function FeaturesListTable({
         ) : (
           <StatusGroupedBody
             rows={rows}
-            artId={artId}
             canEdit={canEdit}
             showWsjf={showWsjf}
             compact={compact}
@@ -112,7 +108,6 @@ export function FeaturesListTable({
 
 function StatusGroupedBody({
   rows,
-  artId,
   canEdit,
   showWsjf,
   compact,
@@ -120,7 +115,6 @@ function StatusGroupedBody({
   onToggleSelect,
 }: {
   rows: FeatureListRow[];
-  artId: string;
   canEdit: boolean;
   showWsjf: boolean;
   compact: boolean;
@@ -176,7 +170,6 @@ function StatusGroupedBody({
                 <FeatureListRowComponent
                   key={r.id}
                   row={r}
-                  artId={artId}
                   canEdit={canEdit}
                   selected={selectedIds ? selectedIds.has(r.id) : null}
                   onToggleSelect={onToggleSelect ?? undefined}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { MyTasksListModel, SortKey } from "@/server/views/my-tasks-list";
+import type { MyTasksListModel } from "@/server/views/my-tasks-list";
 import type { TaskLevel } from "@/server/services/my-tasks";
 
 interface Props {
@@ -11,8 +11,6 @@ interface Props {
   artId: string | null;
   epicId: string | null;
   piId: string | null;
-  sort: SortKey;
-  group: "flat" | "bucket";
   density: "comfortable" | "compact";
   options: Pick<
     MyTasksListModel,
@@ -24,23 +22,22 @@ interface Props {
   onArtChange: (next: string | null) => void;
   onEpicChange: (next: string | null) => void;
   onPiChange: (next: string | null) => void;
-  onSortChange: (next: SortKey) => void;
-  onGroupChange: (next: "flat" | "bucket") => void;
   onDensityChange: (next: "comfortable" | "compact") => void;
 }
 
 const LEVEL_LABEL: Record<TaskLevel, string> = { epic: "Epic", feature: "Feature" };
 
 /**
- * Filter-Bar im selben Stil wie die Features-/Epics-Filterbars.
- * Suche ist 200ms debounced; die Selects schreiben direkt durch.
+ * Filter-Bar. Sortierung und Gruppierung sind aus diesem Iterationsschritt
+ * verschwunden — die Sortierung übernimmt jede Sub-Tabelle selbst
+ * (Epics-Table sortiert nach Stage-Gate / createdAt, Features-Table nach
+ * WSJF / createdAt), die Gruppierung wäre mit der heterogenen Row nur
+ * Overhead.
  */
 export function MyTasksFilterBar(props: Props) {
   const [localQuery, setLocalQuery] = useState(props.query);
 
-  // Sync, wenn der Param von außen geändert wird (z.B. Funnel-Klick).
   useEffect(() => setLocalQuery(props.query), [props.query]);
-  // 200ms debounce → onQueryChange. Stable callback aus dem Shell (useCallback).
   const onQueryChange = props.onQueryChange;
   const externalQuery = props.query;
   useEffect(() => {
@@ -50,7 +47,7 @@ export function MyTasksFilterBar(props: Props) {
   }, [localQuery, externalQuery, onQueryChange]);
 
   return (
-    <div className="grid gap-2 md:grid-cols-[1fr_repeat(5,auto)_auto_auto_auto]">
+    <div className="grid gap-2 md:grid-cols-[1fr_repeat(5,auto)_auto]">
       <input
         type="search"
         value={localQuery}
@@ -120,23 +117,6 @@ export function MyTasksFilterBar(props: Props) {
             {p.name}
           </option>
         ))}
-      </select>
-      <select
-        value={props.sort}
-        onChange={(e) => props.onSortChange(e.target.value as SortKey)}
-        className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
-      >
-        <option value="updatedAt:desc">Neueste zuerst</option>
-        <option value="updatedAt:asc">Älteste zuerst</option>
-        <option value="bucket:priority">Bucket-Reihenfolge</option>
-      </select>
-      <select
-        value={props.group}
-        onChange={(e) => props.onGroupChange(e.target.value as "flat" | "bucket")}
-        className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
-      >
-        <option value="flat">Flach</option>
-        <option value="bucket">Nach Bucket</option>
       </select>
       <select
         value={props.density}

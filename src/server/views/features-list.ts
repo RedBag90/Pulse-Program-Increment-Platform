@@ -20,6 +20,10 @@ export interface FeatureListRow {
   status: string;
   /** Parent Epic (null only if the relation is somehow broken). */
   epic: { id: string; title: string } | null;
+  /** Owning ART — needed by per-row mutations (PI assign / WSJF / delete)
+   *  whose auth resource is ART-scoped. Always set: every Feature belongs
+   *  to exactly one ART. */
+  artId: string;
   /** Assigned PI — null means Backlog. */
   pi: { id: string; name: string } | null;
   wsjfComputed: number | null;
@@ -63,6 +67,8 @@ interface FeatureRow {
   id: string;
   title: string;
   status: string;
+  /** Owning ART id — surfaces on the resulting row, used by per-row mutations. */
+  artId: string;
   piId: string | null;
   parent: { id: string; title: string } | null;
   pi: { id: string; name: string } | null;
@@ -110,6 +116,7 @@ export function buildFeaturesListModel(input: {
     title: f.title,
     status: f.status,
     epic: f.parent,
+    artId: f.artId,
     pi: f.pi,
     wsjfComputed: f.wsjfComputed,
     wsjfTier: tierFor(f.wsjfComputed),

@@ -4,23 +4,18 @@ import { useCallback, useMemo } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { MyTasksFunnelBar } from "@/features/my-tasks/components/my-tasks-funnel-bar";
 import { MyTasksFilterBar } from "@/features/my-tasks/components/my-tasks-filter-bar";
-import { MyTasksListTable } from "@/features/my-tasks/components/my-tasks-list-table";
-import {
-  BUCKETS,
-  LEVELS,
-  compareBy,
-  type Bucket,
-  type MyTaskListRow,
-  type MyTasksListModel,
-  type SortKey,
-} from "@/server/views/my-tasks-list";
+import { MyTasksEpicsSection } from "@/features/my-tasks/components/my-tasks-epics-section";
+import { MyTasksFeaturesSection } from "@/features/my-tasks/components/my-tasks-features-section";
+import { BUCKETS, LEVELS, type Bucket, type MyTasksListModel } from "@/server/views/my-tasks-list";
+import type { EpicListRow } from "@/server/views/portfolio-epics-list";
+import type { FeatureListRow } from "@/server/views/features-list";
 import type { TaskLevel } from "@/server/services/my-tasks";
 
 interface Props {
   model: MyTasksListModel;
+  tenantId: string;
+  showWsjf: boolean;
 }
-
-const SORT_KEYS: SortKey[] = ["updatedAt:desc", "updatedAt:asc", "bucket:priority"];
 
 function parseBucket(raw: string | null): Bucket | null {
   if (!raw) return null;
@@ -30,23 +25,19 @@ function parseLevel(raw: string | null): TaskLevel | null {
   if (!raw) return null;
   return (LEVELS as readonly string[]).includes(raw) ? (raw as TaskLevel) : null;
 }
-function parseSort(raw: string | null): SortKey {
-  if (raw && SORT_KEYS.includes(raw as SortKey)) return raw as SortKey;
-  return "updatedAt:desc";
-}
-function parseGroup(raw: string | null): "flat" | "bucket" {
-  return raw === "bucket" ? "bucket" : "flat";
-}
 function parseDensity(raw: string | null): "comfortable" | "compact" {
   return raw === "compact" ? "compact" : "comfortable";
 }
 
 /**
- * Shell der My-Tasks Inbox — owns URL-State (`bucket`, `level`, `vs`,
- * `art`, `epic`, `pi`, `q`, `sort`, `group`, `density`), computed
- * filtered rows via `useMemo`, rendert Funnel + Filter + Tabelle.
+ * Shell für /my-tasks. Owns URL-State, computed beide Section-Inhalte
+ * via `useMemo`, rendert Funnel → Filter → EpicsSection → FeaturesSection.
+ *
+ * Filter-Logik wird pro Row-Shape unterschiedlich angewendet (Epics
+ * tragen `valueStream` direkt, Features tragen `artId` direkt etc.);
+ * der Bucket-Filter geht über `model.bucketById` und ist Cross-Shape.
  */
-export function MyTasksListShell({ model }: Props) {
+export function MyTasksListShell({ model, showWsjf }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -58,8 +49,6 @@ export function MyTasksListShell({ model }: Props) {
   const epicId = searchParams.get("epic");
   const piId = searchParams.get("pi");
   const query = searchParams.get("q") ?? "";
-  const sort = parseSort(searchParams.get("sort"));
-  const group = parseGroup(searchParams.get("group"));
   const density = parseDensity(searchParams.get("density"));
 
   const pushParam = useCallback(
@@ -91,44 +80,73 @@ export function MyTasksListShell({ model }: Props) {
   const onEpicChange = useCallback((next: string | null) => pushParam({ epic: next }), [pushParam]);
   const onPiChange = useCallback((next: string | null) => pushParam({ pi: next }), [pushParam]);
   const onQueryChange = useCallback((next: string) => pushParam({ q: next || null }), [pushParam]);
-  const onSortChange = useCallback(
-    (next: SortKey) => pushParam({ sort: next === "updatedAt:desc" ? null : next }),
-    [pushParam],
-  );
-  const onGroupChange = useCallback(
-    (next: "flat" | "bucket") => pushParam({ group: next === "flat" ? null : next }),
-    [pushParam],
-  );
   const onDensityChange = useCallback(
     (next: "comfortable" | "compact") =>
       pushParam({ density: next === "comfortable" ? null : next }),
     [pushParam],
   );
 
-  const filtered = useMemo<MyTaskListRow[]>(() => {
+  // ── Epic-Filter: bucket (via bucketById) + level + vs + epic-search.
+  const filteredEpics = useMemo<EpicListRow[]>(() => {
+    if (level === "feature") return [];
     const q = query.trim().toLowerCase();
-    const arr = model.rows.filter((r) => {
-      if (bucket != null && r.bucket !== bucket) return false;
-      if (level != null && r.level !== level) return false;
-      if (valueStreamId && r.ids.valueStreamId !== valueStreamId) return false;
-      if (artId && r.ids.artId !== artId) return false;
-      if (epicId && r.ids.parentEpicId !== epicId) return false;
-      if (piId === "backlog" && r.ids.piId != null) return false;
-      if (piId && piId !== "backlog" && r.ids.piId !== piId) return false;
+    return model.epicRows.filter((r) => {
+      if (bucket && model.bucketById.get(r.id) !== bucket) return false;
+      if (valueStreamId && r.valueStream?.id !== valueStreamId) return false;
+      // Epic-Rows kennen keinen ART / PI / Parent-Epic — diese Facetten
+      // schließen die Epic-Sektion still aus, wenn aktiv.
+      if (artId || piId || epicId) return false;
       if (q === "") return true;
       if (r.title.toLowerCase().includes(q)) return true;
-      if ((r.context.parentEpicTitle ?? "").toLowerCase().includes(q)) return true;
+      if (r.valueStream?.name.toLowerCase().includes(q)) return true;
       return false;
     });
-    return arr.slice().sort(compareBy(sort));
-  }, [model.rows, bucket, level, valueStreamId, artId, epicId, piId, query, sort]);
+  }, [model.epicRows, model.bucketById, level, bucket, valueStreamId, artId, piId, epicId, query]);
+
+  // ── Feature-Filter: bucket + level + art + parent-epic + pi + q.
+  const filteredFeatures = useMemo<FeatureListRow[]>(() => {
+    if (level === "epic") return [];
+    const q = query.trim().toLowerCase();
+    return model.featureRows.filter((r) => {
+      if (bucket && model.bucketById.get(r.id) !== bucket) return false;
+      if (artId && r.artId !== artId) return false;
+      if (epicId && r.epic?.id !== epicId) return false;
+      if (piId === "backlog" && r.pi != null) return false;
+      if (piId && piId !== "backlog" && r.pi?.id !== piId) return false;
+      // Value-Stream-Filter wirkt indirekt über die Parent-Epic-Beziehung,
+      // die wir hier nicht aufgelöst tragen — Features fallen aus, wenn
+      // der Filter aktiv ist und der ART nicht zur VS-Auswahl gehört.
+      if (valueStreamId) {
+        const artStillOk = model.artOptions.some((a) => a.id === r.artId);
+        if (!artStillOk) return false;
+      }
+      if (q === "") return true;
+      if (r.title.toLowerCase().includes(q)) return true;
+      if (r.epic?.title.toLowerCase().includes(q)) return true;
+      return false;
+    });
+  }, [
+    model.featureRows,
+    model.bucketById,
+    model.artOptions,
+    level,
+    bucket,
+    artId,
+    epicId,
+    piId,
+    valueStreamId,
+    query,
+  ]);
+
+  const compact = density === "compact";
 
   return (
     <main className="space-y-4 p-6 md:p-8">
       <header>
         <h1 className="text-2xl font-semibold">Meine Tasks</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Alles, wofür ich Owner oder Assignee bin — Epics und Features.
+          Alles, wofür ich Owner oder Assignee bin — Epics und Features mit denselben Zeileninhalten
+          wie auf den Hauptlisten.
         </p>
       </header>
 
@@ -141,8 +159,6 @@ export function MyTasksListShell({ model }: Props) {
         artId={artId}
         epicId={epicId}
         piId={piId}
-        sort={sort}
-        group={group}
         density={density}
         options={{
           levelOptions: model.levelOptions,
@@ -157,16 +173,28 @@ export function MyTasksListShell({ model }: Props) {
         onArtChange={onArtChange}
         onEpicChange={onEpicChange}
         onPiChange={onPiChange}
-        onSortChange={onSortChange}
-        onGroupChange={onGroupChange}
         onDensityChange={onDensityChange}
       />
 
-      <MyTasksListTable rows={filtered} group={group} compact={density === "compact"} />
+      <MyTasksEpicsSection
+        rows={filteredEpics}
+        canEdit={model.canEditEpic}
+        canAdvance={model.canAdvanceEpic}
+        stageGatesEnabled={model.stageGatesEnabled}
+        compact={compact}
+      />
+      <MyTasksFeaturesSection
+        rows={filteredFeatures}
+        canEdit={model.canEditFeature}
+        showWsjf={showWsjf}
+        compact={compact}
+      />
 
-      <p className="text-xs text-muted-foreground">
-        {filtered.length} von {model.rows.length} Tasks im Zugriff.
-      </p>
+      {filteredEpics.length === 0 && filteredFeatures.length === 0 && (
+        <div className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">
+          Keine Tasks im aktuellen Filter.
+        </div>
+      )}
     </main>
   );
 }

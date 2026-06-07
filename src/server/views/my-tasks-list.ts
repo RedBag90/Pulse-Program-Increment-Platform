@@ -1,44 +1,25 @@
 /**
- * My-Tasks page-model — wandelt die `MyTaskRow`s aus `listMyTasks` in
- * das Rich-Row-DTO für die Inbox-Shell um. Spiegelt das Idiom der
- * Epics-, Features- und Features-Overview-Modelle: jede Funnel-Slot
- * existiert (auch leer), Filter-Optionen werden auf die tatsächlich
- * vorkommenden IDs reduziert.
+ * My-Tasks page-model — kombiniert die per-Level-Sicht (Epic / Feature)
+ * mit den Bucket-Aktionen (open / ready / done).
+ *
+ * Folgt dem Reuse-vor-Reimplement-Prinzip aus dem Plan: Die eigentlichen
+ * Row-DTOs werden mit `buildEpicsListModel` und `buildFeaturesListModel`
+ * gebaut — also denselben Funktionen, die `/portfolio/epics` und
+ * `/art/[artId]/features` benutzen. Dieses Modul reicht die fertigen
+ * Row-Arrays durch, baut die Bucket-Funnel-Counts und die Filter-
+ * Optionen aus den Service-Rows, und liefert eine Bucket-Lookup-Map
+ * (id → Bucket), damit der Client-Shell-Filter einen einheitlichen
+ * Bucket-Filter über beide Row-Shapes legen kann.
  */
 
 import type { MyTaskRow, TaskLevel } from "@/server/services/my-tasks";
+import type { EpicListRow } from "@/server/views/portfolio-epics-list";
+import type { FeatureListRow } from "@/server/views/features-list";
 
 export const BUCKETS = ["open", "ready", "done"] as const;
 export type Bucket = (typeof BUCKETS)[number];
 
 export const LEVELS = ["epic", "feature"] as const satisfies readonly TaskLevel[];
-
-export interface MyTaskListRow {
-  id: string;
-  level: TaskLevel;
-  title: string;
-  href: string;
-  bucket: Bucket;
-  /** Anzeige-State: Epic = stageGate · approvalPhase; Feature = status. */
-  state: {
-    stageGate?: string;
-    approvalPhase?: string | null;
-    status?: string;
-  };
-  context: {
-    valueStreamName: string | null;
-    artName: string | null;
-    parentEpicTitle: string | null;
-    piName: string | null;
-  };
-  ids: {
-    valueStreamId: string | null;
-    artId: string | null;
-    parentEpicId: string | null;
-    piId: string | null;
-  };
-  updatedAtMs: number;
-}
 
 export interface ValueStreamOption {
   id: string;
@@ -61,59 +42,68 @@ export interface PiOption {
 }
 
 export interface MyTasksListModel {
-  rows: MyTaskListRow[];
+  /** Voll-rich Epic-Rows aus `buildEpicsListModel`. */
+  epicRows: EpicListRow[];
+  /** Voll-rich Feature-Rows aus `buildFeaturesListModel`. */
+  featureRows: FeatureListRow[];
+  /** id → bucket — für den Cross-Shape-Bucket-Filter im Shell. */
+  bucketById: Map<string, Bucket>;
   funnelCounts: Record<Bucket, number>;
-  /** Levels, die in `rows` mindestens einmal vorkommen — Reihenfolge wie in `LEVELS`. */
   levelOptions: TaskLevel[];
   valueStreamOptions: ValueStreamOption[];
   artOptions: ArtOption[];
   parentEpicOptions: EpicOption[];
   piOptions: PiOption[];
+  /** Zeigt der EpicSection den Stage-Chevron + Action-Menü? */
+  stageGatesEnabled: boolean;
+  canEditEpic: boolean;
+  canAdvanceEpic: boolean;
+  canEditFeature: boolean;
 }
 
-export function buildMyTasksListModel(input: { tasks: readonly MyTaskRow[] }): MyTasksListModel {
-  const { tasks } = input;
+export function buildMyTasksListModel(input: {
+  tasks: readonly MyTaskRow[];
+  epicRows: readonly EpicListRow[];
+  featureRows: readonly FeatureListRow[];
+  stageGatesEnabled: boolean;
+  canEditEpic: boolean;
+  canAdvanceEpic: boolean;
+  canEditFeature: boolean;
+}): MyTasksListModel {
+  const {
+    tasks,
+    epicRows,
+    featureRows,
+    stageGatesEnabled,
+    canEditEpic,
+    canAdvanceEpic,
+    canEditFeature,
+  } = input;
 
-  const rows: MyTaskListRow[] = tasks.map((t) => ({
-    id: t.id,
-    level: t.level,
-    title: t.title,
-    href: t.href,
-    bucket: t.bucket,
-    state: t.state,
-    context: {
-      valueStreamName: t.context.valueStreamName ?? null,
-      artName: t.context.artName ?? null,
-      parentEpicTitle: t.context.parentEpicTitle ?? null,
-      piName: t.context.piName ?? null,
-    },
-    ids: t.ids,
-    updatedAtMs: t.updatedAt.getTime(),
-  }));
+  const bucketById = new Map<string, Bucket>(tasks.map((t) => [t.id, t.bucket]));
 
   const funnelCounts = Object.fromEntries(BUCKETS.map((b) => [b, 0])) as Record<Bucket, number>;
-  for (const r of rows) funnelCounts[r.bucket] += 1;
+  for (const t of tasks) funnelCounts[t.bucket] += 1;
 
-  const levelOptions: TaskLevel[] = LEVELS.filter((l) => rows.some((r) => r.level === l));
+  const levelOptions: TaskLevel[] = LEVELS.filter((l) => tasks.some((t) => t.level === l));
 
-  // Filter-Optionen werden auf die IDs reduziert, die in `rows` vorkommen —
-  // gleiches Idiom wie in den anderen Modellen.
+  // Filter-Optionen aus den Service-Rows: Labels + IDs liegen dort beieinander.
   const vsMap = new Map<string, string>();
   const artMap = new Map<string, string>();
   const epicMap = new Map<string, string>();
   const piMap = new Map<string, string>();
-  for (const r of rows) {
-    if (r.ids.valueStreamId && r.context.valueStreamName) {
-      vsMap.set(r.ids.valueStreamId, r.context.valueStreamName);
+  for (const t of tasks) {
+    if (t.ids.valueStreamId && t.context.valueStreamName) {
+      vsMap.set(t.ids.valueStreamId, t.context.valueStreamName);
     }
-    if (r.ids.artId && r.context.artName) {
-      artMap.set(r.ids.artId, r.context.artName);
+    if (t.ids.artId && t.context.artName) {
+      artMap.set(t.ids.artId, t.context.artName);
     }
-    if (r.ids.parentEpicId && r.context.parentEpicTitle) {
-      epicMap.set(r.ids.parentEpicId, r.context.parentEpicTitle);
+    if (t.ids.parentEpicId && t.context.parentEpicTitle) {
+      epicMap.set(t.ids.parentEpicId, t.context.parentEpicTitle);
     }
-    if (r.ids.piId && r.context.piName) {
-      piMap.set(r.ids.piId, r.context.piName);
+    if (t.ids.piId && t.context.piName) {
+      piMap.set(t.ids.piId, t.context.piName);
     }
   }
 
@@ -127,32 +117,18 @@ export function buildMyTasksListModel(input: { tasks: readonly MyTaskRow[] }): M
   const piOptions = [...piMap].map(([id, name]) => ({ id, name })).sort(byName);
 
   return {
-    rows,
+    epicRows: [...epicRows],
+    featureRows: [...featureRows],
+    bucketById,
     funnelCounts,
     levelOptions,
     valueStreamOptions,
     artOptions,
     parentEpicOptions,
     piOptions,
+    stageGatesEnabled,
+    canEditEpic,
+    canAdvanceEpic,
+    canEditFeature,
   };
-}
-
-// ---- Sort + Filter helpers (auch von der Shell genutzt) ----
-
-export type SortKey = "updatedAt:desc" | "updatedAt:asc" | "bucket:priority";
-
-const BUCKET_PRIORITY: Record<Bucket, number> = { open: 0, ready: 1, done: 2 };
-
-export function compareBy(sort: SortKey): (a: MyTaskListRow, b: MyTaskListRow) => number {
-  switch (sort) {
-    case "updatedAt:asc":
-      return (a, b) => a.updatedAtMs - b.updatedAtMs;
-    case "bucket:priority":
-      // primär bucket, sekundär updatedAt:desc innerhalb des Buckets.
-      return (a, b) =>
-        BUCKET_PRIORITY[a.bucket] - BUCKET_PRIORITY[b.bucket] || b.updatedAtMs - a.updatedAtMs;
-    case "updatedAt:desc":
-    default:
-      return (a, b) => b.updatedAtMs - a.updatedAtMs;
-  }
 }

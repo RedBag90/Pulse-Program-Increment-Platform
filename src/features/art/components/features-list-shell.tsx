@@ -205,7 +205,6 @@ export function FeaturesListShell({ model, artId, canEdit }: Props) {
 
       <FeaturesListTable
         rows={filteredRows}
-        artId={artId}
         canEdit={canEdit}
         showWsjf={model.showWsjf}
         compact={density === "compact"}

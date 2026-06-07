@@ -12,7 +12,6 @@ import type { FeatureListRow, WsjfTier } from "@/server/views/features-list";
 
 interface Props {
   row: FeatureListRow;
-  artId: string;
   canEdit: boolean;
   selected: boolean | null;
   onToggleSelect?: ((id: string) => void) | undefined;
@@ -54,7 +53,6 @@ function pctFromWsjf(n: number | null): string {
  */
 export function FeatureListRowComponent({
   row,
-  artId,
   canEdit,
   selected,
   onToggleSelect,
@@ -73,7 +71,7 @@ export function FeatureListRowComponent({
       return;
     const fd = new FormData();
     fd.set("id", row.id);
-    fd.set("artId", artId);
+    fd.set("artId", row.artId);
     del(fd);
   }
 
@@ -81,7 +79,7 @@ export function FeatureListRowComponent({
     const fd = new FormData();
     fd.append("featureIds", row.id);
     fd.set("piId", "");
-    fd.set("artId", artId);
+    fd.set("artId", row.artId);
     move(fd);
   }
 
@@ -197,7 +195,7 @@ export function FeatureListRowComponent({
               <PopoverContent align="end" className="w-56">
                 <ul className="flex flex-col gap-0.5 text-sm">
                   <li>
-                    <WsjfScoreRowMenuItem row={row} artId={artId} />
+                    <WsjfScoreRowMenuItem row={row} />
                   </li>
                   {row.pi && (
                     <li>
@@ -265,12 +263,12 @@ function RowBadges({ row }: { row: FeatureListRow }) {
  * Wraps `<WsjfScoreDialog>` as a row-menu entry that opens the existing
  * dialog. Replaces the inline-on-table-cell trigger of the old layout.
  */
-function WsjfScoreRowMenuItem({ row, artId }: { row: FeatureListRow; artId: string }) {
+function WsjfScoreRowMenuItem({ row }: { row: FeatureListRow }) {
   return (
     <div className="px-2 py-1.5">
       <WsjfScoreDialog
         featureId={row.id}
-        artId={artId}
+        artId={row.artId}
         current={{
           bv: row.wsjfBusinessValue,
           tc: row.wsjfTimeCriticality,
