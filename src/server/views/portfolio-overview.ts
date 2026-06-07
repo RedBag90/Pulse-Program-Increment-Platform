@@ -190,11 +190,27 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     if (gate) epicsByGate[gate].push(c);
   }
   for (const gate of STAGE_GATES) {
-    epicsByGate[gate].sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate);
+    // Sortierung im Kanban: zuerst die fürs nächste Steering markierten
+    // Epics (gelbe Karten), danach unmarkierte. Innerhalb jeder Gruppe
+    // weiter oldest-first, damit der „liegt am längsten"-Hinweis bleibt.
+    epicsByGate[gate].sort((a, b) => {
+      if (a.needsSteeringAttention !== b.needsSteeringAttention) {
+        return a.needsSteeringAttention ? -1 : 1;
+      }
+      return b.daysSinceUpdate - a.daysSinceUpdate;
+    });
   }
 
+  // `oldestPerGate` bewusst von der Display-Sortierung entkoppelt:
+  // der „Flow & Pipeline"-Block braucht das tatsächlich älteste Epic
+  // pro Gate, egal ob es markiert ist oder nicht.
   const oldestPerGate = Object.fromEntries(
-    STAGE_GATES.map((g) => [g, epicsByGate[g][0] ?? null]),
+    STAGE_GATES.map((g) => {
+      const arr = epicsByGate[g];
+      if (arr.length === 0) return [g, null];
+      const oldest = arr.reduce((max, c) => (c.daysSinceUpdate > max.daysSinceUpdate ? c : max));
+      return [g, oldest];
+    }),
   ) as Record<StageGate, OverviewEpicCard | null>;
 
   // L5 (Done) epics whose last update is within 90 days serve as a coarse

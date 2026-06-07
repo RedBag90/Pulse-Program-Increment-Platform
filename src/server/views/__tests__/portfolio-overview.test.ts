@@ -64,6 +64,37 @@ describe("buildPortfolioOverviewModel", () => {
     expect(m.oldestPerGate.L4).toBeNull();
   });
 
+  it("sorts steering-flagged epics to the top of each gate, oldest-first within each group", () => {
+    const inputs = baseInputs();
+    inputs.epics = [
+      // unmarkiert, älteste → unter den markierten, aber an Spitze der unmarkierten
+      epic({ id: "a", title: "A", stageGate: "L2", updatedAt: daysAgo(20) }),
+      // unmarkiert, jünger
+      epic({ id: "b", title: "B", stageGate: "L2", updatedAt: daysAgo(2) }),
+      // markiert + jung → trotzdem ganz oben
+      epic({
+        id: "flag-young",
+        title: "Flag (jung)",
+        stageGate: "L2",
+        updatedAt: daysAgo(1),
+        steering: true,
+      }),
+      // markiert + älter → vor dem jungen markierten
+      epic({
+        id: "flag-old",
+        title: "Flag (alt)",
+        stageGate: "L2",
+        updatedAt: daysAgo(15),
+        steering: true,
+      }),
+    ];
+    const m = buildPortfolioOverviewModel(inputs);
+    expect(m.epicsByGate.L2.map((c) => c.id)).toEqual(["flag-old", "flag-young", "a", "b"]);
+    // oldestPerGate ist von der Display-Sortierung entkoppelt — das wirklich
+    // älteste Epic (`a` mit 20 Tagen) bleibt der „slowest mover".
+    expect(m.oldestPerGate.L2?.id).toBe("a");
+  });
+
   it("counts goalsOnTrack only among active goals with progress >= 0.5", () => {
     const inputs = baseInputs();
     inputs.goals = [
