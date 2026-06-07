@@ -6,7 +6,6 @@ import {
   Network,
   Goal,
   Gauge,
-  CalendarRange,
   Map,
   LineChart,
   Wallet,
@@ -24,8 +23,6 @@ import {
   ListTodo,
   Compass,
   Hammer,
-  AlertOctagon,
-  Link2,
   Wrench,
   MoreHorizontal,
   type LucideIcon,
@@ -115,26 +112,10 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Hammer,
         practice: "programLevel",
       },
-      {
-        href: "/pi-planning",
-        labelKey: "planningModule",
-        icon: CalendarRange,
-        practice: "programLevel",
-      },
-    ],
-  },
-  {
-    labelKey: "risksImpediments",
-    items: [
-      // Cross-ART ROAM-Sicht. PR 3 ersetzt den Stub durch die ROAM-Liste.
-      { href: "/impediments", labelKey: "roam", icon: AlertOctagon },
-    ],
-  },
-  {
-    labelKey: "dependenciesGroup",
-    items: [
-      // Cross-PI Dependencies. PR 4 ersetzt den Stub durch die Liste.
-      { href: "/dependencies", labelKey: "dependencies", icon: Link2 },
+      // PI-Planning, Impediments und Dependencies sind seit Roadmap-P2.B/C
+      // in den PI-Workspace eingezogen (Tabs Plan, Impediments, Dependencies).
+      // Die Routen `/pi-planning`, `/impediments`, `/dependencies` bleiben
+      // als Deep-Link-Targets erreichbar; aus dem Nav sind sie raus.
     ],
   },
   {

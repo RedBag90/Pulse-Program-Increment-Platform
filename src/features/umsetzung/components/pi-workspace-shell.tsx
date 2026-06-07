@@ -13,6 +13,18 @@ import {
   PiExecutionTab,
   type ExecutionFeature,
 } from "@/features/umsetzung/components/pi-execution-tab";
+import {
+  PiDependenciesTab,
+  type PiDependencyEdge,
+} from "@/features/umsetzung/components/pi-dependencies-tab";
+import {
+  PiImpedimentsTab,
+  type PiImpedimentRow,
+} from "@/features/umsetzung/components/pi-impediments-tab";
+import {
+  PiClosureTab,
+  type ClosureOpenImpediment,
+} from "@/features/umsetzung/components/pi-closure-tab";
 import type { PlanningModel } from "@/server/views/pi-planning";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
@@ -51,12 +63,36 @@ interface ExecutionTabData {
   canTransition: boolean;
 }
 
+interface DependenciesTabData {
+  edges: PiDependencyEdge[];
+}
+
+interface ImpedimentsTabData {
+  artId: string | null;
+  rows: PiImpedimentRow[];
+  canCreate: boolean;
+  canEscalate: boolean;
+  canResolve: boolean;
+}
+
+interface ClosureTabData {
+  status: string;
+  systemDemoAt: string | null;
+  inspectAdaptAt: string | null;
+  retrospectiveNotes: string | null;
+  issues: string[];
+  openImpediments: ClosureOpenImpediment[];
+}
+
 interface Props {
   model: PiWorkspaceModel;
   activeTab?: string;
   planTab: PlanTabData | null;
   objectivesTab: ObjectivesTabData;
   executionTab: ExecutionTabData;
+  dependenciesTab: DependenciesTabData;
+  impedimentsTab: ImpedimentsTabData;
+  closureTab: ClosureTabData;
 }
 
 /**
@@ -70,6 +106,9 @@ export function PiWorkspaceShell({
   planTab,
   objectivesTab,
   executionTab,
+  dependenciesTab,
+  impedimentsTab,
+  closureTab,
 }: Props) {
   const active = resolveTab(PI_WORKSPACE_TABS, activeTab);
 
@@ -118,11 +157,32 @@ export function PiWorkspaceShell({
         />
       )}
 
-      {(active === "dependencies" ||
-        active === "impediments" ||
-        active === "risks" ||
-        active === "demo" ||
-        active === "closure") && <PlaceholderTab tab={active} />}
+      {active === "dependencies" && <PiDependenciesTab edges={dependenciesTab.edges} />}
+
+      {active === "impediments" && (
+        <PiImpedimentsTab
+          artId={impedimentsTab.artId}
+          rows={impedimentsTab.rows}
+          canCreate={impedimentsTab.canCreate}
+          canEscalate={impedimentsTab.canEscalate}
+          canResolve={impedimentsTab.canResolve}
+        />
+      )}
+
+      {active === "closure" && (
+        <PiClosureTab
+          piId={model.id}
+          piName={model.name}
+          status={closureTab.status}
+          systemDemoAt={closureTab.systemDemoAt}
+          inspectAdaptAt={closureTab.inspectAdaptAt}
+          retrospectiveNotes={closureTab.retrospectiveNotes}
+          issues={closureTab.issues}
+          openImpediments={closureTab.openImpediments}
+        />
+      )}
+
+      {(active === "risks" || active === "demo") && <PlaceholderTab tab={active} />}
     </EntityDetailShell>
   );
 }
