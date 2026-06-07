@@ -337,6 +337,7 @@ model ProgramIncrement {
   initiatives Initiative[]
   objectives  PiObjective[]
   impediments Impediment[]
+  systemDemo  SystemDemo?
 
   @@index([timelineId])
   @@map("program_increments")
@@ -382,6 +383,48 @@ model PiObjective {
   @@index([piId])
   @@index([teamId])
   @@map("pi_objectives")
+}
+
+/// System Demo pro PI. Wird beim PI-Closure-Wizard mit Inhalten gefuellt,
+/// vom RTE und Feature Ownern gepflegt. Ein PI hat genau einen SystemDemo
+/// (Unique-Constraint). Items werden als geordnete Liste gehalten
+/// (`position`).
+model SystemDemo {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  piId         String    @unique @map("pi_id") @db.Uuid
+  scheduledAt  DateTime? @map("scheduled_at")
+  recordingUrl String?   @map("recording_url")
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  createdBy    String    @map("created_by") @db.Uuid
+
+  pi    ProgramIncrement @relation(fields: [piId], references: [id])
+  items SystemDemoItem[]
+
+  @@index([tenantId])
+  @@map("system_demos")
+}
+
+model SystemDemoItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  demoId    String   @map("demo_id") @db.Uuid
+  /// Optional: ein Demo-Item kann sich auf ein Feature beziehen
+  /// (Owner wird dann typischerweise daraus abgeleitet).
+  featureId String?  @map("feature_id") @db.Uuid
+  title     String
+  ownerId   String?  @map("owner_id") @db.Uuid
+  presented Boolean  @default(false)
+  position  Int
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+
+  demo SystemDemo @relation(fields: [demoId], references: [id], onDelete: Cascade)
+
+  @@index([demoId])
+  @@index([featureId])
+  @@map("system_demo_items")
 }
 
 model Sprint {

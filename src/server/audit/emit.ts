@@ -70,6 +70,12 @@ export type AuditAction =
   | "pi_objective.created"
   | "pi_objective.updated"
   | "pi_objective.deleted"
+  | "system_demo.created"
+  | "system_demo.updated"
+  | "system_demo.reordered"
+  | "system_demo_item.added"
+  | "system_demo_item.updated"
+  | "system_demo_item.deleted"
   | "impediment.raised"
   | "impediment.escalated"
   | "impediment.resolved"
@@ -136,7 +142,9 @@ export type AuditResourceType =
   | "budget_plan_revision"
   | "timeline"
   | "role_capability"
-  | "role";
+  | "role"
+  | "system_demo"
+  | "system_demo_item";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

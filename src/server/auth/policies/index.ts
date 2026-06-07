@@ -62,7 +62,8 @@ export type Action =
   | "timeline.manage"
   | "art_budget.manage"
   | "kpi.value.manage"
-  | "role.capability.manage";
+  | "role.capability.manage"
+  | "pi.demo.manage";
 
 /** A scope dimension a grant may additionally require the principal to match. */
 export type ScopeCheck = "value_stream" | "art" | "team" | "own";
@@ -207,6 +208,10 @@ export const POLICIES: Record<Action, Grant[]> = {
 
   "pi_objective.create": [{ roles: [RTE, TEAM_EDITOR] }],
   "pi_objective.update": [{ roles: [RTE, TEAM_EDITOR] }],
+  // System Demo (Roadmap-P4): RTE haelt die Agenda, Feature Owner
+  // pflegen ihre eigenen Demo-Items. Scope ist heute global (pro
+  // Tenant) — eine ART-Scope-Verschaerfung folgt, wenn noetig.
+  "pi.demo.manage": [{ roles: [RTE, FEATURE_OWNER] }],
 
   "team.create": [{ roles: [TENANT_ADMIN] }],
   "team.update": [{ roles: [RTE, TENANT_ADMIN] }],
