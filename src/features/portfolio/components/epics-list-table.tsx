@@ -80,8 +80,6 @@ export function EpicsListTable({
             <th className="py-2 pr-3 text-left">Titel</th>
             {!compact && <th className="py-2 pr-3 text-left">Owner</th>}
             {!compact && <th className="py-2 pr-3 text-left">Wertstrom</th>}
-            <th className="py-2 pr-3 text-left">Phase</th>
-            <th className="py-2 pr-3 text-left">Status</th>
             {!compact && <th className="py-2 pr-3 text-right">Kosten</th>}
             {!compact && <th className="py-2 pr-3 text-right">Nutzen</th>}
             {!compact && <th className="py-2 pr-3 text-left">KPIs</th>}
@@ -144,7 +142,10 @@ function StageGroupedBody({
   );
   const toggle = (g: string) => setOpen((prev) => ({ ...prev, [g]: !prev[g] }));
 
-  const colCount = 1 + (selectedIds !== null ? 1 : 0) + (compact ? 3 : 7) + 1;
+  // Titel + Aktionen sind immer da. Optional: Selection-Checkbox (1) und
+  // im non-compact-Modus die fünf Detail-Spalten Owner · Wertstrom · Kosten
+  // · Nutzen · KPIs.
+  const colCount = 2 + (selectedIds !== null ? 1 : 0) + (compact ? 0 : 5);
 
   return (
     <>

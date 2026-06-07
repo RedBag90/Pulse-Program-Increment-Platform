@@ -5,17 +5,11 @@ import { AlertTriangle, Coins, MoreHorizontal, ChevronLeft, ChevronRight } from 
 import { Link } from "@/i18n/navigation";
 import { STAGE_GATES } from "@/domain/stage-gate";
 import type { StageGate } from "@/domain/types";
-import {
-  STAGE_GATE_LABELS,
-  SUB_STAGE_LABELS,
-  STATUS_LABELS,
-  STATUS_DOT,
-} from "@/components/detail/initiative-labels";
+import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiative-labels";
 import { advanceStageGateAction } from "@/features/portfolio/actions/stage-gate";
 import { setEpicFlagAction, deleteEpicAction } from "@/features/portfolio/actions/epic";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ApprovalPhasePill } from "@/features/portfolio/components/approval-phase-pill";
 import type { EpicListRow } from "@/server/views/portfolio-epics-list";
 import type { RagTier } from "@/domain/transformation-delta";
 
@@ -191,18 +185,10 @@ export function EpicListRowComponent({
         </td>
       )}
 
-      <td className="py-2 pr-3">
-        <ApprovalPhasePill phase={row.approvalPhase} compact />
-      </td>
-
-      <td className="py-2 pr-3">
-        <span className="inline-flex items-center gap-1.5 text-xs">
-          <span
-            className={`size-1.5 rounded-full ${STATUS_DOT[row.status] ?? "bg-muted-foreground/40"}`}
-          />
-          <span className="text-muted-foreground">{STATUS_LABELS[row.status] ?? row.status}</span>
-        </span>
-      </td>
+      {/* Spalten „Phase" und „Status" sind seit dem Reifegrad-Modell v2
+          redundant: Phase ist im Sub-Step-Badge neben dem Stage-Dot
+          kodiert (L2.1/L2.2/…), Status ist die Kanban-Achse und gehört
+          in die Detail-Sub-Header-Sicht, nicht in die Liste. */}
 
       {!compact && (
         <td className="py-2 pr-3 text-right text-xs tabular-nums text-muted-foreground">

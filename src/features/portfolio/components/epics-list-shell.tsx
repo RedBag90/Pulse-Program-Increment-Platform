@@ -74,7 +74,9 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
   const gate = parseGate(searchParams.get("gate"));
   const vsFilter = searchParams.get("vs");
   const ownerFilter = searchParams.get("owner");
-  const statusFilter = searchParams.get("status");
+  // Status-Filter ist seit dem Reifegrad-Modell v2 entfernt. Falls in einem
+  // URL-Bookmark `?status=` noch existiert, wird er hier stillschweigend
+  // ignoriert — keine Render-Effekt, keine Konsole-Warnung.
   const flag = parseFlag(searchParams.get("flag"));
   const query = searchParams.get("q") ?? "";
   const sort = parseSort(searchParams.get("sort"));
@@ -121,10 +123,6 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
     (next: string | null) => pushParam({ owner: next }),
     [pushParam],
   );
-  const onStatusChange = useCallback(
-    (next: string | null) => pushParam({ status: next }),
-    [pushParam],
-  );
   const onFlagChange = useCallback(
     (next: FlagFilter) => pushParam({ flag: next === "all" ? null : next }),
     [pushParam],
@@ -165,7 +163,6 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
       if (gate != null && r.stageGate !== gate) return false;
       if (vsFilter && r.valueStream?.id !== vsFilter) return false;
       if (ownerFilter && r.ownerId !== ownerFilter) return false;
-      if (statusFilter && r.status !== statusFilter) return false;
       if (flag === "steering" && !r.needsSteeringAttention) return false;
       if (flag === "budgeting" && !r.stagedForBudgeting) return false;
       if (q !== "") {
@@ -180,7 +177,7 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
     const sorted = filtered.slice();
     sorted.sort(compareBy(sort));
     return sorted;
-  }, [model.rows, gate, vsFilter, ownerFilter, statusFilter, flag, query, sort]);
+  }, [model.rows, gate, vsFilter, ownerFilter, flag, query, sort]);
 
   const selectedRows = useMemo(
     () => model.rows.filter((r) => selectedIds.has(r.id)),
@@ -214,18 +211,15 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
         query={query}
         valueStreamId={vsFilter}
         ownerId={ownerFilter}
-        status={statusFilter}
         flag={flag}
         sort={sort}
         group={group}
         density={density}
         valueStreamOptions={model.valueStreamOptions}
         ownerOptions={model.ownerOptions}
-        statusOptions={model.statusOptions}
         onQueryChange={onQueryChange}
         onValueStreamChange={onValueStreamChange}
         onOwnerChange={onOwnerChange}
-        onStatusChange={onStatusChange}
         onFlagChange={onFlagChange}
         onSortChange={onSortChange}
         onGroupChange={onGroupChange}

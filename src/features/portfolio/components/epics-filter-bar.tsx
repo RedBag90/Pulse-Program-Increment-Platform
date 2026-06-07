@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { STATUS_LABELS } from "@/components/detail/initiative-labels";
 
 export type SortKey =
   | "createdAt:desc"
@@ -20,18 +19,15 @@ interface Props {
   query: string;
   valueStreamId: string | null;
   ownerId: string | null;
-  status: string | null;
   flag: FlagFilter;
   sort: SortKey;
   group: "flat" | "stage";
   density: "comfortable" | "compact";
   valueStreamOptions: { id: string; name: string }[];
   ownerOptions: { id: string; label: string }[];
-  statusOptions: string[];
   onQueryChange: (next: string) => void;
   onValueStreamChange: (next: string | null) => void;
   onOwnerChange: (next: string | null) => void;
-  onStatusChange: (next: string | null) => void;
   onFlagChange: (next: FlagFilter) => void;
   onSortChange: (next: SortKey) => void;
   onGroupChange: (next: "flat" | "stage") => void;
@@ -52,26 +48,24 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 /**
  * Filter bar above the table — combines facet dropdowns (Wertstrom · Owner ·
- * Status · Flag) with a debounced search and the sort / grouping / density
- * controls. Every choice is URL-state; the shell handles the writes, this
- * component only renders and emits.
+ * Flag) with a debounced search and the sort / grouping / density controls.
+ * Status-Facette ist seit dem Reifegrad-Modell v2 entfallen: der Reifegrad-
+ * Funnel (L0..L5) übernimmt die Höhere-Ebene-Filterung, und der status-
+ * Workflow lebt in der Detail-Ansicht.
  */
 export function EpicsFilterBar({
   query,
   valueStreamId,
   ownerId,
-  status,
   flag,
   sort,
   group,
   density,
   valueStreamOptions,
   ownerOptions,
-  statusOptions,
   onQueryChange,
   onValueStreamChange,
   onOwnerChange,
-  onStatusChange,
   onFlagChange,
   onSortChange,
   onGroupChange,
@@ -86,7 +80,7 @@ export function EpicsFilterBar({
   }, [draft, query, onQueryChange]);
 
   const hasActiveFilter =
-    valueStreamId != null || ownerId != null || status != null || flag !== "all" || query !== "";
+    valueStreamId != null || ownerId != null || flag !== "all" || query !== "";
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -114,20 +108,6 @@ export function EpicsFilterBar({
         {ownerOptions.map((o) => (
           <option key={o.id} value={o.id}>
             {o.label}
-          </option>
-        ))}
-      </select>
-
-      <select
-        className={SELECT}
-        value={status ?? ""}
-        onChange={(e) => onStatusChange(e.target.value || null)}
-        aria-label="Status"
-      >
-        <option value="">Alle Status</option>
-        {statusOptions.map((s) => (
-          <option key={s} value={s}>
-            {STATUS_LABELS[s] ?? s}
           </option>
         ))}
       </select>
@@ -163,7 +143,6 @@ export function EpicsFilterBar({
             onQueryChange("");
             onValueStreamChange(null);
             onOwnerChange(null);
-            onStatusChange(null);
             onFlagChange("all");
           }}
           className="h-8 px-2 text-xs text-muted-foreground"
