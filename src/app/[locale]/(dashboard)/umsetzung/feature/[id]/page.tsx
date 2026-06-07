@@ -4,17 +4,19 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { listInitiativeHistory } from "@/server/services/initiative";
 import { InitiativeLevel } from "@/domain/types";
 import { buildFeatureDetailModel } from "@/server/views/feature-detail";
 import { FeatureDetailShell } from "@/features/umsetzung/components/feature-detail-shell";
+import type { DependencyEdge } from "@/features/umsetzung/components/feature-dependencies-tab";
 
 /**
- * Feature-Detail-Page (Roadmap-P1.A · Overview-Tab).
+ * Feature-Detail-Page (Roadmap-P1.A · Overview + P1.B · Dependencies,
+ * Acceptance, History).
  *
- * Heute existierte keine verlinkbare Feature-Detail-Seite — alle
- * Mutationen liefen ueber Modals. Diese Page schliesst die Luecke und
- * mountet das `FeatureDetailShell` mit dem Overview-Tab. Die anderen
- * drei Tabs (Dependencies, Acceptance, History) ziehen in P1.B nach.
+ * Loader laedt Feature + Parent + ART + Value-Stream + PI + Owner-Label
+ * fuer das Page-Model, dazu Dependencies (in + out), Kandidaten fuer
+ * den Link-Dialog (Features im selben ART) und die Audit-History.
  */
 export default async function FeatureDetailPage({
   params,
@@ -67,14 +69,48 @@ export default async function FeatureDetailPage({
   if (!feature) notFound();
 
   const valueStreamId = feature.parent?.valueStreamId ?? feature.art?.valueStreamId ?? null;
-  const valueStream = valueStreamId
-    ? await db.valueStream.findFirst({
-        where: { id: valueStreamId, tenantId: principal.tenantId, deletedAt: null },
-        select: { id: true, name: true },
-      })
-    : null;
 
-  const userLabels = await listTenantUserLabels(db, principal.tenantId);
+  const [valueStream, userLabels, dependenciesOut, dependenciesIn, history, artFeatures] =
+    await Promise.all([
+      valueStreamId
+        ? db.valueStream.findFirst({
+            where: { id: valueStreamId, tenantId: principal.tenantId, deletedAt: null },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve(null),
+      listTenantUserLabels(db, principal.tenantId),
+      db.dependency.findMany({
+        where: { tenantId: principal.tenantId, fromId: feature.id },
+        select: {
+          id: true,
+          type: true,
+          to: { select: { id: true, title: true } },
+        },
+      }),
+      db.dependency.findMany({
+        where: { tenantId: principal.tenantId, toId: feature.id },
+        select: {
+          id: true,
+          type: true,
+          from: { select: { id: true, title: true } },
+        },
+      }),
+      listInitiativeHistory(db, principal.tenantId, feature.id),
+      // Andere Features im selben ART als Link-Kandidaten (ohne sich selbst).
+      feature.artId
+        ? db.initiative.findMany({
+            where: {
+              tenantId: principal.tenantId,
+              level: InitiativeLevel.FEATURE,
+              artId: feature.artId,
+              deletedAt: null,
+              NOT: { id: feature.id },
+            },
+            select: { id: true, title: true },
+            orderBy: { title: "asc" },
+          })
+        : Promise.resolve([]),
+    ]);
 
   const model = buildFeatureDetailModel({
     id: feature.id,
@@ -109,6 +145,33 @@ export default async function FeatureDetailPage({
     tenantId: principal.tenantId,
     artId: feature.artId,
   });
+  const canLinkDependency = hasCapability(principal, "dependency.link", {
+    tenantId: principal.tenantId,
+    artId: feature.artId,
+  });
+
+  const outgoing: DependencyEdge[] = dependenciesOut.map((d) => ({
+    id: d.id,
+    type: d.type as DependencyEdge["type"],
+    other: { id: d.to.id, title: d.to.title },
+  }));
+  const incoming: DependencyEdge[] = dependenciesIn.map((d) => ({
+    id: d.id,
+    type: d.type as DependencyEdge["type"],
+    other: { id: d.from.id, title: d.from.title },
+  }));
+
+  // Kandidaten fuer den Link-Dialog: existierende Out-Targets ausschliessen,
+  // damit der Picker keine Duplikate vorschlaegt.
+  const existingTargetIds = new Set(outgoing.map((e) => e.other.id));
+  const candidates = artFeatures.filter((f) => !existingTargetIds.has(f.id));
+
+  const historyEvents = history.map((h) => ({
+    id: h.id,
+    action: h.action,
+    occurredAt: h.occurredAt.toISOString(),
+    ...(h.actorId ? { actorId: h.actorId } : {}),
+  }));
 
   return (
     <Suspense fallback={null}>
@@ -116,6 +179,12 @@ export default async function FeatureDetailPage({
         model={model}
         canEdit={canEdit}
         canTransition={canTransition}
+        canLinkDependency={canLinkDependency}
+        outgoing={outgoing}
+        incoming={incoming}
+        candidates={candidates}
+        historyEvents={historyEvents}
+        userLabels={userLabels}
         {...(tab !== undefined ? { activeTab: tab } : {})}
       />
     </Suspense>

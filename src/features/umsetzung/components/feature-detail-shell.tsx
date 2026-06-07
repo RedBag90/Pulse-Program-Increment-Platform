@@ -3,12 +3,18 @@ import {
   resolveTab,
   type DetailTab,
 } from "@/components/detail/entity-detail-shell";
+import type { ActivityItem } from "@/components/detail/initiative-activity-sidebar";
 import { FeatureOverviewTab } from "@/features/umsetzung/components/feature-overview-tab";
+import {
+  FeatureDependenciesTab,
+  type DependencyEdge,
+} from "@/features/umsetzung/components/feature-dependencies-tab";
+import { FeatureAcceptanceTab } from "@/features/umsetzung/components/feature-acceptance-tab";
+import { FeatureHistoryTab } from "@/features/umsetzung/components/feature-history-tab";
 import type { FeatureDetailModel } from "@/server/views/feature-detail";
 
 const FEATURE_DETAIL_TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },
-  // Tabs aus Roadmap-P1.B — heute Platzhalter.
   { key: "dependencies", label: "Dependencies" },
   { key: "acceptance", label: "Acceptance" },
   { key: "history", label: "History" },
@@ -18,16 +24,32 @@ interface Props {
   model: FeatureDetailModel;
   canEdit: boolean;
   canTransition: boolean;
+  canLinkDependency: boolean;
+  outgoing: DependencyEdge[];
+  incoming: DependencyEdge[];
+  candidates: { id: string; title: string }[];
+  historyEvents: ActivityItem[];
+  userLabels: Record<string, string>;
   /** Aktiver Tab aus dem URL-Query, von der Page durchgereicht. */
   activeTab?: string;
 }
 
 /**
- * Feature-Detail-Shell. Wrappt das generische `EntityDetailShell` und
- * routet den Overview-Tab auf `FeatureOverviewTab`. Andere Tabs
- * sind Platzhalter mit Roadmap-Verweis.
+ * Feature-Detail-Shell. Routet Overview/Dependencies/Acceptance/History
+ * Tabs auf die jeweiligen Inhalts-Komponenten.
  */
-export function FeatureDetailShell({ model, canEdit, canTransition, activeTab }: Props) {
+export function FeatureDetailShell({
+  model,
+  canEdit,
+  canTransition,
+  canLinkDependency,
+  outgoing,
+  incoming,
+  candidates,
+  historyEvents,
+  userLabels,
+  activeTab,
+}: Props) {
   const active = resolveTab(FEATURE_DETAIL_TABS, activeTab);
 
   return (
@@ -43,32 +65,24 @@ export function FeatureDetailShell({ model, canEdit, canTransition, activeTab }:
         <FeatureOverviewTab model={model} canEdit={canEdit} canTransition={canTransition} />
       )}
       {active === "dependencies" && (
-        <PlaceholderTab
-          title="Dependencies"
-          hint="In Roadmap-P1.B: ein- und ausgehende Dependencies des Features mit Inline-Add/Remove."
+        <FeatureDependenciesTab
+          featureId={model.id}
+          artId={model.art?.id ?? null}
+          outgoing={outgoing}
+          incoming={incoming}
+          candidates={candidates}
+          canEdit={canLinkDependency}
         />
       )}
       {active === "acceptance" && (
-        <PlaceholderTab
-          title="Acceptance"
-          hint="In Roadmap-P1.B: Acceptance-Criteria-Editor mit Checkbox-State und History."
+        <FeatureAcceptanceTab
+          featureId={model.id}
+          artId={model.art?.id ?? null}
+          initialCriteria={model.acceptanceCriteria}
+          canEdit={canEdit}
         />
       )}
-      {active === "history" && (
-        <PlaceholderTab
-          title="History"
-          hint="In Roadmap-P1.B: Audit-Log gefiltert auf dieses Feature."
-        />
-      )}
+      {active === "history" && <FeatureHistoryTab events={historyEvents} userLabels={userLabels} />}
     </EntityDetailShell>
-  );
-}
-
-function PlaceholderTab({ title, hint }: { title: string; hint: string }) {
-  return (
-    <section className="rounded-lg border bg-card p-6">
-      <h2 className="text-lg font-medium">{title}</h2>
-      <p className="mt-2 text-sm text-muted-foreground">{hint}</p>
-    </section>
   );
 }
