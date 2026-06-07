@@ -27,6 +27,10 @@ export function testRequestContext(
       email: "test@example.com",
       roles: [],
       scopes: { valueStreamIds: [], artIds: [], teamIds: [] },
+      // Tests laufen ohne reale Capabilities — Services umgehen die
+      // authorize-Gates per Test-Setup, oder die Service-Tests setzen
+      // explizit Roles + Capabilities.
+      capabilities: [],
     },
   };
 }

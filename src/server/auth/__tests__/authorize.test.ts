@@ -8,17 +8,33 @@ import {
 } from "@/server/auth/authorize";
 import type { Principal, PrincipalScopes } from "@/server/auth/principal";
 import { ROLES } from "@/domain/roles";
+import { enumerateDefaultCapabilities } from "@/server/auth/policies";
 import type { TenantId, UserId } from "@/domain/types";
 import { isErr, isOk } from "@/domain/errors";
 
-const principal = (over: Partial<Principal> = {}): Principal => ({
-  id: "u1" as UserId,
-  tenantId: "t1" as TenantId,
-  email: "u1@example.com",
-  roles: [],
-  scopes: { valueStreamIds: [], artIds: [], teamIds: [] } as PrincipalScopes,
-  ...over,
-});
+/**
+ * Test-Principal-Factory. Mit dem RoleCapability-Modell (PR B) trägt der
+ * Principal seine Capabilities selbst — die Factory leitet sie aus den
+ * Default-Bundles in POLICIES ab, mirrors die Production-Fallback-Logik in
+ * `resolveCapabilities()`.
+ */
+const principal = (over: Partial<Principal> = {}): Principal => {
+  const roles = over.roles ?? [];
+  const capabilities =
+    over.capabilities ??
+    enumerateDefaultCapabilities()
+      .filter((t) => roles.includes(t.role))
+      .map((t) => ({ action: t.action, scope: t.scope }));
+  return {
+    id: "u1" as UserId,
+    tenantId: "t1" as TenantId,
+    email: "u1@example.com",
+    roles,
+    scopes: { valueStreamIds: [], artIds: [], teamIds: [] } as PrincipalScopes,
+    capabilities,
+    ...over,
+  };
+};
 
 describe("authorize — roles", () => {
   it("platform_admin and tenant_admin bypass every policy", () => {

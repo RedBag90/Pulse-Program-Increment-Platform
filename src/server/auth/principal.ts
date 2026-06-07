@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createPrismaClient } from "@/server/db/prisma";
 import type { TenantId, UserId } from "@/domain/types";
+import type { Action, ScopeCheck } from "@/server/auth/policies";
 
 /**
  * Aggregated visibility scopes across all of a user's role assignments.
@@ -12,12 +13,24 @@ export interface PrincipalScopes {
   teamIds: string[];
 }
 
+/**
+ * Eine zugewiesene Capability — Action + optionaler Scope (`value_stream`/
+ * `art`/`team`/`own`). Stammt entweder aus der Tenant-spezifischen
+ * `RoleCapability`-Tabelle oder dem Default-Bundle in `POLICIES`.
+ */
+export interface PrincipalCapability {
+  action: Action;
+  scope: ScopeCheck | null;
+}
+
 export interface Principal {
   id: UserId;
   tenantId: TenantId;
   email: string;
   roles: string[];
   scopes: PrincipalScopes;
+  /** Resolvierte Capabilities (Vereinigung über alle Rollen des Principal). */
+  capabilities: PrincipalCapability[];
 }
 
 /**
@@ -62,13 +75,56 @@ export async function getPrincipal(): Promise<Principal | null> {
       : [...new Set(assignments.flatMap((a) => a.teamIds))],
   };
 
+  // Capabilities: einmalig pro Session laden. Wenn die `role_capabilities`-
+  // Tabelle für den Tenant leer ist (frischer Tenant ohne Backfill), wird
+  // auf die Code-`POLICIES` als Fallback zurückgegriffen — kein Lockout, kein
+  // Verhaltenswechsel. `platform_admin` / `tenant_admin` brauchen die Liste
+  // nicht (Fast-Path in `authorize()`), wir laden sie aber trotzdem, damit
+  // das Admin-UI sinnvolle Aussagen treffen kann.
+  const capabilities = await resolveCapabilities(db, tenantId, roles);
+
   return {
     id: user.id as UserId,
     tenantId,
     email: user.email ?? "",
     roles,
     scopes,
+    capabilities,
   };
+}
+
+/**
+ * Resolves the capability list for the principal. Reads `role_capabilities`
+ * (the tenant's editable bundle); falls back to the in-code `POLICIES`
+ * defaults when the tenant has no rows yet (fresh tenant, no backfill).
+ *
+ * Exported separately so test fixtures and the admin UI can use the same
+ * resolution path.
+ */
+export async function resolveCapabilities(
+  db: ReturnType<typeof createPrismaClient>,
+  tenantId: TenantId,
+  roles: string[],
+): Promise<PrincipalCapability[]> {
+  const rows = await db.roleCapability.findMany({
+    where: { tenantId, role: { in: roles } },
+    select: { action: true, scope: true },
+  });
+
+  if (rows.length > 0) {
+    return rows.map((r) => ({
+      action: r.action as Action,
+      scope: (r.scope as ScopeCheck | null) ?? null,
+    }));
+  }
+
+  // Fallback: tenant hat keine Backfill-Rows → Default-Bundle aus dem Code
+  // verwenden. Dynamic import wegen ESLint-Regel "kein Zirkel" (policies →
+  // authorize → principal sonst).
+  const { enumerateDefaultCapabilities } = await import("@/server/auth/policies");
+  return enumerateDefaultCapabilities()
+    .filter((t) => roles.includes(t.role))
+    .map((t) => ({ action: t.action, scope: t.scope }));
 }
 
 /**

@@ -1,7 +1,7 @@
-import { ROLES, type Role } from "@/domain/roles";
+import { ROLES } from "@/domain/roles";
 import { ok, err, type Result } from "@/domain/errors";
-import type { Principal } from "@/server/auth/principal";
-import { POLICIES, type Action, type Grant, type ScopeCheck } from "@/server/auth/policies";
+import type { Principal, PrincipalCapability } from "@/server/auth/principal";
+import type { Action, ScopeCheck } from "@/server/auth/policies";
 
 /**
  * The resource an action is performed against. Fields are optional — supply
@@ -46,11 +46,11 @@ function scopeSatisfied(scope: ScopeCheck, resource: AuthResource, principal: Pr
   }
 }
 
-function grantSatisfied(grant: Grant, resource: AuthResource, principal: Principal): boolean {
-  const hasRole = principal.roles.some((r) => grant.roles.includes(r as Role));
-  if (!hasRole) return false;
-  if (grant.scope && !scopeSatisfied(grant.scope, resource, principal)) return false;
-  return true;
+function capabilityGrants(
+  capabilities: PrincipalCapability[],
+  action: Action,
+): PrincipalCapability[] {
+  return capabilities.filter((c) => c.action === action);
 }
 
 /**
@@ -58,8 +58,13 @@ function grantSatisfied(grant: Grant, resource: AuthResource, principal: Princip
  * allow/deny with a reason so callers can produce a structured 403 rather than
  * relying on RLS returning empty results.
  *
- * `platform_admin` is allowed everything. Otherwise the request must satisfy
- * at least one grant in the policy registry for the action.
+ * `platform_admin` und `tenant_admin` sind allmächtig (Fast-Path) — sie
+ * brauchen keinen Capability-Grant.
+ *
+ * Sonst wird gegen `principal.capabilities` geprüft (geladen in
+ * `getPrincipal()` aus `role_capabilities` mit Fallback auf den Code-
+ * Default in `POLICIES`). Jede Capability mit passendem `action` zählt;
+ * der erste Scope-erfüllende Grant erlaubt.
  */
 export function authorize(
   action: Action,
@@ -72,9 +77,10 @@ export function authorize(
   )
     return { allow: true };
 
-  const grants = POLICIES[action];
+  const grants = capabilityGrants(principal.capabilities, action);
   for (const grant of grants) {
-    if (grantSatisfied(grant, resource, principal)) return { allow: true };
+    if (grant.scope == null) return { allow: true };
+    if (scopeSatisfied(grant.scope, resource, principal)) return { allow: true };
   }
 
   return {
