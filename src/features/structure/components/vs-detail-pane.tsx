@@ -3,11 +3,18 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { CreateArtDialog } from "@/features/art/components/create-art-dialog";
+import { EditValueStreamDialog } from "@/features/portfolio/components/edit-value-stream-dialog";
+import { DeleteValueStreamButton } from "@/features/portfolio/components/delete-value-stream-button";
 import type { VsDetail } from "@/server/views/structure-page";
 
 interface Props {
   vs: VsDetail;
   canCreateArt: boolean;
+  /** Bearbeiten + Löschen — beide gated über `value_stream.update`,
+   *  da der Delete-Action im Backend ebenfalls auf der Update-Capability
+   *  läuft (siehe `deleteValueStreamAction` in
+   *  `src/features/portfolio/actions/value-stream.ts`). */
+  canUpdateVs: boolean;
   onSelectArt: (id: string) => void;
 }
 
@@ -28,12 +35,22 @@ const eur = new Intl.NumberFormat("de-DE", {
  * - **Budget** — total allocated participatory budget (read-only; the full
  *   budget editor lives on `/controlling`).
  */
-export function VsDetailPane({ vs, canCreateArt, onSelectArt }: Props) {
+export function VsDetailPane({ vs, canCreateArt, canUpdateVs, onSelectArt }: Props) {
   return (
     <div className="space-y-6">
       <section className="space-y-3 rounded-lg border bg-card p-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Wertstrom</p>
-        <h2 className="font-heading text-lg font-medium">{vs.name}</h2>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Wertstrom</p>
+            <h2 className="font-heading text-lg font-medium">{vs.name}</h2>
+          </div>
+          {canUpdateVs && (
+            <div className="flex items-center gap-1">
+              <EditValueStreamDialog id={vs.id} name={vs.name} description={vs.description} />
+              <DeleteValueStreamButton id={vs.id} name={vs.name} />
+            </div>
+          )}
+        </div>
         <dl className="grid grid-cols-[140px_1fr] gap-y-1.5 text-sm">
           <dt className="text-muted-foreground">VMO</dt>
           <dd>{vs.vmoLabel ?? <GapHint>Nicht zugewiesen</GapHint>}</dd>

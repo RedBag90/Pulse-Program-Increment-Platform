@@ -14,6 +14,7 @@ export async function getStructureTree(db: PrismaClient, tenantId: TenantId) {
     select: {
       id: true,
       name: true,
+      description: true,
       financeApproverId: true,
       vmoId: true,
       arts: {
@@ -22,6 +23,7 @@ export async function getStructureTree(db: PrismaClient, tenantId: TenantId) {
         select: {
           id: true,
           name: true,
+          description: true,
           piCadenceWeeks: true,
           rteId: true,
           _count: { select: { pis: true } },

@@ -10,6 +10,7 @@ const vsRow = (over: {
 }) => ({
   id: over.id,
   name: over.name,
+  description: null,
   vmoId: over.vmoId ?? null,
   financeApproverId: over.financeApproverId ?? null,
   arts: over.arts ?? [],
@@ -25,6 +26,7 @@ const artRow = (over: {
 }) => ({
   id: over.id,
   name: over.name,
+  description: null,
   piCadenceWeeks: over.piCadenceWeeks ?? 10,
   rteId: over.rteId ?? null,
   _count: { pis: over.piCount ?? 0 },

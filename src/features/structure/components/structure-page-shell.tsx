@@ -19,7 +19,10 @@ import type { StructurePageModel, NodeKind } from "@/server/views/structure-page
 interface Props {
   model: StructurePageModel;
   canCreateVs: boolean;
+  canUpdateVs: boolean;
   canCreateArt: boolean;
+  canUpdateArt: boolean;
+  canDeleteArt: boolean;
   canCreateTeam: boolean;
   canManageTimeline: boolean;
   /** Verfügbare PI-Standards für „Standard auf Timeline anwenden". */
@@ -42,7 +45,10 @@ function parseKind(raw: string | null): NodeKind | null {
 export function StructurePageShell({
   model,
   canCreateVs,
+  canUpdateVs,
   canCreateArt,
+  canUpdateArt,
+  canDeleteArt,
   canCreateTeam,
   canManageTimeline,
   piStandards,
@@ -113,12 +119,15 @@ export function StructurePageShell({
             <VsDetailPane
               vs={model.vs.get(selection.id)!}
               canCreateArt={canCreateArt}
+              canUpdateVs={canUpdateVs}
               onSelectArt={(id) => onSelectNode("art", id)}
             />
           ) : selection.kind === "art" && model.art.has(selection.id) ? (
             <ArtDetailPane
               art={model.art.get(selection.id)!}
               canCreateTeam={canCreateTeam}
+              canUpdateArt={canUpdateArt}
+              canDeleteArt={canDeleteArt}
               onSelectNode={onSelectNode}
             />
           ) : selection.kind === "team" && model.team.has(selection.id) ? (

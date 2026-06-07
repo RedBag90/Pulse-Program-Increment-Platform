@@ -35,6 +35,7 @@ export interface VsDetail {
   kind: "vs";
   id: string;
   name: string;
+  description: string | null;
   vmoLabel: string | null;
   financeApproverLabel: string | null;
   budgetTotal: number | null;
@@ -48,6 +49,7 @@ export interface ArtDetail {
   kind: "art";
   id: string;
   name: string;
+  description: string | null;
   valueStreamId: string;
   valueStreamName: string;
   rteLabel: string | null;
@@ -150,6 +152,7 @@ export function buildStructurePageModel(input: {
       kind: "vs",
       id: vs.id,
       name: vs.name,
+      description: vs.description ?? null,
       vmoLabel: nameOrNull(vs.vmoId, userLabels),
       financeApproverLabel: nameOrNull(vs.financeApproverId, userLabels),
       budgetTotal: budgetTotals[vs.id] ?? null,
@@ -176,6 +179,7 @@ export function buildStructurePageModel(input: {
         kind: "art",
         id: art.id,
         name: art.name,
+        description: art.description ?? null,
         valueStreamId: vs.id,
         valueStreamName: vs.name,
         rteLabel: nameOrNull(art.rteId, userLabels),

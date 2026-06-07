@@ -2,11 +2,15 @@
 
 import { ArrowRight } from "lucide-react";
 import { CreateTeamDialog } from "@/features/team/components/create-team-dialog";
+import { EditArtDialog } from "@/features/art/components/edit-art-dialog";
+import { DeleteArtButton } from "@/features/art/components/delete-art-button";
 import type { ArtDetail, NodeKind } from "@/server/views/structure-page";
 
 interface Props {
   art: ArtDetail;
   canCreateTeam: boolean;
+  canUpdateArt: boolean;
+  canDeleteArt: boolean;
   onSelectNode: (kind: NodeKind, id: string) => void;
 }
 
@@ -21,12 +25,35 @@ interface Props {
  *   selection to the Timeline detail), or a hint if the ART hasn't joined
  *   one yet.
  */
-export function ArtDetailPane({ art, canCreateTeam, onSelectNode }: Props) {
+export function ArtDetailPane({
+  art,
+  canCreateTeam,
+  canUpdateArt,
+  canDeleteArt,
+  onSelectNode,
+}: Props) {
   return (
     <div className="space-y-6">
       <section className="space-y-3 rounded-lg border bg-card p-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">ART</p>
-        <h2 className="font-heading text-lg font-medium">{art.name}</h2>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">ART</p>
+            <h2 className="font-heading text-lg font-medium">{art.name}</h2>
+          </div>
+          {(canUpdateArt || canDeleteArt) && (
+            <div className="flex items-center gap-1">
+              {canUpdateArt && (
+                <EditArtDialog
+                  id={art.id}
+                  name={art.name}
+                  description={art.description}
+                  piCadenceWeeks={art.piCadenceWeeks}
+                />
+              )}
+              {canDeleteArt && <DeleteArtButton id={art.id} name={art.name} />}
+            </div>
+          )}
+        </div>
         <dl className="grid grid-cols-[140px_1fr] gap-y-1.5 text-sm">
           <dt className="text-muted-foreground">Wertstrom</dt>
           <dd>

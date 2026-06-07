@@ -26,8 +26,17 @@ export default async function StructurePage() {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const isAdmin = hasCapability(principal, "timeline.manage");
+  // Pro Affordance gegen die zugehörige Capability prüfen — kein
+  // Sammel-`timeline.manage`-Flag mehr, das die Buttons für VS/ART/Team
+  // verschluckte. Platform-/Tenant-Admin passieren überall via Fast-Path
+  // in `authorize()`.
   const canCreateVs = hasCapability(principal, "value_stream.create");
+  const canUpdateVs = hasCapability(principal, "value_stream.update");
+  const canCreateArt = hasCapability(principal, "art.create");
+  const canUpdateArt = hasCapability(principal, "art.update");
+  const canDeleteArt = hasCapability(principal, "art.delete");
+  const canCreateTeam = hasCapability(principal, "team.create");
+  const canManageTimeline = hasCapability(principal, "timeline.manage");
 
   const [tree, timeline, userLabels, vsBudgets, piStandards] = await Promise.all([
     getStructureTree(db, principal.tenantId),
@@ -53,9 +62,12 @@ export default async function StructurePage() {
       <StructurePageShell
         model={model}
         canCreateVs={canCreateVs}
-        canCreateArt={isAdmin}
-        canCreateTeam={isAdmin}
-        canManageTimeline={isAdmin}
+        canUpdateVs={canUpdateVs}
+        canCreateArt={canCreateArt}
+        canUpdateArt={canUpdateArt}
+        canDeleteArt={canDeleteArt}
+        canCreateTeam={canCreateTeam}
+        canManageTimeline={canManageTimeline}
         piStandards={piStandards.map((s) => ({ id: s.id, name: s.name }))}
       />
     </Suspense>
