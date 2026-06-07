@@ -19,7 +19,7 @@ export type StageGate = (typeof STAGE_GATES)[number];
 
 export const STAGE_GATE_LABEL: Record<StageGate, string> = {
   L0: "Funnel",
-  L1: "Hypothesis Stage",
+  L1: "Hypothese erstellen",
   L2: "Analyzing",
   L3: "Portfolio Backlog",
   L4: "Implementing",

@@ -9,7 +9,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const STAGE_GATES = [
   { key: "L0", label: "Funnel" },
-  { key: "L1", label: "Hypothesis stage" },
+  { key: "L1", label: "Hypothese erstellen" },
   { key: "L2", label: "Analyzing" },
   { key: "L3", label: "Portfolio Backlog" },
   { key: "L4", label: "Implementing" },
