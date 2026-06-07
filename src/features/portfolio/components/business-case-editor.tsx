@@ -1,8 +1,10 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Lock } from "lucide-react";
+import { Lock, Lightbulb, ArrowRight } from "lucide-react";
 import { saveBusinessCaseAction } from "@/features/portfolio/actions/business-case";
+import { submitEpicBusinessCaseAction } from "@/features/portfolio/actions/epic-approval";
+import { Link } from "@/i18n/navigation";
 import {
   costSliceLabel,
   type BusinessCaseFields,
@@ -18,6 +20,11 @@ interface BusinessCaseEditorProps {
   readOnly?: boolean;
   /** Why the form is locked (the current approval phase) — shown as a hint. */
   lockReason?: string;
+  /** When true, renders the "Fertig zum Einreichen"-Checkbox + Submit-Button
+   *  next to the save button. Aktiv nur in `approvalPhase = business_case`
+   *  und mit `epic.businesscase.submit`-Capability — Sichtbarkeitslogik
+   *  liegt auf der Page. */
+  canSubmit?: boolean;
 }
 
 const INPUT_CLASS =
@@ -43,8 +50,15 @@ export function BusinessCaseEditor({
   history,
   readOnly = false,
   lockReason,
+  canSubmit = false,
 }: BusinessCaseEditorProps) {
   const [state, action, isPending] = useActionState(saveBusinessCaseAction, {});
+  const [submitState, submitAction, submitPending] = useActionState(
+    submitEpicBusinessCaseAction,
+    {},
+  );
+  const [readyToSubmit, setReadyToSubmit] = useState(false);
+  const submitDisabled = !readyToSubmit || submitPending;
   const [slices, setSlices] = useState<string[]>(() => initialSlices(current.costSlices));
 
   const costTotal = slices.reduce((sum, v) => sum + (parseNum(v) ?? 0), 0);
@@ -153,100 +167,144 @@ export function BusinessCaseEditor({
           </div>
 
           {/* Implementation cost — 6-month demand calculation */}
-          <section className="rounded-lg border p-4 space-y-3">
-            <div>
-              <p className="text-sm font-medium">Implementierungskosten — Bedarfskalkulation</p>
-              <p className="text-xs text-muted-foreground">
-                Geschätzter Kostenbedarf je 6-Monats-Periode.
-              </p>
-            </div>
-
-            <input type="hidden" name="costSliceCount" value={slices.length} />
-
-            <div className="space-y-2">
-              {slices.map((amount, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <span className="w-32 shrink-0 text-sm text-muted-foreground">
-                    {costSliceLabel(i)}
-                  </span>
-                  <input
-                    type="number"
-                    step="any"
-                    min={0}
-                    name={`costSlice_${i}`}
-                    aria-label={costSliceLabel(i)}
-                    value={amount}
-                    onChange={(e) =>
-                      setSlices((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
-                    }
-                    placeholder="0"
-                    className={`${INPUT_CLASS} max-w-[12rem]`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setSlices((prev) => prev.filter((_, j) => j !== i))}
-                    disabled={slices.length <= 1}
-                    className="text-sm text-muted-foreground hover:text-red-600 disabled:opacity-40"
-                  >
-                    Entfernen
-                  </button>
+          <section className="rounded-lg border p-4">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="space-y-3 lg:col-span-2">
+                <div>
+                  <p className="text-sm font-medium">Implementierungskosten — Bedarfskalkulation</p>
+                  <p className="text-xs text-muted-foreground">
+                    Geschätzter Kostenbedarf je 6-Monats-Periode.
+                  </p>
                 </div>
-              ))}
-            </div>
 
-            <button
-              type="button"
-              onClick={() => setSlices((prev) => [...prev, ""])}
-              className="text-sm font-medium text-blue-700 hover:underline"
-            >
-              + Periode hinzufügen
-            </button>
+                <input type="hidden" name="costSliceCount" value={slices.length} />
 
-            <div className="flex items-center gap-3 border-t pt-2 text-sm font-medium">
-              <span className="w-32 shrink-0">Gesamtkosten</span>
-              <span>{costTotal.toLocaleString("de-DE")}</span>
+                <div className="space-y-2">
+                  {slices.map((amount, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="w-32 shrink-0 text-sm text-muted-foreground">
+                        {costSliceLabel(i)}
+                      </span>
+                      <input
+                        type="number"
+                        step="any"
+                        min={0}
+                        name={`costSlice_${i}`}
+                        aria-label={costSliceLabel(i)}
+                        value={amount}
+                        onChange={(e) =>
+                          setSlices((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
+                        }
+                        placeholder="0"
+                        className={`${INPUT_CLASS} max-w-[12rem]`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSlices((prev) => prev.filter((_, j) => j !== i))}
+                        disabled={slices.length <= 1}
+                        className="text-sm text-muted-foreground hover:text-red-600 disabled:opacity-40"
+                      >
+                        Entfernen
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSlices((prev) => [...prev, ""])}
+                  className="text-sm font-medium text-blue-700 hover:underline"
+                >
+                  + Periode hinzufügen
+                </button>
+
+                <div className="flex items-center gap-3 border-t pt-2 text-sm font-medium">
+                  <span className="w-32 shrink-0">Gesamtkosten</span>
+                  <span>{costTotal.toLocaleString("de-DE")}</span>
+                </div>
+              </div>
+
+              <aside className="self-start rounded-md border bg-muted/30 p-3 text-sm">
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                  <div className="space-y-2">
+                    <p className="text-xs leading-snug text-muted-foreground">
+                      Zur besseren Konkretisierung nimm ein Breakdown vor — Features mit Aufwand
+                      machen die Kostenkalkulation belastbarer.
+                    </p>
+                    <Link
+                      href={`/portfolio/epics/${epicId}?tab=breakdown` as never}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
+                    >
+                      Zum Breakdown <ArrowRight className="size-3" />
+                    </Link>
+                  </div>
+                </div>
+              </aside>
             </div>
           </section>
 
           {/* Expected benefit */}
-          <section className="rounded-lg border p-4 space-y-3">
-            <p className="text-sm font-medium">Nutzen</p>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="bc-onetime" className="block text-sm font-medium mb-1">
-                  Einmaliger Nutzen
-                </label>
-                <input
-                  id="bc-onetime"
-                  type="number"
-                  step="any"
-                  min={0}
-                  name="oneTimeBenefit"
-                  defaultValue={current.oneTimeBenefit ?? ""}
-                  placeholder="0"
-                  className={INPUT_CLASS}
-                />
+          <section className="rounded-lg border p-4">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="space-y-3 lg:col-span-2">
+                <p className="text-sm font-medium">Nutzen</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="bc-onetime" className="mb-1 block text-sm font-medium">
+                      Einmaliger Nutzen
+                    </label>
+                    <input
+                      id="bc-onetime"
+                      type="number"
+                      step="any"
+                      min={0}
+                      name="oneTimeBenefit"
+                      defaultValue={current.oneTimeBenefit ?? ""}
+                      placeholder="0"
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="bc-recurring" className="mb-1 block text-sm font-medium">
+                      Wiederkehrender Nutzen p.a. (bei 100 % KPI-Zielerreichung)
+                    </label>
+                    <input
+                      id="bc-recurring"
+                      type="number"
+                      step="any"
+                      min={0}
+                      name="recurringBenefit"
+                      defaultValue={current.recurringBenefit ?? ""}
+                      placeholder="0"
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Die Gewichtung, welche KPI den wiederkehrenden Nutzen realisiert, wird im Tab
+                  „KPIs" je KPI als „Nutzen-Anteil" gepflegt.
+                </p>
               </div>
-              <div>
-                <label htmlFor="bc-recurring" className="block text-sm font-medium mb-1">
-                  Wiederkehrender Nutzen p.a. (bei 100 % KPI-Zielerreichung)
-                </label>
-                <input
-                  id="bc-recurring"
-                  type="number"
-                  step="any"
-                  min={0}
-                  name="recurringBenefit"
-                  defaultValue={current.recurringBenefit ?? ""}
-                  placeholder="0"
-                  className={INPUT_CLASS}
-                />
-              </div>
+
+              <aside className="self-start rounded-md border bg-muted/30 p-3 text-sm">
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                  <div className="space-y-2">
+                    <p className="text-xs leading-snug text-muted-foreground">
+                      Zur besseren Konkretisierung KPIs hinterlegen — damit der wiederkehrende
+                      Nutzen pro KPI gewichtet werden kann.
+                    </p>
+                    <Link
+                      href={`/portfolio/epics/${epicId}?tab=kpis` as never}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
+                    >
+                      Zu den KPIs <ArrowRight className="size-3" />
+                    </Link>
+                  </div>
+                </div>
+              </aside>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Die Gewichtung, welche KPI den wiederkehrenden Nutzen realisiert, wird im Tab „KPIs"
-              je KPI als „Nutzen-Anteil" gepflegt.
-            </p>
           </section>
 
           <div>
@@ -306,15 +364,57 @@ export function BusinessCaseEditor({
         )}
 
         {!readOnly && (
-          <button
-            type="submit"
-            disabled={isPending}
-            className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
-          >
-            {isPending ? "Speichern…" : "Business Case speichern"}
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+            >
+              {isPending ? "Speichern…" : "Business Case speichern"}
+            </button>
+          </div>
         )}
       </form>
+
+      {canSubmit && !readOnly && (
+        // Separate form, damit Submit (epic.businesscase.submit) nicht
+        // versehentlich die Save-Felder mitschickt. Auf gleicher Hoehe
+        // wie der Save-Knopf, rechts ausgerichtet — analog zur Hypothese.
+        <form
+          action={submitAction}
+          className="flex flex-wrap items-center justify-end gap-3 border-t pt-4"
+        >
+          <input type="hidden" name="epicId" value={epicId} />
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={readyToSubmit}
+              onChange={(e) => setReadyToSubmit(e.target.checked)}
+              className="size-4 rounded border-border"
+            />
+            Fertig zum Einreichen
+          </label>
+          <button
+            type="submit"
+            disabled={submitDisabled}
+            className={`rounded px-4 py-2 text-sm font-medium text-white transition-opacity ${
+              submitDisabled ? "cursor-not-allowed bg-blue-700/40" : "bg-blue-700 hover:bg-blue-800"
+            }`}
+          >
+            {submitPending ? "Einreichen…" : "Business Case einreichen"}
+          </button>
+          {submitState.error && (
+            <p role="alert" className="w-full text-right text-sm text-red-600">
+              {submitState.error}
+            </p>
+          )}
+          {submitState.success && (
+            <p role="status" className="w-full text-right text-sm text-green-700">
+              Business Case eingereicht — die Stakeholder entscheiden jetzt.
+            </p>
+          )}
+        </form>
+      )}
 
       {history.length > 0 && (
         <details className="rounded-lg border bg-muted/50 p-3">

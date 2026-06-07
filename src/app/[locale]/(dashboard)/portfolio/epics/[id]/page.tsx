@@ -160,6 +160,15 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       tenantId: principal.tenantId,
       valueStreamId: epic.valueStreamId,
     });
+  // Submit-Knopf am Business-Case-Editor zeigt sich nur in der
+  // business_case-Phase und nur, wenn der Principal die
+  // epic.businesscase.submit-Capability traegt.
+  const canSubmitBusinessCase =
+    approvalPhase === "business_case" &&
+    hasCapability(principal, "epic.businesscase.submit", {
+      tenantId: principal.tenantId,
+      valueStreamId: epic.valueStreamId,
+    });
 
   // Reifegrad-Modell v2: Controlling-Capability für die L5-Impact-Bestätigung.
   // Resource-scoped auf den Value Stream des Epics (wie epic.approve).
@@ -445,6 +454,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               current={businessCase.current}
               history={businessCase.history}
               readOnly={!bcEditable}
+              canSubmit={canSubmitBusinessCase}
               {...(bcLockReason && { lockReason: bcLockReason })}
             />
           )}
