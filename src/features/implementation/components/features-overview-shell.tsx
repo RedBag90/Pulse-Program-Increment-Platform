@@ -288,7 +288,7 @@ function FeatureRow({ row, showWsjf }: { row: FeatureOverviewRow; showWsjf: bool
             <span className={`size-2 shrink-0 rounded-full ${STATUS_DOT[statusKey]}`} aria-hidden />
           )}
           <Link
-            href={`/feature/${row.id}`}
+            href={`/umsetzung/feature/${row.id}`}
             className="block truncate font-medium text-primary hover:underline"
             title={row.title}
           >
