@@ -2,8 +2,21 @@
 
 import { useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { ArrowRight, Compass, Hammer, ShieldAlert } from "lucide-react";
+import { ArrowRight, CalendarRange, Compass, Hammer, ShieldAlert } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+
+export interface HubPiRow {
+  id: string;
+  name: string;
+  status: string;
+  startDate: Date;
+  endDate: Date;
+  artName: string | null;
+}
+
+interface Props {
+  pis: HubPiRow[];
+}
 
 type HubTab = "overview" | "backlog" | "risks";
 
@@ -39,7 +52,7 @@ const TABS: { key: HubTab; label: string; description: string; icon: typeof Comp
  * - **Backlog**: heutige Features-Übersicht (Move in P0.B/P2).
  * - **Risks/Improvements**: Risk-Register (P5) + Retro-Action-Items (P6).
  */
-export function UmsetzungsHubShell() {
+export function UmsetzungsHubShell({ pis }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -97,11 +110,12 @@ export function UmsetzungsHubShell() {
         >
           <div className="flex items-start gap-3">
             <t.icon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-            <div className="space-y-3">
+            <div className="flex-1 space-y-3">
               <h2 id={`tab-${t.key}-title`} className="text-lg font-medium">
                 {t.label}
               </h2>
               <p className="text-sm text-muted-foreground">{t.description}</p>
+              {t.key === "overview" && <PiList pis={pis} />}
               <TabPlaceholderLinks tab={t.key} />
             </div>
           </div>
@@ -153,5 +167,58 @@ function HubLink({ href, children }: { href: string; children: React.ReactNode }
     >
       {children} <ArrowRight className="size-3" />
     </Link>
+  );
+}
+
+const PI_STATUS_CLASS: Record<string, string> = {
+  planned: "bg-muted text-muted-foreground",
+  active: "bg-blue-100 text-blue-700",
+  completed: "bg-emerald-100 text-emerald-700",
+};
+const PI_STATUS_LABEL: Record<string, string> = {
+  planned: "Geplant",
+  active: "Aktiv",
+  completed: "Abgeschlossen",
+};
+
+function PiList({ pis }: { pis: HubPiRow[] }) {
+  if (pis.length === 0) {
+    return (
+      <p className="rounded-md border border-dashed bg-card px-4 py-3 text-sm text-muted-foreground">
+        Keine PIs in deinem Scope.
+      </p>
+    );
+  }
+  return (
+    <div className="rounded-lg border bg-card">
+      <header className="border-b px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Program Increments — Sprung in den Workspace
+      </header>
+      <ul className="divide-y">
+        {pis.map((p) => (
+          <li key={p.id}>
+            <Link
+              href={`/umsetzung/pi/${p.id}` as never}
+              className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/40"
+            >
+              <CalendarRange className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="font-medium">{p.name}</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                  PI_STATUS_CLASS[p.status] ?? "bg-muted text-muted-foreground"
+                }`}
+              >
+                {PI_STATUS_LABEL[p.status] ?? p.status}
+              </span>
+              {p.artName && <span className="text-xs text-muted-foreground">ART {p.artName}</span>}
+              <span className="text-xs text-muted-foreground">
+                {p.startDate.toLocaleDateString("de-DE")} – {p.endDate.toLocaleDateString("de-DE")}
+              </span>
+              <ArrowRight className="ml-auto size-3.5 text-muted-foreground" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

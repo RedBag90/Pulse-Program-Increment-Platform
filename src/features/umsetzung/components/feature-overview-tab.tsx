@@ -81,7 +81,19 @@ export function FeatureOverviewTab({ model, canEdit, canTransition }: Props) {
             {model.art?.name ?? "—"}
           </span>
         </Field>
-        <Field label="PI">{model.pi?.name ?? "Backlog"}</Field>
+        <Field label="PI">
+          {model.pi ? (
+            <Link
+              href={`/umsetzung/pi/${model.pi.id}` as never}
+              className="inline-flex items-center gap-1 text-primary hover:underline"
+            >
+              {model.pi.name}
+              <ArrowRight className="size-3" />
+            </Link>
+          ) : (
+            <span className="text-muted-foreground">Backlog</span>
+          )}
+        </Field>
         <Field label="Owner">{model.ownerLabel ?? "—"}</Field>
         <Field label="Erstellt · Aktualisiert">
           <span className="text-sm">
@@ -129,9 +141,13 @@ function SummaryHeader({ model }: { model: FeatureDetailModel }) {
         )}
       </span>
       {model.pi && (
-        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] text-blue-700">
+        <Link
+          href={`/umsetzung/pi/${model.pi.id}` as never}
+          className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] text-blue-700 hover:bg-blue-200"
+        >
           {model.pi.name}
-        </span>
+          <ArrowRight className="size-3" />
+        </Link>
       )}
     </section>
   );
