@@ -556,6 +556,112 @@ export async function assignEpicOwner(
 }
 
 // ---------------------------------------------------------------------------
+// Confirm Epic Impact (Reifegrad v2: L5 = "Impact realisiert")
+// ---------------------------------------------------------------------------
+
+/**
+ * Controlling bestätigt, dass der prognostizierte Nutzen des Epics auf der
+ * Balance-Sheet bzw. den KPIs angekommen ist. Setzt `impactRecognizedAt`,
+ * `impactRecognizedBy`, `impactComment` und schiebt das Epic auf L5.
+ *
+ * Vorbedingungen:
+ *  - Epic ist auf `L4` (L5-Sprung sonst falsch);
+ *  - alle Child-Features sind `completed` (= L4.2 derived);
+ *  - `impactRecognizedAt === null` (idempotent — kein doppeltes Stempeln).
+ */
+export async function confirmEpicImpact(
+  ctx: RequestContext,
+  input: { epicId: EpicId; comment?: string | undefined },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { epicId, comment } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.initiative.findFirst({
+      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+      select: {
+        id: true,
+        stageGate: true,
+        valueStreamId: true,
+        impactRecognizedAt: true,
+      },
+    });
+    if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+
+    const auth = authorizeResource(ctx.principal, "epic.impact.confirm", {
+      tenantId: mctx.tenantId,
+      valueStreamId: existing.valueStreamId,
+    });
+    if (isErr(auth)) return auth;
+
+    if (existing.impactRecognizedAt != null) {
+      return err({
+        kind: "conflict" as const,
+        reason: "Impact wurde bereits bestätigt",
+      });
+    }
+    if (existing.stageGate !== "L4") {
+      return err({
+        kind: "conflict" as const,
+        reason: `Impact-Bestätigung verlangt L4 — Epic ist auf ${existing.stageGate}`,
+      });
+    }
+
+    // L4.2-Derivation: alle Child-Features completed?
+    const [total, completed] = await Promise.all([
+      tx.initiative.count({
+        where: {
+          parentId: epicId,
+          tenantId: mctx.tenantId,
+          level: InitiativeLevel.FEATURE,
+          deletedAt: null,
+        },
+      }),
+      tx.initiative.count({
+        where: {
+          parentId: epicId,
+          tenantId: mctx.tenantId,
+          level: InitiativeLevel.FEATURE,
+          deletedAt: null,
+          status: "completed",
+        },
+      }),
+    ]);
+    if (total === 0 || completed < total) {
+      return err({
+        kind: "conflict" as const,
+        reason: `Impact-Bestätigung verlangt alle Child-Features abgeschlossen (${completed}/${total})`,
+      });
+    }
+
+    const now = new Date();
+    await tx.initiative.update({
+      where: { id: epicId },
+      data: {
+        impactRecognizedAt: now,
+        impactRecognizedBy: mctx.actorId,
+        impactComment: comment ?? null,
+        stageGate: "L5",
+        updatedBy: mctx.actorId,
+      },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "initiative.stage_gate.advanced",
+        resourceType: "initiative",
+        resourceId: epicId,
+        changes: {
+          stageGate: { before: "L4", after: "L5" },
+          ...(comment ? { impactComment: { before: null, after: comment } } : {}),
+        },
+      },
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Delete Epic (soft)
 // ---------------------------------------------------------------------------
 

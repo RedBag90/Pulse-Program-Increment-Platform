@@ -123,6 +123,14 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   // decide-buttons themselves now live in "Meine Freigaben".
   const canDecideHypothesis = hasCapability(principal, "epic.hypothesis.decide");
 
+  // Reifegrad-Modell v2: Controlling-Capability für die L5-Impact-Bestätigung.
+  // Resource-scoped auf den Value Stream des Epics (wie epic.approve).
+  const canConfirmImpact = authorize(
+    "epic.impact.confirm",
+    { tenantId: principal.tenantId, valueStreamId: epic.valueStreamId },
+    principal,
+  ).allow;
+
   // The VMO and roles above it (portfolio manager, the epic's value stream owner,
   // admins) may nominate the Epic Owner — mirrors the `epic.owner.assign` policy.
   const canAssignOwner = authorize(
@@ -282,6 +290,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             epic={epic}
             canEdit={canEdit}
             canAssignOwner={canAssignOwner}
+            canConfirmImpact={canConfirmImpact}
             approvers={approvers}
             userLabels={userLabels}
           />

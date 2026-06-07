@@ -5,6 +5,7 @@ import { EpicEditForm } from "./epic-edit-form";
 import { EpicGovernanceFlags } from "./epic-governance-flags";
 import { EpicOwnerAssign } from "./epic-owner-assign";
 import { EpicPlannedWindowForm } from "./epic-planned-window-form";
+import { EpicImpactConfirmDialog } from "./epic-impact-confirm-dialog";
 import { PhaseBadge } from "@/components/detail/phase-badge";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import { buildInitiativeSummary } from "@/domain/initiative-summary";
@@ -46,10 +47,14 @@ export interface EpicOverviewTabProps {
     }[];
     needsSteeringAttention: boolean;
     stagedForBudgeting: boolean;
+    /** Reifegrad-Modell v2: Stempel für die L5-Bestätigung. */
+    impactRecognizedAt: Date | null;
   };
   canEdit: boolean;
   /** May nominate/replace the Epic owner (`epic.owner.assign`). */
   canAssignOwner: boolean;
+  /** Reifegrad v2 Controlling-Capability für Impact-Confirm. */
+  canConfirmImpact: boolean;
   approvers: { userId: string; roles: string[] }[];
   userLabels: Record<string, string>;
 }
@@ -81,10 +86,17 @@ export function EpicOverviewTab({
   epic,
   canEdit,
   canAssignOwner,
+  canConfirmImpact,
   approvers,
   userLabels,
 }: EpicOverviewTabProps) {
   const completedChildren = epic.children.filter((c) => c.status === "completed").length;
+  const totalChildren = epic.children.length;
+  // L4.2-Derivation (siehe `subStageFor` in @/domain/stage-gate): alle Child-
+  // Features completed → L4.2 erreicht → Impact-Bestätigung freigeschaltet.
+  const reachedL42 =
+    epic.stageGate === "L4" && totalChildren > 0 && completedChildren === totalChildren;
+  const showImpactConfirm = reachedL42 && canConfirmImpact && epic.impactRecognizedAt == null;
 
   const summary = buildInitiativeSummary({
     stageGate: epic.stageGate as StageGate,
@@ -101,13 +113,25 @@ export function EpicOverviewTab({
     <div className="space-y-8">
       <section className="flex gap-3 rounded-lg border border-l-4 border-l-primary bg-muted/40 p-4">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-        <div>
+        <div className="flex-1">
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Summary
           </p>
           <p className="mt-1 text-sm">{summary}</p>
         </div>
+        {showImpactConfirm && <EpicImpactConfirmDialog epicId={epic.id} epicTitle={epic.title} />}
       </section>
+
+      {epic.impactRecognizedAt && (
+        <section className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-emerald-700">
+            Impact realisiert · L5
+          </p>
+          <p className="mt-1 text-emerald-900">
+            Bestätigt am {epic.impactRecognizedAt.toLocaleDateString("de-DE")}.
+          </p>
+        </section>
+      )}
 
       <section className="space-y-5">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">

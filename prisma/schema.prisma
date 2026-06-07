@@ -478,6 +478,13 @@ model Initiative {
   approvedAt      DateTime? @map("approved_at")
   approvalComment String?   @map("approval_comment") @db.Text
 
+  // Reifegrad-Modell v2: Impact Recognition. Wird vom Controlling über
+  // confirmEpicImpact gestempelt; L5 = "Impact realisiert" ist genau der
+  // Zustand impactRecognizedAt != null.
+  impactRecognizedAt DateTime? @map("impact_recognized_at")
+  impactRecognizedBy String?   @map("impact_recognized_by") @db.Uuid
+  impactComment      String?   @map("impact_comment") @db.Text
+
   // Governance flags (EPIC only): surface the Epic in the next steering /
   // budgeting meeting. Toggled on the Epic overview tab.
   needsSteeringAttention Boolean @default(false) @map("needs_steering_attention")

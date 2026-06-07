@@ -14,6 +14,7 @@ export type Action =
   | "epic.update"
   | "epic.approve"
   | "epic.delete"
+  | "epic.impact.confirm"
   | "epic.hypothesis.submit"
   | "epic.hypothesis.decide"
   | "epic.approval.configure"
@@ -134,6 +135,10 @@ export const POLICIES: Record<Action, Grant[]> = {
   "value_stream.create": [{ roles: [PORTFOLIO_MANAGER] }],
   "epic.delete": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
   "epic.approve": [{ roles: [PORTFOLIO_MANAGER, VMO] }],
+  // Reifegrad-Modell v2: Impact-Bestätigung schiebt das Epic auf L5.
+  // Controlling-Hand — heute liegt es bei VMO / Portfolio Manager; eine
+  // eigene Controlling-Rolle könnte später dazukommen.
+  "epic.impact.confirm": [{ roles: [PORTFOLIO_MANAGER, VMO] }],
 
   // ── Value Stream ────────────────────────────────────────────────────────
   // The value stream owner manages their own value stream and the Epics
