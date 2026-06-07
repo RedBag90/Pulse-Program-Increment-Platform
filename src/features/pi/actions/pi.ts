@@ -4,7 +4,6 @@ import { z } from "zod";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import {
-  createPi,
   startPi,
   completePi,
   deletePi,
@@ -19,42 +18,19 @@ import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { revalidateFor } from "@/server/http/revalidation";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import type { PiId, TimelineId } from "@/domain/types";
+import type { PiId } from "@/domain/types";
 
 export interface PiActionState {
   error?: string;
   success?: boolean;
 }
 
-export const createPiAction = createServerAction({
-  describeCreated: (v: { id: string }) => ({
-    id: v.id,
-    label: "Program Increment",
-    href: `/pi/${v.id}`,
-  }),
-  schema: z.object({
-    timelineId: z.string().uuid(),
-    name: z.string().min(1).max(100),
-    startDate: z.string().date(),
-    endDate: z.string().date(),
-  }),
-  action: "pi.create",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    createPi(ctx, {
-      timelineId: input.timelineId as TimelineId,
-      name: input.name,
-      startDate: new Date(input.startDate),
-      endDate: new Date(input.endDate),
-    }),
-  revalidate: "pi",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Timeline not found"
-        : "Failed to create PI",
-});
+// PI-Erstellung ist seit dem Timeline-Rollout zentralisiert: PIs entstehen
+// ausschließlich aus `applyPiStandard(timelineId, standardId, year)` —
+// `addStandardPisAction` in `src/features/structure/actions/pi-standard.ts`.
+// Eine `createPiAction` gibt es bewusst nicht mehr; der zugrundeliegende
+// Service `createPi(...)` bleibt intern und wird vom Standard-Pfad
+// verwendet.
 
 export async function transitionPiAction(
   piId: string,

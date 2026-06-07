@@ -1,9 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
-import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/server/services/art";
 import { listPis } from "@/server/services/pi";
-import { CreatePiDialog } from "@/features/pi/components/create-pi-dialog";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
@@ -23,6 +21,12 @@ function formatDate(d: Date) {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+/**
+ * PI-Liste eines ARTs. Read-only: einzelne PIs werden hier nicht mehr
+ * angelegt — sie entstehen aus dem Standard, der auf die Timeline des
+ * ARTs angewendet wird (`/structure?tab=timeline` → Timeline auswählen
+ * → „PI-Standard anwenden").
+ */
 export default async function PiListPage({ params }: Props) {
   const { artId } = await params;
   const principal = await requirePrincipal().catch(() => null);
@@ -35,11 +39,6 @@ export default async function PiListPage({ params }: Props) {
   ]);
 
   if (!art) notFound();
-
-  const canEdit = hasCapability(principal, "pi.create", {
-    tenantId: principal.tenantId,
-    artId,
-  });
 
   return (
     <main className="p-8 space-y-6">
@@ -54,13 +53,21 @@ export default async function PiListPage({ params }: Props) {
             </p>
           )}
         </div>
-        {canEdit && <CreatePiDialog artId={artId} />}
       </div>
 
       {pis.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          No PIs yet. Create one to start planning iterations.
-        </p>
+        <div className="rounded-lg border border-dashed bg-muted/30 p-8 text-center text-sm text-muted-foreground">
+          <p>Noch keine PIs.</p>
+          <p className="mt-2">
+            PIs entstehen aus dem Standard, der auf die Timeline dieses ARTs angewendet wird.{" "}
+            <Link
+              href="/structure?tab=timeline"
+              className="text-primary underline hover:no-underline"
+            >
+              Zur Timeline-Verwaltung →
+            </Link>
+          </p>
+        </div>
       ) : (
         <div className="space-y-3">
           {pis.map((pi) => {

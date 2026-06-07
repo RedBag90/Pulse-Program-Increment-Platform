@@ -4,11 +4,18 @@ import { ArrowRight, Calendar } from "lucide-react";
 import { JoinArtToTimelineControl } from "@/features/structure/components/join-art-control";
 import { DeleteTimelineButton } from "@/features/structure/components/delete-timeline-button";
 import { LeaveTimelineButton } from "@/features/structure/components/leave-timeline-button";
+import {
+  AddStandardPisControl,
+  type PiStandardOption,
+} from "@/features/structure/components/add-standard-pis-control";
 import type { TimelineDetail, NodeKind } from "@/server/views/structure-page";
 
 interface Props {
   timeline: TimelineDetail;
   canManage: boolean;
+  /** Verfügbare PI-Standards für den „Standard anwenden"-Pfad — der einzige
+   *  user-facing Pfad, über den neue PIs entstehen. */
+  piStandards: PiStandardOption[];
   onSelectNode: (kind: NodeKind, id: string) => void;
 }
 
@@ -27,7 +34,7 @@ const PI_STATUS_LABEL: Record<string, string> = {
  * - **Unassigned ARTs** — the existing `<JoinArtToTimelineControl>` to add
  *   one. Only shown when there are unassigned ARTs available.
  */
-export function TimelineDetailPane({ timeline, canManage, onSelectNode }: Props) {
+export function TimelineDetailPane({ timeline, canManage, piStandards, onSelectNode }: Props) {
   return (
     <div className="space-y-6">
       <section className="space-y-3 rounded-lg border bg-card p-4">
@@ -49,9 +56,15 @@ export function TimelineDetailPane({ timeline, canManage, onSelectNode }: Props)
       </section>
 
       <section className="space-y-3 rounded-lg border bg-card p-4">
-        <h2 className="font-heading text-sm font-medium">Program Increments</h2>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h2 className="font-heading text-sm font-medium">Program Increments</h2>
+          {canManage && <AddStandardPisControl timelineId={timeline.id} standards={piStandards} />}
+        </div>
         {timeline.pis.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Noch keine PIs angelegt.</p>
+          <p className="text-sm text-muted-foreground">
+            Noch keine PIs. PIs entstehen aus dem PI-Standard, der oben auf diese Timeline
+            angewendet wird.
+          </p>
         ) : (
           <ul className="space-y-1.5">
             {timeline.pis.map((pi) => (

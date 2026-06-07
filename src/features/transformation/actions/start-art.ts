@@ -7,22 +7,21 @@ import { fields } from "@/server/http/form-data";
 import { startArt } from "@/server/services/art-setup";
 import type { ValueStreamId, TimelineId } from "@/domain/types";
 
-const schema = z
-  .object({
-    valueStreamId: z.string().uuid(),
-    name: z.string().min(1).max(100),
-    timelineId: z.string().uuid(),
-    rteId: z.string().uuid().nullable().optional(),
-    piName: z.string().min(1).max(100),
-    piStartDate: z.string().date(),
-    piEndDate: z.string().date(),
-  })
-  .refine((d) => d.piStartDate < d.piEndDate, {
-    message: "Startdatum muss vor dem Enddatum liegen",
-    path: ["piEndDate"],
-  });
+const schema = z.object({
+  valueStreamId: z.string().uuid(),
+  name: z.string().min(1).max(100),
+  timelineId: z.string().uuid(),
+  rteId: z.string().uuid().nullable().optional(),
+});
 
-/** Guided ART launch — creates the ART, joins a Timeline, sets RTE, plans the first PI. */
+/**
+ * Guided ART launch — legt den ART unter einem Wertstrom an und bindet ihn
+ * an eine bestehende Timeline. PIs entstehen anschließend zentral aus dem
+ * PI-Standard, der auf die Timeline angewendet wird (siehe
+ * `addStandardPisAction` / `<AddStandardPisControl>` in
+ * `/structure?tab=timeline`). Ein erstes PI wird hier bewusst nicht mehr
+ * angelegt.
+ */
 export const startArtAction = createServerAction({
   describeCreated: (v: { artId: string }) => ({
     id: v.artId,
@@ -39,9 +38,6 @@ export const startArtAction = createServerAction({
       name: input.name,
       timelineId: input.timelineId as TimelineId,
       rteId: input.rteId ?? null,
-      piName: input.piName,
-      piStartDate: new Date(input.piStartDate),
-      piEndDate: new Date(input.piEndDate),
     }),
   onSuccess: () => {
     revalidatePath("/structure", "page");

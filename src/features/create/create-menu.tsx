@@ -18,7 +18,6 @@ import { CreateValueStreamDialog } from "@/features/portfolio/components/create-
 import { CreateEpicDialog } from "@/features/portfolio/components/create-epic-dialog";
 import { CreateArtDialog } from "@/features/art/components/create-art-dialog";
 import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
-import { CreatePiDialog } from "@/features/pi/components/create-pi-dialog";
 import { CreateTeamDialog } from "@/features/team/components/create-team-dialog";
 import { CreateImpedimentDialog } from "@/features/impediment/components/create-impediment-dialog";
 import { CreateStoryDialog } from "@/features/story/components/create-story-dialog";
@@ -82,7 +81,6 @@ export function CreateMenu() {
       {openKey === "epic" && <CreateEpicDialog open onOpenChange={close} />}
       {openKey === "art" && <CreateArtDialog open onOpenChange={close} />}
       {openKey === "feature" && <CreateFeatureDialog open onOpenChange={close} context={ctx} />}
-      {openKey === "pi" && <CreatePiDialog open onOpenChange={close} context={ctx} />}
       {openKey === "team" && <CreateTeamDialog open onOpenChange={close} context={ctx} />}
       {openKey === "impediment" && (
         <CreateImpedimentDialog open onOpenChange={close} context={ctx} />

@@ -6,6 +6,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getStructureTree, getStructureTimeline } from "@/server/services/structure";
 import { getValueStreamBudgets } from "@/server/services/budgeting";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { listPiStandards } from "@/server/services/pi-standard";
 import { buildStructurePageModel } from "@/server/views/structure-page";
 import { StructurePageShell } from "@/features/structure/components/structure-page-shell";
 
@@ -28,11 +29,12 @@ export default async function StructurePage() {
   const isAdmin = hasCapability(principal, "timeline.manage");
   const canCreateVs = hasCapability(principal, "value_stream.create");
 
-  const [tree, timeline, userLabels, vsBudgets] = await Promise.all([
+  const [tree, timeline, userLabels, vsBudgets, piStandards] = await Promise.all([
     getStructureTree(db, principal.tenantId),
     getStructureTimeline(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
     getValueStreamBudgets(db, principal.tenantId),
+    listPiStandards(db, principal.tenantId),
   ]);
 
   const budgetTotals = Object.fromEntries(
@@ -54,6 +56,7 @@ export default async function StructurePage() {
         canCreateArt={isAdmin}
         canCreateTeam={isAdmin}
         canManageTimeline={isAdmin}
+        piStandards={piStandards.map((s) => ({ id: s.id, name: s.name }))}
       />
     </Suspense>
   );

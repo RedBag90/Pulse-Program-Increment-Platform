@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, startTransition } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { startArtAction } from "@/features/transformation/actions/start-art";
@@ -29,7 +29,12 @@ interface Props {
 const SELECT =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-/** Guided "launch an ART" flow — one form orchestrating ART + Timeline + RTE + first PI. */
+/**
+ * Guided „ART starten"-Flow. Legt ART + Timeline-Subscription + (optional) RTE
+ * in einem Formular an. Seit dem Timeline-Rollout entstehen PIs zentral aus
+ * dem PI-Standard auf der Timeline — das Formular fragt keine PI-Felder mehr
+ * ab und zeigt nach Erfolg den Weg zur Standard-Anwendung.
+ */
 export function StartArtForm({ valueStreams, rteUsers, timelines, canManage }: Props) {
   const [state, formAction, isPending] = useActionState(startArtAction, {});
 
@@ -37,9 +42,6 @@ export function StartArtForm({ valueStreams, rteUsers, timelines, canManage }: P
   const [name, setName] = useState("");
   const [timelineId, setTimelineId] = useState(timelines[0]?.id ?? "");
   const [rteId, setRteId] = useState("");
-  const [piName, setPiName] = useState("");
-  const [piStart, setPiStart] = useState("");
-  const [piEnd, setPiEnd] = useState("");
 
   function submit() {
     const fd = new FormData();
@@ -50,12 +52,9 @@ export function StartArtForm({ valueStreams, rteUsers, timelines, canManage }: P
         name,
         timelineId,
         rteId: rteId || null,
-        piName,
-        piStartDate: piStart,
-        piEndDate: piEnd,
       }),
     );
-    formAction(fd);
+    startTransition(() => formAction(fd));
   }
 
   if (!canManage) {
@@ -81,29 +80,38 @@ export function StartArtForm({ valueStreams, rteUsers, timelines, canManage }: P
         <Link href="/structure?tab=timeline" className="text-primary hover:underline">
           Struktur › Timeline
         </Link>
-        . ARTs übernehmen die Kadenz ihrer Timeline.
+        . ARTs übernehmen die Kadenz ihrer Timeline; PIs entstehen anschließend aus dem PI-Standard,
+        den du auf die Timeline anwendest.
       </p>
     );
   }
 
   if (state.created) {
     return (
-      <p role="status" className="flex items-center gap-2 text-sm text-emerald-700">
-        ART gestartet.
-        {state.created.href && (
-          <Link
-            href={state.created.href}
-            className="inline-flex items-center gap-1 text-primary hover:underline"
-          >
-            Zum ART <ArrowRight className="h-3.5 w-3.5" />
+      <div className="space-y-2">
+        <p role="status" className="flex items-center gap-2 text-sm text-emerald-700">
+          ART gestartet.
+          {state.created.href && (
+            <Link
+              href={state.created.href}
+              className="inline-flex items-center gap-1 text-primary hover:underline"
+            >
+              Zum ART <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          PIs entstehen jetzt aus dem PI-Standard, der auf die Timeline angewendet wird —{" "}
+          <Link href="/structure?tab=timeline" className="text-primary hover:underline">
+            Struktur › Timeline → Standard anwenden
           </Link>
-        )}
-      </p>
+          .
+        </p>
+      </div>
     );
   }
 
-  const canSubmit =
-    !isPending && valueStreamId && name.trim() && timelineId && piName.trim() && piStart && piEnd;
+  const canSubmit = !isPending && valueStreamId && name.trim() && timelineId;
 
   return (
     <div className="max-w-xl space-y-5">
@@ -162,38 +170,14 @@ export function StartArtForm({ valueStreams, rteUsers, timelines, canManage }: P
         </div>
       </div>
 
-      <fieldset className="space-y-3 rounded-md border p-3">
-        <legend className="px-1 text-sm font-medium">Erstes Program Increment</legend>
-        <div className="space-y-1.5">
-          <Label htmlFor="sa-piname">PI-Name</Label>
-          <Input
-            id="sa-piname"
-            value={piName}
-            onChange={(e) => setPiName(e.target.value)}
-            placeholder="z. B. PI 25.1"
-          />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="sa-pistart">Start</Label>
-            <Input
-              id="sa-pistart"
-              type="date"
-              value={piStart}
-              onChange={(e) => setPiStart(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="sa-piend">Ende</Label>
-            <Input
-              id="sa-piend"
-              type="date"
-              value={piEnd}
-              onChange={(e) => setPiEnd(e.target.value)}
-            />
-          </div>
-        </div>
-      </fieldset>
+      <p className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
+        PIs werden nicht hier angelegt — sie entstehen aus dem PI-Standard, der auf die gewählte
+        Timeline angewendet wird.{" "}
+        <Link href="/structure?tab=timeline" className="text-primary hover:underline">
+          Mehr unter Struktur › Timeline
+        </Link>
+        .
+      </p>
 
       {state.error && (
         <p role="alert" className="text-sm text-destructive">

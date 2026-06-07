@@ -22,6 +22,8 @@ interface Props {
   canCreateArt: boolean;
   canCreateTeam: boolean;
   canManageTimeline: boolean;
+  /** Verfügbare PI-Standards für „Standard auf Timeline anwenden". */
+  piStandards: { id: string; name: string }[];
 }
 
 const NODE_KIND_SET = new Set<NodeKind>(["vs", "art", "team", "timeline"]);
@@ -43,6 +45,7 @@ export function StructurePageShell({
   canCreateArt,
   canCreateTeam,
   canManageTimeline,
+  piStandards,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -124,6 +127,7 @@ export function StructurePageShell({
             <TimelineDetailPane
               timeline={model.timeline.get(selection.id)!}
               canManage={canManageTimeline}
+              piStandards={piStandards}
               onSelectNode={onSelectNode}
             />
           ) : (

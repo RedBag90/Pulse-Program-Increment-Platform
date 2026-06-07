@@ -3,31 +3,29 @@ import type { Result } from "@/domain/errors";
 import { ok, isErr } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { createArt, updateArt } from "@/server/services/art";
-import { createPi } from "@/server/services/pi";
 import { joinArtToTimeline } from "@/server/services/timeline";
 
 export interface StartArtInput {
   valueStreamId: ValueStreamId;
   name: string;
-  /** Timeline the new ART joins — its cadence is shared. Replaces the old
-   *  per-ART `piCadenceWeeks` input. */
+  /** Timeline the new ART joins — its cadence is shared. PIs werden zentral
+   *  über `applyPiStandard` auf dieser Timeline erzeugt, nicht hier. */
   timelineId: TimelineId;
   rteId?: string | null | undefined;
-  piName: string;
-  piStartDate: Date;
-  piEndDate: Date;
 }
 
 /**
- * Guided ART launch — composes the steps a new train needs (create ART → join
- * a shared Timeline → assign RTE → plan the first PI) into one flow, so
- * management doesn't click through four separate dialogs. Each step is its own
- * audited transaction (not atomic); inputs are validated at the action layer.
+ * Guided ART launch — komponiert die Schritte, die ein frischer Train braucht
+ * (ART anlegen → einer Shared-Timeline beitreten → RTE setzen) zu einem
+ * Flow, damit das Management nicht drei Dialoge durchklicken muss. Jeder
+ * Schritt ist eine eigene audited Transaction (nicht atomar); Inputs werden
+ * auf Action-Ebene validiert.
  *
- * The Timeline is now picked by the user up front — the cadence lives on the
- * Timeline, not the ART, and several ARTs may share it. The first PI is
- * created on that Timeline; it will conflict only if the chosen Timeline
- * already has a PI overlapping the requested period.
+ * PIs entstehen seit dem Timeline-Rollout ausschließlich aus dem PI-Standard,
+ * der auf die Timeline angewendet wird (`addStandardPisAction`). Der
+ * Onboarding-Flow legt deshalb kein erstes PI mehr an — der User sieht im
+ * Erfolgsfall einen Hinweis, dass PIs über die Timeline-Verwaltung
+ * angelegt werden.
  */
 export async function startArt(
   ctx: RequestContext,
@@ -50,14 +48,6 @@ export async function startArt(
     timelineId: input.timelineId,
   });
   if (isErr(joined)) return joined;
-
-  const pi = await createPi(ctx, {
-    timelineId: input.timelineId,
-    name: input.piName,
-    startDate: input.piStartDate,
-    endDate: input.piEndDate,
-  });
-  if (isErr(pi)) return pi;
 
   return ok({ artId });
 }
