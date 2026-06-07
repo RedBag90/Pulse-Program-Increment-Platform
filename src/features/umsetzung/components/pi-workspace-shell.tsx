@@ -4,16 +4,26 @@ import {
   type DetailTab,
 } from "@/components/detail/entity-detail-shell";
 import { PiOverviewTab } from "@/features/umsetzung/components/pi-overview-tab";
+import { PiPlanTab } from "@/features/umsetzung/components/pi-plan-tab";
+import {
+  PiObjectivesTab,
+  type ObjectiveRow,
+} from "@/features/umsetzung/components/pi-objectives-tab";
+import {
+  PiExecutionTab,
+  type ExecutionFeature,
+} from "@/features/umsetzung/components/pi-execution-tab";
+import type { PlanningModel } from "@/server/views/pi-planning";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
 import type { PiWorkspaceModel } from "@/server/views/pi-workspace";
 
 const PI_WORKSPACE_TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },
-  // Tabs aus Roadmap-P2.B/P2.C — heute Platzhalter mit Sprung auf Bestands-Surfaces.
   { key: "plan", label: "Plan" },
   { key: "execution", label: "Execution" },
   { key: "objectives", label: "Objectives" },
+  // Tabs aus Roadmap-P2.C — heute Platzhalter.
   { key: "dependencies", label: "Dependencies" },
   { key: "impediments", label: "Impediments" },
   { key: "risks", label: "Risks" },
@@ -21,18 +31,46 @@ const PI_WORKSPACE_TABS: readonly DetailTab[] = [
   { key: "closure", label: "Closure" },
 ];
 
+interface PlanTabData {
+  artId: string;
+  canEdit: boolean;
+  view: "board" | "table";
+  model: PlanningModel;
+  currentCycleKey: string;
+}
+
+interface ObjectivesTabData {
+  rows: ObjectiveRow[];
+  teams: { id: string; name: string; artId: string }[];
+  canVote: boolean;
+  canCreate: boolean;
+}
+
+interface ExecutionTabData {
+  features: ExecutionFeature[];
+  canTransition: boolean;
+}
+
 interface Props {
   model: PiWorkspaceModel;
-  /** Aktiver Tab aus URL. */
   activeTab?: string;
+  planTab: PlanTabData | null;
+  objectivesTab: ObjectivesTabData;
+  executionTab: ExecutionTabData;
 }
 
 /**
- * PI-Workspace-Shell. Routet die neun Tabs; in P2.A nur `overview` mit
- * Inhalt, die anderen sind Platzhalter mit Roadmap-Verweis und
- * Direkt-Link auf die bestehenden Surfaces.
+ * PI-Workspace-Shell. Routet die neun Tabs; Overview/Plan/Execution/
+ * Objectives sind aus P2.A/P2.B befuellt, die uebrigen vier sind
+ * Platzhalter (P2.C/P4/P5).
  */
-export function PiWorkspaceShell({ model, activeTab }: Props) {
+export function PiWorkspaceShell({
+  model,
+  activeTab,
+  planTab,
+  objectivesTab,
+  executionTab,
+}: Props) {
   const active = resolveTab(PI_WORKSPACE_TABS, activeTab);
 
   return (
@@ -44,26 +82,56 @@ export function PiWorkspaceShell({ model, activeTab }: Props) {
       activeTab={active}
       basePath={`/umsetzung/pi/${model.id}`}
     >
-      {active === "overview" ? <PiOverviewTab model={model} /> : <PlaceholderTab tab={active} />}
+      {active === "overview" && <PiOverviewTab model={model} />}
+
+      {active === "plan" &&
+        (planTab ? (
+          <PiPlanTab
+            piId={model.id}
+            artId={planTab.artId}
+            canEdit={planTab.canEdit}
+            features={planTab.model.features}
+            pis={planTab.model.pis}
+            capacity={planTab.model.capacity}
+            blockers={planTab.model.blockers}
+            currentCycleKey={planTab.currentCycleKey}
+            view={planTab.view}
+          />
+        ) : (
+          <PlaceholderTab tab="plan" />
+        ))}
+
+      {active === "execution" && (
+        <PiExecutionTab
+          features={executionTab.features}
+          canTransition={executionTab.canTransition}
+        />
+      )}
+
+      {active === "objectives" && (
+        <PiObjectivesTab
+          piId={model.id}
+          rows={objectivesTab.rows}
+          teams={objectivesTab.teams}
+          canVote={objectivesTab.canVote}
+          canCreate={objectivesTab.canCreate}
+        />
+      )}
+
+      {(active === "dependencies" ||
+        active === "impediments" ||
+        active === "risks" ||
+        active === "demo" ||
+        active === "closure") && <PlaceholderTab tab={active} />}
     </EntityDetailShell>
   );
 }
 
 const PLACEHOLDER: Record<string, { hint: string; href: string; linkLabel: string }> = {
   plan: {
-    hint: "Plan-Tab zieht in Roadmap-P2.B den bestehenden PI-Planning-Board hierher.",
+    hint: "Dieser PI hat keinen ART zugeordnet — Plan-Tab nicht verfuegbar.",
     href: "/pi-planning",
     linkLabel: "Zum heutigen PI-Planning",
-  },
-  execution: {
-    hint: "Execution-Tab zeigt in Roadmap-P2.B ein Feature-Kanban gefiltert auf den PI.",
-    href: "/implementation/features",
-    linkLabel: "Zur Features-Uebersicht",
-  },
-  objectives: {
-    hint: "Objectives-Tab inkl. Confidence-Vote zieht in Roadmap-P2.B hierher.",
-    href: "/rte",
-    linkLabel: "Zum RTE-Cockpit",
   },
   dependencies: {
     hint: "Dependencies-Tab (PI-scoped) folgt in Roadmap-P2.C.",

@@ -1,28 +1,43 @@
 import { Suspense } from "react";
 import { redirect, notFound } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { InitiativeLevel } from "@/domain/types";
+import type { ArtId } from "@/domain/types";
+import { listArtPlanningPis } from "@/server/services/pi";
+import { listFeatures } from "@/server/services/feature";
+import { listPiObjectives } from "@/server/services/pi-objective";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { getBlockerWindowsForFeatures } from "@/server/services/dependency";
+import {
+  buildPlanningModel,
+  earliestFundedCycle,
+  type PlanningModel,
+} from "@/server/views/pi-planning";
 import { buildPiWorkspaceModel } from "@/server/views/pi-workspace";
+import { halfYearKey } from "@/domain/calendar";
 import { PiWorkspaceShell } from "@/features/umsetzung/components/pi-workspace-shell";
+import type { ObjectiveRow } from "@/features/umsetzung/components/pi-objectives-tab";
+import type { ExecutionFeature } from "@/features/umsetzung/components/pi-execution-tab";
 
 /**
- * PI-Workspace-Page (Roadmap-P2.A · Skelett + Overview-Tab).
+ * PI-Workspace-Page (Roadmap-P2.A · Skelett + Overview; P2.B · Plan +
+ * Objectives + Execution Tabs).
  *
- * Heute keine PI-spezifische Surface — RTE-Cockpit und PI-Planning
- * sind getrennte Apps. Diese Page bringt die PI als zentrale Achse,
- * mit Overview (Burnup, Confidence, Impediments, Days-left) und acht
- * Platzhalter-Tabs, in die in P2.B/P2.C die Bestands-Inhalte einziehen.
+ * Loader laedt die Overview-Daten immer, Tab-spezifische Daten
+ * (Planning-Modell, Objectives mit Teams, Execution-Features mit
+ * Owner-Labels) nur wenn der aktive Tab das verlangt.
  */
 export default async function PiWorkspacePage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; view?: string }>;
 }) {
   const { id } = await params;
-  const { tab } = await searchParams;
+  const { tab, view } = await searchParams;
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -39,13 +54,16 @@ export default async function PiWorkspacePage({
       endDate: true,
       artId: true,
       art: { select: { id: true, name: true } },
-      timeline: { select: { name: true } },
+      timeline: {
+        select: { id: true, name: true, arts: { select: { id: true } } },
+      },
     },
   });
 
   if (!pi) notFound();
 
-  const [features, objectives, impediments] = await Promise.all([
+  // Overview-Daten — immer geladen.
+  const [piFeatures, objectives, impediments] = await Promise.all([
     db.initiative.findMany({
       where: {
         tenantId: principal.tenantId,
@@ -53,7 +71,14 @@ export default async function PiWorkspacePage({
         piId: pi.id,
         deletedAt: null,
       },
-      select: { status: true, wsjfJobSize: true },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        wsjfJobSize: true,
+        wsjfComputed: true,
+        ownerId: true,
+      },
     }),
     db.piObjective.findMany({
       where: { tenantId: principal.tenantId, piId: pi.id },
@@ -65,7 +90,7 @@ export default async function PiWorkspacePage({
     }),
   ]);
 
-  const model = buildPiWorkspaceModel({
+  const overview = buildPiWorkspaceModel({
     id: pi.id,
     name: pi.name,
     status: pi.status,
@@ -74,14 +99,196 @@ export default async function PiWorkspacePage({
     artId: pi.artId ?? null,
     artName: pi.art?.name ?? null,
     timelineName: pi.timeline?.name ?? null,
-    features,
+    features: piFeatures.map((f) => ({ status: f.status, wsjfJobSize: f.wsjfJobSize })),
     objectives,
     impediments,
   });
 
+  // Tab-spezifische Daten lazy laden.
+  const activeTab = tab ?? "overview";
+
+  // Plan-Tab
+  let planningModel: PlanningModel | null = null;
+  const planView: "board" | "table" = view === "table" ? "table" : "board";
+  let canEditPlan = false;
+  if (activeTab === "plan" && pi.artId) {
+    canEditPlan = hasCapability(principal, "feature.update", {
+      tenantId: principal.tenantId,
+      artId: pi.artId,
+    });
+
+    const [pisRaw, featurePage, artBudget, tenant] = await Promise.all([
+      listArtPlanningPis(db, principal.tenantId, pi.artId as ArtId),
+      listFeatures(db, principal.tenantId, pi.artId as ArtId),
+      db.artBudget.findFirst({
+        where: { tenantId: principal.tenantId, artId: pi.artId },
+        select: { byPeriod: true },
+      }),
+      db.tenant.findUnique({
+        where: { id: principal.tenantId },
+        select: { costPerJobSizePoint: true },
+      }),
+    ]);
+
+    const artBudgetByPeriod: Record<string, number> | null = (() => {
+      const raw = artBudget?.byPeriod;
+      if (!raw || typeof raw !== "object") return null;
+      const out: Record<string, number> = {};
+      for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+        if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+      }
+      return Object.keys(out).length > 0 ? out : null;
+    })();
+    const costPerJobSizePoint =
+      tenant?.costPerJobSizePoint != null ? Number(tenant.costPerJobSizePoint) : null;
+
+    const featureIds = featurePage.items.map((f) => f.id);
+    const blockerWindowsByFeature = await getBlockerWindowsForFeatures(
+      db,
+      principal.tenantId,
+      featureIds,
+    );
+
+    const epicIds = Array.from(
+      new Set(
+        featurePage.items
+          .map((f) => f.parent?.id)
+          .filter((eid): eid is string => typeof eid === "string"),
+      ),
+    );
+    const epicAllocs =
+      epicIds.length === 0
+        ? []
+        : await db.budgetAllocation.findMany({
+            where: { tenantId: principal.tenantId, epicId: { in: epicIds } },
+            select: { epicId: true, allocations: true },
+          });
+    const epicCycleByEpicId: Record<string, string | null> = Object.fromEntries(
+      epicAllocs.map((a) => {
+        const raw = a.allocations;
+        const map: Record<string, number> = {};
+        if (raw && typeof raw === "object") {
+          for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+            if (typeof v === "number" && Number.isFinite(v)) map[k] = v;
+          }
+        }
+        return [a.epicId, earliestFundedCycle(map)];
+      }),
+    );
+
+    planningModel = buildPlanningModel({
+      pis: pisRaw,
+      features: featurePage.items,
+      artBudgetByPeriod,
+      costPerJobSizePoint,
+      blockerWindowsByFeature,
+      epicCycleByEpicId,
+    });
+  }
+
+  // Objectives-Tab
+  let objectiveRows: ObjectiveRow[] = [];
+  let teamOptions: { id: string; name: string; artId: string }[] = [];
+  let canCreateObjective = false;
+  let canVoteObjective = false;
+  if (activeTab === "objectives") {
+    const [withTeam, teams] = await Promise.all([
+      listPiObjectives(db, principal.tenantId, pi.id as never),
+      // Teams aus allen ARTs der Timeline (oder einzeln aus dem PI-ART, wenn
+      // kein Timeline-Verbund). Picker zeigt nur Teams, die der Principal lesen
+      // darf — heute reicht der Tenant-Filter, der Service-Layer prueft den Rest.
+      pi.timeline?.arts && pi.timeline.arts.length > 0
+        ? db.team.findMany({
+            where: {
+              tenantId: principal.tenantId,
+              artId: { in: pi.timeline.arts.map((a) => a.id) },
+            },
+            select: { id: true, name: true, artId: true },
+            orderBy: { name: "asc" },
+          })
+        : pi.artId
+          ? db.team.findMany({
+              where: { tenantId: principal.tenantId, artId: pi.artId },
+              select: { id: true, name: true, artId: true },
+              orderBy: { name: "asc" },
+            })
+          : Promise.resolve([] as { id: string; name: string; artId: string }[]),
+    ]);
+    objectiveRows = withTeam.map((o) => ({
+      id: o.id,
+      title: o.title,
+      description: o.description ?? null,
+      businessValue: o.businessValue ?? null,
+      committed: o.committed,
+      confidence: o.confidence ?? null,
+      teamId: o.teamId,
+      teamName: o.team?.name ?? "Unbekanntes Team",
+      artId: o.team?.id != null ? (teams.find((t) => t.id === o.teamId)?.artId ?? null) : null,
+    }));
+    teamOptions = teams;
+    // Capabilities: pi_objective.create und pi_objective.update sind beide
+    // typischerweise im RTE/TEAM_EDITOR-Set. Hier prufen wir grob mit dem
+    // PI-ART; der Service-Seam pruft pro Team granular.
+    if (pi.artId) {
+      canCreateObjective = hasCapability(principal, "pi_objective.create", {
+        tenantId: principal.tenantId,
+        artId: pi.artId,
+      });
+      canVoteObjective = hasCapability(principal, "pi_objective.update", {
+        tenantId: principal.tenantId,
+        artId: pi.artId,
+      });
+    }
+  }
+
+  // Execution-Tab
+  let executionFeatures: ExecutionFeature[] = [];
+  let canTransitionExecution = false;
+  if (activeTab === "execution") {
+    const userLabels = await listTenantUserLabels(db, principal.tenantId);
+    executionFeatures = piFeatures.map((f) => ({
+      id: f.id,
+      title: f.title,
+      status: f.status,
+      wsjfJobSize: f.wsjfJobSize,
+      wsjfComputed: f.wsjfComputed != null ? Number(f.wsjfComputed) : null,
+      ownerLabel: f.ownerId ? (userLabels[f.ownerId] ?? null) : null,
+    }));
+    if (pi.artId) {
+      canTransitionExecution = hasCapability(principal, "feature.delivery.set", {
+        tenantId: principal.tenantId,
+        artId: pi.artId,
+      });
+    }
+  }
+
   return (
     <Suspense fallback={null}>
-      <PiWorkspaceShell model={model} {...(tab !== undefined ? { activeTab: tab } : {})} />
+      <PiWorkspaceShell
+        model={overview}
+        {...(tab !== undefined ? { activeTab: tab } : {})}
+        planTab={
+          planningModel
+            ? {
+                artId: pi.artId!,
+                canEdit: canEditPlan,
+                view: planView,
+                model: planningModel,
+                currentCycleKey: halfYearKey(new Date()),
+              }
+            : null
+        }
+        objectivesTab={{
+          rows: objectiveRows,
+          teams: teamOptions,
+          canVote: canVoteObjective,
+          canCreate: canCreateObjective,
+        }}
+        executionTab={{
+          features: executionFeatures,
+          canTransition: canTransitionExecution,
+        }}
+      />
     </Suspense>
   );
 }
