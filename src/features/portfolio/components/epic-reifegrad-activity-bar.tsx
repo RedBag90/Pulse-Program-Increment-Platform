@@ -1,16 +1,11 @@
 import { CheckCircle2 } from "lucide-react";
-import { STAGE_GATES, type SubStage } from "@/domain/stage-gate";
+import { STAGE_GATES } from "@/domain/stage-gate";
 import type { StageGate } from "@/domain/types";
-import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiative-labels";
-import { PhaseBadge } from "@/components/detail/phase-badge";
+import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import type { EpicNextStep } from "@/domain/epic-next-step";
 
 interface Props {
   stageGate: StageGate;
-  subStage: SubStage | null;
-  approvalPhase: string | null;
-  budgetAllocated: boolean;
-  impactRecognizedAt: Date | null;
   /** Berechneter nächster Schritt; null = L5 / Endstand. */
   nextStep: EpicNextStep | null;
   /** UI-Repräsentation des CTAs (Link-Button oder Inline-Dialog). Wird von
@@ -31,24 +26,16 @@ const STAGE_DOT: Record<StageGate, string> = {
  * Sub-Header für die Epic-Detail-Seite — trennt die zwei Achsen visuell:
  *
  * - **Reifegrad** (links): kompakter L0..L5-Track mit dem aktuellen Gate
- *   hervorgehoben, Sub-Step-Mini-Label (L2.1/L2.2 bzw. L4.1/L4.2), und
- *   die zugehörigen Kontext-Badges (Approval-Phase, Budget alloziert,
- *   Impact realisiert).
+ *   hervorgehoben. Bewusst reduziert: keine Approval-Phase-, Budget- oder
+ *   Sub-Step-Badges — die Approval-Phase steht im Page-Header, alle anderen
+ *   Aspekte werden vom „Nächster Schritt"-Helfer rechts berücksichtigt.
  * - **Nächster Schritt** (rechts): kontextueller Helfer, der dem Owner
  *   zeigt, was als Nächstes zu tun ist, damit das Epic das nächste Stage
  *   Gate erreicht — inklusive CTA, der zur passenden Stelle springt.
  *
  * Reine Server-Komponente — keine Mutationen, keine State.
  */
-export function EpicReifegradActivityBar({
-  stageGate,
-  subStage,
-  approvalPhase,
-  budgetAllocated,
-  impactRecognizedAt,
-  nextStep,
-  actionSlot,
-}: Props) {
+export function EpicReifegradActivityBar({ stageGate, nextStep, actionSlot }: Props) {
   return (
     <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
       {/* ── Reifegrad ──────────────────────────────────────── */}
@@ -73,31 +60,9 @@ export function EpicReifegradActivityBar({
               >
                 <span className={`size-2 rounded-full ${STAGE_DOT[g as StageGate]}`} />
                 <span>{STAGE_GATE_LABELS[g] ?? g}</span>
-                {isActive && subStage && (
-                  <span className="rounded bg-muted px-1 text-[10px] tabular-nums">{subStage}</span>
-                )}
               </div>
             );
           })}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          {approvalPhase && <PhaseBadge phase={approvalPhase} />}
-          {budgetAllocated && (
-            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] text-indigo-700">
-              Budget alloziert
-            </span>
-          )}
-          {impactRecognizedAt && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] text-emerald-700">
-              <CheckCircle2 className="size-3" />
-              Impact realisiert · {impactRecognizedAt.toLocaleDateString("de-DE")}
-            </span>
-          )}
-          {subStage && (
-            <span className="text-[11px] text-muted-foreground">
-              {subStage} · {SUB_STAGE_LABELS[subStage]}
-            </span>
-          )}
         </div>
       </section>
 

@@ -346,10 +346,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         return (
           <EpicReifegradActivityBar
             stageGate={epic.stageGate as StageGate}
-            subStage={subStage}
-            approvalPhase={practices.multiPartyApproval ? approvalPhase : null}
-            budgetAllocated={budgetAllocated}
-            impactRecognizedAt={epic.impactRecognizedAt}
             nextStep={nextStep}
             actionSlot={actionSlot}
           />
