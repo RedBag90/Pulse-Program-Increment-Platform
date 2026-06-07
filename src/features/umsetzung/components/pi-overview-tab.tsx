@@ -1,4 +1,5 @@
 import { CalendarRange, Gauge, Target, ShieldAlert, AlertTriangle } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import type { PiWorkspaceModel } from "@/server/views/pi-workspace";
 
 interface Props {
@@ -44,7 +45,13 @@ export function PiOverviewTab({ model }: Props) {
         {model.art && (
           <span className="text-sm text-muted-foreground">
             <span className="mr-1">·</span>
-            ART {model.art.name}
+            ART{" "}
+            <Link
+              href={`/umsetzung/art/${model.art.id}` as never}
+              className="text-primary hover:underline"
+            >
+              {model.art.name}
+            </Link>
           </span>
         )}
         {model.timelineName && (

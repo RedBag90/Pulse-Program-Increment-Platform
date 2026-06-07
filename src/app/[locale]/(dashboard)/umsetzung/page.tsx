@@ -19,28 +19,48 @@ export default async function UmsetzungsHubPage() {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  // PIs scope-gefiltert ueber die ART-Scopes des Principals; leerer Scope
+  // Scope-gefiltert ueber die ART-Scopes des Principals; leerer Scope
   // bedeutet „alle Tenant-ARTs".
   const scopedArtIds = principal.scopes.artIds;
-  const pis = await db.programIncrement.findMany({
-    where: {
-      tenantId: principal.tenantId,
-      ...(scopedArtIds.length > 0 ? { artId: { in: scopedArtIds } } : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      status: true,
-      startDate: true,
-      endDate: true,
-      art: { select: { id: true, name: true } },
-    },
-    orderBy: [{ startDate: "asc" }, { name: "asc" }],
-  });
+  const [arts, pis] = await Promise.all([
+    db.art.findMany({
+      where: {
+        tenantId: principal.tenantId,
+        deletedAt: null,
+        ...(scopedArtIds.length > 0 ? { id: { in: scopedArtIds } } : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        valueStream: { select: { name: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+    db.programIncrement.findMany({
+      where: {
+        tenantId: principal.tenantId,
+        ...(scopedArtIds.length > 0 ? { artId: { in: scopedArtIds } } : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        art: { select: { id: true, name: true } },
+      },
+      orderBy: [{ startDate: "asc" }, { name: "asc" }],
+    }),
+  ]);
 
   return (
     <Suspense fallback={null}>
       <UmsetzungsHubShell
+        arts={arts.map((a) => ({
+          id: a.id,
+          name: a.name,
+          valueStreamName: a.valueStream?.name ?? null,
+        }))}
         pis={pis.map((p) => ({
           id: p.id,
           name: p.name,

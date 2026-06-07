@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { ArrowRight, CalendarRange, Compass, Hammer, ShieldAlert } from "lucide-react";
+import { ArrowRight, CalendarRange, Compass, Hammer, Network, ShieldAlert } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 
 export interface HubPiRow {
@@ -14,7 +14,14 @@ export interface HubPiRow {
   artName: string | null;
 }
 
+export interface HubArtRow {
+  id: string;
+  name: string;
+  valueStreamName: string | null;
+}
+
 interface Props {
+  arts: HubArtRow[];
   pis: HubPiRow[];
 }
 
@@ -52,7 +59,7 @@ const TABS: { key: HubTab; label: string; description: string; icon: typeof Comp
  * - **Backlog**: heutige Features-Übersicht (Move in P0.B/P2).
  * - **Risks/Improvements**: Risk-Register (P5) + Retro-Action-Items (P6).
  */
-export function UmsetzungsHubShell({ pis }: Props) {
+export function UmsetzungsHubShell({ arts, pis }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -115,7 +122,12 @@ export function UmsetzungsHubShell({ pis }: Props) {
                 {t.label}
               </h2>
               <p className="text-sm text-muted-foreground">{t.description}</p>
-              {t.key === "overview" && <PiList pis={pis} />}
+              {t.key === "overview" && (
+                <>
+                  <ArtList arts={arts} />
+                  <PiList pis={pis} />
+                </>
+              )}
               <TabPlaceholderLinks tab={t.key} />
             </div>
           </div>
@@ -180,6 +192,40 @@ const PI_STATUS_LABEL: Record<string, string> = {
   active: "Aktiv",
   completed: "Abgeschlossen",
 };
+
+function ArtList({ arts }: { arts: HubArtRow[] }) {
+  if (arts.length === 0) {
+    return (
+      <p className="rounded-md border border-dashed bg-card px-4 py-3 text-sm text-muted-foreground">
+        Keine ARTs in deinem Scope.
+      </p>
+    );
+  }
+  return (
+    <div className="rounded-lg border bg-card">
+      <header className="border-b px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Agile Release Trains — Sprung in den ART-Hub
+      </header>
+      <ul className="divide-y">
+        {arts.map((a) => (
+          <li key={a.id}>
+            <Link
+              href={`/umsetzung/art/${a.id}` as never}
+              className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/40"
+            >
+              <Network className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="font-medium">{a.name}</span>
+              {a.valueStreamName && (
+                <span className="text-xs text-muted-foreground">VS {a.valueStreamName}</span>
+              )}
+              <ArrowRight className="ml-auto size-3.5 text-muted-foreground" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function PiList({ pis }: { pis: HubPiRow[] }) {
   if (pis.length === 0) {
