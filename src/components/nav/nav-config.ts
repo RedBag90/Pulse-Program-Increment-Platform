@@ -99,6 +99,16 @@ export const NAV_GROUPS: NavGroup[] = [
     labelKey: "implementation",
     items: [
       {
+        // Umsetzungs-Hub — Konsolidierungs-Surface (Roadmap-P0). Bestands-
+        // Routen (Features-Übersicht, PI-Planung, RTE, Impediments,
+        // Dependencies) wandern in spaeteren Phasen unter diesen Hub und
+        // werden danach aus der Nav entfernt.
+        href: "/umsetzung",
+        labelKey: "umsetzungHub",
+        icon: Compass,
+        practice: "programLevel",
+      },
+      {
         // Cross-VS/ART Features-Liste — PR 2 der IA-Rework Suite.
         href: "/implementation/features",
         labelKey: "featuresOverview",
