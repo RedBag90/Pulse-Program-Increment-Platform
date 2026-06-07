@@ -11,16 +11,6 @@ import {
 } from "@/server/services/portfolio-overview";
 import { wipCountLabel, isOverWip } from "@/features/portfolio/overview/wip-limits";
 
-const STATUS_DOT: Record<string, string> = {
-  draft: "bg-muted-foreground/40",
-  in_review: "bg-blue-400",
-  approved: "bg-emerald-400",
-  in_progress: "bg-primary",
-  blocked: "bg-red-400",
-  completed: "bg-emerald-500",
-  cancelled: "bg-muted-foreground/20",
-};
-
 /**
  * Read-only portfolio Kanban — six columns, soft WIP limits per column.
  * Editing (Drag&Drop, stage-gate transitions) lives on `/portfolio/epics`;
@@ -113,9 +103,6 @@ function KanbanCard({ epic }: { epic: OverviewEpicCard }) {
             aria-label="Im nächsten Steering-Meeting behandeln"
           />
         )}
-        <span
-          className={cn("size-1.5 shrink-0 rounded-full", STATUS_DOT[epic.status] ?? "bg-muted")}
-        />
         <Link
           href={`/portfolio/epics/${epic.id}`}
           className="truncate font-medium leading-snug hover:text-primary"
