@@ -84,6 +84,32 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
   }
 
   if (stageGate === "L1") {
+    // Defensive: Bestands-Epics, bei denen L1 -> L2 nicht ausgeloest wurde
+    // (Trigger erst seit dem Fix in saveBusinessCase/submitBusinessCase),
+    // koennen approvalPhase business_case/stakeholder_review/approved
+    // haben — also faktisch im L2.x-Workflow stehen. Wir spiegeln das in
+    // der Empfehlung, damit der Helfer korrekt fuehrt.
+    if (approvalPhase === "stakeholder_review") {
+      return {
+        title: "Auf Stakeholder-Freigabe warten",
+        hint: "Der Business Case ist eingereicht. Die zugewiesenen Approver entscheiden als Naechstes.",
+        cta: { kind: "link", label: "Zu den Freigaben", href: tab("approvals") },
+      };
+    }
+    if (approvalPhase === "approved") {
+      return {
+        title: "Budget allozieren",
+        hint: "Business Case ist freigegeben. Plane jetzt im Controlling Budget fuer dieses Epic ein, damit es auf L3 weiterzieht.",
+        cta: { kind: "link", label: "Zum Controlling", href: "/controlling" },
+      };
+    }
+    if (hasBusinessCase) {
+      return {
+        title: "Business Case einreichen",
+        hint: "Inhalte sind da. Reiche den Business Case im BC-Tab zur Stakeholder-Freigabe ein.",
+        cta: { kind: "link", label: "Zum Business Case", href: tab("business-case") },
+      };
+    }
     return {
       title: "Business Case ausarbeiten",
       hint: "Die Hypothese ist angenommen. Detailliere jetzt den Business Case (Kosten, Nutzen, Annahmen, Risiken).",

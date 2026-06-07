@@ -445,6 +445,15 @@ export async function saveBusinessCase(
       },
     });
 
+    // Reifegrad-Modell v2: L2.1 = „BC in Arbeit". Sobald Inhalt im
+    // Business Case existiert, rueckt das Epic von L1 auf L2 — die
+    // Sub-Step-Derivation (subStageFor) macht daraus dann L2.1 bzw.
+    // L2.2 nach BC-Approval. autoAdvanceStageGate ist no-op, wenn das
+    // Epic schon auf L2 oder weiter ist.
+    if (businessCaseHasContent(fields)) {
+      await autoAdvanceStageGate(tx, mctx, epicId, "L2");
+    }
+
     return ok({
       result: undefined,
       audit: { action: "initiative.updated", resourceType: "initiative", resourceId: epicId },

@@ -321,6 +321,13 @@ export async function submitBusinessCase(
       data: { approvalPhase: "stakeholder_review", updatedBy: mctx.actorId },
     });
 
+    // Reifegrad-Modell v2: Backstop fuer L1->L2. Normalerweise rueckt das
+    // Epic schon beim saveBusinessCase auf L2 (sobald Inhalt da ist).
+    // Bestands-Epics, die vor der Trigger-Aenderung Inhalt bekommen haben,
+    // werden spaetestens hier mit eingesammelt. autoAdvanceStageGate ist
+    // no-op, wenn das Epic bereits auf L2 oder weiter ist.
+    await autoAdvanceStageGate(tx, mctx, epicId, "L2");
+
     return ok({
       result: undefined,
       audit: {

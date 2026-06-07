@@ -49,6 +49,42 @@ describe("epicNextStep", () => {
     });
   });
 
+  it("L1 + hasBusinessCase + approvalPhase business_case → BC einreichen (resilient)", () => {
+    const step = epicNextStep(
+      base({
+        stageGate: "L1",
+        hasHypothesis: true,
+        hasBusinessCase: true,
+        approvalPhase: "business_case",
+      }),
+    );
+    expect(step?.title).toBe("Business Case einreichen");
+  });
+
+  it("L1 + approvalPhase stakeholder_review → Auf Stakeholder-Freigabe warten (resilient)", () => {
+    const step = epicNextStep(
+      base({
+        stageGate: "L1",
+        hasHypothesis: true,
+        hasBusinessCase: true,
+        approvalPhase: "stakeholder_review",
+      }),
+    );
+    expect(step?.title).toBe("Auf Stakeholder-Freigabe warten");
+  });
+
+  it("L1 + approvalPhase approved → Budget allozieren (resilient)", () => {
+    const step = epicNextStep(
+      base({
+        stageGate: "L1",
+        hasHypothesis: true,
+        hasBusinessCase: true,
+        approvalPhase: "approved",
+      }),
+    );
+    expect(step?.title).toBe("Budget allozieren");
+  });
+
   it("L2 / L2.1 ohne BC-Inhalt → BC ausarbeiten", () => {
     const step = epicNextStep(
       base({ stageGate: "L2", subStage: "L2.1", approvalPhase: "business_case" }),
