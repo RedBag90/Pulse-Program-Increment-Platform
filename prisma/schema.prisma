@@ -691,6 +691,31 @@ model UserRoleAssignment {
   @@map("user_role_assignments")
 }
 
+/// Pro-Tenant editierbares Mapping Rolle → Capability. Default-Bundle wird
+/// aus `POLICIES` in `src/server/auth/policies/index.ts` gespeist (siehe
+/// Plan-Datei Capability-Übersicht); jeder Tenant kann delta-editieren
+/// (Capability hinzufügen / entziehen / Scope ändern).
+///
+/// PR A baut nur die Tabelle + den Backfill. `authorize()` arbeitet weiter
+/// gegen den Code; PR B macht den Resolver-Switch.
+model RoleCapability {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  role      String
+  action    String
+  /// Optionaler Scope-Override: "value_stream" | "art" | "team" | "own".
+  /// null = unscoped. Validierung gegen die `ScopeCheck`-Union erfolgt im
+  /// Service-Layer (Zod-Schema), nicht im Schema (Prisma hat keine Enums
+  /// hier, um den Aufwand der Migration klein zu halten).
+  scope     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+
+  @@unique([tenantId, role, action])
+  @@index([tenantId, role])
+  @@map("role_capabilities")
+}
+
 model Impediment {
   id          String    @id @default(uuid()) @db.Uuid
   tenantId    String    @map("tenant_id") @db.Uuid

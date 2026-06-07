@@ -61,7 +61,8 @@ export type Action =
   | "budget_plan.revision.capture"
   | "timeline.manage"
   | "art_budget.manage"
-  | "kpi.value.manage";
+  | "kpi.value.manage"
+  | "role.capability.manage";
 
 /** A scope dimension a grant may additionally require the principal to match. */
 export type ScopeCheck = "value_stream" | "art" | "team" | "own";
@@ -100,6 +101,12 @@ export const POLICIES: Record<Action, Grant[]> = {
   "integration.manage": [{ roles: [TENANT_ADMIN] }],
   "admin.audit-log.read": [{ roles: [TENANT_ADMIN] }],
   "admin.users.read": [{ roles: [TENANT_ADMIN] }],
+  // Wer pro Rolle Capabilities zuweisen/entziehen darf — bewusst getrennt
+  // von "tenant.users.manage" (Funktionstrennung "wer User einlädt" ≠
+  // "wer Berechtigungen vergibt"). Standard-Träger: TENANT_ADMIN; das
+  // Fast-Path-Bypass deckt das ohnehin ab, der explizite Grant
+  // dokumentiert die Absicht.
+  "role.capability.manage": [{ roles: [TENANT_ADMIN] }],
   // Define/manage the organisation's target operating model (the Soll the
   // transformation drives toward). Management-owned: the transformation lead
   // (coach / SPC), the LPM/portfolio lead, and the tenant admin.
@@ -266,3 +273,29 @@ export const POLICIES: Record<Action, Grant[]> = {
   "impediment.escalate": [{ roles: [PORTFOLIO_MANAGER, RTE, TEAM_EDITOR] }],
   "impediment.resolve": [{ roles: [PORTFOLIO_MANAGER, RTE, TEAM_EDITOR] }],
 };
+
+/**
+ * Flat liste aller `(role, action, scope)` Tupel aus `POLICIES` — gedacht für
+ * Backfill in die `RoleCapability`-Tabelle. Eine Zeile pro Rolle pro Grant.
+ * `platform_admin` und `tenant_admin` sind über den Fast-Path in
+ * `authorize()` ohnehin allmächtig und tauchen hier nicht auf (die explizit
+ * dokumentierten Grants tun aber, weil sie semantisch zur Default-Bundle
+ * gehören — z.B. `"epic.delete": [PORTFOLIO_MANAGER, TENANT_ADMIN]`).
+ */
+export interface CapabilityTuple {
+  role: Role;
+  action: Action;
+  scope: ScopeCheck | null;
+}
+
+export function enumerateDefaultCapabilities(): CapabilityTuple[] {
+  const out: CapabilityTuple[] = [];
+  for (const [action, grants] of Object.entries(POLICIES) as [Action, Grant[]][]) {
+    for (const grant of grants) {
+      for (const role of grant.roles) {
+        out.push({ role, action, scope: grant.scope ?? null });
+      }
+    }
+  }
+  return out;
+}
