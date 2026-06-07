@@ -1,0 +1,131 @@
+import { describe, it, expect } from "vitest";
+import { epicNextStep, type EpicNextStepInput } from "@/domain/epic-next-step";
+
+const base = (over: Partial<EpicNextStepInput> = {}): EpicNextStepInput => ({
+  epicId: "epic-1",
+  stageGate: "L0",
+  subStage: null,
+  approvalPhase: null,
+  hasHypothesis: false,
+  hasBusinessCase: false,
+  budgetAllocated: false,
+  impactRecognizedAt: null,
+  childFeatureStats: { total: 0, completed: 0 },
+  ...over,
+});
+
+describe("epicNextStep", () => {
+  it("L0 ohne Hypothese-Inhalt → Benefit Hypothese ausarbeiten", () => {
+    const step = epicNextStep(base());
+    expect(step?.title).toBe("Benefit Hypothese ausarbeiten");
+    expect(step?.cta).toEqual({
+      kind: "link",
+      label: "Zur Hypothese",
+      href: "/portfolio/epics/epic-1?tab=benefit-hypothesis",
+    });
+  });
+
+  it("L0 mit Hypothese-Inhalt aber noch draft → Hypothese einreichen", () => {
+    const step = epicNextStep(base({ hasHypothesis: true, approvalPhase: "draft" }));
+    expect(step?.title).toBe("Hypothese zur Entscheidung einreichen");
+  });
+
+  it("L0 + hypothesis_review → Warte-Hinweis auf VMO + Link zu Freigaben", () => {
+    const step = epicNextStep(base({ hasHypothesis: true, approvalPhase: "hypothesis_review" }));
+    expect(step?.title).toBe("Auf VMO-Entscheidung warten");
+    expect(step?.cta).toEqual({
+      kind: "link",
+      label: "Zu meinen Freigaben",
+      href: "/my-approvals",
+    });
+  });
+
+  it("L1 → Business Case ausarbeiten", () => {
+    const step = epicNextStep(base({ stageGate: "L1", hasHypothesis: true }));
+    expect(step?.title).toBe("Business Case ausarbeiten");
+    expect(step?.cta).toMatchObject({
+      kind: "link",
+      href: expect.stringContaining("business-case"),
+    });
+  });
+
+  it("L2 / L2.1 ohne BC-Inhalt → BC ausarbeiten", () => {
+    const step = epicNextStep(
+      base({ stageGate: "L2", subStage: "L2.1", approvalPhase: "business_case" }),
+    );
+    expect(step?.title).toBe("Business Case ausarbeiten");
+  });
+
+  it("L2 / L2.1 mit BC-Inhalt → BC einreichen", () => {
+    const step = epicNextStep(
+      base({
+        stageGate: "L2",
+        subStage: "L2.1",
+        approvalPhase: "business_case",
+        hasBusinessCase: true,
+      }),
+    );
+    expect(step?.title).toBe("Business Case einreichen");
+  });
+
+  it("L2 / L2.1 + stakeholder_review → Warte-Hinweis", () => {
+    const step = epicNextStep(
+      base({
+        stageGate: "L2",
+        subStage: "L2.1",
+        approvalPhase: "stakeholder_review",
+        hasBusinessCase: true,
+      }),
+    );
+    expect(step?.title).toBe("Auf Stakeholder-Freigabe warten");
+  });
+
+  it("L2 / L2.2 → Budget allozieren mit Link auf /controlling", () => {
+    const step = epicNextStep(
+      base({ stageGate: "L2", subStage: "L2.2", approvalPhase: "approved" }),
+    );
+    expect(step?.title).toBe("Budget allozieren");
+    expect(step?.cta).toEqual({ kind: "link", label: "Zum Controlling", href: "/controlling" });
+  });
+
+  it("L3 → Erstes Feature starten", () => {
+    const step = epicNextStep(base({ stageGate: "L3", budgetAllocated: true }));
+    expect(step?.title).toBe("Erstes Feature starten");
+    expect(step?.cta).toMatchObject({ kind: "link", href: expect.stringContaining("breakdown") });
+  });
+
+  it("L4 / L4.1 → Features abschließen mit Fortschritts-Counter", () => {
+    const step = epicNextStep(
+      base({
+        stageGate: "L4",
+        subStage: "L4.1",
+        childFeatureStats: { total: 5, completed: 2 },
+      }),
+    );
+    expect(step?.title).toBe("Features abschließen (2/5)");
+  });
+
+  it("L4 / L4.2 → Impact bestätigen (Inline-Dialog)", () => {
+    const step = epicNextStep(
+      base({
+        stageGate: "L4",
+        subStage: "L4.2",
+        childFeatureStats: { total: 3, completed: 3 },
+      }),
+    );
+    expect(step?.title).toBe("Impact bestätigen");
+    expect(step?.cta).toEqual({ kind: "impact-confirm" });
+  });
+
+  it("L5 → null (Endstand)", () => {
+    const step = epicNextStep(base({ stageGate: "L5", impactRecognizedAt: new Date() }));
+    expect(step).toBeNull();
+  });
+
+  it("impactRecognizedAt ≠ null überstimmt jeden anderen Stage Gate", () => {
+    const step = epicNextStep(
+      base({ stageGate: "L4", subStage: "L4.2", impactRecognizedAt: new Date() }),
+    );
+    expect(step).toBeNull();
+  });
+});

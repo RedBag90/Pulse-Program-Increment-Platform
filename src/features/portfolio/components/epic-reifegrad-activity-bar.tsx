@@ -1,24 +1,20 @@
 import { CheckCircle2 } from "lucide-react";
 import { STAGE_GATES, type SubStage } from "@/domain/stage-gate";
 import type { StageGate } from "@/domain/types";
-import {
-  STAGE_GATE_LABELS,
-  SUB_STAGE_LABELS,
-  STATUS_DOT,
-  STATUS_LABELS,
-} from "@/components/detail/initiative-labels";
+import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiative-labels";
 import { PhaseBadge } from "@/components/detail/phase-badge";
+import type { EpicNextStep } from "@/domain/epic-next-step";
 
 interface Props {
   stageGate: StageGate;
   subStage: SubStage | null;
   approvalPhase: string | null;
-  status: string;
-  childTotal: number;
-  childCompleted: number;
   budgetAllocated: boolean;
   impactRecognizedAt: Date | null;
-  /** Optionaler Hinweis-Knopf rechts (z.B. „Impact bestätigen"). */
+  /** Berechneter nächster Schritt; null = L5 / Endstand. */
+  nextStep: EpicNextStep | null;
+  /** UI-Repräsentation des CTAs (Link-Button oder Inline-Dialog). Wird von
+   *  der Seite gerendert, weil die Variante Capability-abhängig ist. */
   actionSlot?: React.ReactNode;
 }
 
@@ -38,8 +34,9 @@ const STAGE_DOT: Record<StageGate, string> = {
  *   hervorgehoben, Sub-Step-Mini-Label (L2.1/L2.2 bzw. L4.1/L4.2), und
  *   die zugehörigen Kontext-Badges (Approval-Phase, Budget alloziert,
  *   Impact realisiert).
- * - **Aktivität** (rechts): heutiger Kanban-Status, Feature-Burndown
- *   (completed/total), optionaler Aktions-Slot (z.B. „Impact bestätigen").
+ * - **Nächster Schritt** (rechts): kontextueller Helfer, der dem Owner
+ *   zeigt, was als Nächstes zu tun ist, damit das Epic das nächste Stage
+ *   Gate erreicht — inklusive CTA, der zur passenden Stelle springt.
  *
  * Reine Server-Komponente — keine Mutationen, keine State.
  */
@@ -47,11 +44,9 @@ export function EpicReifegradActivityBar({
   stageGate,
   subStage,
   approvalPhase,
-  status,
-  childTotal,
-  childCompleted,
   budgetAllocated,
   impactRecognizedAt,
+  nextStep,
   actionSlot,
 }: Props) {
   return (
@@ -106,25 +101,28 @@ export function EpicReifegradActivityBar({
         </div>
       </section>
 
-      {/* ── Aktivität ──────────────────────────────────────── */}
+      {/* ── Nächster Schritt ───────────────────────────────── */}
       <section className="space-y-2 border-l-0 lg:border-l lg:pl-4">
         <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          Aktivität
+          Nächster Schritt
         </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-xs">
-            <span
-              className={`size-2 rounded-full ${STATUS_DOT[status] ?? "bg-muted-foreground/40"}`}
-            />
-            <span className="text-muted-foreground">{STATUS_LABELS[status] ?? status}</span>
-          </span>
-          {childTotal > 0 && (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] tabular-nums text-muted-foreground">
-              Features {childCompleted}/{childTotal}
-            </span>
-          )}
-        </div>
-        {actionSlot && <div className="pt-1">{actionSlot}</div>}
+        {nextStep === null ? (
+          <div className="space-y-1">
+            <p className="inline-flex items-center gap-1.5 text-sm font-medium">
+              <CheckCircle2 className="size-4 text-emerald-600" />
+              Epic abgeschlossen
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Impact ist bestätigt und auf der Balance Sheet sichtbar.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium leading-snug">{nextStep.title}</p>
+            <p className="text-xs leading-snug text-muted-foreground">{nextStep.hint}</p>
+            {actionSlot && <div className="pt-1">{actionSlot}</div>}
+          </div>
+        )}
       </section>
     </div>
   );

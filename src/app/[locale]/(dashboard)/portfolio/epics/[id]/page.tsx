@@ -35,8 +35,11 @@ import {
   benefitHypothesisDiffRows,
 } from "@/features/portfolio/components/revision-diff";
 import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-button";
-import { parseBenefitHypothesis } from "@/domain/benefit-hypothesis";
-import { parseBusinessCase } from "@/domain/business-case";
+import { parseBenefitHypothesis, benefitHypothesisHasContent } from "@/domain/benefit-hypothesis";
+import { parseBusinessCase, businessCaseHasContent } from "@/domain/business-case";
+import { epicNextStep } from "@/domain/epic-next-step";
+import { Link } from "@/i18n/navigation";
+import { ArrowRight } from "lucide-react";
 import { parseKpiMeasurements, latestKpiValue } from "@/domain/kpi";
 import { parseTimeline } from "@/domain/timeline";
 import { sectionStatus, type ApprovalPhase, type ApprovalRecord } from "@/domain/epic-approval";
@@ -284,35 +287,57 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       activeTab={activeTab}
       basePath={`/portfolio/epics/${epic.id}`}
       headerActions={canEdit ? <DeleteEpicButton id={epic.id} title={epic.title} /> : undefined}
-      subHeader={
-        <EpicReifegradActivityBar
-          stageGate={epic.stageGate as StageGate}
-          subStage={subStageFor({
-            stageGate: epic.stageGate as StageGate,
-            businessCase: epic.businessCase,
-            businessCaseApprovedAt: epic.businessCaseApprovedAt,
-            childFeatureStats: {
-              total: epic.children.length,
-              completed: epic.children.filter((c) => c.status === "completed").length,
-            },
-          })}
-          approvalPhase={practices.multiPartyApproval ? approvalPhase : null}
-          status={epic.status}
-          childTotal={epic.children.length}
-          childCompleted={epic.children.filter((c) => c.status === "completed").length}
-          budgetAllocated={budgetAllocated}
-          impactRecognizedAt={epic.impactRecognizedAt}
-          actionSlot={
-            epic.stageGate === "L4" &&
-            epic.children.length > 0 &&
-            epic.children.every((c) => c.status === "completed") &&
-            canConfirmImpact &&
-            epic.impactRecognizedAt == null ? (
-              <EpicImpactConfirmDialog epicId={epic.id} epicTitle={epic.title} />
-            ) : undefined
-          }
-        />
-      }
+      subHeader={(() => {
+        const childStats = {
+          total: epic.children.length,
+          completed: epic.children.filter((c) => c.status === "completed").length,
+        };
+        const subStage = subStageFor({
+          stageGate: epic.stageGate as StageGate,
+          businessCase: epic.businessCase,
+          businessCaseApprovedAt: epic.businessCaseApprovedAt,
+          childFeatureStats: childStats,
+        });
+        const nextStep = epicNextStep({
+          epicId: epic.id,
+          stageGate: epic.stageGate as StageGate,
+          subStage,
+          approvalPhase: practices.multiPartyApproval ? approvalPhase : null,
+          hasHypothesis: benefitHypothesisHasContent(benefitHypothesis.current),
+          hasBusinessCase: businessCaseHasContent(businessCase.current),
+          budgetAllocated,
+          impactRecognizedAt: epic.impactRecognizedAt,
+          childFeatureStats: childStats,
+        });
+        let actionSlot: React.ReactNode = undefined;
+        if (nextStep?.cta?.kind === "link") {
+          actionSlot = (
+            <Link
+              href={nextStep.cta.href as never}
+              className="inline-flex items-center gap-1.5 rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium shadow-xs transition-colors hover:bg-muted/50"
+            >
+              {nextStep.cta.label} <ArrowRight className="size-3.5" />
+            </Link>
+          );
+        } else if (
+          nextStep?.cta?.kind === "impact-confirm" &&
+          canConfirmImpact &&
+          epic.impactRecognizedAt == null
+        ) {
+          actionSlot = <EpicImpactConfirmDialog epicId={epic.id} epicTitle={epic.title} />;
+        }
+        return (
+          <EpicReifegradActivityBar
+            stageGate={epic.stageGate as StageGate}
+            subStage={subStage}
+            approvalPhase={practices.multiPartyApproval ? approvalPhase : null}
+            budgetAllocated={budgetAllocated}
+            impactRecognizedAt={epic.impactRecognizedAt}
+            nextStep={nextStep}
+            actionSlot={actionSlot}
+          />
+        );
+      })()}
       aside={<InitiativeActivitySidebar events={activityEvents} userLabels={userLabels} />}
     >
       {activeTab === "overview" && (
