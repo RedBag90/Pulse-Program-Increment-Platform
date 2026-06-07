@@ -49,6 +49,9 @@ interface PlanTabData {
   view: "board" | "table";
   model: PlanningModel;
   currentCycleKey: string;
+  /** Alle ARTs, die ueber die Timeline diesen PI tragen. Picker erscheint
+   *  nur, wenn > 1. */
+  availableArts: { id: string; name: string }[];
 }
 
 interface ObjectivesTabData {
@@ -135,6 +138,7 @@ export function PiWorkspaceShell({
             blockers={planTab.model.blockers}
             currentCycleKey={planTab.currentCycleKey}
             view={planTab.view}
+            availableArts={planTab.availableArts}
           />
         ) : (
           <PlaceholderTab tab="plan" />

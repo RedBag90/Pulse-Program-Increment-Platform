@@ -20,6 +20,8 @@ interface Props {
   currentCycleKey: string;
   /** Board oder Tabelle — gespiegelt aus `?view=` der URL. */
   view: "board" | "table";
+  /** ARTs der Timeline, in der dieser PI lebt. Picker erscheint nur bei > 1. */
+  availableArts: { id: string; name: string }[];
 }
 
 /**
@@ -38,15 +40,35 @@ export function PiPlanTab({
   blockers,
   currentCycleKey,
   view,
+  availableArts,
 }: Props) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {availableArts.length > 1 ? (
+          <div className="flex flex-wrap gap-1 border-b">
+            {availableArts.map((a) => (
+              <Link
+                key={a.id}
+                href={`/umsetzung/pi/${piId}?tab=plan&view=${view}&art=${a.id}` as never}
+                className={`-mb-px border-b-2 px-3 py-1.5 text-sm transition-colors ${
+                  a.id === artId
+                    ? "border-primary font-medium text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {a.name}
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <span /> /* Platzhalter fuer flex-justify */
+        )}
         <div className="flex shrink-0 overflow-hidden rounded-md border text-sm">
           {(["board", "table"] as const).map((v) => (
             <Link
               key={v}
-              href={`/umsetzung/pi/${piId}?tab=plan&view=${v}` as never}
+              href={`/umsetzung/pi/${piId}?tab=plan&view=${v}&art=${artId}` as never}
               className={`px-3 py-1.5 transition-colors ${
                 view === v
                   ? "bg-primary text-primary-foreground"

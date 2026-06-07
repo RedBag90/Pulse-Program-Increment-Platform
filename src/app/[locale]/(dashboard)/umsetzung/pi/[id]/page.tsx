@@ -39,10 +39,10 @@ export default async function PiWorkspacePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; view?: string }>;
+  searchParams: Promise<{ tab?: string; view?: string; art?: string }>;
 }) {
   const { id } = await params;
-  const { tab, view } = await searchParams;
+  const { tab, view, art: selectedArtParam } = await searchParams;
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -63,7 +63,7 @@ export default async function PiWorkspacePage({
       retrospectiveNotes: true,
       art: { select: { id: true, name: true } },
       timeline: {
-        select: { id: true, name: true, arts: { select: { id: true } } },
+        select: { id: true, name: true, arts: { select: { id: true, name: true } } },
       },
     },
   });
@@ -115,21 +115,31 @@ export default async function PiWorkspacePage({
   // Tab-spezifische Daten lazy laden.
   const activeTab = tab ?? "overview";
 
-  // Plan-Tab
+  // Plan-Tab — effective ART ableiten:
+  //  1. direkter pi.artId (legacy)
+  //  2. URL-Param ?art=<id> (User-Auswahl bei Multi-ART-Timeline)
+  //  3. erster ART der Timeline (Default)
+  const availableArts = pi.timeline?.arts ?? [];
+  const effectiveArtId =
+    pi.artId ??
+    (selectedArtParam && availableArts.some((a) => a.id === selectedArtParam)
+      ? selectedArtParam
+      : (availableArts[0]?.id ?? null));
+
   let planningModel: PlanningModel | null = null;
   const planView: "board" | "table" = view === "table" ? "table" : "board";
   let canEditPlan = false;
-  if (activeTab === "plan" && pi.artId) {
+  if (activeTab === "plan" && effectiveArtId) {
     canEditPlan = hasCapability(principal, "feature.update", {
       tenantId: principal.tenantId,
-      artId: pi.artId,
+      artId: effectiveArtId,
     });
 
     const [pisRaw, featurePage, artBudget, tenant] = await Promise.all([
-      listArtPlanningPis(db, principal.tenantId, pi.artId as ArtId),
-      listFeatures(db, principal.tenantId, pi.artId as ArtId),
+      listArtPlanningPis(db, principal.tenantId, effectiveArtId as ArtId),
+      listFeatures(db, principal.tenantId, effectiveArtId as ArtId),
       db.artBudget.findFirst({
-        where: { tenantId: principal.tenantId, artId: pi.artId },
+        where: { tenantId: principal.tenantId, artId: effectiveArtId },
         select: { byPeriod: true },
       }),
       db.tenant.findUnique({
@@ -402,13 +412,14 @@ export default async function PiWorkspacePage({
         model={overview}
         {...(tab !== undefined ? { activeTab: tab } : {})}
         planTab={
-          planningModel
+          planningModel && effectiveArtId
             ? {
-                artId: pi.artId!,
+                artId: effectiveArtId,
                 canEdit: canEditPlan,
                 view: planView,
                 model: planningModel,
                 currentCycleKey: halfYearKey(new Date()),
+                availableArts,
               }
             : null
         }
