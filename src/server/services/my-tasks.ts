@@ -36,6 +36,13 @@ export interface MyTaskRow {
     parentEpicTitle?: string | null;
     piName?: string | null;
   };
+  /** IDs für die Filter-Facetten (Page-Model). Werte spiegeln `context.*`-Labels. */
+  ids: {
+    valueStreamId: string | null;
+    artId: string | null;
+    parentEpicId: string | null;
+    piId: string | null;
+  };
   updatedAt: Date;
 }
 
@@ -67,13 +74,15 @@ export async function listMyTasks(db: PrismaClient, principal: Principal): Promi
       stageGate: true,
       approvalPhase: true,
       piId: true,
+      artId: true,
+      valueStreamId: true,
       updatedAt: true,
-      valueStream: { select: { name: true } },
-      art: { select: { name: true } },
+      valueStream: { select: { id: true, name: true } },
+      art: { select: { id: true, name: true } },
       // Pull the parent Epic's stageGate so we can label a Feature as "ready"
       // exactly when it's one click from in_progress (Epic in L4/L5).
-      parent: { select: { id: true, title: true, stageGate: true } },
-      pi: { select: { name: true } },
+      parent: { select: { id: true, title: true, stageGate: true, valueStreamId: true } },
+      pi: { select: { id: true, name: true } },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -99,6 +108,8 @@ export async function listMyTasks(db: PrismaClient, principal: Principal): Promi
 
     const bucket: MyTaskRow["bucket"] = isDone ? "done" : isReady ? "ready" : "open";
 
+    // Für Features ist Epic = parent → Wertstrom kommt vom Parent.
+    const vsId = isEpic ? r.valueStreamId : (r.parent?.valueStreamId ?? null);
     out.push({
       id: r.id,
       level: isEpic ? "epic" : "feature",
@@ -113,6 +124,12 @@ export async function listMyTasks(db: PrismaClient, principal: Principal): Promi
         artName: r.art?.name ?? null,
         parentEpicTitle: isEpic ? null : (r.parent?.title ?? null),
         piName: isEpic ? null : (r.pi?.name ?? null),
+      },
+      ids: {
+        valueStreamId: vsId,
+        artId: r.artId,
+        parentEpicId: isEpic ? null : (r.parent?.id ?? null),
+        piId: r.piId,
       },
       updatedAt: r.updatedAt,
     });
