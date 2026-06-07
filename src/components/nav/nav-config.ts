@@ -182,14 +182,8 @@ export const NAV_GROUPS: NavGroup[] = [
     // Eintrag dauerhaft niemand nutzt, raus aus dem Nav.
     labelKey: "others",
     items: [
-      // RTE-Cockpit landet hier, sobald feat/rte-cockpit gemerged ist.
-      {
-        href: "/rte",
-        labelKey: "rteCockpit",
-        icon: Compass,
-        capability: "feature.review.decide",
-        practice: "programLevel",
-      },
+      // RTE-Cockpit ist in den ART-Hub (`/umsetzung/art/[id]`) eingezogen.
+      // Die Route `/rte` bleibt als Redirect erreichbar, ist aber aus dem Nav raus.
       { href: "/sprint", labelKey: "mySprints", icon: Timer },
       {
         href: "/roadmap/portfolio",

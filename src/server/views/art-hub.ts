@@ -33,6 +33,49 @@ export interface ArtHistoryPi {
   confidenceAvg: number | null;
 }
 
+const HISTORY_COMPLETED_STATUSES = new Set(["completed", "done"]);
+
+/**
+ * Pure-Helper, der aus geladenen Closed-PIs + Features + Objectives die
+ * History-Zeilen ableitet. Wird vom Page-Loader genutzt und ist
+ * unabhaengig testbar.
+ */
+export function buildArtHistory(input: {
+  closedPis: { id: string; name: string; startDate: Date; endDate: Date }[];
+  features: { piId: string; status: string }[];
+  objectives: { piId: string; committed: boolean; confidence: number | null }[];
+}): ArtHistoryPi[] {
+  const featuresByPi = new Map<string, { total: number; completed: number }>();
+  for (const f of input.features) {
+    const b = featuresByPi.get(f.piId) ?? { total: 0, completed: 0 };
+    b.total += 1;
+    if (HISTORY_COMPLETED_STATUSES.has(f.status)) b.completed += 1;
+    featuresByPi.set(f.piId, b);
+  }
+
+  const confidenceByPi = new Map<string, { sum: number; voted: number }>();
+  for (const o of input.objectives) {
+    if (!o.committed || o.confidence == null) continue;
+    const b = confidenceByPi.get(o.piId) ?? { sum: 0, voted: 0 };
+    b.sum += o.confidence;
+    b.voted += 1;
+    confidenceByPi.set(o.piId, b);
+  }
+
+  return input.closedPis.map((pi) => {
+    const fb = featuresByPi.get(pi.id);
+    const cb = confidenceByPi.get(pi.id);
+    return {
+      id: pi.id,
+      name: pi.name,
+      startDate: pi.startDate,
+      endDate: pi.endDate,
+      predictability: fb && fb.total > 0 ? fb.completed / fb.total : null,
+      confidenceAvg: cb && cb.voted > 0 ? cb.sum / cb.voted : null,
+    };
+  });
+}
+
 export interface ArtHubInput {
   artId: string;
   artName: string;

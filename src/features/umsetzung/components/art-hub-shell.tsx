@@ -13,11 +13,12 @@ import {
   Network,
 } from "lucide-react";
 import type { ArtHubModel } from "@/server/views/art-hub";
+import { ArtHistoryTab } from "@/features/umsetzung/components/art-history-tab";
+import { ArtTeamsTab } from "@/features/umsetzung/components/art-teams-tab";
 
 const ART_HUB_TABS: readonly DetailTab[] = [
   { key: "active", label: "Aktiver PI" },
   { key: "next", label: "Naechster PI" },
-  // History + Teams folgen in Roadmap-P3.B — heute Platzhalter.
   { key: "history", label: "PI-Historie" },
   { key: "teams", label: "Teams" },
 ];
@@ -53,20 +54,8 @@ export function ArtHubShell({ model, activeTab }: Props) {
     >
       {active === "active" && <ActivePiSection model={model} />}
       {active === "next" && <NextPiSection model={model} />}
-      {active === "history" && (
-        <Placeholder
-          hint="PI-Historie + Predictability-Trend kommen in Roadmap-P3.B."
-          fallbackHref="/rte"
-          fallbackLabel="Heute via RTE-Cockpit"
-        />
-      )}
-      {active === "teams" && (
-        <Placeholder
-          hint="Team-Liste (read-only RAG) kommt in Roadmap-P3.B."
-          fallbackHref={`/rte/${model.artId}`}
-          fallbackLabel="Heute via RTE-Cockpit"
-        />
-      )}
+      {active === "history" && <ArtHistoryTab history={model.history} />}
+      {active === "teams" && <ArtTeamsTab teams={model.cockpit.teams} />}
     </EntityDetailShell>
   );
 }
@@ -215,27 +204,5 @@ function MetricCard({
       <p className="mt-1.5 text-2xl font-semibold tabular-nums">{value}</p>
       <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
     </div>
-  );
-}
-
-function Placeholder({
-  hint,
-  fallbackHref,
-  fallbackLabel,
-}: {
-  hint: string;
-  fallbackHref: string;
-  fallbackLabel: string;
-}) {
-  return (
-    <section className="rounded-lg border bg-card p-6">
-      <p className="text-sm text-muted-foreground">{hint}</p>
-      <Link
-        href={fallbackHref as never}
-        className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-      >
-        {fallbackLabel} <ArrowRight className="size-3" />
-      </Link>
-    </section>
   );
 }

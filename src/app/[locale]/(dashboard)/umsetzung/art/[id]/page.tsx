@@ -4,7 +4,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { InitiativeLevel } from "@/domain/types";
 import { buildRteCockpitModel } from "@/server/views/rte-cockpit";
-import { buildArtHubModel, type ArtNextPi } from "@/server/views/art-hub";
+import { buildArtHubModel, buildArtHistory, type ArtNextPi } from "@/server/views/art-hub";
 import { ArtHubShell } from "@/features/umsetzung/components/art-hub-shell";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -94,14 +94,60 @@ export default async function ArtHubPage({
     };
   }
 
+  // PI-Historie: alle completed PIs der Timeline (oder direkt am ART, wenn
+  // kein Timeline-Verbund), max. 8 — Predictability + Confidence-Avg pro PI.
+  const closedPisRaw = art.timelineId
+    ? await db.programIncrement.findMany({
+        where: {
+          tenantId: principal.tenantId,
+          timelineId: art.timelineId,
+          status: "completed",
+        },
+        orderBy: { endDate: "desc" },
+        take: 8,
+        select: { id: true, name: true, startDate: true, endDate: true },
+      })
+    : [];
+
+  let history: ReturnType<typeof buildArtHistory> = [];
+  if (closedPisRaw.length > 0) {
+    const closedPiIds = closedPisRaw.map((p) => p.id);
+    const [closedFeatures, closedObjectives] = await Promise.all([
+      db.initiative.findMany({
+        where: {
+          tenantId: principal.tenantId,
+          artId: art.id,
+          level: InitiativeLevel.FEATURE,
+          piId: { in: closedPiIds },
+          deletedAt: null,
+        },
+        select: { piId: true, status: true },
+      }),
+      db.piObjective.findMany({
+        where: { tenantId: principal.tenantId, piId: { in: closedPiIds }, team: { artId: art.id } },
+        select: { piId: true, committed: true, confidence: true },
+      }),
+    ]);
+    history = buildArtHistory({
+      closedPis: closedPisRaw,
+      features: closedFeatures
+        .filter((f): f is { piId: string; status: string } => f.piId != null)
+        .map((f) => ({ piId: f.piId, status: f.status })),
+      objectives: closedObjectives.map((o) => ({
+        piId: o.piId,
+        committed: o.committed,
+        confidence: o.confidence,
+      })),
+    });
+  }
+
   const model = buildArtHubModel({
     artId: art.id,
     artName: art.name,
     timelineName: art.timeline?.name ?? null,
     cockpit,
     nextPi,
-    // Historie wird in P3.B aufgebaut (Predictability-Snapshots pro PI).
-    history: [],
+    history,
     now,
   });
 
