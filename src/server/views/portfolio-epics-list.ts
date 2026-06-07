@@ -3,7 +3,7 @@ import {
   computeBusinessCaseTotals,
   type BusinessCaseTotals,
 } from "@/domain/business-case";
-import { STAGE_GATES } from "@/domain/stage-gate";
+import { STAGE_GATES, SUB_STAGES, subStageFor, type SubStage } from "@/domain/stage-gate";
 import type { StageGate } from "@/domain/types";
 import { ragTier, type RagTier } from "@/domain/transformation-delta";
 
@@ -28,6 +28,8 @@ export interface EpicListRow {
   id: string;
   title: string;
   stageGate: StageGate;
+  /** Derived sub-stage inside L2 / L4 — null elsewhere. UI-only. */
+  subStage: SubStage | null;
   /** QS status — orthogonal to approvalPhase. */
   status: string;
   /** Multi-party approval phase pill — null when not yet entered the workflow. */
@@ -55,6 +57,9 @@ export interface EpicListRow {
 export interface EpicsListModel {
   rows: EpicListRow[];
   funnelCounts: Record<StageGate, number>;
+  /** Counts pro Sub-Stage (L2.1 / L2.2 / L4.1 / L4.2). Wird im Funnel-Bar
+   *  als Mini-Indikator unter L2 und L4 gerendert. */
+  subStageCounts: Record<SubStage, number>;
   valueStreamOptions: { id: string; name: string }[];
   ownerOptions: { id: string; label: string }[];
   statusOptions: string[];
@@ -86,6 +91,9 @@ interface EpicRow {
   needsSteeringAttention: boolean;
   stagedForBudgeting: boolean;
   businessCase: unknown;
+  /** Stamp set, wenn der BC die vollständige Freigabe abgeschlossen hat —
+   *  treibt die Sub-Stage L2.2 in `subStageFor`. */
+  businessCaseApprovedAt: Date | null;
   plannedStartAt: Date | null;
   plannedEndAt: Date | null;
   createdAt: Date;
@@ -95,6 +103,8 @@ interface EpicRow {
   epicApprovals: ApprovalRow[];
   /** Count of child Features (direct only). */
   childFeatureCount: number;
+  /** Count of child Features mit status === "completed". Treibt L4.2. */
+  completedChildFeatureCount: number;
 }
 
 const isoDay = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
@@ -151,10 +161,20 @@ export function buildEpicsListModel(input: {
 
   const rows: EpicListRow[] = epics.map((e) => {
     const kpiProgress = meanKpiProgress(e.kpis);
+    const stageGate = e.stageGate as StageGate;
     return {
       id: e.id,
       title: e.title,
-      stageGate: e.stageGate as StageGate,
+      stageGate,
+      subStage: subStageFor({
+        stageGate,
+        businessCase: e.businessCase,
+        businessCaseApprovedAt: e.businessCaseApprovedAt,
+        childFeatureStats: {
+          total: e.childFeatureCount,
+          completed: e.completedChildFeatureCount,
+        },
+      }),
       status: e.status,
       approvalPhase: e.approvalPhase,
       valueStream: e.valueStream,
@@ -180,8 +200,13 @@ export function buildEpicsListModel(input: {
     StageGate,
     number
   >;
+  const subStageCounts = Object.fromEntries(SUB_STAGES.map((s) => [s, 0])) as Record<
+    SubStage,
+    number
+  >;
   for (const r of rows) {
     if (funnelCounts[r.stageGate] != null) funnelCounts[r.stageGate] += 1;
+    if (r.subStage) subStageCounts[r.subStage] += 1;
   }
 
   // Owner options — distinct ownerIds that actually appear, with their labels.
@@ -200,6 +225,7 @@ export function buildEpicsListModel(input: {
   return {
     rows,
     funnelCounts,
+    subStageCounts,
     valueStreamOptions: valueStreams.map((v) => ({ id: v.id, name: v.name })),
     ownerOptions,
     statusOptions,

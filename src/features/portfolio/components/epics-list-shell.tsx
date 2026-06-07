@@ -203,7 +203,12 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
         )}
       </header>
 
-      <EpicsFunnelBar counts={model.funnelCounts} activeGate={gate} onGateChange={onGateChange} />
+      <EpicsFunnelBar
+        counts={model.funnelCounts}
+        subStageCounts={model.subStageCounts}
+        activeGate={gate}
+        onGateChange={onGateChange}
+      />
 
       <EpicsFilterBar
         query={query}

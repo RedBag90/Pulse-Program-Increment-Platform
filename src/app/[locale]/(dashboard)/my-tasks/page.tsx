@@ -5,7 +5,11 @@ import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { InitiativeLevel } from "@/domain/types";
 import { listMyTasks } from "@/server/services/my-tasks";
-import { listEpicsForPortfolioList, countEpicChildFeatures } from "@/server/services/epic";
+import {
+  listEpicsForPortfolioList,
+  countEpicChildFeatures,
+  countEpicCompletedChildFeatures,
+} from "@/server/services/epic";
 import { listValueStreams } from "@/server/services/value-stream";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";
@@ -73,8 +77,13 @@ export default async function MyTasksPage() {
       : await listEpicsForPortfolioList(db, tenantId).then((rows) =>
           rows.filter((r) => myEpicIds.includes(r.id)),
         );
-  const featureCounts =
-    myEpicIds.length === 0 ? new Map<string, number>() : await countEpicChildFeatures(db, tenantId);
+  const [featureCounts, completedFeatureCounts] =
+    myEpicIds.length === 0
+      ? [new Map<string, number>(), new Map<string, number>()]
+      : await Promise.all([
+          countEpicChildFeatures(db, tenantId),
+          countEpicCompletedChildFeatures(db, tenantId),
+        ]);
 
   const epicsModel = buildEpicsListModel({
     epics: allEpicsRich.map((e) => ({
@@ -89,6 +98,7 @@ export default async function MyTasksPage() {
       needsSteeringAttention: e.needsSteeringAttention,
       stagedForBudgeting: e.stagedForBudgeting,
       businessCase: e.businessCase,
+      businessCaseApprovedAt: e.businessCaseApprovedAt,
       plannedStartAt: e.plannedStartAt,
       plannedEndAt: e.plannedEndAt,
       createdAt: e.createdAt,
@@ -101,6 +111,7 @@ export default async function MyTasksPage() {
         })),
       epicApprovals: e.epicApprovals,
       childFeatureCount: featureCounts.get(e.id) ?? 0,
+      completedChildFeatureCount: completedFeatureCounts.get(e.id) ?? 0,
     })),
     valueStreams,
     userLabels,

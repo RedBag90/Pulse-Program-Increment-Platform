@@ -3,7 +3,11 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { listEpicsForPortfolioList, countEpicChildFeatures } from "@/server/services/epic";
+import {
+  listEpicsForPortfolioList,
+  countEpicChildFeatures,
+  countEpicCompletedChildFeatures,
+} from "@/server/services/epic";
 import { listValueStreams } from "@/server/services/value-stream";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";
@@ -49,13 +53,15 @@ export default async function EpicsPage() {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const [epics, featureCounts, valueStreams, userLabels, practices] = await Promise.all([
-    listEpicsForPortfolioList(db, principal.tenantId),
-    countEpicChildFeatures(db, principal.tenantId),
-    listValueStreams(db, principal.tenantId),
-    listTenantUserLabels(db, principal.tenantId),
-    getTenantPractices(db, principal.tenantId),
-  ]);
+  const [epics, featureCounts, completedFeatureCounts, valueStreams, userLabels, practices] =
+    await Promise.all([
+      listEpicsForPortfolioList(db, principal.tenantId),
+      countEpicChildFeatures(db, principal.tenantId),
+      countEpicCompletedChildFeatures(db, principal.tenantId),
+      listValueStreams(db, principal.tenantId),
+      listTenantUserLabels(db, principal.tenantId),
+      getTenantPractices(db, principal.tenantId),
+    ]);
 
   const canEdit = hasCapability(principal, "epic.update");
   // Advancing a stage gate (single + batch) mirrors the `epic.approve` policy.
@@ -74,6 +80,7 @@ export default async function EpicsPage() {
       needsSteeringAttention: e.needsSteeringAttention,
       stagedForBudgeting: e.stagedForBudgeting,
       businessCase: e.businessCase,
+      businessCaseApprovedAt: e.businessCaseApprovedAt,
       plannedStartAt: e.plannedStartAt,
       plannedEndAt: e.plannedEndAt,
       createdAt: e.createdAt,
@@ -86,6 +93,7 @@ export default async function EpicsPage() {
         })),
       epicApprovals: e.epicApprovals,
       childFeatureCount: featureCounts.get(e.id) ?? 0,
+      completedChildFeatureCount: completedFeatureCounts.get(e.id) ?? 0,
     })),
     valueStreams,
     userLabels,

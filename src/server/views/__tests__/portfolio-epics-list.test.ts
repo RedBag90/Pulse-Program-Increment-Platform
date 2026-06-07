@@ -13,12 +13,14 @@ const epic = (over: Partial<Parameters<typeof buildEpicsListModel>[0]["epics"][n
   needsSteeringAttention: false,
   stagedForBudgeting: false,
   businessCase: null,
+  businessCaseApprovedAt: null,
   plannedStartAt: null,
   plannedEndAt: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
   kpis: [],
   epicApprovals: [],
   childFeatureCount: 0,
+  completedChildFeatureCount: 0,
   ...over,
 });
 

@@ -1,13 +1,28 @@
 /** German UI labels for initiative state, shared by the Epic and Feature detail pages. */
 
-/** L0–L5 stage-gate labels (the investment funnel). */
+/**
+ * L0–L5 stage-gate labels (Reifegrad — der Investment-Funnel).
+ * Modell v2 (siehe Plan vom 2026-06-07): Major-Gates bleiben L0..L5, die
+ * Semantik orientiert sich jetzt am Reifegrad statt am Workflow.
+ */
 export const STAGE_GATE_LABELS: Record<string, string> = {
-  L0: "L0 Funnel",
-  L1: "L1 Hypothesis stage",
-  L2: "L2 Analyzing",
-  L3: "L3 Portfolio Backlog",
-  L4: "L4 Implementing",
-  L5: "L5 Done",
+  L0: "L0 Idee",
+  L1: "L1 Hypothese definiert",
+  L2: "L2 Business Case",
+  L3: "L3 Budget alloziert",
+  L4: "L4 Implementierung",
+  L5: "L5 Impact realisiert",
+};
+
+/**
+ * Sub-Step-Labels innerhalb der Major-Gates L2 und L4. Werden derived
+ * (`subStageFor` in `@/domain/stage-gate`) und nur in der UI gerendert.
+ */
+export const SUB_STAGE_LABELS: Record<string, string> = {
+  "L2.1": "BC in Arbeit",
+  "L2.2": "BC freigegeben",
+  "L4.1": "Umsetzung läuft",
+  "L4.2": "Umsetzung fertig",
 };
 
 /** Status indicator dot colors (Tailwind) — shared by the Kanban board and the Epics table. */

@@ -668,6 +668,32 @@ export async function countEpicChildFeatures(
   return out;
 }
 
+/**
+ * Per-Epic *completed*-child-feature count. Mirrors {@link countEpicChildFeatures}
+ * with a status filter so the page-model can derive the sub-stage L4.2 = „alle
+ * Child-Features completed".
+ */
+export async function countEpicCompletedChildFeatures(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<Map<string, number>> {
+  const rows = await db.initiative.groupBy({
+    by: ["parentId"],
+    where: {
+      tenantId,
+      level: InitiativeLevel.FEATURE,
+      deletedAt: null,
+      status: "completed",
+    },
+    _count: { _all: true },
+  });
+  const out = new Map<string, number>();
+  for (const r of rows) {
+    if (r.parentId) out.set(r.parentId, r._count._all);
+  }
+  return out;
+}
+
 export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) {
   return db.initiative.findFirst({
     where: { id, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },

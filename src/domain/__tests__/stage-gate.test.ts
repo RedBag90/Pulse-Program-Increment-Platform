@@ -5,6 +5,7 @@ import {
   isValidTransition,
   isApprovalTransition,
   autoAdvanceTarget,
+  subStageFor,
 } from "@/domain/stage-gate";
 
 describe("STAGE_GATES", () => {
@@ -67,5 +68,59 @@ describe("autoAdvanceTarget", () => {
     expect(autoAdvanceTarget("L4", "L3")).toBeNull(); // already past the target
     expect(autoAdvanceTarget("L3", "L1")).toBeNull();
     expect(autoAdvanceTarget("L5", "L3")).toBeNull();
+  });
+});
+
+describe("subStageFor", () => {
+  const base = {
+    businessCase: null as unknown,
+    businessCaseApprovedAt: null as Date | null,
+    childFeatureStats: { total: 0, completed: 0 },
+  };
+
+  it("returns null for L0, L1, L3, L5 (no split there)", () => {
+    expect(subStageFor({ ...base, stageGate: "L0" })).toBeNull();
+    expect(subStageFor({ ...base, stageGate: "L1" })).toBeNull();
+    expect(subStageFor({ ...base, stageGate: "L3" })).toBeNull();
+    expect(subStageFor({ ...base, stageGate: "L5" })).toBeNull();
+  });
+
+  it("L2 + no BC content → null (not yet started)", () => {
+    expect(subStageFor({ ...base, stageGate: "L2", businessCase: null })).toBeNull();
+  });
+
+  it("L2 + BC content + not approved → L2.1 (BC creation started)", () => {
+    expect(subStageFor({ ...base, stageGate: "L2", businessCase: { description: "..." } })).toBe(
+      "L2.1",
+    );
+  });
+
+  it("L2 + BC approved → L2.2 (BC freigegeben)", () => {
+    expect(
+      subStageFor({
+        ...base,
+        stageGate: "L2",
+        businessCase: { description: "..." },
+        businessCaseApprovedAt: new Date("2026-05-01"),
+      }),
+    ).toBe("L2.2");
+  });
+
+  it("L4 + 0/0 features → L4.1 (no features yet still counts as 'läuft')", () => {
+    expect(
+      subStageFor({ ...base, stageGate: "L4", childFeatureStats: { total: 0, completed: 0 } }),
+    ).toBe("L4.1");
+  });
+
+  it("L4 + 3/5 features completed → L4.1 (Umsetzung läuft)", () => {
+    expect(
+      subStageFor({ ...base, stageGate: "L4", childFeatureStats: { total: 5, completed: 3 } }),
+    ).toBe("L4.1");
+  });
+
+  it("L4 + 5/5 features completed → L4.2 (Umsetzung fertig)", () => {
+    expect(
+      subStageFor({ ...base, stageGate: "L4", childFeatureStats: { total: 5, completed: 5 } }),
+    ).toBe("L4.2");
   });
 });

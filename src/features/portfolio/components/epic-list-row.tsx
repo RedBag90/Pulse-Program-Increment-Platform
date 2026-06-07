@@ -7,6 +7,7 @@ import { STAGE_GATES } from "@/domain/stage-gate";
 import type { StageGate } from "@/domain/types";
 import {
   STAGE_GATE_LABELS,
+  SUB_STAGE_LABELS,
   STATUS_LABELS,
   STATUS_DOT,
 } from "@/components/detail/initiative-labels";
@@ -142,9 +143,21 @@ export function EpicListRowComponent({
         <div className="flex items-center gap-2">
           <span
             className={`inline-block size-2 shrink-0 rounded-full ${STAGE_DOT[row.stageGate] ?? "bg-muted-foreground/40"}`}
-            title={STAGE_GATE_LABELS[row.stageGate] ?? row.stageGate}
+            title={
+              row.subStage
+                ? `${STAGE_GATE_LABELS[row.stageGate] ?? row.stageGate} · ${row.subStage} ${SUB_STAGE_LABELS[row.subStage]}`
+                : (STAGE_GATE_LABELS[row.stageGate] ?? row.stageGate)
+            }
             aria-hidden
           />
+          {row.subStage && (
+            <span
+              className="shrink-0 rounded bg-muted px-1 text-[10px] font-medium tabular-nums text-muted-foreground"
+              title={SUB_STAGE_LABELS[row.subStage]}
+            >
+              {row.subStage}
+            </span>
+          )}
           <div className="min-w-0 flex-1">
             <Link
               href={`/portfolio/epics/${row.id}`}
