@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Lock } from "lucide-react";
 import { saveBenefitHypothesisAction } from "@/features/portfolio/actions/benefit-hypothesis";
+import { submitEpicHypothesisAction } from "@/features/portfolio/actions/epic-approval";
 import type {
   BenefitHypothesisFields,
   BenefitHypothesisVersion,
@@ -17,6 +18,11 @@ interface BenefitHypothesisEditorProps {
   readOnly?: boolean;
   /** Why the form is locked (the current approval phase) — shown as a hint. */
   lockReason?: string;
+  /** When true, renders the "Fertig zum Einreichen"-Checkbox + Submit-Button
+   *  next to the save button. Aktiv nur in `approvalPhase = draft` und mit
+   *  `epic.hypothesis.submit`-Capability — die Sichtbarkeitslogik liegt auf
+   *  der Page. */
+  canSubmit?: boolean;
 }
 
 const TEXTAREA_CLASS =
@@ -32,8 +38,12 @@ export function BenefitHypothesisEditor({
   history,
   readOnly = false,
   lockReason,
+  canSubmit = false,
 }: BenefitHypothesisEditorProps) {
   const [state, action, isPending] = useActionState(saveBenefitHypothesisAction, {});
+  const [submitState, submitAction, submitPending] = useActionState(submitEpicHypothesisAction, {});
+  const [readyToSubmit, setReadyToSubmit] = useState(false);
+  const submitDisabled = !readyToSubmit || submitPending;
 
   return (
     <div className="space-y-6">
@@ -135,15 +145,57 @@ export function BenefitHypothesisEditor({
         )}
 
         {!readOnly && (
-          <button
-            type="submit"
-            disabled={isPending}
-            className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
-          >
-            {isPending ? "Speichern…" : "Benefit Hypothese speichern"}
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+            >
+              {isPending ? "Speichern…" : "Benefit Hypothese speichern"}
+            </button>
+          </div>
         )}
       </form>
+
+      {canSubmit && !readOnly && (
+        // Separate form, damit Submit (epic.hypothesis.submit) nicht
+        // versehentlich die Save-Felder mitschickt. Auf gleicher Hoehe
+        // wie der Save-Knopf, rechts ausgerichtet.
+        <form
+          action={submitAction}
+          className="flex flex-wrap items-center justify-end gap-3 border-t pt-4"
+        >
+          <input type="hidden" name="epicId" value={epicId} />
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={readyToSubmit}
+              onChange={(e) => setReadyToSubmit(e.target.checked)}
+              className="size-4 rounded border-border"
+            />
+            Fertig zum Einreichen
+          </label>
+          <button
+            type="submit"
+            disabled={submitDisabled}
+            className={`rounded px-4 py-2 text-sm font-medium text-white transition-opacity ${
+              submitDisabled ? "cursor-not-allowed bg-blue-700/40" : "bg-blue-700 hover:bg-blue-800"
+            }`}
+          >
+            {submitPending ? "Einreichen…" : "Hypothese einreichen"}
+          </button>
+          {submitState.error && (
+            <p role="alert" className="w-full text-right text-sm text-red-600">
+              {submitState.error}
+            </p>
+          )}
+          {submitState.success && (
+            <p role="status" className="w-full text-right text-sm text-green-700">
+              Hypothese eingereicht — der VMO entscheidet jetzt.
+            </p>
+          )}
+        </form>
+      )}
 
       {history.length > 0 && (
         <details className="rounded-lg border bg-muted/50 p-3">

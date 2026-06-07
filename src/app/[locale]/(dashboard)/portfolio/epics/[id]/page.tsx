@@ -152,6 +152,14 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   // Gates the side-by-side review diff on the Benefit Hypothesis tab — the
   // decide-buttons themselves now live in "Meine Freigaben".
   const canDecideHypothesis = hasCapability(principal, "epic.hypothesis.decide");
+  // Submit-Knopf am Hypothese-Editor zeigt sich nur in der draft-Phase und
+  // nur, wenn der Principal die epic.hypothesis.submit-Capability traegt.
+  const canSubmitHypothesis =
+    approvalPhase === "draft" &&
+    hasCapability(principal, "epic.hypothesis.submit", {
+      tenantId: principal.tenantId,
+      valueStreamId: epic.valueStreamId,
+    });
 
   // Reifegrad-Modell v2: Controlling-Capability für die L5-Impact-Bestätigung.
   // Resource-scoped auf den Value Stream des Epics (wie epic.approve).
@@ -476,6 +484,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               current={benefitHypothesis.current}
               history={benefitHypothesis.history}
               readOnly={!hypoEditable}
+              canSubmit={canSubmitHypothesis}
               {...(hypoLockReason && { lockReason: hypoLockReason })}
             />
           )}
