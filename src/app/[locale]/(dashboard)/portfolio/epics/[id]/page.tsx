@@ -15,6 +15,10 @@ import { PhaseBadge } from "@/components/detail/phase-badge";
 import { actionLabel, userLabel } from "@/components/detail/initiative-labels";
 import { EPIC_TABS } from "@/features/portfolio/components/epic-detail-shell";
 import { EpicOverviewTab } from "@/features/portfolio/components/epic-overview-tab";
+import { EpicReifegradActivityBar } from "@/features/portfolio/components/epic-reifegrad-activity-bar";
+import { EpicImpactConfirmDialog } from "@/features/portfolio/components/epic-impact-confirm-dialog";
+import { subStageFor } from "@/domain/stage-gate";
+import type { StageGate } from "@/domain/types";
 import { EpicKpisTab, type KpiRow } from "@/features/portfolio/components/epic-kpis-tab";
 import {
   EpicBreakdownTab,
@@ -81,20 +85,43 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   }));
   const artIds = [...new Set(breakdownFeatures.map((f) => f.artId).filter(Boolean))];
 
-  const [historyEvents, kpis, pis, approvals, approvers, userLabels, practices, goalLinks] =
-    await Promise.all([
-      listInitiativeHistory(db, principal.tenantId, epic.id),
-      listKpis(db, principal.tenantId, epic.id as EpicId),
-      listProgramIncrementsForArts(db, principal.tenantId, artIds),
-      listEpicApprovals(db, principal.tenantId, epic.id as EpicId),
-      listTenantApprovers(db, principal.tenantId),
-      listTenantUserLabels(db, principal.tenantId),
-      getTenantPractices(db, principal.tenantId),
-      db.goalEpicLink.findMany({
-        where: { tenantId: principal.tenantId, epicId: epic.id },
-        include: { goal: { select: { id: true, title: true } } },
-      }),
-    ]);
+  const [
+    historyEvents,
+    kpis,
+    pis,
+    approvals,
+    approvers,
+    userLabels,
+    practices,
+    goalLinks,
+    budgetAllocation,
+  ] = await Promise.all([
+    listInitiativeHistory(db, principal.tenantId, epic.id),
+    listKpis(db, principal.tenantId, epic.id as EpicId),
+    listProgramIncrementsForArts(db, principal.tenantId, artIds),
+    listEpicApprovals(db, principal.tenantId, epic.id as EpicId),
+    listTenantApprovers(db, principal.tenantId),
+    listTenantUserLabels(db, principal.tenantId),
+    getTenantPractices(db, principal.tenantId),
+    db.goalEpicLink.findMany({
+      where: { tenantId: principal.tenantId, epicId: epic.id },
+      include: { goal: { select: { id: true, title: true } } },
+    }),
+    // Reifegrad-Modell v2: prüft, ob das Epic eine BudgetAllocation mit
+    // mindestens einer Period > 0 hat — Indikator für „Budget alloziert"
+    // im Sub-Header.
+    db.budgetAllocation.findUnique({
+      where: { epicId: epic.id },
+      select: { allocations: true },
+    }),
+  ]);
+  const budgetAllocatedSum = budgetAllocation
+    ? Object.values((budgetAllocation.allocations ?? {}) as Record<string, number>).reduce(
+        (s, v) => s + (typeof v === "number" ? v : 0),
+        0,
+      )
+    : 0;
+  const budgetAllocated = budgetAllocatedSum > 0;
   const linkedGoals = goalLinks.map((l) => l.goal);
 
   // Senior management (target.manage) may link/unlink goals from the Epic itself.
@@ -257,6 +284,35 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       activeTab={activeTab}
       basePath={`/portfolio/epics/${epic.id}`}
       headerActions={canEdit ? <DeleteEpicButton id={epic.id} title={epic.title} /> : undefined}
+      subHeader={
+        <EpicReifegradActivityBar
+          stageGate={epic.stageGate as StageGate}
+          subStage={subStageFor({
+            stageGate: epic.stageGate as StageGate,
+            businessCase: epic.businessCase,
+            businessCaseApprovedAt: epic.businessCaseApprovedAt,
+            childFeatureStats: {
+              total: epic.children.length,
+              completed: epic.children.filter((c) => c.status === "completed").length,
+            },
+          })}
+          approvalPhase={practices.multiPartyApproval ? approvalPhase : null}
+          status={epic.status}
+          childTotal={epic.children.length}
+          childCompleted={epic.children.filter((c) => c.status === "completed").length}
+          budgetAllocated={budgetAllocated}
+          impactRecognizedAt={epic.impactRecognizedAt}
+          actionSlot={
+            epic.stageGate === "L4" &&
+            epic.children.length > 0 &&
+            epic.children.every((c) => c.status === "completed") &&
+            canConfirmImpact &&
+            epic.impactRecognizedAt == null ? (
+              <EpicImpactConfirmDialog epicId={epic.id} epicTitle={epic.title} />
+            ) : undefined
+          }
+        />
+      }
       aside={<InitiativeActivitySidebar events={activityEvents} userLabels={userLabels} />}
     >
       {activeTab === "overview" && (

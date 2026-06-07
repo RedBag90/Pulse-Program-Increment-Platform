@@ -25,6 +25,9 @@ interface Props {
   /** Detail route without query, e.g. `/value-streams/<id>`; tab links append `?tab=`. */
   basePath: string;
   headerActions?: ReactNode;
+  /** Sub-Header zwischen Titel-Zeile und Tabs. Z.B. auf der Epic-Detail-
+   *  Seite die Reifegrad-/Aktivitäts-Balken. Tab-unabhängig sichtbar. */
+  subHeader?: ReactNode;
   /** Optional right-hand zone (e.g. an activity feed). When set the layout is
    *  three-zone; omitted it stays two-zone. */
   aside?: ReactNode;
@@ -46,6 +49,7 @@ export function EntityDetailShell({
   activeTab,
   basePath,
   headerActions,
+  subHeader,
   aside,
   children,
 }: Props) {
@@ -72,6 +76,8 @@ export function EntityDetailShell({
           {headerActions && <div className="ml-auto">{headerActions}</div>}
         </div>
       </header>
+
+      {subHeader && <div className="border-b bg-muted/20 px-6 py-4">{subHeader}</div>}
 
       <div className="flex min-h-[70vh]">
         <nav aria-label="Bereiche" className="w-48 shrink-0 border-r p-3">

@@ -5,7 +5,6 @@ import { EpicEditForm } from "./epic-edit-form";
 import { EpicGovernanceFlags } from "./epic-governance-flags";
 import { EpicOwnerAssign } from "./epic-owner-assign";
 import { EpicPlannedWindowForm } from "./epic-planned-window-form";
-import { EpicImpactConfirmDialog } from "./epic-impact-confirm-dialog";
 import { PhaseBadge } from "@/components/detail/phase-badge";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import { buildInitiativeSummary } from "@/domain/initiative-summary";
@@ -109,6 +108,11 @@ export function EpicOverviewTab({
 
   const totals = computeBusinessCaseTotals(parseBusinessCase(epic.businessCase).current);
 
+  // Der Confirm-Dialog und die L5-Bestätigungs-Anzeige leben jetzt im
+  // Sub-Header (`EpicReifegradActivityBar` auf der Seite). `showImpactConfirm`
+  // bleibt vorerst als no-op, damit die Hook-Reihenfolge stabil ist.
+  void showImpactConfirm;
+
   return (
     <div className="space-y-8">
       <section className="flex gap-3 rounded-lg border border-l-4 border-l-primary bg-muted/40 p-4">
@@ -119,19 +123,7 @@ export function EpicOverviewTab({
           </p>
           <p className="mt-1 text-sm">{summary}</p>
         </div>
-        {showImpactConfirm && <EpicImpactConfirmDialog epicId={epic.id} epicTitle={epic.title} />}
       </section>
-
-      {epic.impactRecognizedAt && (
-        <section className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-emerald-700">
-            Impact realisiert · L5
-          </p>
-          <p className="mt-1 text-emerald-900">
-            Bestätigt am {epic.impactRecognizedAt.toLocaleDateString("de-DE")}.
-          </p>
-        </section>
-      )}
 
       <section className="space-y-5">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
