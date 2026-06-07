@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, startTransition } from "react";
 import { ChevronUp, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { advanceStageGateBatchAction } from "@/features/portfolio/actions/stage-gate";
@@ -55,7 +55,7 @@ export function EpicsBulkActionBar({ selectedRows, canAdvance, onClear }: Props)
     const fd = new FormData();
     for (const r of selectedRows) fd.append("epicIds", r.id);
     fd.set("toGate", toGate);
-    dispatch(fd);
+    startTransition(() => dispatch(fd));
   }
 
   return (

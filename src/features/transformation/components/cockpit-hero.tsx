@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, startTransition } from "react";
 import { TrendingUp, TrendingDown, Target } from "lucide-react";
 import { captureSnapshotAction } from "@/features/transformation/actions/transformation-snapshot";
 import { TEMPLATE_LABELS } from "@/domain/operating-model";
@@ -35,7 +35,7 @@ export function CockpitHero({ hero, model, trend, canManage }: Props) {
   const trendingDown = hero.delta && hero.delta.value < 0;
 
   function snapshotNow() {
-    capture(new FormData());
+    startTransition(() => capture(new FormData()));
   }
 
   return (

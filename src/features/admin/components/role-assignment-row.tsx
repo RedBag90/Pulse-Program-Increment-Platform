@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, startTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { removeRoleAction } from "@/features/admin/actions/role-assignment";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,7 @@ export function RoleAssignmentRow({
     fd.set("assignmentId", assignment.id);
     fd.set("targetUserId", targetUserId);
     fd.set("role", assignment.role);
-    action(fd);
+    startTransition(() => action(fd));
   }
 
   const vsLabels = lookupNames(assignment.valueStreamIds, valueStreams, "vs");

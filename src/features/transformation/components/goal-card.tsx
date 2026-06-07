@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, startTransition } from "react";
 import { CheckCircle2, ChevronDown, MoreHorizontal } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { saveGoalAction } from "@/features/transformation/actions/target-goal";
@@ -176,7 +176,7 @@ function MarkAchievedButton({ goal }: { goal: GoalCardData }) {
     if (!window.confirm(`„${goal.title}" als erreicht markieren?`)) return;
     const fd = new FormData();
     fd.set("payload", JSON.stringify({ id: goal.id, title: goal.title, status: "achieved" }));
-    action(fd);
+    startTransition(() => action(fd));
   }
 
   return (
@@ -218,7 +218,7 @@ function UpdateOutcomeRow({ outcome, onDone }: { outcome: GoalBoundOutcome; onDo
         current: parsed,
       }),
     );
-    action(fd);
+    startTransition(() => action(fd));
     onDone();
   }
 

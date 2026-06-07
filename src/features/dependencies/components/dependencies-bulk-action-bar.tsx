@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, startTransition } from "react";
 import { Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { unlinkDependencyBatchAction } from "@/features/dependencies/actions/dependency";
@@ -31,7 +31,7 @@ export function DependenciesBulkActionBar({ selectedRows, artId, onClear }: Prop
     const fd = new FormData();
     for (const r of selectedRows) fd.append("dependencyIds", r.id);
     fd.set("artId", artId);
-    dispatch(fd);
+    startTransition(() => dispatch(fd));
   }
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, startTransition } from "react";
 import {
   linkGoalEpicAction,
   unlinkGoalEpicAction,
@@ -23,7 +23,7 @@ export function EpicGoalsLinker({ epicId, goals, linkedIds }: Props) {
     const fd = new FormData();
     fd.set("goalId", goalId);
     fd.set("epicId", epicId);
-    (on ? link : unlink)(fd);
+    startTransition(() => (on ? link : unlink)(fd));
   }
 
   return (

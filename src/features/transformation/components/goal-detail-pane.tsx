@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState, useEffect, startTransition } from "react";
 import { Trash2, X, Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import {
@@ -124,7 +124,7 @@ export function GoalDetailPane({
     };
     const fd = new FormData();
     fd.set("payload", JSON.stringify(payload));
-    save(fd);
+    startTransition(() => save(fd));
   }
 
   function deleteGoal() {
@@ -132,7 +132,7 @@ export function GoalDetailPane({
     if (!window.confirm(`Ziel „${goal.title}" löschen? Alle KPIs werden mitgelöscht.`)) return;
     const fd = new FormData();
     fd.set("id", goal.id);
-    del(fd);
+    startTransition(() => del(fd));
   }
 
   function unlinkEpic(epicId: string) {
@@ -140,7 +140,7 @@ export function GoalDetailPane({
     const fd = new FormData();
     fd.set("goalId", goal.id);
     fd.set("epicId", epicId);
-    unlink(fd);
+    startTransition(() => unlink(fd));
   }
 
   const isNew = goal === null;

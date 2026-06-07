@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, startTransition } from "react";
 import { ArrowRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -45,7 +45,7 @@ export function FeaturesBulkActionBar({
     for (const r of selectedRows) fd.append("featureIds", r.id);
     fd.set("piId", piId);
     fd.set("artId", artId);
-    dispatch(fd);
+    startTransition(() => dispatch(fd));
   }
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState, useEffect, startTransition } from "react";
 import { Trash2 } from "lucide-react";
 import {
   saveTargetOutcomeAction,
@@ -94,7 +94,7 @@ export function KpiEditorRow({ kpi, goalId, canManage, onCreated, onDeleted }: P
     };
     const fd = new FormData();
     fd.set("payload", JSON.stringify(payload));
-    save(fd);
+    startTransition(() => save(fd));
   }
 
   function remove() {
@@ -102,7 +102,7 @@ export function KpiEditorRow({ kpi, goalId, canManage, onCreated, onDeleted }: P
     if (!window.confirm(`KPI „${kpi.title}" löschen?`)) return;
     const fd = new FormData();
     fd.set("id", kpi.id);
-    del(fd);
+    startTransition(() => del(fd));
   }
 
   const targetNum = toNum(target);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, startTransition } from "react";
 import { Link2 } from "lucide-react";
 import { saveTargetOutcomeAction } from "@/features/transformation/actions/target-outcome";
 import { Label } from "@/components/ui/label";
@@ -58,7 +58,7 @@ export function UnboundKpiDetailPane({ kpi, goals, canManage, onAssigned, onDele
     };
     const fd = new FormData();
     fd.set("payload", JSON.stringify(payload));
-    assign(fd);
+    startTransition(() => assign(fd));
   }
 
   return (

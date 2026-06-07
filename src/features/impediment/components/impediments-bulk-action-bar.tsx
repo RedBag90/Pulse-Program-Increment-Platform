@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, startTransition } from "react";
 import { AlertOctagon, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -65,7 +65,7 @@ export function ImpedimentsBulkActionBar({
     const fd = new FormData();
     for (const r of selectedRows) fd.append("impedimentIds", r.id);
     fd.set("artId", artId);
-    escalateDispatch(fd);
+    startTransition(() => escalateDispatch(fd));
   }
 
   function resolve() {
@@ -74,7 +74,7 @@ export function ImpedimentsBulkActionBar({
     for (const r of selectedRows) fd.append("impedimentIds", r.id);
     fd.set("artId", artId);
     fd.set("resolution", resolution.trim());
-    resolveDispatch(fd);
+    startTransition(() => resolveDispatch(fd));
   }
 
   const lastError = resolveState.error ?? escalateState.error;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useMemo, useEffect } from "react";
+import { useActionState, useState, useMemo, useEffect, startTransition } from "react";
 import { Plus, Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -54,7 +54,7 @@ export function EpicLinker({ goalId, epicOptions, linkedEpics }: Props) {
     const fd = new FormData();
     fd.set("goalId", goalId);
     fd.set("epicId", epicId);
-    link(fd);
+    startTransition(() => link(fd));
   }
 
   return (

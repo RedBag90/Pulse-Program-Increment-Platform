@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, startTransition } from "react";
 import { setEpicFlagAction } from "@/features/portfolio/actions/epic";
 
 interface Props {
@@ -27,7 +27,7 @@ export function EpicGovernanceFlags({ epicId, needsSteeringAttention, stagedForB
     fd.set("id", epicId);
     fd.set("flag", flag);
     fd.set("value", on ? "true" : "false");
-    submit(fd);
+    startTransition(() => submit(fd));
   }
 
   return (
