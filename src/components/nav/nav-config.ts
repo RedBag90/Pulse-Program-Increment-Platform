@@ -166,6 +166,12 @@ export const NAV_GROUPS: NavGroup[] = [
         capability: "admin.users.read",
       },
       {
+        href: "/admin/roles",
+        labelKey: "roles",
+        icon: ShieldCheck,
+        capability: "role.capability.manage",
+      },
+      {
         href: "/admin/integrations",
         labelKey: "integrations",
         icon: Plug,

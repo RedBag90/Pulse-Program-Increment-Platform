@@ -56,6 +56,7 @@
     "wsjfLeaderboard": "WSJF-Rangliste",
     "admin": "Administration",
     "users": "Benutzer",
+    "roles": "Rollen & Capabilities",
     "integrations": "Integrationen",
     "auditLog": "Audit-Log",
     "transformation": "Transformation",

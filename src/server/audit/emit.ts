@@ -105,7 +105,10 @@ export type AuditAction =
   | "timeline.updated"
   | "timeline.deleted"
   | "timeline.art.joined"
-  | "timeline.art.left";
+  | "timeline.art.left"
+  | "role.capability.granted"
+  | "role.capability.revoked"
+  | "role.capability.reset";
 
 export type AuditResourceType =
   | "initiative"
@@ -131,7 +134,9 @@ export type AuditResourceType =
   | "budget_pool"
   | "art_budget"
   | "budget_plan_revision"
-  | "timeline";
+  | "timeline"
+  | "role_capability"
+  | "role";
 
 // ---------------------------------------------------------------------------
 // Emit helpers
