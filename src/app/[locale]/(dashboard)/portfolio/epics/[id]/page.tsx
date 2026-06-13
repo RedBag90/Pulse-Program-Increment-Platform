@@ -2,6 +2,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { authorize, hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getEpic } from "@/server/services/epic";
+import { loadBreakdownLayout } from "@/server/services/breakdown-layout";
 import { EpicGoalsLinker } from "@/features/transformation/components/epic-goals-linker";
 import { listInitiativeHistory } from "@/server/services/initiative";
 import { listKpis } from "@/server/services/kpi";
@@ -101,6 +102,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     goalLinks,
     budgetAllocation,
     breakdownDependencies,
+    breakdownPositions,
   ] = await Promise.all([
     listInitiativeHistory(db, principal.tenantId, epic.id),
     listKpis(db, principal.tenantId, epic.id as EpicId),
@@ -133,7 +135,12 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           },
           select: { id: true, fromId: true, toId: true, type: true },
         }),
+    // Netzplan-Layout (Roadmap-P5): persistierte Node-Positionen pro
+    // Epic. Tenant-weit; alle User sehen dasselbe Layout.
+    loadBreakdownLayout(db, principal.tenantId, epic.id as EpicId),
   ]);
+  const breakdownLayoutPositions: Record<string, { x: number; y: number }> = {};
+  for (const [k, v] of breakdownPositions) breakdownLayoutPositions[k] = v;
   const budgetAllocatedSum = budgetAllocation
     ? Object.values((budgetAllocation.allocations ?? {}) as Record<string, number>).reduce(
         (s, v) => s + (typeof v === "number" ? v : 0),
@@ -530,6 +537,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           signoff={breakdownSignoff}
           dependencies={breakdownDependencies}
           canLinkDependency={canLinkDependency}
+          breakdownLayoutPositions={breakdownLayoutPositions}
         />
       )}
 

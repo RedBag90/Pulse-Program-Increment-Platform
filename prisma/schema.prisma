@@ -714,6 +714,25 @@ model Dependency {
   @@map("dependencies")
 }
 
+/// Persistierte Netzplan-Layout-Position pro Feature (Initiative auf
+/// Feature-Level) im Scope eines Epics. Tenant-weit; alle User sehen
+/// dasselbe Layout. Wenn ein Knoten kein Eintrag hat (z. B. neu via
+/// Quick-Add), fällt der Client auf dagre-Layout zurück.
+model InitiativeGraphPosition {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  epicId       String   @map("epic_id") @db.Uuid
+  initiativeId String   @map("initiative_id") @db.Uuid
+  x            Float
+  y            Float
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  updatedBy    String   @map("updated_by") @db.Uuid
+
+  @@unique([epicId, initiativeId])
+  @@index([tenantId, epicId])
+  @@map("initiative_graph_positions")
+}
+
 model AuditEvent {
   id           String   @id @default(uuid()) @db.Uuid
   tenantId     String   @map("tenant_id") @db.Uuid

@@ -75,6 +75,9 @@ interface Props {
    *  Dependencies per Drag-Connect anlegen. Per-Edge-Auth checkt der
    *  Server-Action nochmal. */
   canLinkDependency: boolean;
+  /** Persistierte Netzplan-Positionen (Roadmap-P5). Knoten ohne Eintrag
+   *  fallen auf dagre-Auto-Layout zurueck. */
+  breakdownLayoutPositions: Record<string, { x: number; y: number }>;
 }
 
 function FeatureRow({
@@ -213,6 +216,7 @@ export function EpicBreakdownTab({
   signoff,
   dependencies,
   canLinkDependency,
+  breakdownLayoutPositions,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -297,6 +301,7 @@ export function EpicBreakdownTab({
           dependencies={dependencies}
           canLinkDependency={canLinkDependency}
           canCreateFeature={canEdit}
+          savedPositions={breakdownLayoutPositions}
         />
       ) : features.length === 0 ? (
         <p className="text-sm text-muted-foreground">Noch keine Features in diesem Epic.</p>

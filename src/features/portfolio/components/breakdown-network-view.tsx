@@ -32,6 +32,7 @@ import {
   changeDependencyTypeAction,
 } from "@/features/dependencies/actions/dependency";
 import { updateFeatureAction } from "@/features/art/actions/feature";
+import { saveBreakdownLayoutAction } from "@/features/portfolio/actions/breakdown-layout";
 import { WsjfScoreDialog } from "@/features/art/components/wsjf-score-dialog";
 import {
   quickAddFeatureWithDependencyAction,
@@ -74,6 +75,9 @@ interface Props {
   canLinkDependency: boolean;
   /** Wenn `true`, sind die Plus-Buttons am Node + Edge sichtbar (N3). */
   canCreateFeature: boolean;
+  /** Persistierte Node-Positionen (Roadmap-P5). Knoten ohne Eintrag
+   *  fallen auf dagre-Auto-Layout zurueck. */
+  savedPositions?: Record<string, { x: number; y: number }>;
 }
 
 const NODE_WIDTH = 220;
@@ -547,6 +551,8 @@ function layoutGraph(
     canLinkDependency: boolean;
     canCreateFeature: boolean;
     canEditFeature: boolean;
+    /** Persistierte Positionen — Knoten ohne Eintrag bleiben dagre-gelayoutet. */
+    savedPositions?: Record<string, { x: number; y: number }> | undefined;
     onAddSuccessor: (predecessorId: string, predecessorArtId: string) => QuickAddSubmit;
     onEditFeature: (featureId: string, featureArtId: string) => QuickEditSubmit;
     onInsertOnEdge: (
@@ -576,7 +582,11 @@ function layoutGraph(
   dagre.layout(g);
 
   const rfNodes: Node[] = nodes.map((n) => {
-    const pos = g.node(n.id);
+    const dagrePos = g.node(n.id);
+    const saved = ctx.savedPositions?.[n.id];
+    const position = saved
+      ? { x: saved.x, y: saved.y }
+      : { x: dagrePos.x - NODE_WIDTH / 2, y: dagrePos.y - NODE_HEIGHT / 2 };
     const artId = artById.get(n.id) ?? "";
     const data: FeatureNodeData = {
       ...n,
@@ -591,7 +601,7 @@ function layoutGraph(
       id: n.id,
       type: "feature",
       data: data as unknown as Record<string, unknown>,
-      position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - NODE_HEIGHT / 2 },
+      position,
     };
   });
 
@@ -633,6 +643,7 @@ export function BreakdownNetworkView({
   dependencies,
   canLinkDependency,
   canCreateFeature,
+  savedPositions,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -826,12 +837,42 @@ export function BreakdownNetworkView({
     [router],
   );
 
+  // Node-Drag-Persistenz (Roadmap-P5). Pro Knoten debounced 400 ms —
+  // mehrere Wiggles werden zu einem save zusammengezogen.
+  const dragSaveTimers = useMemo<Map<string, ReturnType<typeof setTimeout>>>(() => new Map(), []);
+  const onNodeDragStop = useCallback(
+    (_event: unknown, node: Node) => {
+      if (!canCreateFeature) return;
+      const existing = dragSaveTimers.get(node.id);
+      if (existing) clearTimeout(existing);
+      const timer = setTimeout(() => {
+        dragSaveTimers.delete(node.id);
+        const fd = new FormData();
+        fd.set("epicId", epicId);
+        fd.set(
+          "positions",
+          JSON.stringify([{ initiativeId: node.id, x: node.position.x, y: node.position.y }]),
+        );
+        startTransition(async () => {
+          const result = await saveBreakdownLayoutAction({}, fd);
+          if (result?.error) {
+            toast.error(result.error);
+            return;
+          }
+        });
+      }, 400);
+      dragSaveTimers.set(node.id, timer);
+    },
+    [canCreateFeature, epicId, dragSaveTimers],
+  );
+
   const baseGraph = useMemo(
     () =>
       layoutGraph(model.nodes, model.edges, artById, {
         canLinkDependency,
         canCreateFeature,
         canEditFeature: canCreateFeature,
+        savedPositions,
         onAddSuccessor,
         onEditFeature,
         onInsertOnEdge,
@@ -843,6 +884,7 @@ export function BreakdownNetworkView({
       artById,
       canLinkDependency,
       canCreateFeature,
+      savedPositions,
       onAddSuccessor,
       onEditFeature,
       onInsertOnEdge,
@@ -1077,6 +1119,7 @@ export function BreakdownNetworkView({
         <ReactFlow
           nodes={displayNodes}
           edges={displayEdges}
+          onNodeDragStop={onNodeDragStop}
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
           nodesDraggable
