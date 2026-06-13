@@ -48,7 +48,7 @@ export default async function UmsetzungCockpitPage({ searchParams }: PageProps) 
 
   return (
     <Suspense fallback={null}>
-      <CockpitShell model={model} slideOverDetail={slideOverDetail} />
+      <CockpitShell model={model} slideOverDetail={slideOverDetail} tenantId={principal.tenantId} />
     </Suspense>
   );
 }

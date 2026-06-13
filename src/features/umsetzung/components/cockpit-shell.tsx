@@ -7,6 +7,7 @@ import { CockpitBoard } from "./cockpit-board";
 import { CockpitTable } from "./cockpit-table";
 import { CockpitRoadmap } from "./cockpit-roadmap";
 import { FeatureSlideOver } from "./feature-slide-over";
+import { CockpitRealtimeSubscriber } from "./cockpit-realtime-subscriber";
 
 /**
  * Delivery-Cockpit-Shell — Komposition der drei stabilen Bestandteile
@@ -21,13 +22,16 @@ import { FeatureSlideOver } from "./feature-slide-over";
 interface Props {
   model: CockpitModel;
   slideOverDetail: CockpitFeatureDetail | null;
+  /** Tenant-Id fuer den Supabase-Realtime-Channel. */
+  tenantId: string;
 }
 
-export function CockpitShell({ model, slideOverDetail }: Props) {
+export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
   const { availableArts, selectedArt, piStrip, allPiWindows, view, features, permissions } = model;
 
   return (
     <div className="flex min-h-[calc(100vh-3rem)] flex-col bg-background">
+      <CockpitRealtimeSubscriber tenantId={tenantId} />
       <CockpitTopBar
         availableArts={availableArts}
         selectedArt={selectedArt}
