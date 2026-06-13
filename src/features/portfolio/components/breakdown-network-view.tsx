@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Pencil, Plus } from "lucide-react";
 import dagre from "@dagrejs/dagre";
 import {
@@ -635,7 +635,61 @@ export function BreakdownNetworkView({
   canCreateFeature,
 }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+
+  // ----- Filter (Roadmap-P4) -----
+  // Volltextsuche + Typ-Facette. URL-state ?breakdownQ=, ?breakdownType=
+  // Search-Input ist lokal-debounced (200 ms) damit URL nicht pro Tastenanschlag flackert.
+  const urlQuery = searchParams.get("breakdownQ") ?? "";
+  const urlType = (() => {
+    const t = searchParams.get("breakdownType");
+    return t === "feature" || t === "enabler" ? t : "all";
+  })();
+  const [queryDraft, setQueryDraft] = useState(urlQuery);
+  useEffect(() => setQueryDraft(urlQuery), [urlQuery]);
+  useEffect(() => {
+    if (queryDraft === urlQuery) return;
+    const t = window.setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (queryDraft.trim() === "") params.delete("breakdownQ");
+      else params.set("breakdownQ", queryDraft.trim());
+      const qs = params.toString();
+      router.replace(`${pathname}${qs ? `?${qs}` : ""}` as never, { scroll: false });
+    }, 200);
+    return () => window.clearTimeout(t);
+  }, [queryDraft, urlQuery, pathname, router, searchParams]);
+
+  const setUrlType = (next: "all" | "feature" | "enabler") => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "all") params.delete("breakdownType");
+    else params.set("breakdownType", next);
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}` as never, { scroll: false });
+  };
+
+  const hasFilter = urlQuery !== "" || urlType !== "all";
+  const matchedIds = useMemo<Set<string> | null>(() => {
+    if (!hasFilter) return null;
+    const q = urlQuery.toLowerCase().trim();
+    const out = new Set<string>();
+    for (const f of features) {
+      if (urlType !== "all" && f.featureType !== urlType) continue;
+      if (q !== "" && !f.title.toLowerCase().includes(q)) continue;
+      out.add(f.id);
+    }
+    return out;
+  }, [features, urlQuery, urlType, hasFilter]);
+
+  const clearFilter = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("breakdownQ");
+    params.delete("breakdownType");
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}` as never, { scroll: false });
+  };
+
   const artById = useMemo(() => {
     const m = new Map<string, string>();
     for (const f of features) m.set(f.id, f.artId);
@@ -800,6 +854,23 @@ export function BreakdownNetworkView({
   const [edges, setEdges] = useState<Edge[]>(baseGraph.edges);
   useEffect(() => setEdges(baseGraph.edges), [baseGraph.edges]);
 
+  // Filter-Overlay (Roadmap-P4): nicht-gematchte Nodes + Edges, die nicht
+  // beide endpunkte gematcht haben, werden auf opacity 0.25 dimmed.
+  const displayNodes = useMemo(() => {
+    if (!matchedIds) return baseGraph.nodes;
+    return baseGraph.nodes.map((n) =>
+      matchedIds.has(n.id) ? n : { ...n, style: { ...(n.style ?? {}), opacity: 0.25 } },
+    );
+  }, [baseGraph.nodes, matchedIds]);
+  const displayEdges = useMemo(() => {
+    if (!matchedIds) return edges;
+    return edges.map((e) => {
+      const matchedEdge = matchedIds.has(e.source) && matchedIds.has(e.target);
+      if (matchedEdge) return e;
+      return { ...e, style: { ...(e.style ?? {}), opacity: 0.25 } };
+    });
+  }, [edges, matchedIds]);
+
   // Connection-Typ steuert, mit welchem Edge-Type neue Drag-Connects
   // angelegt werden. Default `depends_on`.
   const [connectType, setConnectType] = useState<DependencyEdgeType>("depends_on");
@@ -921,6 +992,47 @@ export function BreakdownNetworkView({
           Endpunkten ausserhalb dieses Epics werden hier nicht gezeigt.
         </p>
       )}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <Input
+          value={queryDraft}
+          onChange={(e) => setQueryDraft(e.target.value)}
+          placeholder="Suche im Titel…"
+          aria-label="Suche im Netzplan"
+          className="h-7 w-48 text-xs"
+        />
+        <div
+          role="radiogroup"
+          aria-label="Typ-Filter"
+          className="inline-flex overflow-hidden rounded-md border bg-card"
+        >
+          {(["all", "feature", "enabler"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="radio"
+              aria-checked={urlType === t}
+              onClick={() => setUrlType(t)}
+              className={`px-2 py-0.5 ${
+                urlType === t
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted/50"
+              }`}
+            >
+              {t === "all" ? "Alle Typen" : t === "feature" ? "Feature" : "Enabler"}
+            </button>
+          ))}
+        </div>
+        {hasFilter && (
+          <>
+            <span className="text-muted-foreground">
+              {matchedIds?.size ?? 0} von {features.length} sichtbar
+            </span>
+            <button type="button" onClick={clearFilter} className="text-primary hover:underline">
+              Filter zurücksetzen
+            </button>
+          </>
+        )}
+      </div>
       {(canLinkDependency || canCreateFeature) && (
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <p className="text-muted-foreground">
@@ -963,8 +1075,8 @@ export function BreakdownNetworkView({
       )}
       <div className="h-[480px] rounded-lg border bg-muted/30">
         <ReactFlow
-          nodes={baseGraph.nodes}
-          edges={edges}
+          nodes={displayNodes}
+          edges={displayEdges}
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
           nodesDraggable
