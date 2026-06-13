@@ -20,7 +20,13 @@ const BUILD_DIR = ".next";
 const CHUNK_DIR = join(BUILD_DIR, "static", "chunks");
 const PAGE_PATH = "src/app/[locale]/(dashboard)/portfolio/epics/[id]/page.tsx";
 
-const NETWORK_MARKERS = ["@xyflow/react", "ReactFlow", "@dagrejs/dagre", "dagre.layout"];
+const NETWORK_MARKERS = [
+  "@xyflow/react",
+  "ReactFlow",
+  "@dagrejs/dagre",
+  "dagre.layout",
+  "html-to-image",
+];
 
 if (!existsSync(BUILD_DIR)) {
   console.error(`✗ ${BUILD_DIR}/ fehlt. Erst 'pnpm build' laufen lassen.`);

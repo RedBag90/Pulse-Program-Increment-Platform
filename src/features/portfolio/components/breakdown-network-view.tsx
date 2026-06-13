@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Pencil, Plus } from "lucide-react";
+import { Download, Pencil, Plus } from "lucide-react";
 import dagre from "@dagrejs/dagre";
+import { toPng } from "html-to-image";
 import {
   ReactFlow,
   Background,
@@ -12,9 +13,13 @@ import {
   Handle,
   MarkerType,
   MiniMap,
+  Panel,
   Position,
   addEdge,
+  getNodesBounds,
   getSmoothStepPath,
+  getViewportForBounds,
+  useReactFlow,
   type Connection,
   type Edge,
   type EdgeProps,
@@ -569,6 +574,71 @@ function GhostNode({ data }: NodeProps) {
 
 const NODE_TYPES = { feature: FeatureNode, ghost: GhostNode };
 const EDGE_TYPES = { insertable: InsertableEdge };
+
+/**
+ * Netzplan-PNG-Export (Roadmap-P7). Snapshot der gesamten Canvas in
+ * 1600×900 px mit fit-to-bounds-Viewport — independent von Pan/Zoom-
+ * Stand. Nutzt `useReactFlow` (muss daher INNERHALB von `<ReactFlow>`
+ * gerendert werden, idealerweise im `<Panel>`).
+ */
+function ExportButton({ epicTitle }: { epicTitle: string }) {
+  const { getNodes } = useReactFlow();
+  const onExport = async () => {
+    const nodes = getNodes();
+    if (nodes.length === 0) {
+      toast.error("Keine Knoten zum Exportieren");
+      return;
+    }
+    const viewportEl = document.querySelector(".react-flow__viewport") as HTMLElement | null;
+    if (!viewportEl) {
+      toast.error("Canvas nicht bereit");
+      return;
+    }
+    const PADDING = 0.1;
+    const WIDTH = 1600;
+    const HEIGHT = 900;
+    const bounds = getNodesBounds(nodes);
+    const vp = getViewportForBounds(bounds, WIDTH, HEIGHT, 0.25, 2, PADDING);
+    try {
+      const dataUrl = await toPng(viewportEl, {
+        backgroundColor: "#ffffff",
+        width: WIDTH,
+        height: HEIGHT,
+        pixelRatio: 2,
+        style: {
+          width: `${WIDTH}px`,
+          height: `${HEIGHT}px`,
+          transform: `translate(${vp.x}px, ${vp.y}px) scale(${vp.zoom})`,
+        },
+      });
+      const slug = epicTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60);
+      const link = document.createElement("a");
+      link.download = `netzplan-${slug || "epic"}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast.success("Netzplan exportiert");
+    } catch {
+      toast.error("Export fehlgeschlagen");
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onExport}
+      title="Netzplan als PNG exportieren"
+      aria-label="Netzplan exportieren"
+      className="flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] shadow-sm transition hover:bg-muted"
+    >
+      <Download className="size-3.5" />
+      <span>Export PNG</span>
+    </button>
+  );
+}
 
 function edgeStyle(type: DependencyEdgeType): {
   style: React.CSSProperties;
@@ -1206,6 +1276,9 @@ export function BreakdownNetworkView({
         >
           <Background />
           <Controls showInteractive={false} />
+          <Panel position="top-right">
+            <ExportButton epicTitle={epicTitle} />
+          </Panel>
           <MiniMap
             pannable
             zoomable
