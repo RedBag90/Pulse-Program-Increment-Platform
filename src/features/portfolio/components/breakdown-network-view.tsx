@@ -276,7 +276,7 @@ function QuickEditPopover({
           <button
             type="button"
             aria-label="Feature bearbeiten"
-            className="absolute -right-2 -top-2 z-10 flex size-5 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition hover:bg-primary hover:text-primary-foreground"
+            className="absolute -right-2 -top-2 z-10 flex size-5 items-center justify-center rounded-full border border-border bg-card text-muted-foreground opacity-0 shadow-sm transition hover:bg-primary hover:text-primary-foreground group-hover:opacity-100"
           >
             <Pencil className="size-3" />
           </button>
@@ -352,14 +352,14 @@ function FeatureNode({ data }: NodeProps) {
   const node = data as unknown as FeatureNodeData;
   const isEnabler = node.featureType === "enabler";
   return (
-    <div className="relative" style={{ width: NODE_WIDTH }}>
+    <div className="group relative" style={{ width: NODE_WIDTH }}>
       <Handle
         type="target"
         position={Position.Left}
         isConnectable={node.connectable}
         className={
           node.connectable
-            ? "!size-2 !border !border-background !bg-foreground/60"
+            ? "!size-2 !border !border-background !bg-foreground/60 !opacity-0 transition-opacity group-hover:!opacity-100"
             : "!size-0 !border-none"
         }
       />
@@ -394,7 +394,7 @@ function FeatureNode({ data }: NodeProps) {
         isConnectable={node.connectable}
         className={
           node.connectable
-            ? "!size-2 !border !border-background !bg-foreground/60"
+            ? "!size-2 !border !border-background !bg-foreground/60 !opacity-0 transition-opacity group-hover:!opacity-100"
             : "!size-0 !border-none"
         }
       />
@@ -493,6 +493,7 @@ function InsertableEdge(props: EdgeProps) {
     label,
     markerEnd,
     style,
+    selected,
   } = props;
   const edgeData = data as unknown as InsertableEdgeData | undefined;
   const type = edgeData?.type ?? "depends_on";
@@ -508,6 +509,8 @@ function InsertableEdge(props: EdgeProps) {
     offset: 32,
     borderRadius: 16,
   });
+  const [hovered, setHovered] = useState(false);
+  const showDecoration = hovered || selected || false;
   return (
     <>
       <path
@@ -518,13 +521,27 @@ function InsertableEdge(props: EdgeProps) {
         markerEnd={markerEnd}
         fill="none"
       />
+      {/* Transparente hit-area fuer komfortableres hover-target. */}
+      <path
+        d={edgePath}
+        stroke="transparent"
+        strokeWidth={20}
+        fill="none"
+        style={{ cursor: "pointer" }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      />
       <EdgeLabelRenderer>
         <div
-          className="absolute flex items-center gap-1"
+          className={`absolute flex items-center gap-1 transition-opacity ${
+            showDecoration ? "opacity-100" : "opacity-0"
+          }`}
           style={{
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-            pointerEvents: "all",
+            pointerEvents: showDecoration ? "all" : "none",
           }}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
         >
           {label &&
             (edgeData?.onChangeType ? (
