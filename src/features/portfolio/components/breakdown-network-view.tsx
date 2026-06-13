@@ -11,6 +11,7 @@ import {
   EdgeLabelRenderer,
   Handle,
   MarkerType,
+  MiniMap,
   Position,
   addEdge,
   getSmoothStepPath,
@@ -24,7 +25,10 @@ import "@xyflow/react/dist/style.css";
 import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
 import { detectCycle } from "@/domain/dependency-graph";
-import { linkDependencyAction } from "@/features/dependencies/actions/dependency";
+import {
+  linkDependencyAction,
+  unlinkDependencyAction,
+} from "@/features/dependencies/actions/dependency";
 import {
   quickAddFeatureWithDependencyAction,
   insertFeatureBetweenAction,
@@ -519,6 +523,10 @@ export function BreakdownNetworkView({
   const [edges, setEdges] = useState<Edge[]>(baseGraph.edges);
   useEffect(() => setEdges(baseGraph.edges), [baseGraph.edges]);
 
+  // Connection-Typ steuert, mit welchem Edge-Type neue Drag-Connects
+  // angelegt werden. Default `depends_on`.
+  const [connectType, setConnectType] = useState<DependencyEdgeType>("depends_on");
+
   const onConnect = useCallback(
     (conn: Connection) => {
       if (!canLinkDependency) return;
@@ -528,6 +536,7 @@ export function BreakdownNetworkView({
         return;
       }
       if (
+        connectType !== "relates_to" &&
         detectCycle(
           conn.source,
           conn.target,
@@ -543,18 +552,18 @@ export function BreakdownNetworkView({
         return;
       }
       const tmpId = `tmp-${conn.source}-${conn.target}-${Date.now()}`;
-      const s = edgeStyle("depends_on");
+      const s = edgeStyle(connectType);
       const tmpEdge: Edge = {
         id: tmpId,
         source: conn.source,
         target: conn.target,
         type: "insertable",
-        label: EDGE_LABEL.depends_on,
+        label: EDGE_LABEL[connectType],
         animated: s.animated,
         style: s.style,
         markerEnd: s.marker,
         data: {
-          type: "depends_on",
+          type: connectType,
           showPlus: false,
         } as unknown as Record<string, unknown>,
       };
@@ -563,7 +572,7 @@ export function BreakdownNetworkView({
       const fd = new FormData();
       fd.set("fromId", conn.source);
       fd.set("toId", conn.target);
-      fd.set("type", "depends_on");
+      fd.set("type", connectType);
       fd.set("artId", sourceArtId);
 
       startTransition(async () => {
@@ -577,7 +586,41 @@ export function BreakdownNetworkView({
         router.refresh();
       });
     },
-    [artById, canLinkDependency, edges, router],
+    [artById, canLinkDependency, connectType, edges, router],
+  );
+
+  const onEdgesDelete = useCallback(
+    (deleted: Edge[]) => {
+      if (!canLinkDependency) return;
+      for (const edge of deleted) {
+        if (edge.id.startsWith("tmp-")) continue;
+        const sourceArtId = artById.get(edge.source);
+        if (!sourceArtId) {
+          // Re-Add — ohne ART kein unlink-Call.
+          setEdges((current) => addEdge(edge, current));
+          toast.error("Source-ART unbekannt — Abhängigkeit nicht gelöscht.");
+          continue;
+        }
+        const data = edge.data as InsertableEdgeData | undefined;
+        const type = data?.type ?? "depends_on";
+        const fd = new FormData();
+        fd.set("fromId", edge.source);
+        fd.set("toId", edge.target);
+        fd.set("type", type);
+        fd.set("artId", sourceArtId);
+        startTransition(async () => {
+          const result = await unlinkDependencyAction({}, fd);
+          if (result?.error) {
+            setEdges((current) => addEdge(edge, current));
+            toast.error(result.error);
+            return;
+          }
+          toast.success("Abhängigkeit gelöscht");
+          router.refresh();
+        });
+      }
+    },
+    [artById, canLinkDependency, router],
   );
 
   if (model.nodes.length === 0) {
@@ -597,18 +640,44 @@ export function BreakdownNetworkView({
         </p>
       )}
       {(canLinkDependency || canCreateFeature) && (
-        <p className="text-xs text-muted-foreground">
-          {canCreateFeature && <>Klicke auf „+" am Node, um ein Folge-Feature anzulegen. </>}
-          {canCreateFeature && (
-            <>Klicke auf „+" an einer Edge, um dazwischen ein Feature einzufügen. </>
-          )}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <p className="text-muted-foreground">
+            {canCreateFeature && <>„+" am Node = Folge-Feature · „+" an Edge = dazwischen. </>}
+            {canLinkDependency && (
+              <>
+                Drag von rechts auf links = neue Abhängigkeit · Edge selektieren + Entf = löschen.
+              </>
+            )}
+          </p>
           {canLinkDependency && (
-            <>
-              Ziehe von der rechten Node-Kante auf eine andere, um eine neue „depends
-              on"-Abhängigkeit anzulegen.
-            </>
+            <div className="inline-flex items-center gap-1.5">
+              <span className="text-muted-foreground">Neue Edge:</span>
+              <div
+                role="radiogroup"
+                aria-label="Connection-Typ"
+                className="inline-flex overflow-hidden rounded-md border bg-card"
+              >
+                {(["depends_on", "blocks", "relates_to"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    role="radio"
+                    aria-checked={connectType === t}
+                    onClick={() => setConnectType(t)}
+                    className={`px-2 py-0.5 ${
+                      connectType === t
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted/50"
+                    }`}
+                    style={connectType === t ? undefined : { color: EDGE_COLOR[t] }}
+                  >
+                    {EDGE_LABEL[t]}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
-        </p>
+        </div>
       )}
       <div className="h-[480px] rounded-lg border bg-muted/30">
         <ReactFlow
@@ -617,6 +686,10 @@ export function BreakdownNetworkView({
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
           nodesDraggable
+          edgesFocusable={canLinkDependency}
+          edgesReconnectable={false}
+          deleteKeyCode={canLinkDependency ? ["Backspace", "Delete"] : null}
+          onEdgesDelete={onEdgesDelete}
           nodesConnectable={canLinkDependency}
           elementsSelectable
           onConnect={onConnect}
@@ -626,6 +699,17 @@ export function BreakdownNetworkView({
         >
           <Background />
           <Controls showInteractive={false} />
+          <MiniMap
+            pannable
+            zoomable
+            ariaLabel="Netzplan-Übersicht"
+            nodeColor={(n) => {
+              const d = n.data as unknown as FeatureNodeData | undefined;
+              return d?.featureType === "enabler" ? "#a78bfa" : "#60a5fa";
+            }}
+            nodeStrokeWidth={0}
+            maskColor="rgba(0,0,0,0.04)"
+          />
         </ReactFlow>
       </div>
     </div>
