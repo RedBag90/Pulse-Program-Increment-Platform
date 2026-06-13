@@ -24,6 +24,11 @@ interface Props {
   activeTab: string;
   /** Detail route without query, e.g. `/value-streams/<id>`; tab links append `?tab=`. */
   basePath: string;
+  /** Wenn gesetzt, werden Tabs als Buttons gerendert und der Caller
+   *  managed den Tab-State selber — z. B. im Slide-Over, wo wir keine
+   *  Navigation wollen. Wenn undefined: Tabs sind Links (Standalone-
+   *  Detail-Pages-Verhalten). */
+  onTabChange?: (key: string) => void;
   headerActions?: ReactNode;
   /** Sub-Header zwischen Titel-Zeile und Tabs. Z.B. auf der Epic-Detail-
    *  Seite die Reifegrad-/Aktivitäts-Balken. Tab-unabhängig sichtbar. */
@@ -48,6 +53,7 @@ export function EntityDetailShell({
   tabs,
   activeTab,
   basePath,
+  onTabChange,
   headerActions,
   subHeader,
   aside,
@@ -84,19 +90,31 @@ export function EntityDetailShell({
           <ul className="space-y-0.5">
             {tabs.map((tab) => {
               const active = tab.key === activeTab;
+              const cls = `block w-full text-left border-l-2 rounded-r-md px-3 py-1.5 text-sm transition-colors ${
+                active
+                  ? "border-primary bg-primary/10 font-medium text-primary"
+                  : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`;
               return (
                 <li key={tab.key}>
-                  <Link
-                    href={`${basePath}?tab=${tab.key}`}
-                    aria-current={active ? "page" : undefined}
-                    className={`block border-l-2 rounded-r-md px-3 py-1.5 text-sm transition-colors ${
-                      active
-                        ? "border-primary bg-primary/10 font-medium text-primary"
-                        : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {tab.label}
-                  </Link>
+                  {onTabChange ? (
+                    <button
+                      type="button"
+                      onClick={() => onTabChange(tab.key)}
+                      aria-current={active ? "page" : undefined}
+                      className={cls}
+                    >
+                      {tab.label}
+                    </button>
+                  ) : (
+                    <Link
+                      href={`${basePath}?tab=${tab.key}`}
+                      aria-current={active ? "page" : undefined}
+                      className={cls}
+                    >
+                      {tab.label}
+                    </Link>
+                  )}
                 </li>
               );
             })}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FeatureDetailShell } from "@/features/umsetzung/components/feature-detail-shell";
@@ -22,6 +23,14 @@ export function FeatureSlideOver({ detail }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const featureId = searchParams.get("featureId");
+  // Lokaler Tab-State — Slide-Over swappt den Inhalt in-place, ohne
+  // wie die Voll-Route auf eine andere URL zu navigieren. Reset auf
+  // „overview" bei jedem Featurewechsel, damit man nicht im Detail
+  // eines anderen Features auf dem History-Tab landet.
+  const [tab, setTab] = useState<string>("overview");
+  useEffect(() => {
+    setTab("overview");
+  }, [detail.model.id]);
 
   function setOpen(open: boolean) {
     if (open) return;
@@ -45,6 +54,9 @@ export function FeatureSlideOver({ detail }: Props) {
             candidates={detail.candidates}
             historyEvents={detail.historyEvents}
             userLabels={detail.userLabels}
+            activeTab={tab}
+            onTabChange={setTab}
+            embed
           />
         </div>
       </SheetContent>

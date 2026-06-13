@@ -32,6 +32,13 @@ interface Props {
   userLabels: Record<string, string>;
   /** Aktiver Tab aus dem URL-Query, von der Page durchgereicht. */
   activeTab?: string;
+  /** Wenn gesetzt, sind Tabs in-place (kein Page-Navigate). Slide-Over
+   *  uebergibt seinen lokalen Tab-State + Setter. Voll-Route laesst es
+   *  undefined und behaelt das URL-basierte Tab-Routing. */
+  onTabChange?: (key: string) => void;
+  /** Embed-Modus (z. B. im Slide-Over): kein „Zurueck zum Hub"-Link
+   *  rendern, weil das Sheet seinen eigenen Schliessen-Knopf hat. */
+  embed?: boolean;
 }
 
 /**
@@ -49,17 +56,19 @@ export function FeatureDetailShell({
   historyEvents,
   userLabels,
   activeTab,
+  onTabChange,
+  embed,
 }: Props) {
   const active = resolveTab(FEATURE_DETAIL_TABS, activeTab);
 
   return (
     <EntityDetailShell
-      backHref="/umsetzung"
-      backLabel="Zurueck zum Hub"
+      {...(!embed ? { backHref: "/umsetzung", backLabel: "Zurueck zum Hub" } : {})}
       title={model.title}
       tabs={FEATURE_DETAIL_TABS}
       activeTab={active}
       basePath={`/umsetzung/feature/${model.id}`}
+      {...(onTabChange ? { onTabChange } : {})}
     >
       {active === "overview" && (
         <FeatureOverviewTab model={model} canEdit={canEdit} canTransition={canTransition} />
