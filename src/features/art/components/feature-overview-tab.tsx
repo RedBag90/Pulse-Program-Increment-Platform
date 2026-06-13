@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import { FeatureEditForm } from "./feature-edit-form";
 import { WsjfScoreDialog } from "./wsjf-score-dialog";
-import { SubmitReviewButton } from "@/features/quality/components/submit-review-button";
 import { STAGE_GATE_LABELS, STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { buildInitiativeSummary } from "@/domain/initiative-summary";
 import type { StageGate, InitiativeStatus } from "@/domain/types";
@@ -168,26 +167,6 @@ export function FeatureOverviewTab({
               </li>
             ))}
           </ul>
-        )}
-      </section>
-
-      <section className="flex flex-wrap items-center gap-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Qualitätssicherung
-        </p>
-        {feature.status === "draft" &&
-          (canEdit ? (
-            <SubmitReviewButton id={feature.id} kind="feature" />
-          ) : (
-            <span className="text-sm text-muted-foreground">Entwurf — noch nicht eingereicht.</span>
-          ))}
-        {feature.status === "in_review" && (
-          <span className="text-sm text-muted-foreground">
-            Zur QS eingereicht — wartet auf RTE-Freigabe.
-          </span>
-        )}
-        {feature.status === "approved" && (
-          <span className="text-sm text-emerald-600">Von der RTE freigegeben.</span>
         )}
       </section>
 

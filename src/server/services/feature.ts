@@ -93,6 +93,9 @@ export async function createFeature(
         artId,
         path: "",
         title,
+        // Features starten in der Delivery-Lane „Bereit". QA-Gate
+        // (draft→in_review→approved) wurde 2026-06 entfernt.
+        status: "approved",
         ownerId: mctx.actorId,
         assigneeIds: [],
         createdBy: mctx.actorId,
@@ -185,6 +188,7 @@ export async function createFeatureWithDependency(
         artId,
         path: "",
         title,
+        status: "approved",
         ownerId: mctx.actorId,
         assigneeIds: [],
         createdBy: mctx.actorId,
@@ -293,6 +297,7 @@ export async function insertFeatureBetween(
         artId,
         path: "",
         title,
+        status: "approved",
         ownerId: mctx.actorId,
         assigneeIds: [],
         createdBy: mctx.actorId,

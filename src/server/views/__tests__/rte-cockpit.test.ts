@@ -25,7 +25,7 @@ describe("pickRecentPiPredictability", () => {
       { piId: "pi-3", status: "completed" },
       { piId: "pi-3", status: "in_progress" }, // pi-3: 2/3
       { piId: "pi-2", status: "completed" }, // pi-2: 1/1
-      { piId: "pi-1", status: "draft" }, // pi-1: 0/1
+      { piId: "pi-1", status: "approved" }, // pi-1: 0/1 (geplant, noch nicht gestartet)
     ];
     const res = pickRecentPiPredictability(pis, features);
     expect(res).not.toBeNull();

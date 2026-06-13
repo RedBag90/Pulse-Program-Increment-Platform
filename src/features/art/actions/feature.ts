@@ -11,7 +11,6 @@ import {
   startFeature,
   type FeatureDeliveryStatus,
 } from "@/server/services/feature";
-import { submitForReview, decideReview } from "@/server/services/initiative-review";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { formatDomainError } from "@/server/http/domain-error-display";
@@ -21,22 +20,6 @@ import type { EpicId, ArtId, FeatureId, PiId } from "@/domain/types";
 export interface FeatureActionState {
   error?: string;
   success?: boolean;
-}
-
-/**
- * Refine-Predikat für `decideFeatureReviewBatchAction`: bei Approval ohne
- * Klärungs-Intent ist ein Kommentar optional; sonst (reject ODER
- * clarification) ist er erforderlich. Lebt am Modul-Scope, weil das
- * Next.js 15.3 "use server"-Linting top-level Arrow-Functions als
- * Server-Action interpretiert und dann `async` erzwingt.
- */
-function batchDecisionHasComment(d: {
-  decision: "approve" | "reject";
-  intent?: "decision" | "clarification" | undefined;
-  comment?: string | undefined;
-}): boolean {
-  if (d.decision === "approve" && d.intent !== "clarification") return true;
-  return (d.comment?.trim().length ?? 0) > 0;
 }
 
 export const createFeatureAction = createServerAction({
@@ -163,85 +146,6 @@ export const deleteFeatureAction = createServerAction({
     formatDomainError(e, { notFound: "Feature not found", fallback: "Failed to delete feature" }),
 });
 
-export const submitFeatureReviewAction = createServerAction({
-  schema: z.object({ id: z.string().uuid() }),
-  action: "feature.review.submit",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => ({ id: fields(fd).string("id") }),
-  service: (ctx, input) => submitForReview(ctx, { kind: "feature", id: input.id as FeatureId }),
-  revalidate: "feature",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Feature not found"
-        : "Failed to submit feature for review",
-});
-
-export const decideFeatureReviewAction = createServerAction({
-  schema: z.object({
-    id: z.string().uuid(),
-    decision: z.enum(["approve", "reject"]),
-    comment: z.string().max(2000).optional(),
-    intent: z.enum(["decision", "clarification"]).optional(),
-  }),
-  action: "feature.review.decide",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    decideReview(ctx, {
-      kind: "feature",
-      id: input.id as FeatureId,
-      decision: input.decision,
-      comment: input.comment,
-      intent: input.intent,
-    }),
-  revalidate: "feature",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Feature not found"
-        : "Failed to record review decision",
-});
-
-/**
- * Bulk QS-Entscheidung — drives the `/my-approvals` Feature-QS bulk bar.
- * Round 3 batch mode (cap 50) over the same per-item `decideReview` service
- * used by the single-item action. Tenant-scoped because `feature.review.decide`
- * is RTE/Admin-only and not ART-narrowed. A `reject` (or `clarification`
- * intent) requires a shared `comment`; `approve` may go without.
- */
-export const decideFeatureReviewBatchAction = createServerAction({
-  schema: z
-    .object({
-      featureIds: z.array(z.string().uuid()).min(1).max(50),
-      decision: z.enum(["approve", "reject"]),
-      comment: z.string().max(2000).optional(),
-      intent: z.enum(["decision", "clarification"]).optional(),
-    })
-    .refine(batchDecisionHasComment, { message: "Begründung erforderlich", path: ["comment"] }),
-  action: "feature.review.decide",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  batch: {
-    iterateOver: "featureIds",
-    service: (ctx, id, rest) =>
-      decideReview(ctx, {
-        kind: "feature",
-        id: id as FeatureId,
-        decision: rest.decision,
-        comment: rest.comment,
-        intent: rest.intent,
-      }),
-  },
-  revalidate: "feature",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Feature not found"
-        : "QS-Entscheidung fehlgeschlagen",
-});
-
 const DELIVERY_STATUS = z.enum(["approved", "in_progress", "blocked", "completed", "cancelled"]);
 
 /**
@@ -290,6 +194,39 @@ export const setFeatureDeliveryStatusAction = createServerAction({
       : e.kind === "not_found"
         ? "Feature nicht gefunden"
         : "Status konnte nicht geändert werden",
+});
+
+/**
+ * Bulk delivery-status — Cockpit-Tabelle-Bulk-Bar (Delivery-Cockpit P3).
+ * Iteriert per Factory-Batch ueber `featureIds`; `continueOnError: true`
+ * laesst verbotene Transitions oder Permission-Konflikte einzelne Items
+ * skippen, ohne den Rest abzubrechen (Entscheidung #6 = kein Bulk-Limit).
+ */
+export const bulkSetFeatureDeliveryStatusAction = createServerAction({
+  schema: z.object({
+    featureIds: z.array(z.string().uuid()).min(1),
+    to: DELIVERY_STATUS,
+    reason: z.string().max(2000).optional(),
+  }),
+  action: "feature.delivery.set",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  batch: {
+    iterateOver: "featureIds",
+    service: (ctx, id, rest) =>
+      setFeatureDeliveryStatus(ctx, {
+        id: id as FeatureId,
+        to: rest.to as FeatureDeliveryStatus,
+        reason: rest.reason,
+      }),
+    continueOnError: true,
+  },
+  revalidate: "feature",
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Feature nicht gefunden"
+        : "Bulk-Status-Aenderung fehlgeschlagen",
 });
 
 /**

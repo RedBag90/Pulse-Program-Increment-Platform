@@ -1248,7 +1248,7 @@ async function main() {
             gate === "L0"
               ? []
               : [`Initial slice of "${epic.spec.title}" — refine the AC before pulling into a PI.`],
-          status: "draft",
+          status: "approved",
           stageGate: "L0",
         },
       });
@@ -1274,14 +1274,11 @@ async function main() {
     // ~55% land in a PI, ~45% in the backlog.
     const inPi = i % 11 < 6;
     const piId = inPi ? piPool[i % piPool.length]!.id : null;
+    // Features starten in „Bereit" (= „approved") nach Abschaffung des
+    // Feature-QA-Gates 2026-06. Backlog-Features ohne PI bekommen denselben
+    // Default.
     const status =
-      piId === piCompletedC.id
-        ? "completed"
-        : piId === piActive.id
-          ? "in_progress"
-          : piId
-            ? "approved"
-            : "draft";
+      piId === piCompletedC.id ? "completed" : piId === piActive.id ? "in_progress" : "approved";
 
     features.push({ id, epicId: epic.id, artId: art.id, piId });
     await prisma.initiative.create({
