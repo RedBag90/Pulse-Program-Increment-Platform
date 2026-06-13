@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import dagre from "@dagrejs/dagre";
 import {
   ReactFlow,
@@ -31,6 +31,8 @@ import {
   unlinkDependencyAction,
   changeDependencyTypeAction,
 } from "@/features/dependencies/actions/dependency";
+import { updateFeatureAction } from "@/features/art/actions/feature";
+import { WsjfScoreDialog } from "@/features/art/components/wsjf-score-dialog";
 import {
   quickAddFeatureWithDependencyAction,
   insertFeatureBetweenAction,
@@ -58,6 +60,10 @@ interface Props {
     artName: string;
     featureType: string | null;
     wsjfComputed: number | null;
+    wsjfBusinessValue: number | null;
+    wsjfTimeCriticality: number | null;
+    wsjfRiskReduction: number | null;
+    wsjfJobSize: number | null;
   }>;
   dependencies: ReadonlyArray<{
     id: string;
@@ -99,11 +105,14 @@ const TIER_BADGE: Record<BreakdownGraphNode["wsjfTier"], string> = {
 };
 
 type QuickAddSubmit = (input: { title: string; featureType: "feature" | "enabler" }) => void;
+type QuickEditSubmit = (input: { title: string; featureType: "feature" | "enabler" | "" }) => void;
 
 interface FeatureNodeData extends BreakdownGraphNode {
   connectable: boolean;
   showPlus: boolean;
   onAdd?: QuickAddSubmit | undefined;
+  showEdit: boolean;
+  onEdit?: QuickEditSubmit | undefined;
   artId: string;
 }
 
@@ -211,6 +220,112 @@ function QuickAddPopover({
   );
 }
 
+function QuickEditPopover({
+  node,
+  onSubmit,
+}: {
+  node: FeatureNodeData;
+  onSubmit: QuickEditSubmit;
+}) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState(node.title);
+  const [featureType, setFeatureType] = useState<"feature" | "enabler" | "">(
+    node.featureType === "enabler" ? "enabler" : node.featureType === "feature" ? "feature" : "",
+  );
+
+  // sync state, wenn der Server-Refresh neue Werte liefert
+  useEffect(() => {
+    if (!open) {
+      setTitle(node.title);
+      setFeatureType(
+        node.featureType === "enabler"
+          ? "enabler"
+          : node.featureType === "feature"
+            ? "feature"
+            : "",
+      );
+    }
+  }, [open, node.title, node.featureType]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            aria-label="Feature bearbeiten"
+            className="absolute -right-2 -top-2 z-10 flex size-5 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition hover:bg-primary hover:text-primary-foreground"
+          >
+            <Pencil className="size-3" />
+          </button>
+        }
+      />
+      <PopoverContent side="bottom" align="end" className="w-64">
+        <form
+          className="space-y-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const next = title.trim();
+            if (next.length === 0) return;
+            onSubmit({ title: next, featureType });
+            setOpen(false);
+          }}
+        >
+          <div className="space-y-1">
+            <Label htmlFor={`edit-title-${node.id}`} className="text-xs">
+              Titel
+            </Label>
+            <Input
+              id={`edit-title-${node.id}`}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              autoFocus
+              required
+              maxLength={200}
+              className="h-8"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={`edit-type-${node.id}`} className="text-xs">
+              Typ
+            </Label>
+            <select
+              id={`edit-type-${node.id}`}
+              value={featureType}
+              onChange={(e) => setFeatureType(e.target.value as "feature" | "enabler" | "")}
+              className="flex h-8 w-full rounded-md border border-input bg-card px-2 text-xs"
+            >
+              <option value="">— ungesetzt</option>
+              <option value="feature">Feature</option>
+              <option value="enabler">Enabler</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <WsjfScoreDialog
+              featureId={node.id}
+              artId={node.artId}
+              current={node.wsjf}
+              renderTrigger={({ onClick }) => (
+                <Button type="button" variant="outline" size="sm" onClick={onClick}>
+                  WSJF verfeinern
+                </Button>
+              )}
+            />
+            <div className="ml-auto flex gap-1.5">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" size="sm">
+                Speichern
+              </Button>
+            </div>
+          </div>
+        </form>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function FeatureNode({ data }: NodeProps) {
   const node = data as unknown as FeatureNodeData;
   const isEnabler = node.featureType === "enabler";
@@ -274,6 +389,7 @@ function FeatureNode({ data }: NodeProps) {
           </QuickAddPopover>
         </div>
       )}
+      {node.showEdit && node.onEdit && <QuickEditPopover node={node} onSubmit={node.onEdit} />}
     </div>
   );
 }
@@ -430,7 +546,9 @@ function layoutGraph(
   ctx: {
     canLinkDependency: boolean;
     canCreateFeature: boolean;
+    canEditFeature: boolean;
     onAddSuccessor: (predecessorId: string, predecessorArtId: string) => QuickAddSubmit;
+    onEditFeature: (featureId: string, featureArtId: string) => QuickEditSubmit;
     onInsertOnEdge: (
       fromId: string,
       toId: string,
@@ -466,6 +584,8 @@ function layoutGraph(
       connectable: ctx.canLinkDependency,
       showPlus: ctx.canCreateFeature && artId !== "",
       onAdd: artId !== "" ? ctx.onAddSuccessor(n.id, artId) : undefined,
+      showEdit: ctx.canEditFeature && artId !== "",
+      onEdit: artId !== "" ? ctx.onEditFeature(n.id, artId) : undefined,
     };
     return {
       id: n.id,
@@ -552,6 +672,28 @@ export function BreakdownNetworkView({
     [epicId, router],
   );
 
+  const onEditFeature = useCallback(
+    (featureId: string, featureArtId: string): QuickEditSubmit =>
+      (input) => {
+        const fd = new FormData();
+        fd.set("id", featureId);
+        fd.set("artId", featureArtId);
+        fd.set("title", input.title);
+        // Empty string = explicit clear; "feature"/"enabler" set; pass-through.
+        fd.set("featureType", input.featureType);
+        startTransition(async () => {
+          const result = await updateFeatureAction({}, fd);
+          if (result?.error) {
+            toast.error(result.error);
+            return;
+          }
+          toast.success("Feature aktualisiert");
+          router.refresh();
+        });
+      },
+    [router],
+  );
+
   const onInsertOnEdge = useCallback(
     (
       fromId: string,
@@ -635,7 +777,9 @@ export function BreakdownNetworkView({
       layoutGraph(model.nodes, model.edges, artById, {
         canLinkDependency,
         canCreateFeature,
+        canEditFeature: canCreateFeature,
         onAddSuccessor,
+        onEditFeature,
         onInsertOnEdge,
         onChangeEdgeType,
       }),
@@ -646,6 +790,7 @@ export function BreakdownNetworkView({
       canLinkDependency,
       canCreateFeature,
       onAddSuccessor,
+      onEditFeature,
       onInsertOnEdge,
       onChangeEdgeType,
     ],

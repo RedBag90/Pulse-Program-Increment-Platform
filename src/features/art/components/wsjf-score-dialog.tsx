@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { scoreFeatureAction, type FeatureActionState } from "@/features/art/actions/feature";
 import { Button } from "@/components/ui/button";
@@ -27,11 +27,13 @@ interface Props {
     rr: number | null;
     js: number | null;
   };
+  /** Custom-Trigger statt der Score-Pille (z. B. fuer Netzplan-Quick-Edit). */
+  renderTrigger?: (props: { onClick: () => void; score: string | null }) => ReactNode;
 }
 
 const initial: FeatureActionState = {};
 
-export function WsjfScoreDialog({ featureId, artId, current }: Props) {
+export function WsjfScoreDialog({ featureId, artId, current, renderTrigger }: Props) {
   const [open, setOpen] = useState(false);
 
   const [state, formAction, pending] = useActionState(
@@ -53,12 +55,16 @@ export function WsjfScoreDialog({ featureId, artId, current }: Props) {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="text-xs text-primary hover:underline whitespace-nowrap"
-      >
-        {score !== null ? score : "Score"}
-      </button>
+      {renderTrigger ? (
+        renderTrigger({ onClick: () => setOpen(true), score })
+      ) : (
+        <button
+          onClick={() => setOpen(true)}
+          className="text-xs text-primary hover:underline whitespace-nowrap"
+        >
+          {score !== null ? score : "Score"}
+        </button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">

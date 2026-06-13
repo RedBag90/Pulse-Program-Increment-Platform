@@ -23,6 +23,13 @@ export interface BreakdownGraphNode {
   featureType: string | null;
   wsjfComputed: number | null;
   wsjfTier: "high" | "medium" | "low" | "unscored";
+  /** Raw-WSJF-Komponenten — fuer den Refine-Dialog im Netzplan. */
+  wsjf: {
+    bv: number | null;
+    tc: number | null;
+    rr: number | null;
+    js: number | null;
+  };
 }
 
 export interface BreakdownGraphEdge {
@@ -47,6 +54,10 @@ interface BreakdownFeatureInput {
   artName: string;
   featureType: string | null;
   wsjfComputed: number | null;
+  wsjfBusinessValue: number | null;
+  wsjfTimeCriticality: number | null;
+  wsjfRiskReduction: number | null;
+  wsjfJobSize: number | null;
 }
 
 interface DependencyInput {
@@ -83,6 +94,12 @@ export function buildBreakdownGraph(input: {
     featureType: f.featureType,
     wsjfComputed: f.wsjfComputed,
     wsjfTier: tierFor(f.wsjfComputed),
+    wsjf: {
+      bv: f.wsjfBusinessValue,
+      tc: f.wsjfTimeCriticality,
+      rr: f.wsjfRiskReduction,
+      js: f.wsjfJobSize,
+    },
   }));
 
   let dropped = 0;
@@ -108,7 +125,18 @@ export function buildBreakdownGraph(input: {
  * Initiative-Rows ohne Doppel-Mapping reichen.
  */
 export function toBreakdownFeatureInput(
-  row: Pick<Initiative, "id" | "title" | "status" | "featureType" | "wsjfComputed"> & {
+  row: Pick<
+    Initiative,
+    | "id"
+    | "title"
+    | "status"
+    | "featureType"
+    | "wsjfComputed"
+    | "wsjfBusinessValue"
+    | "wsjfTimeCriticality"
+    | "wsjfRiskReduction"
+    | "wsjfJobSize"
+  > & {
     artName: string | null;
   },
 ): BreakdownFeatureInput {
@@ -119,5 +147,9 @@ export function toBreakdownFeatureInput(
     artName: row.artName ?? "—",
     featureType: row.featureType,
     wsjfComputed: row.wsjfComputed != null ? Number(row.wsjfComputed) : null,
+    wsjfBusinessValue: row.wsjfBusinessValue,
+    wsjfTimeCriticality: row.wsjfTimeCriticality,
+    wsjfRiskReduction: row.wsjfRiskReduction,
+    wsjfJobSize: row.wsjfJobSize,
   };
 }

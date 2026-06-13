@@ -289,6 +289,10 @@ export function EpicBreakdownTab({
             artName: f.artName,
             featureType: f.featureType,
             wsjfComputed: f.wsjf.computed > 0 ? f.wsjf.computed : null,
+            wsjfBusinessValue: f.wsjf.bv > 0 ? f.wsjf.bv : null,
+            wsjfTimeCriticality: f.wsjf.tc > 0 ? f.wsjf.tc : null,
+            wsjfRiskReduction: f.wsjf.rr > 0 ? f.wsjf.rr : null,
+            wsjfJobSize: f.wsjf.js > 0 ? f.wsjf.js : null,
           }))}
           dependencies={dependencies}
           canLinkDependency={canLinkDependency}

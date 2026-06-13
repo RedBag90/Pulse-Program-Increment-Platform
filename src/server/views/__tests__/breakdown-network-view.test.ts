@@ -8,6 +8,10 @@ const feature = (over: Partial<{ id: string; wsjfComputed: number | null }> = {}
   artName: "ART A",
   featureType: "feature" as string | null,
   wsjfComputed: over.wsjfComputed ?? null,
+  wsjfBusinessValue: null,
+  wsjfTimeCriticality: null,
+  wsjfRiskReduction: null,
+  wsjfJobSize: null,
 });
 
 describe("buildBreakdownGraph", () => {
