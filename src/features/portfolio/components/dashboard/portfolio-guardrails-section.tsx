@@ -440,7 +440,9 @@ function CardShell({
       <header className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-heading text-base font-medium">{title}</h3>
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
+          {/* min-h-8 reserviert 2 zeilen (text-xs * 1.33 line-height ≈ 16px),
+           *  damit cards mit 1- und 2-zeiligem subtitle gleich hoch starten. */}
+          <p className="min-h-8 text-xs text-muted-foreground">{subtitle}</p>
         </div>
         <span
           className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${
