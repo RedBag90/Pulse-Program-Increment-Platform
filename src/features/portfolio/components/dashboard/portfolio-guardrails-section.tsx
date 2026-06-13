@@ -95,8 +95,11 @@ function EpicSquaresGrid({
   );
 }
 
+// Explizite rounded-[3px] statt rounded-md: das design-token --radius-md
+// liegt bei ~6.4px und macht 14px-quadrate visuell zu kreisen. 3px corner-
+// radius haelt die rechteck-form klar erkennbar.
 const SQUARE_BASE =
-  "inline-block size-3.5 shrink-0 rounded-md shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] " +
+  "inline-block size-3.5 shrink-0 rounded-[3px] shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] " +
   "transition-transform duration-150 hover:scale-110 hover:ring-2 hover:ring-offset-1 hover:ring-current " +
   "animate-in fade-in zoom-in-50";
 
