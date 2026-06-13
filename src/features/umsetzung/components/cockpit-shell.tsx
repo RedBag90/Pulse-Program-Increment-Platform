@@ -2,6 +2,7 @@ import type { CockpitModel } from "@/server/views/umsetzung-cockpit-view";
 import { CockpitTopBar } from "./cockpit-top-bar";
 import { CockpitPiStrip } from "./cockpit-pi-strip";
 import { CockpitViewTabs } from "./cockpit-view-tabs";
+import { CockpitBoard } from "./cockpit-board";
 
 /**
  * Delivery-Cockpit-Shell — Komposition der drei stabilen Bestandteile
@@ -9,9 +10,8 @@ import { CockpitViewTabs } from "./cockpit-view-tabs";
  * uebergibt das vollstaendige Model; die Sub-Komponenten urteilen
  * client-seitig ueber URL-State (Sicht / Scope).
  *
- * In Phase 1 ist der Sicht-Slot ein Platzhalter — Board (P2), Tabelle
- * (P3) und Roadmap (P4) ersetzen ihn jeweils durch die echte Render-
- * Komponente.
+ * Sicht „Board" ist mit P2 live; Tabelle (P3) und Roadmap (P4) bleiben
+ * als Platzhalter, bis ihre Komponenten geliefert sind.
  */
 interface Props {
   model: CockpitModel;
@@ -40,7 +40,13 @@ export function CockpitShell({ model }: Props) {
             body="Dir ist noch kein ART zugeordnet. Bitte wende dich an deinen Tenant-Admin."
           />
         ) : view === "board" ? (
-          <ViewPlaceholder name="Board" features={features.length} />
+          <CockpitBoard
+            pis={piStrip}
+            features={features}
+            artId={selectedArt.id}
+            canUpdate={permissions.canUpdate}
+            canSetDelivery={permissions.canSetDelivery}
+          />
         ) : view === "table" ? (
           <ViewPlaceholder name="Tabelle" features={features.length} />
         ) : (
