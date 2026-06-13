@@ -12,6 +12,7 @@ const feature = (over: Partial<{ id: string; wsjfComputed: number | null }> = {}
   wsjfTimeCriticality: null,
   wsjfRiskReduction: null,
   wsjfJobSize: null,
+  piId: null,
 });
 
 describe("buildBreakdownGraph", () => {

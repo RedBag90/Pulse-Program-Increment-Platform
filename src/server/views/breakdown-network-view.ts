@@ -30,6 +30,8 @@ export interface BreakdownGraphNode {
     rr: number | null;
     js: number | null;
   };
+  /** PI-Zuordnung (null = Backlog). Treibt den PI-Bahnen-Layout. */
+  piId: string | null;
 }
 
 export interface BreakdownGraphEdge {
@@ -78,6 +80,7 @@ interface BreakdownFeatureInput {
   wsjfTimeCriticality: number | null;
   wsjfRiskReduction: number | null;
   wsjfJobSize: number | null;
+  piId: string | null;
 }
 
 interface DependencyInput {
@@ -124,6 +127,7 @@ export function buildBreakdownGraph(input: {
       rr: f.wsjfRiskReduction,
       js: f.wsjfJobSize,
     },
+    piId: f.piId,
   }));
 
   let dropped = 0;
@@ -194,6 +198,7 @@ export function toBreakdownFeatureInput(
     | "wsjfTimeCriticality"
     | "wsjfRiskReduction"
     | "wsjfJobSize"
+    | "piId"
   > & {
     artName: string | null;
   },
@@ -209,5 +214,6 @@ export function toBreakdownFeatureInput(
     wsjfTimeCriticality: row.wsjfTimeCriticality,
     wsjfRiskReduction: row.wsjfRiskReduction,
     wsjfJobSize: row.wsjfJobSize,
+    piId: row.piId,
   };
 }

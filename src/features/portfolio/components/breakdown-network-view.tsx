@@ -74,7 +74,12 @@ interface Props {
     wsjfTimeCriticality: number | null;
     wsjfRiskReduction: number | null;
     wsjfJobSize: number | null;
+    /** PI-Zuordnung. null = Backlog. Treibt den PI-Mode-Layout (P9). */
+    piId: string | null;
   }>;
+  /** Distinkte PIs aus dem Scope dieses Epics, sortiert nach startDate
+   *  aufsteigend. Treibt die Spalten im PI-Bahnen-Mode (Roadmap-P9). */
+  pis: ReadonlyArray<{ id: string; name: string; startDate: string }>;
   dependencies: ReadonlyArray<{
     id: string;
     fromId: string;
@@ -575,7 +580,19 @@ function GhostNode({ data }: NodeProps) {
   );
 }
 
-const NODE_TYPES = { feature: FeatureNode, ghost: GhostNode };
+function PiHeaderNode({ data }: NodeProps) {
+  const node = data as unknown as { label: string };
+  return (
+    <div
+      className="rounded-md bg-muted/60 px-3 py-1 text-center text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+      style={{ width: NODE_WIDTH }}
+    >
+      {node.label}
+    </div>
+  );
+}
+
+const NODE_TYPES = { feature: FeatureNode, ghost: GhostNode, "pi-header": PiHeaderNode };
 const EDGE_TYPES = { insertable: InsertableEdge };
 
 /**
@@ -771,11 +788,153 @@ function layoutGraph(
   return { nodes: rfNodes, edges: rfEdges };
 }
 
+/**
+ * PI-Bahnen-Layout (Roadmap-P9). Spalten:
+ *   [Backlog, PI_1, PI_2, …, PI_n, Extern]
+ * Knoten stapeln innerhalb ihrer Spalte; Ghost-Knoten landen in
+ * "Extern" rechts. Pro Spalte ein Header-Node mit dem PI-Namen oben.
+ *
+ * Edges sind unveraendert — ReactFlow zeichnet Verbindungen quer
+ * ueber die Spalten ohne Zutun.
+ */
+function layoutByPi(
+  nodes: BreakdownGraphNode[],
+  edges: BreakdownGraphEdge[],
+  ghostNodes: BreakdownGhostNode[],
+  pis: ReadonlyArray<{ id: string; name: string; startDate: string }>,
+  artById: Map<string, string>,
+  ctx: {
+    canLinkDependency: boolean;
+    canCreateFeature: boolean;
+    canEditFeature: boolean;
+    onAddSuccessor: (predecessorId: string, predecessorArtId: string) => QuickAddSubmit;
+    onEditFeature: (featureId: string, featureArtId: string) => QuickEditSubmit;
+    onInsertOnEdge: (
+      fromId: string,
+      toId: string,
+      edgeType: DependencyEdgeType,
+      sourceArtId: string,
+    ) => QuickAddSubmit;
+    onChangeEdgeType: (
+      fromId: string,
+      toId: string,
+      currentType: DependencyEdgeType,
+      sourceArtId: string,
+    ) => EdgeTypeChange;
+  },
+): { nodes: Node[]; edges: Edge[] } {
+  const COL_WIDTH = NODE_WIDTH + 80;
+  const HEADER_HEIGHT = 40;
+  const ROW_GAP = 24;
+  const FIRST_ROW_Y = HEADER_HEIGHT + 16;
+
+  // Spalten-Index: 0 = Backlog, 1..n = PIs in startDate-Reihenfolge, n+1 = Extern.
+  const colByPi = new Map<string, number>();
+  pis.forEach((p, i) => colByPi.set(p.id, i + 1));
+  const externCol = pis.length + 1;
+
+  // Buckets per Spalten-Index.
+  const buckets = new Map<number, { feature?: BreakdownGraphNode; ghost?: BreakdownGhostNode }[]>();
+  for (let i = 0; i <= externCol; i++) buckets.set(i, []);
+
+  for (const n of nodes) {
+    const col = n.piId == null ? 0 : (colByPi.get(n.piId) ?? 0);
+    buckets.get(col)!.push({ feature: n });
+  }
+  for (const gn of ghostNodes) {
+    buckets.get(externCol)!.push({ ghost: gn });
+  }
+
+  const rfNodes: Node[] = [];
+
+  // Header-Nodes pro Spalte.
+  const headerLabels: Record<number, string> = { 0: "Backlog", [externCol]: "Cross-Epic" };
+  for (const p of pis) headerLabels[colByPi.get(p.id)!] = p.name;
+  for (let col = 0; col <= externCol; col++) {
+    const label = headerLabels[col] ?? "—";
+    rfNodes.push({
+      id: `pi-header-${col}`,
+      type: "pi-header",
+      data: { label } as unknown as Record<string, unknown>,
+      position: { x: col * COL_WIDTH, y: 0 },
+      draggable: false,
+      selectable: false,
+    });
+  }
+
+  // Feature-Knoten + Ghost-Knoten in ihrer Spalte stapeln.
+  for (const [col, items] of buckets) {
+    items.forEach((item, idx) => {
+      const x = col * COL_WIDTH;
+      const y = FIRST_ROW_Y + idx * (NODE_HEIGHT + ROW_GAP);
+      if (item.feature) {
+        const n = item.feature;
+        const artId = artById.get(n.id) ?? "";
+        const data: FeatureNodeData = {
+          ...n,
+          artId,
+          connectable: ctx.canLinkDependency,
+          showPlus: ctx.canCreateFeature && artId !== "",
+          onAdd: artId !== "" ? ctx.onAddSuccessor(n.id, artId) : undefined,
+          showEdit: ctx.canEditFeature && artId !== "",
+          onEdit: artId !== "" ? ctx.onEditFeature(n.id, artId) : undefined,
+        };
+        rfNodes.push({
+          id: n.id,
+          type: "feature",
+          data: data as unknown as Record<string, unknown>,
+          position: { x, y },
+        });
+      } else if (item.ghost) {
+        rfNodes.push({
+          id: item.ghost.id,
+          type: "ghost",
+          data: item.ghost as unknown as Record<string, unknown>,
+          position: { x, y },
+          draggable: false,
+          selectable: true,
+        });
+      }
+    });
+  }
+
+  const rfEdges: Edge[] = edges.map((e) => {
+    const s = edgeStyle(e.type);
+    const sourceArtId = artById.get(e.source) ?? "";
+    const data: InsertableEdgeData = {
+      type: e.type,
+      showPlus: ctx.canCreateFeature && sourceArtId !== "",
+      onInsert:
+        sourceArtId !== ""
+          ? ctx.onInsertOnEdge(e.source, e.target, e.type, sourceArtId)
+          : undefined,
+      onChangeType:
+        ctx.canLinkDependency && sourceArtId !== ""
+          ? ctx.onChangeEdgeType(e.source, e.target, e.type, sourceArtId)
+          : undefined,
+    };
+    return {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      type: "insertable",
+      label: EDGE_LABEL[e.type],
+      animated: s.animated,
+      style: s.style,
+      markerEnd: s.marker,
+      data: data as unknown as Record<string, unknown>,
+    };
+  });
+
+  return { nodes: rfNodes, edges: rfEdges };
+}
+
 export function BreakdownNetworkView({
   epicId,
   tenantId,
   epicTitle,
   features,
+  pis,
   dependencies,
   canLinkDependency,
   canCreateFeature,
@@ -816,6 +975,17 @@ export function BreakdownNetworkView({
     const params = new URLSearchParams(searchParams.toString());
     if (next === "all") params.delete("breakdownType");
     else params.set("breakdownType", next);
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}` as never, { scroll: false });
+  };
+
+  // Layout-Mode (Roadmap-P9): topology = dagre, pi = swimlanes.
+  const layoutMode: "topology" | "pi" =
+    searchParams.get("breakdownLayout") === "pi" ? "pi" : "topology";
+  const setLayoutMode = (next: "topology" | "pi") => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "topology") params.delete("breakdownLayout");
+    else params.set("breakdownLayout", next);
     const qs = params.toString();
     router.replace(`${pathname}${qs ? `?${qs}` : ""}` as never, { scroll: false });
   };
@@ -1006,32 +1176,38 @@ export function BreakdownNetworkView({
     [canCreateFeature, epicId, dragSaveTimers],
   );
 
-  const baseGraph = useMemo(
-    () =>
-      layoutGraph(model.nodes, model.edges, model.ghostNodes, artById, {
-        canLinkDependency,
-        canCreateFeature,
-        canEditFeature: canCreateFeature,
-        savedPositions,
-        onAddSuccessor,
-        onEditFeature,
-        onInsertOnEdge,
-        onChangeEdgeType,
-      }),
-    [
-      model.nodes,
-      model.edges,
-      model.ghostNodes,
-      artById,
+  const baseGraph = useMemo(() => {
+    const ctx = {
       canLinkDependency,
       canCreateFeature,
-      savedPositions,
+      canEditFeature: canCreateFeature,
       onAddSuccessor,
       onEditFeature,
       onInsertOnEdge,
       onChangeEdgeType,
-    ],
-  );
+    };
+    if (layoutMode === "pi") {
+      return layoutByPi(model.nodes, model.edges, model.ghostNodes, pis, artById, ctx);
+    }
+    return layoutGraph(model.nodes, model.edges, model.ghostNodes, artById, {
+      ...ctx,
+      savedPositions,
+    });
+  }, [
+    layoutMode,
+    model.nodes,
+    model.edges,
+    model.ghostNodes,
+    pis,
+    artById,
+    canLinkDependency,
+    canCreateFeature,
+    savedPositions,
+    onAddSuccessor,
+    onEditFeature,
+    onInsertOnEdge,
+    onChangeEdgeType,
+  ]);
 
   // Controlled-Edges fuer Optimistic Drag-Connect.
   const [edges, setEdges] = useState<Edge[]>(baseGraph.edges);
@@ -1223,6 +1399,33 @@ export function BreakdownNetworkView({
           </>
         )}
       </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="inline-flex items-center gap-1.5">
+          <span className="text-muted-foreground">Layout:</span>
+          <div
+            role="radiogroup"
+            aria-label="Layout-Modus"
+            className="inline-flex overflow-hidden rounded-md border bg-card"
+          >
+            {(["topology", "pi"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={layoutMode === m}
+                onClick={() => setLayoutMode(m)}
+                className={`px-2 py-0.5 ${
+                  layoutMode === m
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted/50"
+                }`}
+              >
+                {m === "topology" ? "Topologie" : "PI-Bahnen"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
       {(canLinkDependency || canCreateFeature) && (
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <p className="text-muted-foreground">
@@ -1267,10 +1470,10 @@ export function BreakdownNetworkView({
         <ReactFlow
           nodes={displayNodes}
           edges={displayEdges}
-          onNodeDragStop={onNodeDragStop}
+          {...(layoutMode === "topology" ? { onNodeDragStop } : {})}
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
-          nodesDraggable
+          nodesDraggable={layoutMode === "topology"}
           edgesFocusable={canLinkDependency}
           edgesReconnectable={false}
           deleteKeyCode={canLinkDependency ? ["Backspace", "Delete"] : null}

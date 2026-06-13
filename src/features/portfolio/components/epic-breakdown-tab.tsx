@@ -87,6 +87,9 @@ interface Props {
   /** Persistierte Netzplan-Positionen (Roadmap-P5). Knoten ohne Eintrag
    *  fallen auf dagre-Auto-Layout zurueck. */
   breakdownLayoutPositions: Record<string, { x: number; y: number }>;
+  /** Flat distinkte PI-Liste sortiert nach startDate, fuer den
+   *  Netzplan-PI-Mode (Roadmap-P9). */
+  breakdownPis: ReadonlyArray<{ id: string; name: string; startDate: string }>;
 }
 
 function FeatureRow({
@@ -227,6 +230,7 @@ export function EpicBreakdownTab({
   dependencies,
   canLinkDependency,
   breakdownLayoutPositions,
+  breakdownPis,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -308,7 +312,9 @@ export function EpicBreakdownTab({
             wsjfTimeCriticality: f.wsjf.tc > 0 ? f.wsjf.tc : null,
             wsjfRiskReduction: f.wsjf.rr > 0 ? f.wsjf.rr : null,
             wsjfJobSize: f.wsjf.js > 0 ? f.wsjf.js : null,
+            piId: f.piId,
           }))}
+          pis={breakdownPis}
           dependencies={dependencies}
           canLinkDependency={canLinkDependency}
           canCreateFeature={canEdit}

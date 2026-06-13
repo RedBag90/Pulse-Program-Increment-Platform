@@ -535,7 +535,7 @@ export async function listProgramIncrementsForArts(
   if (timelineIds.length === 0) return [];
   const rows = await db.programIncrement.findMany({
     where: { tenantId, timelineId: { in: timelineIds } },
-    select: { id: true, name: true, timelineId: true },
+    select: { id: true, name: true, timelineId: true, startDate: true },
     orderBy: { startDate: "desc" },
   });
   // Stamp each PI with one representative artId from the input list.
@@ -549,6 +549,7 @@ export async function listProgramIncrementsForArts(
     id: r.id,
     name: r.name,
     artId: firstArtByTimeline.get(r.timelineId!) ?? null,
+    startDate: r.startDate,
   }));
 }
 

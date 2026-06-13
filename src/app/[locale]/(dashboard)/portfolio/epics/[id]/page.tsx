@@ -256,6 +256,20 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     if (!pi.artId) continue;
     (pisByArt[pi.artId] ??= []).push({ id: pi.id, name: pi.name });
   }
+  // Flat-distinct PI-Liste fuer den Netzplan-PI-Mode (Roadmap-P9):
+  // sortiert nach startDate aufsteigend, dedupliziert per id.
+  const breakdownPis = (() => {
+    const m = new Map<string, { id: string; name: string; startDate: string }>();
+    for (const pi of pis) {
+      if (m.has(pi.id)) continue;
+      m.set(pi.id, {
+        id: pi.id,
+        name: pi.name,
+        startDate: pi.startDate instanceof Date ? pi.startDate.toISOString() : String(pi.startDate),
+      });
+    }
+    return [...m.values()].sort((a, b) => (a.startDate < b.startDate ? -1 : 1));
+  })();
 
   const activityEvents = historyEvents.map((e) => ({
     id: e.id,
@@ -570,6 +584,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           dependencies={breakdownDependencies}
           canLinkDependency={canLinkDependency}
           breakdownLayoutPositions={breakdownLayoutPositions}
+          breakdownPis={breakdownPis}
         />
       )}
 
