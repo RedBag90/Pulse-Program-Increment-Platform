@@ -93,6 +93,8 @@ export const updateFeatureAction = createServerAction({
     wsjfTimeCriticality: z.coerce.number().pipe(fibonacci).optional(),
     wsjfRiskReduction: z.coerce.number().pipe(fibonacci).optional(),
     wsjfJobSize: z.coerce.number().pipe(fibonacci).optional(),
+    // SAFe Guardrails (Roadmap-G2). Leerer String = clearen.
+    featureType: z.enum(["feature", "enabler", ""]).optional(),
   }),
   action: "feature.update",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
@@ -113,6 +115,9 @@ export const updateFeatureAction = createServerAction({
       wsjfTimeCriticality: input.wsjfTimeCriticality,
       wsjfRiskReduction: input.wsjfRiskReduction,
       wsjfJobSize: input.wsjfJobSize,
+      ...(input.featureType !== undefined && {
+        featureType: input.featureType === "" ? null : input.featureType,
+      }),
     });
   },
   revalidate: "feature",

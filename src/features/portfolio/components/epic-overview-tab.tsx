@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Info, ArrowRight, Flag } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { EpicClassificationForm } from "./epic-classification-form";
 import { EpicEditForm } from "./epic-edit-form";
 import { EpicGovernanceFlags } from "./epic-governance-flags";
 import { EpicOwnerAssign } from "./epic-owner-assign";
@@ -48,6 +49,10 @@ export interface EpicOverviewTabProps {
     stagedForBudgeting: boolean;
     /** Reifegrad-Modell v2: Stempel für die L5-Bestätigung. */
     impactRecognizedAt: Date | null;
+    /** SAFe-Guardrails (Roadmap-G2): Solution/Epic/Enabler. */
+    epicType: string | null;
+    /** SAFe-Guardrails (Roadmap-G2): H1/H2/H3. */
+    investmentHorizon: string | null;
   };
   canEdit: boolean;
   /** May nominate/replace the Epic owner (`epic.owner.assign`). */
@@ -208,6 +213,16 @@ export function EpicOverviewTab({
         ) : (
           <p className="text-sm text-muted-foreground">Keine Markierung.</p>
         )}
+      </section>
+
+      <section>
+        <h2 className="mb-3 font-heading text-lg font-medium">Portfolio-Klassifikation</h2>
+        <EpicClassificationForm
+          epicId={epic.id}
+          epicType={epic.epicType}
+          investmentHorizon={epic.investmentHorizon}
+          canEdit={canEdit}
+        />
       </section>
 
       <section>

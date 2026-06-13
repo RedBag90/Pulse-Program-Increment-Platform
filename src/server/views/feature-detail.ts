@@ -39,6 +39,8 @@ export interface FeatureDetailInput {
   wsjfJobSize: number | null;
   wsjfComputed: number | null;
   acceptanceCriteria: string[];
+  /** SAFe-Guardrails (Roadmap-G2): Feature/Enabler. */
+  featureType: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,6 +64,8 @@ export interface FeatureDetailModel {
     tier: WsjfTier;
   };
   acceptanceCriteria: string[];
+  /** SAFe-Guardrails (Roadmap-G2): Feature/Enabler. */
+  featureType: string | null;
   /** Erlaubte Delivery-Folgestatus aus der FSM, gefiltert auf das aktuell
    *  gehaltene `status`. Leer fuer Terminal-States oder QS-Phasen. */
   allowedTransitions: DeliveryStatus[];
@@ -110,6 +114,7 @@ export function buildFeatureDetailModel(input: FeatureDetailInput): FeatureDetai
       tier: wsjfTier(input.wsjfComputed),
     },
     acceptanceCriteria: input.acceptanceCriteria,
+    featureType: input.featureType,
     allowedTransitions: allowed,
     createdAt: input.createdAt,
     updatedAt: input.updatedAt,

@@ -4,6 +4,7 @@ import { useActionState, startTransition, useState } from "react";
 import { ArrowRight, Play, PauseOctagon, CheckCircle2, XCircle, RotateCw } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { setFeatureDeliveryStatusAction } from "@/features/art/actions/feature";
+import { FeatureClassificationForm } from "./feature-classification-form";
 import { STATUS_DOT, STATUS_LABELS } from "@/components/detail/initiative-labels";
 import type { FeatureDetailModel } from "@/server/views/feature-detail";
 import type { DeliveryStatus } from "@/domain/initiative-status";
@@ -95,6 +96,23 @@ export function FeatureOverviewTab({ model, canEdit, canTransition }: Props) {
           )}
         </Field>
         <Field label="Owner">{model.ownerLabel ?? "—"}</Field>
+        <div>
+          <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            Feature-Typ
+          </p>
+          {model.art ? (
+            <FeatureClassificationForm
+              featureId={model.id}
+              artId={model.art.id}
+              featureType={model.featureType}
+              canEdit={canEdit}
+            />
+          ) : (
+            <div className="flex min-h-9 items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              {model.featureType ?? "—"}
+            </div>
+          )}
+        </div>
         <Field label="Erstellt · Aktualisiert">
           <span className="text-sm">
             {model.createdAt.toLocaleDateString("de-DE")}

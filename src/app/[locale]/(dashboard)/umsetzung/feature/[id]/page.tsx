@@ -54,6 +54,7 @@ export default async function FeatureDetailPage({
       wsjfJobSize: true,
       wsjfComputed: true,
       acceptanceCriteria: true,
+      featureType: true,
       createdAt: true,
       updatedAt: true,
       parent: {
@@ -133,6 +134,7 @@ export default async function FeatureDetailPage({
     wsjfJobSize: feature.wsjfJobSize,
     wsjfComputed: feature.wsjfComputed != null ? Number(feature.wsjfComputed) : null,
     acceptanceCriteria: feature.acceptanceCriteria,
+    featureType: feature.featureType,
     createdAt: feature.createdAt,
     updatedAt: feature.updatedAt,
   });

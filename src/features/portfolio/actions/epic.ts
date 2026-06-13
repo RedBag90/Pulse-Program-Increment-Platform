@@ -41,6 +41,10 @@ export const updateEpicAction = createServerAction({
     id: z.string().uuid(),
     title: z.string().min(1).max(200).optional(),
     description: z.string().optional(),
+    // SAFe Guardrails (Roadmap-G2). Leerer String = explizit clearen,
+    // fehlend = nicht anpacken — die Form sendet beide Felder immer.
+    epicType: z.enum(["solution", "epic", "enabler", ""]).optional(),
+    investmentHorizon: z.enum(["h1", "h2", "h3", ""]).optional(),
   }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -49,6 +53,12 @@ export const updateEpicAction = createServerAction({
       id: input.id as EpicId,
       title: input.title,
       description: input.description,
+      ...(input.epicType !== undefined && {
+        epicType: input.epicType === "" ? null : input.epicType,
+      }),
+      ...(input.investmentHorizon !== undefined && {
+        investmentHorizon: input.investmentHorizon === "" ? null : input.investmentHorizon,
+      }),
     }),
   revalidate: "epic",
   mapError: (e) =>
