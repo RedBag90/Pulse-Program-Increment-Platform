@@ -1,12 +1,17 @@
 "use client";
 
 import { type ReactNode } from "react";
+import { AlertTriangle, Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { HORIZONS, HORIZON_LABEL, type Horizon } from "@/domain/portfolio-guardrails";
 import { STAGE_GATES } from "@/domain/stage-gate";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import type { StageGate } from "@/domain/types";
-import { isOverWip, wipCountLabel } from "@/features/portfolio/overview/wip-limits";
+import {
+  isOverWip,
+  wipCountLabel,
+  PORTFOLIO_WIP_LIMITS,
+} from "@/features/portfolio/overview/wip-limits";
 import {
   HORIZON_COLUMNS,
   type PortfolioGuardrailsModel,
@@ -37,13 +42,13 @@ const BUCKET_LABEL: Record<CapacityBucket, string> = {
   enabler: "Enabler",
 };
 const HORIZON_COLOR: Record<string, string> = {
-  h1: "bg-blue-500",
-  h2: "bg-violet-500",
-  h3: "bg-fuchsia-500",
+  h1: "bg-blue-600",
+  h2: "bg-violet-600",
+  h3: "bg-fuchsia-600",
 };
 const BUCKET_COLOR: Record<CapacityBucket, string> = {
-  business: "bg-emerald-500",
-  enabler: "bg-amber-500",
+  business: "bg-emerald-600",
+  enabler: "bg-amber-600",
 };
 
 const pct = (v: number) => `${(v * 100).toFixed(0)} %`;
@@ -56,26 +61,71 @@ const EPICS_PER_ROW = 4;
 
 /** Chunked-Render: epics werden in Reihen `a` 4 gebrochen und in
  *  flex-col-reverse gestapelt, damit der erste Epic links unten landet
- *  und neue Reihen nach oben wachsen. */
+ *  und neue Reihen nach oben wachsen.
+ *
+ *  Spalten-Well: vertikaler Gradient + group-hover-state. Die
+ *  renderSquare-Funktion bekommt einen running index (`globalIdx`)
+ *  fuer die stagger-fade-in-animation. */
 function EpicSquaresGrid({
   epics,
   renderSquare,
 }: {
   epics: StageTowerEpic[];
-  renderSquare: (e: StageTowerEpic) => ReactNode;
+  renderSquare: (e: StageTowerEpic, globalIdx: number) => ReactNode;
 }) {
   const rows: StageTowerEpic[][] = [];
   for (let i = 0; i < epics.length; i += EPICS_PER_ROW) {
     rows.push(epics.slice(i, i + EPICS_PER_ROW));
   }
   return (
-    <div className="flex h-32 w-full flex-col-reverse items-center justify-start gap-0.5 rounded-md bg-muted/40 p-1">
+    <div
+      className={
+        "flex h-32 w-full flex-col-reverse items-center justify-start gap-0.5 rounded-lg p-1 " +
+        "bg-gradient-to-b from-muted/20 via-muted/30 to-muted/50 " +
+        "ring-1 ring-transparent transition-all group-hover:ring-border " +
+        "group-hover:from-muted/30 group-hover:to-muted/60"
+      }
+    >
       {rows.map((row, i) => (
         <div key={i} className="flex flex-row gap-0.5">
-          {row.map((e) => renderSquare(e))}
+          {row.map((e, k) => renderSquare(e, i * EPICS_PER_ROW + k))}
         </div>
       ))}
     </div>
+  );
+}
+
+const SQUARE_BASE =
+  "size-3.5 shrink-0 rounded-md shadow-[inset_0_-1px_0_rgba(0,0,0,0.08)] " +
+  "transition-transform duration-150 hover:scale-110 hover:ring-2 hover:ring-offset-1 hover:ring-current " +
+  "animate-in fade-in zoom-in-50";
+
+/** Steering-Attention-Quadrat — kleines rotes Warning-Triangle oben
+ *  rechts vom Quadrat. Deutlich sichtbarer als ein 1px-Ring. */
+function EpicSquare({
+  colorClass,
+  steering,
+  delayMs,
+  tooltip,
+}: {
+  colorClass: string;
+  steering: boolean;
+  delayMs: number;
+  tooltip: string;
+}) {
+  return (
+    <span className="relative inline-block" title={tooltip}>
+      <span
+        className={`${SQUARE_BASE} ${colorClass}`}
+        style={{ animationDelay: `${delayMs}ms`, animationDuration: "300ms" }}
+      />
+      {steering && (
+        <AlertTriangle
+          className="pointer-events-none absolute -right-1 -top-1 size-2.5 fill-red-100 text-red-600 drop-shadow-sm"
+          aria-label="Benötigt Steering-Attention"
+        />
+      )}
+    </span>
   );
 }
 
@@ -173,24 +223,24 @@ function HorizonHorizonTower({
         const epics = epicsByHorizon[c];
         const color = HORIZON_COLUMN_COLOR[c];
         return (
-          <div key={c} className="flex flex-col items-center gap-1.5">
-            <div className="w-full text-center text-[10px] font-medium tabular-nums text-muted-foreground">
+          <div key={c} className="group flex flex-col items-center gap-1.5">
+            <div className="w-full text-center text-xs font-medium tabular-nums text-muted-foreground">
               {epics.length}
             </div>
             <EpicSquaresGrid
               epics={epics}
-              renderSquare={(e) => (
-                <span
+              renderSquare={(e, idx) => (
+                <EpicSquare
                   key={e.id}
-                  className={`size-2.5 shrink-0 rounded-sm ${color} ${
-                    e.needsSteeringAttention ? "ring-1 ring-red-500" : ""
-                  }`}
-                  title={mixTooltip(e)}
+                  colorClass={color}
+                  steering={e.needsSteeringAttention}
+                  delayMs={idx * 30}
+                  tooltip={mixTooltip(e)}
                 />
               )}
             />
             <span className="text-center text-[10px] leading-tight text-muted-foreground">
-              <span className="font-medium text-foreground/70">
+              <span className="text-xs font-semibold text-foreground/80">
                 {c === "none" ? "—" : c.toUpperCase()}
               </span>
               <br />
@@ -226,24 +276,17 @@ function HorizonStageTower({
         const count = epics.length;
         const over = isOverWip(g, count);
         return (
-          <div key={g} className="flex flex-col items-center gap-1.5">
-            <div
-              className={`flex w-full flex-col items-center rounded-md px-1 py-0.5 text-[10px] font-medium ${
-                over ? "bg-red-100 text-red-700" : "text-muted-foreground"
-              }`}
-              title={over ? `WIP-Limit ueberschritten — ${wipCountLabel(g, count)}` : undefined}
-            >
-              <span className="tabular-nums">{wipCountLabel(g, count)}</span>
-            </div>
+          <div key={g} className="group flex flex-col items-center gap-1.5">
+            <WipHeader stageGate={g} count={count} over={over} />
             <EpicSquaresGrid
               epics={epics}
-              renderSquare={(e) => (
-                <span
+              renderSquare={(e, idx) => (
+                <EpicSquare
                   key={e.id}
-                  className={`size-2.5 shrink-0 rounded-sm ${horizonSquareColor(e.horizon)} ${
-                    e.needsSteeringAttention ? "ring-1 ring-red-500" : ""
-                  }`}
-                  title={squareTooltip(e)}
+                  colorClass={horizonSquareColor(e.horizon)}
+                  steering={e.needsSteeringAttention}
+                  delayMs={idx * 30}
+                  tooltip={squareTooltip(e)}
                 />
               )}
             />
@@ -251,13 +294,57 @@ function HorizonStageTower({
               className="line-clamp-2 w-full text-center text-[10px] leading-tight text-muted-foreground"
               title={STAGE_GATE_LABELS[g]}
             >
-              <span className="font-medium text-foreground/70">{g}</span>
+              <span className="text-xs font-semibold text-foreground/80">{g}</span>
               <br />
               {STAGE_GATE_LABELS[g]}
             </span>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** Spalten-Header: Count + WIP-Indikator + Mini-Fill-Bar.
+ *  Fill-Bar zeigt blau bis zum Limit, rot fuer den overflow-Anteil.
+ *  Bei limit=null (unendlich) wird die Bar als ganz schwache full-fill
+ *  in muted-grau gerendert. */
+function WipHeader({
+  stageGate,
+  count,
+  over,
+}: {
+  stageGate: StageGate;
+  count: number;
+  over: boolean;
+}) {
+  const limit = PORTFOLIO_WIP_LIMITS[stageGate];
+  return (
+    <div
+      className={`w-full space-y-0.5 rounded-md px-1 py-0.5 text-[10px] font-medium tabular-nums ${
+        over ? "bg-red-100 text-red-700" : "text-muted-foreground"
+      }`}
+      title={over ? `WIP-Limit ueberschritten — ${wipCountLabel(stageGate, count)}` : undefined}
+    >
+      <div className="text-center">{wipCountLabel(stageGate, count)}</div>
+      <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+        {limit == null ? (
+          <div className="h-full w-full bg-muted-foreground/15" />
+        ) : (
+          <div className="flex h-full w-full">
+            <div
+              className="h-full bg-foreground/60"
+              style={{ width: `${Math.min(100, (Math.min(count, limit) / limit) * 100)}%` }}
+            />
+            {count > limit && (
+              <div
+                className="h-full bg-red-500"
+                style={{ width: `${Math.min(100, ((count - limit) / limit) * 100)}%` }}
+              />
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -352,7 +439,11 @@ function CardShell({
           <h3 className="font-heading text-base font-medium">{title}</h3>
           <p className="text-xs text-muted-foreground">{subtitle}</p>
         </div>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${STATUS_CLASS[status]}`}>
+        <span
+          className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+            STATUS_CLASS[status]
+          } ${status === "red" ? "animate-pulse" : ""}`}
+        >
           {STATUS_LABEL[status]}
         </span>
       </header>
@@ -494,13 +585,22 @@ function Footer({
     return <p className="text-xs text-muted-foreground">Noch keine Epics im Portfolio.</p>;
   }
   if (unclassifiedCount === 0) return null;
+  if (coverageThin) {
+    return (
+      <div
+        role="status"
+        className="flex items-start gap-2 rounded-md border border-amber-200/60 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800"
+      >
+        <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+        <p>
+          {unclassifiedCount} von {totalCount} Epics {coverageLabel} — Mix ist nur Indiz.
+        </p>
+      </div>
+    );
+  }
   return (
-    <p
-      className={`text-xs ${coverageThin ? "text-amber-700" : "text-muted-foreground"}`}
-      role={coverageThin ? "status" : undefined}
-    >
-      {unclassifiedCount} von {totalCount} Epics {coverageLabel}
-      {coverageThin ? " — Mix ist nur Indiz." : "."}
+    <p className="text-xs text-muted-foreground">
+      {unclassifiedCount} von {totalCount} Epics {coverageLabel}.
     </p>
   );
 }
