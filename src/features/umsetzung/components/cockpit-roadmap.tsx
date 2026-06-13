@@ -4,8 +4,9 @@ import {
   type CockpitRoadmapFeature,
   type RoadmapRowAccent,
 } from "@/domain/roadmap";
-import { RoadmapGantt } from "@/features/roadmap/components/roadmap-gantt";
+import { RoadmapGantt, type GanttDependency } from "@/features/roadmap/components/roadmap-gantt";
 import type {
+  CockpitDependency,
   CockpitFeature,
   CockpitPiWindow,
   FeatureStatus,
@@ -16,18 +17,21 @@ import type {
  * Epic-Grouping. Features stehen indented unter ihrem Parent-Epic
  * (Linear/Productboard-Pattern), der Epic-Header zeigt das aus den
  * Feature-PIs abgeleitete Soll-Fenster. Status-Akzent pro Feature-Bar,
- * PI-Grid + Today-Linie vom Renderer.
+ * PI-Grid + Today-Linie vom Renderer. Dependencies erscheinen als
+ * Elbow-Pfeile ueber dem Track (Hover-Highlight); Off-Scope-Endpunkte
+ * werden als Marker am Bar-Rand gerendert.
  */
 interface Props {
   features: CockpitFeature[];
   allPiWindows: CockpitPiWindow[];
+  dependencies: CockpitDependency[];
 }
 
 function statusToAccent(status: FeatureStatus): RoadmapRowAccent {
   return status;
 }
 
-export function CockpitRoadmap({ features, allPiWindows }: Props) {
+export function CockpitRoadmap({ features, allPiWindows, dependencies }: Props) {
   const piById = new Map(allPiWindows.map((p) => [p.id, p]));
 
   const cockpitFeatures: CockpitRoadmapFeature[] = features.map((f) => {
@@ -62,5 +66,28 @@ export function CockpitRoadmap({ features, allPiWindows }: Props) {
 
   const piBoundaries = allPiWindows.map((p) => ({ date: p.startDate, label: p.name }));
 
-  return <RoadmapGantt rows={visible} axis={axis} piBoundaries={piBoundaries} />;
+  // Dependencies in das Gantt-Format mappen. Edges deren Endpunkt im
+  // Backlog liegt (sichtbare Feature aber ohne Range) werden gefiltert —
+  // der RoadmapGantt rendert nur Pfade fuer Rows mit Bar. Off-Scope-
+  // Edges (Endpunkt komplett ausserhalb des Scopes) gehen mit durch
+  // und werden als Bar-Rand-Marker dargestellt.
+  const visibleIds = new Set(visible.filter((r) => r.range !== null).map((r) => r.id));
+  const ganttDeps: GanttDependency[] = dependencies
+    .filter((d) => {
+      if (d.offScopeRole === "from") return visibleIds.has(d.toId);
+      if (d.offScopeRole === "to") return visibleIds.has(d.fromId);
+      return visibleIds.has(d.fromId) && visibleIds.has(d.toId);
+    })
+    .map((d) => ({
+      id: d.id,
+      fromId: d.fromId,
+      toId: d.toId,
+      type: d.type,
+      offScopeRole: d.offScopeRole,
+      offScopeLabel: d.offScopeLabel,
+    }));
+
+  return (
+    <RoadmapGantt rows={visible} axis={axis} piBoundaries={piBoundaries} dependencies={ganttDeps} />
+  );
 }

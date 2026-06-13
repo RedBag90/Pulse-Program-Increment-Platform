@@ -12,6 +12,7 @@ const TABS: ReadonlyArray<{ id: CockpitView; label: string }> = [
   { id: "board", label: "Board" },
   { id: "table", label: "Tabelle" },
   { id: "roadmap", label: "Roadmap" },
+  { id: "network", label: "Netzplan" },
 ];
 
 interface Props {

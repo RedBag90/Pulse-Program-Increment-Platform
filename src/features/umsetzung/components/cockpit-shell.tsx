@@ -6,6 +6,7 @@ import { CockpitViewTabs } from "./cockpit-view-tabs";
 import { CockpitBoard } from "./cockpit-board";
 import { CockpitTable } from "./cockpit-table";
 import { CockpitRoadmap } from "./cockpit-roadmap";
+import { CockpitNetwork } from "./cockpit-network";
 import { FeatureSlideOver } from "./feature-slide-over";
 import { CockpitRealtimeSubscriber } from "./cockpit-realtime-subscriber";
 
@@ -27,7 +28,16 @@ interface Props {
 }
 
 export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
-  const { availableArts, selectedArt, piStrip, allPiWindows, view, features, permissions } = model;
+  const {
+    availableArts,
+    selectedArt,
+    piStrip,
+    allPiWindows,
+    view,
+    features,
+    dependencies,
+    permissions,
+  } = model;
 
   return (
     <div className="flex min-h-[calc(100vh-3rem)] flex-col bg-background">
@@ -65,8 +75,14 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
             canUpdate={permissions.canUpdate}
             canSetDelivery={permissions.canSetDelivery}
           />
+        ) : view === "roadmap" ? (
+          <CockpitRoadmap
+            features={features}
+            allPiWindows={allPiWindows}
+            dependencies={dependencies}
+          />
         ) : (
-          <CockpitRoadmap features={features} allPiWindows={allPiWindows} />
+          <CockpitNetwork features={features} dependencies={dependencies} />
         )}
       </main>
 
