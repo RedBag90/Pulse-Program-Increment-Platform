@@ -142,9 +142,12 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
       where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
       select: {
         id: true,
+        title: true,
         epicType: true,
         investmentHorizon: true,
         businessCase: true,
+        stageGate: true,
+        needsSteeringAttention: true,
       },
     }),
     db.tenant.findUnique({
@@ -158,9 +161,12 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
     const amount = totals.implementationCost > 0 ? totals.implementationCost : null;
     return {
       id: e.id,
+      title: e.title,
       epicType: e.epicType,
       investmentHorizon: e.investmentHorizon,
       amount,
+      stageGate: e.stageGate,
+      needsSteeringAttention: e.needsSteeringAttention,
     };
   });
 

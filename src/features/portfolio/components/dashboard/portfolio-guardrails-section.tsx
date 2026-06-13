@@ -2,11 +2,16 @@
 
 import { type ReactNode } from "react";
 import { Card } from "@/components/ui/card";
-import { HORIZONS, HORIZON_LABEL } from "@/domain/portfolio-guardrails";
+import { HORIZONS, HORIZON_LABEL, type Horizon } from "@/domain/portfolio-guardrails";
+import { STAGE_GATES } from "@/domain/stage-gate";
+import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import type { StageGate } from "@/domain/types";
+import { isOverWip, wipCountLabel } from "@/features/portfolio/overview/wip-limits";
 import type {
   PortfolioGuardrailsModel,
   CapacityBucket,
   MixRow,
+  StageTowerEpic,
 } from "@/server/views/portfolio-guardrails-view";
 
 interface Props {
@@ -66,17 +71,11 @@ function HorizonCard({
   return (
     <CardShell
       title="Investment by Horizon"
-      subtitle="McKinsey 3-Horizons — H1 Sustain · H2 Grow · H3 Innovate"
+      subtitle="Portfolio-Kanban × Horizon — pro Stage ein Turm aus Epic-Quadraten"
       status={model.status}
     >
-      <StackedBar
-        rows={HORIZONS.map((h) => ({
-          key: h,
-          label: HORIZON_LABEL[h],
-          color: HORIZON_COLOR[h] ?? "bg-muted",
-          row: model.rows[h],
-        }))}
-      />
+      <HorizonStageTower epicsByStage={model.epicsByStage} />
+      <HorizonShareLegend rows={model.rows} />
       <Footer
         unclassifiedCount={model.unclassifiedCount}
         totalCount={model.totalCount}
@@ -84,6 +83,99 @@ function HorizonCard({
         coverageLabel="ohne Horizon"
       />
     </CardShell>
+  );
+}
+
+/**
+ * Pro Stage eine Spalte: oben Counter (mit WIP-Limit-Marker), darunter
+ * ein Stack 10×10-Quadrate — eines pro Epic, Horizon-gefaerbt. Epics
+ * mit `needsSteeringAttention` bekommen einen roten Ring.
+ */
+function HorizonStageTower({
+  epicsByStage,
+}: {
+  epicsByStage: Record<StageGate, StageTowerEpic[]>;
+}) {
+  return (
+    <div className="grid grid-cols-6 gap-1.5">
+      {STAGE_GATES.map((g) => {
+        const epics = epicsByStage[g];
+        const count = epics.length;
+        const over = isOverWip(g, count);
+        return (
+          <div key={g} className="flex flex-col items-center gap-1.5">
+            <div
+              className={`flex w-full flex-col items-center rounded-md px-1 py-0.5 text-[10px] font-medium ${
+                over ? "bg-red-100 text-red-700" : "text-muted-foreground"
+              }`}
+              title={over ? `WIP-Limit ueberschritten — ${wipCountLabel(g, count)}` : undefined}
+            >
+              <span className="tabular-nums">{wipCountLabel(g, count)}</span>
+            </div>
+            <div className="flex h-32 w-full flex-col-reverse items-center justify-start gap-0.5 rounded-md bg-muted/40 p-1">
+              {epics.map((e) => (
+                <span
+                  key={e.id}
+                  className={`size-2.5 shrink-0 rounded-sm ${horizonSquareColor(e.horizon)} ${
+                    e.needsSteeringAttention ? "ring-1 ring-red-500" : ""
+                  }`}
+                  title={squareTooltip(e)}
+                />
+              ))}
+            </div>
+            <span
+              className="line-clamp-2 w-full text-center text-[10px] leading-tight text-muted-foreground"
+              title={STAGE_GATE_LABELS[g]}
+            >
+              <span className="font-medium text-foreground/70">{g}</span>
+              <br />
+              {STAGE_GATE_LABELS[g]}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function horizonSquareColor(h: Horizon | null): string {
+  if (h == null) return "bg-muted-foreground/30";
+  return HORIZON_COLOR[h] ?? "bg-muted-foreground/30";
+}
+
+function squareTooltip(e: StageTowerEpic): string {
+  const horizonLabel = e.horizon ? HORIZON_LABEL[e.horizon] : "Horizon ungesetzt";
+  const steering = e.needsSteeringAttention ? " · ⚠ Steering" : "";
+  return `${e.title} · ${horizonLabel}${steering}`;
+}
+
+function HorizonShareLegend({ rows }: { rows: Record<Horizon, MixRow> }) {
+  return (
+    <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+      {HORIZONS.map((h) => {
+        const row = rows[h];
+        const delta = row.deltaCount;
+        const deltaClass =
+          Math.abs(delta) <= 0.05
+            ? "text-emerald-700"
+            : Math.abs(delta) <= 0.15
+              ? "text-amber-700"
+              : "text-red-700";
+        return (
+          <li key={h} className="inline-flex items-center gap-1">
+            <span
+              className={`size-2 shrink-0 rounded-sm ${HORIZON_COLOR[h] ?? "bg-muted"}`}
+              aria-hidden
+            />
+            <span className="text-muted-foreground">{HORIZON_LABEL[h]}:</span>
+            <span className="tabular-nums">{pct(row.countShare)}</span>
+            <span className="text-muted-foreground/80">
+              · Soll {pct(row.target)} · <span className={deltaClass}>{ppDelta(delta)}</span>
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

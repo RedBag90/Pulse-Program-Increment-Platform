@@ -19,6 +19,8 @@ import {
   isEpicType,
   isHorizon,
 } from "@/domain/portfolio-guardrails";
+import { STAGE_GATES } from "@/domain/stage-gate";
+import type { StageGate } from "@/domain/types";
 
 export type CapacityBucket = "business" | "enabler";
 
@@ -29,10 +31,25 @@ export type CapacityBucket = "business" | "enabler";
  */
 export interface GuardrailsEpicInput {
   id: string;
+  /** Epic-Titel — fuer den Tooltip am Stage-Tower-Quadrat. */
+  title: string;
   epicType: string | null;
   investmentHorizon: string | null;
   /** Implementation Cost (€). null wenn kein Business Case oder ohne Kosten. */
   amount: number | null;
+  /** SAFe-Kanban-Stage (L0..L5). Treibt die Stage-Tower-Spalten. */
+  stageGate: string;
+  /** Flag aus der Governance — Steering-Markierung am Quadrat. */
+  needsSteeringAttention: boolean;
+}
+
+/** Eintrag im Stage-Tower — eines pro Epic in der jeweiligen Stage. */
+export interface StageTowerEpic {
+  id: string;
+  title: string;
+  /** null = unklassifiziert, sonst H1/H2/H3. */
+  horizon: Horizon | null;
+  needsSteeringAttention: boolean;
 }
 
 export interface MixRow {
@@ -65,6 +82,8 @@ export interface HorizonGuardrailModel {
   maxAbsDeltaAmount: number;
   /** Ampel: gruen <5pp, amber 5..15pp, rot >15pp (groesster Bucket-Delta). */
   status: "green" | "amber" | "red" | "unknown";
+  /** Epics pro Stage, horizon-getaggt — Input fuer den Stage-Tower. */
+  epicsByStage: Record<StageGate, StageTowerEpic[]>;
 }
 
 export interface CapacityGuardrailModel {
@@ -112,16 +131,32 @@ export function computePortfolioGuardrails(input: {
   let horizonClassifiedCount = 0;
   let horizonClassifiedAmount = 0;
 
+  const epicsByStage = Object.fromEntries(
+    STAGE_GATES.map((g) => [g, []] as const),
+  ) as unknown as Record<StageGate, StageTowerEpic[]>;
+
   for (const e of epics) {
     const amt = e.amount ?? 0;
-    if (isHorizon(e.investmentHorizon)) {
-      horizonCounts[e.investmentHorizon] += 1;
-      horizonAmounts[e.investmentHorizon] += amt;
+    const horizon: Horizon | null = isHorizon(e.investmentHorizon) ? e.investmentHorizon : null;
+    if (horizon != null) {
+      horizonCounts[horizon] += 1;
+      horizonAmounts[horizon] += amt;
       horizonClassifiedCount += 1;
       horizonClassifiedAmount += amt;
     } else {
       horizonUnclassifiedCount += 1;
       horizonUnclassifiedAmount += amt;
+    }
+    const stage = (STAGE_GATES as readonly string[]).includes(e.stageGate)
+      ? (e.stageGate as StageGate)
+      : null;
+    if (stage != null) {
+      epicsByStage[stage].push({
+        id: e.id,
+        title: e.title,
+        horizon,
+        needsSteeringAttention: e.needsSteeringAttention,
+      });
     }
   }
 
@@ -224,6 +259,7 @@ export function computePortfolioGuardrails(input: {
           : horizonMaxAbsCount,
         horizonClassifiedCount > 0,
       ),
+      epicsByStage,
     },
     capacity: {
       rows: capacityRows,

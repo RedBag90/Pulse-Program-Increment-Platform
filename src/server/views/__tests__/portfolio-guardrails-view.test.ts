@@ -7,9 +7,12 @@ import { DEFAULT_GUARDRAIL_TARGETS } from "@/domain/portfolio-guardrails";
 
 const epic = (over: Partial<GuardrailsEpicInput> = {}): GuardrailsEpicInput => ({
   id: "e1",
+  title: "Epic",
   epicType: null,
   investmentHorizon: null,
   amount: null,
+  stageGate: "L0",
+  needsSteeringAttention: false,
   ...over,
 });
 
@@ -21,6 +24,41 @@ describe("computePortfolioGuardrails", () => {
     expect(m.capacity.status).toBe("unknown");
     expect(m.horizonCoverageThin).toBe(false);
     expect(m.capacityCoverageThin).toBe(false);
+    expect(m.horizon.epicsByStage.L0).toEqual([]);
+    expect(m.horizon.epicsByStage.L5).toEqual([]);
+  });
+
+  it("verteilt epics auf die richtige Stage und reicht Horizon + Steering durch", () => {
+    const m = computePortfolioGuardrails({
+      epics: [
+        epic({ id: "a", investmentHorizon: "h1", stageGate: "L2" }),
+        epic({
+          id: "b",
+          investmentHorizon: "h3",
+          stageGate: "L2",
+          needsSteeringAttention: true,
+        }),
+        epic({ id: "c", investmentHorizon: null, stageGate: "L4" }),
+      ],
+      targets: DEFAULT_GUARDRAIL_TARGETS,
+    });
+    expect(m.horizon.epicsByStage.L2).toHaveLength(2);
+    expect(m.horizon.epicsByStage.L2[0]?.horizon).toBe("h1");
+    expect(m.horizon.epicsByStage.L2[1]?.horizon).toBe("h3");
+    expect(m.horizon.epicsByStage.L2[1]?.needsSteeringAttention).toBe(true);
+    expect(m.horizon.epicsByStage.L4).toHaveLength(1);
+    expect(m.horizon.epicsByStage.L4[0]?.horizon).toBeNull();
+    expect(m.horizon.epicsByStage.L0).toEqual([]);
+  });
+
+  it("ignoriert unbekannte stageGate-Werte (kein Crash)", () => {
+    const m = computePortfolioGuardrails({
+      epics: [epic({ id: "x", stageGate: "L99" as unknown as string })],
+      targets: DEFAULT_GUARDRAIL_TARGETS,
+    });
+    for (const g of Object.values(m.horizon.epicsByStage)) {
+      expect(g).toEqual([]);
+    }
   });
 
   it("teilt klassifizierte Epics nach Horizon auf und ignoriert die unklassifizierten im Mix", () => {
