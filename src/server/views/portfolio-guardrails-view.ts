@@ -55,8 +55,9 @@ export interface StageTowerEpic {
 }
 
 /** Spaltenschluessel fuer den Horizon-by-Horizon-Tower. `none` sammelt
- *  alle Epics ohne Horizon-Klassifikation. */
-export const HORIZON_COLUMNS = ["h1", "h2", "h3", "none"] as const;
+ *  alle Epics ohne Horizon-Klassifikation. Reihenfolge H3..H1 entspricht
+ *  der strategischen Lese-Richtung („Innovate" links, „Sustain" rechts). */
+export const HORIZON_COLUMNS = ["h3", "h2", "h1", "none"] as const;
 export type HorizonColumn = (typeof HORIZON_COLUMNS)[number];
 
 export interface MixRow {

@@ -49,6 +49,36 @@ const BUCKET_COLOR: Record<CapacityBucket, string> = {
 const pct = (v: number) => `${(v * 100).toFixed(0)} %`;
 const ppDelta = (v: number) => `${v > 0 ? "+" : ""}${(v * 100).toFixed(0)} pp`;
 
+/** Wieviele Quadrate nebeneinander pro Tower-Reihe. 4 hat sich bewaehrt —
+ *  haelt die Tower bei vielen Epics kompakt, ohne den Stack-Charakter zu
+ *  verlieren. */
+const EPICS_PER_ROW = 4;
+
+/** Chunked-Render: epics werden in Reihen `a` 4 gebrochen und in
+ *  flex-col-reverse gestapelt, damit der erste Epic links unten landet
+ *  und neue Reihen nach oben wachsen. */
+function EpicSquaresGrid({
+  epics,
+  renderSquare,
+}: {
+  epics: StageTowerEpic[];
+  renderSquare: (e: StageTowerEpic) => ReactNode;
+}) {
+  const rows: StageTowerEpic[][] = [];
+  for (let i = 0; i < epics.length; i += EPICS_PER_ROW) {
+    rows.push(epics.slice(i, i + EPICS_PER_ROW));
+  }
+  return (
+    <div className="flex h-32 w-full flex-col-reverse items-center justify-start gap-0.5 rounded-md bg-muted/40 p-1">
+      {rows.map((row, i) => (
+        <div key={i} className="flex flex-row gap-0.5">
+          {row.map((e) => renderSquare(e))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Zwei Guardrail-Cards (Investment by Horizon, Capacity Allocation) am
  * Portfolio-Dashboard. Read-only — die Targets-Pflege lebt unter
@@ -147,8 +177,9 @@ function HorizonHorizonTower({
             <div className="w-full text-center text-[10px] font-medium tabular-nums text-muted-foreground">
               {epics.length}
             </div>
-            <div className="flex h-32 w-full flex-col-reverse items-center justify-start gap-0.5 rounded-md bg-muted/40 p-1">
-              {epics.map((e) => (
+            <EpicSquaresGrid
+              epics={epics}
+              renderSquare={(e) => (
                 <span
                   key={e.id}
                   className={`size-2.5 shrink-0 rounded-sm ${color} ${
@@ -156,8 +187,8 @@ function HorizonHorizonTower({
                   }`}
                   title={mixTooltip(e)}
                 />
-              ))}
-            </div>
+              )}
+            />
             <span className="text-center text-[10px] leading-tight text-muted-foreground">
               <span className="font-medium text-foreground/70">
                 {c === "none" ? "—" : c.toUpperCase()}
@@ -204,8 +235,9 @@ function HorizonStageTower({
             >
               <span className="tabular-nums">{wipCountLabel(g, count)}</span>
             </div>
-            <div className="flex h-32 w-full flex-col-reverse items-center justify-start gap-0.5 rounded-md bg-muted/40 p-1">
-              {epics.map((e) => (
+            <EpicSquaresGrid
+              epics={epics}
+              renderSquare={(e) => (
                 <span
                   key={e.id}
                   className={`size-2.5 shrink-0 rounded-sm ${horizonSquareColor(e.horizon)} ${
@@ -213,8 +245,8 @@ function HorizonStageTower({
                   }`}
                   title={squareTooltip(e)}
                 />
-              ))}
-            </div>
+              )}
+            />
             <span
               className="line-clamp-2 w-full text-center text-[10px] leading-tight text-muted-foreground"
               title={STAGE_GATE_LABELS[g]}
