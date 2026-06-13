@@ -121,9 +121,11 @@ const DEFAULT_FILTERS: CockpitFilters = {
  * das erste PI dessen Datum heute enthaelt, sonst das naechstgelegene in
  * der Zukunft, sonst das letzte vergangene.
  */
-function pickCurrentPiIndex(pis: ReadonlyArray<{ startDate: Date; endDate: Date }>): number {
+export function pickCurrentPiIndex(
+  pis: ReadonlyArray<{ startDate: Date; endDate: Date }>,
+  now: number = Date.now(),
+): number {
   if (pis.length === 0) return -1;
-  const now = Date.now();
   for (let i = 0; i < pis.length; i++) {
     const p = pis[i]!;
     if (p.startDate.getTime() <= now && now <= p.endDate.getTime()) return i;
@@ -135,7 +137,7 @@ function pickCurrentPiIndex(pis: ReadonlyArray<{ startDate: Date; endDate: Date 
 }
 
 /** Schneidet ein Fenster aus 5 PIs aus: aktueller + 1 vor + 3 nach. */
-function takePiWindow<T>(pis: readonly T[], currentIdx: number): T[] {
+export function takePiWindow<T>(pis: readonly T[], currentIdx: number): T[] {
   if (currentIdx < 0) return [];
   const start = Math.max(0, currentIdx - 1);
   const end = Math.min(pis.length, currentIdx + 4);
