@@ -8,7 +8,6 @@ import { updateFeatureAction } from "@/features/art/actions/feature";
 import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
 import { DeleteFeatureButton } from "@/features/art/components/delete-feature-button";
 import { FeaturePiSelect } from "@/features/art/components/feature-pi-select";
-import { SubmitReviewButton } from "@/features/quality/components/submit-review-button";
 import { SectionSignoffBanner, type SectionSignoff } from "./section-signoff-banner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -138,7 +137,6 @@ function FeatureRow({
             >
               {expanded ? "Schließen" : "Bearbeiten"}
             </button>
-            {feature.status === "draft" && <SubmitReviewButton id={feature.id} kind="feature" />}
             <DeleteFeatureButton id={feature.id} artId={feature.artId} title={feature.title} />
           </>
         )}

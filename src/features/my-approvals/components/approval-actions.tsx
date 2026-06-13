@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState, startTransition } from "react";
-import { decideFeatureReviewAction } from "@/features/art/actions/feature";
 import {
   decideEpicHypothesisAction,
   decideEpicApprovalAction,
@@ -43,8 +42,6 @@ function dispatch(action: (fd: FormData) => void, entries: Record<string, string
 /** The decide-action for a given row kind, picked at render. */
 function pickAction(kind: ApprovalKind) {
   switch (kind) {
-    case "feature_qs":
-      return decideFeatureReviewAction;
     case "epic_hypothesis":
       return decideEpicHypothesisAction;
     case "epic_party":
@@ -62,8 +59,6 @@ function buildEntries(row: MyApprovalRow, mode: Mode, comment: string): Record<s
   if (comment.trim()) base.comment = comment.trim();
 
   switch (row.kind) {
-    case "feature_qs":
-      return { ...base, id: row.target.featureId! };
     case "epic_hypothesis":
       return { ...base, epicId: row.target.epicId! };
     case "epic_party":

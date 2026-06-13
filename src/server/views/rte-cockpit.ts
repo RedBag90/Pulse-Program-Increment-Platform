@@ -1,6 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel } from "@/domain/types";
-import { listFeaturesInReview } from "@/server/services/initiative-review";
 import type { Principal } from "@/server/auth/principal";
 
 /**
@@ -448,12 +447,10 @@ export async function buildRteCockpitModel(
   const confidenceAvg =
     allConf.length > 0 ? allConf.reduce((s, c) => s + c, 0) / allConf.length : null;
 
-  // Today counts: approvals come from the my-approvals service (RTE/Admin
-  // gated upstream; the count here is best-effort and may be zero for a
-  // principal without `feature.review.decide`).
-  const approvalsRaw = await listFeaturesInReview(db, tenantId, [artId]);
+  // Today counts: openApprovals war historisch der Feature-QA-Backlog
+  // — mit Abschaffung des Feature-QA-Gates (2026-06) immer 0.
   const today: RteTodayCounts = {
-    openApprovals: approvalsRaw.length,
+    openApprovals: 0,
     escalatedImpediments: escalatedCount,
     crossArtBlockers: crossArtBlockerCount,
   };
@@ -516,7 +513,7 @@ export async function buildRtePortfolioModel(
 
   const rows = await Promise.all(
     arts.map(async (art) => {
-      const [activePi, teamCount, escalated, approvals] = await Promise.all([
+      const [activePi, teamCount, escalated] = await Promise.all([
         art.timelineId
           ? db.programIncrement.findFirst({
               where: { tenantId, timelineId: art.timelineId, status: "active" },
@@ -527,7 +524,6 @@ export async function buildRtePortfolioModel(
         db.impediment.count({
           where: { tenantId, artId: art.id, status: "escalated" },
         }),
-        listFeaturesInReview(db, tenantId, [art.id]),
       ]);
 
       const confidenceAvgRaw = activePi
@@ -546,7 +542,7 @@ export async function buildRtePortfolioModel(
         activePiName: activePi?.name ?? null,
         teamCount,
         escalatedImpediments: escalated,
-        openApprovals: approvals.length,
+        openApprovals: 0,
         confidences,
       });
     }),

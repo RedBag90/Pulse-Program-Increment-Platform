@@ -2,7 +2,6 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listMyApprovals, type MyApprovalRow } from "@/server/services/my-approvals";
 import { ApprovalActions } from "@/features/my-approvals/components/approval-actions";
-import { FeatureQsBulkSection } from "@/features/my-approvals/components/feature-qs-bulk-section";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { ApprovalParty } from "@/domain/business-case";
@@ -10,24 +9,18 @@ import type { ApprovalSection } from "@/domain/epic-approval";
 
 /**
  * "Meine Freigaben" — the personal approval inbox. One page lists every pending
- * approval assigned to the principal across all four sources (Feature QS,
- * Epic Hypothesis, Epic Party, Epic Section), grouped by kind. Each row carries
- * the context needed to decide without bouncing into the detail page first.
+ * Epic approval assigned to the principal (Hypothesis, Party, Section),
+ * grouped by kind. Feature-QS war hier 2026-06 entfernt — Features brauchen
+ * keine Freigabe mehr.
  */
 
 const KIND_LABELS: Record<MyApprovalRow["kind"], string> = {
-  feature_qs: "Feature-QS",
   epic_hypothesis: "Epic-Hypothesen",
   epic_party: "Epic-Stakeholder-Freigaben",
   epic_section: "Epic-Abschnitte (Breakdown / KPIs)",
 };
 
-const KIND_ORDER: MyApprovalRow["kind"][] = [
-  "epic_hypothesis",
-  "epic_party",
-  "epic_section",
-  "feature_qs",
-];
+const KIND_ORDER: MyApprovalRow["kind"][] = ["epic_hypothesis", "epic_party", "epic_section"];
 
 const PARTY_LABELS: Record<ApprovalParty, string> = {
   mgmt: "MGMT",
@@ -75,7 +68,7 @@ export default async function MyApprovalsPage() {
         <h1 className="text-2xl font-semibold">Meine Freigaben</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Alle Freigaben, die aktuell auf deine Entscheidung warten — Hypothesen,
-          Stakeholder-Freigaben, Abschnitts-Sign-offs und Feature-QS in einer Liste.
+          Stakeholder-Freigaben und Abschnitts-Sign-offs in einer Liste.
         </p>
       </div>
 
@@ -87,11 +80,6 @@ export default async function MyApprovalsPage() {
         <div className="space-y-8">
           {KIND_ORDER.filter((k) => (byKind.get(k)?.length ?? 0) > 0).map((kind) => {
             const group = byKind.get(kind)!;
-            // Feature-QS lane gets multi-select + a sticky bulk-action bar
-            // (RTE routine: ≥60 % of feature reviews are batch-approvable).
-            if (kind === "feature_qs") {
-              return <FeatureQsBulkSection key={kind} rows={group} />;
-            }
             return (
               <section key={kind} className="space-y-2">
                 <div className="flex items-baseline justify-between">
