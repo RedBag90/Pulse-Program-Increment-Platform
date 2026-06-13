@@ -12,6 +12,7 @@ import { paginate, type PageParams } from "@/server/db/paginate";
 import { rangeOverlapsPlannedWindow } from "@/domain/epic-schedule";
 import { canDeliveryTransition } from "@/domain/initiative-status";
 import { earliestStartFromBlockers, type BlockerWindow } from "@/domain/dependency-graph";
+import type { FeatureType } from "@/domain/portfolio-guardrails";
 
 /** Non-fatal advisories surfaced alongside a successful mutation (e.g. setFeaturePi). */
 export interface MutationWarnings {
@@ -41,6 +42,8 @@ export interface UpdateFeatureInput {
   wsjfJobSize?: FibonacciValue | undefined;
   acceptanceCriteria?: string[] | undefined;
   piId?: PiId | undefined;
+  /** SAFe Capacity-Guardrail Klassifikation. `null` cleart, `undefined` belaesst. */
+  featureType?: FeatureType | null | undefined;
 }
 
 export async function createFeature(
@@ -128,6 +131,7 @@ export async function updateFeature(
     wsjfJobSize,
     acceptanceCriteria,
     piId,
+    featureType,
   } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
@@ -161,9 +165,12 @@ export async function updateFeature(
     // Scalar fields diff via the shared changelog helper; WSJF is a compound
     // field, so its before/after is built explicitly.
     const changes = buildChangelog(
-      { title: existing.title },
-      { ...(title !== undefined && { title }) },
-      ["title"],
+      { title: existing.title, featureType: existing.featureType },
+      {
+        ...(title !== undefined && { title }),
+        ...(featureType !== undefined && { featureType }),
+      },
+      ["title", "featureType"],
     );
     if (wsjfChanged) {
       changes["wsjf"] = {
@@ -190,6 +197,7 @@ export async function updateFeature(
         ...(newComputed !== undefined && { wsjfComputed: newComputed }),
         ...(acceptanceCriteria !== undefined && { acceptanceCriteria }),
         ...(piId !== undefined && { piId }),
+        ...(featureType !== undefined && { featureType }),
       },
     });
 

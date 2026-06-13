@@ -27,6 +27,10 @@ model Tenant {
   // the €-axis of the capacity badge is hidden — Job Size alone is rendered.
   costPerJobSizePoint Decimal? @map("cost_per_job_size_point") @db.Decimal(10, 2)
 
+  // SAFe Portfolio Guardrails (Roadmap-G1). Targets je Achse summieren auf
+  // 100 %; Defaults in `src/domain/portfolio-guardrails.ts`.
+  guardrailTargets Json? @map("guardrail_targets")
+
   valueStreams            ValueStream[]
   arts                    Art[]
   teams                   Team[]
@@ -527,6 +531,16 @@ model Initiative {
   impactRecognizedAt DateTime? @map("impact_recognized_at")
   impactRecognizedBy String?   @map("impact_recognized_by") @db.Uuid
   impactComment      String?   @map("impact_comment") @db.Text
+
+  // SAFe Portfolio Guardrails (Roadmap-G1).
+  // EPIC-only: epicType klassifiziert das Investment (Solution = grosser
+  // Cross-ART-Brocken, Epic = Standard, Enabler = Architectural Runway /
+  // Compliance / NFR). investmentHorizon: H1 (Sustain), H2 (Grow),
+  // H3 (Innovate) — McKinsey-3-Horizons-Modell.
+  epicType          String? @map("epic_type")
+  investmentHorizon String? @map("investment_horizon")
+  // FEATURE-only: feature vs enabler (Architectural Runway etc.).
+  featureType       String? @map("feature_type")
 
   // Governance flags (EPIC only): surface the Epic in the next steering /
   // budgeting meeting. Toggled on the Epic overview tab.

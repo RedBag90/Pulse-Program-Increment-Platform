@@ -7,6 +7,7 @@ import { ok, err, isErr } from "@/domain/errors";
 import { authorizeResource } from "@/server/auth/authorize";
 import { buildChangelog } from "@/domain/change-log";
 import { isValidTransition, isApprovalTransition, autoAdvanceTarget } from "@/domain/stage-gate";
+import type { EpicType, Horizon } from "@/domain/portfolio-guardrails";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,
@@ -96,6 +97,9 @@ export interface UpdateEpicInput {
   /** Planned delivery window ("Soll"). `null` clears, `undefined` leaves unchanged. */
   plannedStartAt?: Date | null | undefined;
   plannedEndAt?: Date | null | undefined;
+  /** SAFe Portfolio Guardrails. `null` cleart, `undefined` belaesst. */
+  epicType?: EpicType | null | undefined;
+  investmentHorizon?: Horizon | null | undefined;
 }
 
 export async function updateEpic(
@@ -111,6 +115,8 @@ export async function updateEpic(
     stagedForBudgeting,
     plannedStartAt,
     plannedEndAt,
+    epicType,
+    investmentHorizon,
   } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
@@ -149,6 +155,8 @@ export async function updateEpic(
         stagedForBudgeting: existing.stagedForBudgeting,
         plannedStartAt: existing.plannedStartAt,
         plannedEndAt: existing.plannedEndAt,
+        epicType: existing.epicType,
+        investmentHorizon: existing.investmentHorizon,
       },
       {
         ...(title !== undefined && { title }),
@@ -157,6 +165,8 @@ export async function updateEpic(
         ...(stagedForBudgeting !== undefined && { stagedForBudgeting }),
         ...(plannedStartAt !== undefined && { plannedStartAt }),
         ...(plannedEndAt !== undefined && { plannedEndAt }),
+        ...(epicType !== undefined && { epicType }),
+        ...(investmentHorizon !== undefined && { investmentHorizon }),
       },
       [
         "title",
@@ -165,6 +175,8 @@ export async function updateEpic(
         "stagedForBudgeting",
         "plannedStartAt",
         "plannedEndAt",
+        "epicType",
+        "investmentHorizon",
       ],
     );
 
@@ -178,6 +190,8 @@ export async function updateEpic(
         ...(stagedForBudgeting !== undefined && { stagedForBudgeting }),
         ...(plannedStartAt !== undefined && { plannedStartAt }),
         ...(plannedEndAt !== undefined && { plannedEndAt }),
+        ...(epicType !== undefined && { epicType }),
+        ...(investmentHorizon !== undefined && { investmentHorizon }),
       },
     });
 
