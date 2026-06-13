@@ -503,6 +503,10 @@ function InsertableEdge(props: EdgeProps) {
     targetY,
     sourcePosition,
     targetPosition,
+    // offset 32 + borderRadius 16: leitet die linien staerker um den
+    // node herum statt direkt durch nachbarn durch.
+    offset: 32,
+    borderRadius: 16,
   });
   return (
     <>
@@ -734,7 +738,10 @@ function layoutGraph(
 ): { nodes: Node[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "LR", nodesep: 24, ranksep: 80 });
+  // Mehr breathing room (nodesep 60, ranksep 160): dagre routet edges
+  // nicht knoten-bewusst, also helfen groessere abstaende, dass
+  // verbindungen seltener durch zwischennodes durchschlagen.
+  g.setGraph({ rankdir: "LR", nodesep: 60, ranksep: 160 });
 
   for (const n of nodes) {
     g.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
@@ -862,9 +869,9 @@ function layoutByPi(
     ) => () => void;
   },
 ): { nodes: Node[]; edges: Edge[] } {
-  const COL_WIDTH = NODE_WIDTH + 80;
+  const COL_WIDTH = NODE_WIDTH + 160;
   const HEADER_HEIGHT = 40;
-  const ROW_GAP = 24;
+  const ROW_GAP = 60;
   const FIRST_ROW_Y = HEADER_HEIGHT + 16;
 
   // Spalten-Index: 0 = Backlog, 1..n = PIs in startDate-Reihenfolge, n+1 = Extern.
@@ -1566,6 +1573,11 @@ export function BreakdownNetworkView({
             zoomable
             ariaLabel="Netzplan-Übersicht"
             nodeColor={(n) => {
+              // PI-Header und Ghost-Nodes bekommen ein neutrales grau,
+              // damit die minimap nicht durch headerflaechen "geblockt"
+              // aussieht.
+              if (n.type === "pi-header") return "#e5e7eb";
+              if (n.type === "ghost") return "#cbd5e1";
               const d = n.data as unknown as FeatureNodeData | undefined;
               return d?.featureType === "enabler" ? "#a78bfa" : "#60a5fa";
             }}

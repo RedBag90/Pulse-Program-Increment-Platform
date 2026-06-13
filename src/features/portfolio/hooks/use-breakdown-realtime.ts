@@ -28,10 +28,15 @@ export function useBreakdownRealtime(tenantId: string) {
 
     const scheduleRefresh = () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      // 600 ms debounce: quick-add ruehrt mehrere rows in einer
+      // transaktion an, server-action revalidate triggert sowieso
+      // ein refresh — der hier ist der "andere user hat was geaendert"-
+      // path. weniger aggressiv schont React + ReactFlow vor
+      // race-conditions, die das canvas kurz weiss-flashen lassen.
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         router.refresh();
-      }, 300);
+      }, 600);
     };
 
     const channel = supabase
