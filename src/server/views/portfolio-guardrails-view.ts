@@ -160,6 +160,18 @@ export function computePortfolioGuardrails(input: {
     }
   }
 
+  // Sortiert jede Stage-Spalte nach Horizon-Rank — gleiche Farbe sammelt
+  // sich zu einem visuellen Block. Stabil (Array.sort), gleiche Horizon-
+  // Gruppe behaelt ihre DB-Reihenfolge.
+  const horizonRank: Record<string, number> = { h1: 0, h2: 1, h3: 2 };
+  for (const g of STAGE_GATES) {
+    epicsByStage[g].sort(
+      (a, b) =>
+        (a.horizon != null ? horizonRank[a.horizon]! : 3) -
+        (b.horizon != null ? horizonRank[b.horizon]! : 3),
+    );
+  }
+
   // Targets summieren sich auf 100 — Anteile durch 100 teilen.
   const horizonTargets: Record<Horizon, number> = {
     h1: targets.horizon.h1 / 100,

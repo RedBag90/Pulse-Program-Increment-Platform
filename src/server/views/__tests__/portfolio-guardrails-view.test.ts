@@ -51,6 +51,20 @@ describe("computePortfolioGuardrails", () => {
     expect(m.horizon.epicsByStage.L0).toEqual([]);
   });
 
+  it("sortiert epics pro stage nach horizon (H1 -> H2 -> H3 -> null), stabil", () => {
+    const m = computePortfolioGuardrails({
+      epics: [
+        epic({ id: "p", investmentHorizon: "h3", stageGate: "L3" }),
+        epic({ id: "q", investmentHorizon: null, stageGate: "L3" }),
+        epic({ id: "r", investmentHorizon: "h1", stageGate: "L3" }),
+        epic({ id: "s", investmentHorizon: "h2", stageGate: "L3" }),
+        epic({ id: "t", investmentHorizon: "h1", stageGate: "L3" }),
+      ],
+      targets: DEFAULT_GUARDRAIL_TARGETS,
+    });
+    expect(m.horizon.epicsByStage.L3.map((e) => e.id)).toEqual(["r", "t", "s", "p", "q"]);
+  });
+
   it("ignoriert unbekannte stageGate-Werte (kein Crash)", () => {
     const m = computePortfolioGuardrails({
       epics: [epic({ id: "x", stageGate: "L99" as unknown as string })],
