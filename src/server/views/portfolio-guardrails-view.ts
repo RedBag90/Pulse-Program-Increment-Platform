@@ -43,14 +43,21 @@ export interface GuardrailsEpicInput {
   needsSteeringAttention: boolean;
 }
 
-/** Eintrag im Stage-Tower — eines pro Epic in der jeweiligen Stage. */
+/** Eintrag im Stage-Tower bzw. Horizon-Tower — eines pro Epic. */
 export interface StageTowerEpic {
   id: string;
   title: string;
   /** null = unklassifiziert, sonst H1/H2/H3. */
   horizon: Horizon | null;
+  /** Stage-Gate (L0..L5) — fuer Tooltip + Sort im Horizon-Tower. */
+  stageGate: StageGate;
   needsSteeringAttention: boolean;
 }
+
+/** Spaltenschluessel fuer den Horizon-by-Horizon-Tower. `none` sammelt
+ *  alle Epics ohne Horizon-Klassifikation. */
+export const HORIZON_COLUMNS = ["h1", "h2", "h3", "none"] as const;
+export type HorizonColumn = (typeof HORIZON_COLUMNS)[number];
 
 export interface MixRow {
   /** Anzahl klassifizierter Epics in diesem Bucket. */
@@ -84,6 +91,9 @@ export interface HorizonGuardrailModel {
   status: "green" | "amber" | "red" | "unknown";
   /** Epics pro Stage, horizon-getaggt — Input fuer den Stage-Tower. */
   epicsByStage: Record<StageGate, StageTowerEpic[]>;
+  /** Epics pro Horizon-Spalte (H1/H2/H3/none) — Input fuer den
+   *  Horizon-by-Horizon-Tower. Sort pro Spalte nach Stage-Index. */
+  epicsByHorizon: Record<HorizonColumn, StageTowerEpic[]>;
 }
 
 export interface CapacityGuardrailModel {
@@ -134,6 +144,9 @@ export function computePortfolioGuardrails(input: {
   const epicsByStage = Object.fromEntries(
     STAGE_GATES.map((g) => [g, []] as const),
   ) as unknown as Record<StageGate, StageTowerEpic[]>;
+  const epicsByHorizon = Object.fromEntries(
+    HORIZON_COLUMNS.map((c) => [c, []] as const),
+  ) as unknown as Record<HorizonColumn, StageTowerEpic[]>;
 
   for (const e of epics) {
     const amt = e.amount ?? 0;
@@ -151,12 +164,16 @@ export function computePortfolioGuardrails(input: {
       ? (e.stageGate as StageGate)
       : null;
     if (stage != null) {
-      epicsByStage[stage].push({
+      const towerEpic: StageTowerEpic = {
         id: e.id,
         title: e.title,
         horizon,
+        stageGate: stage,
         needsSteeringAttention: e.needsSteeringAttention,
-      });
+      };
+      epicsByStage[stage].push(towerEpic);
+      const col: HorizonColumn = horizon ?? "none";
+      epicsByHorizon[col].push(towerEpic);
     }
   }
 
@@ -170,6 +187,14 @@ export function computePortfolioGuardrails(input: {
         (a.horizon != null ? horizonRank[a.horizon]! : 3) -
         (b.horizon != null ? horizonRank[b.horizon]! : 3),
     );
+  }
+
+  // Sortiert jede Horizon-Spalte nach Stage-Index (L0 unten, L5 oben).
+  // Die Quadrate sind unifarben — die Reihenfolge gibt dem Tooltip
+  // einen sinnvollen Funnel-Lauf.
+  const stageRank: Record<string, number> = Object.fromEntries(STAGE_GATES.map((g, i) => [g, i]));
+  for (const c of HORIZON_COLUMNS) {
+    epicsByHorizon[c].sort((a, b) => (stageRank[a.stageGate] ?? 0) - (stageRank[b.stageGate] ?? 0));
   }
 
   // Targets summieren sich auf 100 — Anteile durch 100 teilen.
@@ -272,6 +297,7 @@ export function computePortfolioGuardrails(input: {
         horizonClassifiedCount > 0,
       ),
       epicsByStage,
+      epicsByHorizon,
     },
     capacity: {
       rows: capacityRows,

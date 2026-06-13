@@ -7,11 +7,13 @@ import { STAGE_GATES } from "@/domain/stage-gate";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import type { StageGate } from "@/domain/types";
 import { isOverWip, wipCountLabel } from "@/features/portfolio/overview/wip-limits";
-import type {
-  PortfolioGuardrailsModel,
-  CapacityBucket,
-  MixRow,
-  StageTowerEpic,
+import {
+  HORIZON_COLUMNS,
+  type PortfolioGuardrailsModel,
+  type CapacityBucket,
+  type MixRow,
+  type StageTowerEpic,
+  type HorizonColumn,
 } from "@/server/views/portfolio-guardrails-view";
 
 interface Props {
@@ -54,8 +56,9 @@ const ppDelta = (v: number) => `${v > 0 ? "+" : ""}${(v * 100).toFixed(0)} pp`;
  */
 export function PortfolioGuardrailsSection({ model }: Props) {
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-3">
       <HorizonCard model={model.horizon} coverageThin={model.horizonCoverageThin} />
+      <HorizonMixCard model={model.horizon} coverageThin={model.horizonCoverageThin} />
       <CapacityCard model={model.capacity} coverageThin={model.capacityCoverageThin} />
     </div>
   );
@@ -84,6 +87,95 @@ function HorizonCard({
       />
     </CardShell>
   );
+}
+
+/**
+ * Spiegel-Card: Spalten = Horizonte (H1/H2/H3/Ohne), Quadrate pro Spalte
+ * unifarben in der Horizon-Farbe. Stage-Info wandert in den Tooltip; die
+ * Sortierung pro Spalte folgt dem Stage-Index (L0 unten, L5 oben).
+ */
+function HorizonMixCard({
+  model,
+  coverageThin,
+}: {
+  model: PortfolioGuardrailsModel["horizon"];
+  coverageThin: boolean;
+}) {
+  return (
+    <CardShell
+      title="Investment by Horizon · Mix"
+      subtitle="Pro Horizon ein Turm — wie viele Epics in jedem Horizon"
+      status={model.status}
+    >
+      <HorizonHorizonTower epicsByHorizon={model.epicsByHorizon} />
+      <HorizonShareLegend rows={model.rows} />
+      <Footer
+        unclassifiedCount={model.unclassifiedCount}
+        totalCount={model.totalCount}
+        coverageThin={coverageThin}
+        coverageLabel="ohne Horizon"
+      />
+    </CardShell>
+  );
+}
+
+const HORIZON_COLUMN_LABEL: Record<HorizonColumn, string> = {
+  h1: HORIZON_LABEL.h1,
+  h2: HORIZON_LABEL.h2,
+  h3: HORIZON_LABEL.h3,
+  none: "Ohne",
+};
+const HORIZON_COLUMN_COLOR: Record<HorizonColumn, string> = {
+  h1: HORIZON_COLOR.h1 ?? "bg-muted-foreground/30",
+  h2: HORIZON_COLOR.h2 ?? "bg-muted-foreground/30",
+  h3: HORIZON_COLOR.h3 ?? "bg-muted-foreground/30",
+  none: "bg-muted-foreground/30",
+};
+
+function HorizonHorizonTower({
+  epicsByHorizon,
+}: {
+  epicsByHorizon: Record<HorizonColumn, StageTowerEpic[]>;
+}) {
+  return (
+    <div className="grid grid-cols-4 gap-1.5">
+      {HORIZON_COLUMNS.map((c) => {
+        const epics = epicsByHorizon[c];
+        const color = HORIZON_COLUMN_COLOR[c];
+        return (
+          <div key={c} className="flex flex-col items-center gap-1.5">
+            <div className="w-full text-center text-[10px] font-medium tabular-nums text-muted-foreground">
+              {epics.length}
+            </div>
+            <div className="flex h-32 w-full flex-col-reverse items-center justify-start gap-0.5 rounded-md bg-muted/40 p-1">
+              {epics.map((e) => (
+                <span
+                  key={e.id}
+                  className={`size-2.5 shrink-0 rounded-sm ${color} ${
+                    e.needsSteeringAttention ? "ring-1 ring-red-500" : ""
+                  }`}
+                  title={mixTooltip(e)}
+                />
+              ))}
+            </div>
+            <span className="text-center text-[10px] leading-tight text-muted-foreground">
+              <span className="font-medium text-foreground/70">
+                {c === "none" ? "—" : c.toUpperCase()}
+              </span>
+              <br />
+              {HORIZON_COLUMN_LABEL[c]}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function mixTooltip(e: StageTowerEpic): string {
+  const stageLabel = STAGE_GATE_LABELS[e.stageGate] ?? e.stageGate;
+  const steering = e.needsSteeringAttention ? " · ⚠ Steering" : "";
+  return `${e.title} · ${e.stageGate} ${stageLabel}${steering}`;
 }
 
 /**

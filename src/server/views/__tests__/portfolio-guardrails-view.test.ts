@@ -65,6 +65,25 @@ describe("computePortfolioGuardrails", () => {
     expect(m.horizon.epicsByStage.L3.map((e) => e.id)).toEqual(["r", "t", "s", "p", "q"]);
   });
 
+  it("baut epicsByHorizon (H1/H2/H3/none) und sortiert pro Spalte nach Stage-Index", () => {
+    const m = computePortfolioGuardrails({
+      epics: [
+        epic({ id: "a", investmentHorizon: "h1", stageGate: "L4" }),
+        epic({ id: "b", investmentHorizon: "h1", stageGate: "L0" }),
+        epic({ id: "c", investmentHorizon: "h2", stageGate: "L3" }),
+        epic({ id: "d", investmentHorizon: "h3", stageGate: "L1" }),
+        epic({ id: "e", investmentHorizon: null, stageGate: "L2" }),
+        epic({ id: "f", investmentHorizon: null, stageGate: "L5" }),
+      ],
+      targets: DEFAULT_GUARDRAIL_TARGETS,
+    });
+    expect(m.horizon.epicsByHorizon.h1.map((e) => e.id)).toEqual(["b", "a"]);
+    expect(m.horizon.epicsByHorizon.h2.map((e) => e.id)).toEqual(["c"]);
+    expect(m.horizon.epicsByHorizon.h3.map((e) => e.id)).toEqual(["d"]);
+    expect(m.horizon.epicsByHorizon.none.map((e) => e.id)).toEqual(["e", "f"]);
+    expect(m.horizon.epicsByHorizon.h1[0]?.stageGate).toBe("L0");
+  });
+
   it("ignoriert unbekannte stageGate-Werte (kein Crash)", () => {
     const m = computePortfolioGuardrails({
       epics: [epic({ id: "x", stageGate: "L99" as unknown as string })],
