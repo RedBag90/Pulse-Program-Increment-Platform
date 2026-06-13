@@ -122,18 +122,49 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       where: { epicId: epic.id },
       select: { allocations: true },
     }),
-    // Netzplan-Ansicht (Roadmap-N1): Edges nur innerhalb der
-    // Child-Features dieses Epics — Cross-Epic-Deps bleiben der
-    // PI-Sicht.
+    // Netzplan (Roadmap-N1 + P6): Edges, die mit MINDESTENS einem
+    // Endpunkt in diesem Epic stecken. Cross-Epic-Endpunkte rendert
+    // P6 als Ghost-Nodes mit Epic-Titel + Klick-Through.
     featureIds.length === 0
-      ? Promise.resolve([] as { id: string; fromId: string; toId: string; type: string }[])
+      ? Promise.resolve(
+          [] as Array<{
+            id: string;
+            fromId: string;
+            toId: string;
+            type: string;
+            from: {
+              id: string;
+              title: string;
+              parent: { id: string; title: string } | null;
+            } | null;
+            to: { id: string; title: string; parent: { id: string; title: string } | null } | null;
+          }>,
+        )
       : db.dependency.findMany({
           where: {
             tenantId: principal.tenantId,
-            fromId: { in: featureIds },
-            toId: { in: featureIds },
+            OR: [{ fromId: { in: featureIds } }, { toId: { in: featureIds } }],
           },
-          select: { id: true, fromId: true, toId: true, type: true },
+          select: {
+            id: true,
+            fromId: true,
+            toId: true,
+            type: true,
+            from: {
+              select: {
+                id: true,
+                title: true,
+                parent: { select: { id: true, title: true } },
+              },
+            },
+            to: {
+              select: {
+                id: true,
+                title: true,
+                parent: { select: { id: true, title: true } },
+              },
+            },
+          },
         }),
     // Netzplan-Layout (Roadmap-P5): persistierte Node-Positionen pro
     // Epic. Tenant-weit; alle User sehen dasselbe Layout.

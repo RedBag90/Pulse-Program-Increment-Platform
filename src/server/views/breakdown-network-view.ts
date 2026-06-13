@@ -39,11 +39,31 @@ export interface BreakdownGraphEdge {
   type: DependencyEdgeType;
 }
 
+/**
+ * Ghost-Node fuer einen Cross-Epic-Endpunkt (Roadmap-P6). Wird im
+ * Netzplan als gestrichelter, gedimmter Knoten links (predecessor) bzw.
+ * rechts (successor) der internen Features gerendert. Klick navigiert
+ * zum externen Feature-Detail.
+ */
+export interface BreakdownGhostNode {
+  id: string;
+  title: string;
+  /** Titel des Parent-Epics. null wenn der Initiative-Parent fehlt
+   *  (sollte in der Praxis nicht vorkommen, defensiv). */
+  epicTitle: string | null;
+  epicId: string | null;
+  /** "predecessor" wenn der externe Knoten Source einer Edge in dieses
+   *  Epic ist; "successor" wenn er Target einer Edge aus diesem Epic ist.
+   *  Knoten, die beide Rollen haben, werden zweimal gerendert (selten). */
+  role: "predecessor" | "successor";
+}
+
 export interface BreakdownGraphModel {
   nodes: BreakdownGraphNode[];
   edges: BreakdownGraphEdge[];
-  /** Anzahl Edges, die im Input vorkamen aber rausgefiltert wurden
-   *  (Endpunkt nicht in `features`). Surfaces als Hinweis im UI. */
+  /** Cross-Epic-Endpunkte (Roadmap-P6). */
+  ghostNodes: BreakdownGhostNode[];
+  /** Anzahl Edges, die wegen ungueltigem Type verworfen wurden. */
   droppedEdgeCount: number;
 }
 
@@ -65,6 +85,10 @@ interface DependencyInput {
   fromId: string;
   toId: string;
   type: string;
+  /** Info ueber die Endpunkte — fuer Ghost-Nodes (P6). Optional, weil
+   *  Aufrufer ohne Cross-Epic-Scope (Tests) keine Joins brauchen. */
+  from?: { id: string; title: string; parent: { id: string; title: string } | null } | null;
+  to?: { id: string; title: string; parent: { id: string; title: string } | null } | null;
 }
 
 function tierFor(wsjf: number | null): BreakdownGraphNode["wsjfTier"] {
@@ -104,19 +128,53 @@ export function buildBreakdownGraph(input: {
 
   let dropped = 0;
   const edges: BreakdownGraphEdge[] = [];
+  const ghostMap = new Map<string, BreakdownGhostNode>();
   for (const d of dependencies) {
-    if (!featureIds.has(d.fromId) || !featureIds.has(d.toId)) {
-      dropped += 1;
-      continue;
-    }
     if (!isValidEdgeType(d.type)) {
       dropped += 1;
       continue;
     }
+    const sourceInScope = featureIds.has(d.fromId);
+    const targetInScope = featureIds.has(d.toId);
+    if (!sourceInScope && !targetInScope) {
+      // Sollte durch die OR-Query gar nicht ankommen, defensiv:
+      dropped += 1;
+      continue;
+    }
+    if (!sourceInScope) {
+      // Source ist extern → Ghost-Predecessor
+      const key = `${d.fromId}:predecessor`;
+      if (!ghostMap.has(key)) {
+        ghostMap.set(key, {
+          id: d.fromId,
+          title: d.from?.title ?? "Externes Feature",
+          epicTitle: d.from?.parent?.title ?? null,
+          epicId: d.from?.parent?.id ?? null,
+          role: "predecessor",
+        });
+      }
+    }
+    if (!targetInScope) {
+      const key = `${d.toId}:successor`;
+      if (!ghostMap.has(key)) {
+        ghostMap.set(key, {
+          id: d.toId,
+          title: d.to?.title ?? "Externes Feature",
+          epicTitle: d.to?.parent?.title ?? null,
+          epicId: d.to?.parent?.id ?? null,
+          role: "successor",
+        });
+      }
+    }
     edges.push({ id: d.id, source: d.fromId, target: d.toId, type: d.type });
   }
 
-  return { nodes, edges, droppedEdgeCount: dropped };
+  return {
+    nodes,
+    edges,
+    ghostNodes: Array.from(ghostMap.values()),
+    droppedEdgeCount: dropped,
+  };
 }
 
 /**

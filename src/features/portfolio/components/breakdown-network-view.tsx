@@ -44,6 +44,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   buildBreakdownGraph,
+  type BreakdownGhostNode,
   type BreakdownGraphEdge,
   type BreakdownGraphNode,
   type DependencyEdgeType,
@@ -71,6 +72,8 @@ interface Props {
     fromId: string;
     toId: string;
     type: string;
+    from?: { id: string; title: string; parent: { id: string; title: string } | null } | null;
+    to?: { id: string; title: string; parent: { id: string; title: string } | null } | null;
   }>;
   canLinkDependency: boolean;
   /** Wenn `true`, sind die Plus-Buttons am Node + Edge sichtbar (N3). */
@@ -524,7 +527,47 @@ function InsertableEdge(props: EdgeProps) {
   );
 }
 
-const NODE_TYPES = { feature: FeatureNode };
+type GhostNodeData = BreakdownGhostNode;
+
+function GhostNode({ data }: NodeProps) {
+  const node = data as unknown as GhostNodeData;
+  const href = `/umsetzung/feature/${node.id}` as never;
+  return (
+    <div className="relative" style={{ width: NODE_WIDTH }}>
+      <Handle
+        type="target"
+        position={Position.Left}
+        isConnectable={false}
+        className="!size-0 !border-none"
+      />
+      <Link
+        href={href}
+        className="block rounded-lg border border-dashed border-muted-foreground/40 bg-card/60 p-3 text-left text-xs no-underline opacity-70 shadow-sm transition-colors hover:bg-muted/40 hover:opacity-100"
+      >
+        <div className="mb-1.5 flex items-center gap-1.5">
+          <span className="size-2 shrink-0 rounded-full bg-muted-foreground/40" aria-hidden />
+          <span className="line-clamp-2 flex-1 text-[13px] font-medium leading-tight text-muted-foreground">
+            {node.title}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <span className="rounded-full bg-muted px-1.5 py-0.5">
+            {node.role === "predecessor" ? "Predecessor extern" : "Successor extern"}
+          </span>
+          {node.epicTitle && <span className="ml-auto truncate">{node.epicTitle}</span>}
+        </div>
+      </Link>
+      <Handle
+        type="source"
+        position={Position.Right}
+        isConnectable={false}
+        className="!size-0 !border-none"
+      />
+    </div>
+  );
+}
+
+const NODE_TYPES = { feature: FeatureNode, ghost: GhostNode };
 const EDGE_TYPES = { insertable: InsertableEdge };
 
 function edgeStyle(type: DependencyEdgeType): {
@@ -546,6 +589,7 @@ function edgeStyle(type: DependencyEdgeType): {
 function layoutGraph(
   nodes: BreakdownGraphNode[],
   edges: BreakdownGraphEdge[],
+  ghostNodes: BreakdownGhostNode[],
   artById: Map<string, string>,
   ctx: {
     canLinkDependency: boolean;
@@ -576,6 +620,9 @@ function layoutGraph(
   for (const n of nodes) {
     g.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
   }
+  for (const gn of ghostNodes) {
+    g.setNode(gn.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+  }
   for (const e of edges) {
     g.setEdge(e.source, e.target);
   }
@@ -604,6 +651,21 @@ function layoutGraph(
       position,
     };
   });
+
+  for (const gn of ghostNodes) {
+    const dagrePos = g.node(gn.id);
+    rfNodes.push({
+      id: gn.id,
+      type: "ghost",
+      data: gn as unknown as Record<string, unknown>,
+      position: {
+        x: (dagrePos?.x ?? 0) - NODE_WIDTH / 2,
+        y: (dagrePos?.y ?? 0) - NODE_HEIGHT / 2,
+      },
+      draggable: false,
+      selectable: true,
+    });
+  }
 
   const rfEdges: Edge[] = edges.map((e) => {
     const s = edgeStyle(e.type);
@@ -868,7 +930,7 @@ export function BreakdownNetworkView({
 
   const baseGraph = useMemo(
     () =>
-      layoutGraph(model.nodes, model.edges, artById, {
+      layoutGraph(model.nodes, model.edges, model.ghostNodes, artById, {
         canLinkDependency,
         canCreateFeature,
         canEditFeature: canCreateFeature,
@@ -881,6 +943,7 @@ export function BreakdownNetworkView({
     [
       model.nodes,
       model.edges,
+      model.ghostNodes,
       artById,
       canLinkDependency,
       canCreateFeature,
@@ -1031,7 +1094,14 @@ export function BreakdownNetworkView({
       {model.droppedEdgeCount > 0 && (
         <p className="text-xs text-muted-foreground">
           {model.droppedEdgeCount} Abhängigkeit{model.droppedEdgeCount === 1 ? "" : "en"} mit
-          Endpunkten ausserhalb dieses Epics werden hier nicht gezeigt.
+          ungültigem Typ ignoriert.
+        </p>
+      )}
+      {model.ghostNodes.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {model.ghostNodes.length} Cross-Epic-Endpunkt
+          {model.ghostNodes.length === 1 ? "" : "e"} (gestrichelt) — Klick navigiert zum externen
+          Feature.
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2 text-xs">

@@ -68,9 +68,16 @@ interface Props {
   pisByArt: Record<string, Pi[]>;
   /** Sign-off state for the Breakdown section (omit to hide the banner). */
   signoff?: SectionSignoff;
-  /** Feature-Feature-Dependencies innerhalb dieses Epics — Input fuer
-   *  die Netzplan-Ansicht. */
-  dependencies: ReadonlyArray<{ id: string; fromId: string; toId: string; type: string }>;
+  /** Feature-Feature-Dependencies fuer die Netzplan-Ansicht. Cross-
+   *  Epic-Endpunkte tragen Ghost-Info (Roadmap-P6). */
+  dependencies: ReadonlyArray<{
+    id: string;
+    fromId: string;
+    toId: string;
+    type: string;
+    from?: { id: string; title: string; parent: { id: string; title: string } | null } | null;
+    to?: { id: string; title: string; parent: { id: string; title: string } | null } | null;
+  }>;
   /** Wenn `true`, sind Drag-Handles am Netzplan aktiv — User kann neue
    *  Dependencies per Drag-Connect anlegen. Per-Edge-Auth checkt der
    *  Server-Action nochmal. */

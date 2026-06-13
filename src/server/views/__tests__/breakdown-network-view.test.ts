@@ -37,12 +37,31 @@ describe("buildBreakdownGraph", () => {
       features: [feature({ id: "a" }), feature({ id: "b" })],
       dependencies: [
         { id: "e1", fromId: "a", toId: "b", type: "depends_on" },
-        { id: "e2", fromId: "a", toId: "outside", type: "depends_on" },
-        { id: "e3", fromId: "outside", toId: "b", type: "blocks" },
+        {
+          id: "e2",
+          fromId: "a",
+          toId: "outside",
+          type: "depends_on",
+          to: { id: "outside", title: "Outside-T", parent: { id: "ep2", title: "Other Epic" } },
+        },
+        {
+          id: "e3",
+          fromId: "outside",
+          toId: "b",
+          type: "blocks",
+          from: { id: "outside", title: "Outside-S", parent: { id: "ep3", title: "External" } },
+        },
       ],
     });
-    expect(m.edges.map((e) => e.id)).toEqual(["e1"]);
-    expect(m.droppedEdgeCount).toBe(2);
+    // P6: cross-epic-edges bleiben jetzt drin (mit ghost-endpunkten).
+    expect(m.edges.map((e) => e.id).sort()).toEqual(["e1", "e2", "e3"]);
+    expect(m.droppedEdgeCount).toBe(0);
+    expect(m.ghostNodes).toHaveLength(2);
+    const successor = m.ghostNodes.find((g) => g.role === "successor");
+    const predecessor = m.ghostNodes.find((g) => g.role === "predecessor");
+    expect(successor?.id).toBe("outside");
+    expect(successor?.epicTitle).toBe("Other Epic");
+    expect(predecessor?.epicTitle).toBe("External");
   });
 
   it("ignoriert unbekannte dependency-types und zaehlt sie als dropped", () => {
