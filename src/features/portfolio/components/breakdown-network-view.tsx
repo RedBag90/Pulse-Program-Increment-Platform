@@ -1,6 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import {
+  createContext,
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Download, Pencil, Plus } from "lucide-react";
 import dagre from "@dagrejs/dagre";
@@ -19,6 +29,7 @@ import {
   getNodesBounds,
   getSmoothStepPath,
   getViewportForBounds,
+  useNodesState,
   useReactFlow,
   type Connection,
   type Edge,
@@ -127,12 +138,15 @@ const TIER_BADGE: Record<BreakdownGraphNode["wsjfTier"], string> = {
 type QuickAddSubmit = (input: { title: string; featureType: "feature" | "enabler" }) => void;
 type QuickEditSubmit = (input: { title: string; featureType: "feature" | "enabler" | "" }) => void;
 
+/**
+ * Reine, statische Node-Daten — keine callbacks. Callbacks leben im
+ * `BreakdownInteractionContext`, damit `node.data` identitaetsstabil
+ * zwischen renders bleibt und React.memo greift.
+ */
 interface FeatureNodeData extends BreakdownGraphNode {
   connectable: boolean;
   showPlus: boolean;
-  onAdd?: QuickAddSubmit | undefined;
   showEdit: boolean;
-  onEdit?: QuickEditSubmit | undefined;
   artId: string;
 }
 
@@ -141,11 +155,43 @@ type EdgeTypeChange = (next: DependencyEdgeType) => void;
 interface InsertableEdgeData {
   type: DependencyEdgeType;
   showPlus: boolean;
-  onInsert?: QuickAddSubmit | undefined;
-  /** Wenn vorhanden, wird das Edge-Label klickbar und oeffnet einen Type-Picker. */
-  onChangeType?: EdgeTypeChange | undefined;
-  /** Optionaler Loeschen-Button im selben Popover. */
-  onDeleteEdge?: (() => void) | undefined;
+  /** Source-ART — Lookup-Schluessel fuer Callbacks aus dem Context. */
+  sourceArtId: string;
+  /** Source-/Target-Initiative-IDs sind via `props.source` / `props.target` von
+   *  ReactFlow bereitgestellt — wir brauchen sie nicht nochmal im Data-Shape. */
+  canChangeType: boolean;
+  canInsert: boolean;
+}
+
+interface BreakdownInteractionCtx {
+  onAddSuccessor: (predecessorId: string, predecessorArtId: string) => QuickAddSubmit;
+  onEditFeature: (featureId: string, featureArtId: string) => QuickEditSubmit;
+  onInsertOnEdge: (
+    fromId: string,
+    toId: string,
+    edgeType: DependencyEdgeType,
+    sourceArtId: string,
+  ) => QuickAddSubmit;
+  onChangeEdgeType: (
+    fromId: string,
+    toId: string,
+    currentType: DependencyEdgeType,
+    sourceArtId: string,
+  ) => EdgeTypeChange;
+  onDeleteEdge: (
+    fromId: string,
+    toId: string,
+    edgeType: DependencyEdgeType,
+    sourceArtId: string,
+  ) => () => void;
+}
+
+const BreakdownInteractionContext = createContext<BreakdownInteractionCtx | null>(null);
+
+function useBreakdownInteraction(): BreakdownInteractionCtx {
+  const ctx = useContext(BreakdownInteractionContext);
+  if (!ctx) throw new Error("BreakdownInteractionContext nicht verfuegbar");
+  return ctx;
 }
 
 function QuickAddForm({
@@ -242,13 +288,12 @@ function QuickAddPopover({
   );
 }
 
-function QuickEditPopover({
-  node,
-  onSubmit,
-}: {
-  node: FeatureNodeData;
-  onSubmit: QuickEditSubmit;
-}) {
+function QuickEditPopover({ node }: { node: FeatureNodeData }) {
+  const ctx = useBreakdownInteraction();
+  const onSubmit = useMemo(
+    () => ctx.onEditFeature(node.id, node.artId),
+    [ctx, node.id, node.artId],
+  );
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(node.title);
   const [featureType, setFeatureType] = useState<"feature" | "enabler" | "">(
@@ -348,7 +393,7 @@ function QuickEditPopover({
   );
 }
 
-function FeatureNode({ data }: NodeProps) {
+const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
   const node = data as unknown as FeatureNodeData;
   const isEnabler = node.featureType === "enabler";
   return (
@@ -398,20 +443,26 @@ function FeatureNode({ data }: NodeProps) {
             : "!size-0 !border-none"
         }
       />
-      {node.showPlus && node.onAdd && (
-        <div className="absolute -right-7 top-1/2 -translate-y-1/2">
-          <QuickAddPopover onSubmit={node.onAdd} busy={false}>
-            <button
-              type="button"
-              aria-label="Folge-Feature anlegen"
-              className="flex size-5 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition hover:bg-primary hover:text-primary-foreground"
-            >
-              <Plus className="size-3" />
-            </button>
-          </QuickAddPopover>
-        </div>
-      )}
-      {node.showEdit && node.onEdit && <QuickEditPopover node={node} onSubmit={node.onEdit} />}
+      {node.showPlus && <NodeAddPlusButton node={node} />}
+      {node.showEdit && <QuickEditPopover node={node} />}
+    </div>
+  );
+});
+
+function NodeAddPlusButton({ node }: { node: FeatureNodeData }) {
+  const ctx = useBreakdownInteraction();
+  const onAdd = useMemo(() => ctx.onAddSuccessor(node.id, node.artId), [ctx, node.id, node.artId]);
+  return (
+    <div className="absolute -right-7 top-1/2 -translate-y-1/2">
+      <QuickAddPopover onSubmit={onAdd} busy={false}>
+        <button
+          type="button"
+          aria-label="Folge-Feature anlegen"
+          className="flex size-5 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition hover:bg-primary hover:text-primary-foreground"
+        >
+          <Plus className="size-3" />
+        </button>
+      </QuickAddPopover>
     </div>
   );
 }
@@ -480,9 +531,11 @@ function EdgeTypePopover({
   );
 }
 
-function InsertableEdge(props: EdgeProps) {
+const InsertableEdge = memo(function InsertableEdge(props: EdgeProps) {
   const {
     id,
+    source,
+    target,
     sourceX,
     sourceY,
     targetX,
@@ -497,6 +550,9 @@ function InsertableEdge(props: EdgeProps) {
   } = props;
   const edgeData = data as unknown as InsertableEdgeData | undefined;
   const type = edgeData?.type ?? "depends_on";
+  const sourceArtId = edgeData?.sourceArtId ?? "";
+  const canChangeType = edgeData?.canChangeType ?? false;
+  const canInsert = edgeData?.canInsert ?? false;
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -511,6 +567,22 @@ function InsertableEdge(props: EdgeProps) {
   });
   const [hovered, setHovered] = useState(false);
   const showDecoration = hovered || selected || false;
+
+  // Callbacks aus Context — nur konstruieren wenn benoetigt.
+  const ctx = useContext(BreakdownInteractionContext);
+  const onChangeType = useMemo(() => {
+    if (!ctx || !canChangeType) return undefined;
+    return ctx.onChangeEdgeType(source, target, type, sourceArtId);
+  }, [ctx, canChangeType, source, target, type, sourceArtId]);
+  const onDeleteEdge = useMemo(() => {
+    if (!ctx || !canChangeType) return undefined;
+    return ctx.onDeleteEdge(source, target, type, sourceArtId);
+  }, [ctx, canChangeType, source, target, type, sourceArtId]);
+  const onInsert = useMemo(() => {
+    if (!ctx || !canInsert) return undefined;
+    return ctx.onInsertOnEdge(source, target, type, sourceArtId);
+  }, [ctx, canInsert, source, target, type, sourceArtId]);
+
   return (
     <>
       <path
@@ -521,13 +593,14 @@ function InsertableEdge(props: EdgeProps) {
         markerEnd={markerEnd}
         fill="none"
       />
-      {/* Transparente hit-area fuer komfortableres hover-target. */}
+      {/* Transparente hit-area: pointerEvents auf "stroke" beschraenkt
+       *  das hover-target auf die linie selbst (statt der bounding-box). */}
       <path
         d={edgePath}
         stroke="transparent"
         strokeWidth={20}
         fill="none"
-        style={{ cursor: "pointer" }}
+        style={{ cursor: "pointer", pointerEvents: "stroke" }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       />
@@ -544,12 +617,8 @@ function InsertableEdge(props: EdgeProps) {
           onMouseLeave={() => setHovered(false)}
         >
           {label &&
-            (edgeData?.onChangeType ? (
-              <EdgeTypePopover
-                currentType={type}
-                onChange={edgeData.onChangeType}
-                onDelete={edgeData.onDeleteEdge}
-              >
+            (onChangeType ? (
+              <EdgeTypePopover currentType={type} onChange={onChangeType} onDelete={onDeleteEdge}>
                 <button
                   type="button"
                   aria-label="Abhängigkeitstyp ändern"
@@ -567,8 +636,8 @@ function InsertableEdge(props: EdgeProps) {
                 {label}
               </span>
             ))}
-          {edgeData?.showPlus && edgeData.onInsert && (
-            <QuickAddPopover onSubmit={edgeData.onInsert} busy={false}>
+          {edgeData?.showPlus && onInsert && (
+            <QuickAddPopover onSubmit={onInsert} busy={false}>
               <button
                 type="button"
                 aria-label="Feature zwischenfügen"
@@ -582,11 +651,11 @@ function InsertableEdge(props: EdgeProps) {
       </EdgeLabelRenderer>
     </>
   );
-}
+});
 
 type GhostNodeData = BreakdownGhostNode;
 
-function GhostNode({ data }: NodeProps) {
+const GhostNode = memo(function GhostNode({ data }: NodeProps) {
   const node = data as unknown as GhostNodeData;
   const href = `/umsetzung/feature/${node.id}` as never;
   return (
@@ -622,9 +691,9 @@ function GhostNode({ data }: NodeProps) {
       />
     </div>
   );
-}
+});
 
-function PiHeaderNode({ data }: NodeProps) {
+const PiHeaderNode = memo(function PiHeaderNode({ data }: NodeProps) {
   const node = data as unknown as { label: string };
   return (
     <div
@@ -634,7 +703,7 @@ function PiHeaderNode({ data }: NodeProps) {
       {node.label}
     </div>
   );
-}
+});
 
 const NODE_TYPES = { feature: FeatureNode, ghost: GhostNode, "pi-header": PiHeaderNode };
 const EDGE_TYPES = { insertable: InsertableEdge };
@@ -720,38 +789,20 @@ function edgeStyle(type: DependencyEdgeType): {
   };
 }
 
+interface LayoutCtx {
+  canLinkDependency: boolean;
+  canCreateFeature: boolean;
+  canEditFeature: boolean;
+  /** Persistierte Positionen — Knoten ohne Eintrag bleiben dagre-gelayoutet. */
+  savedPositions?: Record<string, { x: number; y: number }> | undefined;
+}
+
 function layoutGraph(
   nodes: BreakdownGraphNode[],
   edges: BreakdownGraphEdge[],
   ghostNodes: BreakdownGhostNode[],
   artById: Map<string, string>,
-  ctx: {
-    canLinkDependency: boolean;
-    canCreateFeature: boolean;
-    canEditFeature: boolean;
-    /** Persistierte Positionen — Knoten ohne Eintrag bleiben dagre-gelayoutet. */
-    savedPositions?: Record<string, { x: number; y: number }> | undefined;
-    onAddSuccessor: (predecessorId: string, predecessorArtId: string) => QuickAddSubmit;
-    onEditFeature: (featureId: string, featureArtId: string) => QuickEditSubmit;
-    onInsertOnEdge: (
-      fromId: string,
-      toId: string,
-      edgeType: DependencyEdgeType,
-      sourceArtId: string,
-    ) => QuickAddSubmit;
-    onChangeEdgeType: (
-      fromId: string,
-      toId: string,
-      currentType: DependencyEdgeType,
-      sourceArtId: string,
-    ) => EdgeTypeChange;
-    onDeleteEdge: (
-      fromId: string,
-      toId: string,
-      edgeType: DependencyEdgeType,
-      sourceArtId: string,
-    ) => () => void;
-  },
+  ctx: LayoutCtx,
 ): { nodes: Node[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
@@ -783,9 +834,7 @@ function layoutGraph(
       artId,
       connectable: ctx.canLinkDependency,
       showPlus: ctx.canCreateFeature && artId !== "",
-      onAdd: artId !== "" ? ctx.onAddSuccessor(n.id, artId) : undefined,
       showEdit: ctx.canEditFeature && artId !== "",
-      onEdit: artId !== "" ? ctx.onEditFeature(n.id, artId) : undefined,
     };
     return {
       id: n.id,
@@ -816,18 +865,9 @@ function layoutGraph(
     const data: InsertableEdgeData = {
       type: e.type,
       showPlus: ctx.canCreateFeature && sourceArtId !== "",
-      onInsert:
-        sourceArtId !== ""
-          ? ctx.onInsertOnEdge(e.source, e.target, e.type, sourceArtId)
-          : undefined,
-      onChangeType:
-        ctx.canLinkDependency && sourceArtId !== ""
-          ? ctx.onChangeEdgeType(e.source, e.target, e.type, sourceArtId)
-          : undefined,
-      onDeleteEdge:
-        ctx.canLinkDependency && sourceArtId !== ""
-          ? ctx.onDeleteEdge(e.source, e.target, e.type, sourceArtId)
-          : undefined,
+      sourceArtId,
+      canChangeType: ctx.canLinkDependency && sourceArtId !== "",
+      canInsert: sourceArtId !== "",
     };
     return {
       id: e.id,
@@ -860,31 +900,7 @@ function layoutByPi(
   ghostNodes: BreakdownGhostNode[],
   pis: ReadonlyArray<{ id: string; name: string; startDate: string }>,
   artById: Map<string, string>,
-  ctx: {
-    canLinkDependency: boolean;
-    canCreateFeature: boolean;
-    canEditFeature: boolean;
-    onAddSuccessor: (predecessorId: string, predecessorArtId: string) => QuickAddSubmit;
-    onEditFeature: (featureId: string, featureArtId: string) => QuickEditSubmit;
-    onInsertOnEdge: (
-      fromId: string,
-      toId: string,
-      edgeType: DependencyEdgeType,
-      sourceArtId: string,
-    ) => QuickAddSubmit;
-    onChangeEdgeType: (
-      fromId: string,
-      toId: string,
-      currentType: DependencyEdgeType,
-      sourceArtId: string,
-    ) => EdgeTypeChange;
-    onDeleteEdge: (
-      fromId: string,
-      toId: string,
-      edgeType: DependencyEdgeType,
-      sourceArtId: string,
-    ) => () => void;
-  },
+  ctx: LayoutCtx,
 ): { nodes: Node[]; edges: Edge[] } {
   const COL_WIDTH = NODE_WIDTH + 160;
   const HEADER_HEIGHT = 40;
@@ -938,9 +954,7 @@ function layoutByPi(
           artId,
           connectable: ctx.canLinkDependency,
           showPlus: ctx.canCreateFeature && artId !== "",
-          onAdd: artId !== "" ? ctx.onAddSuccessor(n.id, artId) : undefined,
           showEdit: ctx.canEditFeature && artId !== "",
-          onEdit: artId !== "" ? ctx.onEditFeature(n.id, artId) : undefined,
         };
         rfNodes.push({
           id: n.id,
@@ -967,18 +981,9 @@ function layoutByPi(
     const data: InsertableEdgeData = {
       type: e.type,
       showPlus: ctx.canCreateFeature && sourceArtId !== "",
-      onInsert:
-        sourceArtId !== ""
-          ? ctx.onInsertOnEdge(e.source, e.target, e.type, sourceArtId)
-          : undefined,
-      onChangeType:
-        ctx.canLinkDependency && sourceArtId !== ""
-          ? ctx.onChangeEdgeType(e.source, e.target, e.type, sourceArtId)
-          : undefined,
-      onDeleteEdge:
-        ctx.canLinkDependency && sourceArtId !== ""
-          ? ctx.onDeleteEdge(e.source, e.target, e.type, sourceArtId)
-          : undefined,
+      sourceArtId,
+      canChangeType: ctx.canLinkDependency && sourceArtId !== "",
+      canInsert: sourceArtId !== "",
     };
     return {
       id: e.id,
@@ -1269,21 +1274,16 @@ export function BreakdownNetworkView({
   );
 
   const baseGraph = useMemo(() => {
-    const ctx = {
+    const layoutCtx: LayoutCtx = {
       canLinkDependency,
       canCreateFeature,
       canEditFeature: canCreateFeature,
-      onAddSuccessor,
-      onEditFeature,
-      onInsertOnEdge,
-      onChangeEdgeType,
-      onDeleteEdge: onDeleteEdgeFromPopover,
     };
     if (layoutMode === "pi") {
-      return layoutByPi(model.nodes, model.edges, model.ghostNodes, pis, artById, ctx);
+      return layoutByPi(model.nodes, model.edges, model.ghostNodes, pis, artById, layoutCtx);
     }
     return layoutGraph(model.nodes, model.edges, model.ghostNodes, artById, {
-      ...ctx,
+      ...layoutCtx,
       savedPositions,
     });
   }, [
@@ -1296,12 +1296,27 @@ export function BreakdownNetworkView({
     canLinkDependency,
     canCreateFeature,
     savedPositions,
-    onAddSuccessor,
-    onEditFeature,
-    onInsertOnEdge,
-    onChangeEdgeType,
-    onDeleteEdgeFromPopover,
   ]);
+
+  // Interaction-Context: alle callbacks an einer Stelle, identitaetsstabil
+  // via useMemo. Custom-Nodes/Edges lesen sie per useContext und vermeiden
+  // so neue Function-Identitaeten in node.data — `React.memo` greift.
+  const interactionCtx = useMemo<BreakdownInteractionCtx>(
+    () => ({
+      onAddSuccessor,
+      onEditFeature,
+      onInsertOnEdge,
+      onChangeEdgeType,
+      onDeleteEdge: onDeleteEdgeFromPopover,
+    }),
+    [onAddSuccessor, onEditFeature, onInsertOnEdge, onChangeEdgeType, onDeleteEdgeFromPopover],
+  );
+
+  // Drag-managed nodes via useNodesState — ReactFlow handhabt
+  // Drag-Position-Updates intern als transform-only, kein React-re-render
+  // pro frame. Sync von baseGraph (nach refresh) ueber useEffect.
+  const [nodes, setNodes, onNodesChange] = useNodesState(baseGraph.nodes);
+  useEffect(() => setNodes(baseGraph.nodes), [baseGraph.nodes, setNodes]);
 
   // Controlled-Edges fuer Optimistic Drag-Connect.
   const [edges, setEdges] = useState<Edge[]>(baseGraph.edges);
@@ -1310,11 +1325,11 @@ export function BreakdownNetworkView({
   // Filter-Overlay (Roadmap-P4): nicht-gematchte Nodes + Edges, die nicht
   // beide endpunkte gematcht haben, werden auf opacity 0.25 dimmed.
   const displayNodes = useMemo(() => {
-    if (!matchedIds) return baseGraph.nodes;
-    return baseGraph.nodes.map((n) =>
+    if (!matchedIds) return nodes;
+    return nodes.map((n) =>
       matchedIds.has(n.id) ? n : { ...n, style: { ...(n.style ?? {}), opacity: 0.25 } },
     );
-  }, [baseGraph.nodes, matchedIds]);
+  }, [nodes, matchedIds]);
   const displayEdges = useMemo(() => {
     if (!matchedIds) return edges;
     return edges.map((e) => {
@@ -1562,46 +1577,49 @@ export function BreakdownNetworkView({
         </div>
       )}
       <div className="h-[480px] rounded-lg border bg-muted/30">
-        <ReactFlow
-          nodes={displayNodes}
-          edges={displayEdges}
-          {...(layoutMode === "topology" ? { onNodeDragStop } : {})}
-          nodeTypes={NODE_TYPES}
-          edgeTypes={EDGE_TYPES}
-          nodesDraggable={layoutMode === "topology"}
-          edgesFocusable={canLinkDependency}
-          edgesReconnectable={false}
-          deleteKeyCode={canLinkDependency ? ["Backspace", "Delete"] : null}
-          onEdgesDelete={onEdgesDelete}
-          nodesConnectable={canLinkDependency}
-          elementsSelectable
-          onConnect={onConnect}
-          fitView
-          fitViewOptions={{ padding: 0.15 }}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background />
-          <Controls showInteractive={false} />
-          <Panel position="top-right">
-            <ExportButton epicTitle={epicTitle} />
-          </Panel>
-          <MiniMap
-            pannable
-            zoomable
-            ariaLabel="Netzplan-Übersicht"
-            nodeColor={(n) => {
-              // PI-Header und Ghost-Nodes bekommen ein neutrales grau,
-              // damit die minimap nicht durch headerflaechen "geblockt"
-              // aussieht.
-              if (n.type === "pi-header") return "#e5e7eb";
-              if (n.type === "ghost") return "#cbd5e1";
-              const d = n.data as unknown as FeatureNodeData | undefined;
-              return d?.featureType === "enabler" ? "#a78bfa" : "#60a5fa";
-            }}
-            nodeStrokeWidth={0}
-            maskColor="rgba(0,0,0,0.04)"
-          />
-        </ReactFlow>
+        <BreakdownInteractionContext.Provider value={interactionCtx}>
+          <ReactFlow
+            nodes={displayNodes}
+            edges={displayEdges}
+            onNodesChange={onNodesChange}
+            {...(layoutMode === "topology" ? { onNodeDragStop } : {})}
+            nodeTypes={NODE_TYPES}
+            edgeTypes={EDGE_TYPES}
+            nodesDraggable={layoutMode === "topology"}
+            edgesFocusable={canLinkDependency}
+            edgesReconnectable={false}
+            deleteKeyCode={canLinkDependency ? ["Backspace", "Delete"] : null}
+            onEdgesDelete={onEdgesDelete}
+            nodesConnectable={canLinkDependency}
+            elementsSelectable
+            onConnect={onConnect}
+            fitView
+            fitViewOptions={{ padding: 0.15 }}
+            proOptions={{ hideAttribution: true }}
+          >
+            <Background />
+            <Controls showInteractive={false} />
+            <Panel position="top-right">
+              <ExportButton epicTitle={epicTitle} />
+            </Panel>
+            <MiniMap
+              pannable
+              zoomable
+              ariaLabel="Netzplan-Übersicht"
+              nodeColor={(n) => {
+                // PI-Header und Ghost-Nodes bekommen ein neutrales grau,
+                // damit die minimap nicht durch headerflaechen "geblockt"
+                // aussieht.
+                if (n.type === "pi-header") return "#e5e7eb";
+                if (n.type === "ghost") return "#cbd5e1";
+                const d = n.data as unknown as FeatureNodeData | undefined;
+                return d?.featureType === "enabler" ? "#a78bfa" : "#60a5fa";
+              }}
+              nodeStrokeWidth={0}
+              maskColor="rgba(0,0,0,0.04)"
+            />
+          </ReactFlow>
+        </BreakdownInteractionContext.Provider>
       </div>
     </div>
   );
