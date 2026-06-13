@@ -3,7 +3,6 @@
 import { useActionState, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Link } from "@/i18n/navigation";
 import { updateFeatureAction } from "@/features/art/actions/feature";
 import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
 import { DeleteFeatureButton } from "@/features/art/components/delete-feature-button";
@@ -100,8 +99,17 @@ function FeatureRow({
   canEdit: boolean;
   pis: Pi[];
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [expanded, setExpanded] = useState(false);
   const [state, action, isPending] = useActionState(updateFeatureAction, {});
+
+  function openSlideOver() {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("featureId", feature.id);
+    router.replace(`${pathname}?${next.toString()}` as never, { scroll: false });
+  }
 
   const wsjfFields = [
     { name: "wsjfBusinessValue", label: "Business Value", value: feature.wsjf.bv },
@@ -113,12 +121,13 @@ function FeatureRow({
   return (
     <div className="rounded border">
       <div className="flex items-center gap-3 p-3">
-        <Link
-          href={`/feature/${feature.id}`}
-          className="min-w-0 flex-1 truncate text-sm font-medium text-primary hover:underline"
+        <button
+          type="button"
+          onClick={openSlideOver}
+          className="min-w-0 flex-1 truncate text-left text-sm font-medium text-primary hover:underline"
         >
           {feature.title}
-        </Link>
+        </button>
         <span className="shrink-0 text-xs text-muted-foreground">{feature.artName}</span>
         <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs">{feature.status}</span>
         <span className="shrink-0 text-xs text-muted-foreground">WSJF {feature.wsjf.computed}</span>
