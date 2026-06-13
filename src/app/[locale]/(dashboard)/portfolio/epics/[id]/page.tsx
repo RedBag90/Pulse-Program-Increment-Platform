@@ -11,6 +11,8 @@ import { listEpicApprovals, listTenantApprovers } from "@/server/services/epic-a
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";
 import { EntityDetailShell, resolveTab } from "@/components/detail/entity-detail-shell";
+import { loadCockpitFeatureDetail } from "@/server/views/cockpit-feature-detail";
+import { FeatureSlideOver } from "@/features/umsetzung/components/feature-slide-over";
 import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
 import { PhaseBadge } from "@/components/detail/phase-badge";
 import { actionLabel, userLabel } from "@/components/detail/initiative-labels";
@@ -51,12 +53,12 @@ import type { EpicId } from "@/domain/types";
 
 interface Props {
   params: Promise<{ locale: string; id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; featureId?: string }>;
 }
 
 export default async function EpicDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { tab } = await searchParams;
+  const { tab, featureId } = await searchParams;
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -369,256 +371,266 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   const showHypoOwnerEdit = hypoBaseline != null && ownerRevisionActive && !showHypoReviewDiff;
   const showBcOwnerEdit = bcBaseline != null && ownerRevisionActive && !showBcReviewDiff;
 
+  // Slide-Over-Detail nur laden wenn ?featureId= im URL — gleiche Sicht
+  // wie im Cockpit, damit ein Klick auf eine Feature-Karte im Epic-
+  // Breakdown nicht mehr in eine separate Voll-Route springt.
+  const slideOverDetail = featureId
+    ? await loadCockpitFeatureDetail(db, principal, featureId)
+    : null;
+
   return (
-    <EntityDetailShell
-      backHref="/portfolio/epics"
-      backLabel="Zurück zu den Epics"
-      title={epic.title}
-      badge={practices.multiPartyApproval ? <PhaseBadge phase={approvalPhase} /> : undefined}
-      tabs={tabs}
-      activeTab={activeTab}
-      basePath={`/portfolio/epics/${epic.id}`}
-      headerActions={canEdit ? <DeleteEpicButton id={epic.id} title={epic.title} /> : undefined}
-      subHeader={(() => {
-        const childStats = {
-          total: epic.children.length,
-          completed: epic.children.filter((c) => c.status === "completed").length,
-        };
-        const subStage = subStageFor({
-          stageGate: epic.stageGate as StageGate,
-          businessCase: epic.businessCase,
-          businessCaseApprovedAt: epic.businessCaseApprovedAt,
-          childFeatureStats: childStats,
-        });
-        const nextStep = epicNextStep({
-          epicId: epic.id,
-          stageGate: epic.stageGate as StageGate,
-          subStage,
-          approvalPhase: practices.multiPartyApproval ? approvalPhase : null,
-          hasHypothesis: benefitHypothesisHasContent(benefitHypothesis.current),
-          hasBusinessCase: businessCaseHasContent(businessCase.current),
-          budgetAllocated,
-          impactRecognizedAt: epic.impactRecognizedAt,
-          childFeatureStats: childStats,
-        });
-        let actionSlot: React.ReactNode = undefined;
-        if (nextStep?.cta?.kind === "link") {
-          actionSlot = (
-            <Link
-              href={nextStep.cta.href as never}
-              className="inline-flex items-center gap-1.5 rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium shadow-xs transition-colors hover:bg-muted/50"
-            >
-              {nextStep.cta.label} <ArrowRight className="size-3.5" />
-            </Link>
-          );
-        } else if (
-          nextStep?.cta?.kind === "impact-confirm" &&
-          canConfirmImpact &&
-          epic.impactRecognizedAt == null
-        ) {
-          actionSlot = <EpicImpactConfirmDialog epicId={epic.id} epicTitle={epic.title} />;
-        }
-        return (
-          <EpicReifegradActivityBar
-            stageGate={epic.stageGate as StageGate}
-            nextStep={nextStep}
-            actionSlot={actionSlot}
-          />
-        );
-      })()}
-      aside={<InitiativeActivitySidebar events={activityEvents} userLabels={userLabels} />}
-    >
-      {activeTab === "overview" && (
-        <div className="space-y-4">
-          {canManageGoals ? (
-            <EpicGoalsLinker
-              epicId={epic.id}
-              goals={allGoals}
-              linkedIds={linkedGoals.map((g) => g.id)}
+    <>
+      <EntityDetailShell
+        backHref="/portfolio/epics"
+        backLabel="Zurück zu den Epics"
+        title={epic.title}
+        badge={practices.multiPartyApproval ? <PhaseBadge phase={approvalPhase} /> : undefined}
+        tabs={tabs}
+        activeTab={activeTab}
+        basePath={`/portfolio/epics/${epic.id}`}
+        headerActions={canEdit ? <DeleteEpicButton id={epic.id} title={epic.title} /> : undefined}
+        subHeader={(() => {
+          const childStats = {
+            total: epic.children.length,
+            completed: epic.children.filter((c) => c.status === "completed").length,
+          };
+          const subStage = subStageFor({
+            stageGate: epic.stageGate as StageGate,
+            businessCase: epic.businessCase,
+            businessCaseApprovedAt: epic.businessCaseApprovedAt,
+            childFeatureStats: childStats,
+          });
+          const nextStep = epicNextStep({
+            epicId: epic.id,
+            stageGate: epic.stageGate as StageGate,
+            subStage,
+            approvalPhase: practices.multiPartyApproval ? approvalPhase : null,
+            hasHypothesis: benefitHypothesisHasContent(benefitHypothesis.current),
+            hasBusinessCase: businessCaseHasContent(businessCase.current),
+            budgetAllocated,
+            impactRecognizedAt: epic.impactRecognizedAt,
+            childFeatureStats: childStats,
+          });
+          let actionSlot: React.ReactNode = undefined;
+          if (nextStep?.cta?.kind === "link") {
+            actionSlot = (
+              <Link
+                href={nextStep.cta.href as never}
+                className="inline-flex items-center gap-1.5 rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium shadow-xs transition-colors hover:bg-muted/50"
+              >
+                {nextStep.cta.label} <ArrowRight className="size-3.5" />
+              </Link>
+            );
+          } else if (
+            nextStep?.cta?.kind === "impact-confirm" &&
+            canConfirmImpact &&
+            epic.impactRecognizedAt == null
+          ) {
+            actionSlot = <EpicImpactConfirmDialog epicId={epic.id} epicTitle={epic.title} />;
+          }
+          return (
+            <EpicReifegradActivityBar
+              stageGate={epic.stageGate as StageGate}
+              nextStep={nextStep}
+              actionSlot={actionSlot}
             />
-          ) : (
-            linkedGoals.length > 0 && (
-              <section>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                  Realisiert strategische Ziele
-                </p>
-                <ul className="flex flex-wrap gap-1.5">
-                  {linkedGoals.map((g) => (
-                    <li
-                      key={g.id}
-                      className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                    >
-                      {g.title}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )
-          )}
-          <EpicOverviewTab
-            epic={epic}
-            canEdit={canEdit}
-            canAssignOwner={canAssignOwner}
-            canConfirmImpact={canConfirmImpact}
+          );
+        })()}
+        aside={<InitiativeActivitySidebar events={activityEvents} userLabels={userLabels} />}
+      >
+        {activeTab === "overview" && (
+          <div className="space-y-4">
+            {canManageGoals ? (
+              <EpicGoalsLinker
+                epicId={epic.id}
+                goals={allGoals}
+                linkedIds={linkedGoals.map((g) => g.id)}
+              />
+            ) : (
+              linkedGoals.length > 0 && (
+                <section>
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                    Realisiert strategische Ziele
+                  </p>
+                  <ul className="flex flex-wrap gap-1.5">
+                    {linkedGoals.map((g) => (
+                      <li
+                        key={g.id}
+                        className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                      >
+                        {g.title}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )
+            )}
+            <EpicOverviewTab
+              epic={epic}
+              canEdit={canEdit}
+              canAssignOwner={canAssignOwner}
+              canConfirmImpact={canConfirmImpact}
+              approvers={approvers}
+              userLabels={userLabels}
+            />
+          </div>
+        )}
+
+        {activeTab === "timeline" && (
+          <section>
+            <h2 className="mb-4 font-heading text-lg font-medium">Timeline</h2>
+            <EpicTimelineTab
+              epicId={epic.id}
+              stageGate={epic.stageGate}
+              createdAt={epic.createdAt.toISOString()}
+              selectedForDetailingAt={epic.selectedForDetailingAt?.toISOString() ?? null}
+              hypothesisApprovedAt={epic.hypothesisApprovedAt?.toISOString() ?? null}
+              selectedForAnalyzingAt={epic.selectedForAnalyzingAt?.toISOString() ?? null}
+              businessCaseApprovedAt={epic.businessCaseApprovedAt?.toISOString() ?? null}
+              timeline={timeline}
+              canEdit={canEdit}
+              canAdvance={canAdvance}
+            />
+          </section>
+        )}
+
+        {activeTab === "approvals" && (
+          <EpicApprovalsTab
+            epicId={epic.id}
+            phase={approvalPhase}
+            revision={activeRevision}
+            approvals={approvals}
             approvers={approvers}
             userLabels={userLabels}
+            currentUserId={principal.id}
+            canManage={canEdit}
+            defaultFinanceApproverId={epic.valueStream?.financeApproverId ?? null}
+            defaultVmoId={epic.valueStream?.vmoId ?? null}
           />
-        </div>
-      )}
+        )}
 
-      {activeTab === "timeline" && (
-        <section>
-          <h2 className="mb-4 font-heading text-lg font-medium">Timeline</h2>
-          <EpicTimelineTab
+        {activeTab === "business-case" && (
+          <section>
+            <h2 className="mb-4 text-lg font-medium">Business Case</h2>
+            {showBcReviewDiff && bcBaseline ? (
+              <RevisionDiff rows={businessCaseDiffRows(bcBaseline, businessCase.current)} />
+            ) : showBcOwnerEdit && bcBaseline ? (
+              <RevisionEditLayout
+                left={
+                  <BusinessCaseEditor epicId={epic.id} current={bcBaseline} history={[]} readOnly />
+                }
+                right={
+                  <BusinessCaseEditor
+                    epicId={epic.id}
+                    current={businessCase.current}
+                    history={businessCase.history}
+                    readOnly={!bcEditable}
+                    {...(bcLockReason && { lockReason: bcLockReason })}
+                  />
+                }
+              />
+            ) : (
+              <BusinessCaseEditor
+                epicId={epic.id}
+                current={businessCase.current}
+                history={businessCase.history}
+                readOnly={!bcEditable}
+                canSubmit={canSubmitBusinessCase}
+                {...(bcLockReason && { lockReason: bcLockReason })}
+              />
+            )}
+          </section>
+        )}
+
+        {activeTab === "benefit-hypothesis" && (
+          <section>
+            <h2 className="mb-4 text-lg font-medium">Benefit Hypothese</h2>
+            {showHypoReviewDiff && hypoBaseline ? (
+              <RevisionDiff
+                rows={benefitHypothesisDiffRows(hypoBaseline, benefitHypothesis.current)}
+              />
+            ) : showHypoOwnerEdit && hypoBaseline ? (
+              <RevisionEditLayout
+                left={
+                  <BenefitHypothesisEditor
+                    epicId={epic.id}
+                    current={hypoBaseline}
+                    history={[]}
+                    readOnly
+                  />
+                }
+                right={
+                  <BenefitHypothesisEditor
+                    epicId={epic.id}
+                    current={benefitHypothesis.current}
+                    history={benefitHypothesis.history}
+                    readOnly={!hypoEditable}
+                    {...(hypoLockReason && { lockReason: hypoLockReason })}
+                  />
+                }
+              />
+            ) : (
+              <BenefitHypothesisEditor
+                epicId={epic.id}
+                current={benefitHypothesis.current}
+                history={benefitHypothesis.history}
+                readOnly={!hypoEditable}
+                canSubmit={canSubmitHypothesis}
+                {...(hypoLockReason && { lockReason: hypoLockReason })}
+              />
+            )}
+          </section>
+        )}
+
+        {activeTab === "breakdown" && (
+          <EpicBreakdownTab
             epicId={epic.id}
-            stageGate={epic.stageGate}
-            createdAt={epic.createdAt.toISOString()}
-            selectedForDetailingAt={epic.selectedForDetailingAt?.toISOString() ?? null}
-            hypothesisApprovedAt={epic.hypothesisApprovedAt?.toISOString() ?? null}
-            selectedForAnalyzingAt={epic.selectedForAnalyzingAt?.toISOString() ?? null}
-            businessCaseApprovedAt={epic.businessCaseApprovedAt?.toISOString() ?? null}
-            timeline={timeline}
+            tenantId={principal.tenantId}
+            epicTitle={epic.title}
             canEdit={canEdit}
-            canAdvance={canAdvance}
+            features={breakdownFeatures}
+            pisByArt={pisByArt}
+            signoff={breakdownSignoff}
+            dependencies={breakdownDependencies}
+            canLinkDependency={canLinkDependency}
+            breakdownLayoutPositions={breakdownLayoutPositions}
+            breakdownPis={breakdownPis}
           />
-        </section>
-      )}
+        )}
 
-      {activeTab === "approvals" && (
-        <EpicApprovalsTab
-          epicId={epic.id}
-          phase={approvalPhase}
-          revision={activeRevision}
-          approvals={approvals}
-          approvers={approvers}
-          userLabels={userLabels}
-          currentUserId={principal.id}
-          canManage={canEdit}
-          defaultFinanceApproverId={epic.valueStream?.financeApproverId ?? null}
-          defaultVmoId={epic.valueStream?.vmoId ?? null}
-        />
-      )}
+        {activeTab === "kpis" && (
+          <EpicKpisTab
+            initiativeId={epic.id}
+            kpis={kpiRows}
+            canEdit={canEdit}
+            signoff={kpisSignoff}
+          />
+        )}
 
-      {activeTab === "business-case" && (
-        <section>
-          <h2 className="mb-4 text-lg font-medium">Business Case</h2>
-          {showBcReviewDiff && bcBaseline ? (
-            <RevisionDiff rows={businessCaseDiffRows(bcBaseline, businessCase.current)} />
-          ) : showBcOwnerEdit && bcBaseline ? (
-            <RevisionEditLayout
-              left={
-                <BusinessCaseEditor epicId={epic.id} current={bcBaseline} history={[]} readOnly />
-              }
-              right={
-                <BusinessCaseEditor
-                  epicId={epic.id}
-                  current={businessCase.current}
-                  history={businessCase.history}
-                  readOnly={!bcEditable}
-                  {...(bcLockReason && { lockReason: bcLockReason })}
-                />
-              }
-            />
-          ) : (
-            <BusinessCaseEditor
-              epicId={epic.id}
-              current={businessCase.current}
-              history={businessCase.history}
-              readOnly={!bcEditable}
-              canSubmit={canSubmitBusinessCase}
-              {...(bcLockReason && { lockReason: bcLockReason })}
-            />
-          )}
-        </section>
-      )}
-
-      {activeTab === "benefit-hypothesis" && (
-        <section>
-          <h2 className="mb-4 text-lg font-medium">Benefit Hypothese</h2>
-          {showHypoReviewDiff && hypoBaseline ? (
-            <RevisionDiff
-              rows={benefitHypothesisDiffRows(hypoBaseline, benefitHypothesis.current)}
-            />
-          ) : showHypoOwnerEdit && hypoBaseline ? (
-            <RevisionEditLayout
-              left={
-                <BenefitHypothesisEditor
-                  epicId={epic.id}
-                  current={hypoBaseline}
-                  history={[]}
-                  readOnly
-                />
-              }
-              right={
-                <BenefitHypothesisEditor
-                  epicId={epic.id}
-                  current={benefitHypothesis.current}
-                  history={benefitHypothesis.history}
-                  readOnly={!hypoEditable}
-                  {...(hypoLockReason && { lockReason: hypoLockReason })}
-                />
-              }
-            />
-          ) : (
-            <BenefitHypothesisEditor
-              epicId={epic.id}
-              current={benefitHypothesis.current}
-              history={benefitHypothesis.history}
-              readOnly={!hypoEditable}
-              canSubmit={canSubmitHypothesis}
-              {...(hypoLockReason && { lockReason: hypoLockReason })}
-            />
-          )}
-        </section>
-      )}
-
-      {activeTab === "breakdown" && (
-        <EpicBreakdownTab
-          epicId={epic.id}
-          tenantId={principal.tenantId}
-          epicTitle={epic.title}
-          canEdit={canEdit}
-          features={breakdownFeatures}
-          pisByArt={pisByArt}
-          signoff={breakdownSignoff}
-          dependencies={breakdownDependencies}
-          canLinkDependency={canLinkDependency}
-          breakdownLayoutPositions={breakdownLayoutPositions}
-          breakdownPis={breakdownPis}
-        />
-      )}
-
-      {activeTab === "kpis" && (
-        <EpicKpisTab
-          initiativeId={epic.id}
-          kpis={kpiRows}
-          canEdit={canEdit}
-          signoff={kpisSignoff}
-        />
-      )}
-
-      {activeTab === "history" && (
-        <section>
-          <h2 className="mb-3 text-lg font-medium">History</h2>
-          {activityEvents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Keine Historie.</p>
-          ) : (
-            <ul className="divide-y rounded border">
-              {activityEvents.map((e) => (
-                <li key={e.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                  <span className="font-medium">{actionLabel(e.action)}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {userLabel(e.actorId, userLabels)}
-                  </span>
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    {new Date(e.occurredAt).toLocaleString("de-DE")}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-    </EntityDetailShell>
+        {activeTab === "history" && (
+          <section>
+            <h2 className="mb-3 text-lg font-medium">History</h2>
+            {activityEvents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Keine Historie.</p>
+            ) : (
+              <ul className="divide-y rounded border">
+                {activityEvents.map((e) => (
+                  <li key={e.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+                    <span className="font-medium">{actionLabel(e.action)}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {userLabel(e.actorId, userLabels)}
+                    </span>
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {new Date(e.occurredAt).toLocaleString("de-DE")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+      </EntityDetailShell>
+      {slideOverDetail && <FeatureSlideOver detail={slideOverDetail} />}
+    </>
   );
 }

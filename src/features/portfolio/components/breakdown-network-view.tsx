@@ -39,7 +39,6 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { toast } from "sonner";
-import { Link } from "@/i18n/navigation";
 import { detectCycle } from "@/domain/dependency-graph";
 import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
 import {
@@ -393,6 +392,14 @@ function QuickEditPopover({ node }: { node: FeatureNodeData }) {
 const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
   const node = data as unknown as FeatureNodeData;
   const isEnabler = node.featureType === "enabler";
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const openSlideOver = () => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("featureId", node.id);
+    router.replace(`${pathname}?${next.toString()}` as never, { scroll: false });
+  };
   return (
     <div className="group relative" style={{ width: NODE_WIDTH }}>
       <Handle
@@ -405,9 +412,10 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
             : "!size-0 !border-none"
         }
       />
-      <Link
-        href={`/umsetzung/feature/${node.id}` as never}
-        className="block rounded-lg border border-border bg-card p-3 text-left text-xs no-underline shadow-sm transition-colors hover:bg-muted/40"
+      <button
+        type="button"
+        onClick={openSlideOver}
+        className="block w-full rounded-lg border border-border bg-card p-3 text-left text-xs no-underline shadow-sm transition-colors hover:bg-muted/40"
       >
         <div className="mb-1.5 flex items-center gap-1.5">
           <span
@@ -429,7 +437,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
           </span>
           <span className="ml-auto truncate text-muted-foreground">{node.artName}</span>
         </div>
-      </Link>
+      </button>
       <Handle
         type="source"
         position={Position.Right}
@@ -590,7 +598,14 @@ type GhostNodeData = BreakdownGhostNode;
 
 const GhostNode = memo(function GhostNode({ data }: NodeProps) {
   const node = data as unknown as GhostNodeData;
-  const href = `/umsetzung/feature/${node.id}` as never;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const openSlideOver = () => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("featureId", node.id);
+    router.replace(`${pathname}?${next.toString()}` as never, { scroll: false });
+  };
   return (
     <div className="relative" style={{ width: NODE_WIDTH }}>
       <Handle
@@ -599,9 +614,10 @@ const GhostNode = memo(function GhostNode({ data }: NodeProps) {
         isConnectable={false}
         className="!size-0 !border-none"
       />
-      <Link
-        href={href}
-        className="block rounded-lg border border-dashed border-muted-foreground/40 bg-card/60 p-3 text-left text-xs no-underline opacity-70 shadow-sm transition-colors hover:bg-muted/40 hover:opacity-100"
+      <button
+        type="button"
+        onClick={openSlideOver}
+        className="block w-full rounded-lg border border-dashed border-muted-foreground/40 bg-card/60 p-3 text-left text-xs no-underline opacity-70 shadow-sm transition-colors hover:bg-muted/40 hover:opacity-100"
       >
         <div className="mb-1.5 flex items-center gap-1.5">
           <span className="size-2 shrink-0 rounded-full bg-muted-foreground/40" aria-hidden />
@@ -615,7 +631,7 @@ const GhostNode = memo(function GhostNode({ data }: NodeProps) {
           </span>
           {node.epicTitle && <span className="ml-auto truncate">{node.epicTitle}</span>}
         </div>
-      </Link>
+      </button>
       <Handle
         type="source"
         position={Position.Right}
