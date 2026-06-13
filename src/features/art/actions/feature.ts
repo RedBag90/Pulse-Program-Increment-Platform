@@ -197,6 +197,39 @@ export const setFeatureDeliveryStatusAction = createServerAction({
 });
 
 /**
+ * Bulk delivery-status — Cockpit-Tabelle-Bulk-Bar (Delivery-Cockpit P3).
+ * Iteriert per Factory-Batch ueber `featureIds`; `continueOnError: true`
+ * laesst verbotene Transitions oder Permission-Konflikte einzelne Items
+ * skippen, ohne den Rest abzubrechen (Entscheidung #6 = kein Bulk-Limit).
+ */
+export const bulkSetFeatureDeliveryStatusAction = createServerAction({
+  schema: z.object({
+    featureIds: z.array(z.string().uuid()).min(1),
+    to: DELIVERY_STATUS,
+    reason: z.string().max(2000).optional(),
+  }),
+  action: "feature.delivery.set",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  batch: {
+    iterateOver: "featureIds",
+    service: (ctx, id, rest) =>
+      setFeatureDeliveryStatus(ctx, {
+        id: id as FeatureId,
+        to: rest.to as FeatureDeliveryStatus,
+        reason: rest.reason,
+      }),
+    continueOnError: true,
+  },
+  revalidate: "feature",
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Feature nicht gefunden"
+        : "Bulk-Status-Aenderung fehlgeschlagen",
+});
+
+/**
  * Assign one or more features to a PI, or move them back to the backlog
  * (piId = ""). Serves the PI-overview picker, the planning board (single-id
  * batches), and the feature-backlog inline dropdown. Uses the factory's

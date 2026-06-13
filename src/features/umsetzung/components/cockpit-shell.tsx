@@ -3,6 +3,7 @@ import { CockpitTopBar } from "./cockpit-top-bar";
 import { CockpitPiStrip } from "./cockpit-pi-strip";
 import { CockpitViewTabs } from "./cockpit-view-tabs";
 import { CockpitBoard } from "./cockpit-board";
+import { CockpitTable } from "./cockpit-table";
 
 /**
  * Delivery-Cockpit-Shell — Komposition der drei stabilen Bestandteile
@@ -48,7 +49,13 @@ export function CockpitShell({ model }: Props) {
             canSetDelivery={permissions.canSetDelivery}
           />
         ) : view === "table" ? (
-          <ViewPlaceholder name="Tabelle" features={features.length} />
+          <CockpitTable
+            pis={piStrip}
+            features={features}
+            artId={selectedArt.id}
+            canUpdate={permissions.canUpdate}
+            canSetDelivery={permissions.canSetDelivery}
+          />
         ) : (
           <ViewPlaceholder name="Roadmap" features={features.length} />
         )}
