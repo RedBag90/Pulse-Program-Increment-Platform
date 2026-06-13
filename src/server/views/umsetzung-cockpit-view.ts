@@ -16,7 +16,7 @@ import { InitiativeLevel } from "@/domain/types";
  * (`?art=<id>`); Persistenz per Cookie ist ein Folgeschritt.
  */
 
-export type CockpitView = "board" | "table" | "roadmap";
+export type CockpitView = "board" | "table" | "roadmap" | "network";
 export type FeatureStatus = "approved" | "in_progress" | "blocked" | "completed" | "cancelled";
 
 export interface CockpitArtRef {
@@ -102,7 +102,25 @@ export interface CockpitModel {
   features: CockpitFeature[];
   /** Aktive Filter, gespiegelt aus dem URL-State fuer Rendering der Chips. */
   filters: CockpitFilters;
+  /** Alle Feature-Feature-Dependencies, die mindestens einen Endpunkt im
+   *  aktuellen Scope haben — fuer Roadmap-Pfeile + Netzplan-Sicht.
+   *  Edges mit beiden Endpunkten im Scope sind voll renderbar; Edges
+   *  mit `offScopeRole != null` werden als Off-Scope-Marker angezeigt. */
+  dependencies: CockpitDependency[];
   permissions: CockpitPermissions;
+}
+
+export interface CockpitDependency {
+  id: string;
+  fromId: string;
+  toId: string;
+  type: "blocks" | "depends_on" | "relates_to";
+  /** "from" wenn der Source-Knoten ausserhalb des Scopes liegt
+   *  (Predecessor-Ghost); "to" wenn der Target-Knoten ausserhalb liegt
+   *  (Successor-Ghost); `null` wenn beide Endpunkte im Scope sind. */
+  offScopeRole: "from" | "to" | null;
+  /** Titel des Off-Scope-Knotens fuer Tooltip. Bei `offScopeRole === null` null. */
+  offScopeLabel: string | null;
 }
 
 export interface LoadCockpitInput {
@@ -344,6 +362,51 @@ export async function loadCockpitModel(
       .filter((f) => (filters.hasBlocker ? f.hasBlocker : true));
   }
 
+  // 5b) Dependencies — alle Edges, deren from ODER to im aktuellen
+  //     Feature-Scope steckt. Off-Scope-Endpunkte werden mit Titel
+  //     mitgelesen, damit Roadmap-Marker + Netzplan-Ghosts informative
+  //     Tooltips zeigen koennen.
+  const dependencies: CockpitDependency[] = [];
+  if (features.length > 0) {
+    const scopeIds = new Set(features.map((f) => f.id));
+    const rawDeps = await db.dependency.findMany({
+      where: {
+        tenantId,
+        OR: [{ fromId: { in: [...scopeIds] } }, { toId: { in: [...scopeIds] } }],
+      },
+      select: {
+        id: true,
+        fromId: true,
+        toId: true,
+        type: true,
+        from: { select: { id: true, title: true } },
+        to: { select: { id: true, title: true } },
+      },
+    });
+    for (const d of rawDeps) {
+      const type = d.type as CockpitDependency["type"];
+      if (type !== "blocks" && type !== "depends_on" && type !== "relates_to") continue;
+      const fromInScope = scopeIds.has(d.fromId);
+      const toInScope = scopeIds.has(d.toId);
+      if (!fromInScope && !toInScope) continue;
+      const offScopeRole = !fromInScope ? "from" : !toInScope ? "to" : null;
+      const offScopeLabel =
+        offScopeRole === "from"
+          ? (d.from?.title ?? null)
+          : offScopeRole === "to"
+            ? (d.to?.title ?? null)
+            : null;
+      dependencies.push({
+        id: d.id,
+        fromId: d.fromId,
+        toId: d.toId,
+        type,
+        offScopeRole,
+        offScopeLabel,
+      });
+    }
+  }
+
   // 6) Permissions — aus dem zentralen Policies-Registry (ADR-0002).
   //    UI nutzt die Flags nur fuer Affordances; der echte Gate sitzt
   //    serverseitig in den Actions, einmal mehr scoped auf die ART.
@@ -360,6 +423,7 @@ export async function loadCockpitModel(
     view: input.view ?? "board",
     features,
     filters,
+    dependencies,
     permissions: { canUpdate, canSetDelivery, canCreate },
   };
 }

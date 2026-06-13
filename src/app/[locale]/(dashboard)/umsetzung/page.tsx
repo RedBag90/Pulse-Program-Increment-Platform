@@ -19,7 +19,7 @@ import { CockpitShell } from "@/features/umsetzung/components/cockpit-shell";
  * und P4 (Roadmap).
  */
 function parseView(raw: string | undefined): CockpitView {
-  return raw === "table" || raw === "roadmap" ? raw : "board";
+  return raw === "table" || raw === "roadmap" || raw === "network" ? raw : "board";
 }
 
 interface PageProps {

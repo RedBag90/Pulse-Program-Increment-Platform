@@ -1,3 +1,6 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import {
   barMetrics,
@@ -10,6 +13,21 @@ import {
 // importers of the component keep working.
 export type { RoadmapRow } from "@/domain/roadmap";
 
+export type GanttDependencyType = "blocks" | "depends_on" | "relates_to";
+
+export interface GanttDependency {
+  id: string;
+  fromId: string;
+  toId: string;
+  type: GanttDependencyType;
+  /** "from" / "to" wenn der entsprechende Endpunkt ausserhalb der
+   *  gerenderten `rows` liegt; `null` wenn beide Endpunkte als Row
+   *  vorhanden sind. */
+  offScopeRole: "from" | "to" | null;
+  /** Tooltip-Text fuer das Off-Scope-Marker (Titel des fehlenden Knotens). */
+  offScopeLabel: string | null;
+}
+
 interface Props {
   rows: RoadmapRow[];
   axis: MonthAxis;
@@ -20,11 +38,37 @@ interface Props {
    * mit der heutigen Generic-Roadmap.
    */
   piBoundaries?: ReadonlyArray<{ date: Date; label?: string }>;
+  /** Feature-zu-Feature-Dependencies, MS-Project-Stil als Elbow-Pfeile
+   *  ueber dem Track. Off-Scope-Edges werden als Bar-Rand-Marker
+   *  gerendert. Andere Roadmaps setzen den Prop nicht und sehen die
+   *  Sicht unveraendert. */
+  dependencies?: readonly GanttDependency[];
 }
 
 const MONTH_PX = 72;
 const LABEL_W = 220;
 const ROW_H = 28;
+
+const EDGE_COLOR: Record<GanttDependencyType, string> = {
+  blocks: "#ef4444",
+  depends_on: "#d97706",
+  relates_to: "#94a3b8",
+};
+
+const EDGE_DASH: Record<GanttDependencyType, string | undefined> = {
+  blocks: undefined,
+  depends_on: undefined,
+  relates_to: "4 4",
+};
+
+const EDGE_LABEL: Record<GanttDependencyType, string> = {
+  blocks: "blockiert",
+  depends_on: "haengt ab von",
+  relates_to: "bezieht sich auf",
+};
+
+const HIGHLIGHT_OPACITY = 1;
+const DIM_OPACITY = 0.18;
 
 /**
  * Generic roadmap Gantt — fester Label-Spalte links, Monatsachse rechts,
@@ -37,11 +81,14 @@ const ROW_H = 28;
  * (`piBoundaries`) und optionaler Status-Akzent pro Row (`row.accent`).
  * Surfaces die weder `accent` noch `piBoundaries` setzen, sehen exakt
  * die alte Optik plus die crispere Bar-Behandlung.
+ *
+ * Dependencies (`dependencies` Prop): SVG-Overlay ueber dem Track,
+ * elbow-routed Pfeile in Edge-Farbe; Hover auf einer Row hebt die
+ * zugehoerigen Linien voll auf, Rest bleibt dezent. Off-Scope-Marker
+ * sitzen als kleines Caret am Bar-Rand mit Tooltip.
  */
-export function RoadmapGantt({ rows, axis, piBoundaries }: Props) {
-  if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">Keine Einträge.</p>;
-  }
+export function RoadmapGantt({ rows, axis, piBoundaries, dependencies }: Props) {
+  const [hoverRowId, setHoverRowId] = useState<string | null>(null);
 
   const trackWidth = axis.months.length * MONTH_PX;
   const today = new Date();
@@ -56,6 +103,59 @@ export function RoadmapGantt({ rows, axis, piBoundaries }: Props) {
   // Hintergrund-Bands zwischen aufeinanderfolgenden Boundaries (alternating).
   const bandRanges = boundaryPcts.length > 0 ? buildBands(boundaryPcts.map((b) => b.pct)) : [];
 
+  // Row-Index + Bar-Koordinaten pro Row vorberechnen — fuer Dep-Overlay
+  // + Off-Scope-Marker. Die SVG-Overlay sitzt im selben relativen
+  // Wrapper wie die Rows; y = i * ROW_H + ROW_H/2.
+  const rowMeta = useMemo(() => {
+    const indexById = new Map<string, number>();
+    const barById = new Map<string, { x1: number; x2: number; y: number }>();
+    rows.forEach((r, i) => {
+      indexById.set(r.id, i);
+      if (r.kind === "group") return;
+      const bar = r.range ? barMetrics(r.range, axis) : null;
+      if (!bar || bar.widthPct === 0) return;
+      const x1 = (bar.leftPct / 100) * trackWidth;
+      const x2 = ((bar.leftPct + bar.widthPct) / 100) * trackWidth;
+      const y = i * ROW_H + ROW_H / 2;
+      barById.set(r.id, { x1, x2, y });
+    });
+    return { indexById, barById };
+  }, [rows, axis, trackWidth]);
+
+  // Edges, deren beide Endpunkte als Bar bekannt sind — diese werden
+  // als Pfade gerendert.
+  const renderableDeps = useMemo(() => {
+    if (!dependencies || dependencies.length === 0) return [];
+    return dependencies.filter(
+      (d) =>
+        d.offScopeRole === null && rowMeta.barById.has(d.fromId) && rowMeta.barById.has(d.toId),
+    );
+  }, [dependencies, rowMeta.barById]);
+
+  // Off-Scope-Edges: pro Feature aggregiert, fuer die Bar-Rand-Marker.
+  const offScopeByFeature = useMemo(() => {
+    const m = new Map<string, { left: GanttDependency[]; right: GanttDependency[] }>();
+    if (!dependencies) return m;
+    for (const d of dependencies) {
+      if (d.offScopeRole === null) continue;
+      // offScopeRole === "from" → der Source fehlt; der Marker
+      // gehoert an die LINKE Seite der Target-Bar.
+      // offScopeRole === "to"   → der Target fehlt; der Marker
+      // gehoert an die RECHTE Seite der Source-Bar.
+      const featureId = d.offScopeRole === "from" ? d.toId : d.fromId;
+      if (!rowMeta.barById.has(featureId)) continue;
+      const slot = m.get(featureId) ?? { left: [], right: [] };
+      if (d.offScopeRole === "from") slot.left.push(d);
+      else slot.right.push(d);
+      m.set(featureId, slot);
+    }
+    return m;
+  }, [dependencies, rowMeta.barById]);
+
+  if (rows.length === 0) {
+    return <p className="text-sm text-muted-foreground">Keine Einträge.</p>;
+  }
+
   return (
     <div className="overflow-x-auto rounded-lg border">
       <div style={{ width: LABEL_W + trackWidth, minWidth: "100%" }}>
@@ -65,8 +165,8 @@ export function RoadmapGantt({ rows, axis, piBoundaries }: Props) {
             shadow-[0_1px_0_var(--color-border)]"
         >
           <div
-            className="sticky left-0 z-10 shrink-0 bg-gradient-to-b from-muted/60 to-muted/40
-              px-3 py-1.5 text-[11px] font-medium text-muted-foreground"
+            className="sticky left-0 z-10 shrink-0 bg-gradient-to-b from-muted/60 to-muted/40 px-3
+              py-1.5 text-[11px] font-medium text-muted-foreground"
             style={{ width: LABEL_W }}
           >
             Eintrag
@@ -97,127 +197,238 @@ export function RoadmapGantt({ rows, axis, piBoundaries }: Props) {
           </div>
         </div>
 
-        {/* Rows */}
-        {rows.map((row) => {
-          if (row.kind === "group") {
-            return (
-              <div key={row.id} className="flex border-b bg-muted/30" style={{ minHeight: ROW_H }}>
+        {/* Relative-Wrap fuer Rows + SVG-Dep-Overlay */}
+        <div className="relative">
+          {rows.map((row) => {
+            if (row.kind === "group") {
+              return (
                 <div
-                  className="sticky left-0 z-10 flex items-center bg-muted/30 px-3 text-[10px]
-                    font-semibold uppercase tracking-wide text-muted-foreground"
-                  style={{ width: LABEL_W }}
+                  key={row.id}
+                  className="flex border-b bg-muted/30"
+                  style={{ minHeight: ROW_H }}
                 >
-                  {row.label}
+                  <div
+                    className="sticky left-0 z-10 flex items-center bg-muted/30 px-3 text-[10px]
+                      font-semibold uppercase tracking-wide text-muted-foreground"
+                    style={{ width: LABEL_W }}
+                  >
+                    {row.label}
+                  </div>
+                  <div style={{ width: trackWidth }} />
                 </div>
-                <div style={{ width: trackWidth }} />
+              );
+            }
+
+            const bar = row.range ? barMetrics(row.range, axis) : null;
+            const derivedBar = row.derivedRange ? barMetrics(row.derivedRange, axis) : null;
+            const accent = resolveAccent(row.accent ?? (row.kind as RoadmapRowAccent));
+            const isEpic = row.kind === "epic";
+            const offScope = offScopeByFeature.get(row.id);
+
+            return (
+              <div
+                key={row.id}
+                onMouseEnter={() => setHoverRowId(row.id)}
+                onMouseLeave={() => setHoverRowId((p) => (p === row.id ? null : p))}
+                className="group flex border-b transition-colors duration-100 last:border-b-0
+                  hover:bg-muted/30"
+                style={{ minHeight: ROW_H }}
+              >
+                <div
+                  className="sticky left-0 z-10 flex shrink-0 flex-col justify-center bg-background
+                    pr-3"
+                  style={{ width: LABEL_W, paddingLeft: 12 + row.depth * 16 }}
+                >
+                  {row.href ? (
+                    <Link
+                      href={row.href}
+                      className={`line-clamp-1 text-[13px] hover:underline ${
+                        isEpic ? "font-semibold text-foreground" : "font-medium text-foreground/90"
+                      }`}
+                      title={row.label}
+                    >
+                      {row.label}
+                    </Link>
+                  ) : (
+                    <span
+                      className={`line-clamp-1 text-[13px] ${
+                        isEpic ? "font-semibold" : "font-medium"
+                      }`}
+                      title={row.label}
+                    >
+                      {row.label}
+                    </span>
+                  )}
+                  {row.sublabel && (
+                    <p
+                      className="line-clamp-1 text-[9px] text-muted-foreground/70"
+                      title={row.sublabel}
+                    >
+                      {row.sublabel}
+                    </p>
+                  )}
+                </div>
+                <div className="relative" style={{ width: trackWidth }}>
+                  {/* PI-Bands (alternating background) — unter allen anderen Layern */}
+                  {bandRanges.map((band, i) =>
+                    i % 2 === 0 ? null : (
+                      <div
+                        key={`band-${i}`}
+                        className="absolute inset-y-0 bg-muted/20"
+                        style={{ left: `${band.start}%`, width: `${band.end - band.start}%` }}
+                      />
+                    ),
+                  )}
+                  {/* PI-Boundary-Linien — dezent gestrichelt */}
+                  {boundaryPcts.map((b, i) => (
+                    <div
+                      key={`pi-line-${i}`}
+                      className="absolute inset-y-0 border-l border-dashed border-border/60"
+                      style={{ left: `${b.pct}%` }}
+                      {...(b.label ? { title: b.label } : {})}
+                    />
+                  ))}
+                  {/* Today-Linie */}
+                  {todayPct !== null && (
+                    <div
+                      className="pointer-events-none absolute inset-y-0 w-px bg-rose-500/70"
+                      style={{ left: `${todayPct}%` }}
+                      title={`Heute · ${today.toLocaleDateString("de-DE")}`}
+                    />
+                  )}
+
+                  {/* Primary-Bar (Soll, oder Ist wenn kein Soll). h-2 = 8px,
+                      der Standard fuer professionelle Roadmap-Tools. */}
+                  {bar && bar.widthPct > 0 && (
+                    <div
+                      className={`absolute top-1/2 h-2 -translate-y-1/2 rounded-full
+                        bg-gradient-to-b shadow-[0_1px_2px_rgba(0,0,0,0.08)]
+                        transition-shadow group-hover:shadow-[0_2px_4px_rgba(0,0,0,0.12)] ${accent.bar}`}
+                      style={{ left: `${bar.leftPct}%`, width: `${bar.widthPct}%`, minWidth: 6 }}
+                      title={`${row.label}${derivedBar ? " — Soll" : ""}`}
+                    />
+                  )}
+                  {/* Ist-Overlay (Epic-Roadmap) */}
+                  {derivedBar && derivedBar.widthPct > 0 && (
+                    <div
+                      className="absolute bottom-1 h-1 rounded-full bg-primary/40"
+                      style={{
+                        left: `${derivedBar.leftPct}%`,
+                        width: `${derivedBar.widthPct}%`,
+                        minWidth: 4,
+                      }}
+                      title={`${row.label} — Ist (aus Features)`}
+                    />
+                  )}
+
+                  {/* Off-Scope-Marker — sitzen am Bar-Rand */}
+                  {offScope && bar && offScope.left.length > 0 && (
+                    <OffScopeMarker
+                      side="left"
+                      pct={bar.leftPct}
+                      deps={offScope.left}
+                      featureLabel={row.label}
+                    />
+                  )}
+                  {offScope && bar && offScope.right.length > 0 && (
+                    <OffScopeMarker
+                      side="right"
+                      pct={bar.leftPct + bar.widthPct}
+                      deps={offScope.right}
+                      featureLabel={row.label}
+                    />
+                  )}
+                </div>
               </div>
             );
-          }
+          })}
 
-          const bar = row.range ? barMetrics(row.range, axis) : null;
-          const derivedBar = row.derivedRange ? barMetrics(row.derivedRange, axis) : null;
-          const accent = resolveAccent(row.accent ?? (row.kind as RoadmapRowAccent));
-          const isEpic = row.kind === "epic";
-
-          return (
-            <div
-              key={row.id}
-              className="group flex border-b transition-colors duration-100 last:border-b-0
-                hover:bg-muted/30"
-              style={{ minHeight: ROW_H }}
+          {/* Dependency-SVG-Overlay — pointer-events disabled, sitzt
+              ueber Bars aber unter den Sticky-Labels. */}
+          {renderableDeps.length > 0 && (
+            <svg
+              className="pointer-events-none absolute top-0 z-[5]"
+              style={{
+                left: LABEL_W,
+                width: trackWidth,
+                height: rows.length * ROW_H,
+              }}
             >
-              <div
-                className="sticky left-0 z-10 flex shrink-0 flex-col justify-center bg-background
-                  pr-3"
-                style={{ width: LABEL_W, paddingLeft: 12 + row.depth * 16 }}
-              >
-                {row.href ? (
-                  <Link
-                    href={row.href}
-                    className={`line-clamp-1 text-[13px] hover:underline ${
-                      isEpic ? "font-semibold text-foreground" : "font-medium text-foreground/90"
-                    }`}
-                    title={row.label}
+              <defs>
+                {(["blocks", "depends_on", "relates_to"] as GanttDependencyType[]).map((t) => (
+                  <marker
+                    key={`marker-${t}`}
+                    id={`gantt-arrow-${t}`}
+                    viewBox="0 0 8 8"
+                    refX="7"
+                    refY="4"
+                    markerWidth="8"
+                    markerHeight="8"
+                    orient="auto-start-reverse"
                   >
-                    {row.label}
-                  </Link>
-                ) : (
-                  <span
-                    className={`line-clamp-1 text-[13px] ${
-                      isEpic ? "font-semibold" : "font-medium"
-                    }`}
-                    title={row.label}
-                  >
-                    {row.label}
-                  </span>
-                )}
-                {row.sublabel && (
-                  <p
-                    className="line-clamp-1 text-[9px] text-muted-foreground/70"
-                    title={row.sublabel}
-                  >
-                    {row.sublabel}
-                  </p>
-                )}
-              </div>
-              <div className="relative" style={{ width: trackWidth }}>
-                {/* PI-Bands (alternating background) — unter allen anderen Layern */}
-                {bandRanges.map((band, i) =>
-                  i % 2 === 0 ? null : (
-                    <div
-                      key={`band-${i}`}
-                      className="absolute inset-y-0 bg-muted/20"
-                      style={{ left: `${band.start}%`, width: `${band.end - band.start}%` }}
-                    />
-                  ),
-                )}
-                {/* PI-Boundary-Linien — dezent gestrichelt */}
-                {boundaryPcts.map((b, i) => (
-                  <div
-                    key={`pi-line-${i}`}
-                    className="absolute inset-y-0 border-l border-dashed border-border/60"
-                    style={{ left: `${b.pct}%` }}
-                    {...(b.label ? { title: b.label } : {})}
-                  />
+                    <path d="M 0 0 L 8 4 L 0 8 z" fill={EDGE_COLOR[t]} />
+                  </marker>
                 ))}
-                {/* Today-Linie */}
-                {todayPct !== null && (
-                  <div
-                    className="pointer-events-none absolute inset-y-0 w-px bg-rose-500/70"
-                    style={{ left: `${todayPct}%` }}
-                    title={`Heute · ${today.toLocaleDateString("de-DE")}`}
-                  />
-                )}
-
-                {/* Primary-Bar (Soll, oder Ist wenn kein Soll). h-2 = 8px,
-                    der Standard fuer professionelle Roadmap-Tools. */}
-                {bar && bar.widthPct > 0 && (
-                  <div
-                    className={`absolute top-1/2 h-2 -translate-y-1/2 rounded-full
-                      bg-gradient-to-b shadow-[0_1px_2px_rgba(0,0,0,0.08)]
-                      transition-shadow group-hover:shadow-[0_2px_4px_rgba(0,0,0,0.12)] ${accent.bar}`}
-                    style={{ left: `${bar.leftPct}%`, width: `${bar.widthPct}%`, minWidth: 6 }}
-                    title={`${row.label}${derivedBar ? " — Soll" : ""}`}
-                  />
-                )}
-                {/* Ist-Overlay (Epic-Roadmap) */}
-                {derivedBar && derivedBar.widthPct > 0 && (
-                  <div
-                    className="absolute bottom-1 h-1 rounded-full bg-primary/40"
-                    style={{
-                      left: `${derivedBar.leftPct}%`,
-                      width: `${derivedBar.widthPct}%`,
-                      minWidth: 4,
-                    }}
-                    title={`${row.label} — Ist (aus Features)`}
-                  />
-                )}
-              </div>
-            </div>
-          );
-        })}
+              </defs>
+              {renderableDeps.map((d) => {
+                const s = rowMeta.barById.get(d.fromId)!;
+                const t = rowMeta.barById.get(d.toId)!;
+                const path = elbowPath(s, t);
+                const highlighted = hoverRowId === d.fromId || hoverRowId === d.toId;
+                const opacity =
+                  hoverRowId === null
+                    ? DIM_OPACITY
+                    : highlighted
+                      ? HIGHLIGHT_OPACITY
+                      : DIM_OPACITY * 0.6;
+                return (
+                  <path
+                    key={d.id}
+                    d={path}
+                    fill="none"
+                    stroke={EDGE_COLOR[d.type]}
+                    strokeWidth={1.5}
+                    strokeDasharray={EDGE_DASH[d.type]}
+                    markerEnd={`url(#gantt-arrow-${d.type})`}
+                    opacity={opacity}
+                    style={{ transition: "opacity 120ms ease-out" }}
+                  >
+                    <title>{`${EDGE_LABEL[d.type]}`}</title>
+                  </path>
+                );
+              })}
+            </svg>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+interface OffScopeMarkerProps {
+  side: "left" | "right";
+  pct: number;
+  deps: GanttDependency[];
+  featureLabel: string;
+}
+
+function OffScopeMarker({ side, pct, deps, featureLabel }: OffScopeMarkerProps) {
+  const labels = deps
+    .map((d) => `${EDGE_LABEL[d.type]}: ${d.offScopeLabel ?? "(ausserhalb des Scopes)"}`)
+    .join("\n");
+  const dominantType = deps[0]!.type;
+  return (
+    <span
+      className="pointer-events-auto absolute top-1/2 -translate-y-1/2 cursor-help text-[9px]
+        font-semibold leading-none"
+      style={{
+        left: side === "left" ? `calc(${pct}% - 8px)` : `calc(${pct}% - 2px)`,
+        color: EDGE_COLOR[dominantType],
+      }}
+      title={`${featureLabel}\n${labels}`}
+    >
+      {side === "left" ? "◂" : "▸"}
+    </span>
   );
 }
 
@@ -243,6 +454,21 @@ function resolveAccent(accent: RoadmapRowAccent | "group"): AccentClasses {
     default:
       return { bar: "from-sky-400 to-sky-600" };
   }
+}
+
+/**
+ * Elbow-Routing (MS-Project-Stil): Source endet rechts, dann horizontal
+ * zur halben Distanz, dann vertikal in die Target-Row, dann horizontal
+ * an die linke Bar-Kante. Bei rueckwaerts gerichteten Edges (Target
+ * beginnt vor Source endet) wird der gleiche Pfad gerendert — sieht
+ * wie eine Schleife aus, aber bleibt funktional korrekt.
+ */
+function elbowPath(
+  s: { x1: number; x2: number; y: number },
+  t: { x1: number; x2: number; y: number },
+): string {
+  const mid = (s.x2 + t.x1) / 2;
+  return `M ${s.x2} ${s.y} H ${mid} V ${t.y} H ${t.x1}`;
 }
 
 /**
