@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import {
   barMetrics,
@@ -91,8 +91,23 @@ export function RoadmapGantt({ rows, axis, piBoundaries, dependencies }: Props) 
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
 
   const trackWidth = axis.months.length * MONTH_PX;
-  const today = new Date();
-  const todayPct = pctOnAxis(today, axis);
+
+  // Today-Marker erst nach Mount setzen — sonst produziert `new Date()`
+  // im SSR-Render einen anderen Float-Wert als im Client-Render, was zu
+  // Hydration-Mismatches im `left: ${pct}%` fuehrt. Konsequenz: Linie +
+  // Pille erscheinen 1 Frame nach den Bars; unmerkbar, kein Layout-Shift.
+  const [todayMarker, setTodayMarker] = useState<{ pct: number; label: string } | null>(null);
+  useEffect(() => {
+    const now = new Date();
+    const pct = pctOnAxis(now, axis);
+    if (pct === null) {
+      setTodayMarker(null);
+      return;
+    }
+    setTodayMarker({ pct, label: now.toLocaleDateString("de-DE") });
+  }, [axis]);
+  const todayPct = todayMarker?.pct ?? null;
+  const todayLabel = todayMarker?.label ?? "";
   const boundaryPcts = (piBoundaries ?? [])
     .map((b) => ({ pct: pctOnAxis(b.date, axis), label: b.label }))
     .filter((b) => b.pct !== null && b.pct > 0 && b.pct < 100) as Array<{
@@ -189,7 +204,7 @@ export function RoadmapGantt({ rows, axis, piBoundaries, dependencies }: Props) 
                   bg-rose-500 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide
                   text-white shadow-sm"
                 style={{ left: `calc(${todayPct}% + 4px)` }}
-                title={`Heute · ${today.toLocaleDateString("de-DE")}`}
+                title={`Heute · ${todayLabel}`}
               >
                 Heute
               </div>
@@ -293,7 +308,7 @@ export function RoadmapGantt({ rows, axis, piBoundaries, dependencies }: Props) 
                     <div
                       className="pointer-events-none absolute inset-y-0 w-px bg-rose-500/70"
                       style={{ left: `${todayPct}%` }}
-                      title={`Heute · ${today.toLocaleDateString("de-DE")}`}
+                      title={`Heute · ${todayLabel}`}
                     />
                   )}
 
