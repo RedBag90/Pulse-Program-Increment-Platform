@@ -106,6 +106,21 @@ export function barMetrics(
  * `derivedRange` (when set) is the Ist computed from the Features' PIs — the
  * renderer draws them stacked, Soll prominently and Ist as a faded overlay.
  */
+/**
+ * Optionaler Akzent fuer die Render-Schicht. Bei `undefined` faellt der
+ * Renderer auf den `kind`-Default zurueck (`epic` indigo, `feature` sky).
+ * Caller mit reichhaltigerem Kontext (Cockpit-Roadmap: Feature-Status)
+ * kippen den Akzent semantisch um.
+ */
+export type RoadmapRowAccent =
+  | "approved"
+  | "in_progress"
+  | "blocked"
+  | "completed"
+  | "cancelled"
+  | "epic"
+  | "feature";
+
 export interface RoadmapRow {
   id: string;
   label: string;
@@ -116,6 +131,9 @@ export interface RoadmapRow {
   derivedRange?: DateRange | null;
   depth: 0 | 1;
   kind: "epic" | "feature" | "group";
+  /** Optional render-hint fuer die Bar-Farbe; ohne Wert greift der
+   *  `kind`-Default im Renderer. */
+  accent?: RoadmapRowAccent | undefined;
 }
 
 /** The PI window a Feature is scheduled into (structural; extra fields ignored). */
