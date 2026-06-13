@@ -5,6 +5,8 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dagre from "@dagrejs/dagre";
 import {
   Background,
+  Handle,
+  Position,
   ReactFlow,
   type Edge,
   type Node,
@@ -69,40 +71,73 @@ type GhostNodeData = {
   hint: string;
 };
 
+// Read-only handles — sind notwendig damit React-Flow Edges an die
+// Knoten andocken kann, aber visuell unsichtbar gestylt (size-0,
+// kein Border), weil das Netzplan-Cockpit keine drag-connect-Edits hat.
+const HANDLE_STYLE = "!size-0 !border-none !bg-transparent";
+
 const FeatureNode = memo(function FeatureNode({ data }: { data: FeatureNodeData }) {
   const f = data.feature;
   return (
-    <button
-      type="button"
-      onClick={() => data.onOpen(f.id)}
-      className="flex h-[64px] w-[200px] flex-col gap-1 rounded-md border bg-card px-2.5 py-1.5
-        text-left shadow-sm transition-shadow hover:shadow-md"
-      title={f.title}
-    >
-      <div className="flex items-center gap-1.5">
-        <span className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT[f.status]}`} />
-        <span className="line-clamp-2 text-[12px] font-medium leading-tight">{f.title}</span>
-      </div>
-      <div className="mt-auto flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-        <span className="truncate">{STATUS_LABEL[f.status]}</span>
-        {f.wsjfComputed != null && (
-          <span className="shrink-0 font-medium">WSJF {Math.round(f.wsjfComputed)}</span>
-        )}
-      </div>
-    </button>
+    <div className="relative">
+      <Handle
+        type="target"
+        position={Position.Left}
+        className={HANDLE_STYLE}
+        isConnectable={false}
+      />
+      <button
+        type="button"
+        onClick={() => data.onOpen(f.id)}
+        className="flex h-[64px] w-[200px] flex-col gap-1 rounded-md border bg-card px-2.5 py-1.5
+          text-left shadow-sm transition-shadow hover:shadow-md"
+        title={f.title}
+      >
+        <div className="flex items-center gap-1.5">
+          <span className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT[f.status]}`} />
+          <span className="line-clamp-2 text-[12px] font-medium leading-tight">{f.title}</span>
+        </div>
+        <div className="mt-auto flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+          <span className="truncate">{STATUS_LABEL[f.status]}</span>
+          {f.wsjfComputed != null && (
+            <span className="shrink-0 font-medium">WSJF {Math.round(f.wsjfComputed)}</span>
+          )}
+        </div>
+      </button>
+      <Handle
+        type="source"
+        position={Position.Right}
+        className={HANDLE_STYLE}
+        isConnectable={false}
+      />
+    </div>
   );
 });
 
 const GhostNode = memo(function GhostNode({ data }: { data: GhostNodeData }) {
   return (
-    <div
-      className="flex h-[64px] w-[200px] flex-col justify-center gap-0.5 rounded-md border
-        border-dashed border-muted-foreground/40 bg-muted/30 px-2.5 py-1.5 text-left
-        text-muted-foreground"
-      title={`${data.hint}: ${data.title}`}
-    >
-      <span className="text-[10px] uppercase tracking-wide">{data.hint}</span>
-      <span className="line-clamp-2 text-[12px] font-medium leading-tight">{data.title}</span>
+    <div className="relative">
+      <Handle
+        type="target"
+        position={Position.Left}
+        className={HANDLE_STYLE}
+        isConnectable={false}
+      />
+      <div
+        className="flex h-[64px] w-[200px] flex-col justify-center gap-0.5 rounded-md border
+          border-dashed border-muted-foreground/40 bg-muted/30 px-2.5 py-1.5 text-left
+          text-muted-foreground"
+        title={`${data.hint}: ${data.title}`}
+      >
+        <span className="text-[10px] uppercase tracking-wide">{data.hint}</span>
+        <span className="line-clamp-2 text-[12px] font-medium leading-tight">{data.title}</span>
+      </div>
+      <Handle
+        type="source"
+        position={Position.Right}
+        className={HANDLE_STYLE}
+        isConnectable={false}
+      />
     </div>
   );
 });
