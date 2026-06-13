@@ -840,6 +840,7 @@ export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) 
           wsjfRiskReduction: true,
           wsjfJobSize: true,
           wsjfComputed: true,
+          featureType: true,
           art: { select: { id: true, name: true } },
           // The Features' PI windows feed the "Ist"-Ableitung of the Epic's
           // planned delivery window on the Overview tab and on the roadmap.

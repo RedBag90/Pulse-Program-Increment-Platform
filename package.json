@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
+    "@dagrejs/dagre": "^3.0.0",
     "@hookform/resolvers": "^5.0.1",
     "@prisma/client": "^6.9.0",
     "@sentry/nextjs": "^9.20.0",
@@ -35,6 +36,7 @@
     "@tanstack/react-query-devtools": "^5.77.0",
     "@vercel/analytics": "^1.5.0",
     "@vercel/speed-insights": "^1.2.0",
+    "@xyflow/react": "^12.11.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

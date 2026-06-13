@@ -85,9 +85,11 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       js: c.wsjfJobSize ?? 0,
       computed: Number(c.wsjfComputed ?? 0),
     },
+    featureType: c.featureType,
   }));
   const artIds = [...new Set(breakdownFeatures.map((f) => f.artId).filter(Boolean))];
 
+  const featureIds = breakdownFeatures.map((f) => f.id);
   const [
     historyEvents,
     kpis,
@@ -98,6 +100,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     practices,
     goalLinks,
     budgetAllocation,
+    breakdownDependencies,
   ] = await Promise.all([
     listInitiativeHistory(db, principal.tenantId, epic.id),
     listKpis(db, principal.tenantId, epic.id as EpicId),
@@ -117,6 +120,19 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       where: { epicId: epic.id },
       select: { allocations: true },
     }),
+    // Netzplan-Ansicht (Roadmap-N1): Edges nur innerhalb der
+    // Child-Features dieses Epics — Cross-Epic-Deps bleiben der
+    // PI-Sicht.
+    featureIds.length === 0
+      ? Promise.resolve([] as { id: string; fromId: string; toId: string; type: string }[])
+      : db.dependency.findMany({
+          where: {
+            tenantId: principal.tenantId,
+            fromId: { in: featureIds },
+            toId: { in: featureIds },
+          },
+          select: { id: true, fromId: true, toId: true, type: true },
+        }),
   ]);
   const budgetAllocatedSum = budgetAllocation
     ? Object.values((budgetAllocation.allocations ?? {}) as Record<string, number>).reduce(
@@ -505,6 +521,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           features={breakdownFeatures}
           pisByArt={pisByArt}
           signoff={breakdownSignoff}
+          dependencies={breakdownDependencies}
         />
       )}
 

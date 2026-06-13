@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import dynamic from "next/dynamic";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { updateFeatureAction } from "@/features/art/actions/feature";
 import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
@@ -12,6 +14,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+
+/** Lazy-import den Netzplan, damit der List-Modus die ~130 KB ReactFlow
+ *  + dagre nicht ins Initial-Bundle zieht. */
+const BreakdownNetworkView = dynamic(
+  () => import("./breakdown-network-view").then((m) => m.BreakdownNetworkView),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[480px] items-center justify-center rounded-lg border bg-muted/20 text-sm text-muted-foreground">
+        Lade Netzplan…
+      </div>
+    ),
+  },
+);
+
+type BreakdownView = "list" | "graph";
+
+function parseBreakdownView(raw: string | null): BreakdownView {
+  return raw === "graph" ? "graph" : "list";
+}
 
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 20] as const;
 
@@ -33,6 +55,8 @@ export interface BreakdownFeature {
   piId: string | null;
   acceptanceCriteria: string[];
   wsjf: { bv: number; tc: number; rr: number; js: number; computed: number };
+  /** SAFe Capacity-Guardrail (Roadmap-G2) — surfacet im Netzplan-Node. */
+  featureType: string | null;
 }
 
 interface Props {
@@ -44,6 +68,9 @@ interface Props {
   pisByArt: Record<string, Pi[]>;
   /** Sign-off state for the Breakdown section (omit to hide the banner). */
   signoff?: SectionSignoff;
+  /** Feature-Feature-Dependencies innerhalb dieses Epics — Input fuer
+   *  die Netzplan-Ansicht. */
+  dependencies: ReadonlyArray<{ id: string; fromId: string; toId: string; type: string }>;
 }
 
 function FeatureRow({
@@ -180,14 +207,62 @@ export function EpicBreakdownTab({
   features,
   pisByArt,
   signoff,
+  dependencies,
 }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const view = parseBreakdownView(searchParams.get("breakdownView"));
+
+  const setView = (next: BreakdownView) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "list") params.delete("breakdownView");
+    else params.set("breakdownView", next);
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}` as never, { scroll: false });
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-medium">Breakdown</h2>
-        {canEdit && (
-          <CreateFeatureDialog epics={[{ id: epicId, title: epicTitle }]} context={{ epicId }} />
-        )}
+        <div className="flex items-center gap-2">
+          <div
+            role="tablist"
+            aria-label="Breakdown-Ansicht"
+            className="inline-flex overflow-hidden rounded-md border bg-card text-xs"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "list"}
+              onClick={() => setView("list")}
+              className={`px-2.5 py-1 transition-colors ${
+                view === "list"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted/50"
+              }`}
+            >
+              Liste
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "graph"}
+              onClick={() => setView("graph")}
+              className={`px-2.5 py-1 transition-colors ${
+                view === "graph"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted/50"
+              }`}
+            >
+              Netzplan
+            </button>
+          </div>
+          {canEdit && (
+            <CreateFeatureDialog epics={[{ id: epicId, title: epicTitle }]} context={{ epicId }} />
+          )}
+        </div>
       </div>
 
       {signoff && <SectionSignoffBanner epicId={epicId} section="breakdown" {...signoff} />}
@@ -197,7 +272,19 @@ export function EpicBreakdownTab({
         du den <span className="font-medium">Breakdown als Ganzes</span> für die Freigabe ab.
       </p>
 
-      {features.length === 0 ? (
+      {view === "graph" ? (
+        <BreakdownNetworkView
+          features={features.map((f) => ({
+            id: f.id,
+            title: f.title,
+            status: f.status,
+            artName: f.artName,
+            featureType: f.featureType,
+            wsjfComputed: f.wsjf.computed > 0 ? f.wsjf.computed : null,
+          }))}
+          dependencies={dependencies}
+        />
+      ) : features.length === 0 ? (
         <p className="text-sm text-muted-foreground">Noch keine Features in diesem Epic.</p>
       ) : (
         <div className="space-y-2">
