@@ -279,6 +279,7 @@ export function EpicBreakdownTab({
 
       {view === "graph" ? (
         <BreakdownNetworkView
+          epicId={epicId}
           features={features.map((f) => ({
             id: f.id,
             title: f.title,
@@ -290,6 +291,7 @@ export function EpicBreakdownTab({
           }))}
           dependencies={dependencies}
           canLinkDependency={canLinkDependency}
+          canCreateFeature={canEdit}
         />
       ) : features.length === 0 ? (
         <p className="text-sm text-muted-foreground">Noch keine Features in diesem Epic.</p>

@@ -13,6 +13,7 @@ import { rangeOverlapsPlannedWindow } from "@/domain/epic-schedule";
 import { canDeliveryTransition } from "@/domain/initiative-status";
 import { earliestStartFromBlockers, type BlockerWindow } from "@/domain/dependency-graph";
 import type { FeatureType } from "@/domain/portfolio-guardrails";
+import { emitAuditEvent } from "@/server/audit/emit";
 
 /** Non-fatal advisories surfaced alongside a successful mutation (e.g. setFeaturePi). */
 export interface MutationWarnings {
@@ -115,6 +116,267 @@ export async function createFeature(
 
     return ok({
       result: { id: feature.id as FeatureId },
+      audit: { action: "initiative.created", resourceType: "initiative", resourceId: feature.id },
+    });
+  });
+}
+
+const QUICK_ADD_WSJF = 3 as FibonacciValue;
+
+export interface CreateFeatureWithDependencyInput {
+  parentId: EpicId;
+  artId: ArtId;
+  predecessorId: FeatureId;
+  title: string;
+  featureType?: FeatureType | null | undefined;
+  edgeType?: "blocks" | "depends_on" | "relates_to" | undefined;
+}
+
+/**
+ * Netzplan-Quick-Add (Roadmap-N3): legt ein neues Feature mit Default-WSJF
+ * 3/3/3/3 an und verbindet es als Folge-Knoten an einen bestehenden
+ * Predecessor — alles atomar in einer Transaktion. Default-Edge-Typ
+ * `depends_on`.
+ */
+export async function createFeatureWithDependency(
+  ctx: RequestContext,
+  input: CreateFeatureWithDependencyInput,
+): Promise<Result<{ id: FeatureId; dependencyId: string }>> {
+  const mctx = toMutationContext(ctx);
+  const { parentId, artId, predecessorId, title, featureType, edgeType = "depends_on" } = input;
+  const wsjfComputed = computeWsjf({
+    businessValue: QUICK_ADD_WSJF,
+    timeCriticality: QUICK_ADD_WSJF,
+    riskReduction: QUICK_ADD_WSJF,
+    jobSize: QUICK_ADD_WSJF,
+  });
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const parentResult = await findValidatedParent(tx, mctx, InitiativeLevel.FEATURE, parentId);
+    if (isErr(parentResult)) return parentResult;
+    const epic = parentResult.value!;
+
+    const art = await tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId } });
+    if (!art) {
+      return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
+    }
+
+    const predecessor = await tx.initiative.findFirst({
+      where: {
+        id: predecessorId,
+        tenantId: mctx.tenantId,
+        level: InitiativeLevel.FEATURE,
+        deletedAt: null,
+      },
+    });
+    if (!predecessor) {
+      return err({
+        kind: "not_found" as const,
+        resourceType: "Initiative",
+        id: predecessorId,
+      });
+    }
+
+    const feature = await tx.initiative.create({
+      data: {
+        tenantId: mctx.tenantId,
+        level: InitiativeLevel.FEATURE,
+        parentId,
+        artId,
+        path: "",
+        title,
+        ownerId: mctx.actorId,
+        assigneeIds: [],
+        createdBy: mctx.actorId,
+        updatedBy: mctx.actorId,
+        wsjfBusinessValue: QUICK_ADD_WSJF,
+        wsjfTimeCriticality: QUICK_ADD_WSJF,
+        wsjfRiskReduction: QUICK_ADD_WSJF,
+        wsjfJobSize: QUICK_ADD_WSJF,
+        wsjfComputed,
+        acceptanceCriteria: [],
+        ...(featureType != null && { featureType }),
+      },
+    });
+
+    await tx.initiative.update({
+      where: { id: feature.id },
+      data: { path: `${epic.path}.${feature.id}` },
+    });
+
+    const dep = await tx.dependency.create({
+      data: {
+        tenantId: mctx.tenantId,
+        fromId: predecessorId,
+        toId: feature.id,
+        type: edgeType,
+        createdBy: mctx.actorId,
+      },
+    });
+
+    await emitAuditEvent(tx, {
+      tenantId: mctx.tenantId,
+      actorId: mctx.actorId,
+      action: "initiative.dependency.linked",
+      resourceType: "dependency",
+      resourceId: dep.id,
+      changes: {
+        type: { before: null, after: edgeType },
+        fromId: { before: null, after: predecessorId },
+        toId: { before: null, after: feature.id },
+      },
+      ipAddress: mctx.ipAddress,
+      userAgent: mctx.userAgent,
+    });
+
+    return ok({
+      result: { id: feature.id as FeatureId, dependencyId: dep.id },
+      audit: { action: "initiative.created", resourceType: "initiative", resourceId: feature.id },
+    });
+  });
+}
+
+export interface InsertFeatureBetweenInput {
+  parentId: EpicId;
+  artId: ArtId;
+  fromId: FeatureId;
+  toId: FeatureId;
+  edgeType: "blocks" | "depends_on" | "relates_to";
+  title: string;
+  featureType?: FeatureType | null | undefined;
+}
+
+/**
+ * Netzplan-Edge-Insertion (Roadmap-N3): legt ein neues Feature an und
+ * spaltet den bestehenden Edge `from → to` in `from → new → to`. Atomar
+ * in einer Transaktion. Der Edge-Typ bleibt erhalten.
+ */
+export async function insertFeatureBetween(
+  ctx: RequestContext,
+  input: InsertFeatureBetweenInput,
+): Promise<Result<{ id: FeatureId; addedDependencyIds: [string, string] }>> {
+  const mctx = toMutationContext(ctx);
+  const { parentId, artId, fromId, toId, edgeType, title, featureType } = input;
+  const wsjfComputed = computeWsjf({
+    businessValue: QUICK_ADD_WSJF,
+    timeCriticality: QUICK_ADD_WSJF,
+    riskReduction: QUICK_ADD_WSJF,
+    jobSize: QUICK_ADD_WSJF,
+  });
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const parentResult = await findValidatedParent(tx, mctx, InitiativeLevel.FEATURE, parentId);
+    if (isErr(parentResult)) return parentResult;
+    const epic = parentResult.value!;
+
+    const art = await tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId } });
+    if (!art) {
+      return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
+    }
+
+    const existingEdge = await tx.dependency.findFirst({
+      where: { tenantId: mctx.tenantId, fromId, toId, type: edgeType },
+    });
+    if (!existingEdge) {
+      return err({
+        kind: "not_found" as const,
+        resourceType: "dependency",
+        id: `${fromId}:${toId}:${edgeType}`,
+      });
+    }
+
+    const feature = await tx.initiative.create({
+      data: {
+        tenantId: mctx.tenantId,
+        level: InitiativeLevel.FEATURE,
+        parentId,
+        artId,
+        path: "",
+        title,
+        ownerId: mctx.actorId,
+        assigneeIds: [],
+        createdBy: mctx.actorId,
+        updatedBy: mctx.actorId,
+        wsjfBusinessValue: QUICK_ADD_WSJF,
+        wsjfTimeCriticality: QUICK_ADD_WSJF,
+        wsjfRiskReduction: QUICK_ADD_WSJF,
+        wsjfJobSize: QUICK_ADD_WSJF,
+        wsjfComputed,
+        acceptanceCriteria: [],
+        ...(featureType != null && { featureType }),
+      },
+    });
+
+    await tx.initiative.update({
+      where: { id: feature.id },
+      data: { path: `${epic.path}.${feature.id}` },
+    });
+
+    await tx.dependency.delete({ where: { id: existingEdge.id } });
+    const depA = await tx.dependency.create({
+      data: {
+        tenantId: mctx.tenantId,
+        fromId,
+        toId: feature.id,
+        type: edgeType,
+        createdBy: mctx.actorId,
+      },
+    });
+    const depB = await tx.dependency.create({
+      data: {
+        tenantId: mctx.tenantId,
+        fromId: feature.id,
+        toId,
+        type: edgeType,
+        createdBy: mctx.actorId,
+      },
+    });
+
+    await emitAuditEvent(tx, {
+      tenantId: mctx.tenantId,
+      actorId: mctx.actorId,
+      action: "initiative.dependency.unlinked",
+      resourceType: "dependency",
+      resourceId: existingEdge.id,
+      changes: {
+        type: { before: edgeType, after: null },
+        fromId: { before: fromId, after: null },
+        toId: { before: toId, after: null },
+      },
+      ipAddress: mctx.ipAddress,
+      userAgent: mctx.userAgent,
+    });
+    await emitAuditEvent(tx, {
+      tenantId: mctx.tenantId,
+      actorId: mctx.actorId,
+      action: "initiative.dependency.linked",
+      resourceType: "dependency",
+      resourceId: depA.id,
+      changes: {
+        type: { before: null, after: edgeType },
+        fromId: { before: null, after: fromId },
+        toId: { before: null, after: feature.id },
+      },
+      ipAddress: mctx.ipAddress,
+      userAgent: mctx.userAgent,
+    });
+    await emitAuditEvent(tx, {
+      tenantId: mctx.tenantId,
+      actorId: mctx.actorId,
+      action: "initiative.dependency.linked",
+      resourceType: "dependency",
+      resourceId: depB.id,
+      changes: {
+        type: { before: null, after: edgeType },
+        fromId: { before: null, after: feature.id },
+        toId: { before: null, after: toId },
+      },
+      ipAddress: mctx.ipAddress,
+      userAgent: mctx.userAgent,
+    });
+
+    return ok({
+      result: { id: feature.id as FeatureId, addedDependencyIds: [depA.id, depB.id] },
       audit: { action: "initiative.created", resourceType: "initiative", resourceId: feature.id },
     });
   });

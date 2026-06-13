@@ -1,19 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import dagre from "@dagrejs/dagre";
 import {
   ReactFlow,
   Background,
   Controls,
+  EdgeLabelRenderer,
   Handle,
   MarkerType,
   Position,
   addEdge,
+  getSmoothStepPath,
   type Connection,
-  type Node,
   type Edge,
+  type EdgeProps,
+  type Node,
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -22,6 +26,14 @@ import { Link } from "@/i18n/navigation";
 import { detectCycle } from "@/domain/dependency-graph";
 import { linkDependencyAction } from "@/features/dependencies/actions/dependency";
 import {
+  quickAddFeatureWithDependencyAction,
+  insertFeatureBetweenAction,
+} from "@/features/portfolio/actions/breakdown-network";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
   buildBreakdownGraph,
   type BreakdownGraphEdge,
   type BreakdownGraphNode,
@@ -29,6 +41,7 @@ import {
 } from "@/server/views/breakdown-network-view";
 
 interface Props {
+  epicId: string;
   features: ReadonlyArray<{
     id: string;
     title: string;
@@ -45,6 +58,8 @@ interface Props {
     type: string;
   }>;
   canLinkDependency: boolean;
+  /** Wenn `true`, sind die Plus-Buttons am Node + Edge sichtbar (N3). */
+  canCreateFeature: boolean;
 }
 
 const NODE_WIDTH = 220;
@@ -75,8 +90,117 @@ const TIER_BADGE: Record<BreakdownGraphNode["wsjfTier"], string> = {
   unscored: "bg-muted text-muted-foreground",
 };
 
+type QuickAddSubmit = (input: { title: string; featureType: "feature" | "enabler" }) => void;
+
+interface FeatureNodeData extends BreakdownGraphNode {
+  connectable: boolean;
+  showPlus: boolean;
+  onAdd?: QuickAddSubmit | undefined;
+  artId: string;
+}
+
+interface InsertableEdgeData {
+  type: DependencyEdgeType;
+  showPlus: boolean;
+  onInsert?: QuickAddSubmit | undefined;
+}
+
+function QuickAddForm({
+  defaultTitle,
+  onSubmit,
+  onClose,
+  busy,
+}: {
+  defaultTitle?: string;
+  onSubmit: (input: { title: string; featureType: "feature" | "enabler" }) => void;
+  onClose: () => void;
+  busy: boolean;
+}) {
+  const [title, setTitle] = useState(defaultTitle ?? "");
+  const [featureType, setFeatureType] = useState<"feature" | "enabler">("feature");
+
+  return (
+    <form
+      className="space-y-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (title.trim().length === 0) return;
+        onSubmit({ title: title.trim(), featureType });
+      }}
+    >
+      <div className="space-y-1">
+        <Label htmlFor="quick-add-title" className="text-xs">
+          Titel
+        </Label>
+        <Input
+          id="quick-add-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          autoFocus
+          required
+          maxLength={200}
+          placeholder="z. B. Auth-Refresh-Endpoint"
+          className="h-8"
+        />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="quick-add-type" className="text-xs">
+          Typ
+        </Label>
+        <select
+          id="quick-add-type"
+          value={featureType}
+          onChange={(e) => setFeatureType(e.target.value as "feature" | "enabler")}
+          className="flex h-8 w-full rounded-md border border-input bg-card px-2 text-xs"
+        >
+          <option value="feature">Feature</option>
+          <option value="enabler">Enabler</option>
+        </select>
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        WSJF wird auf 3/3/3/3 vorbelegt — verfeinerst du im Detail-Tab.
+      </p>
+      <div className="flex justify-end gap-1.5 pt-1">
+        <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={busy}>
+          Abbrechen
+        </Button>
+        <Button type="submit" size="sm" disabled={busy || title.trim().length === 0}>
+          {busy ? "Anlegen…" : "Anlegen"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function QuickAddPopover({
+  children,
+  onSubmit,
+  busy,
+}: {
+  children: ReactNode;
+  onSubmit: QuickAddSubmit;
+  busy: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger render={children as React.ReactElement} />
+      <PopoverContent side="bottom" align="center" className="w-64">
+        <QuickAddForm
+          onSubmit={(input) => {
+            onSubmit(input);
+            setOpen(false);
+          }}
+          onClose={() => setOpen(false)}
+          busy={busy}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function FeatureNode({ data }: NodeProps) {
-  const node = data as unknown as BreakdownGraphNode & { connectable: boolean };
+  const node = data as unknown as FeatureNodeData;
   const isEnabler = node.featureType === "enabler";
   return (
     <div className="relative" style={{ width: NODE_WIDTH }}>
@@ -125,35 +249,121 @@ function FeatureNode({ data }: NodeProps) {
             : "!size-0 !border-none"
         }
       />
+      {node.showPlus && node.onAdd && (
+        <div className="absolute -right-7 top-1/2 -translate-y-1/2">
+          <QuickAddPopover onSubmit={node.onAdd} busy={false}>
+            <button
+              type="button"
+              aria-label="Folge-Feature anlegen"
+              className="flex size-5 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition hover:bg-primary hover:text-primary-foreground"
+            >
+              <Plus className="size-3" />
+            </button>
+          </QuickAddPopover>
+        </div>
+      )}
     </div>
   );
 }
 
-const NODE_TYPES = { feature: FeatureNode };
+function InsertableEdge(props: EdgeProps) {
+  const {
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    data,
+    label,
+    markerEnd,
+    style,
+  } = props;
+  const edgeData = data as unknown as InsertableEdgeData | undefined;
+  const type = edgeData?.type ?? "depends_on";
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+  });
+  return (
+    <>
+      <path
+        id={id}
+        d={edgePath}
+        style={style}
+        className="react-flow__edge-path"
+        markerEnd={markerEnd}
+        fill="none"
+      />
+      <EdgeLabelRenderer>
+        <div
+          className="absolute flex items-center gap-1"
+          style={{
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            pointerEvents: "all",
+          }}
+        >
+          {label && (
+            <span className="rounded bg-white px-1 text-[10px]" style={{ color: EDGE_COLOR[type] }}>
+              {label}
+            </span>
+          )}
+          {edgeData?.showPlus && edgeData.onInsert && (
+            <QuickAddPopover onSubmit={edgeData.onInsert} busy={false}>
+              <button
+                type="button"
+                aria-label="Feature zwischenfügen"
+                className="flex size-5 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition hover:bg-primary hover:text-primary-foreground"
+              >
+                <Plus className="size-3" />
+              </button>
+            </QuickAddPopover>
+          )}
+        </div>
+      </EdgeLabelRenderer>
+    </>
+  );
+}
 
-function edgeStyle(type: DependencyEdgeType): Edge {
+const NODE_TYPES = { feature: FeatureNode };
+const EDGE_TYPES = { insertable: InsertableEdge };
+
+function edgeStyle(type: DependencyEdgeType): {
+  style: React.CSSProperties;
+  animated: boolean;
+  marker: { type: MarkerType; color: string };
+} {
   return {
-    id: "",
-    source: "",
-    target: "",
-    label: EDGE_LABEL[type],
-    type: "smoothstep",
     animated: type === "blocks",
     style: {
       stroke: EDGE_COLOR[type],
       strokeWidth: 1.5,
       strokeDasharray: type === "relates_to" ? "4 4" : undefined,
     },
-    labelStyle: { fill: EDGE_COLOR[type], fontSize: 10 },
-    labelBgStyle: { fill: "white" },
-    markerEnd: { type: MarkerType.ArrowClosed, color: EDGE_COLOR[type] },
+    marker: { type: MarkerType.ArrowClosed, color: EDGE_COLOR[type] },
   };
 }
 
 function layoutGraph(
   nodes: BreakdownGraphNode[],
   edges: BreakdownGraphEdge[],
-  connectable: boolean,
+  artById: Map<string, string>,
+  ctx: {
+    canLinkDependency: boolean;
+    canCreateFeature: boolean;
+    onAddSuccessor: (predecessorId: string, predecessorArtId: string) => QuickAddSubmit;
+    onInsertOnEdge: (
+      fromId: string,
+      toId: string,
+      edgeType: DependencyEdgeType,
+      sourceArtId: string,
+    ) => QuickAddSubmit;
+  },
 ): { nodes: Node[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
@@ -169,23 +379,56 @@ function layoutGraph(
 
   const rfNodes: Node[] = nodes.map((n) => {
     const pos = g.node(n.id);
+    const artId = artById.get(n.id) ?? "";
+    const data: FeatureNodeData = {
+      ...n,
+      artId,
+      connectable: ctx.canLinkDependency,
+      showPlus: ctx.canCreateFeature && artId !== "",
+      onAdd: artId !== "" ? ctx.onAddSuccessor(n.id, artId) : undefined,
+    };
     return {
       id: n.id,
       type: "feature",
-      data: { ...n, connectable } as unknown as Record<string, unknown>,
+      data: data as unknown as Record<string, unknown>,
       position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - NODE_HEIGHT / 2 },
     };
   });
 
   const rfEdges: Edge[] = edges.map((e) => {
-    const tmpl = edgeStyle(e.type);
-    return { ...tmpl, id: e.id, source: e.source, target: e.target };
+    const s = edgeStyle(e.type);
+    const sourceArtId = artById.get(e.source) ?? "";
+    const data: InsertableEdgeData = {
+      type: e.type,
+      showPlus: ctx.canCreateFeature && sourceArtId !== "",
+      onInsert:
+        sourceArtId !== ""
+          ? ctx.onInsertOnEdge(e.source, e.target, e.type, sourceArtId)
+          : undefined,
+    };
+    return {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      type: "insertable",
+      label: EDGE_LABEL[e.type],
+      animated: s.animated,
+      style: s.style,
+      markerEnd: s.marker,
+      data: data as unknown as Record<string, unknown>,
+    };
   });
 
   return { nodes: rfNodes, edges: rfEdges };
 }
 
-export function BreakdownNetworkView({ features, dependencies, canLinkDependency }: Props) {
+export function BreakdownNetworkView({
+  epicId,
+  features,
+  dependencies,
+  canLinkDependency,
+  canCreateFeature,
+}: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const artById = useMemo(() => {
@@ -198,13 +441,81 @@ export function BreakdownNetworkView({ features, dependencies, canLinkDependency
     () => buildBreakdownGraph({ features, dependencies }),
     [features, dependencies],
   );
-  const baseGraph = useMemo(
-    () => layoutGraph(model.nodes, model.edges, canLinkDependency),
-    [model.nodes, model.edges, canLinkDependency],
+
+  // onAddSuccessor: bauen pro Render eine factory, die fuer einen
+  // Predecessor eine Submit-Funktion liefert. Die Submit-Funktion ruft
+  // die Server-Action und tut Optimistic + Refresh.
+  const onAddSuccessor = useCallback(
+    (predecessorId: string, predecessorArtId: string): QuickAddSubmit =>
+      (input) => {
+        const fd = new FormData();
+        fd.set("artId", predecessorArtId);
+        fd.set("parentEpicId", epicId);
+        fd.set("predecessorId", predecessorId);
+        fd.set("title", input.title);
+        fd.set("featureType", input.featureType);
+        startTransition(async () => {
+          const result = await quickAddFeatureWithDependencyAction({}, fd);
+          if (result?.error) {
+            toast.error(result.error);
+            return;
+          }
+          toast.success("Folge-Feature angelegt");
+          router.refresh();
+        });
+      },
+    [epicId, router],
   );
 
-  // Controlled-State auf Edges, damit Connects sofort sichtbar werden;
-  // bei Page-Refresh kommt der finale Stand aus dem Server.
+  const onInsertOnEdge = useCallback(
+    (
+      fromId: string,
+      toId: string,
+      edgeType: DependencyEdgeType,
+      sourceArtId: string,
+    ): QuickAddSubmit =>
+      (input) => {
+        const fd = new FormData();
+        fd.set("artId", sourceArtId);
+        fd.set("parentEpicId", epicId);
+        fd.set("fromId", fromId);
+        fd.set("toId", toId);
+        fd.set("edgeType", edgeType);
+        fd.set("title", input.title);
+        fd.set("featureType", input.featureType);
+        startTransition(async () => {
+          const result = await insertFeatureBetweenAction({}, fd);
+          if (result?.error) {
+            toast.error(result.error);
+            return;
+          }
+          toast.success("Feature zwischengefügt");
+          router.refresh();
+        });
+      },
+    [epicId, router],
+  );
+
+  const baseGraph = useMemo(
+    () =>
+      layoutGraph(model.nodes, model.edges, artById, {
+        canLinkDependency,
+        canCreateFeature,
+        onAddSuccessor,
+        onInsertOnEdge,
+      }),
+    [
+      model.nodes,
+      model.edges,
+      artById,
+      canLinkDependency,
+      canCreateFeature,
+      onAddSuccessor,
+      onInsertOnEdge,
+    ],
+  );
+
+  // Controlled-Edges fuer Optimistic Drag-Connect.
   const [edges, setEdges] = useState<Edge[]>(baseGraph.edges);
   useEffect(() => setEdges(baseGraph.edges), [baseGraph.edges]);
 
@@ -232,10 +543,22 @@ export function BreakdownNetworkView({ features, dependencies, canLinkDependency
         return;
       }
       const tmpId = `tmp-${conn.source}-${conn.target}-${Date.now()}`;
-      const tmpl = edgeStyle("depends_on");
-      setEdges((current) =>
-        addEdge({ ...tmpl, id: tmpId, source: conn.source!, target: conn.target! }, current),
-      );
+      const s = edgeStyle("depends_on");
+      const tmpEdge: Edge = {
+        id: tmpId,
+        source: conn.source,
+        target: conn.target,
+        type: "insertable",
+        label: EDGE_LABEL.depends_on,
+        animated: s.animated,
+        style: s.style,
+        markerEnd: s.marker,
+        data: {
+          type: "depends_on",
+          showPlus: false,
+        } as unknown as Record<string, unknown>,
+      };
+      setEdges((current) => addEdge(tmpEdge, current));
 
       const fd = new FormData();
       fd.set("fromId", conn.source);
@@ -254,7 +577,7 @@ export function BreakdownNetworkView({ features, dependencies, canLinkDependency
         router.refresh();
       });
     },
-    [artById, canLinkDependency, edges, router, startTransition],
+    [artById, canLinkDependency, edges, router],
   );
 
   if (model.nodes.length === 0) {
@@ -273,10 +596,18 @@ export function BreakdownNetworkView({ features, dependencies, canLinkDependency
           Endpunkten ausserhalb dieses Epics werden hier nicht gezeigt.
         </p>
       )}
-      {canLinkDependency && (
+      {(canLinkDependency || canCreateFeature) && (
         <p className="text-xs text-muted-foreground">
-          Tipp: Ziehe vom rechten Rand eines Nodes auf den linken Rand eines anderen, um eine neue
-          „depends on"-Abhängigkeit anzulegen.
+          {canCreateFeature && <>Klicke auf „+" am Node, um ein Folge-Feature anzulegen. </>}
+          {canCreateFeature && (
+            <>Klicke auf „+" an einer Edge, um dazwischen ein Feature einzufügen. </>
+          )}
+          {canLinkDependency && (
+            <>
+              Ziehe von der rechten Node-Kante auf eine andere, um eine neue „depends
+              on"-Abhängigkeit anzulegen.
+            </>
+          )}
         </p>
       )}
       <div className="h-[480px] rounded-lg border bg-muted/30">
@@ -284,6 +615,7 @@ export function BreakdownNetworkView({ features, dependencies, canLinkDependency
           nodes={baseGraph.nodes}
           edges={edges}
           nodeTypes={NODE_TYPES}
+          edgeTypes={EDGE_TYPES}
           nodesDraggable
           nodesConnectable={canLinkDependency}
           elementsSelectable
