@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dagre from "@dagrejs/dagre";
 import {
@@ -10,6 +10,7 @@ import {
   ReactFlow,
   type Edge,
   type Node,
+  type Connection,
   MarkerType,
   Controls,
   MiniMap,
@@ -20,20 +21,31 @@ import type {
   CockpitFeature,
   FeatureStatus,
 } from "@/server/views/umsetzung-cockpit-view";
+import {
+  linkDependencyAction,
+  unlinkDependencyAction,
+  changeDependencyTypeAction,
+} from "@/features/dependencies/actions/dependency";
+import { EdgeTypeMenu } from "@/features/dependencies/components/edge-type-popover";
+import { FeaturePickerPopover } from "@/features/dependencies/components/feature-picker-popover";
+import type { DependencyEdgeType } from "@/server/views/breakdown-network-view";
 
 /**
  * Netzplan-Sicht des Cockpits — flacher Network-Graph aller Features
  * im ART-Scope, Dependencies als gerichtete Kanten. Spiegelt das
- * Epic-Breakdown-Pattern, ist aber bewusst **slim**: nur Visualisierung,
- * kein Quick-Add, kein Refine, kein Position-Persist, kein Drag-Connect.
- * Edits laufen ueber den Feature-Slide-Over (Klick auf Knoten).
+ * Epic-Breakdown-Pattern; Editing-UX ist konsistent zum Epic-Breakdown:
+ * Drag-Connect erzeugt neue Dep, Klick auf Edge oeffnet das gleiche
+ * EdgeTypeMenu (Typ wechseln / loeschen). Cross-ART-Endpunkte werden
+ * ueber einen + Knopf rechts oben angelegt (Source-Pick, dann
+ * FeaturePickerPopover).
  *
- * Off-Scope-Endpunkte erscheinen als gestrichelte Ghost-Nodes am Rand
- * des Layouts — gleiche Sprache wie im Epic-Breakdown.
+ * Off-Scope-Endpunkte erscheinen als gestrichelte Ghost-Nodes am Rand.
  */
 interface Props {
   features: CockpitFeature[];
   dependencies: CockpitDependency[];
+  artId: string;
+  canLinkDependency: boolean;
 }
 
 const NODE_W = 200;
@@ -64,6 +76,7 @@ const STATUS_LABEL: Record<FeatureStatus, string> = {
 type FeatureNodeData = {
   feature: CockpitFeature;
   onOpen: (id: string) => void;
+  connectable: boolean;
 };
 
 type GhostNodeData = {
@@ -71,20 +84,26 @@ type GhostNodeData = {
   hint: string;
 };
 
-// Read-only handles — sind notwendig damit React-Flow Edges an die
-// Knoten andocken kann, aber visuell unsichtbar gestylt (size-0,
-// kein Border), weil das Netzplan-Cockpit keine drag-connect-Edits hat.
-const HANDLE_STYLE = "!size-0 !border-none !bg-transparent";
+/**
+ * Style der React-Flow-Handles. `connectable=false` haelt sie komplett
+ * versteckt (size-0). `connectable=true` zeigt einen kleinen dot beim
+ * Group-Hover — User sieht erst beim Anvisieren des Knotens, wo er
+ * ziehen kann.
+ */
+const HANDLE_HIDDEN = "!size-0 !border-none !bg-transparent";
+const HANDLE_VISIBLE =
+  "!size-2 !border !border-background !bg-foreground/60 !opacity-0 transition-opacity group-hover:!opacity-100";
 
 const FeatureNode = memo(function FeatureNode({ data }: { data: FeatureNodeData }) {
   const f = data.feature;
+  const handleClass = data.connectable ? HANDLE_VISIBLE : HANDLE_HIDDEN;
   return (
-    <div className="relative">
+    <div className="group relative">
       <Handle
         type="target"
         position={Position.Left}
-        className={HANDLE_STYLE}
-        isConnectable={false}
+        className={handleClass}
+        isConnectable={data.connectable}
       />
       <button
         type="button"
@@ -107,8 +126,8 @@ const FeatureNode = memo(function FeatureNode({ data }: { data: FeatureNodeData 
       <Handle
         type="source"
         position={Position.Right}
-        className={HANDLE_STYLE}
-        isConnectable={false}
+        className={handleClass}
+        isConnectable={data.connectable}
       />
     </div>
   );
@@ -120,7 +139,7 @@ const GhostNode = memo(function GhostNode({ data }: { data: GhostNodeData }) {
       <Handle
         type="target"
         position={Position.Left}
-        className={HANDLE_STYLE}
+        className={HANDLE_HIDDEN}
         isConnectable={false}
       />
       <div
@@ -135,7 +154,7 @@ const GhostNode = memo(function GhostNode({ data }: { data: GhostNodeData }) {
       <Handle
         type="source"
         position={Position.Right}
-        className={HANDLE_STYLE}
+        className={HANDLE_HIDDEN}
         isConnectable={false}
       />
     </div>
@@ -147,10 +166,17 @@ const NODE_TYPES = {
   ghost: GhostNode,
 };
 
-export function CockpitNetwork({ features, dependencies }: Props) {
+type EdgeAnchor = { depId: string; type: DependencyEdgeType; x: number; y: number };
+type AddState = { sourceId: string; anchorX: number; anchorY: number };
+
+export function CockpitNetwork({ features, dependencies, artId, canLinkDependency }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
+  const [edgeAnchor, setEdgeAnchor] = useState<EdgeAnchor | null>(null);
+  const [addState, setAddState] = useState<AddState | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   function openSlideOver(id: string) {
     const next = new URLSearchParams(searchParams.toString());
@@ -158,13 +184,59 @@ export function CockpitNetwork({ features, dependencies }: Props) {
     router.replace(`${pathname}?${next.toString()}` as never, { scroll: false });
   }
 
+  function depById(depId: string): CockpitDependency | undefined {
+    return dependencies.find((d) => d.id === depId);
+  }
+
+  function callLink(sourceId: string, targetId: string, type: DependencyEdgeType = "depends_on") {
+    if (sourceId === targetId) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("fromId", sourceId);
+      fd.set("toId", targetId);
+      fd.set("type", type);
+      fd.set("artId", artId);
+      const res = await linkDependencyAction({}, fd);
+      setError(res.error ?? null);
+    });
+  }
+
+  function callUnlink(depId: string) {
+    const d = depById(depId);
+    if (!d) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("fromId", d.fromId);
+      fd.set("toId", d.toId);
+      fd.set("type", d.type);
+      fd.set("artId", artId);
+      const res = await unlinkDependencyAction({}, fd);
+      setError(res.error ?? null);
+    });
+  }
+
+  function callChangeType(depId: string, next: DependencyEdgeType) {
+    const d = depById(depId);
+    if (!d || d.type === next) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("fromId", d.fromId);
+      fd.set("toId", d.toId);
+      fd.set("fromType", d.type);
+      fd.set("toType", next);
+      fd.set("artId", artId);
+      const res = await changeDependencyTypeAction({}, fd);
+      setError(res.error ?? null);
+    });
+  }
+
   // openSlideOver wird pro Render neu erzeugt — das ist beabsichtigt,
   // damit der Klick immer den aktuellen searchParams-Stand mitnimmt.
   // dagre.layout ist der Hotspot, das Closure-Refresh ist billig.
   const searchParamsKey = searchParams.toString();
   const { nodes, edges } = useMemo(
-    () => buildLayoutedGraph(features, dependencies, openSlideOver),
-    [features, dependencies, searchParamsKey, openSlideOver],
+    () => buildLayoutedGraph(features, dependencies, openSlideOver, canLinkDependency),
+    [features, dependencies, searchParamsKey, openSlideOver, canLinkDependency],
   );
 
   if (features.length === 0) {
@@ -176,21 +248,90 @@ export function CockpitNetwork({ features, dependencies }: Props) {
   }
 
   return (
-    <div className="h-[calc(100vh-260px)] min-h-[400px] overflow-hidden rounded-lg border">
+    <div className="relative h-[calc(100vh-260px)] min-h-[400px] overflow-hidden rounded-lg border">
+      {error && (
+        <div className="absolute left-2 top-2 z-30 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-1 text-xs text-destructive">
+          {error}
+        </div>
+      )}
+      {canLinkDependency && (
+        <button
+          type="button"
+          onClick={() => setAddState({ sourceId: "", anchorX: 24, anchorY: 64 })}
+          className="absolute right-3 top-3 z-20 rounded-md border bg-card px-2.5 py-1 text-xs font-medium shadow-sm hover:bg-muted/40"
+          title="Cross-ART-Dependency anlegen"
+        >
+          + Cross-ART
+        </button>
+      )}
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={NODE_TYPES}
         nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
+        nodesConnectable={canLinkDependency}
+        elementsSelectable
         fitView
         proOptions={{ hideAttribution: true }}
+        onConnect={(c: Connection) => {
+          if (!canLinkDependency) return;
+          if (!c.source || !c.target) return;
+          // Drag-Connect von einem Feature-Knoten auf einen anderen.
+          // Ghost-Knoten werden bewusst nicht connectable gemacht.
+          callLink(c.source, c.target);
+        }}
+        onEdgeClick={(e, edge) => {
+          if (!canLinkDependency) return;
+          const d = depById(edge.id);
+          if (!d) return;
+          e.preventDefault();
+          setEdgeAnchor({ depId: d.id, type: d.type, x: e.clientX, y: e.clientY });
+        }}
       >
         <Background gap={24} />
         <Controls showInteractive={false} />
         <MiniMap pannable zoomable />
       </ReactFlow>
+
+      {edgeAnchor && (
+        <div
+          className="fixed z-50"
+          style={{ left: edgeAnchor.x, top: edgeAnchor.y }}
+          onMouseLeave={() => setEdgeAnchor(null)}
+        >
+          <EdgeTypeMenu
+            currentType={edgeAnchor.type}
+            onChange={(t) => callChangeType(edgeAnchor.depId, t)}
+            onDelete={() => callUnlink(edgeAnchor.depId)}
+            onClose={() => setEdgeAnchor(null)}
+          />
+        </div>
+      )}
+
+      {addState &&
+        (addState.sourceId === "" ? (
+          <FeaturePickerPopover
+            anchorX={addState.anchorX}
+            anchorY={addState.anchorY}
+            onSelect={(sourceId) =>
+              setAddState({ sourceId, anchorX: addState.anchorX, anchorY: addState.anchorY + 80 })
+            }
+            onCancel={() => setAddState(null)}
+            initialQuery=""
+          />
+        ) : (
+          <FeaturePickerPopover
+            anchorX={addState.anchorX}
+            anchorY={addState.anchorY}
+            excludeIds={[addState.sourceId]}
+            onSelect={(targetId) => {
+              callLink(addState.sourceId, targetId);
+              setAddState(null);
+            }}
+            onCancel={() => setAddState(null)}
+            initialQuery=""
+          />
+        ))}
     </div>
   );
 }
@@ -199,6 +340,7 @@ function buildLayoutedGraph(
   features: CockpitFeature[],
   dependencies: CockpitDependency[],
   onOpen: (id: string) => void,
+  connectable: boolean,
 ): { nodes: Node[]; edges: Edge[] } {
   const featureIds = new Set(features.map((f) => f.id));
   const g = new dagre.graphlib.Graph();
@@ -249,7 +391,7 @@ function buildLayoutedGraph(
       id: f.id,
       type: "feature",
       position: { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 },
-      data: { feature: f, onOpen } satisfies FeatureNodeData,
+      data: { feature: f, onOpen, connectable } satisfies FeatureNodeData,
     });
   }
   for (const [ghostId, info] of ghostIds) {

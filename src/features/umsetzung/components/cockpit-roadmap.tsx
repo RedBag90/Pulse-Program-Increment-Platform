@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useTransition } from "react";
 import {
   roadmapAxis,
   cockpitRoadmapRows,
@@ -11,27 +14,52 @@ import type {
   CockpitPiWindow,
   FeatureStatus,
 } from "@/server/views/umsetzung-cockpit-view";
+import type { DependencyEdgeType } from "@/server/views/breakdown-network-view";
+import {
+  linkDependencyAction,
+  unlinkDependencyAction,
+  changeDependencyTypeAction,
+} from "@/features/dependencies/actions/dependency";
+import { EdgeTypeMenu } from "@/features/dependencies/components/edge-type-popover";
+import { FeaturePickerPopover } from "@/features/dependencies/components/feature-picker-popover";
 
 /**
- * Roadmap-Sicht des Cockpits — read-mostly, **compact** Gantt mit
- * Epic-Grouping. Features stehen indented unter ihrem Parent-Epic
- * (Linear/Productboard-Pattern), der Epic-Header zeigt das aus den
- * Feature-PIs abgeleitete Soll-Fenster. Status-Akzent pro Feature-Bar,
- * PI-Grid + Today-Linie vom Renderer. Dependencies erscheinen als
- * Elbow-Pfeile ueber dem Track (Hover-Highlight); Off-Scope-Endpunkte
- * werden als Marker am Bar-Rand gerendert.
+ * Roadmap-Sicht des Cockpits — kompakter Gantt mit Epic-Grouping,
+ * Dependency-Pfeilen, Off-Scope-Markern und (neu) Editing-Affordances:
+ * Klick auf eine Linie oeffnet das EdgeTypeMenu (Typ aendern / loeschen);
+ * Hover ueber eine Bar zeigt einen „+" Knopf rechts, der den
+ * FeaturePickerPopover oeffnet — Cross-ART-faehig per Tenant-weiter
+ * Suche.
  */
 interface Props {
   features: CockpitFeature[];
   allPiWindows: CockpitPiWindow[];
   dependencies: CockpitDependency[];
+  /** ART-Scope fuer die Dep-Editing-Actions (Permission-Check + Source-ART). */
+  artId: string;
+  /** Wenn false, sind die Editing-Affordances ausgeblendet (read-only). */
+  canLinkDependency: boolean;
 }
 
 function statusToAccent(status: FeatureStatus): RoadmapRowAccent {
   return status;
 }
 
-export function CockpitRoadmap({ features, allPiWindows, dependencies }: Props) {
+type EdgeAnchor = { depId: string; type: DependencyEdgeType; x: number; y: number };
+type AddAnchor = { sourceId: string; x: number; y: number };
+
+export function CockpitRoadmap({
+  features,
+  allPiWindows,
+  dependencies,
+  artId,
+  canLinkDependency,
+}: Props) {
+  const [, startTransition] = useTransition();
+  const [edgeAnchor, setEdgeAnchor] = useState<EdgeAnchor | null>(null);
+  const [addAnchor, setAddAnchor] = useState<AddAnchor | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
   const piById = new Map(allPiWindows.map((p) => [p.id, p]));
 
   const cockpitFeatures: CockpitRoadmapFeature[] = features.map((f) => {
@@ -46,13 +74,11 @@ export function CockpitRoadmap({ features, allPiWindows, dependencies }: Props) 
     };
   });
 
-  const rows = cockpitRoadmapRows(cockpitFeatures);
+  const rows = cockpitRoadmapRows(cockpitFeatures).map((r) => r);
   // Backlog-only Features (kein PI) verstecken — sie wuerden die Axis
   // ausweiten und im Track leer bleiben. Epic-Header-Rows ohne Range
   // bleiben dabei drin, damit die Hierarchie nicht zerreisst.
   const visible = rows.filter((r) => r.kind === "epic" || r.kind === "group" || r.range !== null);
-  // Axis wird aus den tatsaechlich gerenderten Ranges abgeleitet — Epic-
-  // Header ohne eigene Range fliessen ein wenn ihre Childs ranges haben.
   const axis = roadmapAxis(visible);
 
   const featureWithRange = visible.find((r) => r.kind === "feature" && r.range !== null);
@@ -66,11 +92,6 @@ export function CockpitRoadmap({ features, allPiWindows, dependencies }: Props) 
 
   const piBoundaries = allPiWindows.map((p) => ({ date: p.startDate, label: p.name }));
 
-  // Dependencies in das Gantt-Format mappen. Edges deren Endpunkt im
-  // Backlog liegt (sichtbare Feature aber ohne Range) werden gefiltert —
-  // der RoadmapGantt rendert nur Pfade fuer Rows mit Bar. Off-Scope-
-  // Edges (Endpunkt komplett ausserhalb des Scopes) gehen mit durch
-  // und werden als Bar-Rand-Marker dargestellt.
   const visibleIds = new Set(visible.filter((r) => r.range !== null).map((r) => r.id));
   const ganttDeps: GanttDependency[] = dependencies
     .filter((d) => {
@@ -87,7 +108,100 @@ export function CockpitRoadmap({ features, allPiWindows, dependencies }: Props) 
       offScopeLabel: d.offScopeLabel,
     }));
 
+  function depById(depId: string): CockpitDependency | undefined {
+    return dependencies.find((d) => d.id === depId);
+  }
+
+  function callLink(sourceId: string, targetId: string, type: DependencyEdgeType = "depends_on") {
+    if (sourceId === targetId) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("fromId", sourceId);
+      fd.set("toId", targetId);
+      fd.set("type", type);
+      fd.set("artId", artId);
+      const res = await linkDependencyAction({}, fd);
+      setError(res.error ?? null);
+    });
+  }
+
+  function callUnlink(depId: string) {
+    const d = depById(depId);
+    if (!d) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("fromId", d.fromId);
+      fd.set("toId", d.toId);
+      fd.set("type", d.type);
+      fd.set("artId", artId);
+      const res = await unlinkDependencyAction({}, fd);
+      setError(res.error ?? null);
+    });
+  }
+
+  function callChangeType(depId: string, next: DependencyEdgeType) {
+    const d = depById(depId);
+    if (!d || d.type === next) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("fromId", d.fromId);
+      fd.set("toId", d.toId);
+      fd.set("fromType", d.type);
+      fd.set("toType", next);
+      fd.set("artId", artId);
+      const res = await changeDependencyTypeAction({}, fd);
+      setError(res.error ?? null);
+    });
+  }
+
   return (
-    <RoadmapGantt rows={visible} axis={axis} piBoundaries={piBoundaries} dependencies={ganttDeps} />
+    <div className="relative">
+      {error && (
+        <div className="mb-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-1 text-xs text-destructive">
+          {error}
+        </div>
+      )}
+
+      <RoadmapGantt
+        rows={visible}
+        axis={axis}
+        piBoundaries={piBoundaries}
+        dependencies={ganttDeps}
+        {...(canLinkDependency
+          ? {
+              onDependencyClick: (d, x, y) => setEdgeAnchor({ depId: d.id, type: d.type, x, y }),
+              onAddDependencyFrom: (id, x, y) => setAddAnchor({ sourceId: id, x, y }),
+            }
+          : {})}
+      />
+
+      {edgeAnchor && (
+        <div
+          className="fixed z-50"
+          style={{ left: edgeAnchor.x, top: edgeAnchor.y }}
+          onMouseLeave={() => setEdgeAnchor(null)}
+        >
+          <EdgeTypeMenu
+            currentType={edgeAnchor.type}
+            onChange={(t) => callChangeType(edgeAnchor.depId, t)}
+            onDelete={() => callUnlink(edgeAnchor.depId)}
+            onClose={() => setEdgeAnchor(null)}
+          />
+        </div>
+      )}
+
+      {addAnchor && (
+        <FeaturePickerPopover
+          anchorX={addAnchor.x}
+          anchorY={addAnchor.y}
+          excludeIds={[addAnchor.sourceId]}
+          onSelect={(targetId) => {
+            callLink(addAnchor.sourceId, targetId);
+            setAddAnchor(null);
+          }}
+          onCancel={() => setAddAnchor(null)}
+        />
+      )}
+    </div>
   );
 }

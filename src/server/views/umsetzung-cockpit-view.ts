@@ -69,6 +69,9 @@ export interface CockpitPermissions {
   canSetDelivery: boolean;
   /** ART-scoped `feature.create`. */
   canCreate: boolean;
+  /** ART-scoped `dependency.link` — Dep anlegen / loeschen / Typ wechseln
+   *  via Cockpit-Roadmap + Cockpit-Netzplan. */
+  canLinkDependency: boolean;
 }
 
 export interface CockpitFilters {
@@ -414,6 +417,7 @@ export async function loadCockpitModel(
   const canUpdate = hasCapability(principal, "feature.update", resource);
   const canSetDelivery = hasCapability(principal, "feature.delivery.set", resource);
   const canCreate = hasCapability(principal, "feature.create", resource);
+  const canLinkDependency = hasCapability(principal, "dependency.link", resource);
 
   return {
     availableArts,
@@ -424,6 +428,6 @@ export async function loadCockpitModel(
     features,
     filters,
     dependencies,
-    permissions: { canUpdate, canSetDelivery, canCreate },
+    permissions: { canUpdate, canSetDelivery, canCreate, canLinkDependency },
   };
 }
