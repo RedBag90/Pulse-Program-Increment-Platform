@@ -43,6 +43,13 @@ interface Props {
    *  gerendert. Andere Roadmaps setzen den Prop nicht und sehen die
    *  Sicht unveraendert. */
   dependencies?: readonly GanttDependency[];
+  /** Klick auf eine Dep-Linie. Wenn nicht gesetzt, sind Linien nicht
+   *  klickbar (read-only Default). Klick-Koordinaten in viewport-coords
+   *  fuer Popover-Positionierung. */
+  onDependencyClick?: (dep: GanttDependency, x: number, y: number) => void;
+  /** Klick auf Bar-Hover-Plus. Wenn gesetzt, erscheint pro Feature-Bar bei
+   *  Hover ein kleiner + Knopf rechts; Klick triggert diesen Handler. */
+  onAddDependencyFrom?: (fromFeatureId: string, x: number, y: number) => void;
 }
 
 const MONTH_PX = 72;
@@ -88,7 +95,14 @@ const FADE_OPACITY = 0.18;
  * zugehoerigen Linien voll auf, Rest bleibt dezent. Off-Scope-Marker
  * sitzen als kleines Caret am Bar-Rand mit Tooltip.
  */
-export function RoadmapGantt({ rows, axis, piBoundaries, dependencies }: Props) {
+export function RoadmapGantt({
+  rows,
+  axis,
+  piBoundaries,
+  dependencies,
+  onDependencyClick,
+  onAddDependencyFrom,
+}: Props) {
   const [hoverRowId, setHoverRowId] = useState<string | null>(null);
 
   const trackWidth = axis.months.length * MONTH_PX;
@@ -373,6 +387,31 @@ export function RoadmapGantt({ rows, axis, piBoundaries, dependencies }: Props) 
                       featureLabel={row.label}
                     />
                   )}
+
+                  {/* Plus-Knopf am rechten Bar-Rand fuer „+ Dep". Nur
+                      sichtbar wenn ein Callback gesetzt ist UND wenn die
+                      Row eine Bar hat (Feature mit PI). Erscheint via
+                      group-hover. */}
+                  {onAddDependencyFrom && bar && bar.widthPct > 0 && row.kind === "feature" && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddDependencyFrom(row.id, e.clientX, e.clientY);
+                      }}
+                      className="absolute top-1/2 z-10 -translate-y-1/2 rounded-full border
+                        border-background bg-primary text-[10px] font-bold leading-none text-primary-foreground
+                        opacity-0 shadow transition-opacity group-hover:opacity-100"
+                      style={{
+                        left: `calc(${bar.leftPct + bar.widthPct}% + 4px)`,
+                        width: 14,
+                        height: 14,
+                      }}
+                      title="Dependency anlegen"
+                    >
+                      +
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -418,6 +457,7 @@ export function RoadmapGantt({ rows, axis, piBoundaries, dependencies }: Props) 
                     : highlighted
                       ? HIGHLIGHT_OPACITY
                       : FADE_OPACITY;
+                const clickable = onDependencyClick !== undefined;
                 return (
                   <path
                     key={d.id}
@@ -428,7 +468,19 @@ export function RoadmapGantt({ rows, axis, piBoundaries, dependencies }: Props) 
                     strokeDasharray={EDGE_DASH[d.type]}
                     markerEnd={`url(#gantt-arrow-${d.type})`}
                     opacity={opacity}
-                    style={{ transition: "opacity 120ms ease-out" }}
+                    onClick={
+                      clickable
+                        ? (e) => {
+                            e.stopPropagation();
+                            onDependencyClick!(d, e.clientX, e.clientY);
+                          }
+                        : undefined
+                    }
+                    style={{
+                      transition: "opacity 120ms ease-out",
+                      pointerEvents: clickable ? "stroke" : "none",
+                      cursor: clickable ? "pointer" : undefined,
+                    }}
                   >
                     <title>{`${EDGE_LABEL[d.type]}`}</title>
                   </path>

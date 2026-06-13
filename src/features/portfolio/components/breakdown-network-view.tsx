@@ -60,6 +60,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  EdgeTypePopover,
+  EDGE_COLOR as SHARED_EDGE_COLOR,
+  EDGE_LABEL as SHARED_EDGE_LABEL,
+} from "@/features/dependencies/components/edge-type-popover";
+import {
   buildBreakdownGraph,
   type BreakdownGhostNode,
   type BreakdownGraphEdge,
@@ -110,16 +115,8 @@ interface Props {
 const NODE_WIDTH = 220;
 const NODE_HEIGHT = 96;
 
-const EDGE_COLOR: Record<DependencyEdgeType, string> = {
-  blocks: "#ef4444",
-  depends_on: "#d97706",
-  relates_to: "#94a3b8",
-};
-const EDGE_LABEL: Record<DependencyEdgeType, string> = {
-  blocks: "blocks",
-  depends_on: "depends on",
-  relates_to: "relates to",
-};
+const EDGE_COLOR = SHARED_EDGE_COLOR;
+const EDGE_LABEL = SHARED_EDGE_LABEL;
 const STATUS_DOT: Record<string, string> = {
   draft: "bg-muted-foreground/40",
   in_review: "bg-amber-400",
@@ -464,70 +461,6 @@ function NodeAddPlusButton({ node }: { node: FeatureNodeData }) {
         </button>
       </QuickAddPopover>
     </div>
-  );
-}
-
-function EdgeTypePopover({
-  children,
-  currentType,
-  onChange,
-  onDelete,
-}: {
-  children: ReactNode;
-  currentType: DependencyEdgeType;
-  onChange: EdgeTypeChange;
-  onDelete?: (() => void) | undefined;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={children as React.ReactElement} />
-      <PopoverContent side="bottom" align="center" className="w-48">
-        <p className="px-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-          Abhängigkeitstyp
-        </p>
-        <div className="flex flex-col gap-0.5">
-          {(["depends_on", "blocks", "relates_to"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-                t === currentType ? "bg-muted font-medium" : "hover:bg-muted/50"
-              }`}
-              onClick={() => {
-                if (t !== currentType) onChange(t);
-                setOpen(false);
-              }}
-            >
-              <span
-                className="size-2 shrink-0 rounded-sm"
-                style={{ backgroundColor: EDGE_COLOR[t] }}
-                aria-hidden
-              />
-              <span>{EDGE_LABEL[t]}</span>
-              {t === currentType && (
-                <span className="ml-auto text-[10px] text-muted-foreground">aktiv</span>
-              )}
-            </button>
-          ))}
-        </div>
-        {onDelete && (
-          <>
-            <div className="my-1 h-px bg-border" aria-hidden />
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-destructive transition-colors hover:bg-destructive/10"
-              onClick={() => {
-                onDelete();
-                setOpen(false);
-              }}
-            >
-              <span>Abhängigkeit löschen</span>
-            </button>
-          </>
-        )}
-      </PopoverContent>
-    </Popover>
   );
 }
 

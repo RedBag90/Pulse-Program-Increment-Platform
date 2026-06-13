@@ -80,9 +80,16 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
             features={features}
             allPiWindows={allPiWindows}
             dependencies={dependencies}
+            artId={selectedArt.id}
+            canLinkDependency={permissions.canLinkDependency}
           />
         ) : (
-          <CockpitNetwork features={features} dependencies={dependencies} />
+          <CockpitNetwork
+            features={features}
+            dependencies={dependencies}
+            artId={selectedArt.id}
+            canLinkDependency={permissions.canLinkDependency}
+          />
         )}
       </main>
 
