@@ -80,14 +80,14 @@ function EpicSquaresGrid({
   return (
     <div
       className={
-        "flex h-32 w-full flex-col-reverse items-center justify-start gap-1 rounded-lg p-1 leading-none " +
+        "flex h-32 w-full flex-col-reverse items-center justify-start gap-0.5 rounded-lg p-1 leading-none " +
         "bg-gradient-to-b from-muted/20 via-muted/30 to-muted/50 " +
         "ring-1 ring-transparent transition-all group-hover:ring-border " +
         "group-hover:from-muted/30 group-hover:to-muted/60"
       }
     >
       {rows.map((row, i) => (
-        <div key={i} className="flex flex-row gap-1 leading-none">
+        <div key={i} className="flex flex-row gap-0.5 leading-none">
           {row.map((e, k) => renderSquare(e, i * EPICS_PER_ROW + k))}
         </div>
       ))}
