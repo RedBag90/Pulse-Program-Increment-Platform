@@ -226,7 +226,7 @@ function HorizonHorizonTower({
         const epics = epicsByHorizon[c];
         const color = HORIZON_COLUMN_COLOR[c];
         return (
-          <div key={c} className="group flex flex-col items-center gap-1.5">
+          <div key={c} className="group flex flex-col items-center gap-0.5">
             <div className="w-full text-center text-xs font-medium tabular-nums text-muted-foreground">
               {epics.length}
             </div>
@@ -279,7 +279,7 @@ function HorizonStageTower({
         const count = epics.length;
         const over = isOverWip(g, count);
         return (
-          <div key={g} className="group flex flex-col items-center gap-1.5">
+          <div key={g} className="group flex flex-col items-center gap-0.5">
             <WipHeader stageGate={g} count={count} over={over} />
             <EpicSquaresGrid
               epics={epics}
