@@ -1,10 +1,12 @@
 import type { CockpitModel } from "@/server/views/umsetzung-cockpit-view";
+import type { CockpitFeatureDetail } from "@/server/views/cockpit-feature-detail";
 import { CockpitTopBar } from "./cockpit-top-bar";
 import { CockpitPiStrip } from "./cockpit-pi-strip";
 import { CockpitViewTabs } from "./cockpit-view-tabs";
 import { CockpitBoard } from "./cockpit-board";
 import { CockpitTable } from "./cockpit-table";
 import { CockpitRoadmap } from "./cockpit-roadmap";
+import { FeatureSlideOver } from "./feature-slide-over";
 
 /**
  * Delivery-Cockpit-Shell — Komposition der drei stabilen Bestandteile
@@ -12,14 +14,16 @@ import { CockpitRoadmap } from "./cockpit-roadmap";
  * uebergibt das vollstaendige Model; die Sub-Komponenten urteilen
  * client-seitig ueber URL-State (Sicht / Scope).
  *
- * Sicht „Board" ist mit P2 live; Tabelle (P3) und Roadmap (P4) bleiben
- * als Platzhalter, bis ihre Komponenten geliefert sind.
+ * Wenn `?featureId=` im URL gesetzt ist, laedt die Page parallel das
+ * Feature-Detail-Bundle und gibt es als `slideOverDetail` herein —
+ * der Slide-Over rendert dann ueber den drei Sichten.
  */
 interface Props {
   model: CockpitModel;
+  slideOverDetail: CockpitFeatureDetail | null;
 }
 
-export function CockpitShell({ model }: Props) {
+export function CockpitShell({ model, slideOverDetail }: Props) {
   const { availableArts, selectedArt, piStrip, allPiWindows, view, features, permissions } = model;
 
   return (
@@ -61,6 +65,8 @@ export function CockpitShell({ model }: Props) {
           <CockpitRoadmap features={features} allPiWindows={allPiWindows} />
         )}
       </main>
+
+      {slideOverDetail && <FeatureSlideOver detail={slideOverDetail} />}
     </div>
   );
 }

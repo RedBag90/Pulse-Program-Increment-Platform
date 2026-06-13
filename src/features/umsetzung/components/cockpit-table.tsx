@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   setFeaturePiAction,
   setFeatureDeliveryStatusAction,
@@ -38,9 +39,18 @@ const STATUS_OPTIONS: ReadonlyArray<{ value: FeatureStatus; label: string }> = [
 ];
 
 export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  function openSlideOver(id: string) {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("featureId", id);
+    router.replace(`${pathname}?${next.toString()}` as never, { scroll: false });
+  }
 
   const piOptions = useMemo(
     () => [{ id: "", name: "— Backlog —" }, ...pis.map((p) => ({ id: p.id, name: p.name }))],
@@ -160,7 +170,15 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
                       onChange={() => toggleRow(f.id)}
                     />
                   </td>
-                  <td className="max-w-[320px] truncate px-2 py-1.5 font-medium">{f.title}</td>
+                  <td className="max-w-[320px] truncate px-2 py-1.5 font-medium">
+                    <button
+                      type="button"
+                      className="text-left hover:text-primary hover:underline"
+                      onClick={() => openSlideOver(f.id)}
+                    >
+                      {f.title}
+                    </button>
+                  </td>
                   <td className="px-2 py-1.5 text-xs text-muted-foreground">{f.artName}</td>
                   <td className="px-2 py-1.5">
                     <select

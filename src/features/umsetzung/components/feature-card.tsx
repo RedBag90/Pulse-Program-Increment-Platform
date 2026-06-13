@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, type RefObject } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { CockpitFeature } from "@/server/views/umsetzung-cockpit-view";
 
 /**
@@ -16,10 +17,19 @@ interface Props {
   feature: CockpitFeature;
   canDrag: boolean;
   draggingId: RefObject<string | null>;
-  onOpen?: (id: string) => void;
 }
 
-function FeatureCardImpl({ feature, canDrag, draggingId, onOpen }: Props) {
+function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function openSlideOver() {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("featureId", feature.id);
+    router.replace(`${pathname}?${next.toString()}` as never, { scroll: false });
+  }
+
   return (
     <div
       role="button"
@@ -34,11 +44,11 @@ function FeatureCardImpl({ feature, canDrag, draggingId, onOpen }: Props) {
         e.currentTarget.classList.remove("opacity-40");
         draggingId.current = null;
       }}
-      onClick={() => onOpen?.(feature.id)}
+      onClick={openSlideOver}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onOpen?.(feature.id);
+          openSlideOver();
         }
       }}
       title={canDrag ? "Drag fuer PI/Status-Wechsel" : "Lese-Modus"}
@@ -65,7 +75,6 @@ function FeatureCardImpl({ feature, canDrag, draggingId, onOpen }: Props) {
 export const FeatureCard = memo(FeatureCardImpl, (a, b) => {
   // Nur Felder vergleichen, die Karte tatsaechlich rendert + Drag-Berechtigung.
   if (a.canDrag !== b.canDrag) return false;
-  if (a.onOpen !== b.onOpen) return false;
   const x = a.feature;
   const y = b.feature;
   return (

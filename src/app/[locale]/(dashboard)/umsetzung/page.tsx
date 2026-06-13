@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadCockpitModel, type CockpitView } from "@/server/views/umsetzung-cockpit-view";
+import { loadCockpitFeatureDetail } from "@/server/views/cockpit-feature-detail";
 import { CockpitShell } from "@/features/umsetzung/components/cockpit-shell";
 
 /**
@@ -32,16 +33,22 @@ export default async function UmsetzungCockpitPage({ searchParams }: PageProps) 
   const params = await searchParams;
   const artParam = typeof params.art === "string" ? params.art : undefined;
   const viewParam = typeof params.view === "string" ? params.view : undefined;
+  const featureIdParam = typeof params.featureId === "string" ? params.featureId : undefined;
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const model = await loadCockpitModel(db, principal, {
-    artId: artParam,
-    view: parseView(viewParam),
-  });
+  const [model, slideOverDetail] = await Promise.all([
+    loadCockpitModel(db, principal, {
+      artId: artParam,
+      view: parseView(viewParam),
+    }),
+    featureIdParam
+      ? loadCockpitFeatureDetail(db, principal, featureIdParam)
+      : Promise.resolve(null),
+  ]);
 
   return (
     <Suspense fallback={null}>
-      <CockpitShell model={model} />
+      <CockpitShell model={model} slideOverDetail={slideOverDetail} />
     </Suspense>
   );
 }
