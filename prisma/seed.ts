@@ -34,6 +34,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { PrismaClient, Prisma } from "../src/generated/prisma/index.js";
 import { backfillSprints } from "../src/server/services/sprint-backfill.js";
+import type { EpicType, FeatureType, Horizon } from "../src/domain/portfolio-guardrails.js";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -123,6 +124,7 @@ async function wipeDomainData(tenantId: string): Promise<void> {
   await prisma.piObjective.deleteMany({ where: { tenantId } });
   await prisma.impediment.deleteMany({ where: { tenantId } });
   await prisma.sprint.deleteMany({ where: { tenantId } });
+  await prisma.systemDemo.deleteMany({ where: { tenantId } });
   await prisma.programIncrement.deleteMany({ where: { tenantId } });
 
   // Org structure
@@ -179,6 +181,10 @@ async function main() {
       dashboardHorizonEnd: new Date("2028-12-31"),
       budgetPoolByPeriod: { "2026-H1": 5000000, "2026-H2": 5500000, "2027-H1": 5800000 },
       costPerJobSizePoint: "12000",
+      guardrailTargets: {
+        horizon: { h1: 70, h2: 20, h3: 10 },
+        capacity: { business: 80, enabler: 20 },
+      } as Prisma.InputJsonValue,
     },
   });
 
@@ -466,6 +472,9 @@ async function main() {
     bh?: Record<string, unknown>;
     bc?: Record<string, unknown>;
     withBaseline?: boolean;
+    /** SAFe Portfolio Guardrails (Roadmap-G1..G4). */
+    epicType?: EpicType;
+    horizon?: Horizon;
   };
 
   const bh = (
@@ -504,6 +513,8 @@ async function main() {
     {
       title: "Mobile App 2.0 launch",
       description: "Re-architect the consumer mobile app on a modular platform.",
+      epicType: "solution",
+      horizon: "h1",
       valueStreamId: vs1.id,
       stageGate: "L5",
       status: "completed",
@@ -529,6 +540,8 @@ async function main() {
     {
       title: "Card tokenisation upgrade",
       description: "Replace legacy card storage with tokenised credentials end-to-end.",
+      epicType: "enabler",
+      horizon: "h1",
       valueStreamId: vs2.id,
       stageGate: "L5",
       status: "completed",
@@ -556,6 +569,8 @@ async function main() {
     {
       title: "Real-Time Payments Rail",
       description: "Move outbound payments from overnight batch to instant 24/7 settlement.",
+      epicType: "solution",
+      horizon: "h1",
       valueStreamId: vs2.id,
       stageGate: "L4",
       status: "in_progress",
@@ -583,6 +598,7 @@ async function main() {
     {
       title: "Instant Account Opening",
       description: "Fully verified current account in under 5 minutes from the app.",
+      horizon: "h2",
       valueStreamId: vs1.id,
       stageGate: "L4",
       status: "in_progress",
@@ -608,6 +624,8 @@ async function main() {
     {
       title: "AI-Powered Fraud Detection",
       description: "Real-time ML fraud scoring at authorisation time.",
+      epicType: "enabler",
+      horizon: "h1",
       valueStreamId: vs2.id,
       stageGate: "L4",
       status: "in_progress",
@@ -638,6 +656,7 @@ async function main() {
     {
       title: "Open Banking Aggregation",
       description: "Aggregate external accounts via open-banking APIs into one dashboard.",
+      horizon: "h2",
       valueStreamId: vs1.id,
       stageGate: "L3",
       status: "approved",
@@ -666,6 +685,7 @@ async function main() {
     {
       title: "Robo-advisor for Wealth",
       description: "Automated portfolio rebalancing for retail wealth customers.",
+      horizon: "h2",
       valueStreamId: vs3.id,
       stageGate: "L3",
       status: "approved",
@@ -691,6 +711,7 @@ async function main() {
     {
       title: "ESG investment screen",
       description: "Filter brokerage offering by environmental and governance criteria.",
+      horizon: "h3",
       valueStreamId: vs3.id,
       stageGate: "L3",
       status: "approved",
@@ -716,6 +737,7 @@ async function main() {
     {
       title: "Customer service AI assistant",
       description: "LLM-backed assistant inside the support channel for tier-1 enquiries.",
+      horizon: "h2",
       valueStreamId: vs1.id,
       stageGate: "L3",
       status: "approved",
@@ -742,6 +764,7 @@ async function main() {
     {
       title: "Cross-border instant transfers (SEPA Instant)",
       description: "Adopt SEPA Instant Credit Transfer scheme across eligible corridors.",
+      horizon: "h1",
       valueStreamId: vs2.id,
       stageGate: "L3",
       status: "approved",
@@ -768,6 +791,7 @@ async function main() {
     {
       title: "Embedded insurance offering",
       description: "Sell travel + device insurance inside the banking app journey.",
+      horizon: "h2",
       valueStreamId: vs1.id,
       stageGate: "L2",
       status: "in_review",
@@ -792,6 +816,7 @@ async function main() {
     {
       title: "Buy-now-pay-later at checkout",
       description: "Issue a regulated BNPL credit line at qualifying merchants.",
+      horizon: "h2",
       valueStreamId: vs2.id,
       stageGate: "L2",
       status: "in_review",
@@ -816,6 +841,7 @@ async function main() {
     {
       title: "Branch network rationalisation",
       description: "Consolidate the branch footprint while preserving cash-access coverage.",
+      horizon: "h1",
       valueStreamId: vs1.id,
       stageGate: "L2",
       status: "draft",
@@ -839,6 +865,7 @@ async function main() {
     {
       title: "Premium savings tier",
       description: "Differentiated rate tier for balances above €25k.",
+      horizon: "h1",
       valueStreamId: vs3.id,
       stageGate: "L2",
       status: "in_review",
@@ -863,6 +890,8 @@ async function main() {
     {
       title: "API marketplace",
       description: "Expose product APIs to fintech partners with metered billing.",
+      epicType: "solution",
+      horizon: "h3",
       valueStreamId: vs2.id,
       stageGate: "L2",
       status: "draft",
@@ -886,6 +915,7 @@ async function main() {
     {
       title: "Voice-banking via smart speakers",
       description: "Account balance + transfers via voice assistants.",
+      horizon: "h3",
       valueStreamId: vs1.id,
       stageGate: "L1",
       status: "in_review",
@@ -900,6 +930,7 @@ async function main() {
     {
       title: "Crypto-asset custody",
       description: "Regulated custody of select crypto-assets inside the brokerage account.",
+      horizon: "h2",
       valueStreamId: vs3.id,
       stageGate: "L1",
       status: "in_review",
@@ -914,6 +945,8 @@ async function main() {
     {
       title: "Sustainable-finance reporting",
       description: "Emissions-attribution for each customer's portfolio.",
+      epicType: "enabler",
+      horizon: "h1",
       valueStreamId: vs3.id,
       stageGate: "L1",
       status: "draft",
@@ -929,6 +962,7 @@ async function main() {
     {
       title: "SME lending playbook",
       description: "Risk-scored small-business loan offering up to €100k.",
+      horizon: "h1",
       valueStreamId: vs2.id,
       stageGate: "L1",
       status: "draft",
@@ -944,6 +978,7 @@ async function main() {
     {
       title: "Family-pack account bundles",
       description: "Combined account + card products for households.",
+      horizon: "h1",
       valueStreamId: vs1.id,
       stageGate: "L1",
       status: "in_review",
@@ -975,6 +1010,7 @@ async function main() {
     {
       title: "Self-serve dispute centre",
       description: "Customer can raise + track disputes without contacting support.",
+      epicType: "enabler",
       valueStreamId: vs1.id,
       stageGate: "L0",
       status: "draft",
@@ -990,6 +1026,7 @@ async function main() {
     {
       title: "Open API for tax filings",
       description: "Read-only API that surfaces tax-relevant data to certified filers.",
+      epicType: "enabler",
       valueStreamId: vs1.id,
       stageGate: "L0",
       status: "draft",
@@ -1023,6 +1060,8 @@ async function main() {
         plannedEndAt: spec.plannedEnd ?? null,
         needsSteeringAttention: spec.needsSteering ?? false,
         stagedForBudgeting: spec.stagedForBudget ?? false,
+        epicType: spec.epicType ?? "epic",
+        ...(spec.horizon ? { investmentHorizon: spec.horizon } : {}),
         approvalPhase:
           spec.stageGate === "L0"
             ? null
@@ -1195,6 +1234,7 @@ async function main() {
           path: `${epic.id}.${id}`,
           title: `${epic.spec.title} — early-stage feature ${k + 1}`,
           description: `Early breakdown ${k + 1} of "${epic.spec.title}" — still in ${gate}.`,
+          featureType: (seed % 4 === 0 ? "enabler" : "feature") as FeatureType,
           ownerId: featureOwnerId,
           assigneeIds: [],
           createdBy: adminId,
@@ -1255,6 +1295,7 @@ async function main() {
         path: `${epic.id}.${id}`,
         title: `${epic.spec.title} — feature ${i + 1}`,
         description: `Slice ${i + 1} of "${epic.spec.title}".`,
+        featureType: (i % 4 === 0 ? "enabler" : "feature") as FeatureType,
         ownerId: featureOwnerId,
         assigneeIds: [],
         createdBy: adminId,
