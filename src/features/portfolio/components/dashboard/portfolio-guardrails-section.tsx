@@ -117,7 +117,7 @@ function EpicSquare({
   tooltip: string;
 }) {
   return (
-    <span className="relative inline-block" title={tooltip}>
+    <span className="relative inline-flex size-3.5 leading-none" title={tooltip}>
       <span
         className={`${SQUARE_BASE} ${colorClass}`}
         style={{ animationDelay: `${delayMs}ms`, animationDuration: "300ms" }}
