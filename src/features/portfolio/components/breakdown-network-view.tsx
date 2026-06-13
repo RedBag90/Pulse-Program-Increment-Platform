@@ -144,6 +144,8 @@ interface InsertableEdgeData {
   onInsert?: QuickAddSubmit | undefined;
   /** Wenn vorhanden, wird das Edge-Label klickbar und oeffnet einen Type-Picker. */
   onChangeType?: EdgeTypeChange | undefined;
+  /** Optionaler Loeschen-Button im selben Popover. */
+  onDeleteEdge?: (() => void) | undefined;
 }
 
 function QuickAddForm({
@@ -418,10 +420,12 @@ function EdgeTypePopover({
   children,
   currentType,
   onChange,
+  onDelete,
 }: {
   children: ReactNode;
   currentType: DependencyEdgeType;
   onChange: EdgeTypeChange;
+  onDelete?: (() => void) | undefined;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -456,6 +460,21 @@ function EdgeTypePopover({
             </button>
           ))}
         </div>
+        {onDelete && (
+          <>
+            <div className="my-1 h-px bg-border" aria-hidden />
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-destructive transition-colors hover:bg-destructive/10"
+              onClick={() => {
+                onDelete();
+                setOpen(false);
+              }}
+            >
+              <span>Abhängigkeit löschen</span>
+            </button>
+          </>
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -505,7 +524,11 @@ function InsertableEdge(props: EdgeProps) {
         >
           {label &&
             (edgeData?.onChangeType ? (
-              <EdgeTypePopover currentType={type} onChange={edgeData.onChangeType}>
+              <EdgeTypePopover
+                currentType={type}
+                onChange={edgeData.onChangeType}
+                onDelete={edgeData.onDeleteEdge}
+              >
                 <button
                   type="button"
                   aria-label="Abhängigkeitstyp ändern"
@@ -701,6 +724,12 @@ function layoutGraph(
       currentType: DependencyEdgeType,
       sourceArtId: string,
     ) => EdgeTypeChange;
+    onDeleteEdge: (
+      fromId: string,
+      toId: string,
+      edgeType: DependencyEdgeType,
+      sourceArtId: string,
+    ) => () => void;
   },
 ): { nodes: Node[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
@@ -771,6 +800,10 @@ function layoutGraph(
         ctx.canLinkDependency && sourceArtId !== ""
           ? ctx.onChangeEdgeType(e.source, e.target, e.type, sourceArtId)
           : undefined,
+      onDeleteEdge:
+        ctx.canLinkDependency && sourceArtId !== ""
+          ? ctx.onDeleteEdge(e.source, e.target, e.type, sourceArtId)
+          : undefined,
     };
     return {
       id: e.id,
@@ -821,6 +854,12 @@ function layoutByPi(
       currentType: DependencyEdgeType,
       sourceArtId: string,
     ) => EdgeTypeChange;
+    onDeleteEdge: (
+      fromId: string,
+      toId: string,
+      edgeType: DependencyEdgeType,
+      sourceArtId: string,
+    ) => () => void;
   },
 ): { nodes: Node[]; edges: Edge[] } {
   const COL_WIDTH = NODE_WIDTH + 80;
@@ -911,6 +950,10 @@ function layoutByPi(
       onChangeType:
         ctx.canLinkDependency && sourceArtId !== ""
           ? ctx.onChangeEdgeType(e.source, e.target, e.type, sourceArtId)
+          : undefined,
+      onDeleteEdge:
+        ctx.canLinkDependency && sourceArtId !== ""
+          ? ctx.onDeleteEdge(e.source, e.target, e.type, sourceArtId)
           : undefined,
     };
     return {
@@ -1147,6 +1190,31 @@ export function BreakdownNetworkView({
     [router],
   );
 
+  // Edge-Delete aus dem Label-Popover. Optimistic remove + unlink-Call.
+  const onDeleteEdgeFromPopover = useCallback(
+    (fromId: string, toId: string, edgeType: DependencyEdgeType, sourceArtId: string) => () => {
+      // Optimistic: edge sofort aus local state filtern.
+      setEdges((current) => current.filter((e) => !(e.source === fromId && e.target === toId)));
+      const fd = new FormData();
+      fd.set("fromId", fromId);
+      fd.set("toId", toId);
+      fd.set("type", edgeType);
+      fd.set("artId", sourceArtId);
+      startTransition(async () => {
+        const result = await unlinkDependencyAction({}, fd);
+        if (result?.error) {
+          toast.error(result.error);
+          // Rollback: refresh holt den server-stand zurueck.
+          router.refresh();
+          return;
+        }
+        toast.success("Abhängigkeit gelöscht");
+        router.refresh();
+      });
+    },
+    [router],
+  );
+
   // Node-Drag-Persistenz (Roadmap-P5). Pro Knoten debounced 400 ms —
   // mehrere Wiggles werden zu einem save zusammengezogen.
   const dragSaveTimers = useMemo<Map<string, ReturnType<typeof setTimeout>>>(() => new Map(), []);
@@ -1185,6 +1253,7 @@ export function BreakdownNetworkView({
       onEditFeature,
       onInsertOnEdge,
       onChangeEdgeType,
+      onDeleteEdge: onDeleteEdgeFromPopover,
     };
     if (layoutMode === "pi") {
       return layoutByPi(model.nodes, model.edges, model.ghostNodes, pis, artById, ctx);
@@ -1207,6 +1276,7 @@ export function BreakdownNetworkView({
     onEditFeature,
     onInsertOnEdge,
     onChangeEdgeType,
+    onDeleteEdgeFromPopover,
   ]);
 
   // Controlled-Edges fuer Optimistic Drag-Connect.
@@ -1432,7 +1502,8 @@ export function BreakdownNetworkView({
             {canCreateFeature && <>„+" am Node = Folge-Feature · „+" an Edge = dazwischen. </>}
             {canLinkDependency && (
               <>
-                Drag von rechts auf links = neue Abhängigkeit · Edge selektieren + Entf = löschen.
+                Drag von rechts auf links = neue Abhängigkeit · Edge-Label anklicken = Typ ändern
+                oder löschen.
               </>
             )}
           </p>
