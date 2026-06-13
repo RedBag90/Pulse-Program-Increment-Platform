@@ -68,7 +68,8 @@ const EDGE_LABEL: Record<GanttDependencyType, string> = {
 };
 
 const HIGHLIGHT_OPACITY = 1;
-const DIM_OPACITY = 0.18;
+const DIM_OPACITY = 0.45;
+const FADE_OPACITY = 0.18;
 
 /**
  * Generic roadmap Gantt — fester Label-Spalte links, Monatsachse rechts,
@@ -167,6 +168,14 @@ export function RoadmapGantt({ rows, axis, piBoundaries, dependencies }: Props) 
     return m;
   }, [dependencies, rowMeta.barById]);
 
+  // Diagnose-Zaehler im Header — gibt dem User eine Erwartung, wie viele
+  // Linien er sehen sollte. 0 → klar Daten-/Filter-Frage, nicht Render.
+  const offScopeCount = useMemo(() => {
+    let n = 0;
+    for (const slot of offScopeByFeature.values()) n += slot.left.length + slot.right.length;
+    return n;
+  }, [offScopeByFeature]);
+
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground">Keine Einträge.</p>;
   }
@@ -180,11 +189,22 @@ export function RoadmapGantt({ rows, axis, piBoundaries, dependencies }: Props) 
             shadow-[0_1px_0_var(--color-border)]"
         >
           <div
-            className="sticky left-0 z-10 shrink-0 bg-gradient-to-b from-muted/60 to-muted/40 px-3
-              py-1.5 text-[11px] font-medium text-muted-foreground"
+            className="sticky left-0 z-10 flex shrink-0 items-center justify-between gap-2
+              bg-gradient-to-b from-muted/60 to-muted/40 px-3 py-1.5 text-[11px] font-medium
+              text-muted-foreground"
             style={{ width: LABEL_W }}
           >
-            Eintrag
+            <span>Eintrag</span>
+            {dependencies !== undefined && (
+              <span
+                className="text-[10px] font-normal text-muted-foreground/80"
+                title="Dependencies im aktuellen Scope"
+              >
+                {renderableDeps.length === 0 && offScopeCount === 0
+                  ? "keine Deps"
+                  : `${renderableDeps.length} Deps${offScopeCount > 0 ? ` · ${offScopeCount} off` : ""}`}
+              </span>
+            )}
           </div>
           <div className="relative flex" style={{ width: trackWidth }}>
             {axis.months.map((m) => (
@@ -359,8 +379,10 @@ export function RoadmapGantt({ rows, axis, piBoundaries, dependencies }: Props) 
           })}
 
           {/* Dependency-SVG-Overlay — pointer-events disabled, sitzt
-              ueber Bars aber unter den Sticky-Labels. */}
-          {renderableDeps.length > 0 && (
+              ueber Bars aber unter den Sticky-Labels. Wird auch im
+              Leerfall gerendert, damit das Element im Devtools-Tree
+              greifbar bleibt und Daten-Diagnose einfach ist. */}
+          {dependencies !== undefined && (
             <svg
               className="pointer-events-none absolute top-0 z-[5]"
               style={{
@@ -395,14 +417,14 @@ export function RoadmapGantt({ rows, axis, piBoundaries, dependencies }: Props) 
                     ? DIM_OPACITY
                     : highlighted
                       ? HIGHLIGHT_OPACITY
-                      : DIM_OPACITY * 0.6;
+                      : FADE_OPACITY;
                 return (
                   <path
                     key={d.id}
                     d={path}
                     fill="none"
                     stroke={EDGE_COLOR[d.type]}
-                    strokeWidth={1.5}
+                    strokeWidth={1.75}
                     strokeDasharray={EDGE_DASH[d.type]}
                     markerEnd={`url(#gantt-arrow-${d.type})`}
                     opacity={opacity}
