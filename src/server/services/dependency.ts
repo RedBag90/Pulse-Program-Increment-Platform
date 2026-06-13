@@ -125,6 +125,91 @@ export async function unlinkDependency(
   });
 }
 
+export interface ChangeDependencyTypeInput {
+  fromId: InitiativeId;
+  toId: InitiativeId;
+  fromType: DependencyType;
+  toType: DependencyType;
+}
+
+/**
+ * Netzplan Edge-Type-Wechsel (Roadmap-P2): tauscht den Typ eines
+ * bestehenden Edges atomar aus (loescht + neu anlegt, ein Audit-Event
+ * mit `before`/`after`). Cycle-Check fuer blocks/depends_on, weil eine
+ * Typ-Erhebung von `relates_to` zu `blocks` einen latent vorhandenen
+ * Zyklus exposen koennte (relates_to wurde im Cycle-Check ignoriert).
+ */
+export async function changeDependencyType(
+  ctx: RequestContext,
+  input: ChangeDependencyTypeInput,
+): Promise<Result<{ id: string }>> {
+  const mctx = toMutationContext(ctx);
+  const { fromId, toId, fromType, toType } = input;
+
+  if (fromType === toType) {
+    return err({ kind: "conflict" as const, reason: "Type already matches" });
+  }
+
+  return withAuditedTransaction(
+    mctx,
+    async (tx) => {
+      const existing = await tx.dependency.findFirst({
+        where: { tenantId: mctx.tenantId, fromId, toId, type: fromType },
+      });
+      if (!existing) {
+        return err({
+          kind: "not_found" as const,
+          resourceType: "Dependency",
+          id: `${fromId}→${toId}:${fromType}`,
+        });
+      }
+
+      if (toType !== "relates_to") {
+        const otherEdges = await tx.dependency.findMany({
+          where: {
+            tenantId: mctx.tenantId,
+            type: { not: "relates_to" },
+            NOT: { id: existing.id },
+          },
+          select: { fromId: true, toId: true },
+        });
+        if (detectCycle(fromId, toId, otherEdges)) {
+          return err({
+            kind: "conflict" as const,
+            reason: "This dependency type change would create a circular dependency chain",
+          });
+        }
+      }
+
+      await tx.dependency.delete({ where: { id: existing.id } });
+      const next = await tx.dependency.create({
+        data: {
+          tenantId: mctx.tenantId,
+          fromId,
+          toId,
+          type: toType,
+          createdBy: mctx.actorId,
+        },
+      });
+
+      return ok({
+        result: { id: next.id },
+        audit: {
+          action: "initiative.dependency.linked",
+          resourceType: "dependency",
+          resourceId: next.id,
+          changes: {
+            type: { before: fromType, after: toType },
+            fromId: { before: fromId, after: fromId },
+            toId: { before: toId, after: toId },
+          },
+        },
+      });
+    },
+    { onPrismaError: onUniqueConstraint("This dependency already exists") },
+  );
+}
+
 /**
  * By-id variant of `unlinkDependency` — feeds the bulk-unlink batch action
  * on the dependencies list page. The single-item action keeps the

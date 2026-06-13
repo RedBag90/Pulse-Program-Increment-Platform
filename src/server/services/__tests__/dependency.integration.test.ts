@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
 import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
-import { linkDependency, unlinkDependency } from "@/server/services/dependency";
+import {
+  linkDependency,
+  unlinkDependency,
+  changeDependencyType,
+} from "@/server/services/dependency";
 import { isOk, isErr } from "@/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { InitiativeLevel } from "@/domain/types";
@@ -150,5 +154,90 @@ describe("unlinkDependency", () => {
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
     expect(result.error.kind).toBe("not_found");
+  });
+});
+
+describe("changeDependencyType (Netzplan Edge-Type-Wechsel)", () => {
+  it("loescht den alten edge, legt einen neuen an und emittiert ein audit-event", async () => {
+    await linkDependency(testRequestContext(db, seed), {
+      fromId: epicA,
+      toId: epicB,
+      type: "depends_on",
+    });
+    const auditBefore = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
+
+    const result = await changeDependencyType(testRequestContext(db, seed), {
+      fromId: epicA,
+      toId: epicB,
+      fromType: "depends_on",
+      toType: "blocks",
+    });
+    expect(isOk(result)).toBe(true);
+
+    const oldEdge = await db.dependency.findFirst({
+      where: { fromId: epicA, toId: epicB, type: "depends_on" },
+    });
+    expect(oldEdge).toBeNull();
+    const newEdge = await db.dependency.findFirst({
+      where: { fromId: epicA, toId: epicB, type: "blocks" },
+    });
+    expect(newEdge).not.toBeNull();
+
+    const auditAfter = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
+    expect(auditAfter).toBe(auditBefore + 1);
+  });
+
+  it("verhindert change wenn der zielzustand einen zyklus erzeugen wuerde", async () => {
+    // A → B als depends_on, B → A als relates_to. Wenn relates_to nach blocks,
+    // entsteht A → B + B → A im non-relates-Graph = Zyklus.
+    await linkDependency(testRequestContext(db, seed), {
+      fromId: epicA,
+      toId: epicB,
+      type: "depends_on",
+    });
+    await linkDependency(testRequestContext(db, seed), {
+      fromId: epicB,
+      toId: epicA,
+      type: "relates_to",
+    });
+
+    const result = await changeDependencyType(testRequestContext(db, seed), {
+      fromId: epicB,
+      toId: epicA,
+      fromType: "relates_to",
+      toType: "blocks",
+    });
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("conflict");
+  });
+
+  it("not_found wenn der zu aendernde edge nicht existiert", async () => {
+    const result = await changeDependencyType(testRequestContext(db, seed), {
+      fromId: epicA,
+      toId: epicC,
+      fromType: "depends_on",
+      toType: "blocks",
+    });
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("not_found");
+  });
+
+  it("conflict wenn from-type === to-type", async () => {
+    await linkDependency(testRequestContext(db, seed), {
+      fromId: epicA,
+      toId: epicB,
+      type: "blocks",
+    });
+    const result = await changeDependencyType(testRequestContext(db, seed), {
+      fromId: epicA,
+      toId: epicB,
+      fromType: "blocks",
+      toType: "blocks",
+    });
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("conflict");
   });
 });

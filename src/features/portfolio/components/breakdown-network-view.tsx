@@ -29,6 +29,7 @@ import { CreateFeatureDialog } from "@/features/art/components/create-feature-di
 import {
   linkDependencyAction,
   unlinkDependencyAction,
+  changeDependencyTypeAction,
 } from "@/features/dependencies/actions/dependency";
 import {
   quickAddFeatureWithDependencyAction,
@@ -106,10 +107,14 @@ interface FeatureNodeData extends BreakdownGraphNode {
   artId: string;
 }
 
+type EdgeTypeChange = (next: DependencyEdgeType) => void;
+
 interface InsertableEdgeData {
   type: DependencyEdgeType;
   showPlus: boolean;
   onInsert?: QuickAddSubmit | undefined;
+  /** Wenn vorhanden, wird das Edge-Label klickbar und oeffnet einen Type-Picker. */
+  onChangeType?: EdgeTypeChange | undefined;
 }
 
 function QuickAddForm({
@@ -273,6 +278,53 @@ function FeatureNode({ data }: NodeProps) {
   );
 }
 
+function EdgeTypePopover({
+  children,
+  currentType,
+  onChange,
+}: {
+  children: ReactNode;
+  currentType: DependencyEdgeType;
+  onChange: EdgeTypeChange;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger render={children as React.ReactElement} />
+      <PopoverContent side="bottom" align="center" className="w-48">
+        <p className="px-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+          Abhängigkeitstyp
+        </p>
+        <div className="flex flex-col gap-0.5">
+          {(["depends_on", "blocks", "relates_to"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+                t === currentType ? "bg-muted font-medium" : "hover:bg-muted/50"
+              }`}
+              onClick={() => {
+                if (t !== currentType) onChange(t);
+                setOpen(false);
+              }}
+            >
+              <span
+                className="size-2 shrink-0 rounded-sm"
+                style={{ backgroundColor: EDGE_COLOR[t] }}
+                aria-hidden
+              />
+              <span>{EDGE_LABEL[t]}</span>
+              {t === currentType && (
+                <span className="ml-auto text-[10px] text-muted-foreground">aktiv</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function InsertableEdge(props: EdgeProps) {
   const {
     id,
@@ -315,11 +367,26 @@ function InsertableEdge(props: EdgeProps) {
             pointerEvents: "all",
           }}
         >
-          {label && (
-            <span className="rounded bg-white px-1 text-[10px]" style={{ color: EDGE_COLOR[type] }}>
-              {label}
-            </span>
-          )}
+          {label &&
+            (edgeData?.onChangeType ? (
+              <EdgeTypePopover currentType={type} onChange={edgeData.onChangeType}>
+                <button
+                  type="button"
+                  aria-label="Abhängigkeitstyp ändern"
+                  className="rounded bg-white px-1 text-[10px] transition-colors hover:bg-muted"
+                  style={{ color: EDGE_COLOR[type] }}
+                >
+                  {label}
+                </button>
+              </EdgeTypePopover>
+            ) : (
+              <span
+                className="rounded bg-white px-1 text-[10px]"
+                style={{ color: EDGE_COLOR[type] }}
+              >
+                {label}
+              </span>
+            ))}
           {edgeData?.showPlus && edgeData.onInsert && (
             <QuickAddPopover onSubmit={edgeData.onInsert} busy={false}>
               <button
@@ -370,6 +437,12 @@ function layoutGraph(
       edgeType: DependencyEdgeType,
       sourceArtId: string,
     ) => QuickAddSubmit;
+    onChangeEdgeType: (
+      fromId: string,
+      toId: string,
+      currentType: DependencyEdgeType,
+      sourceArtId: string,
+    ) => EdgeTypeChange;
   },
 ): { nodes: Node[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
@@ -411,6 +484,10 @@ function layoutGraph(
       onInsert:
         sourceArtId !== ""
           ? ctx.onInsertOnEdge(e.source, e.target, e.type, sourceArtId)
+          : undefined,
+      onChangeType:
+        ctx.canLinkDependency && sourceArtId !== ""
+          ? ctx.onChangeEdgeType(e.source, e.target, e.type, sourceArtId)
           : undefined,
     };
     return {
@@ -504,6 +581,55 @@ export function BreakdownNetworkView({
     [epicId, router],
   );
 
+  const onChangeEdgeType = useCallback(
+    (
+      fromId: string,
+      toId: string,
+      currentType: DependencyEdgeType,
+      sourceArtId: string,
+    ): EdgeTypeChange =>
+      (next) => {
+        if (next === currentType) return;
+        // Optimistic: lokal sofort den Edge-Style umschreiben.
+        setEdges((current) =>
+          current.map((edge) => {
+            if (edge.source !== fromId || edge.target !== toId) return edge;
+            const s = edgeStyle(next);
+            const data = edge.data as InsertableEdgeData | undefined;
+            return {
+              ...edge,
+              animated: s.animated,
+              style: s.style,
+              label: EDGE_LABEL[next],
+              markerEnd: s.marker,
+              data: {
+                ...(data ?? { type: next, showPlus: false }),
+                type: next,
+              } as unknown as Record<string, unknown>,
+            };
+          }),
+        );
+        const fd = new FormData();
+        fd.set("fromId", fromId);
+        fd.set("toId", toId);
+        fd.set("fromType", currentType);
+        fd.set("toType", next);
+        fd.set("artId", sourceArtId);
+        startTransition(async () => {
+          const result = await changeDependencyTypeAction({}, fd);
+          if (result?.error) {
+            toast.error(result.error);
+            // Rollback: einfach refresh — der Server-Stand ist die Wahrheit.
+            router.refresh();
+            return;
+          }
+          toast.success("Abhängigkeitstyp geändert");
+          router.refresh();
+        });
+      },
+    [router],
+  );
+
   const baseGraph = useMemo(
     () =>
       layoutGraph(model.nodes, model.edges, artById, {
@@ -511,6 +637,7 @@ export function BreakdownNetworkView({
         canCreateFeature,
         onAddSuccessor,
         onInsertOnEdge,
+        onChangeEdgeType,
       }),
     [
       model.nodes,
@@ -520,6 +647,7 @@ export function BreakdownNetworkView({
       canCreateFeature,
       onAddSuccessor,
       onInsertOnEdge,
+      onChangeEdgeType,
     ],
   );
 

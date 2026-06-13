@@ -5,6 +5,7 @@ import {
   linkDependency,
   unlinkDependency,
   unlinkDependencyById,
+  changeDependencyType,
 } from "@/server/services/dependency";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
@@ -81,6 +82,33 @@ export const unlinkDependencyAction = createServerAction({
     }),
   revalidate: "dependency",
   mapError: (e) => formatDomainError(e, { fallback: "Failed to unlink dependency" }),
+});
+
+/**
+ * Edge-Type-Wechsel im Netzplan (Roadmap-P2). ART-scoped — Source-ART
+ * treibt das `dependency.link`-Policy-Gate (gleicher Scope wie
+ * `linkDependencyAction`).
+ */
+export const changeDependencyTypeAction = createServerAction({
+  schema: z.object({
+    fromId: z.string().uuid(),
+    toId: z.string().uuid(),
+    fromType: TYPE,
+    toType: TYPE,
+    artId: z.string().uuid(),
+  }),
+  action: "dependency.link",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  service: (ctx, input) =>
+    changeDependencyType(ctx, {
+      fromId: input.fromId as InitiativeId,
+      toId: input.toId as InitiativeId,
+      fromType: input.fromType,
+      toType: input.toType,
+    }),
+  revalidate: "dependency",
+  mapError: (e) =>
+    formatDomainError(e, { fallback: "Abhängigkeits-Typ konnte nicht geändert werden" }),
 });
 
 /**
