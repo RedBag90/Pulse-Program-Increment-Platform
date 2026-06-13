@@ -206,6 +206,13 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   // the `epic.approve` policy (portfolio manager / VMO / admins).
   const canAdvance = authorize("epic.approve", { tenantId: principal.tenantId }, principal).allow;
 
+  // Netzplan-Ansicht — Drag-to-Connect (Roadmap-N2). Tenant-scoped Indikator;
+  // die per-Edge-Auth checkt der `linkDependencyAction`-Server-Action nochmal
+  // mit der `artId` der Source.
+  const canLinkDependency = hasCapability(principal, "dependency.link", {
+    tenantId: principal.tenantId,
+  });
+
   const pisByArt: Record<string, { id: string; name: string }[]> = {};
   for (const pi of pis) {
     if (!pi.artId) continue;
@@ -522,6 +529,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           pisByArt={pisByArt}
           signoff={breakdownSignoff}
           dependencies={breakdownDependencies}
+          canLinkDependency={canLinkDependency}
         />
       )}
 

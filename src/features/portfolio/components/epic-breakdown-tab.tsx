@@ -71,6 +71,10 @@ interface Props {
   /** Feature-Feature-Dependencies innerhalb dieses Epics — Input fuer
    *  die Netzplan-Ansicht. */
   dependencies: ReadonlyArray<{ id: string; fromId: string; toId: string; type: string }>;
+  /** Wenn `true`, sind Drag-Handles am Netzplan aktiv — User kann neue
+   *  Dependencies per Drag-Connect anlegen. Per-Edge-Auth checkt der
+   *  Server-Action nochmal. */
+  canLinkDependency: boolean;
 }
 
 function FeatureRow({
@@ -208,6 +212,7 @@ export function EpicBreakdownTab({
   pisByArt,
   signoff,
   dependencies,
+  canLinkDependency,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -278,11 +283,13 @@ export function EpicBreakdownTab({
             id: f.id,
             title: f.title,
             status: f.status,
+            artId: f.artId,
             artName: f.artName,
             featureType: f.featureType,
             wsjfComputed: f.wsjf.computed > 0 ? f.wsjf.computed : null,
           }))}
           dependencies={dependencies}
+          canLinkDependency={canLinkDependency}
         />
       ) : features.length === 0 ? (
         <p className="text-sm text-muted-foreground">Noch keine Features in diesem Epic.</p>
