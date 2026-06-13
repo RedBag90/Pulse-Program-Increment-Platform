@@ -40,10 +40,17 @@ async function main() {
       }
 
       console.warn(`  Tenant ${tenant.name}: ${affected.length} Features migrieren.`);
-      await db.$transaction(async (tx) => {
-        for (const f of affected) {
-          await tx.initiative.update({
-            where: { id: f.id },
+      await db.$transaction(
+        async (tx) => {
+          // updateMany ist eine einzige SQL-Operation; per-row-Audit waeren
+          // bei grossen Tenants tausende inserts in einer transaktion und
+          // sprengen den Prisma-Default-Timeout. Ein Audit-Event pro Tenant
+          // mit der id-Liste reicht fuer die Nachvollziehbarkeit.
+          await tx.initiative.updateMany({
+            where: {
+              tenantId: tenant.id,
+              id: { in: affected.map((f) => f.id) },
+            },
             data: { status: "approved", updatedBy: SYSTEM_ACTOR },
           });
           await tx.auditEvent.create({
@@ -52,15 +59,19 @@ async function main() {
               actorId: SYSTEM_ACTOR,
               action: "initiative.updated",
               resourceType: "initiative",
-              resourceId: f.id,
+              // resourceId muss nicht-leer sein; nimm den ersten als Anker.
+              resourceId: affected[0]!.id,
               changes: {
-                status: { before: f.status, after: "approved" },
+                status: { before: "draft|in_review", after: "approved" },
                 reason: { before: null, after: REASON },
+                featureIds: affected.map((f) => f.id),
+                count: affected.length,
               },
             },
           });
-        }
-      });
+        },
+        { timeout: 60_000 },
+      );
       total += affected.length;
     }
     console.warn(`Done. ${total} Features migriert.`);
