@@ -1,7 +1,7 @@
 import {
   roadmapAxis,
-  artRoadmapRows,
-  type ArtRoadmapFeature,
+  cockpitRoadmapRows,
+  type CockpitRoadmapFeature,
   type RoadmapRowAccent,
 } from "@/domain/roadmap";
 import { RoadmapGantt } from "@/features/roadmap/components/roadmap-gantt";
@@ -12,11 +12,11 @@ import type {
 } from "@/server/views/umsetzung-cockpit-view";
 
 /**
- * Roadmap-Sicht des Cockpits — read-mostly Gantt. Mappt die Cockpit-
- * Features auf die Roadmap-Row-Form, hebt jede Row mit dem Status-Akzent
- * (Bereit · In Umsetzung · Blockiert · Fertig · Cancelled) an, und gibt
- * dem Renderer die Timeline-PIs als Boundary-Anker mit, damit man die
- * Q-Grenzen visuell sofort sieht.
+ * Roadmap-Sicht des Cockpits — read-mostly, **compact** Gantt mit
+ * Epic-Grouping. Features stehen indented unter ihrem Parent-Epic
+ * (Linear/Productboard-Pattern), der Epic-Header zeigt das aus den
+ * Feature-PIs abgeleitete Soll-Fenster. Status-Akzent pro Feature-Bar,
+ * PI-Grid + Today-Linie vom Renderer.
  */
 interface Props {
   features: CockpitFeature[];
@@ -29,28 +29,30 @@ function statusToAccent(status: FeatureStatus): RoadmapRowAccent {
 
 export function CockpitRoadmap({ features, allPiWindows }: Props) {
   const piById = new Map(allPiWindows.map((p) => [p.id, p]));
-  const accentById = new Map(features.map((f) => [f.id, statusToAccent(f.status)]));
 
-  const artFeatures: ArtRoadmapFeature[] = features.map((f) => {
+  const cockpitFeatures: CockpitRoadmapFeature[] = features.map((f) => {
     const pi = f.piId ? piById.get(f.piId) : null;
     return {
       id: f.id,
       title: f.title,
-      parent: null,
+      parentId: f.parentId,
+      parentTitle: f.parentTitle,
       pi: pi ? { startDate: pi.startDate, endDate: pi.endDate } : null,
+      accent: statusToAccent(f.status),
     };
   });
 
-  const rows = artRoadmapRows(artFeatures).map((r) => ({
-    ...r,
-    accent: accentById.get(r.id),
-  }));
-  // Filter Backlog-only features (keine PI → keine Range) — sie wuerden
-  // den Axis-Range ungewollt strecken und im Gantt eh leer dargestellt.
-  const visible = rows.filter((r) => r.range !== null);
+  const rows = cockpitRoadmapRows(cockpitFeatures);
+  // Backlog-only Features (kein PI) verstecken — sie wuerden die Axis
+  // ausweiten und im Track leer bleiben. Epic-Header-Rows ohne Range
+  // bleiben dabei drin, damit die Hierarchie nicht zerreisst.
+  const visible = rows.filter((r) => r.kind === "epic" || r.kind === "group" || r.range !== null);
+  // Axis wird aus den tatsaechlich gerenderten Ranges abgeleitet — Epic-
+  // Header ohne eigene Range fliessen ein wenn ihre Childs ranges haben.
   const axis = roadmapAxis(visible);
 
-  if (visible.length === 0) {
+  const featureWithRange = visible.find((r) => r.kind === "feature" && r.range !== null);
+  if (!featureWithRange) {
     return (
       <div className="grid h-[300px] place-items-center rounded-lg border bg-muted/10">
         <p className="text-sm text-muted-foreground">Keine terminierten Features im Scope.</p>
@@ -58,9 +60,6 @@ export function CockpitRoadmap({ features, allPiWindows }: Props) {
     );
   }
 
-  // PI-Boundaries als senkrechte Anker: pro PI sein startDate-Stop. Achse
-  // beginnt am 1. des Monats vom fruehesten PI; der erste Boundary (gleich
-  // axis.start) liegt bei 0 % und wird vom Renderer selbst aussortiert.
   const piBoundaries = allPiWindows.map((p) => ({ date: p.startDate, label: p.name }));
 
   return <RoadmapGantt rows={visible} axis={axis} piBoundaries={piBoundaries} />;

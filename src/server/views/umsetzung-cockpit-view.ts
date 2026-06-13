@@ -46,6 +46,10 @@ export interface CockpitFeature {
   piId: string | null;
   artId: string;
   artName: string;
+  /** Parent-Epic-Bezug — Cockpit-Roadmap gruppiert die Features
+   *  darunter (Linear/Productboard-Pattern). Null = Orphan-Feature. */
+  parentId: string | null;
+  parentTitle: string | null;
   ownerId: string | null;
   /** UI loest Owner-Namen separat auf (Auth-Provider) — fuer Avatare /
    *  Inline-Anzeige. Null wenn unbekannt. */
@@ -297,9 +301,11 @@ export async function loadCockpitModel(
         status: true,
         piId: true,
         artId: true,
+        parentId: true,
         ownerId: true,
         wsjfComputed: true,
         art: { select: { id: true, name: true } },
+        parent: { select: { id: true, title: true } },
         dependenciesIn: {
           where: { type: "blocks" },
           select: {
@@ -323,6 +329,8 @@ export async function loadCockpitModel(
           piId: r.piId,
           artId: r.artId!,
           artName: r.art?.name ?? "",
+          parentId: r.parentId ?? null,
+          parentTitle: r.parent?.title ?? null,
           ownerId: r.ownerId,
           // Owner-Namen-Aufloesung kommt mit Phase 5 (Slide-Over) ueber
           // den Auth-Provider; fuer das Skelett ist die ID ausreichend.

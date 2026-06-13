@@ -220,6 +220,88 @@ export function artRoadmapRows(features: readonly ArtRoadmapFeature[]): RoadmapR
   }));
 }
 
+// --- Cockpit: Features grouped by parent-Epic ------------------------------
+
+export interface CockpitRoadmapFeature {
+  id: string;
+  title: string;
+  parentId: string | null;
+  parentTitle: string | null;
+  pi: PiWindow | null;
+  accent?: RoadmapRowAccent | undefined;
+}
+
+/**
+ * Cockpit-Roadmap-Rows mit Epic-Grouping (Linear/Productboard-Pattern):
+ * Pro Parent-Epic ein Epic-Header (Soll = `deriveTimeframe` ueber alle
+ * Feature-PIs), darunter alle Features 1-Level indented. Features ohne
+ * Parent landen in einer „Ohne Epic"-Sammelgruppe am Ende.
+ */
+export function cockpitRoadmapRows(features: readonly CockpitRoadmapFeature[]): RoadmapRow[] {
+  const byParent = new Map<string, { title: string; items: CockpitRoadmapFeature[] }>();
+  const orphans: CockpitRoadmapFeature[] = [];
+
+  for (const f of features) {
+    if (f.parentId === null || f.parentTitle === null) {
+      orphans.push(f);
+      continue;
+    }
+    if (!byParent.has(f.parentId)) {
+      byParent.set(f.parentId, { title: f.parentTitle, items: [] });
+    }
+    byParent.get(f.parentId)!.items.push(f);
+  }
+
+  const rows: RoadmapRow[] = [];
+
+  for (const [parentId, group] of byParent) {
+    const range = deriveTimeframe(group.items.map((f) => piRange(f.pi)));
+    rows.push({
+      id: parentId,
+      label: group.title,
+      href: `/portfolio/epics/${parentId}`,
+      range,
+      depth: 0,
+      kind: "epic",
+      accent: "epic",
+    });
+    for (const f of group.items) {
+      rows.push({
+        id: f.id,
+        label: f.title,
+        href: `/feature/${f.id}`,
+        range: piRange(f.pi),
+        depth: 1,
+        kind: "feature",
+        accent: f.accent,
+      });
+    }
+  }
+
+  if (orphans.length > 0) {
+    rows.push({
+      id: "__orphans__",
+      label: "Ohne Epic",
+      range: null,
+      depth: 0,
+      kind: "group",
+    });
+    for (const f of orphans) {
+      rows.push({
+        id: f.id,
+        label: f.title,
+        href: `/feature/${f.id}`,
+        range: piRange(f.pi),
+        depth: 1,
+        kind: "feature",
+        accent: f.accent,
+      });
+    }
+  }
+
+  return rows;
+}
+
 // --- Value Stream: Epics + their Features, hierarchical or grouped by ART ----
 
 export type RoadmapGrouping = "epic" | "art";

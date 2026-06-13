@@ -22,9 +22,9 @@ interface Props {
   piBoundaries?: ReadonlyArray<{ date: Date; label?: string }>;
 }
 
-const MONTH_PX = 88;
-const LABEL_W = 256;
-const ROW_H = 40;
+const MONTH_PX = 72;
+const LABEL_W = 220;
+const ROW_H = 28;
 
 /**
  * Generic roadmap Gantt — fester Label-Spalte links, Monatsachse rechts,
@@ -59,29 +59,41 @@ export function RoadmapGantt({ rows, axis, piBoundaries }: Props) {
   return (
     <div className="overflow-x-auto rounded-lg border">
       <div style={{ width: LABEL_W + trackWidth, minWidth: "100%" }}>
-        {/* Month header — sticky am Top, dezenter Gradient */}
+        {/* Month header — sticky am Top, dezenter Gradient, kompakter padding */}
         <div
           className="sticky top-0 z-20 flex border-b bg-gradient-to-b from-muted/60 to-muted/40
             shadow-[0_1px_0_var(--color-border)]"
         >
           <div
-            className="sticky left-0 z-10 shrink-0 bg-gradient-to-b from-muted/60 to-muted/40 px-4
-              py-2 text-xs font-medium text-muted-foreground"
+            className="sticky left-0 z-10 shrink-0 bg-gradient-to-b from-muted/60 to-muted/40
+              px-3 py-1.5 text-[11px] font-medium text-muted-foreground"
             style={{ width: LABEL_W }}
           >
             Eintrag
           </div>
-          <div className="flex" style={{ width: trackWidth }}>
+          <div className="relative flex" style={{ width: trackWidth }}>
             {axis.months.map((m) => (
               <div
                 key={m.key}
-                className="shrink-0 border-l px-2 py-2 text-center text-[10px] font-medium
+                className="shrink-0 border-l px-1.5 py-1.5 text-center text-[10px] font-medium
                   uppercase tracking-wide text-muted-foreground"
                 style={{ width: MONTH_PX }}
               >
                 {m.label}
               </div>
             ))}
+            {/* Today-Pille klebt am Header rechts neben der Linie */}
+            {todayPct !== null && (
+              <div
+                className="pointer-events-none absolute top-1/2 z-10 -translate-y-1/2 rounded-full
+                  bg-rose-500 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide
+                  text-white shadow-sm"
+                style={{ left: `calc(${todayPct}% + 4px)` }}
+                title={`Heute · ${today.toLocaleDateString("de-DE")}`}
+              >
+                Heute
+              </div>
+            )}
           </div>
         </div>
 
@@ -89,10 +101,10 @@ export function RoadmapGantt({ rows, axis, piBoundaries }: Props) {
         {rows.map((row) => {
           if (row.kind === "group") {
             return (
-              <div key={row.id} className="flex border-b bg-muted/40">
+              <div key={row.id} className="flex border-b bg-muted/30" style={{ minHeight: ROW_H }}>
                 <div
-                  className="sticky left-0 z-10 bg-muted/40 px-4 py-1.5 text-xs font-semibold
-                    uppercase tracking-wide"
+                  className="sticky left-0 z-10 flex items-center bg-muted/30 px-3 text-[10px]
+                    font-semibold uppercase tracking-wide text-muted-foreground"
                   style={{ width: LABEL_W }}
                 >
                   {row.label}
@@ -105,6 +117,7 @@ export function RoadmapGantt({ rows, axis, piBoundaries }: Props) {
           const bar = row.range ? barMetrics(row.range, axis) : null;
           const derivedBar = row.derivedRange ? barMetrics(row.derivedRange, axis) : null;
           const accent = resolveAccent(row.accent ?? (row.kind as RoadmapRowAccent));
+          const isEpic = row.kind === "epic";
 
           return (
             <div
@@ -115,25 +128,32 @@ export function RoadmapGantt({ rows, axis, piBoundaries }: Props) {
             >
               <div
                 className="sticky left-0 z-10 flex shrink-0 flex-col justify-center bg-background
-                  pr-4"
-                style={{ width: LABEL_W, paddingLeft: 16 + row.depth * 20 }}
+                  pr-3"
+                style={{ width: LABEL_W, paddingLeft: 12 + row.depth * 16 }}
               >
                 {row.href ? (
                   <Link
                     href={row.href}
-                    className="line-clamp-1 text-sm font-medium text-primary hover:underline"
+                    className={`line-clamp-1 text-[13px] hover:underline ${
+                      isEpic ? "font-semibold text-foreground" : "font-medium text-foreground/90"
+                    }`}
                     title={row.label}
                   >
                     {row.label}
                   </Link>
                 ) : (
-                  <span className="line-clamp-1 text-sm font-medium" title={row.label}>
+                  <span
+                    className={`line-clamp-1 text-[13px] ${
+                      isEpic ? "font-semibold" : "font-medium"
+                    }`}
+                    title={row.label}
+                  >
                     {row.label}
                   </span>
                 )}
                 {row.sublabel && (
                   <p
-                    className="line-clamp-1 text-[10px] text-muted-foreground/80"
+                    className="line-clamp-1 text-[9px] text-muted-foreground/70"
                     title={row.sublabel}
                   >
                     {row.sublabel}
@@ -146,16 +166,16 @@ export function RoadmapGantt({ rows, axis, piBoundaries }: Props) {
                   i % 2 === 0 ? null : (
                     <div
                       key={`band-${i}`}
-                      className="absolute inset-y-0 bg-muted/30"
+                      className="absolute inset-y-0 bg-muted/20"
                       style={{ left: `${band.start}%`, width: `${band.end - band.start}%` }}
                     />
                   ),
                 )}
-                {/* PI-Boundary-Linien */}
+                {/* PI-Boundary-Linien — dezent gestrichelt */}
                 {boundaryPcts.map((b, i) => (
                   <div
                     key={`pi-line-${i}`}
-                    className="absolute inset-y-0 w-px bg-border/70"
+                    className="absolute inset-y-0 border-l border-dashed border-border/60"
                     style={{ left: `${b.pct}%` }}
                     {...(b.label ? { title: b.label } : {})}
                   />
@@ -169,22 +189,16 @@ export function RoadmapGantt({ rows, axis, piBoundaries }: Props) {
                   />
                 )}
 
-                {/* Primary-Bar (Soll, oder Ist wenn kein Soll) */}
-                {bar && bar.widthPct > 0 ? (
+                {/* Primary-Bar (Soll, oder Ist wenn kein Soll). h-2 = 8px,
+                    der Standard fuer professionelle Roadmap-Tools. */}
+                {bar && bar.widthPct > 0 && (
                   <div
-                    className={`absolute top-1/2 h-3 -translate-y-1/2 rounded-full
+                    className={`absolute top-1/2 h-2 -translate-y-1/2 rounded-full
                       bg-gradient-to-b shadow-[0_1px_2px_rgba(0,0,0,0.08)]
                       transition-shadow group-hover:shadow-[0_2px_4px_rgba(0,0,0,0.12)] ${accent.bar}`}
                     style={{ left: `${bar.leftPct}%`, width: `${bar.widthPct}%`, minWidth: 6 }}
                     title={`${row.label}${derivedBar ? " — Soll" : ""}`}
                   />
-                ) : (
-                  <span
-                    className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px]
-                      text-muted-foreground/60"
-                  >
-                    ungeplant
-                  </span>
                 )}
                 {/* Ist-Overlay (Epic-Roadmap) */}
                 {derivedBar && derivedBar.widthPct > 0 && (
