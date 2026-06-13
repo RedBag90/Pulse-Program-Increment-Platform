@@ -74,6 +74,13 @@ export interface CockpitFilters {
   hasBlocker: boolean;
 }
 
+export interface CockpitPiWindow {
+  id: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
+}
+
 export interface CockpitModel {
   /** Welche ARTs der User sehen darf, ggf. mit aktivem-PI-Feature-Count. */
   availableArts: CockpitArtRef[];
@@ -82,6 +89,9 @@ export interface CockpitModel {
   /** 5 PIs: aktueller + 1 vor + 3 nach (Entscheidung #10). Leer wenn ART
    *  keine Timeline hat oder die Timeline keine PIs. */
   piStrip: CockpitPiSlot[];
+  /** Alle PIs der Timeline (oder Direct-ART) — Datumsfenster fuer die
+   *  Roadmap-Sicht. Board + Tabelle nutzen nur den piStrip. */
+  allPiWindows: CockpitPiWindow[];
   /** Default-Sicht ist „board" (Entscheidung #1); URL-Param ueberschreibt. */
   view: CockpitView;
   /** Features im aktuell ausgewaehlten Scope, ggf. weitergefiltert. */
@@ -213,8 +223,10 @@ export async function loadCockpitModel(
     : null;
 
   // 4) PI-Strip — alle PIs der Timeline (oder direkt der ART), sortiert,
-  //    Fenster um den aktuellen PI ausschneiden.
+  //    Fenster um den aktuellen PI ausschneiden. `allPiWindows` braucht
+  //    die Roadmap-Sicht zum Mappen Feature → Datum.
   let piStrip: CockpitPiSlot[] = [];
+  const allPiWindows: CockpitPiWindow[] = [];
   if (selectedArtRow) {
     const allPis = await db.programIncrement.findMany({
       where: {
@@ -226,6 +238,14 @@ export async function loadCockpitModel(
       select: { id: true, name: true, startDate: true, endDate: true, status: true },
       orderBy: { startDate: "asc" },
     });
+    for (const p of allPis) {
+      allPiWindows.push({
+        id: p.id,
+        name: p.name,
+        startDate: p.startDate,
+        endDate: p.endDate,
+      });
+    }
     const currentIdx = pickCurrentPiIndex(allPis);
     const windowPis = takePiWindow(allPis, currentIdx);
 
@@ -326,6 +346,7 @@ export async function loadCockpitModel(
     availableArts,
     selectedArt,
     piStrip,
+    allPiWindows,
     view: input.view ?? "board",
     features,
     filters,

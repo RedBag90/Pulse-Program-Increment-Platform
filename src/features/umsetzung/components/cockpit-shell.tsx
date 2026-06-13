@@ -4,6 +4,7 @@ import { CockpitPiStrip } from "./cockpit-pi-strip";
 import { CockpitViewTabs } from "./cockpit-view-tabs";
 import { CockpitBoard } from "./cockpit-board";
 import { CockpitTable } from "./cockpit-table";
+import { CockpitRoadmap } from "./cockpit-roadmap";
 
 /**
  * Delivery-Cockpit-Shell — Komposition der drei stabilen Bestandteile
@@ -19,7 +20,7 @@ interface Props {
 }
 
 export function CockpitShell({ model }: Props) {
-  const { availableArts, selectedArt, piStrip, view, features, permissions } = model;
+  const { availableArts, selectedArt, piStrip, allPiWindows, view, features, permissions } = model;
 
   return (
     <div className="flex min-h-[calc(100vh-3rem)] flex-col bg-background">
@@ -57,22 +58,9 @@ export function CockpitShell({ model }: Props) {
             canSetDelivery={permissions.canSetDelivery}
           />
         ) : (
-          <ViewPlaceholder name="Roadmap" features={features.length} />
+          <CockpitRoadmap features={features} allPiWindows={allPiWindows} />
         )}
       </main>
-    </div>
-  );
-}
-
-function ViewPlaceholder({ name, features }: { name: string; features: number }) {
-  return (
-    <div className="grid h-[420px] place-items-center rounded-lg border border-dashed bg-muted/10">
-      <div className="text-center">
-        <p className="font-medium">{name}-Sicht</p>
-        <p className="text-xs text-muted-foreground">
-          Skelett — kommt mit der naechsten Phase. ({features} Features im Scope)
-        </p>
-      </div>
     </div>
   );
 }
