@@ -160,6 +160,20 @@ export function CreateFeatureDialog({
               <Textarea id="f-desc" name="description" rows={3} />
             </div>
 
+            <div className="space-y-1.5">
+              <Label htmlFor="f-type">Typ</Label>
+              <select
+                id="f-type"
+                name="featureType"
+                defaultValue="feature"
+                className={SELECT_CLASS}
+              >
+                <option value="">— ungesetzt</option>
+                <option value="feature">Feature</option>
+                <option value="enabler">Enabler</option>
+              </select>
+            </div>
+
             <fieldset className="border border-border rounded-md p-4 space-y-3">
               <legend className="text-sm font-medium px-1">WSJF Scoring</legend>
               {(

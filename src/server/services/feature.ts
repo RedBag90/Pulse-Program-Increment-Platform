@@ -30,6 +30,8 @@ export interface CreateFeatureInput {
   wsjfRiskReduction: FibonacciValue;
   wsjfJobSize: FibonacciValue;
   acceptanceCriteria?: string[] | undefined;
+  /** SAFe Capacity-Guardrail Klassifikation. `null`/`undefined` = unklassifiziert. */
+  featureType?: FeatureType | null | undefined;
 }
 
 export interface UpdateFeatureInput {
@@ -62,6 +64,7 @@ export async function createFeature(
     wsjfRiskReduction,
     wsjfJobSize,
     acceptanceCriteria,
+    featureType,
   } = input;
 
   const wsjfComputed = computeWsjf({
@@ -101,6 +104,7 @@ export async function createFeature(
         acceptanceCriteria: acceptanceCriteria ?? [],
         ...(description !== undefined && { description }),
         ...(piId !== undefined && { piId }),
+        ...(featureType != null && { featureType }),
       },
     });
 

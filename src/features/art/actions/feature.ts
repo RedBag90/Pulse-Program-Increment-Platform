@@ -55,6 +55,8 @@ export const createFeatureAction = createServerAction({
     wsjfRiskReduction: z.coerce.number().pipe(fibonacci),
     wsjfJobSize: z.coerce.number().pipe(fibonacci),
     acceptanceCriteria: z.string().optional(),
+    // SAFe Guardrails. Leerer String = explizit „ungesetzt".
+    featureType: z.enum(["feature", "enabler", ""]).optional(),
   }),
   action: "feature.create",
   resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
@@ -75,6 +77,9 @@ export const createFeatureAction = createServerAction({
       wsjfRiskReduction: input.wsjfRiskReduction,
       wsjfJobSize: input.wsjfJobSize,
       acceptanceCriteria,
+      ...(input.featureType !== undefined && {
+        featureType: input.featureType === "" ? null : input.featureType,
+      }),
     });
   },
   revalidate: "feature",
