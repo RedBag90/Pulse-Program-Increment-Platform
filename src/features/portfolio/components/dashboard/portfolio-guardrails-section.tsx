@@ -221,7 +221,7 @@ function HorizonHorizonTower({
   epicsByHorizon: Record<HorizonColumn, StageTowerEpic[]>;
 }) {
   return (
-    <div className="grid grid-cols-4 gap-1.5">
+    <div className="grid grid-cols-4 gap-0.5">
       {HORIZON_COLUMNS.map((c) => {
         const epics = epicsByHorizon[c];
         const color = HORIZON_COLUMN_COLOR[c];
@@ -273,7 +273,7 @@ function HorizonStageTower({
   epicsByStage: Record<StageGate, StageTowerEpic[]>;
 }) {
   return (
-    <div className="grid grid-cols-6 gap-1.5">
+    <div className="grid grid-cols-6 gap-0.5">
       {STAGE_GATES.map((g) => {
         const epics = epicsByStage[g];
         const count = epics.length;
