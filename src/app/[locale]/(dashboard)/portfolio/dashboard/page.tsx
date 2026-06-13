@@ -1,8 +1,13 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
-import { getPortfolioEconomics } from "@/server/services/portfolio-dashboard";
+import {
+  getPortfolioEconomics,
+  getPortfolioGuardrailsInputs,
+} from "@/server/services/portfolio-dashboard";
 import { PortfolioDashboard } from "@/features/portfolio/components/dashboard/portfolio-dashboard";
+import { PortfolioGuardrailsSection } from "@/features/portfolio/components/dashboard/portfolio-guardrails-section";
+import { computePortfolioGuardrails } from "@/server/views/portfolio-guardrails-view";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 
@@ -16,9 +21,17 @@ export default async function PortfolioDashboardPage() {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const data = await getPortfolioEconomics(db, principal.tenantId);
+  const [data, guardrailsInputs] = await Promise.all([
+    getPortfolioEconomics(db, principal.tenantId),
+    getPortfolioGuardrailsInputs(db, principal.tenantId),
+  ]);
 
   const canEdit = authorize("target.manage", { tenantId: principal.tenantId }, principal).allow;
+
+  const guardrailsModel = computePortfolioGuardrails({
+    epics: guardrailsInputs.epics,
+    targets: guardrailsInputs.targets,
+  });
 
   return (
     <main className="space-y-6 p-6 md:p-8">
@@ -36,6 +49,14 @@ export default async function PortfolioDashboardPage() {
           Portfolio
         </Link>
       </div>
+
+      <PortfolioGuardrailsSection
+        model={guardrailsModel}
+        targets={guardrailsInputs.targets}
+        canEdit={canEdit}
+        costNeutralTarget={data.costNeutralTarget}
+        costPerJobSizePoint={data.costPerJobSizePoint}
+      />
 
       {data.epics.length === 0 ? (
         <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">

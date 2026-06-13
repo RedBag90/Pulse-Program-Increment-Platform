@@ -17,6 +17,9 @@ import { deriveEpicEconomics } from "@/domain/epic-economics";
 import type { EpicEconomicsDTO, PortfolioEconomicsData } from "@/domain/portfolio-economics";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import type { Prisma } from "@/generated/prisma";
+import { parseGuardrailTargets, type GuardrailTargets } from "@/domain/portfolio-guardrails";
+import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
 
 // The serialisable DTO contract lives with the economics maths it feeds; re-
 // exported so existing importers (the dashboard client) keep their path.
@@ -127,11 +130,52 @@ export async function getPortfolioEconomics(
   };
 }
 
+/**
+ * Laedt die Inputs fuer das SAFe-Guardrails-Page-Model (Roadmap-G4):
+ * pro Epic die Klassifikation (epicType, investmentHorizon) und ein
+ * "amount" — die Implementation-Cost aus dem Business Case, falls vorhanden.
+ * Plus die Tenant-weiten Targets (Default bei null).
+ */
+export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: TenantId) {
+  const [epics, tenant] = await Promise.all([
+    db.initiative.findMany({
+      where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+      select: {
+        id: true,
+        epicType: true,
+        investmentHorizon: true,
+        businessCase: true,
+      },
+    }),
+    db.tenant.findUnique({
+      where: { id: tenantId },
+      select: { guardrailTargets: true },
+    }),
+  ]);
+
+  const epicInputs = epics.map((e) => {
+    const totals = computeBusinessCaseTotals(parseBusinessCase(e.businessCase).current);
+    const amount = totals.implementationCost > 0 ? totals.implementationCost : null;
+    return {
+      id: e.id,
+      epicType: e.epicType,
+      investmentHorizon: e.investmentHorizon,
+      amount,
+    };
+  });
+
+  const targets = parseGuardrailTargets(tenant?.guardrailTargets ?? null);
+
+  return { epics: epicInputs, targets };
+}
+
 export interface SaveDashboardSettingsInput {
   /** Self-funding threshold per month; null clears it. */
   costNeutralTarget: number | null;
   /** €/WSJF-Job-Size point for the PI-Planning capacity overlay; null hides the €-axis. */
   costPerJobSizePoint: number | null;
+  /** SAFe Guardrails (Roadmap-G4). undefined = nicht anpacken. */
+  guardrailTargets?: GuardrailTargets | undefined;
 }
 
 /** Persists the configurable Portfolio Dashboard settings on the tenant. */
@@ -146,6 +190,9 @@ export async function savePortfolioDashboardSettings(
       data: {
         costNeutralTarget: input.costNeutralTarget,
         costPerJobSizePoint: input.costPerJobSizePoint,
+        ...(input.guardrailTargets !== undefined && {
+          guardrailTargets: input.guardrailTargets as unknown as Prisma.InputJsonValue,
+        }),
       },
     });
     return ok({
