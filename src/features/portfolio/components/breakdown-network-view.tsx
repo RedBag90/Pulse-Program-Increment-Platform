@@ -38,6 +38,7 @@ import {
 } from "@/features/dependencies/actions/dependency";
 import { updateFeatureAction } from "@/features/art/actions/feature";
 import { saveBreakdownLayoutAction } from "@/features/portfolio/actions/breakdown-layout";
+import { useBreakdownRealtime } from "@/features/portfolio/hooks/use-breakdown-realtime";
 import { WsjfScoreDialog } from "@/features/art/components/wsjf-score-dialog";
 import {
   quickAddFeatureWithDependencyAction,
@@ -57,6 +58,8 @@ import {
 
 interface Props {
   epicId: string;
+  /** Tenant-Id — fuer den Realtime-Channel (Roadmap-P8). */
+  tenantId: string;
   /** Epic-Titel — wird in der Empty-State-CTA als Parent-Epic-Label genutzt. */
   epicTitle: string;
   features: ReadonlyArray<{
@@ -770,6 +773,7 @@ function layoutGraph(
 
 export function BreakdownNetworkView({
   epicId,
+  tenantId,
   epicTitle,
   features,
   dependencies,
@@ -781,6 +785,10 @@ export function BreakdownNetworkView({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+
+  // Realtime-Sync (Roadmap-P8): Supabase-Postgres-Changes auf
+  // initiatives + dependencies refreshen die Page debounced 300 ms.
+  useBreakdownRealtime(tenantId);
 
   // ----- Filter (Roadmap-P4) -----
   // Volltextsuche + Typ-Facette. URL-state ?breakdownQ=, ?breakdownType=

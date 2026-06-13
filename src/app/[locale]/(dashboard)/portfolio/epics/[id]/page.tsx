@@ -561,6 +561,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       {activeTab === "breakdown" && (
         <EpicBreakdownTab
           epicId={epic.id}
+          tenantId={principal.tenantId}
           epicTitle={epic.title}
           canEdit={canEdit}
           features={breakdownFeatures}

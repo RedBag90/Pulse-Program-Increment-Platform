@@ -61,6 +61,8 @@ export interface BreakdownFeature {
 
 interface Props {
   epicId: string;
+  /** Tenant-Id — fuer den Netzplan-Realtime-Channel (Roadmap-P8). */
+  tenantId: string;
   epicTitle: string;
   canEdit: boolean;
   features: BreakdownFeature[];
@@ -216,6 +218,7 @@ function FeatureRow({
  */
 export function EpicBreakdownTab({
   epicId,
+  tenantId,
   epicTitle,
   canEdit,
   features,
@@ -291,6 +294,7 @@ export function EpicBreakdownTab({
       {view === "graph" ? (
         <BreakdownNetworkView
           epicId={epicId}
+          tenantId={tenantId}
           epicTitle={epicTitle}
           features={features.map((f) => ({
             id: f.id,
