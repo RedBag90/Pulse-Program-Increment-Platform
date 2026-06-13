@@ -8,8 +8,11 @@ import {
   listBudgetPlanRevisions,
 } from "@/server/services/budget-plan-revision";
 import { getKpiTree } from "@/server/services/controlling";
+import { getPortfolioGuardrailsInputs } from "@/server/services/portfolio-dashboard";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { CaptureRevisionButton } from "@/features/controlling/components/capture-revision-button";
+import { GuardrailTargetsForm } from "@/features/controlling/components/guardrail-targets-form";
+import { GuardrailTargetsReadOnly } from "@/features/controlling/components/guardrail-targets-readonly";
 import { SectionLabel } from "@/components/ui/section-label";
 import { Stat, StatStrip } from "@/components/ui/stat";
 import { fmtEur } from "@/components/format/eur";
@@ -28,15 +31,26 @@ export default async function ControllingOverviewPage() {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [latest, history, kpiTree, userLabels] = await Promise.all([
-    getLatestBudgetPlanRevision(db, principal.tenantId),
-    listBudgetPlanRevisions(db, principal.tenantId),
-    getKpiTree(db, principal.tenantId),
-    listTenantUserLabels(db, principal.tenantId),
-  ]);
+  const [latest, history, kpiTree, userLabels, guardrailsInputs, tenantCostSettings] =
+    await Promise.all([
+      getLatestBudgetPlanRevision(db, principal.tenantId),
+      listBudgetPlanRevisions(db, principal.tenantId),
+      getKpiTree(db, principal.tenantId),
+      listTenantUserLabels(db, principal.tenantId),
+      getPortfolioGuardrailsInputs(db, principal.tenantId),
+      db.tenant.findUnique({
+        where: { id: principal.tenantId },
+        select: { costNeutralTarget: true, costPerJobSizePoint: true },
+      }),
+    ]);
 
   const canCapture = authorize(
     "budget_plan.revision.capture",
+    { tenantId: principal.tenantId },
+    principal,
+  ).allow;
+  const canManageTargets = authorize(
+    "target.manage",
     { tenantId: principal.tenantId },
     principal,
   ).allow;
@@ -201,6 +215,28 @@ export default async function ControllingOverviewPage() {
             KPI-Tree öffnen →
           </Link>
         </div>
+      </section>
+
+      {/* Portfolio-Guardrails — Targets-Pflege */}
+      <section className="space-y-3">
+        <SectionLabel>Portfolio-Guardrails</SectionLabel>
+        {canManageTargets ? (
+          <GuardrailTargetsForm
+            targets={guardrailsInputs.targets}
+            costNeutralTarget={
+              tenantCostSettings?.costNeutralTarget != null
+                ? Number(tenantCostSettings.costNeutralTarget)
+                : null
+            }
+            costPerJobSizePoint={
+              tenantCostSettings?.costPerJobSizePoint != null
+                ? Number(tenantCostSettings.costPerJobSizePoint)
+                : null
+            }
+          />
+        ) : (
+          <GuardrailTargetsReadOnly targets={guardrailsInputs.targets} />
+        )}
       </section>
 
       {/* Vergangene Revisionen */}
