@@ -280,6 +280,7 @@ export function EpicBreakdownTab({
       {view === "graph" ? (
         <BreakdownNetworkView
           epicId={epicId}
+          epicTitle={epicTitle}
           features={features.map((f) => ({
             id: f.id,
             title: f.title,

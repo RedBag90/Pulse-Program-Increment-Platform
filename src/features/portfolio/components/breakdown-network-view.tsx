@@ -25,6 +25,7 @@ import "@xyflow/react/dist/style.css";
 import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
 import { detectCycle } from "@/domain/dependency-graph";
+import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
 import {
   linkDependencyAction,
   unlinkDependencyAction,
@@ -46,6 +47,8 @@ import {
 
 interface Props {
   epicId: string;
+  /** Epic-Titel — wird in der Empty-State-CTA als Parent-Epic-Label genutzt. */
+  epicTitle: string;
   features: ReadonlyArray<{
     id: string;
     title: string;
@@ -428,6 +431,7 @@ function layoutGraph(
 
 export function BreakdownNetworkView({
   epicId,
+  epicTitle,
   features,
   dependencies,
   canLinkDependency,
@@ -625,8 +629,13 @@ export function BreakdownNetworkView({
 
   if (model.nodes.length === 0) {
     return (
-      <div className="flex h-64 items-center justify-center rounded-lg border border-dashed bg-muted/30 text-sm text-muted-foreground">
-        Noch keine Features in diesem Epic — lege das erste Feature in der Liste an.
+      <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+        <p>
+          Noch keine Features in diesem Epic — leg das erste an, dann baust du den Netzplan auf.
+        </p>
+        {canCreateFeature && (
+          <CreateFeatureDialog epics={[{ id: epicId, title: epicTitle }]} context={{ epicId }} />
+        )}
       </div>
     );
   }
