@@ -52,6 +52,10 @@ export interface EpicListRow {
   plannedEndAt: string | null;
   /** Epoch milliseconds — used by the createdAt sort. */
   createdAtMs: number;
+  /** SAFe-Guardrails (Roadmap-G3): Solution/Epic/Enabler. */
+  epicType: string | null;
+  /** SAFe-Guardrails (Roadmap-G3): H1/H2/H3. */
+  investmentHorizon: string | null;
 }
 
 export interface EpicsListModel {
@@ -105,6 +109,9 @@ interface EpicRow {
   childFeatureCount: number;
   /** Count of child Features mit status === "completed". Treibt L4.2. */
   completedChildFeatureCount: number;
+  /** SAFe-Guardrails (Roadmap-G3). */
+  epicType: string | null;
+  investmentHorizon: string | null;
 }
 
 const isoDay = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
@@ -191,6 +198,8 @@ export function buildEpicsListModel(input: {
       plannedStartAt: isoDay(e.plannedStartAt),
       plannedEndAt: isoDay(e.plannedEndAt),
       createdAtMs: e.createdAt.getTime(),
+      epicType: e.epicType,
+      investmentHorizon: e.investmentHorizon,
     };
   });
 

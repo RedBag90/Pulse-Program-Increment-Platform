@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  EPIC_TYPES,
+  HORIZONS,
+  EPIC_TYPE_LABEL,
+  HORIZON_LABEL,
+} from "@/domain/portfolio-guardrails";
 
 export type SortKey =
   | "createdAt:desc"
@@ -20,6 +26,9 @@ interface Props {
   valueStreamId: string | null;
   ownerId: string | null;
   flag: FlagFilter;
+  /** SAFe-Guardrail-Filter (Roadmap-G3). null = nicht gesetzt. */
+  horizon: string | null;
+  epicType: string | null;
   sort: SortKey;
   group: "flat" | "stage";
   density: "comfortable" | "compact";
@@ -29,6 +38,8 @@ interface Props {
   onValueStreamChange: (next: string | null) => void;
   onOwnerChange: (next: string | null) => void;
   onFlagChange: (next: FlagFilter) => void;
+  onHorizonChange: (next: string | null) => void;
+  onEpicTypeChange: (next: string | null) => void;
   onSortChange: (next: SortKey) => void;
   onGroupChange: (next: "flat" | "stage") => void;
   onDensityChange: (next: "comfortable" | "compact") => void;
@@ -58,6 +69,8 @@ export function EpicsFilterBar({
   valueStreamId,
   ownerId,
   flag,
+  horizon,
+  epicType,
   sort,
   group,
   density,
@@ -67,6 +80,8 @@ export function EpicsFilterBar({
   onValueStreamChange,
   onOwnerChange,
   onFlagChange,
+  onHorizonChange,
+  onEpicTypeChange,
   onSortChange,
   onGroupChange,
   onDensityChange,
@@ -80,7 +95,12 @@ export function EpicsFilterBar({
   }, [draft, query, onQueryChange]);
 
   const hasActiveFilter =
-    valueStreamId != null || ownerId != null || flag !== "all" || query !== "";
+    valueStreamId != null ||
+    ownerId != null ||
+    flag !== "all" ||
+    horizon != null ||
+    epicType != null ||
+    query !== "";
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -123,6 +143,34 @@ export function EpicsFilterBar({
         <option value="budgeting">💰 Budget</option>
       </select>
 
+      <select
+        className={SELECT}
+        value={horizon ?? ""}
+        onChange={(e) => onHorizonChange(e.target.value || null)}
+        aria-label="Horizon"
+      >
+        <option value="">Alle Horizonte</option>
+        {HORIZONS.map((h) => (
+          <option key={h} value={h}>
+            {HORIZON_LABEL[h]}
+          </option>
+        ))}
+      </select>
+
+      <select
+        className={SELECT}
+        value={epicType ?? ""}
+        onChange={(e) => onEpicTypeChange(e.target.value || null)}
+        aria-label="Epic-Typ"
+      >
+        <option value="">Alle Typen</option>
+        {EPIC_TYPES.map((t) => (
+          <option key={t} value={t}>
+            {EPIC_TYPE_LABEL[t]}
+          </option>
+        ))}
+      </select>
+
       <div className="relative max-w-xs flex-1">
         <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -144,6 +192,8 @@ export function EpicsFilterBar({
             onValueStreamChange(null);
             onOwnerChange(null);
             onFlagChange("all");
+            onHorizonChange(null);
+            onEpicTypeChange(null);
           }}
           className="h-8 px-2 text-xs text-muted-foreground"
         >

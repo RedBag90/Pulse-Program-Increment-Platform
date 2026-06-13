@@ -15,6 +15,7 @@ import { EpicsBulkActionBar } from "@/features/portfolio/components/epics-bulk-a
 import type { EpicsListModel, EpicListRow } from "@/server/views/portfolio-epics-list";
 import { STAGE_GATES } from "@/domain/stage-gate";
 import type { StageGate } from "@/domain/types";
+import { EPIC_TYPES, HORIZONS } from "@/domain/portfolio-guardrails";
 
 interface Props {
   model: EpicsListModel;
@@ -24,6 +25,8 @@ interface Props {
 }
 
 const STAGE_GATE_SET = new Set<string>(STAGE_GATES);
+const HORIZON_SET = new Set<string>(HORIZONS);
+const EPIC_TYPE_SET = new Set<string>(EPIC_TYPES);
 const SORT_KEYS: SortKey[] = [
   "createdAt:desc",
   "createdAt:asc",
@@ -45,6 +48,12 @@ function parseSort(raw: string | null): SortKey {
 function parseFlag(raw: string | null): FlagFilter {
   if (raw && FLAG_VALUES.includes(raw as FlagFilter)) return raw as FlagFilter;
   return "all";
+}
+function parseHorizon(raw: string | null): string | null {
+  return raw && HORIZON_SET.has(raw) ? raw : null;
+}
+function parseEpicType(raw: string | null): string | null {
+  return raw && EPIC_TYPE_SET.has(raw) ? raw : null;
 }
 function parseGroup(raw: string | null): "flat" | "stage" {
   return raw === "stage" ? "stage" : "flat";
@@ -78,6 +87,8 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
   // URL-Bookmark `?status=` noch existiert, wird er hier stillschweigend
   // ignoriert — keine Render-Effekt, keine Konsole-Warnung.
   const flag = parseFlag(searchParams.get("flag"));
+  const horizon = parseHorizon(searchParams.get("horizon"));
+  const epicType = parseEpicType(searchParams.get("type"));
   const query = searchParams.get("q") ?? "";
   const sort = parseSort(searchParams.get("sort"));
   const group = parseGroup(searchParams.get("group"));
@@ -127,6 +138,14 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
     (next: FlagFilter) => pushParam({ flag: next === "all" ? null : next }),
     [pushParam],
   );
+  const onHorizonChange = useCallback(
+    (next: string | null) => pushParam({ horizon: next }),
+    [pushParam],
+  );
+  const onEpicTypeChange = useCallback(
+    (next: string | null) => pushParam({ type: next }),
+    [pushParam],
+  );
 
   const setSelected = useCallback(
     (ids: Set<string>) => {
@@ -165,6 +184,8 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
       if (ownerFilter && r.ownerId !== ownerFilter) return false;
       if (flag === "steering" && !r.needsSteeringAttention) return false;
       if (flag === "budgeting" && !r.stagedForBudgeting) return false;
+      if (horizon != null && r.investmentHorizon !== horizon) return false;
+      if (epicType != null && r.epicType !== epicType) return false;
       if (q !== "") {
         if (r.title.toLowerCase().includes(q)) return true;
         if (r.ownerLabel?.toLowerCase().includes(q)) return true;
@@ -177,7 +198,7 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
     const sorted = filtered.slice();
     sorted.sort(compareBy(sort));
     return sorted;
-  }, [model.rows, gate, vsFilter, ownerFilter, flag, query, sort]);
+  }, [model.rows, gate, vsFilter, ownerFilter, flag, horizon, epicType, query, sort]);
 
   const selectedRows = useMemo(
     () => model.rows.filter((r) => selectedIds.has(r.id)),
@@ -212,6 +233,8 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
         valueStreamId={vsFilter}
         ownerId={ownerFilter}
         flag={flag}
+        horizon={horizon}
+        epicType={epicType}
         sort={sort}
         group={group}
         density={density}
@@ -221,6 +244,8 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
         onValueStreamChange={onValueStreamChange}
         onOwnerChange={onOwnerChange}
         onFlagChange={onFlagChange}
+        onHorizonChange={onHorizonChange}
+        onEpicTypeChange={onEpicTypeChange}
         onSortChange={onSortChange}
         onGroupChange={onGroupChange}
         onDensityChange={onDensityChange}

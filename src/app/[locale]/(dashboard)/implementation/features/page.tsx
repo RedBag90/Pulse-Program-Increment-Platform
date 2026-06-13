@@ -111,6 +111,7 @@ export default async function FeaturesOverviewPage() {
       wsjfComputed: f.wsjfComputed != null ? Number(f.wsjfComputed) : null,
       acceptanceCriteria: f.acceptanceCriteria,
       createdAt: f.createdAt,
+      featureType: f.featureType,
     })),
     arts,
     valueStreams,

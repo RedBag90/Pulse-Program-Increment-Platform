@@ -17,6 +17,7 @@ const feature = (
     wsjfJobSize: number | null;
     acceptanceCriteria: string[];
     createdAt: Date;
+    featureType: string | null;
   }>,
 ) => ({
   id: "f1",
@@ -33,6 +34,7 @@ const feature = (
   wsjfJobSize: null,
   acceptanceCriteria: [],
   createdAt: new Date("2026-01-01T00:00:00Z"),
+  featureType: null,
   ...over,
 });
 

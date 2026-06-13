@@ -30,6 +30,8 @@ export interface FeatureOverviewRow {
   acceptanceCriteriaCount: number;
   isBlocked: boolean;
   createdAtMs: number;
+  /** SAFe-Guardrails (Roadmap-G3): Feature/Enabler. */
+  featureType: string | null;
 }
 
 export interface ValueStreamOption {
@@ -79,6 +81,7 @@ interface FeatureInput {
   wsjfComputed: number | null;
   acceptanceCriteria: string[];
   createdAt: Date;
+  featureType: string | null;
 }
 
 interface ArtInput {
@@ -140,6 +143,7 @@ export function buildFeaturesOverviewModel(input: {
       acceptanceCriteriaCount: f.acceptanceCriteria.length,
       isBlocked: blockedFeatureIds.has(f.id),
       createdAtMs: f.createdAt.getTime(),
+      featureType: f.featureType,
     };
   });
 

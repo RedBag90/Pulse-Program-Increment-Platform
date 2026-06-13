@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { FEATURE_STATUSES, type FeatureStatus } from "@/server/views/features-list";
 import type { FeaturesOverviewModel, FeatureOverviewRow } from "@/server/views/features-overview";
 import type { WsjfTier } from "@/server/views/features-list";
+import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/domain/portfolio-guardrails";
 
 interface Props {
   model: FeaturesOverviewModel;
@@ -42,6 +43,10 @@ function parseTier(raw: string | null): WsjfTier | null {
   if (!raw) return null;
   return (WSJF_TIERS as readonly string[]).includes(raw) ? (raw as WsjfTier) : null;
 }
+function parseFeatureType(raw: string | null): string | null {
+  if (!raw) return null;
+  return (FEATURE_TYPES as readonly string[]).includes(raw) ? raw : null;
+}
 function parseSort(raw: string | null): SortKey {
   if (raw && SORT_KEYS.includes(raw as SortKey)) return raw as SortKey;
   return "wsjf:desc";
@@ -67,6 +72,7 @@ export function FeaturesOverviewShell({ model }: Props) {
   const piId = searchParams.get("pi");
   const epicId = searchParams.get("epic");
   const tier = parseTier(searchParams.get("tier"));
+  const featureType = parseFeatureType(searchParams.get("type"));
   const query = searchParams.get("q") ?? "";
   const sort = parseSort(searchParams.get("sort"));
 
@@ -99,6 +105,7 @@ export function FeaturesOverviewShell({ model }: Props) {
       if (piId && piId !== "backlog" && r.pi?.id !== piId) return false;
       if (epicId && r.epic?.id !== epicId) return false;
       if (tier && r.wsjfTier !== tier) return false;
+      if (featureType != null && r.featureType !== featureType) return false;
       if (q === "") return true;
       if (r.title.toLowerCase().includes(q)) return true;
       if (r.epic?.title.toLowerCase().includes(q)) return true;
@@ -120,7 +127,7 @@ export function FeaturesOverviewShell({ model }: Props) {
         break;
     }
     return sorted;
-  }, [model.rows, status, valueStreamId, artId, piId, epicId, tier, query, sort]);
+  }, [model.rows, status, valueStreamId, artId, piId, epicId, tier, featureType, query, sort]);
 
   return (
     <main className="p-6 md:p-8">
@@ -156,7 +163,7 @@ export function FeaturesOverviewShell({ model }: Props) {
       </div>
 
       {/* Filter-Bar */}
-      <div className="mb-4 grid gap-2 md:grid-cols-[1fr_repeat(5,auto)_auto]">
+      <div className="mb-4 grid gap-2 md:grid-cols-[1fr_repeat(6,auto)_auto]">
         <input
           type="search"
           value={query}
@@ -227,6 +234,19 @@ export function FeaturesOverviewShell({ model }: Props) {
             ))}
           </select>
         )}
+        <select
+          value={featureType ?? ""}
+          onChange={(e) => pushParam({ type: e.target.value || null })}
+          aria-label="Feature-Typ"
+          className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+        >
+          <option value="">Alle Typen</option>
+          {FEATURE_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {FEATURE_TYPE_LABEL[t]}
+            </option>
+          ))}
+        </select>
         <select
           value={sort}
           onChange={(e) => pushParam({ sort: e.target.value })}
