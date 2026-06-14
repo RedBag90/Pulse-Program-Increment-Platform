@@ -3,7 +3,6 @@ import { authorize, hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getEpic } from "@/server/services/epic";
 import { loadBreakdownLayout } from "@/server/services/breakdown-layout";
-import { EpicGoalsLinker } from "@/features/transformation/components/epic-goals-linker";
 import { EpicGoalsBadge } from "@/features/portfolio/components/epic-goals-badge";
 import { loadEpicGoalContributions } from "@/server/views/epic-goal-contributions";
 import { listInitiativeHistory } from "@/server/services/initiative";
@@ -103,7 +102,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     approvers,
     userLabels,
     practices,
-    goalLinks,
     budgetAllocation,
     breakdownDependencies,
     breakdownPositions,
@@ -115,10 +113,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     listTenantApprovers(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
     getTenantPractices(db, principal.tenantId),
-    db.goalEpicLink.findMany({
-      where: { tenantId: principal.tenantId, epicId: epic.id },
-      include: { goal: { select: { id: true, title: true } } },
-    }),
     // Reifegrad-Modell v2: prüft, ob das Epic eine BudgetAllocation mit
     // mindestens einer Period > 0 hat — Indikator für „Budget alloziert"
     // im Sub-Header.
@@ -183,21 +177,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       )
     : 0;
   const budgetAllocated = budgetAllocatedSum > 0;
-  const linkedGoals = goalLinks.map((l) => l.goal);
-
-  // Senior management (target.manage) may link/unlink goals from the Epic itself.
-  const canManageGoals = authorize(
-    "target.manage",
-    { tenantId: principal.tenantId },
-    principal,
-  ).allow;
-  const allGoals = canManageGoals
-    ? await db.transformationGoal.findMany({
-        where: { tenantId: principal.tenantId },
-        select: { id: true, title: true },
-        orderBy: { createdAt: "asc" },
-      })
-    : [];
 
   // The multi-party approval workflow is only present when the target enables it
   // — otherwise the "Freigaben" tab and the phase badge are hidden.
@@ -444,31 +423,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       >
         {activeTab === "overview" && (
           <div className="space-y-4">
-            {canManageGoals ? (
-              <EpicGoalsLinker
-                epicId={epic.id}
-                goals={allGoals}
-                linkedIds={linkedGoals.map((g) => g.id)}
-              />
-            ) : (
-              linkedGoals.length > 0 && (
-                <section>
-                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                    Realisiert strategische Ziele
-                  </p>
-                  <ul className="flex flex-wrap gap-1.5">
-                    {linkedGoals.map((g) => (
-                      <li
-                        key={g.id}
-                        className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                      >
-                        {g.title}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )
-            )}
             <EpicGoalsBadge contributions={goalContributions} />
             <EpicOverviewTab
               epic={epic}
