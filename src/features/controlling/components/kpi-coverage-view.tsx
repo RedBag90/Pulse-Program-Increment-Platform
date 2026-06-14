@@ -65,9 +65,26 @@ export function KpiCoverageView({ model, canEdit }: Props) {
     (r) => r.contributions.length > 0 || r.formula !== "auto_from_kpi",
   );
   const missingValue = kpiLibrary.filter((k) => k.valuePerUnit == null).length;
+  const valuedKpis = kpiLibrary.length - missingValue;
+  const realizedTotal = krRows.reduce(
+    (sum, r) => sum + r.contributions.reduce((s, c) => s + c.contributionRealized, 0),
+    0,
+  );
 
   return (
     <div className="space-y-6">
+      {/* Headline-Stats */}
+      <section className="grid gap-3 md:grid-cols-4">
+        <Stat label="KPIs" value={kpiLibrary.length.toString()} />
+        <Stat label="Bewertet" value={valuedKpis.toString()} hint={`${missingValue} offen`} />
+        <Stat label="Σ Realisierter Beitrag" value={fmtEur(realizedTotal)} tone="emerald" />
+        <Stat
+          label="Setup offen (KRs)"
+          value={setupOffen.length.toString()}
+          tone={setupOffen.length === 0 ? "emerald" : "amber"}
+        />
+      </section>
+
       {/* KPI-Bibliothek */}
       <section className="rounded-lg border bg-card">
         <header className="flex items-baseline justify-between border-b px-4 py-3">
@@ -418,4 +435,36 @@ function Td({
       {children}
     </td>
   );
+}
+
+function Stat({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "emerald" | "amber";
+}) {
+  const valueCls =
+    tone === "emerald"
+      ? "text-emerald-700"
+      : tone === "amber"
+        ? "text-amber-700"
+        : "text-foreground";
+  return (
+    <div className="rounded-lg border bg-card px-4 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className={`mt-0.5 text-xl font-semibold tabular-nums ${valueCls}`}>{value}</p>
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+function fmtEur(n: number): string {
+  return `€${Math.round(n).toLocaleString("de-DE")}`;
 }

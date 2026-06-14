@@ -130,12 +130,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/structure?tab=timeline", labelKey: "structureTimeline", icon: CalendarDays },
       { href: "/controlling", labelKey: "controllingOverview", icon: Gauge, exact: true },
       {
-        href: "/controlling/kpi-tree",
-        labelKey: "kpiTree",
-        icon: Calculator,
-        practice: "portfolioLevel",
-      },
-      {
         href: "/controlling/kpi-coverage",
         labelKey: "kpiCoverage",
         icon: Calculator,
