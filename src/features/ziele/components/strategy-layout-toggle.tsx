@@ -3,10 +3,22 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 /**
- * Sub-Toolbar-Toggle Tree ↔ Sankey (Konzept §4.1 / V1+V1b). URL-State
- * `?layout=sankey`; Default ist Tree (also `?layout` weglassen).
+ * Sub-Toolbar-Toggle fuer den Strategie-Tab. Vier Layouts mit URL-
+ * State `?layout=…`; Default Tree (URL-Param weglassen).
+ *
+ *   - **Tree** — geschachtelte Cards (Default)
+ *   - **Sankey** — €-Fluss-Diagramm
+ *   - **Tabelle** — hierarchische Liste (Asana-Style)
+ *   - **Netzplan** — Node-Graph (Asana Strategy-Map-Style)
  */
-export type StrategyLayout = "tree" | "sankey";
+export type StrategyLayout = "tree" | "sankey" | "tabelle" | "netzplan";
+
+const OPTIONS: ReadonlyArray<{ id: StrategyLayout; label: string }> = [
+  { id: "tree", label: "Tree" },
+  { id: "sankey", label: "Sankey" },
+  { id: "tabelle", label: "Tabelle" },
+  { id: "netzplan", label: "Netzplan" },
+];
 
 interface Props {
   active: StrategyLayout;
@@ -27,20 +39,20 @@ export function StrategyLayoutToggle({ active }: Props) {
 
   return (
     <div className="inline-flex overflow-hidden rounded-md border bg-card text-[11px]">
-      {(["tree", "sankey"] as const).map((id) => {
-        const isActive = id === active;
+      {OPTIONS.map((o) => {
+        const isActive = o.id === active;
         const cls = isActive
           ? "bg-primary text-primary-foreground"
           : "text-muted-foreground hover:bg-muted/50";
         return (
           <button
-            key={id}
+            key={o.id}
             type="button"
-            onClick={() => setLayout(id)}
+            onClick={() => setLayout(o.id)}
             className={`px-2.5 py-1 ${cls}`}
             aria-pressed={isActive}
           >
-            {id === "tree" ? "Tree" : "Sankey"}
+            {o.label}
           </button>
         );
       })}

@@ -2,6 +2,8 @@ import type { ZieleModel } from "@/server/views/ziele-view";
 import { ZieleSubTabs } from "./ziele-sub-tabs";
 import { StrategyTreeView } from "./strategy-tree-view";
 import { StrategySankeyView } from "./strategy-sankey-view";
+import { StrategyTableView } from "./strategy-table-view";
+import { StrategyNetworkView } from "./strategy-network-view";
 import { StrategyLayoutToggle, type StrategyLayout } from "./strategy-layout-toggle";
 import { ZieleEditDrawer } from "./ziele-edit-drawer";
 import { OkrBoardView } from "./okr-board-view";
@@ -68,15 +70,16 @@ export function ZieleShell({ model, layout, mode = "ziele" }: Props) {
           <div className="flex items-center justify-end">
             <StrategyLayoutToggle active={layout} />
           </div>
-          {layout === "tree" ? (
+          {layout === "tree" && (
             <StrategyTreeView
               visions={visions}
               themes={themes}
               canEdit={permissions.canEditStrategy}
             />
-          ) : (
-            <StrategySankeyView themes={themes} />
           )}
+          {layout === "sankey" && <StrategySankeyView themes={themes} />}
+          {layout === "tabelle" && <StrategyTableView visions={visions} themes={themes} />}
+          {layout === "netzplan" && <StrategyNetworkView visions={visions} themes={themes} />}
         </div>
       )}
       {tab === "okrs" && <OkrBoardView themes={themes} canEdit={permissions.canEditStrategy} />}

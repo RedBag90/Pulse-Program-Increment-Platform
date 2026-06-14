@@ -1911,11 +1911,19 @@ async function main() {
     where: { tenantId },
     select: { id: true, name: true, baseline: true, target: true, valuePerUnit: true },
   });
+  // Pyramid-Constraint (vgl. Plan §Pyramid-Refinement): jede KPI wird
+  // hoechstens an EINEM KR gebunden — sonst wuerden im Sankey/Netzplan
+  // Faden konvergieren („Sanduhr"). Operativ ist die Aufteilung eines
+  // Epic-Impacts ueber mehrere KRs ohnehin selten.
+  const claimedKpiIds = new Set<string>();
   function pickKpis(...patterns: string[]): { id: string }[] {
-    const hits = allTenantKpis.filter((k) =>
+    const unclaimed = allTenantKpis.filter((k) => !claimedKpiIds.has(k.id));
+    const hits = unclaimed.filter((k) =>
       patterns.some((p) => k.name.toLowerCase().includes(p.toLowerCase())),
     );
-    return hits.length > 0 ? hits.slice(0, 2) : allTenantKpis.slice(0, 1);
+    const choice = hits.length > 0 ? hits.slice(0, 2) : unclaimed.slice(0, 1);
+    choice.forEach((c) => claimedKpiIds.add(c.id));
+    return choice;
   }
 
   // 22a) Tenant-Vision
