@@ -15,6 +15,7 @@ import {
   deleteKeyResult,
   bindKpiToKeyResult,
   unbindKpiFromKeyResult,
+  setKpiBinding,
   linkEpicToTheme,
   unlinkEpicFromTheme,
   createVision,
@@ -281,6 +282,37 @@ export const unbindKpiAction = createServerAction({
     unbindKpiFromKeyResult(ctx, { keyResultId: input.keyResultId, kpiId: input.kpiId }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "KPI konnte nicht entkoppelt werden" }),
+});
+
+/**
+ * Atomic Re-Bind fuer die KPI-Coverage-Tabelle: setzt die KR-Bindung
+ * einer KPI auf `keyResultId` (oder `null` zum Entkoppeln) in einer
+ * Transaktion. Damit kann eine KPI per Dropdown von einem KR auf einen
+ * anderen umgehaengt werden, ohne die Pyramid-Invariante zu verletzen.
+ */
+export const setKpiBindingAction = createServerAction({
+  schema: z.object({
+    kpiId: z.string().uuid(),
+    keyResultId: z.string().uuid().optional().or(z.literal("")),
+    weight: z.coerce.number().min(0).max(1).optional(),
+    valuePerUnitOverride: z.coerce.number().optional().or(z.literal("")),
+  }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    setKpiBinding(ctx, {
+      kpiId: input.kpiId,
+      keyResultId: input.keyResultId && input.keyResultId !== "" ? input.keyResultId : null,
+      ...(input.weight !== undefined ? { weight: input.weight } : {}),
+      ...(input.valuePerUnitOverride !== undefined
+        ? {
+            valuePerUnitOverride:
+              input.valuePerUnitOverride === "" ? null : Number(input.valuePerUnitOverride),
+          }
+        : {}),
+    }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "KPI-Bindung fehlgeschlagen" }),
 });
 
 // ── Theme ↔ Epic Link ─────────────────────────────────────────────────

@@ -1,439 +1,290 @@
 "use client";
 
-import { useActionState, startTransition } from "react";
+import { useActionState, startTransition, useMemo, useState } from "react";
 import Link from "next/link";
-import type {
-  ZieleModel,
-  ZieleKpiLibraryEntry,
-  ZieleKrContribution,
-} from "@/server/views/ziele-view";
+import type { ZieleKrLibraryEntry, ZieleModel } from "@/server/views/ziele-view";
 import { ValuePerUnitInput } from "@/features/controlling/components/value-per-unit-input";
-import { bindKpiAction, unbindKpiAction } from "@/features/controlling/actions/kr-kpi-binding";
+import { setKpiBindingAction } from "@/features/controlling/actions/kr-kpi-binding";
 
 /**
- * KPI-Coverage-Surface im Controlling (Refactor-Plan §B). Bedient zwei
- * Aufgaben in einer Sicht:
+ * KPI-Coverage als reine Tabelle (Refactor §KPI-Coverage als reine Tabelle).
  *
- *   1. **KPI-Bibliothek** — alle Tenant-KPIs mit `valuePerUnit`-Inline-
- *      Edit. Pflicht-Bewertung durch Finance-Controller; ohne Wert
- *      bleibt der KR-Rollup € null.
+ * Eine Zeile pro KPI. Inline editierbar: `€/Einheit` (operative
+ * Bewertung), Ziel-KR (Dropdown), Weight + €/Einheit-Override. Pro
+ * Pyramid-Invariante hat jede KPI maximal eine KR-Bindung; ein
+ * Re-Bind laeuft atomar via `setKpiBindingAction`.
  *
- *   2. **KR-Coverage** — pro KR eine Zeile mit den gebundenen KPIs als
- *      Chips (Weight, €/Unit-Override, Unbind-Button) + Picker fuer
- *      eine neue Bindung. KRs mit `formula="auto_from_kpi"` ohne
- *      Bindung werden oben hervorgehoben („Setup offen").
- *
- * Pflege der Strategie-Hierarchie (Vision/Theme/Objective/KR) bleibt
- * unter `/strategy`; die Coverage hier ist nur die Bewertungs-Bruecke
- * zwischen Strategie und KPIs.
+ * Header zeigt vier Stats (KPIs / Bewertet / Σ Realisierter Beitrag /
+ * Setup offen), darunter eine Suchleiste mit Status-Filter.
  */
 interface Props {
   model: ZieleModel;
   canEdit: boolean;
 }
 
-interface KrRow {
-  krId: string;
-  krTitle: string;
-  formula: string;
-  themeId: string;
-  themeTitle: string;
-  contributions: ZieleKrContribution[];
-}
+type StatusFilter = "alle" | "setup_offen" | "ungebunden";
 
 export function KpiCoverageView({ model, canEdit }: Props) {
-  const { kpiLibrary, themes } = model;
+  const { kpiLibrary, krLibrary } = model;
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("alle");
 
-  const krRows: KrRow[] = [];
-  for (const t of themes) {
-    for (const kr of t.keyResults) {
-      krRows.push({
-        krId: kr.id,
-        krTitle: kr.title,
-        formula: kr.formula,
-        themeId: t.id,
-        themeTitle: t.title,
-        contributions: kr.contributions,
-      });
-    }
-  }
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return kpiLibrary.filter((k) => {
+      if (q && !`${k.name} ${k.epicTitle}`.toLowerCase().includes(q)) return false;
+      if (status === "setup_offen" && k.valuePerUnit != null) return false;
+      if (status === "ungebunden" && k.binding != null) return false;
+      return true;
+    });
+  }, [kpiLibrary, query, status]);
 
-  const setupOffen = krRows.filter(
-    (r) => r.formula === "auto_from_kpi" && r.contributions.length === 0,
-  );
-  const gebunden = krRows.filter(
-    (r) => r.contributions.length > 0 || r.formula !== "auto_from_kpi",
-  );
-  const missingValue = kpiLibrary.filter((k) => k.valuePerUnit == null).length;
-  const valuedKpis = kpiLibrary.length - missingValue;
-  const realizedTotal = krRows.reduce(
-    (sum, r) => sum + r.contributions.reduce((s, c) => s + c.contributionRealized, 0),
+  const valuedKpis = kpiLibrary.filter((k) => k.valuePerUnit != null).length;
+  const missingValue = kpiLibrary.length - valuedKpis;
+  const realizedTotal = kpiLibrary.reduce(
+    (sum, k) => sum + (k.binding?.contributionRealized ?? 0),
     0,
   );
+  const setupOffen = kpiLibrary.filter((k) => k.valuePerUnit == null).length;
+
+  // KRs nach Theme gruppieren — fuer `<optgroup>` im Select.
+  const krByTheme = useMemo(() => {
+    const map = new Map<string, ZieleKrLibraryEntry[]>();
+    for (const kr of krLibrary) {
+      const arr = map.get(kr.themeTitle) ?? [];
+      arr.push(kr);
+      map.set(kr.themeTitle, arr);
+    }
+    return Array.from(map.entries());
+  }, [krLibrary]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Headline-Stats */}
       <section className="grid gap-3 md:grid-cols-4">
         <Stat label="KPIs" value={kpiLibrary.length.toString()} />
         <Stat label="Bewertet" value={valuedKpis.toString()} hint={`${missingValue} offen`} />
         <Stat label="Σ Realisierter Beitrag" value={fmtEur(realizedTotal)} tone="emerald" />
         <Stat
-          label="Setup offen (KRs)"
-          value={setupOffen.length.toString()}
-          tone={setupOffen.length === 0 ? "emerald" : "amber"}
+          label="Setup offen"
+          value={setupOffen.toString()}
+          tone={setupOffen === 0 ? "emerald" : "amber"}
         />
       </section>
 
-      {/* KPI-Bibliothek */}
-      <section className="rounded-lg border bg-card">
-        <header className="flex items-baseline justify-between border-b px-4 py-3">
-          <div>
-            <h3 className="text-sm font-semibold">KPI-Bibliothek</h3>
-            <p className="text-[11px] text-muted-foreground">
-              {kpiLibrary.length} KPIs · {missingValue} ohne valuePerUnit
-            </p>
-          </div>
-        </header>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <Th>KPI</Th>
-                <Th>Einheit</Th>
-                <Th align="right">€/Einheit</Th>
-                <Th>Epic</Th>
-                <Th align="right">Status</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {kpiLibrary.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-xs text-muted-foreground">
-                    Keine KPIs im Tenant — leg im Portfolio-Modul welche an.
-                  </td>
-                </tr>
-              )}
-              {kpiLibrary.map((k) => (
-                <tr key={k.id} className="hover:bg-muted/30">
-                  <Td>{k.name}</Td>
-                  <Td>
-                    <span className="text-muted-foreground">{k.unit ?? "—"}</span>
-                  </Td>
-                  <Td align="right" className="tabular-nums">
-                    <ValuePerUnitInput
-                      kind="kpi"
-                      id={k.id}
-                      value={k.valuePerUnit}
-                      canEdit={canEdit}
-                      {...(k.unit ? { unitLabel: `€/${k.unit}` } : {})}
-                    />
-                  </Td>
-                  <Td>
-                    <Link
-                      href={`/portfolio/epics/${k.epicId}` as never}
-                      className="truncate hover:underline"
-                    >
-                      {k.epicTitle}
-                    </Link>
-                  </Td>
-                  <Td align="right">
-                    {k.valuePerUnit == null ? (
-                      <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
-                        Setup offen
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-emerald-600">✓</span>
-                    )}
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Filter-Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-card px-3 py-2 text-[11px]">
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="KPI oder Epic suchen…"
+            className="h-7 w-64 rounded-md border bg-background px-2 text-xs"
+          />
+          <FilterChip label="Alle" active={status === "alle"} onClick={() => setStatus("alle")} />
+          <FilterChip
+            label="Setup offen"
+            active={status === "setup_offen"}
+            onClick={() => setStatus("setup_offen")}
+          />
+          <FilterChip
+            label="Ungebunden"
+            active={status === "ungebunden"}
+            onClick={() => setStatus("ungebunden")}
+          />
         </div>
-      </section>
-
-      {/* Setup offen (Auto-KRs ohne Bindung) */}
-      {setupOffen.length > 0 && (
-        <section className="rounded-lg border border-amber-200 bg-amber-50/50">
-          <header className="border-b border-amber-200/60 px-4 py-3">
-            <h3 className="text-sm font-semibold text-amber-900">
-              Setup offen — {setupOffen.length} KR(s) ohne KPI-Bindung
-            </h3>
-            <p className="text-[11px] text-amber-800/80">
-              Diese Key Results haben Formel „aus KPI aggregiert" — bis eine KPI gebunden ist,
-              liefern sie keinen €-Beitrag im Rollup.
-            </p>
-          </header>
-          <ul className="space-y-2 p-3">
-            {setupOffen.map((row) => (
-              <KrCoverageRow key={row.krId} row={row} library={kpiLibrary} canEdit={canEdit} />
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Bereits-gebundene KRs (Bind/Unbind-Pflege) */}
-      <section className="rounded-lg border bg-card">
-        <header className="border-b px-4 py-3">
-          <h3 className="text-sm font-semibold">KR ↔ KPI Bindungen</h3>
-          <p className="text-[11px] text-muted-foreground">
-            Pro Key Result die gebundenen KPIs mit Weight + €/Einheit-Override. Strategie-Pflege
-            (Title/Beschreibung) lebt unter{" "}
-            <Link href={"/strategy" as never} className="text-primary hover:underline">
-              Strategie
-            </Link>
-            .
-          </p>
-        </header>
-        <ul className="divide-y">
-          {gebunden.length === 0 && (
-            <li className="px-4 py-6 text-center text-xs text-muted-foreground">
-              Keine Key Results vorhanden.
-            </li>
-          )}
-          {gebunden.map((row) => (
-            <li key={row.krId} className="px-4 py-3">
-              <KrCoverageRow row={row} library={kpiLibrary} canEdit={canEdit} />
-            </li>
-          ))}
-        </ul>
-      </section>
-    </div>
-  );
-}
-
-function KrCoverageRow({
-  row,
-  library,
-  canEdit,
-}: {
-  row: KrRow;
-  library: ZieleKpiLibraryEntry[];
-  canEdit: boolean;
-}) {
-  const boundIds = new Set(row.contributions.map((c) => c.kpiId));
-  const available = library.filter((k) => !boundIds.has(k.id));
-  const weightSum = row.contributions.reduce(
-    (s, c) => s + (Number.isFinite(c.weight) ? c.weight : 0),
-    0,
-  );
-
-  return (
-    <div className="space-y-2">
-      <header className="flex items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{row.krTitle}</p>
-          <p className="truncate text-[10px] text-muted-foreground">
-            {row.themeTitle}{" "}
-            {row.formula === "manual" && (
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] uppercase">
-                manual
-              </span>
-            )}
-          </p>
-        </div>
-        {row.contributions.length > 0 && (
-          <span
-            className={`text-[10px] tabular-nums ${
-              Math.abs(weightSum - 1) < 0.001 ? "text-emerald-600" : "text-amber-600"
-            }`}
-            title="Soll-Summe 100 %"
-          >
-            Σ Weights {(weightSum * 100).toFixed(0)} %
-          </span>
-        )}
-      </header>
-
-      {row.contributions.length > 0 && (
-        <ul className="space-y-1.5">
-          {row.contributions.map((c) => (
-            <ContributionEditor key={c.kpiId} keyResultId={row.krId} c={c} canEdit={canEdit} />
-          ))}
-        </ul>
-      )}
-
-      {canEdit && available.length > 0 && <PickerRow keyResultId={row.krId} options={available} />}
-    </div>
-  );
-}
-
-function ContributionEditor({
-  keyResultId,
-  c,
-  canEdit,
-}: {
-  keyResultId: string;
-  c: ZieleKrContribution;
-  canEdit: boolean;
-}) {
-  const [bindState, bindRun, bindPending] = useActionState(bindKpiAction, {});
-  const [unbindState, unbindRun, unbindPending] = useActionState(unbindKpiAction, {});
-  const pending = bindPending || unbindPending;
-  const err = bindState.error || unbindState.error;
-
-  function rebind(fd: FormData) {
-    fd.set("keyResultId", keyResultId);
-    fd.set("kpiId", c.kpiId);
-    startTransition(() => bindRun(fd));
-  }
-  function unbind() {
-    if (!confirm(`„${c.kpiName}" entkoppeln?`)) return;
-    const fd = new FormData();
-    fd.set("keyResultId", keyResultId);
-    fd.set("kpiId", c.kpiId);
-    startTransition(() => unbindRun(fd));
-  }
-
-  return (
-    <li className="rounded-md border bg-background p-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium">{c.kpiName}</p>
-          <p className="truncate text-[10px] text-muted-foreground">Epic · {c.epicTitle}</p>
-        </div>
-        <span className="tabular-nums text-[10px] text-muted-foreground">
-          {c.achievement != null
-            ? `${Math.round(c.achievement * 100)}% · €${Math.round(c.contributionRealized).toLocaleString("de-DE")}`
-            : "—"}
-        </span>
+        <span className="text-muted-foreground tabular-nums">{filtered.length} sichtbar</span>
       </div>
-      <form action={rebind} className="mt-2 flex items-center gap-2">
-        <label className="flex-1">
-          <span className="block text-[10px] uppercase text-muted-foreground">Weight</span>
+
+      {/* Tabelle */}
+      <div className="overflow-x-auto rounded-lg border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <Th>KPI</Th>
+              <Th>Epic</Th>
+              <Th>Einheit</Th>
+              <Th align="right">€/Einheit</Th>
+              <Th>Gebunden an KR</Th>
+              <Th align="right">Weight</Th>
+              <Th align="right">€/Einheit Override</Th>
+              <Th align="right">Σ Beitrag</Th>
+              <Th align="right">Status</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={9} className="px-3 py-6 text-center text-xs text-muted-foreground">
+                  Keine KPI passt zum Filter.
+                </td>
+              </tr>
+            )}
+            {filtered.map((k) => (
+              <KpiRow key={k.id} kpi={k} krByTheme={krByTheme} canEdit={canEdit} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function KpiRow({
+  kpi,
+  krByTheme,
+  canEdit,
+}: {
+  kpi: ZieleModel["kpiLibrary"][number];
+  krByTheme: Array<[string, ZieleKrLibraryEntry[]]>;
+  canEdit: boolean;
+}) {
+  const [state, run, pending] = useActionState(setKpiBindingAction, {});
+
+  function submit(formData: FormData) {
+    formData.set("kpiId", kpi.id);
+    startTransition(() => run(formData));
+  }
+
+  const bound = kpi.binding;
+  const hasValue = kpi.valuePerUnit != null;
+
+  return (
+    <tr id={`kpi-${kpi.id}`} className="hover:bg-muted/30">
+      <Td>
+        <p className="truncate text-xs font-medium" title={kpi.name}>
+          {kpi.name}
+        </p>
+      </Td>
+      <Td>
+        <Link
+          href={`/portfolio/epics/${kpi.epicId}` as never}
+          className="truncate text-xs text-muted-foreground hover:underline"
+          title={kpi.epicTitle}
+        >
+          {kpi.epicTitle}
+        </Link>
+      </Td>
+      <Td>
+        <span className="text-xs text-muted-foreground">{kpi.unit ?? "—"}</span>
+      </Td>
+      <Td align="right" className="tabular-nums">
+        <ValuePerUnitInput
+          kind="kpi"
+          id={kpi.id}
+          value={kpi.valuePerUnit}
+          canEdit={canEdit}
+          {...(kpi.unit ? { unitLabel: `€/${kpi.unit}` } : {})}
+        />
+      </Td>
+      <Td colSpan={3} className="!p-0">
+        <form action={submit} className="flex items-center gap-1.5 px-3 py-1">
+          <select
+            name="keyResultId"
+            defaultValue={bound?.keyResultId ?? ""}
+            disabled={!canEdit || pending}
+            className="h-7 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs"
+            title="Ziel-Key-Result"
+          >
+            <option value="">— ungebunden —</option>
+            {krByTheme.map(([themeTitle, krs]) => (
+              <optgroup key={themeTitle} label={themeTitle}>
+                {krs.map((kr) => (
+                  <option key={kr.id} value={kr.id}>
+                    {kr.title}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
           <input
             name="weight"
             type="number"
             step="0.05"
             min={0}
             max={1}
-            defaultValue={c.weight}
+            defaultValue={bound?.weight ?? 1}
             disabled={!canEdit || pending}
-            className="h-7 w-full rounded-md border bg-background px-2 text-xs tabular-nums"
+            className="h-7 w-16 rounded-md border bg-background px-2 text-right text-xs tabular-nums"
+            title="Weight 0..1"
           />
-        </label>
-        <label className="flex-1">
-          <span className="block text-[10px] uppercase text-muted-foreground">
-            €/Einheit Override
-          </span>
           <input
             name="valuePerUnitOverride"
             type="number"
             step="any"
-            defaultValue={c.valuePerUnitOverride ?? ""}
+            defaultValue={bound?.valuePerUnitOverride ?? ""}
             placeholder="—"
             disabled={!canEdit || pending}
-            className="h-7 w-full rounded-md border bg-background px-2 text-xs tabular-nums"
+            className="h-7 w-20 rounded-md border bg-background px-2 text-right text-xs tabular-nums"
+            title="Override fuer €/Einheit; leer = KPI-Default"
           />
-        </label>
-        {canEdit && (
-          <button
-            type="submit"
-            disabled={pending}
-            className="h-7 rounded-md bg-primary px-2 text-[11px] font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            Speichern
-          </button>
+          {canEdit && (
+            <button
+              type="submit"
+              disabled={pending}
+              className="h-7 rounded-md bg-primary px-2 text-[11px] font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              title="Bindung speichern"
+            >
+              Speichern
+            </button>
+          )}
+        </form>
+        {state?.error && <p className="px-3 pb-1 text-[10px] text-destructive">{state.error}</p>}
+      </Td>
+      <Td align="right" className="tabular-nums text-xs">
+        {bound ? (
+          <span title={`€${bound.contributionRealized.toLocaleString("de-DE")}`}>
+            {fmtEur(bound.contributionRealized)}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/60">—</span>
         )}
-        {canEdit && (
-          <button
-            type="button"
-            onClick={unbind}
-            disabled={pending}
-            className="h-7 rounded-md border px-2 text-[11px] text-destructive hover:bg-destructive/10 disabled:opacity-50"
-          >
-            Entfernen
-          </button>
-        )}
-      </form>
-      {err && <p className="mt-1 text-[10px] text-destructive">{err}</p>}
-    </li>
+      </Td>
+      <Td align="right">
+        <StatusPill tier={!hasValue ? "setup_offen" : !bound ? "ungebunden" : "ok"} />
+      </Td>
+    </tr>
   );
 }
 
-function PickerRow({
-  keyResultId,
-  options,
-}: {
-  keyResultId: string;
-  options: ZieleKpiLibraryEntry[];
-}) {
-  const [state, run, pending] = useActionState(bindKpiAction, {});
-
-  function submit(fd: FormData) {
-    fd.set("keyResultId", keyResultId);
-    if (!fd.get("weight")) fd.set("weight", "1");
-    startTransition(() => run(fd));
+function StatusPill({ tier }: { tier: "setup_offen" | "ungebunden" | "ok" }) {
+  if (tier === "ok") return <span className="text-[11px] text-emerald-600">✓</span>;
+  if (tier === "setup_offen") {
+    return (
+      <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+        Setup offen
+      </span>
+    );
   }
-
   return (
-    <form
-      action={submit}
-      className="flex items-center gap-2 rounded-md border border-dashed bg-card/40 p-2"
-    >
-      <select
-        name="kpiId"
-        required
-        defaultValue=""
-        disabled={pending}
-        className="h-7 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs"
-      >
-        <option value="" disabled>
-          + KPI binden …
-        </option>
-        {options.map((k) => (
-          <option key={k.id} value={k.id}>
-            {k.name} · {k.epicTitle}
-            {k.valuePerUnit != null ? ` · €${k.valuePerUnit}/Einheit` : ""}
-          </option>
-        ))}
-      </select>
-      <input
-        name="weight"
-        type="number"
-        step="0.05"
-        min={0}
-        max={1}
-        defaultValue="1"
-        disabled={pending}
-        className="h-7 w-20 rounded-md border bg-background px-2 text-xs tabular-nums"
-        title="Weight 0..1"
-      />
-      <button
-        type="submit"
-        disabled={pending}
-        className="h-7 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-      >
-        Hinzufuegen
-      </button>
-      {state.error && <span className="text-[10px] text-destructive">{state.error}</span>}
-    </form>
+    <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
+      Ungebunden
+    </span>
   );
 }
 
-function Th({ children, align }: { children?: React.ReactNode; align?: "right" | "left" }) {
-  return (
-    <th className={`px-3 py-2 ${align === "right" ? "text-right" : "text-left"}`}>{children}</th>
-  );
-}
-
-function Td({
-  children,
-  align,
-  className,
+function FilterChip({
+  label,
+  active,
+  onClick,
 }: {
-  children?: React.ReactNode;
-  align?: "right" | "left";
-  className?: string;
+  label: string;
+  active: boolean;
+  onClick: () => void;
 }) {
   return (
-    <td
-      className={`px-3 py-2 align-middle ${
-        align === "right" ? "text-right" : "text-left"
-      } ${className ?? ""}`}
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-2 py-0.5 transition-colors ${
+        active
+          ? "border-primary bg-primary/10 text-primary"
+          : "border-border bg-card text-muted-foreground hover:bg-muted/50"
+      }`}
     >
-      {children}
-    </td>
+      {label}
+    </button>
   );
 }
 
@@ -462,6 +313,35 @@ function Stat({
       <p className={`mt-0.5 text-xl font-semibold tabular-nums ${valueCls}`}>{value}</p>
       {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
+  );
+}
+
+function Th({ children, align }: { children?: React.ReactNode; align?: "right" | "left" }) {
+  return (
+    <th className={`px-3 py-2 ${align === "right" ? "text-right" : "text-left"}`}>{children}</th>
+  );
+}
+
+function Td({
+  children,
+  align,
+  className,
+  colSpan,
+}: {
+  children?: React.ReactNode;
+  align?: "right" | "left";
+  className?: string;
+  colSpan?: number;
+}) {
+  return (
+    <td
+      colSpan={colSpan}
+      className={`px-3 py-2 align-middle ${
+        align === "right" ? "text-right" : "text-left"
+      } ${className ?? ""}`}
+    >
+      {children}
+    </td>
   );
 }
 

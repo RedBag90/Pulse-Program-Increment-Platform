@@ -57,6 +57,22 @@ export interface ZieleKpiLibraryEntry {
   valuePerUnit: number | null;
   epicId: string;
   epicTitle: string;
+  /** Pyramid-Invariante: maximal eine Bindung pro KPI. */
+  binding: {
+    keyResultId: string;
+    keyResultTitle: string;
+    themeTitle: string;
+    weight: number;
+    valuePerUnitOverride: number | null;
+    contributionRealized: number;
+  } | null;
+}
+
+export interface ZieleKrLibraryEntry {
+  id: string;
+  title: string;
+  themeId: string;
+  themeTitle: string;
 }
 
 export interface ZieleEpicLink {
@@ -108,8 +124,10 @@ export interface ZieleModel {
   /** Period-Filter (z. B. „2026-Q2") oder `null` fuer „Alle". */
   period: string | null;
   permissions: ZielePermissions;
-  /** Alle Tenant-KPIs (fuer KPI-Picker im KR-Slide-Over). */
+  /** Alle Tenant-KPIs (fuer KPI-Coverage-Tabelle). */
   kpiLibrary: ZieleKpiLibraryEntry[];
+  /** Alle Tenant-KRs (gruppiert fuer KR-Auswahl in der KPI-Coverage). */
+  krLibrary: ZieleKrLibraryEntry[];
 }
 
 export interface LoadZieleInput {
@@ -247,7 +265,8 @@ export async function loadZieleModel(
   // zurueckfallen (gleiche Audience: TENANT_ADMIN + LPM).
   const canEditKpiValuation = canEditStrategy;
 
-  // 8) KPI-Bibliothek (Tenant-weit) fuer den Picker im KR-Slide-Over
+  // 8) KPI-Bibliothek (Tenant-weit) + Pyramid-Bindungen pro KPI fuer
+  //    die KPI-Coverage-Tabelle.
   const kpiRows = await db.kpi.findMany({
     where: { tenantId },
     select: {
@@ -259,14 +278,82 @@ export async function loadZieleModel(
     },
     orderBy: [{ name: "asc" }],
   });
-  const kpiLibrary: ZieleKpiLibraryEntry[] = kpiRows.map((k) => ({
-    id: k.id,
-    name: k.name,
-    unit: k.unit,
-    valuePerUnit: toFloat(k.valuePerUnit),
-    epicId: k.initiative.id,
-    epicTitle: k.initiative.title,
-  }));
+
+  // KR-by-Id reverse-lookup aus den schon geladenen `themes` (Themes sind
+  // im V2-Modell = Objectives). Damit haben wir krTitle + themeTitle ohne
+  // extra DB-Roundtrip.
+  type KrLookup = { title: string; themeId: string; themeTitle: string };
+  const krLookup = new Map<string, KrLookup>();
+  for (const t of themes) {
+    for (const kr of t.keyResults) {
+      krLookup.set(kr.id, { title: kr.title, themeId: t.id, themeTitle: t.title });
+    }
+  }
+
+  // Pro KPI: Pyramid sagt max. eine Bindung. Wir scannen die schon-
+  // geladenen Theme-Tree-Contributions.
+  type BindingDetail = {
+    keyResultId: string;
+    weight: number;
+    valuePerUnitOverride: number | null;
+    contributionRealized: number;
+  };
+  const bindingByKpiId = new Map<string, BindingDetail>();
+  for (const t of themes) {
+    for (const kr of t.keyResults) {
+      for (const c of kr.contributions) {
+        if (!bindingByKpiId.has(c.kpiId)) {
+          bindingByKpiId.set(c.kpiId, {
+            keyResultId: kr.id,
+            weight: c.weight,
+            valuePerUnitOverride: c.valuePerUnitOverride,
+            contributionRealized: c.contributionRealized,
+          });
+        }
+      }
+    }
+  }
+
+  const kpiLibrary: ZieleKpiLibraryEntry[] = kpiRows.map((k) => {
+    const b = bindingByKpiId.get(k.id);
+    const krInfo = b ? krLookup.get(b.keyResultId) : null;
+    return {
+      id: k.id,
+      name: k.name,
+      unit: k.unit,
+      valuePerUnit: toFloat(k.valuePerUnit),
+      epicId: k.initiative.id,
+      epicTitle: k.initiative.title,
+      binding:
+        b && krInfo
+          ? {
+              keyResultId: b.keyResultId,
+              keyResultTitle: krInfo.title,
+              themeTitle: krInfo.themeTitle,
+              weight: b.weight,
+              valuePerUnitOverride: b.valuePerUnitOverride,
+              contributionRealized: b.contributionRealized,
+            }
+          : null,
+    };
+  });
+
+  // 9) KR-Library: ein flacher Index aller KRs zum Aufbau des
+  //    Bind-Dropdowns in der KPI-Coverage.
+  const krLibrary: ZieleKrLibraryEntry[] = [];
+  for (const t of themes) {
+    for (const kr of t.keyResults) {
+      krLibrary.push({
+        id: kr.id,
+        title: kr.title,
+        themeId: t.id,
+        themeTitle: t.title,
+      });
+    }
+  }
+  krLibrary.sort(
+    (a, b) => a.themeTitle.localeCompare(b.themeTitle) || a.title.localeCompare(b.title),
+  );
 
   return {
     themes,
@@ -275,6 +362,7 @@ export async function loadZieleModel(
     period,
     permissions: { canEditStrategy, canEditKpiValuation },
     kpiLibrary,
+    krLibrary,
   };
 }
 

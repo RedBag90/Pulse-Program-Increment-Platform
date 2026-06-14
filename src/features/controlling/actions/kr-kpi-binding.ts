@@ -8,4 +8,8 @@
  * Coverage-View nur Controlling-Imports hat und die Strategie-Pflege
  * keine Kopplung mehr zur Bindungs-Action behaelt.
  */
-export { bindKpiAction, unbindKpiAction } from "@/features/ziele/actions/ziele";
+export {
+  bindKpiAction,
+  unbindKpiAction,
+  setKpiBindingAction,
+} from "@/features/ziele/actions/ziele";

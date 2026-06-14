@@ -455,6 +455,112 @@ export async function unbindKpiFromKeyResult(
   });
 }
 
+/**
+ * Atomic Re-Bind (Pyramid-konform): setzt die KR-Bindung einer KPI auf
+ * `keyResultId` (oder loest sie auf, wenn `null`), in EINER Transaktion.
+ *
+ * Use-Case: KPI-Coverage-Tabelle, in der pro KPI-Zeile inline der
+ * Ziel-KR per Dropdown gewaehlt wird. Damit die 1:1-Regel (jede KPI
+ * haengt an max. einem KR) auch bei Re-Bind sauber bleibt, geschieht
+ * Loesen-vom-alten + Binden-an-neuen atomar.
+ */
+export async function setKpiBinding(
+  ctx: RequestContext,
+  input: {
+    kpiId: string;
+    /** null = kein KR (ungebunden) */
+    keyResultId: string | null;
+    weight?: number | null;
+    valuePerUnitOverride?: number | null;
+  },
+): Promise<Result<{ kpiId: string }>> {
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.krKpiContribution.findFirst({
+      where: { tenantId: mctx.tenantId, kpiId: input.kpiId },
+    });
+
+    // Fall 1: ziel-KR ist null → bestehende Bindung loesen (oder no-op)
+    if (input.keyResultId == null) {
+      if (!existing) {
+        return ok({
+          result: { kpiId: input.kpiId },
+          audit: {
+            action: "key_result.kpi.unbound",
+            resourceType: "kr_kpi_contribution",
+            resourceId: input.kpiId,
+          },
+        });
+      }
+      await tx.krKpiContribution.delete({ where: { id: existing.id } });
+      return ok({
+        result: { kpiId: input.kpiId },
+        audit: {
+          action: "key_result.kpi.unbound",
+          resourceType: "kr_kpi_contribution",
+          resourceId: existing.id,
+        },
+      });
+    }
+
+    // Fall 2: bestehende Bindung ist identisch zum Ziel-KR → nur Felder aktualisieren
+    if (existing && existing.keyResultId === input.keyResultId) {
+      await tx.krKpiContribution.update({
+        where: { id: existing.id },
+        data: {
+          weight: input.weight ?? Number(existing.weight),
+          valuePerUnitOverride:
+            input.valuePerUnitOverride !== undefined
+              ? input.valuePerUnitOverride
+              : existing.valuePerUnitOverride,
+        },
+      });
+      return ok({
+        result: { kpiId: input.kpiId },
+        audit: {
+          action: "key_result.kpi.updated",
+          resourceType: "kr_kpi_contribution",
+          resourceId: existing.id,
+        },
+      });
+    }
+
+    // Fall 3: Re-Bind — alte Bindung loeschen, neue anlegen
+    if (existing) {
+      await tx.krKpiContribution.delete({ where: { id: existing.id } });
+    }
+    // Ziel-KR muss zum Tenant gehoeren
+    const kr = await tx.keyResult.findFirst({
+      where: { id: input.keyResultId, tenantId: mctx.tenantId },
+    });
+    if (!kr) {
+      return err({
+        kind: "not_found" as const,
+        resourceType: "KeyResult",
+        id: input.keyResultId,
+      });
+    }
+    const created = await tx.krKpiContribution.create({
+      data: {
+        tenantId: mctx.tenantId,
+        keyResultId: input.keyResultId,
+        kpiId: input.kpiId,
+        weight: input.weight ?? 1,
+        valuePerUnitOverride: input.valuePerUnitOverride ?? null,
+        createdBy: mctx.actorId,
+      },
+    });
+    return ok({
+      result: { kpiId: input.kpiId },
+      audit: {
+        action: "key_result.kpi.bound",
+        resourceType: "kr_kpi_contribution",
+        resourceId: created.id,
+      },
+    });
+  });
+}
+
 // ── Theme ↔ Epic Link ──────────────────────────────────────────────────
 
 export async function linkEpicToTheme(
