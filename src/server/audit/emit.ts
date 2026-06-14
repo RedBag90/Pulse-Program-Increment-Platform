@@ -114,7 +114,25 @@ export type AuditAction =
   | "timeline.art.left"
   | "role.capability.granted"
   | "role.capability.revoked"
-  | "role.capability.reset";
+  | "role.capability.reset"
+  // Ziele-Modul V2 (Vision → Theme → Objective → KR)
+  | "vision.created"
+  | "vision.updated"
+  | "theme.created"
+  | "theme.updated"
+  | "theme.deleted"
+  | "theme.epic.linked"
+  | "theme.epic.unlinked"
+  | "theme.epic.link.exists"
+  | "objective.created"
+  | "objective.updated"
+  | "objective.deleted"
+  | "key_result.created"
+  | "key_result.updated"
+  | "key_result.deleted"
+  | "key_result.kpi.bound"
+  | "key_result.kpi.updated"
+  | "key_result.kpi.unbound";
 
 export type AuditResourceType =
   | "initiative"
@@ -144,7 +162,14 @@ export type AuditResourceType =
   | "role_capability"
   | "role"
   | "system_demo"
-  | "system_demo_item";
+  | "system_demo_item"
+  // Ziele-Modul V2
+  | "portfolio_vision"
+  | "strategic_theme"
+  | "objective"
+  | "key_result"
+  | "kr_kpi_contribution"
+  | "theme_epic_link";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

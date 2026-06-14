@@ -1,4 +1,4 @@
-import { goalKpiProgress, deriveNextSteps } from "@/server/services/transformation";
+import { deriveNextSteps } from "@/server/services/transformation";
 import type { StructureGap, PracticeAdoption, NextStep } from "@/server/services/transformation";
 import { sparklinePoints } from "@/server/services/transformation-snapshot";
 import {
@@ -12,62 +12,27 @@ import {
   type RagTier,
   type RecentChange,
 } from "@/domain/transformation-delta";
-/**
- * Goal-unbound outcome as the cockpit's "Outcomes (frei)" panel renders it.
- * Previously declared in the (now-deleted) `<TargetOutcomesManager>` file;
- * moved here so the cockpit + its consumers don't depend on a UI-layer file
- * for the type. The richer editor-shaped DTO lives in `transformation-goals`.
- */
-export interface OutcomeView {
-  id: string;
-  title: string;
-  metricUnit: string | null;
-  baseline: number | null;
-  target: number;
-  current: number | null;
-  dueDate: string | null;
-}
 
 /**
- * Transformation cockpit page-model — assembles the render-ready props the
- * cockpit consumes. Compared to the bar-list cockpit this superseded, the
- * model now owns:
+ * Transformation-Maturity-Cockpit (Pflege-Reife des Zielmodells).
  *
- * - the hero "Soll-Reife" (snapshot metric, single number, no more dual
- *   50%/62% ambiguity at the top of the page),
- * - per-goal RAG tier + the goal's bound outcomes (the goal-card popover
- *   needs them to render inline "Update KPI" forms),
- * - structure + practice **chips** (replacing the four stacked-bar sections)
- *   each carrying its own tier,
- * - the "Seit letztem Snapshot" `recentChanges` story (delta vs the previous
- *   snapshot, ranked, capped at 4),
- * - the `nextSteps` coaching list (moved here from inside the cockpit so the
- *   action drawer renders straight from server data).
+ * Nach P0-P5 lebt der Strategie-Layer (Themes/OKRs/KRs/€-Rollup)
+ * unter `/ziele`; das Cockpit hier beschraenkt sich auf den
+ * Operating-Model-Reifegrad: Soll-Reife-Hero, Strukturfortschritt,
+ * Praktiken, Snapshots-Trend, Coaching-Next-Steps. Strategische
+ * Ziele sind aus dem Modell entfernt — die alten `GoalCard`s sind
+ * dauerhaft im Ziele-Modul; dieses Cockpit zeigt nur noch einen
+ * Deep-Link.
  *
- * Goal-bound KPIs go on the goal card; only goal-unbound outcomes show in the
- * "Outcomes (frei)" section at the bottom of the page. `goalAchievement` is
- * still NOT recomputed here — the hero uses the snapshot metric; per-goal
- * progress uses `goalKpiProgress` (different scopes, intentionally distinct
- * per ADR-0001, but now both are labelled per their scope).
+ * `goalAchievement` an `TransformationSnapshot` bleibt als
+ * historische Reifegrad-Kennzahl: vergangene Snapshots wurden mit
+ * dem damaligen Goal-KPI-Mittel geschrieben; das ist die
+ * Soll-Reife-Linie im Hero.
  */
 
 const TREND_W = 280;
 const TREND_H = 48;
 const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
-
-interface GoalKpiRow {
-  baseline: number | null;
-  target: number;
-  current: number | null;
-}
-
-interface GoalRow {
-  id: string;
-  title: string;
-  status: string;
-  kpis: GoalKpiRow[];
-  epicLinks: readonly unknown[];
-}
 
 interface SnapshotRow {
   capturedOn: Date;
@@ -84,53 +49,12 @@ interface ActiveModelRow extends Partial<PracticeFlags> {
   targetDate: Date | null;
 }
 
-interface OutcomeRow {
-  id: string;
-  title: string;
-  metricUnit: string | null;
-  baseline: number | null;
-  target: number;
-  current: number | null;
-  dueDate: Date | null;
-  goalId: string | null;
-}
-
 /** The declared target operating model, summarised for the cockpit header. */
 export interface ModelSummary {
   template: OperatingModelTemplate | null;
   status: string;
   targetDate: string | null;
   practices: PracticeFlags;
-}
-
-/**
- * A goal's KPI bar on the goal card. Same shape as `OutcomeView` so the card
- * can reuse outcome-row rendering helpers, but kept distinct because the
- * card's inline "Update KPI" popover needs identity (id + title) that the
- * read-only `OutcomeView` already carries.
- */
-export interface GoalBoundOutcome {
-  id: string;
-  title: string;
-  metricUnit: string | null;
-  baseline: number | null;
-  target: number;
-  current: number | null;
-}
-
-/** A strategic goal as the cockpit's RAG card consumes it. */
-export interface GoalCard {
-  id: string;
-  title: string;
-  status: string;
-  /** RAG tier — `done` when status is "achieved", else derived from KPI progress. */
-  tier: RagTier;
-  /** Mean KPI progress over this goal's outcomes (0 when no KPIs are bound). */
-  kpiProgress: number;
-  kpiCount: number;
-  epicCount: number;
-  /** This goal's bound outcomes — drives the "Update KPI" popover inline form. */
-  boundOutcomes: GoalBoundOutcome[];
 }
 
 /** A single structure dimension as a chip — Wertströme / ARTs / Teams. */
@@ -187,13 +111,11 @@ export interface TrendData {
 export interface CockpitModel {
   hero: HeroData;
   model: ModelSummary | null;
-  goals: GoalCard[];
   structure: StructureChip[];
   practices: PracticeChip[];
   recentChanges: RecentChange[];
   nextSteps: NextStep[];
   trend: TrendData;
-  outcomes: OutcomeView[];
 }
 
 /**
@@ -208,47 +130,12 @@ function structureTier(ist: number, soll: number | null): RagTier {
 }
 
 export function buildCockpitModel(input: {
-  goals: readonly GoalRow[];
   snapshots: readonly SnapshotRow[];
   activeModel: ActiveModelRow | null;
-  outcomes: readonly OutcomeRow[];
   gap: StructureGap;
   adoption: PracticeAdoption;
 }): CockpitModel {
-  const { goals, snapshots, activeModel, outcomes, gap, adoption } = input;
-
-  // Goal cards — active + achieved (archived parked). Each carries its RAG tier
-  // and its bound outcomes so the card's "Update KPI" popover renders inline.
-  const boundOutcomesByGoal = new Map<string, GoalBoundOutcome[]>();
-  for (const o of outcomes) {
-    if (!o.goalId) continue;
-    const list = boundOutcomesByGoal.get(o.goalId) ?? [];
-    list.push({
-      id: o.id,
-      title: o.title,
-      metricUnit: o.metricUnit,
-      baseline: o.baseline,
-      target: o.target,
-      current: o.current,
-    });
-    boundOutcomesByGoal.set(o.goalId, list);
-  }
-
-  const goalCards: GoalCard[] = goals
-    .filter((g) => g.status !== "archived")
-    .map((g) => {
-      const kpiProgress = goalKpiProgress(g.kpis);
-      return {
-        id: g.id,
-        title: g.title,
-        status: g.status,
-        tier: ragTier(kpiProgress, g.status === "achieved"),
-        kpiProgress,
-        kpiCount: g.kpis.length,
-        epicCount: g.epicLinks.length,
-        boundOutcomes: boundOutcomesByGoal.get(g.id) ?? [],
-      };
-    });
+  const { snapshots, activeModel, gap, adoption } = input;
 
   // Structure chips — flat tiered view of the gap dimensions.
   const structure: StructureChip[] = gap.dimensions.map((d) => ({
@@ -288,10 +175,8 @@ export function buildCockpitModel(input: {
     firstAchievement: firstAchieved ? { capturedOn: isoDay(firstAchieved.capturedOn) } : null,
   };
 
-  // Hero: the snapshot metric is the single headline number. The long-window
-  // delta (vs the first snapshot in the loaded window) is what the user
-  // already reads on the sparkline; the per-snapshot delta lives in the
-  // "Seit letztem Snapshot" drawer instead.
+  // Hero: snapshot metric is the headline; the long-window Δ vs the first
+  // loaded snapshot stays in the hero, per-snapshot Δ in the drawer.
   const last = snapshots.at(-1);
   const first = snapshots.at(0);
   const hero: HeroData = {
@@ -322,29 +207,13 @@ export function buildCockpitModel(input: {
       }
     : null;
 
-  // Goal-bound KPIs render under their goal card; only unbound outcomes go to
-  // the bottom "Outcomes (frei)" panel.
-  const outcomeViews: OutcomeView[] = outcomes
-    .filter((o) => o.goalId == null)
-    .map((o) => ({
-      id: o.id,
-      title: o.title,
-      metricUnit: o.metricUnit,
-      baseline: o.baseline,
-      target: o.target,
-      current: o.current,
-      dueDate: o.dueDate ? isoDay(o.dueDate) : null,
-    }));
-
   return {
     hero,
     model,
-    goals: goalCards,
     structure,
     practices,
     recentChanges: changes,
     nextSteps: deriveNextSteps(gap, adoption),
     trend,
-    outcomes: outcomeViews,
   };
 }

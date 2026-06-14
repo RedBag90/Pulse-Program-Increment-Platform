@@ -69,8 +69,8 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: "goals",
     items: [
-      { href: "/transformation", labelKey: "goalOverview", icon: LayoutDashboard, exact: true },
-      { href: "/transformation/ziele", labelKey: "goalManagement", icon: Goal },
+      { href: "/ziele", labelKey: "goalOverview", icon: LayoutDashboard, exact: true },
+      { href: "/strategy", labelKey: "strategy", icon: Goal, capability: "target.manage" },
     ],
   },
   {
@@ -129,13 +129,13 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/structure?tab=timeline", labelKey: "structureTimeline", icon: CalendarDays },
       { href: "/controlling", labelKey: "controllingOverview", icon: Gauge, exact: true },
       {
-        href: "/controlling/kpi-tree",
-        labelKey: "kpiTree",
+        href: "/controlling/kpi-coverage",
+        labelKey: "kpiCoverage",
         icon: Calculator,
-        practice: "portfolioLevel",
+        capability: "target.manage",
       },
       {
-        href: "/portfolio/budgeting",
+        href: "/controlling/budgeting",
         labelKey: "participatoryBudgeting",
         icon: Wallet,
         capability: "budget.manage",

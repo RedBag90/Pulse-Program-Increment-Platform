@@ -51,7 +51,7 @@ export function EpicPlannedWindowForm({ plannedStartAt, plannedEndAt, derived }:
       )}
       <p className="text-xs text-muted-foreground">
         Automatisch aus der{" "}
-        <Link href="/portfolio/budgeting" className="text-primary hover:underline">
+        <Link href="/controlling/budgeting" className="text-primary hover:underline">
           Budget-Zuteilung
         </Link>{" "}
         abgeleitet — erste finanzierte Periode bis letzte finanzierte Periode.

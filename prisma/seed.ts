@@ -97,6 +97,14 @@ async function upsertAuthUser(email: string, password: string): Promise<string> 
 async function wipeDomainData(tenantId: string): Promise<void> {
   console.log("\n── Wiping existing domain data");
 
+  // Ziele V2 (Vision → Theme → OKR → KR + Bridges); leaf-first damit FKs halten.
+  await prisma.krKpiContribution.deleteMany({ where: { tenantId } });
+  await prisma.keyResult.deleteMany({ where: { tenantId } });
+  await prisma.themeEpicLink.deleteMany({ where: { tenantId } });
+  await prisma.objective.deleteMany({ where: { tenantId } });
+  await prisma.strategicTheme.deleteMany({ where: { tenantId } });
+  await prisma.portfolioVision.deleteMany({ where: { tenantId } });
+
   // Transformation / portfolio glue first (refer to Initiatives + Tenant)
   await prisma.goalEpicLink.deleteMany({ where: { tenantId } });
   await prisma.targetOutcome.deleteMany({ where: { tenantId } });
@@ -1417,36 +1425,44 @@ async function main() {
   let kpiTotal = 0;
   for (let i = 0; i < epics.length; i++) {
     const epic = epics[i]!;
+    // L0-Epics (Hypothese ohne Erfolgsmessung) bleiben ohne KPI.
     if (epic.spec.stageGate === "L0") continue;
-    const count = epic.spec.stageGate === "L1" ? 1 : 2;
-    for (let k = 0; k < count; k++) {
-      const tpl = kpiTemplates[(i * 2 + k) % kpiTemplates.length]!;
-      const delta = (tpl.target - tpl.baseline) / 6;
-      const measurements = Array.from({ length: 6 }, (_, m) => ({
-        date: daysFromAnchor(-180 + m * 30)
-          .toISOString()
-          .slice(0, 10),
-        value: round2(tpl.baseline + delta * m * (0.6 + (m % 3) * 0.15)),
-      }));
-      await prisma.kpi.create({
-        data: {
-          tenantId,
-          initiativeId: epic.id,
-          name: tpl.name,
-          unit: tpl.unit,
-          baseline: tpl.baseline.toString(),
-          target: tpl.target.toString(),
-          measurements,
-          benefitWeight: count === 2 ? (k === 0 ? "0.6" : "0.4") : null,
-          valuePerUnit: k === 0 ? "12000" : null,
-          createdBy: ownerId,
-          updatedBy: ownerId,
-        },
-      });
-      kpiTotal += 1;
-    }
+    // §Seed-Refinement „1 Epic = 1 KPI": eineindeutige bindung zwischen
+    // epic und kpi, damit der erzeugte mehrwert pro epic nur EINMAL
+    // gezaehlt wird. weight-splits + zweit-kpis sind raus.
+    //
+    // Der KPI-Name kombiniert Metrik (aus dem template) + Epic-Titel —
+    // sonst hatten mehrere Epics dieselbe „Conversion rate"-Bezeichnung
+    // (Schema-FK ist 1:1, aber die UI in /controlling/kpi-coverage zeigt
+    // den Namen und sieht dann nach Doppelung aus). `pickKpis()` im V2-
+    // Ziele-Block matched weiterhin via Substring auf die Metrik.
+    const tpl = kpiTemplates[i % kpiTemplates.length]!;
+    const delta = (tpl.target - tpl.baseline) / 6;
+    const measurements = Array.from({ length: 6 }, (_, m) => ({
+      date: daysFromAnchor(-180 + m * 30)
+        .toISOString()
+        .slice(0, 10),
+      value: round2(tpl.baseline + delta * m * (0.6 + (m % 3) * 0.15)),
+    }));
+    const kpiName = `${tpl.name} — ${epic.spec.title}`;
+    await prisma.kpi.create({
+      data: {
+        tenantId,
+        initiativeId: epic.id,
+        name: kpiName,
+        unit: tpl.unit,
+        baseline: tpl.baseline.toString(),
+        target: tpl.target.toString(),
+        measurements,
+        benefitWeight: null,
+        valuePerUnit: "12000",
+        createdBy: ownerId,
+        updatedBy: ownerId,
+      },
+    });
+    kpiTotal += 1;
   }
-  console.log(`  ✓ ${kpiTotal} KPIs with monthly measurement history`);
+  console.log(`  ✓ ${kpiTotal} KPIs (1 je Epic ≥ L1, monthly history)`);
 
   // 16. Dependencies — 15 mixed types, including one cross-ART.
   console.log("\n── Dependencies");
@@ -1893,7 +1909,339 @@ async function main() {
     `  ✓ ${goals.length} goals, ${outcomeSpecs.length} target outcomes, ${actionTitles.length} actions, 60 snapshots, ${linkCount} goal↔epic links`,
   );
 
-  // 22. PI standards (named cadence templates).
+  // 22. Ziele V2 (Vision → Themes → OKRs → KRs + KPI-Bridges + Theme↔Epic).
+  console.log("\n── Ziele V2");
+
+  // KPIs des Tenants laden, damit auto_from_kpi-KRs an existierende Epic-KPIs
+  // gebunden werden koennen. Substring-Match auf den Namen reicht — die seeded
+  // KPIs sind aus einer kleinen Library (Conversion %, Settlement time, NPS, …).
+  const allTenantKpis = await prisma.kpi.findMany({
+    where: { tenantId },
+    select: { id: true, name: true, baseline: true, target: true, valuePerUnit: true },
+  });
+  // Pyramid-Constraint (vgl. Plan §Pyramid-Refinement): jede KPI wird
+  // hoechstens an EINEM KR gebunden — sonst wuerden im Sankey/Netzplan
+  // Faden konvergieren („Sanduhr"). Operativ ist die Aufteilung eines
+  // Epic-Impacts ueber mehrere KRs ohnehin selten.
+  const claimedKpiIds = new Set<string>();
+  function pickKpis(...patterns: string[]): { id: string }[] {
+    const unclaimed = allTenantKpis.filter((k) => !claimedKpiIds.has(k.id));
+    const hits = unclaimed.filter((k) =>
+      patterns.some((p) => k.name.toLowerCase().includes(p.toLowerCase())),
+    );
+    const choice = hits.length > 0 ? hits.slice(0, 2) : unclaimed.slice(0, 1);
+    choice.forEach((c) => claimedKpiIds.add(c.id));
+    return choice;
+  }
+
+  // 22a) Default-StrategicTheme — versteckter Modell-Anker nach Hierarchie-
+  //      Vereinfachung. Alle „Themes" (UI-Sicht) sind Objectives, die hier
+  //      parented sind.
+  const defaultThemeId = randomUUID();
+  await prisma.strategicTheme.create({
+    data: {
+      id: defaultThemeId,
+      tenantId,
+      title: "Default",
+      narrative: null,
+      color: "#6366f1",
+      kind: "business",
+      ownerId: transformationLeadId,
+      sortOrder: 0,
+      status: "active",
+      createdBy: transformationLeadId,
+      updatedBy: transformationLeadId,
+    },
+  });
+
+  // 22b) Objectives — Periode + Confidence + Status streuen.
+  //      Q1-2026 (achieved), Q2-2026 (current — viele active), Q3, Q4.
+  const objectiveSpecs: Array<{
+    title: string;
+    narrative: string;
+    period: string | null;
+    confidence: number;
+    status: string;
+  }> = [
+    {
+      title: "Konversion verdoppeln",
+      narrative: "Time-to-Yes runter, NPS hoch — die zwei Hebel der mobile Journey.",
+      period: "2026-Q2",
+      confidence: 4,
+      status: "active",
+    },
+    {
+      title: "NPS +20 Punkte",
+      narrative: "Stabilisierung nach Onboarding-Re-Design.",
+      period: "2026-Q3",
+      confidence: 3,
+      status: "active",
+    },
+    {
+      title: "Cart-Abbruch -30 %",
+      narrative: "Recovery-Mails + Self-Service-Konsolidierung.",
+      period: "2026-Q2",
+      confidence: 3,
+      status: "active",
+    },
+    {
+      title: "Time-to-Yes < 2 min",
+      narrative: "Schon erreicht in Q1; Anker fuer Q2-Story.",
+      period: "2026-Q1",
+      confidence: 5,
+      status: "achieved",
+    },
+    {
+      title: "Self-Service-Rate 80 %",
+      narrative: "Wealth-Onboarding fully self-service.",
+      period: "2026-Q2",
+      confidence: 4,
+      status: "active",
+    },
+    {
+      title: "API-Onboarding < 1 Tag",
+      narrative: "Partner-Onboarding via Public-API.",
+      period: "2026-Q4",
+      confidence: 2,
+      status: "draft",
+    },
+    {
+      title: "Audit-Findings 0",
+      narrative: "Critical-CVE-Backlog auf Null bis Q3.",
+      period: "2026-Q2",
+      confidence: 4,
+      status: "active",
+    },
+    {
+      title: "60 % Workloads auf Cloud",
+      narrative: "Migration der Tier-1-Services in Q3.",
+      period: "2026-Q3",
+      confidence: 4,
+      status: "active",
+    },
+  ];
+  const objectives: { id: string }[] = [];
+  for (let i = 0; i < objectiveSpecs.length; i++) {
+    const spec = objectiveSpecs[i]!;
+    const id = randomUUID();
+    objectives.push({ id });
+    await prisma.objective.create({
+      data: {
+        id,
+        tenantId,
+        themeId: defaultThemeId,
+        title: spec.title,
+        narrative: spec.narrative,
+        period: spec.period,
+        confidence: spec.confidence,
+        ownerId: transformationLeadId,
+        sortOrder: i,
+        status: spec.status,
+        createdBy: transformationLeadId,
+        updatedBy: transformationLeadId,
+      },
+    });
+  }
+
+  // 22d) Key Results — 2 je Objective, Mix aus auto_from_kpi und manual.
+  //      Drift-Demo: ein KR pro Theme mit current = baseline (0 % achievement).
+  const krSpecs: Array<{
+    objIdx: number;
+    title: string;
+    unit: string;
+    formula: "auto_from_kpi" | "manual";
+    kpiPatterns?: string[];
+    baseline?: number;
+    target?: number;
+    current?: number;
+    valuePerUnitOverride?: number;
+  }> = [
+    {
+      objIdx: 0,
+      title: "Konversion 8 → 16 %",
+      unit: "%",
+      formula: "auto_from_kpi",
+      kpiPatterns: ["Conversion"],
+    },
+    {
+      objIdx: 0,
+      title: "Time-to-Yes < 2 min",
+      unit: "min",
+      formula: "manual",
+      baseline: 8,
+      target: 2,
+      current: 4,
+    },
+    {
+      objIdx: 1,
+      title: "NPS Mobile +15",
+      unit: "pts",
+      formula: "auto_from_kpi",
+      kpiPatterns: ["NPS"],
+    },
+    {
+      objIdx: 1,
+      title: "NPS Web +12 (Drift)",
+      unit: "pts",
+      formula: "manual",
+      baseline: 28,
+      target: 40,
+      current: 28,
+    },
+    {
+      objIdx: 2,
+      title: "Cart-Rate -30 %",
+      unit: "%",
+      formula: "auto_from_kpi",
+      kpiPatterns: ["Conversion"],
+    },
+    {
+      objIdx: 2,
+      title: "Recovery-Mails CTR > 25 %",
+      unit: "%",
+      formula: "manual",
+      baseline: 12,
+      target: 25,
+      current: 18,
+    },
+    {
+      objIdx: 3,
+      title: "Settlement < 2 min",
+      unit: "min",
+      formula: "auto_from_kpi",
+      kpiPatterns: ["Settlement time"],
+    },
+    {
+      objIdx: 3,
+      title: "Customer-Sat-Score 4.8",
+      unit: "score",
+      formula: "manual",
+      baseline: 4.2,
+      target: 4.8,
+      current: 4.8,
+    },
+    {
+      objIdx: 4,
+      title: "Self-Service-Rate 80 %",
+      unit: "%",
+      formula: "auto_from_kpi",
+      kpiPatterns: ["Tier-1 deflection"],
+    },
+    {
+      objIdx: 4,
+      title: "Time-to-Onboard < 5 min",
+      unit: "min",
+      formula: "manual",
+      baseline: 12,
+      target: 5,
+      current: 8,
+    },
+    {
+      objIdx: 5,
+      title: "Public-API-Calls > 10k/Tag",
+      unit: "calls",
+      formula: "manual",
+      baseline: 200,
+      target: 10000,
+      current: 200,
+    },
+    {
+      objIdx: 6,
+      title: "Audit-Findings open > 90 d",
+      unit: "count",
+      formula: "auto_from_kpi",
+      kpiPatterns: ["Fraud", "Crash-free"],
+    },
+    {
+      objIdx: 6,
+      title: "Critical-CVEs unpatched",
+      unit: "count",
+      formula: "manual",
+      baseline: 8,
+      target: 0,
+      current: 3,
+    },
+    {
+      objIdx: 7,
+      title: "Cloud-Coverage 30 → 60 %",
+      unit: "%",
+      formula: "auto_from_kpi",
+      kpiPatterns: ["AUM"],
+      valuePerUnitOverride: 12_000,
+    },
+    {
+      objIdx: 7,
+      title: "Latency < 200 ms p95",
+      unit: "ms",
+      formula: "manual",
+      baseline: 450,
+      target: 200,
+      current: 320,
+    },
+  ];
+  let contribCount = 0;
+  let krCount = 0;
+  for (let i = 0; i < krSpecs.length; i++) {
+    const spec = krSpecs[i]!;
+    const krId = randomUUID();
+    krCount += 1;
+    await prisma.keyResult.create({
+      data: {
+        id: krId,
+        tenantId,
+        objectiveId: objectives[spec.objIdx]!.id,
+        title: spec.title,
+        metricName: spec.title,
+        metricUnit: spec.unit,
+        baseline: spec.baseline ?? null,
+        target: spec.target ?? null,
+        current: spec.current ?? null,
+        formula: spec.formula,
+        ownerId: transformationLeadId,
+        sortOrder: i,
+        createdBy: transformationLeadId,
+        updatedBy: transformationLeadId,
+      },
+    });
+    if (spec.formula === "auto_from_kpi" && spec.kpiPatterns) {
+      const kpis = pickKpis(...spec.kpiPatterns);
+      const weight = kpis.length > 0 ? Number((1 / kpis.length).toFixed(4)) : 1;
+      for (let j = 0; j < kpis.length; j++) {
+        const kpi = kpis[j]!;
+        await prisma.krKpiContribution.create({
+          data: {
+            id: randomUUID(),
+            tenantId,
+            keyResultId: krId,
+            kpiId: kpi.id,
+            weight,
+            valuePerUnitOverride:
+              j === 0 && spec.valuePerUnitOverride != null ? spec.valuePerUnitOverride : null,
+            createdBy: transformationLeadId,
+          },
+        });
+        contribCount += 1;
+      }
+    }
+  }
+
+  // 22e) Pflege-Tab-Coverage: 3 KPIs auf valuePerUnit=null setzen, damit das
+  //      „Setup offen"-Badge in der KPI-Bibliothek erscheint.
+  const someKpis = await prisma.kpi.findMany({
+    where: { tenantId },
+    select: { id: true },
+    take: 3,
+    orderBy: { name: "asc" },
+  });
+  for (const k of someKpis) {
+    await prisma.kpi.update({ where: { id: k.id }, data: { valuePerUnit: null } });
+  }
+
+  console.log(
+    `  ✓ V2 Ziele: ${objectives.length} Themes (OKRs), ${krCount} KRs, ${contribCount} KR↔KPI bindings, ${someKpis.length} valuePerUnit-Gaps`,
+  );
+
+  // 23. PI standards (named cadence templates).
   console.log("\n── PI standards");
   await prisma.piStandard.create({
     data: {

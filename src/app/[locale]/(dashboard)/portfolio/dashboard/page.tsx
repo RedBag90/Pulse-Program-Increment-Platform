@@ -41,7 +41,12 @@ export default async function PortfolioDashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Portfolio-Dashboard</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Wirtschaftlichkeit über Zeit — Kosten, Business Value, ROI und Break-even je Epic
+            Wirtschaftlichkeit über Zeit — Kosten, Business Value, ROI und Break-even je Epic. Pro
+            Theme aufgeschlüsselt:{" "}
+            <Link href={"/ziele?tab=money" as never} className="text-primary hover:underline">
+              Ziele · Money
+            </Link>
+            .
           </p>
         </div>
         <Link
