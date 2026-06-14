@@ -1425,36 +1425,37 @@ async function main() {
   let kpiTotal = 0;
   for (let i = 0; i < epics.length; i++) {
     const epic = epics[i]!;
+    // L0-Epics (Hypothese ohne Erfolgsmessung) bleiben ohne KPI.
     if (epic.spec.stageGate === "L0") continue;
-    const count = epic.spec.stageGate === "L1" ? 1 : 2;
-    for (let k = 0; k < count; k++) {
-      const tpl = kpiTemplates[(i * 2 + k) % kpiTemplates.length]!;
-      const delta = (tpl.target - tpl.baseline) / 6;
-      const measurements = Array.from({ length: 6 }, (_, m) => ({
-        date: daysFromAnchor(-180 + m * 30)
-          .toISOString()
-          .slice(0, 10),
-        value: round2(tpl.baseline + delta * m * (0.6 + (m % 3) * 0.15)),
-      }));
-      await prisma.kpi.create({
-        data: {
-          tenantId,
-          initiativeId: epic.id,
-          name: tpl.name,
-          unit: tpl.unit,
-          baseline: tpl.baseline.toString(),
-          target: tpl.target.toString(),
-          measurements,
-          benefitWeight: count === 2 ? (k === 0 ? "0.6" : "0.4") : null,
-          valuePerUnit: k === 0 ? "12000" : null,
-          createdBy: ownerId,
-          updatedBy: ownerId,
-        },
-      });
-      kpiTotal += 1;
-    }
+    // §Seed-Refinement „1 Epic = 1 KPI": eineindeutige bindung zwischen
+    // epic und kpi, damit der erzeugte mehrwert pro epic nur EINMAL
+    // gezaehlt wird. weight-splits + zweit-kpis sind raus.
+    const tpl = kpiTemplates[i % kpiTemplates.length]!;
+    const delta = (tpl.target - tpl.baseline) / 6;
+    const measurements = Array.from({ length: 6 }, (_, m) => ({
+      date: daysFromAnchor(-180 + m * 30)
+        .toISOString()
+        .slice(0, 10),
+      value: round2(tpl.baseline + delta * m * (0.6 + (m % 3) * 0.15)),
+    }));
+    await prisma.kpi.create({
+      data: {
+        tenantId,
+        initiativeId: epic.id,
+        name: tpl.name,
+        unit: tpl.unit,
+        baseline: tpl.baseline.toString(),
+        target: tpl.target.toString(),
+        measurements,
+        benefitWeight: null,
+        valuePerUnit: "12000",
+        createdBy: ownerId,
+        updatedBy: ownerId,
+      },
+    });
+    kpiTotal += 1;
   }
-  console.log(`  ✓ ${kpiTotal} KPIs with monthly measurement history`);
+  console.log(`  ✓ ${kpiTotal} KPIs (1 je Epic ≥ L1, monthly history)`);
 
   // 16. Dependencies — 15 mixed types, including one cross-ART.
   console.log("\n── Dependencies");
