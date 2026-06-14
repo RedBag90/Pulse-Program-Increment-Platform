@@ -116,7 +116,10 @@ export async function deleteTheme(
 // ── Objective ──────────────────────────────────────────────────────────
 
 export interface CreateObjectiveInput {
-  themeId: string;
+  /** Optional. Nach Hierarchie-Vereinfachung haengen Objectives an einer
+   *  versteckten Default-StrategicTheme; fehlt der Parameter, wird sie
+   *  serverseitig find-or-created. */
+  themeId?: string | null;
   title: string;
   narrative?: string | null;
   period?: string | null;
@@ -130,16 +133,41 @@ export async function createObjective(
 ): Promise<Result<{ id: string }>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
-    const theme = await tx.strategicTheme.findFirst({
-      where: { id: input.themeId, tenantId: mctx.tenantId },
-    });
-    if (!theme) {
-      return err({ kind: "not_found" as const, resourceType: "StrategicTheme", id: input.themeId });
+    let themeId = input.themeId;
+    if (!themeId) {
+      // Default-StrategicTheme (versteckter Modell-Anker fuer flache
+      // Hierarchie) suchen oder anlegen.
+      const existing = await tx.strategicTheme.findFirst({
+        where: { tenantId: mctx.tenantId },
+        orderBy: { createdAt: "asc" },
+      });
+      if (existing) {
+        themeId = existing.id;
+      } else {
+        const created = await tx.strategicTheme.create({
+          data: {
+            tenantId: mctx.tenantId,
+            title: "Default",
+            kind: "business",
+            color: "#6366f1",
+            createdBy: mctx.actorId,
+            updatedBy: mctx.actorId,
+          },
+        });
+        themeId = created.id;
+      }
+    } else {
+      const theme = await tx.strategicTheme.findFirst({
+        where: { id: themeId, tenantId: mctx.tenantId },
+      });
+      if (!theme) {
+        return err({ kind: "not_found" as const, resourceType: "StrategicTheme", id: themeId });
+      }
     }
     const objective = await tx.objective.create({
       data: {
         tenantId: mctx.tenantId,
-        themeId: input.themeId,
+        themeId,
         title: input.title,
         narrative: input.narrative ?? null,
         period: input.period ?? null,

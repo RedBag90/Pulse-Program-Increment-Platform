@@ -71,7 +71,16 @@ export interface ZieleEpicLibraryEntry {
   status: string;
 }
 
-export interface ZieleTreeObjective {
+/**
+ * **Theme** in der flachen 2-Ebenen-Hierarchie (Refactor §Hierarchie-
+ * Vereinfachung): die OKR-formulierte Top-Ebene unter dem Tenant.
+ *
+ * Technisch ist das ein `Objective`-Row aus dem Schema; UI nennt es
+ * „Theme". Der ehemalige `StrategicTheme`-Layer existiert noch im
+ * Schema (als versteckter Datenmodell-Anker), wird aber nicht mehr
+ * gerendert.
+ */
+export interface ZieleTreeTheme {
   id: string;
   title: string;
   narrative: string | null;
@@ -83,39 +92,6 @@ export interface ZieleTreeObjective {
   trio: RollupTrio;
 }
 
-export interface ZieleTreeTheme {
-  id: string;
-  visionId: string | null;
-  title: string;
-  narrative: string | null;
-  color: string;
-  kind: "business" | "enabler";
-  budgetPlanned: number | null;
-  ownerId: string | null;
-  sortOrder: number;
-  status: string;
-  objectives: ZieleTreeObjective[];
-  trio: RollupTrio;
-  /** Direkt am Theme verlinkte Epic-Anzahl (n:m via ThemeEpicLink). */
-  directEpicCount: number;
-  /** Verlinkte Epics (Theme-Epic-Tab im Slide-Over). */
-  linkedEpics: ZieleEpicLink[];
-}
-
-export interface ZieleTreeVision {
-  id: string;
-  scope: "tenant" | "value_stream";
-  valueStreamId: string | null;
-  valueStreamName: string | null;
-  title: string;
-  narrative: string | null;
-  horizonStart: Date;
-  horizonEnd: Date;
-  ownerId: string | null;
-  status: string;
-  trio: RollupTrio;
-}
-
 export interface ZielePermissions {
   /** Strategie + OKRs editieren (LPM-Surface). */
   canEditStrategy: boolean;
@@ -124,7 +100,6 @@ export interface ZielePermissions {
 }
 
 export interface ZieleModel {
-  visions: ZieleTreeVision[];
   themes: ZieleTreeTheme[];
   /** Tenant-Gesamt-Rollup (Summe ueber alle Themes). */
   tenantTrio: RollupTrio;
@@ -135,8 +110,6 @@ export interface ZieleModel {
   permissions: ZielePermissions;
   /** Alle Tenant-KPIs (fuer KPI-Picker im KR-Slide-Over). */
   kpiLibrary: ZieleKpiLibraryEntry[];
-  /** Alle Tenant-Epics (fuer Theme-Epic-Picker). */
-  epicLibrary: ZieleEpicLibraryEntry[];
 }
 
 export interface LoadZieleInput {
@@ -153,49 +126,32 @@ export async function loadZieleModel(
   const tab: ZieleSubTab = input.tab ?? "strategie";
   const period = input.period ?? null;
 
-  // 1) Visions (Tenant + VS) — fuer den Filter pro VS einen Namens-Hint
-  const visionRows = await db.portfolioVision.findMany({
-    where: { tenantId, status: { not: "archived" } },
-    include: { valueStream: { select: { id: true, name: true } } },
-    orderBy: [{ scope: "asc" }, { createdAt: "asc" }],
-  });
-
-  // 2) Themes mit Objectives + KRs + KPI-Contributions
-  const objectiveWhere = period ? { period } : {};
-  const themeRows = await db.strategicTheme.findMany({
-    where: { tenantId, status: { not: "archived" } },
-    orderBy: [{ kind: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+  // Objectives = die neuen „Themes" (flach unter dem Tenant). Wir laden
+  // sie ohne den Schema-Strategic-Theme-Layer durchzureichen — der ist
+  // nach §Hierarchie-Vereinfachung nur noch Datenmodell-Anker.
+  const objectiveWhere = period ? { tenantId, period } : { tenantId };
+  const objectiveRows = await db.objective.findMany({
+    where: objectiveWhere,
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     include: {
-      objectives: {
-        where: objectiveWhere,
+      keyResults: {
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         include: {
-          keyResults: {
-            orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          kpiContributions: {
             include: {
-              kpiContributions: {
-                include: {
-                  kpi: {
-                    select: {
-                      id: true,
-                      name: true,
-                      baseline: true,
-                      target: true,
-                      measurements: true,
-                      valuePerUnit: true,
-                      initiative: { select: { id: true, title: true } },
-                    },
-                  },
+              kpi: {
+                select: {
+                  id: true,
+                  name: true,
+                  baseline: true,
+                  target: true,
+                  measurements: true,
+                  valuePerUnit: true,
+                  initiative: { select: { id: true, title: true } },
                 },
               },
             },
           },
-        },
-      },
-      _count: { select: { epicLinks: true } },
-      epicLinks: {
-        include: {
-          epic: { select: { id: true, title: true, status: true } },
         },
       },
     },
@@ -211,125 +167,77 @@ export async function loadZieleModel(
   const horizonEnd = tenant?.dashboardHorizonEnd ?? addMonths(now, 12);
   const share = horizonShare(now, horizonStart, horizonEnd);
 
-  // 4) Tree zusammenbauen + Trios berechnen
-  const themes: ZieleTreeTheme[] = themeRows.map((t) => {
-    const objectives: ZieleTreeObjective[] = t.objectives.map((o) => {
-      const krs: ZieleTreeKeyResult[] = o.keyResults.map((k) => {
-        const kpisById = new Map<string, KpiInput>();
-        for (const c of k.kpiContributions) {
-          kpisById.set(c.kpi.id, {
-            id: c.kpi.id,
-            baseline: toFloat(c.kpi.baseline),
-            target: toFloat(c.kpi.target),
-            current: latestMeasurement(c.kpi.measurements),
-            valuePerUnit: toFloat(c.kpi.valuePerUnit),
-          });
-        }
-        const contributions: KrContributionInput[] = k.kpiContributions.map((c) => ({
+  // Tree zusammenbauen + Trios berechnen — flach 2-Ebenig.
+  const themes: ZieleTreeTheme[] = objectiveRows.map((o) => {
+    const krs: ZieleTreeKeyResult[] = o.keyResults.map((k) => {
+      const kpisById = new Map<string, KpiInput>();
+      for (const c of k.kpiContributions) {
+        kpisById.set(c.kpi.id, {
+          id: c.kpi.id,
+          baseline: toFloat(c.kpi.baseline),
+          target: toFloat(c.kpi.target),
+          current: latestMeasurement(c.kpi.measurements),
+          valuePerUnit: toFloat(c.kpi.valuePerUnit),
+        });
+      }
+      const contributions: KrContributionInput[] = k.kpiContributions.map((c) => ({
+        kpiId: c.kpiId,
+        weight: Number(c.weight),
+        valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
+      }));
+      const trio =
+        k.formula === "auto_from_kpi"
+          ? keyResultTrio(contributions, kpisById, share)
+          : manualKrTrio(k.baseline, k.target, k.current, share);
+
+      const contributionDetails: ZieleKrContribution[] = k.kpiContributions.map((c) => {
+        const kpi = kpisById.get(c.kpiId);
+        const span = (kpi?.target ?? 0) - (kpi?.baseline ?? 0);
+        const ach =
+          kpi && kpi.current != null && span !== 0
+            ? Math.max(0, Math.min(1, ((kpi.current ?? 0) - (kpi.baseline ?? 0)) / span))
+            : null;
+        const vpu = toFloat(c.valuePerUnitOverride) ?? kpi?.valuePerUnit ?? 0;
+        const realized = ach != null && vpu ? ach * vpu * span * Number(c.weight) * share : 0;
+        return {
           kpiId: c.kpiId,
+          kpiName: c.kpi.name,
+          epicTitle: c.kpi.initiative.title,
           weight: Number(c.weight),
           valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
-        }));
-        const trio =
-          k.formula === "auto_from_kpi"
-            ? keyResultTrio(contributions, kpisById, share)
-            : manualKrTrio(k.baseline, k.target, k.current, share);
-
-        const contributionDetails: ZieleKrContribution[] = k.kpiContributions.map((c) => {
-          const kpi = kpisById.get(c.kpiId);
-          const span = (kpi?.target ?? 0) - (kpi?.baseline ?? 0);
-          const ach =
-            kpi && kpi.current != null && span !== 0
-              ? Math.max(0, Math.min(1, ((kpi.current ?? 0) - (kpi.baseline ?? 0)) / span))
-              : null;
-          const vpu = toFloat(c.valuePerUnitOverride) ?? kpi?.valuePerUnit ?? 0;
-          const realized = ach != null && vpu ? ach * vpu * span * Number(c.weight) * share : 0;
-          return {
-            kpiId: c.kpiId,
-            kpiName: c.kpi.name,
-            epicTitle: c.kpi.initiative.title,
-            weight: Number(c.weight),
-            valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
-            achievement: ach,
-            contributionRealized: realized,
-          };
-        });
-
-        return {
-          id: k.id,
-          title: k.title,
-          metricUnit: k.metricUnit,
-          baseline: toFloat(k.baseline),
-          target: toFloat(k.target),
-          current: toFloat(k.current),
-          formula: k.formula,
-          ownerId: k.ownerId,
-          trio,
-          kpiCount: k.kpiContributions.length,
-          contributions: contributionDetails,
+          achievement: ach,
+          contributionRealized: realized,
         };
       });
+
       return {
-        id: o.id,
-        title: o.title,
-        narrative: o.narrative,
-        period: o.period,
-        confidence: o.confidence,
-        status: o.status,
-        ownerId: o.ownerId,
-        keyResults: krs,
-        trio: sumTrios(krs.map((k) => k.trio)),
+        id: k.id,
+        title: k.title,
+        metricUnit: k.metricUnit,
+        baseline: toFloat(k.baseline),
+        target: toFloat(k.target),
+        current: toFloat(k.current),
+        formula: k.formula,
+        ownerId: k.ownerId,
+        trio,
+        kpiCount: k.kpiContributions.length,
+        contributions: contributionDetails,
       };
     });
     return {
-      id: t.id,
-      visionId: t.visionId,
-      title: t.title,
-      narrative: t.narrative,
-      color: t.color,
-      kind: t.kind === "enabler" ? "enabler" : "business",
-      budgetPlanned: toFloat(t.budgetPlanned),
-      ownerId: t.ownerId,
-      sortOrder: t.sortOrder,
-      status: t.status,
-      objectives,
-      trio: sumTrios(objectives.map((o) => o.trio)),
-      directEpicCount: t._count.epicLinks,
-      linkedEpics: t.epicLinks.map((l) => ({
-        epicId: l.epic.id,
-        epicTitle: l.epic.title,
-        epicStatus: l.epic.status,
-      })),
+      id: o.id,
+      title: o.title,
+      narrative: o.narrative,
+      period: o.period,
+      confidence: o.confidence,
+      status: o.status,
+      ownerId: o.ownerId,
+      keyResults: krs,
+      trio: sumTrios(krs.map((k) => k.trio)),
     };
   });
 
-  // 5) Vision-Trio = Summe ihrer Themes
-  const themesByVision = new Map<string, ZieleTreeTheme[]>();
-  const themesWithoutVision: ZieleTreeTheme[] = [];
-  for (const t of themes) {
-    if (t.visionId) {
-      const arr = themesByVision.get(t.visionId) ?? [];
-      arr.push(t);
-      themesByVision.set(t.visionId, arr);
-    } else {
-      themesWithoutVision.push(t);
-    }
-  }
-  const visions: ZieleTreeVision[] = visionRows.map((v) => ({
-    id: v.id,
-    scope: v.scope === "value_stream" ? "value_stream" : "tenant",
-    valueStreamId: v.valueStreamId,
-    valueStreamName: v.valueStream?.name ?? null,
-    title: v.title,
-    narrative: v.narrative,
-    horizonStart: v.horizonStart,
-    horizonEnd: v.horizonEnd,
-    ownerId: v.ownerId,
-    status: v.status,
-    trio: sumTrios((themesByVision.get(v.id) ?? []).map((t) => t.trio)),
-  }));
-
-  // 6) Tenant-Trio = Summe aller Themes (egal welche Vision)
+  // Tenant-Trio = Summe aller Themes
   const tenantTrio = sumTrios(themes.map((t) => t.trio));
 
   // 7) Permissions
@@ -360,27 +268,13 @@ export async function loadZieleModel(
     epicTitle: k.initiative.title,
   }));
 
-  // 9) Epic-Bibliothek (Tenant-weit, level=0) fuer den Theme-Epic-Picker
-  const epicRows = await db.initiative.findMany({
-    where: { tenantId, level: 0 },
-    select: { id: true, title: true, status: true },
-    orderBy: [{ title: "asc" }],
-  });
-  const epicLibrary: ZieleEpicLibraryEntry[] = epicRows.map((e) => ({
-    id: e.id,
-    title: e.title,
-    status: e.status,
-  }));
-
   return {
-    visions,
     themes,
     tenantTrio,
     tab,
     period,
     permissions: { canEditStrategy, canEditKpiValuation },
     kpiLibrary,
-    epicLibrary,
   };
 }
 

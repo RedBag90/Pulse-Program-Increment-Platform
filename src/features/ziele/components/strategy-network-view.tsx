@@ -15,30 +15,23 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import type {
-  ZieleTreeKeyResult,
-  ZieleTreeTheme,
-  ZieleTreeVision,
-} from "@/server/views/ziele-view";
+import type { ZieleTreeKeyResult, ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
 
 /**
- * Strategie als Netzplan (Refactor §Ziele-Visualisierung).
+ * Strategie als Netzplan — flach (Refactor §Hierarchie-Vereinfachung).
  *
- * Top-Down xyflow + dagre Layout: Vision → Themes → Objectives → KRs.
+ * Top-Down xyflow + dagre: **Themes** (OKRs) oben, **KRs** darunter.
  * Knoten als Cards mit Title, Progress-Bar, Subgoal-Count, Periode +
- * Owner-Initiale (kein Avatar in Phase-1). Klick = Deeplink nach
- * `/strategy?entity=…&id=…`.
+ * Owner-Initiale. Klick = Deeplink nach `/strategy?entity=…&id=…`.
  *
- * Read-only — kein Drag-and-Drop, keine Inline-Edits. Pflege erfolgt
- * im Strategie-Modul-Drawer.
+ * Read-only — kein Drag-and-Drop, keine Inline-Edits.
  */
 interface Props {
-  visions: ZieleTreeVision[];
   themes: ZieleTreeTheme[];
 }
 
-type Tier = "vision" | "theme" | "objective" | "kr";
+type Tier = "theme" | "kr";
 
 interface NodeData extends Record<string, unknown> {
   tier: Tier;
@@ -46,17 +39,28 @@ interface NodeData extends Record<string, unknown> {
   progress: number;
   subgoalCount: number;
   period: string | null;
-  accent: string;
   ownerInitial: string;
   atRisk: boolean;
   href: string;
+  accent: string;
 }
 
 const NODE_WIDTH = 240;
 const NODE_HEIGHT = 120;
 
-export function StrategyNetworkView({ visions, themes }: Props) {
-  const { nodes, edges } = useMemo(() => buildGraph(visions, themes), [visions, themes]);
+const HUE_PALETTE = [
+  "#6366f1",
+  "#0ea5e9",
+  "#10b981",
+  "#f59e0b",
+  "#a855f7",
+  "#ec4899",
+  "#14b8a6",
+  "#f97316",
+];
+
+export function StrategyNetworkView({ themes }: Props) {
+  const { nodes, edges } = useMemo(() => buildGraph(themes), [themes]);
 
   if (nodes.length === 0) {
     return (
@@ -96,15 +100,11 @@ function StrategyNode({ data }: NodeProps) {
   const onClick = () => router.push(d.href as never);
 
   const tierStyle: Record<Tier, string> = {
-    vision: "border-violet-300 bg-gradient-to-br from-violet-50 to-card",
     theme: "border-l-4 bg-card",
-    objective: "border bg-card",
     kr: "border bg-muted/30",
   };
   const tierLabel: Record<Tier, string> = {
-    vision: "VISION",
-    theme: "THEME",
-    objective: "OBJECTIVE",
+    theme: "THEME (OKR)",
     kr: "KEY RESULT",
   };
 
@@ -167,110 +167,54 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
-function buildGraph(
-  visions: ZieleTreeVision[],
-  themes: ZieleTreeTheme[],
-): { nodes: Node[]; edges: Edge[] } {
-  const rawNodes: Array<{
-    id: string;
-    data: NodeData;
-  }> = [];
+function buildGraph(themes: ZieleTreeTheme[]): { nodes: Node[]; edges: Edge[] } {
+  const rawNodes: Array<{ id: string; data: NodeData }> = [];
   const rawEdges: Array<{ id: string; source: string; target: string }> = [];
 
-  for (const v of visions) {
-    const themesOfVision = themes.filter((t) => t.visionId === v.id);
-    rawNodes.push({
-      id: nodeId("vision", v.id),
-      data: {
-        tier: "vision",
-        title: v.title,
-        progress: trioProgress(v.trio),
-        subgoalCount: themesOfVision.length,
-        period: `${v.horizonStart.getUTCFullYear()}–${v.horizonEnd.getUTCFullYear()}`,
-        accent: "#a78bfa",
-        ownerInitial: initialOf(v.ownerId),
-        atRisk: isAtRisk(v.trio),
-        href: `/strategy?entity=vision&id=${v.id}`,
-      },
-    });
-    for (const t of themesOfVision) {
-      rawEdges.push({
-        id: edgeId(v.id, t.id),
-        source: nodeId("vision", v.id),
-        target: nodeId("theme", t.id),
-      });
-    }
-  }
-
-  for (const t of themes) {
+  themes.forEach((t, ti) => {
+    const accent = HUE_PALETTE[ti % HUE_PALETTE.length]!;
     rawNodes.push({
       id: nodeId("theme", t.id),
       data: {
         tier: "theme",
         title: t.title,
         progress: trioProgress(t.trio),
-        subgoalCount: t.objectives.length,
-        period: null,
-        accent: t.color,
+        subgoalCount: t.keyResults.length,
+        period: t.period ?? null,
         ownerInitial: initialOf(t.ownerId),
         atRisk: isAtRisk(t.trio),
         href: `/strategy?entity=theme&id=${t.id}`,
+        accent,
       },
     });
-    for (const o of t.objectives) {
+    for (const kr of t.keyResults) {
       rawNodes.push({
-        id: nodeId("objective", o.id),
+        id: nodeId("kr", kr.id),
         data: {
-          tier: "objective",
-          title: o.title,
-          progress: trioProgress(o.trio),
-          subgoalCount: o.keyResults.length,
-          period: o.period ?? "Backlog",
-          accent: t.color,
-          ownerInitial: initialOf(o.ownerId),
-          atRisk: isAtRisk(o.trio),
-          href: `/strategy?entity=objective&id=${o.id}`,
+          tier: "kr",
+          title: kr.title,
+          progress: krProgress(kr),
+          subgoalCount: kr.kpiCount,
+          period: kr.metricUnit ?? null,
+          ownerInitial: initialOf(kr.ownerId),
+          atRisk: isAtRisk(kr.trio),
+          href: `/strategy?entity=kr&id=${kr.id}`,
+          accent,
         },
       });
       rawEdges.push({
-        id: edgeId(t.id, o.id),
+        id: edgeId(t.id, kr.id),
         source: nodeId("theme", t.id),
-        target: nodeId("objective", o.id),
+        target: nodeId("kr", kr.id),
       });
-      for (const kr of o.keyResults) {
-        rawNodes.push({
-          id: nodeId("kr", kr.id),
-          data: {
-            tier: "kr",
-            title: kr.title,
-            progress: krProgress(kr),
-            subgoalCount: kr.kpiCount,
-            period: kr.metricUnit ?? null,
-            accent: t.color,
-            ownerInitial: initialOf(kr.ownerId),
-            atRisk: isAtRisk(kr.trio),
-            href: `/strategy?entity=kr&id=${kr.id}`,
-          },
-        });
-        rawEdges.push({
-          id: edgeId(o.id, kr.id),
-          source: nodeId("objective", o.id),
-          target: nodeId("kr", kr.id),
-        });
-      }
     }
-  }
+  });
 
-  // Dagre top-down layout
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({ rankdir: "TB", nodesep: 32, ranksep: 64 });
-  for (const n of rawNodes) {
-    g.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
-  }
-  for (const e of rawEdges) {
-    g.setEdge(e.source, e.target);
-  }
+  for (const n of rawNodes) g.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+  for (const e of rawEdges) g.setEdge(e.source, e.target);
   dagre.layout(g);
 
   const nodes: Node[] = rawNodes.map((n) => {
@@ -278,10 +222,7 @@ function buildGraph(
     return {
       id: n.id,
       type: "strategyNode",
-      position: {
-        x: pos.x - NODE_WIDTH / 2,
-        y: pos.y - NODE_HEIGHT / 2,
-      },
+      position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - NODE_HEIGHT / 2 },
       data: n.data,
       width: NODE_WIDTH,
       height: NODE_HEIGHT,

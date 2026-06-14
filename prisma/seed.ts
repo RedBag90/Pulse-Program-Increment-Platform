@@ -1926,100 +1926,29 @@ async function main() {
     return choice;
   }
 
-  // 22a) Tenant-Vision
-  const visionId = randomUUID();
-  await prisma.portfolioVision.create({
+  // 22a) Default-StrategicTheme — versteckter Modell-Anker nach Hierarchie-
+  //      Vereinfachung. Alle „Themes" (UI-Sicht) sind Objectives, die hier
+  //      parented sind.
+  const defaultThemeId = randomUUID();
+  await prisma.strategicTheme.create({
     data: {
-      id: visionId,
+      id: defaultThemeId,
       tenantId,
-      scope: "tenant",
-      valueStreamId: null,
-      title: "Pulse 2030 — Connected Banking Leader",
-      narrative:
-        "Wir wollen 2030 die fuehrende Connected-Banking-Plattform in EMEA sein — gemessen an NPS, Marktanteil und Plattform-Reife.",
-      horizonStart: new Date("2025-01-01"),
-      horizonEnd: new Date("2030-12-31"),
+      title: "Default",
+      narrative: null,
+      color: "#6366f1",
+      kind: "business",
       ownerId: transformationLeadId,
-      status: "published",
+      sortOrder: 0,
+      status: "active",
       createdBy: transformationLeadId,
       updatedBy: transformationLeadId,
     },
   });
 
-  // 22b) Strategic Themes — 4 mappen auf Legacy-Goal-Identitaeten,
-  //      Theme #5 „Cloud Foundation" ist V2-nativ.
-  const themeSpecs: Array<{
-    title: string;
-    narrative: string;
-    kind: "business" | "enabler";
-    color: string;
-    budget: number;
-  }> = [
-    {
-      title: "Customer Experience Leadership",
-      narrative: "Kundenexzellenz durch radikale Vereinfachung der mobile-first Journey.",
-      kind: "business",
-      color: "#6366f1",
-      budget: 1_200_000,
-    },
-    {
-      title: "Operational Efficiency",
-      narrative: "Straight-through Processing und Self-Service ueber alle Kanaele.",
-      kind: "business",
-      color: "#0ea5e9",
-      budget: 800_000,
-    },
-    {
-      title: "New Revenue Lines",
-      narrative: "Wealth-Subscription + Partner-Integrations als zweite Saeule.",
-      kind: "business",
-      color: "#10b981",
-      budget: 600_000,
-    },
-    {
-      title: "Security & Compliance Modernization",
-      narrative: "Zero-Trust + Compliance-by-Design als nicht-verhandelbare Foundation.",
-      kind: "enabler",
-      color: "#f59e0b",
-      budget: 400_000,
-    },
-    {
-      title: "Cloud Foundation",
-      narrative:
-        "Cloud-Migration aller Tier-1-Workloads bis 2027 — Voraussetzung fuer alles andere.",
-      kind: "enabler",
-      color: "#a855f7",
-      budget: 800_000,
-    },
-  ];
-  const themes: { id: string; title: string; kind: "business" | "enabler" }[] = [];
-  for (let i = 0; i < themeSpecs.length; i++) {
-    const spec = themeSpecs[i]!;
-    const id = randomUUID();
-    themes.push({ id, title: spec.title, kind: spec.kind });
-    await prisma.strategicTheme.create({
-      data: {
-        id,
-        tenantId,
-        visionId,
-        title: spec.title,
-        narrative: spec.narrative,
-        color: spec.color,
-        kind: spec.kind,
-        budgetPlanned: spec.budget,
-        ownerId: transformationLeadId,
-        sortOrder: i,
-        status: "active",
-        createdBy: transformationLeadId,
-        updatedBy: transformationLeadId,
-      },
-    });
-  }
-
-  // 22c) Objectives — Periode + Confidence + Status streuen.
+  // 22b) Objectives — Periode + Confidence + Status streuen.
   //      Q1-2026 (achieved), Q2-2026 (current — viele active), Q3, Q4.
   const objectiveSpecs: Array<{
-    themeIdx: number;
     title: string;
     narrative: string;
     period: string | null;
@@ -2027,7 +1956,6 @@ async function main() {
     status: string;
   }> = [
     {
-      themeIdx: 0,
       title: "Konversion verdoppeln",
       narrative: "Time-to-Yes runter, NPS hoch — die zwei Hebel der mobile Journey.",
       period: "2026-Q2",
@@ -2035,7 +1963,6 @@ async function main() {
       status: "active",
     },
     {
-      themeIdx: 0,
       title: "NPS +20 Punkte",
       narrative: "Stabilisierung nach Onboarding-Re-Design.",
       period: "2026-Q3",
@@ -2043,7 +1970,6 @@ async function main() {
       status: "active",
     },
     {
-      themeIdx: 1,
       title: "Cart-Abbruch -30 %",
       narrative: "Recovery-Mails + Self-Service-Konsolidierung.",
       period: "2026-Q2",
@@ -2051,7 +1977,6 @@ async function main() {
       status: "active",
     },
     {
-      themeIdx: 1,
       title: "Time-to-Yes < 2 min",
       narrative: "Schon erreicht in Q1; Anker fuer Q2-Story.",
       period: "2026-Q1",
@@ -2059,7 +1984,6 @@ async function main() {
       status: "achieved",
     },
     {
-      themeIdx: 2,
       title: "Self-Service-Rate 80 %",
       narrative: "Wealth-Onboarding fully self-service.",
       period: "2026-Q2",
@@ -2067,7 +1991,6 @@ async function main() {
       status: "active",
     },
     {
-      themeIdx: 2,
       title: "API-Onboarding < 1 Tag",
       narrative: "Partner-Onboarding via Public-API.",
       period: "2026-Q4",
@@ -2075,7 +1998,6 @@ async function main() {
       status: "draft",
     },
     {
-      themeIdx: 3,
       title: "Audit-Findings 0",
       narrative: "Critical-CVE-Backlog auf Null bis Q3.",
       period: "2026-Q2",
@@ -2083,7 +2005,6 @@ async function main() {
       status: "active",
     },
     {
-      themeIdx: 4,
       title: "60 % Workloads auf Cloud",
       narrative: "Migration der Tier-1-Services in Q3.",
       period: "2026-Q3",
@@ -2091,16 +2012,16 @@ async function main() {
       status: "active",
     },
   ];
-  const objectives: { id: string; themeIdx: number }[] = [];
+  const objectives: { id: string }[] = [];
   for (let i = 0; i < objectiveSpecs.length; i++) {
     const spec = objectiveSpecs[i]!;
     const id = randomUUID();
-    objectives.push({ id, themeIdx: spec.themeIdx });
+    objectives.push({ id });
     await prisma.objective.create({
       data: {
         id,
         tenantId,
-        themeId: themes[spec.themeIdx]!.id,
+        themeId: defaultThemeId,
         title: spec.title,
         narrative: spec.narrative,
         period: spec.period,
@@ -2296,29 +2217,7 @@ async function main() {
     }
   }
 
-  // 22e) Theme ↔ Epic Links — die ersten 6 L0-Epics auf passende Themes binden.
-  const topEpics = epics.slice(0, 6);
-  let epicLinkCount = 0;
-  for (let i = 0; i < topEpics.length; i++) {
-    const epic = topEpics[i]!;
-    const theme = themes[i % themes.length]!;
-    try {
-      await prisma.themeEpicLink.create({
-        data: {
-          id: randomUUID(),
-          tenantId,
-          themeId: theme.id,
-          epicId: epic.id,
-          createdBy: transformationLeadId,
-        },
-      });
-      epicLinkCount += 1;
-    } catch {
-      // Unique-Constraint auf (themeId, epicId) — Duplikate skippen.
-    }
-  }
-
-  // 22f) Pflege-Tab-Coverage: 3 KPIs auf valuePerUnit=null setzen, damit das
+  // 22e) Pflege-Tab-Coverage: 3 KPIs auf valuePerUnit=null setzen, damit das
   //      „Setup offen"-Badge in der KPI-Bibliothek erscheint.
   const someKpis = await prisma.kpi.findMany({
     where: { tenantId },
@@ -2331,7 +2230,7 @@ async function main() {
   }
 
   console.log(
-    `  ✓ V2 Ziele: 1 Vision, ${themes.length} Themes, ${objectives.length} Objectives, ${krCount} KRs, ${contribCount} KR↔KPI bindings, ${epicLinkCount} Theme↔Epic links, ${someKpis.length} valuePerUnit-Gaps`,
+    `  ✓ V2 Ziele: ${objectives.length} Themes (OKRs), ${krCount} KRs, ${contribCount} KR↔KPI bindings, ${someKpis.length} valuePerUnit-Gaps`,
   );
 
   // 23. PI standards (named cadence templates).

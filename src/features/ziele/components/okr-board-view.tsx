@@ -2,17 +2,19 @@
 
 import { useRef, useState, useTransition, type MutableRefObject } from "react";
 import Link from "next/link";
-import type { ZieleTreeTheme, ZieleTreeObjective } from "@/server/views/ziele-view";
+import type { ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
 import { updateObjectiveAction } from "@/features/ziele/actions/ziele";
 
 /**
- * OKR-Quarterly-Board (Konzept §4.2 / V7). Vier Quartals-Spalten um das
- * aktuelle Quartal herum + Backlog (Objectives ohne `period`). Pro
- * Objective eine kompakte Card mit Theme-Color-Stripe, Confidence-
- * Sternen, Achievement-Bars je KR und €-Linse. Klick → Edit-Drawer
- * (URL-State `?entity=objective&id=…`). Drag horizontal = Period-Update
- * (B1) — HTML5-native, gleicher Pattern wie das Cockpit-Board.
+ * OKR-Quarterly-Board — flach (Refactor §Hierarchie-Vereinfachung).
+ *
+ * Vier Quartals-Spalten um das aktuelle Quartal + Backlog (Themes
+ * ohne `period`). Pro Theme eine Card mit Title, Confidence-Sternen,
+ * KR-Mini-Bars und €-Linse. Drag horizontal = Period-Update.
+ *
+ * Vorher waren Cards pro Objective; jetzt ist „Theme" = Objective
+ * (UI-Begriff), also direkter Mapping.
  */
 interface Props {
   themes: ZieleTreeTheme[];
@@ -64,28 +66,19 @@ export function OkrBoardView({ themes, canEdit }: Props) {
   const draggingId = useRef<string | null>(null);
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  // Optimistische Period-Overrides je Objective-Id. `null` = Backlog.
   const [optimistic, setOptimistic] = useState<Record<string, string | null>>({});
 
-  // Objective + Theme zusammen sammeln und die Optimistik auf `period`
-  // anwenden, ohne die Server-Liste zu mutieren.
-  const objectives: Array<{
-    objective: ZieleTreeObjective;
-    theme: ZieleTreeTheme;
-    effectivePeriod: string | null;
-  }> = [];
-  for (const t of themes) {
-    for (const o of t.objectives) {
-      const override = optimistic[o.id];
-      const effectivePeriod = override !== undefined ? override : o.period;
-      objectives.push({ objective: o, theme: t, effectivePeriod });
-    }
-  }
+  const entries: Array<{ theme: ZieleTreeTheme; effectivePeriod: string | null }> = themes.map(
+    (t) => {
+      const override = optimistic[t.id];
+      return { theme: t, effectivePeriod: override !== undefined ? override : t.period };
+    },
+  );
 
-  const grouped = new Map<string, typeof objectives>();
+  const grouped = new Map<string, typeof entries>();
   for (const col of columns) grouped.set(col.key, []);
-  const backlog: typeof objectives = [];
-  for (const entry of objectives) {
+  const backlog: typeof entries = [];
+  for (const entry of entries) {
     if (!entry.effectivePeriod) {
       backlog.push(entry);
       continue;
@@ -100,13 +93,13 @@ export function OkrBoardView({ themes, canEdit }: Props) {
     draggingId.current = null;
     if (!id || !canEdit) return;
 
-    const source = objectives.find((e) => e.objective.id === id);
+    const source = entries.find((e) => e.theme.id === id);
     if (!source) return;
     if (source.effectivePeriod === targetPeriod) return;
 
     if (targetIsPast) {
       const ok = window.confirm(
-        "Quartal liegt in der Vergangenheit. Objective wirklich dorthin verschieben?",
+        "Quartal liegt in der Vergangenheit. Theme wirklich dorthin verschieben?",
       );
       if (!ok) return;
     }
@@ -117,14 +110,12 @@ export function OkrBoardView({ themes, canEdit }: Props) {
       try {
         const fd = new FormData();
         fd.set("id", id);
-        // Period leer = null (Backlog). updateObjectiveAction mapped "" → null.
         fd.set("period", targetPeriod ?? "");
         const res = await updateObjectiveAction({}, fd);
         if (res.error) throw new Error(res.error);
         setError(null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Period-Update fehlgeschlagen");
-        // Rollback der Optimistik fuer dieses Objective
         setOptimistic((prev) => {
           const { [id]: _drop, ...rest } = prev;
           return rest;
@@ -137,7 +128,7 @@ export function OkrBoardView({ themes, canEdit }: Props) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] text-muted-foreground">
-          Aktuelles Quartal markiert · Klick auf Objective → Bearbeiten
+          Aktuelles Quartal markiert · Klick auf Theme → Bearbeiten
           {canEdit ? " · Drag zwischen Spalten = Quartal-Wechsel" : ""}
         </p>
         {error && (
@@ -187,7 +178,7 @@ function Column({
 }: {
   label: string;
   isCurrent: boolean;
-  entries: Array<{ objective: ZieleTreeObjective; theme: ZieleTreeTheme }>;
+  entries: Array<{ theme: ZieleTreeTheme }>;
   canEdit: boolean;
   quarterKey: string | null;
   onDropPeriod: () => void;
@@ -224,50 +215,42 @@ function Column({
           </li>
         )}
         {entries.map((e) => (
-          <ObjectiveCard
-            key={e.objective.id}
-            objective={e.objective}
-            theme={e.theme}
-            canDrag={canEdit}
-            draggingId={draggingId}
-          />
+          <ThemeCard key={e.theme.id} theme={e.theme} canDrag={canEdit} draggingId={draggingId} />
         ))}
       </ul>
       {canEdit && quarterKey && (
         <Link
-          href={`/strategy?entity=objective&new=1&parent=` as never}
+          href={`/strategy?entity=theme&new=1` as never}
           scroll={false}
           className="rounded-md border border-dashed bg-background/40 px-2 py-1.5 text-center text-[10px] text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-          title="OKR fuer dieses Quartal anlegen — bitte im Drawer Theme + Quartal setzen"
+          title="Theme (OKR) anlegen — bitte im Drawer Quartal setzen"
         >
-          + OKR
+          + Theme
         </Link>
       )}
     </section>
   );
 }
 
-function ObjectiveCard({
-  objective,
+function ThemeCard({
   theme,
   canDrag,
   draggingId,
 }: {
-  objective: ZieleTreeObjective;
   theme: ZieleTreeTheme;
   canDrag: boolean;
   draggingId: MutableRefObject<string | null>;
 }) {
-  const atRisk = isAtRisk(objective.trio);
+  const atRisk = isAtRisk(theme.trio);
   return (
     <li>
       <Link
-        href={`/strategy?entity=objective&id=${objective.id}` as never}
+        href={`/strategy?entity=theme&id=${theme.id}` as never}
         scroll={false}
         draggable={canDrag}
         onDragStart={(e) => {
           if (!canDrag) return;
-          draggingId.current = objective.id;
+          draggingId.current = theme.id;
           e.dataTransfer.effectAllowed = "move";
           e.currentTarget.classList.add("opacity-40");
         }}
@@ -280,10 +263,9 @@ function ObjectiveCard({
           canDrag ? "cursor-grab active:cursor-grabbing" : ""
         }`}
       >
-        <div className="h-1" style={{ backgroundColor: theme.color }} aria-hidden />
         <div className="space-y-1.5 px-2 py-2">
           <div className="flex items-start justify-between gap-2">
-            <p className="line-clamp-2 text-[11px] font-medium leading-tight">{objective.title}</p>
+            <p className="line-clamp-2 text-[11px] font-medium leading-tight">{theme.title}</p>
             {atRisk && (
               <span
                 className="shrink-0 rounded-full bg-amber-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-amber-800"
@@ -293,31 +275,28 @@ function ObjectiveCard({
               </span>
             )}
           </div>
-          <p className="truncate text-[9px] uppercase tracking-wider text-muted-foreground">
-            {theme.title}
-          </p>
-          {objective.confidence != null && (
+          {theme.confidence != null && (
             <p className="text-[10px] text-muted-foreground">
-              {"★".repeat(objective.confidence)}
-              {"☆".repeat(5 - objective.confidence)}
+              {"★".repeat(theme.confidence)}
+              {"☆".repeat(5 - theme.confidence)}
             </p>
           )}
-          {objective.keyResults.length > 0 && (
+          {theme.keyResults.length > 0 && (
             <ul className="space-y-0.5">
-              {objective.keyResults.slice(0, 4).map((kr) => (
+              {theme.keyResults.slice(0, 4).map((kr) => (
                 <li key={kr.id} className="flex items-center gap-1.5 text-[10px]">
                   <KrMiniBar kr={kr} />
                 </li>
               ))}
-              {objective.keyResults.length > 4 && (
+              {theme.keyResults.length > 4 && (
                 <li className="text-[9px] text-muted-foreground/70">
-                  +{objective.keyResults.length - 4} weitere KRs
+                  +{theme.keyResults.length - 4} weitere KRs
                 </li>
               )}
             </ul>
           )}
-          <TrioBadge trio={objective.trio} />
-          <StatusPill status={objective.status} />
+          <TrioBadge trio={theme.trio} />
+          <StatusPill status={theme.status} />
         </div>
       </Link>
     </li>

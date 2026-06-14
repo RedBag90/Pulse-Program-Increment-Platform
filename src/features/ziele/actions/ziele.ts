@@ -106,9 +106,11 @@ export const deleteThemeAction = createServerAction({
 // ── Objective ──────────────────────────────────────────────────────────
 
 export const createObjectiveAction = createServerAction({
-  describeCreated: (v: { id: string }) => ({ id: v.id, label: "Objective", href: "/ziele" }),
+  describeCreated: (v: { id: string }) => ({ id: v.id, label: "Theme", href: "/strategy" }),
   schema: z.object({
-    themeId: z.string().uuid(),
+    // Optional; serverseitig wird die Default-StrategicTheme aufgeloest,
+    // wenn der Wert fehlt (Hierarchie-Vereinfachung).
+    themeId: z.string().uuid().optional(),
     title: z.string().min(1).max(200),
     narrative: optStr,
     period: optStr,
@@ -119,7 +121,7 @@ export const createObjectiveAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
     createObjective(ctx, {
-      themeId: input.themeId,
+      ...(input.themeId ? { themeId: input.themeId } : {}),
       title: input.title,
       narrative: input.narrative ?? null,
       period: input.period ?? null,

@@ -16,10 +16,10 @@ import { horizonShare, kpiAchievement, type KpiInput } from "@/domain/goals-roll
 export interface EpicGoalKrContribution {
   krId: string;
   krTitle: string;
-  objectiveTitle: string;
+  /** Parent-Theme (= im Schema „Objective") — nach Hierarchie-Vereinfachung
+   *  die einzige sichtbare Ebene oberhalb des KR. */
   themeId: string;
   themeTitle: string;
-  themeColor: string;
   /** € Beitrag, der direkt aus den KPIs dieses Epics stammt (Realized). */
   contributionRealized: number;
   /** Soll-€ des KRs als Vergleichsanker (Planned des gesamten KRs). */
@@ -27,8 +27,6 @@ export interface EpicGoalKrContribution {
 }
 
 export interface EpicGoalContributions {
-  /** Themes, die direkt an das Epic gebunden sind (ThemeEpicLink). */
-  directThemes: Array<{ id: string; title: string; color: string }>;
   /** KRs, die per KPI an das Epic zahlen. */
   krContributions: EpicGoalKrContribution[];
 }
@@ -39,17 +37,6 @@ export async function loadEpicGoalContributions(
   epicId: string,
 ): Promise<EpicGoalContributions> {
   const { tenantId } = principal;
-
-  // 1) Direkt am Theme gebundene Epics
-  const directLinks = await db.themeEpicLink.findMany({
-    where: { tenantId, epicId },
-    include: { theme: { select: { id: true, title: true, color: true } } },
-  });
-  const directThemes = directLinks.map((l) => ({
-    id: l.theme.id,
-    title: l.theme.title,
-    color: l.theme.color,
-  }));
 
   // 2) Alle KPIs des Epics
   const kpis = await db.kpi.findMany({
@@ -63,10 +50,11 @@ export async function loadEpicGoalContributions(
     },
   });
   if (kpis.length === 0) {
-    return { directThemes, krContributions: [] };
+    return { krContributions: [] };
   }
 
-  // 3) KR-Beitraege fuer diese KPIs (Bridge-Tabelle)
+  // 3) KR-Beitraege fuer diese KPIs (Bridge-Tabelle); Parent = Objective
+  //    (in der UI „Theme" nach Hierarchie-Vereinfachung)
   const contribs = await db.krKpiContribution.findMany({
     where: { tenantId, kpiId: { in: kpis.map((k) => k.id) } },
     include: {
@@ -74,18 +62,13 @@ export async function loadEpicGoalContributions(
         select: {
           id: true,
           title: true,
-          objective: {
-            select: {
-              title: true,
-              theme: { select: { id: true, title: true, color: true } },
-            },
-          },
+          objective: { select: { id: true, title: true } },
         },
       },
     },
   });
   if (contribs.length === 0) {
-    return { directThemes, krContributions: [] };
+    return { krContributions: [] };
   }
 
   // 4) Horizont-Share fuer die Run-Rate-Linse
@@ -130,10 +113,8 @@ export async function loadEpicGoalContributions(
       byKr.set(c.keyResult.id, {
         krId: c.keyResult.id,
         krTitle: c.keyResult.title,
-        objectiveTitle: c.keyResult.objective.title,
-        themeId: c.keyResult.objective.theme.id,
-        themeTitle: c.keyResult.objective.theme.title,
-        themeColor: c.keyResult.objective.theme.color,
+        themeId: c.keyResult.objective.id,
+        themeTitle: c.keyResult.objective.title,
         contributionRealized: realized,
         krPlanned: 0,
       });
@@ -163,7 +144,6 @@ export async function loadEpicGoalContributions(
   }
 
   return {
-    directThemes,
     krContributions: Array.from(byKr.values()).sort(
       (a, b) => b.contributionRealized - a.contributionRealized,
     ),

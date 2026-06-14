@@ -2,12 +2,10 @@
 
 interface MoneyRow {
   title: string;
-  kind: string;
-  budget: number;
+  period: string;
   planned: number;
   realized: number;
   runRate: number;
-  roi: number | null;
 }
 
 interface Props {
@@ -15,30 +13,19 @@ interface Props {
 }
 
 /**
- * CSV-Export fuer das Money-Sheet (Konzept §4.3). Client-Only: kein
- * Server-Roundtrip, kein Blob in der Pulse-DB — Stefan/Andrea koennen
- * direkt fuer Board-Praesentationen ziehen. Trennzeichen `;`, Komma als
- * Dezimal — Excel-Default in DE-Locale.
+ * CSV-Export fuer das Money-Sheet. Trennzeichen `;`, Komma als
+ * Dezimal — Excel-Default in DE-Locale. Spalten passen zur flachen
+ * Theme-Tabelle.
  */
 export function MoneyExportButton({ rows }: Props) {
   function download() {
-    const header = [
-      "Theme",
-      "Kind",
-      "Budget EUR",
-      "Planned EUR",
-      "Realized EUR",
-      "Run-Rate EUR",
-      "ROI %",
-    ];
+    const header = ["Theme", "Periode", "Planned EUR", "Realized EUR", "Run-Rate EUR"];
     const body = rows.map((r) => [
       r.title,
-      r.kind,
-      fmt(r.budget),
+      r.period,
       fmt(r.planned),
       fmt(r.realized),
       fmt(r.runRate),
-      r.roi == null ? "" : `${Math.round(r.roi * 100)}`,
     ]);
     const csv = [header, ...body].map((cols) => cols.map(escape).join(";")).join("\r\n");
     // Excel braucht BOM, sonst zerlegt es Umlaute

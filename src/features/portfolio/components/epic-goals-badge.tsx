@@ -2,20 +2,20 @@ import Link from "next/link";
 import type { EpicGoalContributions } from "@/server/views/epic-goal-contributions";
 
 /**
- * Cross-Modul-Goal-Badge (Konzept V10). Im Epic-Overview unter den
- * Summary-Cards rendert die Karte „Strategische Beitraege": welche
- * Strategic Themes das Epic direkt erfuellt, plus pro Key Result der
- * €-Beitrag, der aus den KPIs dieses Epics einfliesst.
+ * Cross-Modul-Goal-Badge — flach (Refactor §Hierarchie-Vereinfachung).
  *
- * Read-only — bearbeitet wird im Ziele-Modul (`/strategy?entity=…`).
+ * Pro KR der €-Beitrag, der aus den KPIs dieses Epics einfliesst. Das
+ * Parent-Theme (= Objective im Schema) wird als Label gezeigt.
+ *
+ * Read-only — bearbeitet wird im Strategie-Modul.
  */
 interface Props {
   contributions: EpicGoalContributions;
 }
 
 export function EpicGoalsBadge({ contributions }: Props) {
-  const { directThemes, krContributions } = contributions;
-  if (directThemes.length === 0 && krContributions.length === 0) return null;
+  const { krContributions } = contributions;
+  if (krContributions.length === 0) return null;
 
   return (
     <section className="space-y-3 rounded-lg border bg-card p-4">
@@ -31,61 +31,32 @@ export function EpicGoalsBadge({ contributions }: Props) {
         </Link>
       </header>
 
-      {directThemes.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] uppercase text-muted-foreground">Themes</span>
-          {directThemes.map((t) => (
+      <ul className="space-y-1.5">
+        {krContributions.map((c) => (
+          <li
+            key={c.krId}
+            className="flex items-center gap-3 rounded-md border bg-muted/20 px-2 py-1.5 text-xs"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{c.krTitle}</p>
+              <p className="truncate text-[10px] text-muted-foreground">{c.themeTitle}</p>
+            </div>
+            <span className="tabular-nums text-[11px]">
+              <span className="font-medium">€{formatEur(c.contributionRealized)}</span>
+              {c.krPlanned > 0 && (
+                <span className="text-muted-foreground"> / €{formatEur(c.krPlanned)}</span>
+              )}
+            </span>
             <Link
-              key={t.id}
-              href={`/strategy?entity=theme&id=${t.id}` as never}
-              className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2 py-0.5 text-[11px] hover:bg-muted"
+              href={`/strategy?entity=kr&id=${c.krId}` as never}
+              className="text-[10px] text-muted-foreground hover:text-foreground hover:underline"
+              title="Im Strategie-Modul oeffnen"
             >
-              <span
-                aria-hidden
-                className="size-2 rounded-sm"
-                style={{ backgroundColor: t.color }}
-              />
-              {t.title}
+              →
             </Link>
-          ))}
-        </div>
-      )}
-
-      {krContributions.length > 0 && (
-        <ul className="space-y-1.5">
-          {krContributions.map((c) => (
-            <li
-              key={c.krId}
-              className="flex items-center gap-3 rounded-md border bg-muted/20 px-2 py-1.5 text-xs"
-            >
-              <span
-                aria-hidden
-                className="size-2 rounded-sm"
-                style={{ backgroundColor: c.themeColor }}
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{c.krTitle}</p>
-                <p className="truncate text-[10px] text-muted-foreground">
-                  {c.themeTitle} · {c.objectiveTitle}
-                </p>
-              </div>
-              <span className="tabular-nums text-[11px]">
-                <span className="font-medium">€{formatEur(c.contributionRealized)}</span>
-                {c.krPlanned > 0 && (
-                  <span className="text-muted-foreground"> / €{formatEur(c.krPlanned)}</span>
-                )}
-              </span>
-              <Link
-                href={`/strategy?entity=kr&id=${c.krId}` as never}
-                className="text-[10px] text-muted-foreground hover:text-foreground hover:underline"
-                title="Im Ziele-Modul oeffnen"
-              >
-                →
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

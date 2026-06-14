@@ -36,10 +36,8 @@ interface KrRow {
   krId: string;
   krTitle: string;
   formula: string;
-  objectiveTitle: string;
   themeId: string;
   themeTitle: string;
-  themeColor: string;
   contributions: ZieleKrContribution[];
 }
 
@@ -48,19 +46,15 @@ export function KpiCoverageView({ model, canEdit }: Props) {
 
   const krRows: KrRow[] = [];
   for (const t of themes) {
-    for (const o of t.objectives) {
-      for (const kr of o.keyResults) {
-        krRows.push({
-          krId: kr.id,
-          krTitle: kr.title,
-          formula: kr.formula,
-          objectiveTitle: o.title,
-          themeId: t.id,
-          themeTitle: t.title,
-          themeColor: t.color,
-          contributions: kr.contributions,
-        });
-      }
+    for (const kr of t.keyResults) {
+      krRows.push({
+        krId: kr.id,
+        krTitle: kr.title,
+        formula: kr.formula,
+        themeId: t.id,
+        themeTitle: t.title,
+        contributions: kr.contributions,
+      });
     }
   }
 
@@ -211,15 +205,10 @@ function KrCoverageRow({
   return (
     <div className="space-y-2">
       <header className="flex items-center gap-3">
-        <span
-          aria-hidden
-          className="size-2 rounded-sm"
-          style={{ backgroundColor: row.themeColor }}
-        />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{row.krTitle}</p>
           <p className="truncate text-[10px] text-muted-foreground">
-            {row.themeTitle} · {row.objectiveTitle}{" "}
+            {row.themeTitle}{" "}
             {row.formula === "manual" && (
               <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] uppercase">
                 manual

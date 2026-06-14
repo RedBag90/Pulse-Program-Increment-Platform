@@ -35,7 +35,7 @@ interface Props {
 }
 
 export function ZieleShell({ model, layout, mode = "ziele" }: Props) {
-  const { tab, visions, themes, tenantTrio, permissions } = model;
+  const { tab, themes, tenantTrio, permissions } = model;
   const isStrategy = mode === "strategy";
 
   return (
@@ -47,17 +47,15 @@ export function ZieleShell({ model, layout, mode = "ziele" }: Props) {
           </h1>
           <p className="text-sm text-muted-foreground">
             {isStrategy
-              ? "Vision · Themes · Objectives · Key Results pflegen. Wert-Anzeige unter Ziele."
-              : "Wert-Anzeige Vision → Theme → OKR → KPI, mit €-Rollup. Pflege unter Strategie."}
+              ? "Themes (OKR-Statements) + Key Results pflegen. Wert-Anzeige unter Ziele."
+              : "Wert-Anzeige Theme → Key Result, mit €-Rollup. Pflege unter Strategie."}
           </p>
         </div>
         <ZieleSubTabs active={tab} mode={mode} />
       </header>
 
       <div className="flex items-center justify-between rounded-md border bg-card px-4 py-2">
-        <p className="text-xs text-muted-foreground">
-          {themes.length} Themes · {visions.length} Vision(en) im Scope
-        </p>
+        <p className="text-xs text-muted-foreground">{themes.length} Themes (OKRs) im Scope</p>
         <TenantRollup
           planned={tenantTrio.planned}
           realized={tenantTrio.realized}
@@ -71,15 +69,11 @@ export function ZieleShell({ model, layout, mode = "ziele" }: Props) {
             <StrategyLayoutToggle active={layout} />
           </div>
           {layout === "tree" && (
-            <StrategyTreeView
-              visions={visions}
-              themes={themes}
-              canEdit={permissions.canEditStrategy}
-            />
+            <StrategyTreeView themes={themes} canEdit={permissions.canEditStrategy} />
           )}
           {layout === "sankey" && <StrategySankeyView themes={themes} />}
-          {layout === "tabelle" && <StrategyTableView visions={visions} themes={themes} />}
-          {layout === "netzplan" && <StrategyNetworkView visions={visions} themes={themes} />}
+          {layout === "tabelle" && <StrategyTableView themes={themes} />}
+          {layout === "netzplan" && <StrategyNetworkView themes={themes} />}
         </div>
       )}
       {tab === "okrs" && <OkrBoardView themes={themes} canEdit={permissions.canEditStrategy} />}

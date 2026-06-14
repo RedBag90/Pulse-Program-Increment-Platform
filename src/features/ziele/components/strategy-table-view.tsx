@@ -1,40 +1,21 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import type {
-  ZieleTreeKeyResult,
-  ZieleTreeObjective,
-  ZieleTreeTheme,
-  ZieleTreeVision,
-} from "@/server/views/ziele-view";
+import type { ZieleTreeKeyResult, ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
 
 /**
- * Strategie als hierarchische Tabelle (Refactor §Ziele-Visualisierung).
+ * Strategie als flache hierarchische Tabelle (Refactor §Hierarchie-
+ * Vereinfachung).
  *
- * Spalten: # · Name · Status · Progress · Time period. Hierarchie via
- * `<details>` (kein Client-State) und sichtbare Einrueckung. Jede
- * Zeile deeplinkt nach `/strategy?entity=…&id=…`; im /ziele-Modul
- * navigiert ein Klick raus zur Pflege, im /strategy-Modul oeffnet der
- * existierende Edit-Drawer.
+ * Zwei Ebenen: **Theme** (OKR-Statement) + **Key Results**. Spalten:
+ * # · Name · Status · Progress · Time period. Jede Zeile deeplinkt
+ * nach `/strategy?entity=…&id=…`.
  */
 interface Props {
-  visions: ZieleTreeVision[];
   themes: ZieleTreeTheme[];
 }
 
-export function StrategyTableView({ visions, themes }: Props) {
-  const themesByVision = new Map<string, ZieleTreeTheme[]>();
-  const orphanThemes: ZieleTreeTheme[] = [];
-  for (const t of themes) {
-    if (t.visionId) {
-      const arr = themesByVision.get(t.visionId) ?? [];
-      arr.push(t);
-      themesByVision.set(t.visionId, arr);
-    } else {
-      orphanThemes.push(t);
-    }
-  }
-
+export function StrategyTableView({ themes }: Props) {
   return (
     <div className="overflow-x-auto rounded-lg border bg-card">
       <table className="w-full text-sm">
@@ -48,21 +29,13 @@ export function StrategyTableView({ visions, themes }: Props) {
           </tr>
         </thead>
         <tbody className="divide-y">
-          {visions.map((v, vi) => (
-            <VisionRow
-              key={v.id}
-              index={vi + 1}
-              vision={v}
-              themes={themesByVision.get(v.id) ?? []}
-            />
+          {themes.map((t, ti) => (
+            <ThemeBlock key={t.id} index={ti + 1} theme={t} />
           ))}
-          {orphanThemes.length > 0 && (
-            <OrphanGroup themes={orphanThemes} startIndex={visions.length + 1} />
-          )}
-          {visions.length === 0 && orphanThemes.length === 0 && (
+          {themes.length === 0 && (
             <tr>
               <td colSpan={5} className="px-3 py-6 text-center text-xs text-muted-foreground">
-                Noch keine Strategie definiert.
+                Noch keine Themes definiert.
               </td>
             </tr>
           )}
@@ -72,108 +45,21 @@ export function StrategyTableView({ visions, themes }: Props) {
   );
 }
 
-function VisionRow({
-  index,
-  vision,
-  themes,
-}: {
-  index: number;
-  vision: ZieleTreeVision;
-  themes: ZieleTreeTheme[];
-}) {
-  const horizon = `${vision.horizonStart.getUTCFullYear()} — ${vision.horizonEnd.getUTCFullYear()}`;
-  const prog = trioProgress(vision.trio);
+function ThemeBlock({ index, theme }: { index: number; theme: ZieleTreeTheme }) {
   return (
     <>
       <Row
         depth={0}
         index={index}
-        title={vision.title}
-        subtitle={vision.scope === "tenant" ? "Tenant-Vision" : `VS · ${vision.valueStreamName}`}
-        href={`/strategy?entity=vision&id=${vision.id}`}
-        status={statusForVision(vision)}
-        progress={prog}
-        period={horizon}
-        expandable={themes.length > 0}
-      />
-      {themes.map((t, ti) => (
-        <ThemeRow key={t.id} index={ti + 1} theme={t} parentDepth={1} />
-      ))}
-    </>
-  );
-}
-
-function OrphanGroup({ themes, startIndex }: { themes: ZieleTreeTheme[]; startIndex: number }) {
-  return (
-    <>
-      <tr className="bg-muted/20 text-[10px] uppercase tracking-wider text-muted-foreground">
-        <td colSpan={5} className="px-3 py-1.5">
-          Themes ohne Vision
-        </td>
-      </tr>
-      {themes.map((t, ti) => (
-        <ThemeRow key={t.id} index={startIndex + ti} theme={t} parentDepth={0} />
-      ))}
-    </>
-  );
-}
-
-function ThemeRow({
-  index,
-  theme,
-  parentDepth,
-}: {
-  index: number;
-  theme: ZieleTreeTheme;
-  parentDepth: number;
-}) {
-  const prog = trioProgress(theme.trio);
-  return (
-    <>
-      <Row
-        depth={parentDepth}
-        index={index}
         title={theme.title}
-        subtitle={`Theme · ${theme.kind}`}
+        subtitle="Theme (OKR)"
         href={`/strategy?entity=theme&id=${theme.id}`}
-        accent={theme.color}
         status={statusForTheme(theme)}
-        progress={prog}
-        period={null}
-        expandable={theme.objectives.length > 0}
+        progress={trioProgress(theme.trio)}
+        period={theme.period}
       />
-      {theme.objectives.map((o, oi) => (
-        <ObjectiveRow key={o.id} index={oi + 1} objective={o} parentDepth={parentDepth + 1} />
-      ))}
-    </>
-  );
-}
-
-function ObjectiveRow({
-  index,
-  objective,
-  parentDepth,
-}: {
-  index: number;
-  objective: ZieleTreeObjective;
-  parentDepth: number;
-}) {
-  const prog = trioProgress(objective.trio);
-  return (
-    <>
-      <Row
-        depth={parentDepth}
-        index={index}
-        title={objective.title}
-        subtitle="Objective"
-        href={`/strategy?entity=objective&id=${objective.id}`}
-        status={statusForObjective(objective)}
-        progress={prog}
-        period={objective.period ?? "Backlog"}
-        expandable={objective.keyResults.length > 0}
-      />
-      {objective.keyResults.map((kr, ki) => (
-        <KrRow key={kr.id} index={ki + 1} kr={kr} parentDepth={parentDepth + 1} />
+      {theme.keyResults.map((kr, ki) => (
+        <KrRow key={kr.id} index={ki + 1} kr={kr} parentDepth={1} />
       ))}
     </>
   );
@@ -199,7 +85,6 @@ function KrRow({
       status={statusForKr(kr, prog)}
       progress={prog}
       period={null}
-      expandable={false}
     />
   );
 }
@@ -210,14 +95,12 @@ interface RowProps {
   title: string;
   subtitle: string;
   href: string;
-  accent?: string;
   status: StatusSpec;
   progress: number;
   period: string | null;
-  expandable: boolean;
 }
 
-function Row({ depth, index, title, subtitle, href, accent, status, progress, period }: RowProps) {
+function Row({ depth, index, title, subtitle, href, status, progress, period }: RowProps) {
   const indent = depth * 20 + 8;
   return (
     <tr className="group hover:bg-muted/30">
@@ -231,13 +114,6 @@ function Row({ depth, index, title, subtitle, href, accent, status, progress, pe
         >
           {depth > 0 && (
             <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
-          )}
-          {accent && (
-            <span
-              aria-hidden
-              className="size-2.5 shrink-0 rounded-sm"
-              style={{ backgroundColor: accent }}
-            />
           )}
           <span className="min-w-0">
             <span className="block truncate font-medium">{title}</span>
@@ -258,28 +134,14 @@ function Row({ depth, index, title, subtitle, href, accent, status, progress, pe
   );
 }
 
-// ── Status + Progress ────────────────────────────────────────────────
-
 type StatusTier = "achieved" | "on-track" | "at-risk" | "off-track" | "draft" | "neutral";
 interface StatusSpec {
   tier: StatusTier;
   label: string;
 }
 
-function statusForVision(v: ZieleTreeVision): StatusSpec {
-  if (v.status === "archived") return { tier: "neutral", label: "archived" };
-  if (isAtRisk(v.trio)) return { tier: "at-risk", label: "At risk" };
-  return { tier: "on-track", label: "On track" };
-}
-
 function statusForTheme(t: ZieleTreeTheme): StatusSpec {
-  if (t.status === "sunsetted") return { tier: "neutral", label: "sunsetted" };
-  if (isAtRisk(t.trio)) return { tier: "at-risk", label: "At risk" };
-  return { tier: "on-track", label: "On track" };
-}
-
-function statusForObjective(o: ZieleTreeObjective): StatusSpec {
-  switch (o.status) {
+  switch (t.status) {
     case "achieved":
       return { tier: "achieved", label: "Achieved" };
     case "missed":
@@ -291,7 +153,7 @@ function statusForObjective(o: ZieleTreeObjective): StatusSpec {
     case "draft":
       return { tier: "draft", label: "Draft" };
   }
-  return isAtRisk(o.trio)
+  return isAtRisk(t.trio)
     ? { tier: "at-risk", label: "At risk" }
     : { tier: "on-track", label: "On track" };
 }
@@ -330,15 +192,13 @@ function StatusPill({ status }: { status: StatusSpec }) {
               ? "bg-slate-100 text-slate-700"
               : "bg-muted text-muted-foreground";
   const dot =
-    status.tier === "achieved"
+    status.tier === "achieved" || status.tier === "on-track"
       ? "bg-emerald-500"
-      : status.tier === "on-track"
-        ? "bg-emerald-500"
-        : status.tier === "at-risk"
-          ? "bg-amber-500"
-          : status.tier === "off-track"
-            ? "bg-rose-500"
-            : "bg-slate-400";
+      : status.tier === "at-risk"
+        ? "bg-amber-500"
+        : status.tier === "off-track"
+          ? "bg-rose-500"
+          : "bg-slate-400";
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] ${cls}`}
