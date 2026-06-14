@@ -1,6 +1,5 @@
 import type { ZieleModel } from "@/server/views/ziele-view";
 import { ZieleSubTabs } from "./ziele-sub-tabs";
-import { StrategyTreeView } from "./strategy-tree-view";
 import { StrategySankeyView } from "./strategy-sankey-view";
 import { StrategyTableView } from "./strategy-table-view";
 import { StrategyNetworkView } from "./strategy-network-view";
@@ -68,11 +67,10 @@ export function ZieleShell({ model, layout, mode = "ziele" }: Props) {
           <div className="flex items-center justify-end">
             <StrategyLayoutToggle active={layout} />
           </div>
-          {layout === "tree" && (
-            <StrategyTreeView themes={themes} canEdit={permissions.canEditStrategy} />
+          {layout === "tabelle" && (
+            <StrategyTableView themes={themes} canEdit={permissions.canEditStrategy} />
           )}
           {layout === "sankey" && <StrategySankeyView themes={themes} />}
-          {layout === "tabelle" && <StrategyTableView themes={themes} />}
           {layout === "netzplan" && <StrategyNetworkView themes={themes} />}
         </div>
       )}

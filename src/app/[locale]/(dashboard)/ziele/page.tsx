@@ -31,9 +31,7 @@ export default async function ZielePage({ searchParams }: PageProps) {
   const tab = parseTab(typeof params.tab === "string" ? params.tab : undefined);
   const period = typeof params.period === "string" ? params.period : undefined;
   const layout =
-    params.layout === "sankey" || params.layout === "tabelle" || params.layout === "netzplan"
-      ? params.layout
-      : "tree";
+    params.layout === "sankey" || params.layout === "netzplan" ? params.layout : "tabelle";
 
   // OKR-Board braucht alle Quartale gleichzeitig — Period-Filter nur auf
   // Strategie + Money. (Konzept §4.2)

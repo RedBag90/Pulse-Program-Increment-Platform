@@ -3,20 +3,22 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 /**
- * Sub-Toolbar-Toggle fuer den Strategie-Tab. Vier Layouts mit URL-
- * State `?layout=…`; Default Tree (URL-Param weglassen).
+ * Sub-Toolbar-Toggle fuer den Strategie-Tab. Drei Layouts mit URL-
+ * State `?layout=…`; Default **Tabelle** (URL-Param weglassen).
  *
- *   - **Tree** — geschachtelte Cards (Default)
+ *   - **Tabelle** — hierarchische Liste, Asana-Stil (Default)
  *   - **Sankey** — €-Fluss-Diagramm
- *   - **Tabelle** — hierarchische Liste (Asana-Style)
  *   - **Netzplan** — Node-Graph (Asana Strategy-Map-Style)
+ *
+ * Die alte „Tree"-Sicht wurde mit Refactor §„Tabelle wird Haupt-
+ * Layout" entfernt; alle Pflege-/€-Affordances sind in die Tabelle
+ * gewandert.
  */
-export type StrategyLayout = "tree" | "sankey" | "tabelle" | "netzplan";
+export type StrategyLayout = "tabelle" | "sankey" | "netzplan";
 
 const OPTIONS: ReadonlyArray<{ id: StrategyLayout; label: string }> = [
-  { id: "tree", label: "Tree" },
-  { id: "sankey", label: "Sankey" },
   { id: "tabelle", label: "Tabelle" },
+  { id: "sankey", label: "Sankey" },
   { id: "netzplan", label: "Netzplan" },
 ];
 
@@ -31,7 +33,7 @@ export function StrategyLayoutToggle({ active }: Props) {
 
   function setLayout(next: StrategyLayout) {
     const params = new URLSearchParams(searchParams.toString());
-    if (next === "tree") params.delete("layout");
+    if (next === "tabelle") params.delete("layout");
     else params.set("layout", next);
     const qs = params.toString();
     router.replace(`${pathname}${qs ? `?${qs}` : ""}` as never, { scroll: false });

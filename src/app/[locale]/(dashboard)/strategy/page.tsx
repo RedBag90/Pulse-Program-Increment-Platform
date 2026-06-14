@@ -35,9 +35,7 @@ export default async function StrategyPage({ searchParams }: PageProps) {
   const tab = parseTab(typeof params.tab === "string" ? params.tab : undefined);
   const period = typeof params.period === "string" ? params.period : undefined;
   const layout =
-    params.layout === "sankey" || params.layout === "tabelle" || params.layout === "netzplan"
-      ? params.layout
-      : "tree";
+    params.layout === "sankey" || params.layout === "netzplan" ? params.layout : "tabelle";
 
   const effectivePeriod = tab === "okrs" ? undefined : period;
 
