@@ -108,7 +108,6 @@ export function KpiCoverageView({ model, canEdit }: Props) {
               <Th align="right">€/Einheit</Th>
               <Th>Gebunden an KR</Th>
               <Th align="right">Weight</Th>
-              <Th align="right">€/Einheit Override</Th>
               <Th align="right">Σ Beitrag</Th>
               <Th align="right">Status</Th>
             </tr>
@@ -116,7 +115,7 @@ export function KpiCoverageView({ model, canEdit }: Props) {
           <tbody className="divide-y">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-3 py-6 text-center text-xs text-muted-foreground">
+                <td colSpan={8} className="px-3 py-6 text-center text-xs text-muted-foreground">
                   Keine KPI passt zum Filter.
                 </td>
               </tr>
@@ -178,7 +177,7 @@ function KpiRow({
           {...(kpi.unit ? { unitLabel: `€/${kpi.unit}` } : {})}
         />
       </Td>
-      <Td colSpan={3} className="!p-0">
+      <Td colSpan={2} className="!p-0">
         <form action={submit} className="flex items-center gap-1.5 px-3 py-1">
           <select
             name="keyResultId"
@@ -208,16 +207,6 @@ function KpiRow({
             disabled={!canEdit || pending}
             className="h-7 w-16 rounded-md border bg-background px-2 text-right text-xs tabular-nums"
             title="Weight 0..1"
-          />
-          <input
-            name="valuePerUnitOverride"
-            type="number"
-            step="any"
-            defaultValue={bound?.valuePerUnitOverride ?? ""}
-            placeholder="—"
-            disabled={!canEdit || pending}
-            className="h-7 w-20 rounded-md border bg-background px-2 text-right text-xs tabular-nums"
-            title="Override fuer €/Einheit; leer = KPI-Default"
           />
           {canEdit && (
             <button
