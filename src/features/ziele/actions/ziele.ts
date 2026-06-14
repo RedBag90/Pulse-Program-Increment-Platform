@@ -4,9 +4,6 @@ import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import {
-  createTheme,
-  updateTheme,
-  deleteTheme,
   createObjective,
   updateObjective,
   deleteObjective,
@@ -16,12 +13,7 @@ import {
   bindKpiToKeyResult,
   unbindKpiFromKeyResult,
   setKpiBinding,
-  linkEpicToTheme,
-  unlinkEpicFromTheme,
-  createVision,
-  updateVision,
 } from "@/server/services/ziele";
-import type { InitiativeId } from "@/domain/types";
 
 /**
  * Ziele-Modul-Actions. Permission-Gate ueberall `target.manage`
@@ -31,78 +23,6 @@ import type { InitiativeId } from "@/domain/types";
 
 const optStr = z.string().optional();
 const optNum = z.coerce.number().optional();
-
-// ── Theme ─────────────────────────────────────────────────────────────
-
-export const createThemeAction = createServerAction({
-  describeCreated: (v: { id: string }) => ({ id: v.id, label: "Theme", href: "/ziele" }),
-  schema: z.object({
-    title: z.string().min(1).max(200),
-    narrative: optStr,
-    color: optStr,
-    kind: z.enum(["business", "enabler"]).optional(),
-    budgetPlanned: optNum,
-    visionId: z.string().uuid().optional(),
-    ownerId: z.string().uuid().optional(),
-  }),
-  action: "target.manage",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    createTheme(ctx, {
-      title: input.title,
-      narrative: input.narrative ?? null,
-      ...(input.color ? { color: input.color } : {}),
-      ...(input.kind ? { kind: input.kind } : {}),
-      budgetPlanned: input.budgetPlanned ?? null,
-      visionId: input.visionId ?? null,
-      ownerId: input.ownerId ?? null,
-    }),
-  revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Theme konnte nicht angelegt werden" }),
-});
-
-export const updateThemeAction = createServerAction({
-  schema: z.object({
-    id: z.string().uuid(),
-    title: z.string().min(1).max(200).optional(),
-    narrative: optStr,
-    color: optStr,
-    kind: z.enum(["business", "enabler"]).optional(),
-    budgetPlanned: optNum,
-    visionId: z.string().uuid().optional().or(z.literal("")),
-    ownerId: z.string().uuid().optional().or(z.literal("")),
-    status: optStr,
-  }),
-  action: "target.manage",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    updateTheme(ctx, {
-      id: input.id,
-      ...(input.title !== undefined ? { title: input.title } : {}),
-      ...(input.narrative !== undefined ? { narrative: input.narrative } : {}),
-      ...(input.color !== undefined ? { color: input.color } : {}),
-      ...(input.kind !== undefined ? { kind: input.kind } : {}),
-      ...(input.budgetPlanned !== undefined ? { budgetPlanned: input.budgetPlanned } : {}),
-      ...(input.visionId !== undefined
-        ? { visionId: input.visionId === "" ? null : input.visionId }
-        : {}),
-      ...(input.ownerId !== undefined
-        ? { ownerId: input.ownerId === "" ? null : input.ownerId }
-        : {}),
-      ...(input.status !== undefined ? { status: input.status } : {}),
-    }),
-  revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Theme konnte nicht aktualisiert werden" }),
-});
-
-export const deleteThemeAction = createServerAction({
-  schema: z.object({ id: z.string().uuid() }),
-  action: "target.manage",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) => deleteTheme(ctx, { id: input.id }),
-  revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Theme konnte nicht geloescht werden" }),
-});
 
 // ── Objective ──────────────────────────────────────────────────────────
 
@@ -313,83 +233,4 @@ export const setKpiBindingAction = createServerAction({
     }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "KPI-Bindung fehlgeschlagen" }),
-});
-
-// ── Theme ↔ Epic Link ─────────────────────────────────────────────────
-
-export const linkEpicAction = createServerAction({
-  schema: z.object({ themeId: z.string().uuid(), epicId: z.string().uuid() }),
-  action: "target.manage",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    linkEpicToTheme(ctx, { themeId: input.themeId, epicId: input.epicId as InitiativeId }),
-  revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Epic konnte nicht verlinkt werden" }),
-});
-
-export const unlinkEpicAction = createServerAction({
-  schema: z.object({ themeId: z.string().uuid(), epicId: z.string().uuid() }),
-  action: "target.manage",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    unlinkEpicFromTheme(ctx, { themeId: input.themeId, epicId: input.epicId as InitiativeId }),
-  revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Epic konnte nicht entkoppelt werden" }),
-});
-
-// ── Vision ─────────────────────────────────────────────────────────────
-
-export const createVisionAction = createServerAction({
-  describeCreated: (v: { id: string }) => ({ id: v.id, label: "Vision", href: "/ziele" }),
-  schema: z.object({
-    scope: z.enum(["tenant", "value_stream"]),
-    valueStreamId: z.string().uuid().optional(),
-    title: z.string().min(1).max(200),
-    narrative: optStr,
-    horizonStart: z.coerce.date(),
-    horizonEnd: z.coerce.date(),
-    ownerId: z.string().uuid().optional(),
-  }),
-  action: "target.manage",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    createVision(ctx, {
-      scope: input.scope,
-      valueStreamId: input.valueStreamId ?? null,
-      title: input.title,
-      narrative: input.narrative ?? null,
-      horizonStart: input.horizonStart,
-      horizonEnd: input.horizonEnd,
-      ownerId: input.ownerId ?? null,
-    }),
-  revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Vision konnte nicht angelegt werden" }),
-});
-
-export const updateVisionAction = createServerAction({
-  schema: z.object({
-    id: z.string().uuid(),
-    title: z.string().min(1).max(200).optional(),
-    narrative: optStr,
-    horizonStart: z.coerce.date().optional(),
-    horizonEnd: z.coerce.date().optional(),
-    ownerId: z.string().uuid().optional().or(z.literal("")),
-    status: optStr,
-  }),
-  action: "target.manage",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    updateVision(ctx, {
-      id: input.id,
-      ...(input.title !== undefined ? { title: input.title } : {}),
-      ...(input.narrative !== undefined ? { narrative: input.narrative } : {}),
-      ...(input.horizonStart !== undefined ? { horizonStart: input.horizonStart } : {}),
-      ...(input.horizonEnd !== undefined ? { horizonEnd: input.horizonEnd } : {}),
-      ...(input.ownerId !== undefined
-        ? { ownerId: input.ownerId === "" ? null : input.ownerId }
-        : {}),
-      ...(input.status !== undefined ? { status: input.status } : {}),
-    }),
-  revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Vision konnte nicht aktualisiert werden" }),
 });

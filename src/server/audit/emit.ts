@@ -115,15 +115,7 @@ export type AuditAction =
   | "role.capability.granted"
   | "role.capability.revoked"
   | "role.capability.reset"
-  // Ziele-Modul V2 (Vision → Theme → Objective → KR)
-  | "vision.created"
-  | "vision.updated"
-  | "theme.created"
-  | "theme.updated"
-  | "theme.deleted"
-  | "theme.epic.linked"
-  | "theme.epic.unlinked"
-  | "theme.epic.link.exists"
+  // Ziele-Modul V2 (Theme = Objective → KR)
   | "objective.created"
   | "objective.updated"
   | "objective.deleted"
@@ -164,12 +156,9 @@ export type AuditResourceType =
   | "system_demo"
   | "system_demo_item"
   // Ziele-Modul V2
-  | "portfolio_vision"
-  | "strategic_theme"
   | "objective"
   | "key_result"
-  | "kr_kpi_contribution"
-  | "theme_epic_link";
+  | "kr_kpi_contribution";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

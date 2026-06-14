@@ -75,18 +75,6 @@ export interface ZieleKrLibraryEntry {
   themeTitle: string;
 }
 
-export interface ZieleEpicLink {
-  epicId: string;
-  epicTitle: string;
-  epicStatus: string;
-}
-
-export interface ZieleEpicLibraryEntry {
-  id: string;
-  title: string;
-  status: string;
-}
-
 /**
  * **Theme** in der flachen 2-Ebenen-Hierarchie (Refactor §Hierarchie-
  * Vereinfachung): die OKR-formulierte Top-Ebene unter dem Tenant.
