@@ -71,7 +71,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/ziele", labelKey: "goalOverview", icon: LayoutDashboard, exact: true },
       { href: "/strategy", labelKey: "strategy", icon: Goal, capability: "target.manage" },
-      { href: "/transformation", labelKey: "goalManagement", icon: Goal },
     ],
   },
   {
