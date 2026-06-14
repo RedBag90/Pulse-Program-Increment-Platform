@@ -59,7 +59,7 @@ function NewLink({
   parent?: string;
   children: React.ReactNode;
 }) {
-  const href = `/ziele?entity=${entity}&new=1${parent ? `&parent=${parent}` : ""}`;
+  const href = `/strategy?entity=${entity}&new=1${parent ? `&parent=${parent}` : ""}`;
   return (
     <Link
       href={href as never}
@@ -84,7 +84,7 @@ function EditLink({
 }) {
   return (
     <Link
-      href={`/ziele?entity=${entity}&id=${id}` as never}
+      href={`/strategy?entity=${entity}&id=${id}` as never}
       scroll={false}
       className={
         className ??

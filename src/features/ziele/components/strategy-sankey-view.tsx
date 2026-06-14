@@ -95,7 +95,7 @@ export function StrategySankeyView({ themes }: Props) {
       realized: t.trio.realized,
       weight,
       themeIndex: ti,
-      href: `/ziele?entity=theme&id=${t.id}`,
+      href: `/strategy?entity=theme&id=${t.id}`,
     });
   });
 
@@ -116,7 +116,7 @@ export function StrategySankeyView({ themes }: Props) {
         realized: o.trio.realized,
         weight: objWeight,
         themeIndex: ti,
-        href: `/ziele?entity=objective&id=${o.id}`,
+        href: `/strategy?entity=objective&id=${o.id}`,
         objKey: o.id,
       });
     });
@@ -145,7 +145,7 @@ export function StrategySankeyView({ themes }: Props) {
           realized: kr.trio.realized,
           weight: krWeight,
           themeIndex: ti,
-          href: `/ziele?entity=kr&id=${kr.id}`,
+          href: `/strategy?entity=kr&id=${kr.id}`,
         });
       }
     });

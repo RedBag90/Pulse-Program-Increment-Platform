@@ -1,39 +1,41 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
+import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadZieleModel, type ZieleSubTab } from "@/server/views/ziele-view";
 import { ZieleShell } from "@/features/ziele/components/ziele-shell";
 
 /**
- * Ziele-Modul — reine **Wert-Anzeige** (Refactor-Plan Stage D).
+ * Strategie-Pflege-Modul (Refactor-Plan Stage A).
  *
- * Drei Sub-Tabs: Strategie · OKRs · Money. Alle read-only. Pflege
- * der Strategie-Kaskade (Vision/Theme/Objective/KR) lebt unter
- * `/strategy`; KPI-Coverage + Bindungen unter `/controlling`.
+ * Vision/Theme/Objective/KR + OKR-Board-Drag + Theme↔Epic-Linking
+ * leben hier. `/ziele` zeigt dieselben Daten read-only als
+ * Wert-Anzeige; Pflege erfolgt ausschliesslich auf `/strategy`.
  *
- * Auch wenn der User `target.manage` haette: hier ist kein Edit
- * sichtbar. Klicks auf Cards/Rows deeplinken nach `/strategy`.
+ * Gate: `target.manage` (LPM-Audience). Ohne Capability redirect
+ * auf `/ziele` — Wert ohne Pflege ist die Default-Surface.
  */
 function parseTab(raw: string | undefined): ZieleSubTab {
-  return raw === "okrs" || raw === "money" ? raw : "strategie";
+  return raw === "okrs" ? raw : "strategie";
 }
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function ZielePage({ searchParams }: PageProps) {
+export default async function StrategyPage({ searchParams }: PageProps) {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
+
+  const canManage = authorize("target.manage", { tenantId: principal.tenantId }, principal).allow;
+  if (!canManage) redirect("/ziele");
 
   const params = await searchParams;
   const tab = parseTab(typeof params.tab === "string" ? params.tab : undefined);
   const period = typeof params.period === "string" ? params.period : undefined;
   const layout = params.layout === "sankey" ? "sankey" : "tree";
 
-  // OKR-Board braucht alle Quartale gleichzeitig — Period-Filter nur auf
-  // Strategie + Money. (Konzept §4.2)
   const effectivePeriod = tab === "okrs" ? undefined : period;
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
@@ -42,19 +44,17 @@ export default async function ZielePage({ searchParams }: PageProps) {
     ...(effectivePeriod ? { period: effectivePeriod } : {}),
   });
 
-  // Ziele = nur Wert-Anzeige: Edit-Affordances erzwungen aus.
+  // Pflege-Surface: Edit-Affordances erzwungen aktiv (target.manage ist
+  // schon das Gate); Money/Pflege-Sub-Tabs blendet die Shell weg, wenn
+  // sie mit mode="strategy" gerendert wird.
   const model = {
     ...baseModel,
-    permissions: {
-      ...baseModel.permissions,
-      canEditStrategy: false,
-      canEditKpiValuation: false,
-    },
+    permissions: { ...baseModel.permissions, canEditStrategy: true },
   };
 
   return (
     <Suspense fallback={null}>
-      <ZieleShell model={model} layout={layout} mode="ziele" />
+      <ZieleShell model={model} layout={layout} mode="strategy" />
     </Suspense>
   );
 }

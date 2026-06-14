@@ -235,7 +235,7 @@ function Column({
       </ul>
       {canEdit && quarterKey && (
         <Link
-          href={`/ziele?entity=objective&new=1&parent=` as never}
+          href={`/strategy?entity=objective&new=1&parent=` as never}
           scroll={false}
           className="rounded-md border border-dashed bg-background/40 px-2 py-1.5 text-center text-[10px] text-muted-foreground hover:bg-muted/40 hover:text-foreground"
           title="OKR fuer dieses Quartal anlegen — bitte im Drawer Theme + Quartal setzen"
@@ -262,7 +262,7 @@ function ObjectiveCard({
   return (
     <li>
       <Link
-        href={`/ziele?entity=objective&id=${objective.id}` as never}
+        href={`/strategy?entity=objective&id=${objective.id}` as never}
         scroll={false}
         draggable={canDrag}
         onDragStart={(e) => {

@@ -172,7 +172,7 @@ function Row({ theme }: { theme: ZieleTreeTheme }) {
     <tr className="hover:bg-muted/30">
       <Td>
         <Link
-          href={`/ziele?entity=theme&id=${theme.id}` as never}
+          href={`/strategy?entity=theme&id=${theme.id}` as never}
           scroll={false}
           className="inline-flex items-center gap-2 hover:underline"
         >

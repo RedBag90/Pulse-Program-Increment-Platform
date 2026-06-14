@@ -7,7 +7,7 @@ import type { EpicGoalContributions } from "@/server/views/epic-goal-contributio
  * Strategic Themes das Epic direkt erfuellt, plus pro Key Result der
  * €-Beitrag, der aus den KPIs dieses Epics einfliesst.
  *
- * Read-only — bearbeitet wird im Ziele-Modul (`/ziele?entity=…`).
+ * Read-only — bearbeitet wird im Ziele-Modul (`/strategy?entity=…`).
  */
 interface Props {
   contributions: EpicGoalContributions;
@@ -37,7 +37,7 @@ export function EpicGoalsBadge({ contributions }: Props) {
           {directThemes.map((t) => (
             <Link
               key={t.id}
-              href={`/ziele?entity=theme&id=${t.id}` as never}
+              href={`/strategy?entity=theme&id=${t.id}` as never}
               className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2 py-0.5 text-[11px] hover:bg-muted"
             >
               <span
@@ -76,7 +76,7 @@ export function EpicGoalsBadge({ contributions }: Props) {
                 )}
               </span>
               <Link
-                href={`/ziele?entity=kr&id=${c.krId}` as never}
+                href={`/strategy?entity=kr&id=${c.krId}` as never}
                 className="text-[10px] text-muted-foreground hover:text-foreground hover:underline"
                 title="Im Ziele-Modul oeffnen"
               >
