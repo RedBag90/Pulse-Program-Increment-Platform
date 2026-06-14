@@ -1430,6 +1430,12 @@ async function main() {
     // §Seed-Refinement „1 Epic = 1 KPI": eineindeutige bindung zwischen
     // epic und kpi, damit der erzeugte mehrwert pro epic nur EINMAL
     // gezaehlt wird. weight-splits + zweit-kpis sind raus.
+    //
+    // Der KPI-Name kombiniert Metrik (aus dem template) + Epic-Titel —
+    // sonst hatten mehrere Epics dieselbe „Conversion rate"-Bezeichnung
+    // (Schema-FK ist 1:1, aber die UI in /controlling/kpi-coverage zeigt
+    // den Namen und sieht dann nach Doppelung aus). `pickKpis()` im V2-
+    // Ziele-Block matched weiterhin via Substring auf die Metrik.
     const tpl = kpiTemplates[i % kpiTemplates.length]!;
     const delta = (tpl.target - tpl.baseline) / 6;
     const measurements = Array.from({ length: 6 }, (_, m) => ({
@@ -1438,11 +1444,12 @@ async function main() {
         .slice(0, 10),
       value: round2(tpl.baseline + delta * m * (0.6 + (m % 3) * 0.15)),
     }));
+    const kpiName = `${tpl.name} — ${epic.spec.title}`;
     await prisma.kpi.create({
       data: {
         tenantId,
         initiativeId: epic.id,
-        name: tpl.name,
+        name: kpiName,
         unit: tpl.unit,
         baseline: tpl.baseline.toString(),
         target: tpl.target.toString(),
