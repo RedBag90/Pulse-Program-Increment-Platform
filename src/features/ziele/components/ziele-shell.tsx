@@ -1,6 +1,8 @@
 import type { ZieleModel } from "@/server/views/ziele-view";
 import { ZieleSubTabs } from "./ziele-sub-tabs";
 import { StrategyTreeView } from "./strategy-tree-view";
+import { StrategySankeyView } from "./strategy-sankey-view";
+import { StrategyLayoutToggle, type StrategyLayout } from "./strategy-layout-toggle";
 import { ZieleEditDrawer } from "./ziele-edit-drawer";
 import { OkrBoardView } from "./okr-board-view";
 import { MoneySheetView } from "./money-sheet-view";
@@ -15,9 +17,10 @@ import { PflegeView } from "./pflege-view";
  */
 interface Props {
   model: ZieleModel;
+  layout: StrategyLayout;
 }
 
-export function ZieleShell({ model }: Props) {
+export function ZieleShell({ model, layout }: Props) {
   const { tab, visions, themes, tenantTrio, permissions } = model;
 
   return (
@@ -44,7 +47,20 @@ export function ZieleShell({ model }: Props) {
       </div>
 
       {tab === "strategie" && (
-        <StrategyTreeView visions={visions} themes={themes} canEdit={permissions.canEditStrategy} />
+        <div className="space-y-3">
+          <div className="flex items-center justify-end">
+            <StrategyLayoutToggle active={layout} />
+          </div>
+          {layout === "tree" ? (
+            <StrategyTreeView
+              visions={visions}
+              themes={themes}
+              canEdit={permissions.canEditStrategy}
+            />
+          ) : (
+            <StrategySankeyView themes={themes} />
+          )}
+        </div>
       )}
       {tab === "okrs" && <OkrBoardView themes={themes} canEdit={permissions.canEditStrategy} />}
       {tab === "money" && <MoneySheetView themes={themes} />}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ZieleTreeTheme } from "@/server/views/ziele-view";
+import { MoneyExportButton } from "./money-export-button";
 
 /**
  * Money-Sheet (Konzept §4.3 / V8). Strategic Investment Sheet: pro
@@ -38,6 +39,19 @@ export function MoneySheetView({ themes }: Props) {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-end">
+        <MoneyExportButton
+          rows={sorted.map((t) => ({
+            title: t.title,
+            kind: t.kind,
+            budget: t.budgetPlanned ?? 0,
+            planned: t.trio.planned,
+            realized: t.trio.realized,
+            runRate: t.trio.runRate,
+            roi: t.budgetPlanned && t.budgetPlanned > 0 ? t.trio.runRate / t.budgetPlanned : null,
+          }))}
+        />
+      </div>
       <div className="overflow-x-auto rounded-lg border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
