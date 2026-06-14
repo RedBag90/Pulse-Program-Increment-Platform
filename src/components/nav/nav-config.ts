@@ -136,6 +136,12 @@ export const NAV_GROUPS: NavGroup[] = [
         practice: "portfolioLevel",
       },
       {
+        href: "/controlling/kpi-coverage",
+        labelKey: "kpiCoverage",
+        icon: Calculator,
+        capability: "target.manage",
+      },
+      {
         href: "/controlling/budgeting",
         labelKey: "participatoryBudgeting",
         icon: Wallet,

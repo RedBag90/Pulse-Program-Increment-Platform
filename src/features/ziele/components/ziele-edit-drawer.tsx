@@ -16,15 +16,12 @@ import {
   deleteKeyResultAction,
   createVisionAction,
   updateVisionAction,
-  bindKpiAction,
-  unbindKpiAction,
   linkEpicAction,
   unlinkEpicAction,
 } from "@/features/ziele/actions/ziele";
 import type {
   ZieleEpicLibraryEntry,
   ZieleEpicLink,
-  ZieleKpiLibraryEntry,
   ZieleKrContribution,
 } from "@/server/views/ziele-view";
 
@@ -639,227 +636,77 @@ function KeyResultPane({
   return (
     <div className="space-y-5">
       {formNode}
-      {/* prettier-ignore */}
       {!isNew && id && kr && (
         <div className="rounded-lg border bg-muted/10 p-4">
-          <KrKpiSection
-            keyResultId={id}
-            contributions={kr.contributions}
-            library={model.kpiLibrary}
-            canEdit={canEdit}
-          />
+          <KpiBindingsReadOnly contributions={kr.contributions} krId={id} />
         </div>
       )}
     </div>
   );
 }
 
-// ── KR ↔ KPI Bindungen (V5) ──────────────────────────────────────────
+// ── KR ↔ KPI Bindungen (read-only Anzeige; Pflege im Controlling) ─────
 
-function KrKpiSection({
-  keyResultId,
+function KpiBindingsReadOnly({
   contributions,
-  library,
-  canEdit,
+  krId,
 }: {
-  keyResultId: string;
   contributions: ZieleKrContribution[];
-  library: ZieleKpiLibraryEntry[];
-  canEdit: boolean;
+  krId: string;
 }) {
-  const boundIds = new Set(contributions.map((c) => c.kpiId));
-  const available = library.filter((k) => !boundIds.has(k.id));
   const weightSum = contributions.reduce(
     (s, c) => s + (Number.isFinite(c.weight) ? c.weight : 0),
     0,
   );
-
   return (
-    <section className="space-y-3">
+    <section className="space-y-2">
       <header className="flex items-baseline justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           KPI-Bindungen
         </h3>
-        <span
-          className={`text-[11px] tabular-nums ${
-            Math.abs(weightSum - 1) < 0.001 ? "text-emerald-600" : "text-amber-600"
-          }`}
-          title="Soll-Summe 100 %"
+        <a
+          href={`/controlling/kpi-coverage#kr-${krId}`}
+          className="text-[11px] text-primary hover:underline"
         >
-          Σ Weights {(weightSum * 100).toFixed(0)} %
-        </span>
+          Im Controlling pflegen →
+        </a>
       </header>
-
-      {contributions.length === 0 && (
-        <p className="text-xs text-muted-foreground">Noch keine KPI gebunden.</p>
-      )}
-
-      <ul className="space-y-2">
-        {contributions.map((c) => (
-          <ContributionRow key={c.kpiId} keyResultId={keyResultId} c={c} canEdit={canEdit} />
-        ))}
-      </ul>
-
-      {canEdit && available.length > 0 && (
-        <PickerRow keyResultId={keyResultId} options={available} />
-      )}
-      {canEdit && available.length === 0 && (
-        <p className="text-[11px] text-muted-foreground">Alle Tenant-KPIs sind bereits gebunden.</p>
+      {contributions.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Noch keine KPI gebunden — Bindung im Controlling-Modul.
+        </p>
+      ) : (
+        <>
+          <ul className="space-y-1">
+            {contributions.map((c) => (
+              <li
+                key={c.kpiId}
+                className="flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 text-xs"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{c.kpiName}</p>
+                  <p className="truncate text-[10px] text-muted-foreground">
+                    Epic · {c.epicTitle} · Weight {(c.weight * 100).toFixed(0)} %
+                  </p>
+                </div>
+                <span className="text-[10px] tabular-nums text-muted-foreground">
+                  {c.achievement != null
+                    ? `${Math.round(c.achievement * 100)}% · €${Math.round(c.contributionRealized).toLocaleString("de-DE")}`
+                    : "—"}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p
+            className={`text-right text-[10px] tabular-nums ${
+              Math.abs(weightSum - 1) < 0.001 ? "text-emerald-600" : "text-amber-600"
+            }`}
+          >
+            Σ Weights {(weightSum * 100).toFixed(0)} %
+          </p>
+        </>
       )}
     </section>
-  );
-}
-
-function ContributionRow({
-  keyResultId,
-  c,
-  canEdit,
-}: {
-  keyResultId: string;
-  c: ZieleKrContribution;
-  canEdit: boolean;
-}) {
-  const [bindState, bindRun, bindPending] = useActionState(bindKpiAction, {});
-  const [unbindState, unbindRun, unbindPending] = useActionState(unbindKpiAction, {});
-  const pending = bindPending || unbindPending;
-  const err = bindState.error || unbindState.error;
-
-  function rebind(fd: FormData) {
-    fd.set("keyResultId", keyResultId);
-    fd.set("kpiId", c.kpiId);
-    startTransition(() => bindRun(fd));
-  }
-
-  function unbind() {
-    if (!confirm(`„${c.kpiName}" entkoppeln?`)) return;
-    const fd = new FormData();
-    fd.set("keyResultId", keyResultId);
-    fd.set("kpiId", c.kpiId);
-    startTransition(() => unbindRun(fd));
-  }
-
-  return (
-    <li className="rounded-md border bg-card p-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium">{c.kpiName}</p>
-          <p className="truncate text-[10px] text-muted-foreground">Epic · {c.epicTitle}</p>
-        </div>
-        <span className="text-[10px] text-muted-foreground tabular-nums">
-          {c.achievement != null
-            ? `${Math.round(c.achievement * 100)}% · €${Math.round(c.contributionRealized).toLocaleString("de-DE")}`
-            : "—"}
-        </span>
-      </div>
-      <form action={rebind} className="mt-2 flex items-center gap-2">
-        <label className="flex-1">
-          <span className="block text-[10px] uppercase text-muted-foreground">Weight</span>
-          <input
-            name="weight"
-            type="number"
-            step="0.05"
-            min={0}
-            max={1}
-            defaultValue={c.weight}
-            disabled={!canEdit || pending}
-            className="h-7 w-full rounded-md border bg-background px-2 text-xs tabular-nums"
-          />
-        </label>
-        <label className="flex-1">
-          <span className="block text-[10px] uppercase text-muted-foreground">€/Unit Override</span>
-          <input
-            name="valuePerUnitOverride"
-            type="number"
-            step="any"
-            defaultValue={c.valuePerUnitOverride ?? ""}
-            placeholder="—"
-            disabled={!canEdit || pending}
-            className="h-7 w-full rounded-md border bg-background px-2 text-xs tabular-nums"
-          />
-        </label>
-        {canEdit && (
-          <button
-            type="submit"
-            disabled={pending}
-            className="h-7 rounded-md bg-primary px-2 text-[11px] font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            Speichern
-          </button>
-        )}
-        {canEdit && (
-          <button
-            type="button"
-            onClick={unbind}
-            disabled={pending}
-            className="h-7 rounded-md border px-2 text-[11px] text-destructive hover:bg-destructive/10 disabled:opacity-50"
-          >
-            Entfernen
-          </button>
-        )}
-      </form>
-      {err && <p className="mt-1 text-[10px] text-destructive">{err}</p>}
-    </li>
-  );
-}
-
-function PickerRow({
-  keyResultId,
-  options,
-}: {
-  keyResultId: string;
-  options: ZieleKpiLibraryEntry[];
-}) {
-  const [state, run, pending] = useActionState(bindKpiAction, {});
-
-  function submit(fd: FormData) {
-    fd.set("keyResultId", keyResultId);
-    if (!fd.get("weight")) fd.set("weight", "1");
-    startTransition(() => run(fd));
-  }
-
-  return (
-    <form
-      action={submit}
-      className="flex items-center gap-2 rounded-md border border-dashed bg-card/50 p-2"
-    >
-      <select
-        name="kpiId"
-        required
-        defaultValue=""
-        disabled={pending}
-        className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs"
-      >
-        <option value="" disabled>
-          + KPI binden …
-        </option>
-        {options.map((k) => (
-          <option key={k.id} value={k.id}>
-            {k.name} · {k.epicTitle}
-            {k.valuePerUnit != null ? ` · €${k.valuePerUnit}/Unit` : ""}
-          </option>
-        ))}
-      </select>
-      <input
-        name="weight"
-        type="number"
-        step="0.05"
-        min={0}
-        max={1}
-        defaultValue="1"
-        disabled={pending}
-        className="h-8 w-20 rounded-md border bg-background px-2 text-xs tabular-nums"
-        placeholder="Weight"
-        title="Weight 0..1"
-      />
-      <button
-        type="submit"
-        disabled={pending}
-        className="h-8 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-      >
-        Hinzufuegen
-      </button>
-      {state.error && <span className="text-[10px] text-destructive">{state.error}</span>}
-    </form>
   );
 }
 
