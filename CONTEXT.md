@@ -72,10 +72,14 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
 - **Page-model** — `src/server/views/*`: pure server-side assembly that turns
   loaded rows into the render-ready props a page passes to its client
   components (filter, reshape, serialise Date→ISO). `buildPlanningModel`
-  (PI planning) and `buildCockpitModel` (transformation cockpit) are the current
-  ones; the page becomes load → build → render and the assembly is tested at the
-  builder seam. Distinct from a domain read-model (e.g. Portfolio Series): a
-  page-model is presentation glue, not business computation.
+  (PI planning), `buildCockpitModel` (transformation cockpit),
+  `loadStrategyTree` (Themes + KRs + tenant trio for `/ziele` and `/strategy`)
+  and `loadKpiInventory` (KPI library + KR index for `/controlling/kpi-coverage`)
+  are the current ones; the page becomes load → build → render and the assembly
+  is tested at the builder seam. Distinct from a domain read-model (e.g.
+  Portfolio Series): a page-model is presentation glue, not business
+  computation. Each page-model owns the queries for _its_ page only — a single
+  god-loader is a smell.
 
 ## State axes on an Initiative (independent — do not conflate)
 
@@ -96,6 +100,28 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   any Initiative kind, distinct from the pure state machine in
   `initiative-status.ts`. Epic review is decided by the **VMO**; Feature review
   by the **RTE**.
+
+## Strategy & KPI bindings
+
+- **Theme (OKR)** — the top OKR-level entity in the strategy module. Stored as
+  `Objective` row in the schema (the legacy `StrategicTheme` table persists as a
+  hidden default-anchor after the 2026-06-15 hierarchy simplification). Carries
+  title, narrative, period (YYYY-Qn), confidence (1–5), status, and rolls up to
+  a tenant trio.
+- **Key Result (KR)** — measurable child of a Theme. Either `formula="manual"`
+  (own baseline/target/current) or `formula="auto_from_kpi"` (€-rollup via
+  bound Epic-KPIs).
+- **Epic-KPI** — the single success metric per Epic (1 Epic = 1 KPI, enforced
+  at seed). Carries `valuePerUnit` (€ per natural unit of improvement
+  baseline→target), set by Controlling.
+- **Pyramid binding** — the domain invariant for KR↔KPI bindings: every KPI
+  feeds **at most one** Key Result. Combined with 1 Epic = 1 KPI, this gives a
+  strict pyramid Epic → KPI → ≤ 1 KR, so every euro of realized benefit is
+  countable exactly once at every level of the rollup. Enforced at three seams:
+  the `kpi-binding-invariant` domain module (validation), the `setKpiBinding`
+  service (atomic re-bind), and a `UNIQUE(kpiId)` constraint on
+  `KrKpiContribution` (DB backstop). No new caller may mutate the bridge table
+  without going through the domain module.
 
 ## Authorization
 
