@@ -22,6 +22,18 @@ import {
 
 export type ZieleSubTab = "strategie" | "okrs" | "money" | "pflege";
 
+export interface ZieleKrContribution {
+  kpiId: string;
+  kpiName: string;
+  epicTitle: string;
+  weight: number;
+  valuePerUnitOverride: number | null;
+  /** Achievement-Anteil 0..1 zum Anzeigen im Picker (current vs. target). */
+  achievement: number | null;
+  /** € Beitrag dieses KPI zum KR (Realized). */
+  contributionRealized: number;
+}
+
 export interface ZieleTreeKeyResult {
   id: string;
   title: string;
@@ -34,6 +46,29 @@ export interface ZieleTreeKeyResult {
   trio: RollupTrio;
   /** Wie viele KPIs an diesen KR gebunden sind. */
   kpiCount: number;
+  /** Liste aller gebundenen KPIs inkl. Weight + €-Beitrag (KPI-Tab). */
+  contributions: ZieleKrContribution[];
+}
+
+export interface ZieleKpiLibraryEntry {
+  id: string;
+  name: string;
+  unit: string | null;
+  valuePerUnit: number | null;
+  epicId: string;
+  epicTitle: string;
+}
+
+export interface ZieleEpicLink {
+  epicId: string;
+  epicTitle: string;
+  epicStatus: string;
+}
+
+export interface ZieleEpicLibraryEntry {
+  id: string;
+  title: string;
+  status: string;
 }
 
 export interface ZieleTreeObjective {
@@ -63,6 +98,8 @@ export interface ZieleTreeTheme {
   trio: RollupTrio;
   /** Direkt am Theme verlinkte Epic-Anzahl (n:m via ThemeEpicLink). */
   directEpicCount: number;
+  /** Verlinkte Epics (Theme-Epic-Tab im Slide-Over). */
+  linkedEpics: ZieleEpicLink[];
 }
 
 export interface ZieleTreeVision {
@@ -96,6 +133,10 @@ export interface ZieleModel {
   /** Period-Filter (z. B. „2026-Q2") oder `null` fuer „Alle". */
   period: string | null;
   permissions: ZielePermissions;
+  /** Alle Tenant-KPIs (fuer KPI-Picker im KR-Slide-Over). */
+  kpiLibrary: ZieleKpiLibraryEntry[];
+  /** Alle Tenant-Epics (fuer Theme-Epic-Picker). */
+  epicLibrary: ZieleEpicLibraryEntry[];
 }
 
 export interface LoadZieleInput {
@@ -137,10 +178,12 @@ export async function loadZieleModel(
                   kpi: {
                     select: {
                       id: true,
+                      name: true,
                       baseline: true,
                       target: true,
                       measurements: true,
                       valuePerUnit: true,
+                      initiative: { select: { id: true, title: true } },
                     },
                   },
                 },
@@ -150,6 +193,11 @@ export async function loadZieleModel(
         },
       },
       _count: { select: { epicLinks: true } },
+      epicLinks: {
+        include: {
+          epic: { select: { id: true, title: true, status: true } },
+        },
+      },
     },
   });
 
@@ -186,6 +234,27 @@ export async function loadZieleModel(
           k.formula === "auto_from_kpi"
             ? keyResultTrio(contributions, kpisById, share)
             : manualKrTrio(k.baseline, k.target, k.current, share);
+
+        const contributionDetails: ZieleKrContribution[] = k.kpiContributions.map((c) => {
+          const kpi = kpisById.get(c.kpiId);
+          const span = (kpi?.target ?? 0) - (kpi?.baseline ?? 0);
+          const ach =
+            kpi && kpi.current != null && span !== 0
+              ? Math.max(0, Math.min(1, ((kpi.current ?? 0) - (kpi.baseline ?? 0)) / span))
+              : null;
+          const vpu = toFloat(c.valuePerUnitOverride) ?? kpi?.valuePerUnit ?? 0;
+          const realized = ach != null && vpu ? ach * vpu * span * Number(c.weight) * share : 0;
+          return {
+            kpiId: c.kpiId,
+            kpiName: c.kpi.name,
+            epicTitle: c.kpi.initiative.title,
+            weight: Number(c.weight),
+            valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
+            achievement: ach,
+            contributionRealized: realized,
+          };
+        });
+
         return {
           id: k.id,
           title: k.title,
@@ -197,6 +266,7 @@ export async function loadZieleModel(
           ownerId: k.ownerId,
           trio,
           kpiCount: k.kpiContributions.length,
+          contributions: contributionDetails,
         };
       });
       return {
@@ -225,6 +295,11 @@ export async function loadZieleModel(
       objectives,
       trio: sumTrios(objectives.map((o) => o.trio)),
       directEpicCount: t._count.epicLinks,
+      linkedEpics: t.epicLinks.map((l) => ({
+        epicId: l.epic.id,
+        epicTitle: l.epic.title,
+        epicStatus: l.epic.status,
+      })),
     };
   });
 
@@ -264,6 +339,39 @@ export async function loadZieleModel(
   // zurueckfallen (gleiche Audience: TENANT_ADMIN + LPM).
   const canEditKpiValuation = canEditStrategy;
 
+  // 8) KPI-Bibliothek (Tenant-weit) fuer den Picker im KR-Slide-Over
+  const kpiRows = await db.kpi.findMany({
+    where: { tenantId },
+    select: {
+      id: true,
+      name: true,
+      unit: true,
+      valuePerUnit: true,
+      initiative: { select: { id: true, title: true } },
+    },
+    orderBy: [{ name: "asc" }],
+  });
+  const kpiLibrary: ZieleKpiLibraryEntry[] = kpiRows.map((k) => ({
+    id: k.id,
+    name: k.name,
+    unit: k.unit,
+    valuePerUnit: toFloat(k.valuePerUnit),
+    epicId: k.initiative.id,
+    epicTitle: k.initiative.title,
+  }));
+
+  // 9) Epic-Bibliothek (Tenant-weit, level=0) fuer den Theme-Epic-Picker
+  const epicRows = await db.initiative.findMany({
+    where: { tenantId, level: 0 },
+    select: { id: true, title: true, status: true },
+    orderBy: [{ title: "asc" }],
+  });
+  const epicLibrary: ZieleEpicLibraryEntry[] = epicRows.map((e) => ({
+    id: e.id,
+    title: e.title,
+    status: e.status,
+  }));
+
   return {
     visions,
     themes,
@@ -271,6 +379,8 @@ export async function loadZieleModel(
     tab,
     period,
     permissions: { canEditStrategy, canEditKpiValuation },
+    kpiLibrary,
+    epicLibrary,
   };
 }
 

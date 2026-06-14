@@ -31,8 +31,15 @@ export default async function ZielePage({ searchParams }: PageProps) {
   const tab = parseTab(typeof params.tab === "string" ? params.tab : undefined);
   const period = typeof params.period === "string" ? params.period : undefined;
 
+  // OKR-Board braucht alle Quartale gleichzeitig — Period-Filter nur auf
+  // Strategie + Money. (Konzept §4.2)
+  const effectivePeriod = tab === "okrs" ? undefined : period;
+
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const model = await loadZieleModel(db, principal, { tab, ...(period ? { period } : {}) });
+  const model = await loadZieleModel(db, principal, {
+    tab,
+    ...(effectivePeriod ? { period: effectivePeriod } : {}),
+  });
 
   return (
     <Suspense fallback={null}>

@@ -28,7 +28,8 @@ export type RevalidationResource =
   | "timeline"
   | "story"
   | "impediment"
-  | "dependency";
+  | "dependency"
+  | "ziele";
 
 const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   art: ["/structure", "/art/[artId]", "/art/[artId]/settings", "/value-streams/[id]"],
@@ -72,6 +73,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   story: ["/feature/[featureId]", "/team/[teamId]"],
   impediment: ["/art/[artId]/impediments"],
   dependency: ["/feature/[featureId]", "/pi/[piId]/dependencies"],
+  ziele: ["/ziele"],
 };
 
 /** Revalidates every route registered for the given resource. */

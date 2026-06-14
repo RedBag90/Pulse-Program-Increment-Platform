@@ -69,8 +69,8 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: "goals",
     items: [
-      { href: "/transformation", labelKey: "goalOverview", icon: LayoutDashboard, exact: true },
-      { href: "/transformation/ziele", labelKey: "goalManagement", icon: Goal },
+      { href: "/ziele", labelKey: "goalOverview", icon: LayoutDashboard, exact: true },
+      { href: "/transformation", labelKey: "goalManagement", icon: Goal },
     ],
   },
   {

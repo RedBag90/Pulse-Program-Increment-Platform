@@ -1,6 +1,10 @@
 import type { ZieleModel } from "@/server/views/ziele-view";
 import { ZieleSubTabs } from "./ziele-sub-tabs";
 import { StrategyTreeView } from "./strategy-tree-view";
+import { ZieleEditDrawer } from "./ziele-edit-drawer";
+import { OkrBoardView } from "./okr-board-view";
+import { MoneySheetView } from "./money-sheet-view";
+import { PflegeView } from "./pflege-view";
 
 /**
  * Ziele-Modul-Shell (Konzept §1). Vier Sub-Tabs (Strategie · OKRs ·
@@ -14,7 +18,7 @@ interface Props {
 }
 
 export function ZieleShell({ model }: Props) {
-  const { tab, visions, themes, tenantTrio } = model;
+  const { tab, visions, themes, tenantTrio, permissions } = model;
 
   return (
     <div className="space-y-4 p-6">
@@ -39,10 +43,14 @@ export function ZieleShell({ model }: Props) {
         />
       </div>
 
-      {tab === "strategie" && <StrategyTreeView visions={visions} themes={themes} />}
-      {tab === "okrs" && <Placeholder name="OKRs (Quartal-Board)" />}
-      {tab === "money" && <Placeholder name="Money (Strategic Investment Sheet)" />}
-      {tab === "pflege" && <Placeholder name="Pflege (KPI-Bibliothek + valuePerUnit)" />}
+      {tab === "strategie" && (
+        <StrategyTreeView visions={visions} themes={themes} canEdit={permissions.canEditStrategy} />
+      )}
+      {tab === "okrs" && <OkrBoardView themes={themes} canEdit={permissions.canEditStrategy} />}
+      {tab === "money" && <MoneySheetView themes={themes} />}
+      {tab === "pflege" && <PflegeView model={model} />}
+
+      <ZieleEditDrawer model={model} canEdit={permissions.canEditStrategy} />
     </div>
   );
 }
@@ -71,17 +79,6 @@ function TenantRollup({
         <span className="text-muted-foreground">Run-Rate</span>{" "}
         <span className="font-medium tabular-nums">{fmt(runRate)}</span>
       </span>
-    </div>
-  );
-}
-
-function Placeholder({ name }: { name: string }) {
-  return (
-    <div className="grid h-[420px] place-items-center rounded-lg border border-dashed bg-muted/10">
-      <div className="text-center">
-        <p className="font-medium">{name}</p>
-        <p className="text-xs text-muted-foreground">Skelett — kommt mit der naechsten Phase.</p>
-      </div>
     </div>
   );
 }
