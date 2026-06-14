@@ -135,7 +135,7 @@ export const NAV_GROUPS: NavGroup[] = [
         practice: "portfolioLevel",
       },
       {
-        href: "/portfolio/budgeting",
+        href: "/controlling/budgeting",
         labelKey: "participatoryBudgeting",
         icon: Wallet,
         capability: "budget.manage",

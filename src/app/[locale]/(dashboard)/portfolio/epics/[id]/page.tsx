@@ -4,6 +4,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getEpic } from "@/server/services/epic";
 import { loadBreakdownLayout } from "@/server/services/breakdown-layout";
 import { EpicGoalsBadge } from "@/features/portfolio/components/epic-goals-badge";
+import { EpicRealizedTile } from "@/features/portfolio/components/epic-realized-tile";
 import { loadEpicGoalContributions } from "@/server/views/epic-goal-contributions";
 import { listInitiativeHistory } from "@/server/services/initiative";
 import { listKpis } from "@/server/services/kpi";
@@ -423,6 +424,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       >
         {activeTab === "overview" && (
           <div className="space-y-4">
+            <EpicRealizedTile kpis={kpis} />
             <EpicGoalsBadge contributions={goalContributions} />
             <EpicOverviewTab
               epic={epic}

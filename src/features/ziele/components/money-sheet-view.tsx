@@ -39,6 +39,13 @@ export function MoneySheetView({ themes }: Props) {
 
   return (
     <div className="space-y-4">
+      <p className="text-[11px] text-muted-foreground">
+        Top-down pro Theme aggregiert (KR-gebundene Epic-KPIs). Bottom-up je Epic siehst du im{" "}
+        <Link href={"/portfolio/dashboard" as never} className="text-primary hover:underline">
+          Portfolio-Dashboard
+        </Link>
+        .
+      </p>
       <div className="flex items-center justify-end">
         <MoneyExportButton
           rows={sorted.map((t) => ({

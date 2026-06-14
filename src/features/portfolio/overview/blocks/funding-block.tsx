@@ -95,7 +95,7 @@ export function FundingBlock({ data }: { data: PortfolioOverview }) {
       )}
 
       <Link
-        href="/portfolio/budgeting"
+        href="/controlling/budgeting"
         className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
       >
         Participatory Budget <ArrowRight className="size-3" />
@@ -111,7 +111,7 @@ function EmptyFundingState({ data }: { data: PortfolioOverview }) {
     return (
       <p className="text-sm text-muted-foreground">
         Noch keine Budgets verteilt.{" "}
-        <Link href="/portfolio/budgeting" className="text-primary hover:underline">
+        <Link href="/controlling/budgeting" className="text-primary hover:underline">
           Budgeting öffnen →
         </Link>
       </p>
@@ -120,7 +120,7 @@ function EmptyFundingState({ data }: { data: PortfolioOverview }) {
   return (
     <p className="text-sm text-muted-foreground">
       Für {data.funding.currentPeriodKey} ist noch kein Pool gesetzt.{" "}
-      <Link href="/portfolio/budgeting" className="text-primary hover:underline">
+      <Link href="/controlling/budgeting" className="text-primary hover:underline">
         Pool eintragen →
       </Link>
     </p>

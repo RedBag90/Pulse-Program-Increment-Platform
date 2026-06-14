@@ -53,7 +53,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/portfolio/epics",
     "/portfolio/epics/[id]",
     "/portfolio/dashboard",
-    "/portfolio/budgeting",
+    "/controlling/budgeting",
   ],
   valueStream: ["/structure", "/value-streams/[id]"],
   pi: ["/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi/[piId]/objectives", "/pi-planning"],
