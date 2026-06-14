@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ZieleModel } from "@/server/views/ziele-view";
+import { ValuePerUnitInput } from "@/features/controlling/components/value-per-unit-input";
 
 /**
  * Pflege-Tab (Konzept §4.4 / V9). KPI-Bibliothek + KR-Coverage. Phase-1
@@ -11,9 +12,10 @@ import type { ZieleModel } from "@/server/views/ziele-view";
  */
 interface Props {
   model: ZieleModel;
+  canEdit: boolean;
 }
 
-export function PflegeView({ model }: Props) {
+export function PflegeView({ model, canEdit }: Props) {
   const { kpiLibrary, themes } = model;
 
   // KR-Coverage: alle KRs durchlaufen, jene ohne Bindung sammeln
@@ -84,11 +86,13 @@ export function PflegeView({ model }: Props) {
                     <span className="text-muted-foreground">{k.unit ?? "—"}</span>
                   </Td>
                   <Td align="right" className="tabular-nums">
-                    {k.valuePerUnit == null ? (
-                      <span className="text-amber-600">—</span>
-                    ) : (
-                      `€${k.valuePerUnit.toLocaleString("de-DE")}`
-                    )}
+                    <ValuePerUnitInput
+                      kind="kpi"
+                      id={k.id}
+                      value={k.valuePerUnit}
+                      canEdit={canEdit}
+                      {...(k.unit ? { unitLabel: `€/${k.unit}` } : {})}
+                    />
                   </Td>
                   <Td>
                     <Link

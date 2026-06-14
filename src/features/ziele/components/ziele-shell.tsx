@@ -64,7 +64,7 @@ export function ZieleShell({ model, layout }: Props) {
       )}
       {tab === "okrs" && <OkrBoardView themes={themes} canEdit={permissions.canEditStrategy} />}
       {tab === "money" && <MoneySheetView themes={themes} />}
-      {tab === "pflege" && <PflegeView model={model} />}
+      {tab === "pflege" && <PflegeView model={model} canEdit={permissions.canEditKpiValuation} />}
 
       <ZieleEditDrawer model={model} canEdit={permissions.canEditStrategy} />
     </div>

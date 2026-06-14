@@ -1,3 +1,6 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ZieleTreeTheme } from "@/server/views/ziele-view";
 
@@ -9,9 +12,9 @@ import type { ZieleTreeTheme } from "@/server/views/ziele-view";
  * (≥ 70 % healthy, sonst gepunktet als Drift-Hinweis). Klick auf einen
  * Knoten oeffnet den Edit-Drawer (URL-State des Drawers).
  *
- * Min-€-Slider und Hover-Path-Highlighting kommen mit der naechsten
- * Welle — fuer V1 reicht der statische €-Fluss als visuelle
- * Investment-Story (Andrea/Stefan, V12 Klick-Pfade).
+ * B3-Polish (Konzept §4.1):
+ *   - **Min-€-Slider** filtert kleine Knoten (rechnet pxPerEuro neu)
+ *   - **Hover-Path-Highlight** dimmt alles ausserhalb des Theme-Pfades
  */
 interface Props {
   themes: ZieleTreeTheme[];
@@ -21,7 +24,6 @@ const COLUMN_X = [40, 280, 540, 800];
 const COLUMN_WIDTH = 160;
 const NODE_GAP = 6;
 const MIN_NODE_HEIGHT = 14;
-// Pixel pro Euro Planned — adaptiv unten gesetzt
 const TARGET_TOTAL_HEIGHT = 640;
 
 interface SankeyNode {
@@ -31,43 +33,54 @@ interface SankeyNode {
   color: string;
   planned: number;
   realized: number;
+  themeIndex: number;
   href?: string;
 }
 
 interface SankeyLink {
-  fromIndex: number;
-  toIndex: number;
   fromY: number;
   toY: number;
   height: number;
   color: string;
   drift: boolean;
+  themeIndex: number;
 }
 
 export function StrategySankeyView({ themes }: Props) {
-  if (themes.length === 0) {
-    return (
-      <div className="grid h-[300px] place-items-center rounded-lg border bg-muted/10 text-sm text-muted-foreground">
-        Noch keine Themes — wechsle zum Tree-Layout und leg eines an.
-      </div>
-    );
-  }
+  const [hoverTheme, setHoverTheme] = useState<number | null>(null);
+  const [minEur, setMinEur] = useState(0);
 
-  // 1) Themes als Layer-0 Nodes
-  const themeNodes: SankeyNode[] = themes.map((t) => ({
-    id: t.id,
-    label: t.title,
-    sublabel: t.kind,
-    color: t.color,
-    planned: t.trio.planned,
-    realized: t.trio.realized,
-    href: `/ziele?entity=theme&id=${t.id}`,
-  }));
+  // Schwellwert-Obergrenze: groesste Planned-€-Summe der Themes.
+  // Damit der Slider sinnvoll skaliert, statt 1 €-Schritte zu erlauben.
+  const sliderMax = useMemo(() => {
+    let m = 0;
+    for (const t of themes) m = Math.max(m, t.trio.planned);
+    return Math.max(m, 1);
+  }, [themes]);
 
-  // 2) Objectives als Layer-1 + zugehoeriges Theme merken
-  const objectiveNodes: Array<SankeyNode & { themeIndex: number }> = [];
+  // 1) Themes als Layer-0 Nodes (gefiltert nach minEur)
+  const themeNodes: SankeyNode[] = [];
   themes.forEach((t, ti) => {
+    if (t.trio.planned < minEur) return;
+    themeNodes.push({
+      id: t.id,
+      label: t.title,
+      sublabel: t.kind,
+      color: t.color,
+      planned: t.trio.planned,
+      realized: t.trio.realized,
+      themeIndex: ti,
+      href: `/ziele?entity=theme&id=${t.id}`,
+    });
+  });
+
+  // 2) Objectives — nur fuer noch sichtbare Themes
+  const visibleThemes = new Set(themeNodes.map((n) => n.themeIndex));
+  const objectiveNodes: Array<SankeyNode & { objKey: string }> = [];
+  themes.forEach((t, ti) => {
+    if (!visibleThemes.has(ti)) return;
     for (const o of t.objectives) {
+      if (o.trio.planned < minEur) continue;
       objectiveNodes.push({
         id: o.id,
         label: o.title,
@@ -75,18 +88,22 @@ export function StrategySankeyView({ themes }: Props) {
         color: t.color,
         planned: o.trio.planned,
         realized: o.trio.realized,
-        href: `/ziele?entity=objective&id=${o.id}`,
         themeIndex: ti,
+        href: `/ziele?entity=objective&id=${o.id}`,
+        objKey: o.id,
       });
     }
   });
 
-  // 3) Key Results als Layer-2 + Theme-Color durchreichen
-  const krNodes: Array<SankeyNode & { themeIndex: number; objIndex: number }> = [];
+  // 3) Key Results — Theme-Color durchreichen
+  const visibleObjectives = new Set(objectiveNodes.map((n) => n.objKey));
+  const krNodes: SankeyNode[] = [];
   themes.forEach((t, ti) => {
-    t.objectives.forEach((o) => {
-      const objIdx = objectiveNodes.findIndex((x) => x.id === o.id);
+    if (!visibleThemes.has(ti)) return;
+    for (const o of t.objectives) {
+      if (!visibleObjectives.has(o.id)) continue;
       for (const kr of o.keyResults) {
+        if (kr.trio.planned < minEur) continue;
         krNodes.push({
           id: kr.id,
           label: kr.title,
@@ -94,15 +111,25 @@ export function StrategySankeyView({ themes }: Props) {
           color: t.color,
           planned: kr.trio.planned,
           realized: kr.trio.realized,
-          href: `/ziele?entity=kr&id=${kr.id}`,
           themeIndex: ti,
-          objIndex: objIdx,
+          href: `/ziele?entity=kr&id=${kr.id}`,
         });
       }
-    });
+    }
   });
 
-  // 4) Per Layer einen einheitlichen Pixel/€-Maßstab bestimmen
+  if (themeNodes.length === 0) {
+    return (
+      <div className="space-y-3">
+        <Controls minEur={minEur} setMinEur={setMinEur} sliderMax={sliderMax} />
+        <div className="grid h-[300px] place-items-center rounded-lg border bg-muted/10 text-sm text-muted-foreground">
+          Keine Knoten ueber dieser Schwelle — Slider zurueckziehen oder im Tree-Layout pflegen.
+        </div>
+      </div>
+    );
+  }
+
+  // 4) pxPerEuro auf der gefilterten Menge neu berechnen
   const maxColumnSum = Math.max(
     sumPlanned(themeNodes),
     sumPlanned(objectiveNodes),
@@ -125,45 +152,50 @@ export function StrategySankeyView({ themes }: Props) {
   const objLayout = layoutColumn(objectiveNodes);
   const krLayout = layoutColumn(krNodes);
 
-  // 5) Links Theme→Objective + Objective→KR berechnen
-  // Strategie: jede Objective-Card erbt einen vertikalen „Slot" innerhalb
-  // ihres Themes — der Y-Offset ist proportional zur kumulativen Hoehe
-  // der vorigen Objectives desselben Themes.
+  // 5) Links: Slot-Position innerhalb des Eltern-Themes/Objectives kumulativ
   const themeYCursor = new Map<number, number>();
   const themeOLinks: SankeyLink[] = objLayout.map((o) => {
-    const t = themeLayout[o.themeIndex];
+    const tIdx = themeLayout.findIndex((t) => t.themeIndex === o.themeIndex);
+    const t = themeLayout[tIdx];
     if (!t) throw new Error("missing theme layout");
     const cursor = themeYCursor.get(o.themeIndex) ?? 0;
     const fromYTop = t.y + cursor;
     themeYCursor.set(o.themeIndex, cursor + o.h);
     return {
-      fromIndex: o.themeIndex,
-      toIndex: 0,
       fromY: fromYTop,
       toY: o.y,
       height: o.h,
       color: o.color,
       drift: o.planned > 0 && o.realized / o.planned < 0.7,
+      themeIndex: o.themeIndex,
     };
   });
 
+  // KR auf Objective abbilden — wir brauchen die Index-Suche auf objLayout
+  const objIndexById = new Map(objLayout.map((o, i) => [o.id, i]));
   const objYCursor = new Map<number, number>();
-  const objKrLinks: SankeyLink[] = krLayout.map((kr) => {
-    const o = objLayout[kr.objIndex];
-    if (!o) throw new Error("missing objective layout");
-    const cursor = objYCursor.get(kr.objIndex) ?? 0;
-    const fromYTop = o.y + cursor;
-    objYCursor.set(kr.objIndex, cursor + kr.h);
-    return {
-      fromIndex: kr.objIndex,
-      toIndex: 0,
-      fromY: fromYTop,
-      toY: kr.y,
-      height: kr.h,
-      color: kr.color,
-      drift: kr.planned > 0 && kr.realized / kr.planned < 0.7,
-    };
-  });
+  const objKrLinks: SankeyLink[] = krLayout
+    .map((kr) => {
+      // Welches Objective haengt am KR? Suche im Original-Tree.
+      const owning = findObjectiveOf(themes, kr.id);
+      if (!owning) return null;
+      const objIdx = objIndexById.get(owning.id);
+      if (objIdx == null) return null;
+      const o = objLayout[objIdx];
+      if (!o) return null;
+      const cursor = objYCursor.get(objIdx) ?? 0;
+      const fromYTop = o.y + cursor;
+      objYCursor.set(objIdx, cursor + kr.h);
+      return {
+        fromY: fromYTop,
+        toY: kr.y,
+        height: kr.h,
+        color: kr.color,
+        drift: kr.planned > 0 && kr.realized / kr.planned < 0.7,
+        themeIndex: kr.themeIndex,
+      };
+    })
+    .filter((x): x is SankeyLink => x !== null);
 
   const totalHeight =
     Math.max(
@@ -179,13 +211,19 @@ export function StrategySankeyView({ themes }: Props) {
       200,
     ) + 30;
 
+  const dim = (ti: number) => (hoverTheme == null || hoverTheme === ti ? 1 : 0.18);
+
   return (
     <div className="space-y-3">
+      <Controls minEur={minEur} setMinEur={setMinEur} sliderMax={sliderMax} />
       <p className="text-[11px] text-muted-foreground">
         Band-Dicke = € Planned · Fuellung dunkelt mit Realized · gepunktet = Run-Rate &lt; 70 %.
-        Klick auf einen Knoten oeffnet den Edit-Drawer.
+        Hover auf einen Knoten hebt den Theme-Pfad an; Slider blendet kleine Knoten aus.
       </p>
-      <div className="overflow-auto rounded-lg border bg-card p-4">
+      <div
+        className="overflow-auto rounded-lg border bg-card p-4"
+        onMouseLeave={() => setHoverTheme(null)}
+      >
         <svg
           viewBox={`0 0 960 ${totalHeight}`}
           className="block min-w-[960px] max-w-full"
@@ -196,7 +234,6 @@ export function StrategySankeyView({ themes }: Props) {
           <ColumnHeader x={COLUMN_X[1]!} label="OBJECTIVES" />
           <ColumnHeader x={COLUMN_X[2]!} label="KEY RESULTS" />
 
-          {/* Theme → Objective Baender */}
           {themeOLinks.map((l, i) => (
             <BandPath
               key={`to-${i}`}
@@ -207,9 +244,9 @@ export function StrategySankeyView({ themes }: Props) {
               h={l.height}
               color={l.color}
               drift={l.drift}
+              opacity={dim(l.themeIndex)}
             />
           ))}
-          {/* Objective → KR Baender */}
           {objKrLinks.map((l, i) => (
             <BandPath
               key={`ok-${i}`}
@@ -220,20 +257,42 @@ export function StrategySankeyView({ themes }: Props) {
               h={l.height}
               color={l.color}
               drift={l.drift}
+              opacity={dim(l.themeIndex)}
             />
           ))}
 
-          {/* Theme-Nodes */}
           {themeLayout.map((n) => (
-            <NodeRect key={n.id} x={COLUMN_X[0]!} y={n.y} h={n.h} node={n} />
+            <NodeRect
+              key={n.id}
+              x={COLUMN_X[0]!}
+              y={n.y}
+              h={n.h}
+              node={n}
+              opacity={dim(n.themeIndex)}
+              onHover={setHoverTheme}
+            />
           ))}
-          {/* Objective-Nodes */}
           {objLayout.map((n) => (
-            <NodeRect key={n.id} x={COLUMN_X[1]!} y={n.y} h={n.h} node={n} />
+            <NodeRect
+              key={n.id}
+              x={COLUMN_X[1]!}
+              y={n.y}
+              h={n.h}
+              node={n}
+              opacity={dim(n.themeIndex)}
+              onHover={setHoverTheme}
+            />
           ))}
-          {/* KR-Nodes */}
           {krLayout.map((n) => (
-            <NodeRect key={n.id} x={COLUMN_X[2]!} y={n.y} h={n.h} node={n} />
+            <NodeRect
+              key={n.id}
+              x={COLUMN_X[2]!}
+              y={n.y}
+              h={n.h}
+              node={n}
+              opacity={dim(n.themeIndex)}
+              onHover={setHoverTheme}
+            />
           ))}
         </svg>
       </div>
@@ -241,11 +300,74 @@ export function StrategySankeyView({ themes }: Props) {
   );
 }
 
-function NodeRect({ x, y, h, node }: { x: number; y: number; h: number; node: SankeyNode }) {
+function Controls({
+  minEur,
+  setMinEur,
+  sliderMax,
+}: {
+  minEur: number;
+  setMinEur: (n: number) => void;
+  sliderMax: number;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-md border bg-card px-3 py-2 text-[11px]">
+      <label className="flex items-center gap-2">
+        <span className="text-muted-foreground">Min €</span>
+        <input
+          type="range"
+          min={0}
+          max={sliderMax}
+          step={Math.max(1, Math.round(sliderMax / 100))}
+          value={minEur}
+          onChange={(e) => setMinEur(Number(e.target.value))}
+          className="h-1 w-48 cursor-pointer accent-primary"
+        />
+        <span className="tabular-nums">€{Math.round(minEur).toLocaleString("de-DE")}</span>
+      </label>
+      {minEur > 0 && (
+        <button
+          type="button"
+          onClick={() => setMinEur(0)}
+          className="text-muted-foreground hover:text-foreground hover:underline"
+        >
+          zuruecksetzen
+        </button>
+      )}
+    </div>
+  );
+}
+
+function findObjectiveOf(themes: ZieleTreeTheme[], krId: string) {
+  for (const t of themes) {
+    for (const o of t.objectives) {
+      if (o.keyResults.some((kr) => kr.id === krId)) return o;
+    }
+  }
+  return null;
+}
+
+function NodeRect({
+  x,
+  y,
+  h,
+  node,
+  opacity,
+  onHover,
+}: {
+  x: number;
+  y: number;
+  h: number;
+  node: SankeyNode;
+  opacity: number;
+  onHover: (ti: number | null) => void;
+}) {
   const labelY = y + Math.min(14, h / 2 + 4);
   const sublabelY = labelY + 12;
   const content = (
-    <g>
+    <g
+      style={{ opacity, transition: "opacity 120ms ease" }}
+      onMouseEnter={() => onHover(node.themeIndex)}
+    >
       <rect x={x} y={y} width={COLUMN_WIDTH} height={h} rx={3} fill={node.color} opacity={0.85} />
       <rect
         x={x}
@@ -288,6 +410,7 @@ function BandPath({
   h,
   color,
   drift,
+  opacity,
 }: {
   x1: number;
   x2: number;
@@ -296,18 +419,20 @@ function BandPath({
   h: number;
   color: string;
   drift: boolean;
+  opacity: number;
 }) {
-  // Cubic Bezier zwischen den Y-Slots, beide Seiten gleich hoch
   const cx = (x1 + x2) / 2;
   const d = `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2} L${x2},${y2 + h} C${cx},${y2 + h} ${cx},${y1 + h} ${x1},${y1 + h} Z`;
+  const baseOpacity = drift ? 0.25 : 0.35;
   return (
     <path
       d={d}
       fill={color}
-      opacity={drift ? 0.25 : 0.35}
+      opacity={baseOpacity * opacity}
       strokeDasharray={drift ? "4 3" : undefined}
       stroke={drift ? color : "none"}
       strokeWidth={drift ? 1 : 0}
+      style={{ transition: "opacity 120ms ease" }}
     />
   );
 }

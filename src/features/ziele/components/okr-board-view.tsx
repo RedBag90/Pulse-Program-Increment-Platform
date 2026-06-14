@@ -1,14 +1,18 @@
+"use client";
+
+import { useRef, useState, useTransition, type MutableRefObject } from "react";
 import Link from "next/link";
 import type { ZieleTreeTheme, ZieleTreeObjective } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
+import { updateObjectiveAction } from "@/features/ziele/actions/ziele";
 
 /**
  * OKR-Quarterly-Board (Konzept §4.2 / V7). Vier Quartals-Spalten um das
  * aktuelle Quartal herum + Backlog (Objectives ohne `period`). Pro
  * Objective eine kompakte Card mit Theme-Color-Stripe, Confidence-
  * Sternen, Achievement-Bars je KR und €-Linse. Klick → Edit-Drawer
- * (URL-State `?entity=objective&id=…`). Drag-Reorder kommt mit der
- * naechsten Welle (Konzept §4.2 — Drag horizontal = Period-Update).
+ * (URL-State `?entity=objective&id=…`). Drag horizontal = Period-Update
+ * (B1) — HTML5-native, gleicher Pattern wie das Cockpit-Board.
  */
 interface Props {
   themes: ZieleTreeTheme[];
@@ -19,6 +23,7 @@ interface QuarterColumn {
   key: string;
   label: string;
   isCurrent: boolean;
+  isPast: boolean;
 }
 
 function currentQuarter(now = new Date()): { year: number; q: number } {
@@ -33,7 +38,6 @@ function quarterKey(year: number, q: number): string {
 function buildColumns(): QuarterColumn[] {
   const { year, q } = currentQuarter();
   const cols: QuarterColumn[] = [];
-  // 1 zurueck, current, 2 voraus
   for (let offset = -1; offset <= 2; offset++) {
     let y = year;
     let qq = q + offset;
@@ -49,6 +53,7 @@ function buildColumns(): QuarterColumn[] {
       key: quarterKey(y, qq),
       label: `Q${qq}-${String(y).slice(2)}`,
       isCurrent: offset === 0,
+      isPast: offset < 0,
     });
   }
   return cols;
@@ -56,14 +61,24 @@ function buildColumns(): QuarterColumn[] {
 
 export function OkrBoardView({ themes, canEdit }: Props) {
   const columns = buildColumns();
-  // Objective → Theme reverse-lookup, damit jede Card ihren Theme-Color zeigt
+  const draggingId = useRef<string | null>(null);
+  const [, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  // Optimistische Period-Overrides je Objective-Id. `null` = Backlog.
+  const [optimistic, setOptimistic] = useState<Record<string, string | null>>({});
+
+  // Objective + Theme zusammen sammeln und die Optimistik auf `period`
+  // anwenden, ohne die Server-Liste zu mutieren.
   const objectives: Array<{
     objective: ZieleTreeObjective;
     theme: ZieleTreeTheme;
+    effectivePeriod: string | null;
   }> = [];
   for (const t of themes) {
     for (const o of t.objectives) {
-      objectives.push({ objective: o, theme: t });
+      const override = optimistic[o.id];
+      const effectivePeriod = override !== undefined ? override : o.period;
+      objectives.push({ objective: o, theme: t, effectivePeriod });
     }
   }
 
@@ -71,28 +86,66 @@ export function OkrBoardView({ themes, canEdit }: Props) {
   for (const col of columns) grouped.set(col.key, []);
   const backlog: typeof objectives = [];
   for (const entry of objectives) {
-    const p = entry.objective.period;
-    if (!p) {
+    if (!entry.effectivePeriod) {
       backlog.push(entry);
       continue;
     }
-    const bucket = grouped.get(p);
+    const bucket = grouped.get(entry.effectivePeriod);
     if (bucket) bucket.push(entry);
-    else {
-      // Ausserhalb der Strip-Fenster (z. B. uraltes Quartal) — wandert in Backlog
-      backlog.push(entry);
+    else backlog.push(entry);
+  }
+
+  function moveTo(targetPeriod: string | null, targetIsPast: boolean) {
+    const id = draggingId.current;
+    draggingId.current = null;
+    if (!id || !canEdit) return;
+
+    const source = objectives.find((e) => e.objective.id === id);
+    if (!source) return;
+    if (source.effectivePeriod === targetPeriod) return;
+
+    if (targetIsPast) {
+      const ok = window.confirm(
+        "Quartal liegt in der Vergangenheit. Objective wirklich dorthin verschieben?",
+      );
+      if (!ok) return;
     }
+
+    setOptimistic((prev) => ({ ...prev, [id]: targetPeriod }));
+
+    startTransition(async () => {
+      try {
+        const fd = new FormData();
+        fd.set("id", id);
+        // Period leer = null (Backlog). updateObjectiveAction mapped "" → null.
+        fd.set("period", targetPeriod ?? "");
+        const res = await updateObjectiveAction({}, fd);
+        if (res.error) throw new Error(res.error);
+        setError(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Period-Update fehlgeschlagen");
+        // Rollback der Optimistik fuer dieses Objective
+        setOptimistic((prev) => {
+          const { [id]: _drop, ...rest } = prev;
+          return rest;
+        });
+      }
+    });
   }
 
   return (
     <div className="space-y-3">
-      {canEdit && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] text-muted-foreground">
-            Aktuelles Quartal markiert · Klick auf Objective → Bearbeiten
-          </p>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] text-muted-foreground">
+          Aktuelles Quartal markiert · Klick auf Objective → Bearbeiten
+          {canEdit ? " · Drag zwischen Spalten = Quartal-Wechsel" : ""}
+        </p>
+        {error && (
+          <span className="rounded-md border border-destructive/40 bg-destructive/5 px-2 py-1 text-[11px] text-destructive">
+            {error}
+          </span>
+        )}
+      </div>
       <div className="grid grid-cols-[repeat(5,minmax(0,1fr))] gap-3">
         {columns.map((col) => (
           <Column
@@ -102,6 +155,8 @@ export function OkrBoardView({ themes, canEdit }: Props) {
             entries={grouped.get(col.key) ?? []}
             canEdit={canEdit}
             quarterKey={col.key}
+            onDropPeriod={() => moveTo(col.key, col.isPast)}
+            draggingId={draggingId}
           />
         ))}
         <Column
@@ -111,11 +166,15 @@ export function OkrBoardView({ themes, canEdit }: Props) {
           entries={backlog}
           canEdit={canEdit}
           quarterKey={null}
+          onDropPeriod={() => moveTo(null, false)}
+          draggingId={draggingId}
         />
       </div>
     </div>
   );
 }
+
+const HIGHLIGHT_DROP = "ring-2 ring-primary/60";
 
 function Column({
   label,
@@ -123,18 +182,36 @@ function Column({
   entries,
   canEdit,
   quarterKey,
+  onDropPeriod,
+  draggingId,
 }: {
   label: string;
   isCurrent: boolean;
   entries: Array<{ objective: ZieleTreeObjective; theme: ZieleTreeTheme }>;
   canEdit: boolean;
   quarterKey: string | null;
+  onDropPeriod: () => void;
+  draggingId: MutableRefObject<string | null>;
 }) {
+  const [over, setOver] = useState(false);
   return (
     <section
-      className={`flex flex-col gap-2 rounded-lg border bg-card p-2 ${
+      className={`flex flex-col gap-2 rounded-lg border bg-card p-2 transition-shadow ${
         isCurrent ? "border-primary bg-primary/5" : ""
-      }`}
+      } ${over && canEdit ? HIGHLIGHT_DROP : ""}`}
+      onDragOver={(e) => {
+        if (!canEdit) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (!over) setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        if (!canEdit) return;
+        e.preventDefault();
+        setOver(false);
+        onDropPeriod();
+      }}
     >
       <header className="flex items-baseline justify-between px-1">
         <h3 className="text-xs font-semibold tracking-tight">{label}</h3>
@@ -147,7 +224,13 @@ function Column({
           </li>
         )}
         {entries.map((e) => (
-          <ObjectiveCard key={e.objective.id} objective={e.objective} theme={e.theme} />
+          <ObjectiveCard
+            key={e.objective.id}
+            objective={e.objective}
+            theme={e.theme}
+            canDrag={canEdit}
+            draggingId={draggingId}
+          />
         ))}
       </ul>
       {canEdit && quarterKey && (
@@ -167,9 +250,13 @@ function Column({
 function ObjectiveCard({
   objective,
   theme,
+  canDrag,
+  draggingId,
 }: {
   objective: ZieleTreeObjective;
   theme: ZieleTreeTheme;
+  canDrag: boolean;
+  draggingId: MutableRefObject<string | null>;
 }) {
   const atRisk = isAtRisk(objective.trio);
   return (
@@ -177,7 +264,21 @@ function ObjectiveCard({
       <Link
         href={`/ziele?entity=objective&id=${objective.id}` as never}
         scroll={false}
-        className="block overflow-hidden rounded-md border bg-background shadow-sm transition-shadow hover:shadow-md"
+        draggable={canDrag}
+        onDragStart={(e) => {
+          if (!canDrag) return;
+          draggingId.current = objective.id;
+          e.dataTransfer.effectAllowed = "move";
+          e.currentTarget.classList.add("opacity-40");
+        }}
+        onDragEnd={(e) => {
+          e.currentTarget.classList.remove("opacity-40");
+          draggingId.current = null;
+        }}
+        title={canDrag ? "Drag fuer Quartal-Wechsel" : undefined}
+        className={`block overflow-hidden rounded-md border bg-background shadow-sm transition-shadow hover:shadow-md ${
+          canDrag ? "cursor-grab active:cursor-grabbing" : ""
+        }`}
       >
         <div className="h-1" style={{ backgroundColor: theme.color }} aria-hidden />
         <div className="space-y-1.5 px-2 py-2">
