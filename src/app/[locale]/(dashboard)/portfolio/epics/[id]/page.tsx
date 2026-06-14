@@ -4,6 +4,8 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getEpic } from "@/server/services/epic";
 import { loadBreakdownLayout } from "@/server/services/breakdown-layout";
 import { EpicGoalsLinker } from "@/features/transformation/components/epic-goals-linker";
+import { EpicGoalsBadge } from "@/features/portfolio/components/epic-goals-badge";
+import { loadEpicGoalContributions } from "@/server/views/epic-goal-contributions";
 import { listInitiativeHistory } from "@/server/services/initiative";
 import { listKpis } from "@/server/services/kpi";
 import { listProgramIncrementsForArts } from "@/server/services/pi";
@@ -378,6 +380,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     ? await loadCockpitFeatureDetail(db, principal, featureId)
     : null;
 
+  const goalContributions = await loadEpicGoalContributions(db, principal, epic.id);
+
   return (
     <>
       <EntityDetailShell
@@ -465,6 +469,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                 </section>
               )
             )}
+            <EpicGoalsBadge contributions={goalContributions} />
             <EpicOverviewTab
               epic={epic}
               canEdit={canEdit}
