@@ -45,6 +45,12 @@ model Tenant {
   transformationActions   TransformationAction[]
   transformationGoals     TransformationGoal[]
   goalEpicLinks           GoalEpicLink[]
+  portfolioVisions        PortfolioVision[]
+  strategicThemes         StrategicTheme[]
+  objectives              Objective[]
+  keyResults              KeyResult[]
+  krKpiContributions      KrKpiContribution[]
+  themeEpicLinks          ThemeEpicLink[]
   transformationSnapshots TransformationSnapshot[]
   budgetAllocations       BudgetAllocation[]
   artBudgets              ArtBudget[]
@@ -187,6 +193,189 @@ model GoalEpicLink {
   @@map("goal_epic_links")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Ziele-Modul V2 — Vision / Strategic Theme / Objective / KeyResult
+//
+//  SAFe-Lean-Portfolio-Management-konforme Hierarchie. Replaced (langfristig)
+//  TransformationGoal + TargetOutcome + GoalEpicLink — die werden erst nach
+//  Backfill + Verifikation gedroppt. Bis dahin koexistieren beide.
+//
+//  Konzept: PortfolioVision (Tenant oder VS-scoped) → StrategicTheme (business
+//  oder enabler, mit Budget-Anker) → Objective (Quartal-Slot) → KeyResult
+//  (messbar). KeyResult bindet n:m an existierende `Kpi` (am Epic) via
+//  `KrKpiContribution` mit Gewicht — damit rollt der €-Effekt von ganz unten
+//  (KPI · valuePerUnit · benefitWeight) durchgaengig nach oben.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PortfolioVision {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  /// "tenant" = einer pro Tenant; "value_stream" = einer pro VS (Andreas
+  /// Kombination: ein Tenant-weiter Vision-Anker plus VS-spezifische
+  /// Detail-Visions).
+  scope         String   @default("tenant")
+  valueStreamId String?  @map("value_stream_id") @db.Uuid
+  title         String
+  narrative     String?  @db.Text
+  horizonStart  DateTime @map("horizon_start") @db.Date
+  horizonEnd    DateTime @map("horizon_end") @db.Date
+  ownerId       String?  @map("owner_id") @db.Uuid
+  status        String   @default("published") // draft | published | archived
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdBy     String   @map("created_by") @db.Uuid
+  updatedBy     String   @map("updated_by") @db.Uuid
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  valueStream ValueStream?     @relation(fields: [valueStreamId], references: [id])
+  themes      StrategicTheme[]
+
+  @@index([tenantId])
+  @@index([valueStreamId])
+  @@map("portfolio_visions")
+}
+
+model StrategicTheme {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  visionId        String?  @map("vision_id") @db.Uuid
+  title           String
+  narrative       String?  @db.Text
+  /// Hex-Color fuer Strategy-Map (Tree-Card-Stripe + Sankey-Band-Farbe).
+  color           String   @default("#6366f1")
+  /// "business" oder "enabler" (Petras Heimat). Treibt Investment-Mix-
+  /// Sicht im Money-Tab.
+  kind            String   @default("business")
+  /// Lean-Budget-Anker in € pro Jahr (Investment-Bucket). Wird als
+  /// Vergleichs-Basis fuer ROI in der Money-Sicht verwendet.
+  budgetPlanned   Decimal? @map("budget_planned") @db.Decimal(14, 2)
+  /// Frei-konfigurierbare Guardrails, JSON (z. B. {minEnablerRatio: 0.2}).
+  guardrails      Json?
+  ownerId         String?  @map("owner_id") @db.Uuid
+  sortOrder       Int      @default(0) @map("sort_order")
+  status          String   @default("active") // active | sunsetted | archived
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdBy       String   @map("created_by") @db.Uuid
+  updatedBy       String   @map("updated_by") @db.Uuid
+
+  tenant     Tenant           @relation(fields: [tenantId], references: [id])
+  vision     PortfolioVision? @relation(fields: [visionId], references: [id])
+  objectives Objective[]
+  epicLinks  ThemeEpicLink[]
+
+  @@index([tenantId])
+  @@index([visionId])
+  @@map("strategic_themes")
+}
+
+model Objective {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  themeId    String   @map("theme_id") @db.Uuid
+  title      String
+  narrative  String?  @db.Text
+  /// Quartal-Slot, ISO-Form „YYYY-Qn" (z. B. „2026-Q2"). Null = Backlog
+  /// (noch nicht in einem Quartal eingeplant).
+  period     String?
+  /// Fist-of-Five-Confidence (1..5). Wird im PI-Planning / Quartal-Sync
+  /// gevotet; treibt die ★-Anzeige in den Cards.
+  confidence Int?
+  ownerId    String?  @map("owner_id") @db.Uuid
+  sortOrder  Int      @default(0) @map("sort_order")
+  status     String   @default("draft") // draft | active | achieved | missed | stretched | cancelled
+  /// Lessons-Learned-Notiz, gepflegt beim Quartal-Reset-Wizard.
+  closingNote String? @map("closing_note") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdBy  String   @map("created_by") @db.Uuid
+  updatedBy  String   @map("updated_by") @db.Uuid
+
+  tenant     Tenant         @relation(fields: [tenantId], references: [id])
+  theme      StrategicTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  keyResults KeyResult[]
+
+  @@index([tenantId])
+  @@index([themeId])
+  @@index([period])
+  @@map("objectives")
+}
+
+model KeyResult {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  objectiveId  String   @map("objective_id") @db.Uuid
+  title        String
+  metricName   String?  @map("metric_name")
+  metricUnit   String?  @map("metric_unit")
+  baseline     Decimal? @db.Decimal(14, 4)
+  target       Decimal? @db.Decimal(14, 4)
+  /// "auto_from_kpi" → `current` wird aus den verlinkten KPIs aggregiert,
+  /// `manual` → User pflegt `current` direkt im KR-Editor.
+  formula      String   @default("auto_from_kpi")
+  current      Decimal? @db.Decimal(14, 4)
+  ownerId      String?  @map("owner_id") @db.Uuid
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdBy    String   @map("created_by") @db.Uuid
+  updatedBy    String   @map("updated_by") @db.Uuid
+
+  tenant         Tenant              @relation(fields: [tenantId], references: [id])
+  objective      Objective           @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  kpiContributions KrKpiContribution[]
+
+  @@index([tenantId])
+  @@index([objectiveId])
+  @@map("key_results")
+}
+
+/// Brueckentabelle KeyResult ↔ Epic-Kpi mit Gewicht. Mehrere Epic-KPIs
+/// koennen denselben KR bedienen (verteilt ueber `weight`), und ein KPI
+/// kann mehrere KRs befuettern (z. B. NPS treibt CX-Theme + Quality-Theme).
+model KrKpiContribution {
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  keyResultId         String   @map("key_result_id") @db.Uuid
+  kpiId               String   @map("kpi_id") @db.Uuid
+  weight              Decimal  @default(1) @db.Decimal(6, 4) // 0..1
+  /// Optional: ueberschreibt den KPI-eigenen valuePerUnit fuer Sicht
+  /// auf diesen KR. Sonst Default = `Kpi.valuePerUnit`.
+  valuePerUnitOverride Decimal? @map("value_per_unit_override") @db.Decimal(14, 2)
+  createdAt           DateTime @default(now()) @map("created_at")
+  createdBy           String   @map("created_by") @db.Uuid
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  keyResult KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  kpi       Kpi       @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+
+  @@unique([keyResultId, kpiId])
+  @@index([tenantId])
+  @@index([kpiId])
+  @@map("kr_kpi_contributions")
+}
+
+/// Theme ↔ Epic n:m (Theme-direkte Verlinkung ohne KR-Schritt — z. B.
+/// fuer Epics die einen Theme-Beitrag liefern, aber keinen messbaren KR).
+/// Loest mittelfristig `GoalEpicLink` ab.
+model ThemeEpicLink {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  themeId   String   @map("theme_id") @db.Uuid
+  epicId    String   @map("epic_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id])
+  theme  StrategicTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  epic   Initiative     @relation(fields: [epicId], references: [id])
+
+  @@unique([themeId, epicId])
+  @@index([tenantId])
+  @@index([epicId])
+  @@map("theme_epic_links")
+}
+
 /// A tracked transformation action — the "Steuern" backlog that moves the
 /// organisation from Ist toward the Soll. Management-owned, tenant-scoped.
 model TransformationAction {
@@ -242,9 +431,10 @@ model ValueStream {
   createdAt         DateTime  @default(now()) @map("created_at")
   deletedAt         DateTime? @map("deleted_at")
 
-  tenant Tenant       @relation(fields: [tenantId], references: [id])
-  arts   Art[]
-  epics  Initiative[] @relation("EpicValueStream")
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  arts             Art[]
+  epics            Initiative[]      @relation("EpicValueStream")
+  portfolioVisions PortfolioVision[]
 
   // Uniqueness among *active* (non-deleted) rows is enforced by a partial unique
   // index created out-of-band (see prisma/manual-indexes.sql) — Prisma can't
@@ -566,6 +756,7 @@ model Initiative {
   kpis             Kpi[]
   epicApprovals    EpicApproval[]
   goalLinks        GoalEpicLink[]
+  themeLinks       ThemeEpicLink[]
   budgetAllocation BudgetAllocation?
 
   @@index([tenantId])
@@ -622,8 +813,9 @@ model Kpi {
   updatedAt DateTime @updatedAt @map("updated_at")
   updatedBy String   @map("updated_by") @db.Uuid
 
-  tenant     Tenant     @relation(fields: [tenantId], references: [id])
-  initiative Initiative @relation(fields: [initiativeId], references: [id])
+  tenant        Tenant              @relation(fields: [tenantId], references: [id])
+  initiative    Initiative          @relation(fields: [initiativeId], references: [id])
+  krContributions KrKpiContribution[]
 
   @@index([tenantId, initiativeId])
   @@map("kpis")
