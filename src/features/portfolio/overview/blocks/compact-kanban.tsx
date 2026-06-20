@@ -8,7 +8,7 @@ import {
   STAGE_GATE_LABEL,
   type PortfolioOverview,
   type OverviewEpicCard,
-} from "@/server/services/portfolio-overview";
+} from "@/server/views/portfolio-overview";
 import { wipCountLabel, isOverWip } from "@/features/portfolio/overview/wip-limits";
 
 /**

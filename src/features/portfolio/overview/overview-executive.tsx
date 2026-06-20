@@ -1,4 +1,4 @@
-import type { PortfolioOverview } from "@/server/services/portfolio-overview";
+import type { PortfolioOverview } from "@/server/views/portfolio-overview";
 import { TopWinsBlock } from "@/features/portfolio/overview/blocks/top-wins-block";
 import { TopRisksBlock } from "@/features/portfolio/overview/blocks/top-risks-block";
 import { PipelineBarsBlock } from "@/features/portfolio/overview/blocks/pipeline-bars-block";

@@ -1,6 +1,6 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getPortfolioOverview } from "@/server/services/portfolio-overview";
+import { loadPortfolioOverview } from "@/server/views/portfolio-overview";
 import { redirect } from "next/navigation";
 import { ViewSwitcher, resolveOverviewView } from "@/features/portfolio/overview/view-switcher";
 import { OverviewMissionControl } from "@/features/portfolio/overview/overview-mission-control";
@@ -25,7 +25,7 @@ export default async function PortfolioPage({ searchParams }: Props) {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const data = await getPortfolioOverview(db, principal.tenantId);
+  const data = await loadPortfolioOverview(db, principal.tenantId);
 
   return (
     <main className="space-y-6 p-6 md:p-8">

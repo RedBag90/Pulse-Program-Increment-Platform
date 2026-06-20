@@ -1,5 +1,5 @@
 import { Stat, StatStrip } from "@/components/ui/stat";
-import type { PortfolioOverview } from "@/server/services/portfolio-overview";
+import type { PortfolioOverview } from "@/server/views/portfolio-overview";
 import { CompactKanban } from "@/features/portfolio/overview/blocks/compact-kanban";
 import { HealthAlertsBlock } from "@/features/portfolio/overview/blocks/health-alerts-block";
 import { FundingSnapshotTable } from "@/features/portfolio/overview/blocks/funding-snapshot-table";

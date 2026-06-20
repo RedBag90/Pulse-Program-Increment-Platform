@@ -1,4 +1,4 @@
-import type { StageGate } from "@/server/services/portfolio-overview";
+import type { StageGate } from "@/server/views/portfolio-overview";
 
 /**
  * SAFe-typical soft WIP limits per portfolio Kanban stage. `null` = no limit.

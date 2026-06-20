@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
-import { STAGE_GATE_LABEL, type PortfolioOverview } from "@/server/services/portfolio-overview";
+import { STAGE_GATE_LABEL, type PortfolioOverview } from "@/server/views/portfolio-overview";
 
 function relativeDays(d: Date): string {
   const days = Math.floor((Date.now() - new Date(d).getTime()) / (1000 * 60 * 60 * 24));

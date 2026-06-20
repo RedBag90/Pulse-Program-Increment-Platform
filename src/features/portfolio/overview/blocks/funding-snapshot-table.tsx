@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
-import type { PortfolioOverview } from "@/server/services/portfolio-overview";
+import type { PortfolioOverview } from "@/server/views/portfolio-overview";
 
 function eur(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M €`;

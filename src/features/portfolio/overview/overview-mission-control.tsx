@@ -1,4 +1,4 @@
-import type { PortfolioOverview } from "@/server/services/portfolio-overview";
+import type { PortfolioOverview } from "@/server/views/portfolio-overview";
 import { PeriodBanner } from "@/features/portfolio/overview/blocks/period-banner";
 import { StrategicBlock } from "@/features/portfolio/overview/blocks/strategic-block";
 import { FundingBlock } from "@/features/portfolio/overview/blocks/funding-block";

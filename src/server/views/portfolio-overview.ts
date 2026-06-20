@@ -1,7 +1,12 @@
-import type { listEpics } from "@/server/services/epic";
-import type { listGoals } from "@/server/services/target-goal";
-import type { getBudgetingBoard, getValueStreamBudgets } from "@/server/services/budgeting";
+import type { PrismaClient } from "@/generated/prisma";
+import type { TenantId, ArtId } from "@/domain/types";
+import { listEpics } from "@/server/services/epic";
+import { listGoals } from "@/server/services/target-goal";
+import { getBudgetingBoard, getValueStreamBudgets } from "@/server/services/budgeting";
+import { listImpedimentsForArts } from "@/server/services/impediment";
 import {
+  computeStructureGap,
+  computePracticeAdoption,
   goalKpiProgress,
   deriveNextSteps,
   type StructureGap,
@@ -338,4 +343,63 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     recentActivity,
     nextSteps,
   };
+}
+
+/**
+ * Loads every input the Portfolio Overview page-model needs in one parallel
+ * wave. Pure I/O — no reshape, no business derivation. The companion builder
+ * `buildPortfolioOverviewModel` (above) owns the reshape; this loader exists
+ * separately so the builder is testable against in-memory fixtures.
+ */
+export async function loadPortfolioOverviewInputs(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<PortfolioOverviewInputs> {
+  const [epics, goals, board, vsBudgets, arts, activePis, structureGap, practiceAdoption] =
+    await Promise.all([
+      listEpics(db, tenantId),
+      listGoals(db, tenantId),
+      getBudgetingBoard(db, tenantId),
+      getValueStreamBudgets(db, tenantId),
+      db.art.findMany({
+        where: { tenantId, deletedAt: null },
+        select: { id: true },
+      }),
+      db.programIncrement.findMany({
+        where: { tenantId, status: "active" },
+        select: { id: true, name: true, endDate: true },
+        orderBy: { endDate: "asc" },
+      }),
+      computeStructureGap(db, tenantId),
+      computePracticeAdoption(db, tenantId),
+    ]);
+
+  const artIds = arts.map((a) => a.id as ArtId);
+  const impedimentRows =
+    artIds.length === 0
+      ? []
+      : await listImpedimentsForArts(db, tenantId, artIds, { status: "open" });
+
+  return {
+    epics,
+    goals,
+    board,
+    vsBudgets,
+    activePis,
+    impedimentsOpen: impedimentRows.length,
+    structureGap,
+    practiceAdoption,
+    now: new Date(),
+  };
+}
+
+/**
+ * Convenience wrapper: load + build, returned as one DTO. The page calls this;
+ * tests prefer `buildPortfolioOverviewModel` with fixtures.
+ */
+export async function loadPortfolioOverview(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<PortfolioOverview> {
+  return buildPortfolioOverviewModel(await loadPortfolioOverviewInputs(db, tenantId));
 }
