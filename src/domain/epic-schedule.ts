@@ -135,17 +135,6 @@ export function scheduleFromFundedWindow(
 }
 
 /**
- * @deprecated Use `fundedWindow(allocations)` and project `{ start, end }`.
- * Thin alias preserved for the same reason as `scheduleFromFundedWindow`.
- */
-export function fundedDateRange(
-  allocations: Record<string, number>,
-): { start: Date; end: Date } | null {
-  const fw = fundedWindow(allocations);
-  return fw ? { start: fw.start, end: fw.end } : null;
-}
-
-/**
  * Merges schedule estimate anchors into a timeline, preserving the owner's
  * actuals and any other estimate fields (detailing, business_case). The basis
  * of budgeting's "last writer wins, but never clobber actuals" guarantee.
@@ -201,20 +190,6 @@ export function resolveEpicWindow(
   if (planned) return planned;
   if (derived) return { start: derived.start, end: derived.end, source: "derived" };
   return null;
-}
-
-/**
- * Whether a single date lies *inside* an Epic's planned window. Used to detect
- * a Feature → PI assignment that falls outside the owner's Soll-Fenster. When
- * the window isn't set, every date is considered "inside" (no constraint).
- */
-export function dateWithinPlannedWindow(
-  epic: { plannedStartAt: Date | null; plannedEndAt: Date | null },
-  date: Date,
-): boolean {
-  const w = plannedEpicWindow(epic);
-  if (!w) return true;
-  return date >= w.start && date <= w.end;
 }
 
 /**

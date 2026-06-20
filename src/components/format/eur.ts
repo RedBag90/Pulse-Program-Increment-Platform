@@ -18,8 +18,3 @@ const EUR = new Intl.NumberFormat("de-DE", {
 export function fmtEur(n: number): string {
   return EUR.format(Math.round(n));
 }
-
-/** Returns "—" for `null` / `undefined`, else `fmtEur(n)`. */
-export function fmtEurOrDash(n: number | null | undefined): string {
-  return n == null ? "—" : fmtEur(n);
-}

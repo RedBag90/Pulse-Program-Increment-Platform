@@ -22,11 +22,6 @@ import {
   type MonthAxis,
 } from "@/domain/calendar";
 
-// Month helpers live in the calendar module; re-exported so existing callers
-// (dashboard client/service, tests) keep importing them from here.
-export { monthStart, addMonths, monthDiff, parseIsoMonth, buildMonthAxis } from "@/domain/calendar";
-export type { MonthAxis } from "@/domain/calendar";
-
 export interface EpicEconomicsInput {
   id: string;
   title: string;
