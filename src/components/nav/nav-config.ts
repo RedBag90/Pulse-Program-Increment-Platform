@@ -1,7 +1,6 @@
 import {
   LayoutDashboard,
   Layers,
-  FolderTree,
   CalendarDays,
   Network,
   Goal,
@@ -119,12 +118,8 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: "setupControlling",
     items: [
-      // "Structure Overview" und "Structure" zeigen heute denselben
-      // Hub mit unterschiedlichem `?tab=`. Eine spätere Trennung könnte
-      // Overview = high-level Dashboard, Structure = Strukturbaum.
-      { href: "/structure?tab=overview", labelKey: "structureOverview", icon: FolderTree },
-      { href: "/structure?tab=arts", labelKey: "structureTree", icon: Network },
-      { href: "/structure?tab=timeline", labelKey: "structureTimeline", icon: CalendarDays },
+      { href: "/structure", labelKey: "structure", icon: Network },
+      { href: "/timelines", labelKey: "timelines", icon: CalendarDays },
       { href: "/controlling", labelKey: "controllingOverview", icon: Gauge, exact: true },
       {
         href: "/controlling/kpi-coverage",

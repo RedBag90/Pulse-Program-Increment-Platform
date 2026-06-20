@@ -6,37 +6,36 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getStructureTree, getStructureTimeline } from "@/server/services/structure";
 import { getValueStreamBudgets } from "@/server/services/budgeting";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { listPiStandards } from "@/server/services/pi-standard";
 import { buildStructurePageModel } from "@/server/views/structure-page";
 import { StructurePageShell } from "@/features/structure/components/structure-page-shell";
 
 /**
- * Struktur-Page — Master-Detail-Layout fuer **Value Streams + ARTs + Teams**.
- * Timelines leben unter `/timelines` als eigene Surface; der Struktur-Tree
- * laedt sie nur, damit das ART-Detail-Pane den Timeline-Namen zeigen kann.
+ * Timelines-Page — Master-Detail-Layout fuer **Timelines** + ihre PIs +
+ * subscribierte ARTs. Strukturdaten (VS/ART/Team) werden geladen, damit
+ * Click-Throughs aus dem Timeline-Detail (z. B. „ART joinen") die
+ * zugehoerigen ART-Details zeigen koennen — die Liste selbst zeigt aber
+ * nur Timelines.
  */
-export default async function StructurePage() {
+export default async function TimelinesPage() {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  // Pro Affordance gegen die zugehörige Capability prüfen — kein
-  // Sammel-`timeline.manage`-Flag mehr, das die Buttons für VS/ART/Team
-  // verschluckte. Platform-/Tenant-Admin passieren überall via Fast-Path
-  // in `authorize()`.
-  const canCreateVs = hasCapability(principal, "value_stream.create");
-  const canUpdateVs = hasCapability(principal, "value_stream.update");
+  const canManageTimeline = hasCapability(principal, "timeline.manage");
   const canCreateArt = hasCapability(principal, "art.create");
   const canUpdateArt = hasCapability(principal, "art.update");
   const canDeleteArt = hasCapability(principal, "art.delete");
   const canCreateTeam = hasCapability(principal, "team.create");
+  const canUpdateVs = hasCapability(principal, "value_stream.update");
 
-  const [tree, timeline, userLabels, vsBudgets] = await Promise.all([
+  const [tree, timeline, userLabels, vsBudgets, piStandards] = await Promise.all([
     getStructureTree(db, principal.tenantId),
-    // Timeline-Daten nur fuer das ART-Detail (Anzeige des Timeline-Namens).
     getStructureTimeline(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
     getValueStreamBudgets(db, principal.tenantId),
+    listPiStandards(db, principal.tenantId),
   ]);
 
   const budgetTotals = Object.fromEntries(
@@ -44,7 +43,7 @@ export default async function StructurePage() {
   );
 
   const model = buildStructurePageModel({
-    mode: "structure",
+    mode: "timelines",
     tree,
     timeline,
     userLabels,
@@ -54,18 +53,18 @@ export default async function StructurePage() {
   return (
     <Suspense fallback={null}>
       <StructurePageShell
-        title="Struktur"
-        subtitle="Die Organisation hinter dem Portfolio — Wertströme, ARTs, Teams."
-        availableKinds={["vs", "art", "team"]}
+        title="Timelines"
+        subtitle="Geteilte PI-Kadenzen — Timelines, ihre PIs und subscribierte ARTs."
+        availableKinds={["timeline"]}
         model={model}
-        canCreateVs={canCreateVs}
+        canCreateVs={false}
         canUpdateVs={canUpdateVs}
         canCreateArt={canCreateArt}
         canUpdateArt={canUpdateArt}
         canDeleteArt={canDeleteArt}
         canCreateTeam={canCreateTeam}
-        canManageTimeline={false}
-        piStandards={[]}
+        canManageTimeline={canManageTimeline}
+        piStandards={piStandards.map((s) => ({ id: s.id, name: s.name }))}
       />
     </Suspense>
   );

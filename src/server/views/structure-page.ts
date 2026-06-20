@@ -107,13 +107,20 @@ function nameOrNull(id: string | null, labels: Readonly<Record<string, string>>)
 
 const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
 
+export type StructureMode = "structure" | "timelines";
+
 export function buildStructurePageModel(input: {
+  /** Welche Knoten in der Liste erscheinen. `structure` = VS/ART/Team,
+   *  `timelines` = Timelines. ART-Details (mit zugehoeriger Timeline-Anzeige)
+   *  werden in beiden Modi befuellt, weil das ART-Detail-Pane in beiden
+   *  faellen via Click-Through erreichbar ist. */
+  mode: StructureMode;
   tree: StructureTree;
   timeline: StructureTimeline;
   userLabels: Readonly<Record<string, string>>;
   budgetTotals: Readonly<Record<string, number>>;
 }): StructurePageModel {
-  const { tree, timeline, userLabels, budgetTotals } = input;
+  const { mode, tree, timeline, userLabels, budgetTotals } = input;
 
   // Build a userLabel lookup for ART.timelineId resolution (lookup against
   // the timeline tab's data).
@@ -131,22 +138,27 @@ export function buildStructurePageModel(input: {
   const teamDetails = new Map<string, TeamDetail>();
   const timelineDetails = new Map<string, TimelineDetail>();
 
-  // VS / ART / Team rows.
+  // VS / ART / Team rows. Im `timelines`-Mode bauen wir die Details
+  // trotzdem auf (das ART-Detail-Pane wird ueber Click-Through aus
+  // Timeline-Detail ebenfalls erreichbar gemacht), aber legen keine
+  // Listen-Rows an.
   for (const vs of tree) {
     const artCount = vs.arts.length;
     const teamCount = vs.arts.reduce((acc, a) => acc + a.teams.length, 0);
     const vsGaps: string[] = [];
     if (!vs.vmoId) vsGaps.push("Kein:e VMO");
     if (!vs.financeApproverId) vsGaps.push("Kein:e Finance-Approver:in");
-    rows.push({
-      kind: "vs",
-      id: vs.id,
-      parentId: null,
-      depth: 0,
-      label: vs.name,
-      subtitle: `${artCount} ART${artCount === 1 ? "" : "s"} · ${teamCount} Team${teamCount === 1 ? "" : "s"}`,
-      gaps: vsGaps,
-    });
+    if (mode === "structure") {
+      rows.push({
+        kind: "vs",
+        id: vs.id,
+        parentId: null,
+        depth: 0,
+        label: vs.name,
+        subtitle: `${artCount} ART${artCount === 1 ? "" : "s"} · ${teamCount} Team${teamCount === 1 ? "" : "s"}`,
+        gaps: vsGaps,
+      });
+    }
     vsDetails.set(vs.id, {
       kind: "vs",
       id: vs.id,
@@ -164,15 +176,17 @@ export function buildStructurePageModel(input: {
       const teamCountForArt = art.teams.length;
       const artGaps: string[] = [];
       if (!art.rteId) artGaps.push("Kein:e RTE");
-      rows.push({
-        kind: "art",
-        id: art.id,
-        parentId: vs.id,
-        depth: 1,
-        label: art.name,
-        subtitle: `${teamCountForArt} Team${teamCountForArt === 1 ? "" : "s"} · ${art._count.pis} PIs`,
-        gaps: artGaps,
-      });
+      if (mode === "structure") {
+        rows.push({
+          kind: "art",
+          id: art.id,
+          parentId: vs.id,
+          depth: 1,
+          label: art.name,
+          subtitle: `${teamCountForArt} Team${teamCountForArt === 1 ? "" : "s"} · ${art._count.pis} PIs`,
+          gaps: artGaps,
+        });
+      }
       const tid = artTimelineId.get(art.id) ?? null;
       artDetails.set(art.id, {
         kind: "art",
@@ -194,15 +208,17 @@ export function buildStructurePageModel(input: {
         const teamGaps: string[] = [];
         if (!team.scrumMasterId) teamGaps.push("Kein:e Scrum Master:in");
         if (!team.productOwnerId) teamGaps.push("Kein:e PO");
-        rows.push({
-          kind: "team",
-          id: team.id,
-          parentId: art.id,
-          depth: 2,
-          label: team.name,
-          subtitle: `${team.headcount ?? "—"} Personen`,
-          gaps: teamGaps,
-        });
+        if (mode === "structure") {
+          rows.push({
+            kind: "team",
+            id: team.id,
+            parentId: art.id,
+            depth: 2,
+            label: team.name,
+            subtitle: `${team.headcount ?? "—"} Personen`,
+            gaps: teamGaps,
+          });
+        }
         teamDetails.set(team.id, {
           kind: "team",
           id: team.id,
@@ -219,17 +235,21 @@ export function buildStructurePageModel(input: {
     }
   }
 
-  // Timeline rows at the top level (alongside VS roots).
+  // Timeline-Rows + Details — nur im `timelines`-Modus in der Liste; die
+  // Details bauen wir auch im structure-Modus auf, weil ART-Details auf
+  // `timelineName` zeigen.
   for (const t of timeline.timelines) {
-    rows.push({
-      kind: "timeline",
-      id: t.id,
-      parentId: null,
-      depth: 0,
-      label: t.name,
-      subtitle: `${t.cadenceWeeks} Wochen · ${t.programIncrements.length} PIs · ${t.arts.length} ARTs`,
-      gaps: [],
-    });
+    if (mode === "timelines") {
+      rows.push({
+        kind: "timeline",
+        id: t.id,
+        parentId: null,
+        depth: 0,
+        label: t.name,
+        subtitle: `${t.cadenceWeeks} Wochen · ${t.programIncrements.length} PIs · ${t.arts.length} ARTs`,
+        gaps: [],
+      });
+    }
     timelineDetails.set(t.id, {
       kind: "timeline",
       id: t.id,

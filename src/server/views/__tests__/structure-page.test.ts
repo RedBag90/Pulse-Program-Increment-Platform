@@ -53,6 +53,7 @@ const teamRow = (over: {
 describe("buildStructurePageModel", () => {
   it("flattens the VS -> ART -> Team tree into depth-indented rows", () => {
     const m = buildStructurePageModel({
+      mode: "structure",
       tree: [
         vsRow({
           id: "vs1",
@@ -86,6 +87,7 @@ describe("buildStructurePageModel", () => {
 
   it("emits gap signals for missing VMO / RTE / Scrum Master", () => {
     const m = buildStructurePageModel({
+      mode: "structure",
       tree: [
         vsRow({
           id: "vs1",
@@ -113,6 +115,7 @@ describe("buildStructurePageModel", () => {
 
   it("resolves person labels via the userLabels map", () => {
     const m = buildStructurePageModel({
+      mode: "structure",
       tree: [
         vsRow({
           id: "vs1",
@@ -130,18 +133,30 @@ describe("buildStructurePageModel", () => {
     expect(vs.financeApproverLabel).toBe("Bob");
   });
 
-  it("includes timeline rows alongside VS rows at depth 0", () => {
+  it("structure-mode: timeline-rows tauchen NICHT in der liste auf", () => {
     const m = buildStructurePageModel({
+      mode: "structure",
       tree: [vsRow({ id: "vs1", name: "Retail" })],
       timeline: {
         timelines: [
-          {
-            id: "tl1",
-            name: "Standard 10w",
-            cadenceWeeks: 10,
-            programIncrements: [],
-            arts: [],
-          },
+          { id: "tl1", name: "Standard 10w", cadenceWeeks: 10, programIncrements: [], arts: [] },
+        ],
+        unassignedArts: [],
+      },
+      userLabels: {},
+      budgetTotals: {},
+    });
+    expect(m.rows.find((r) => r.kind === "timeline")).toBeUndefined();
+    expect(m.kindCounts.timeline).toBe(0);
+  });
+
+  it("timelines-mode: timeline-rows in der liste, KEINE vs/art/team-rows", () => {
+    const m = buildStructurePageModel({
+      mode: "timelines",
+      tree: [vsRow({ id: "vs1", name: "Retail", arts: [artRow({ id: "art1", name: "Mobile" })] })],
+      timeline: {
+        timelines: [
+          { id: "tl1", name: "Standard 10w", cadenceWeeks: 10, programIncrements: [], arts: [] },
         ],
         unassignedArts: [],
       },
@@ -152,10 +167,13 @@ describe("buildStructurePageModel", () => {
     expect(timelineRow).toBeDefined();
     expect(timelineRow!.depth).toBe(0);
     expect(timelineRow!.label).toBe("Standard 10w");
+    expect(m.rows.find((r) => r.kind === "vs")).toBeUndefined();
+    expect(m.rows.find((r) => r.kind === "art")).toBeUndefined();
   });
 
   it("links ART -> Timeline via the subscription list", () => {
     const m = buildStructurePageModel({
+      mode: "structure",
       tree: [
         vsRow({
           id: "vs1",
@@ -185,6 +203,7 @@ describe("buildStructurePageModel", () => {
 
   it("counts entities by kind for filter chips", () => {
     const m = buildStructurePageModel({
+      mode: "structure",
       tree: [
         vsRow({
           id: "vs1",
@@ -205,6 +224,7 @@ describe("buildStructurePageModel", () => {
       userLabels: {},
       budgetTotals: {},
     });
-    expect(m.kindCounts).toEqual({ vs: 2, art: 2, team: 1, timeline: 1 });
+    // structure-mode zaehlt nur vs/art/team; timeline-count = 0
+    expect(m.kindCounts).toEqual({ vs: 2, art: 2, team: 1, timeline: 0 });
   });
 });

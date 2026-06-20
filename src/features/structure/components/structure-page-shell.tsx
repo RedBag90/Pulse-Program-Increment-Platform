@@ -17,6 +17,11 @@ import {
 import type { StructurePageModel, NodeKind } from "@/server/views/structure-page";
 
 interface Props {
+  title: string;
+  subtitle: string;
+  /** Welche Knoten-Arten in dieser Page-Instanz angezeigt werden. Filtert
+   *  die Chip-Palette + die EmptyPane-Copy. */
+  availableKinds: NodeKind[];
   model: StructurePageModel;
   canCreateVs: boolean;
   canUpdateVs: boolean;
@@ -43,6 +48,9 @@ function parseKind(raw: string | null): NodeKind | null {
  * Mirrors `goals-page-shell.tsx`.
  */
 export function StructurePageShell({
+  title,
+  subtitle,
+  availableKinds,
   model,
   canCreateVs,
   canUpdateVs,
@@ -100,11 +108,14 @@ export function StructurePageShell({
   return (
     <div className="space-y-4 p-6">
       <StructureHeader
+        title={title}
+        subtitle={subtitle}
         query={query}
         kindFilter={kindFilter}
         canCreateVs={canCreateVs}
         canManageTimeline={canManageTimeline}
         kindCounts={model.kindCounts}
+        availableKinds={availableKinds}
         onQueryChange={onQueryChange}
         onKindFilterChange={onKindFilterChange}
       />
@@ -152,9 +163,7 @@ function EmptyPane() {
   return (
     <div className="rounded-lg border border-dashed p-8 text-center">
       <Network className="mx-auto h-6 w-6 text-muted-foreground" />
-      <p className="mt-2 text-sm text-muted-foreground">
-        Wähle einen Knoten aus der Liste — Wertstrom, ART, Team oder Timeline.
-      </p>
+      <p className="mt-2 text-sm text-muted-foreground">Wähle einen Knoten aus der Liste.</p>
     </div>
   );
 }
