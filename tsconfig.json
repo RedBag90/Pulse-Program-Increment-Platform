@@ -33,6 +33,7 @@
     "vitest.config.ts",
     "next.config.ts",
     "instrumentation.ts",
-    "instrumentation-client.ts"
+    "instrumentation-client.ts",
+    "prisma/scripts/_archive/**"
   ]
 }
