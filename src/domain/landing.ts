@@ -12,7 +12,7 @@ import { ROLES } from "@/domain/roles";
 export function landingPathForRoles(roles: readonly string[]): string {
   const has = (r: string) => roles.includes(r);
 
-  if (has(ROLES.TRANSFORMATION_LEAD)) return "/transformation";
+  if (has(ROLES.TRANSFORMATION_LEAD)) return "/ziele";
   if (has(ROLES.PLATFORM_ADMIN) || has(ROLES.TENANT_ADMIN)) return "/portfolio";
   if (
     has(ROLES.PORTFOLIO_MANAGER) ||

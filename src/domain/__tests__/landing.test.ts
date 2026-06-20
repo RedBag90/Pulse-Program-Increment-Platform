@@ -3,8 +3,8 @@ import { landingPathForRoles } from "@/domain/landing";
 import { ROLES } from "@/domain/roles";
 
 describe("landingPathForRoles", () => {
-  it("sends the transformation lead to the cockpit", () => {
-    expect(landingPathForRoles([ROLES.TRANSFORMATION_LEAD])).toBe("/transformation");
+  it("sends the transformation lead to the goals module", () => {
+    expect(landingPathForRoles([ROLES.TRANSFORMATION_LEAD])).toBe("/ziele");
   });
 
   it("sends portfolio roles to the portfolio", () => {
@@ -26,9 +26,7 @@ describe("landingPathForRoles", () => {
   });
 
   it("prefers the most senior role when several are held", () => {
-    expect(landingPathForRoles([ROLES.TEAM_EDITOR, ROLES.TRANSFORMATION_LEAD])).toBe(
-      "/transformation",
-    );
+    expect(landingPathForRoles([ROLES.TEAM_EDITOR, ROLES.TRANSFORMATION_LEAD])).toBe("/ziele");
   });
 
   it("defaults to the portfolio when no role matches", () => {

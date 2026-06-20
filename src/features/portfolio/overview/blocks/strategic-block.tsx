@@ -27,7 +27,7 @@ export function StrategicBlock({ data }: { data: PortfolioOverview }) {
       {activeGoals.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Noch keine aktiven Ziele hinterlegt.{" "}
-          <Link href="/transformation" className="text-primary hover:underline">
+          <Link href="/ziele" className="text-primary hover:underline">
             Ziele anlegen →
           </Link>
         </p>
@@ -54,7 +54,7 @@ export function StrategicBlock({ data }: { data: PortfolioOverview }) {
                 <li key={g.id} className="space-y-1">
                   <div className="flex items-baseline justify-between gap-3 text-xs">
                     <Link
-                      href="/transformation"
+                      href="/ziele"
                       className="truncate font-medium text-foreground hover:text-primary hover:underline"
                       title={g.title}
                     >
@@ -80,7 +80,7 @@ export function StrategicBlock({ data }: { data: PortfolioOverview }) {
       )}
 
       <Link
-        href="/transformation"
+        href="/ziele"
         className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
       >
         Ziele <ArrowRight className="size-3" />
