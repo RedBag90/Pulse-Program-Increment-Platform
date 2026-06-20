@@ -48,11 +48,7 @@ describe("authorize — roles", () => {
   });
 
   it("denies when the principal holds no granted role", () => {
-    const d = authorize(
-      "epic.update",
-      { tenantId: "t1" },
-      principal({ roles: [ROLES.TASK_OWNER] }),
-    );
+    const d = authorize("epic.update", { tenantId: "t1" }, principal({ roles: [ROLES.VIEWER] }));
     expect(d.allow).toBe(false);
     expect(d.reason).toContain("epic.update");
   });
@@ -89,15 +85,6 @@ describe("authorize — value_stream scope", () => {
     // This is why by-id mutations must re-check at the service seam with the
     // loaded row's valueStreamId — see authorizeResource / ADR-0002.
     expect(authorize("epic.update", { tenantId: "t1" }, vsOwner(["vs1"])).allow).toBe(true);
-  });
-});
-
-describe("authorize — own scope", () => {
-  const taskOwner = principal({ roles: [ROLES.TASK_OWNER] });
-  it("matches on ownerId or assigneeIds", () => {
-    expect(authorize("task.edit", { ownerId: "u1" }, taskOwner).allow).toBe(true);
-    expect(authorize("task.edit", { assigneeIds: ["u1"] }, taskOwner).allow).toBe(true);
-    expect(authorize("task.edit", { ownerId: "someone-else" }, taskOwner).allow).toBe(false);
   });
 });
 

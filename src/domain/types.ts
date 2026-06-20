@@ -7,8 +7,6 @@ import type { BusinessCase } from "@/domain/business-case";
 export enum InitiativeLevel {
   EPIC = 0,
   FEATURE = 1,
-  STORY = 2,
-  TASK = 3,
 }
 
 // ---------------------------------------------------------------------------
@@ -18,9 +16,7 @@ export enum InitiativeLevel {
 export type TenantId = string & { readonly __brand: "TenantId" };
 export type EpicId = string & { readonly __brand: "EpicId" };
 export type FeatureId = string & { readonly __brand: "FeatureId" };
-export type StoryId = string & { readonly __brand: "StoryId" };
-export type TaskId = string & { readonly __brand: "TaskId" };
-export type InitiativeId = EpicId | FeatureId | StoryId | TaskId;
+export type InitiativeId = EpicId | FeatureId;
 export type UserId = string & { readonly __brand: "UserId" };
 export type ArtId = string & { readonly __brand: "ArtId" };
 export type TeamId = string & { readonly __brand: "TeamId" };
@@ -95,25 +91,8 @@ export interface Feature extends InitiativeBase {
   acceptanceCriteria: ReadonlyArray<string>;
 }
 
-export interface Story extends InitiativeBase {
-  readonly level: InitiativeLevel.STORY;
-  readonly id: StoryId;
-  readonly parentId: FeatureId;
-  readonly piId: PiId;
-  readonly sprintId: SprintId;
-  storyPoints: FibonacciValue;
-  acceptanceCriteria: ReadonlyArray<string>;
-}
-
-export interface Task extends InitiativeBase {
-  readonly level: InitiativeLevel.TASK;
-  readonly id: TaskId;
-  readonly parentId: StoryId;
-  estimateHours: number;
-}
-
 /** Discriminated union – use the `level` field to narrow. */
-export type Initiative = Epic | Feature | Story | Task;
+export type Initiative = Epic | Feature;
 
 // ---------------------------------------------------------------------------
 // Domain events

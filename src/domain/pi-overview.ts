@@ -1,43 +1,38 @@
 /**
  * PI overview aggregation — pure. Rolls the data of a Program Increment
- * (sprints/stories, features, objectives, impediments) into the headline
- * metrics shown on the PI detail page.
+ * (teams, features, objectives, impediments) into the headline metrics
+ * shown on the PI detail page.
+ *
+ * Nach dem Wegfall von Story + Sprint-Planning gibt es keine punkte-
+ * basierte Velocity mehr. Die Kapazitaet entsteht aus den Team-
+ * `targetVelocity` × Anzahl synthetischer Sprints (PI-Dauer / 14 Tage,
+ * Default-Cadence 2 Wochen).
  */
 
-/** Story statuses that count as delivered for the velocity figure. */
-const DONE_STATUSES = new Set(["done", "completed"]);
+const SPRINT_CADENCE_DAYS = 14;
 
 export interface PiOverviewInput {
-  sprints: ReadonlyArray<{
-    /** Target velocity of the sprint's team, or null when unknown. */
-    teamTargetVelocity: number | null;
-    stories: ReadonlyArray<{ storyPoints: number | null; status: string }>;
-  }>;
+  teams: ReadonlyArray<{ targetVelocity: number | null }>;
+  /** PI duration in days — used to derive sprint multiplier for capacity. */
+  piDurationDays: number;
   features: ReadonlyArray<{ status: string }>;
   objectives: ReadonlyArray<{ committed: boolean; confidence: number | null }>;
   impediments: ReadonlyArray<{ status: string }>;
 }
 
 export interface PiOverviewSummary {
-  velocity: { plannedPoints: number; completedPoints: number };
-  capacity: { plannedCapacity: number; sprintCount: number };
+  capacity: { plannedCapacity: number };
   objectives: { total: number; committed: number; avgConfidence: number | null };
   impediments: { open: number; escalated: number };
   featureStatus: { status: string; count: number }[];
 }
 
 export function summarizePiOverview(input: PiOverviewInput): PiOverviewSummary {
-  let plannedPoints = 0;
-  let completedPoints = 0;
-  let plannedCapacity = 0;
-  for (const sprint of input.sprints) {
-    plannedCapacity += sprint.teamTargetVelocity ?? 0;
-    for (const story of sprint.stories) {
-      const points = story.storyPoints ?? 0;
-      plannedPoints += points;
-      if (DONE_STATUSES.has(story.status)) completedPoints += points;
-    }
-  }
+  const sprintMultiplier = Math.max(1, Math.round(input.piDurationDays / SPRINT_CADENCE_DAYS));
+  const plannedCapacity = input.teams.reduce(
+    (sum, t) => sum + (t.targetVelocity ?? 0) * sprintMultiplier,
+    0,
+  );
 
   let committed = 0;
   let confidenceSum = 0;
@@ -65,8 +60,7 @@ export function summarizePiOverview(input: PiOverviewInput): PiOverviewSummary {
   }
 
   return {
-    velocity: { plannedPoints, completedPoints },
-    capacity: { plannedCapacity, sprintCount: input.sprints.length },
+    capacity: { plannedCapacity },
     objectives: { total: input.objectives.length, committed, avgConfidence },
     impediments: { open, escalated },
     featureStatus: [...statusCounts.entries()].map(([status, count]) => ({ status, count })),

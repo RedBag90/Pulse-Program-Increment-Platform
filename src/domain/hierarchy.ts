@@ -2,8 +2,8 @@ import { InitiativeLevel } from "@/domain/types";
 import { ok, err, type Result } from "@/domain/errors";
 
 // ---------------------------------------------------------------------------
-// Hierarchy invariants — the parent/child level rules for the four-tier
-// Epic → Feature → Story → Task hierarchy (invariants I1 + I2, concept §6.4).
+// Hierarchy invariants — the parent/child level rules for the two-tier
+// Epic → Feature hierarchy (invariants I1 + I2, concept §6.4).
 //
 // Pure, in-process: no I/O. Services load the parent row; this module owns the
 // rule for whether that parent is the right level.
@@ -13,15 +13,11 @@ import { ok, err, type Result } from "@/domain/errors";
 export const PARENT_LEVEL: Record<InitiativeLevel, InitiativeLevel | null> = {
   [InitiativeLevel.EPIC]: null,
   [InitiativeLevel.FEATURE]: InitiativeLevel.EPIC,
-  [InitiativeLevel.STORY]: InitiativeLevel.FEATURE,
-  [InitiativeLevel.TASK]: InitiativeLevel.STORY,
 };
 
 const LEVEL_NAME: Record<InitiativeLevel, string> = {
   [InitiativeLevel.EPIC]: "EPIC",
   [InitiativeLevel.FEATURE]: "FEATURE",
-  [InitiativeLevel.STORY]: "STORY",
-  [InitiativeLevel.TASK]: "TASK",
 };
 
 /**

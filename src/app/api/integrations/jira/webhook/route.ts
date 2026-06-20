@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
       tenantId,
       externalId: issueKey,
       externalSystem: "jira",
-      level: InitiativeLevel.STORY,
+      level: InitiativeLevel.FEATURE,
       deletedAt: null,
     },
   });

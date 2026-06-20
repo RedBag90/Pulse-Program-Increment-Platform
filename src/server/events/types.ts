@@ -1,17 +1,8 @@
-import type { TenantId, UserId, StoryId, ArtId } from "@/domain/types";
+import type { TenantId, UserId, ArtId } from "@/domain/types";
 import type { ImpedimentId } from "@/server/services/impediment";
 import type { Role } from "@/domain/roles";
 
 export type DomainEvent =
-  | {
-      type: "story.created";
-      tenantId: TenantId;
-      storyId: StoryId;
-      artId: ArtId;
-      title: string;
-      description: string | null;
-      storyPoints: number | null;
-    }
   | {
       type: "impediment.escalated";
       tenantId: TenantId;

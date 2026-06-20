@@ -1,144 +1,16 @@
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
-import { BacklogStoryRow } from "@/features/team/components/backlog-story-row";
-import { BacklogPiFilter } from "@/features/team/components/backlog-pi-filter";
-import { TeamSubNav } from "@/features/team/components/team-sub-nav";
-import { Link } from "@/i18n/navigation";
-import { redirect, notFound } from "next/navigation";
-import { InitiativeLevel } from "@/domain/types";
-import type { TenantId } from "@/domain/types";
+import { redirect } from "next/navigation";
 
 interface Props {
   params: Promise<{ teamId: string }>;
-  searchParams: Promise<{ piId?: string; featureId?: string }>;
 }
 
-export default async function TeamBacklogPage({ params, searchParams }: Props) {
+/**
+ * Permanent-Redirect: Team-Root war frueher der Team-Backlog (Stories
+ * pro Team). Nach dem Wegfall der Story-Ebene gibt es keinen Backlog
+ * mehr — die Team-Verwaltung lebt im Settings-Tab; History bleibt
+ * separat.
+ */
+export default async function TeamRedirect({ params }: Props): Promise<never> {
   const { teamId } = await params;
-  const { piId: filterPiId, featureId: filterFeatureId } = await searchParams;
-
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) redirect("/sign-in");
-
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const team = await db.team.findFirst({
-    where: { id: teamId, tenantId: principal.tenantId as TenantId },
-    include: { art: { select: { id: true, name: true } } },
-  });
-  if (!team) notFound();
-
-  const artId = team.art.id;
-
-  const [unassignedStories, sprints, pis] = await Promise.all([
-    db.initiative.findMany({
-      where: {
-        tenantId: principal.tenantId as TenantId,
-        level: InitiativeLevel.STORY,
-        deletedAt: null,
-        sprintId: null,
-        ...(filterPiId ? { piId: filterPiId } : {}),
-        ...(filterFeatureId ? { parentId: filterFeatureId } : {}),
-      },
-      include: {
-        parent: { select: { id: true, title: true, artId: true } },
-      },
-      orderBy: { createdAt: "asc" },
-    }),
-    db.sprint.findMany({
-      where: { teamId, tenantId: principal.tenantId as TenantId },
-      include: { pi: { select: { id: true, name: true } } },
-      orderBy: [{ piId: "asc" }, { indexInPi: "asc" }],
-    }),
-    db.programIncrement.findMany({
-      where: { artId, tenantId: principal.tenantId as TenantId },
-      orderBy: { startDate: "desc" },
-    }),
-  ]);
-
-  const sprintOptions = sprints.map((s) => ({
-    id: s.id,
-    indexInPi: s.indexInPi,
-    piName: s.pi.name,
-  }));
-
-  const storyRows = unassignedStories.map((s) => ({
-    id: s.id,
-    title: s.title,
-    status: s.status,
-    storyPoints: s.storyPoints,
-    parentTitle: s.parent?.title ?? null,
-  }));
-
-  const totalPoints = unassignedStories.reduce((sum, s) => sum + (s.storyPoints ?? 0), 0);
-
-  return (
-    <main className="p-8 space-y-6">
-      <TeamSubNav teamId={teamId} teamName={team.name} artId={artId} artName={team.art.name} />
-
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">{team.name} — Backlog</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {unassignedStories.length} unassigned stor{unassignedStories.length !== 1 ? "ies" : "y"}{" "}
-            · {totalPoints} pts
-          </p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <BacklogPiFilter
-          pis={pis.map((pi) => ({ id: pi.id, name: pi.name }))}
-          currentPiId={filterPiId}
-        />
-
-        {filterPiId && (
-          <Link
-            href={`/team/${teamId}`}
-            className="text-xs text-muted-foreground/60 hover:text-foreground/80"
-          >
-            Clear filters
-          </Link>
-        )}
-      </div>
-
-      {unassignedStories.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground/60">
-          No unassigned stories
-          {filterPiId ? " for this PI" : ""}. All stories are in a sprint.
-        </div>
-      ) : (
-        <div className="rounded-lg border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Story</th>
-                <th className="text-center px-3 py-3 font-medium text-muted-foreground w-16">
-                  Pts
-                </th>
-                <th className="text-left px-3 py-3 font-medium text-muted-foreground w-28">
-                  Status
-                </th>
-                <th className="text-left px-3 py-3 font-medium text-muted-foreground w-52">
-                  Assign Sprint
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {storyRows.map((story) => (
-                <BacklogStoryRow
-                  key={story.id}
-                  story={story}
-                  sprints={sprintOptions}
-                  artId={artId}
-                  teamId={teamId}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </main>
-  );
+  redirect(`/team/${teamId}/settings`);
 }

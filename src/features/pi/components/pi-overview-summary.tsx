@@ -28,36 +28,17 @@ function Tile({ label, href, children }: { label: string; href?: string; childre
 
 /** KPI tiles + feature-status chart for the PI detail page. */
 export function PiOverviewSummary({ summary, piId, artId }: Props) {
-  const { velocity, capacity, objectives, impediments, featureStatus } = summary;
-  const velocityPct =
-    velocity.plannedPoints > 0
-      ? Math.min(100, Math.round((velocity.completedPoints / velocity.plannedPoints) * 100))
-      : 0;
+  const { capacity, objectives, impediments, featureStatus } = summary;
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile label="Velocity">
-          <p className="text-2xl font-semibold">
-            {velocity.completedPoints}
-            <span className="text-base font-normal text-muted-foreground">
-              {" "}
-              / {velocity.plannedPoints} Pkt
-            </span>
-          </p>
-          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-primary" style={{ width: `${velocityPct}%` }} />
-          </div>
-        </Tile>
-
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <Tile label="Kapazität">
           <p className="text-2xl font-semibold">
             {capacity.plannedCapacity}
             <span className="text-base font-normal text-muted-foreground"> Pkt</span>
           </p>
-          <p className="text-xs text-muted-foreground">
-            geplant über {capacity.sprintCount} Sprint{capacity.sprintCount !== 1 ? "s" : ""}
-          </p>
+          <p className="text-xs text-muted-foreground">geplant für das PI</p>
         </Tile>
 
         <Tile label="Objectives" href={`/pi/${piId}/objectives`}>

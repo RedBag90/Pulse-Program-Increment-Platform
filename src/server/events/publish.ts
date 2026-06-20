@@ -8,7 +8,6 @@ import type { DomainEvent } from "./types";
  * requires every outbox type to have a registered handler in the cron route.
  */
 export const OUTBOX_ROUTES = {
-  "story.created": ["jira.story.created", "ado.story.created"],
   "impediment.escalated": ["notification.impediment.escalated"],
   "user.invited": ["email.user.invited"],
 } satisfies Record<DomainEvent["type"], string[]>;
@@ -18,11 +17,6 @@ export type OutboxEventType = (typeof OUTBOX_ROUTES)[keyof typeof OUTBOX_ROUTES]
 
 function route(event: DomainEvent): Array<{ type: OutboxEventType; payload: unknown }> {
   switch (event.type) {
-    case "story.created":
-      return [
-        { type: "jira.story.created", payload: event },
-        { type: "ado.story.created", payload: event },
-      ];
     case "impediment.escalated":
       return [{ type: "notification.impediment.escalated", payload: event }];
     case "user.invited":

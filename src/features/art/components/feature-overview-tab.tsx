@@ -28,8 +28,6 @@ export interface FeatureOverviewTabProps {
       computed: number | null;
     };
   };
-  childCount: number;
-  completedChildCount: number;
   canEdit: boolean;
 }
 
@@ -54,19 +52,14 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
  * description editor. WSJF + acceptance criteria are Feature-specific and live
  * here (Features have no Business Case / Benefit Hypothesis tabs).
  */
-export function FeatureOverviewTab({
-  feature,
-  childCount,
-  completedChildCount,
-  canEdit,
-}: FeatureOverviewTabProps) {
+export function FeatureOverviewTab({ feature, canEdit }: FeatureOverviewTabProps) {
   const { wsjf } = feature;
 
   const summary = buildInitiativeSummary({
     stageGate: feature.stageGate as StageGate,
     status: feature.status as InitiativeStatus,
-    childCount,
-    completedChildCount,
+    childCount: 0,
+    completedChildCount: 0,
     approvedAt: null,
     updatedAt: feature.updatedAt,
   });

@@ -73,7 +73,6 @@ export interface TeamDetail {
   teamType: string | null;
   scrumMasterLabel: string | null;
   productOwnerLabel: string | null;
-  sprintCount: number;
 }
 
 /** Per-Timeline detail. */
@@ -201,7 +200,7 @@ export function buildStructurePageModel(input: {
           parentId: art.id,
           depth: 2,
           label: team.name,
-          subtitle: `${team.headcount ?? "—"} Personen · ${team._count.sprints} Sprints`,
+          subtitle: `${team.headcount ?? "—"} Personen`,
           gaps: teamGaps,
         });
         teamDetails.set(team.id, {
@@ -215,7 +214,6 @@ export function buildStructurePageModel(input: {
           teamType: team.teamType,
           scrumMasterLabel: nameOrNull(team.scrumMasterId, userLabels),
           productOwnerLabel: nameOrNull(team.productOwnerId, userLabels),
-          sprintCount: team._count.sprints,
         });
       }
     }

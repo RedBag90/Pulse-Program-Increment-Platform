@@ -11,9 +11,7 @@ import {
   Wallet,
   GitBranch,
   Route,
-  Timer,
   BarChart2,
-  Activity,
   Trophy,
   Calculator,
   ShieldCheck,
@@ -184,7 +182,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       // RTE-Cockpit ist in den ART-Hub (`/umsetzung/art/[id]`) eingezogen.
       // Die Route `/rte` bleibt als Redirect erreichbar, ist aber aus dem Nav raus.
-      { href: "/sprint", labelKey: "mySprints", icon: Timer },
       {
         href: "/roadmap/portfolio",
         labelKey: "portfolioRoadmap",
@@ -203,12 +200,6 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: "portfolioHealth",
         icon: BarChart2,
         practice: "portfolioLevel",
-      },
-      {
-        href: "/reporting/pi-velocity",
-        labelKey: "piVelocity",
-        icon: Activity,
-        practice: "programLevel",
       },
       {
         href: "/reporting/wsjf-leaderboard",

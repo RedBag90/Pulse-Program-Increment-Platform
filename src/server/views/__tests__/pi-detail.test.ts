@@ -25,7 +25,6 @@ function baseInputs(): PiDetailInputs {
           { id: "a2", name: "Event Mgmt Orga ART" },
         ],
       },
-      sprints: [],
       initiatives: [],
     },
     teams: [],

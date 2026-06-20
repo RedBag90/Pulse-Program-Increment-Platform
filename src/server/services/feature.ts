@@ -692,10 +692,6 @@ export async function getFeature(db: PrismaClient, tenantId: TenantId, id: Featu
       parent: { select: { id: true, title: true, stageGate: true } },
       art: { select: { id: true, name: true } },
       pi: { select: { id: true, name: true, startDate: true, endDate: true } },
-      children: {
-        where: { deletedAt: null },
-        select: { id: true, title: true, level: true, status: true, storyPoints: true },
-      },
     },
   });
 }
@@ -834,11 +830,6 @@ export async function softDeleteFeature(
       where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.FEATURE, deletedAt: null },
     });
     if (!existing) return err({ kind: "not_found" as const, resourceType: "Feature", id });
-
-    await tx.initiative.updateMany({
-      where: { parentId: id, tenantId: mctx.tenantId, level: InitiativeLevel.STORY },
-      data: { deletedAt: new Date(), updatedBy: mctx.actorId },
-    });
 
     await tx.initiative.update({
       where: { id },

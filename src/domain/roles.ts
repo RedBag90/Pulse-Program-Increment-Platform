@@ -16,8 +16,6 @@ export const ROLES = {
   RTE: "rte",
   FEATURE_OWNER: "feature_owner",
   TEAM_EDITOR: "team_editor",
-  STORY_OWNER: "story_owner",
-  TASK_OWNER: "task_owner",
   VIEWER: "viewer",
 } as const;
 
@@ -42,7 +40,5 @@ export const ROLE_LABELS: Record<Role, string> = {
   rte: "RTE (Feature-QS)",
   feature_owner: "Feature Owner",
   team_editor: "Team Editor",
-  story_owner: "Story Owner",
-  task_owner: "Task Owner",
   viewer: "Viewer",
 };

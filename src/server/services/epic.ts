@@ -701,7 +701,7 @@ export async function softDeleteEpic(
     });
     if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id });
 
-    // Cascade soft-delete to all child features and their stories.
+    // Cascade soft-delete to all child features.
     const features = await tx.initiative.findMany({
       where: {
         parentId: id,
@@ -714,14 +714,6 @@ export async function softDeleteEpic(
     const featureIds = features.map((f) => f.id);
 
     if (featureIds.length > 0) {
-      await tx.initiative.updateMany({
-        where: {
-          parentId: { in: featureIds },
-          tenantId: mctx.tenantId,
-          level: InitiativeLevel.STORY,
-        },
-        data: { deletedAt: new Date(), updatedBy: mctx.actorId },
-      });
       await tx.initiative.updateMany({
         where: { id: { in: featureIds }, tenantId: mctx.tenantId },
         data: { deletedAt: new Date(), updatedBy: mctx.actorId },

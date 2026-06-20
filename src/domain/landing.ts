@@ -23,7 +23,7 @@ export function landingPathForRoles(roles: readonly string[]): string {
     return "/portfolio";
   }
   if (has(ROLES.RTE) || has(ROLES.FEATURE_OWNER)) return "/structure?tab=arts";
-  if (has(ROLES.TEAM_EDITOR) || has(ROLES.STORY_OWNER) || has(ROLES.TASK_OWNER)) return "/sprint";
+  if (has(ROLES.TEAM_EDITOR)) return "/structure?tab=arts";
   if (has(ROLES.VIEWER)) return "/reporting/portfolio-health";
 
   return "/portfolio";

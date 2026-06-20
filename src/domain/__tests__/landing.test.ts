@@ -17,10 +17,8 @@ describe("landingPathForRoles", () => {
     expect(landingPathForRoles([ROLES.FEATURE_OWNER])).toBe("/structure?tab=arts");
   });
 
-  it("sends execution roles to their sprints", () => {
-    expect(landingPathForRoles([ROLES.TASK_OWNER])).toBe("/sprint");
-    expect(landingPathForRoles([ROLES.STORY_OWNER])).toBe("/sprint");
-    expect(landingPathForRoles([ROLES.TEAM_EDITOR])).toBe("/sprint");
+  it("sends the team editor to the ARTs", () => {
+    expect(landingPathForRoles([ROLES.TEAM_EDITOR])).toBe("/structure?tab=arts");
   });
 
   it("sends the read-only viewer to reporting", () => {
@@ -28,7 +26,7 @@ describe("landingPathForRoles", () => {
   });
 
   it("prefers the most senior role when several are held", () => {
-    expect(landingPathForRoles([ROLES.TASK_OWNER, ROLES.TRANSFORMATION_LEAD])).toBe(
+    expect(landingPathForRoles([ROLES.TEAM_EDITOR, ROLES.TRANSFORMATION_LEAD])).toBe(
       "/transformation",
     );
   });

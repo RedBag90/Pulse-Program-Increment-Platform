@@ -37,7 +37,6 @@ export async function getStructureTree(db: PrismaClient, tenantId: TenantId) {
               teamType: true,
               scrumMasterId: true,
               productOwnerId: true,
-              _count: { select: { sprints: true } },
             },
           },
         },

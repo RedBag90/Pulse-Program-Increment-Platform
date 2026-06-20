@@ -33,11 +33,6 @@ export type Action =
   | "feature.review.submit"
   | "feature.review.decide"
   | "feature.delivery.set"
-  | "story.create"
-  | "story.update"
-  | "story.delete"
-  | "task.create"
-  | "task.edit"
   | "pi.create"
   | "pi.update"
   | "pi.start"
@@ -83,8 +78,6 @@ const {
   RTE,
   FEATURE_OWNER,
   TEAM_EDITOR,
-  STORY_OWNER,
-  TASK_OWNER,
   TENANT_ADMIN,
   TRANSFORMATION_LEAD,
 } = ROLES;
@@ -240,34 +233,6 @@ export const POLICIES: Record<Action, Grant[]> = {
   // resume, complete, cancel). Same audience as "feature.update".
   "feature.delivery.set": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
 
-  // ── Story ───────────────────────────────────────────────────────────────
-  // Team-level roles edit freely; program/portfolio roles only within their
-  // ART scope.
-  "story.create": [
-    { roles: [TEAM_EDITOR, STORY_OWNER] },
-    { roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER], scope: "art" },
-  ],
-  "story.update": [
-    { roles: [TEAM_EDITOR, STORY_OWNER] },
-    { roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER], scope: "art" },
-  ],
-  "story.delete": [
-    { roles: [TEAM_EDITOR, STORY_OWNER] },
-    { roles: [PORTFOLIO_MANAGER, RTE, TENANT_ADMIN], scope: "art" },
-  ],
-
-  // ── Task ────────────────────────────────────────────────────────────────
-  // The task owner may edit only their own Tasks (scope: "own").
-  "task.create": [
-    { roles: [TEAM_EDITOR, STORY_OWNER] },
-    { roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER], scope: "art" },
-  ],
-  "task.edit": [
-    { roles: [TEAM_EDITOR, STORY_OWNER] },
-    { roles: [TASK_OWNER], scope: "own" },
-    { roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER], scope: "art" },
-  ],
-
   // ── Dependencies ────────────────────────────────────────────────────────
   "dependency.link": [
     { roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] },
@@ -281,9 +246,7 @@ export const POLICIES: Record<Action, Grant[]> = {
   // ── Impediments ─────────────────────────────────────────────────────────
   // Anyone operating delivery may raise an impediment; escalation and
   // resolution stay with the coordinating roles.
-  "impediment.create": [
-    { roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER, TEAM_EDITOR, STORY_OWNER, TASK_OWNER] },
-  ],
+  "impediment.create": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER, TEAM_EDITOR] }],
   "impediment.escalate": [{ roles: [PORTFOLIO_MANAGER, RTE, TEAM_EDITOR] }],
   "impediment.resolve": [{ roles: [PORTFOLIO_MANAGER, RTE, TEAM_EDITOR] }],
 };

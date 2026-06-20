@@ -122,7 +122,6 @@ export type AuditResourceType =
   | "initiative"
   | "program_increment"
   | "pi_standard"
-  | "sprint"
   | "value_stream"
   | "art"
   | "team"

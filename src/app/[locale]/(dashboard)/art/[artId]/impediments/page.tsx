@@ -64,7 +64,7 @@ export default async function ImpedimentsPage({ params }: Props) {
       severity: i.severity,
       raisedBy: i.raisedBy,
       piId: i.piId,
-      sprintId: i.sprintId,
+      sprintId: null,
       createdAt: i.createdAt,
       resolution: i.resolution,
       resolvedAt: i.resolvedAt,

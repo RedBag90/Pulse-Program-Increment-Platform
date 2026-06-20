@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { summarizePiOverview, type PiOverviewInput } from "@/domain/pi-overview";
 
 const EMPTY: PiOverviewInput = {
-  sprints: [],
+  teams: [],
+  piDurationDays: 70,
   features: [],
   objectives: [],
   impediments: [],
@@ -11,49 +12,29 @@ const EMPTY: PiOverviewInput = {
 describe("summarizePiOverview", () => {
   it("returns zeroed metrics for empty input", () => {
     const s = summarizePiOverview(EMPTY);
-    expect(s.velocity).toEqual({ plannedPoints: 0, completedPoints: 0 });
-    expect(s.capacity).toEqual({ plannedCapacity: 0, sprintCount: 0 });
+    expect(s.capacity).toEqual({ plannedCapacity: 0 });
     expect(s.objectives).toEqual({ total: 0, committed: 0, avgConfidence: null });
     expect(s.impediments).toEqual({ open: 0, escalated: 0 });
     expect(s.featureStatus).toEqual([]);
   });
 
-  it("sums planned points and counts only done/completed stories as completed", () => {
+  it("sums team velocity over a 70-day PI (5 sprints) as capacity", () => {
     const s = summarizePiOverview({
       ...EMPTY,
-      sprints: [
-        {
-          teamTargetVelocity: 20,
-          stories: [
-            { storyPoints: 5, status: "done" },
-            { storyPoints: 3, status: "in_progress" },
-            { storyPoints: 8, status: "completed" },
-          ],
-        },
-      ],
+      teams: [{ targetVelocity: 20 }, { targetVelocity: 15 }, { targetVelocity: null }],
     });
-    expect(s.velocity.plannedPoints).toBe(16);
-    expect(s.velocity.completedPoints).toBe(13);
+    // 70 days / 14 = 5 sprints; (20 + 15 + 0) * 5 = 175
+    expect(s.capacity.plannedCapacity).toBe(175);
   });
 
-  it("treats missing story points as zero", () => {
+  it("falls back to at least one sprint when piDurationDays is short", () => {
     const s = summarizePiOverview({
       ...EMPTY,
-      sprints: [{ teamTargetVelocity: null, stories: [{ storyPoints: null, status: "done" }] }],
+      piDurationDays: 7,
+      teams: [{ targetVelocity: 20 }],
     });
-    expect(s.velocity).toEqual({ plannedPoints: 0, completedPoints: 0 });
-  });
-
-  it("sums capacity across sprints and counts them", () => {
-    const s = summarizePiOverview({
-      ...EMPTY,
-      sprints: [
-        { teamTargetVelocity: 20, stories: [] },
-        { teamTargetVelocity: 15, stories: [] },
-        { teamTargetVelocity: null, stories: [] },
-      ],
-    });
-    expect(s.capacity).toEqual({ plannedCapacity: 35, sprintCount: 3 });
+    // Math.round(7/14)=1 sprint
+    expect(s.capacity.plannedCapacity).toBe(20);
   });
 
   it("counts committed objectives and averages confidence, ignoring nulls", () => {

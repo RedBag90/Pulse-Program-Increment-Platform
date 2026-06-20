@@ -14,7 +14,6 @@ export function TeamSubNav({ teamId, teamName, artId, artName }: Props) {
   const pathname = usePathname();
 
   const tabs = [
-    { href: `/team/${teamId}`, label: "Backlog", segment: "" },
     { href: `/team/${teamId}/settings`, label: "Settings", segment: "settings" },
     { href: `/team/${teamId}/history`, label: "History", segment: "history" },
   ] as const;
@@ -35,10 +34,7 @@ export function TeamSubNav({ teamId, teamName, artId, artName }: Props) {
 
       <div className="border-b flex gap-0">
         {tabs.map(({ href, label, segment }) => {
-          const active =
-            segment === ""
-              ? pathname.endsWith(`/team/${teamId}`)
-              : pathname.includes(`/team/${teamId}/${segment}`);
+          const active = pathname.includes(`/team/${teamId}/${segment}`);
 
           return (
             <Link
