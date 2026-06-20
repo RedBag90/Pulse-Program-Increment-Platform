@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { loadZieleModel, type ZieleSubTab } from "@/server/views/ziele-view";
+import { loadKpiInventory, loadStrategyTree, type ZieleSubTab } from "@/server/views/ziele-view";
 import { ZieleShell } from "@/features/ziele/components/ziele-shell";
 
 /**
@@ -38,19 +38,17 @@ export default async function ZielePage({ searchParams }: PageProps) {
   const effectivePeriod = tab === "okrs" ? undefined : period;
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const baseModel = await loadZieleModel(db, principal, {
-    tab,
+  const tree = await loadStrategyTree(db, principal.tenantId, {
     ...(effectivePeriod ? { period: effectivePeriod } : {}),
   });
+  const inventory = await loadKpiInventory(db, principal.tenantId, tree);
 
   // Ziele = nur Wert-Anzeige: Edit-Affordances erzwungen aus.
   const model = {
-    ...baseModel,
-    permissions: {
-      ...baseModel.permissions,
-      canEditStrategy: false,
-      canEditKpiValuation: false,
-    },
+    ...tree,
+    ...inventory,
+    tab,
+    permissions: { canEditStrategy: false, canEditKpiValuation: false },
   };
 
   return (

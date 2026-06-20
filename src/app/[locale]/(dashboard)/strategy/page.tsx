@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { loadZieleModel, type ZieleSubTab } from "@/server/views/ziele-view";
+import { loadKpiInventory, loadStrategyTree, type ZieleSubTab } from "@/server/views/ziele-view";
 import { ZieleShell } from "@/features/ziele/components/ziele-shell";
 
 /**
@@ -40,17 +40,19 @@ export default async function StrategyPage({ searchParams }: PageProps) {
   const effectivePeriod = tab === "okrs" ? undefined : period;
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const baseModel = await loadZieleModel(db, principal, {
-    tab,
+  const tree = await loadStrategyTree(db, principal.tenantId, {
     ...(effectivePeriod ? { period: effectivePeriod } : {}),
   });
+  const inventory = await loadKpiInventory(db, principal.tenantId, tree);
 
   // Pflege-Surface: Edit-Affordances erzwungen aktiv (target.manage ist
   // schon das Gate); Money/Pflege-Sub-Tabs blendet die Shell weg, wenn
   // sie mit mode="strategy" gerendert wird.
   const model = {
-    ...baseModel,
-    permissions: { ...baseModel.permissions, canEditStrategy: true },
+    ...tree,
+    ...inventory,
+    tab,
+    permissions: { canEditStrategy: true, canEditKpiValuation: true },
   };
 
   return (

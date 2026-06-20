@@ -3,7 +3,7 @@ import { Link } from "@/i18n/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { loadZieleModel } from "@/server/views/ziele-view";
+import { loadStrategyTree, loadKpiInventory } from "@/server/views/ziele-view";
 import { KpiCoverageView } from "@/features/controlling/components/kpi-coverage-view";
 
 /**
@@ -22,7 +22,8 @@ export default async function KpiCoveragePage() {
   if (!canManage) redirect("/controlling");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const model = await loadZieleModel(db, principal, {});
+  const tree = await loadStrategyTree(db, principal.tenantId);
+  const inventory = await loadKpiInventory(db, principal.tenantId, tree);
 
   return (
     <main className="space-y-6 p-6 md:p-8">
@@ -45,7 +46,7 @@ export default async function KpiCoveragePage() {
         </Link>
       </div>
 
-      <KpiCoverageView model={model} canEdit />
+      <KpiCoverageView inventory={inventory} canEdit />
     </main>
   );
 }

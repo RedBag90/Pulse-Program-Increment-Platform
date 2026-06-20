@@ -1,9 +1,8 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { Principal } from "@/server/auth/principal";
-import { hasCapability } from "@/server/auth/authorize";
 import {
   horizonShare,
   keyResultTrio,
+  kpiContributionDetail,
   sumTrios,
   type KpiInput,
   type KrContributionInput,
@@ -11,13 +10,17 @@ import {
 } from "@/domain/goals-rollup";
 
 /**
- * Ziele-Modul-Loader (Konzept V2). Liefert die komplette Strategie-
- * Hierarchie fuer den Tenant inkl. €-Rollup-Trios pro Ebene. Die
- * Render-Komponenten konsumieren das fertige Tree-Modell ohne weitere
- * Domain-Arbeit.
+ * Ziele-/Strategie-/KPI-Coverage Loader. Zwei page-models leben hier:
  *
- * Periode-Filter: `period` (z. B. "2026-Q2") schraenkt die Objectives
- * auf das aktuelle Quartal ein, ohne Themes/Vision auszublenden.
+ *  - `loadStrategyTree(db, tenantId, { period? })` — die Theme→KR-
+ *    Hierarchie mit €-Trios pro Ebene. Konsumenten: `/ziele`-Shell
+ *    (read-only), `/strategy`-Shell (edit).
+ *  - `loadKpiInventory(db, tenantId, tree)` — KPI-Bibliothek mit
+ *    Pyramid-Bindungen + KR-Index fuer die KPI-Coverage-Tabelle.
+ *
+ * Ein Page-Model fasst Page-spezifische Daten zusammen — `permissions`
+ * und der UI-`tab` leben deshalb in der Page, nicht im Loader.
+ * CONTEXT.md §Page-model.
  */
 
 export type ZieleSubTab = "strategie" | "okrs" | "money" | "pflege";
@@ -103,38 +106,42 @@ export interface ZielePermissions {
   canEditKpiValuation: boolean;
 }
 
-export interface ZieleModel {
+export interface StrategyTree {
   themes: ZieleTreeTheme[];
   /** Tenant-Gesamt-Rollup (Summe ueber alle Themes). */
   tenantTrio: RollupTrio;
-  /** Aktiver Sub-Tab; per URL-Param `?tab=` ueberschreibbar. */
-  tab: ZieleSubTab;
   /** Period-Filter (z. B. „2026-Q2") oder `null` fuer „Alle". */
   period: string | null;
-  permissions: ZielePermissions;
-  /** Alle Tenant-KPIs (fuer KPI-Coverage-Tabelle). */
+}
+
+export interface KpiInventory {
   kpiLibrary: ZieleKpiLibraryEntry[];
-  /** Alle Tenant-KRs (gruppiert fuer KR-Auswahl in der KPI-Coverage). */
   krLibrary: ZieleKrLibraryEntry[];
 }
 
-export interface LoadZieleInput {
-  tab?: ZieleSubTab | undefined;
-  period?: string | undefined;
+/**
+ * Composite-Modell, das die Ziele/Strategy-Shell konsumiert. Das Modell
+ * wird in der Page zusammengesetzt — der Loader liefert nur den
+ * Strategy-Tree; tab/permissions/Inventory kommen von oben dazu.
+ */
+export interface ZieleModel extends StrategyTree, ZieleSubTabState {
+  permissions: ZielePermissions;
+  kpiLibrary: ZieleKpiLibraryEntry[];
+  krLibrary: ZieleKrLibraryEntry[];
 }
 
-export async function loadZieleModel(
+interface ZieleSubTabState {
+  tab: ZieleSubTab;
+}
+
+export async function loadStrategyTree(
   db: PrismaClient,
-  principal: Principal,
-  input: LoadZieleInput = {},
-): Promise<ZieleModel> {
-  const { tenantId } = principal;
-  const tab: ZieleSubTab = input.tab ?? "strategie";
+  tenantId: string,
+  input: { period?: string | undefined } = {},
+): Promise<StrategyTree> {
   const period = input.period ?? null;
 
-  // Objectives = die neuen „Themes" (flach unter dem Tenant). Wir laden
-  // sie ohne den Schema-Strategic-Theme-Layer durchzureichen — der ist
-  // nach §Hierarchie-Vereinfachung nur noch Datenmodell-Anker.
+  // Objectives = die flachen „Themes" unter dem Tenant.
   const objectiveWhere = period ? { tenantId, period } : { tenantId };
   const objectiveRows = await db.objective.findMany({
     where: objectiveWhere,
@@ -163,7 +170,7 @@ export async function loadZieleModel(
     },
   });
 
-  // 3) Horizont-Anker: aus Tenant.dashboardHorizonEnd, sonst 1 Jahr ab heute
+  // Horizont-Anker: aus Tenant.dashboardHorizonEnd, sonst 1 Jahr ab heute
   const tenant = await db.tenant.findUnique({
     where: { id: tenantId },
     select: { dashboardHorizonEnd: true },
@@ -173,7 +180,6 @@ export async function loadZieleModel(
   const horizonEnd = tenant?.dashboardHorizonEnd ?? addMonths(now, 12);
   const share = horizonShare(now, horizonStart, horizonEnd);
 
-  // Tree zusammenbauen + Trios berechnen — flach 2-Ebenig.
   const themes: ZieleTreeTheme[] = objectiveRows.map((o) => {
     const krs: ZieleTreeKeyResult[] = o.keyResults.map((k) => {
       const kpisById = new Map<string, KpiInput>();
@@ -194,25 +200,26 @@ export async function loadZieleModel(
       const trio =
         k.formula === "auto_from_kpi"
           ? keyResultTrio(contributions, kpisById, share)
-          : manualKrTrio(k.baseline, k.target, k.current, share);
+          : manualKrTrio();
 
       const contributionDetails: ZieleKrContribution[] = k.kpiContributions.map((c) => {
-        const kpi = kpisById.get(c.kpiId);
-        const span = (kpi?.target ?? 0) - (kpi?.baseline ?? 0);
-        const ach =
-          kpi && kpi.current != null && span !== 0
-            ? Math.max(0, Math.min(1, ((kpi.current ?? 0) - (kpi.baseline ?? 0)) / span))
-            : null;
-        const vpu = toFloat(c.valuePerUnitOverride) ?? kpi?.valuePerUnit ?? 0;
-        const realized = ach != null && vpu ? ach * vpu * span * Number(c.weight) * share : 0;
+        const detail = kpiContributionDetail(
+          kpisById.get(c.kpiId),
+          {
+            kpiId: c.kpiId,
+            weight: Number(c.weight),
+            valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
+          },
+          share,
+        );
         return {
           kpiId: c.kpiId,
           kpiName: c.kpi.name,
           epicTitle: c.kpi.initiative.title,
           weight: Number(c.weight),
           valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
-          achievement: ach,
-          contributionRealized: realized,
+          achievement: detail.achievement,
+          contributionRealized: detail.contributionRealized,
         };
       });
 
@@ -243,18 +250,23 @@ export async function loadZieleModel(
     };
   });
 
-  // Tenant-Trio = Summe aller Themes
-  const tenantTrio = sumTrios(themes.map((t) => t.trio));
+  return {
+    themes,
+    tenantTrio: sumTrios(themes.map((t) => t.trio)),
+    period,
+  };
+}
 
-  // 7) Permissions
-  const resource = { tenantId };
-  const canEditStrategy = hasCapability(principal, "target.manage", resource);
-  // Finance-Controller-Rolle: Capability folgt; bis dahin auf target.manage
-  // zurueckfallen (gleiche Audience: TENANT_ADMIN + LPM).
-  const canEditKpiValuation = canEditStrategy;
-
-  // 8) KPI-Bibliothek (Tenant-weit) + Pyramid-Bindungen pro KPI fuer
-  //    die KPI-Coverage-Tabelle.
+/**
+ * KPI-Coverage Page-Model. Nimmt den schon geladenen Strategy-Tree
+ * mit, damit Theme/KR-Titles + KPI-Beitraege ohne zweiten Roundtrip
+ * aufgeloest werden.
+ */
+export async function loadKpiInventory(
+  db: PrismaClient,
+  tenantId: string,
+  tree: StrategyTree,
+): Promise<KpiInventory> {
   const kpiRows = await db.kpi.findMany({
     where: { tenantId },
     select: {
@@ -267,19 +279,14 @@ export async function loadZieleModel(
     orderBy: [{ name: "asc" }],
   });
 
-  // KR-by-Id reverse-lookup aus den schon geladenen `themes` (Themes sind
-  // im V2-Modell = Objectives). Damit haben wir krTitle + themeTitle ohne
-  // extra DB-Roundtrip.
   type KrLookup = { title: string; themeId: string; themeTitle: string };
   const krLookup = new Map<string, KrLookup>();
-  for (const t of themes) {
+  for (const t of tree.themes) {
     for (const kr of t.keyResults) {
       krLookup.set(kr.id, { title: kr.title, themeId: t.id, themeTitle: t.title });
     }
   }
 
-  // Pro KPI: Pyramid sagt max. eine Bindung. Wir scannen die schon-
-  // geladenen Theme-Tree-Contributions.
   type BindingDetail = {
     keyResultId: string;
     weight: number;
@@ -287,7 +294,7 @@ export async function loadZieleModel(
     contributionRealized: number;
   };
   const bindingByKpiId = new Map<string, BindingDetail>();
-  for (const t of themes) {
+  for (const t of tree.themes) {
     for (const kr of t.keyResults) {
       for (const c of kr.contributions) {
         if (!bindingByKpiId.has(c.kpiId)) {
@@ -326,32 +333,17 @@ export async function loadZieleModel(
     };
   });
 
-  // 9) KR-Library: ein flacher Index aller KRs zum Aufbau des
-  //    Bind-Dropdowns in der KPI-Coverage.
   const krLibrary: ZieleKrLibraryEntry[] = [];
-  for (const t of themes) {
+  for (const t of tree.themes) {
     for (const kr of t.keyResults) {
-      krLibrary.push({
-        id: kr.id,
-        title: kr.title,
-        themeId: t.id,
-        themeTitle: t.title,
-      });
+      krLibrary.push({ id: kr.id, title: kr.title, themeId: t.id, themeTitle: t.title });
     }
   }
   krLibrary.sort(
     (a, b) => a.themeTitle.localeCompare(b.themeTitle) || a.title.localeCompare(b.title),
   );
 
-  return {
-    themes,
-    tenantTrio,
-    tab,
-    period,
-    permissions: { canEditStrategy, canEditKpiValuation },
-    kpiLibrary,
-    krLibrary,
-  };
+  return { kpiLibrary, krLibrary };
 }
 
 // ── helpers ────────────────────────────────────────────────────────────
@@ -359,7 +351,6 @@ export async function loadZieleModel(
 function toFloat(d: unknown): number | null {
   if (d === null || d === undefined) return null;
   if (typeof d === "number") return d;
-  // Prisma-Decimal — duck-type
   const n = Number(d);
   return Number.isFinite(n) ? n : null;
 }
@@ -375,18 +366,9 @@ function latestMeasurement(raw: unknown): number | null {
   return last?.value ?? null;
 }
 
-function manualKrTrio(
-  baseline: unknown,
-  target: unknown,
-  current: unknown,
-  share: number,
-): RollupTrio {
-  // Manuelle KRs koennen keinen €-Rollup haben (kein valuePerUnit auf der
-  // Brueckentabelle). Wir geben Nullen zurueck; UI zeigt „Manueller Modus".
-  void baseline;
-  void target;
-  void current;
-  void share;
+function manualKrTrio(): RollupTrio {
+  // Manuelle KRs haben keinen €-Rollup (kein valuePerUnit auf der
+  // Bruecke). UI zeigt „Manueller Modus".
   return { planned: 0, realized: 0, runRate: 0 };
 }
 

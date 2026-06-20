@@ -2,7 +2,7 @@
 
 import { useActionState, startTransition, useMemo, useState } from "react";
 import Link from "next/link";
-import type { ZieleKrLibraryEntry, ZieleModel } from "@/server/views/ziele-view";
+import type { KpiInventory, ZieleKrLibraryEntry } from "@/server/views/ziele-view";
 import { ValuePerUnitInput } from "@/features/controlling/components/value-per-unit-input";
 import { setKpiBindingAction } from "@/features/controlling/actions/kr-kpi-binding";
 
@@ -18,14 +18,14 @@ import { setKpiBindingAction } from "@/features/controlling/actions/kr-kpi-bindi
  * Setup offen), darunter eine Suchleiste mit Status-Filter.
  */
 interface Props {
-  model: ZieleModel;
+  inventory: KpiInventory;
   canEdit: boolean;
 }
 
 type StatusFilter = "alle" | "setup_offen" | "ungebunden";
 
-export function KpiCoverageView({ model, canEdit }: Props) {
-  const { kpiLibrary, krLibrary } = model;
+export function KpiCoverageView({ inventory, canEdit }: Props) {
+  const { kpiLibrary, krLibrary } = inventory;
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("alle");
 
@@ -135,7 +135,7 @@ function KpiRow({
   krByTheme,
   canEdit,
 }: {
-  kpi: ZieleModel["kpiLibrary"][number];
+  kpi: KpiInventory["kpiLibrary"][number];
   krByTheme: Array<[string, ZieleKrLibraryEntry[]]>;
   canEdit: boolean;
 }) {

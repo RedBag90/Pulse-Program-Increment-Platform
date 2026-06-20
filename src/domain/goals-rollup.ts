@@ -97,6 +97,28 @@ export function keyResultTrio(
   return { planned, realized, runRate };
 }
 
+/**
+ * Pro-KPI-Beitrag innerhalb eines Key Results: Achievement-Anteil sowie
+ * realisierter €-Anteil dieses einen KPI an seinem KR. Pendant zu
+ * `keyResultTrio`, das die Summe rechnet; hier liefern wir die Einzel-
+ * Komponente fuer Anzeigen (KPI-Tab, KPI-Coverage-Zeile, etc.).
+ */
+export function kpiContributionDetail(
+  kpi: KpiInput | undefined,
+  contribution: KrContributionInput,
+  horizonShare: number,
+): { achievement: number | null; contributionRealized: number } {
+  if (!kpi) return { achievement: null, contributionRealized: 0 };
+  const span = (kpi.target ?? 0) - (kpi.baseline ?? 0);
+  const ach =
+    kpi.current != null && span !== 0
+      ? clamp01(((kpi.current ?? 0) - (kpi.baseline ?? 0)) / span)
+      : null;
+  const vpu = contribution.valuePerUnitOverride ?? kpi.valuePerUnit ?? 0;
+  const realized = ach != null && vpu ? ach * vpu * span * contribution.weight * horizonShare : 0;
+  return { achievement: ach, contributionRealized: realized };
+}
+
 /** Aggregiert eine Liste von Trio's. */
 export function sumTrios(trios: ReadonlyArray<RollupTrio>): RollupTrio {
   return trios.reduce(

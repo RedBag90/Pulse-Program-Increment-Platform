@@ -12,7 +12,7 @@ import { MoneySheetView } from "./money-sheet-view";
  * Geteilte Shell fuer das **Ziele-Modul** (Wert-Anzeige, read-only,
  * `mode="ziele"`) und das **Strategie-Pflege-Modul** (volle Edit-
  * Affordances, `mode="strategy"`). Beide laufen ueber denselben
- * Loader (`loadZieleModel`); der Unterschied steckt im `canEdit`-
+ * Loader (`loadStrategyTree` + `loadKpiInventory`); der Unterschied steckt im `canEdit`-
  * Flag (vom Page-Loader gesetzt) und in den Sub-Tabs:
  *
  *  - `mode="ziele"`   → Tabs Strategie · OKRs · Money (Pflege ist
