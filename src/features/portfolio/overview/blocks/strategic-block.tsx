@@ -13,7 +13,10 @@ function pct(n: number): string {
  * its own progress bar so the picture is complete without a drill-down.
  */
 export function StrategicBlock({ data }: { data: PortfolioOverview }) {
-  const activeGoals = data.goals.filter((g) => g.status === "active");
+  // In-flight = draft + active. Done states (achieved/missed/cancelled/
+  // archived/stretched) verschwinden aus der Karte; sie sind keine offenen
+  // Ziele mehr.
+  const activeGoals = data.goals.filter((g) => g.status === "active" || g.status === "draft");
   // Highest progress first; stable for ties.
   const ranked = [...activeGoals].sort((a, b) => b.progress - a.progress);
 

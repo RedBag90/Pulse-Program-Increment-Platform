@@ -263,13 +263,16 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     progress: themeProgress(t),
     epicLinkCount: t.epicLinkCount,
   }));
-  const activeGoals = goals.filter((g) => g.status === "active");
+  // In-flight = draft + active; done states (achieved/missed/cancelled/
+  // stretched/archived) zaehlen nicht zu den aktiven Zielen.
+  const isInFlight = (s: string) => s === "active" || s === "draft";
+  const activeGoals = goals.filter((g) => isInFlight(g.status));
   const goalAverageProgress =
     activeGoals.length === 0
       ? 0
       : activeGoals.reduce((s, g) => s + g.progress, 0) / activeGoals.length;
   // "On-track" = nicht im Drift-Bereich (Run-Rate >= 70% des Planned).
-  const activeThemes = themes.filter((t) => t.status === "active");
+  const activeThemes = themes.filter((t) => isInFlight(t.status));
   const goalsOnTrack = activeThemes.filter((t) => !isAtRisk(t.trio)).length;
   const topGoal =
     activeGoals.length === 0 ? null : [...activeGoals].sort((a, b) => b.progress - a.progress)[0]!;
