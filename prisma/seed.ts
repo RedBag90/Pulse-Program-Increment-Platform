@@ -54,20 +54,15 @@ async function upsertAuthUser(email: string, password: string): Promise<string> 
 async function wipeDomainData(tenantId: string): Promise<void> {
   console.log("\n── Wiping domain data (tenant + auth + roles bleiben)");
 
-  // Ziele V2 (Theme = Objective; Vision/Strategic-Theme als Datenmodell-Anker)
+  // Ziele V2 (Theme = Objective; StrategicTheme als Default-Anker)
   await prisma.krKpiContribution.deleteMany({ where: { tenantId } });
   await prisma.keyResult.deleteMany({ where: { tenantId } });
   await prisma.themeEpicLink.deleteMany({ where: { tenantId } });
   await prisma.objective.deleteMany({ where: { tenantId } });
   await prisma.strategicTheme.deleteMany({ where: { tenantId } });
-  await prisma.portfolioVision.deleteMany({ where: { tenantId } });
 
-  // Legacy transformation
-  await prisma.goalEpicLink.deleteMany({ where: { tenantId } });
-  await prisma.targetOutcome.deleteMany({ where: { tenantId } });
-  await prisma.transformationGoal.deleteMany({ where: { tenantId } });
+  // Transformation (target-operating-model + bewertungs-actions)
   await prisma.transformationAction.deleteMany({ where: { tenantId } });
-  await prisma.transformationSnapshot.deleteMany({ where: { tenantId } });
   await prisma.targetOperatingModel.deleteMany({ where: { tenantId } });
 
   // Budgeting
