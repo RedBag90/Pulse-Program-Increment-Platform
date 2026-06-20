@@ -3,7 +3,6 @@ import type { TenantId, ArtId, PiId, TimelineId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
 import { validateDateRange } from "@/domain/pi-planning";
-import { backfillSprints } from "@/server/services/sprint-backfill";
 import { buildChangelog } from "@/domain/change-log";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
@@ -43,7 +42,7 @@ export async function createPi(
     async (tx) => {
       const timeline = await tx.timeline.findFirst({
         where: { id: timelineId, tenantId: mctx.tenantId },
-        include: { arts: { include: { teams: { select: { id: true } } } } },
+        select: { id: true },
       });
       if (!timeline) {
         return err({ kind: "not_found" as const, resourceType: "Timeline", id: timelineId });
@@ -55,11 +54,6 @@ export async function createPi(
       const pi = await tx.programIncrement.create({
         data: { tenantId: mctx.tenantId, timelineId, name, startDate, endDate },
       });
-
-      // One sprint per (team, PI) across every team in every subscribed ART —
-      // teams of multiple ARTs now share the same Timeline-PI rhythm.
-      const allTeams = timeline.arts.flatMap((a) => a.teams);
-      await backfillSprints(tx, mctx.tenantId, [{ id: pi.id, startDate, endDate }], allTeams);
 
       return ok({
         result: { id: pi.id as PiId },
@@ -427,9 +421,9 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
 }
 
 /**
- * Delete a planned PI and cascade: its sprints and objectives are removed, assigned
- * features return to the backlog (piId → null), stories leave their sprints
- * (sprintId → null), and impediments are detached but kept in the ART log.
+ * Delete a planned PI and cascade: assigned features return to the backlog
+ * (piId → null), objectives are removed, and impediments are detached but
+ * kept in the ART log.
  *
  * Sibling: `detachArtFromTimeline` ([timeline.ts](./timeline.ts)) handles a
  * different lifecycle event — an ART leaving a Timeline while the PI rows
@@ -449,34 +443,19 @@ export async function deletePi(ctx: RequestContext, input: { id: PiId }): Promis
       return err({ kind: "conflict" as const, reason: "Only a planned PI can be deleted" });
     }
 
-    const sprints = await tx.sprint.findMany({
-      where: { tenantId: mctx.tenantId, piId: id },
-      select: { id: true },
-    });
-    const sprintIds = sprints.map((s) => s.id);
-
     // Features assigned to this PI fall back to the backlog.
     await tx.initiative.updateMany({
       where: { tenantId: mctx.tenantId, piId: id },
       data: { piId: null },
     });
 
-    // Stories in this PI's sprints lose their sprint assignment.
-    if (sprintIds.length > 0) {
-      await tx.initiative.updateMany({
-        where: { tenantId: mctx.tenantId, sprintId: { in: sprintIds } },
-        data: { sprintId: null },
-      });
-    }
-
-    // Impediments are kept (ART-scoped) but detached from the PI/sprints.
+    // Impediments are kept (ART-scoped) but detached from the PI.
     await tx.impediment.updateMany({
-      where: { tenantId: mctx.tenantId, OR: [{ piId: id }, { sprintId: { in: sprintIds } }] },
-      data: { piId: null, sprintId: null },
+      where: { tenantId: mctx.tenantId, piId: id },
+      data: { piId: null },
     });
 
     await tx.piObjective.deleteMany({ where: { tenantId: mctx.tenantId, piId: id } });
-    await tx.sprint.deleteMany({ where: { tenantId: mctx.tenantId, piId: id } });
     await tx.programIncrement.delete({ where: { id } });
 
     return ok({

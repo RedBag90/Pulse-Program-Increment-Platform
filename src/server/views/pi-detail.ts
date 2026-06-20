@@ -6,12 +6,13 @@ import { summarizePiOverview, type PiOverviewSummary } from "@/domain/pi-overvie
  * detail page consumes. Pure; mirrors `buildPlanningModel` / Portfolio
  * Overview.
  *
- * The page asks two questions whose answers live here:
- *   - "which Features are in this PI, grouped by ART?"
- *   - "which Features could land in this PI, grouped by ART?"
+ * Die Page beantwortet zwei Fragen:
+ *   - "welche Features sind in diesem PI, gruppiert nach ART?"
+ *   - "welche Features koennten in dieses PI landen, gruppiert nach ART?"
  *
- * Plus the `summary` (delegated to the existing `summarizePiOverview` read-
- * model in `domain/`) and a `teamVelocity` Map the summary needs upstream.
+ * Plus das `summary` (delegiert an `summarizePiOverview` aus `domain/`)
+ * und eine `teamVelocity`-Map, die das Summary upstream braucht. Story-
+ * und Sprint-Achsen sind nach dem Wegfall der Story-Ebene raus.
  */
 
 // ---------------------------------------------------------------------------
@@ -29,21 +30,6 @@ export interface PiDetailTimeline {
   arts: PiDetailArt[];
 }
 
-export interface PiDetailSprint {
-  id: string;
-  indexInPi: number;
-  startDate: Date;
-  endDate: Date;
-  teamId: string;
-  team: { id: string; name: string } | null;
-  initiatives: Array<{
-    id: string;
-    title: string;
-    status: string;
-    storyPoints: number | null;
-  }>;
-}
-
 export interface PiDetailFeatureRow {
   id: string;
   title: string;
@@ -59,7 +45,6 @@ export interface PiDetailPi {
   startDate: Date;
   endDate: Date;
   timeline: PiDetailTimeline | null;
-  sprints: PiDetailSprint[];
   initiatives: PiDetailFeatureRow[];
 }
 
@@ -112,7 +97,6 @@ export interface PiDetailModel {
   arts: PiDetailArt[];
   /** First subscribed ART — used as the auth scope for click-throughs. */
   primaryArt: PiDetailArt;
-  sprints: PiDetailSprint[];
   featuresByArt: Map<string, PiDetailFeatureCard[]>;
   candidatesByArt: Map<string, PiDetailCandidate[]>;
   teamVelocity: Map<string, number | null>;
@@ -184,11 +168,14 @@ export function buildPiDetailModel(inputs: PiDetailInputs): PiDetailModel | null
 
   const teamVelocity = new Map(teams.map((t) => [t.id, t.targetVelocity]));
 
+  const piDurationDays = Math.max(
+    1,
+    Math.round((pi.endDate.getTime() - pi.startDate.getTime()) / (24 * 60 * 60 * 1000)),
+  );
+
   const summary = summarizePiOverview({
-    sprints: pi.sprints.map((s) => ({
-      teamTargetVelocity: teamVelocity.get(s.teamId) ?? null,
-      stories: s.initiatives.map((st) => ({ storyPoints: st.storyPoints, status: st.status })),
-    })),
+    teams: teams.map((t) => ({ targetVelocity: t.targetVelocity })),
+    piDurationDays,
     features: pi.initiatives.map((f) => ({ status: f.status })),
     objectives: objectives.map((o) => ({ committed: o.committed, confidence: o.confidence })),
     impediments: impediments.map((i) => ({ status: i.status })),
@@ -205,7 +192,6 @@ export function buildPiDetailModel(inputs: PiDetailInputs): PiDetailModel | null
     timeline,
     arts,
     primaryArt,
-    sprints: pi.sprints,
     featuresByArt,
     candidatesByArt,
     teamVelocity,

@@ -44,10 +44,6 @@ describe("CREATE_REGISTRY resolveHref", () => {
     expect(entry("epic").resolveHref({})).toBe("/portfolio/epics?create=epic");
   });
 
-  it("deep-links a Story create from a feature context", () => {
-    expect(entry("story").resolveHref({ featureId: "f1" })).toBe("/feature/f1?create=story");
-  });
-
   it("routes KPI creation to the Epic's KPIs tab when an epic context exists", () => {
     expect(entry("kpi").resolveHref({ epicId: "e1" })).toBe("/portfolio/epics/e1?tab=kpis");
   });

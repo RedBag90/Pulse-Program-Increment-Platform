@@ -82,7 +82,7 @@ export default async function PiDetailPage({ params }: Props) {
   });
   if (!model) notFound();
 
-  const { pi, sprints, arts, primaryArt, featuresByArt, candidatesByArt, summary } = model;
+  const { pi, arts, primaryArt, featuresByArt, candidatesByArt, summary } = model;
 
   const badgeClass = STATUS_BADGE[pi.status] ?? "bg-muted text-muted-foreground";
   const totalDays = Math.round(
@@ -145,45 +145,6 @@ export default async function PiDetailPage({ params }: Props) {
 
       {/* Metrics — first ART is used only as an auth scope for the click-throughs. */}
       <PiOverviewSummary summary={summary} piId={piId} artId={primaryArt.id} />
-
-      {/* Sprints */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Sprints ({sprints.length})
-        </h2>
-        {sprints.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No sprints yet.</p>
-        ) : (
-          <Card className="overflow-hidden">
-            <div className="divide-y divide-border">
-              {sprints.map((sprint) => (
-                <div
-                  key={sprint.id}
-                  className="flex items-center justify-between px-4 py-3 text-sm"
-                >
-                  <div>
-                    <span className="font-medium">Sprint {sprint.indexInPi}</span>
-                    {sprint.team && (
-                      <span className="ml-2 text-xs text-muted-foreground">{sprint.team.name}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span>
-                      {formatDate(sprint.startDate)} – {formatDate(sprint.endDate)}
-                    </span>
-                    <Link
-                      href={`/sprint/${sprint.id}`}
-                      className="font-medium text-primary hover:underline"
-                    >
-                      Board →
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-      </section>
 
       {/* Features grouped per ART */}
       <section className="space-y-3">

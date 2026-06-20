@@ -6,7 +6,6 @@ import { buildChangelog } from "@/domain/change-log";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { applyPiStandard } from "@/server/services/pi-standard";
-import { backfillSprints } from "@/server/services/sprint-backfill";
 
 /**
  * Timelines — shared PI cadences that multiple ARTs can subscribe to.
@@ -222,16 +221,8 @@ export async function joinArtToTimeline(
 
     await tx.art.update({ where: { id: input.artId }, data: { timelineId: input.timelineId } });
 
-    // Backfill: one sprint per (team, PI) for every existing Timeline PI.
-    const { created: sprintsCreated } = await backfillSprints(
-      tx,
-      mctx.tenantId,
-      timeline.programIncrements,
-      art.teams,
-    );
-
     return ok({
-      result: { sprintsCreated },
+      result: { sprintsCreated: 0 },
       audit: {
         action: "timeline.art.joined",
         resourceType: "timeline",
@@ -239,7 +230,6 @@ export async function joinArtToTimeline(
         changes: {
           artId: { before: null, after: input.artId },
           previousTimelineId: { before: null, after: previousTimelineId ?? null },
-          sprintsCreated: { before: null, after: sprintsCreated },
           ...(previousTimelineId
             ? {
                 objectivesRemovedFromPrevious: {
@@ -340,21 +330,7 @@ async function detachArtFromTimeline(
   if (piIds.length === 0 || teamIds.length === 0) {
     return { sprintsRemoved: 0, featuresUnassigned: 0, objectivesRemoved: 0 };
   }
-  // Stories in the doomed sprints lose their sprint link.
-  const doomedSprints = await tx.sprint.findMany({
-    where: { tenantId, piId: { in: piIds }, teamId: { in: teamIds } },
-    select: { id: true },
-  });
-  const sprintIds = doomedSprints.map((s) => s.id);
-  if (sprintIds.length > 0) {
-    await tx.initiative.updateMany({
-      where: { tenantId, sprintId: { in: sprintIds } },
-      data: { sprintId: null },
-    });
-  }
-  const sprintsRemoved = await tx.sprint.deleteMany({
-    where: { tenantId, piId: { in: piIds }, teamId: { in: teamIds } },
-  });
+  const sprintsRemoved = { count: 0 } as { count: number };
 
   // Features of this ART that were assigned to one of these Timeline PIs lose
   // their PI link — the timeline no longer covers them.

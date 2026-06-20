@@ -3,7 +3,6 @@ import type { TenantId, ArtId, TeamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import { buildChangelog } from "@/domain/change-log";
-import { backfillSprints } from "@/server/services/sprint-backfill";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,
@@ -43,15 +42,6 @@ export async function createTeam(
       }
 
       const team = await tx.team.create({ data: { tenantId: mctx.tenantId, artId, name } });
-
-      // Backfill sprints: a team added after a PI was created still needs the PI's
-      // sprints. Mirrors createPi, which only covers teams existing at PI creation.
-      // Only planned PIs — an active/completed PI's sprint set is frozen.
-      const plannedPis = await tx.programIncrement.findMany({
-        where: { tenantId: mctx.tenantId, artId, status: "planned" },
-        select: { id: true, startDate: true, endDate: true },
-      });
-      await backfillSprints(tx, mctx.tenantId, plannedPis, [{ id: team.id }]);
 
       return ok({
         result: { id: team.id as TeamId },

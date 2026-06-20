@@ -12,7 +12,6 @@ import {
   GitBranch,
   Route,
   BarChart2,
-  Activity,
   Trophy,
   Calculator,
   ShieldCheck,
@@ -201,12 +200,6 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: "portfolioHealth",
         icon: BarChart2,
         practice: "portfolioLevel",
-      },
-      {
-        href: "/reporting/pi-velocity",
-        labelKey: "piVelocity",
-        icon: Activity,
-        practice: "programLevel",
       },
       {
         href: "/reporting/wsjf-leaderboard",
