@@ -62,6 +62,7 @@ export type Action =
   | "timeline.manage"
   | "art_budget.manage"
   | "kpi.value.manage"
+  | "kpi.bind"
   | "role.capability.manage"
   | "pi.demo.manage";
 
@@ -135,6 +136,14 @@ export const POLICIES: Record<Action, Grant[]> = {
     { roles: [PORTFOLIO_MANAGER, TRANSFORMATION_LEAD] },
     { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
   ],
+  // Eine Epic-KPI an einen Key Result binden (oder loesen / re-binden).
+  // Eigener Capability statt `target.manage`, weil Strategie-Pflege
+  // (Themes/KRs anlegen) und KPI-Bindungs-Pflege (Bewertungs-Brücke
+  // Controlling) konzeptionell zwei verschiedene Verantwortlichkeiten
+  // sind. Audience aktuell deckungsgleich mit `target.manage`;
+  // perspektivisch koennen Finance-Rollen hier breiter zugelassen werden,
+  // ohne den Strategie-Editor zu oeffnen.
+  "kpi.bind": [{ roles: [TENANT_ADMIN, TRANSFORMATION_LEAD, PORTFOLIO_MANAGER] }],
 
   // ── Portfolio ───────────────────────────────────────────────────────────
   // The portfolio manager funds value streams and owns the Epic backlog.

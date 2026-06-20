@@ -10,8 +10,8 @@ import {
   createKeyResult,
   updateKeyResult,
   deleteKeyResult,
-  setKpiBinding,
 } from "@/server/services/ziele";
+import { setKpiBinding } from "@/server/services/kpi-binding";
 
 /**
  * Ziele-Modul-Actions. Permission-Gate ueberall `target.manage`
@@ -180,7 +180,7 @@ export const setKpiBindingAction = createServerAction({
     weight: z.coerce.number().min(0).max(1).optional(),
     valuePerUnitOverride: z.coerce.number().optional().or(z.literal("")),
   }),
-  action: "target.manage",
+  action: "kpi.bind",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
     setKpiBinding(ctx, {
