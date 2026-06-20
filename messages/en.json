@@ -45,14 +45,12 @@
     "myApprovals": "My Approvals",
     "myTasks": "My Tasks",
     "teams": "Teams",
-    "mySprints": "My Sprints",
     "controlling": "Controlling",
     "controllingOverview": "Overview",
     "budgetPlan": "Budget Plan",
     "kpiCoverage": "KPI Coverage",
     "reporting": "Reporting",
     "portfolioHealth": "Portfolio Health",
-    "piVelocity": "PI Velocity",
     "wsjfLeaderboard": "WSJF Leaderboard",
     "admin": "Admin",
     "users": "Users",
@@ -115,11 +113,7 @@
     "complete": "Complete PI"
   },
   "team": {
-    "title": "Team",
-    "backlog": "Backlog",
-    "sprint": "Sprint",
-    "stories": "Stories",
-    "tasks": "Tasks"
+    "title": "Team"
   },
   "admin": {
     "title": "Administration",

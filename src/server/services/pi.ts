@@ -483,7 +483,7 @@ export async function listPis(
     return { items: [], total: 0, page: 1, pageSize: pageParams.pageSize ?? 200 };
   }
   const where = { tenantId, timelineId: art.timelineId };
-  const include = { _count: { select: { sprints: true, initiatives: true } } };
+  const include = { _count: { select: { initiatives: true } } };
   const orderBy = { startDate: "desc" as const };
 
   return paginate(
@@ -549,7 +549,6 @@ export async function listArtPlanningPis(db: PrismaClient, tenantId: TenantId, a
       endDate: true,
       capacityJobSize: true,
       capacityAmount: true,
-      _count: { select: { sprints: true } },
     },
     orderBy: { startDate: "asc" },
   });
@@ -563,22 +562,6 @@ export async function getPi(db: PrismaClient, tenantId: TenantId, id: PiId) {
       timeline: {
         include: {
           arts: { select: { id: true, name: true } },
-        },
-      },
-      sprints: {
-        orderBy: [{ teamId: "asc" }, { indexInPi: "asc" }],
-        select: {
-          id: true,
-          indexInPi: true,
-          startDate: true,
-          endDate: true,
-          teamId: true,
-          team: { select: { id: true, name: true, artId: true } },
-          initiatives: {
-            where: { deletedAt: null, level: 2 },
-            select: { id: true, title: true, status: true, storyPoints: true },
-            orderBy: { createdAt: "asc" },
-          },
         },
       },
       initiatives: {

@@ -491,7 +491,6 @@ model Team {
 
   tenant     Tenant        @relation(fields: [tenantId], references: [id])
   art        Art           @relation(fields: [artId], references: [id])
-  sprints    Sprint[]
   objectives PiObjective[]
 
   @@unique([tenantId, name])
@@ -529,7 +528,6 @@ model ProgramIncrement {
 
   art         Art?          @relation(fields: [artId], references: [id])
   timeline    Timeline?     @relation(fields: [timelineId], references: [id], onDelete: Cascade)
-  sprints     Sprint[]
   initiatives Initiative[]
   objectives  PiObjective[]
   impediments Impediment[]
@@ -623,27 +621,10 @@ model SystemDemoItem {
   @@map("system_demo_items")
 }
 
-model Sprint {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
-  piId      String   @map("pi_id") @db.Uuid
-  teamId    String   @map("team_id") @db.Uuid
-  indexInPi Int      @map("index_in_pi")
-  startDate DateTime @map("start_date") @db.Date
-  endDate   DateTime @map("end_date") @db.Date
-
-  pi          ProgramIncrement @relation(fields: [piId], references: [id])
-  team        Team             @relation(fields: [teamId], references: [id])
-  initiatives Initiative[]
-  impediments Impediment[]
-
-  @@map("sprints")
-}
-
 model Initiative {
   id       String  @id @default(uuid()) @db.Uuid
   tenantId String  @map("tenant_id") @db.Uuid
-  level    Int // 0=EPIC, 1=FEATURE, 2=STORY, 3=TASK
+  level    Int // 0=EPIC, 1=FEATURE
   parentId String? @map("parent_id") @db.Uuid
   path     String // materialized path
 
@@ -655,8 +636,7 @@ model Initiative {
   // Level-specific foreign keys
   valueStreamId String? @map("value_stream_id") @db.Uuid // EPIC only
   artId         String? @map("art_id") @db.Uuid // FEATURE only
-  piId          String? @map("pi_id") @db.Uuid // FEATURE, STORY
-  sprintId      String? @map("sprint_id") @db.Uuid // STORY only
+  piId          String? @map("pi_id") @db.Uuid // FEATURE only
 
   // WSJF fields (FEATURE only)
   wsjfBusinessValue   Int?     @map("wsjf_business_value")
@@ -689,14 +669,8 @@ model Initiative {
   plannedStartAt DateTime? @map("planned_start_at") @db.Date
   plannedEndAt   DateTime? @map("planned_end_at")   @db.Date
 
-  // Story points (STORY only)
-  storyPoints Int? @map("story_points")
-
-  // Acceptance criteria (FEATURE, STORY)
+  // Acceptance criteria (FEATURE only)
   acceptanceCriteria String[] @map("acceptance_criteria")
-
-  // Task estimate (TASK only)
-  estimateHours Decimal? @map("estimate_hours") @db.Decimal(5, 1)
 
   // External system sync (e.g. Jira issue key "PROJ-123")
   externalId     String? @map("external_id")
@@ -751,7 +725,6 @@ model Initiative {
   valueStream ValueStream?      @relation("EpicValueStream", fields: [valueStreamId], references: [id])
   art         Art?              @relation("FeatureArt", fields: [artId], references: [id])
   pi          ProgramIncrement? @relation(fields: [piId], references: [id])
-  sprint      Sprint?           @relation(fields: [sprintId], references: [id])
 
   dependenciesOut  Dependency[]      @relation("From")
   dependenciesIn   Dependency[]      @relation("To")
@@ -991,7 +964,6 @@ model Impediment {
   tenantId    String    @map("tenant_id") @db.Uuid
   artId       String    @map("art_id") @db.Uuid
   piId        String?   @map("pi_id") @db.Uuid
-  sprintId    String?   @map("sprint_id") @db.Uuid
   title       String
   description String?   @db.Text
   severity    String    @default("medium") // low | medium | high | critical
@@ -1011,7 +983,6 @@ model Impediment {
 
   art    Art               @relation(fields: [artId], references: [id])
   pi     ProgramIncrement? @relation(fields: [piId], references: [id])
-  sprint Sprint?           @relation(fields: [sprintId], references: [id])
 
   @@index([artId, status])
   @@index([piId])

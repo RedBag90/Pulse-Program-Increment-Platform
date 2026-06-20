@@ -90,8 +90,6 @@ export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly
       "feature.delivery.set",
     ],
   },
-  { key: "story", label: "Story", actions: ["story.create", "story.update", "story.delete"] },
-  { key: "task", label: "Task", actions: ["task.create", "task.edit"] },
   { key: "dependencies", label: "Dependencies", actions: ["dependency.link", "dependency.unlink"] },
   {
     key: "impediments",

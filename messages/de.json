@@ -45,14 +45,12 @@
     "myApprovals": "Meine Freigaben",
     "myTasks": "Meine Tasks",
     "teams": "Teams",
-    "mySprints": "Meine Sprints",
     "controlling": "Controlling",
     "controllingOverview": "Übersicht",
     "budgetPlan": "Budget-Plan",
     "kpiCoverage": "KPI-Coverage",
     "reporting": "Berichte",
     "portfolioHealth": "Portfolio-Gesundheit",
-    "piVelocity": "PI-Velocity",
     "wsjfLeaderboard": "WSJF-Rangliste",
     "admin": "Administration",
     "users": "Benutzer",
@@ -115,11 +113,7 @@
     "complete": "PI abschließen"
   },
   "team": {
-    "title": "Team",
-    "backlog": "Backlog",
-    "sprint": "Sprint",
-    "stories": "Stories",
-    "tasks": "Aufgaben"
+    "title": "Team"
   },
   "admin": {
     "title": "Administration",

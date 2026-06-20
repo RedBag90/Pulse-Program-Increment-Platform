@@ -10,11 +10,7 @@ const _: _Exhaustive = true;
 describe("OUTBOX_ROUTES", () => {
   it("covers all DomainEvent types", () => {
     const routedTypes = Object.keys(OUTBOX_ROUTES);
-    const domainEventTypes: DomainEvent["type"][] = [
-      "story.created",
-      "impediment.escalated",
-      "user.invited",
-    ];
+    const domainEventTypes: DomainEvent["type"][] = ["impediment.escalated", "user.invited"];
     for (const type of domainEventTypes) {
       expect(routedTypes).toContain(type);
     }

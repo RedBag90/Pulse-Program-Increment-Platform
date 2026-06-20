@@ -21,10 +21,7 @@ export type ValidatedParent = Pick<Initiative, "id" | "level" | "path" | "artId"
 
 /** Optional initiative columns a child-level create may set. */
 type ChildCreateData = Partial<
-  Pick<
-    Prisma.InitiativeUncheckedCreateInput,
-    "description" | "acceptanceCriteria" | "storyPoints" | "piId" | "sprintId" | "estimateHours"
-  >
+  Pick<Prisma.InitiativeUncheckedCreateInput, "description" | "acceptanceCriteria" | "piId">
 >;
 
 /**

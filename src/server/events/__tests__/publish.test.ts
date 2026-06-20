@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { publishDomainEvent } from "@/server/events/publish";
 import type { DomainEvent } from "@/server/events/types";
-import type { TenantId, StoryId, ArtId, UserId } from "@/domain/types";
+import type { TenantId, ArtId, UserId } from "@/domain/types";
 import type { ImpedimentId } from "@/server/services/impediment";
 import type { Role } from "@/domain/roles";
 
@@ -12,41 +12,6 @@ const mockDb = { outboxEvent: { createMany: mockCreateMany } } as never;
 
 beforeEach(() => {
   vi.clearAllMocks();
-});
-
-describe("publishDomainEvent — story.created", () => {
-  const storyEvent: DomainEvent = {
-    type: "story.created",
-    tenantId,
-    storyId: "story-1" as StoryId,
-    artId: "art-1" as ArtId,
-    title: "Login story",
-    description: null,
-    storyPoints: 3,
-  };
-
-  it("calls createMany with exactly 2 outbox rows", async () => {
-    await publishDomainEvent(mockDb, storyEvent);
-    expect(mockCreateMany).toHaveBeenCalledOnce();
-    const { data } = mockCreateMany.mock.calls[0]![0];
-    expect(data).toHaveLength(2);
-  });
-
-  it("routes to jira.story.created and ado.story.created", async () => {
-    await publishDomainEvent(mockDb, storyEvent);
-    const { data } = mockCreateMany.mock.calls[0]![0];
-    const types = data.map((r: { type: string }) => r.type);
-    expect(types).toContain("jira.story.created");
-    expect(types).toContain("ado.story.created");
-  });
-
-  it("includes tenantId on every row", async () => {
-    await publishDomainEvent(mockDb, storyEvent);
-    const { data } = mockCreateMany.mock.calls[0]![0];
-    for (const row of data) {
-      expect(row.tenantId).toBe(tenantId);
-    }
-  });
 });
 
 describe("publishDomainEvent — impediment.escalated", () => {

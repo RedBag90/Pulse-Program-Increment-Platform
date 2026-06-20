@@ -138,13 +138,8 @@ export async function deleteTeam(
   return withAuditedTransaction(mctx, async (tx) => {
     const existing = await tx.team.findFirst({
       where: { id, tenantId: mctx.tenantId },
-      include: { _count: { select: { sprints: true } } },
     });
     if (!existing) return err({ kind: "not_found" as const, resourceType: "Team", id });
-
-    if (existing._count.sprints > 0) {
-      return err({ kind: "conflict" as const, reason: "Team has active sprints" });
-    }
 
     await tx.team.delete({ where: { id } });
 
@@ -158,7 +153,6 @@ export async function deleteTeam(
 export async function listTeams(db: PrismaClient, tenantId: TenantId, artId: ArtId) {
   return db.team.findMany({
     where: { tenantId, artId },
-    include: { _count: { select: { sprints: true } } },
     orderBy: { name: "asc" },
   });
 }

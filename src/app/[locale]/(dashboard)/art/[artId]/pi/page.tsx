@@ -87,9 +87,6 @@ export default async function PiListPage({ params }: Props) {
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
                     <span>
-                      {pi._count.sprints} sprint{pi._count.sprints !== 1 ? "s" : ""}
-                    </span>
-                    <span>
                       {pi._count.initiatives} feature{pi._count.initiatives !== 1 ? "s" : ""}
                     </span>
                     <span
