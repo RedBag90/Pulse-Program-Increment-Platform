@@ -1,19 +1,19 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId } from "@/domain/types";
 import { listEpics } from "@/server/services/epic";
-import { listGoals } from "@/server/services/target-goal";
 import { getBudgetingBoard, getValueStreamBudgets } from "@/server/services/budgeting";
 import { listImpedimentsForArts } from "@/server/services/impediment";
 import {
   computeStructureGap,
   computePracticeAdoption,
-  goalKpiProgress,
   deriveNextSteps,
   type StructureGap,
   type PracticeAdoption,
   type NextStep,
 } from "@/server/services/transformation";
 import { halfYearKey } from "@/domain/calendar";
+import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
+import { loadStrategyTree } from "@/server/views/ziele-view";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
@@ -132,9 +132,23 @@ export interface PortfolioOverview {
 // Input shape — what the service loader hands the builder.
 // ---------------------------------------------------------------------------
 
+/**
+ * Theme-Eingabe fuer die Portfolio-Overview. Entspricht der V2-Ziele-Welt:
+ * ein `Objective` (in der UI "Theme") mit seinen Key-Result-Trios und der
+ * Zahl direkt verlinkter Epics. Ersetzt die fruehere TransformationGoal-
+ * Form, die seit der Hierarchie-Vereinfachung leer bleibt.
+ */
+export interface PortfolioOverviewTheme {
+  id: string;
+  title: string;
+  status: string;
+  trio: RollupTrio;
+  epicLinkCount: number;
+}
+
 export interface PortfolioOverviewInputs {
   epics: Awaited<ReturnType<typeof listEpics>>;
-  goals: Awaited<ReturnType<typeof listGoals>>;
+  themes: PortfolioOverviewTheme[];
   board: Awaited<ReturnType<typeof getBudgetingBoard>>;
   vsBudgets: Awaited<ReturnType<typeof getValueStreamBudgets>>;
   activePis: Array<{ id: string; name: string; endDate: Date }>;
@@ -161,7 +175,7 @@ export interface PortfolioOverviewInputs {
 export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): PortfolioOverview {
   const {
     epics,
-    goals: goalsRaw,
+    themes,
     board,
     vsBudgets,
     activePis: activePisRaw,
@@ -235,20 +249,28 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   );
   const blockedEpics = cards.filter((c) => c.status === "blocked");
 
-  // Strategy
-  const goals: OverviewGoal[] = goalsRaw.map((g) => ({
-    id: g.id,
-    title: g.title,
-    status: g.status,
-    progress: goalKpiProgress(g.kpis),
-    epicLinkCount: g.epicLinks.length,
+  // Strategy — Themes (Objectives in V2) statt legacy TransformationGoals.
+  // Progress je Theme: Realized / Planned aus dem KR-Rollup; manuelle KRs
+  // (kein €-Trio) bleiben aussen vor und ziehen den Schnitt nicht.
+  const themeProgress = (t: PortfolioOverviewTheme): number => {
+    if (t.trio.planned <= 0) return 0;
+    return Math.max(0, Math.min(1, t.trio.realized / t.trio.planned));
+  };
+  const goals: OverviewGoal[] = themes.map((t) => ({
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    progress: themeProgress(t),
+    epicLinkCount: t.epicLinkCount,
   }));
   const activeGoals = goals.filter((g) => g.status === "active");
   const goalAverageProgress =
     activeGoals.length === 0
       ? 0
       : activeGoals.reduce((s, g) => s + g.progress, 0) / activeGoals.length;
-  const goalsOnTrack = activeGoals.filter((g) => g.progress >= 0.5).length;
+  // "On-track" = nicht im Drift-Bereich (Run-Rate >= 70% des Planned).
+  const activeThemes = themes.filter((t) => t.status === "active");
+  const goalsOnTrack = activeThemes.filter((t) => !isAtRisk(t.trio)).length;
   const topGoal =
     activeGoals.length === 0 ? null : [...activeGoals].sort((a, b) => b.progress - a.progress)[0]!;
 
@@ -355,10 +377,10 @@ export async function loadPortfolioOverviewInputs(
   db: PrismaClient,
   tenantId: TenantId,
 ): Promise<PortfolioOverviewInputs> {
-  const [epics, goals, board, vsBudgets, arts, activePis, structureGap, practiceAdoption] =
+  const [epics, strategyTree, board, vsBudgets, arts, activePis, structureGap, practiceAdoption] =
     await Promise.all([
       listEpics(db, tenantId),
-      listGoals(db, tenantId),
+      loadStrategyTree(db, tenantId),
       getBudgetingBoard(db, tenantId),
       getValueStreamBudgets(db, tenantId),
       db.art.findMany({
@@ -374,6 +396,16 @@ export async function loadPortfolioOverviewInputs(
       computePracticeAdoption(db, tenantId),
     ]);
 
+  // ThemeEpicLink-Bridge ist V2-schema-ready, hat aber noch keine UI-Pflege —
+  // bis dahin koennen Themes keine direkten Epic-Links zaehlen. Zeigt als 0.
+  const themes: PortfolioOverviewTheme[] = strategyTree.themes.map((t) => ({
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    trio: t.trio,
+    epicLinkCount: 0,
+  }));
+
   const artIds = arts.map((a) => a.id as ArtId);
   const impedimentRows =
     artIds.length === 0
@@ -382,7 +414,7 @@ export async function loadPortfolioOverviewInputs(
 
   return {
     epics,
-    goals,
+    themes,
     board,
     vsBudgets,
     activePis,

@@ -37,7 +37,7 @@ function epic(p: {
 function baseInputs(): PortfolioOverviewInputs {
   return {
     epics: [],
-    goals: [],
+    themes: [],
     board: { epics: [], periods: [], pool: {} },
     vsBudgets: { periods: [], valueStreams: [] },
     activePis: [],
@@ -95,34 +95,36 @@ describe("buildPortfolioOverviewModel", () => {
     expect(m.oldestPerGate.L2?.id).toBe("a");
   });
 
-  it("counts goalsOnTrack only among active goals with progress >= 0.5", () => {
+  it("counts goalsOnTrack only among active themes with run-rate >= 70% of planned", () => {
     const inputs = baseInputs();
-    inputs.goals = [
+    inputs.themes = [
       {
-        id: "g1",
+        id: "t1",
         title: "ontrack",
         status: "active",
-        kpis: [{ baseline: 0, target: 10, current: 8 }],
-        epicLinks: [],
+        // realized 80 / planned 100 → progress 0.8, runRate 80 → !isAtRisk
+        trio: { planned: 100, realized: 80, runRate: 80 },
+        epicLinkCount: 0,
       },
       {
-        id: "g2",
+        id: "t2",
         title: "behind",
         status: "active",
-        kpis: [{ baseline: 0, target: 10, current: 2 }],
-        epicLinks: [],
+        // realized 20 / planned 100 → progress 0.2, runRate 20 → isAtRisk
+        trio: { planned: 100, realized: 20, runRate: 20 },
+        epicLinkCount: 0,
       },
       {
-        id: "g3",
-        title: "achieved-archived",
+        id: "t3",
+        title: "archived",
         status: "archived",
-        kpis: [{ baseline: 0, target: 10, current: 10 }],
-        epicLinks: [],
+        trio: { planned: 100, realized: 100, runRate: 100 },
+        epicLinkCount: 0,
       },
-    ] as unknown as PortfolioOverviewInputs["goals"];
+    ];
     const m = buildPortfolioOverviewModel(inputs);
     expect(m.goalsOnTrack).toBe(1);
-    expect(m.topGoal?.id).toBe("g1");
+    expect(m.topGoal?.id).toBe("t1");
     expect(m.goalAverageProgress).toBeCloseTo(0.5);
   });
 
