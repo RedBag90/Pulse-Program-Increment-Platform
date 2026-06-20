@@ -69,5 +69,7 @@ export function formatDomainError(e: DomainError, overrides: DisplayOverrides = 
       return overrides.fallback ?? "Eingabe ungültig";
     case "hierarchy_violation":
       return overrides.fallback ?? e.detail;
+    case "pyramid_violated":
+      return overrides.fallback ?? "KPI ist bereits an einen anderen Key Result gebunden";
   }
 }

@@ -10,8 +10,6 @@ import {
   createKeyResult,
   updateKeyResult,
   deleteKeyResult,
-  bindKpiToKeyResult,
-  unbindKpiFromKeyResult,
   setKpiBinding,
 } from "@/server/services/ziele";
 
@@ -168,41 +166,6 @@ export const deleteKeyResultAction = createServerAction({
 });
 
 // ── KR ↔ KPI Bindung ──────────────────────────────────────────────────
-
-export const bindKpiAction = createServerAction({
-  schema: z.object({
-    keyResultId: z.string().uuid(),
-    kpiId: z.string().uuid(),
-    weight: z.coerce.number().min(0).max(1).optional(),
-    valuePerUnitOverride: z.coerce.number().optional(),
-  }),
-  action: "target.manage",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    bindKpiToKeyResult(ctx, {
-      keyResultId: input.keyResultId,
-      kpiId: input.kpiId,
-      ...(input.weight !== undefined ? { weight: input.weight } : {}),
-      ...(input.valuePerUnitOverride !== undefined
-        ? { valuePerUnitOverride: input.valuePerUnitOverride }
-        : {}),
-    }),
-  revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "KPI-Bindung fehlgeschlagen" }),
-});
-
-export const unbindKpiAction = createServerAction({
-  schema: z.object({
-    keyResultId: z.string().uuid(),
-    kpiId: z.string().uuid(),
-  }),
-  action: "target.manage",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    unbindKpiFromKeyResult(ctx, { keyResultId: input.keyResultId, kpiId: input.kpiId }),
-  revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "KPI konnte nicht entkoppelt werden" }),
-});
 
 /**
  * Atomic Re-Bind fuer die KPI-Coverage-Tabelle: setzt die KR-Bindung

@@ -8,7 +8,8 @@ export type DomainError =
   | { kind: "forbidden"; reason: string }
   | { kind: "conflict"; reason: string }
   | { kind: "validation"; issues: unknown[] }
-  | { kind: "tenant_mismatch"; detail: string };
+  | { kind: "tenant_mismatch"; detail: string }
+  | { kind: "pyramid_violated"; kpiId: string; existingKeyResultId: string };
 
 // ---------------------------------------------------------------------------
 // Result monad — services return this, never throw for expected errors

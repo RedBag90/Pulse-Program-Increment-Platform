@@ -1,5 +1,6 @@
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
+import { checkKpiBinding } from "@/domain/kpi-binding-invariant";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 
@@ -262,102 +263,12 @@ export async function deleteKeyResult(
 
 // ── KR ↔ KPI Contribution ──────────────────────────────────────────────
 
-export interface BindKpiInput {
-  keyResultId: string;
-  kpiId: string;
-  weight?: number;
-  valuePerUnitOverride?: number | null;
-}
-
-export async function bindKpiToKeyResult(
-  ctx: RequestContext,
-  input: BindKpiInput,
-): Promise<Result<{ id: string }>> {
-  const mctx = toMutationContext(ctx);
-  return withAuditedTransaction(mctx, async (tx) => {
-    const [kr, kpi] = await Promise.all([
-      tx.keyResult.findFirst({ where: { id: input.keyResultId, tenantId: mctx.tenantId } }),
-      tx.kpi.findFirst({ where: { id: input.kpiId, tenantId: mctx.tenantId } }),
-    ]);
-    if (!kr)
-      return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.keyResultId });
-    if (!kpi) return err({ kind: "not_found" as const, resourceType: "Kpi", id: input.kpiId });
-    const existing = await tx.krKpiContribution.findUnique({
-      where: { keyResultId_kpiId: { keyResultId: input.keyResultId, kpiId: input.kpiId } },
-    });
-    if (existing) {
-      await tx.krKpiContribution.update({
-        where: { id: existing.id },
-        data: {
-          weight: input.weight ?? Number(existing.weight),
-          valuePerUnitOverride:
-            input.valuePerUnitOverride !== undefined
-              ? input.valuePerUnitOverride
-              : existing.valuePerUnitOverride,
-        },
-      });
-      return ok({
-        result: { id: existing.id },
-        audit: {
-          action: "key_result.kpi.updated",
-          resourceType: "kr_kpi_contribution",
-          resourceId: existing.id,
-        },
-      });
-    }
-    const created = await tx.krKpiContribution.create({
-      data: {
-        tenantId: mctx.tenantId,
-        keyResultId: input.keyResultId,
-        kpiId: input.kpiId,
-        weight: input.weight ?? 1,
-        valuePerUnitOverride: input.valuePerUnitOverride ?? null,
-        createdBy: mctx.actorId,
-      },
-    });
-    return ok({
-      result: { id: created.id },
-      audit: {
-        action: "key_result.kpi.bound",
-        resourceType: "kr_kpi_contribution",
-        resourceId: created.id,
-      },
-    });
-  });
-}
-
-export async function unbindKpiFromKeyResult(
-  ctx: RequestContext,
-  input: { keyResultId: string; kpiId: string },
-): Promise<Result<void>> {
-  const mctx = toMutationContext(ctx);
-  return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.krKpiContribution.findUnique({
-      where: { keyResultId_kpiId: { keyResultId: input.keyResultId, kpiId: input.kpiId } },
-    });
-    if (!existing || existing.tenantId !== mctx.tenantId) {
-      return err({ kind: "not_found" as const, resourceType: "KrKpiContribution", id: "" });
-    }
-    await tx.krKpiContribution.delete({ where: { id: existing.id } });
-    return ok({
-      result: undefined,
-      audit: {
-        action: "key_result.kpi.unbound",
-        resourceType: "kr_kpi_contribution",
-        resourceId: existing.id,
-      },
-    });
-  });
-}
-
 /**
  * Atomic Re-Bind (Pyramid-konform): setzt die KR-Bindung einer KPI auf
- * `keyResultId` (oder loest sie auf, wenn `null`), in EINER Transaktion.
- *
- * Use-Case: KPI-Coverage-Tabelle, in der pro KPI-Zeile inline der
- * Ziel-KR per Dropdown gewaehlt wird. Damit die 1:1-Regel (jede KPI
- * haengt an max. einem KR) auch bei Re-Bind sauber bleibt, geschieht
- * Loesen-vom-alten + Binden-an-neuen atomar.
+ * `keyResultId` (oder loest sie, wenn `null`) in EINER Transaktion und
+ * unter der Pyramid-Invariante (jede KPI an max. 1 KR). Die Planung der
+ * Mutation lebt im Domain-Modul `kpi-binding-invariant`; dieser Service
+ * fuehrt den Plan gegen die DB aus und schreibt das Audit-Event.
  */
 export async function setKpiBinding(
   ctx: RequestContext,
@@ -375,83 +286,95 @@ export async function setKpiBinding(
       where: { tenantId: mctx.tenantId, kpiId: input.kpiId },
     });
 
-    // Fall 1: ziel-KR ist null → bestehende Bindung loesen (oder no-op)
-    if (input.keyResultId == null) {
-      if (!existing) {
+    const planResult = checkKpiBinding({
+      kpiId: input.kpiId,
+      targetKeyResultId: input.keyResultId,
+      existing: existing ? { kpiId: existing.kpiId, keyResultId: existing.keyResultId } : null,
+    });
+    if (!planResult.ok) return planResult;
+    const plan = planResult.value;
+
+    switch (plan.kind) {
+      case "noop": {
+        // Werte koennen sich trotzdem geaendert haben (Inline-Edit von
+        // weight/override in der Coverage-Tabelle ohne KR-Wechsel).
+        if (existing && (input.weight !== undefined || input.valuePerUnitOverride !== undefined)) {
+          await tx.krKpiContribution.update({
+            where: { id: existing.id },
+            data: {
+              weight: input.weight ?? Number(existing.weight),
+              valuePerUnitOverride:
+                input.valuePerUnitOverride !== undefined
+                  ? input.valuePerUnitOverride
+                  : existing.valuePerUnitOverride,
+            },
+          });
+          return ok({
+            result: { kpiId: input.kpiId },
+            audit: {
+              action: "key_result.kpi.updated",
+              resourceType: "kr_kpi_contribution",
+              resourceId: existing.id,
+            },
+          });
+        }
         return ok({
           result: { kpiId: input.kpiId },
           audit: {
             action: "key_result.kpi.unbound",
             resourceType: "kr_kpi_contribution",
-            resourceId: input.kpiId,
+            resourceId: existing?.id ?? input.kpiId,
           },
         });
       }
-      await tx.krKpiContribution.delete({ where: { id: existing.id } });
-      return ok({
-        result: { kpiId: input.kpiId },
-        audit: {
-          action: "key_result.kpi.unbound",
-          resourceType: "kr_kpi_contribution",
-          resourceId: existing.id,
-        },
-      });
+      case "delete": {
+        await tx.krKpiContribution.delete({ where: { id: existing!.id } });
+        return ok({
+          result: { kpiId: input.kpiId },
+          audit: {
+            action: "key_result.kpi.unbound",
+            resourceType: "kr_kpi_contribution",
+            resourceId: existing!.id,
+          },
+        });
+      }
+      case "rebind": {
+        await tx.krKpiContribution.delete({ where: { id: existing!.id } });
+      }
+      // fallthrough → create
+      case "create": {
+        const kr = await tx.keyResult.findFirst({
+          where: {
+            id: plan.kind === "rebind" ? plan.toKeyResultId : plan.keyResultId,
+            tenantId: mctx.tenantId,
+          },
+        });
+        if (!kr) {
+          return err({
+            kind: "not_found" as const,
+            resourceType: "KeyResult",
+            id: plan.kind === "rebind" ? plan.toKeyResultId : plan.keyResultId,
+          });
+        }
+        const created = await tx.krKpiContribution.create({
+          data: {
+            tenantId: mctx.tenantId,
+            keyResultId: kr.id,
+            kpiId: input.kpiId,
+            weight: input.weight ?? 1,
+            valuePerUnitOverride: input.valuePerUnitOverride ?? null,
+            createdBy: mctx.actorId,
+          },
+        });
+        return ok({
+          result: { kpiId: input.kpiId },
+          audit: {
+            action: "key_result.kpi.bound",
+            resourceType: "kr_kpi_contribution",
+            resourceId: created.id,
+          },
+        });
+      }
     }
-
-    // Fall 2: bestehende Bindung ist identisch zum Ziel-KR → nur Felder aktualisieren
-    if (existing && existing.keyResultId === input.keyResultId) {
-      await tx.krKpiContribution.update({
-        where: { id: existing.id },
-        data: {
-          weight: input.weight ?? Number(existing.weight),
-          valuePerUnitOverride:
-            input.valuePerUnitOverride !== undefined
-              ? input.valuePerUnitOverride
-              : existing.valuePerUnitOverride,
-        },
-      });
-      return ok({
-        result: { kpiId: input.kpiId },
-        audit: {
-          action: "key_result.kpi.updated",
-          resourceType: "kr_kpi_contribution",
-          resourceId: existing.id,
-        },
-      });
-    }
-
-    // Fall 3: Re-Bind — alte Bindung loeschen, neue anlegen
-    if (existing) {
-      await tx.krKpiContribution.delete({ where: { id: existing.id } });
-    }
-    // Ziel-KR muss zum Tenant gehoeren
-    const kr = await tx.keyResult.findFirst({
-      where: { id: input.keyResultId, tenantId: mctx.tenantId },
-    });
-    if (!kr) {
-      return err({
-        kind: "not_found" as const,
-        resourceType: "KeyResult",
-        id: input.keyResultId,
-      });
-    }
-    const created = await tx.krKpiContribution.create({
-      data: {
-        tenantId: mctx.tenantId,
-        keyResultId: input.keyResultId,
-        kpiId: input.kpiId,
-        weight: input.weight ?? 1,
-        valuePerUnitOverride: input.valuePerUnitOverride ?? null,
-        createdBy: mctx.actorId,
-      },
-    });
-    return ok({
-      result: { kpiId: input.kpiId },
-      audit: {
-        action: "key_result.kpi.bound",
-        resourceType: "kr_kpi_contribution",
-        resourceId: created.id,
-      },
-    });
   });
 }

@@ -350,8 +350,10 @@ model KrKpiContribution {
   kpi       Kpi       @relation(fields: [kpiId], references: [id], onDelete: Cascade)
 
   @@unique([keyResultId, kpiId])
+  /// Pyramid-Invariante: jede KPI feedet hoechstens einen KR (1 Epic → 1 KPI → ≤ 1 KR).
+  /// DB-Backstop fuer kpi-binding-invariant + setKpiBinding.
+  @@unique([kpiId])
   @@index([tenantId])
-  @@index([kpiId])
   @@map("kr_kpi_contributions")
 }
 

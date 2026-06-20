@@ -13,6 +13,7 @@ const errs: Record<DomainError["kind"], DomainError> = {
     violatedConstraint: "x",
     detail: "Feature gehört zu anderer ART",
   },
+  pyramid_violated: { kind: "pyramid_violated", kpiId: "k", existingKeyResultId: "kr" },
 };
 
 describe("formatDomainError — defaults", () => {
@@ -50,6 +51,12 @@ describe("formatDomainError — defaults", () => {
 
   it("hierarchy_violation → e.detail", () => {
     expect(formatDomainError(errs.hierarchy_violation)).toBe("Feature gehört zu anderer ART");
+  });
+
+  it("pyramid_violated → fixed German default", () => {
+    expect(formatDomainError(errs.pyramid_violated)).toBe(
+      "KPI ist bereits an einen anderen Key Result gebunden",
+    );
   });
 });
 
