@@ -53,8 +53,6 @@ export function TeamDetailPane({ team, onSelectNode }: Props) {
               </span>
             )}
           </dd>
-          <dt className="text-muted-foreground">Sprints</dt>
-          <dd className="tabular-nums">{team.sprintCount}</dd>
         </dl>
       </section>
     </div>

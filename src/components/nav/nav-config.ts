@@ -11,7 +11,6 @@ import {
   Wallet,
   GitBranch,
   Route,
-  Timer,
   BarChart2,
   Activity,
   Trophy,
@@ -184,7 +183,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       // RTE-Cockpit ist in den ART-Hub (`/umsetzung/art/[id]`) eingezogen.
       // Die Route `/rte` bleibt als Redirect erreichbar, ist aber aus dem Nav raus.
-      { href: "/sprint", labelKey: "mySprints", icon: Timer },
       {
         href: "/roadmap/portfolio",
         labelKey: "portfolioRoadmap",

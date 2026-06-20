@@ -2,7 +2,6 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getFeature } from "@/server/services/feature";
-import { listStories } from "@/server/services/story";
 import { listInitiativeHistory } from "@/server/services/initiative";
 import {
   EntityDetailShell,
@@ -12,12 +11,10 @@ import {
 import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { FeatureOverviewTab } from "@/features/art/components/feature-overview-tab";
-import { CreateStoryDialog } from "@/features/story/components/create-story-dialog";
 import { DeleteFeatureButton } from "@/features/art/components/delete-feature-button";
 import { FeatureDeliveryControls } from "@/features/feature/components/feature-delivery-controls";
 import { getBlockerWindowsForFeatures } from "@/server/services/dependency";
 import { earliestStartFromBlockers } from "@/domain/dependency-graph";
-import { DeleteStoryButton } from "@/features/story/components/delete-story-button";
 import { LinkDependencyDialog } from "@/features/dependencies/components/link-dependency-dialog";
 import { UnlinkDependencyButton } from "@/features/dependencies/components/unlink-dependency-button";
 import { PermissionGate } from "@/components/auth/permission-gate";
@@ -32,20 +29,9 @@ interface Props {
 
 const FEATURE_TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },
-  { key: "stories", label: "Stories" },
   { key: "dependencies", label: "Dependencies" },
   { key: "history", label: "History" },
 ];
-
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-muted text-foreground/80",
-  in_review: "bg-yellow-100 text-yellow-800",
-  approved: "bg-blue-100 text-primary/80",
-  in_progress: "bg-indigo-100 text-indigo-800",
-  blocked: "bg-red-100 text-red-800",
-  completed: "bg-green-100 text-green-800",
-  cancelled: "bg-muted text-muted-foreground line-through",
-};
 
 export default async function FeatureDetailPage({ params, searchParams }: Props) {
   const { featureId } = await params;
@@ -61,17 +47,7 @@ export default async function FeatureDetailPage({ params, searchParams }: Props)
 
   const artId = feature.art?.id ?? "";
 
-  const [{ items: stories }, availableSprints, historyEvents] = await Promise.all([
-    listStories(db, principal.tenantId as TenantId, featureId as FeatureId),
-    feature.piId
-      ? db.sprint.findMany({
-          where: { piId: feature.piId, tenantId: principal.tenantId as TenantId },
-          include: { team: { select: { name: true } } },
-          orderBy: [{ teamId: "asc" }, { indexInPi: "asc" }],
-        })
-      : Promise.resolve([]),
-    listInitiativeHistory(db, principal.tenantId, featureId),
-  ]);
+  const historyEvents = await listInitiativeHistory(db, principal.tenantId, featureId);
 
   const canEdit = hasCapability(principal, "feature.update", {
     tenantId: principal.tenantId,
@@ -114,8 +90,6 @@ export default async function FeatureDetailPage({ params, searchParams }: Props)
     action: e.action,
     occurredAt: e.occurredAt.toISOString(),
   }));
-
-  const completedStories = stories.filter((s) => s.status === "completed").length;
 
   return (
     <EntityDetailShell
@@ -174,60 +148,8 @@ export default async function FeatureDetailPage({ params, searchParams }: Props)
               computed: feature.wsjfComputed !== null ? Number(feature.wsjfComputed) : null,
             },
           }}
-          childCount={stories.length}
-          completedChildCount={completedStories}
           canEdit={canEdit}
         />
-      )}
-
-      {activeTab === "stories" && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium">Stories ({stories.length})</h2>
-            <CreateStoryDialog
-              featureId={featureId}
-              artId={artId}
-              sprints={availableSprints.map((s) => ({
-                id: s.id,
-                indexInPi: s.indexInPi,
-                team: { name: s.team.name },
-              }))}
-            />
-          </div>
-          {stories.length === 0 ? (
-            <p className="text-sm text-muted-foreground/60">
-              No stories yet. Break this feature into stories.
-            </p>
-          ) : (
-            <div className="divide-y rounded-lg border">
-              {stories.map((story) => (
-                <div key={story.id} className="flex items-center justify-between px-4 py-3">
-                  <div className="space-y-0.5">
-                    <span className="text-sm font-medium">{story.title}</span>
-                    {story.sprint && (
-                      <p className="text-xs text-muted-foreground/60">
-                        {story.sprint.team.name} — Sprint {story.sprint.indexInPi}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    {story.storyPoints !== null && (
-                      <span className="font-medium">{story.storyPoints} pts</span>
-                    )}
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 ${STATUS_COLORS[story.status] ?? "bg-muted text-foreground/80"}`}
-                    >
-                      {story.status}
-                    </span>
-                    {canEdit && (
-                      <DeleteStoryButton id={story.id} artId={artId} title={story.title} />
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
       )}
 
       {activeTab === "dependencies" && (

@@ -55,9 +55,7 @@ export function PiOverviewSummary({ summary, piId, artId }: Props) {
             {capacity.plannedCapacity}
             <span className="text-base font-normal text-muted-foreground"> Pkt</span>
           </p>
-          <p className="text-xs text-muted-foreground">
-            geplant über {capacity.sprintCount} Sprint{capacity.sprintCount !== 1 ? "s" : ""}
-          </p>
+          <p className="text-xs text-muted-foreground">geplant für das PI</p>
         </Tile>
 
         <Tile label="Objectives" href={`/pi/${piId}/objectives`}>
