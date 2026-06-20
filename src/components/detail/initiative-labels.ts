@@ -74,7 +74,7 @@ export const APPROVAL_PHASE_BADGE: Record<string, string> = {
  * the History tab so both read the same. Unknown actions degrade gracefully via
  * {@link actionLabel}.
  */
-export const ACTION_LABELS: Record<string, string> = {
+const ACTION_LABELS: Record<string, string> = {
   "initiative.created": "Initiative erstellt",
   "initiative.updated": "Initiative aktualisiert",
   "initiative.deleted": "Initiative gelöscht",
@@ -110,11 +110,6 @@ export function actionLabel(action: string): string {
   return ACTION_LABELS[action] ?? action.replace(/[._]/g, " ");
 }
 
-/** A short, stable fallback when a user id can't be resolved to a name. */
-export function shortUserId(id: string): string {
-  return `${id.slice(0, 8)}…`;
-}
-
 /**
  * Up-to-two-character initials for an avatar fallback. Works for emails
  * (`anna.k@x.dev` → "AK"), names (`Anna Klein` → "AK"), and short ids.
@@ -132,5 +127,5 @@ export function initials(label: string): string {
  */
 export function userLabel(id: string | null | undefined, labels: Record<string, string>): string {
   if (!id) return "—";
-  return labels[id] ?? shortUserId(id);
+  return labels[id] ?? `${id.slice(0, 8)}…`;
 }

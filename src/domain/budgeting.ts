@@ -16,15 +16,7 @@ import {
 
 // Half-year period maths lives in the calendar module; re-exported so existing
 // callers (budgeting service/board, tests) keep importing them from here.
-export {
-  halfYearStart,
-  halfYearKey,
-  halfYearLabel,
-  parseHalfYearKey,
-  addHalfYears,
-  halfYearsBetween,
-  buildHalfYearAxis,
-} from "@/domain/calendar";
+export { parseHalfYearKey, buildHalfYearAxis } from "@/domain/calendar";
 export type { HalfYearAxis } from "@/domain/calendar";
 
 /** A candidate Epic on the budgeting board (built by the service). */
