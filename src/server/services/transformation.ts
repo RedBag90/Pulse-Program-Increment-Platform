@@ -170,20 +170,6 @@ export async function computePracticeAdoption(
   return { hasTarget: true, signals };
 }
 
-/** A goal's progress = mean of its KPIs' baseline→target progress (0 if no KPIs). */
-export function goalKpiProgress(
-  kpis: { baseline: number | null; target: number; current: number | null }[],
-): number {
-  if (kpis.length === 0) return 0;
-  const sum = kpis.reduce((acc, k) => {
-    const start = k.baseline ?? 0;
-    const denom = k.target - start;
-    if (denom === 0) return acc + (k.current != null ? 1 : 0);
-    return acc + Math.min(1, Math.max(0, ((k.current ?? start) - start) / denom));
-  }, 0);
-  return sum / kpis.length;
-}
-
 /** A recommended action that closes part of the Soll/Ist gap. */
 export interface NextStep {
   key: string;

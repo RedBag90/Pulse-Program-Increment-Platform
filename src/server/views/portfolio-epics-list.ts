@@ -116,7 +116,7 @@ interface EpicRow {
 
 const isoDay = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
 
-/** Mean KPI progress on [0..1]. Mirrors `goalKpiProgress` from transformation services. */
+/** Mean KPI progress on [0..1]. */
 function meanKpiProgress(kpis: KpiRow[]): number | null {
   if (kpis.length === 0) return null;
   const sum = kpis.reduce((acc, k) => {

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { setKpiValuePerUnit, setTargetOutcomeValuePerUnit } from "@/server/services/controlling";
+import { setKpiValuePerUnit } from "@/server/services/controlling";
 import { createServerAction } from "@/server/http/server-action";
 
 /** Empty string → null (clear); otherwise the parsed number. */
@@ -21,20 +21,5 @@ export const setKpiValuePerUnitAction = createServerAction({
       ? e.reason
       : e.kind === "not_found"
         ? "KPI nicht gefunden"
-        : "Wert konnte nicht gespeichert werden",
-});
-
-export const setTargetOutcomeValuePerUnitAction = createServerAction({
-  schema: z.object({ id: z.string().uuid(), valuePerUnit: valueOrNull }),
-  action: "kpi.value.manage",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    setTargetOutcomeValuePerUnit(ctx, { id: input.id, valuePerUnit: input.valuePerUnit }),
-  revalidate: "kpiTree",
-  mapError: (e) =>
-    e.kind === "forbidden"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Strategische KPI nicht gefunden"
         : "Wert konnte nicht gespeichert werden",
 });

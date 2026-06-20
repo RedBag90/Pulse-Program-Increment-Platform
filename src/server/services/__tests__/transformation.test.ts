@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   deriveNextSteps,
-  goalKpiProgress,
   type StructureGap,
   type PracticeAdoption,
 } from "@/server/services/transformation";
@@ -65,35 +64,5 @@ describe("deriveNextSteps", () => {
     };
     const keys = deriveNextSteps(gap, adoption).map((s) => s.key);
     expect(keys).toEqual(["struct-teams", "prac-piObjectives"]);
-  });
-});
-
-describe("goalKpiProgress", () => {
-  it("returns 0 for a goal with no KPIs", () => {
-    expect(goalKpiProgress([])).toBe(0);
-  });
-
-  it("uses the baseline→target band, clamped to 0..1", () => {
-    // baseline 0, target 10, current 5 → 0.5
-    expect(goalKpiProgress([{ baseline: 0, target: 10, current: 5 }])).toBeCloseTo(0.5);
-    // baseline 20, target 100, current 60 → (60-20)/(100-20) = 0.5
-    expect(goalKpiProgress([{ baseline: 20, target: 100, current: 60 }])).toBeCloseTo(0.5);
-    // overshoot clamps to 1
-    expect(goalKpiProgress([{ baseline: 0, target: 10, current: 999 }])).toBe(1);
-    // below baseline clamps to 0
-    expect(goalKpiProgress([{ baseline: 50, target: 100, current: 10 }])).toBe(0);
-  });
-
-  it("averages across multiple KPIs", () => {
-    expect(
-      goalKpiProgress([
-        { baseline: 0, target: 10, current: 10 }, // 1
-        { baseline: 0, target: 10, current: 0 }, // 0
-      ]),
-    ).toBeCloseTo(0.5);
-  });
-
-  it("treats a null current as no progress (baseline)", () => {
-    expect(goalKpiProgress([{ baseline: 0, target: 10, current: null }])).toBe(0);
   });
 });

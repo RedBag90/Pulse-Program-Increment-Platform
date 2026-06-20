@@ -7,7 +7,6 @@ import {
   getLatestBudgetPlanRevision,
   listBudgetPlanRevisions,
 } from "@/server/services/budget-plan-revision";
-import { getKpiTree } from "@/server/services/controlling";
 import { getPortfolioGuardrailsInputs } from "@/server/services/portfolio-dashboard";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { CaptureRevisionButton } from "@/features/controlling/components/capture-revision-button";
@@ -31,18 +30,16 @@ export default async function ControllingOverviewPage() {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [latest, history, kpiTree, userLabels, guardrailsInputs, tenantCostSettings] =
-    await Promise.all([
-      getLatestBudgetPlanRevision(db, principal.tenantId),
-      listBudgetPlanRevisions(db, principal.tenantId),
-      getKpiTree(db, principal.tenantId),
-      listTenantUserLabels(db, principal.tenantId),
-      getPortfolioGuardrailsInputs(db, principal.tenantId),
-      db.tenant.findUnique({
-        where: { id: principal.tenantId },
-        select: { costNeutralTarget: true, costPerJobSizePoint: true },
-      }),
-    ]);
+  const [latest, history, userLabels, guardrailsInputs, tenantCostSettings] = await Promise.all([
+    getLatestBudgetPlanRevision(db, principal.tenantId),
+    listBudgetPlanRevisions(db, principal.tenantId),
+    listTenantUserLabels(db, principal.tenantId),
+    getPortfolioGuardrailsInputs(db, principal.tenantId),
+    db.tenant.findUnique({
+      where: { id: principal.tenantId },
+      select: { costNeutralTarget: true, costPerJobSizePoint: true },
+    }),
+  ]);
 
   const canCapture = authorize(
     "budget_plan.revision.capture",
@@ -57,18 +54,6 @@ export default async function ControllingOverviewPage() {
 
   const cycleKey = halfYearKey(new Date());
   const cycleLabel = halfYearLabel(cycleKey);
-
-  // KPI-Tree-Headlines — derived inline (cheaper than calling the page helper).
-  const allKpis = [
-    ...kpiTree.goals.flatMap((g) => g.strategicKpis),
-    ...kpiTree.goals.flatMap((g) => g.epics.flatMap((e) => e.kpis)),
-    ...kpiTree.unboundStrategicKpis,
-  ];
-  const valuedKpis = allKpis.filter((k) => k.valuePerUnit != null).length;
-  const totalContribution = allKpis
-    .map((k) => k.contribution)
-    .filter((v): v is number => v != null)
-    .reduce((a, b) => a + b, 0);
 
   const latestIsCurrentCycle = latest?.cycleKey === cycleKey;
 
@@ -106,11 +91,6 @@ export default async function ControllingOverviewPage() {
         <Stat
           label="Σ Folgebudgets"
           value={<span className="text-xl">{latest ? fmtEur(latest.followBudgetSum) : "—"}</span>}
-        />
-        <Stat
-          label="Σ KPI-Beitrag"
-          value={<span className="text-xl">{fmtEur(totalContribution)}</span>}
-          delta={{ tone: "flat", text: `${valuedKpis} / ${allKpis.length} KPIs bewertet` }}
         />
       </StatStrip>
 
@@ -195,24 +175,16 @@ export default async function ControllingOverviewPage() {
         )}
       </section>
 
-      {/* KPI-Wertbeitrag */}
+      {/* KPI-Wertbeitrag — Pflege lebt in /controlling/kpi-coverage */}
       <section className="space-y-3">
         <SectionLabel>KPI-Wertbeitrag</SectionLabel>
         <div className="flex items-baseline justify-between rounded-lg border bg-card p-4">
-          <div>
-            <p className="text-sm">
-              <span className="font-medium">{fmtEur(totalContribution)}</span> Σ Beitrag über{" "}
-              {valuedKpis} bewertete KPIs
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {allKpis.length - valuedKpis} KPIs ohne Bewertung, {kpiTree.goals.length} aktive Ziele
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">€/Einheit + KR↔KPI-Bindungen pflegen.</p>
           <Link
-            href="/controlling/kpi-tree"
+            href="/controlling/kpi-coverage"
             className="text-sm font-medium text-primary hover:underline"
           >
-            KPI-Tree öffnen →
+            KPI-Coverage öffnen →
           </Link>
         </div>
       </section>

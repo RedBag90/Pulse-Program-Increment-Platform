@@ -1,16 +1,10 @@
 "use client";
 
 import { useActionState, startTransition } from "react";
-import {
-  setKpiValuePerUnitAction,
-  setTargetOutcomeValuePerUnitAction,
-} from "@/features/controlling/actions/kpi-value";
-
-type Kind = "kpi" | "outcome";
+import { setKpiValuePerUnitAction } from "@/features/controlling/actions/kpi-value";
 
 interface Props {
-  kind: Kind;
-  /** Epic Kpi id or TargetOutcome id, depending on `kind`. */
+  /** Epic-Kpi id. */
   id: string;
   /** Current persisted value (or null). */
   value: number | null;
@@ -18,6 +12,12 @@ interface Props {
   canEdit: boolean;
   /** Optional unit label rendered next to the input (e.g. "€/Tag"). */
   unitLabel?: string;
+  /**
+   * @deprecated Bleibt aus Migrations-Gruenden in den Props, wird ignoriert.
+   * Frueher konnte die Komponente fuer `kpi` oder `outcome` (TargetOutcome)
+   * dispatchen — letzteres ist seit dem Legacy-Cleanup gestrichen.
+   */
+  kind?: "kpi";
 }
 
 const INPUT =
@@ -25,12 +25,11 @@ const INPUT =
 
 /**
  * Inline € per-unit input — submits on blur (when the value changed) and on
- * Enter. Empty string clears the valuation. Used inside the KPI tree rows.
+ * Enter. Empty string clears the valuation. Wird in der KPI-Coverage-Tabelle
+ * pro Epic-KPI verwendet.
  */
-export function ValuePerUnitInput({ kind, id, value, canEdit, unitLabel }: Props) {
-  const action = kind === "kpi" ? setKpiValuePerUnitAction : setTargetOutcomeValuePerUnitAction;
-  const [state, run, pending] = useActionState(action, {});
-  const idField = kind === "kpi" ? "kpiId" : "id";
+export function ValuePerUnitInput({ id, value, canEdit, unitLabel }: Props) {
+  const [state, run, pending] = useActionState(setKpiValuePerUnitAction, {});
 
   if (!canEdit) {
     return (
@@ -46,7 +45,7 @@ export function ValuePerUnitInput({ kind, id, value, canEdit, unitLabel }: Props
     const previous = value == null ? "" : String(value);
     if (norm === previous) return; // no-op
     const fd = new FormData();
-    fd.set(idField, id);
+    fd.set("kpiId", id);
     fd.set("valuePerUnit", norm);
     startTransition(() => run(fd));
   }
