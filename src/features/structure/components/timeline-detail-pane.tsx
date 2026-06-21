@@ -4,6 +4,7 @@ import { ArrowRight, Calendar } from "lucide-react";
 import { JoinArtToTimelineControl } from "@/features/structure/components/join-art-control";
 import { DeleteTimelineButton } from "@/features/structure/components/delete-timeline-button";
 import { LeaveTimelineButton } from "@/features/structure/components/leave-timeline-button";
+import { EditTimelineForm } from "@/features/structure/components/edit-timeline-form";
 import {
   AddStandardPisControl,
   type PiStandardOption,
@@ -53,6 +54,13 @@ export function TimelineDetailPane({ timeline, canManage, piStandards, onSelectN
             {timeline.pis.length} / {timeline.subscribedArts.length}
           </dd>
         </dl>
+        {canManage && (
+          <EditTimelineForm
+            timelineId={timeline.id}
+            name={timeline.name}
+            cadenceWeeks={timeline.cadenceWeeks}
+          />
+        )}
       </section>
 
       <section className="space-y-3 rounded-lg border bg-card p-4">
