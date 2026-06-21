@@ -17,6 +17,7 @@ import { revalidatePath } from "next/cache";
 
 export type RevalidationResource =
   | "art"
+  | "artCreated"
   | "team"
   | "feature"
   | "epic"
@@ -33,6 +34,10 @@ export type RevalidationResource =
 
 const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   art: ["/structure", "/art/[artId]", "/art/[artId]/settings", "/value-streams/[id]"],
+  // Beim CREATE reicht der schmale Cut: die neue Detail-Page wird ohnehin
+  // bei der Navigation frisch gerendert; nur die Aggregations-Listen
+  // muessen den neuen Eintrag sehen.
+  artCreated: ["/structure", "/value-streams/[id]"],
   team: [
     "/structure",
     "/art/[artId]/teams",

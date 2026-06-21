@@ -28,7 +28,7 @@ export const createArtAction = createServerAction({
       name: input.name,
       timelineId: input.timelineId as TimelineId,
     }),
-  revalidate: "art",
+  revalidate: "artCreated",
   mapError: (e) => formatDomainError(e, { fallback: "Failed to create ART" }),
 });
 

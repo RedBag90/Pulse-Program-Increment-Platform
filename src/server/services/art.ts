@@ -164,10 +164,6 @@ export async function getArt(db: PrismaClient, tenantId: TenantId, id: ArtId) {
     include: {
       valueStream: { select: { id: true, name: true } },
       pis: { select: { id: true, name: true, status: true, startDate: true, endDate: true } },
-      teams: {
-        select: { id: true, name: true, headcount: true, targetVelocity: true },
-        orderBy: { name: "asc" },
-      },
     },
   });
 }
