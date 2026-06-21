@@ -101,7 +101,16 @@ export function TimelineDetailPane({ timeline, canManage, piStandards, onSelectN
                 <Plus className="size-3.5" />
                 Neues PI
               </button>
-              <AddStandardPisControl timelineId={timeline.id} standards={piStandards} />
+              <AddStandardPisControl
+                timelineId={timeline.id}
+                standards={piStandards}
+                existingPis={timeline.pis.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  startDate: p.startDate,
+                  endDate: p.endDate,
+                }))}
+              />
             </div>
           )}
         </div>

@@ -1,63 +1,52 @@
 "use client";
 
-import { useActionState, useState, startTransition } from "react";
-import { addStandardPisAction } from "@/features/structure/actions/pi-standard";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  StandardPreviewDialog,
+  type FullPiStandardOption,
+} from "@/features/structure/components/standard-preview-dialog";
 
-const SELECT_CLASS =
-  "h-7 w-full rounded-md border border-input bg-transparent px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+export type PiStandardOption = FullPiStandardOption;
 
-export interface PiStandardOption {
+interface ExistingPi {
   id: string;
   name: string;
+  startDate: string;
+  endDate: string;
 }
 
 /**
- * Per-Timeline control in the Structure Timeline tab: pick a named PI standard
- * and add its current-year PIs to the Timeline. Only PIs whose period is free
- * are added (overlap-skip), so re-applying is idempotent. Gated by `canCreatePi`.
+ * Per-Timeline control: oeffnet einen Preview-Dialog, in dem der User einen
+ * PI-Standard waehlt, das Anchor-Jahr setzt und die zu erzeugenden PIs sieht
+ * (inkl. Konflikt-Markierung) — bevor `addStandardPisAction` ausgefuehrt wird.
+ * Gated by `canManageTimeline`.
  */
 export function AddStandardPisControl({
   timelineId,
   standards,
+  existingPis,
 }: {
   timelineId: string;
   standards: PiStandardOption[];
+  existingPis: ExistingPi[];
 }) {
-  const [standardId, setStandardId] = useState(standards[0]?.id ?? "");
-  const [state, run, pending] = useActionState(addStandardPisAction, {});
+  const [open, setOpen] = useState(false);
 
   if (standards.length === 0) return null;
 
-  function apply() {
-    if (!standardId) return;
-    const fd = new FormData();
-    fd.set("timelineId", timelineId);
-    fd.set("standardId", standardId);
-    startTransition(() => run(fd));
-  }
-
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-1">
-        <select
-          className={SELECT_CLASS}
-          value={standardId}
-          onChange={(e) => setStandardId(e.target.value)}
-          aria-label="PI-Standard"
-        >
-          {standards.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        <Button type="button" size="sm" variant="outline" disabled={pending} onClick={apply}>
-          {pending ? "…" : "+ Standard"}
-        </Button>
-      </div>
-      {state?.error && <p className="text-[10px] text-destructive">{state.error}</p>}
-      {state?.success && <p className="text-[10px] text-muted-foreground">Standard-PIs ergänzt.</p>}
-    </div>
+    <>
+      <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)}>
+        Standard anwenden…
+      </Button>
+      <StandardPreviewDialog
+        open={open}
+        onOpenChange={setOpen}
+        timelineId={timelineId}
+        standards={standards}
+        existingPis={existingPis}
+      />
+    </>
   );
 }
