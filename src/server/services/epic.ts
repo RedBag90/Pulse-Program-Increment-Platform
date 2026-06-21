@@ -555,16 +555,35 @@ export async function assignEpicOwner(
     });
     if (isErr(auth)) return auth;
 
-    const changes = buildChangelog({ ownerId: existing.ownerId }, { ownerId }, ["ownerId"]);
+    // L0→L1 (stage-gate) bleibt beim Hypothesis-Approval. Aber das Kanban
+    // verschiebt das Epic visuell sofort nach „Hypothese erstellen", sobald
+    // ein Owner zugewiesen ist (siehe `bucketFor` in portfolio-overview.ts).
+    // Passend dazu stempeln wir die Timeline-Phase „Selected for Detailing"
+    // beim ersten Owner-Set — der advanceStageGate-Pfad bleibt idempotentes
+    // Safety-Net fuer manuelle Spruenge ohne Owner.
+    const stampSelectedForDetailing =
+      existing.ownerId == null && existing.selectedForDetailingAt == null;
+    const detailingAtNow = stampSelectedForDetailing ? new Date() : null;
+
+    const changes = buildChangelog(
+      {
+        ownerId: existing.ownerId,
+        selectedForDetailingAt: existing.selectedForDetailingAt,
+      },
+      {
+        ownerId,
+        ...(detailingAtNow ? { selectedForDetailingAt: detailingAtNow } : {}),
+      },
+      ["ownerId", "selectedForDetailingAt"] as const,
+    );
     await tx.initiative.update({
       where: { id: epicId },
-      data: { ownerId, updatedBy: mctx.actorId },
+      data: {
+        ownerId,
+        updatedBy: mctx.actorId,
+        ...(detailingAtNow ? { selectedForDetailingAt: detailingAtNow } : {}),
+      },
     });
-
-    // Reifegrad-Modell v2 (siehe Plan vom 2026-06-07): L0→L1 wird beim
-    // Hypothesis-Approval ausgelöst, nicht beim Owner-Assignment. Die
-    // Owner-Zuweisung ist eine reine L0-interne Aktion — das Epic ist
-    // erst „L1 Hypothese definiert", wenn der VMO die Hypothese akzeptiert.
 
     return ok({
       result: undefined,

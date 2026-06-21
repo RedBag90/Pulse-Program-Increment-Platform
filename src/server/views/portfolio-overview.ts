@@ -40,6 +40,8 @@ export interface OverviewEpicCard {
   title: string;
   status: string;
   stageGate: string;
+  /** Genutzt fuer Kanban-Bucket-Splitt L0+Owner → „Hypothese erstellen". */
+  ownerId: string | null;
   valueStream: { id: string; name: string } | null;
   updatedAt: Date;
   daysSinceUpdate: number;
@@ -191,14 +193,18 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     title: e.title,
     status: e.status,
     stageGate: e.stageGate,
+    ownerId: e.ownerId,
     valueStream: e.valueStream,
     updatedAt: e.updatedAt,
     daysSinceUpdate: Math.floor((nowMs - new Date(e.updatedAt).getTime()) / (24 * 60 * 60 * 1000)),
     needsSteeringAttention: e.needsSteeringAttention,
   }));
 
-  // Group epics by stage gate, oldest-first per column so the kanban renders
-  // the slowest items at the top of each list.
+  // Group epics by Kanban-Bucket. Wichtig: Bucket != Stage-Gate.
+  // L0-Epics mit Owner gehoeren visuell in „Hypothese erstellen" (L1-Bucket) —
+  // ihr Daten-Modell-`stageGate` bleibt aber L0, das flippt erst beim
+  // Hypothesis-Approval. Konsumenten (compact-kanban, period-banner) sehen
+  // die Karte einfach in der L1-Spalte; STAGE_GATE_LABEL ist unveraendert.
   const epicsByGate = Object.fromEntries(
     STAGE_GATES.map((g) => [g, [] as OverviewEpicCard[]]),
   ) as Record<StageGate, OverviewEpicCard[]>;
@@ -206,7 +212,9 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     const gate = (STAGE_GATES as readonly string[]).includes(c.stageGate)
       ? (c.stageGate as StageGate)
       : null;
-    if (gate) epicsByGate[gate].push(c);
+    if (!gate) continue;
+    const bucket: StageGate = gate === "L0" && c.ownerId ? "L1" : gate;
+    epicsByGate[bucket].push(c);
   }
   for (const gate of STAGE_GATES) {
     // Sortierung im Kanban: zuerst die fürs nächste Steering markierten

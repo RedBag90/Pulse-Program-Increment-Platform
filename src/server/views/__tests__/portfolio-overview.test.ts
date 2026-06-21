@@ -18,6 +18,7 @@ function epic(p: {
   title: string;
   status?: string;
   stageGate?: string;
+  ownerId?: string | null;
   updatedAt?: Date;
   vsName?: string | null;
   steering?: boolean;
@@ -27,6 +28,7 @@ function epic(p: {
     title: p.title,
     status: p.status ?? "approved",
     stageGate: p.stageGate ?? "L2",
+    ownerId: p.ownerId ?? null,
     valueStream: p.vsName ? { id: `vs-${p.id}`, name: p.vsName } : null,
     updatedAt: p.updatedAt ?? daysAgo(1),
     needsSteeringAttention: p.steering ?? false,
@@ -62,6 +64,25 @@ describe("buildPortfolioOverviewModel", () => {
     expect(m.oldestPerGate.L2?.id).toBe("b");
     expect(m.oldestPerGate.L0?.id).toBe("c");
     expect(m.oldestPerGate.L4).toBeNull();
+  });
+
+  it("L0 + owner faellt in die L1-Bucket (Kanban 'Hypothese erstellen')", () => {
+    const inputs = baseInputs();
+    inputs.epics = [
+      // L0 ohne Owner → Funnel
+      epic({ id: "idea", title: "Idea", stageGate: "L0", ownerId: null }),
+      // L0 mit Owner → visuell L1
+      epic({ id: "drafting", title: "Drafting", stageGate: "L0", ownerId: "user-1" }),
+      // echtes L1 → L1
+      epic({ id: "approved", title: "Approved", stageGate: "L1", ownerId: "user-2" }),
+    ];
+    const m = buildPortfolioOverviewModel(inputs);
+    expect(m.epicsByGate.L0.map((c) => c.id)).toEqual(["idea"]);
+    expect(m.epicsByGate.L1.map((c) => c.id).sort()).toEqual(["approved", "drafting"]);
+    // Daten-Modell-stageGate bleibt L0 fuer den drafting-Epic, nur der Bucket
+    // ist L1. Konsumenten der Karte sehen den echten Stage-Gate-Wert.
+    const drafting = m.epicsByGate.L1.find((c) => c.id === "drafting");
+    expect(drafting?.stageGate).toBe("L0");
   });
 
   it("sorts steering-flagged epics to the top of each gate, oldest-first within each group", () => {
