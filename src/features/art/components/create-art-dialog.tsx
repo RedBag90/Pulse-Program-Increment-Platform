@@ -31,7 +31,6 @@ interface ValueStream {
 interface TimelineOption {
   id: string;
   name: string;
-  cadenceWeeks: number;
 }
 
 export interface CreateArtDialogProps {
@@ -172,7 +171,7 @@ export function CreateArtDialog({
                   <option value="">{timelines.loading ? "Lädt…" : "Timeline wählen…"}</option>
                   {timelines.data.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name} ({t.cadenceWeeks} Wo)
+                      {t.name}
                     </option>
                   ))}
                 </select>

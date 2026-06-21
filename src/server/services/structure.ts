@@ -61,7 +61,6 @@ export async function getStructureTimeline(db: PrismaClient, tenantId: TenantId)
       select: {
         id: true,
         name: true,
-        cadenceWeeks: true,
         programIncrements: {
           orderBy: { startDate: "asc" },
           select: { id: true, name: true, startDate: true, endDate: true, status: true },

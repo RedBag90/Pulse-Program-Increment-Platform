@@ -138,9 +138,7 @@ describe("buildStructurePageModel", () => {
       mode: "structure",
       tree: [vsRow({ id: "vs1", name: "Retail" })],
       timeline: {
-        timelines: [
-          { id: "tl1", name: "Standard 10w", cadenceWeeks: 10, programIncrements: [], arts: [] },
-        ],
+        timelines: [{ id: "tl1", name: "Standard 10w", programIncrements: [], arts: [] }],
         unassignedArts: [],
       },
       userLabels: {},
@@ -155,9 +153,7 @@ describe("buildStructurePageModel", () => {
       mode: "timelines",
       tree: [vsRow({ id: "vs1", name: "Retail", arts: [artRow({ id: "art1", name: "Mobile" })] })],
       timeline: {
-        timelines: [
-          { id: "tl1", name: "Standard 10w", cadenceWeeks: 10, programIncrements: [], arts: [] },
-        ],
+        timelines: [{ id: "tl1", name: "Standard 10w", programIncrements: [], arts: [] }],
         unassignedArts: [],
       },
       userLabels: {},
@@ -186,7 +182,6 @@ describe("buildStructurePageModel", () => {
           {
             id: "tl1",
             name: "Standard 10w",
-            cadenceWeeks: 10,
             programIncrements: [],
             arts: [{ id: "art1", name: "Mobile", valueStream: { id: "vs1", name: "Retail" } }],
           },
@@ -216,9 +211,7 @@ describe("buildStructurePageModel", () => {
         vsRow({ id: "vs2", name: "Payments" }),
       ],
       timeline: {
-        timelines: [
-          { id: "tl1", name: "Standard", cadenceWeeks: 10, programIncrements: [], arts: [] },
-        ],
+        timelines: [{ id: "tl1", name: "Standard", programIncrements: [], arts: [] }],
         unassignedArts: [],
       },
       userLabels: {},

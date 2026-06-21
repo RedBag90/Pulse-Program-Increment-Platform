@@ -7,6 +7,7 @@ import {
   deleteTimeline,
   joinArtToTimeline,
   leaveArtFromTimeline,
+  updateTimeline,
 } from "@/server/services/timeline";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
@@ -16,13 +17,41 @@ import type { ArtId, TimelineId } from "@/domain/types";
 export const createTimelineAction = createServerAction({
   schema: z.object({
     name: z.string().min(1).max(100),
-    cadenceWeeks: z.coerce.number().int().min(1).max(52).optional(),
   }),
   action: "timeline.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => createTimeline(ctx, input),
   revalidate: "timeline",
   mapError: (e) => formatDomainError(e, { fallback: "Timeline konnte nicht angelegt werden" }),
+});
+
+export const updateTimelineAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    name: z.string().min(1).max(100).optional(),
+  }),
+  action: "timeline.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    const name = f.nonEmptyString("name");
+    return {
+      id: f.string("id"),
+      ...(name !== undefined ? { name } : {}),
+    };
+  },
+  service: (ctx, input) =>
+    updateTimeline(ctx, {
+      id: input.id as TimelineId,
+      ...(input.name !== undefined ? { name: input.name } : {}),
+    }),
+  revalidate: "timeline",
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Timeline nicht gefunden"
+        : "Timeline konnte nicht aktualisiert werden",
 });
 
 export const createTimelineFromStandardAction = createServerAction({

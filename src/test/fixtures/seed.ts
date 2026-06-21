@@ -58,7 +58,6 @@ export async function seedTenant(db: PrismaClient): Promise<SeedResult> {
     data: {
       tenantId,
       name: "Test Timeline",
-      cadenceWeeks: 10,
     },
   });
 

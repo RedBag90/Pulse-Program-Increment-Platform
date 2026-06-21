@@ -26,7 +26,6 @@ import { applyPiStandard } from "@/server/services/pi-standard";
 
 export interface CreateTimelineInput {
   name: string;
-  cadenceWeeks?: number | undefined;
 }
 
 export async function createTimeline(
@@ -41,16 +40,9 @@ export async function createTimeline(
       issues: [{ field: "name", message: "Pflichtfeld" }],
     });
   }
-  const cadenceWeeks = input.cadenceWeeks ?? 10;
-  if (cadenceWeeks <= 0 || cadenceWeeks > 52) {
-    return err({
-      kind: "conflict" as const,
-      reason: "Kadenz in Wochen muss zwischen 1 und 52 liegen",
-    });
-  }
   return withAuditedTransaction(mctx, async (tx) => {
     const row = await tx.timeline.create({
-      data: { tenantId: mctx.tenantId, name, cadenceWeeks },
+      data: { tenantId: mctx.tenantId, name },
       select: { id: true },
     });
     return ok({
@@ -61,7 +53,6 @@ export async function createTimeline(
         resourceId: row.id,
         changes: {
           name: { before: null, after: name },
-          cadenceWeeks: { before: null, after: cadenceWeeks },
         },
       },
     });
@@ -71,7 +62,6 @@ export async function createTimeline(
 export interface UpdateTimelineInput {
   id: TimelineId;
   name?: string | undefined;
-  cadenceWeeks?: number | undefined;
 }
 
 export async function updateTimeline(
@@ -86,26 +76,18 @@ export async function updateTimeline(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "Timeline", id: input.id });
     }
-    if (input.cadenceWeeks !== undefined && (input.cadenceWeeks <= 0 || input.cadenceWeeks > 52)) {
-      return err({
-        kind: "conflict" as const,
-        reason: "Kadenz in Wochen muss zwischen 1 und 52 liegen",
-      });
-    }
     const name = input.name?.trim();
     const changes = buildChangelog(
-      { name: existing.name, cadenceWeeks: existing.cadenceWeeks },
+      { name: existing.name },
       {
         ...(name !== undefined && { name }),
-        ...(input.cadenceWeeks !== undefined && { cadenceWeeks: input.cadenceWeeks }),
       },
-      ["name", "cadenceWeeks"],
+      ["name"],
     );
     await tx.timeline.update({
       where: { id: input.id },
       data: {
         ...(name !== undefined && { name }),
-        ...(input.cadenceWeeks !== undefined && { cadenceWeeks: input.cadenceWeeks }),
       },
     });
     return ok({
@@ -361,7 +343,6 @@ async function detachArtFromTimeline(
 export interface TimelineSummary {
   id: string;
   name: string;
-  cadenceWeeks: number;
   artCount: number;
   piCount: number;
 }
@@ -378,7 +359,6 @@ export async function listTimelines(
   return rows.map((t) => ({
     id: t.id,
     name: t.name,
-    cadenceWeeks: t.cadenceWeeks,
     artCount: t._count.arts,
     piCount: t._count.programIncrements,
   }));
@@ -387,7 +367,6 @@ export async function listTimelines(
 export interface TimelineDetail {
   id: string;
   name: string;
-  cadenceWeeks: number;
   pis: Array<{ id: string; name: string; status: string; startDate: Date; endDate: Date }>;
   arts: Array<{ id: string; name: string; valueStreamId: string; valueStreamName: string | null }>;
 }
@@ -420,7 +399,6 @@ export async function getTimelineDetail(
   return {
     id: row.id,
     name: row.name,
-    cadenceWeeks: row.cadenceWeeks,
     pis: row.programIncrements,
     arts: row.arts.map((a) => ({
       id: a.id,
@@ -444,7 +422,7 @@ export async function createTimelineFromStandard(
   const tenantId = ctx.principal.tenantId;
   const standard = await ctx.db.piStandard.findFirst({
     where: { id: input.standardId, tenantId },
-    select: { name: true, cadenceWeeks: true },
+    select: { name: true },
   });
   if (!standard) {
     return err({ kind: "not_found" as const, resourceType: "PiStandard", id: input.standardId });
@@ -452,7 +430,6 @@ export async function createTimelineFromStandard(
 
   const created = await createTimeline(ctx, {
     name: standard.name,
-    cadenceWeeks: standard.cadenceWeeks,
   });
   if (isErr(created)) return created;
 
@@ -490,12 +467,12 @@ export async function migrateAllArtsToOwnTimelines(
   return db.$transaction(async (tx) => {
     const arts = await tx.art.findMany({
       where: { tenantId, deletedAt: null, timelineId: null },
-      select: { id: true, name: true, piCadenceWeeks: true },
+      select: { id: true, name: true },
     });
     let timelinesCreated = 0;
     for (const art of arts) {
       const tl = await tx.timeline.create({
-        data: { tenantId, name: art.name, cadenceWeeks: art.piCadenceWeeks },
+        data: { tenantId, name: art.name },
         select: { id: true },
       });
       await tx.art.update({ where: { id: art.id }, data: { timelineId: tl.id } });

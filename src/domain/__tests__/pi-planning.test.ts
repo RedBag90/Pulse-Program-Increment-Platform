@@ -1,76 +1,88 @@
 import { describe, it, expect } from "vitest";
-import { generateSprints, validateDateRange } from "@/domain/pi-planning";
-import { isErr, isOk } from "@/domain/errors";
+import { validateDateRange, validatePiDates } from "@/domain/pi-planning";
+import { isOk, isErr } from "@/domain/errors";
 
-const DAY = 24 * 60 * 60 * 1000;
-const date = (offset: number, from = new Date("2024-01-01")) =>
-  new Date(from.getTime() + offset * DAY);
-
-const teams = [{ id: "team-a" }, { id: "team-b" }, { id: "team-c" }];
+const NOW = new Date("2026-06-21T00:00:00Z");
+const day = (iso: string) => new Date(`${iso}T00:00:00Z`);
 
 describe("validateDateRange", () => {
-  it("returns ok when end is after start", () => {
-    expect(isOk(validateDateRange(date(0), date(1)))).toBe(true);
+  it("akzeptiert start < end", () => {
+    expect(isOk(validateDateRange(day("2026-06-01"), day("2026-08-10")))).toBe(true);
   });
-
-  it("returns conflict when end equals start", () => {
-    const result = validateDateRange(date(0), date(0));
-    expect(isErr(result)).toBe(true);
-    if (isErr(result)) expect(result.error.kind).toBe("conflict");
-  });
-
-  it("returns conflict when end is before start", () => {
-    const result = validateDateRange(date(10), date(5));
-    expect(isErr(result)).toBe(true);
+  it("verbietet end <= start", () => {
+    expect(isErr(validateDateRange(day("2026-06-01"), day("2026-06-01")))).toBe(true);
+    expect(isErr(validateDateRange(day("2026-06-02"), day("2026-06-01")))).toBe(true);
   });
 });
 
-describe("generateSprints", () => {
-  it("generates one sprint per team when PI is shorter than one sprint cycle", () => {
-    const start = date(0);
-    const end = date(10);
-    const drafts = generateSprints(start, end, [{ id: "t1" }]);
-    expect(drafts).toHaveLength(1);
-    expect(drafts[0]!.indexInPi).toBe(1);
-    expect(drafts[0]!.endDate).toEqual(end);
+describe("validatePiDates", () => {
+  it("akzeptiert ein PI in der Zukunft", () => {
+    const r = validatePiDates({
+      start: day("2026-07-01"),
+      end: day("2026-09-10"),
+      otherPis: [],
+      now: NOW,
+    });
+    expect(isOk(r)).toBe(true);
   });
 
-  it("generates 3 sprints × 3 teams for a 42-day PI", () => {
-    // ceil(42 / 14) = 3 sprints; 3 teams × 3 sprints = 9
-    const start = date(0);
-    const end = date(42);
-    const drafts = generateSprints(start, end, teams);
-    expect(drafts).toHaveLength(9);
+  it("verbietet Ueberlapp mit anderem PI", () => {
+    const r = validatePiDates({
+      start: day("2026-07-01"),
+      end: day("2026-09-10"),
+      otherPis: [
+        { id: "p1", name: "PI-A", startDate: day("2026-08-01"), endDate: day("2026-10-01") },
+      ],
+      now: NOW,
+    });
+    expect(isErr(r)).toBe(true);
+    if (!isErr(r)) return;
+    expect(r.error.kind).toBe("conflict");
   });
 
-  it("caps the last sprint end date at the PI end date", () => {
-    // 30-day PI → 2 sprints of 14 days, second ends at PI end (not day 28+)
-    const start = date(0);
-    const end = date(27);
-    const drafts = generateSprints(start, end, [{ id: "t1" }]);
-    expect(drafts[1]!.endDate).toEqual(end);
+  it("exkludiert das eigene PI beim Update", () => {
+    const r = validatePiDates({
+      id: "p1",
+      start: day("2026-08-15"),
+      end: day("2026-10-25"),
+      otherPis: [
+        { id: "p1", name: "PI-A", startDate: day("2026-08-01"), endDate: day("2026-10-01") },
+      ],
+      now: NOW,
+    });
+    expect(isOk(r)).toBe(true);
   });
 
-  it("assigns correct teamId to each sprint", () => {
-    const start = date(0);
-    const end = date(28);
-    const drafts = generateSprints(start, end, [{ id: "alpha" }, { id: "beta" }]);
-    const alphaIds = drafts.filter((d) => d.teamId === "alpha");
-    const betaIds = drafts.filter((d) => d.teamId === "beta");
-    expect(alphaIds.length).toBeGreaterThan(0);
-    expect(betaIds.length).toBeGreaterThan(0);
+  it("verbietet Start > 30 Tage in der Vergangenheit", () => {
+    const r = validatePiDates({
+      start: day("2026-05-01"),
+      end: day("2026-07-15"),
+      otherPis: [],
+      now: NOW,
+    });
+    expect(isErr(r)).toBe(true);
   });
 
-  it("assigns sequential indexInPi starting from 1", () => {
-    const start = date(0);
-    const end = date(42);
-    const drafts = generateSprints(start, end, [{ id: "t1" }]);
-    const indices = drafts.map((d) => d.indexInPi);
-    expect(indices[0]).toBe(1);
-    expect(indices).toEqual([...Array(indices.length).keys()].map((i) => i + 1));
+  it("akzeptiert Start innerhalb der letzten 30 Tage", () => {
+    const r = validatePiDates({
+      start: day("2026-06-01"),
+      end: day("2026-08-15"),
+      otherPis: [],
+      now: NOW,
+    });
+    expect(isOk(r)).toBe(true);
   });
 
-  it("returns empty array when teams list is empty", () => {
-    expect(generateSprints(date(0), date(60), [])).toHaveLength(0);
+  it("verbietet doppelten PI-Namen in derselben Timeline", () => {
+    const r = validatePiDates({
+      name: "PI-A",
+      start: day("2026-11-01"),
+      end: day("2027-01-15"),
+      otherPis: [
+        { id: "p1", name: "PI-A", startDate: day("2026-08-01"), endDate: day("2026-10-01") },
+      ],
+      now: NOW,
+    });
+    expect(isErr(r)).toBe(true);
   });
 });

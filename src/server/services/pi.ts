@@ -2,7 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId, PiId, TimelineId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
-import { validateDateRange } from "@/domain/pi-planning";
+import { validatePiDates } from "@/domain/pi-planning";
 import { buildChangelog } from "@/domain/change-log";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
@@ -48,8 +48,19 @@ export async function createPi(
         return err({ kind: "not_found" as const, resourceType: "Timeline", id: timelineId });
       }
 
-      const dateCheck = validateDateRange(startDate, endDate);
-      if (isErr(dateCheck)) return dateCheck;
+      const others = await tx.programIncrement.findMany({
+        where: { tenantId: mctx.tenantId, timelineId },
+        select: { id: true, name: true, startDate: true, endDate: true },
+      });
+
+      const check = validatePiDates({
+        name,
+        start: startDate,
+        end: endDate,
+        otherPis: others,
+        now: new Date(),
+      });
+      if (isErr(check)) return check;
 
       const pi = await tx.programIncrement.create({
         data: { tenantId: mctx.tenantId, timelineId, name, startDate, endDate },
@@ -87,6 +98,39 @@ export async function updatePi(ctx: RequestContext, input: UpdatePiInput): Promi
         kind: "conflict" as const,
         reason: `Use the ${status === "active" ? "start" : "complete"} action to move a PI to "${status}"`,
       });
+    }
+
+    // Validate dates (overlap, duration, past, name-unique) only when the
+    // caller actually changes one of those fields.
+    if (
+      startDate !== undefined ||
+      endDate !== undefined ||
+      (name !== undefined && name !== existing.name)
+    ) {
+      const newStart = startDate ?? existing.startDate;
+      const newEnd = endDate ?? existing.endDate;
+      const newName = name ?? existing.name;
+      const tlId = existing.timelineId;
+      if (!tlId) {
+        return err({
+          kind: "conflict" as const,
+          reason:
+            "PI ohne Timeline-Verknuepfung kann nicht ueber den Timeline-Pfad editiert werden",
+        });
+      }
+      const others = await tx.programIncrement.findMany({
+        where: { tenantId: mctx.tenantId, timelineId: tlId },
+        select: { id: true, name: true, startDate: true, endDate: true },
+      });
+      const check = validatePiDates({
+        id,
+        name: newName,
+        start: newStart,
+        end: newEnd,
+        otherPis: others,
+        now: new Date(),
+      });
+      if (isErr(check)) return check;
     }
 
     const changes = buildChangelog(

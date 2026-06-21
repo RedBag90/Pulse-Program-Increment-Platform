@@ -31,7 +31,14 @@ interface Props {
   canCreateTeam: boolean;
   canManageTimeline: boolean;
   /** Verfügbare PI-Standards für „Standard auf Timeline anwenden". */
-  piStandards: { id: string; name: string }[];
+  piStandards: {
+    id: string;
+    name: string;
+    anchorMonth: number;
+    anchorDay: number;
+    cadenceWeeks: number;
+    piCount: number;
+  }[];
 }
 
 const NODE_KIND_SET = new Set<NodeKind>(["vs", "art", "team", "timeline"]);

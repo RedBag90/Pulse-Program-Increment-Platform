@@ -64,7 +64,7 @@ export default async function TimelinesPage() {
         canDeleteArt={canDeleteArt}
         canCreateTeam={canCreateTeam}
         canManageTimeline={canManageTimeline}
-        piStandards={piStandards.map((s) => ({ id: s.id, name: s.name }))}
+        piStandards={piStandards}
       />
     </Suspense>
   );
