@@ -13,7 +13,32 @@ function getBaseClient(): PrismaClient {
     return new PrismaClient();
   }
   // In development, reuse across hot reloads to avoid pool exhaustion.
-  globalThis.__prisma ??= new PrismaClient();
+  // Opt-in Query-Logging via PRISMA_DEBUG=1 — laesst N+1 sofort sehen.
+  if (!globalThis.__prisma) {
+    const debug = process.env.PRISMA_DEBUG === "1";
+    const client = debug
+      ? new PrismaClient({ log: [{ emit: "event", level: "query" }] })
+      : new PrismaClient();
+    if (debug) {
+      let count = 0;
+      let windowStart = Date.now();
+      (
+        client as unknown as {
+          $on: (e: string, cb: (q: { query: string; duration: number }) => void) => void;
+        }
+      ).$on("query", (q) => {
+        const now = Date.now();
+        if (now - windowStart > 1000) {
+          windowStart = now;
+          count = 0;
+        }
+        count++;
+        // eslint-disable-next-line no-console
+        console.log(`[prisma #${count}] ${q.duration}ms · ${q.query.slice(0, 120)}`);
+      });
+    }
+    globalThis.__prisma = client;
+  }
   return globalThis.__prisma;
 }
 
