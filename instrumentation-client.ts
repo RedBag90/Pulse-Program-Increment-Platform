@@ -6,8 +6,23 @@ Sentry.init({
   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.2 : 1.0,
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
-  integrations: [Sentry.replayIntegration()],
 });
+
+// Replay-Integration (~190 kB) erst nach dem Hauptbundle nachladen — spart
+// das auf jeder Route, sonst waere sie eager im Shared-Chunk. Nur in
+// Production, lokal ist das Bug-Repro-Tool unnoetig.
+if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
+  const load = () =>
+    Sentry.lazyLoadIntegration("replayIntegration")
+      .then((replay) => Sentry.addIntegration(replay()))
+      .catch(() => undefined);
+  // Warte auf idle, damit der Replay-Download den initialen Render nicht blockiert.
+  if ("requestIdleCallback" in window) {
+    (window as Window & typeof globalThis).requestIdleCallback(load);
+  } else {
+    setTimeout(load, 2000);
+  }
+}
 
 export const onRouterTransitionStart = Sentry.browserTracingIntegration().options
   ?.instrumentNavigation

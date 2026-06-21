@@ -80,12 +80,30 @@ export type ServerActionConfig<TInput, TOutput = unknown> = BaseConfig<TInput, T
       }
   );
 
+/**
+ * Loggt Server-Action-Latenz im Dev (opt-in via SERVER_ACTION_TIMING=1).
+ * Farb-Schwellen: < 200ms gruen, < 600ms gelb, > rot — matched die
+ * Performance-Targets aus dem Perf-Plan.
+ */
+function logActionTiming(label: string, ms: number, status: "ok" | "err"): void {
+  if (process.env.NODE_ENV === "production") return;
+  if (process.env.SERVER_ACTION_TIMING !== "1") return;
+  const color = ms > 600 ? "\x1b[31m" : ms > 200 ? "\x1b[33m" : "\x1b[32m";
+  const reset = "\x1b[0m";
+  // eslint-disable-next-line no-console
+  console.log(`${color}[action] ${label} ${Math.round(ms)}ms ${status}${reset}`);
+}
+
 export function createServerAction<TInput, TOutput = unknown>(
   config: ServerActionConfig<TInput, TOutput>,
 ): (_prev: ActionState, formData: FormData) => Promise<ActionState> {
   return async (_prev, formData) => {
+    const startedAt = performance.now();
     const ctx = await buildRequestContext();
-    if (!ctx) return { error: "Not authenticated" };
+    if (!ctx) {
+      logActionTiming(config.action, performance.now() - startedAt, "err");
+      return { error: "Not authenticated" };
+    }
     const { principal } = ctx;
 
     const raw = config.parseFormData
@@ -93,6 +111,7 @@ export function createServerAction<TInput, TOutput = unknown>(
       : parseFromSchema(formData, config.schema);
     const parsed = config.schema.safeParse(raw);
     if (!parsed.success) {
+      logActionTiming(config.action, performance.now() - startedAt, "err");
       return {
         fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
         error: parsed.error.issues[0]?.message ?? "Invalid input",
@@ -100,14 +119,21 @@ export function createServerAction<TInput, TOutput = unknown>(
     }
 
     const decision = authorize(config.action, config.resource(parsed.data, principal), principal);
-    if (!decision.allow) return { error: "Insufficient permissions" };
+    if (!decision.allow) {
+      logActionTiming(config.action, performance.now() - startedAt, "err");
+      return { error: "Insufficient permissions" };
+    }
 
     // Batch mode: loop the iterated field, calling the per-item service.
     if (config.batch) {
       const batchResult = await runBatch(ctx, parsed.data, config.batch, config.mapError);
-      if (batchResult.error) return batchResult;
+      if (batchResult.error) {
+        logActionTiming(config.action, performance.now() - startedAt, "err");
+        return batchResult;
+      }
       if (config.revalidate) revalidateFor(config.revalidate);
       config.onSuccess?.(parsed.data);
+      logActionTiming(config.action, performance.now() - startedAt, "ok");
       return batchResult;
     }
 
@@ -115,11 +141,13 @@ export function createServerAction<TInput, TOutput = unknown>(
     const result = await config.service(ctx, parsed.data);
     if (isErr(result)) {
       const msg = config.mapError ? config.mapError(result.error) : "Operation failed";
+      logActionTiming(config.action, performance.now() - startedAt, "err");
       return { error: msg };
     }
 
     if (config.revalidate) revalidateFor(config.revalidate);
     config.onSuccess?.(parsed.data);
+    logActionTiming(config.action, performance.now() - startedAt, "ok");
     return {
       success: true,
       ...(config.describeCreated && {

@@ -101,6 +101,9 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
   const [drag, setDrag] = useState<DragState | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  // Pro PI hoechstens ein in-flight Update — schuetzt vor Race-Conditions,
+  // wenn der User mehrere Drags schnell hintereinander macht.
+  const pendingByPi = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const anchor = useMemo(() => {
     if (pis.length === 0) return startOfMonth(new Date());
@@ -191,17 +194,35 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
       const endISO = isoDay(drag.curEnd);
       const orig = pis.find((p) => p.id === drag.piId);
       if (orig && (orig.startDate !== startISO || orig.endDate !== endISO)) {
-        const fd = new FormData();
-        fd.set("id", drag.piId);
-        fd.set("startDate", startISO);
-        fd.set("endDate", endISO);
-        startTransition(() => updateAction(fd));
+        // Debounce per PI: ein zweiter Drag innerhalb von 150ms canceled
+        // den ersten Request — beim Server kommt nur die letzte Position an.
+        const prev = pendingByPi.current.get(drag.piId);
+        if (prev) clearTimeout(prev);
+        const piId = drag.piId;
+        const handle = setTimeout(() => {
+          pendingByPi.current.delete(piId);
+          const fd = new FormData();
+          fd.set("id", piId);
+          fd.set("startDate", startISO);
+          fd.set("endDate", endISO);
+          startTransition(() => updateAction(fd));
+        }, 150);
+        pendingByPi.current.set(drag.piId, handle);
       }
       setDrag(null);
     };
     window.addEventListener("pointerup", onUp);
     return () => window.removeEventListener("pointerup", onUp);
   }, [drag, pis, updateAction]);
+
+  // Cleanup pending timers wenn die Komponente unmountet (Tab-Wechsel etc.).
+  useEffect(() => {
+    const map = pendingByPi.current;
+    return () => {
+      for (const handle of map.values()) clearTimeout(handle);
+      map.clear();
+    };
+  }, []);
 
   const onTrackClick = (e: React.MouseEvent) => {
     if (!canEdit) return;

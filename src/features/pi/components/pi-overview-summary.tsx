@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
-import { StatusDistributionChart } from "@/components/charts/status-distribution-chart";
+import { StatusDistributionChart } from "@/components/charts/status-distribution-chart-lazy";
 import type { PiOverviewSummary as Summary } from "@/domain/pi-overview";
 
 interface Props {

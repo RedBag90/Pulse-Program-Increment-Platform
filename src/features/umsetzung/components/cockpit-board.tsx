@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useOptimistic, useRef, useState, useTransition } from "react";
 import { setFeaturePiAction, setFeatureDeliveryStatusAction } from "@/features/art/actions/feature";
 import type {
   CockpitFeature,
@@ -8,6 +8,12 @@ import type {
   FeatureStatus,
 } from "@/server/views/umsetzung-cockpit-view";
 import { FeatureCard } from "./feature-card";
+
+interface OptimisticPatch {
+  id: string;
+  piId?: string | null;
+  status?: FeatureStatus;
+}
 
 /**
  * Delivery-Board — 5 PI-Spalten × 4 Status-Lanes
@@ -50,25 +56,38 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
   const draggingId = useRef<string | null>(null);
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  // Optimistische Patches — pro Feature-Id ein Override fuer piId/status.
-  const [optimistic, setOptimistic] = useState<
-    Record<string, { piId?: string | null; status?: FeatureStatus }>
-  >({});
 
-  // Wende die Optimistik an, ohne die Server-Liste zu mutieren.
-  const view = features.map((f) => {
-    const o = optimistic[f.id];
-    if (!o) return f;
-    return {
-      ...f,
-      ...(o.piId !== undefined ? { piId: o.piId } : {}),
-      ...(o.status !== undefined ? { status: o.status } : {}),
-    };
-  });
+  // Optimistic-Layer via React 19. Patches greifen waehrend der Transition;
+  // schlaegt der Server-Call fehl, faellt React automatisch auf `features`
+  // zurueck — kein manueller Rollback noetig.
+  const [view, addOptimisticPatch] = useOptimistic<CockpitFeature[], OptimisticPatch>(
+    features,
+    (current, patch) =>
+      current.map((f) =>
+        f.id === patch.id
+          ? {
+              ...f,
+              ...(patch.piId !== undefined ? { piId: patch.piId } : {}),
+              ...(patch.status !== undefined ? { status: patch.status } : {}),
+            }
+          : f,
+      ),
+  );
 
-  function applyOptimistic(id: string, patch: { piId?: string | null; status?: FeatureStatus }) {
-    setOptimistic((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
-  }
+  // Backlog-Spalte (synthetisch) als erste Spalte vor den PI-Spalten.
+  // Features mit `piId === null` landen hier; Drag in diese Spalte ruft
+  // `setFeaturePiAction` mit leerem `piId` und entkoppelt das Feature vom PI.
+  const backlogCount = view.filter((f) => f.piId == null).length;
+  const backlogSlot: CockpitPiSlot = {
+    id: "",
+    name: "Backlog",
+    startDate: new Date(0),
+    endDate: new Date(0),
+    status: "backlog",
+    featureCount: backlogCount,
+    isCurrent: false,
+  };
+  const columns: CockpitPiSlot[] = [backlogSlot, ...pis];
 
   function dropOnCell(targetPiId: string, targetStatus: FeatureStatus) {
     const id = draggingId.current;
@@ -77,7 +96,9 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
     const feature = features.find((f) => f.id === id);
     if (!feature) return;
 
-    const movePi = feature.piId !== targetPiId;
+    // Normalisiere `null` ↔ "" damit Backlog-Spalte als Drop-Ziel erkannt wird.
+    const currentPiKey = feature.piId ?? "";
+    const movePi = currentPiKey !== targetPiId;
     const moveStatus = feature.status !== targetStatus;
     if (!movePi && !moveStatus) return;
 
@@ -86,12 +107,15 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
     if (movePi && !canUpdate) return;
     if (moveStatus && !canSetDelivery) return;
 
-    applyOptimistic(id, {
-      ...(movePi ? { piId: targetPiId } : {}),
-      ...(moveStatus ? { status: targetStatus } : {}),
-    });
-
     startTransition(async () => {
+      // Optimistic-Patch innerhalb der Transition — React reverted automatisch,
+      // wenn der Server-Roundtrip fehlschlaegt oder die Liste sich aendert.
+      addOptimisticPatch({
+        id,
+        ...(movePi ? { piId: targetPiId } : {}),
+        ...(moveStatus ? { status: targetStatus } : {}),
+      });
+
       try {
         if (movePi) {
           const fd = new FormData();
@@ -111,11 +135,6 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
         setError(null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Aktion fehlgeschlagen");
-        // Rollback Optimistik
-        setOptimistic((prev) => {
-          const { [id]: _drop, ...rest } = prev;
-          return rest;
-        });
       }
     });
   }
@@ -128,36 +147,43 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
         </div>
       )}
 
-      {/* Grid: 1 Label-Spalte links + N PI-Spalten. Status-Lanes sind
-          die Zeilen. */}
+      {/* Grid: 1 Label-Spalte + Backlog-Spalte + N PI-Spalten. Status-Lanes
+          sind die Zeilen. */}
       <div
         className="grid gap-2 overflow-x-auto pb-2"
         style={{
-          gridTemplateColumns: `minmax(120px, 0.6fr) repeat(${pis.length}, minmax(180px, 1fr))`,
+          gridTemplateColumns: `minmax(120px, 0.6fr) repeat(${columns.length}, minmax(180px, 1fr))`,
         }}
       >
-        {/* Header-Zeile: leeres Eck + PI-Namen */}
+        {/* Header-Zeile: leeres Eck + Spalten-Namen */}
         <div />
-        {pis.map((p) => (
-          <div
-            key={p.id}
-            className={`rounded-md border px-2 py-1 text-xs font-medium ${
-              p.isCurrent ? "border-primary bg-primary/5" : "border-border bg-card"
-            }`}
-          >
-            <div className="flex items-baseline justify-between gap-2">
-              <span>{p.name}</span>
-              <span className="text-[10px] text-muted-foreground">{p.featureCount}</span>
+        {columns.map((p) => {
+          const isBacklog = p.id === "";
+          return (
+            <div
+              key={p.id || "__backlog__"}
+              className={`rounded-md border px-2 py-1 text-xs font-medium ${
+                isBacklog
+                  ? "border-dashed border-border bg-muted/30 text-muted-foreground"
+                  : p.isCurrent
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-card"
+              }`}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span>{p.name}</span>
+                <span className="text-[10px] text-muted-foreground">{p.featureCount}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Status-Lanes als Zeilen */}
         {LANES.map((lane) => (
           <LaneRow
             key={lane.value}
             lane={lane}
-            pis={pis}
+            pis={columns}
             view={view}
             canDrag={canUpdate || canSetDelivery}
             onDrop={dropOnCell}
@@ -190,7 +216,7 @@ function LaneRow({
         {lane.label}
       </div>
       {pis.map((p) => {
-        const cell = view.filter((f) => f.piId === p.id && f.status === lane.value);
+        const cell = view.filter((f) => (f.piId ?? "") === p.id && f.status === lane.value);
         return (
           <div
             key={`${p.id}:${lane.value}`}

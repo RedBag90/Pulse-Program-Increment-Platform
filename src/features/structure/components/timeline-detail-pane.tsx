@@ -8,7 +8,19 @@ import { LeaveTimelineButton } from "@/features/structure/components/leave-timel
 import { EditTimelineForm } from "@/features/structure/components/edit-timeline-form";
 import { PiDialog } from "@/features/structure/components/pi-dialog";
 import { DeletePiRowButton } from "@/features/structure/components/delete-pi-row-button";
-import { TimelineCalendar } from "@/features/structure/components/timeline-calendar";
+import dynamic from "next/dynamic";
+
+const TimelineCalendar = dynamic(
+  () => import("@/features/structure/components/timeline-calendar").then((m) => m.TimelineCalendar),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid h-32 place-items-center text-xs text-muted-foreground">
+        Kalender wird geladen…
+      </div>
+    ),
+  },
+);
 import {
   AddStandardPisControl,
   type PiStandardOption,

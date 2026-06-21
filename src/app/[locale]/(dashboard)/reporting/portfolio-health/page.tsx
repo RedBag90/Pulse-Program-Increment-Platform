@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { InitiativeLevel } from "@/domain/types";
 import type { TenantId } from "@/domain/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusDistributionChart } from "@/components/charts/status-distribution-chart";
+import { StatusDistributionChart } from "@/components/charts/status-distribution-chart-lazy";
 import { getValueStreamBudgets } from "@/server/services/budgeting";
 import { BarChart2, GitBranch } from "lucide-react";
 

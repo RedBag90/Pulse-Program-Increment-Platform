@@ -6,7 +6,7 @@ import { CockpitViewTabs } from "./cockpit-view-tabs";
 import { CockpitBoard } from "./cockpit-board";
 import { CockpitTable } from "./cockpit-table";
 import { CockpitRoadmap } from "./cockpit-roadmap";
-import { CockpitNetwork } from "./cockpit-network";
+import { CockpitNetworkLazy } from "./cockpit-network-lazy";
 import { FeatureSlideOver } from "./feature-slide-over";
 import { CockpitRealtimeSubscriber } from "./cockpit-realtime-subscriber";
 
@@ -84,7 +84,7 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
             canLinkDependency={permissions.canLinkDependency}
           />
         ) : (
-          <CockpitNetwork
+          <CockpitNetworkLazy
             features={features}
             dependencies={dependencies}
             artId={selectedArt.id}

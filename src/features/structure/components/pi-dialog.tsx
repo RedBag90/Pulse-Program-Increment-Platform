@@ -39,8 +39,16 @@ const initialState: ActionState = {};
  */
 export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
   const isEdit = Boolean(initial?.id);
-  const action = isEdit ? updatePiOnTimelineAction : createPiOnTimelineAction;
-  const [state, run, pending] = useActionState(action, initialState);
+  const [createState, runCreate, createPending] = useActionState(
+    createPiOnTimelineAction,
+    initialState,
+  );
+  const [updateState, runUpdate, updatePending] = useActionState(
+    updatePiOnTimelineAction,
+    initialState,
+  );
+  const state = isEdit ? updateState : createState;
+  const pending = isEdit ? updatePending : createPending;
 
   const [name, setName] = useState(initial?.name ?? "");
   const [startDate, setStartDate] = useState(initial?.startDate ?? "");
@@ -65,7 +73,8 @@ export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
   const isActiveOrDone = initial?.status === "active" || initial?.status === "completed";
 
   const onSubmit = (fd: FormData) => {
-    startTransition(() => run(fd));
+    const dispatch = isEdit ? runUpdate : runCreate;
+    startTransition(() => dispatch(fd));
   };
 
   return (
@@ -74,9 +83,13 @@ export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
         <DialogHeader>
           <DialogTitle>{isEdit ? "PI bearbeiten" : "Neues PI"}</DialogTitle>
         </DialogHeader>
-        <form action={onSubmit} className="space-y-4">
-          {!isEdit && <input type="hidden" name="timelineId" value={timelineId} />}
-          {isEdit && initial?.id && <input type="hidden" name="id" value={initial.id} />}
+        <form
+          key={isEdit ? `edit-${initial?.id ?? ""}` : "create"}
+          action={onSubmit}
+          className="space-y-4"
+        >
+          <input type="hidden" name="timelineId" value={timelineId} />
+          {initial?.id && <input type="hidden" name="id" value={initial.id} />}
 
           {isActiveOrDone && (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900">
@@ -137,9 +150,15 @@ export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
           </div>
 
           {state?.error && (
-            <p role="alert" className="text-sm text-destructive">
-              {state.error}
-            </p>
+            <div role="alert" className="space-y-1 text-sm text-destructive">
+              <p>{state.error}</p>
+              {state.fieldErrors &&
+                Object.entries(state.fieldErrors).map(([field, msgs]) => (
+                  <p key={field} className="text-xs">
+                    <span className="font-medium">{field}:</span> {msgs.join(", ")}
+                  </p>
+                ))}
+            </div>
           )}
 
           <DialogFooter>

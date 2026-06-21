@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createPrismaClient } from "@/server/db/prisma";
 import type { TenantId, UserId } from "@/domain/types";
@@ -37,8 +38,12 @@ export interface Principal {
  * Extracts the authenticated principal from the current Supabase session,
  * then resolves tenant + roles from the UserRoleAssignment table.
  * The DB is the source of truth — not JWT app_metadata.
+ *
+ * Per-Request memoisiert ueber React `cache()`: jeder Page-Load + jede
+ * Server-Action ruft Supabase + Prisma nur einmal, danach kommt die Antwort
+ * aus dem Request-Scope-Cache. Spart 2–3 DB-Roundtrips pro Action.
  */
-export async function getPrincipal(): Promise<Principal | null> {
+export const getPrincipal = cache(async (): Promise<Principal | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -91,7 +96,7 @@ export async function getPrincipal(): Promise<Principal | null> {
     scopes,
     capabilities,
   };
-}
+});
 
 /**
  * Resolves the capability list for the principal. Reads `role_capabilities`

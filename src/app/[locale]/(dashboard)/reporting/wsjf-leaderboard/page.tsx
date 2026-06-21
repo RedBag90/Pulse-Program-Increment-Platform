@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { InitiativeLevel } from "@/domain/types";
 import type { TenantId } from "@/domain/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { WsjfBarChart } from "@/components/charts/wsjf-bar-chart";
+import { WsjfBarChart } from "@/components/charts/wsjf-bar-chart-lazy";
 import { Trophy } from "lucide-react";
 
 export default async function WsjfLeaderboardPage() {

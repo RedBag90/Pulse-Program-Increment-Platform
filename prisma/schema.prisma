@@ -605,6 +605,10 @@ model Initiative {
   @@index([piId])
   @@index([ownerId, status])
   @@index([path])
+  // Cockpit-Hot-Paths: features filtered by (tenant, art) + PI/level — composite
+  // indexes decken die groupBy- und findMany-Filter in umsetzung-cockpit-view ab.
+  @@index([tenantId, artId, piId])
+  @@index([tenantId, artId, level])
   @@map("initiatives")
 }
 
