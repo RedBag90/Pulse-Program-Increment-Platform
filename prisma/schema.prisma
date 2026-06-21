@@ -319,9 +319,9 @@ model Art {
   valueStreamId  String    @map("value_stream_id") @db.Uuid
   name           String
   description    String?
-  /// Default cadence for new PIs. Migrates to Timeline.cadenceWeeks during
-  /// the timeline rollout; remains as a legacy fallback for ARTs not yet
-  /// subscribed to a Timeline.
+  /// Default cadence for new PIs on ARTs not yet subscribed to a Timeline
+  /// (legacy fallback). Timelines no longer carry a cadence — each PI defines
+  /// its own start/end window.
   piCadenceWeeks Int       @default(10) @map("pi_cadence_weeks")
   rteId          String?   @map("rte_id") @db.Uuid // Release Train Engineer
   /// Subscription to a shared Timeline. Each ART belongs to at most one
@@ -415,9 +415,6 @@ model Timeline {
   id           String   @id @default(uuid()) @db.Uuid
   tenantId     String   @map("tenant_id") @db.Uuid
   name         String
-  /// Default cadence for new PIs on this Timeline (in weeks). Used by
-  /// `applyPiStandard` and the "Neue PI" UI when no explicit window is set.
-  cadenceWeeks Int      @default(10) @map("cadence_weeks")
   createdAt    DateTime @default(now()) @map("created_at")
 
   tenant            Tenant             @relation(fields: [tenantId], references: [id])

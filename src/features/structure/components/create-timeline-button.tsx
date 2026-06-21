@@ -48,17 +48,6 @@ export function CreateTimelineButton() {
                 placeholder="z. B. Quartalskadenz Bank"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="timeline-cadence">Kadenz (Wochen)</Label>
-              <Input
-                id="timeline-cadence"
-                name="cadenceWeeks"
-                type="number"
-                min={1}
-                max={52}
-                defaultValue={10}
-              />
-            </div>
             {state?.error && (
               <p role="alert" className="text-sm text-destructive">
                 {state.error}

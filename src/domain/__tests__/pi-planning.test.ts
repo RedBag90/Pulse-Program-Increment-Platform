@@ -16,37 +16,20 @@ describe("validateDateRange", () => {
 });
 
 describe("validatePiDates", () => {
-  const cadence = 10; // 10 Wochen = 70 Tage Mindest-Dauer
-
-  it("akzeptiert ein PI in der Zukunft mit voller Cadence-Dauer", () => {
+  it("akzeptiert ein PI in der Zukunft", () => {
     const r = validatePiDates({
       start: day("2026-07-01"),
       end: day("2026-09-10"),
-      cadenceWeeks: cadence,
       otherPis: [],
       now: NOW,
     });
     expect(isOk(r)).toBe(true);
   });
 
-  it("verbietet PI mit Dauer < 1 Cadence-Period", () => {
-    const r = validatePiDates({
-      start: day("2026-07-01"),
-      end: day("2026-08-01"),
-      cadenceWeeks: cadence,
-      otherPis: [],
-      now: NOW,
-    });
-    expect(isErr(r)).toBe(true);
-    if (!isErr(r)) return;
-    expect(r.error.kind).toBe("conflict");
-  });
-
   it("verbietet Ueberlapp mit anderem PI", () => {
     const r = validatePiDates({
       start: day("2026-07-01"),
       end: day("2026-09-10"),
-      cadenceWeeks: cadence,
       otherPis: [
         { id: "p1", name: "PI-A", startDate: day("2026-08-01"), endDate: day("2026-10-01") },
       ],
@@ -62,7 +45,6 @@ describe("validatePiDates", () => {
       id: "p1",
       start: day("2026-08-15"),
       end: day("2026-10-25"),
-      cadenceWeeks: cadence,
       otherPis: [
         { id: "p1", name: "PI-A", startDate: day("2026-08-01"), endDate: day("2026-10-01") },
       ],
@@ -75,7 +57,6 @@ describe("validatePiDates", () => {
     const r = validatePiDates({
       start: day("2026-05-01"),
       end: day("2026-07-15"),
-      cadenceWeeks: cadence,
       otherPis: [],
       now: NOW,
     });
@@ -86,7 +67,6 @@ describe("validatePiDates", () => {
     const r = validatePiDates({
       start: day("2026-06-01"),
       end: day("2026-08-15"),
-      cadenceWeeks: cadence,
       otherPis: [],
       now: NOW,
     });
@@ -98,7 +78,6 @@ describe("validatePiDates", () => {
       name: "PI-A",
       start: day("2026-11-01"),
       end: day("2027-01-15"),
-      cadenceWeeks: cadence,
       otherPis: [
         { id: "p1", name: "PI-A", startDate: day("2026-08-01"), endDate: day("2026-10-01") },
       ],

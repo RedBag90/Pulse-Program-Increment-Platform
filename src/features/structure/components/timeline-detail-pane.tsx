@@ -71,20 +71,12 @@ export function TimelineDetailPane({ timeline, canManage, piStandards, onSelectN
           )}
         </div>
         <dl className="grid grid-cols-[140px_1fr] gap-y-1.5 text-sm">
-          <dt className="text-muted-foreground">Cadence</dt>
-          <dd className="tabular-nums">{timeline.cadenceWeeks} Wochen</dd>
           <dt className="text-muted-foreground">PIs / ARTs</dt>
           <dd className="tabular-nums">
             {timeline.pis.length} / {timeline.subscribedArts.length}
           </dd>
         </dl>
-        {canManage && (
-          <EditTimelineForm
-            timelineId={timeline.id}
-            name={timeline.name}
-            cadenceWeeks={timeline.cadenceWeeks}
-          />
-        )}
+        {canManage && <EditTimelineForm timelineId={timeline.id} name={timeline.name} />}
       </section>
 
       <section className="space-y-3 rounded-lg border bg-card p-4">
@@ -189,7 +181,6 @@ export function TimelineDetailPane({ timeline, canManage, piStandards, onSelectN
           onOpenChange={(open) => setPiDialog({ open })}
           timelineId={timeline.id}
           {...(piDialog.initial ? { initial: piDialog.initial } : {})}
-          cadenceWeeks={timeline.cadenceWeeks}
         />
       )}
 

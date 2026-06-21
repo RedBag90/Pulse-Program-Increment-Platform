@@ -80,7 +80,6 @@ export interface TimelineDetail {
   kind: "timeline";
   id: string;
   name: string;
-  cadenceWeeks: number;
   pis: { id: string; name: string; startDate: string; endDate: string; status: string }[];
   subscribedArts: { id: string; name: string; valueStreamName: string | null }[];
   unassignedArts: { id: string; name: string; valueStreamName: string | null }[];
@@ -246,7 +245,7 @@ export function buildStructurePageModel(input: {
         parentId: null,
         depth: 0,
         label: t.name,
-        subtitle: `${t.cadenceWeeks} Wochen · ${t.programIncrements.length} PIs · ${t.arts.length} ARTs`,
+        subtitle: `${t.programIncrements.length} PIs · ${t.arts.length} ARTs`,
         gaps: [],
       });
     }
@@ -254,7 +253,6 @@ export function buildStructurePageModel(input: {
       kind: "timeline",
       id: t.id,
       name: t.name,
-      cadenceWeeks: t.cadenceWeeks,
       pis: t.programIncrements.map((p) => ({
         id: p.id,
         name: p.name,

@@ -27,26 +27,17 @@ interface Props {
   timelineId: string;
   /** Wenn `id` gesetzt ist → Edit-Mode; sonst Create-Mode. */
   initial?: PiInitialValues;
-  /** Cadence-Wochen der Timeline — für Default-Vorschlag des End-Datums. */
-  cadenceWeeks: number;
 }
 
 const initialState: ActionState = {};
-
-function addWeeksISO(isoDate: string, weeks: number): string {
-  if (!isoDate) return "";
-  const d = new Date(`${isoDate}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + weeks * 7);
-  return d.toISOString().slice(0, 10);
-}
 
 /**
  * Dialog fuer PI-Create / Edit. Bei Edit-Mode ist `initial.id` gesetzt;
  * Felder werden mit aktuellen Werten vorbefuellt. Bei Create-Mode ohne
  * Vorgabe startet alles leer; mit Vorgabe (z. B. aus Kalender-Klick)
- * werden Start/Ende vorbelegt.
+ * wird das Start-Datum vorbelegt. End-Datum traegt der User immer manuell ein.
  */
-export function PiDialog({ open, onOpenChange, timelineId, initial, cadenceWeeks }: Props) {
+export function PiDialog({ open, onOpenChange, timelineId, initial }: Props) {
   const isEdit = Boolean(initial?.id);
   const action = isEdit ? updatePiOnTimelineAction : createPiOnTimelineAction;
   const [state, run, pending] = useActionState(action, initialState);
@@ -54,13 +45,6 @@ export function PiDialog({ open, onOpenChange, timelineId, initial, cadenceWeeks
   const [name, setName] = useState(initial?.name ?? "");
   const [startDate, setStartDate] = useState(initial?.startDate ?? "");
   const [endDate, setEndDate] = useState(initial?.endDate ?? "");
-
-  // Auto-fill end-date from start + cadence when both are empty/new.
-  useEffect(() => {
-    if (!isEdit && startDate && !endDate) {
-      setEndDate(addWeeksISO(startDate, cadenceWeeks));
-    }
-  }, [startDate, endDate, cadenceWeeks, isEdit]);
 
   // Reset when opening with new initials.
   useEffect(() => {

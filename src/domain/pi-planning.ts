@@ -22,8 +22,6 @@ export interface PiDateValidationInput {
   name?: string | undefined;
   start: Date;
   end: Date;
-  /** Cadence-Wochen der Timeline; PI-Dauer muss >= 1 Cadence-Period sein. */
-  cadenceWeeks: number;
   otherPis: ReadonlyArray<ExistingPi>;
   /** "today" — fuer past-date-check (test-injectable). */
   now: Date;
@@ -32,25 +30,15 @@ export interface PiDateValidationInput {
 /**
  * Validiert PI-Daten gegen die Domain-Regeln:
  *  - Start ≤ Ende
- *  - PI-Dauer ≥ 1 Cadence-Period der Timeline
  *  - Keine Ueberlappung mit anderen PIs derselben Timeline (own ID exkludieren)
  *  - Start-Datum nicht > 30 Tage in der Vergangenheit
  *  - Name (falls gesetzt) eindeutig in der Timeline
  */
 export function validatePiDates(input: PiDateValidationInput): Result<void> {
-  const { id, name, start, end, cadenceWeeks, otherPis, now } = input;
+  const { id, name, start, end, otherPis, now } = input;
 
   const range = validateDateRange(start, end);
   if (!range.ok) return range;
-
-  const minDurationMs = cadenceWeeks * 7 * 24 * 60 * 60 * 1000;
-  const actualDurationMs = end.getTime() - start.getTime();
-  if (actualDurationMs < minDurationMs) {
-    return err({
-      kind: "conflict" as const,
-      reason: `PI-Dauer muss mindestens ${cadenceWeeks} Wochen sein`,
-    });
-  }
 
   for (const other of otherPis) {
     if (other.id === id) continue;

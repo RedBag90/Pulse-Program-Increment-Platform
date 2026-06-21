@@ -42,7 +42,7 @@ export async function createPi(
     async (tx) => {
       const timeline = await tx.timeline.findFirst({
         where: { id: timelineId, tenantId: mctx.tenantId },
-        select: { id: true, cadenceWeeks: true },
+        select: { id: true },
       });
       if (!timeline) {
         return err({ kind: "not_found" as const, resourceType: "Timeline", id: timelineId });
@@ -57,7 +57,6 @@ export async function createPi(
         name,
         start: startDate,
         end: endDate,
-        cadenceWeeks: timeline.cadenceWeeks,
         otherPis: others,
         now: new Date(),
       });
@@ -119,13 +118,6 @@ export async function updatePi(ctx: RequestContext, input: UpdatePiInput): Promi
             "PI ohne Timeline-Verknuepfung kann nicht ueber den Timeline-Pfad editiert werden",
         });
       }
-      const timeline = await tx.timeline.findFirst({
-        where: { id: tlId, tenantId: mctx.tenantId },
-        select: { cadenceWeeks: true },
-      });
-      if (!timeline) {
-        return err({ kind: "not_found" as const, resourceType: "Timeline", id: tlId });
-      }
       const others = await tx.programIncrement.findMany({
         where: { tenantId: mctx.tenantId, timelineId: tlId },
         select: { id: true, name: true, startDate: true, endDate: true },
@@ -135,7 +127,6 @@ export async function updatePi(ctx: RequestContext, input: UpdatePiInput): Promi
         name: newName,
         start: newStart,
         end: newEnd,
-        cadenceWeeks: timeline.cadenceWeeks,
         otherPis: others,
         now: new Date(),
       });

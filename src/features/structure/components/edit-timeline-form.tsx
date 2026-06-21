@@ -8,21 +8,19 @@ import type { ActionState } from "@/server/http/server-action";
 interface Props {
   timelineId: string;
   name: string;
-  cadenceWeeks: number;
 }
 
 const initialState: ActionState = {};
 
 /**
- * Inline-Edit-Form fuer Timeline-Name + Cadence. Klick auf Pencil → Edit-Modus
- * mit zwei Inputs + Save/Cancel. Optimistic: bei Erfolg schliesst sich der
- * Edit-Modus, bei Fehler bleibt er offen und zeigt den Fehler.
+ * Inline-Edit-Form fuer den Timeline-Namen. Klick auf Pencil → Edit-Modus mit
+ * Input + Save/Cancel. Bei Erfolg schliesst sich der Edit-Modus, bei Fehler
+ * bleibt er offen und zeigt den Fehler.
  */
-export function EditTimelineForm({ timelineId, name, cadenceWeeks }: Props) {
+export function EditTimelineForm({ timelineId, name }: Props) {
   const [editing, setEditing] = useState(false);
   const [state, action, pending] = useActionState(updateTimelineAction, initialState);
   const [draftName, setDraftName] = useState(name);
-  const [draftCadence, setDraftCadence] = useState(String(cadenceWeeks));
 
   if (!editing) {
     return (
@@ -30,7 +28,6 @@ export function EditTimelineForm({ timelineId, name, cadenceWeeks }: Props) {
         type="button"
         onClick={() => {
           setDraftName(name);
-          setDraftCadence(String(cadenceWeeks));
           setEditing(true);
         }}
         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -69,22 +66,6 @@ export function EditTimelineForm({ timelineId, name, cadenceWeeks }: Props) {
             maxLength={100}
             disabled={pending}
             className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
-          />
-        </div>
-        <div className="w-28 space-y-1">
-          <label htmlFor="tl-cadence" className="text-xs text-muted-foreground">
-            Cadence (Wo.)
-          </label>
-          <input
-            id="tl-cadence"
-            name="cadenceWeeks"
-            type="number"
-            min={1}
-            max={52}
-            value={draftCadence}
-            onChange={(e) => setDraftCadence(e.target.value)}
-            disabled={pending}
-            className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm tabular-nums"
           />
         </div>
       </div>

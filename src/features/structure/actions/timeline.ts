@@ -17,7 +17,6 @@ import type { ArtId, TimelineId } from "@/domain/types";
 export const createTimelineAction = createServerAction({
   schema: z.object({
     name: z.string().min(1).max(100),
-    cadenceWeeks: z.coerce.number().int().min(1).max(52).optional(),
   }),
   action: "timeline.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -30,25 +29,21 @@ export const updateTimelineAction = createServerAction({
   schema: z.object({
     id: z.string().uuid(),
     name: z.string().min(1).max(100).optional(),
-    cadenceWeeks: z.coerce.number().int().min(1).max(52).optional(),
   }),
   action: "timeline.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => {
     const f = fields(fd);
     const name = f.nonEmptyString("name");
-    const cad = f.nonEmptyString("cadenceWeeks");
     return {
       id: f.string("id"),
       ...(name !== undefined ? { name } : {}),
-      ...(cad !== undefined ? { cadenceWeeks: Number(cad) } : {}),
     };
   },
   service: (ctx, input) =>
     updateTimeline(ctx, {
       id: input.id as TimelineId,
       ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.cadenceWeeks !== undefined ? { cadenceWeeks: input.cadenceWeeks } : {}),
     }),
   revalidate: "timeline",
   mapError: (e) =>

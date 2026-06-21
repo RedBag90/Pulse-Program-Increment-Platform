@@ -150,12 +150,6 @@ export async function applyPiStandard(
     added.push(pi.name);
   }
 
-  // Align the Timeline cadence to the standard.
-  await ctx.db.timeline.update({
-    where: { id: input.timelineId },
-    data: { cadenceWeeks: spec.cadenceWeeks },
-  });
-
   const skipped = schedule.filter((p) => !added.includes(p.name)).map((p) => p.name);
   return ok({ added, skipped });
 }

@@ -48,7 +48,6 @@ export default async function StartArtPage() {
         timelines={timelines.map((t) => ({
           id: t.id,
           name: t.name,
-          cadenceWeeks: t.cadenceWeeks,
         }))}
       />
     </div>

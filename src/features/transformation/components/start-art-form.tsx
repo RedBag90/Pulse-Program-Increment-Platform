@@ -16,7 +16,6 @@ interface Option {
 interface TimelineOption {
   id: string;
   name: string;
-  cadenceWeeks: number;
 }
 
 interface Props {
@@ -147,7 +146,7 @@ export function StartArtForm({ valueStreams, rteUsers, timelines, canManage }: P
           >
             {timelines.map((t) => (
               <option key={t.id} value={t.id}>
-                {t.name} ({t.cadenceWeeks} Wo)
+                {t.name}
               </option>
             ))}
           </select>
