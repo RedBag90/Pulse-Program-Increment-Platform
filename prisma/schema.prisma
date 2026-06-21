@@ -402,6 +402,7 @@ model ProgramIncrement {
   impediments Impediment[]
   systemDemo  SystemDemo?
 
+  @@unique([timelineId, name])
   @@index([timelineId])
   @@map("program_increments")
 }

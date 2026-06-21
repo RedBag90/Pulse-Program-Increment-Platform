@@ -1,10 +1,11 @@
 import { ok, err, type Result } from "@/domain/errors";
 
-export interface SprintDraft {
-  teamId: string;
-  indexInPi: number;
+/** Existing PI for overlap-check. */
+export interface ExistingPi {
+  id: string;
   startDate: Date;
   endDate: Date;
+  name?: string | undefined;
 }
 
 export function validateDateRange(start: Date, end: Date): Result<void> {
@@ -14,26 +15,73 @@ export function validateDateRange(start: Date, end: Date): Result<void> {
   return ok(undefined);
 }
 
-export function generateSprints(
-  startDate: Date,
-  endDate: Date,
-  teams: ReadonlyArray<{ id: string }>,
-): SprintDraft[] {
-  const durationDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  const sprintCount = Math.max(1, Math.ceil(durationDays / 14));
+export interface PiDateValidationInput {
+  /** When updating, exclude self from overlap check. */
+  id?: string | undefined;
+  /** Optional new name; pruefen wir gegen den Timeline-scope. */
+  name?: string | undefined;
+  start: Date;
+  end: Date;
+  /** Cadence-Wochen der Timeline; PI-Dauer muss >= 1 Cadence-Period sein. */
+  cadenceWeeks: number;
+  otherPis: ReadonlyArray<ExistingPi>;
+  /** "today" — fuer past-date-check (test-injectable). */
+  now: Date;
+}
 
-  return teams.flatMap((team) =>
-    Array.from({ length: sprintCount }, (_, i) => {
-      const sprintStart = new Date(startDate);
-      sprintStart.setDate(sprintStart.getDate() + i * 14);
-      const sprintEnd = new Date(startDate);
-      sprintEnd.setDate(sprintEnd.getDate() + (i + 1) * 14 - 1);
-      return {
-        teamId: team.id,
-        indexInPi: i + 1,
-        startDate: sprintStart,
-        endDate: sprintEnd > endDate ? endDate : sprintEnd,
-      };
-    }),
-  );
+/**
+ * Validiert PI-Daten gegen die Domain-Regeln:
+ *  - Start ≤ Ende
+ *  - PI-Dauer ≥ 1 Cadence-Period der Timeline
+ *  - Keine Ueberlappung mit anderen PIs derselben Timeline (own ID exkludieren)
+ *  - Start-Datum nicht > 30 Tage in der Vergangenheit
+ *  - Name (falls gesetzt) eindeutig in der Timeline
+ */
+export function validatePiDates(input: PiDateValidationInput): Result<void> {
+  const { id, name, start, end, cadenceWeeks, otherPis, now } = input;
+
+  const range = validateDateRange(start, end);
+  if (!range.ok) return range;
+
+  const minDurationMs = cadenceWeeks * 7 * 24 * 60 * 60 * 1000;
+  const actualDurationMs = end.getTime() - start.getTime();
+  if (actualDurationMs < minDurationMs) {
+    return err({
+      kind: "conflict" as const,
+      reason: `PI-Dauer muss mindestens ${cadenceWeeks} Wochen sein`,
+    });
+  }
+
+  for (const other of otherPis) {
+    if (other.id === id) continue;
+    const overlaps = start < other.endDate && end > other.startDate;
+    if (overlaps) {
+      return err({
+        kind: "conflict" as const,
+        reason: `PI-Daten ueberlappen mit "${other.name ?? other.id}"`,
+      });
+    }
+  }
+
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  if (start < thirtyDaysAgo) {
+    return err({
+      kind: "conflict" as const,
+      reason: "Start-Datum darf nicht mehr als 30 Tage in der Vergangenheit liegen",
+    });
+  }
+
+  if (name !== undefined) {
+    for (const other of otherPis) {
+      if (other.id === id) continue;
+      if (other.name === name) {
+        return err({
+          kind: "conflict" as const,
+          reason: `PI-Name "${name}" existiert bereits in dieser Timeline`,
+        });
+      }
+    }
+  }
+
+  return ok(undefined);
 }
