@@ -8,6 +8,7 @@ import { LeaveTimelineButton } from "@/features/structure/components/leave-timel
 import { EditTimelineForm } from "@/features/structure/components/edit-timeline-form";
 import { PiDialog } from "@/features/structure/components/pi-dialog";
 import { DeletePiRowButton } from "@/features/structure/components/delete-pi-row-button";
+import { TimelineCalendar } from "@/features/structure/components/timeline-calendar";
 import {
   AddStandardPisControl,
   type PiStandardOption,
@@ -153,6 +154,24 @@ export function TimelineDetailPane({ timeline, canManage, piStandards, onSelectN
             })}
           </ul>
         )}
+      </section>
+
+      <section className="space-y-3 rounded-lg border bg-card p-4">
+        <h2 className="font-heading text-sm font-medium">Kalender</h2>
+        <TimelineCalendar
+          pis={timeline.pis}
+          canEdit={canManage}
+          onEmptyDayClick={(iso) =>
+            setPiDialog({
+              open: true,
+              initial: { startDate: iso },
+            })
+          }
+          onPiClick={(piId) => {
+            const pi = timeline.pis.find((p) => p.id === piId);
+            if (pi) openEdit(pi);
+          }}
+        />
       </section>
 
       {canManage && (
