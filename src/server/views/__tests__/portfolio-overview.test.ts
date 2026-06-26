@@ -19,6 +19,7 @@ function epic(p: {
   status?: string;
   stageGate?: string;
   ownerId?: string | null;
+  businessCaseApprovedAt?: Date | null;
   updatedAt?: Date;
   vsName?: string | null;
   steering?: boolean;
@@ -29,6 +30,7 @@ function epic(p: {
     status: p.status ?? "approved",
     stageGate: p.stageGate ?? "L2",
     ownerId: p.ownerId ?? null,
+    businessCaseApprovedAt: p.businessCaseApprovedAt ?? null,
     valueStream: p.vsName ? { id: `vs-${p.id}`, name: p.vsName } : null,
     updatedAt: p.updatedAt ?? daysAgo(1),
     needsSteeringAttention: p.steering ?? false,
@@ -64,6 +66,34 @@ describe("buildPortfolioOverviewModel", () => {
     expect(m.oldestPerGate.L2?.id).toBe("b");
     expect(m.oldestPerGate.L0?.id).toBe("c");
     expect(m.oldestPerGate.L4).toBeNull();
+  });
+
+  it("L2 + BC-approved faellt in die L3-Bucket (Kanban 'Portfolio Backlog')", () => {
+    const inputs = baseInputs();
+    inputs.epics = [
+      // L2 ohne BC-Approval → Analyzing
+      epic({
+        id: "drafting-bc",
+        title: "Drafting BC",
+        stageGate: "L2",
+        businessCaseApprovedAt: null,
+      }),
+      // L2 + BC-approved → visuell L3
+      epic({
+        id: "ready-for-budget",
+        title: "Ready",
+        stageGate: "L2",
+        businessCaseApprovedAt: daysAgo(2),
+      }),
+      // echtes L3 → L3
+      epic({ id: "funded", title: "Funded", stageGate: "L3" }),
+    ];
+    const m = buildPortfolioOverviewModel(inputs);
+    expect(m.epicsByGate.L2.map((c) => c.id)).toEqual(["drafting-bc"]);
+    expect(m.epicsByGate.L3.map((c) => c.id).sort()).toEqual(["funded", "ready-for-budget"]);
+    // Daten-Modell-stageGate bleibt L2 fuer das L2+BC-approved-Epic.
+    const promoted = m.epicsByGate.L3.find((c) => c.id === "ready-for-budget");
+    expect(promoted?.stageGate).toBe("L2");
   });
 
   it("L0 + owner faellt in die L1-Bucket (Kanban 'Hypothese erstellen')", () => {

@@ -43,8 +43,11 @@ export function EpicsBulkActionBar({ selectedRows, canAdvance, onClear }: Props)
   // When all rows share a gate, derive the adjacent target. Else null.
   const sharedGate = !mixed ? (selectedRows[0]!.stageGate as StageGate) : null;
   const sharedIdx = sharedGate ? STAGE_GATES.indexOf(sharedGate) : -1;
+  // L2 → L3 und L4 → L5 sind nur via Workflow-Trigger erreichbar
+  // (Single-Source: src/domain/epic-lifecycle-doc.ts BLOCKED_MANUAL_TRANSITIONS).
+  const nextIsAutoOnly = sharedGate === "L2" || sharedGate === "L4";
   const nextGate: StageGate | null =
-    sharedGate && sharedIdx < STAGE_GATES.length - 1
+    sharedGate && !nextIsAutoOnly && sharedIdx < STAGE_GATES.length - 1
       ? (STAGE_GATES[sharedIdx + 1] as StageGate)
       : null;
   const prevGate: StageGate | null =
@@ -94,7 +97,15 @@ export function EpicsBulkActionBar({ selectedRows, canAdvance, onClear }: Props)
                 size="sm"
                 disabled={pending || !nextGate}
                 onClick={() => bulkMove(nextGate)}
-                title={nextGate ? `→ ${STAGE_GATE_LABELS[nextGate]}` : "Bereits L5"}
+                title={
+                  nextGate
+                    ? `→ ${STAGE_GATE_LABELS[nextGate]}`
+                    : sharedGate === "L2"
+                      ? "L3 wird automatisch beim Speichern eines Budgets > 0 erreicht"
+                      : sharedGate === "L4"
+                        ? "L5 wird nur per Impact-Bestaetigung erreicht"
+                        : "Bereits L5"
+                }
               >
                 <ChevronUp className="size-3.5" />
                 Stage ↑

@@ -1,11 +1,16 @@
 import { CheckCircle2 } from "lucide-react";
-import { STAGE_GATES } from "@/domain/stage-gate";
+import { STAGE_GATES, SUB_STAGES_BY_GATE, type SubStage } from "@/domain/stage-gate";
 import type { StageGate } from "@/domain/types";
-import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiative-labels";
 import type { EpicNextStep } from "@/domain/epic-next-step";
+import { StageGateLifecycleHelp } from "@/features/portfolio/components/stage-gate-lifecycle-help";
 
 interface Props {
   stageGate: StageGate;
+  /** Aktuelle Sub-Stage (derivativ). Treibt die Hervorhebung der
+   *  Sub-Stage-Pills unter L2/L4. `null` bei L0/L1/L3/L5 oder bei L2 wenn
+   *  noch kein BC-Inhalt vorhanden. */
+  subStage: SubStage | null;
   /** Berechneter nächster Schritt; null = L5 / Endstand. */
   nextStep: EpicNextStep | null;
   /** UI-Repräsentation des CTAs (Link-Button oder Inline-Dialog). Wird von
@@ -35,31 +40,58 @@ const STAGE_DOT: Record<StageGate, string> = {
  *
  * Reine Server-Komponente — keine Mutationen, keine State.
  */
-export function EpicReifegradActivityBar({ stageGate, nextStep, actionSlot }: Props) {
+export function EpicReifegradActivityBar({ stageGate, subStage, nextStep, actionSlot }: Props) {
   return (
     <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
       {/* ── Reifegrad ──────────────────────────────────────── */}
       <section className="space-y-2">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          Reifegrad
-        </p>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex items-center gap-1.5">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            Reifegrad
+          </p>
+          <StageGateLifecycleHelp />
+        </div>
+        <div className="flex flex-wrap items-start gap-1.5">
           {STAGE_GATES.map((g) => {
             const isActive = g === stageGate;
             const isPast = STAGE_GATES.indexOf(g) < STAGE_GATES.indexOf(stageGate);
+            const subs = SUB_STAGES_BY_GATE[g as StageGate];
             return (
-              <div
-                key={g}
-                className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${
-                  isActive
-                    ? "border-foreground bg-card font-medium"
-                    : isPast
-                      ? "border-input bg-muted/40 text-muted-foreground"
-                      : "border-dashed border-input bg-transparent text-muted-foreground/60"
-                }`}
-              >
-                <span className={`size-2 rounded-full ${STAGE_DOT[g as StageGate]}`} />
-                <span>{STAGE_GATE_LABELS[g] ?? g}</span>
+              <div key={g} className="flex flex-col gap-0.5">
+                <div
+                  className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${
+                    isActive
+                      ? "border-foreground bg-card font-medium"
+                      : isPast
+                        ? "border-input bg-muted/40 text-muted-foreground"
+                        : "border-dashed border-input bg-transparent text-muted-foreground/60"
+                  }`}
+                >
+                  <span className={`size-2 rounded-full ${STAGE_DOT[g as StageGate]}`} />
+                  <span>{STAGE_GATE_LABELS[g] ?? g}</span>
+                </div>
+                {subs && (
+                  <div className="flex gap-0.5 px-0.5">
+                    {subs.map((s) => {
+                      const isSubActive = subStage === s;
+                      return (
+                        <span
+                          key={s}
+                          title={`${s} ${SUB_STAGE_LABELS[s]}`}
+                          className={`flex flex-1 items-center justify-center rounded px-1.5 py-0.5 text-[10px] ${
+                            isSubActive
+                              ? "bg-foreground font-medium text-background"
+                              : isActive
+                                ? "bg-muted/60 text-muted-foreground"
+                                : "bg-muted/30 text-muted-foreground/60"
+                          }`}
+                        >
+                          {s}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}

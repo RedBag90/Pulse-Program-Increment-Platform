@@ -74,14 +74,6 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     resolveHref: (c) => (c.epicId ? `/portfolio/epics/${c.epicId}?tab=kpis` : "/portfolio/epics"),
   },
   {
-    key: "pi-objective",
-    label: "PI Objective",
-    group: "more",
-    indentLevel: 0,
-    inPlace: true,
-    resolveHref: (c) => (c.piId ? `/pi/${c.piId}/objectives?create=pi-objective` : "/pi-planning"),
-  },
-  {
     key: "impediment",
     label: "Impediment",
     group: "more",

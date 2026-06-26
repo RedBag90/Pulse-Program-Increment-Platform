@@ -42,6 +42,8 @@ export interface OverviewEpicCard {
   stageGate: string;
   /** Genutzt fuer Kanban-Bucket-Splitt L0+Owner → „Hypothese erstellen". */
   ownerId: string | null;
+  /** Stamp aus dem BC-Approval-Pfad. Treibt den L2+BC-approved → L3-Bucket. */
+  businessCaseApprovedAt: Date | null;
   valueStream: { id: string; name: string } | null;
   updatedAt: Date;
   daysSinceUpdate: number;
@@ -194,6 +196,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     status: e.status,
     stageGate: e.stageGate,
     ownerId: e.ownerId,
+    businessCaseApprovedAt: e.businessCaseApprovedAt,
     valueStream: e.valueStream,
     updatedAt: e.updatedAt,
     daysSinceUpdate: Math.floor((nowMs - new Date(e.updatedAt).getTime()) / (24 * 60 * 60 * 1000)),
@@ -201,10 +204,13 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   }));
 
   // Group epics by Kanban-Bucket. Wichtig: Bucket != Stage-Gate.
-  // L0-Epics mit Owner gehoeren visuell in „Hypothese erstellen" (L1-Bucket) —
-  // ihr Daten-Modell-`stageGate` bleibt aber L0, das flippt erst beim
-  // Hypothesis-Approval. Konsumenten (compact-kanban, period-banner) sehen
-  // die Karte einfach in der L1-Spalte; STAGE_GATE_LABEL ist unveraendert.
+  // Zwei Override-Regeln (Single-Source: src/domain/epic-lifecycle-doc.ts):
+  //  - L0 + ownerId        → L1-Bucket („Hypothese erstellen"). Stage bleibt L0.
+  //  - L2 + bcApprovedAt   → L3-Bucket („Portfolio Backlog"). Stage bleibt L2,
+  //    flippt erst beim saveBudgetAllocation mit Σ > 0.
+  // Konsumenten (compact-kanban, period-banner) sehen die Karte in der
+  // jeweiligen Spalte; STAGE_GATE_LABEL und das `stageGate`-Feld am Card
+  // sind unangetastet.
   const epicsByGate = Object.fromEntries(
     STAGE_GATES.map((g) => [g, [] as OverviewEpicCard[]]),
   ) as Record<StageGate, OverviewEpicCard[]>;
@@ -213,7 +219,8 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
       ? (c.stageGate as StageGate)
       : null;
     if (!gate) continue;
-    const bucket: StageGate = gate === "L0" && c.ownerId ? "L1" : gate;
+    const bucket: StageGate =
+      gate === "L0" && c.ownerId ? "L1" : gate === "L2" && c.businessCaseApprovedAt ? "L3" : gate;
     epicsByGate[bucket].push(c);
   }
   for (const gate of STAGE_GATES) {

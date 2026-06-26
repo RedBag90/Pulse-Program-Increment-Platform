@@ -13,7 +13,6 @@ export function PiSubNav({ piId }: Props) {
   const tabs = [
     { href: `/pi/${piId}`, label: "Overview", segment: "" },
     { href: `/pi/${piId}/board`, label: "Program Board", segment: "board" },
-    { href: `/pi/${piId}/objectives`, label: "Objectives", segment: "objectives" },
     { href: `/pi/${piId}/dependencies`, label: "Dependencies", segment: "dependencies" },
   ] as const;
 

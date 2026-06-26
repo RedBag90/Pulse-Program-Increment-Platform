@@ -256,6 +256,28 @@ export async function advanceStageGate(
       });
     }
 
+    // Manuelle Auto-Advance-Pfade sperren. Diese Gates duerfen nur ueber den
+    // jeweiligen Workflow-Trigger erreicht werden (siehe
+    // `src/domain/epic-lifecycle-doc.ts` BLOCKED_MANUAL_TRANSITIONS):
+    //  - L2 → L3: nur via saveBudgetAllocation (Σ > 0 + BC freigegeben).
+    //  - L4 → L5: nur via confirmEpicImpact (alle Features completed).
+    // `autoAdvanceStageGate` umgeht diese Pruefung — die Trigger setzen ihre
+    // eigenen Vorbedingungen.
+    if (from === "L2" && toGate === "L3") {
+      return err({
+        kind: "forbidden" as const,
+        reason:
+          "L3 wird automatisch beim Speichern eines Budgets > 0 erreicht (Voraussetzung: Sub-Stage L2.2 'BC freigegeben').",
+      });
+    }
+    if (from === "L4" && toGate === "L5") {
+      return err({
+        kind: "forbidden" as const,
+        reason:
+          "L5 wird nur per Impact-Bestaetigung erreicht (Voraussetzung: Sub-Stage L4.2 'Umsetzung fertig').",
+      });
+    }
+
     const isApproval = isApprovalTransition(from, toGate);
 
     await tx.initiative.update({

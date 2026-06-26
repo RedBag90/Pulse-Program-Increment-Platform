@@ -28,30 +28,18 @@ function Tile({ label, href, children }: { label: string; href?: string; childre
 
 /** KPI tiles + feature-status chart for the PI detail page. */
 export function PiOverviewSummary({ summary, piId, artId }: Props) {
-  const { capacity, objectives, impediments, featureStatus } = summary;
+  const { capacity, impediments, featureStatus } = summary;
+  void piId; // piId bleibt fuer kuenftige Tiles in der Signatur
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Tile label="Kapazität">
           <p className="text-2xl font-semibold">
             {capacity.plannedCapacity}
             <span className="text-base font-normal text-muted-foreground"> Pkt</span>
           </p>
           <p className="text-xs text-muted-foreground">geplant für das PI</p>
-        </Tile>
-
-        <Tile label="Objectives" href={`/pi/${piId}/objectives`}>
-          <p className="text-2xl font-semibold">
-            {objectives.committed}
-            <span className="text-base font-normal text-muted-foreground">
-              {" "}
-              / {objectives.total} committed
-            </span>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Ø Confidence {objectives.avgConfidence ?? "—"}
-          </p>
         </Tile>
 
         <Tile label="Impediments" href={`/art/${artId}/impediments`}>

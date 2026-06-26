@@ -415,6 +415,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           return (
             <EpicReifegradActivityBar
               stageGate={epic.stageGate as StageGate}
+              subStage={subStage}
               nextStep={nextStep}
               actionSlot={actionSlot}
             />
@@ -473,33 +474,44 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         {activeTab === "business-case" && (
           <section>
             <h2 className="mb-4 text-lg font-medium">Business Case</h2>
-            {showBcReviewDiff && bcBaseline ? (
-              <RevisionDiff rows={businessCaseDiffRows(bcBaseline, businessCase.current)} />
-            ) : showBcOwnerEdit && bcBaseline ? (
-              <RevisionEditLayout
-                left={
-                  <BusinessCaseEditor epicId={epic.id} current={bcBaseline} history={[]} readOnly />
-                }
-                right={
-                  <BusinessCaseEditor
-                    epicId={epic.id}
-                    current={businessCase.current}
-                    history={businessCase.history}
-                    readOnly={!bcEditable}
-                    {...(bcLockReason && { lockReason: bcLockReason })}
-                  />
-                }
-              />
-            ) : (
-              <BusinessCaseEditor
-                epicId={epic.id}
-                current={businessCase.current}
-                history={businessCase.history}
-                readOnly={!bcEditable}
-                canSubmit={canSubmitBusinessCase}
-                {...(bcLockReason && { lockReason: bcLockReason })}
-              />
-            )}
+            {(() => {
+              const kpiNames = kpiRows.map((k) => k.name);
+              return showBcReviewDiff && bcBaseline ? (
+                <RevisionDiff rows={businessCaseDiffRows(bcBaseline, businessCase.current)} />
+              ) : showBcOwnerEdit && bcBaseline ? (
+                <RevisionEditLayout
+                  left={
+                    <BusinessCaseEditor
+                      epicId={epic.id}
+                      current={bcBaseline}
+                      history={[]}
+                      readOnly
+                      kpiNames={kpiNames}
+                    />
+                  }
+                  right={
+                    <BusinessCaseEditor
+                      epicId={epic.id}
+                      current={businessCase.current}
+                      history={businessCase.history}
+                      readOnly={!bcEditable}
+                      kpiNames={kpiNames}
+                      {...(bcLockReason && { lockReason: bcLockReason })}
+                    />
+                  }
+                />
+              ) : (
+                <BusinessCaseEditor
+                  epicId={epic.id}
+                  current={businessCase.current}
+                  history={businessCase.history}
+                  readOnly={!bcEditable}
+                  canSubmit={canSubmitBusinessCase}
+                  kpiNames={kpiNames}
+                  {...(bcLockReason && { lockReason: bcLockReason })}
+                />
+              );
+            })()}
           </section>
         )}
 

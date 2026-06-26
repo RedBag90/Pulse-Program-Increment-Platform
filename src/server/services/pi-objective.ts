@@ -1,3 +1,16 @@
+/**
+ * PI-Objective-Service — kein aktives User-Surface mehr.
+ *
+ * Die UI fuer PI Objectives wurde entfernt (siehe Plan vom 2026-06-25:
+ * Erstellen-Menue, PI-Sub-Nav, Objectives-Route, Overview-Tile + Dialog
+ * + Confidence-Vote-Komponente sind weg). Die Funktionen hier bleiben,
+ * weil interne Cascade- und Reporting-Pfade sie weiterhin referenzieren
+ * (`detachArtFromTimeline`, `deletePi`, `transformation.ts`-Counts).
+ *
+ * Wer hier neue Aufrufer hinzufuegt: bewusst tun — PI Objectives sind
+ * im Produkt nicht mehr sichtbar. Bei Re-Aktivierung der Funktion ist
+ * dieser Service der natuerliche Wieder-Einstiegspunkt.
+ */
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, PiId, TeamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";

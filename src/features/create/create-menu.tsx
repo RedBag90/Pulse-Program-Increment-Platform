@@ -20,7 +20,6 @@ import { CreateArtDialog } from "@/features/art/components/create-art-dialog";
 import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
 import { CreateTeamDialog } from "@/features/team/components/create-team-dialog";
 import { CreateImpedimentDialog } from "@/features/impediment/components/create-impediment-dialog";
-import { CreatePiObjectiveDialog } from "@/features/pi/components/create-pi-objective-dialog";
 import { CreateKpiDialog } from "@/features/portfolio/components/create-kpi-dialog";
 import { CreateDependencyDialog } from "@/features/dependencies/components/create-dependency-dialog";
 
@@ -82,9 +81,6 @@ export function CreateMenu() {
       {openKey === "team" && <CreateTeamDialog open onOpenChange={close} context={ctx} />}
       {openKey === "impediment" && (
         <CreateImpedimentDialog open onOpenChange={close} context={ctx} />
-      )}
-      {openKey === "pi-objective" && (
-        <CreatePiObjectiveDialog open onOpenChange={close} context={ctx} />
       )}
       {openKey === "kpi" && <CreateKpiDialog open onOpenChange={close} context={ctx} />}
       {openKey === "dependency" && <CreateDependencyDialog open onOpenChange={close} />}

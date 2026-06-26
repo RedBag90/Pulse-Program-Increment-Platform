@@ -22,9 +22,12 @@ interface BusinessCaseEditorProps {
   lockReason?: string;
   /** When true, renders the "Fertig zum Einreichen"-Checkbox + Submit-Button
    *  next to the save button. Aktiv nur in `approvalPhase = business_case`
-   *  und mit `epic.businesscase.submit`-Capability — Sichtbarkeitslogik
+   *  und mit `epic.businesscase.submit`-Capability — Sichtbarkeistlogik
    *  liegt auf der Page. */
   canSubmit?: boolean;
+  /** KPI-Namen aus dem KPI-Tab. Ersetzen das frueher freie Leading-
+   *  Indicators-Feld: Single-Source-of-Truth ist der KPI-Tab. */
+  kpiNames?: string[];
 }
 
 const INPUT_CLASS =
@@ -51,6 +54,7 @@ export function BusinessCaseEditor({
   readOnly = false,
   lockReason,
   canSubmit = false,
+  kpiNames = [],
 }: BusinessCaseEditorProps) {
   const [state, action, isPending] = useActionState(saveBusinessCaseAction, {});
   const [submitState, submitAction, submitPending] = useActionState(
@@ -114,16 +118,39 @@ export function BusinessCaseEditor({
               />
             </div>
             <div>
-              <label htmlFor="bc-indicators" className="block text-sm font-medium mb-1">
-                Leading Indicators
-              </label>
-              <textarea
-                id="bc-indicators"
+              <div className="flex items-baseline justify-between gap-2 mb-1">
+                <label className="block text-sm font-medium">Leading Indicators</label>
+                <a
+                  href="?tab=kpis"
+                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                >
+                  Im KPI-Tab pflegen <ArrowRight className="size-3" />
+                </a>
+              </div>
+              {/* Bestandswert mitsenden, damit der Full-Replace-Save den
+                  alten Freitext nicht ueberschreibt (Migration koennte
+                  separat folgen). */}
+              <input
+                type="hidden"
                 name="leadingIndicators"
-                rows={4}
-                defaultValue={current.leadingIndicators}
-                className={INPUT_CLASS}
+                value={current.leadingIndicators ?? ""}
               />
+              {kpiNames.length === 0 ? (
+                <p className="rounded border border-dashed border-gray-300 px-3 py-2 text-sm text-muted-foreground">
+                  Noch keine KPI erfasst — pflege sie im KPI-Tab.
+                </p>
+              ) : (
+                <ul className="flex flex-wrap gap-1.5">
+                  {kpiNames.map((name) => (
+                    <li
+                      key={name}
+                      className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium"
+                    >
+                      {name}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
 

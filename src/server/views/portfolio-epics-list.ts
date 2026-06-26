@@ -214,7 +214,18 @@ export function buildEpicsListModel(input: {
     number
   >;
   for (const r of rows) {
-    if (funnelCounts[r.stageGate] != null) funnelCounts[r.stageGate] += 1;
+    // Bucket-Override (Single-Source: src/domain/epic-lifecycle-doc.ts):
+    //  - L0 + ownerId       → L1-Bucket („Hypothese erstellen")
+    //  - L2 + Sub-Stage L2.2 → L3-Bucket („Portfolio Backlog")
+    // subStage L2.2 == businessCaseApprovedAt != null, also semantisch
+    // identisch zur portfolio-overview-Logik.
+    const bucket: StageGate =
+      r.stageGate === "L0" && r.ownerId
+        ? "L1"
+        : r.stageGate === "L2" && r.subStage === "L2.2"
+          ? "L3"
+          : r.stageGate;
+    if (funnelCounts[bucket] != null) funnelCounts[bucket] += 1;
     if (r.subStage) subStageCounts[r.subStage] += 1;
   }
 

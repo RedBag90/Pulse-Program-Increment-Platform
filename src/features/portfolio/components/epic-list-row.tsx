@@ -81,8 +81,14 @@ export function EpicListRowComponent({
   const showMove = canAdvance && stageGatesEnabled;
   const stageIndex = STAGE_GATES.indexOf(row.stageGate as StageGate);
   const prev: StageGate | null = stageIndex > 0 ? (STAGE_GATES[stageIndex - 1] as StageGate) : null;
+  // Vorwaerts-Pfad ausblenden, wenn der naechste Schritt nur via Workflow-
+  // Trigger erreichbar ist (L2 → L3 via Budget, L4 → L5 via Impact-Confirm).
+  // Single-Source: src/domain/epic-lifecycle-doc.ts BLOCKED_MANUAL_TRANSITIONS.
+  const nextIsAutoOnly = row.stageGate === "L2" || row.stageGate === "L4";
   const next: StageGate | null =
-    stageIndex < STAGE_GATES.length - 1 ? (STAGE_GATES[stageIndex + 1] as StageGate) : null;
+    !nextIsAutoOnly && stageIndex < STAGE_GATES.length - 1
+      ? (STAGE_GATES[stageIndex + 1] as StageGate)
+      : null;
 
   // React 19 verlangt, dass useActionState-Dispatches außerhalb von
   // <form action=…> in startTransition gewrappt werden — sonst meckert
@@ -251,7 +257,15 @@ export function EpicListRowComponent({
                   onClick={() => moveTo(next)}
                   disabled={busy || !next}
                   className="inline-flex size-7 items-center justify-center rounded border border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:opacity-30"
-                  title={next ? `Weiter zu ${STAGE_GATE_LABELS[next] ?? next}` : "Bereits L5"}
+                  title={
+                    next
+                      ? `Weiter zu ${STAGE_GATE_LABELS[next] ?? next}`
+                      : row.stageGate === "L2"
+                        ? "L3 wird automatisch beim Speichern eines Budgets > 0 erreicht"
+                        : row.stageGate === "L4"
+                          ? "L5 wird nur per Impact-Bestaetigung erreicht"
+                          : "Bereits L5"
+                  }
                   aria-label="Stage weiter"
                 >
                   <ChevronRight className="size-3.5" />

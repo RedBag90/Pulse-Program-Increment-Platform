@@ -77,6 +77,16 @@ export function autoAdvanceTarget(from: StageGate, to: StageGate): StageGate | n
 export const SUB_STAGES = ["L2.1", "L2.2", "L4.1", "L4.2"] as const;
 export type SubStage = (typeof SUB_STAGES)[number];
 
+/**
+ * Major-Gate → seine Sub-Stages, in chronologischer Reihenfolge.
+ * Genutzt von UI-Komponenten (Funnel-Bar, Reifegrad-Track) die unter dem
+ * Major-Gate-Pill die Sub-Stage-Pills rendern.
+ */
+export const SUB_STAGES_BY_GATE: Partial<Record<StageGate, readonly SubStage[]>> = {
+  L2: ["L2.1", "L2.2"],
+  L4: ["L4.1", "L4.2"],
+};
+
 export interface SubStageInput {
   stageGate: StageGate;
   /** Epic's `businessCase` JSON column — used as "BC creation has started" signal. */

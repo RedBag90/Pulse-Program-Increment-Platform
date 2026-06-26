@@ -119,7 +119,7 @@ export async function listMyApprovals(
       id: `epic_hypothesis:${h.id}`,
       kind: "epic_hypothesis",
       title: h.title,
-      href: `/epic/${h.id}`,
+      href: `/portfolio/epics/${h.id}?tab=benefit-hypothesis`,
       context: {
         valueStreamName: h.valueStream?.name ?? null,
       },
@@ -142,7 +142,7 @@ export async function listMyApprovals(
         id: a.id,
         kind: "epic_party",
         title: epic.title,
-        href: `/epic/${epic.id}`,
+        href: `/portfolio/epics/${epic.id}?tab=business-case`,
         context: {
           valueStreamName: epic.valueStream?.name ?? null,
           party: a.party as ApprovalParty,
@@ -155,7 +155,7 @@ export async function listMyApprovals(
         id: a.id,
         kind: "epic_section",
         title: epic.title,
-        href: `/epic/${epic.id}`,
+        href: `/portfolio/epics/${epic.id}?tab=${a.section}`,
         context: {
           valueStreamName: epic.valueStream?.name ?? null,
           section: a.section as ApprovalSection,

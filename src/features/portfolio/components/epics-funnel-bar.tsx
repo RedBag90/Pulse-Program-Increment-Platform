@@ -1,6 +1,6 @@
 "use client";
 
-import { STAGE_GATES, type SubStage } from "@/domain/stage-gate";
+import { STAGE_GATES, SUB_STAGES_BY_GATE, type SubStage } from "@/domain/stage-gate";
 import type { StageGate } from "@/domain/types";
 import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiative-labels";
 
@@ -15,12 +15,6 @@ interface Props {
   /** Toggle the filter — passing the same gate clears it. */
   onGateChange: (gate: StageGate | null) => void;
 }
-
-/** Welche Sub-Steps unter welcher Major-Pill gerendert werden. */
-const SUB_STAGES_BY_GATE: Partial<Record<StageGate, SubStage[]>> = {
-  L2: ["L2.1", "L2.2"],
-  L4: ["L4.1", "L4.2"],
-};
 
 const SEGMENT_BG: Record<StageGate, string> = {
   L0: "bg-muted/40",

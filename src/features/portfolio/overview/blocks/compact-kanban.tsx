@@ -10,6 +10,7 @@ import {
   type OverviewEpicCard,
 } from "@/server/views/portfolio-overview";
 import { wipCountLabel, isOverWip } from "@/features/portfolio/overview/wip-limits";
+import { KanbanBucketHelp } from "@/features/portfolio/components/kanban-bucket-help";
 
 /**
  * Read-only portfolio Kanban — six columns, soft WIP limits per column.
@@ -20,7 +21,10 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between">
-        <SectionLabel>Epic Portfolio-Kanban</SectionLabel>
+        <div className="flex items-center gap-1.5">
+          <SectionLabel>Epic Portfolio-Kanban</SectionLabel>
+          <KanbanBucketHelp />
+        </div>
         <Link
           href="/portfolio/epics"
           className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
