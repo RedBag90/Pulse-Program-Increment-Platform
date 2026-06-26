@@ -15,6 +15,7 @@ import {
   Calculator,
   ShieldCheck,
   Plug,
+  ClipboardCheck,
   ClipboardList,
   Inbox,
   ListTodo,
@@ -118,6 +119,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: "setupControlling",
     items: [
+      { href: "/setup", labelKey: "setupGuide", icon: ClipboardCheck, exact: true },
       { href: "/structure", labelKey: "structure", icon: Network },
       { href: "/timelines", labelKey: "timelines", icon: CalendarDays },
       { href: "/controlling", labelKey: "controllingOverview", icon: Gauge, exact: true },

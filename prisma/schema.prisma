@@ -52,8 +52,26 @@ model Tenant {
   budgetPlanRevisions     BudgetPlanRevision[]
   piStandards             PiStandard[]
   timelines               Timeline[]
+  setupProgress           SetupProgress[]
 
   @@map("tenants")
+}
+
+/// Setup-Guide-Fortschritt pro Tenant. Eine Zeile = ein abgehakter Check.
+/// Tenant-weit gemeinsam: nur Tenant-Admin (Capability `tenant.users.manage`)
+/// darf schreiben; alle eingeloggten User sehen denselben Stand. Reihenfolge
+/// + Bedeutung der `checkId` lebt im UI-Code (`src/features/setup/data/milestones.ts`).
+model SetupProgress {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  checkId   String   @map("check_id")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, checkId])
+  @@map("setup_progress")
 }
 
 /// A reusable, named PI calendar: a uniform cadence × count anchored at a

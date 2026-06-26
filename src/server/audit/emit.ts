@@ -114,7 +114,8 @@ export type AuditAction =
   | "key_result.deleted"
   | "key_result.kpi.bound"
   | "key_result.kpi.updated"
-  | "key_result.kpi.unbound";
+  | "key_result.kpi.unbound"
+  | "setup.check.toggled";
 
 export type AuditResourceType =
   | "initiative"
@@ -143,7 +144,8 @@ export type AuditResourceType =
   // Ziele-Modul V2
   | "objective"
   | "key_result"
-  | "kr_kpi_contribution";
+  | "kr_kpi_contribution"
+  | "setup_progress";
 
 // ---------------------------------------------------------------------------
 // Emit helpers
