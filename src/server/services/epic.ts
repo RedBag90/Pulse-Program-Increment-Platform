@@ -4,7 +4,6 @@ import type { TenantId, EpicId, ValueStreamId, StageGate } from "@/domain/types"
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
-import { authorizeResource } from "@/server/auth/authorize";
 import { buildChangelog } from "@/domain/change-log";
 import { isValidTransition, isApprovalTransition, autoAdvanceTarget } from "@/domain/stage-gate";
 import type { EpicType, Horizon } from "@/domain/portfolio-guardrails";
@@ -15,6 +14,7 @@ import {
   type MutationContext,
 } from "@/server/services/mutation";
 import { createInitiativeWithDerivedPath } from "@/server/services/initiative-write";
+import { loadAndAuthorize } from "@/server/services/load-and-authorize";
 import { appendVersion } from "@/domain/versioned-document";
 import { emitAuditEvent } from "@/server/audit/emit";
 import { effectivePractices } from "@/domain/operating-model";
@@ -118,21 +118,25 @@ export async function updateEpic(
   } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    const loaded = await loadAndAuthorize({
+      principal: ctx.principal,
+      action: "epic.update",
+      resourceType: "Epic",
+      id,
+      finder: () =>
+        tx.initiative.findFirst({
+          where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+        }),
+      // Scope check uses the loaded Epic's real value stream + owner — a
+      // value_stream owner may only edit Epics in their own stream.
+      toResource: (row) => ({
+        tenantId: mctx.tenantId,
+        valueStreamId: row.valueStreamId,
+        ownerId: row.ownerId,
+      }),
     });
-    if (!existing) {
-      return err({ kind: "not_found" as const, resourceType: "Epic", id });
-    }
-
-    // Scope check with the loaded Epic's real value stream — a value_stream
-    // owner may only edit Epics in their own stream (see authorizeResource).
-    const authz = authorizeResource(ctx.principal, "epic.update", {
-      tenantId: mctx.tenantId,
-      valueStreamId: existing.valueStreamId,
-      ownerId: existing.ownerId,
-    });
-    if (isErr(authz)) return authz;
+    if (isErr(loaded)) return loaded;
+    const existing = loaded.value;
 
     // Effective post-update endpoints — used for the start ≤ end check so the
     // validation is correct when only one column is being touched.
@@ -391,19 +395,28 @@ export async function saveBenefitHypothesis(
   const { epicId, fields } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    const loaded = await loadAndAuthorize({
+      principal: ctx.principal,
+      action: "epic.update",
+      resourceType: "Epic",
+      id: epicId,
+      finder: () =>
+        tx.initiative.findFirst({
+          where: {
+            id: epicId,
+            tenantId: mctx.tenantId,
+            level: InitiativeLevel.EPIC,
+            deletedAt: null,
+          },
+        }),
+      toResource: (row) => ({
+        tenantId: mctx.tenantId,
+        valueStreamId: row.valueStreamId,
+        ownerId: row.ownerId,
+      }),
     });
-    if (!existing) {
-      return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
-    }
-
-    const authz = authorizeResource(ctx.principal, "epic.update", {
-      tenantId: mctx.tenantId,
-      valueStreamId: existing.valueStreamId,
-      ownerId: existing.ownerId,
-    });
-    if (isErr(authz)) return authz;
+    if (isErr(loaded)) return loaded;
+    const existing = loaded.value;
 
     const prev = parseBenefitHypothesis(existing.benefitHypothesis);
     const next: BenefitHypothesis = appendVersion({
@@ -446,19 +459,28 @@ export async function saveBusinessCase(
   const { epicId, fields } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    const loaded = await loadAndAuthorize({
+      principal: ctx.principal,
+      action: "epic.update",
+      resourceType: "Epic",
+      id: epicId,
+      finder: () =>
+        tx.initiative.findFirst({
+          where: {
+            id: epicId,
+            tenantId: mctx.tenantId,
+            level: InitiativeLevel.EPIC,
+            deletedAt: null,
+          },
+        }),
+      toResource: (row) => ({
+        tenantId: mctx.tenantId,
+        valueStreamId: row.valueStreamId,
+        ownerId: row.ownerId,
+      }),
     });
-    if (!existing) {
-      return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
-    }
-
-    const authz = authorizeResource(ctx.principal, "epic.update", {
-      tenantId: mctx.tenantId,
-      valueStreamId: existing.valueStreamId,
-      ownerId: existing.ownerId,
-    });
-    if (isErr(authz)) return authz;
+    if (isErr(loaded)) return loaded;
+    const existing = loaded.value;
 
     const prev = parseBusinessCase(existing.businessCase);
     const next: BusinessCase = appendVersion({
@@ -515,17 +537,27 @@ export async function saveTimeline(
   const { epicId, fields } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    const loaded = await loadAndAuthorize({
+      principal: ctx.principal,
+      action: "epic.update",
+      resourceType: "Epic",
+      id: epicId,
+      finder: () =>
+        tx.initiative.findFirst({
+          where: {
+            id: epicId,
+            tenantId: mctx.tenantId,
+            level: InitiativeLevel.EPIC,
+            deletedAt: null,
+          },
+        }),
+      toResource: (row) => ({
+        tenantId: mctx.tenantId,
+        valueStreamId: row.valueStreamId,
+        ownerId: row.ownerId,
+      }),
     });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
-
-    const authz = authorizeResource(ctx.principal, "epic.update", {
-      tenantId: mctx.tenantId,
-      valueStreamId: existing.valueStreamId,
-      ownerId: existing.ownerId,
-    });
-    if (isErr(authz)) return authz;
+    if (isErr(loaded)) return loaded;
 
     // Reifegrad-Modell v2: L5 ist im neuen Modell nicht mehr „Implementation
     // done", sondern „Impact recognized on Balance Sheet" — gesetzt vom
@@ -559,19 +591,27 @@ export async function assignEpicOwner(
   const { epicId, ownerId } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
-    });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
-
     // Scope-aware seam check (ADR-0002): a value_stream_owner may only assign
     // owners within their own stream; portfolio_manager / VMO / admins are
-    // unscoped. The action pre-check is vacuous here (no valueStreamId).
-    const auth = authorizeResource(ctx.principal, "epic.owner.assign", {
-      tenantId: mctx.tenantId,
-      valueStreamId: existing.valueStreamId,
+    // unscoped.
+    const loaded = await loadAndAuthorize({
+      principal: ctx.principal,
+      action: "epic.owner.assign",
+      resourceType: "Epic",
+      id: epicId,
+      finder: () =>
+        tx.initiative.findFirst({
+          where: {
+            id: epicId,
+            tenantId: mctx.tenantId,
+            level: InitiativeLevel.EPIC,
+            deletedAt: null,
+          },
+        }),
+      toResource: (row) => ({ tenantId: mctx.tenantId, valueStreamId: row.valueStreamId }),
     });
-    if (isErr(auth)) return auth;
+    if (isErr(loaded)) return loaded;
+    const existing = loaded.value;
 
     // L0→L1 (stage-gate) bleibt beim Hypothesis-Approval. Aber das Kanban
     // verschiebt das Epic visuell sofort nach „Hypothese erstellen", sobald
@@ -637,22 +677,30 @@ export async function confirmEpicImpact(
   const { epicId, comment } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
-      select: {
-        id: true,
-        stageGate: true,
-        valueStreamId: true,
-        impactRecognizedAt: true,
-      },
+    const loaded = await loadAndAuthorize({
+      principal: ctx.principal,
+      action: "epic.impact.confirm",
+      resourceType: "Epic",
+      id: epicId,
+      finder: () =>
+        tx.initiative.findFirst({
+          where: {
+            id: epicId,
+            tenantId: mctx.tenantId,
+            level: InitiativeLevel.EPIC,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            stageGate: true,
+            valueStreamId: true,
+            impactRecognizedAt: true,
+          },
+        }),
+      toResource: (row) => ({ tenantId: mctx.tenantId, valueStreamId: row.valueStreamId }),
     });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
-
-    const auth = authorizeResource(ctx.principal, "epic.impact.confirm", {
-      tenantId: mctx.tenantId,
-      valueStreamId: existing.valueStreamId,
-    });
-    if (isErr(auth)) return auth;
+    if (isErr(loaded)) return loaded;
+    const existing = loaded.value;
 
     if (existing.impactRecognizedAt != null) {
       return err({

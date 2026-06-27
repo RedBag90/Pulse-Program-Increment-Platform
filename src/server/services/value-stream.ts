@@ -2,7 +2,6 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ValueStreamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
-import { authorizeResource } from "@/server/auth/authorize";
 import { buildChangelog } from "@/domain/change-log";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
@@ -10,6 +9,7 @@ import {
   toMutationContext,
   onUniqueConstraint,
 } from "@/server/services/mutation";
+import { loadAndAuthorize } from "@/server/services/load-and-authorize";
 import { notDeleted } from "@/server/db/soft-delete";
 
 export interface CreateValueStreamInput {
@@ -64,20 +64,17 @@ export async function updateValueStream(
   return withAuditedTransaction(
     mctx,
     async (tx) => {
-      const existing = await tx.valueStream.findFirst({
-        where: { id, tenantId: mctx.tenantId, ...notDeleted },
+      const loaded = await loadAndAuthorize({
+        principal: ctx.principal,
+        action: "value_stream.update",
+        resourceType: "ValueStream",
+        id,
+        finder: () =>
+          tx.valueStream.findFirst({ where: { id, tenantId: mctx.tenantId, ...notDeleted } }),
+        toResource: () => ({ tenantId: mctx.tenantId, valueStreamId: id }),
       });
-      if (!existing) {
-        return err({ kind: "not_found" as const, resourceType: "ValueStream", id });
-      }
-
-      // A value_stream owner may only edit their own stream (the row id is the
-      // scope key) — enforced here with the real id, not the input alone.
-      const authz = authorizeResource(ctx.principal, "value_stream.update", {
-        tenantId: mctx.tenantId,
-        valueStreamId: id,
-      });
-      if (isErr(authz)) return authz;
+      if (isErr(loaded)) return loaded;
+      const existing = loaded.value;
 
       const changes = buildChangelog(
         {

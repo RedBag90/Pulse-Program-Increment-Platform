@@ -1,7 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/domain/types";
-import type { OutboxHandlerMap } from "@/server/outbox/processor";
-type OutboxHandler = OutboxHandlerMap[string];
+import type { OutboxHandler } from "@/server/outbox/processor";
 import { getAzureDevOpsClient } from "./get-client";
 
 export function makeAdoStoryCreatedHandler(db: PrismaClient): OutboxHandler {
