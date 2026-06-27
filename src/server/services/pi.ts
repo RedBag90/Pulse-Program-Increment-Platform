@@ -3,7 +3,7 @@ import type { TenantId, ArtId, PiId, TimelineId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
 import { validatePiDates } from "@/domain/pi-planning";
-import { buildChangelog } from "@/domain/change-log";
+import { recordedUpdate } from "@/server/services/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,
@@ -133,19 +133,21 @@ export async function updatePi(ctx: RequestContext, input: UpdatePiInput): Promi
       if (isErr(check)) return check;
     }
 
-    const changes = buildChangelog(
-      { name: existing.name, status: existing.status },
-      { ...(name !== undefined && { name }), ...(status !== undefined && { status }) },
-      ["name", "status"],
-    );
+    // startDate / endDate are written but not audited (PI dates are mostly
+    // shifted in bulk during planning; the audit captures the name/status
+    // governance changes that matter).
+    const { changes, data } = recordedUpdate({
+      existing,
+      updates: { name, status },
+      fields: ["name", "status"] as const,
+    });
 
     await tx.programIncrement.update({
       where: { id },
       data: {
-        ...(name !== undefined && { name }),
+        ...data,
         ...(startDate !== undefined && { startDate }),
         ...(endDate !== undefined && { endDate }),
-        ...(status !== undefined && { status }),
       },
     });
 
@@ -187,25 +189,19 @@ export async function setPiCapacity(
       return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
     }
 
-    const changes = buildChangelog(
-      {
-        capacityJobSize: existing.capacityJobSize,
-        capacityAmount: existing.capacityAmount != null ? Number(existing.capacityAmount) : null,
-      },
-      {
-        ...(capacityJobSize !== undefined && { capacityJobSize }),
-        ...(capacityAmount !== undefined && { capacityAmount }),
-      },
-      ["capacityJobSize", "capacityAmount"],
-    );
-
-    await tx.programIncrement.update({
-      where: { id },
-      data: {
-        ...(capacityJobSize !== undefined && { capacityJobSize }),
-        ...(capacityAmount !== undefined && { capacityAmount }),
-      },
+    // Normalise the existing row's Decimal to a JS number before snapshotting,
+    // so the audit reads numeric (not "Decimal(…)").
+    const existingProjected = {
+      capacityJobSize: existing.capacityJobSize,
+      capacityAmount: existing.capacityAmount != null ? Number(existing.capacityAmount) : null,
+    };
+    const { changes, data } = recordedUpdate({
+      existing: existingProjected,
+      updates: { capacityJobSize, capacityAmount },
+      fields: ["capacityJobSize", "capacityAmount"] as const,
     });
+
+    await tx.programIncrement.update({ where: { id }, data });
 
     return ok({
       result: undefined,

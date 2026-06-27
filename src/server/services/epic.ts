@@ -4,7 +4,7 @@ import type { TenantId, EpicId, ValueStreamId, StageGate } from "@/domain/types"
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
-import { buildChangelog } from "@/domain/change-log";
+import { recordedUpdate } from "@/server/services/recorded-update";
 import { isValidTransition, isApprovalTransition, autoAdvanceTarget } from "@/domain/stage-gate";
 import type { EpicType, Horizon } from "@/domain/portfolio-guardrails";
 import type { RequestContext } from "@/server/http/mutation-handler";
@@ -149,28 +149,19 @@ export async function updateEpic(
       });
     }
 
-    const changes = buildChangelog(
-      {
-        title: existing.title,
-        description: existing.description,
-        needsSteeringAttention: existing.needsSteeringAttention,
-        stagedForBudgeting: existing.stagedForBudgeting,
-        plannedStartAt: existing.plannedStartAt,
-        plannedEndAt: existing.plannedEndAt,
-        epicType: existing.epicType,
-        investmentHorizon: existing.investmentHorizon,
+    const { changes, data } = recordedUpdate({
+      existing,
+      updates: {
+        title,
+        description,
+        needsSteeringAttention,
+        stagedForBudgeting,
+        plannedStartAt,
+        plannedEndAt,
+        epicType,
+        investmentHorizon,
       },
-      {
-        ...(title !== undefined && { title }),
-        ...(description !== undefined && { description }),
-        ...(needsSteeringAttention !== undefined && { needsSteeringAttention }),
-        ...(stagedForBudgeting !== undefined && { stagedForBudgeting }),
-        ...(plannedStartAt !== undefined && { plannedStartAt }),
-        ...(plannedEndAt !== undefined && { plannedEndAt }),
-        ...(epicType !== undefined && { epicType }),
-        ...(investmentHorizon !== undefined && { investmentHorizon }),
-      },
-      [
+      fields: [
         "title",
         "description",
         "needsSteeringAttention",
@@ -179,22 +170,12 @@ export async function updateEpic(
         "plannedEndAt",
         "epicType",
         "investmentHorizon",
-      ],
-    );
+      ] as const,
+    });
 
     await tx.initiative.update({
       where: { id },
-      data: {
-        updatedBy: mctx.actorId,
-        ...(title !== undefined && { title }),
-        ...(description !== undefined && { description }),
-        ...(needsSteeringAttention !== undefined && { needsSteeringAttention }),
-        ...(stagedForBudgeting !== undefined && { stagedForBudgeting }),
-        ...(plannedStartAt !== undefined && { plannedStartAt }),
-        ...(plannedEndAt !== undefined && { plannedEndAt }),
-        ...(epicType !== undefined && { epicType }),
-        ...(investmentHorizon !== undefined && { investmentHorizon }),
-      },
+      data: { ...data, updatedBy: mctx.actorId },
     });
 
     return ok({
@@ -623,24 +604,17 @@ export async function assignEpicOwner(
       existing.ownerId == null && existing.selectedForDetailingAt == null;
     const detailingAtNow = stampSelectedForDetailing ? new Date() : null;
 
-    const changes = buildChangelog(
-      {
-        ownerId: existing.ownerId,
-        selectedForDetailingAt: existing.selectedForDetailingAt,
-      },
-      {
+    const { changes, data } = recordedUpdate({
+      existing,
+      updates: {
         ownerId,
         ...(detailingAtNow ? { selectedForDetailingAt: detailingAtNow } : {}),
       },
-      ["ownerId", "selectedForDetailingAt"] as const,
-    );
+      fields: ["ownerId", "selectedForDetailingAt"] as const,
+    });
     await tx.initiative.update({
       where: { id: epicId },
-      data: {
-        ownerId,
-        updatedBy: mctx.actorId,
-        ...(detailingAtNow ? { selectedForDetailingAt: detailingAtNow } : {}),
-      },
+      data: { ...data, updatedBy: mctx.actorId },
     });
 
     return ok({

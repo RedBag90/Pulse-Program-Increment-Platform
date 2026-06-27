@@ -3,7 +3,7 @@ import type { TenantId, FeatureId, EpicId, ArtId, PiId, FibonacciValue } from "@
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
-import { buildChangelog } from "@/domain/change-log";
+import { recordedUpdate } from "@/server/services/recorded-update";
 import { computeWsjf } from "@/domain/schemas/initiative";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
@@ -422,15 +422,14 @@ export async function updateFeature(
       : undefined;
 
     // Scalar fields diff via the shared changelog helper; WSJF is a compound
-    // field, so its before/after is built explicitly.
-    const changes = buildChangelog(
-      { title: existing.title, featureType: existing.featureType },
-      {
-        ...(title !== undefined && { title }),
-        ...(featureType !== undefined && { featureType }),
-      },
-      ["title", "featureType"],
-    );
+    // field, so its before/after is built explicitly. Description / WSJF
+    // components / acceptance / piId are written but not audited as scalars —
+    // either irrelevant noise or rolled into the "wsjf" composite below.
+    const { changes, data } = recordedUpdate({
+      existing,
+      updates: { title, featureType },
+      fields: ["title", "featureType"] as const,
+    });
     if (wsjfChanged) {
       changes["wsjf"] = {
         before: {
@@ -446,8 +445,8 @@ export async function updateFeature(
     await tx.initiative.update({
       where: { id },
       data: {
+        ...data,
         updatedBy: mctx.actorId,
-        ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
         ...(wsjfBusinessValue !== undefined && { wsjfBusinessValue }),
         ...(wsjfTimeCriticality !== undefined && { wsjfTimeCriticality }),
@@ -456,7 +455,6 @@ export async function updateFeature(
         ...(newComputed !== undefined && { wsjfComputed: newComputed }),
         ...(acceptanceCriteria !== undefined && { acceptanceCriteria }),
         ...(piId !== undefined && { piId }),
-        ...(featureType !== undefined && { featureType }),
       },
     });
 

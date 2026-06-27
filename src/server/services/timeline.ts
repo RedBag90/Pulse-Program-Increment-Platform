@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from "@/generated/prisma";
 import type { ArtId, TenantId, TimelineId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
-import { buildChangelog } from "@/domain/change-log";
+import { recordedUpdate } from "@/server/services/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { applyPiStandard } from "@/server/services/pi-standard";
@@ -77,19 +77,12 @@ export async function updateTimeline(
       return err({ kind: "not_found" as const, resourceType: "Timeline", id: input.id });
     }
     const name = input.name?.trim();
-    const changes = buildChangelog(
-      { name: existing.name },
-      {
-        ...(name !== undefined && { name }),
-      },
-      ["name"],
-    );
-    await tx.timeline.update({
-      where: { id: input.id },
-      data: {
-        ...(name !== undefined && { name }),
-      },
+    const { changes, data } = recordedUpdate({
+      existing,
+      updates: { name },
+      fields: ["name"] as const,
     });
+    await tx.timeline.update({ where: { id: input.id }, data });
     return ok({
       result: undefined,
       audit: {

@@ -2,7 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ValueStreamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
-import { buildChangelog } from "@/domain/change-log";
+import { recordedUpdate } from "@/server/services/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,
@@ -76,27 +76,19 @@ export async function updateValueStream(
       if (isErr(loaded)) return loaded;
       const existing = loaded.value;
 
-      const changes = buildChangelog(
-        {
-          name: existing.name,
-          financeApproverId: existing.financeApproverId,
-          vmoId: existing.vmoId,
-        },
-        {
-          ...(name !== undefined && { name }),
-          ...(financeApproverId !== undefined && { financeApproverId }),
-          ...(vmoId !== undefined && { vmoId }),
-        },
-        ["name", "financeApproverId", "vmoId"],
-      );
+      // `description` is written but not audited (it's free-text noise, not a
+      // governance field). Stays out of the recordedUpdate field list.
+      const { changes, data } = recordedUpdate({
+        existing,
+        updates: { name, financeApproverId, vmoId },
+        fields: ["name", "financeApproverId", "vmoId"] as const,
+      });
 
       await tx.valueStream.update({
         where: { id },
         data: {
-          ...(name !== undefined && { name }),
+          ...data,
           ...(description !== undefined && { description }),
-          ...(financeApproverId !== undefined && { financeApproverId }),
-          ...(vmoId !== undefined && { vmoId }),
         },
       });
 

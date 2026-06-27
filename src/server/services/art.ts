@@ -2,7 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId, ValueStreamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
-import { buildChangelog } from "@/domain/change-log";
+import { recordedUpdate } from "@/server/services/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,
@@ -75,31 +75,13 @@ export async function updateArt(ctx: RequestContext, input: UpdateArtInput): Pro
         return err({ kind: "not_found" as const, resourceType: "Art", id });
       }
 
-      const changes = buildChangelog(
-        {
-          name: existing.name,
-          description: existing.description,
-          piCadenceWeeks: existing.piCadenceWeeks,
-          rteId: existing.rteId,
-        },
-        {
-          ...(name !== undefined && { name }),
-          ...(description !== undefined && { description }),
-          ...(piCadenceWeeks !== undefined && { piCadenceWeeks }),
-          ...(rteId !== undefined && { rteId }),
-        },
-        ["name", "description", "piCadenceWeeks", "rteId"],
-      );
-
-      await tx.art.update({
-        where: { id },
-        data: {
-          ...(name !== undefined && { name }),
-          ...(description !== undefined && { description }),
-          ...(piCadenceWeeks !== undefined && { piCadenceWeeks }),
-          ...(rteId !== undefined && { rteId }),
-        },
+      const { changes, data } = recordedUpdate({
+        existing,
+        updates: { name, description, piCadenceWeeks, rteId },
+        fields: ["name", "description", "piCadenceWeeks", "rteId"] as const,
       });
+
+      await tx.art.update({ where: { id }, data });
 
       return ok({
         result: undefined,

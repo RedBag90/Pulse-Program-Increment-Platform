@@ -2,7 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId, TeamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
-import { buildChangelog } from "@/domain/change-log";
+import { recordedUpdate } from "@/server/services/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,
@@ -76,26 +76,18 @@ export async function updateTeam(
         return err({ kind: "not_found" as const, resourceType: "Team", id });
       }
 
-      const changes = buildChangelog(
-        {
-          name: existing.name,
-          description: existing.description,
-          headcount: existing.headcount,
-          targetVelocity: existing.targetVelocity,
-          scrumMasterId: existing.scrumMasterId,
-          productOwnerId: existing.productOwnerId,
-          teamType: existing.teamType,
+      const { changes, data } = recordedUpdate({
+        existing,
+        updates: {
+          name,
+          description,
+          headcount,
+          targetVelocity,
+          scrumMasterId,
+          productOwnerId,
+          teamType,
         },
-        {
-          ...(name !== undefined && { name }),
-          ...(description !== undefined && { description }),
-          ...(headcount !== undefined && { headcount }),
-          ...(targetVelocity !== undefined && { targetVelocity }),
-          ...(scrumMasterId !== undefined && { scrumMasterId }),
-          ...(productOwnerId !== undefined && { productOwnerId }),
-          ...(teamType !== undefined && { teamType }),
-        },
-        [
+        fields: [
           "name",
           "description",
           "headcount",
@@ -103,21 +95,10 @@ export async function updateTeam(
           "scrumMasterId",
           "productOwnerId",
           "teamType",
-        ],
-      );
-
-      await tx.team.update({
-        where: { id },
-        data: {
-          ...(name !== undefined && { name }),
-          ...(description !== undefined && { description }),
-          ...(headcount !== undefined && { headcount }),
-          ...(targetVelocity !== undefined && { targetVelocity }),
-          ...(scrumMasterId !== undefined && { scrumMasterId }),
-          ...(productOwnerId !== undefined && { productOwnerId }),
-          ...(teamType !== undefined && { teamType }),
-        },
+        ] as const,
       });
+
+      await tx.team.update({ where: { id }, data });
 
       return ok({
         result: undefined,
