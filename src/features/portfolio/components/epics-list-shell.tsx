@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useUrlState } from "@/lib/hooks/use-url-state";
 import { useKanbanRealtime } from "@/features/portfolio/hooks/use-kanban-realtime";
 import { CreateEpicDialog } from "@/features/portfolio/components/create-epic-dialog";
 import { EpicsFunnelBar } from "@/features/portfolio/components/epics-funnel-bar";
@@ -76,37 +76,22 @@ function parseSelected(raw: string | null): Set<string> {
  */
 export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) {
   useKanbanRealtime(tenantId);
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { params, push: pushParam } = useUrlState();
 
-  const gate = parseGate(searchParams.get("gate"));
-  const vsFilter = searchParams.get("vs");
-  const ownerFilter = searchParams.get("owner");
+  const gate = parseGate(params.get("gate"));
+  const vsFilter = params.get("vs");
+  const ownerFilter = params.get("owner");
   // Status-Filter ist seit dem Reifegrad-Modell v2 entfernt. Falls in einem
   // URL-Bookmark `?status=` noch existiert, wird er hier stillschweigend
   // ignoriert — keine Render-Effekt, keine Konsole-Warnung.
-  const flag = parseFlag(searchParams.get("flag"));
-  const horizon = parseHorizon(searchParams.get("horizon"));
-  const epicType = parseEpicType(searchParams.get("type"));
-  const query = searchParams.get("q") ?? "";
-  const sort = parseSort(searchParams.get("sort"));
-  const group = parseGroup(searchParams.get("group"));
-  const density = parseDensity(searchParams.get("density"));
-  const selectedIds = parseSelected(searchParams.get("selected"));
-
-  const pushParam = useCallback(
-    (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      for (const [k, v] of Object.entries(updates)) {
-        if (v === null || v === "") params.delete(k);
-        else params.set(k, v);
-      }
-      const next = params.toString();
-      router.replace(`${pathname}${next ? `?${next}` : ""}` as never, { scroll: false });
-    },
-    [pathname, router, searchParams],
-  );
+  const flag = parseFlag(params.get("flag"));
+  const horizon = parseHorizon(params.get("horizon"));
+  const epicType = parseEpicType(params.get("type"));
+  const query = params.get("q") ?? "";
+  const sort = parseSort(params.get("sort"));
+  const group = parseGroup(params.get("group"));
+  const density = parseDensity(params.get("density"));
+  const selectedIds = parseSelected(params.get("selected"));
 
   const onGateChange = useCallback(
     (next: StageGate | null) => pushParam({ gate: next }),

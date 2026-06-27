@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { Sun, Moon, Globe, Zap } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useLocale, useTranslations } from "next-intl";
@@ -18,6 +17,7 @@ import { MobileNav } from "@/components/nav/mobile-nav";
 import { TopNavMegaTriggers } from "@/components/nav/top-nav-mega-triggers";
 import { TopNavMegaPanel } from "@/components/nav/top-nav-mega-panel";
 import { UserNav } from "@/components/nav/user-nav";
+import { useMegaMenu } from "@/components/nav/use-mega-menu";
 
 interface TopbarProps {
   userEmail: string;
@@ -25,11 +25,8 @@ interface TopbarProps {
 }
 
 /**
- * The application's top bar. Hosts the mega-menu state: a single `openKey`
- * identifies which Multi-Item NavGroup is currently expanded into the
- * full-width panel below the trigger row. The panel is **standing** — it
- * survives navigation; only a trigger toggle, ESC, or clicking another
- * Multi-Item trigger changes it.
+ * The application's top bar. The mega-menu interaction state-machine lives in
+ * `useMegaMenu`; Topbar is composition only.
  */
 export function Topbar({ userEmail, visibleHrefs }: TopbarProps) {
   const { theme, setTheme } = useTheme();
@@ -37,53 +34,17 @@ export function Topbar({ userEmail, visibleHrefs }: TopbarProps) {
   const t = useTranslations("common");
   const pathname = usePathname();
   const router = useRouter();
-
-  const [openKey, setOpenKey] = useState<string | null>(null);
-
-  // ESC closes the panel and returns focus to the trigger that opened it.
-  // We look the trigger up by `data-trigger-key` rather than holding refs —
-  // simpler than threading refs through the children component.
-  const closeAndRestoreFocus = useCallback(() => {
-    setOpenKey((current) => {
-      if (current) {
-        // Defer focus until after React commits the new state — otherwise the
-        // newly-rendered button (with aria-expanded=false) may not exist yet.
-        queueMicrotask(() => {
-          const trigger = document.querySelector<HTMLButtonElement>(
-            `[data-trigger-key="${current}"]`,
-          );
-          trigger?.focus();
-        });
-      }
-      return null;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (openKey === null) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        closeAndRestoreFocus();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [openKey, closeAndRestoreFocus]);
+  const menu = useMegaMenu();
 
   return (
-    <header className="flex shrink-0 flex-col border-b bg-background/80 backdrop-blur-sm">
+    <header className="relative flex shrink-0 flex-col border-b bg-background/80 backdrop-blur-sm">
       {/* Topbar row */}
       <div className="flex h-12 items-center gap-5 px-4 md:px-6">
         {/* Mobile nav trigger (hidden on desktop) */}
         <MobileNav userEmail={userEmail} visibleHrefs={visibleHrefs} />
 
         {/* Logo */}
-        <Link
-          href="/"
-          onClick={() => setOpenKey(null)}
-          className="flex shrink-0 items-center gap-2.5"
-        >
+        <Link href="/" onClick={menu.close} className="flex shrink-0 items-center gap-2.5">
           <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary">
             <Zap className="size-4 text-primary-foreground" strokeWidth={2.5} />
           </div>
@@ -91,11 +52,7 @@ export function Topbar({ userEmail, visibleHrefs }: TopbarProps) {
         </Link>
 
         {/* Primary navigation (desktop) */}
-        <TopNavMegaTriggers
-          visibleHrefs={visibleHrefs}
-          openKey={openKey}
-          onOpenChange={setOpenKey}
-        />
+        <TopNavMegaTriggers visibleHrefs={visibleHrefs} menu={menu} />
 
         <div className="flex-1" />
 
@@ -144,9 +101,8 @@ export function Topbar({ userEmail, visibleHrefs }: TopbarProps) {
         </div>
       </div>
 
-      {/* Full-width mega-menu panel — sibling to the row, in normal flow.
-          Renders null while no group is open, so no extra height. */}
-      <TopNavMegaPanel visibleHrefs={visibleHrefs} openKey={openKey} />
+      {/* Full-width mega-menu panel — overlay, not in flow. */}
+      <TopNavMegaPanel visibleHrefs={visibleHrefs} menu={menu} />
     </header>
   );
 }

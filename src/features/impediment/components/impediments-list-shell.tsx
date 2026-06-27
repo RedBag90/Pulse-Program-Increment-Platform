@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useUrlState } from "@/lib/hooks/use-url-state";
 import { CreateImpedimentDialog } from "@/features/impediment/components/create-impediment-dialog";
 import { ImpedimentsFunnelBar } from "@/features/impediment/components/impediments-funnel-bar";
 import {
@@ -65,32 +65,17 @@ function parseSelected(raw: string | null): Set<string> {
  * features / epics shells.
  */
 export function ImpedimentsListShell({ model, artId, canCreate, canEscalate, canResolve }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { params, push: pushParam } = useUrlState();
 
-  const status = parseStatus(searchParams.get("status"));
-  const severity = parseSeverity(searchParams.get("severity"));
-  const ownerId = searchParams.get("owner");
-  const piId = searchParams.get("pi");
-  const query = searchParams.get("q") ?? "";
-  const sort = parseSort(searchParams.get("sort"));
-  const group = parseGroup(searchParams.get("group"));
-  const density = parseDensity(searchParams.get("density"));
-  const selectedIds = parseSelected(searchParams.get("selected"));
-
-  const pushParam = useCallback(
-    (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      for (const [k, v] of Object.entries(updates)) {
-        if (v === null || v === "") params.delete(k);
-        else params.set(k, v);
-      }
-      const next = params.toString();
-      router.replace(`${pathname}${next ? `?${next}` : ""}` as never, { scroll: false });
-    },
-    [pathname, router, searchParams],
-  );
+  const status = parseStatus(params.get("status"));
+  const severity = parseSeverity(params.get("severity"));
+  const ownerId = params.get("owner");
+  const piId = params.get("pi");
+  const query = params.get("q") ?? "";
+  const sort = parseSort(params.get("sort"));
+  const group = parseGroup(params.get("group"));
+  const density = parseDensity(params.get("density"));
+  const selectedIds = parseSelected(params.get("selected"));
 
   const onStatusChange = useCallback(
     (next: ImpedimentStatus | null) => pushParam({ status: next }),

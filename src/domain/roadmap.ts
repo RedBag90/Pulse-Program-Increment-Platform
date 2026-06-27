@@ -4,8 +4,10 @@
  * a date range to a percentage offset for the Gantt bars.
  *
  * Month primitives (monthStart, addMonths, MONTH_LABELS) come from the calendar
- * module; this module keeps its own end-exclusive `MonthAxis` shape (the Gantt
- * bars project a range onto a [start, end) span, not a month count).
+ * module; this module keeps its own end-exclusive `GanttMonthSpan` shape (the
+ * Gantt bars project a range onto a [start, end) span, not a month count).
+ * Distinct from calendar's inclusive `MonthAxis` — the two are intentionally
+ * not unified; the name says which semantics you get.
  */
 
 import { monthStart, addMonths, MONTH_LABELS } from "@/domain/calendar";
@@ -15,7 +17,7 @@ export interface DateRange {
   end: Date;
 }
 
-export interface MonthAxis {
+export interface GanttMonthSpan {
   /** First day of the earliest month (UTC). */
   start: Date;
   /** First day of the month after the latest month (UTC, exclusive). */
@@ -42,10 +44,10 @@ export function deriveTimeframe(ranges: ReadonlyArray<DateRange | null>): DateRa
 }
 
 /**
- * Month axis spanning from the earliest range's month to the latest range's
- * month. Empty input yields an axis with no months (degenerate span).
+ * Month span (end-exclusive) covering every range from its earliest month to
+ * the month after its latest. Empty input yields a degenerate span (no months).
  */
-export function buildMonthAxis(ranges: ReadonlyArray<DateRange>): MonthAxis {
+export function buildGanttMonthSpan(ranges: ReadonlyArray<DateRange>): GanttMonthSpan {
   if (ranges.length === 0) {
     const now = monthStart(new Date());
     return { start: now, end: now, months: [] };
@@ -78,7 +80,7 @@ export function buildMonthAxis(ranges: ReadonlyArray<DateRange>): MonthAxis {
  */
 export function barMetrics(
   range: DateRange,
-  axis: MonthAxis,
+  axis: GanttMonthSpan,
 ): { leftPct: number; widthPct: number } {
   const total = axis.end.getTime() - axis.start.getTime();
   if (total <= 0) return { leftPct: 0, widthPct: 0 };
@@ -145,8 +147,8 @@ export interface PiWindow {
 const piRange = (pi: PiWindow | null): DateRange | null =>
   pi ? { start: pi.startDate, end: pi.endDate } : null;
 
-/** Inclusive month axis spanning the scheduled rows; unscheduled rows are ignored. */
-export function roadmapAxis(rows: readonly RoadmapRow[]): MonthAxis {
+/** End-exclusive Gantt span covering the scheduled rows; unscheduled rows are ignored. */
+export function roadmapAxis(rows: readonly RoadmapRow[]): GanttMonthSpan {
   // Include both bars (Soll + Ist) so the axis covers any Ist overlay that
   // extends beyond the Epic's Soll-Fenster.
   const allRanges: DateRange[] = [];
@@ -154,7 +156,7 @@ export function roadmapAxis(rows: readonly RoadmapRow[]): MonthAxis {
     if (r.range) allRanges.push(r.range);
     if (r.derivedRange) allRanges.push(r.derivedRange);
   }
-  return buildMonthAxis(allRanges);
+  return buildGanttMonthSpan(allRanges);
 }
 
 // --- Portfolio: one row per Epic, timed via its Features' PI windows ---------

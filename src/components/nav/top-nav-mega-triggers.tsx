@@ -7,26 +7,25 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { NAV_GROUPS } from "@/components/nav/nav-config";
 import { isActive } from "@/components/nav/active";
+import type { MegaMenuApi } from "@/components/nav/use-mega-menu";
 
 interface Props {
   /** Hrefs the principal may see — computed server-side from target + capabilities. */
   visibleHrefs: string[];
-  /** The currently open group's `labelKey`, or `null` when the panel is closed. */
-  openKey: string | null;
-  /** Setter — receives the next openKey (group label) or `null`. */
-  onOpenChange: (next: string | null) => void;
+  /** Mega-menu state-machine; owns hover/focus/ESC/timer/fine-pointer logic. */
+  menu: MegaMenuApi;
 }
 
 const triggerBase =
   "flex h-12 items-center border-b-2 px-1 text-sm transition-colors -mb-px outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 /**
- * Top-nav trigger row of the mega-menu. Single-item groups render as direct
- * links (with their group label); multi-item groups render as `<button>`s
- * that toggle the shared `openKey` state held by the Topbar. Pure click
- * behaviour — no hover-to-open, no hover-to-switch.
+ * Top-nav trigger row. Single-item groups render as direct links; multi-item
+ * groups render as `<button>`s that spread `menu.triggerProps(key)` for the
+ * full hover/focus/aria/data-key bag, and add their own `onClick` that
+ * navigates to the group's `defaultHref` plus opens the panel.
  */
-export function TopNavMegaTriggers({ visibleHrefs, openKey, onOpenChange }: Props) {
+export function TopNavMegaTriggers({ visibleHrefs, menu }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations("nav");
@@ -41,8 +40,7 @@ export function TopNavMegaTriggers({ visibleHrefs, openKey, onOpenChange }: Prop
     <nav className="hidden h-12 items-stretch gap-5 md:flex">
       {groups.map((group) => {
         // Trigger highlighting is path-only — a section stays lit no matter
-        // which `?tab=` the user is on inside it. The panel below uses the
-        // query-aware variant to mark the exact sub-item.
+        // which `?tab=` the user is on inside it.
         const groupActive = group.items.some((i) => isActive(pathname, i.href, i.exact ?? false));
 
         // Single-item group → a direct link labelled with the group name.
@@ -52,7 +50,7 @@ export function TopNavMegaTriggers({ visibleHrefs, openKey, onOpenChange }: Prop
             <Link
               key={group.labelKey}
               href={item.href}
-              onClick={() => onOpenChange(null)}
+              onClick={menu.close}
               className={cn(
                 triggerBase,
                 groupActive
@@ -65,28 +63,16 @@ export function TopNavMegaTriggers({ visibleHrefs, openKey, onOpenChange }: Prop
           );
         }
 
-        const isOpen = openKey === group.labelKey;
-        const firstHref = group.items[0]!.href;
+        const isOpen = menu.openKey === group.labelKey;
+        const targetHref = group.defaultHref ?? group.items[0]!.href;
         return (
           <button
             key={group.labelKey}
             type="button"
-            data-trigger-key={group.labelKey}
-            aria-haspopup="true"
-            aria-expanded={isOpen}
-            aria-controls="mega-menu-panel"
+            {...menu.triggerProps(group.labelKey)}
             onClick={() => {
-              if (isOpen) {
-                // Toggle-close on the already-open trigger; no navigation —
-                // the user is already in this section.
-                onOpenChange(null);
-              } else {
-                // Open the panel for this group AND jump straight to its
-                // first visible sub-page. Click on "Programmplanung" → land
-                // on /pi-planning with the panel exposing the other items.
-                router.push(firstHref);
-                onOpenChange(group.labelKey);
-              }
+              menu.openPanel(group.labelKey);
+              router.push(targetHref);
             }}
             className={cn(
               triggerBase,

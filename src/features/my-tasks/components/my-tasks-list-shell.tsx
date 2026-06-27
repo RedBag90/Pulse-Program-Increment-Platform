@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useUrlState } from "@/lib/hooks/use-url-state";
 import { MyTasksFunnelBar } from "@/features/my-tasks/components/my-tasks-funnel-bar";
 import { MyTasksFilterBar } from "@/features/my-tasks/components/my-tasks-filter-bar";
 import { MyTasksEpicsSection } from "@/features/my-tasks/components/my-tasks-epics-section";
@@ -38,31 +38,16 @@ function parseDensity(raw: string | null): "comfortable" | "compact" {
  * der Bucket-Filter geht über `model.bucketById` und ist Cross-Shape.
  */
 export function MyTasksListShell({ model, showWsjf }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { params, push: pushParam } = useUrlState();
 
-  const bucket = parseBucket(searchParams.get("bucket"));
-  const level = parseLevel(searchParams.get("level"));
-  const valueStreamId = searchParams.get("vs");
-  const artId = searchParams.get("art");
-  const epicId = searchParams.get("epic");
-  const piId = searchParams.get("pi");
-  const query = searchParams.get("q") ?? "";
-  const density = parseDensity(searchParams.get("density"));
-
-  const pushParam = useCallback(
-    (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      for (const [k, v] of Object.entries(updates)) {
-        if (v === null || v === "") params.delete(k);
-        else params.set(k, v);
-      }
-      const next = params.toString();
-      router.replace(`${pathname}${next ? `?${next}` : ""}` as never, { scroll: false });
-    },
-    [pathname, router, searchParams],
-  );
+  const bucket = parseBucket(params.get("bucket"));
+  const level = parseLevel(params.get("level"));
+  const valueStreamId = params.get("vs");
+  const artId = params.get("art");
+  const epicId = params.get("epic");
+  const piId = params.get("pi");
+  const query = params.get("q") ?? "";
+  const density = parseDensity(params.get("density"));
 
   const onBucketChange = useCallback(
     (next: Bucket | null) => pushParam({ bucket: next }),

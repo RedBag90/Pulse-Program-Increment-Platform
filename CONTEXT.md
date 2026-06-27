@@ -35,8 +35,10 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   cost slice).
 - **Month axis** (`MonthAxis`) — an inclusive `{ start, monthCount, months[] }`
   span used by portfolio economics. Distinct from the roadmap's own
-  end-exclusive `{ start, end, months[] }` axis (Gantt projection) — the two are
-  intentionally not unified.
+  end-exclusive `GanttMonthSpan` (`{ start, end, months[] }`, Gantt projection) —
+  the two are intentionally not unified; the **names** carry the semantics, so
+  callers see whether they get inclusive (`MonthAxis`) or end-exclusive
+  (`GanttMonthSpan`).
 - **Half-year axis** (`HalfYearAxis`) — the inclusive `{ start, count, periods[] }`
   span used by participatory budgeting.
 - **Epic Schedule** — `src/domain/epic-schedule.ts`, the pure read/derivation

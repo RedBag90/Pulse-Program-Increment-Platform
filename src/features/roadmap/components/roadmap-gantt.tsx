@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import {
   barMetrics,
-  type MonthAxis,
+  type GanttMonthSpan,
   type RoadmapRow,
   type RoadmapRowAccent,
 } from "@/domain/roadmap";
@@ -30,7 +30,7 @@ export interface GanttDependency {
 
 interface Props {
   rows: RoadmapRow[];
-  axis: MonthAxis;
+  axis: GanttMonthSpan;
   /**
    * Optional vertikale Anker auf der Zeitachse — z. B. PI-Grenzen. Linien
    * werden subtil gezeichnet; zwischen zwei Boundaries faerbt der Track
@@ -564,7 +564,7 @@ function elbowPath(
  * Wo liegt `date` prozentual auf der Achse `[axis.start … axis.end]`?
  * Outside → `null`, damit der Caller die Linie ausblenden kann.
  */
-function pctOnAxis(date: Date, axis: MonthAxis): number | null {
+function pctOnAxis(date: Date, axis: GanttMonthSpan): number | null {
   const t = date.getTime();
   const start = axis.start.getTime();
   const end = axis.end.getTime();

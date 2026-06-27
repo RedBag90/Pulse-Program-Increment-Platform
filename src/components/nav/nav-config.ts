@@ -53,6 +53,9 @@ export interface NavItem {
 export interface NavGroup {
   labelKey: string;
   items: NavItem[];
+  /** Default-Page, zu der ein Click auf den Top-Nav-Trigger navigiert.
+   *  Wenn nicht gesetzt, faellt es auf das erste sichtbare Item zurueck. */
+  defaultHref?: string;
 }
 
 export const NAV_GROUPS: NavGroup[] = [
@@ -66,6 +69,7 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     labelKey: "goals",
+    defaultHref: "/ziele",
     items: [
       { href: "/ziele", labelKey: "goalOverview", icon: LayoutDashboard, exact: true },
       { href: "/strategy", labelKey: "strategy", icon: Goal, capability: "target.manage" },
@@ -73,6 +77,7 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     labelKey: "portfolio",
+    defaultHref: "/portfolio",
     items: [
       {
         href: "/portfolio",
@@ -92,6 +97,7 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     labelKey: "implementation",
+    defaultHref: "/umsetzung",
     items: [
       {
         // Umsetzungs-Hub — Konsolidierungs-Surface (Roadmap-P0). Bestands-
@@ -118,6 +124,7 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     labelKey: "setupControlling",
+    defaultHref: "/setup",
     items: [
       { href: "/setup", labelKey: "setupGuide", icon: ClipboardCheck, exact: true },
       { href: "/structure", labelKey: "structure", icon: Network },
@@ -144,6 +151,7 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     labelKey: "admin",
+    defaultHref: "/admin/users",
     items: [
       {
         href: "/admin/users",
