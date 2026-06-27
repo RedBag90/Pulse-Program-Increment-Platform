@@ -15,6 +15,7 @@ import {
   type ImpedimentsOverviewModel,
   type ImpedimentOverviewRow,
 } from "@/server/views/impediments-overview";
+import { SEVERITY_BADGE, SEVERITY_LABEL, STATUS_LABEL } from "@/features/impediment/labels";
 
 interface Props {
   model: ImpedimentsOverviewModel;
@@ -35,26 +36,6 @@ const ROAM_DOT: Record<RoamStatus, string> = {
   owned: "bg-blue-500",
   accepted: "bg-slate-500",
   mitigated: "bg-purple-500",
-};
-
-const STATUS_LABEL: Record<ImpedimentWorkflowStatus, string> = {
-  open: "Offen",
-  escalated: "Eskaliert",
-  resolved: "Aufgelöst",
-};
-
-const SEVERITY_LABEL: Record<ImpedimentSeverity, string> = {
-  low: "Niedrig",
-  medium: "Mittel",
-  high: "Hoch",
-  critical: "Kritisch",
-};
-
-const SEVERITY_BADGE: Record<ImpedimentSeverity, string> = {
-  low: "bg-emerald-100 text-emerald-700",
-  medium: "bg-amber-100 text-amber-700",
-  high: "bg-orange-100 text-orange-700",
-  critical: "bg-red-100 text-red-700",
 };
 
 function parseRoam(raw: string | null): RoamStatus | null {

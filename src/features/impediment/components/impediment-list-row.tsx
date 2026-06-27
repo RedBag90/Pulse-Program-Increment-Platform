@@ -9,11 +9,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-  ImpedimentListRow,
-  ImpedimentSeverity,
-  ImpedimentStatus,
-} from "@/server/views/impediments-list";
+import type { ImpedimentListRow, ImpedimentStatus } from "@/server/views/impediments-list";
+import {
+  SEVERITY_BADGE,
+  SEVERITY_LABEL,
+  STATUS_DOT,
+  STATUS_LABEL,
+} from "@/features/impediment/labels";
 
 interface Props {
   row: ImpedimentListRow;
@@ -24,32 +26,6 @@ interface Props {
   onToggleSelect?: ((id: string) => void) | undefined;
   compact: boolean;
 }
-
-const SEVERITY_BADGE: Record<ImpedimentSeverity, string> = {
-  low: "bg-emerald-100 text-emerald-700",
-  medium: "bg-amber-100 text-amber-700",
-  high: "bg-orange-100 text-orange-700",
-  critical: "bg-red-100 text-red-700",
-};
-
-const SEVERITY_LABEL: Record<ImpedimentSeverity, string> = {
-  low: "Niedrig",
-  medium: "Mittel",
-  high: "Hoch",
-  critical: "Kritisch",
-};
-
-const STATUS_DOT: Record<ImpedimentStatus, string> = {
-  open: "bg-blue-400",
-  escalated: "bg-purple-500",
-  resolved: "bg-emerald-500",
-};
-
-const STATUS_LABEL: Record<ImpedimentStatus, string> = {
-  open: "Offen",
-  escalated: "Eskaliert",
-  resolved: "Aufgelöst",
-};
 
 const STATUS_FUNNEL_DOT: Record<ImpedimentStatus, string> = {
   open: "bg-blue-400",

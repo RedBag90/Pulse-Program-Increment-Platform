@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import type { ImpedimentSeverity, OwnerOption, PiOption } from "@/server/views/impediments-list";
+import { SEVERITY_LABEL } from "@/features/impediment/labels";
 
 export type SortKey = "daysOpen:desc" | "daysOpen:asc" | "severity:desc" | "createdAt:desc";
 
@@ -31,13 +32,6 @@ interface Props {
 
 const SELECT =
   "h-8 rounded-md border border-input bg-card px-2 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
-const SEVERITY_LABEL: Record<ImpedimentSeverity, string> = {
-  low: "Niedrig",
-  medium: "Mittel",
-  high: "Hoch",
-  critical: "Kritisch",
-};
 
 const SORT_LABELS: Record<SortKey, string> = {
   "daysOpen:desc": "Tage offen ↓",
