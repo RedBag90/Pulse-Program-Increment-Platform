@@ -3,7 +3,13 @@ import {
   computeBusinessCaseTotals,
   type BusinessCaseTotals,
 } from "@/domain/business-case";
-import { STAGE_GATES, SUB_STAGES, subStageFor, type SubStage } from "@/domain/stage-gate";
+import {
+  STAGE_GATES,
+  SUB_STAGES,
+  epicBucket,
+  subStageFor,
+  type SubStage,
+} from "@/domain/stage-gate";
 import type { StageGate } from "@/domain/types";
 import { ragTier, type RagTier } from "@/domain/transformation-delta";
 
@@ -213,18 +219,16 @@ export function buildEpicsListModel(input: {
     SubStage,
     number
   >;
+  // Kanban-Bucket-Regel lebt in `domain/stage-gate.ts` (`epicBucket`) — wir
+  // brauchen hier nur die Raw-Epic-Felder, kein lokales Override-Tableau.
+  const epicById = new Map(epics.map((e) => [e.id, e]));
   for (const r of rows) {
-    // Bucket-Override (Single-Source: src/domain/epic-lifecycle-doc.ts):
-    //  - L0 + ownerId       → L1-Bucket („Hypothese erstellen")
-    //  - L2 + Sub-Stage L2.2 → L3-Bucket („Portfolio Backlog")
-    // subStage L2.2 == businessCaseApprovedAt != null, also semantisch
-    // identisch zur portfolio-overview-Logik.
-    const bucket: StageGate =
-      r.stageGate === "L0" && r.ownerId
-        ? "L1"
-        : r.stageGate === "L2" && r.subStage === "L2.2"
-          ? "L3"
-          : r.stageGate;
+    const e = epicById.get(r.id)!;
+    const bucket = epicBucket({
+      stageGate: r.stageGate,
+      ownerId: r.ownerId,
+      businessCaseApprovedAt: e.businessCaseApprovedAt,
+    });
     if (funnelCounts[bucket] != null) funnelCounts[bucket] += 1;
     if (r.subStage) subStageCounts[r.subStage] += 1;
   }

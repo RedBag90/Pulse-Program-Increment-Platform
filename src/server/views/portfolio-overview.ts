@@ -12,6 +12,7 @@ import {
   type NextStep,
 } from "@/server/services/transformation";
 import { halfYearKey } from "@/domain/calendar";
+import { epicBucket } from "@/domain/stage-gate";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
 import { loadStrategyTree } from "@/server/views/ziele-view";
 
@@ -204,13 +205,9 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   }));
 
   // Group epics by Kanban-Bucket. Wichtig: Bucket != Stage-Gate.
-  // Zwei Override-Regeln (Single-Source: src/domain/epic-lifecycle-doc.ts):
-  //  - L0 + ownerId        → L1-Bucket („Hypothese erstellen"). Stage bleibt L0.
-  //  - L2 + bcApprovedAt   → L3-Bucket („Portfolio Backlog"). Stage bleibt L2,
-  //    flippt erst beim saveBudgetAllocation mit Σ > 0.
-  // Konsumenten (compact-kanban, period-banner) sehen die Karte in der
-  // jeweiligen Spalte; STAGE_GATE_LABEL und das `stageGate`-Feld am Card
-  // sind unangetastet.
+  // Bucket-Regel lebt in `domain/stage-gate.ts` (`epicBucket`). Konsumenten
+  // (compact-kanban, period-banner) sehen die Karte in der jeweiligen Spalte;
+  // STAGE_GATE_LABEL und das `stageGate`-Feld am Card sind unangetastet.
   const epicsByGate = Object.fromEntries(
     STAGE_GATES.map((g) => [g, [] as OverviewEpicCard[]]),
   ) as Record<StageGate, OverviewEpicCard[]>;
@@ -219,8 +216,11 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
       ? (c.stageGate as StageGate)
       : null;
     if (!gate) continue;
-    const bucket: StageGate =
-      gate === "L0" && c.ownerId ? "L1" : gate === "L2" && c.businessCaseApprovedAt ? "L3" : gate;
+    const bucket = epicBucket({
+      stageGate: gate,
+      ownerId: c.ownerId,
+      businessCaseApprovedAt: c.businessCaseApprovedAt,
+    });
     epicsByGate[bucket].push(c);
   }
   for (const gate of STAGE_GATES) {

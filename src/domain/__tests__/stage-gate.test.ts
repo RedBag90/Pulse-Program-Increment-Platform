@@ -6,6 +6,7 @@ import {
   isApprovalTransition,
   autoAdvanceTarget,
   subStageFor,
+  epicBucket,
 } from "@/domain/stage-gate";
 
 describe("STAGE_GATES", () => {
@@ -122,5 +123,34 @@ describe("subStageFor", () => {
     expect(
       subStageFor({ ...base, stageGate: "L4", childFeatureStats: { total: 5, completed: 5 } }),
     ).toBe("L4.2");
+  });
+});
+
+describe("epicBucket", () => {
+  const base = { ownerId: null, businessCaseApprovedAt: null };
+
+  it("L0 without owner stays in the L0 funnel", () => {
+    expect(epicBucket({ ...base, stageGate: "L0" })).toBe("L0");
+  });
+
+  it("L0 with an owner moves into the L1 Hypothese-Bucket", () => {
+    expect(epicBucket({ ...base, stageGate: "L0", ownerId: "u1" })).toBe("L1");
+  });
+
+  it("L2 without an approved business case stays in L2", () => {
+    expect(epicBucket({ ...base, stageGate: "L2" })).toBe("L2");
+  });
+
+  it("L2 with an approved business case enters the L3 Portfolio-Backlog-Bucket", () => {
+    expect(
+      epicBucket({ ...base, stageGate: "L2", businessCaseApprovedAt: new Date("2026-06-01") }),
+    ).toBe("L3");
+  });
+
+  it("L1, L3, L4, L5 are returned unchanged (no override on these gates)", () => {
+    for (const gate of ["L1", "L3", "L4", "L5"] as const) {
+      expect(epicBucket({ ...base, stageGate: gate })).toBe(gate);
+      expect(epicBucket({ ...base, stageGate: gate, ownerId: "u1" })).toBe(gate);
+    }
   });
 });

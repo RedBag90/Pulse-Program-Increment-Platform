@@ -120,10 +120,13 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   feeds **at most one** Key Result. Combined with 1 Epic = 1 KPI, this gives a
   strict pyramid Epic → KPI → ≤ 1 KR, so every euro of realized benefit is
   countable exactly once at every level of the rollup. Enforced at three seams:
-  the `kpi-binding-invariant` domain module (validation), the `setKpiBinding`
-  service (atomic re-bind), and a `UNIQUE(kpiId)` constraint on
-  `KrKpiContribution` (DB backstop). No new caller may mutate the bridge table
-  without going through the domain module.
+  (1) the `kpi-binding-invariant` domain module — pure validator, returns a
+  `BindingPlan`; (2) the `setKpiBinding` service — acquires a per-kpi
+  `pg_advisory_xact_lock` _before_ loading existing, so two concurrent calls
+  on the same KPI serialize and the second is rejected with `pyramid_violated`
+  (not a DB constraint error); (3) the `UNIQUE(kpiId)` constraint on
+  `KrKpiContribution` — DB backstop for any bypass. No new caller may mutate
+  the bridge table without going through the service.
 
 ## Authorization
 

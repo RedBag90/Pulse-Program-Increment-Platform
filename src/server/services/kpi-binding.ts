@@ -9,8 +9,15 @@ import { withAuditedTransaction, toMutationContext } from "@/server/services/mut
  * `ziele`-Service zu leben), weil die Bindung eine eigene Capability
  * traegt (`kpi.bind`) und damit auch eine eigene Permission-Seam haben
  * sollte. CONTEXT.md §Strategy & KPI bindings benennt die drei Seams:
- * Domain-Invariante (`checkKpiBinding`), atomarer Service (hier) und
- * DB-Backstop (`UNIQUE(kpiId)` auf `kr_kpi_contributions`).
+ *
+ *  1. **Validator** — `checkKpiBinding` (pure, `src/domain/kpi-binding-invariant.ts`).
+ *  2. **Atomic execute** — *this* service. Acquires a per-kpi advisory
+ *     transaction lock *before* loading the existing binding so two concurrent
+ *     `setKpiBinding` calls on the same KPI cannot both pass the validator and
+ *     race to the DB. The second comer sees the first's commit and is rejected
+ *     deterministically with `pyramid_violated`.
+ *  3. **DB-Backstop** — `UNIQUE(kpiId)` auf `kr_kpi_contributions`. Catches
+ *     any caller bypassing (1) + (2).
  *
  * Die Permission wird gemaess ADR-0002 *nach* dem Load des KR
  * geprueft, damit eine spaeter eingefuehrte Scope-Pruefung den echten
@@ -29,6 +36,15 @@ export async function setKpiBinding(
 ): Promise<Result<{ kpiId: string }>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
+    // Per-kpi advisory transaction lock. Serializes two concurrent
+    // setKpiBinding calls on the same KPI within their respective
+    // transactions; the second one blocks until the first commits, then
+    // sees the new binding and hits the pyramid_violated branch in the
+    // validator. Without this lock, both would load `existing = null`,
+    // both pass validation, and the second insert fails at the
+    // UNIQUE(kpiId) constraint instead of returning a domain error.
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${input.kpiId})::int8)`;
+
     const existing = await tx.krKpiContribution.findFirst({
       where: { tenantId: mctx.tenantId, kpiId: input.kpiId },
     });
