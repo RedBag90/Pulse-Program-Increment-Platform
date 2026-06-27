@@ -10,8 +10,10 @@
  * Direction is encoded by the *sign* of (target − baseline): the user enters
  * `baseline` at "today" and `target` at "the goal", so lead-time (10 → 6) and
  * NPS (40 → 80) both work without a separate direction flag — same convention
- * as the existing fulfilment math in [portfolio-economics.ts](portfolio-economics.ts).
+ * as the canonical `kpi-direction.ts` helpers.
  */
+
+import { fulfillmentFraction } from "@/domain/kpi-direction";
 
 export interface KpiPoint {
   baseline: number | null;
@@ -54,16 +56,12 @@ export function kpiValueContribution(input: KpiValuationInput): number | null {
 }
 
 /**
- * Fulfilment as a fraction of the target gap, 0..∞. Matches the snapshot
- * semantics of `kpiFulfillmentByMonth` in portfolio-economics.ts (sign-aware
- * via baseline→target). Returns `null` when fields are missing or the band
- * has no width.
+ * Fulfilment as a fraction of the target gap, 0..∞. Sign-aware via
+ * baseline→target (see `kpi-direction.ts`). Returns `null` when fields are
+ * missing or the band has no width.
  */
 export function percentOfTargetGap({ baseline, target, current }: KpiPoint): number | null {
-  if (baseline == null || target == null || current == null) return null;
-  const denom = target - baseline;
-  if (denom === 0) return null;
-  return (current - baseline) / denom;
+  return fulfillmentFraction(baseline, target, current);
 }
 
 /**

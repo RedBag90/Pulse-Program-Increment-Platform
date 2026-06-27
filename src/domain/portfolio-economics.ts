@@ -22,6 +22,7 @@ import {
   type MonthAxis,
 } from "@/domain/calendar";
 import { MONTHS_PER_HALF_YEAR, distributeAmountAcrossHalfYearMonths } from "@/domain/period-axis";
+import { saturatedFulfillment } from "@/domain/kpi-direction";
 
 export interface EpicEconomicsInput {
   id: string;
@@ -124,8 +125,6 @@ export function kpiFulfillmentByMonth(
   axis: MonthAxis,
 ): number[] {
   const sorted = [...measurements].sort((a, b) => a.date.localeCompare(b.date));
-  const base = baseline ?? 0;
-  const denom = (target ?? 0) - base;
   const out = zeros(axis.monthCount);
   for (let i = 0; i < axis.monthCount; i++) {
     const monthEndMs = addMonths(axis.start, i + 1).getTime(); // exclusive
@@ -137,10 +136,7 @@ export function kpiFulfillmentByMonth(
         value = m.value; // forward-fill latest ≤ month
       else break; // ascending → remaining are later
     }
-    if (value === null) out[i] = 0;
-    else if (denom === 0)
-      out[i] = 1; // value present, zero-width band
-    else out[i] = Math.max(0, (value - base) / denom);
+    out[i] = saturatedFulfillment(baseline, target, value);
   }
   return out;
 }

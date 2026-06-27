@@ -17,6 +17,8 @@
  * Reine Funktionen, kein I/O — leicht testbar, leicht in Server-Views einbindbar.
  */
 
+import { fulfillmentFraction } from "@/domain/kpi-direction";
+
 export interface KpiInput {
   id: string;
   baseline: number | null;
@@ -44,11 +46,8 @@ export interface RollupTrio {
 
 /** Spreizung 0..1, ohne Geld-Konversion — fuer „% Achievement"-Badges. */
 export function kpiAchievement(kpi: KpiInput): number {
-  if (kpi.baseline === null || kpi.target === null || kpi.current === null) return 0;
-  const span = kpi.target - kpi.baseline;
-  if (span === 0) return 0;
-  const raw = (kpi.current - kpi.baseline) / span;
-  return clamp01(raw);
+  const raw = fulfillmentFraction(kpi.baseline, kpi.target, kpi.current);
+  return raw === null ? 0 : clamp01(raw);
 }
 
 /**
@@ -109,11 +108,9 @@ export function kpiContributionDetail(
   horizonShare: number,
 ): { achievement: number | null; contributionRealized: number } {
   if (!kpi) return { achievement: null, contributionRealized: 0 };
+  const raw = fulfillmentFraction(kpi.baseline, kpi.target, kpi.current);
+  const ach = raw === null ? null : clamp01(raw);
   const span = (kpi.target ?? 0) - (kpi.baseline ?? 0);
-  const ach =
-    kpi.current != null && span !== 0
-      ? clamp01(((kpi.current ?? 0) - (kpi.baseline ?? 0)) / span)
-      : null;
   const vpu = contribution.valuePerUnitOverride ?? kpi.valuePerUnit ?? 0;
   const realized = ach != null && vpu ? ach * vpu * span * contribution.weight * horizonShare : 0;
   return { achievement: ach, contributionRealized: realized };
