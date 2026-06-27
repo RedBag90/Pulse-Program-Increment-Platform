@@ -18,7 +18,10 @@ import type { EpicEconomicsDTO, PortfolioEconomicsData } from "@/domain/portfoli
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import type { Prisma } from "@/generated/prisma";
-import { parseGuardrailTargets, type GuardrailTargets } from "@/domain/portfolio-guardrails";
+import {
+  parseGuardrailTargetsDetailed,
+  type GuardrailTargets,
+} from "@/domain/portfolio-guardrails";
 import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
 
 // The serialisable DTO contract lives with the economics maths it feeds; re-
@@ -170,9 +173,29 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
     };
   });
 
-  const targets = parseGuardrailTargets(tenant?.guardrailTargets ?? null);
+  // Defensive parse with provenance: corrupt tenant settings would otherwise
+  // silently render as defaults and the dashboard would say "OK" while the
+  // configured guardrails are actually unknown. We render with the safe
+  // defaults *and* Sentry-warn so ops sees the drift.
+  const parsed = parseGuardrailTargetsDetailed(tenant?.guardrailTargets ?? null);
+  if (!parsed.cleanlyParsed) {
+    void reportGuardrailTargetsFallback(tenantId, parsed.fellBackFields);
+  }
 
-  return { epics: epicInputs, targets };
+  return { epics: epicInputs, targets: parsed.targets };
+}
+
+async function reportGuardrailTargetsFallback(
+  tenantId: TenantId,
+  fields: readonly string[],
+): Promise<void> {
+  const message = `[guardrails] tenant ${tenantId} has malformed guardrailTargets — fell back for: ${fields.join(", ")}`;
+  try {
+    const Sentry = await import("@sentry/nextjs");
+    Sentry.captureMessage(message, { level: "warning", extra: { tenantId, fields } });
+  } catch {
+    process.stderr.write(`${message}\n`);
+  }
 }
 
 export interface SaveDashboardSettingsInput {

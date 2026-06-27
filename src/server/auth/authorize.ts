@@ -22,28 +22,39 @@ export interface AuthorizationDecision {
   reason?: string;
 }
 
+/**
+ * "Membership or vacuous": a resource field that's `null`/missing means the
+ * scope rule doesn't apply (vacuous true); an empty principal-scope list means
+ * "all in reach" (also true); otherwise the resource value must be in the
+ * principal's allowed list. Concentrates the pattern three of the four
+ * scope checkers share.
+ */
+function memberOrVacuous(
+  resourceField: string | null | undefined,
+  principalScopes: readonly string[],
+): boolean {
+  if (!resourceField) return true;
+  if (principalScopes.length === 0) return true;
+  return principalScopes.includes(resourceField);
+}
+
+type ScopeChecker = (resource: AuthResource, principal: Principal) => boolean;
+
+/**
+ * Scope-checker registry — one entry per `ScopeCheck` variant. Adding a new
+ * scope dimension (e.g. `regionId`) is a single registry entry + a field on
+ * `AuthResource`, not a new arm of a growing switch. Pure functions; tested
+ * by reading the entry, not by mocking the dispatch.
+ */
+const SCOPE_CHECKERS: Record<ScopeCheck, ScopeChecker> = {
+  value_stream: (r, p) => memberOrVacuous(r.valueStreamId, p.scopes.valueStreamIds),
+  art: (r, p) => memberOrVacuous(r.artId, p.scopes.artIds),
+  team: (r, p) => memberOrVacuous(r.teamId, p.scopes.teamIds),
+  own: (r, p) => (r.ownerId != null && r.ownerId === p.id) || (r.assigneeIds ?? []).includes(p.id),
+};
+
 function scopeSatisfied(scope: ScopeCheck, resource: AuthResource, principal: Principal): boolean {
-  switch (scope) {
-    case "value_stream": {
-      if (!resource.valueStreamId) return true;
-      const { valueStreamIds } = principal.scopes;
-      return valueStreamIds.length === 0 || valueStreamIds.includes(resource.valueStreamId);
-    }
-    case "art": {
-      if (!resource.artId) return true;
-      const { artIds } = principal.scopes;
-      return artIds.length === 0 || artIds.includes(resource.artId);
-    }
-    case "team": {
-      if (!resource.teamId) return true;
-      const { teamIds } = principal.scopes;
-      return teamIds.length === 0 || teamIds.includes(resource.teamId);
-    }
-    case "own": {
-      if (resource.ownerId && resource.ownerId === principal.id) return true;
-      return (resource.assigneeIds ?? []).includes(principal.id);
-    }
-  }
+  return SCOPE_CHECKERS[scope](resource, principal);
 }
 
 function capabilityGrants(

@@ -78,28 +78,76 @@ export const DEFAULT_GUARDRAIL_TARGETS: GuardrailTargets = {
   capacity: { business: 80, enabler: 20 },
 };
 
-/** Validiert ein gespeichertes Targets-JSON. Liefert das Default-Set, wenn
- *  die Eingabe kein passendes Shape hat — die UI fragt vorher ab, hier ist
- *  der Defensiv-Pfad. */
-export function parseGuardrailTargets(raw: unknown): GuardrailTargets {
-  if (raw == null || typeof raw !== "object") return DEFAULT_GUARDRAIL_TARGETS;
+/**
+ * Per-field outcome of a defensive parse — each "field" can either have
+ * matched the input or fallen back to its default. Tracked so callers can
+ * surface a "settings corrupt" warning (Sentry, admin UI) instead of
+ * silently rendering defaults.
+ */
+export interface GuardrailTargetsParse {
+  targets: GuardrailTargets;
+  /** `true` when every field matched the input. `false` when any field fell
+   *  back to its default. */
+  cleanlyParsed: boolean;
+  /** Empty when `cleanlyParsed`. Otherwise the dotted field paths that fell
+   *  back, in the order they appear in the type. */
+  fellBackFields: string[];
+}
+
+/**
+ * Defensive parse with provenance. The simpler `parseGuardrailTargets` returns
+ * only `targets` — callers that need to detect silent-fallback (the data
+ * quality drift the dashboard would otherwise mask) should call this one.
+ */
+export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsParse {
+  const fellBack: string[] = [];
+  const recordFallback = (path: string): void => {
+    fellBack.push(path);
+  };
+
+  if (raw == null) {
+    // No tenant setting yet — defaults are the *intended* path, not corruption.
+    return { targets: DEFAULT_GUARDRAIL_TARGETS, cleanlyParsed: true, fellBackFields: [] };
+  }
+  if (typeof raw !== "object") {
+    return {
+      targets: DEFAULT_GUARDRAIL_TARGETS,
+      cleanlyParsed: false,
+      fellBackFields: ["root"],
+    };
+  }
   const r = raw as Record<string, unknown>;
   const h = (r.horizon ?? {}) as Record<string, unknown>;
   const c = (r.capacity ?? {}) as Record<string, unknown>;
-  const out: GuardrailTargets = {
-    horizon: {
-      h1: typeof h.h1 === "number" ? h.h1 : DEFAULT_GUARDRAIL_TARGETS.horizon.h1,
-      h2: typeof h.h2 === "number" ? h.h2 : DEFAULT_GUARDRAIL_TARGETS.horizon.h2,
-      h3: typeof h.h3 === "number" ? h.h3 : DEFAULT_GUARDRAIL_TARGETS.horizon.h3,
-    },
-    capacity: {
-      business:
-        typeof c.business === "number" ? c.business : DEFAULT_GUARDRAIL_TARGETS.capacity.business,
-      enabler:
-        typeof c.enabler === "number" ? c.enabler : DEFAULT_GUARDRAIL_TARGETS.capacity.enabler,
-    },
+
+  const horizonField = (key: "h1" | "h2" | "h3"): number => {
+    if (typeof h[key] === "number") return h[key] as number;
+    recordFallback(`horizon.${key}`);
+    return DEFAULT_GUARDRAIL_TARGETS.horizon[key];
   };
-  return out;
+  const capacityField = (key: "business" | "enabler"): number => {
+    if (typeof c[key] === "number") return c[key] as number;
+    recordFallback(`capacity.${key}`);
+    return DEFAULT_GUARDRAIL_TARGETS.capacity[key];
+  };
+
+  const targets: GuardrailTargets = {
+    horizon: { h1: horizonField("h1"), h2: horizonField("h2"), h3: horizonField("h3") },
+    capacity: { business: capacityField("business"), enabler: capacityField("enabler") },
+  };
+
+  return {
+    targets,
+    cleanlyParsed: fellBack.length === 0,
+    fellBackFields: fellBack,
+  };
+}
+
+/** Defensive parse — falls back to the default-set when fields are missing or
+ *  wrong-typed. `parseGuardrailTargetsDetailed` exposes which fields fell back,
+ *  for callers that need to surface a "settings corrupt" warning. */
+export function parseGuardrailTargets(raw: unknown): GuardrailTargets {
+  return parseGuardrailTargetsDetailed(raw).targets;
 }
 
 /**
