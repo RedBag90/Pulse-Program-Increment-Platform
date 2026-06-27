@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { setFeatureDeliveryStatusAction } from "@/features/art/actions/feature";
 import { FeatureClassificationForm } from "./feature-classification-form";
 import { STATUS_DOT, STATUS_LABELS } from "@/components/detail/initiative-labels";
+import { formatDate } from "@/lib/formatting";
 import type { FeatureDetailModel } from "@/server/views/feature-detail";
 import type { DeliveryStatus } from "@/domain/initiative-status";
 
@@ -115,9 +116,9 @@ export function FeatureOverviewTab({ model, canEdit, canTransition }: Props) {
         </div>
         <Field label="Erstellt · Aktualisiert">
           <span className="text-sm">
-            {model.createdAt.toLocaleDateString("de-DE")}
+            {formatDate(model.createdAt)}
             <span className="mx-2 text-muted-foreground">·</span>
-            {model.updatedAt.toLocaleDateString("de-DE")}
+            {formatDate(model.updatedAt)}
           </span>
         </Field>
       </section>

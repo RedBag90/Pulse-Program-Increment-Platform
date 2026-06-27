@@ -26,18 +26,13 @@ import {
 } from "@/features/budgeting/actions/budgeting";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatEUR as fmt } from "@/lib/formatting";
 
 interface Props {
   data: BudgetingBoardData;
   canManage: boolean;
 }
 
-const eur = new Intl.NumberFormat("de-DE", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
-const fmt = (v: number) => eur.format(Math.round(v));
 const VS_COLORS = ["#2563eb", "#0ea5e9", "#14b8a6", "#eab308", "#a78bfa", "#f59e0b", "#6366f1"];
 const numOr0 = (s: string) => {
   const n = Number(s);

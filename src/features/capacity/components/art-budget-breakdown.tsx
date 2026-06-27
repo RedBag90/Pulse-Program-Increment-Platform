@@ -4,13 +4,7 @@ import { useMemo, useState, useActionState, startTransition } from "react";
 import { saveArtBudgetAction } from "@/features/portfolio/actions/art-budget";
 import { artBudgetRemaining, type ArtFeatureLoad } from "@/domain/art-budget";
 import { Button } from "@/components/ui/button";
-
-const eur = new Intl.NumberFormat("de-DE", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
-const fmtEur = (v: number) => eur.format(Math.round(v));
+import { formatEUR as fmtEur } from "@/lib/formatting";
 
 const cellInput =
   "h-8 w-24 rounded-md border border-input bg-transparent px-2 text-right text-sm disabled:opacity-60";

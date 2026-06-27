@@ -5,6 +5,7 @@ import { Link } from "@/i18n/navigation";
 import { CreateArtDialog } from "@/features/art/components/create-art-dialog";
 import { EditValueStreamDialog } from "@/features/portfolio/components/edit-value-stream-dialog";
 import { DeleteValueStreamButton } from "@/features/portfolio/components/delete-value-stream-button";
+import { formatEUR } from "@/lib/formatting";
 import type { VsDetail } from "@/server/views/structure-page";
 
 interface Props {
@@ -17,12 +18,6 @@ interface Props {
   canUpdateVs: boolean;
   onSelectArt: (id: string) => void;
 }
-
-const eur = new Intl.NumberFormat("de-DE", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
 
 /**
  * Right pane for a selected Value Stream. Three cards:
@@ -94,9 +89,7 @@ export function VsDetailPane({ vs, canCreateArt, canUpdateVs, onSelectArt }: Pro
         <h2 className="font-heading text-sm font-medium">Budget (Partizipativ)</h2>
         <p className="text-sm">
           {vs.budgetTotal != null ? (
-            <span className="text-xl font-semibold tabular-nums">
-              {eur.format(Math.round(vs.budgetTotal))}
-            </span>
+            <span className="text-xl font-semibold tabular-nums">{formatEUR(vs.budgetTotal)}</span>
           ) : (
             <span className="text-muted-foreground">Kein Budget zugewiesen</span>
           )}

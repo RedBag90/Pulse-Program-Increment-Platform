@@ -1,6 +1,7 @@
 import { TrendingUp } from "lucide-react";
 import { kpiValueContribution } from "@/domain/kpi-valuation";
 import { latestKpiValue, parseKpiMeasurements } from "@/domain/kpi";
+import { formatCompactEUR } from "@/lib/formatting";
 
 /**
  * Realisierter Mehrwert je Epic (Konzept-Refactor §E). Aggregierte
@@ -75,10 +76,12 @@ export function EpicRealizedTile({ kpis }: Props) {
       </header>
 
       <div className="mt-2 flex items-baseline gap-3">
-        <p className="text-2xl font-semibold tabular-nums text-emerald-700">{eur(realized)}</p>
+        <p className="text-2xl font-semibold tabular-nums text-emerald-700">
+          {formatCompactEUR(realized)}
+        </p>
         {plannedTotal > 0 && (
           <p className="text-sm text-muted-foreground">
-            von <span className="font-medium">{eur(plannedTotal)}</span> Soll-Mehrwert
+            von <span className="font-medium">{formatCompactEUR(plannedTotal)}</span> Soll-Mehrwert
           </p>
         )}
       </div>
@@ -105,10 +108,4 @@ function toNum(v: unknown): number | null {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
-}
-
-function eur(n: number): string {
-  if (Math.abs(n) >= 1_000_000) return `€${(n / 1_000_000).toFixed(2)}M`;
-  if (Math.abs(n) >= 1_000) return `€${(n / 1_000).toFixed(1)}K`;
-  return `€${Math.round(n).toLocaleString("de-DE")}`;
 }

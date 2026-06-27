@@ -25,18 +25,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatEUR as fmtEur } from "@/lib/formatting";
 
 interface Props {
   data: PortfolioEconomicsData;
   canEdit: boolean;
 }
-
-const eur = new Intl.NumberFormat("de-DE", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
-const fmtEur = (v: number) => eur.format(Math.round(v));
 
 /** Show an x-axis label only at quarter starts to keep the monthly axis legible. */
 function quarterTick(label: string): string {
