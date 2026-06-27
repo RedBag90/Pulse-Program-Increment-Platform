@@ -7,7 +7,10 @@ import { buildChangelog } from "@/domain/change-log";
 import { computeWsjf } from "@/domain/schemas/initiative";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
-import { findValidatedParent } from "@/server/services/initiative-write";
+import {
+  createInitiativeWithDerivedPath,
+  findValidatedParent,
+} from "@/server/services/initiative-write";
 import { paginate, type PageParams } from "@/server/db/paginate";
 import { rangeOverlapsPlannedWindow } from "@/domain/epic-schedule";
 import { canDeliveryTransition } from "@/domain/initiative-status";
@@ -85,13 +88,12 @@ export async function createFeature(
       return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
     }
 
-    const feature = await tx.initiative.create({
+    const feature = await createInitiativeWithDerivedPath(tx, {
       data: {
         tenantId: mctx.tenantId,
         level: InitiativeLevel.FEATURE,
         parentId,
         artId,
-        path: "",
         title,
         // Features starten in der Delivery-Lane „Bereit". QA-Gate
         // (draft→in_review→approved) wurde 2026-06 entfernt.
@@ -110,11 +112,7 @@ export async function createFeature(
         ...(piId !== undefined && { piId }),
         ...(featureType != null && { featureType }),
       },
-    });
-
-    await tx.initiative.update({
-      where: { id: feature.id },
-      data: { path: `${epic.path}.${feature.id}` },
+      parentPath: epic.path,
     });
 
     return ok({
@@ -180,13 +178,12 @@ export async function createFeatureWithDependency(
       });
     }
 
-    const feature = await tx.initiative.create({
+    const feature = await createInitiativeWithDerivedPath(tx, {
       data: {
         tenantId: mctx.tenantId,
         level: InitiativeLevel.FEATURE,
         parentId,
         artId,
-        path: "",
         title,
         status: "approved",
         ownerId: mctx.actorId,
@@ -201,11 +198,7 @@ export async function createFeatureWithDependency(
         acceptanceCriteria: [],
         ...(featureType != null && { featureType }),
       },
-    });
-
-    await tx.initiative.update({
-      where: { id: feature.id },
-      data: { path: `${epic.path}.${feature.id}` },
+      parentPath: epic.path,
     });
 
     const dep = await tx.dependency.create({
@@ -289,13 +282,12 @@ export async function insertFeatureBetween(
       });
     }
 
-    const feature = await tx.initiative.create({
+    const feature = await createInitiativeWithDerivedPath(tx, {
       data: {
         tenantId: mctx.tenantId,
         level: InitiativeLevel.FEATURE,
         parentId,
         artId,
-        path: "",
         title,
         status: "approved",
         ownerId: mctx.actorId,
@@ -310,11 +302,7 @@ export async function insertFeatureBetween(
         acceptanceCriteria: [],
         ...(featureType != null && { featureType }),
       },
-    });
-
-    await tx.initiative.update({
-      where: { id: feature.id },
-      data: { path: `${epic.path}.${feature.id}` },
+      parentPath: epic.path,
     });
 
     await tx.dependency.delete({ where: { id: existingEdge.id } });

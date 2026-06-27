@@ -17,13 +17,7 @@ import {
   type ApprovalParty,
 } from "@/domain/business-case";
 import {
-  canSubmitHypothesis,
-  canDecideHypothesis,
-  canConfigureApprovers,
-  canSubmitBusinessCase,
-  canDecideApproval,
-  canStartRevision,
-  revisionStartPhase,
+  nextPhaseFor,
   decisionStatus,
   isFullyApproved,
   APPROVAL_SECTIONS,
@@ -89,12 +83,8 @@ export async function submitHypothesis(
     const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
     if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
     const phase = phaseOf(epic);
-    if (!canSubmitHypothesis(phase)) {
-      return err({
-        kind: "conflict" as const,
-        reason: `Epic in Phase "${phase}" kann die Hypothese nicht einreichen`,
-      });
-    }
+    const target = nextPhaseFor(phase, { kind: "submit_hypothesis" });
+    if (!target.ok) return target;
 
     await tx.initiative.update({
       where: { id: epicId },
@@ -136,14 +126,9 @@ export async function decideHypothesis(
     const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
     if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
     const phase = phaseOf(epic);
-    if (!canDecideHypothesis(phase)) {
-      return err({
-        kind: "conflict" as const,
-        reason: `Epic in Phase "${phase}" erwartet keine Hypothese-Entscheidung`,
-      });
-    }
-
-    const target: ApprovalPhase = decision === "approve" ? "business_case" : "draft";
+    const next = nextPhaseFor(phase, { kind: "decide_hypothesis", decision });
+    if (!next.ok) return next;
+    const target = next.value as ApprovalPhase;
     await tx.initiative.update({
       where: { id: epicId },
       data: {
@@ -201,12 +186,8 @@ export async function configureApprovers(
     const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
     if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
     const phase = phaseOf(epic);
-    if (!canConfigureApprovers(phase)) {
-      return err({
-        kind: "conflict" as const,
-        reason: `Approver können nur in der Business-Case-Phase konfiguriert werden (aktuell "${phase}")`,
-      });
-    }
+    const guard = nextPhaseFor(phase, { kind: "configure_approvers" });
+    if (!guard.ok) return guard;
 
     const rev = revisionOf(epic);
     // Replace this revision's party + section assignments wholesale (no decisions
@@ -270,12 +251,8 @@ export async function submitBusinessCase(
     const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
     if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
     const phase = phaseOf(epic);
-    if (!canSubmitBusinessCase(phase)) {
-      return err({
-        kind: "conflict" as const,
-        reason: `Business Case kann in Phase "${phase}" nicht eingereicht werden`,
-      });
-    }
+    const next = nextPhaseFor(phase, { kind: "submit_business_case" });
+    if (!next.ok) return next;
     if (!businessCaseHasContent(parseBusinessCase(epic.businessCase).current)) {
       return err({ kind: "conflict" as const, reason: "Business Case hat noch keinen Inhalt" });
     }
@@ -466,12 +443,8 @@ export async function decideApproval(
         reason: "Freigabe gehört zu einer früheren Revision",
       });
     }
-    if (!canDecideApproval(phase)) {
-      return err({
-        kind: "conflict" as const,
-        reason: `Epic in Phase "${phase}" erwartet keine Freigabe-Entscheidung`,
-      });
-    }
+    const guard = nextPhaseFor(phase, { kind: "decide_approval" });
+    if (!guard.ok) return guard;
 
     const status = decisionStatus(decision);
     await tx.epicApproval.update({
@@ -523,12 +496,8 @@ export async function signoffSection(
     const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
     if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
     const phase = phaseOf(epic);
-    if (!canDecideApproval(phase)) {
-      return err({
-        kind: "conflict" as const,
-        reason: `Sign-off ist in Phase "${phase}" nicht möglich`,
-      });
-    }
+    const guard = nextPhaseFor(phase, { kind: "decide_approval" });
+    if (!guard.ok) return guard;
     const rev = revisionOf(epic);
     const row = await tx.epicApproval.findFirst({
       where: {
@@ -595,12 +564,9 @@ export async function startRevision(
     const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
     if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
     const phase = phaseOf(epic);
-    if (!canStartRevision(phase)) {
-      return err({
-        kind: "conflict" as const,
-        reason: `Der Freigabeprozess kann erst zurückgesetzt werden, sobald er gestartet wurde (aktuell "${phase}")`,
-      });
-    }
+    const next = nextPhaseFor(phase, { kind: "start_revision", mode });
+    if (!next.ok) return next;
+    const nextPhase = next.value as ApprovalPhase;
 
     const rev = revisionOf(epic);
     const nextRev = rev + 1;
@@ -632,7 +598,6 @@ export async function startRevision(
       });
     }
 
-    const nextPhase = revisionStartPhase(mode);
     // Re-opening an *approved* Epic snapshots the just-approved artefacts as the
     // baseline for the new revision's side-by-side diff (content is frozen between
     // approval and re-open). A mid-flight reset has no meaningful baseline (the

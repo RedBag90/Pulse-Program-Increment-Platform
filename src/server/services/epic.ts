@@ -14,6 +14,7 @@ import {
   toMutationContext,
   type MutationContext,
 } from "@/server/services/mutation";
+import { createInitiativeWithDerivedPath } from "@/server/services/initiative-write";
 import { emitAuditEvent } from "@/server/audit/emit";
 import { effectivePractices } from "@/domain/operating-model";
 import {
@@ -56,12 +57,11 @@ export async function createEpic(
       return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
     }
 
-    const epic = await tx.initiative.create({
+    const epic = await createInitiativeWithDerivedPath(tx, {
       data: {
         tenantId: mctx.tenantId,
         level: InitiativeLevel.EPIC,
         title,
-        path: "", // Updated below, once the ID is known.
         // Epics start without an owner — the VMO (or a superior role) nominates
         // one during detailing, which is what advances the Epic out of the Funnel.
         ownerId: null,
@@ -73,9 +73,6 @@ export async function createEpic(
         ...(description !== undefined && { description }),
       },
     });
-
-    // Materialized path: root-level epics use their own ID.
-    await tx.initiative.update({ where: { id: epic.id }, data: { path: epic.id } });
 
     return ok({
       result: { id: epic.id as EpicId },

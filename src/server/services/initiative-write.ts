@@ -48,6 +48,36 @@ export async function findValidatedParent(
 }
 
 /**
+ * Create an Initiative whose `.`-separated materialized path includes its
+ * own generated id: Epic uses `path = ownId`, Feature uses
+ * `path = ${epic.path}.${ownId}`. Done as two writes (create with an empty
+ * path placeholder, then update once the id is known) because Prisma
+ * generates the id; the caller cannot precompute it.
+ *
+ * Concentrates the 2-step write that was inlined in `createEpic` and three
+ * `createFeature*` paths — a future schema change (e.g. dropping `.` for
+ * `/uuid` everywhere, or moving to a generated column) flips here, not in
+ * every caller.
+ *
+ * Story/Task use a different convention (`/uuid` segments) — see
+ * `createChildInitiative` below.
+ */
+export async function createInitiativeWithDerivedPath(
+  tx: Prisma.TransactionClient,
+  args: {
+    /** Caller's create payload — `path` is set by this helper. */
+    data: Omit<Prisma.InitiativeUncheckedCreateInput, "path">;
+    /** Omit for root (Epic). Provide `epic.path` for Feature. */
+    parentPath?: string;
+  },
+): Promise<Initiative> {
+  const row = await tx.initiative.create({ data: { ...args.data, path: "" } });
+  const path = args.parentPath ? `${args.parentPath}.${row.id}` : row.id;
+  await tx.initiative.update({ where: { id: row.id }, data: { path } });
+  return { ...row, path };
+}
+
+/**
  * The shared create-at-level skeleton for child initiatives (Story, Task):
  * derives the materialized path under the parent and stamps the tenant/owner/
  * author defaults. Returns the created row. Callers compose any extra writes

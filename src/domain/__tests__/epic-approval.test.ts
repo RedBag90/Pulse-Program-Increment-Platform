@@ -1,12 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   canPhaseTransition,
-  canSubmitHypothesis,
-  canDecideHypothesis,
-  canConfigureApprovers,
-  canSubmitBusinessCase,
-  canDecideApproval,
-  canStartRevision,
+  nextPhaseFor,
   revisionStartPhase,
   decisionStatus,
   partyStatus,
@@ -71,30 +66,65 @@ describe("phase transitions", () => {
 });
 
 describe("revisions", () => {
-  it("canStartRevision from any started phase, but not from draft", () => {
-    expect(canStartRevision("approved")).toBe(true);
-    expect(canStartRevision("stakeholder_review")).toBe(true);
-    expect(canStartRevision("hypothesis_review")).toBe(true);
-    expect(canStartRevision("business_case")).toBe(true);
-    expect(canStartRevision("draft")).toBe(false);
-  });
-
   it("revisionStartPhase maps the mode", () => {
     expect(revisionStartPhase("full")).toBe("draft");
     expect(revisionStartPhase("business_case")).toBe("business_case");
   });
 });
 
-describe("phase guards", () => {
-  it("gate each action to its phase", () => {
-    expect(canSubmitHypothesis("draft")).toBe(true);
-    expect(canSubmitHypothesis("business_case")).toBe(false);
-    expect(canDecideHypothesis("hypothesis_review")).toBe(true);
-    expect(canConfigureApprovers("business_case")).toBe(true);
-    expect(canSubmitBusinessCase("business_case")).toBe(true);
-    expect(canSubmitBusinessCase("draft")).toBe(false);
-    expect(canDecideApproval("stakeholder_review")).toBe(true);
-    expect(canDecideApproval("business_case")).toBe(false);
+describe("nextPhaseFor — intent-driven workflow seam", () => {
+  it("submit_hypothesis from draft → hypothesis_review", () => {
+    const r = nextPhaseFor("draft", { kind: "submit_hypothesis" });
+    expect(r.ok && r.value).toBe("hypothesis_review");
+  });
+
+  it("submit_hypothesis from anywhere else → conflict", () => {
+    const r = nextPhaseFor("business_case", { kind: "submit_hypothesis" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.kind).toBe("conflict");
+  });
+
+  it("decide_hypothesis: approve → business_case, reject → draft", () => {
+    const a = nextPhaseFor("hypothesis_review", {
+      kind: "decide_hypothesis",
+      decision: "approve",
+    });
+    expect(a.ok && a.value).toBe("business_case");
+    const r = nextPhaseFor("hypothesis_review", { kind: "decide_hypothesis", decision: "reject" });
+    expect(r.ok && r.value).toBe("draft");
+  });
+
+  it("configure_approvers + decide_approval keep the phase (no transition)", () => {
+    const c = nextPhaseFor("business_case", { kind: "configure_approvers" });
+    expect(c.ok && c.value).toBeNull();
+    const d = nextPhaseFor("stakeholder_review", { kind: "decide_approval" });
+    expect(d.ok && d.value).toBeNull();
+  });
+
+  it("submit_business_case from business_case → stakeholder_review", () => {
+    const r = nextPhaseFor("business_case", { kind: "submit_business_case" });
+    expect(r.ok && r.value).toBe("stakeholder_review");
+  });
+
+  it("start_revision from any started phase, but not from draft", () => {
+    for (const phase of [
+      "hypothesis_review",
+      "business_case",
+      "stakeholder_review",
+      "approved",
+    ] as const) {
+      expect(nextPhaseFor(phase, { kind: "start_revision", mode: "full" }).ok).toBe(true);
+    }
+    expect(nextPhaseFor("draft", { kind: "start_revision", mode: "full" }).ok).toBe(false);
+  });
+
+  it("conflict reason names the current phase + the intent label", () => {
+    const r = nextPhaseFor("business_case", { kind: "submit_hypothesis" });
+    expect(r.ok).toBe(false);
+    if (!r.ok && r.error.kind === "conflict") {
+      expect(r.error.reason).toContain('"business_case"');
+      expect(r.error.reason).toContain("Hypothese");
+    }
   });
 });
 

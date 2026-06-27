@@ -15,6 +15,7 @@
  */
 
 import { APPROVAL_PARTIES, type ApprovalParty } from "./business-case";
+import { ok, err, type Result } from "./errors";
 
 export const APPROVAL_PHASES = [
   "draft",
@@ -52,35 +53,89 @@ export function canPhaseTransition(from: string, to: string): boolean {
   return (PHASE_TRANSITIONS[from as ApprovalPhase] ?? []).includes(to as ApprovalPhase);
 }
 
-/** Phase guards — what each workflow action requires. */
-export function canSubmitHypothesis(phase: string): boolean {
-  return phase === "draft";
-}
-export function canDecideHypothesis(phase: string): boolean {
-  return phase === "hypothesis_review";
-}
-export function canConfigureApprovers(phase: string): boolean {
-  return phase === "business_case";
-}
-export function canSubmitBusinessCase(phase: string): boolean {
-  return phase === "business_case";
-}
-export function canDecideApproval(phase: string): boolean {
-  return phase === "stakeholder_review";
-}
-/**
- * A revision can be started from any phase that has actually begun — to re-open
- * a fully `approved` Epic for a new cycle, or to reset an in-progress cycle back
- * to draft and restart it. Not from `draft`: nothing has started there.
- */
-export function canStartRevision(phase: string): boolean {
-  return phase !== "draft";
-}
+// ---------------------------------------------------------------------------
+// Workflow intents — what a caller wants to do.
+//
+// Before this seam existed every service action used its own `canFooBar(phase)`
+// boolean + an identically-shaped conflict error. The boolean made the *guard*
+// pure but the *response* was reconstructed in every caller. `nextPhaseFor`
+// concentrates both: it returns the target phase (success) or a typed
+// `phase_conflict` (failure), so services do `const next = nextPhaseFor(...)`
+// and the error message stays consistent.
+// ---------------------------------------------------------------------------
+
+export type WorkflowIntent =
+  | { kind: "submit_hypothesis" }
+  | { kind: "decide_hypothesis"; decision: ApprovalDecision }
+  | { kind: "configure_approvers" }
+  | { kind: "submit_business_case" }
+  | { kind: "decide_approval" }
+  | { kind: "start_revision"; mode: RevisionMode };
 
 /** Where a new revision restarts: full cycle (re-review hypothesis) or BC-only. */
 export type RevisionMode = "full" | "business_case";
 export function revisionStartPhase(mode: RevisionMode): ApprovalPhase {
   return mode === "full" ? "draft" : "business_case";
+}
+
+/**
+ * Conflict shape returned by `nextPhaseFor` when an intent is illegal in the
+ * current phase. Uses the generic `conflict` discriminant so services can
+ * pass it straight back to the HTTP layer; the `reason` is pre-formatted.
+ */
+const INTENT_LABEL: Record<WorkflowIntent["kind"], string> = {
+  submit_hypothesis: "die Hypothese einreichen",
+  decide_hypothesis: "eine Hypothese-Entscheidung treffen",
+  configure_approvers: "Approver konfigurieren",
+  submit_business_case: "den Business Case einreichen",
+  decide_approval: "eine Approval-Entscheidung treffen",
+  start_revision: "eine neue Revision starten",
+};
+
+function conflict(intent: WorkflowIntent, current: ApprovalPhase) {
+  return {
+    kind: "conflict" as const,
+    reason: `Epic in Phase "${current}" kann ${INTENT_LABEL[intent.kind]} nicht.`,
+  };
+}
+
+/**
+ * Workflow's central seam. Given the Epic's current phase and the action a
+ * caller wants to perform, returns the **target phase** to write or `null`
+ * when the intent should keep the phase (configure_approvers, decide_approval
+ * partial decisions). Returns a `conflict` error when the intent is illegal
+ * in the current phase, so services don't reinvent the conflict reason.
+ *
+ * Note: `decide_approval` doesn't pick the new phase here — that depends on
+ * the full set of approval rows (see `isFullyApproved`). The service derives
+ * the next phase from the rows; this function only validates the *eligibility*.
+ */
+export function nextPhaseFor(
+  current: ApprovalPhase,
+  intent: WorkflowIntent,
+): Result<ApprovalPhase | null> {
+  switch (intent.kind) {
+    case "submit_hypothesis":
+      if (current !== "draft") return err(conflict(intent, current));
+      return ok("hypothesis_review");
+    case "decide_hypothesis":
+      if (current !== "hypothesis_review") return err(conflict(intent, current));
+      return ok(intent.decision === "approve" ? "business_case" : "draft");
+    case "configure_approvers":
+      if (current !== "business_case") return err(conflict(intent, current));
+      return ok(null);
+    case "submit_business_case":
+      if (current !== "business_case") return err(conflict(intent, current));
+      return ok("stakeholder_review");
+    case "decide_approval":
+      if (current !== "stakeholder_review") return err(conflict(intent, current));
+      return ok(null);
+    case "start_revision":
+      // A revision can be started from any phase that has actually begun — but
+      // not from `draft`: nothing has started there.
+      if (current === "draft") return err(conflict(intent, current));
+      return ok(revisionStartPhase(intent.mode));
+  }
 }
 
 /** The status a reviewer decision produces on its row. */
