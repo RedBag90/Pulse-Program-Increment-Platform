@@ -6,11 +6,11 @@
  * - **goLive** = the Implementation milestone — completion, when benefit lands.
  *
  * It also owns the rule that turns a participatory-budgeting decision into
- * timeline estimates (`scheduleFromFundedWindow`) and the merge that applies
- * those estimates without clobbering owner-entered actuals or other estimate
- * fields (`withScheduleEstimates`). The two timeline writers — the Epic owner's
- * `saveTimeline` and budgeting's `saveBudgetAllocation` — both lean on these
- * rules, so they stay consistent.
+ * timeline estimates (via `fundedWindow(allocations)?.estimates`) and the
+ * merge that applies those estimates without clobbering owner-entered actuals
+ * or other estimate fields (`withScheduleEstimates`). The two timeline
+ * writers — the Epic owner's `saveTimeline` and budgeting's
+ * `saveBudgetAllocation` — both lean on these rules, so they stay consistent.
  *
  * Conflict policy (owner vs. budgeting): **last writer wins** — the schedule
  * has a single `timeline` JSON and each writer overwrites it. Budgeting only
@@ -121,17 +121,6 @@ export function fundedWindow(allocations: Record<string, number>): FundedWindow 
     end,
     estimates: { backlog: isoDay(start), implementation: isoDay(end) },
   };
-}
-
-/**
- * @deprecated Use `fundedWindow(allocations)?.estimates` directly. Thin alias
- * preserved so existing callers (the budgeting save path) keep compiling while
- * the call sites migrate.
- */
-export function scheduleFromFundedWindow(
-  allocations: Record<string, number>,
-): ScheduleEstimates | null {
-  return fundedWindow(allocations)?.estimates ?? null;
 }
 
 /**

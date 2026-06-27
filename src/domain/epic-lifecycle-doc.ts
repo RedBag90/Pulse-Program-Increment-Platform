@@ -160,3 +160,17 @@ export const BLOCKED_MANUAL_TRANSITIONS: readonly BlockedManualTransition[] = [
       "L5 wird nur per Impact-Bestaetigung erreicht (Voraussetzung: Sub-Stage L4.2 'Umsetzung fertig').",
   },
 ];
+
+/**
+ * Returns the blocked-manual-transition entry that matches `from → to`, or
+ * `undefined` when the transition is allowed. The service's stage-gate guard
+ * looks this up so the reason message comes from the same source as the
+ * help-popover catalog — adding a new blocked pair is one entry in
+ * `BLOCKED_MANUAL_TRANSITIONS`, no second touch in `services/epic.ts`.
+ */
+export function findBlockedManualTransition(
+  from: string,
+  to: string,
+): BlockedManualTransition | undefined {
+  return BLOCKED_MANUAL_TRANSITIONS.find((b) => b.from === from && b.to === to);
+}

@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   resolveCostStart,
   resolveGoLive,
-  scheduleFromFundedWindow,
   fundedWindow,
   withScheduleEstimates,
   resolveEpicWindow,
@@ -74,24 +73,24 @@ describe("resolveGoLive — anchored on the Implementation milestone", () => {
   });
 });
 
-describe("scheduleFromFundedWindow — budgeting decision → schedule estimates", () => {
+describe("fundedWindow().estimates — budgeting decision → schedule estimates", () => {
   it("backlog = start of first funded half-year, implementation = end of last", () => {
-    expect(scheduleFromFundedWindow({ "2026-H2": 50000, "2027-H1": 70000 })).toEqual({
+    expect(fundedWindow({ "2026-H2": 50000, "2027-H1": 70000 })?.estimates).toEqual({
       backlog: "2026-07-01",
       implementation: "2027-06-30",
     });
   });
 
   it("ignores zero allocations when bounding the window", () => {
-    expect(scheduleFromFundedWindow({ "2026-H1": 0, "2026-H2": 40, "2027-H2": 0 })).toEqual({
+    expect(fundedWindow({ "2026-H1": 0, "2026-H2": 40, "2027-H2": 0 })?.estimates).toEqual({
       backlog: "2026-07-01",
       implementation: "2026-12-31",
     });
   });
 
   it("returns null when nothing is funded (timeline left untouched)", () => {
-    expect(scheduleFromFundedWindow({})).toBeNull();
-    expect(scheduleFromFundedWindow({ "2026-H1": 0 })).toBeNull();
+    expect(fundedWindow({})).toBeNull();
+    expect(fundedWindow({ "2026-H1": 0 })).toBeNull();
   });
 });
 

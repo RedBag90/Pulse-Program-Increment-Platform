@@ -2,6 +2,7 @@ import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { recordedUpdate } from "@/server/services/recorded-update";
 
 /**
  * Ziele-Modul-Services (Konzept V2). Reines CRUD + Audit, kein
@@ -102,22 +103,39 @@ export async function updateObjective(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "Objective", id: input.id });
     }
+    const { changes, data } = recordedUpdate({
+      existing,
+      updates: {
+        title: input.title,
+        narrative: input.narrative,
+        period: input.period,
+        confidence: input.confidence,
+        status: input.status,
+        closingNote: input.closingNote,
+        ownerId: input.ownerId,
+      },
+      fields: [
+        "title",
+        "narrative",
+        "period",
+        "confidence",
+        "status",
+        "closingNote",
+        "ownerId",
+      ] as const,
+    });
     await tx.objective.update({
       where: { id: input.id },
-      data: {
-        ...(input.title !== undefined ? { title: input.title } : {}),
-        ...(input.narrative !== undefined ? { narrative: input.narrative } : {}),
-        ...(input.period !== undefined ? { period: input.period } : {}),
-        ...(input.confidence !== undefined ? { confidence: input.confidence } : {}),
-        ...(input.status !== undefined ? { status: input.status } : {}),
-        ...(input.closingNote !== undefined ? { closingNote: input.closingNote } : {}),
-        ...(input.ownerId !== undefined ? { ownerId: input.ownerId } : {}),
-        updatedBy: mctx.actorId,
-      },
+      data: { ...data, updatedBy: mctx.actorId },
     });
     return ok({
       result: undefined,
-      audit: { action: "objective.updated", resourceType: "objective", resourceId: input.id },
+      audit: {
+        action: "objective.updated",
+        resourceType: "objective",
+        resourceId: input.id,
+        changes,
+      },
     });
   });
 }
@@ -219,23 +237,53 @@ export async function updateKeyResult(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.id });
     }
+    // Normalise the existing row's Decimal columns to numbers before snapshotting
+    // so the audit reads as numeric values, not `Decimal(…)`.
+    const existingProjected = {
+      title: existing.title,
+      metricName: existing.metricName,
+      metricUnit: existing.metricUnit,
+      baseline: existing.baseline != null ? Number(existing.baseline) : null,
+      target: existing.target != null ? Number(existing.target) : null,
+      current: existing.current != null ? Number(existing.current) : null,
+      formula: existing.formula,
+      ownerId: existing.ownerId,
+    };
+    const { changes, data } = recordedUpdate({
+      existing: existingProjected,
+      updates: {
+        title: input.title,
+        metricName: input.metricName,
+        metricUnit: input.metricUnit,
+        baseline: input.baseline,
+        target: input.target,
+        current: input.current,
+        formula: input.formula,
+        ownerId: input.ownerId,
+      },
+      fields: [
+        "title",
+        "metricName",
+        "metricUnit",
+        "baseline",
+        "target",
+        "current",
+        "formula",
+        "ownerId",
+      ] as const,
+    });
     await tx.keyResult.update({
       where: { id: input.id },
-      data: {
-        ...(input.title !== undefined ? { title: input.title } : {}),
-        ...(input.metricName !== undefined ? { metricName: input.metricName } : {}),
-        ...(input.metricUnit !== undefined ? { metricUnit: input.metricUnit } : {}),
-        ...(input.baseline !== undefined ? { baseline: input.baseline } : {}),
-        ...(input.target !== undefined ? { target: input.target } : {}),
-        ...(input.current !== undefined ? { current: input.current } : {}),
-        ...(input.formula !== undefined ? { formula: input.formula } : {}),
-        ...(input.ownerId !== undefined ? { ownerId: input.ownerId } : {}),
-        updatedBy: mctx.actorId,
-      },
+      data: { ...data, updatedBy: mctx.actorId },
     });
     return ok({
       result: undefined,
-      audit: { action: "key_result.updated", resourceType: "key_result", resourceId: input.id },
+      audit: {
+        action: "key_result.updated",
+        resourceType: "key_result",
+        resourceId: input.id,
+        changes,
+      },
     });
   });
 }

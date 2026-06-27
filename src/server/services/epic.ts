@@ -6,6 +6,7 @@ import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
 import { recordedUpdate } from "@/server/services/recorded-update";
 import { isValidTransition, isApprovalTransition, autoAdvanceTarget } from "@/domain/stage-gate";
+import { findBlockedManualTransition } from "@/domain/epic-lifecycle-doc";
 import type { EpicType, Horizon } from "@/domain/portfolio-guardrails";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
@@ -239,26 +240,15 @@ export async function advanceStageGate(
       });
     }
 
-    // Manuelle Auto-Advance-Pfade sperren. Diese Gates duerfen nur ueber den
-    // jeweiligen Workflow-Trigger erreicht werden (siehe
-    // `src/domain/epic-lifecycle-doc.ts` BLOCKED_MANUAL_TRANSITIONS):
-    //  - L2 → L3: nur via saveBudgetAllocation (Σ > 0 + BC freigegeben).
-    //  - L4 → L5: nur via confirmEpicImpact (alle Features completed).
-    // `autoAdvanceStageGate` umgeht diese Pruefung — die Trigger setzen ihre
-    // eigenen Vorbedingungen.
-    if (from === "L2" && toGate === "L3") {
-      return err({
-        kind: "forbidden" as const,
-        reason:
-          "L3 wird automatisch beim Speichern eines Budgets > 0 erreicht (Voraussetzung: Sub-Stage L2.2 'BC freigegeben').",
-      });
-    }
-    if (from === "L4" && toGate === "L5") {
-      return err({
-        kind: "forbidden" as const,
-        reason:
-          "L5 wird nur per Impact-Bestaetigung erreicht (Voraussetzung: Sub-Stage L4.2 'Umsetzung fertig').",
-      });
+    // Manuelle Auto-Advance-Pfade sperren — die `reason` kommt aus der
+    // Single-Source `domain/epic-lifecycle-doc.ts` (selbe Liste, die der
+    // Help-Popover rendert). Neue blockierte Pairs einfach dort eintragen.
+    // `autoAdvanceStageGate` umgeht diese Pruefung — die Workflow-Trigger
+    // (saveBudgetAllocation, confirmEpicImpact) setzen ihre eigenen
+    // Vorbedingungen.
+    const blocked = findBlockedManualTransition(from, toGate);
+    if (blocked) {
+      return err({ kind: "forbidden" as const, reason: blocked.reason });
     }
 
     const isApproval = isApprovalTransition(from, toGate);
