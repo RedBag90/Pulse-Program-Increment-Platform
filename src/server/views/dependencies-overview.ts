@@ -9,6 +9,8 @@
  * + To-PI + Scope (cross-ART / cross-PI / in-PI).
  */
 
+import { diffInDays } from "@/domain/calendar";
+
 export const DEPENDENCY_TYPES = ["blocks", "depends_on", "relates_to"] as const;
 export type DependencyType = (typeof DEPENDENCY_TYPES)[number];
 
@@ -80,7 +82,6 @@ interface DependencyInput {
   createdAt: Date;
 }
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const UNKNOWN_ENDPOINT: DependencyEndpoint = {
   id: "",
   title: "Unbekanntes Feature",
@@ -88,10 +89,6 @@ const UNKNOWN_ENDPOINT: DependencyEndpoint = {
   art: null,
   pi: null,
 };
-
-function diffDays(later: number, earlier: number): number {
-  return Math.max(0, Math.floor((later - earlier) / MS_PER_DAY));
-}
 
 function endpoint(
   feature: FeatureInput | undefined,
@@ -138,7 +135,7 @@ export function buildDependenciesOverviewModel(input: {
       type,
       from,
       to,
-      daysOpen: diffDays(nowMs, d.createdAt.getTime()),
+      daysOpen: diffInDays(nowMs, d.createdAt.getTime()),
       isCrossArt,
       isCrossPi,
       isCriticalPath,

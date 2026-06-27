@@ -11,6 +11,8 @@
  * Domain-Schicht (Type-Guards + isEpicType etc.).
  */
 
+import { makeTypeGuard } from "@/domain/type-guards";
+
 export const EPIC_TYPES = ["solution", "epic", "enabler"] as const;
 export type EpicType = (typeof EPIC_TYPES)[number];
 
@@ -37,15 +39,9 @@ export const HORIZON_LABEL: Record<Horizon, string> = {
   h3: "H3 · Innovate",
 };
 
-export function isEpicType(v: unknown): v is EpicType {
-  return typeof v === "string" && (EPIC_TYPES as readonly string[]).includes(v);
-}
-export function isFeatureType(v: unknown): v is FeatureType {
-  return typeof v === "string" && (FEATURE_TYPES as readonly string[]).includes(v);
-}
-export function isHorizon(v: unknown): v is Horizon {
-  return typeof v === "string" && (HORIZONS as readonly string[]).includes(v);
-}
+export const isEpicType = makeTypeGuard(EPIC_TYPES);
+export const isFeatureType = makeTypeGuard(FEATURE_TYPES);
+export const isHorizon = makeTypeGuard(HORIZONS);
 
 /**
  * Klassifikation in „Business" oder „Enabler" — dient dem Capacity-

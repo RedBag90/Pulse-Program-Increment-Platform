@@ -16,6 +16,7 @@ import { deriveEpicEconomics } from "@/domain/epic-economics";
 import { halfYearKey, parseHalfYearKey, halfYearStart, addHalfYears } from "@/domain/calendar";
 import {
   buildHalfYearAxis,
+  parsePeriodAmountMap,
   rollupByValueStream,
   type BudgetEpicView,
   type HalfYearAxis,
@@ -48,15 +49,6 @@ export interface ValueStreamBudgetData {
 }
 
 /** Reads a JSON map of period-key → number, discarding malformed entries. */
-function parsePeriodMap(raw: unknown): Record<string, number> {
-  if (raw == null || typeof raw !== "object") return {};
-  const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
-  }
-  return out;
-}
-
 /**
  * The shared participatory-budgeting model: the eligible Epics, the forecast
  * half-year axis, and the tenant pool. Backs both the budgeting board and the
@@ -112,12 +104,12 @@ async function loadBudgetingModel(
       costSlices: view.costSlices,
       hypothesisBudget: alloc?.hypothesisBudget != null ? Number(alloc.hypothesisBudget) : 0,
       startKey: halfYearKey(view.costStart),
-      allocations: parsePeriodMap(alloc?.allocations),
+      allocations: parsePeriodAmountMap(alloc?.allocations),
       priority: alloc?.priority ?? 0,
     };
   });
 
-  const pool = parsePeriodMap(tenant?.budgetPoolByPeriod);
+  const pool = parsePeriodAmountMap(tenant?.budgetPoolByPeriod);
 
   // Axis spans the earliest Epic start to the latest need/pool period.
   const startDates = epics

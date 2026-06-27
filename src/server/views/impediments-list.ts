@@ -5,6 +5,8 @@
  * badges are derived server-side so the client stays a pure render seam.
  */
 
+import { diffInDays } from "@/domain/calendar";
+
 export const IMPEDIMENT_STATUSES = ["open", "escalated", "resolved"] as const;
 export type ImpedimentStatus = (typeof IMPEDIMENT_STATUSES)[number];
 
@@ -71,12 +73,6 @@ interface ImpedimentRow {
   resolvedAt: Date | null;
 }
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-function diffDays(later: number, earlier: number): number {
-  return Math.max(0, Math.floor((later - earlier) / MS_PER_DAY));
-}
-
 /**
  * Returns the inferred timestamp of escalation for an `escalated` row. Pulse
  * doesn't persist the escalation date as a column today; the next-best
@@ -108,8 +104,9 @@ export function buildImpedimentsListModel(input: {
     const status = imp.status as ImpedimentStatus;
     const severity = imp.severity as ImpedimentSeverity;
     const createdMs = imp.createdAt.getTime();
-    const daysOpen = diffDays(nowMs, createdMs);
-    const daysSinceEscalation = status === "escalated" ? diffDays(nowMs, escalationMs(imp)) : null;
+    const daysOpen = diffInDays(nowMs, createdMs);
+    const daysSinceEscalation =
+      status === "escalated" ? diffInDays(nowMs, escalationMs(imp)) : null;
     return {
       id: imp.id,
       title: imp.title,

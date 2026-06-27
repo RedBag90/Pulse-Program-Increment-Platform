@@ -5,19 +5,10 @@ import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import { halfYearKey, halfYearLabel } from "@/domain/calendar";
 import { aggregateArtFeatureLoad, type ArtFeatureLoad } from "@/domain/art-budget";
+import { parsePeriodAmountMap } from "@/domain/budgeting";
 import { getValueStreamBudgets } from "@/server/services/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
-
-/** Reads a JSON map of period-key → number, discarding malformed entries. */
-function parsePeriodMap(raw: unknown): Record<string, number> {
-  if (raw == null || typeof raw !== "object") return {};
-  const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
-  }
-  return out;
-}
 
 export interface ArtBudgetRow {
   artId: string;
@@ -88,7 +79,7 @@ export async function getArtBudgetBreakdown(
   const rows: ArtBudgetRow[] = arts.map((a) => ({
     artId: a.id,
     name: a.name,
-    budgetByPeriod: parsePeriodMap(a.budget?.byPeriod),
+    budgetByPeriod: parsePeriodAmountMap(a.budget?.byPeriod),
     load: loads.get(a.id) ?? {
       artId: a.id,
       byPeriod: {},

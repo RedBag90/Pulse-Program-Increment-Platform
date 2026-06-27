@@ -1,5 +1,7 @@
 /** Agile team archetypes (Team Topologies, as used in SAFe). Pure, no I/O. */
 
+import { makeTypeGuard } from "@/domain/type-guards";
+
 export const TEAM_TYPES = [
   "stream_aligned",
   "complicated_subsystem",
@@ -15,9 +17,7 @@ export const TEAM_TYPE_LABELS: Record<TeamType, string> = {
   enabling: "Enabling",
 };
 
-export function isTeamType(v: unknown): v is TeamType {
-  return typeof v === "string" && (TEAM_TYPES as readonly string[]).includes(v);
-}
+export const isTeamType = makeTypeGuard(TEAM_TYPES);
 
 /** Display label for a stored team type, or an em dash when unset/unknown. */
 export function teamTypeLabel(v: string | null | undefined): string {

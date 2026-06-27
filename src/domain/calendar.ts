@@ -24,6 +24,9 @@ export const MONTH_LABELS = [
 
 // --- day -------------------------------------------------------------------
 
+/** Milliseconds in a day. */
+export const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
 /** ISO `yyyy-mm-dd` for a Date (UTC). */
 export function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -32,6 +35,16 @@ export function isoDay(d: Date): string {
 /** UTC midnight of the given instant — the canonical key for `@db.Date` columns. */
 export function dayStart(now: Date = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+/**
+ * Whole-days between two instants (`later` − `earlier`), floored, clamped to
+ * 0 — used by impediments/dependencies page-models for `daysOpen` /
+ * `daysSinceEscalation` style columns. Four view-files each had their own
+ * `MS_PER_DAY` + `diffDays` pair.
+ */
+export function diffInDays(later: number, earlier: number): number {
+  return Math.max(0, Math.floor((later - earlier) / MS_PER_DAY));
 }
 
 // --- months ----------------------------------------------------------------

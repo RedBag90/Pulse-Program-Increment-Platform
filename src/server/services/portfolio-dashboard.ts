@@ -14,6 +14,7 @@ import { ok } from "@/domain/errors";
 import { parseKpiMeasurements } from "@/domain/kpi";
 import { isoDay, monthStart } from "@/domain/calendar";
 import { deriveEpicEconomics } from "@/domain/epic-economics";
+import { parsePeriodAmountMap } from "@/domain/budgeting";
 import type { EpicEconomicsDTO, PortfolioEconomicsData } from "@/domain/portfolio-economics";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
@@ -33,15 +34,6 @@ export type {
 } from "@/domain/portfolio-economics";
 
 /** Reads a JSON map of period-key → number, discarding malformed entries. */
-function parseAmountMap(raw: unknown): Record<string, number> {
-  if (raw == null || typeof raw !== "object") return {};
-  const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
-  }
-  return out;
-}
-
 /**
  * Loads the portfolio economics inputs for a tenant. Cost amounts and benefits
  * come from `businessCase`; the cost-start month is resolved from `timeline`
@@ -114,7 +106,7 @@ export async function getPortfolioEconomics(
       hasBusinessCase: view.hasBusinessCase,
       benefitKpis: view.benefitKpis,
       hasAllocation: row.budgetAllocation != null,
-      allocatedByPeriod: parseAmountMap(row.budgetAllocation?.allocations),
+      allocatedByPeriod: parsePeriodAmountMap(row.budgetAllocation?.allocations),
     };
   });
 

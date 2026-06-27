@@ -6,6 +6,22 @@
  * "YYYY-H1" / "YYYY-H2".
  */
 
+/**
+ * Defensive parser for a `{ "YYYY-H1": 12345, … }` JSON map: drops entries
+ * whose value isn't a finite number, returns an empty map on null/non-object.
+ * Lives here because the budgeting domain is the only place that *should*
+ * read these values; portfolio-dashboard / art-budget / budget-plan-revision
+ * each had their own identical copy.
+ */
+export function parsePeriodAmountMap(raw: unknown): Record<string, number> {
+  if (raw == null || typeof raw !== "object") return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+  }
+  return out;
+}
+
 import {
   halfYearStart,
   parseHalfYearKey,

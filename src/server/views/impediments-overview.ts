@@ -5,6 +5,8 @@
  * Row trägt ART und PI als Filter-Kontext.
  */
 
+import { diffInDays } from "@/domain/calendar";
+
 export const ROAM_STATUSES = ["open", "resolved", "owned", "accepted", "mitigated"] as const;
 export type RoamStatus = (typeof ROAM_STATUSES)[number];
 
@@ -84,12 +86,7 @@ interface PiInput {
   name: string;
 }
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const PLACEHOLDER_ART: ArtOption = { id: "", name: "—" };
-
-function diffDays(later: number, earlier: number): number {
-  return Math.max(0, Math.floor((later - earlier) / MS_PER_DAY));
-}
 
 function normaliseRoam(raw: string): RoamStatus {
   return (ROAM_STATUSES as readonly string[]).includes(raw) ? (raw as RoamStatus) : "open";
@@ -113,7 +110,7 @@ export function buildImpedimentsOverviewModel(input: {
     const roamStatus = normaliseRoam(imp.roamStatus);
     const severity = imp.severity as ImpedimentSeverity;
     const createdMs = imp.createdAt.getTime();
-    const daysOpen = diffDays(nowMs, createdMs);
+    const daysOpen = diffInDays(nowMs, createdMs);
     const art = artById.get(imp.artId);
     const pi = imp.piId ? (piById.get(imp.piId) ?? null) : null;
     return {

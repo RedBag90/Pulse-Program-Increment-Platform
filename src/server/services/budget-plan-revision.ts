@@ -10,6 +10,7 @@ import {
   type BudgetPlanSnapshot,
   type FeatureSnapshotInput,
 } from "@/domain/budget-plan-snapshot";
+import { parsePeriodAmountMap } from "@/domain/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { getBudgetingBoard } from "@/server/services/budgeting";
@@ -24,16 +25,6 @@ import { getBudgetingBoard } from "@/server/services/budgeting";
  */
 
 const SNAPSHOT_VERSION = 1;
-
-/** Reads a JSON `Record<string, number>` from Prisma, dropping malformed entries. */
-function parsePeriodMap(raw: unknown): Record<string, number> {
-  if (raw == null || typeof raw !== "object") return {};
-  const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
-  }
-  return out;
-}
 
 // ---------------------------------------------------------------------------
 // Capture
@@ -218,7 +209,7 @@ async function loadArtSnapshotInputs(
   return arts.map((a) => ({
     artId: a.id,
     name: a.name,
-    budgetByPeriod: parsePeriodMap(a.budget?.byPeriod),
+    budgetByPeriod: parsePeriodAmountMap(a.budget?.byPeriod),
   }));
 }
 

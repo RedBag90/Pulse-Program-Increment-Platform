@@ -6,6 +6,8 @@
  * here so the row stays a pure render seam.
  */
 
+import { diffInDays } from "@/domain/calendar";
+
 export const DEPENDENCY_TYPES = ["blocks", "depends_on", "relates_to"] as const;
 export type DependencyType = (typeof DEPENDENCY_TYPES)[number];
 
@@ -83,12 +85,6 @@ interface DependencyRowInput {
   createdAt: Date;
 }
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-function diffDays(later: number, earlier: number): number {
-  return Math.max(0, Math.floor((later - earlier) / MS_PER_DAY));
-}
-
 function endpoint(
   feature: FeatureRowInput | undefined,
   artLookup: Map<string, string>,
@@ -148,7 +144,7 @@ export function buildDependenciesListModel(input: {
       type,
       from,
       to,
-      daysOpen: diffDays(nowMs, d.createdAt.getTime()),
+      daysOpen: diffInDays(nowMs, d.createdAt.getTime()),
       isCrossArt: from.artId != null && to.artId != null && from.artId !== to.artId,
       isCriticalPath: type === "blocks" && to.inPi,
       createdAtMs: d.createdAt.getTime(),
