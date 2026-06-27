@@ -12,6 +12,7 @@ import {
 } from "@/domain/stage-gate";
 import type { StageGate } from "@/domain/types";
 import { ragTier, type RagTier } from "@/domain/transformation-delta";
+import { extractUniqueFacet } from "@/server/views/lib/page-model-utils";
 
 /**
  * Portfolio epics list page-model — shapes the loaded Prisma rows into the
@@ -234,13 +235,11 @@ export function buildEpicsListModel(input: {
   }
 
   // Owner options — distinct ownerIds that actually appear, with their labels.
-  const ownerOptionMap = new Map<string, string>();
-  for (const r of rows) {
-    if (r.ownerId && !ownerOptionMap.has(r.ownerId)) {
-      ownerOptionMap.set(r.ownerId, r.ownerLabel ?? r.ownerId);
-    }
-  }
-  const ownerOptions = [...ownerOptionMap].map(([id, label]) => ({ id, label }));
+  const ownerOptions = extractUniqueFacet(
+    rows,
+    (r) => r.ownerId,
+    (r, id) => r.ownerLabel ?? id,
+  );
 
   // Status options — distinct statuses present; the filter chip shows only
   // states that actually appear in the dataset.

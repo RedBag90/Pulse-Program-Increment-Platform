@@ -7,6 +7,7 @@
  */
 
 import { diffInDays } from "@/domain/calendar";
+import { buildFunnelCounts } from "@/server/views/lib/page-model-utils";
 
 export const DEPENDENCY_TYPES = ["blocks", "depends_on", "relates_to"] as const;
 export type DependencyType = (typeof DEPENDENCY_TYPES)[number];
@@ -151,13 +152,11 @@ export function buildDependenciesListModel(input: {
     };
   });
 
-  const funnelCounts = Object.fromEntries(DEPENDENCY_TYPES.map((t) => [t, 0])) as Record<
-    DependencyType,
-    number
-  >;
-  for (const r of rows) funnelCounts[r.type] += 1;
+  const funnelCounts = buildFunnelCounts(rows, DEPENDENCY_TYPES, (r) => r.type);
 
-  // Feature facet options — union of all from + to ids that appear, sorted by title.
+  // Feature facet options — union of all from + to ids that appear, sorted by
+  // title. Two endpoints per row don't fit `extractUniqueFacet`'s 1-id-per-row
+  // shape; the inline Set is clearer than two calls + a merge.
   const featureIdsInUse = new Set<string>();
   for (const r of rows) {
     if (r.from.id) featureIdsInUse.add(r.from.id);

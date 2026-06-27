@@ -6,6 +6,7 @@
  */
 
 import { diffInDays } from "@/domain/calendar";
+import { buildFunnelCounts } from "@/server/views/lib/page-model-utils";
 
 export const ROAM_STATUSES = ["open", "resolved", "owned", "accepted", "mitigated"] as const;
 export type RoamStatus = (typeof ROAM_STATUSES)[number];
@@ -132,11 +133,7 @@ export function buildImpedimentsOverviewModel(input: {
     };
   });
 
-  const roamFunnelCounts = Object.fromEntries(ROAM_STATUSES.map((s) => [s, 0])) as Record<
-    RoamStatus,
-    number
-  >;
-  for (const r of rows) roamFunnelCounts[r.roamStatus] += 1;
+  const roamFunnelCounts = buildFunnelCounts(rows, ROAM_STATUSES, (r) => r.roamStatus);
 
   const usedArtIds = new Set(rows.map((r) => r.art.id).filter(Boolean));
   const artOptions = arts

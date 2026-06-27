@@ -6,6 +6,7 @@
  */
 
 import { diffInDays } from "@/domain/calendar";
+import { buildFunnelCounts, extractUniqueFacet } from "@/server/views/lib/page-model-utils";
 
 export const IMPEDIMENT_STATUSES = ["open", "escalated", "resolved"] as const;
 export type ImpedimentStatus = (typeof IMPEDIMENT_STATUSES)[number];
@@ -130,21 +131,14 @@ export function buildImpedimentsListModel(input: {
     };
   });
 
-  const funnelCounts = Object.fromEntries(IMPEDIMENT_STATUSES.map((s) => [s, 0])) as Record<
-    ImpedimentStatus,
-    number
-  >;
-  for (const r of rows) funnelCounts[r.status] += 1;
+  const funnelCounts = buildFunnelCounts(rows, IMPEDIMENT_STATUSES, (r) => r.status);
 
-  const ownerOptionMap = new Map<string, string>();
-  for (const r of rows) {
-    if (r.raisedById && !ownerOptionMap.has(r.raisedById)) {
-      ownerOptionMap.set(r.raisedById, r.raisedByLabel ?? r.raisedById);
-    }
-  }
-  const ownerOptions = [...ownerOptionMap]
-    .map(([id, label]) => ({ id, label }))
-    .sort((a, b) => a.label.localeCompare(b.label, "de"));
+  const ownerOptions = extractUniqueFacet(
+    rows,
+    (r) => r.raisedById,
+    (r, id) => r.raisedByLabel ?? id,
+    (a, b) => a.label.localeCompare(b.label, "de"),
+  );
 
   const severityOptions: ImpedimentSeverity[] = IMPEDIMENT_SEVERITIES.filter((s) =>
     rows.some((r) => r.severity === s),

@@ -10,6 +10,7 @@
  */
 
 import { diffInDays } from "@/domain/calendar";
+import { buildFunnelCounts } from "@/server/views/lib/page-model-utils";
 
 export const DEPENDENCY_TYPES = ["blocks", "depends_on", "relates_to"] as const;
 export type DependencyType = (typeof DEPENDENCY_TYPES)[number];
@@ -143,11 +144,7 @@ export function buildDependenciesOverviewModel(input: {
     };
   });
 
-  const funnelCounts = Object.fromEntries(DEPENDENCY_TYPES.map((t) => [t, 0])) as Record<
-    DependencyType,
-    number
-  >;
-  for (const r of rows) funnelCounts[r.type] += 1;
+  const funnelCounts = buildFunnelCounts(rows, DEPENDENCY_TYPES, (r) => r.type);
 
   const usedArtIds = new Set<string>();
   for (const r of rows) {

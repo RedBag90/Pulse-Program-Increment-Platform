@@ -6,6 +6,8 @@
  * instead of value-stream chip, no approval phase).
  */
 
+import { buildFunnelCounts } from "@/server/views/lib/page-model-utils";
+
 /** Funnel category — the four feature lifecycle stages. */
 export const FEATURE_STATUSES = ["draft", "approved", "in_progress", "completed"] as const;
 export type FeatureStatus = (typeof FEATURE_STATUSES)[number];
@@ -136,15 +138,7 @@ export function buildFeaturesListModel(input: {
 
   // Funnel counts — every status gets a slot (empty stays at 0) so the
   // header is stable across renders.
-  const funnelCounts = Object.fromEntries(FEATURE_STATUSES.map((s) => [s, 0])) as Record<
-    FeatureStatus,
-    number
-  >;
-  for (const r of rows) {
-    if (funnelCounts[r.status as FeatureStatus] != null) {
-      funnelCounts[r.status as FeatureStatus] += 1;
-    }
-  }
+  const funnelCounts = buildFunnelCounts(rows, FEATURE_STATUSES, (r) => r.status as FeatureStatus);
 
   // Epic options: only Epics that actually parent a feature in this ART
   // surface as filter chips (keeps the dropdown short).
