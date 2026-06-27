@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useActionState, useState } from "react";
+import { useActionResult } from "@/lib/hooks/use-action-result";
 import { updateTeamAction } from "@/features/team/actions/team";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,12 +24,7 @@ export function EditTeamDialog({ id, artId, name }: EditTeamDialogProps) {
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(updateTeamAction, {});
 
-  useEffect(() => {
-    if (state.success) {
-      toast.success("Team updated");
-      setOpen(false);
-    }
-  }, [state]);
+  useActionResult(state, "Team updated", () => setOpen(false));
 
   return (
     <>

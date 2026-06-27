@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useActionState, useState } from "react";
+import { useActionResult } from "@/lib/hooks/use-action-result";
 import { updateArtAction } from "@/features/art/actions/art";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,12 +32,7 @@ export function EditArtDialog({ id, name, description, piCadenceWeeks }: EditArt
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(updateArtAction, {});
 
-  useEffect(() => {
-    if (state.success) {
-      toast.success("ART aktualisiert");
-      setOpen(false);
-    }
-  }, [state]);
+  useActionResult(state, "ART aktualisiert", () => setOpen(false));
 
   return (
     <>

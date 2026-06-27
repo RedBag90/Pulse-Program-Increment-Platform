@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState } from "react";
 import { useCreateDialogState } from "@/features/create/use-create-dialog-state";
 import { Link2 } from "lucide-react";
-import { toast } from "sonner";
+import { useActionResult } from "@/lib/hooks/use-action-result";
 import { linkDependencyAction } from "@/features/dependencies/actions/dependency";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,17 +43,11 @@ export function LinkDependencyDialog({ fromId, artId, candidates }: Props) {
   const [type, setType] = useState<DependencyType>("blocks");
   const [state, formAction, isPending] = useActionState(linkDependencyAction, {});
 
-  // Close the dialog + reset selection on successful link. The factory sets
-  // `success: true` (and never sets `error` simultaneously), so this fires
-  // exactly once per successful submit.
-  useEffect(() => {
-    if (state.success) {
-      toast.success("Dependency linked");
-      setToId("");
-      setType("blocks");
-      setOpen(false);
-    }
-  }, [state.success, setOpen]);
+  useActionResult(state, "Dependency linked", () => {
+    setToId("");
+    setType("blocks");
+    setOpen(false);
+  });
 
   return (
     <>

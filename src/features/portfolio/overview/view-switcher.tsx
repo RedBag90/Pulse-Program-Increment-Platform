@@ -1,4 +1,6 @@
-import { Link } from "@/i18n/navigation";
+"use client";
+
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export type OverviewView = "mission" | "hero" | "executive";
@@ -15,11 +17,24 @@ export function resolveOverviewView(raw: string | undefined): OverviewView {
 }
 
 /**
- * Three-tab segmented control for the Portfolio overview. The variants are
- * staged in parallel so the user can compare; once a preferred one emerges,
- * the other two should be removed in a follow-up.
+ * Three-tab segmented control for the Portfolio overview. Switching the
+ * variant preserves any other URL params (Stichtag, selectedEpicIds, …) by
+ * using `router.replace` over the current search params, not a hard-coded
+ * `?view=` link.
  */
 export function ViewSwitcher({ current }: { current: OverviewView }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function setView(next: OverviewView) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "mission") params.delete("view");
+    else params.set("view", next);
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}` as never, { scroll: false });
+  }
+
   return (
     <nav
       aria-label="Übersicht-Variante"
@@ -28,9 +43,11 @@ export function ViewSwitcher({ current }: { current: OverviewView }) {
       {OVERVIEW_VIEWS.map((v) => {
         const active = v.key === current;
         return (
-          <Link
+          <button
             key={v.key}
-            href={`/portfolio?view=${v.key}`}
+            type="button"
+            onClick={() => setView(v.key)}
+            aria-pressed={active}
             className={cn(
               "rounded px-2.5 py-1 transition-colors",
               active
@@ -39,7 +56,7 @@ export function ViewSwitcher({ current }: { current: OverviewView }) {
             )}
           >
             {v.label}
-          </Link>
+          </button>
         );
       })}
     </nav>

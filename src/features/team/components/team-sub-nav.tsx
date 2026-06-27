@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from "@/i18n/navigation";
-import { usePathname } from "next/navigation";
+import { SectionSubNav } from "@/components/nav/section-sub-nav";
 
 interface Props {
   teamId: string;
@@ -11,12 +11,11 @@ interface Props {
 }
 
 export function TeamSubNav({ teamId, teamName, artId, artName }: Props) {
-  const pathname = usePathname();
-
+  const root = `/team/${teamId}`;
   const tabs = [
-    { href: `/team/${teamId}/settings`, label: "Settings", segment: "settings" },
-    { href: `/team/${teamId}/history`, label: "History", segment: "history" },
-  ] as const;
+    { href: `${root}/settings`, label: "Settings", segment: "settings" },
+    { href: `${root}/history`, label: "History", segment: "history" },
+  ];
 
   return (
     <div className="space-y-4">
@@ -32,25 +31,7 @@ export function TeamSubNav({ teamId, teamName, artId, artName }: Props) {
         <span className="text-foreground font-medium">{teamName}</span>
       </nav>
 
-      <div className="border-b flex gap-0">
-        {tabs.map(({ href, label, segment }) => {
-          const active = pathname.includes(`/team/${teamId}/${segment}`);
-
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                active
-                  ? "border-blue-600 text-blue-700"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
-              }`}
-            >
-              {label}
-            </Link>
-          );
-        })}
-      </div>
+      <SectionSubNav ariaLabel="Team navigation" sectionRoot={root} tabs={tabs} />
     </div>
   );
 }

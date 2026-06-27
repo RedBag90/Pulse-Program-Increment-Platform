@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useActionState, useState } from "react";
+import { useActionResult } from "@/lib/hooks/use-action-result";
 import { updateValueStreamAction } from "@/features/portfolio/actions/value-stream";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,12 +25,7 @@ export function EditValueStreamDialog({ id, name, description }: EditValueStream
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(updateValueStreamAction, {});
 
-  useEffect(() => {
-    if (state.success) {
-      toast.success("Value Stream updated");
-      setOpen(false);
-    }
-  }, [state]);
+  useActionResult(state, "Value Stream updated", () => setOpen(false));
 
   return (
     <>
