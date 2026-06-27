@@ -15,6 +15,7 @@ import {
   type MutationContext,
 } from "@/server/services/mutation";
 import { createInitiativeWithDerivedPath } from "@/server/services/initiative-write";
+import { appendVersion } from "@/domain/versioned-document";
 import { emitAuditEvent } from "@/server/audit/emit";
 import { effectivePractices } from "@/domain/operating-model";
 import {
@@ -405,14 +406,13 @@ export async function saveBenefitHypothesis(
     if (isErr(authz)) return authz;
 
     const prev = parseBenefitHypothesis(existing.benefitHypothesis);
-    const history = benefitHypothesisHasContent(prev.current)
-      ? [
-          { content: prev.current, savedAt: new Date().toISOString(), savedBy: mctx.actorId },
-          ...prev.history,
-        ].slice(0, ARTEFACT_HISTORY_LIMIT)
-      : prev.history;
-
-    const next: BenefitHypothesis = { current: fields, history };
+    const next: BenefitHypothesis = appendVersion({
+      previous: prev,
+      nextFields: fields,
+      hasContent: benefitHypothesisHasContent,
+      savedBy: mctx.actorId,
+      historyLimit: ARTEFACT_HISTORY_LIMIT,
+    });
 
     await tx.initiative.update({
       where: { id: epicId },
@@ -461,14 +461,13 @@ export async function saveBusinessCase(
     if (isErr(authz)) return authz;
 
     const prev = parseBusinessCase(existing.businessCase);
-    const history = businessCaseHasContent(prev.current)
-      ? [
-          { content: prev.current, savedAt: new Date().toISOString(), savedBy: mctx.actorId },
-          ...prev.history,
-        ].slice(0, ARTEFACT_HISTORY_LIMIT)
-      : prev.history;
-
-    const next: BusinessCase = { current: fields, history };
+    const next: BusinessCase = appendVersion({
+      previous: prev,
+      nextFields: fields,
+      hasContent: businessCaseHasContent,
+      savedBy: mctx.actorId,
+      historyLimit: ARTEFACT_HISTORY_LIMIT,
+    });
 
     await tx.initiative.update({
       where: { id: epicId },

@@ -1,8 +1,17 @@
 /**
  * Business Case — the SAFe "Initiative Canvas" artefact, created during the
  * L2 Analyzing stage gate. Persisted in `Initiative.businessCase` (JSON) for
- * Epics, with a saved-version history.
+ * Epics, with a saved-version history. The envelope + history mechanics live
+ * in `domain/versioned-document.ts`; this file owns the Business-Case-specific
+ * fields, the legacy `costRows` → `costSlices` migration, the totals, and the
+ * "has content" predicate.
  */
+
+import {
+  parseVersionedDocument,
+  type VersionedDocument,
+  type VersionSnapshot,
+} from "@/domain/versioned-document";
 
 export const APPROVAL_PARTIES = [
   "mgmt",
@@ -49,18 +58,8 @@ export interface BusinessCaseFields {
   approvals?: BusinessCaseApproval[] | undefined;
 }
 
-export interface BusinessCaseVersion {
-  content: BusinessCaseFields;
-  /** ISO timestamp of when this version was superseded. */
-  savedAt: string;
-  /** userId that saved this version. */
-  savedBy: string;
-}
-
-export interface BusinessCase {
-  current: BusinessCaseFields;
-  history: BusinessCaseVersion[];
-}
+export type BusinessCaseVersion = VersionSnapshot<BusinessCaseFields>;
+export type BusinessCase = VersionedDocument<BusinessCaseFields>;
 
 export interface BusinessCaseTotals {
   /** Sum of all 6-month cost slices. */
@@ -117,17 +116,7 @@ function migrateFields(
  * project-type cost grid to the slice-based model.
  */
 export function parseBusinessCase(raw: unknown): BusinessCase {
-  if (raw == null || typeof raw !== "object") {
-    return { current: {}, history: [] };
-  }
-  const obj = raw as Record<string, unknown>;
-  if ("current" in obj) {
-    return {
-      current: migrateFields((obj["current"] as BusinessCaseFields | null) ?? {}),
-      history: Array.isArray(obj["history"]) ? (obj["history"] as BusinessCaseVersion[]) : [],
-    };
-  }
-  return { current: migrateFields(obj as BusinessCaseFields), history: [] };
+  return parseVersionedDocument<BusinessCaseFields>(raw, migrateFields, {});
 }
 
 /** True when a Business Case field set carries any content. */

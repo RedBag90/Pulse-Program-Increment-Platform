@@ -1,8 +1,16 @@
 /**
  * Epic Benefit Hypothesis — the SAFe "Working hypothesis" artefact, formulated
  * during the L1 Reviewing stage gate. Persisted in `Initiative.benefitHypothesis`
- * (JSON) for Epics, with a saved-version history.
+ * (JSON) for Epics, with a saved-version history. The envelope + history
+ * mechanics live in `domain/versioned-document.ts`; this file owns the
+ * hypothesis-specific fields and the "has content" predicate.
  */
+
+import {
+  parseVersionedDocument,
+  type VersionedDocument,
+  type VersionSnapshot,
+} from "@/domain/versioned-document";
 
 export interface BenefitHypothesisFields {
   /** Maßnahmen-Hypothese — the solution/measures hypothesis. */
@@ -17,35 +25,15 @@ export interface BenefitHypothesisFields {
   risks?: string[] | undefined;
 }
 
-export interface BenefitHypothesisVersion {
-  content: BenefitHypothesisFields;
-  /** ISO timestamp of when this version was superseded. */
-  savedAt: string;
-  /** userId that saved this version. */
-  savedBy: string;
-}
-
-export interface BenefitHypothesis {
-  current: BenefitHypothesisFields;
-  history: BenefitHypothesisVersion[];
-}
+export type BenefitHypothesisVersion = VersionSnapshot<BenefitHypothesisFields>;
+export type BenefitHypothesis = VersionedDocument<BenefitHypothesisFields>;
 
 /**
  * Reads a stored Benefit Hypothesis JSON value. Accepts both the versioned shape
  * (`{ current, history }`) and a legacy flat shape (fields at the top level).
  */
 export function parseBenefitHypothesis(raw: unknown): BenefitHypothesis {
-  if (raw == null || typeof raw !== "object") {
-    return { current: {}, history: [] };
-  }
-  const obj = raw as Record<string, unknown>;
-  if ("current" in obj) {
-    return {
-      current: (obj["current"] as BenefitHypothesisFields | null) ?? {},
-      history: Array.isArray(obj["history"]) ? (obj["history"] as BenefitHypothesisVersion[]) : [],
-    };
-  }
-  return { current: obj as BenefitHypothesisFields, history: [] };
+  return parseVersionedDocument<BenefitHypothesisFields>(raw, (f) => f, {});
 }
 
 /** True when a Benefit Hypothesis field set carries any content. */
