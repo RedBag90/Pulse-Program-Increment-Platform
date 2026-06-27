@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import type { ImpedimentSeverity, OwnerOption, PiOption } from "@/server/views/impediments-list";
 
 export type SortKey = "daysOpen:desc" | "daysOpen:asc" | "severity:desc" | "createdAt:desc";
@@ -169,51 +170,25 @@ export function ImpedimentsFilterBar({
           </select>
         </label>
 
-        <div className="inline-flex overflow-hidden rounded-md border">
-          <button
-            type="button"
-            onClick={() => onGroupChange("flat")}
-            className={`px-2 py-1 ${
-              group === "flat" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50"
-            }`}
-            aria-pressed={group === "flat"}
-          >
-            Liste
-          </button>
-          <button
-            type="button"
-            onClick={() => onGroupChange("status")}
-            className={`px-2 py-1 ${
-              group === "status" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50"
-            }`}
-            aria-pressed={group === "status"}
-          >
-            Status
-          </button>
-        </div>
+        <ToggleGroup
+          value={group}
+          options={[
+            { id: "flat", label: "Liste" },
+            { id: "status", label: "Status" },
+          ]}
+          onChange={onGroupChange}
+          ariaLabel="Gruppierung"
+        />
 
-        <div className="inline-flex overflow-hidden rounded-md border">
-          <button
-            type="button"
-            onClick={() => onDensityChange("comfortable")}
-            className={`px-2 py-1 ${
-              density === "comfortable" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50"
-            }`}
-            aria-pressed={density === "comfortable"}
-          >
-            Komfort
-          </button>
-          <button
-            type="button"
-            onClick={() => onDensityChange("compact")}
-            className={`px-2 py-1 ${
-              density === "compact" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50"
-            }`}
-            aria-pressed={density === "compact"}
-          >
-            Kompakt
-          </button>
-        </div>
+        <ToggleGroup
+          value={density}
+          options={[
+            { id: "comfortable", label: "Komfort" },
+            { id: "compact", label: "Kompakt" },
+          ]}
+          onChange={onDensityChange}
+          ariaLabel="Zeilenhoehe"
+        />
       </div>
     </div>
   );

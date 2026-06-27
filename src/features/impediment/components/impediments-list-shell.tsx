@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
+import { useUrlSelection } from "@/lib/hooks/use-url-selection";
 import { CreateImpedimentDialog } from "@/features/impediment/components/create-impediment-dialog";
 import { ImpedimentsFunnelBar } from "@/features/impediment/components/impediments-funnel-bar";
 import {
@@ -55,17 +56,13 @@ function parseGroup(raw: string | null): "flat" | "status" {
 function parseDensity(raw: string | null): "comfortable" | "compact" {
   return raw === "compact" ? "compact" : "comfortable";
 }
-function parseSelected(raw: string | null): Set<string> {
-  if (!raw) return new Set();
-  return new Set(raw.split(",").filter(Boolean).slice(0, 50));
-}
-
 /**
  * Impediment list shell — owns URL state and the layout. Mirrors the
  * features / epics shells.
  */
 export function ImpedimentsListShell({ model, artId, canCreate, canEscalate, canResolve }: Props) {
   const { params, push: pushParam } = useUrlState();
+  const { selectedIds, toggleSelect, toggleSelectAll, clearSelected } = useUrlSelection();
 
   const status = parseStatus(params.get("status"));
   const severity = parseSeverity(params.get("severity"));
@@ -75,7 +72,6 @@ export function ImpedimentsListShell({ model, artId, canCreate, canEscalate, can
   const sort = parseSort(params.get("sort"));
   const group = parseGroup(params.get("group"));
   const density = parseDensity(params.get("density"));
-  const selectedIds = parseSelected(params.get("selected"));
 
   const onStatusChange = useCallback(
     (next: ImpedimentStatus | null) => pushParam({ status: next }),
@@ -104,34 +100,6 @@ export function ImpedimentsListShell({ model, artId, canCreate, canEscalate, can
       pushParam({ density: next === "comfortable" ? null : next }),
     [pushParam],
   );
-
-  const setSelected = useCallback(
-    (ids: Set<string>) => {
-      const arr = [...ids].slice(0, 50);
-      pushParam({ selected: arr.length === 0 ? null : arr.join(",") });
-    },
-    [pushParam],
-  );
-  const toggleSelect = useCallback(
-    (id: string) => {
-      const next = new Set(selectedIds);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      setSelected(next);
-    },
-    [selectedIds, setSelected],
-  );
-  const toggleSelectAll = useCallback(
-    (ids: string[]) => {
-      const allSelected = ids.every((id) => selectedIds.has(id));
-      const next = new Set(selectedIds);
-      if (allSelected) for (const id of ids) next.delete(id);
-      else for (const id of ids) next.add(id);
-      setSelected(next);
-    },
-    [selectedIds, setSelected],
-  );
-  const clearSelected = useCallback(() => setSelected(new Set()), [setSelected]);
 
   const filteredRows: ImpedimentListRow[] = useMemo(() => {
     const q = query.trim().toLowerCase();

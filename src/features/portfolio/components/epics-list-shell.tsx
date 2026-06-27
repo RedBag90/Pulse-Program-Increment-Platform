@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
+import { useUrlSelection } from "@/lib/hooks/use-url-selection";
 import { useKanbanRealtime } from "@/features/portfolio/hooks/use-kanban-realtime";
 import { CreateEpicDialog } from "@/features/portfolio/components/create-epic-dialog";
 import { EpicsFunnelBar } from "@/features/portfolio/components/epics-funnel-bar";
@@ -61,11 +62,6 @@ function parseGroup(raw: string | null): "flat" | "stage" {
 function parseDensity(raw: string | null): "comfortable" | "compact" {
   return raw === "compact" ? "compact" : "comfortable";
 }
-function parseSelected(raw: string | null): Set<string> {
-  if (!raw) return new Set();
-  return new Set(raw.split(",").filter(Boolean).slice(0, 50));
-}
-
 /**
  * Portfolio epics list shell — owns the URL state and the layout. Everything
  * below (funnel bar, filter bar, table, bulk action bar) is prop-driven; this
@@ -77,6 +73,7 @@ function parseSelected(raw: string | null): Set<string> {
 export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) {
   useKanbanRealtime(tenantId);
   const { params, push: pushParam } = useUrlState();
+  const { selectedIds, toggleSelect, toggleSelectAll, clearSelected } = useUrlSelection();
 
   const gate = parseGate(params.get("gate"));
   const vsFilter = params.get("vs");
@@ -91,7 +88,6 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
   const sort = parseSort(params.get("sort"));
   const group = parseGroup(params.get("group"));
   const density = parseDensity(params.get("density"));
-  const selectedIds = parseSelected(params.get("selected"));
 
   const onGateChange = useCallback(
     (next: StageGate | null) => pushParam({ gate: next }),
@@ -131,34 +127,6 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
     (next: string | null) => pushParam({ type: next }),
     [pushParam],
   );
-
-  const setSelected = useCallback(
-    (ids: Set<string>) => {
-      const arr = [...ids].slice(0, 50);
-      pushParam({ selected: arr.length === 0 ? null : arr.join(",") });
-    },
-    [pushParam],
-  );
-  const toggleSelect = useCallback(
-    (id: string) => {
-      const next = new Set(selectedIds);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      setSelected(next);
-    },
-    [selectedIds, setSelected],
-  );
-  const toggleSelectAll = useCallback(
-    (ids: string[]) => {
-      const allSelected = ids.every((id) => selectedIds.has(id));
-      const next = new Set(selectedIds);
-      if (allSelected) for (const id of ids) next.delete(id);
-      else for (const id of ids) next.add(id);
-      setSelected(next);
-    },
-    [selectedIds, setSelected],
-  );
-  const clearSelected = useCallback(() => setSelected(new Set()), [setSelected]);
 
   // Filtered + sorted rows.
   const filteredRows: EpicListRow[] = useMemo(() => {
