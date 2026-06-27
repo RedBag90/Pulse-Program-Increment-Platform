@@ -21,6 +21,7 @@ import {
   buildMonthAxis,
   type MonthAxis,
 } from "@/domain/calendar";
+import { MONTHS_PER_HALF_YEAR, distributeAmountAcrossHalfYearMonths } from "@/domain/period-axis";
 
 export interface EpicEconomicsInput {
   id: string;
@@ -171,13 +172,9 @@ export function allocatedCostByMonth(
   const out = zeros(axis.monthCount);
   for (const [key, amount] of Object.entries(allocatedByPeriod)) {
     const periodStart = parseHalfYearKey(key);
-    if (!periodStart || !amount) continue;
+    if (!periodStart) continue;
     const startIdx = monthDiff(axis.start, periodStart);
-    const perMonth = amount / 6;
-    for (let k = 0; k < 6; k++) {
-      const idx = startIdx + k;
-      if (idx >= 0 && idx < axis.monthCount) out[idx] = (out[idx] ?? 0) + perMonth;
-    }
+    distributeAmountAcrossHalfYearMonths(amount, startIdx, axis.monthCount, out);
   }
   return out;
 }
@@ -199,11 +196,12 @@ export function epicMonthlyFlows(input: EpicEconomicsInput, axis: MonthAxis): Ep
     for (let i = 0; i < axis.monthCount; i++) cost[i] = input.costByMonth[i] ?? 0;
   } else {
     input.costSlices.forEach((amount, s) => {
-      const perMonth = (amount || 0) / 6;
-      for (let k = 0; k < 6; k++) {
-        const idx = startIdx + s * 6 + k;
-        if (idx >= 0 && idx < axis.monthCount) cost[idx] = (cost[idx] ?? 0) + perMonth;
-      }
+      distributeAmountAcrossHalfYearMonths(
+        amount ?? 0,
+        startIdx + s * MONTHS_PER_HALF_YEAR,
+        axis.monthCount,
+        cost,
+      );
     });
   }
 

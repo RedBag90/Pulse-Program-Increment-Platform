@@ -15,8 +15,10 @@ import {
   canDeliveryTransition,
   type DeliveryStatus,
 } from "@/domain/initiative-status";
+import { wsjfTier, type WsjfTier } from "@/domain/wsjf";
 
-export type WsjfTier = "high" | "medium" | "low" | "unscored";
+// Re-export so existing importers of feature-detail keep working.
+export { wsjfTier, type WsjfTier };
 
 export interface FeatureDetailInput {
   id: string;
@@ -71,17 +73,6 @@ export interface FeatureDetailModel {
   allowedTransitions: DeliveryStatus[];
   createdAt: Date;
   updatedAt: Date;
-}
-
-/**
- * WSJF-Tier-Klassifizierung — passt zur Features-Uebersicht (gleicher
- * Schwellwert), damit Detail-Pille und Listen-Pille deckungsgleich sind.
- */
-export function wsjfTier(computed: number | null): WsjfTier {
-  if (computed == null) return "unscored";
-  if (computed >= 8) return "high";
-  if (computed >= 4) return "medium";
-  return "low";
 }
 
 export function buildFeatureDetailModel(input: FeatureDetailInput): FeatureDetailModel {

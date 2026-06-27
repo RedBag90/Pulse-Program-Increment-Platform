@@ -11,6 +11,7 @@
  */
 
 import type { Initiative } from "@/generated/prisma";
+import { wsjfTier } from "@/domain/wsjf";
 
 export type DependencyEdgeType = "blocks" | "depends_on" | "relates_to";
 
@@ -94,13 +95,6 @@ interface DependencyInput {
   to?: { id: string; title: string; parent: { id: string; title: string } | null } | null;
 }
 
-function tierFor(wsjf: number | null): BreakdownGraphNode["wsjfTier"] {
-  if (wsjf == null) return "unscored";
-  if (wsjf >= 8) return "high";
-  if (wsjf >= 4) return "medium";
-  return "low";
-}
-
 function isValidEdgeType(t: string): t is DependencyEdgeType {
   return t === "blocks" || t === "depends_on" || t === "relates_to";
 }
@@ -120,7 +114,7 @@ export function buildBreakdownGraph(input: {
     artName: f.artName,
     featureType: f.featureType,
     wsjfComputed: f.wsjfComputed,
-    wsjfTier: tierFor(f.wsjfComputed),
+    wsjfTier: wsjfTier(f.wsjfComputed),
     wsjf: {
       bv: f.wsjfBusinessValue,
       tc: f.wsjfTimeCriticality,

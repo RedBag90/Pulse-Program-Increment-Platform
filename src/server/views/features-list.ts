@@ -91,6 +91,11 @@ interface PiRow {
 /**
  * WSJF tier thresholds (per the rework plan). Decoupled from the column
  * sort so the chip filter stays stable when the user resorts.
+ *
+ * NOTE: these thresholds (≥ 5 → high, ≥ 2 → medium) and the `"none"` label
+ * diverge from the canonical `wsjfTier` in `src/domain/wsjf.ts` (≥ 8 / ≥ 4,
+ * `"unscored"`). The detail page and breakdown-network use the canonical
+ * version. Unifying needs a product decision — flagged for follow-up.
  */
 function tierFor(wsjfComputed: number | null): WsjfTier {
   if (wsjfComputed == null) return "none";
