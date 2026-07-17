@@ -2,6 +2,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/server/services/art";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
+import { Page, PageHeader, PageSection } from "@/components/layout";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import { InitiativeLevel } from "@/domain/types";
@@ -73,17 +74,19 @@ export default async function ArtOverviewPage({ params }: Props) {
   ];
 
   return (
-    <main className="p-6 md:p-8 space-y-6">
+    <Page>
       <ArtSubNav artId={artId} artName={art.name} />
 
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">{art.name}</h1>
-        <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1.5">
-          <GitBranch className="size-3.5" />
-          {art.valueStream.name}
-          {art.piCadenceWeeks ? ` · PI cadence: ${art.piCadenceWeeks} weeks` : ""}
-        </p>
-      </div>
+      <PageHeader
+        title={art.name}
+        subtitle={
+          <span className="flex items-center gap-1.5">
+            <GitBranch className="size-3.5" />
+            {art.valueStream.name}
+            {art.piCadenceWeeks ? ` · PI cadence: ${art.piCadenceWeeks} weeks` : ""}
+          </span>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         {stats.map((s) => (
@@ -103,10 +106,7 @@ export default async function ArtOverviewPage({ params }: Props) {
         ))}
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          Program Increments
-        </h2>
+      <PageSection title="Program Increments">
         {art.pis.length === 0 ? (
           <p className="text-sm text-muted-foreground">No PIs yet.</p>
         ) : (
@@ -138,7 +138,7 @@ export default async function ArtOverviewPage({ params }: Props) {
             </div>
           </Card>
         )}
-      </section>
-    </main>
+      </PageSection>
+    </Page>
   );
 }

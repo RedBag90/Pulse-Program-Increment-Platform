@@ -7,6 +7,7 @@ import { valueStreamRoadmapRows, roadmapAxis } from "@/domain/roadmap";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { ValueStreamId } from "@/domain/types";
+import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
   searchParams: Promise<{ vs?: string; group?: string }>;
@@ -28,10 +29,9 @@ export default async function ValueStreamRoadmapPage({ searchParams }: Props) {
 
   if (valueStreams.length === 0) {
     return (
-      <main className="space-y-2 p-8">
-        <h1 className="text-2xl font-semibold">Wertstrom-Roadmap</h1>
-        <p className="text-sm text-muted-foreground">Keine Wertströme verfügbar.</p>
-      </main>
+      <Page>
+        <PageHeader title="Wertstrom-Roadmap" subtitle="Keine Wertströme verfügbar." />
+      </Page>
     );
   }
 
@@ -42,30 +42,28 @@ export default async function ValueStreamRoadmapPage({ searchParams }: Props) {
   const axis = roadmapAxis(rows);
 
   return (
-    <main className="space-y-6 p-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Wertstrom-Roadmap</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Epics des Wertstroms und die Features seiner ARTs.
-          </p>
-        </div>
-        <div className="flex shrink-0 overflow-hidden rounded-md border text-sm">
-          {(["epic", "art"] as const).map((g) => (
-            <Link
-              key={g}
-              href={`/roadmap/value-stream?vs=${activeVs.id}&group=${g}`}
-              className={`px-3 py-1.5 transition-colors ${
-                activeGroup === g
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {g === "epic" ? "Hierarchisch" : "Nach ART"}
-            </Link>
-          ))}
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Wertstrom-Roadmap"
+        subtitle="Epics des Wertstroms und die Features seiner ARTs."
+        actions={
+          <div className="flex shrink-0 overflow-hidden rounded-md border text-sm">
+            {(["epic", "art"] as const).map((g) => (
+              <Link
+                key={g}
+                href={`/roadmap/value-stream?vs=${activeVs.id}&group=${g}`}
+                className={`px-3 py-1.5 transition-colors ${
+                  activeGroup === g
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {g === "epic" ? "Hierarchisch" : "Nach ART"}
+              </Link>
+            ))}
+          </div>
+        }
+      />
 
       {valueStreams.length > 1 && (
         <div className="flex flex-wrap gap-1 border-b">
@@ -86,6 +84,6 @@ export default async function ValueStreamRoadmapPage({ searchParams }: Props) {
       )}
 
       <RoadmapGantt rows={rows} axis={axis} />
-    </main>
+    </Page>
   );
 }

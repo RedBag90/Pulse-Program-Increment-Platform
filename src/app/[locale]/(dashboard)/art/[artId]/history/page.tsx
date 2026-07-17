@@ -4,6 +4,7 @@ import { getArt } from "@/server/services/art";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
 import { AuditTimeline } from "@/components/detail/audit-timeline";
+import { Page, PageHeader, PageSection } from "@/components/layout";
 import { redirect, notFound } from "next/navigation";
 import type { ArtId } from "@/domain/types";
 
@@ -28,13 +29,14 @@ export default async function ArtHistoryPage({ params }: Props) {
   }));
 
   return (
-    <main className="p-6 md:p-8 space-y-6">
+    <Page>
       <ArtSubNav artId={artId} artName={art.name} />
 
-      <section className="space-y-4">
-        <h1 className="text-xl font-semibold tracking-tight">History</h1>
+      <PageHeader title="History" />
+
+      <PageSection>
         <AuditTimeline events={events} />
-      </section>
-    </main>
+      </PageSection>
+    </Page>
   );
 }

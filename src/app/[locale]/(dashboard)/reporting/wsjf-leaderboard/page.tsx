@@ -7,6 +7,7 @@ import type { TenantId } from "@/domain/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WsjfBarChart } from "@/components/charts/wsjf-bar-chart-lazy";
 import { Trophy } from "lucide-react";
+import { Page, PageHeader } from "@/components/layout";
 
 export default async function WsjfLeaderboardPage() {
   const principal = await requirePrincipal().catch(() => null);
@@ -39,13 +40,8 @@ export default async function WsjfLeaderboardPage() {
   }));
 
   return (
-    <main className="p-6 md:p-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">WSJF Leaderboard</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          All features ranked by computed WSJF score
-        </p>
-      </div>
+    <Page>
+      <PageHeader title="WSJF Leaderboard" subtitle="All features ranked by computed WSJF score" />
 
       {features.length === 0 ? (
         <p className="text-sm text-muted-foreground">No features yet.</p>
@@ -116,6 +112,6 @@ export default async function WsjfLeaderboardPage() {
           </Card>
         </>
       )}
-    </main>
+    </Page>
   );
 }

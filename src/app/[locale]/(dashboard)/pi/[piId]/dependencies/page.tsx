@@ -6,6 +6,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import type { TenantId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import { Breadcrumbs } from "@/components/nav/breadcrumbs";
+import { Page, PageHeader, PageSection } from "@/components/layout";
 import { PiSubNav } from "@/features/pi/components/pi-sub-nav";
 import { DependencyGraph } from "@/features/pi/components/dependency-graph";
 import { buildDependenciesListModel } from "@/server/views/dependencies-list";
@@ -170,7 +171,7 @@ export default async function PiDependenciesPage({ params }: Props) {
   const edges = deps.map((d) => ({ id: d.id, fromId: d.fromId, toId: d.toId, type: d.type }));
 
   return (
-    <main className="p-8 space-y-6">
+    <Page>
       <Breadcrumbs
         items={[
           { label: "Struktur", href: "/structure" },
@@ -182,19 +183,14 @@ export default async function PiDependenciesPage({ params }: Props) {
 
       <PiSubNav piId={piId} />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            Abhängigkeiten — {pi.name}
-          </h1>
-          {model.orphanCount > 0 && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {model.orphanCount} Feature
-              {model.orphanCount === 1 ? "" : "s"} im PI ohne Abhängigkeit.
-            </p>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title={`Abhängigkeiten — ${pi.name}`}
+        subtitle={
+          model.orphanCount > 0
+            ? `${model.orphanCount} Feature${model.orphanCount === 1 ? "" : "s"} im PI ohne Abhängigkeit.`
+            : undefined
+        }
+      />
 
       {nodes.length > 0 && (
         <details className="rounded-lg border bg-card">
@@ -207,9 +203,11 @@ export default async function PiDependenciesPage({ params }: Props) {
         </details>
       )}
 
-      <Suspense fallback={null}>
-        <DependenciesListShell model={model} artId={scopeArtId} canEdit={canEdit} />
-      </Suspense>
-    </main>
+      <PageSection>
+        <Suspense fallback={null}>
+          <DependenciesListShell model={model} artId={scopeArtId} canEdit={canEdit} />
+        </Suspense>
+      </PageSection>
+    </Page>
   );
 }

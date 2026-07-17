@@ -6,6 +6,7 @@ import { getTenantPractices } from "@/server/services/target-model";
 import { InitiativeLevel } from "@/domain/types";
 import { buildFeaturesOverviewModel } from "@/server/views/features-overview";
 import { FeaturesOverviewShell } from "@/features/implementation/components/features-overview-shell";
+import { Page } from "@/components/layout";
 
 /**
  * Cross-Value-Stream / Cross-ART Features-Übersicht. Lädt alle
@@ -41,13 +42,13 @@ export default async function FeaturesOverviewPage() {
   const artIds = arts.map((a) => a.id);
   if (artIds.length === 0) {
     return (
-      <main className="p-8">
+      <Page>
         <div className="mx-auto max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
           <p className="text-sm text-muted-foreground">
             Keine ARTs im Zugriff. Bitte einen Admin um Scope-Zuweisung.
           </p>
         </div>
-      </main>
+      </Page>
     );
   }
 

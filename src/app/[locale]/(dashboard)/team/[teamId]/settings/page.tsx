@@ -9,6 +9,7 @@ import { userLabel } from "@/components/detail/initiative-labels";
 import { teamTypeLabel } from "@/domain/team-type";
 import { TeamSubNav } from "@/features/team/components/team-sub-nav";
 import { TeamOverviewForm } from "@/features/capacity/components/team-overview-form";
+import { Page, PageHeader, PageSection } from "@/components/layout";
 import { redirect, notFound } from "next/navigation";
 import type { TeamId } from "@/domain/types";
 
@@ -52,11 +53,12 @@ export default async function TeamSettingsPage({ params }: Props) {
   const teamUsers = approvers.filter((u) => u.roles.includes("team_editor"));
 
   return (
-    <main className="p-6 md:p-8 space-y-6">
+    <Page>
       <TeamSubNav teamId={teamId} teamName={team.name} artId={team.artId} artName={team.art.name} />
 
-      <section className="space-y-4">
-        <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+      <PageHeader title="Settings" />
+
+      <PageSection>
         {canEdit ? (
           <TeamOverviewForm
             key={formKey}
@@ -87,8 +89,8 @@ export default async function TeamSettingsPage({ params }: Props) {
             <Field label="Ziel-Velocity">{team.targetVelocity ?? "—"}</Field>
           </dl>
         )}
-      </section>
-    </main>
+      </PageSection>
+    </Page>
   );
 }
 

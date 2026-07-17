@@ -5,6 +5,7 @@ import { authorize } from "@/server/auth/authorize";
 import { halfYearKey, halfYearLabel } from "@/domain/calendar";
 import { getLatestBudgetPlanRevision } from "@/server/services/budget-plan-revision";
 import { CaptureRevisionButton } from "@/features/controlling/components/capture-revision-button";
+import { Page, PageHeader } from "@/components/layout";
 
 /**
  * Budget-Plan-Index — leitet auf die jüngste Revision weiter oder zeigt den
@@ -27,14 +28,11 @@ export default async function BudgetPlanIndexPage() {
   const cycleLabel = halfYearLabel(halfYearKey(new Date()));
 
   return (
-    <main className="space-y-6 p-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Budget-Plan</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Eingefrorene Halbjahres-Sicht auf die teilnehmende Budgetierung — Epic-Reihenfolge,
-          Allokationen, Wertstrom- und ART-Roll-up, Features im Zyklus.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Budget-Plan"
+        subtitle="Eingefrorene Halbjahres-Sicht auf die teilnehmende Budgetierung — Epic-Reihenfolge, Allokationen, Wertstrom- und ART-Roll-up, Features im Zyklus."
+      />
       <div className="rounded-lg border-2 border-dashed bg-muted/30 px-6 py-12 text-center">
         <p className="text-sm text-muted-foreground">Noch keine Revision erfasst.</p>
         {canCapture && (
@@ -43,6 +41,6 @@ export default async function BudgetPlanIndexPage() {
           </div>
         )}
       </div>
-    </main>
+    </Page>
   );
 }

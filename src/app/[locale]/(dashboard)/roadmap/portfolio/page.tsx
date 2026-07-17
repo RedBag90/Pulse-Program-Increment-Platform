@@ -4,6 +4,7 @@ import { getPortfolioRoadmap } from "@/server/services/roadmap";
 import { RoadmapGantt } from "@/features/roadmap/components/roadmap-gantt";
 import { portfolioRoadmapRows, roadmapAxis } from "@/domain/roadmap";
 import { redirect } from "next/navigation";
+import { Page, PageHeader } from "@/components/layout";
 
 /** Portfolio roadmap — every Epic, timed via the PI windows of its Features. */
 export default async function PortfolioRoadmapPage() {
@@ -17,14 +18,12 @@ export default async function PortfolioRoadmapPage() {
   const axis = roadmapAxis(rows);
 
   return (
-    <main className="space-y-6 p-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Portfolio-Roadmap</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Alle Epics, terminiert über die PI-Zeiträume ihrer Features.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Portfolio-Roadmap"
+        subtitle="Alle Epics, terminiert über die PI-Zeiträume ihrer Features."
+      />
       <RoadmapGantt rows={rows} axis={axis} />
-    </main>
+    </Page>
   );
 }

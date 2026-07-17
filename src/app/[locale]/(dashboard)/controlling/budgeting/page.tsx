@@ -5,6 +5,7 @@ import { getBudgetingBoard } from "@/server/services/budgeting";
 import { BudgetingBoard } from "@/features/budgeting/components/budgeting-board-lazy";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
+import { Page, PageHeader } from "@/components/layout";
 
 /**
  * Participatory Budgeting — distribute the budget pool across the Epics staged
@@ -29,24 +30,21 @@ export default async function BudgetingPage() {
   const data = await getBudgetingBoard(db, principal.tenantId);
 
   return (
-    <main className="space-y-6 p-6 md:p-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Participatory Budgeting</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Budget je Halbjahr auf vorgemerkte Epics verteilen — priorisieren, terminieren,
-            Wertstrom-Verteilung
-          </p>
-        </div>
-        <Link
-          href="/controlling"
-          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Controlling
-        </Link>
-      </div>
+    <Page>
+      <PageHeader
+        title="Participatory Budgeting"
+        subtitle="Budget je Halbjahr auf vorgemerkte Epics verteilen — priorisieren, terminieren, Wertstrom-Verteilung"
+        actions={
+          <Link
+            href="/controlling"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Controlling
+          </Link>
+        }
+      />
 
       <BudgetingBoard data={data} canManage />
-    </main>
+    </Page>
   );
 }

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusDistributionChart } from "@/components/charts/status-distribution-chart-lazy";
 import { getValueStreamBudgets } from "@/server/services/budgeting";
 import { BarChart2, GitBranch } from "lucide-react";
+import { Page, PageHeader } from "@/components/layout";
 
 const eur = new Intl.NumberFormat("de-DE", {
   style: "currency",
@@ -62,13 +63,8 @@ export default async function PortfolioHealthPage() {
   }));
 
   return (
-    <main className="p-6 md:p-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Portfolio Health</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Epic progress and value-stream funding
-        </p>
-      </div>
+    <Page>
+      <PageHeader title="Portfolio Health" subtitle="Epic progress and value-stream funding" />
 
       {/* Epic distribution */}
       <Card>
@@ -126,6 +122,6 @@ export default async function PortfolioHealthPage() {
           )}
         </CardContent>
       </Card>
-    </main>
+    </Page>
   );
 }

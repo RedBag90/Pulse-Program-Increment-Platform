@@ -11,6 +11,7 @@ import {
   type DependenciesOverviewModel,
   type DependencyOverviewRow,
 } from "@/server/views/dependencies-overview";
+import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
   model: DependenciesOverviewModel;
@@ -134,14 +135,11 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
   }
 
   return (
-    <main className="p-6 md:p-8">
-      <header className="mb-4">
-        <h1 className="text-2xl font-semibold">Abhängigkeiten</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Alle Abhängigkeiten im Zugriff über PIs hinweg — Cross-ART und Critical-Path sind direkt
-          sichtbar.
-        </p>
-      </header>
+    <Page>
+      <PageHeader
+        title="Abhängigkeiten"
+        subtitle="Alle Abhängigkeiten im Zugriff über PIs hinweg — Cross-ART und Critical-Path sind direkt sichtbar."
+      />
 
       {/* Type-Funnel */}
       <div className="mb-3 flex flex-wrap gap-1.5">
@@ -325,7 +323,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
           </div>
         </div>
       )}
-    </main>
+    </Page>
   );
 }
 

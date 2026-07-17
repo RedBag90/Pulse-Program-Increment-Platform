@@ -150,3 +150,12 @@ resource)` is the _authoritative, scope-aware_ check, run inside a service
   is a cheap pre-filter; by-id mutations would otherwise satisfy scope grants
   vacuously. See ADR-0002 (and its deferred story/task/dependency ancestor-scope
   cases).
+
+## UI layout
+
+- **Layout primitives** — `<Page>`, `<PageHeader>`, `<PageSection>` from
+  `src/components/layout/`. Every page wraps its content in `<Page>` instead of
+  a raw `<main className="p-8 ...">`. Page padding, max-width and section
+  rhythm come from CSS tokens defined in `src/app/globals.css` — see
+  `docs/design-tokens.md`. Do not inline `p-6`/`p-8`/`space-y-6` on page
+  wrappers; the primitives own that rhythm.

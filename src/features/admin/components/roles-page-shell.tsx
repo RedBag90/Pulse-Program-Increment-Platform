@@ -15,6 +15,7 @@ import {
   type RoleView,
 } from "@/server/views/admin-roles";
 import type { Action, ScopeCheck } from "@/server/auth/policies";
+import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
   model: AdminRolesPageModel;
@@ -54,14 +55,11 @@ export function RolesPageShell({ model, canManage }: Props) {
   );
 
   return (
-    <main className="space-y-6 p-6 md:p-8">
-      <header>
-        <h1 className="text-2xl font-semibold">Rollen &amp; Capabilities</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Pro Rolle einzelne Capabilities zuweisen oder entziehen. Das Default- Bundle stammt aus
-          dem Code; Tenant-Anpassungen leben in der Datenbank.
-        </p>
-      </header>
+    <Page>
+      <PageHeader
+        title="Rollen & Capabilities"
+        subtitle="Pro Rolle einzelne Capabilities zuweisen oder entziehen. Das Default-Bundle stammt aus dem Code; Tenant-Anpassungen leben in der Datenbank."
+      />
 
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         <nav aria-label="Rollen" className="space-y-1">
@@ -103,7 +101,7 @@ export function RolesPageShell({ model, canManage }: Props) {
 
         <RoleDetailPane role={selectedRole} canManage={canManage} />
       </div>
-    </main>
+    </Page>
   );
 }
 

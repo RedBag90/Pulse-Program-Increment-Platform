@@ -4,6 +4,7 @@ import { getTeam } from "@/server/services/team";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { TeamSubNav } from "@/features/team/components/team-sub-nav";
 import { AuditTimeline } from "@/components/detail/audit-timeline";
+import { Page, PageHeader, PageSection } from "@/components/layout";
 import { redirect, notFound } from "next/navigation";
 import type { TeamId } from "@/domain/types";
 
@@ -28,13 +29,14 @@ export default async function TeamHistoryPage({ params }: Props) {
   }));
 
   return (
-    <main className="p-6 md:p-8 space-y-6">
+    <Page>
       <TeamSubNav teamId={teamId} teamName={team.name} artId={team.artId} artName={team.art.name} />
 
-      <section className="space-y-4">
-        <h1 className="text-xl font-semibold tracking-tight">History</h1>
+      <PageHeader title="History" />
+
+      <PageSection>
         <AuditTimeline events={events} />
-      </section>
-    </main>
+      </PageSection>
+    </Page>
   );
 }

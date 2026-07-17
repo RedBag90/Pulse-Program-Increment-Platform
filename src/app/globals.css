@@ -87,6 +87,16 @@
 
   --radius: 0.5rem;
 
+  /* Page layout — see docs/design-tokens.md */
+  --page-pad-x: 2rem;
+  --page-pad-x-sm: 1.5rem;
+  --page-pad-y: 2rem;
+  --page-max-w: 1400px;
+  --page-section-gap: 1.5rem;
+  --section-inner-gap: 1rem;
+  --page-header-gap: 0.5rem;
+  --page-header-margin: 1.5rem;
+
   /* Sidebar */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);

@@ -6,6 +6,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { buildImpedimentsOverviewModel } from "@/server/views/impediments-overview";
 import { ImpedimentsOverviewShell } from "@/features/risks/components/impediments-overview-shell";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { Page } from "@/components/layout";
 
 /**
  * Cross-ART Impediments-Overview mit ROAM-Funnel als primärer Achse.
@@ -33,13 +34,13 @@ export default async function ImpedimentsOverviewPage() {
 
   if (artIds.length === 0) {
     return (
-      <main className="p-8">
+      <Page>
         <div className="mx-auto max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
           <p className="text-sm text-muted-foreground">
             Keine ARTs im Zugriff. Bitte einen Admin um Scope-Zuweisung.
           </p>
         </div>
-      </main>
+      </Page>
     );
   }
 

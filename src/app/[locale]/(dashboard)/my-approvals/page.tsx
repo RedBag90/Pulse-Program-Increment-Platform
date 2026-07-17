@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { ApprovalParty } from "@/domain/business-case";
 import type { ApprovalSection } from "@/domain/epic-approval";
+import { Page, PageHeader, PageSection } from "@/components/layout";
 
 /**
  * "Meine Freigaben" — the personal approval inbox. One page lists every pending
@@ -63,54 +64,47 @@ export default async function MyApprovalsPage() {
   }
 
   return (
-    <main className="space-y-6 p-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Meine Freigaben</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Alle Freigaben, die aktuell auf deine Entscheidung warten — Hypothesen,
-          Stakeholder-Freigaben und Abschnitts-Sign-offs in einer Liste.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Meine Freigaben"
+        subtitle="Alle Freigaben, die aktuell auf deine Entscheidung warten — Hypothesen, Stakeholder-Freigaben und Abschnitts-Sign-offs in einer Liste."
+      />
 
       {rows.length === 0 ? (
         <div className="rounded-lg border bg-muted/30 px-6 py-12 text-center">
           <p className="text-sm text-muted-foreground">Nichts Offenes — alle Freigaben erledigt.</p>
         </div>
       ) : (
-        <div className="space-y-8">
-          {KIND_ORDER.filter((k) => (byKind.get(k)?.length ?? 0) > 0).map((kind) => {
-            const group = byKind.get(kind)!;
-            return (
-              <section key={kind} className="space-y-2">
-                <div className="flex items-baseline justify-between">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                    {KIND_LABELS[kind]}
-                  </h2>
-                  <span className="text-xs text-muted-foreground">{group.length} offen</span>
-                </div>
-                <div className="divide-y rounded-lg border">
-                  {group.map((row) => (
-                    <div
-                      key={row.id}
-                      className="grid gap-4 px-4 py-3 md:grid-cols-[1fr_auto] md:items-start"
-                    >
-                      <div className="min-w-0 space-y-1">
-                        <Link href={row.href} className="font-medium text-primary hover:underline">
-                          {row.title}
-                        </Link>
-                        <ContextCell row={row} />
-                      </div>
-                      <div className="shrink-0 md:min-w-[320px]">
-                        <ApprovalActions row={row} />
-                      </div>
+        KIND_ORDER.filter((k) => (byKind.get(k)?.length ?? 0) > 0).map((kind) => {
+          const group = byKind.get(kind)!;
+          return (
+            <PageSection
+              key={kind}
+              title={KIND_LABELS[kind]}
+              actions={<span className="text-xs text-muted-foreground">{group.length} offen</span>}
+            >
+              <div className="divide-y rounded-lg border">
+                {group.map((row) => (
+                  <div
+                    key={row.id}
+                    className="grid gap-4 px-4 py-3 md:grid-cols-[1fr_auto] md:items-start"
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <Link href={row.href} className="font-medium text-primary hover:underline">
+                        {row.title}
+                      </Link>
+                      <ContextCell row={row} />
                     </div>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-        </div>
+                    <div className="shrink-0 md:min-w-[320px]">
+                      <ApprovalActions row={row} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </PageSection>
+          );
+        })
       )}
-    </main>
+    </Page>
   );
 }

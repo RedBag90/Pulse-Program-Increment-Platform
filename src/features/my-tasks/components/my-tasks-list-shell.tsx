@@ -10,6 +10,7 @@ import { BUCKETS, LEVELS, type Bucket, type MyTasksListModel } from "@/server/vi
 import type { EpicListRow } from "@/server/views/portfolio-epics-list";
 import type { FeatureListRow } from "@/server/views/features-list";
 import type { TaskLevel } from "@/server/services/my-tasks";
+import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
   model: MyTasksListModel;
@@ -126,14 +127,11 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
   const compact = density === "compact";
 
   return (
-    <main className="space-y-4 p-6 md:p-8">
-      <header>
-        <h1 className="text-2xl font-semibold">Meine Tasks</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Alles, wofür ich Owner oder Assignee bin — Epics und Features mit denselben Zeileninhalten
-          wie auf den Hauptlisten.
-        </p>
-      </header>
+    <Page>
+      <PageHeader
+        title="Meine Tasks"
+        subtitle="Alles, wofür ich Owner oder Assignee bin — Epics und Features mit denselben Zeileninhalten wie auf den Hauptlisten."
+      />
 
       <MyTasksFunnelBar counts={model.funnelCounts} active={bucket} onChange={onBucketChange} />
 
@@ -180,6 +178,6 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
           Keine Tasks im aktuellen Filter.
         </div>
       )}
-    </main>
+    </Page>
   );
 }

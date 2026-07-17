@@ -17,6 +17,7 @@ import { Stat, StatStrip } from "@/components/ui/stat";
 import { fmtEur } from "@/components/format/eur";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { Link } from "@/i18n/navigation";
+import { Page, PageHeader } from "@/components/layout";
 
 /**
  * Controlling-Übersicht — die Landing-Seite für budgetdisziplin und
@@ -58,13 +59,11 @@ export default async function ControllingOverviewPage() {
   const latestIsCurrentCycle = latest?.cycleKey === cycleKey;
 
   return (
-    <main className="space-y-8 p-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Controlling-Übersicht</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Budget-Disziplin und Wertbeitrag in einer Sicht.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Controlling-Übersicht"
+        subtitle="Budget-Disziplin und Wertbeitrag in einer Sicht."
+      />
 
       <StatStrip>
         <Stat
@@ -264,6 +263,6 @@ export default async function ControllingOverviewPage() {
           </div>
         </section>
       )}
-    </main>
+    </Page>
   );
 }

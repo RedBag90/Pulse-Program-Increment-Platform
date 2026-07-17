@@ -2,6 +2,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { AuditLogTable } from "@/features/admin/components/audit-log-table";
+import { Page, PageHeader, PageSection } from "@/components/layout";
 import { redirect } from "next/navigation";
 
 interface Props {
@@ -54,8 +55,8 @@ export default async function AuditLogPage({ searchParams }: Props) {
   const nextCursor = hasNextPage ? rows[rows.length - 1]?.id : undefined;
 
   return (
-    <main className="p-8 space-y-6">
-      <h1 className="text-2xl font-semibold">Audit Log</h1>
+    <Page>
+      <PageHeader title="Audit Log" />
 
       {/* Filters */}
       <form method="get" className="flex flex-wrap gap-3 text-sm">
@@ -100,35 +101,37 @@ export default async function AuditLogPage({ searchParams }: Props) {
         </a>
       </form>
 
-      <AuditLogTable
-        events={rows.map((e) => ({
-          id: e.id,
-          occurredAt: e.occurredAt.toISOString(),
-          actorId: e.actorId,
-          action: e.action,
-          resourceType: e.resourceType,
-          resourceId: e.resourceId,
-          changes: e.changes ?? null,
-          traceId: e.traceId ?? null,
-        }))}
-      />
+      <PageSection>
+        <AuditLogTable
+          events={rows.map((e) => ({
+            id: e.id,
+            occurredAt: e.occurredAt.toISOString(),
+            actorId: e.actorId,
+            action: e.action,
+            resourceType: e.resourceType,
+            resourceId: e.resourceId,
+            changes: e.changes ?? null,
+            traceId: e.traceId ?? null,
+          }))}
+        />
 
-      {/* Pagination */}
-      <div className="flex justify-between text-sm">
-        {params.cursor && (
-          <a href="?" className="text-primary hover:underline">
-            ← First page
-          </a>
-        )}
-        {nextCursor && (
-          <a
-            href={`?${new URLSearchParams({ ...params, cursor: nextCursor }).toString()}`}
-            className="text-primary hover:underline ml-auto"
-          >
-            Next page →
-          </a>
-        )}
-      </div>
-    </main>
+        {/* Pagination */}
+        <div className="flex justify-between text-sm">
+          {params.cursor && (
+            <a href="?" className="text-primary hover:underline">
+              ← First page
+            </a>
+          )}
+          {nextCursor && (
+            <a
+              href={`?${new URLSearchParams({ ...params, cursor: nextCursor }).toString()}`}
+              className="text-primary hover:underline ml-auto"
+            >
+              Next page →
+            </a>
+          )}
+        </div>
+      </PageSection>
+    </Page>
   );
 }

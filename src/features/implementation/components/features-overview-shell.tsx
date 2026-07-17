@@ -7,6 +7,7 @@ import { FEATURE_STATUSES, type FeatureStatus } from "@/server/views/features-li
 import type { FeaturesOverviewModel, FeatureOverviewRow } from "@/server/views/features-overview";
 import type { WsjfTier } from "@/server/views/features-list";
 import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/domain/portfolio-guardrails";
+import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
   model: FeaturesOverviewModel;
@@ -130,13 +131,11 @@ export function FeaturesOverviewShell({ model }: Props) {
   }, [model.rows, status, valueStreamId, artId, piId, epicId, tier, featureType, query, sort]);
 
   return (
-    <main className="p-6 md:p-8">
-      <header className="mb-4">
-        <h1 className="text-2xl font-semibold">Features-Übersicht</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Alle Features im Zugriff — über Wertströme, ARTs und PIs hinweg.
-        </p>
-      </header>
+    <Page>
+      <PageHeader
+        title="Features-Übersicht"
+        subtitle="Alle Features im Zugriff — über Wertströme, ARTs und PIs hinweg."
+      />
 
       {/* Funnel-Header */}
       <div className="mb-3 flex flex-wrap gap-1.5">
@@ -292,7 +291,7 @@ export function FeaturesOverviewShell({ model }: Props) {
       <p className="mt-3 text-xs text-muted-foreground">
         {filtered.length} von {model.rows.length} Features im Zugriff.
       </p>
-    </main>
+    </Page>
   );
 }
 

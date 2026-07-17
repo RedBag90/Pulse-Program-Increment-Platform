@@ -11,6 +11,7 @@ import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { BudgetPlanRevisionView } from "@/features/controlling/components/budget-plan-revision-view";
 import { CaptureRevisionButton } from "@/features/controlling/components/capture-revision-button";
 import { Link } from "@/i18n/navigation";
+import { Page } from "@/components/layout";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -44,7 +45,7 @@ export default async function BudgetPlanRevisionDetailPage({ params }: Props) {
   const showRecapture = canCapture && revision.cycleKey === currentCycleKey;
 
   return (
-    <main className="space-y-8 p-8">
+    <Page>
       <div className="flex items-baseline justify-between gap-3">
         <Link href="/controlling" className="text-xs font-medium text-primary hover:underline">
           ← Controlling-Übersicht
@@ -77,6 +78,6 @@ export default async function BudgetPlanRevisionDetailPage({ params }: Props) {
         capturedBy={revision.capturedBy}
         userLabels={userLabels}
       />
-    </main>
+    </Page>
   );
 }

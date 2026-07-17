@@ -7,6 +7,7 @@ import { listTenantApprovers } from "@/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { listTimelines } from "@/server/services/timeline";
 import { StartArtForm } from "@/features/transformation/components/start-art-form";
+import { Page, PageHeader } from "@/components/layout";
 
 /**
  * Guided "launch an ART" wizard — lowers the activation energy of standing up a
@@ -32,14 +33,11 @@ export default async function StartArtPage() {
     .map((a) => ({ id: a.userId, label: userLabels[a.userId] ?? a.userId }));
 
   return (
-    <div className="space-y-6 p-6">
-      <header>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">ART starten</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Richte einen Agile Release Train in einem Schritt ein — Timeline-Anschluss, RTE und erstes
-          PI inklusive.
-        </p>
-      </header>
+    <Page>
+      <PageHeader
+        title="ART starten"
+        subtitle="Richte einen Agile Release Train in einem Schritt ein — Timeline-Anschluss, RTE und erstes PI inklusive."
+      />
 
       <StartArtForm
         canManage={canManage}
@@ -50,6 +48,6 @@ export default async function StartArtPage() {
           name: t.name,
         }))}
       />
-    </div>
+    </Page>
   );
 }

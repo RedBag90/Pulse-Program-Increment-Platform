@@ -10,6 +10,7 @@ import { PortfolioGuardrailsSection } from "@/features/portfolio/components/dash
 import { computePortfolioGuardrails } from "@/server/views/portfolio-guardrails-view";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
+import { Page, PageHeader } from "@/components/layout";
 
 /**
  * Portfolio Dashboard — portfolio-wide economics over time: cost, earned
@@ -36,26 +37,28 @@ export default async function PortfolioDashboardPage() {
   });
 
   return (
-    <main className="space-y-6 p-6 md:p-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Portfolio-Dashboard</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+    <Page>
+      <PageHeader
+        title="Portfolio-Dashboard"
+        subtitle={
+          <>
             Wirtschaftlichkeit über Zeit — Kosten, Business Value, ROI und Break-even je Epic. Pro
             Theme aufgeschlüsselt:{" "}
             <Link href={"/ziele?tab=money" as never} className="text-primary hover:underline">
               Ziele · Money
             </Link>
             .
-          </p>
-        </div>
-        <Link
-          href="/portfolio"
-          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Portfolio
-        </Link>
-      </div>
+          </>
+        }
+        actions={
+          <Link
+            href="/portfolio"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Portfolio
+          </Link>
+        }
+      />
 
       <PortfolioGuardrailsSection model={guardrailsModel} />
 
@@ -67,6 +70,6 @@ export default async function PortfolioDashboardPage() {
       ) : (
         <PortfolioDashboard data={data} canEdit={canEdit} />
       )}
-    </main>
+    </Page>
   );
 }

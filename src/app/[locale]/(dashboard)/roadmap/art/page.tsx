@@ -7,6 +7,7 @@ import { artRoadmapRows, roadmapAxis } from "@/domain/roadmap";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { ArtId } from "@/domain/types";
+import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
   searchParams: Promise<{ art?: string }>;
@@ -28,10 +29,9 @@ export default async function ArtRoadmapPage({ searchParams }: Props) {
 
   if (arts.length === 0) {
     return (
-      <main className="space-y-2 p-8">
-        <h1 className="text-2xl font-semibold">ART-Roadmap</h1>
-        <p className="text-sm text-muted-foreground">Keine ARTs verfügbar.</p>
-      </main>
+      <Page>
+        <PageHeader title="ART-Roadmap" subtitle="Keine ARTs verfügbar." />
+      </Page>
     );
   }
 
@@ -42,13 +42,11 @@ export default async function ArtRoadmapPage({ searchParams }: Props) {
   const axis = roadmapAxis(rows);
 
   return (
-    <main className="space-y-6 p-8">
-      <div>
-        <h1 className="text-2xl font-semibold">ART-Roadmap</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Die Features eines ARTs, terminiert über ihre zugewiesene PI.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="ART-Roadmap"
+        subtitle="Die Features eines ARTs, terminiert über ihre zugewiesene PI."
+      />
 
       {arts.length > 1 && (
         <div className="flex flex-wrap gap-1 border-b">
@@ -69,6 +67,6 @@ export default async function ArtRoadmapPage({ searchParams }: Props) {
       )}
 
       <RoadmapGantt rows={rows} axis={axis} />
-    </main>
+    </Page>
   );
 }

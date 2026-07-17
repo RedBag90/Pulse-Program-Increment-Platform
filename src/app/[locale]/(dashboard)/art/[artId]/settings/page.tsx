@@ -8,6 +8,7 @@ import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
 import { ArtOverviewForm } from "@/features/capacity/components/art-overview-form";
+import { Page, PageHeader, PageSection } from "@/components/layout";
 import { redirect, notFound } from "next/navigation";
 import type { ArtId } from "@/domain/types";
 
@@ -36,11 +37,12 @@ export default async function ArtSettingsPage({ params }: Props) {
   const rteUsers = approvers.filter((u) => u.roles.includes("rte"));
 
   return (
-    <main className="p-6 md:p-8 space-y-6">
+    <Page>
       <ArtSubNav artId={artId} artName={art.name} />
 
-      <section className="space-y-4">
-        <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+      <PageHeader title="Settings" />
+
+      <PageSection>
         {canEdit ? (
           <ArtOverviewForm
             key={[
@@ -66,8 +68,8 @@ export default async function ArtSettingsPage({ params }: Props) {
             <Field label="RTE">{art.rteId ? userLabel(art.rteId, userLabels) : "—"}</Field>
           </dl>
         )}
-      </section>
-    </main>
+      </PageSection>
+    </Page>
   );
 }
 

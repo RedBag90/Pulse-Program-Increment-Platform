@@ -7,6 +7,7 @@ import { listImpediments } from "@/server/services/impediment";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { buildImpedimentsListModel } from "@/server/views/impediments-list";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
+import { Page } from "@/components/layout";
 import { ImpedimentsListShell } from "@/features/impediment/components/impediments-list-shell";
 import type { TenantId, ArtId } from "@/domain/types";
 
@@ -73,8 +74,10 @@ export default async function ImpedimentsPage({ params }: Props) {
     userLabels,
   });
 
+  // ImpedimentsListShell owns its own funnel/filter padding, so the page
+  // wrapper runs flush. The ArtSubNav above sits inside the flush container.
   return (
-    <main className="p-0 space-y-4">
+    <Page variant="flush">
       <ArtSubNav artId={artId} artName={art.name} />
       <Suspense fallback={null}>
         <ImpedimentsListShell
@@ -85,6 +88,6 @@ export default async function ImpedimentsPage({ params }: Props) {
           canResolve={canResolve}
         />
       </Suspense>
-    </main>
+    </Page>
   );
 }

@@ -3,6 +3,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/server/services/art";
 import { listPis } from "@/server/services/pi";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
+import { Page, PageHeader, PageSection } from "@/components/layout";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import type { ArtId } from "@/domain/types";
@@ -41,19 +42,13 @@ export default async function PiListPage({ params }: Props) {
   if (!art) notFound();
 
   return (
-    <main className="p-8 space-y-6">
+    <Page>
       <ArtSubNav artId={artId} artName={art.name} />
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Program Increments</h1>
-          {art.piCadenceWeeks && (
-            <p className="text-sm text-muted-foreground mt-1">
-              PI cadence: {art.piCadenceWeeks} weeks
-            </p>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Program Increments"
+        subtitle={art.piCadenceWeeks ? `PI cadence: ${art.piCadenceWeeks} weeks` : undefined}
+      />
 
       {pis.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-muted/30 p-8 text-center text-sm text-muted-foreground">
@@ -69,7 +64,7 @@ export default async function PiListPage({ params }: Props) {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <PageSection>
           {pis.map((pi) => {
             const badge = STATUS_BADGE[pi.status] ?? "bg-muted text-foreground/80";
             return (
@@ -80,7 +75,7 @@ export default async function PiListPage({ params }: Props) {
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <h2 className="font-semibold">{pi.name}</h2>
+                    <h3 className="font-semibold">{pi.name}</h3>
                     <p className="text-sm text-muted-foreground">
                       {formatDate(pi.startDate)} – {formatDate(pi.endDate)}
                     </p>
@@ -99,8 +94,8 @@ export default async function PiListPage({ params }: Props) {
               </Link>
             );
           })}
-        </div>
+        </PageSection>
       )}
-    </main>
+    </Page>
   );
 }

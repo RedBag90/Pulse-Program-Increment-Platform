@@ -6,6 +6,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { InitiativeLevel } from "@/domain/types";
 import { buildDependenciesOverviewModel } from "@/server/views/dependencies-overview";
 import { DependenciesOverviewShell } from "@/features/dependencies/components/dependencies-overview-shell";
+import { Page } from "@/components/layout";
 
 /**
  * Cross-PI Abhängigkeits-Übersicht. Scope: alle Dependencies, deren
@@ -33,13 +34,13 @@ export default async function DependenciesOverviewPage() {
 
   if (artIds.length === 0) {
     return (
-      <main className="p-8">
+      <Page>
         <div className="mx-auto max-w-2xl rounded-2xl border bg-card p-8 text-center shadow-sm">
           <p className="text-sm text-muted-foreground">
             Keine ARTs im Zugriff. Bitte einen Admin um Scope-Zuweisung.
           </p>
         </div>
-      </main>
+      </Page>
     );
   }
 

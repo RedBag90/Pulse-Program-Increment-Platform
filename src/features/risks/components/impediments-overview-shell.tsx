@@ -16,6 +16,7 @@ import {
   type ImpedimentOverviewRow,
 } from "@/server/views/impediments-overview";
 import { SEVERITY_BADGE, SEVERITY_LABEL, STATUS_LABEL } from "@/features/impediment/labels";
+import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
   model: ImpedimentsOverviewModel;
@@ -149,14 +150,11 @@ export function ImpedimentsOverviewShell({ model, canBulk }: Props) {
   }
 
   return (
-    <main className="p-6 md:p-8">
-      <header className="mb-4">
-        <h1 className="text-2xl font-semibold">Risks &amp; Impediments — ROAM</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Alle Impediments im Zugriff über ARTs hinweg. ROAM ist die Akzeptanz- Sicht (Resolved ·
-          Owned · Accepted · Mitigated), Workflow-Status bleibt als zweite Filter-Achse.
-        </p>
-      </header>
+    <Page>
+      <PageHeader
+        title="Risks & Impediments — ROAM"
+        subtitle="Alle Impediments im Zugriff über ARTs hinweg. ROAM ist die Akzeptanz-Sicht (Resolved · Owned · Accepted · Mitigated), Workflow-Status bleibt als zweite Filter-Achse."
+      />
 
       {/* ROAM-Funnel */}
       <div className="mb-3 flex flex-wrap gap-1.5">
@@ -360,7 +358,7 @@ export function ImpedimentsOverviewShell({ model, canBulk }: Props) {
           </div>
         </div>
       )}
-    </main>
+    </Page>
   );
 }
 

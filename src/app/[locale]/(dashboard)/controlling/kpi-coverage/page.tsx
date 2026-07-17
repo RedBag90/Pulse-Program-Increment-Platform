@@ -5,6 +5,7 @@ import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadStrategyTree, loadKpiInventory } from "@/server/views/ziele-view";
 import { KpiCoverageView } from "@/features/controlling/components/kpi-coverage-view";
+import { Page, PageHeader } from "@/components/layout";
 
 /**
  * KPI-Coverage (Refactor-Plan §B). KPI-Bibliothek mit valuePerUnit-
@@ -26,27 +27,29 @@ export default async function KpiCoveragePage() {
   const inventory = await loadKpiInventory(db, principal.tenantId, tree);
 
   return (
-    <main className="space-y-6 p-6 md:p-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">KPI-Coverage</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+    <Page>
+      <PageHeader
+        title="KPI-Coverage"
+        subtitle={
+          <>
             valuePerUnit pflegen, Key Results an KPIs binden. Strategie-Definition unter{" "}
             <Link href="/strategy" className="text-primary hover:underline">
               Strategie
             </Link>
             .
-          </p>
-        </div>
-        <Link
-          href="/controlling"
-          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Controlling
-        </Link>
-      </div>
+          </>
+        }
+        actions={
+          <Link
+            href="/controlling"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Controlling
+          </Link>
+        }
+      />
 
       <KpiCoverageView inventory={inventory} canEdit />
-    </main>
+    </Page>
   );
 }

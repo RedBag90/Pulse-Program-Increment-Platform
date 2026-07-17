@@ -12,6 +12,7 @@ import { PiOverviewSummary } from "@/features/pi/components/pi-overview-summary"
 import { PiFeaturesByArt } from "@/features/pi/components/pi-features-by-art";
 import { PiArtChips } from "@/features/pi/components/pi-art-chips";
 import { Breadcrumbs } from "@/components/nav/breadcrumbs";
+import { Page, PageSection } from "@/components/layout";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
 import { InitiativeLevel } from "@/domain/types";
@@ -95,7 +96,7 @@ export default async function PiDetailPage({ params }: Props) {
   });
 
   return (
-    <main className="space-y-6 p-6 md:p-8">
+    <Page>
       <Breadcrumbs
         items={[
           { label: "Struktur", href: "/structure" },
@@ -146,24 +147,18 @@ export default async function PiDetailPage({ params }: Props) {
       {/* Metrics — first ART is used only as an auth scope for the click-throughs. */}
       <PiOverviewSummary summary={summary} piId={piId} artId={primaryArt.id} />
 
-      {/* Features grouped per ART */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Features ({piRow.initiatives.length})
-        </h2>
-        <div className="space-y-4">
-          {arts.map((a) => (
-            <PiFeaturesByArt
-              key={a.id}
-              art={a}
-              features={featuresByArt.get(a.id) ?? []}
-              candidates={candidatesByArt.get(a.id) ?? []}
-              canEdit={canEdit && pi.status !== "completed"}
-              piId={piId}
-            />
-          ))}
-        </div>
-      </section>
-    </main>
+      <PageSection title={`Features (${piRow.initiatives.length})`}>
+        {arts.map((a) => (
+          <PiFeaturesByArt
+            key={a.id}
+            art={a}
+            features={featuresByArt.get(a.id) ?? []}
+            candidates={candidatesByArt.get(a.id) ?? []}
+            canEdit={canEdit && pi.status !== "completed"}
+            piId={piId}
+          />
+        ))}
+      </PageSection>
+    </Page>
   );
 }
