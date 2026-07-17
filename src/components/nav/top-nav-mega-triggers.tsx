@@ -7,6 +7,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { NAV_GROUPS } from "@/components/nav/nav-config";
 import { isActive } from "@/components/nav/active";
+import { TopNavMegaPanel } from "@/components/nav/top-nav-mega-panel";
 import type { MegaMenuApi } from "@/components/nav/use-mega-menu";
 
 interface Props {
@@ -66,27 +67,31 @@ export function TopNavMegaTriggers({ visibleHrefs, menu }: Props) {
         const isOpen = menu.openKey === group.labelKey;
         const targetHref = group.defaultHref ?? group.items[0]!.href;
         return (
-          <button
-            key={group.labelKey}
-            type="button"
-            {...menu.triggerProps(group.labelKey)}
-            onClick={() => {
-              menu.openPanel(group.labelKey);
-              router.push(targetHref);
-            }}
-            className={cn(
-              triggerBase,
-              "gap-1",
-              groupActive || isOpen
-                ? "border-primary font-medium text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+          <div key={group.labelKey} className="relative">
+            <button
+              type="button"
+              {...menu.triggerProps(group.labelKey)}
+              onClick={() => {
+                menu.openPanel(group.labelKey);
+                router.push(targetHref);
+              }}
+              className={cn(
+                triggerBase,
+                "gap-1",
+                groupActive || isOpen
+                  ? "border-primary font-medium text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t(group.labelKey)}
+              <ChevronDown
+                className={cn("size-3.5 opacity-60 transition-transform", isOpen && "rotate-180")}
+              />
+            </button>
+            {isOpen && (
+              <TopNavMegaPanel items={group.items} labelKey={group.labelKey} menu={menu} />
             )}
-          >
-            {t(group.labelKey)}
-            <ChevronDown
-              className={cn("size-3.5 opacity-60 transition-transform", isOpen && "rotate-180")}
-            />
-          </button>
+          </div>
         );
       })}
     </nav>

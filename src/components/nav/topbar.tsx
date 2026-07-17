@@ -15,7 +15,6 @@ import {
 import { CreateMenu } from "@/features/create/create-menu";
 import { MobileNav } from "@/components/nav/mobile-nav";
 import { TopNavMegaTriggers } from "@/components/nav/top-nav-mega-triggers";
-import { TopNavMegaPanel } from "@/components/nav/top-nav-mega-panel";
 import { UserNav } from "@/components/nav/user-nav";
 import { useMegaMenu } from "@/components/nav/use-mega-menu";
 
@@ -100,9 +99,6 @@ export function Topbar({ userEmail, visibleHrefs }: TopbarProps) {
           </div>
         </div>
       </div>
-
-      {/* Full-width mega-menu panel — overlay, not in flow. */}
-      <TopNavMegaPanel visibleHrefs={visibleHrefs} menu={menu} />
     </header>
   );
 }
