@@ -30,6 +30,22 @@ export type ApprovalPhase = (typeof APPROVAL_PHASES)[number];
 export const APPROVAL_SECTIONS = ["breakdown", "kpis"] as const;
 export type ApprovalSection = (typeof APPROVAL_SECTIONS)[number];
 
+/** Display labels for approval parties — shared by the approvals tab and the
+ *  activity feed so the same "Finance" / "MGMT" wording appears everywhere. */
+export const APPROVAL_PARTY_LABELS: Record<ApprovalParty, string> = {
+  mgmt: "MGMT",
+  business_owner: "Business Owner",
+  finance: "Finance",
+  irt_owner: "IRT-Owner",
+  lace_vmo: "LACE/VMO",
+};
+
+/** Display labels for the review sign-off sections. */
+export const APPROVAL_SECTION_LABELS: Record<ApprovalSection, string> = {
+  breakdown: "Breakdown",
+  kpis: "KPIs",
+};
+
 /** A reviewer's decision on a single approval/sign-off row. */
 export type ApprovalDecision = "approve" | "reject";
 export type ApprovalStatus = "pending" | "approved" | "rejected";

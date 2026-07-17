@@ -12,7 +12,11 @@ export interface ActivityItem {
   /** ISO timestamp. */
   occurredAt: string;
   /** The acting user's id (resolved to a label via `userLabels`). */
-  actorId?: string;
+  actorId?: string | undefined;
+  /** Free-text approval/feedback comment attached to this entry, if any. */
+  comment?: string | undefined;
+  /** Context for the comment, e.g. the party ("Finance") or section ("Breakdown"). */
+  detail?: string | undefined;
 }
 
 /** Coarse category used by the "Show everything" filter — the action's first segment. */
@@ -43,8 +47,10 @@ function relativeTime(iso: string, now: number): string {
 
 /**
  * Right-hand activity feed — an initiative's audit trail (Epic or Feature),
- * newest first, with a category filter. Read-only: comments are intentionally
- * out of scope.
+ * newest first, with a category filter. Read-only. Approval/feedback comments
+ * (Hypothesis, Party- and Section-sign-offs) are surfaced inline via the
+ * entry's `comment` field; the `detail` field carries their party/section
+ * context.
  */
 export function InitiativeActivitySidebar({
   events,
@@ -100,7 +106,17 @@ export function InitiativeActivitySidebar({
                   <p className="text-sm leading-snug">
                     {actor && <span className="font-medium text-foreground">{actor}</span>}{" "}
                     <span className="text-muted-foreground">{actionLabel(e.action)}</span>
+                    {e.detail && (
+                      <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                        {e.detail}
+                      </span>
+                    )}
                   </p>
+                  {e.comment && (
+                    <p className="mt-1 whitespace-pre-wrap border-l-2 border-border pl-2 text-sm text-foreground/80">
+                      {e.comment}
+                    </p>
+                  )}
                   <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                     <Icon className="h-3 w-3 shrink-0" />
                     {relativeTime(e.occurredAt, now)}

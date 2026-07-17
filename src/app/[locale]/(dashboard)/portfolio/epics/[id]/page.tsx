@@ -15,7 +15,10 @@ import { getTenantPractices } from "@/server/services/target-model";
 import { EntityDetailShell, resolveTab } from "@/components/detail/entity-detail-shell";
 import { loadCockpitFeatureDetail } from "@/server/views/cockpit-feature-detail";
 import { FeatureSlideOver } from "@/features/umsetzung/components/feature-slide-over";
-import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
+import {
+  InitiativeActivitySidebar,
+  type ActivityItem,
+} from "@/components/detail/initiative-activity-sidebar";
 import { PhaseBadge } from "@/components/detail/phase-badge";
 import { actionLabel, userLabel } from "@/components/detail/initiative-labels";
 import { EPIC_TABS } from "@/features/portfolio/components/epic-detail-shell";
@@ -47,7 +50,13 @@ import { Link } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
 import { parseKpiMeasurements, latestKpiValue } from "@/domain/kpi";
 import { parseTimeline } from "@/domain/timeline";
-import { sectionStatus, type ApprovalPhase, type ApprovalRecord } from "@/domain/epic-approval";
+import {
+  sectionStatus,
+  APPROVAL_PARTY_LABELS,
+  APPROVAL_SECTION_LABELS,
+  type ApprovalPhase,
+  type ApprovalRecord,
+} from "@/domain/epic-approval";
 import type { ApprovalParty } from "@/domain/business-case";
 import type { ApprovalSection } from "@/domain/epic-approval";
 import { redirect } from "next/navigation";
@@ -56,6 +65,14 @@ import type { EpicId } from "@/domain/types";
 interface Props {
   params: Promise<{ locale: string; id: string }>;
   searchParams: Promise<{ tab?: string; featureId?: string }>;
+}
+
+/** Pull the free-text comment out of an audit event's `changes` diff, if any.
+ *  Hypothesis approve/reject and the legacy stage-gate write it as
+ *  `changes.comment.after`. */
+function auditComment(changes: unknown): string | undefined {
+  const after = (changes as { comment?: { after?: unknown } } | null)?.comment?.after;
+  return typeof after === "string" && after.trim() !== "" ? after : undefined;
 }
 
 export default async function EpicDetailPage({ params, searchParams }: Props) {
@@ -255,12 +272,36 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     return [...m.values()].sort((a, b) => (a.startDate < b.startDate ? -1 : 1));
   })();
 
-  const activityEvents = historyEvents.map((e) => ({
+  // The right-hand activity feed merges two disjoint comment sources into one
+  // stream: audit events (Hypothesis + legacy stage-gate carry the comment in
+  // `changes.comment.after`) and the `epic_approvals.comment` column (Party /
+  // Section sign-offs never hit the audit). Sorted newest-first.
+  const auditItems: ActivityItem[] = historyEvents.map((e) => ({
     id: e.id,
     action: e.action,
     occurredAt: e.occurredAt.toISOString(),
     actorId: e.actorId,
+    comment: auditComment(e.changes),
   }));
+
+  const approvalComments: ActivityItem[] = approvals
+    .filter((a) => a.comment && a.decidedAt)
+    .map((a) => ({
+      id: `approval-${a.id}`,
+      action: a.status === "rejected" ? "epic.approval.rejected" : "epic.approval.granted",
+      occurredAt: a.decidedAt!.toISOString(),
+      actorId: a.approverUserId ?? undefined,
+      comment: a.comment ?? undefined,
+      detail: a.party
+        ? APPROVAL_PARTY_LABELS[a.party as ApprovalParty]
+        : a.section
+          ? APPROVAL_SECTION_LABELS[a.section as ApprovalSection]
+          : undefined,
+    }));
+
+  const activityEvents: ActivityItem[] = [...auditItems, ...approvalComments].sort((x, y) =>
+    x.occurredAt < y.occurredAt ? 1 : -1,
+  );
 
   // Active-revision section sign-off state — drives the in-context banners on
   // the Breakdown and KPIs tabs.
@@ -588,14 +629,26 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             ) : (
               <ul className="divide-y rounded border">
                 {activityEvents.map((e) => (
-                  <li key={e.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                    <span className="font-medium">{actionLabel(e.action)}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {userLabel(e.actorId, userLabels)}
-                    </span>
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {new Date(e.occurredAt).toLocaleString("de-DE")}
-                    </span>
+                  <li key={e.id} className="px-3 py-2 text-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium">{actionLabel(e.action)}</span>
+                      {e.detail && (
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                          {e.detail}
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {userLabel(e.actorId, userLabels)}
+                      </span>
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {new Date(e.occurredAt).toLocaleString("de-DE")}
+                      </span>
+                    </div>
+                    {e.comment && (
+                      <p className="mt-1 whitespace-pre-wrap border-l-2 border-border pl-2 text-sm text-foreground/80">
+                        {e.comment}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>
