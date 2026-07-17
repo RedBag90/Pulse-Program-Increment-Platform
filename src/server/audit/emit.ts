@@ -115,6 +115,8 @@ export type AuditAction =
   | "key_result.kpi.bound"
   | "key_result.kpi.updated"
   | "key_result.kpi.unbound"
+  | "goal.checkin"
+  | "goal.comment.added"
   | "setup.check.toggled";
 
 export type AuditResourceType =

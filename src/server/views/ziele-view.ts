@@ -37,6 +37,12 @@ export interface ZieleKrContribution {
   contributionRealized: number;
 }
 
+/** Der letzte Status-Check-in eines Ziels — backt Pill + „vor X Tagen". */
+export interface GoalLatestCheckin {
+  status: string;
+  at: string;
+}
+
 export interface ZieleTreeKeyResult {
   id: string;
   title: string;
@@ -46,6 +52,10 @@ export interface ZieleTreeKeyResult {
   current: number | null;
   formula: string;
   ownerId: string | null;
+  /** Persistierter Goal-Status (src/domain/goal-status.ts) oder null. */
+  status: string | null;
+  dueDate: string | null;
+  latestCheckin: GoalLatestCheckin | null;
   trio: RollupTrio;
   /** Wie viele KPIs an diesen KR gebunden sind. */
   kpiCount: number;
@@ -93,7 +103,10 @@ export interface ZieleTreeTheme {
   narrative: string | null;
   period: string | null;
   confidence: number | null;
-  status: string;
+  /** Persistierter Goal-Status (src/domain/goal-status.ts) oder null. */
+  status: string | null;
+  dueDate: string | null;
+  latestCheckin: GoalLatestCheckin | null;
   ownerId: string | null;
   keyResults: ZieleTreeKeyResult[];
   trio: RollupTrio;
@@ -180,6 +193,32 @@ export async function loadStrategyTree(
   const horizonEnd = tenant?.dashboardHorizonEnd ?? addMonths(now, 12);
   const share = horizonShare(now, horizonStart, horizonEnd);
 
+  // Letzter Check-in je Ziel (Objective + KR) für Pill + „vor X Tagen".
+  // Eine Query, neueste zuerst, in JS auf den ersten Treffer pro Entity
+  // reduziert (Check-ins sind pro Ziel wenige).
+  const objectiveIds = objectiveRows.map((o) => o.id);
+  const keyResultIds = objectiveRows.flatMap((o) => o.keyResults.map((k) => k.id));
+  const latestByObjective = new Map<string, GoalLatestCheckin>();
+  const latestByKeyResult = new Map<string, GoalLatestCheckin>();
+  if (objectiveIds.length > 0 || keyResultIds.length > 0) {
+    const checkins = await db.goalCheckin.findMany({
+      where: {
+        tenantId,
+        OR: [{ objectiveId: { in: objectiveIds } }, { keyResultId: { in: keyResultIds } }],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { objectiveId: true, keyResultId: true, status: true, createdAt: true },
+    });
+    for (const c of checkins) {
+      if (c.objectiveId && !latestByObjective.has(c.objectiveId)) {
+        latestByObjective.set(c.objectiveId, { status: c.status, at: c.createdAt.toISOString() });
+      }
+      if (c.keyResultId && !latestByKeyResult.has(c.keyResultId)) {
+        latestByKeyResult.set(c.keyResultId, { status: c.status, at: c.createdAt.toISOString() });
+      }
+    }
+  }
+
   const themes: ZieleTreeTheme[] = objectiveRows.map((o) => {
     const krs: ZieleTreeKeyResult[] = o.keyResults.map((k) => {
       const kpisById = new Map<string, KpiInput>();
@@ -232,6 +271,9 @@ export async function loadStrategyTree(
         current: toFloat(k.current),
         formula: k.formula,
         ownerId: k.ownerId,
+        status: k.status,
+        dueDate: k.dueDate ? k.dueDate.toISOString() : null,
+        latestCheckin: latestByKeyResult.get(k.id) ?? null,
         trio,
         kpiCount: k.kpiContributions.length,
         contributions: contributionDetails,
@@ -244,6 +286,8 @@ export async function loadStrategyTree(
       period: o.period,
       confidence: o.confidence,
       status: o.status,
+      dueDate: o.dueDate ? o.dueDate.toISOString() : null,
+      latestCheckin: latestByObjective.get(o.id) ?? null,
       ownerId: o.ownerId,
       keyResults: krs,
       trio: sumTrios(krs.map((k) => k.trio)),
@@ -344,6 +388,115 @@ export async function loadKpiInventory(
   );
 
   return { kpiLibrary, krLibrary };
+}
+
+// ── Goal detail (Drawer) ────────────────────────────────────────────────
+
+export type GoalTarget = "objective" | "kr";
+
+export interface GoalCheckinEntry {
+  id: string;
+  status: string;
+  progress: number | null;
+  note: string | null;
+  at: string;
+  by: string;
+}
+
+export interface GoalCommentEntry {
+  id: string;
+  body: string;
+  at: string;
+  by: string;
+}
+
+export interface GoalActivityEntry {
+  id: string;
+  /** audit action, or synthetic `goal.checkin` / `goal.comment`. */
+  action: string;
+  at: string;
+  by?: string;
+  /** Free-text (check-in note or comment body). */
+  comment?: string;
+  /** Context, e.g. the check-in status label. */
+  detail?: string;
+}
+
+export interface GoalDetail {
+  /** Chronological (ascending) check-ins — backs the progress chart. */
+  checkins: GoalCheckinEntry[];
+  comments: GoalCommentEntry[];
+  /** Merged feed (audit + check-ins + comments), newest first. */
+  activity: GoalActivityEntry[];
+}
+
+/**
+ * Full detail bundle for a single goal (Objective or Key Result) — loaded
+ * on demand when the drawer opens. Keeps the list loader lean.
+ */
+export async function loadGoalDetail(
+  db: PrismaClient,
+  tenantId: string,
+  target: GoalTarget,
+  id: string,
+): Promise<GoalDetail> {
+  const where =
+    target === "objective" ? { tenantId, objectiveId: id } : { tenantId, keyResultId: id };
+  const auditResourceType = target === "objective" ? "objective" : "key_result";
+
+  const [checkinRows, commentRows, auditRows] = await Promise.all([
+    db.goalCheckin.findMany({ where, orderBy: { createdAt: "asc" } }),
+    db.goalComment.findMany({ where, orderBy: { createdAt: "desc" } }),
+    db.auditEvent.findMany({
+      where: { tenantId, resourceType: auditResourceType, resourceId: id },
+      orderBy: { occurredAt: "desc" },
+      take: 50,
+    }),
+  ]);
+
+  const checkins: GoalCheckinEntry[] = checkinRows.map((c) => ({
+    id: c.id,
+    status: c.status,
+    progress: toFloat(c.progress),
+    note: c.note,
+    at: c.createdAt.toISOString(),
+    by: c.createdBy,
+  }));
+
+  const comments: GoalCommentEntry[] = commentRows.map((c) => ({
+    id: c.id,
+    body: c.body,
+    at: c.createdAt.toISOString(),
+    by: c.createdBy,
+  }));
+
+  // Merge into one feed. Check-ins and comments carry their own text; audit
+  // events are generic action lines (created/updated/…).
+  const activity: GoalActivityEntry[] = [
+    ...checkinRows.map((c) => ({
+      id: `checkin-${c.id}`,
+      action: "goal.checkin",
+      at: c.createdAt.toISOString(),
+      by: c.createdBy,
+      comment: c.note ?? undefined,
+      detail: c.status,
+    })),
+    ...commentRows.map((c) => ({
+      id: `comment-${c.id}`,
+      action: "goal.comment",
+      at: c.createdAt.toISOString(),
+      by: c.createdBy,
+      comment: c.body,
+    })),
+    ...auditRows.map((a) => ({
+      id: a.id,
+      action: a.action,
+      at: a.occurredAt.toISOString(),
+      by: a.actorId ?? undefined,
+    })),
+  ].sort((x, y) => (x.at < y.at ? 1 : -1));
+
+  return { checkins, comments, activity };
 }
 
 // ── helpers ────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRight, Pencil, Plus } from "lucide-react";
 import type { ZieleTreeKeyResult, ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
+import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 
 /**
  * Strategie als hierarchische Tabelle — Default-Layout im Strategie-Tab.
@@ -89,8 +90,9 @@ function ThemeBlock({
         narrative={theme.narrative}
         confidence={theme.confidence}
         drift={isAtRisk(theme.trio)}
-        href={`/strategy?entity=theme&id=${theme.id}`}
-        status={statusForTheme(theme)}
+        href={`?entity=theme&id=${theme.id}`}
+        statusValue={theme.status}
+        checkinAt={theme.latestCheckin?.at ?? null}
         progress={trioProgress(theme.trio)}
         trio={theme.trio}
         period={theme.period}
@@ -133,8 +135,9 @@ function KrRow({
       narrative={null}
       confidence={null}
       drift={kr.trio.planned > 0 && kr.trio.realized / kr.trio.planned < 0.7}
-      href={`/strategy?entity=kr&id=${kr.id}`}
-      status={statusForKr(kr, prog)}
+      href={`?entity=kr&id=${kr.id}`}
+      statusValue={kr.status}
+      checkinAt={kr.latestCheckin?.at ?? null}
       progress={prog}
       trio={kr.trio}
       period={null}
@@ -157,7 +160,8 @@ interface RowProps {
   confidence: number | null;
   drift: boolean;
   href: string;
-  status: StatusSpec;
+  statusValue: string | null;
+  checkinAt: string | null;
   progress: number;
   trio: RollupTrio;
   period: string | null;
@@ -174,7 +178,8 @@ function Row({
   confidence,
   drift,
   href,
-  status,
+  statusValue,
+  checkinAt,
   progress,
   trio,
   period,
@@ -230,7 +235,12 @@ function Row({
         </Link>
       </Td>
       <Td>
-        <StatusPill status={status} />
+        <span className="flex items-center gap-2">
+          <GoalStatusPill status={statusValue} />
+          {checkinAt && (
+            <span className="text-[10px] text-muted-foreground">{relativeGoalTime(checkinAt)}</span>
+          )}
+        </span>
       </Td>
       <Td>
         <ProgressBar value={progress} />
@@ -294,38 +304,6 @@ function NewLink({ entity, children }: { entity: "theme"; children: React.ReactN
 
 // ── Status + Progress + €-Trio ───────────────────────────────────────
 
-type StatusTier = "achieved" | "on-track" | "at-risk" | "off-track" | "draft" | "neutral";
-interface StatusSpec {
-  tier: StatusTier;
-  label: string;
-}
-
-function statusForTheme(t: ZieleTreeTheme): StatusSpec {
-  switch (t.status) {
-    case "achieved":
-      return { tier: "achieved", label: "Achieved" };
-    case "missed":
-      return { tier: "off-track", label: "Missed" };
-    case "stretched":
-      return { tier: "on-track", label: "Stretched" };
-    case "cancelled":
-      return { tier: "neutral", label: "Cancelled" };
-    case "draft":
-      return { tier: "draft", label: "Draft" };
-  }
-  return isAtRisk(t.trio)
-    ? { tier: "at-risk", label: "At risk" }
-    : { tier: "on-track", label: "On track" };
-}
-
-function statusForKr(kr: ZieleTreeKeyResult, progress: number): StatusSpec {
-  if (progress >= 1) return { tier: "achieved", label: "Achieved" };
-  if (progress >= 0.7) return { tier: "on-track", label: "On track" };
-  if (progress > 0) return { tier: "at-risk", label: "At risk" };
-  if (kr.baseline == null || kr.target == null) return { tier: "draft", label: "No baseline" };
-  return { tier: "off-track", label: "Off track" };
-}
-
 function trioProgress(trio: RollupTrio): number {
   if (trio.planned <= 0) return 0;
   return Math.max(0, Math.min(1, trio.realized / trio.planned));
@@ -338,35 +316,15 @@ function krProgress(kr: ZieleTreeKeyResult): number {
   return Math.max(0, Math.min(1, (kr.current - kr.baseline) / span));
 }
 
-function StatusPill({ status }: { status: StatusSpec }) {
-  const cls =
-    status.tier === "achieved"
-      ? "bg-emerald-100 text-emerald-800"
-      : status.tier === "on-track"
-        ? "bg-emerald-50 text-emerald-700"
-        : status.tier === "at-risk"
-          ? "bg-amber-100 text-amber-800"
-          : status.tier === "off-track"
-            ? "bg-rose-100 text-rose-800"
-            : status.tier === "draft"
-              ? "bg-slate-100 text-slate-700"
-              : "bg-muted text-muted-foreground";
-  const dot =
-    status.tier === "achieved" || status.tier === "on-track"
-      ? "bg-emerald-500"
-      : status.tier === "at-risk"
-        ? "bg-amber-500"
-        : status.tier === "off-track"
-          ? "bg-rose-500"
-          : "bg-slate-400";
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] ${cls}`}
-    >
-      <span aria-hidden className={`size-1.5 rounded-full ${dot}`} />
-      {status.label}
-    </span>
-  );
+/** Compact relative time ("vor 3 Tagen") for the last check-in. */
+function relativeGoalTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const day = Math.floor(diffMs / 86_400_000);
+  if (day <= 0) return "heute";
+  if (day === 1) return "gestern";
+  if (day < 30) return `vor ${day} Tagen`;
+  const mon = Math.floor(day / 30);
+  return `vor ${mon} Monat${mon === 1 ? "" : "en"}`;
 }
 
 function ProgressBar({ value }: { value: number }) {

@@ -3,6 +3,9 @@ import { ok, err } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { recordedUpdate } from "@/server/services/recorded-update";
+import { isClosed, isOpen, type GoalStatus } from "@/domain/goal-status";
+
+export type GoalTarget = "objective" | "kr";
 
 /**
  * Ziele-Modul-Services (Konzept V2). Reines CRUD + Audit, kein
@@ -86,7 +89,8 @@ export interface UpdateObjectiveInput {
   narrative?: string | null;
   period?: string | null;
   confidence?: number | null;
-  status?: string;
+  status?: GoalStatus | null;
+  dueDate?: Date | null;
   closingNote?: string | null;
   ownerId?: string | null;
 }
@@ -111,6 +115,7 @@ export async function updateObjective(
         period: input.period,
         confidence: input.confidence,
         status: input.status,
+        dueDate: input.dueDate,
         closingNote: input.closingNote,
         ownerId: input.ownerId,
       },
@@ -120,13 +125,20 @@ export async function updateObjective(
         "period",
         "confidence",
         "status",
+        "dueDate",
         "closingNote",
         "ownerId",
       ] as const,
     });
+    // A closed status stamps closedAt; reopening (open status) clears it.
+    const closedAt: { closedAt?: Date | null } = {};
+    if (input.status !== undefined) {
+      if (isClosed(input.status) && existing.closedAt == null) closedAt.closedAt = new Date();
+      else if (isOpen(input.status) && existing.closedAt != null) closedAt.closedAt = null;
+    }
     await tx.objective.update({
       where: { id: input.id },
-      data: { ...data, updatedBy: mctx.actorId },
+      data: { ...data, ...closedAt, updatedBy: mctx.actorId },
     });
     return ok({
       result: undefined,
@@ -222,6 +234,8 @@ export interface UpdateKeyResultInput {
   target?: number | null;
   current?: number | null;
   formula?: "auto_from_kpi" | "manual";
+  status?: GoalStatus | null;
+  dueDate?: Date | null;
   ownerId?: string | null;
 }
 
@@ -247,6 +261,8 @@ export async function updateKeyResult(
       target: existing.target != null ? Number(existing.target) : null,
       current: existing.current != null ? Number(existing.current) : null,
       formula: existing.formula,
+      status: existing.status,
+      dueDate: existing.dueDate,
       ownerId: existing.ownerId,
     };
     const { changes, data } = recordedUpdate({
@@ -259,6 +275,8 @@ export async function updateKeyResult(
         target: input.target,
         current: input.current,
         formula: input.formula,
+        status: input.status,
+        dueDate: input.dueDate,
         ownerId: input.ownerId,
       },
       fields: [
@@ -269,6 +287,8 @@ export async function updateKeyResult(
         "target",
         "current",
         "formula",
+        "status",
+        "dueDate",
         "ownerId",
       ] as const,
     });
@@ -304,6 +324,143 @@ export async function deleteKeyResult(
     return ok({
       result: undefined,
       audit: { action: "key_result.deleted", resourceType: "key_result", resourceId: input.id },
+    });
+  });
+}
+
+// ── Goal check-in + comment ─────────────────────────────────────────────
+
+export interface CheckInGoalInput {
+  target: GoalTarget;
+  id: string;
+  status: GoalStatus;
+  /** Optional progress snapshot (0..1 rollup or raw KR value). */
+  progress?: number | null;
+  note?: string | null;
+}
+
+/**
+ * Records a status/progress check-in on a goal (Objective or Key Result) and
+ * stamps the entity's own `status` (+ `current` for a manual KR when a raw
+ * value is given). Backs the Asana-style "Update status" flow + history chart.
+ */
+export async function recordGoalCheckin(
+  ctx: RequestContext,
+  input: CheckInGoalInput,
+): Promise<Result<{ id: string }>> {
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    if (input.target === "objective") {
+      const existing = await tx.objective.findFirst({
+        where: { id: input.id, tenantId: mctx.tenantId },
+      });
+      if (!existing) {
+        return err({ kind: "not_found" as const, resourceType: "Objective", id: input.id });
+      }
+      const checkin = await tx.goalCheckin.create({
+        data: {
+          tenantId: mctx.tenantId,
+          objectiveId: input.id,
+          status: input.status,
+          progress: input.progress ?? null,
+          note: input.note ?? null,
+          createdBy: mctx.actorId,
+        },
+      });
+      await tx.objective.update({
+        where: { id: input.id },
+        data: {
+          status: input.status,
+          closedAt: isClosed(input.status) ? (existing.closedAt ?? new Date()) : null,
+          updatedBy: mctx.actorId,
+        },
+      });
+      return ok({
+        result: { id: checkin.id },
+        audit: {
+          action: "goal.checkin",
+          resourceType: "objective",
+          resourceId: input.id,
+          changes: { status: { before: existing.status, after: input.status } },
+        },
+      });
+    }
+
+    const existing = await tx.keyResult.findFirst({
+      where: { id: input.id, tenantId: mctx.tenantId },
+    });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.id });
+    }
+    const checkin = await tx.goalCheckin.create({
+      data: {
+        tenantId: mctx.tenantId,
+        keyResultId: input.id,
+        status: input.status,
+        progress: input.progress ?? null,
+        note: input.note ?? null,
+        createdBy: mctx.actorId,
+      },
+    });
+    // A manual KR carries its own `current`; a raw progress value updates it.
+    const updateCurrent =
+      existing.formula === "manual" && input.progress != null ? { current: input.progress } : {};
+    await tx.keyResult.update({
+      where: { id: input.id },
+      data: { status: input.status, ...updateCurrent, updatedBy: mctx.actorId },
+    });
+    return ok({
+      result: { id: checkin.id },
+      audit: {
+        action: "goal.checkin",
+        resourceType: "key_result",
+        resourceId: input.id,
+        changes: { status: { before: existing.status, after: input.status } },
+      },
+    });
+  });
+}
+
+export interface AddGoalCommentInput {
+  target: GoalTarget;
+  id: string;
+  body: string;
+}
+
+/** Appends a free-text comment to a goal's activity feed. */
+export async function addGoalComment(
+  ctx: RequestContext,
+  input: AddGoalCommentInput,
+): Promise<Result<{ id: string }>> {
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    const isObjective = input.target === "objective";
+    const owner = isObjective
+      ? await tx.objective.findFirst({ where: { id: input.id, tenantId: mctx.tenantId } })
+      : await tx.keyResult.findFirst({ where: { id: input.id, tenantId: mctx.tenantId } });
+    if (!owner) {
+      return err({
+        kind: "not_found" as const,
+        resourceType: isObjective ? "Objective" : "KeyResult",
+        id: input.id,
+      });
+    }
+    const comment = await tx.goalComment.create({
+      data: {
+        tenantId: mctx.tenantId,
+        objectiveId: isObjective ? input.id : null,
+        keyResultId: isObjective ? null : input.id,
+        body: input.body,
+        createdBy: mctx.actorId,
+      },
+    });
+    return ok({
+      result: { id: comment.id },
+      audit: {
+        action: "goal.comment.added",
+        resourceType: isObjective ? "objective" : "key_result",
+        resourceId: input.id,
+      },
     });
   });
 }

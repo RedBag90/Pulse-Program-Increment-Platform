@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
 import { updateObjectiveAction } from "@/features/ziele/actions/ziele";
+import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 
 /**
  * OKR-Quarterly-Board — flach (Refactor §Hierarchie-Vereinfachung).
@@ -245,7 +246,7 @@ function ThemeCard({
   return (
     <li>
       <Link
-        href={`/strategy?entity=theme&id=${theme.id}` as never}
+        href={`?entity=theme&id=${theme.id}` as never}
         scroll={false}
         draggable={canDrag}
         onDragStart={(e) => {
@@ -296,7 +297,7 @@ function ThemeCard({
             </ul>
           )}
           <TrioBadge trio={theme.trio} />
-          <StatusPill status={theme.status} />
+          {theme.status && <GoalStatusPill status={theme.status} />}
         </div>
       </Link>
     </li>
@@ -337,23 +338,6 @@ function TrioBadge({ trio }: { trio: RollupTrio }) {
     >
       €{compact(trio.planned)} / €{compact(trio.realized)}
     </p>
-  );
-}
-
-function StatusPill({ status }: { status: string }) {
-  if (status === "active" || status === "draft") return null;
-  const cls =
-    status === "achieved"
-      ? "bg-emerald-100 text-emerald-800"
-      : status === "missed"
-        ? "bg-rose-100 text-rose-800"
-        : status === "stretched"
-          ? "bg-blue-100 text-blue-800"
-          : "bg-muted text-muted-foreground";
-  return (
-    <span className={`inline-block rounded-full px-1.5 py-0.5 text-[9px] uppercase ${cls}`}>
-      {status}
-    </span>
   );
 }
 

@@ -10,6 +10,8 @@ import {
   createKeyResult,
   updateKeyResult,
   deleteKeyResult,
+  recordGoalCheckin,
+  addGoalComment,
 } from "@/server/services/ziele";
 import { setKpiBinding } from "@/server/services/kpi-binding";
 
@@ -21,6 +23,24 @@ import { setKpiBinding } from "@/server/services/kpi-binding";
 
 const optStr = z.string().optional();
 const optNum = z.coerce.number().optional();
+
+/** Canonical goal-status values — mirrors src/domain/goal-status.ts. */
+const goalStatusEnum = z.enum([
+  "on_track",
+  "at_risk",
+  "off_track",
+  "achieved",
+  "partial",
+  "missed",
+  "dropped",
+]);
+const goalTargetEnum = z.enum(["objective", "kr"]);
+/** ISO date string ("" clears it) → Date | null. */
+function toDueDate(v: string | undefined): Date | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === "") return null;
+  return new Date(v);
+}
 
 // ── Objective ──────────────────────────────────────────────────────────
 
@@ -58,25 +78,29 @@ export const updateObjectiveAction = createServerAction({
     narrative: optStr,
     period: optStr,
     confidence: z.coerce.number().int().min(0).max(5).optional(),
-    status: optStr,
+    status: goalStatusEnum.optional().or(z.literal("")),
+    dueDate: optStr,
     closingNote: optStr,
     ownerId: z.string().uuid().optional().or(z.literal("")),
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    updateObjective(ctx, {
+  service: (ctx, input) => {
+    const dueDate = toDueDate(input.dueDate);
+    return updateObjective(ctx, {
       id: input.id,
       ...(input.title !== undefined ? { title: input.title } : {}),
       ...(input.narrative !== undefined ? { narrative: input.narrative } : {}),
       ...(input.period !== undefined ? { period: input.period === "" ? null : input.period } : {}),
       ...(input.confidence !== undefined ? { confidence: input.confidence } : {}),
-      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.status !== undefined ? { status: input.status === "" ? null : input.status } : {}),
+      ...(dueDate !== undefined ? { dueDate } : {}),
       ...(input.closingNote !== undefined ? { closingNote: input.closingNote } : {}),
       ...(input.ownerId !== undefined
         ? { ownerId: input.ownerId === "" ? null : input.ownerId }
         : {}),
-    }),
+    });
+  },
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Objective konnte nicht aktualisiert werden" }),
 });
@@ -133,12 +157,15 @@ export const updateKeyResultAction = createServerAction({
     target: optNum,
     current: optNum,
     formula: z.enum(["auto_from_kpi", "manual"]).optional(),
+    status: goalStatusEnum.optional().or(z.literal("")),
+    dueDate: optStr,
     ownerId: z.string().uuid().optional().or(z.literal("")),
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    updateKeyResult(ctx, {
+  service: (ctx, input) => {
+    const dueDate = toDueDate(input.dueDate);
+    return updateKeyResult(ctx, {
       id: input.id,
       ...(input.title !== undefined ? { title: input.title } : {}),
       ...(input.metricName !== undefined ? { metricName: input.metricName } : {}),
@@ -147,10 +174,13 @@ export const updateKeyResultAction = createServerAction({
       ...(input.target !== undefined ? { target: input.target } : {}),
       ...(input.current !== undefined ? { current: input.current } : {}),
       ...(input.formula !== undefined ? { formula: input.formula } : {}),
+      ...(input.status !== undefined ? { status: input.status === "" ? null : input.status } : {}),
+      ...(dueDate !== undefined ? { dueDate } : {}),
       ...(input.ownerId !== undefined
         ? { ownerId: input.ownerId === "" ? null : input.ownerId }
         : {}),
-    }),
+    });
+  },
   revalidate: "ziele",
   mapError: (e) =>
     formatDomainError(e, { fallback: "Key Result konnte nicht aktualisiert werden" }),
@@ -163,6 +193,44 @@ export const deleteKeyResultAction = createServerAction({
   service: (ctx, input) => deleteKeyResult(ctx, { id: input.id }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Key Result konnte nicht geloescht werden" }),
+});
+
+// ── Goal Check-in + Comment ────────────────────────────────────────────
+
+export const checkInGoalAction = createServerAction({
+  schema: z.object({
+    target: goalTargetEnum,
+    id: z.string().uuid(),
+    status: goalStatusEnum,
+    progress: optNum,
+    note: optStr,
+  }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    recordGoalCheckin(ctx, {
+      target: input.target,
+      id: input.id,
+      status: input.status,
+      ...(input.progress !== undefined ? { progress: input.progress } : {}),
+      ...(input.note !== undefined ? { note: input.note } : {}),
+    }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Check-in fehlgeschlagen" }),
+});
+
+export const addGoalCommentAction = createServerAction({
+  schema: z.object({
+    target: goalTargetEnum,
+    id: z.string().uuid(),
+    body: z.string().min(1).max(2000),
+  }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    addGoalComment(ctx, { target: input.target, id: input.id, body: input.body }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Kommentar konnte nicht gespeichert werden" }),
 });
 
 // ── KR ↔ KPI Bindung ──────────────────────────────────────────────────

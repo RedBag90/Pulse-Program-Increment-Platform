@@ -77,7 +77,9 @@ export function ZieleShell({ model, layout, mode = "ziele" }: Props) {
       {tab === "okrs" && <OkrBoardView themes={themes} canEdit={permissions.canEditStrategy} />}
       {tab === "money" && !isStrategy && <MoneySheetView themes={themes} />}
 
-      {isStrategy && <ZieleEditDrawer model={model} canEdit={permissions.canEditStrategy} />}
+      {/* Detail-Drawer in beiden Modi: read-only auf /ziele, editierbar auf
+          /strategy (canEdit spiegelt das Permission-Gate). */}
+      <ZieleEditDrawer model={model} canEdit={permissions.canEditStrategy} />
     </div>
   );
 }

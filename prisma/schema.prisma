@@ -191,7 +191,13 @@ model Objective {
   confidence Int?
   ownerId    String?  @map("owner_id") @db.Uuid
   sortOrder  Int      @default(0) @map("sort_order")
-  status     String   @default("draft") // draft | active | achieved | missed | stretched | cancelled
+  /// Goal-Status (src/domain/goal-status.ts). Null = kein Check-in ("No
+  /// recent updates"). Open: on_track | at_risk | off_track. Closed:
+  /// achieved | partial | missed | dropped.
+  status     String?
+  dueDate    DateTime? @map("due_date")
+  /// Gesetzt, sobald ein Closed-Status gewaehlt wird.
+  closedAt   DateTime? @map("closed_at")
   /// Lessons-Learned-Notiz, gepflegt beim Quartal-Reset-Wizard.
   closingNote String? @map("closing_note") @db.Text
   createdAt  DateTime @default(now()) @map("created_at")
@@ -202,6 +208,8 @@ model Objective {
   tenant     Tenant         @relation(fields: [tenantId], references: [id])
   theme      StrategicTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
   keyResults KeyResult[]
+  checkins   GoalCheckin[]
+  comments   GoalComment[]
 
   @@index([tenantId])
   @@index([themeId])
@@ -222,6 +230,9 @@ model KeyResult {
   /// `manual` → User pflegt `current` direkt im KR-Editor.
   formula      String   @default("auto_from_kpi")
   current      Decimal? @db.Decimal(14, 4)
+  /// Goal-Status (src/domain/goal-status.ts). Null = kein Check-in.
+  status       String?
+  dueDate      DateTime? @map("due_date")
   ownerId      String?  @map("owner_id") @db.Uuid
   sortOrder    Int      @default(0) @map("sort_order")
   createdAt    DateTime @default(now()) @map("created_at")
@@ -232,10 +243,53 @@ model KeyResult {
   tenant         Tenant              @relation(fields: [tenantId], references: [id])
   objective      Objective           @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
   kpiContributions KrKpiContribution[]
+  checkins       GoalCheckin[]
+  comments       GoalComment[]
 
   @@index([tenantId])
   @@index([objectiveId])
   @@map("key_results")
+}
+
+/// Status-/Progress-Check-in an einem Ziel (Objective ODER Key Result) —
+/// Asana-artige Historie. Genau eine der beiden FKs ist gesetzt; Progress ist
+/// ein optionaler Ist-Wert-Snapshot. Backt „Latest status" + Verlaufschart.
+model GoalCheckin {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  objectiveId String?  @map("objective_id") @db.Uuid
+  keyResultId String?  @map("key_result_id") @db.Uuid
+  status      String
+  progress    Decimal? @db.Decimal(14, 4)
+  note        String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   String   @map("created_by") @db.Uuid
+
+  objective Objective? @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  keyResult KeyResult? @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, objectiveId, createdAt])
+  @@index([tenantId, keyResultId, createdAt])
+  @@map("goal_checkins")
+}
+
+/// Freitext-Kommentar an einem Ziel (Objective ODER Key Result) fuer den
+/// Aktivitaets-Feed. Genau eine der beiden FKs ist gesetzt.
+model GoalComment {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  objectiveId String?  @map("objective_id") @db.Uuid
+  keyResultId String?  @map("key_result_id") @db.Uuid
+  body        String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   String   @map("created_by") @db.Uuid
+
+  objective Objective? @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  keyResult KeyResult? @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, objectiveId, createdAt])
+  @@index([tenantId, keyResultId, createdAt])
+  @@map("goal_comments")
 }
 
 /// Brueckentabelle KeyResult ↔ Epic-Kpi mit Gewicht. Mehrere Epic-KPIs

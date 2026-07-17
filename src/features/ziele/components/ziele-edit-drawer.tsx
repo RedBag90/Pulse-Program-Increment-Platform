@@ -12,6 +12,7 @@ import {
   updateKeyResultAction,
   deleteKeyResultAction,
 } from "@/features/ziele/actions/ziele";
+import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
 
 /**
  * Ziele-Edit-Drawer — flach 2-Ebenen (Refactor §Hierarchie-Vereinfachung).
@@ -56,7 +57,7 @@ export function ZieleEditDrawer({ model, canEdit }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && close()}>
-      <SheetContent side="right" className="!max-w-xl overflow-y-auto p-0 sm:!max-w-xl">
+      <SheetContent side="right" className="!max-w-3xl overflow-y-auto p-0 sm:!max-w-3xl">
         <div className="p-5">
           {entity === "theme" && (
             <ThemePane model={model} id={isNew ? null : id} canEdit={canEdit} onClose={close} />
@@ -117,7 +118,12 @@ function ThemePane({
     });
   }
 
-  return (
+  const themeProgress =
+    theme && theme.trio.planned > 0
+      ? Math.max(0, Math.min(1, theme.trio.realized / theme.trio.planned))
+      : 0;
+
+  const formNode = (
     <FormShell
       title={isNew ? "Neues Theme (OKR)" : (theme?.title ?? "Theme")}
       subtitle={isNew ? "Anlegen" : "Theme · OKR-Statement"}
@@ -168,24 +174,41 @@ function ThemePane({
           />
         </Field>
       </div>
-      {!isNew && (
-        <Field label="Status">
-          <select
-            name="status"
-            defaultValue={theme?.status ?? "active"}
-            className={INPUT}
-            disabled={!canEdit}
-          >
-            <option value="draft">draft</option>
-            <option value="active">active</option>
-            <option value="achieved">achieved</option>
-            <option value="missed">missed</option>
-            <option value="stretched">stretched</option>
-            <option value="cancelled">cancelled</option>
-          </select>
-        </Field>
-      )}
+      <Field label="Fällig am">
+        <input
+          name="dueDate"
+          type="date"
+          defaultValue={theme?.dueDate ? theme.dueDate.slice(0, 10) : ""}
+          className={INPUT}
+          disabled={!canEdit}
+        />
+      </Field>
     </FormShell>
+  );
+
+  if (isNew || !id || !theme) return formNode;
+
+  return (
+    <div className="space-y-6">
+      <header className="space-y-0.5 border-b pb-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Theme · OKR-Statement
+        </p>
+        <h2 className="font-heading text-xl font-semibold tracking-tight">{theme.title}</h2>
+      </header>
+      <GoalDetailPanel
+        target="objective"
+        id={id}
+        status={theme.status}
+        progress={themeProgress}
+        currentValueLabel=""
+        canEdit={canEdit}
+      />
+      <details className="rounded-lg border bg-muted/10 p-4">
+        <summary className="cursor-pointer text-sm font-medium">Details bearbeiten</summary>
+        <div className="mt-3">{formNode}</div>
+      </details>
+    </div>
   );
 }
 
@@ -318,17 +341,53 @@ function KeyResultPane({
           <option value="auto_from_kpi">aus KPI aggregiert</option>
         </select>
       </Field>
+      <Field label="Fällig am">
+        <input
+          name="dueDate"
+          type="date"
+          defaultValue={kr?.dueDate ? kr.dueDate.slice(0, 10) : ""}
+          className={INPUT}
+          disabled={!canEdit}
+        />
+      </Field>
     </FormShell>
   );
 
+  if (isNew || !id || !kr) {
+    return <div className="space-y-5">{formNode}</div>;
+  }
+
+  const span = kr.target != null && kr.baseline != null ? kr.target - kr.baseline : null;
+  const krProgress =
+    span && kr.current != null ? Math.max(0, Math.min(1, (kr.current - kr.baseline!) / span)) : 0;
+  const currentValueLabel =
+    kr.current != null
+      ? `${kr.current}${kr.target != null ? ` / ${kr.target}` : ""}${kr.metricUnit ? ` ${kr.metricUnit}` : ""}`
+      : "—";
+
   return (
-    <div className="space-y-5">
-      {formNode}
-      {!isNew && id && kr && (
-        <div className="rounded-lg border bg-muted/10 p-4">
-          <KpiBindingsReadOnly contributions={kr.contributions} krId={id} />
-        </div>
-      )}
+    <div className="space-y-6">
+      <header className="space-y-0.5 border-b pb-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Key Result · {found?.theme.title ?? "—"}
+        </p>
+        <h2 className="font-heading text-xl font-semibold tracking-tight">{kr.title}</h2>
+      </header>
+      <GoalDetailPanel
+        target="kr"
+        id={id}
+        status={kr.status}
+        progress={krProgress}
+        currentValueLabel={currentValueLabel}
+        canEdit={canEdit}
+      />
+      <div className="rounded-lg border bg-muted/10 p-4">
+        <KpiBindingsReadOnly contributions={kr.contributions} krId={id} />
+      </div>
+      <details className="rounded-lg border bg-muted/10 p-4">
+        <summary className="cursor-pointer text-sm font-medium">Details bearbeiten</summary>
+        <div className="mt-3">{formNode}</div>
+      </details>
     </div>
   );
 }

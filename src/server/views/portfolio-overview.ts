@@ -14,6 +14,7 @@ import {
 import { halfYearKey } from "@/domain/calendar";
 import { epicBucket } from "@/domain/stage-gate";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
+import { isClosed } from "@/domain/goal-status";
 import { loadStrategyTree } from "@/server/views/ziele-view";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -54,7 +55,7 @@ export interface OverviewEpicCard {
 export interface OverviewGoal {
   id: string;
   title: string;
-  status: string;
+  status: string | null;
   progress: number;
   epicLinkCount: number;
 }
@@ -146,7 +147,7 @@ export interface PortfolioOverview {
 export interface PortfolioOverviewTheme {
   id: string;
   title: string;
-  status: string;
+  status: string | null;
   trio: RollupTrio;
   epicLinkCount: number;
 }
@@ -278,9 +279,9 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     progress: themeProgress(t),
     epicLinkCount: t.epicLinkCount,
   }));
-  // In-flight = draft + active; done states (achieved/missed/cancelled/
-  // stretched/archived) zaehlen nicht zu den aktiven Zielen.
-  const isInFlight = (s: string) => s === "active" || s === "draft";
+  // In-flight = offen oder noch ohne Check-in (null); geschlossene Ziele
+  // (achieved/partial/missed/dropped) zaehlen nicht zu den aktiven.
+  const isInFlight = (s: string | null) => !isClosed(s);
   const activeGoals = goals.filter((g) => isInFlight(g.status));
   const goalAverageProgress =
     activeGoals.length === 0
