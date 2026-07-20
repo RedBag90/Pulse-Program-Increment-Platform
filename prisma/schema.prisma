@@ -224,6 +224,13 @@ model KeyResult {
   title        String
   metricName   String?  @map("metric_name")
   metricUnit   String?  @map("metric_unit")
+  /// Metrik-Typ (src/domain/goal-metric.ts): number | percent | currency.
+  /// Bestimmt Formatierung/Achsen; `metricUnit` bleibt das freie Label.
+  metricType   String   @default("number") @map("metric_type")
+  /// Nachkommastellen 0..6 fuer die Anzeige.
+  precision    Int      @default(0)
+  /// ISO-4217, nur bei metricType=currency.
+  currencyCode String?  @map("currency_code")
   baseline     Decimal? @db.Decimal(14, 4)
   target       Decimal? @db.Decimal(14, 4)
   /// "auto_from_kpi" → `current` wird aus den verlinkten KPIs aggregiert,

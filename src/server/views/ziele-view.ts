@@ -47,6 +47,9 @@ export interface ZieleTreeKeyResult {
   id: string;
   title: string;
   metricUnit: string | null;
+  metricType: string;
+  precision: number;
+  currencyCode: string | null;
   baseline: number | null;
   target: number | null;
   current: number | null;
@@ -270,6 +273,9 @@ export async function loadStrategyTree(
         id: k.id,
         title: k.title,
         metricUnit: k.metricUnit,
+        metricType: k.metricType,
+        precision: k.precision,
+        currencyCode: k.currencyCode,
         baseline: toFloat(k.baseline),
         target: toFloat(k.target),
         current: toFloat(k.current),

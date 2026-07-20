@@ -13,6 +13,7 @@ import {
   deleteKeyResultAction,
 } from "@/features/ziele/actions/ziele";
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
+import { formatMetricValue } from "@/domain/goal-metric";
 
 /**
  * Ziele-Edit-Drawer — flach 2-Ebenen (Refactor §Hierarchie-Vereinfachung).
@@ -289,7 +290,7 @@ function KeyResultPane({
           disabled={!canEdit}
         />
       </Field>
-      <Field label="Einheit">
+      <Field label="Einheit (Label)">
         <input
           name="metricUnit"
           defaultValue={kr?.metricUnit ?? ""}
@@ -297,6 +298,50 @@ function KeyResultPane({
           disabled={!canEdit}
         />
       </Field>
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Metriktyp">
+          <select
+            name="metricType"
+            defaultValue={kr?.metricType ?? "number"}
+            className={INPUT}
+            disabled={!canEdit}
+            onChange={(e) => {
+              // Bei „Prozent" leere Baseline/Target auf 0/100 vorbelegen.
+              if (e.target.value !== "percent") return;
+              const form = e.currentTarget.form;
+              if (!form) return;
+              const b = form.elements.namedItem("baseline") as HTMLInputElement | null;
+              const t = form.elements.namedItem("target") as HTMLInputElement | null;
+              if (b && b.value === "") b.value = "0";
+              if (t && t.value === "") t.value = "100";
+            }}
+          >
+            <option value="number">Zahl</option>
+            <option value="percent">Prozent</option>
+            <option value="currency">Währung</option>
+          </select>
+        </Field>
+        <Field label="Nachkomma (0–6)">
+          <input
+            name="precision"
+            type="number"
+            min={0}
+            max={6}
+            defaultValue={kr?.precision ?? 0}
+            className={INPUT}
+            disabled={!canEdit}
+          />
+        </Field>
+        <Field label="Währung (ISO)">
+          <input
+            name="currencyCode"
+            defaultValue={kr?.currencyCode ?? ""}
+            placeholder="EUR"
+            className={INPUT}
+            disabled={!canEdit}
+          />
+        </Field>
+      </div>
       <div className="grid grid-cols-3 gap-3">
         <Field label="Baseline">
           <input
@@ -360,9 +405,16 @@ function KeyResultPane({
   const span = kr.target != null && kr.baseline != null ? kr.target - kr.baseline : null;
   const krProgress =
     span && kr.current != null ? Math.max(0, Math.min(1, (kr.current - kr.baseline!) / span)) : 0;
+  const metricSpec = {
+    metricType: kr.metricType,
+    precision: kr.precision,
+    currencyCode: kr.currencyCode,
+  };
   const currentValueLabel =
     kr.current != null
-      ? `${kr.current}${kr.target != null ? ` / ${kr.target}` : ""}${kr.metricUnit ? ` ${kr.metricUnit}` : ""}`
+      ? `${formatMetricValue(kr.current, metricSpec)}${
+          kr.target != null ? ` / ${formatMetricValue(kr.target, metricSpec)}` : ""
+        }`
       : "—";
 
   return (
@@ -384,7 +436,9 @@ function KeyResultPane({
         krBaseline={kr.baseline}
         krTarget={kr.target}
         krCurrent={kr.current}
-        metricUnit={kr.metricUnit}
+        metricType={kr.metricType}
+        precision={kr.precision}
+        currencyCode={kr.currencyCode}
       />
       <div className="rounded-lg border bg-muted/10 p-4">
         <KpiBindingsReadOnly contributions={kr.contributions} krId={id} />

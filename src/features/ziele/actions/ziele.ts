@@ -36,6 +36,8 @@ const goalStatusEnum = z.enum([
   "dropped",
 ]);
 const goalTargetEnum = z.enum(["objective", "kr"]);
+const metricTypeEnum = z.enum(["number", "percent", "currency"]);
+const optPrecision = z.coerce.number().int().min(0).max(6).optional();
 /** ISO date string ("" clears it) → Date | null. */
 function toDueDate(v: string | undefined): Date | null | undefined {
   if (v === undefined) return undefined;
@@ -124,6 +126,9 @@ export const createKeyResultAction = createServerAction({
     title: z.string().min(1).max(200),
     metricName: optStr,
     metricUnit: optStr,
+    metricType: metricTypeEnum.optional(),
+    precision: optPrecision,
+    currencyCode: optStr,
     baseline: optNum,
     target: optNum,
     current: optNum,
@@ -138,6 +143,9 @@ export const createKeyResultAction = createServerAction({
       title: input.title,
       metricName: input.metricName ?? null,
       metricUnit: input.metricUnit ?? null,
+      ...(input.metricType ? { metricType: input.metricType } : {}),
+      ...(input.precision != null ? { precision: input.precision } : {}),
+      currencyCode: input.currencyCode && input.currencyCode !== "" ? input.currencyCode : null,
       baseline: input.baseline ?? null,
       target: input.target ?? null,
       current: input.current ?? null,
@@ -154,6 +162,9 @@ export const updateKeyResultAction = createServerAction({
     title: z.string().min(1).max(200).optional(),
     metricName: optStr,
     metricUnit: optStr,
+    metricType: metricTypeEnum.optional(),
+    precision: optPrecision,
+    currencyCode: optStr,
     baseline: optNum,
     target: optNum,
     current: optNum,
@@ -171,6 +182,11 @@ export const updateKeyResultAction = createServerAction({
       ...(input.title !== undefined ? { title: input.title } : {}),
       ...(input.metricName !== undefined ? { metricName: input.metricName } : {}),
       ...(input.metricUnit !== undefined ? { metricUnit: input.metricUnit } : {}),
+      ...(input.metricType !== undefined ? { metricType: input.metricType } : {}),
+      ...(input.precision !== undefined ? { precision: input.precision } : {}),
+      ...(input.currencyCode !== undefined
+        ? { currencyCode: input.currencyCode === "" ? null : input.currencyCode }
+        : {}),
       ...(input.baseline !== undefined ? { baseline: input.baseline } : {}),
       ...(input.target !== undefined ? { target: input.target } : {}),
       ...(input.current !== undefined ? { current: input.current } : {}),

@@ -4,6 +4,7 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { recordedUpdate } from "@/server/services/recorded-update";
 import { isClosed, isOpen, type GoalStatus } from "@/domain/goal-status";
+import { clampPrecision, type MetricType } from "@/domain/goal-metric";
 
 export type GoalTarget = "objective" | "kr";
 
@@ -179,6 +180,9 @@ export interface CreateKeyResultInput {
   title: string;
   metricName?: string | null;
   metricUnit?: string | null;
+  metricType?: MetricType;
+  precision?: number;
+  currencyCode?: string | null;
   baseline?: number | null;
   target?: number | null;
   current?: number | null;
@@ -209,6 +213,9 @@ export async function createKeyResult(
         title: input.title,
         metricName: input.metricName ?? null,
         metricUnit: input.metricUnit ?? null,
+        ...(input.metricType ? { metricType: input.metricType } : {}),
+        ...(input.precision != null ? { precision: clampPrecision(input.precision) } : {}),
+        currencyCode: input.currencyCode ?? null,
         baseline: input.baseline ?? null,
         target: input.target ?? null,
         current: input.current ?? null,
@@ -230,6 +237,9 @@ export interface UpdateKeyResultInput {
   title?: string;
   metricName?: string | null;
   metricUnit?: string | null;
+  metricType?: MetricType;
+  precision?: number;
+  currencyCode?: string | null;
   baseline?: number | null;
   target?: number | null;
   current?: number | null;
@@ -257,6 +267,9 @@ export async function updateKeyResult(
       title: existing.title,
       metricName: existing.metricName,
       metricUnit: existing.metricUnit,
+      metricType: existing.metricType,
+      precision: existing.precision,
+      currencyCode: existing.currencyCode,
       baseline: existing.baseline != null ? Number(existing.baseline) : null,
       target: existing.target != null ? Number(existing.target) : null,
       current: existing.current != null ? Number(existing.current) : null,
@@ -271,6 +284,9 @@ export async function updateKeyResult(
         title: input.title,
         metricName: input.metricName,
         metricUnit: input.metricUnit,
+        metricType: input.metricType,
+        precision: input.precision != null ? clampPrecision(input.precision) : input.precision,
+        currencyCode: input.currencyCode,
         baseline: input.baseline,
         target: input.target,
         current: input.current,
@@ -283,6 +299,9 @@ export async function updateKeyResult(
         "title",
         "metricName",
         "metricUnit",
+        "metricType",
+        "precision",
+        "currencyCode",
         "baseline",
         "target",
         "current",

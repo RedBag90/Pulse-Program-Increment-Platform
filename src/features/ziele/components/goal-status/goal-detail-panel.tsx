@@ -18,6 +18,7 @@ import { GoalActivityFeed } from "@/features/ziele/components/goal-status/goal-a
 import { checkInGoalAction, updateGoalProgressAction } from "@/features/ziele/actions/ziele";
 import { getGoalDetailAction, type GoalDetailPayload } from "@/features/ziele/actions/goal-detail";
 import { suggestOpenStatus, goalStatusLabel, type GoalStatus } from "@/domain/goal-status";
+import { metricUnitSuffix } from "@/domain/goal-metric";
 import type { GoalTarget } from "@/server/views/ziele-view";
 
 interface Props {
@@ -35,7 +36,9 @@ interface Props {
   krBaseline?: number | null | undefined;
   krTarget?: number | null | undefined;
   krCurrent?: number | null | undefined;
-  metricUnit?: string | null | undefined;
+  metricType?: string | null | undefined;
+  precision?: number | null | undefined;
+  currencyCode?: string | null | undefined;
 }
 
 /**
@@ -55,7 +58,9 @@ export function GoalDetailPanel({
   krBaseline,
   krTarget,
   krCurrent,
-  metricUnit,
+  metricType,
+  precision,
+  currencyCode,
 }: Props) {
   const router = useRouter();
   const [detail, setDetail] = useState<GoalDetailPayload | null>(null);
@@ -141,7 +146,9 @@ export function GoalDetailPanel({
         Math.max(...(krTarget != null ? [krTarget] : []), ...chartVals),
       ]
     : [0, 100];
-  const unitSuffix = isManualKr ? (metricUnit ? ` ${metricUnit}` : "") : " %";
+  const metricSpec = { metricType, precision, currencyCode };
+  // Für manuelle KRs zeigt die Achse Rohwerte in der KR-Einheit; sonst %.
+  const unitSuffix = isManualKr ? metricUnitSuffix(metricSpec) : " %";
 
   return (
     <div className="space-y-5">
@@ -191,7 +198,7 @@ export function GoalDetailPanel({
             <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/10 p-3">
               <label className="block">
                 <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Aktueller Wert{metricUnit ? ` (${metricUnit})` : ""}
+                  Aktueller Wert{unitSuffix ? ` (${unitSuffix.trim()})` : ""}
                 </span>
                 <input
                   type="number"
