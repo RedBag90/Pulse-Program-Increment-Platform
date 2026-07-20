@@ -113,6 +113,22 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
 - **Key Result (KR)** — measurable child of a Theme. Either `formula="manual"`
   (own baseline/target/current) or `formula="auto_from_kpi"` (€-rollup via
   bound Epic-KPIs).
+- **Goal-Status** — the open/closed status model on Themes and Key Results
+  (`src/domain/goal-status.ts`): open `on_track|at_risk|off_track`, closed
+  `achieved|partial|missed|dropped`, `null` = "no recent updates". **Orthogonal
+  to progress** — status is set at a check-in, progress is a separate number.
+- **Check-in** — a `GoalCheckin` row: a status- and/or progress-update on a
+  Theme or KR. Carries `status?`, a raw `value?` (frozen at check-in time),
+  normalised `progress?`, and an optional note. Backs the history chart and the
+  goal activity feed (`GoalComment` for free-text comments). Status-less rows
+  (`status=null`) are pure progress updates.
+- **Objective progress** — a Theme's completion is the (weighted) **normalised
+  average** of its KR progresses (0–1), unit-independent (ADR-0008). Distinct
+  from the **€-trio** (planned/realized/run-rate), which stays the money view.
+- _Planned goal capabilities_ (metric units %/€, related work, access levels
+  admin/editor/viewer, VS/ART responsibility) are specified in
+  `docs/backlog/goals-asana-adoption.md` + `…-implementation-roadmap.md` and are
+  **not yet** part of the domain.
 - **Epic-KPI** — the single success metric per Epic (1 Epic = 1 KPI, enforced
   at seed). Carries `valuePerUnit` (€ per natural unit of improvement
   baseline→target), set by Controlling.
