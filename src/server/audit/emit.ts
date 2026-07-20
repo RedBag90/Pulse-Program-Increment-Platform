@@ -116,6 +116,7 @@ export type AuditAction =
   | "key_result.kpi.updated"
   | "key_result.kpi.unbound"
   | "goal.checkin"
+  | "goal.progress.updated"
   | "goal.comment.added"
   | "setup.check.toggled";
 

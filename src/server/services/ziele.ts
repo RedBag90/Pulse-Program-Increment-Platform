@@ -392,22 +392,28 @@ export async function recordGoalCheckin(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.id });
     }
+    // Freeze the value at check-in time: for a manual KR the raw `current`
+    // plus its normalised progress land on the check-in row. `current` itself
+    // stays untouched — progress edits flow through recordGoalProgress.
+    const isManual = existing.formula === "manual";
+    const rawValue = isManual && existing.current != null ? Number(existing.current) : null;
+    const frozenProgress = isManual
+      ? normalizeKrValue(rawValue, existing.baseline, existing.target)
+      : (input.progress ?? null);
     const checkin = await tx.goalCheckin.create({
       data: {
         tenantId: mctx.tenantId,
         keyResultId: input.id,
         status: input.status,
-        progress: input.progress ?? null,
+        value: rawValue,
+        progress: frozenProgress,
         note: input.note ?? null,
         createdBy: mctx.actorId,
       },
     });
-    // A manual KR carries its own `current`; a raw progress value updates it.
-    const updateCurrent =
-      existing.formula === "manual" && input.progress != null ? { current: input.progress } : {};
     await tx.keyResult.update({
       where: { id: input.id },
-      data: { status: input.status, ...updateCurrent, updatedBy: mctx.actorId },
+      data: { status: input.status, updatedBy: mctx.actorId },
     });
     return ok({
       result: { id: checkin.id },
@@ -419,6 +425,81 @@ export async function recordGoalCheckin(
       },
     });
   });
+}
+
+export interface RecordGoalProgressInput {
+  keyResultId: string;
+  /** Raw current value in the KR's metric (e.g. `2` of target 4). */
+  value: number;
+  /** Optional backdated entry timestamp; defaults to now. */
+  entryDate?: Date | null;
+}
+
+/**
+ * Records a progress-only update on a MANUAL Key Result (Asana "Update
+ * progress"): appends a status-less check-in row (raw value + normalised
+ * progress) and stamps `keyResult.current`. Auto-KRs are rejected — their
+ * progress is aggregated from bound KPIs.
+ */
+export async function recordGoalProgress(
+  ctx: RequestContext,
+  input: RecordGoalProgressInput,
+): Promise<Result<{ id: string }>> {
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.keyResult.findFirst({
+      where: { id: input.keyResultId, tenantId: mctx.tenantId },
+    });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.keyResultId });
+    }
+    if (existing.formula !== "manual") {
+      return err({
+        kind: "validation" as const,
+        issues: [
+          "Progress wird aus KPIs aggregiert — nur manuelle Key Results sind direkt pflegbar.",
+        ],
+      });
+    }
+    const checkin = await tx.goalCheckin.create({
+      data: {
+        tenantId: mctx.tenantId,
+        keyResultId: input.keyResultId,
+        status: null,
+        value: input.value,
+        progress: normalizeKrValue(input.value, existing.baseline, existing.target),
+        ...(input.entryDate ? { createdAt: input.entryDate } : {}),
+        createdBy: mctx.actorId,
+      },
+    });
+    await tx.keyResult.update({
+      where: { id: input.keyResultId },
+      data: { current: input.value, updatedBy: mctx.actorId },
+    });
+    return ok({
+      result: { id: checkin.id },
+      audit: {
+        action: "goal.progress.updated",
+        resourceType: "key_result",
+        resourceId: input.keyResultId,
+        changes: {
+          current: {
+            before: existing.current != null ? Number(existing.current) : null,
+            after: input.value,
+          },
+        },
+      },
+    });
+  });
+}
+
+/** Normalised 0..1 progress for a raw KR value; null when the span is unknown. */
+function normalizeKrValue(value: number | null, baseline: unknown, target: unknown): number | null {
+  if (value == null) return null;
+  const b = baseline != null ? Number(baseline) : null;
+  const t = target != null ? Number(target) : null;
+  if (b == null || t == null || t === b) return null;
+  return Math.max(0, Math.min(1, (value - b) / (t - b)));
 }
 
 export interface AddGoalCommentInput {

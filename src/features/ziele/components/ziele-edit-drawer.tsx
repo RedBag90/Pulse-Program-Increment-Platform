@@ -380,6 +380,11 @@ function KeyResultPane({
         progress={krProgress}
         currentValueLabel={currentValueLabel}
         canEdit={canEdit}
+        formula={kr.formula}
+        krBaseline={kr.baseline}
+        krTarget={kr.target}
+        krCurrent={kr.current}
+        metricUnit={kr.metricUnit}
       />
       <div className="rounded-lg border bg-muted/10 p-4">
         <KpiBindingsReadOnly contributions={kr.contributions} krId={id} />

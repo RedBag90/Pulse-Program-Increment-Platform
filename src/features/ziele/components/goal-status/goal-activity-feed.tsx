@@ -7,6 +7,8 @@ import type { GoalActivityEntry, GoalTarget } from "@/server/views/ziele-view";
 
 const ACTION_LABELS: Record<string, string> = {
   "goal.checkin": "Status-Check-in",
+  "goal.progress": "hat den Fortschritt aktualisiert",
+  "goal.progress.updated": "hat den Fortschritt aktualisiert",
   "goal.comment": "kommentierte",
   "goal.comment.added": "kommentierte",
   "objective.created": "hat das Ziel angelegt",
@@ -93,7 +95,11 @@ export function GoalActivityFeed({ target, id, activity, userLabels, canComment 
           {activity.map((e) => {
             const who = e.by ? (userLabels[e.by] ?? e.by) : null;
             const detail =
-              e.action === "goal.checkin" && e.detail ? goalStatusLabel(e.detail) : null;
+              e.action === "goal.checkin" && e.detail
+                ? goalStatusLabel(e.detail)
+                : e.action === "goal.progress"
+                  ? (e.detail ?? null)
+                  : null;
             return (
               <li key={e.id} className="text-sm">
                 <p className="leading-snug">

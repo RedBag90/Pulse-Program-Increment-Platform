@@ -252,14 +252,17 @@ model KeyResult {
 }
 
 /// Status-/Progress-Check-in an einem Ziel (Objective ODER Key Result) —
-/// Asana-artige Historie. Genau eine der beiden FKs ist gesetzt; Progress ist
-/// ein optionaler Ist-Wert-Snapshot. Backt „Latest status" + Verlaufschart.
+/// Asana-artige Historie. Genau eine der beiden FKs ist gesetzt. `status =
+/// null` markiert ein reines Progress-Update (kein Status-Event). `value`
+/// traegt den rohen KR-Ist-Wert, `progress` den normalisierten 0..1-Snapshot.
+/// Backt „Latest status" + Verlaufschart.
 model GoalCheckin {
   id          String   @id @default(uuid()) @db.Uuid
   tenantId    String   @map("tenant_id") @db.Uuid
   objectiveId String?  @map("objective_id") @db.Uuid
   keyResultId String?  @map("key_result_id") @db.Uuid
-  status      String
+  status      String?
+  value       Decimal? @db.Decimal(14, 4)
   progress    Decimal? @db.Decimal(14, 4)
   note        String?  @db.Text
   createdAt   DateTime @default(now()) @map("created_at")

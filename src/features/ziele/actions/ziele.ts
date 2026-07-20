@@ -11,6 +11,7 @@ import {
   updateKeyResult,
   deleteKeyResult,
   recordGoalCheckin,
+  recordGoalProgress,
   addGoalComment,
 } from "@/server/services/ziele";
 import { setKpiBinding } from "@/server/services/kpi-binding";
@@ -217,6 +218,25 @@ export const checkInGoalAction = createServerAction({
     }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Check-in fehlgeschlagen" }),
+});
+
+export const updateGoalProgressAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    value: z.coerce.number(),
+    entryDate: optStr,
+  }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    recordGoalProgress(ctx, {
+      keyResultId: input.id,
+      value: input.value,
+      ...(input.entryDate ? { entryDate: new Date(input.entryDate) } : {}),
+    }),
+  revalidate: "ziele",
+  mapError: (e) =>
+    formatDomainError(e, { fallback: "Fortschritt konnte nicht aktualisiert werden" }),
 });
 
 export const addGoalCommentAction = createServerAction({

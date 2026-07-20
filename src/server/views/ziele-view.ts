@@ -204,12 +204,16 @@ export async function loadStrategyTree(
     const checkins = await db.goalCheckin.findMany({
       where: {
         tenantId,
+        // Reine Progress-Updates (status = null) stempeln kein "vor X Tagen"
+        // in der Status-Spalte — nur echte Status-Check-ins.
+        status: { not: null },
         OR: [{ objectiveId: { in: objectiveIds } }, { keyResultId: { in: keyResultIds } }],
       },
       orderBy: { createdAt: "desc" },
       select: { objectiveId: true, keyResultId: true, status: true, createdAt: true },
     });
     for (const c of checkins) {
+      if (c.status == null) continue;
       if (c.objectiveId && !latestByObjective.has(c.objectiveId)) {
         latestByObjective.set(c.objectiveId, { status: c.status, at: c.createdAt.toISOString() });
       }
@@ -396,7 +400,11 @@ export type GoalTarget = "objective" | "kr";
 
 export interface GoalCheckinEntry {
   id: string;
-  status: string;
+  /** Null = pure progress update (no status event). */
+  status: string | null;
+  /** Raw KR value at that point (metric units); null for objectives. */
+  value: number | null;
+  /** Normalised 0..1 snapshot. */
   progress: number | null;
   note: string | null;
   at: string;
@@ -457,6 +465,7 @@ export async function loadGoalDetail(
   const checkins: GoalCheckinEntry[] = checkinRows.map((c) => ({
     id: c.id,
     status: c.status,
+    value: toFloat(c.value),
     progress: toFloat(c.progress),
     note: c.note,
     at: c.createdAt.toISOString(),
@@ -473,13 +482,14 @@ export async function loadGoalDetail(
   // Merge into one feed. Check-ins and comments carry their own text; audit
   // events are generic action lines (created/updated/…).
   const activity: GoalActivityEntry[] = [
+    // Status-Check-ins vs. reine Progress-Updates (status = null).
     ...checkinRows.map((c) => ({
       id: `checkin-${c.id}`,
-      action: "goal.checkin",
+      action: c.status != null ? "goal.checkin" : "goal.progress",
       at: c.createdAt.toISOString(),
       by: c.createdBy,
       comment: c.note ?? undefined,
-      detail: c.status,
+      detail: c.status ?? (c.value != null ? `→ ${Number(c.value)}` : undefined),
     })),
     ...commentRows.map((c) => ({
       id: `comment-${c.id}`,
