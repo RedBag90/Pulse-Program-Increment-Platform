@@ -47,6 +47,7 @@ model Tenant {
   keyResults              KeyResult[]
   krKpiContributions      KrKpiContribution[]
   themeEpicLinks          ThemeEpicLink[]
+  goalEpicLinks           GoalEpicLink[]
   budgetAllocations       BudgetAllocation[]
   artBudgets              ArtBudget[]
   budgetPlanRevisions     BudgetPlanRevision[]
@@ -210,6 +211,7 @@ model Objective {
   keyResults KeyResult[]
   checkins   GoalCheckin[]
   comments   GoalComment[]
+  epicLinks  GoalEpicLink[]
 
   @@index([tenantId])
   @@index([themeId])
@@ -255,6 +257,7 @@ model KeyResult {
   kpiContributions KrKpiContribution[]
   checkins       GoalCheckin[]
   comments       GoalComment[]
+  epicLinks      GoalEpicLink[]
 
   @@index([tenantId])
   @@index([objectiveId])
@@ -353,6 +356,34 @@ model ThemeEpicLink {
   @@index([tenantId])
   @@index([epicId])
   @@map("theme_epic_links")
+}
+
+/// Ziel ↔ Epic Direktverknüpfung ("Related work"). Ein Epic wird direkt an
+/// ein Ziel (Objective ODER Key Result) gehängt — genau eine der beiden FKs
+/// ist gesetzt. Referenziell PLUS wertbringend: der von den Epic-KPIs
+/// bestimmte Mehrwert rollt in den Ziel-Trio (goals-rollup epicLinkTrio).
+/// `@@unique([epicId])` = Count-once: jedes Epic feedet ≤ 1 Ziel-Knoten;
+/// zusammen mit der KPI-Pyramide zählt jeder Euro genau einmal pro Ebene
+/// (ADR: epic-goal-link-value-single-path).
+model GoalEpicLink {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  objectiveId String?  @map("objective_id") @db.Uuid
+  keyResultId String?  @map("key_result_id") @db.Uuid
+  epicId      String   @map("epic_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   String   @map("created_by") @db.Uuid
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  objective Objective? @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  keyResult KeyResult? @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  epic      Initiative @relation(fields: [epicId], references: [id], onDelete: Cascade)
+
+  @@unique([epicId])
+  @@index([tenantId, objectiveId])
+  @@index([tenantId, keyResultId])
+  @@index([epicId])
+  @@map("goal_epic_links")
 }
 
 /// A tracked transformation action — the "Steuern" backlog that moves the
@@ -686,6 +717,7 @@ model Initiative {
   kpis             Kpi[]
   epicApprovals    EpicApproval[]
   themeLinks       ThemeEpicLink[]
+  goalLinks        GoalEpicLink[]
   budgetAllocation BudgetAllocation?
 
   @@index([tenantId])

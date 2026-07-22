@@ -115,6 +115,8 @@ export type AuditAction =
   | "key_result.kpi.bound"
   | "key_result.kpi.updated"
   | "key_result.kpi.unbound"
+  | "goal.epic.linked"
+  | "goal.epic.unlinked"
   | "goal.checkin"
   | "goal.progress.updated"
   | "goal.comment.added"
@@ -148,6 +150,7 @@ export type AuditResourceType =
   | "objective"
   | "key_result"
   | "kr_kpi_contribution"
+  | "goal_epic_link"
   | "setup_progress";
 
 // ---------------------------------------------------------------------------

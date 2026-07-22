@@ -4,6 +4,7 @@ import {
   keyResultTrio,
   keyResultProgress,
   kpiContributionDetail,
+  epicLinkTrio,
   rollupObjectiveProgress,
   sumTrios,
   type KpiInput,
@@ -45,6 +46,19 @@ export interface GoalLatestCheckin {
   at: string;
 }
 
+/**
+ * Ein direkt an einen Ziel-Knoten verknüpftes Epic ("Related work"). Rein
+ * referenziell (Deeplink) plus wertbringend: `trio` ist der €-Beitrag aus den
+ * KPIs des Epics, der bereits im Knoten-`trio` mit aufsummiert ist.
+ */
+export interface RelatedEpic {
+  epicId: string;
+  title: string;
+  stageGate: string;
+  trio: RollupTrio;
+  href: string;
+}
+
 export interface ZieleTreeKeyResult {
   id: string;
   title: string;
@@ -70,6 +84,8 @@ export interface ZieleTreeKeyResult {
   kpiCount: number;
   /** Liste aller gebundenen KPIs inkl. Weight + €-Beitrag (KPI-Tab). */
   contributions: ZieleKrContribution[];
+  /** Direkt verknüpfte Epics ("Related work"); ihr € ist im `trio` enthalten. */
+  relatedEpics: RelatedEpic[];
 }
 
 export interface ZieleKpiLibraryEntry {
@@ -122,6 +138,8 @@ export interface ZieleTreeTheme {
    *  `null`, wenn das Theme keine Key Results hat. Getrennt vom €-`trio`. */
   progress: number | null;
   trio: RollupTrio;
+  /** Direkt am Theme verknüpfte Epics ("Related work"); ihr € ist im `trio`. */
+  relatedEpics: RelatedEpic[];
 }
 
 export interface ZielePermissions {
@@ -235,6 +253,66 @@ export async function loadStrategyTree(
     }
   }
 
+  // "Related work": direkt verknüpfte Epics je Ziel-Knoten — EINE Query über
+  // alle Knoten-IDs (kein N+1), soft-gelöschte Epics ausgeblendet. Der
+  // €-Beitrag jedes Epics kommt aus seinen KPIs (epicLinkTrio).
+  const relatedByObjective = new Map<string, RelatedEpic[]>();
+  const relatedByKeyResult = new Map<string, RelatedEpic[]>();
+  if (objectiveIds.length > 0 || keyResultIds.length > 0) {
+    const epicLinks = await db.goalEpicLink.findMany({
+      where: {
+        tenantId,
+        epic: { deletedAt: null },
+        OR: [{ objectiveId: { in: objectiveIds } }, { keyResultId: { in: keyResultIds } }],
+      },
+      include: {
+        epic: {
+          select: {
+            id: true,
+            title: true,
+            stageGate: true,
+            kpis: {
+              select: {
+                id: true,
+                baseline: true,
+                target: true,
+                measurements: true,
+                valuePerUnit: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    for (const link of epicLinks) {
+      const kpis: KpiInput[] = link.epic.kpis.map((k) => ({
+        id: k.id,
+        baseline: toFloat(k.baseline),
+        target: toFloat(k.target),
+        current: latestMeasurement(k.measurements),
+        valuePerUnit: toFloat(k.valuePerUnit),
+      }));
+      const related: RelatedEpic = {
+        epicId: link.epic.id,
+        title: link.epic.title,
+        stageGate: link.epic.stageGate,
+        trio: epicLinkTrio([{ epicId: link.epic.id, kpis }], share),
+        href: `/portfolio/epics/${link.epic.id}`,
+      };
+      if (link.objectiveId) {
+        (
+          relatedByObjective.get(link.objectiveId) ??
+          setAndGet(relatedByObjective, link.objectiveId)
+        ).push(related);
+      } else if (link.keyResultId) {
+        (
+          relatedByKeyResult.get(link.keyResultId) ??
+          setAndGet(relatedByKeyResult, link.keyResultId)
+        ).push(related);
+      }
+    }
+  }
+
   const themes: ZieleTreeTheme[] = objectiveRows.map((o) => {
     const krs: ZieleTreeKeyResult[] = o.keyResults.map((k) => {
       const kpisById = new Map<string, KpiInput>();
@@ -252,10 +330,16 @@ export async function loadStrategyTree(
         weight: Number(c.weight),
         valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
       }));
-      const trio =
+      const baseTrio =
         k.formula === "auto_from_kpi"
           ? keyResultTrio(contributions, kpisById, share)
           : manualKrTrio();
+      // Direkt am KR verknüpfte Epics tragen ihren KPI-Wert bei (Count-once
+      // stellt sicher, dass diese KPIs nicht zusätzlich einzeln gezählt werden).
+      const krRelatedEpics = relatedByKeyResult.get(k.id) ?? [];
+      const trio = krRelatedEpics.length
+        ? sumTrios([baseTrio, ...krRelatedEpics.map((r) => r.trio)])
+        : baseTrio;
 
       const contributionDetails: ZieleKrContribution[] = k.kpiContributions.map((c) => {
         const detail = kpiContributionDetail(
@@ -298,6 +382,7 @@ export async function loadStrategyTree(
         trio,
         kpiCount: k.kpiContributions.length,
         contributions: contributionDetails,
+        relatedEpics: krRelatedEpics,
       };
     });
 
@@ -307,6 +392,9 @@ export async function loadStrategyTree(
     krs.forEach((k, i) => {
       k.contributionShare = weightSum > 0 ? (weights[i] ?? 1) / weightSum : 0;
     });
+
+    // Direkt am Theme (Objective) verknüpfte Epics — zusätzlich zu den KRs.
+    const themeRelatedEpics = relatedByObjective.get(o.id) ?? [];
 
     return {
       id: o.id,
@@ -325,7 +413,8 @@ export async function loadStrategyTree(
         krs.map((k) => keyResultProgress(k)),
         weights,
       ),
-      trio: sumTrios(krs.map((k) => k.trio)),
+      trio: sumTrios([...krs.map((k) => k.trio), ...themeRelatedEpics.map((r) => r.trio)]),
+      relatedEpics: themeRelatedEpics,
     };
   });
 
@@ -579,6 +668,13 @@ function toFloat(d: unknown): number | null {
   if (typeof d === "number") return d;
   const n = Number(d);
   return Number.isFinite(n) ? n : null;
+}
+
+/** Ensures `key` maps to a fresh array in `map`, returns it (for push chaining). */
+function setAndGet<V>(map: Map<string, V[]>, key: string): V[] {
+  const arr: V[] = [];
+  map.set(key, arr);
+  return arr;
 }
 
 function latestMeasurement(raw: unknown): number | null {

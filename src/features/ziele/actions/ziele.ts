@@ -15,6 +15,7 @@ import {
   addGoalComment,
 } from "@/server/services/ziele";
 import { setKpiBinding } from "@/server/services/kpi-binding";
+import { linkEpicToGoal, unlinkEpicFromGoal } from "@/server/services/goal-epic-link";
 
 /**
  * Ziele-Modul-Actions. Permission-Gate ueberall `target.manage`
@@ -322,4 +323,36 @@ export const setKpiBindingAction = createServerAction({
     }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "KPI-Bindung fehlgeschlagen" }),
+});
+
+/**
+ * Epic ↔ Ziel-Verknüpfung ("Related work"). Hängt ein Epic direkt an ein
+ * Objective oder Key Result; sein KPI-Mehrwert rollt danach in den Ziel-Trio.
+ * Capability `kpi.bind` (gleiche „Wert an ein Ziel hängen"-Verantwortung).
+ */
+export const linkEpicToGoalAction = createServerAction({
+  schema: z.object({
+    target: z.enum(["objective", "kr"]),
+    goalId: z.string().uuid(),
+    epicId: z.string().uuid(),
+  }),
+  action: "kpi.bind",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    linkEpicToGoal(ctx, {
+      epicId: input.epicId,
+      objectiveId: input.target === "objective" ? input.goalId : null,
+      keyResultId: input.target === "kr" ? input.goalId : null,
+    }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Epic-Verknüpfung fehlgeschlagen" }),
+});
+
+export const unlinkEpicFromGoalAction = createServerAction({
+  schema: z.object({ epicId: z.string().uuid() }),
+  action: "kpi.bind",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) => unlinkEpicFromGoal(ctx, { epicId: input.epicId }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Epic-Verknüpfung lösen fehlgeschlagen" }),
 });

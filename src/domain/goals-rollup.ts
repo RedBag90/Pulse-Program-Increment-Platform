@@ -116,6 +116,34 @@ export function kpiContributionDetail(
   return { achievement: ach, contributionRealized: realized };
 }
 
+/** Ein direkt an ein Ziel verknüpftes Epic samt seiner (nicht-gelöschten) KPIs. */
+export interface EpicLinkInput {
+  epicId: string;
+  kpis: KpiInput[];
+}
+
+/**
+ * Geld-Rechnung für die „Related work"-Epics eines Ziel-Knotens: die Summe
+ * der KPI-Trios aller direkt verknüpften Epics. Ganzes Epic = alle seine KPIs
+ * mit ihrem eigenen `valuePerUnit` (kein Contribution-Weight, keine Overrides —
+ * Feinjustierung bleibt der KPI→KR-Bindung vorbehalten). Pendant zu
+ * `keyResultTrio`; wird im Loader neben diesem in den Knoten-Trio summiert
+ * (Konzept-Header „Σ Ziel-direkt-Epic"). Count-once garantiert, dass keine
+ * KPI zusätzlich über eine `KrKpiContribution` gezählt wird.
+ */
+export function epicLinkTrio(
+  links: ReadonlyArray<EpicLinkInput>,
+  horizonShare: number,
+): RollupTrio {
+  const trios: RollupTrio[] = [];
+  for (const link of links) {
+    for (const kpi of link.kpis) {
+      trios.push(kpiTrio(kpi, horizonShare));
+    }
+  }
+  return sumTrios(trios);
+}
+
 /** Aggregiert eine Liste von Trio's. */
 export function sumTrios(trios: ReadonlyArray<RollupTrio>): RollupTrio {
   return trios.reduce(

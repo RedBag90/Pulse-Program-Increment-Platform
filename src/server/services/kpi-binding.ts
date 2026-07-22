@@ -116,6 +116,21 @@ export async function setKpiBinding(
             id: targetKrId,
           });
         }
+        // Count-once (symmetric to checkEpicLink): a KPI whose Epic is already
+        // linked to a goal via GoalEpicLink must not also be bound individually,
+        // else its value is counted on both paths. See ADR
+        // epic-goal-link-value-single-path.
+        const epicLinked = await tx.goalEpicLink.findFirst({
+          where: { tenantId: mctx.tenantId, epic: { kpis: { some: { id: input.kpiId } } } },
+        });
+        if (epicLinked) {
+          return err({
+            kind: "conflict" as const,
+            reason:
+              "Das Epic dieser KPI ist bereits direkt mit einem Ziel verknüpft — " +
+              "erst die Epic-Verknüpfung lösen, dann die KPI einzeln binden.",
+          });
+        }
         const authz = authorizeResource(ctx.principal, "kpi.bind", { tenantId: mctx.tenantId });
         if (!authz.ok) return authz;
         if (plan.kind === "rebind") {

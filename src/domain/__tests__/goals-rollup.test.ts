@@ -4,11 +4,13 @@ import {
   kpiTrio,
   keyResultTrio,
   sumTrios,
+  epicLinkTrio,
   isAtRisk,
   horizonShare,
   keyResultProgress,
   rollupObjectiveProgress,
 } from "@/domain/goals-rollup";
+import type { KpiInput } from "@/domain/goals-rollup";
 
 describe("kpiAchievement", () => {
   it("returns 0 when baseline/target/current are missing", () => {
@@ -212,5 +214,61 @@ describe("rollupObjectiveProgress", () => {
 
   it("zero total weight falls back to mean", () => {
     expect(rollupObjectiveProgress([1, 0], [0, 0])).toBe(0.5);
+  });
+});
+
+describe("epicLinkTrio", () => {
+  const kpi = (id: string, over: Partial<KpiInput> = {}): KpiInput => ({
+    id,
+    baseline: 0,
+    target: 100,
+    current: 50,
+    valuePerUnit: 10,
+    ...over,
+  });
+
+  it("returns a zero trio for no links", () => {
+    expect(epicLinkTrio([], 1)).toEqual({ planned: 0, realized: 0, runRate: 0 });
+  });
+
+  it("returns a zero trio for an epic with no KPIs", () => {
+    expect(epicLinkTrio([{ epicId: "e1", kpis: [] }], 1)).toEqual({
+      planned: 0,
+      realized: 0,
+      runRate: 0,
+    });
+  });
+
+  it("sums a single epic's KPI trio (whole epic, no weighting)", () => {
+    // span 100 × vpu 10 = 1000 planned; 50% achievement × full horizon = 500 realized
+    expect(epicLinkTrio([{ epicId: "e1", kpis: [kpi("k1")] }], 1)).toEqual({
+      planned: 1000,
+      realized: 500,
+      runRate: 500,
+    });
+  });
+
+  it("aggregates multiple epics and multiple KPIs", () => {
+    const trio = epicLinkTrio(
+      [
+        { epicId: "e1", kpis: [kpi("k1"), kpi("k2")] },
+        { epicId: "e2", kpis: [kpi("k3")] },
+      ],
+      1,
+    );
+    expect(trio.planned).toBe(3000);
+    expect(trio.realized).toBe(1500);
+  });
+
+  it("scales realized by horizon share and matches keyResultTrio at weight 1", () => {
+    const k = kpi("k1");
+    const linkTrio = epicLinkTrio([{ epicId: "e1", kpis: [k] }], 0.5);
+    const boundTrio = keyResultTrio(
+      [{ kpiId: "k1", weight: 1, valuePerUnitOverride: null }],
+      new Map([["k1", k]]),
+      0.5,
+    );
+    expect(linkTrio).toEqual(boundTrio);
+    expect(linkTrio.realized).toBe(250);
   });
 });
