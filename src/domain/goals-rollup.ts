@@ -138,6 +138,47 @@ export function isAtRisk(trio: RollupTrio, threshold = 0.7): boolean {
 }
 
 /**
+ * Normalisierter 0..1-Fortschritt eines Key Results (baseline→target→current).
+ * Fehlt baseline/target/current oder ist die Spanne 0, ergibt sich 0
+ * (bzw. 1, wenn current bereits target erreicht). Basis für den
+ * Objective-Rollup (ADR-0008).
+ */
+export function keyResultProgress(kr: {
+  baseline: number | null;
+  target: number | null;
+  current: number | null;
+}): number {
+  const { baseline: b, target: t, current: c } = kr;
+  if (b == null || t == null || c == null) return 0;
+  const span = t - b;
+  if (span === 0) return c === t ? 1 : 0;
+  return clamp01((c - b) / span);
+}
+
+/**
+ * Objective-Completion = (gewichteter) normalisierter Durchschnitt der
+ * KR-Fortschritte in 0..1, **einheiten-unabhängig** (ADR-0008). `null`, wenn
+ * es keine Key Results gibt. Gleiche/weggelassene Gewichte ⇒ arithmetischer
+ * Durchschnitt (= Verhalten ohne Gewichte, Epic 3 baut darauf auf).
+ */
+export function rollupObjectiveProgress(
+  progresses: readonly number[],
+  weights?: readonly number[],
+): number | null {
+  if (progresses.length === 0) return null;
+  const mean = () => clamp01(progresses.reduce((s, p) => s + clamp01(p), 0) / progresses.length);
+  if (!weights || weights.length !== progresses.length) return mean();
+  let wsum = 0;
+  let acc = 0;
+  for (let i = 0; i < progresses.length; i++) {
+    const w = weights[i] ?? 0;
+    wsum += w;
+    acc += w * clamp01(progresses[i] ?? 0);
+  }
+  return wsum <= 0 ? mean() : clamp01(acc / wsum);
+}
+
+/**
  * Horizont-Anteil: wie viel des Akkumulations-Zeitraums ist schon
  * verstrichen? 0 = Start, 1 = Ende. Werte ausserhalb werden geklemmt.
  */

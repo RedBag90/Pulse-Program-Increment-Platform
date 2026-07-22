@@ -6,6 +6,8 @@ import {
   sumTrios,
   isAtRisk,
   horizonShare,
+  keyResultProgress,
+  rollupObjectiveProgress,
 } from "@/domain/goals-rollup";
 
 describe("kpiAchievement", () => {
@@ -153,5 +155,62 @@ describe("horizonShare", () => {
 
   it("degenerate range = 0", () => {
     expect(horizonShare(new Date("2025-01-01"), end, start)).toBe(0);
+  });
+});
+
+describe("keyResultProgress", () => {
+  it("normalises current within baseline→target", () => {
+    expect(keyResultProgress({ baseline: 0, target: 4, current: 2 })).toBe(0.5);
+    expect(keyResultProgress({ baseline: 10, target: 20, current: 15 })).toBe(0.5);
+  });
+
+  it("clamps below 0 and above 1", () => {
+    expect(keyResultProgress({ baseline: 0, target: 10, current: -5 })).toBe(0);
+    expect(keyResultProgress({ baseline: 0, target: 10, current: 99 })).toBe(1);
+  });
+
+  it("missing values → 0", () => {
+    expect(keyResultProgress({ baseline: null, target: 10, current: 5 })).toBe(0);
+    expect(keyResultProgress({ baseline: 0, target: null, current: 5 })).toBe(0);
+    expect(keyResultProgress({ baseline: 0, target: 10, current: null })).toBe(0);
+  });
+
+  it("zero span → 1 iff current already at target, else 0", () => {
+    expect(keyResultProgress({ baseline: 5, target: 5, current: 5 })).toBe(1);
+    expect(keyResultProgress({ baseline: 5, target: 5, current: 3 })).toBe(0);
+  });
+});
+
+describe("rollupObjectiveProgress", () => {
+  it("null when there are no key results", () => {
+    expect(rollupObjectiveProgress([])).toBeNull();
+  });
+
+  it("arithmetic mean without weights", () => {
+    expect(rollupObjectiveProgress([0, 1])).toBe(0.5);
+    expect(rollupObjectiveProgress([0.2, 0.4, 0.6])).toBeCloseTo(0.4, 10);
+  });
+
+  it("clamps each input into 0..1 before averaging", () => {
+    expect(rollupObjectiveProgress([-1, 2])).toBe(0.5);
+  });
+
+  it("weighted average", () => {
+    // 0.6·1 + 0.4·0 = 0.6
+    expect(rollupObjectiveProgress([1, 0], [0.6, 0.4])).toBeCloseTo(0.6, 10);
+  });
+
+  it("equal weights == unweighted (Epic 3 backward-compatible)", () => {
+    expect(rollupObjectiveProgress([1, 0, 0.5], [2, 2, 2])).toBe(
+      rollupObjectiveProgress([1, 0, 0.5]),
+    );
+  });
+
+  it("mismatched weight length falls back to mean", () => {
+    expect(rollupObjectiveProgress([1, 0], [1])).toBe(0.5);
+  });
+
+  it("zero total weight falls back to mean", () => {
+    expect(rollupObjectiveProgress([1, 0], [0, 0])).toBe(0.5);
   });
 });

@@ -119,10 +119,8 @@ function ThemePane({
     });
   }
 
-  const themeProgress =
-    theme && theme.trio.planned > 0
-      ? Math.max(0, Math.min(1, theme.trio.realized / theme.trio.planned))
-      : 0;
+  // Objective-Completion = normalisierter Ø der KR-Fortschritte (ADR-0008).
+  const themeProgress = theme?.progress ?? 0;
 
   const formNode = (
     <FormShell

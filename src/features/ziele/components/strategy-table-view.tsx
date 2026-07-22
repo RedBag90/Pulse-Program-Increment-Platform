@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, Pencil, Plus } from "lucide-react";
 import type { ZieleTreeKeyResult, ZieleTreeTheme } from "@/server/views/ziele-view";
-import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
+import { isAtRisk, keyResultProgress, type RollupTrio } from "@/domain/goals-rollup";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 
 /**
@@ -93,7 +93,7 @@ function ThemeBlock({
         href={`?entity=theme&id=${theme.id}`}
         statusValue={theme.status}
         checkinAt={theme.latestCheckin?.at ?? null}
-        progress={trioProgress(theme.trio)}
+        progress={theme.progress ?? 0}
         trio={theme.trio}
         period={theme.period}
         canEdit={canEdit}
@@ -125,7 +125,7 @@ function KrRow({
   parentDepth: number;
   canEdit: boolean;
 }) {
-  const prog = krProgress(kr);
+  const prog = keyResultProgress(kr);
   return (
     <Row
       depth={parentDepth}
@@ -303,18 +303,6 @@ function NewLink({ entity, children }: { entity: "theme"; children: React.ReactN
 }
 
 // ── Status + Progress + €-Trio ───────────────────────────────────────
-
-function trioProgress(trio: RollupTrio): number {
-  if (trio.planned <= 0) return 0;
-  return Math.max(0, Math.min(1, trio.realized / trio.planned));
-}
-
-function krProgress(kr: ZieleTreeKeyResult): number {
-  if (kr.baseline == null || kr.target == null || kr.current == null) return 0;
-  const span = kr.target - kr.baseline;
-  if (span === 0) return kr.current === kr.target ? 1 : 0;
-  return Math.max(0, Math.min(1, (kr.current - kr.baseline) / span));
-}
 
 /** Compact relative time ("vor 3 Tagen") for the last check-in. */
 function relativeGoalTime(iso: string): string {

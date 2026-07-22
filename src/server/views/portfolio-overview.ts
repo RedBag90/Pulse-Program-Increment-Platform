@@ -148,6 +148,8 @@ export interface PortfolioOverviewTheme {
   id: string;
   title: string;
   status: string | null;
+  /** Completion 0..1 = normalisierter Ø der KR-Fortschritte (ADR-0008). */
+  progress: number | null;
   trio: RollupTrio;
   epicLinkCount: number;
 }
@@ -266,17 +268,13 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   const blockedEpics = cards.filter((c) => c.status === "blocked");
 
   // Strategy — Themes (Objectives in V2) statt legacy TransformationGoals.
-  // Progress je Theme: Realized / Planned aus dem KR-Rollup; manuelle KRs
-  // (kein €-Trio) bleiben aussen vor und ziehen den Schnitt nicht.
-  const themeProgress = (t: PortfolioOverviewTheme): number => {
-    if (t.trio.planned <= 0) return 0;
-    return Math.max(0, Math.min(1, t.trio.realized / t.trio.planned));
-  };
+  // Completion = normalisierter Ø der KR-Fortschritte (ADR-0008), konsistent
+  // mit Ziele-Liste + Detail. Das €-Trio bleibt die separate Geld-Sicht.
   const goals: OverviewGoal[] = themes.map((t) => ({
     id: t.id,
     title: t.title,
     status: t.status,
-    progress: themeProgress(t),
+    progress: t.progress ?? 0,
     epicLinkCount: t.epicLinkCount,
   }));
   // In-flight = offen oder noch ohne Check-in (null); geschlossene Ziele
@@ -421,6 +419,7 @@ export async function loadPortfolioOverviewInputs(
     id: t.id,
     title: t.title,
     status: t.status,
+    progress: t.progress,
     trio: t.trio,
     epicLinkCount: 0,
   }));

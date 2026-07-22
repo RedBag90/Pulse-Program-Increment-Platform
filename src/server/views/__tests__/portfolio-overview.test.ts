@@ -153,7 +153,8 @@ describe("buildPortfolioOverviewModel", () => {
         id: "t1",
         title: "ontrack",
         status: "active",
-        // realized 80 / planned 100 → progress 0.8, runRate 80 → !isAtRisk
+        // completion 0.8 (KR-Ø); runRate 80/100 → !isAtRisk
+        progress: 0.8,
         trio: { planned: 100, realized: 80, runRate: 80 },
         epicLinkCount: 0,
       },
@@ -161,14 +162,17 @@ describe("buildPortfolioOverviewModel", () => {
         id: "t2",
         title: "behind",
         status: "active",
-        // realized 20 / planned 100 → progress 0.2, runRate 20 → isAtRisk
+        // completion 0.2; runRate 20/100 → isAtRisk
+        progress: 0.2,
         trio: { planned: 100, realized: 20, runRate: 20 },
         epicLinkCount: 0,
       },
       {
         id: "t3",
-        title: "archived",
-        status: "archived",
+        title: "closed",
+        // Closed goal-status (achieved) → nicht in-flight, zählt nicht mit.
+        status: "achieved",
+        progress: 1,
         trio: { planned: 100, realized: 100, runRate: 100 },
         epicLinkCount: 0,
       },

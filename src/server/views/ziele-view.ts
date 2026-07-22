@@ -2,7 +2,9 @@ import type { PrismaClient } from "@/generated/prisma";
 import {
   horizonShare,
   keyResultTrio,
+  keyResultProgress,
   kpiContributionDetail,
+  rollupObjectiveProgress,
   sumTrios,
   type KpiInput,
   type KrContributionInput,
@@ -112,6 +114,9 @@ export interface ZieleTreeTheme {
   latestCheckin: GoalLatestCheckin | null;
   ownerId: string | null;
   keyResults: ZieleTreeKeyResult[];
+  /** Completion 0..1 = normalisierter Ø der KR-Fortschritte (ADR-0008);
+   *  `null`, wenn das Theme keine Key Results hat. Getrennt vom €-`trio`. */
+  progress: number | null;
   trio: RollupTrio;
 }
 
@@ -300,6 +305,8 @@ export async function loadStrategyTree(
       latestCheckin: latestByObjective.get(o.id) ?? null,
       ownerId: o.ownerId,
       keyResults: krs,
+      // Completion = normalisierter Ø der KR-Fortschritte (ADR-0008).
+      progress: rollupObjectiveProgress(krs.map((k) => keyResultProgress(k))),
       trio: sumTrios(krs.map((k) => k.trio)),
     };
   });
