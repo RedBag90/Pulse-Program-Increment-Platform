@@ -231,6 +231,9 @@ model KeyResult {
   precision    Int      @default(0)
   /// ISO-4217, nur bei metricType=currency.
   currencyCode String?  @map("currency_code")
+  /// Relatives Gewicht im Objective-Rollup (ADR-0008 / Epic 3). Null =
+  /// Default 1 ⇒ gleichgewichtet; intern via Σ normalisiert.
+  rollupWeight Decimal? @db.Decimal(6, 4) @map("rollup_weight")
   baseline     Decimal? @db.Decimal(14, 4)
   target       Decimal? @db.Decimal(14, 4)
   /// "auto_from_kpi" → `current` wird aus den verlinkten KPIs aggregiert,

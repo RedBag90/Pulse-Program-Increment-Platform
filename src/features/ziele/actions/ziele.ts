@@ -129,6 +129,7 @@ export const createKeyResultAction = createServerAction({
     metricType: metricTypeEnum.optional(),
     precision: optPrecision,
     currencyCode: optStr,
+    rollupWeight: optNum,
     baseline: optNum,
     target: optNum,
     current: optNum,
@@ -146,6 +147,7 @@ export const createKeyResultAction = createServerAction({
       ...(input.metricType ? { metricType: input.metricType } : {}),
       ...(input.precision != null ? { precision: input.precision } : {}),
       currencyCode: input.currencyCode && input.currencyCode !== "" ? input.currencyCode : null,
+      rollupWeight: input.rollupWeight ?? null,
       baseline: input.baseline ?? null,
       target: input.target ?? null,
       current: input.current ?? null,
@@ -165,6 +167,7 @@ export const updateKeyResultAction = createServerAction({
     metricType: metricTypeEnum.optional(),
     precision: optPrecision,
     currencyCode: optStr,
+    rollupWeight: optNum,
     baseline: optNum,
     target: optNum,
     current: optNum,
@@ -187,6 +190,7 @@ export const updateKeyResultAction = createServerAction({
       ...(input.currencyCode !== undefined
         ? { currencyCode: input.currencyCode === "" ? null : input.currencyCode }
         : {}),
+      ...(input.rollupWeight !== undefined ? { rollupWeight: input.rollupWeight } : {}),
       ...(input.baseline !== undefined ? { baseline: input.baseline } : {}),
       ...(input.target !== undefined ? { target: input.target } : {}),
       ...(input.current !== undefined ? { current: input.current } : {}),

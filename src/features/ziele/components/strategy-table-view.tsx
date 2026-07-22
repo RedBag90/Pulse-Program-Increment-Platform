@@ -126,12 +126,17 @@ function KrRow({
   canEdit: boolean;
 }) {
   const prog = keyResultProgress(kr);
+  // Gewichts-Beitrag nur zeigen, wenn abweichend gewichtet (nicht Default 1).
+  const subtitle =
+    kr.rollupWeight != null
+      ? `Key Result · trägt ${Math.round(kr.contributionShare * 100)} %`
+      : "Key Result";
   return (
     <Row
       depth={parentDepth}
       index={index}
       title={kr.title}
-      subtitle="Key Result"
+      subtitle={subtitle}
       narrative={null}
       confidence={null}
       drift={kr.trio.planned > 0 && kr.trio.realized / kr.trio.planned < 0.7}

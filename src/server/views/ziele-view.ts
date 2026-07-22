@@ -52,6 +52,10 @@ export interface ZieleTreeKeyResult {
   metricType: string;
   precision: number;
   currencyCode: string | null;
+  /** Relatives Gewicht im Objective-Rollup (Epic 3); null = Default 1. */
+  rollupWeight: number | null;
+  /** Normalisierter Beitrag 0..1 (= Gewicht / Σ Geschwister-Gewichte). */
+  contributionShare: number;
   baseline: number | null;
   target: number | null;
   current: number | null;
@@ -281,6 +285,8 @@ export async function loadStrategyTree(
         metricType: k.metricType,
         precision: k.precision,
         currencyCode: k.currencyCode,
+        rollupWeight: toFloat(k.rollupWeight),
+        contributionShare: 0, // unten aus Σ Geschwister-Gewichte gefüllt
         baseline: toFloat(k.baseline),
         target: toFloat(k.target),
         current: toFloat(k.current),
@@ -294,6 +300,14 @@ export async function loadStrategyTree(
         contributions: contributionDetails,
       };
     });
+
+    // Gewichte (null ⇒ Default 1) normalisieren → contributionShare je KR.
+    const weights = krs.map((k) => k.rollupWeight ?? 1);
+    const weightSum = weights.reduce((s, w) => s + w, 0);
+    krs.forEach((k, i) => {
+      k.contributionShare = weightSum > 0 ? (weights[i] ?? 1) / weightSum : 0;
+    });
+
     return {
       id: o.id,
       title: o.title,
@@ -305,8 +319,12 @@ export async function loadStrategyTree(
       latestCheckin: latestByObjective.get(o.id) ?? null,
       ownerId: o.ownerId,
       keyResults: krs,
-      // Completion = normalisierter Ø der KR-Fortschritte (ADR-0008).
-      progress: rollupObjectiveProgress(krs.map((k) => keyResultProgress(k))),
+      // Completion = gewichteter normalisierter Ø der KR-Fortschritte
+      // (ADR-0008 / Epic 3); gleiche Gewichte ⇒ ungewichteter Ø.
+      progress: rollupObjectiveProgress(
+        krs.map((k) => keyResultProgress(k)),
+        weights,
+      ),
       trio: sumTrios(krs.map((k) => k.trio)),
     };
   });

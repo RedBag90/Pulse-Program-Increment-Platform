@@ -183,6 +183,7 @@ export interface CreateKeyResultInput {
   metricType?: MetricType;
   precision?: number;
   currencyCode?: string | null;
+  rollupWeight?: number | null;
   baseline?: number | null;
   target?: number | null;
   current?: number | null;
@@ -216,6 +217,7 @@ export async function createKeyResult(
         ...(input.metricType ? { metricType: input.metricType } : {}),
         ...(input.precision != null ? { precision: clampPrecision(input.precision) } : {}),
         currencyCode: input.currencyCode ?? null,
+        rollupWeight: input.rollupWeight ?? null,
         baseline: input.baseline ?? null,
         target: input.target ?? null,
         current: input.current ?? null,
@@ -240,6 +242,7 @@ export interface UpdateKeyResultInput {
   metricType?: MetricType;
   precision?: number;
   currencyCode?: string | null;
+  rollupWeight?: number | null;
   baseline?: number | null;
   target?: number | null;
   current?: number | null;
@@ -270,6 +273,7 @@ export async function updateKeyResult(
       metricType: existing.metricType,
       precision: existing.precision,
       currencyCode: existing.currencyCode,
+      rollupWeight: existing.rollupWeight != null ? Number(existing.rollupWeight) : null,
       baseline: existing.baseline != null ? Number(existing.baseline) : null,
       target: existing.target != null ? Number(existing.target) : null,
       current: existing.current != null ? Number(existing.current) : null,
@@ -287,6 +291,7 @@ export async function updateKeyResult(
         metricType: input.metricType,
         precision: input.precision != null ? clampPrecision(input.precision) : input.precision,
         currencyCode: input.currencyCode,
+        rollupWeight: input.rollupWeight,
         baseline: input.baseline,
         target: input.target,
         current: input.current,
@@ -302,6 +307,7 @@ export async function updateKeyResult(
         "metricType",
         "precision",
         "currencyCode",
+        "rollupWeight",
         "baseline",
         "target",
         "current",

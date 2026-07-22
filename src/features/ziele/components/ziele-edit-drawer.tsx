@@ -340,6 +340,18 @@ function KeyResultPane({
           />
         </Field>
       </div>
+      <Field label="Gewicht im Rollup (leer = 1)">
+        <input
+          name="rollupWeight"
+          type="number"
+          step="any"
+          min={0}
+          defaultValue={kr?.rollupWeight ?? ""}
+          placeholder="1"
+          className={INPUT}
+          disabled={!canEdit}
+        />
+      </Field>
       <div className="grid grid-cols-3 gap-3">
         <Field label="Baseline">
           <input
