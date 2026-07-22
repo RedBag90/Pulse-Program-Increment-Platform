@@ -55,6 +55,7 @@ async function wipeDomainData(tenantId: string): Promise<void> {
   console.log("\n── Wiping domain data (tenant + auth + roles bleiben)");
 
   // Ziele V2 (Theme = Objective; StrategicTheme als Default-Anker)
+  await prisma.goalEpicLink.deleteMany({ where: { tenantId } });
   await prisma.krKpiContribution.deleteMany({ where: { tenantId } });
   await prisma.keyResult.deleteMany({ where: { tenantId } });
   await prisma.themeEpicLink.deleteMany({ where: { tenantId } });

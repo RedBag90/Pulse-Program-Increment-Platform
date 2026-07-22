@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, startTransition, useMemo } from "react";
+import { useActionState, startTransition, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import type { ZieleModel, ZieleKrContribution } from "@/server/views/ziele-view";
+import type { ZieleModel, ZieleKrContribution, RelatedEpic } from "@/server/views/ziele-view";
 import {
   createObjectiveAction,
   updateObjectiveAction,
@@ -11,8 +11,11 @@ import {
   createKeyResultAction,
   updateKeyResultAction,
   deleteKeyResultAction,
+  linkEpicToGoalAction,
+  unlinkEpicFromGoalAction,
 } from "@/features/ziele/actions/ziele";
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
+import { EntitySelect } from "@/features/create/entity-select";
 import { formatMetricValue } from "@/domain/goal-metric";
 
 /**
@@ -203,6 +206,9 @@ function ThemePane({
         currentValueLabel=""
         canEdit={canEdit}
       />
+      <div className="rounded-lg border bg-muted/10 p-4">
+        <RelatedEpics target="objective" goalId={id} epics={theme.relatedEpics} canEdit={canEdit} />
+      </div>
       <details className="rounded-lg border bg-muted/10 p-4">
         <summary className="cursor-pointer text-sm font-medium">Details bearbeiten</summary>
         <div className="mt-3">{formNode}</div>
@@ -450,14 +456,131 @@ function KeyResultPane({
         precision={kr.precision}
         currencyCode={kr.currencyCode}
       />
-      <div className="rounded-lg border bg-muted/10 p-4">
-        <KpiBindingsReadOnly contributions={kr.contributions} krId={id} />
+      <div className="space-y-3 rounded-lg border bg-muted/10 p-4">
+        <RelatedEpics target="kr" goalId={id} epics={kr.relatedEpics} canEdit={canEdit} />
+        <p className="text-[10px] leading-snug text-muted-foreground">
+          Ein verknüpftes Epic bringt den Wert all seiner KPIs grob mit. Die KPI-Bindungen unten
+          sind die feine Alternative — jede KPI zählt genau einmal.
+        </p>
+        <div className="border-t pt-3">
+          <KpiBindingsReadOnly contributions={kr.contributions} krId={id} />
+        </div>
       </div>
       <details className="rounded-lg border bg-muted/10 p-4">
         <summary className="cursor-pointer text-sm font-medium">Details bearbeiten</summary>
         <div className="mt-3">{formNode}</div>
       </details>
     </div>
+  );
+}
+
+/**
+ * "Related work" — Epics direkt an einen Ziel-Knoten (Objective ODER KR)
+ * verknüpfen. Referenziell (Deeplink) plus wertbringend: der KPI-Mehrwert des
+ * Epics ist bereits im Knoten-€ enthalten. Grobe Alternative zur feinen
+ * KPI→KR-Bindung (Count-once: jede KPI zählt genau einmal).
+ */
+function RelatedEpics({
+  target,
+  goalId,
+  epics,
+  canEdit,
+}: {
+  target: "objective" | "kr";
+  goalId: string;
+  epics: RelatedEpic[];
+  canEdit: boolean;
+}) {
+  const [epicId, setEpicId] = useState("");
+  const [linkState, linkRun, linkPending] = useActionState(linkEpicToGoalAction, {});
+  const [unlinkState, unlinkRun, unlinkPending] = useActionState(unlinkEpicFromGoalAction, {});
+  const err = linkState.error || unlinkState.error;
+
+  function add() {
+    if (!epicId) return;
+    const fd = new FormData();
+    fd.set("target", target);
+    fd.set("goalId", goalId);
+    fd.set("epicId", epicId);
+    startTransition(() => linkRun(fd));
+    setEpicId("");
+  }
+
+  function remove(id: string) {
+    const fd = new FormData();
+    fd.set("epicId", id);
+    startTransition(() => unlinkRun(fd));
+  }
+
+  return (
+    <section className="space-y-2">
+      <header className="flex items-baseline justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Related work · Epics
+        </h3>
+      </header>
+      {epics.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Noch kein Epic verbunden.</p>
+      ) : (
+        <ul className="space-y-1">
+          {epics.map((e) => (
+            <li
+              key={e.epicId}
+              className="flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 text-xs"
+            >
+              <div className="min-w-0 flex-1">
+                <a href={e.href} className="truncate font-medium text-primary hover:underline">
+                  {e.title}
+                </a>
+                <p className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Epic · {e.stageGate}
+                </p>
+              </div>
+              <span className="text-[10px] tabular-nums text-muted-foreground">
+                {e.trio.planned > 0
+                  ? `€${Math.round(e.trio.realized).toLocaleString("de-DE")} / ${Math.round(
+                      e.trio.planned,
+                    ).toLocaleString("de-DE")}`
+                  : "—"}
+              </span>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => remove(e.epicId)}
+                  disabled={unlinkPending}
+                  aria-label={`Verknüpfung mit ${e.title} entfernen`}
+                  className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  ✕
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {canEdit && (
+        <div className="space-y-1.5 rounded-md border border-dashed p-2">
+          <EntitySelect
+            kind="epic"
+            name="relatedEpicPicker"
+            label="Epic verbinden"
+            value={epicId}
+            onChange={setEpicId}
+            labelField="title"
+            disabled={linkPending}
+          />
+          <button
+            type="button"
+            onClick={add}
+            disabled={linkPending || epicId === ""}
+            className="ml-auto block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+          >
+            + Epic verbinden
+          </button>
+        </div>
+      )}
+      {err && <p className="text-xs text-destructive">{err}</p>}
+    </section>
   );
 }
 

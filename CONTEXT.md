@@ -143,6 +143,17 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   (not a DB constraint error); (3) the `UNIQUE(kpiId)` constraint on
   `KrKpiContribution` — DB backstop for any bypass. No new caller may mutate
   the bridge table without going through the service.
+- **Ziel-Epic-Verknüpfung ("Related work")** — a `GoalEpicLink` row links an Epic
+  directly to a goal node (Objective **or** Key Result, polymorphic like
+  `GoalCheckin`). Referential (deep-link) **and** value-bearing: the epic's KPI
+  value (`epicLinkTrio`) rolls into the node's €-trio, the coarse alternative to
+  binding each KPI individually. **Count-once (ADR-0009):** a KPI's value reaches
+  goals via exactly one path — a `KrKpiContribution` **or** its epic being linked,
+  never both. Three seams mirror the pyramid: `checkEpicLink` (pure validator,
+  `conflict` on overlap), the `linkEpicToGoal` service (per-epic advisory lock +
+  symmetric guard in `setKpiBinding`), and `UNIQUE(epicId)` on `goal_epic_links`
+  (each epic feeds ≤ 1 goal). Capability `kpi.bind`; soft-deleted epics are
+  filtered out (`Initiative.deletedAt`).
 
 ## Authorization
 
