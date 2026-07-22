@@ -38,6 +38,22 @@ const goalStatusEnum = z.enum([
 const goalTargetEnum = z.enum(["objective", "kr"]);
 const metricTypeEnum = z.enum(["number", "percent", "currency"]);
 const optPrecision = z.coerce.number().int().min(0).max(6).optional();
+
+/** Status-Update-Sektionen kommen als JSON-String aus dem FormData. */
+const goalSectionsField = z.preprocess(
+  (v) => {
+    if (typeof v !== "string" || v.trim() === "") return undefined;
+    try {
+      return JSON.parse(v);
+    } catch {
+      return undefined;
+    }
+  },
+  z
+    .array(z.object({ title: z.string().max(200), body: z.string().max(5000) }))
+    .max(20)
+    .optional(),
+);
 /** ISO date string ("" clears it) → Date | null. */
 function toDueDate(v: string | undefined): Date | null | undefined {
   if (v === undefined) return undefined;
@@ -225,6 +241,7 @@ export const checkInGoalAction = createServerAction({
     status: goalStatusEnum,
     progress: optNum,
     note: optStr,
+    sections: goalSectionsField,
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -235,6 +252,7 @@ export const checkInGoalAction = createServerAction({
       status: input.status,
       ...(input.progress !== undefined ? { progress: input.progress } : {}),
       ...(input.note !== undefined ? { note: input.note } : {}),
+      ...(input.sections !== undefined ? { sections: input.sections } : {}),
     }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Check-in fehlgeschlagen" }),

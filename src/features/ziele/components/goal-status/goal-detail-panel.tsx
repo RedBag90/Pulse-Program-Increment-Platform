@@ -74,6 +74,10 @@ export function GoalDetailPanel({
   const [progressValue, setProgressValue] = useState("");
   const [progressDate, setProgressDate] = useState("");
 
+  // Status-Update-Composer (Epic 4): gewählter Status + Sektionen.
+  const [composerStatus, setComposerStatus] = useState<GoalStatus | null>(null);
+  const [sections, setSections] = useState<{ title: string; body: string }[]>([]);
+
   const isManualKr = target === "kr" && formula === "manual";
 
   const reloadDetail = useCallback(() => {
@@ -101,16 +105,27 @@ export function GoalDetailPanel({
     reloadDetail();
     router.refresh();
     if (!progressState.error) setProgressOpen(false);
-  }, [checkinState, progressState, reloadDetail, router, progressState.error]);
+    if (!checkinState.error) setComposerStatus(null);
+  }, [checkinState, progressState, reloadDetail, router, progressState.error, checkinState.error]);
 
-  function checkIn(next: GoalStatus) {
+  // Statuswahl öffnet den Composer (Sektionen), submitted noch nicht.
+  function openComposer(next: GoalStatus) {
+    setComposerStatus(next);
+    setSections([{ title: "", body: "" }]);
+  }
+
+  function saveCheckin() {
+    if (!composerStatus) return;
+    const clean = sections
+      .map((s) => ({ title: s.title.trim(), body: s.body.trim() }))
+      .filter((s) => s.title !== "" || s.body !== "");
     const fd = new FormData();
     fd.set("target", target);
     fd.set("id", id);
-    fd.set("status", next);
-    // Server freezes the value-at-time for manual KRs; this is used for
-    // objectives / auto-KRs only.
+    fd.set("status", composerStatus);
+    // Server freezes the value-at-time for manual KRs; used for objectives/auto-KRs.
     fd.set("progress", String(progress));
+    if (clean.length > 0) fd.set("sections", JSON.stringify(clean));
     startTransition(() => checkInRun(fd));
   }
 
@@ -157,13 +172,90 @@ export function GoalDetailPanel({
         <GoalStatusPill status={status} />
         {canEdit && (
           <GoalStatusSelect
-            value={status}
+            value={composerStatus ?? status}
             suggested={suggested}
-            onChange={checkIn}
+            onChange={openComposer}
             disabled={checkInPending}
           />
         )}
       </div>
+
+      {/* Status-Update-Composer */}
+      {composerStatus && canEdit && (
+        <div className="space-y-3 rounded-lg border bg-muted/10 p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              Status-Update · <GoalStatusPill status={composerStatus} />
+            </p>
+            <button
+              type="button"
+              onClick={() => setSections((s) => [...s, { title: "", body: "" }])}
+              className="text-xs text-primary hover:underline"
+            >
+              + Sektion
+            </button>
+          </div>
+          <div className="space-y-2">
+            {sections.map((s, i) => (
+              <div key={i} className="space-y-1 rounded-md border bg-background p-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={s.title}
+                    onChange={(e) =>
+                      setSections((arr) =>
+                        arr.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
+                      )
+                    }
+                    placeholder="Titel (z. B. Zusammenfassung)"
+                    className="h-8 flex-1 rounded border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  {sections.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setSections((arr) => arr.filter((_, j) => j !== i))}
+                      className="text-xs text-muted-foreground hover:text-destructive"
+                      aria-label="Sektion entfernen"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  value={s.body}
+                  onChange={(e) =>
+                    setSections((arr) =>
+                      arr.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)),
+                    )
+                  }
+                  rows={2}
+                  placeholder="Text…"
+                  className="w-full rounded border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            {checkinState.error && (
+              <span className="mr-auto text-xs text-destructive">{checkinState.error}</span>
+            )}
+            <button
+              type="button"
+              onClick={() => setComposerStatus(null)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              onClick={saveCheckin}
+              disabled={checkInPending}
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {checkInPending ? "Speichert…" : "Status posten"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Cards */}
       <div className="grid grid-cols-3 gap-3">

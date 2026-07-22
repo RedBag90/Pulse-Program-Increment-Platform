@@ -429,6 +429,12 @@ export async function loadKpiInventory(
 
 export type GoalTarget = "objective" | "kr";
 
+/** One block of a structured status update (Epic 4). */
+export interface GoalUpdateSection {
+  title: string;
+  body: string;
+}
+
 export interface GoalCheckinEntry {
   id: string;
   /** Null = pure progress update (no status event). */
@@ -438,6 +444,8 @@ export interface GoalCheckinEntry {
   /** Normalised 0..1 snapshot. */
   progress: number | null;
   note: string | null;
+  /** Structured update sections; null for legacy note-only check-ins. */
+  sections: GoalUpdateSection[] | null;
   at: string;
   by: string;
 }
@@ -451,7 +459,7 @@ export interface GoalCommentEntry {
 
 export interface GoalActivityEntry {
   id: string;
-  /** audit action, or synthetic `goal.checkin` / `goal.comment`. */
+  /** audit action, or synthetic `goal.checkin` / `goal.comment` / `goal.progress`. */
   action: string;
   at: string;
   by?: string;
@@ -459,6 +467,8 @@ export interface GoalActivityEntry {
   comment?: string;
   /** Context, e.g. the check-in status label. */
   detail?: string;
+  /** Structured status-update sections (Epic 4), when present. */
+  sections?: GoalUpdateSection[];
 }
 
 export interface GoalDetail {
@@ -499,6 +509,7 @@ export async function loadGoalDetail(
     value: toFloat(c.value),
     progress: toFloat(c.progress),
     note: c.note,
+    sections: parseSections(c.sections),
     at: c.createdAt.toISOString(),
     by: c.createdBy,
   }));
@@ -514,14 +525,18 @@ export async function loadGoalDetail(
   // events are generic action lines (created/updated/…).
   const activity: GoalActivityEntry[] = [
     // Status-Check-ins vs. reine Progress-Updates (status = null).
-    ...checkinRows.map((c) => ({
-      id: `checkin-${c.id}`,
-      action: c.status != null ? "goal.checkin" : "goal.progress",
-      at: c.createdAt.toISOString(),
-      by: c.createdBy,
-      comment: c.note ?? undefined,
-      detail: c.status ?? (c.value != null ? `→ ${Number(c.value)}` : undefined),
-    })),
+    ...checkinRows.map((c) => {
+      const sections = parseSections(c.sections);
+      return {
+        id: `checkin-${c.id}`,
+        action: c.status != null ? "goal.checkin" : "goal.progress",
+        at: c.createdAt.toISOString(),
+        by: c.createdBy,
+        comment: c.note ?? undefined,
+        detail: c.status ?? (c.value != null ? `→ ${Number(c.value)}` : undefined),
+        ...(sections ? { sections } : {}),
+      };
+    }),
     ...commentRows.map((c) => ({
       id: `comment-${c.id}`,
       action: "goal.comment",
@@ -541,6 +556,23 @@ export async function loadGoalDetail(
 }
 
 // ── helpers ────────────────────────────────────────────────────────────
+
+/** Validate the persisted `GoalCheckin.sections` JSON into typed sections. */
+function parseSections(raw: unknown): GoalUpdateSection[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: GoalUpdateSection[] = [];
+  for (const s of raw) {
+    if (
+      s &&
+      typeof s === "object" &&
+      typeof (s as { title?: unknown }).title === "string" &&
+      typeof (s as { body?: unknown }).body === "string"
+    ) {
+      out.push({ title: (s as GoalUpdateSection).title, body: (s as GoalUpdateSection).body });
+    }
+  }
+  return out.length > 0 ? out : null;
+}
 
 function toFloat(d: unknown): number | null {
   if (d === null || d === undefined) return null;

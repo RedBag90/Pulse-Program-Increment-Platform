@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
@@ -355,6 +356,12 @@ export async function deleteKeyResult(
 
 // ── Goal check-in + comment ─────────────────────────────────────────────
 
+/** One block of a structured status update (Asana-style composer). */
+export interface GoalSection {
+  title: string;
+  body: string;
+}
+
 export interface CheckInGoalInput {
   target: GoalTarget;
   id: string;
@@ -362,6 +369,8 @@ export interface CheckInGoalInput {
   /** Optional progress snapshot (0..1 rollup or raw KR value). */
   progress?: number | null;
   note?: string | null;
+  /** Structured update sections (Epic 4); backward-compatible with `note`. */
+  sections?: GoalSection[] | null;
 }
 
 /**
@@ -389,6 +398,9 @@ export async function recordGoalCheckin(
           status: input.status,
           progress: input.progress ?? null,
           note: input.note ?? null,
+          ...(input.sections && input.sections.length > 0
+            ? { sections: input.sections as unknown as Prisma.InputJsonValue }
+            : {}),
           createdBy: mctx.actorId,
         },
       });
@@ -433,6 +445,9 @@ export async function recordGoalCheckin(
         value: rawValue,
         progress: frozenProgress,
         note: input.note ?? null,
+        ...(input.sections && input.sections.length > 0
+          ? { sections: input.sections as unknown as Prisma.InputJsonValue }
+          : {}),
         createdBy: mctx.actorId,
       },
     });

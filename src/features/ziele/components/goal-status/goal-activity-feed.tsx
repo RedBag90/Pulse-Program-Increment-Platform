@@ -112,10 +112,23 @@ export function GoalActivityFeed({ target, id, activity, userLabels, canComment 
                   )}
                   <span className="ml-1 text-xs text-muted-foreground">· {relTime(e.at)}</span>
                 </p>
-                {e.comment && (
-                  <p className="mt-1 whitespace-pre-wrap border-l-2 border-border pl-2 text-sm text-foreground/80">
-                    {e.comment}
-                  </p>
+                {e.sections && e.sections.length > 0 ? (
+                  <div className="mt-1 space-y-1 border-l-2 border-border pl-2">
+                    {e.sections.map((s, i) => (
+                      <div key={i} className="text-sm">
+                        {s.title && <p className="font-medium text-foreground">{s.title}</p>}
+                        {s.body && (
+                          <p className="whitespace-pre-wrap text-foreground/80">{s.body}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  e.comment && (
+                    <p className="mt-1 whitespace-pre-wrap border-l-2 border-border pl-2 text-sm text-foreground/80">
+                      {e.comment}
+                    </p>
+                  )
                 )}
               </li>
             );

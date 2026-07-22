@@ -275,6 +275,9 @@ model GoalCheckin {
   value       Decimal? @db.Decimal(14, 4)
   progress    Decimal? @db.Decimal(14, 4)
   note        String?  @db.Text
+  /// Strukturiertes Status-Update (Epic 4): Array [{title, body}]. Null =
+  /// nur `note`/kein Freitext (rückwärtskompatibel).
+  sections    Json?
   createdAt   DateTime @default(now()) @map("created_at")
   createdBy   String   @map("created_by") @db.Uuid
 
