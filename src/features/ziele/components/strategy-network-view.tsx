@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import dagre from "@dagrejs/dagre";
 import {
@@ -18,6 +18,7 @@ import "@xyflow/react/dist/style.css";
 import type { ZieleTreeKeyResult, ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
 import { goalPeriodLabel } from "@/domain/goal-period";
+import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 
 /**
  * Strategie als Netzplan — flach (Refactor §Hierarchie-Vereinfachung).
@@ -36,7 +37,9 @@ type Tier = "theme" | "kr";
 
 interface NodeData extends Record<string, unknown> {
   tier: Tier;
+  goalId: string;
   title: string;
+  status: string | null;
   progress: number;
   subgoalCount: number;
   period: string | null;
@@ -44,10 +47,17 @@ interface NodeData extends Record<string, unknown> {
   atRisk: boolean;
   href: string;
   accent: string;
+  /** Hat der Knoten Kinder (Expand/Collapse-Toggle anzeigen)? */
+  hasChildren: boolean;
+  /** Gesamtzahl Nachfahren (Badge „+N" bei eingeklappt). */
+  descendantCount: number;
+  /** Teilbaum aktuell eingeklappt? */
+  collapsed: boolean;
+  onToggle: (goalId: string) => void;
 }
 
 const NODE_WIDTH = 240;
-const NODE_HEIGHT = 120;
+const NODE_HEIGHT = 140;
 
 const HUE_PALETTE = [
   "#6366f1",
@@ -61,7 +71,24 @@ const HUE_PALETTE = [
 ];
 
 export function StrategyNetworkView({ themes }: Props) {
-  const { nodes, edges } = useMemo(() => buildGraph(themes), [themes]);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  const onToggle = useCallback((goalId: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(goalId)) next.delete(goalId);
+      else next.add(goalId);
+      return next;
+    });
+  }, []);
+
+  const collapseAll = useCallback(() => setCollapsed(collapsibleIds(themes)), [themes]);
+  const expandAll = useCallback(() => setCollapsed(new Set()), []);
+
+  const { nodes, edges } = useMemo(
+    () => buildGraph(themes, collapsed, onToggle),
+    [themes, collapsed, onToggle],
+  );
 
   if (nodes.length === 0) {
     return (
@@ -72,23 +99,41 @@ export function StrategyNetworkView({ themes }: Props) {
   }
 
   return (
-    <div className="h-[680px] overflow-hidden rounded-lg border bg-card">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={NODE_TYPES}
-        fitView
-        proOptions={{ hideAttribution: true }}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable
-        minZoom={0.2}
-        maxZoom={1.4}
-      >
-        <Background gap={20} size={1} />
-        <Controls showInteractive={false} />
-        <MiniMap pannable zoomable className="!bg-card" />
-      </ReactFlow>
+    <div className="space-y-2">
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={collapseAll}
+          className="rounded-md border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+        >
+          Alle einklappen
+        </button>
+        <button
+          type="button"
+          onClick={expandAll}
+          className="rounded-md border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+        >
+          Alle ausklappen
+        </button>
+      </div>
+      <div className="h-[680px] overflow-hidden rounded-lg border bg-card">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={NODE_TYPES}
+          fitView
+          proOptions={{ hideAttribution: true }}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable
+          minZoom={0.2}
+          maxZoom={1.4}
+        >
+          <Background gap={20} size={1} />
+          <Controls showInteractive={false} />
+          <MiniMap pannable zoomable className="!bg-card" />
+        </ReactFlow>
+      </div>
     </div>
   );
 }
@@ -98,7 +143,7 @@ const NODE_TYPES = { strategyNode: StrategyNode };
 function StrategyNode({ data }: NodeProps) {
   const d = data as NodeData;
   const router = useRouter();
-  const onClick = () => router.push(d.href as never);
+  const open = () => router.push(d.href as never);
 
   const tierStyle: Record<Tier, string> = {
     theme: "border-l-4 bg-card",
@@ -112,24 +157,62 @@ function StrategyNode({ data }: NodeProps) {
   return (
     <>
       <Handle type="target" position={Position.Top} isConnectable={false} />
-      <button
-        type="button"
-        onClick={onClick}
-        className={`flex h-full w-full flex-col gap-1.5 rounded-lg p-3 text-left shadow-sm transition-shadow hover:shadow-md ${tierStyle[d.tier]}`}
+      {/* Card is a div (not a button) so the collapse toggle can be a real
+          nested button; body click + keyboard open the drawer (side-pane). */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={open}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            open();
+          }
+        }}
+        className={`flex h-full w-full cursor-pointer flex-col gap-1.5 rounded-lg p-3 text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring ${tierStyle[d.tier]}`}
         style={d.tier === "theme" ? { borderLeftColor: d.accent } : undefined}
       >
         <header className="flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <span>{tierLabel[d.tier]}</span>
-          {d.atRisk && (
-            <span
-              className="rounded-full bg-amber-100 px-1 py-0.5 text-[9px] font-semibold text-amber-800"
-              title="Run-Rate < 70 % vom Planned"
-            >
-              ⚠
-            </span>
-          )}
+          <span className="flex items-center gap-1">
+            {d.hasChildren && (
+              <button
+                type="button"
+                aria-label={d.collapsed ? "Teilbaum ausklappen" : "Teilbaum einklappen"}
+                aria-expanded={!d.collapsed}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  d.onToggle(d.goalId);
+                }}
+                className="grid size-4 place-items-center rounded border text-[10px] leading-none hover:bg-muted"
+              >
+                {d.collapsed ? "▸" : "▾"}
+              </button>
+            )}
+            {tierLabel[d.tier]}
+          </span>
+          <span className="flex items-center gap-1">
+            {d.collapsed && d.descendantCount > 0 && (
+              <span
+                className="rounded-full bg-primary/15 px-1 py-0.5 text-[9px] font-semibold text-primary"
+                title={`${d.descendantCount} verborgene Nachfahren`}
+              >
+                +{d.descendantCount}
+              </span>
+            )}
+            {d.atRisk && (
+              <span
+                className="rounded-full bg-amber-100 px-1 py-0.5 text-[9px] font-semibold text-amber-800"
+                title="Run-Rate < 70 % vom Planned"
+              >
+                ⚠
+              </span>
+            )}
+          </span>
         </header>
         <p className="line-clamp-2 text-[12px] font-semibold leading-tight">{d.title}</p>
+        <div>
+          <GoalStatusPill status={d.status} />
+        </div>
         <ProgressBar value={d.progress} />
         <footer className="mt-auto flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
           <span className="truncate">
@@ -146,7 +229,7 @@ function StrategyNode({ data }: NodeProps) {
             </span>
           )}
         </footer>
-      </button>
+      </div>
       <Handle type="source" position={Position.Bottom} isConnectable={false} />
     </>
   );
@@ -168,19 +251,27 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
-function buildGraph(themes: ZieleTreeTheme[]): { nodes: Node[]; edges: Edge[] } {
+function buildGraph(
+  themes: ZieleTreeTheme[],
+  collapsed: Set<string>,
+  onToggle: (goalId: string) => void,
+): { nodes: Node[]; edges: Edge[] } {
   const rawNodes: Array<{ id: string; data: NodeData }> = [];
   const rawEdges: Array<{ id: string; source: string; target: string }> = [];
 
   // Rekursiver Walk über den Goal-Baum: ein Knoten je Ebene + Eltern-Kind-Kante.
+  // Eingeklappte Knoten emittieren ihre Kinder nicht → dagre layoutet nur Sichtbares.
   const visit = (n: ZieleTreeTheme, accent: string, parentGraphId: string | null): void => {
     const tier: Tier = n.nodeKind === "key_result" ? "kr" : "theme";
     const gid = nodeId(tier, n.id);
+    const isCollapsed = collapsed.has(n.id);
     rawNodes.push({
       id: gid,
       data: {
         tier,
+        goalId: n.id,
         title: n.title,
+        status: n.status,
         progress:
           n.progress ?? (n.nodeKind === "key_result" ? krProgress(n) : trioProgress(n.trio)),
         subgoalCount: n.children.length > 0 ? n.children.length : n.kpiCount,
@@ -189,12 +280,16 @@ function buildGraph(themes: ZieleTreeTheme[]): { nodes: Node[]; edges: Edge[] } 
         atRisk: isAtRisk(n.trio),
         href: `/strategy?entity=${tier}&id=${n.id}`,
         accent,
+        hasChildren: n.children.length > 0,
+        descendantCount: descendantCount(n),
+        collapsed: isCollapsed,
+        onToggle,
       },
     });
     if (parentGraphId) {
       rawEdges.push({ id: `${parentGraphId}__${gid}`, source: parentGraphId, target: gid });
     }
-    for (const c of n.children) visit(c, accent, gid);
+    if (!isCollapsed) for (const c of n.children) visit(c, accent, gid);
   };
   themes.forEach((t, ti) => visit(t, HUE_PALETTE[ti % HUE_PALETTE.length]!, null));
 
@@ -232,6 +327,24 @@ function buildGraph(themes: ZieleTreeTheme[]): { nodes: Node[]; edges: Edge[] } 
 
 function nodeId(tier: Tier, id: string): string {
   return `${tier}-${id}`;
+}
+
+/** Gesamtzahl der Nachfahren eines Knotens (für das „+N"-Collapse-Badge). */
+function descendantCount(n: ZieleTreeTheme): number {
+  return n.children.reduce((sum, c) => sum + 1 + descendantCount(c), 0);
+}
+
+/** Alle Knoten-IDs mit Kindern (für „Alle einklappen"). */
+function collapsibleIds(themes: ZieleTreeTheme[]): Set<string> {
+  const ids = new Set<string>();
+  const walk = (n: ZieleTreeTheme): void => {
+    if (n.children.length > 0) {
+      ids.add(n.id);
+      n.children.forEach(walk);
+    }
+  };
+  themes.forEach(walk);
+  return ids;
 }
 
 function trioProgress(trio: RollupTrio): number {

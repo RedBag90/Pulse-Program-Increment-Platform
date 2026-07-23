@@ -115,6 +115,11 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   den Baum flach über `parentObjectiveId`; ein rekursiver `GoalNode`-DTO ersetzt die
   alten `ZieleTreeTheme`/`ZieleTreeKeyResult` (Aliase). `KrKpiContribution`,
   `GoalCheckin`, `GoalComment`, `GoalEpicLink` hängen nur noch an `objectiveId`.
+- **Strategy Map** — der Netzplan-Layout (`strategy-network-view.tsx`, ReactFlow +
+  dagre) rendert den Goal-Baum rekursiv mit Goal-Status-Pill + Progress je Knoten,
+  Expand/Collapse je Knoten (eingeklappt = „+N" verborgene Nachfahren, Teilbaum
+  wird nicht gelayoutet) und Klick → Drawer als Side-Pane. Client-only auf dem
+  `GoalNode`-DTO; Collapse-Zustand ephemer.
 - **Theme (OKR)** — Top-Level-Goal-Knoten (parentObjectiveId = null) unter dem
   Tenant. Stored as `Objective`-Row; der legacy `StrategicTheme` bleibt versteckter
   Default-Anker. Carries title, narrative, period (see **Goal-Zeitraum**),
