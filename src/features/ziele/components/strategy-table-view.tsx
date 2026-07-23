@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronRight, Pencil, Plus } from "lucide-react";
-import type { ZieleTreeKeyResult, ZieleTreeTheme } from "@/server/views/ziele-view";
+import type { GoalNode, ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, keyResultProgress, type RollupTrio } from "@/domain/goals-rollup";
 import { goalPeriodLabel } from "@/domain/goal-period";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
@@ -63,7 +63,7 @@ export function StrategyTableView({ themes, canEdit }: Props) {
           </thead>
           <tbody className="divide-y">
             {themes.map((t, ti) => (
-              <ThemeBlock key={t.id} index={ti + 1} theme={t} canEdit={canEdit} />
+              <NodeRows key={t.id} node={t} depth={0} index={ti + 1} canEdit={canEdit} />
             ))}
           </tbody>
         </table>
@@ -72,88 +72,62 @@ export function StrategyTableView({ themes, canEdit }: Props) {
   );
 }
 
-function ThemeBlock({
+/**
+ * Rekursive Knoten-Zeilen — ersetzt die alten fixen 2 Ebenen (Theme + KR).
+ * Jeder Knoten rendert eine `Row` (mit tiefen-abhängiger Einrückung) und
+ * darunter rekursiv seine Kinder. „+"-Affordance je Knoten: Sub-Objective
+ * ODER Key Result anhängen.
+ */
+function NodeRows({
+  node,
+  depth,
   index,
-  theme,
   canEdit,
 }: {
+  node: GoalNode;
+  depth: number;
   index: number;
-  theme: ZieleTreeTheme;
   canEdit: boolean;
 }) {
+  const isKr = node.nodeKind === "key_result";
+  const entity = isKr ? "kr" : "theme";
+  const kindLabel = depth === 0 ? "Theme (OKR)" : isKr ? "Key Result" : "Objective";
+  const subtitle =
+    depth > 0 && node.rollupWeight != null
+      ? `${kindLabel} · trägt ${Math.round(node.contributionShare * 100)} %`
+      : kindLabel;
+  const progress = node.progress ?? (isKr ? keyResultProgress(node) : 0);
   return (
     <>
       <Row
-        depth={0}
+        depth={depth}
         index={index}
-        title={theme.title}
-        subtitle="Theme (OKR)"
-        narrative={theme.narrative}
-        confidence={theme.confidence}
-        drift={isAtRisk(theme.trio)}
-        href={`?entity=theme&id=${theme.id}`}
-        statusValue={theme.status}
-        checkinAt={theme.latestCheckin?.at ?? null}
-        progress={theme.progress ?? 0}
-        trio={theme.trio}
-        period={theme.period}
+        title={node.title}
+        subtitle={subtitle}
+        narrative={node.narrative}
+        confidence={node.confidence}
+        drift={isAtRisk(node.trio)}
+        href={`?entity=${entity}&id=${node.id}`}
+        statusValue={node.status}
+        checkinAt={node.latestCheckin?.at ?? null}
+        progress={progress}
+        trio={node.trio}
+        period={node.period}
         canEdit={canEdit}
         actions={
           canEdit ? (
             <RowActions
-              editHref={`/strategy?entity=theme&id=${theme.id}`}
-              addHref={`/strategy?entity=kr&new=1&parent=${theme.id}`}
-              addLabel="Key Result hinzufuegen"
+              editHref={`/strategy?entity=${entity}&id=${node.id}`}
+              addObjectiveHref={`/strategy?entity=theme&new=1&parent=${node.id}`}
+              addKrHref={`/strategy?entity=kr&new=1&parent=${node.id}`}
             />
           ) : null
         }
       />
-      {theme.keyResults.map((kr, ki) => (
-        <KrRow key={kr.id} index={ki + 1} kr={kr} parentDepth={1} canEdit={canEdit} />
+      {node.children.map((child, i) => (
+        <NodeRows key={child.id} node={child} depth={depth + 1} index={i + 1} canEdit={canEdit} />
       ))}
     </>
-  );
-}
-
-function KrRow({
-  index,
-  kr,
-  parentDepth,
-  canEdit,
-}: {
-  index: number;
-  kr: ZieleTreeKeyResult;
-  parentDepth: number;
-  canEdit: boolean;
-}) {
-  const prog = keyResultProgress(kr);
-  // Gewichts-Beitrag nur zeigen, wenn abweichend gewichtet (nicht Default 1).
-  const subtitle =
-    kr.rollupWeight != null
-      ? `Key Result · trägt ${Math.round(kr.contributionShare * 100)} %`
-      : "Key Result";
-  return (
-    <Row
-      depth={parentDepth}
-      index={index}
-      title={kr.title}
-      subtitle={subtitle}
-      narrative={null}
-      confidence={null}
-      drift={kr.trio.planned > 0 && kr.trio.realized / kr.trio.planned < 0.7}
-      href={`?entity=kr&id=${kr.id}`}
-      statusValue={kr.status}
-      checkinAt={kr.latestCheckin?.at ?? null}
-      progress={prog}
-      trio={kr.trio}
-      period={kr.period}
-      canEdit={canEdit}
-      actions={
-        canEdit ? (
-          <RowActions editHref={`/strategy?entity=kr&id=${kr.id}`} addHref={null} addLabel="" />
-        ) : null
-      }
-    />
   );
 }
 
@@ -262,24 +236,35 @@ function Row({
 
 function RowActions({
   editHref,
-  addHref,
-  addLabel,
+  addObjectiveHref,
+  addKrHref,
 }: {
   editHref: string;
-  addHref: string | null;
-  addLabel: string;
+  addObjectiveHref?: string | null;
+  addKrHref?: string | null;
 }) {
   return (
     <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100">
-      {addHref && (
+      {addObjectiveHref && (
         <Link
-          href={addHref as never}
+          href={addObjectiveHref as never}
           scroll={false}
-          className="grid size-7 place-items-center rounded-md border bg-card hover:bg-muted"
-          title={addLabel}
-          aria-label={addLabel}
+          className="grid h-7 place-items-center rounded-md border bg-card px-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-muted"
+          title="Sub-Objective hinzufügen"
+          aria-label="Sub-Objective hinzufügen"
         >
-          <Plus className="h-3.5 w-3.5" aria-hidden />
+          ＋Ziel
+        </Link>
+      )}
+      {addKrHref && (
+        <Link
+          href={addKrHref as never}
+          scroll={false}
+          className="grid h-7 place-items-center rounded-md border bg-card px-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-muted"
+          title="Key Result hinzufügen"
+          aria-label="Key Result hinzufügen"
+        >
+          ＋KR
         </Link>
       )}
       <Link

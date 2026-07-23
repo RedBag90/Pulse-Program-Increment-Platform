@@ -65,7 +65,7 @@ export function StrategySankeyView({ themes }: Props) {
   const themeNodes: SankeyNode[] = [];
   themes.forEach((t, ti) => {
     if (!fallbackMode && t.trio.planned < minEur) return;
-    const weight = fallbackMode ? Math.max(1, t.keyResults.length) : t.trio.planned;
+    const weight = fallbackMode ? Math.max(1, t.children.length) : t.trio.planned;
     themeNodes.push({
       id: t.id,
       label: t.title,
@@ -83,7 +83,7 @@ export function StrategySankeyView({ themes }: Props) {
   const krNodes: SankeyNode[] = [];
   themes.forEach((t, ti) => {
     if (!visibleThemes.has(ti)) return;
-    for (const kr of t.keyResults) {
+    for (const kr of t.children) {
       if (!fallbackMode && kr.trio.planned < minEur) continue;
       const krWeight = fallbackMode ? 1 : kr.trio.planned;
       krNodes.push({
