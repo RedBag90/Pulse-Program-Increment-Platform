@@ -51,6 +51,21 @@ const periodField = z
   .refine((v) => v === "" || isGoalPeriodKey(v), "Ungültiger Zeitraum")
   .optional();
 
+/**
+ * Clearbare `.or("")`-Union-Felder: `parseFromSchema` liest ein **abwesendes**
+ * Union-Feld als `null` (nicht `undefined`), was die Union sonst mit „Invalid
+ * input" ablehnt. Hier `null → undefined` normalisieren ⇒ `.optional()` greift
+ * (Feld unverändert lassen); `""` bleibt erhalten (= löschen).
+ */
+const statusField = z.preprocess(
+  (v) => v ?? undefined,
+  goalStatusEnum.optional().or(z.literal("")),
+);
+const ownerIdField = z.preprocess(
+  (v) => v ?? undefined,
+  z.string().uuid().optional().or(z.literal("")),
+);
+
 /** Status-Update-Sektionen kommen als JSON-String aus dem FormData. */
 const goalSectionsField = z.preprocess(
   (v) => {
@@ -112,10 +127,10 @@ export const updateObjectiveAction = createServerAction({
     narrative: optStr,
     period: periodField,
     confidence: z.coerce.number().int().min(0).max(5).optional(),
-    status: goalStatusEnum.optional().or(z.literal("")),
+    status: statusField,
     dueDate: optStr,
     closingNote: optStr,
-    ownerId: z.string().uuid().optional().or(z.literal("")),
+    ownerId: ownerIdField,
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -206,9 +221,9 @@ export const updateKeyResultAction = createServerAction({
     current: optNum,
     period: periodField,
     formula: z.enum(["auto_from_kpi", "manual"]).optional(),
-    status: goalStatusEnum.optional().or(z.literal("")),
+    status: statusField,
     dueDate: optStr,
-    ownerId: z.string().uuid().optional().or(z.literal("")),
+    ownerId: ownerIdField,
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),

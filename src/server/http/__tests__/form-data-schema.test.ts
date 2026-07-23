@@ -112,4 +112,33 @@ describe("parseFromSchema — picks the right fields() reader per Zod shape", ()
       tags: ["x"],
     });
   });
+
+  // Regression: an absent `.or(z.literal(""))`-union field is read via the plain
+  // string reader → `null`. The union rejects null with Zod's generic "Invalid
+  // input". The `preprocess(v => v ?? undefined, …)` wrapper (statusField /
+  // ownerIdField pattern) makes the field parse cleanly when absent.
+  it("clearable union field (.or('')) is null when absent — needs null→undefined normalisation", () => {
+    const rawUnion = z.object({
+      status: z.enum(["on_track"]).optional().or(z.literal("")),
+    });
+    const raw = parseFromSchema(makeFd([]), rawUnion);
+    expect(raw).toEqual({ status: null });
+    // Bare union rejects the null → "Invalid input".
+    expect(rawUnion.safeParse(raw).success).toBe(false);
+
+    // With the null→undefined preprocess, the absent field parses fine.
+    const fixed = z.object({
+      status: z.preprocess(
+        (v) => v ?? undefined,
+        z.enum(["on_track"]).optional().or(z.literal("")),
+      ),
+    });
+    const fixedRaw = parseFromSchema(makeFd([]), fixed);
+    const parsed = fixed.safeParse(fixedRaw);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.status).toBeUndefined();
+    // "" still clears; a real value still passes.
+    expect(fixed.safeParse({ status: "" }).success).toBe(true);
+    expect(fixed.safeParse({ status: "on_track" }).success).toBe(true);
+  });
 });
