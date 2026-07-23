@@ -6,6 +6,7 @@ import { withAuditedTransaction, toMutationContext } from "@/server/services/mut
 import { recordedUpdate } from "@/server/services/recorded-update";
 import { isClosed, isOpen, type GoalStatus } from "@/domain/goal-status";
 import { clampPrecision, type MetricType } from "@/domain/goal-metric";
+import { canReparent } from "@/domain/goal-reparent";
 
 export type GoalTarget = "objective" | "kr";
 
@@ -207,6 +208,101 @@ export async function deleteObjective(
     return ok({
       result: undefined,
       audit: { action: "objective.deleted", resourceType: "objective", resourceId: input.id },
+    });
+  });
+}
+
+/**
+ * Verschiebt einen Goal-Knoten (samt Subtree) unter einen neuen Parent — oder
+ * auf die oberste Ebene (`newParentId = null`). Zyklus-Guard über den
+ * materialisierten `path`; für Knoten + alle Nachfahren werden `path`, `level`
+ * und `themeId` (vom neuen Parent geerbt) neu gesetzt.
+ */
+export async function reparentGoalNode(
+  ctx: RequestContext,
+  input: { id: string; newParentId?: string | null },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const newParentId = input.newParentId ?? null;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const node = await tx.objective.findFirst({
+      where: { id: input.id, tenantId: mctx.tenantId },
+    });
+    if (!node) {
+      return err({ kind: "not_found" as const, resourceType: "Objective", id: input.id });
+    }
+
+    let parent: { id: string; path: string; level: number; themeId: string } | null = null;
+    if (newParentId) {
+      const p = await tx.objective.findFirst({
+        where: { id: newParentId, tenantId: mctx.tenantId },
+      });
+      if (!p) {
+        return err({ kind: "not_found" as const, resourceType: "Objective", id: newParentId });
+      }
+      parent = { id: p.id, path: p.path, level: p.level, themeId: p.themeId };
+    }
+
+    if (
+      !canReparent({
+        nodeId: node.id,
+        nodePath: node.path,
+        targetId: newParentId,
+        targetPath: parent?.path ?? null,
+      })
+    ) {
+      return err({
+        kind: "conflict" as const,
+        reason: "Ein Ziel kann nicht unter sich selbst oder einen Nachfahren verschoben werden.",
+      });
+    }
+
+    // Kein-Op, wenn schon am Ziel-Parent.
+    if ((node.parentObjectiveId ?? null) === newParentId) {
+      return ok({
+        result: undefined,
+        audit: { action: "objective.updated", resourceType: "objective", resourceId: node.id },
+      });
+    }
+
+    const oldPath = node.path;
+    const newBasePath = parent ? `${parent.path}/${node.id}` : node.id;
+    const newLevel = parent ? parent.level + 1 : 0;
+    const levelDelta = newLevel - node.level;
+    const newThemeId = parent ? parent.themeId : node.themeId;
+
+    const subtree = await tx.objective.findMany({
+      where: {
+        tenantId: mctx.tenantId,
+        OR: [{ id: node.id }, { path: { startsWith: `${oldPath}/` } }],
+      },
+      select: { id: true, path: true, level: true },
+    });
+    for (const d of subtree) {
+      const dNewPath =
+        d.id === node.id ? newBasePath : `${newBasePath}${d.path.slice(oldPath.length)}`;
+      await tx.objective.update({
+        where: { id: d.id },
+        data: {
+          path: dNewPath,
+          level: d.level + levelDelta,
+          themeId: newThemeId,
+          ...(d.id === node.id ? { parentObjectiveId: newParentId } : {}),
+          updatedBy: mctx.actorId,
+        },
+      });
+    }
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "objective.updated",
+        resourceType: "objective",
+        resourceId: node.id,
+        changes: {
+          parentObjectiveId: { before: node.parentObjectiveId, after: newParentId },
+        },
+      },
     });
   });
 }

@@ -10,6 +10,7 @@ import {
   createKeyResult,
   updateKeyResult,
   deleteKeyResult,
+  reparentGoalNode,
   recordGoalCheckin,
   recordGoalProgress,
   addGoalComment,
@@ -162,6 +163,23 @@ export const deleteObjectiveAction = createServerAction({
   service: (ctx, input) => deleteObjective(ctx, { id: input.id }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Objective konnte nicht geloescht werden" }),
+});
+
+/** Knoten (samt Subtree) unter einen neuen Parent verschieben; "" = oberste Ebene. */
+export const reparentGoalNodeAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    newParentId: z.string().uuid().optional().or(z.literal("")),
+  }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    reparentGoalNode(ctx, {
+      id: input.id,
+      newParentId: input.newParentId && input.newParentId !== "" ? input.newParentId : null,
+    }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Verschieben fehlgeschlagen" }),
 });
 
 // ── KeyResult ──────────────────────────────────────────────────────────

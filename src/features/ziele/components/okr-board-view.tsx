@@ -63,6 +63,19 @@ function buildColumns(): QuarterColumn[] {
   return cols;
 }
 
+/** Alle messbaren Blatt-Nachfahren (nodeKind key_result) eines Knotens, rekursiv. */
+function collectLeaves(node: ZieleTreeTheme): ZieleTreeTheme[] {
+  const out: ZieleTreeTheme[] = [];
+  const walk = (n: ZieleTreeTheme): void => {
+    for (const c of n.children) {
+      if (c.nodeKind === "key_result") out.push(c);
+      walk(c);
+    }
+  };
+  walk(node);
+  return out;
+}
+
 export function OkrBoardView({ themes, canEdit }: Props) {
   const columns = buildColumns();
   const draggingId = useRef<string | null>(null);
@@ -303,20 +316,25 @@ function ThemeCard({
               {"☆".repeat(5 - theme.confidence)}
             </p>
           )}
-          {theme.children.length > 0 && (
-            <ul className="space-y-0.5">
-              {theme.children.slice(0, 4).map((kr) => (
-                <li key={kr.id} className="flex items-center gap-1.5 text-[10px]">
-                  <KrMiniBar kr={kr} />
-                </li>
-              ))}
-              {theme.children.length > 4 && (
-                <li className="text-[9px] text-muted-foreground/70">
-                  +{theme.children.length - 4} weitere
-                </li>
-              )}
-            </ul>
-          )}
+          {(() => {
+            // Alle messbaren Blatt-Nachfahren (rekursiv) statt nur direkter Kinder.
+            const leaves = collectLeaves(theme);
+            if (leaves.length === 0) return null;
+            return (
+              <ul className="space-y-0.5">
+                {leaves.slice(0, 4).map((kr) => (
+                  <li key={kr.id} className="flex items-center gap-1.5 text-[10px]">
+                    <KrMiniBar kr={kr} />
+                  </li>
+                ))}
+                {leaves.length > 4 && (
+                  <li className="text-[9px] text-muted-foreground/70">
+                    +{leaves.length - 4} weitere
+                  </li>
+                )}
+              </ul>
+            );
+          })()}
           <TrioBadge trio={theme.trio} />
           {theme.status && <GoalStatusPill status={theme.status} />}
         </div>

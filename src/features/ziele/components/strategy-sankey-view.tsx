@@ -23,11 +23,14 @@ interface Props {
   themes: ZieleTreeTheme[];
 }
 
-const COLUMN_X = [60, 460];
 const COLUMN_WIDTH = 240;
+const COLUMN_PITCH = 400;
+const COLUMN_X0 = 60;
 const NODE_GAP = 10;
 const MIN_NODE_HEIGHT = 28;
 const TARGET_TOTAL_HEIGHT = 720;
+
+const colX = (depth: number): number => COLUMN_X0 + depth * COLUMN_PITCH;
 
 interface SankeyNode {
   id: string;
@@ -37,12 +40,24 @@ interface SankeyNode {
   realized: number;
   weight: number;
   themeIndex: number;
+  /** Tiefe im Baum (0 = Top-Level) → Sankey-Spalte. */
+  depth: number;
+  /** Eltern-Knoten-id (null bei Top-Level) — für die Band-Zuordnung. */
+  parentId: string | null;
+  /** DFS-Pre-Order für stabile, subtree-gruppierte Reihenfolge je Spalte. */
+  order: number;
   href?: string;
+}
+
+interface PlacedNode extends SankeyNode {
+  y: number;
+  h: number;
 }
 
 interface SankeyLink {
   fromY: number;
   toY: number;
+  fromDepth: number;
   height: number;
   drift: boolean;
   themeIndex: number;
@@ -61,48 +76,39 @@ export function StrategySankeyView({ themes }: Props) {
   const totalPlanned = useMemo(() => themes.reduce((s, t) => s + t.trio.planned, 0), [themes]);
   const fallbackMode = totalPlanned <= 0;
 
-  // 1) Themes (Layer 0)
-  const themeNodes: SankeyNode[] = [];
-  themes.forEach((t, ti) => {
-    if (!fallbackMode && t.trio.planned < minEur) return;
-    const weight = fallbackMode ? Math.max(1, t.children.length) : t.trio.planned;
-    themeNodes.push({
-      id: t.id,
-      label: t.title,
-      sublabel: t.period ? goalPeriodLabel(t.period) : "",
-      planned: t.trio.planned,
-      realized: t.trio.realized,
+  // 1) Baum rekursiv zu Flach-Knoten mit Tiefe/Parent/DFS-Order. Ein Teilbaum
+  //    wird beschnitten, sobald ein Knoten unter der €-Schwelle liegt.
+  const flat: SankeyNode[] = [];
+  let orderCounter = 0;
+  const visit = (n: ZieleTreeTheme, depth: number, parentId: string | null, themeIndex: number) => {
+    if (!fallbackMode && n.trio.planned < minEur) return; // prune node + subtree
+    const isLeaf = n.nodeKind === "key_result";
+    const weight = fallbackMode ? (isLeaf ? 1 : Math.max(1, n.children.length)) : n.trio.planned;
+    flat.push({
+      id: n.id,
+      label: n.title,
+      sublabel:
+        depth === 0
+          ? n.period
+            ? goalPeriodLabel(n.period)
+            : ""
+          : n.trio.planned > 0
+            ? `€${compactEur(n.trio.planned)} Planned`
+            : (n.metricUnit ?? (isLeaf ? "manuell" : "")),
+      planned: n.trio.planned,
+      realized: n.trio.realized,
       weight,
-      themeIndex: ti,
-      href: `/strategy?entity=theme&id=${t.id}`,
+      themeIndex,
+      depth,
+      parentId,
+      order: orderCounter++,
+      href: `/strategy?entity=${isLeaf ? "kr" : "theme"}&id=${n.id}`,
     });
-  });
+    for (const c of n.children) visit(c, depth + 1, n.id, themeIndex);
+  };
+  themes.forEach((t, ti) => visit(t, 0, null, ti));
 
-  // 2) KRs (Layer 1)
-  const visibleThemes = new Set(themeNodes.map((n) => n.themeIndex));
-  const krNodes: SankeyNode[] = [];
-  themes.forEach((t, ti) => {
-    if (!visibleThemes.has(ti)) return;
-    for (const kr of t.children) {
-      if (!fallbackMode && kr.trio.planned < minEur) continue;
-      const krWeight = fallbackMode ? 1 : kr.trio.planned;
-      krNodes.push({
-        id: kr.id,
-        label: kr.title,
-        sublabel:
-          kr.trio.planned > 0
-            ? `€${compactEur(kr.trio.planned)} Planned`
-            : (kr.metricUnit ?? "manuell"),
-        planned: kr.trio.planned,
-        realized: kr.trio.realized,
-        weight: krWeight,
-        themeIndex: ti,
-        href: `/strategy?entity=kr&id=${kr.id}`,
-      });
-    }
-  });
-
-  if (themeNodes.length === 0) {
+  if (flat.length === 0) {
     return (
       <div className="space-y-3">
         <Controls
@@ -118,52 +124,57 @@ export function StrategySankeyView({ themes }: Props) {
     );
   }
 
-  const maxColumnSum = Math.max(sumWeight(themeNodes), sumWeight(krNodes), 1);
+  // 2) Spalten nach Tiefe; je Spalte nach DFS-Order (Subtree-gruppiert).
+  const maxDepth = flat.reduce((m, n) => Math.max(m, n.depth), 0);
+  const columns: SankeyNode[][] = [];
+  for (let d = 0; d <= maxDepth; d++) {
+    columns[d] = flat.filter((n) => n.depth === d).sort((a, b) => a.order - b.order);
+  }
+  const maxColumnSum = Math.max(...columns.map(sumWeight), 1);
   const pxPerWeight = TARGET_TOTAL_HEIGHT / maxColumnSum;
 
-  function layoutColumn<T extends SankeyNode>(nodes: T[]): Array<T & { y: number; h: number }> {
+  const placedById = new Map<string, PlacedNode>();
+  const placedColumns: PlacedNode[][] = columns.map((col) => {
     let y = 40;
-    return nodes.map((n) => {
+    return col.map((n) => {
       const h = Math.max(MIN_NODE_HEIGHT, n.weight * pxPerWeight);
-      const out = { ...n, y, h };
+      const placed: PlacedNode = { ...n, y, h };
+      placedById.set(n.id, placed);
       y += h + NODE_GAP;
-      return out;
+      return placed;
     });
+  });
+
+  // 3) Bänder Eltern→Kind über alle Ebenen; je Elternknoten ein y-Cursor.
+  const parentCursor = new Map<string, number>();
+  const links: SankeyLink[] = [];
+  for (const col of placedColumns) {
+    for (const child of col) {
+      if (!child.parentId) continue;
+      const parent = placedById.get(child.parentId);
+      if (!parent) continue;
+      const cursor = parentCursor.get(parent.id) ?? 0;
+      links.push({
+        fromY: parent.y + cursor,
+        toY: child.y,
+        fromDepth: parent.depth,
+        height: child.h,
+        drift: child.planned > 0 && child.realized / child.planned < 0.7,
+        themeIndex: child.themeIndex,
+      });
+      parentCursor.set(parent.id, cursor + child.h);
+    }
   }
-
-  const themeLayout = layoutColumn(themeNodes);
-  const krLayout = layoutColumn(krNodes);
-
-  // Edges: KR → Theme via theme.keyResults Lookup
-  const themeYCursor = new Map<number, number>();
-  const themeKrLinks: SankeyLink[] = krLayout
-    .map((kr) => {
-      const themeLayoutIdx = themeLayout.findIndex((t) => t.themeIndex === kr.themeIndex);
-      const t = themeLayout[themeLayoutIdx];
-      if (!t) return null;
-      const cursor = themeYCursor.get(kr.themeIndex) ?? 0;
-      const fromYTop = t.y + cursor;
-      themeYCursor.set(kr.themeIndex, cursor + kr.h);
-      return {
-        fromY: fromYTop,
-        toY: kr.y,
-        height: kr.h,
-        drift: kr.planned > 0 && kr.realized / kr.planned < 0.7,
-        themeIndex: kr.themeIndex,
-      };
-    })
-    .filter((x): x is SankeyLink => x !== null);
 
   const totalHeight =
     Math.max(
-      themeLayout[themeLayout.length - 1]
-        ? themeLayout[themeLayout.length - 1]!.y + themeLayout[themeLayout.length - 1]!.h
-        : 0,
-      krLayout[krLayout.length - 1]
-        ? krLayout[krLayout.length - 1]!.y + krLayout[krLayout.length - 1]!.h
-        : 0,
+      ...placedColumns.map((col) => {
+        const last = col[col.length - 1];
+        return last ? last.y + last.h : 0;
+      }),
       240,
     ) + 30;
+  const svgWidth = colX(maxDepth) + COLUMN_WIDTH + 40;
 
   const dim = (ti: number) => (hoverTheme == null || hoverTheme === ti ? 1 : 0.15);
   const themeColor = (ti: number) => HUE_PALETTE[ti % HUE_PALETTE.length]!;
@@ -188,17 +199,18 @@ export function StrategySankeyView({ themes }: Props) {
             <>€ Planned · gepunktet = Run-Rate &lt; 70 %</>
           )}
         </p>
-        <p>Hover hebt den Theme-Pfad an</p>
+        <p>Hover hebt den Pfad an</p>
       </div>
       <div
         className="overflow-auto rounded-lg border bg-gradient-to-b from-card to-muted/20 p-4 shadow-inner"
         onMouseLeave={() => setHoverTheme(null)}
       >
         <svg
-          viewBox={`0 0 760 ${totalHeight}`}
-          className="block min-w-[760px] max-w-full"
+          viewBox={`0 0 ${svgWidth} ${totalHeight}`}
+          className="block max-w-full"
+          style={{ minWidth: svgWidth }}
           role="img"
-          aria-label="Strategie-Sankey: Theme → Key Result"
+          aria-label="Strategie-Sankey: Ziel-Kaskade"
         >
           <defs>
             <filter id="ziele-sankey-shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -206,14 +218,19 @@ export function StrategySankeyView({ themes }: Props) {
             </filter>
           </defs>
 
-          <ColumnHeader x={COLUMN_X[0]!} label="THEMES (OKRs)" />
-          <ColumnHeader x={COLUMN_X[1]!} label="KEY RESULTS" />
+          {placedColumns.map((_, d) => (
+            <ColumnHeader
+              key={`h-${d}`}
+              x={colX(d)}
+              label={d === 0 ? "THEMES (OKRs)" : `EBENE ${d + 1}`}
+            />
+          ))}
 
-          {themeKrLinks.map((l, i) => (
+          {links.map((l, i) => (
             <BandPath
-              key={`tk-${i}`}
-              x1={COLUMN_X[0]! + COLUMN_WIDTH}
-              x2={COLUMN_X[1]!}
+              key={`l-${i}`}
+              x1={colX(l.fromDepth) + COLUMN_WIDTH}
+              x2={colX(l.fromDepth + 1)}
               y1={l.fromY}
               y2={l.toY}
               h={l.height}
@@ -223,27 +240,14 @@ export function StrategySankeyView({ themes }: Props) {
             />
           ))}
 
-          {themeLayout.map((n) => (
+          {placedColumns.flat().map((n) => (
             <NodeRect
               key={n.id}
-              x={COLUMN_X[0]!}
+              x={colX(n.depth)}
               y={n.y}
               h={n.h}
               node={n}
-              tier="theme"
-              color={themeColor(n.themeIndex)}
-              opacity={dim(n.themeIndex)}
-              onHover={setHoverTheme}
-            />
-          ))}
-          {krLayout.map((n) => (
-            <NodeRect
-              key={n.id}
-              x={COLUMN_X[1]!}
-              y={n.y}
-              h={n.h}
-              node={n}
-              tier="kr"
+              tier={n.depth === 0 ? "theme" : "kr"}
               color={themeColor(n.themeIndex)}
               opacity={dim(n.themeIndex)}
               onHover={setHoverTheme}

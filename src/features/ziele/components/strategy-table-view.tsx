@@ -1,9 +1,29 @@
+"use client";
+
+import { useRef, useState, startTransition, useActionState } from "react";
 import Link from "next/link";
 import { ChevronRight, Pencil, Plus } from "lucide-react";
 import type { GoalNode, ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, keyResultProgress, type RollupTrio } from "@/domain/goals-rollup";
 import { goalPeriodLabel } from "@/domain/goal-period";
+import { reparentGoalNodeAction } from "@/features/ziele/actions/ziele";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
+
+/** Drag-to-Reparent-Kontext, durch NodeRows → Row gereicht. */
+interface DragCtx {
+  canEdit: boolean;
+  onStart: (node: GoalNode) => void;
+  onDropOn: (target: GoalNode | null) => void;
+  isValidTarget: (targetId: string) => boolean;
+  overId: string | null;
+  setOver: (id: string | null) => void;
+}
+
+/** Enthält der Subtree von `n` die id `id`? (Client-Zyklus-Guard.) */
+function subtreeHas(n: GoalNode, id: string): boolean {
+  if (n.id === id) return true;
+  return n.children.some((c) => subtreeHas(c, id));
+}
 
 /**
  * Strategie als hierarchische Tabelle — Default-Layout im Strategie-Tab.
@@ -20,6 +40,36 @@ interface Props {
 }
 
 export function StrategyTableView({ themes, canEdit }: Props) {
+  const dragNode = useRef<GoalNode | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const [overTop, setOverTop] = useState(false);
+  const [, reparentRun] = useActionState(reparentGoalNodeAction, {});
+
+  const drag: DragCtx = {
+    canEdit,
+    onStart: (node) => {
+      dragNode.current = node;
+    },
+    isValidTarget: (targetId) => {
+      const src = dragNode.current;
+      return !!src && src.id !== targetId && !subtreeHas(src, targetId);
+    },
+    onDropOn: (target) => {
+      const src = dragNode.current;
+      dragNode.current = null;
+      setOverId(null);
+      setOverTop(false);
+      if (!src) return;
+      if (target && (src.id === target.id || subtreeHas(src, target.id))) return;
+      const fd = new FormData();
+      fd.set("id", src.id);
+      fd.set("newParentId", target?.id ?? "");
+      startTransition(() => reparentRun(fd));
+    },
+    overId,
+    setOver: setOverId,
+  };
+
   if (themes.length === 0) {
     return (
       <div className="grid h-[300px] place-items-center rounded-lg border bg-muted/10">
@@ -43,9 +93,29 @@ export function StrategyTableView({ themes, canEdit }: Props) {
       {canEdit && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[11px] text-muted-foreground">
-            Klick auf eine Zeile oeffnet den Editor.
+            Klick öffnet den Editor · Zeile ziehen verschiebt das Ziel unter ein anderes.
           </p>
           <NewLink entity="theme">+ Theme (OKR)</NewLink>
+        </div>
+      )}
+      {canEdit && (
+        <div
+          onDragOver={(e) => {
+            if (dragNode.current) {
+              e.preventDefault();
+              setOverTop(true);
+            }
+          }}
+          onDragLeave={() => setOverTop(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            drag.onDropOn(null);
+          }}
+          className={`rounded-md border border-dashed px-3 py-1.5 text-center text-[11px] text-muted-foreground transition-colors ${
+            overTop ? "border-primary bg-primary/10" : ""
+          }`}
+        >
+          ⇧ Hierher ziehen = auf oberste Ebene verschieben
         </div>
       )}
       <div className="overflow-x-auto rounded-lg border bg-card">
@@ -63,7 +133,14 @@ export function StrategyTableView({ themes, canEdit }: Props) {
           </thead>
           <tbody className="divide-y">
             {themes.map((t, ti) => (
-              <NodeRows key={t.id} node={t} depth={0} index={ti + 1} canEdit={canEdit} />
+              <NodeRows
+                key={t.id}
+                node={t}
+                depth={0}
+                index={ti + 1}
+                canEdit={canEdit}
+                drag={drag}
+              />
             ))}
           </tbody>
         </table>
@@ -83,11 +160,13 @@ function NodeRows({
   depth,
   index,
   canEdit,
+  drag,
 }: {
   node: GoalNode;
   depth: number;
   index: number;
   canEdit: boolean;
+  drag: DragCtx;
 }) {
   const isKr = node.nodeKind === "key_result";
   const entity = isKr ? "kr" : "theme";
@@ -100,6 +179,8 @@ function NodeRows({
   return (
     <>
       <Row
+        node={node}
+        drag={drag}
         depth={depth}
         index={index}
         title={node.title}
@@ -125,13 +206,22 @@ function NodeRows({
         }
       />
       {node.children.map((child, i) => (
-        <NodeRows key={child.id} node={child} depth={depth + 1} index={i + 1} canEdit={canEdit} />
+        <NodeRows
+          key={child.id}
+          node={child}
+          depth={depth + 1}
+          index={i + 1}
+          canEdit={canEdit}
+          drag={drag}
+        />
       ))}
     </>
   );
 }
 
 interface RowProps {
+  node: GoalNode;
+  drag: DragCtx;
   depth: number;
   index: number;
   title: string;
@@ -150,6 +240,8 @@ interface RowProps {
 }
 
 function Row({
+  node,
+  drag,
   depth,
   index,
   title,
@@ -167,8 +259,28 @@ function Row({
   actions,
 }: RowProps) {
   const indent = depth * 20 + 8;
+  const isOver = drag.overId === node.id;
   return (
-    <tr className="group hover:bg-muted/30">
+    <tr
+      className={`group hover:bg-muted/30 ${isOver ? "outline outline-2 -outline-offset-2 outline-primary" : ""}`}
+      draggable={drag.canEdit}
+      onDragStart={(e) => {
+        if (!drag.canEdit) return;
+        drag.onStart(node);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onDragOver={(e) => {
+        if (drag.canEdit && drag.isValidTarget(node.id)) {
+          e.preventDefault();
+          if (!isOver) drag.setOver(node.id);
+        }
+      }}
+      onDragLeave={() => isOver && drag.setOver(null)}
+      onDrop={(e) => {
+        e.preventDefault();
+        drag.onDropOn(node);
+      }}
+    >
       <Td className="text-[10px] text-muted-foreground tabular-nums">{index}</Td>
       <Td>
         <Link
