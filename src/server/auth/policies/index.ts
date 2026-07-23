@@ -59,6 +59,7 @@ export type Action =
   | "kpi.value.manage"
   | "kpi.bind"
   | "role.capability.manage"
+  | "goal.custom_field.manage"
   | "pi.demo.manage";
 
 /** A scope dimension a grant may additionally require the principal to match. */
@@ -102,6 +103,7 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Fast-Path-Bypass deckt das ohnehin ab, der explizite Grant
   // dokumentiert die Absicht.
   "role.capability.manage": [{ roles: [TENANT_ADMIN] }],
+  "goal.custom_field.manage": [{ roles: [TENANT_ADMIN] }],
   // Define/manage the organisation's target operating model (the Soll the
   // transformation drives toward). Management-owned: the transformation lead
   // (coach / SPC), the LPM/portfolio lead, and the tenant admin.

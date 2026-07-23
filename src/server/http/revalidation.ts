@@ -31,6 +31,7 @@ export type RevalidationResource =
   | "impediment"
   | "dependency"
   | "ziele"
+  | "goalCustomFields"
   | "setup";
 
 const REGISTRY: Record<RevalidationResource, readonly string[]> = {
@@ -80,6 +81,8 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   impediment: ["/art/[artId]/impediments"],
   dependency: ["/feature/[featureId]", "/pi/[piId]/dependencies"],
   ziele: ["/ziele"],
+  // Feld-Defs wirken auf die Admin-Seite UND auf jeden Ziel-Drawer.
+  goalCustomFields: ["/admin/goal-fields", "/ziele", "/strategy"],
   setup: ["/setup"],
 };
 

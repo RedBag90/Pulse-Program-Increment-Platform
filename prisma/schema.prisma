@@ -47,6 +47,8 @@ model Tenant {
   krKpiContributions      KrKpiContribution[]
   themeEpicLinks          ThemeEpicLink[]
   goalEpicLinks           GoalEpicLink[]
+  goalCustomFieldDefs     GoalCustomFieldDef[]
+  goalCustomFieldValues   GoalCustomFieldValue[]
   budgetAllocations       BudgetAllocation[]
   artBudgets              ArtBudget[]
   budgetPlanRevisions     BudgetPlanRevision[]
@@ -233,6 +235,7 @@ model Objective {
   checkins   GoalCheckin[]
   comments   GoalComment[]
   epicLinks  GoalEpicLink[]
+  customFieldValues GoalCustomFieldValue[]
 
   @@index([tenantId])
   @@index([themeId])
@@ -355,6 +358,55 @@ model GoalEpicLink {
   @@index([tenantId, objectiveId])
   @@index([epicId])
   @@map("goal_epic_links")
+}
+
+/// Tenant-weit definierbares Custom Field an Ziel-Knoten (Epic 7). Der
+/// Tenant-Admin verwaltet die Definitionen; Werte hängen je Knoten an
+/// `GoalCustomFieldValue`. `type` als validierter String (kein Prisma-Enum,
+/// wie Objective.metricType / RoleCapability.scope).
+model GoalCustomFieldDef {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  /// "text" | "number" | "select" — im zod-Layer validiert.
+  type      String   @default("text")
+  /// Nur bei type=select: Array erlaubter Werte (JSON).
+  options   Json?
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  tenant Tenant                 @relation(fields: [tenantId], references: [id])
+  values GoalCustomFieldValue[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("goal_custom_field_defs")
+}
+
+/// Custom-Field-Wert an einem Ziel-Knoten (Epic 7). Genau ein Wert je
+/// (Knoten, Definition). Wert serialisiert als String; Parsen/Validieren am
+/// Domain-Seam (src/domain/goal-custom-field.ts).
+model GoalCustomFieldValue {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  defId       String   @map("def_id") @db.Uuid
+  objectiveId String   @map("objective_id") @db.Uuid
+  value       String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   String   @map("created_by") @db.Uuid
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedBy   String   @map("updated_by") @db.Uuid
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id])
+  def       GoalCustomFieldDef @relation(fields: [defId], references: [id], onDelete: Cascade)
+  objective Objective          @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+
+  @@unique([objectiveId, defId])
+  @@index([tenantId, objectiveId])
+  @@map("goal_custom_field_values")
 }
 
 /// A tracked transformation action — the "Steuern" backlog that moves the

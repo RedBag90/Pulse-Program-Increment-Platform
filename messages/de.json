@@ -54,6 +54,7 @@
     "admin": "Administration",
     "users": "Benutzer",
     "roles": "Rollen & Capabilities",
+    "goalFields": "Custom Fields",
     "integrations": "Integrationen",
     "auditLog": "Audit-Log",
     "transformation": "Transformation",
@@ -118,6 +119,7 @@
     "title": "Administration",
     "users": "Benutzer",
     "roles": "Rollen",
+    "goalFields": "Custom Fields",
     "auditLog": "Audit-Log",
     "inviteUser": "Benutzer einladen"
   },

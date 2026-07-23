@@ -115,6 +115,12 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   den Baum flach über `parentObjectiveId`; ein rekursiver `GoalNode`-DTO ersetzt die
   alten `ZieleTreeTheme`/`ZieleTreeKeyResult` (Aliase). `KrKpiContribution`,
   `GoalCheckin`, `GoalComment`, `GoalEpicLink` hängen nur noch an `objectiveId`.
+- **Goal-Custom-Fields** — tenant-weit definierbare Zusatzfelder an Ziel-Knoten
+  (`GoalCustomFieldDef` type text/number/select; Werte je Knoten in
+  `GoalCustomFieldValue`, `@@unique([objectiveId, defId])`). Tenant-Admin verwaltet
+  die Definitionen unter `/admin/goal-fields` (Capability `goal.custom_field.manage`);
+  Werte pflegt man im Ziel-Drawer. `type`/`value` als validierte Strings am Domain-Seam
+  (`src/domain/goal-custom-field.ts`). Loader hängt `customFields[]` an jeden `GoalNode`.
 - **Strategy Map** — der Netzplan-Layout (`strategy-network-view.tsx`, ReactFlow +
   dagre) rendert den Goal-Baum rekursiv mit Goal-Status-Pill + Progress je Knoten,
   Expand/Collapse je Knoten (eingeklappt = „+N" verborgene Nachfahren, Teilbaum

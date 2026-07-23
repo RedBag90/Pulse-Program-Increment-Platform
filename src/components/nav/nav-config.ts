@@ -166,6 +166,12 @@ export const NAV_GROUPS: NavGroup[] = [
         capability: "role.capability.manage",
       },
       {
+        href: "/admin/goal-fields",
+        labelKey: "goalFields",
+        icon: ListTodo,
+        capability: "goal.custom_field.manage",
+      },
+      {
         href: "/admin/integrations",
         labelKey: "integrations",
         icon: Plug,

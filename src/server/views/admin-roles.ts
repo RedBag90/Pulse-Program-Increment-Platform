@@ -23,6 +23,7 @@ export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly
       "admin.audit-log.read",
       "admin.users.read",
       "role.capability.manage",
+      "goal.custom_field.manage",
     ],
   },
   { key: "target", label: "Target-Modell", actions: ["target.manage"] },

@@ -8,6 +8,7 @@ import type {
   ZieleKrContribution,
   RelatedEpic,
   GoalNode,
+  GoalCustomFieldEntry,
 } from "@/server/views/ziele-view";
 import {
   createObjectiveAction,
@@ -18,6 +19,7 @@ import {
   deleteKeyResultAction,
   linkEpicToGoalAction,
   unlinkEpicFromGoalAction,
+  setGoalCustomFieldValueAction,
 } from "@/features/ziele/actions/ziele";
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
 import { EntitySelect } from "@/features/create/entity-select";
@@ -234,6 +236,16 @@ function ThemePane({
       <div className="rounded-lg border bg-muted/10 p-4">
         <RelatedEpics target="objective" goalId={id} epics={theme.relatedEpics} canEdit={canEdit} />
       </div>
+      {theme.customFields.length > 0 && (
+        <div className="rounded-lg border bg-muted/10 p-4">
+          <CustomFields
+            target="objective"
+            goalId={id}
+            fields={theme.customFields}
+            canEdit={canEdit}
+          />
+        </div>
+      )}
       <details className="rounded-lg border bg-muted/10 p-4">
         <summary className="cursor-pointer text-sm font-medium">Details bearbeiten</summary>
         <div className="mt-3">{formNode}</div>
@@ -494,6 +506,11 @@ function KeyResultPane({
           <KpiBindingsReadOnly contributions={kr.contributions} krId={id} />
         </div>
       </div>
+      {kr.customFields.length > 0 && (
+        <div className="rounded-lg border bg-muted/10 p-4">
+          <CustomFields target="kr" goalId={id} fields={kr.customFields} canEdit={canEdit} />
+        </div>
+      )}
       <details className="rounded-lg border bg-muted/10 p-4">
         <summary className="cursor-pointer text-sm font-medium">Details bearbeiten</summary>
         <div className="mt-3">{formNode}</div>
@@ -609,6 +626,105 @@ function RelatedEpics({
       )}
       {err && <p className="text-xs text-destructive">{err}</p>}
     </section>
+  );
+}
+
+/**
+ * Custom Fields (Epic 7): tenant-weite Zusatzfelder, Werte je Ziel-Knoten.
+ * Nur sichtbar, wenn Felder definiert sind. Speichern per Feld (blur/change);
+ * leerer Wert löscht den Wert.
+ */
+function CustomFields({
+  target,
+  goalId,
+  fields,
+  canEdit,
+}: {
+  target: "objective" | "kr";
+  goalId: string;
+  fields: GoalCustomFieldEntry[];
+  canEdit: boolean;
+}) {
+  if (fields.length === 0) return null;
+  return (
+    <section className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Custom Fields
+      </h3>
+      <div className="space-y-2">
+        {fields.map((f) => (
+          <CustomFieldRow
+            key={f.defId}
+            target={target}
+            goalId={goalId}
+            field={f}
+            canEdit={canEdit}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CustomFieldRow({
+  target,
+  goalId,
+  field,
+  canEdit,
+}: {
+  target: "objective" | "kr";
+  goalId: string;
+  field: GoalCustomFieldEntry;
+  canEdit: boolean;
+}) {
+  const [state, run, pending] = useActionState(setGoalCustomFieldValueAction, {});
+  const [val, setVal] = useState(field.value);
+
+  function save(next: string) {
+    if (next === field.value) return;
+    const fd = new FormData();
+    fd.set("target", target);
+    fd.set("goalId", goalId);
+    fd.set("defId", field.defId);
+    fd.set("value", next);
+    startTransition(() => run(fd));
+  }
+
+  const inputCls =
+    "h-8 w-full rounded-md border bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50";
+
+  return (
+    <label className="block space-y-1">
+      <span className="text-[11px] font-medium text-muted-foreground">{field.name}</span>
+      {field.type === "select" ? (
+        <select
+          value={val}
+          disabled={!canEdit || pending}
+          onChange={(e) => {
+            setVal(e.target.value);
+            save(e.target.value);
+          }}
+          className={inputCls}
+        >
+          <option value="">—</option>
+          {field.options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={field.type === "number" ? "number" : "text"}
+          value={val}
+          disabled={!canEdit || pending}
+          onChange={(e) => setVal(e.target.value)}
+          onBlur={() => save(val)}
+          className={inputCls}
+        />
+      )}
+      {state.error && <span className="text-[11px] text-destructive">{state.error}</span>}
+    </label>
   );
 }
 

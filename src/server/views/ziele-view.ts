@@ -13,6 +13,7 @@ import {
   type RollupTrio,
   type RollupNode,
 } from "@/domain/goals-rollup";
+import { parseOptions } from "@/domain/goal-custom-field";
 
 /**
  * Ziele-/Strategie-/KPI-Coverage Loader. Zwei page-models leben hier:
@@ -61,6 +62,16 @@ export interface RelatedEpic {
   href: string;
 }
 
+/** Ein Custom Field mit seinem (evtl. leeren) Wert an einem Ziel-Knoten. */
+export interface GoalCustomFieldEntry {
+  defId: string;
+  name: string;
+  /** "text" | "number" | "select". */
+  type: string;
+  options: string[];
+  value: string;
+}
+
 /**
  * **Goal-Knoten** — der eine, rekursive Knotentyp nach der Kaskaden-
  * Vereinheitlichung (Objective + Key Result verschmolzen). `nodeKind`
@@ -100,6 +111,8 @@ export interface GoalNode {
   contributions: ZieleKrContribution[];
   /** Direkt verknüpfte Epics ("Related work"); ihr € ist im `trio` enthalten. */
   relatedEpics: RelatedEpic[];
+  /** Tenant-Custom-Fields mit dem Wert an diesem Knoten (leer wenn ungesetzt). */
+  customFields: GoalCustomFieldEntry[];
   // ── Rekursion + Rollup ──
   /** Kind-Knoten (Sub-Objectives / Key Results), beliebig tief. */
   children: GoalNode[];
@@ -281,6 +294,35 @@ export async function loadStrategyTree(
     }
   }
 
+  // Custom Fields: Tenant-Defs einmal + alle Werte über die Knoten-IDs in je
+  // einer Query (kein N+1). Je Knoten werden ALLE Defs mit ihrem Wert gezeigt.
+  const customFieldDefs = await db.goalCustomFieldDef.findMany({
+    where: { tenantId },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    select: { id: true, name: true, type: true, options: true },
+  });
+  const valueByNode = new Map<string, Map<string, string>>();
+  if (customFieldDefs.length > 0 && nodeIds.length > 0) {
+    const values = await db.goalCustomFieldValue.findMany({
+      where: { tenantId, objectiveId: { in: nodeIds } },
+      select: { objectiveId: true, defId: true, value: true },
+    });
+    for (const v of values) {
+      let m = valueByNode.get(v.objectiveId);
+      if (!m) {
+        m = new Map();
+        valueByNode.set(v.objectiveId, m);
+      }
+      m.set(v.defId, v.value);
+    }
+  }
+  const parsedDefs = customFieldDefs.map((d) => ({
+    defId: d.id,
+    name: d.name,
+    type: d.type,
+    options: parseOptions(d.options),
+  }));
+
   // Kinder je Parent (in Load-Reihenfolge = sortOrder, createdAt).
   const childrenByParent = new Map<string, typeof objectiveRows>();
   const roots: typeof objectiveRows = [];
@@ -398,6 +440,10 @@ export async function loadStrategyTree(
       kpiCount: o.kpiContributions.length,
       contributions: contributionDetails,
       relatedEpics,
+      customFields: parsedDefs.map((d) => ({
+        ...d,
+        value: valueByNode.get(o.id)?.get(d.defId) ?? "",
+      })),
       children: childNodes,
       depth,
       progress: nodeProgress(rollup),

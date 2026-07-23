@@ -16,6 +16,7 @@ import {
 } from "@/server/services/ziele";
 import { setKpiBinding } from "@/server/services/kpi-binding";
 import { linkEpicToGoal, unlinkEpicFromGoal } from "@/server/services/goal-epic-link";
+import { setGoalCustomFieldValue } from "@/server/services/goal-custom-field";
 import { isGoalPeriodKey } from "@/domain/goal-period";
 
 /**
@@ -388,4 +389,28 @@ export const unlinkEpicFromGoalAction = createServerAction({
   service: (ctx, input) => unlinkEpicFromGoal(ctx, { epicId: input.epicId }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Epic-Verknüpfung lösen fehlgeschlagen" }),
+});
+
+/**
+ * Custom-Field-Wert an einem Ziel-Knoten setzen/löschen (Epic 7). Leerer Wert
+ * ⇒ löschen; Validierung gegen den Feldtyp im Service.
+ */
+export const setGoalCustomFieldValueAction = createServerAction({
+  schema: z.object({
+    target: goalTargetEnum,
+    goalId: z.string().uuid(),
+    defId: z.string().uuid(),
+    value: z.string().max(2000),
+  }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    setGoalCustomFieldValue(ctx, {
+      objectiveId: input.goalId,
+      defId: input.defId,
+      value: input.value,
+    }),
+  revalidate: "ziele",
+  mapError: (e) =>
+    formatDomainError(e, { fallback: "Custom-Field-Wert konnte nicht gesetzt werden" }),
 });
