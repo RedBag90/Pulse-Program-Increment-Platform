@@ -48,6 +48,8 @@ model Tenant {
   themeEpicLinks          ThemeEpicLink[]
   goalEpicLinks           GoalEpicLink[]
   goalRelatedWork         GoalRelatedWork[]
+  goalValueStreamLinks    GoalValueStreamLink[]
+  goalArtLinks            GoalArtLink[]
   goalCustomFieldDefs     GoalCustomFieldDef[]
   goalCustomFieldValues   GoalCustomFieldValue[]
   budgetAllocations       BudgetAllocation[]
@@ -237,6 +239,8 @@ model Objective {
   comments   GoalComment[]
   epicLinks  GoalEpicLink[]
   relatedWork GoalRelatedWork[]
+  valueStreamLinks GoalValueStreamLink[]
+  artLinks   GoalArtLink[]
   customFieldValues GoalCustomFieldValue[]
 
   @@index([tenantId])
@@ -383,6 +387,45 @@ model GoalRelatedWork {
   @@map("goal_related_work")
 }
 
+/// Ziel ↔ Value-Stream-Verantwortung (Epic 6a, n:m). Additiv, ohne Auth-Eingriff
+/// — ein Ziel kann mehreren Value Streams zugeordnet sein. Rein organisatorisch.
+model GoalValueStreamLink {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  objectiveId   String   @map("objective_id") @db.Uuid
+  valueStreamId String   @map("value_stream_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  createdBy     String   @map("created_by") @db.Uuid
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  objective   Objective   @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  valueStream ValueStream @relation(fields: [valueStreamId], references: [id], onDelete: Cascade)
+
+  @@unique([objectiveId, valueStreamId])
+  @@index([tenantId, objectiveId])
+  @@index([valueStreamId])
+  @@map("goal_value_stream_links")
+}
+
+/// Ziel ↔ ART-Verantwortung (Epic 6a, n:m). Wie GoalValueStreamLink für ARTs.
+model GoalArtLink {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  objectiveId String   @map("objective_id") @db.Uuid
+  artId       String   @map("art_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   String   @map("created_by") @db.Uuid
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  objective Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  art       Art       @relation(fields: [artId], references: [id], onDelete: Cascade)
+
+  @@unique([objectiveId, artId])
+  @@index([tenantId, objectiveId])
+  @@index([artId])
+  @@map("goal_art_links")
+}
+
 /// Tenant-weit definierbares Custom Field an Ziel-Knoten (Epic 7). Der
 /// Tenant-Admin verwaltet die Definitionen; Werte hängen je Knoten an
 /// `GoalCustomFieldValue`. `type` als validierter String (kein Prisma-Enum,
@@ -471,6 +514,7 @@ model ValueStream {
   tenant Tenant       @relation(fields: [tenantId], references: [id])
   arts   Art[]
   epics  Initiative[] @relation("EpicValueStream")
+  goalLinks GoalValueStreamLink[]
 
   // Uniqueness among *active* (non-deleted) rows is enforced by a partial unique
   // index created out-of-band (see prisma/manual-indexes.sql) — Prisma can't
@@ -505,6 +549,7 @@ model Art {
   teams       Team[]
   impediments Impediment[]
   budget      ArtBudget?
+  goalLinks   GoalArtLink[]
 
   // Active-row uniqueness via a partial unique index (see prisma/manual-indexes.sql).
   @@index([timelineId])

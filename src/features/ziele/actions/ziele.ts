@@ -19,6 +19,12 @@ import { setKpiBinding } from "@/server/services/kpi-binding";
 import { linkEpicToGoal, unlinkEpicFromGoal } from "@/server/services/goal-epic-link";
 import { setGoalCustomFieldValue } from "@/server/services/goal-custom-field";
 import { addGoalRelatedWork, removeGoalRelatedWork } from "@/server/services/goal-related-work";
+import {
+  linkGoalValueStream,
+  unlinkGoalValueStream,
+  linkGoalArt,
+  unlinkGoalArt,
+} from "@/server/services/goal-scope-link";
 import { isGoalPeriodKey } from "@/domain/goal-period";
 
 /**
@@ -448,6 +454,49 @@ export const removeGoalRelatedWorkAction = createServerAction({
     }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Verknüpfung lösen fehlgeschlagen" }),
+});
+
+/**
+ * VS/ART-Verantwortung eines Ziels (Epic 6a, n:m). Rein organisatorisch,
+ * additiv — Gate `target.manage`.
+ */
+export const linkGoalValueStreamAction = createServerAction({
+  schema: z.object({ goalId: z.string().uuid(), valueStreamId: z.string().uuid() }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    linkGoalValueStream(ctx, { objectiveId: input.goalId, valueStreamId: input.valueStreamId }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Value-Stream-Zuordnung fehlgeschlagen" }),
+});
+
+export const unlinkGoalValueStreamAction = createServerAction({
+  schema: z.object({ goalId: z.string().uuid(), valueStreamId: z.string().uuid() }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    unlinkGoalValueStream(ctx, { objectiveId: input.goalId, valueStreamId: input.valueStreamId }),
+  revalidate: "ziele",
+  mapError: (e) =>
+    formatDomainError(e, { fallback: "Value-Stream-Zuordnung lösen fehlgeschlagen" }),
+});
+
+export const linkGoalArtAction = createServerAction({
+  schema: z.object({ goalId: z.string().uuid(), artId: z.string().uuid() }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) => linkGoalArt(ctx, { objectiveId: input.goalId, artId: input.artId }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "ART-Zuordnung fehlgeschlagen" }),
+});
+
+export const unlinkGoalArtAction = createServerAction({
+  schema: z.object({ goalId: z.string().uuid(), artId: z.string().uuid() }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) => unlinkGoalArt(ctx, { objectiveId: input.goalId, artId: input.artId }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "ART-Zuordnung lösen fehlgeschlagen" }),
 });
 
 /**

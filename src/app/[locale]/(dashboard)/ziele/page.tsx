@@ -30,6 +30,8 @@ export default async function ZielePage({ searchParams }: PageProps) {
   const params = await searchParams;
   const tab = parseTab(typeof params.tab === "string" ? params.tab : undefined);
   const period = typeof params.period === "string" ? params.period : undefined;
+  const vs = typeof params.vs === "string" ? params.vs : undefined;
+  const art = typeof params.art === "string" ? params.art : undefined;
   const layout =
     params.layout === "sankey" || params.layout === "netzplan" ? params.layout : "tabelle";
 
@@ -40,6 +42,8 @@ export default async function ZielePage({ searchParams }: PageProps) {
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const tree = await loadStrategyTree(db, principal.tenantId, {
     ...(effectivePeriod ? { period: effectivePeriod } : {}),
+    ...(vs ? { valueStreamId: vs } : {}),
+    ...(art ? { artId: art } : {}),
   });
   const inventory = await loadKpiInventory(db, principal.tenantId, tree);
 

@@ -4,6 +4,7 @@ import { StrategySankeyView } from "./strategy-sankey-view";
 import { StrategyTableView } from "./strategy-table-view";
 import { StrategyNetworkView } from "./strategy-network-view";
 import { StrategyLayoutToggle, type StrategyLayout } from "./strategy-layout-toggle";
+import { GoalScopeFilterBar } from "./goal-scope-filter-bar";
 import { ZieleEditDrawer } from "./ziele-edit-drawer";
 import { OkrBoardView } from "./okr-board-view";
 import { MoneySheetView } from "./money-sheet-view";
@@ -64,7 +65,8 @@ export function ZieleShell({ model, layout, mode = "ziele" }: Props) {
 
       {tab === "strategie" && (
         <div className="space-y-3">
-          <div className="flex items-center justify-end">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <GoalScopeFilterBar />
             <StrategyLayoutToggle active={layout} />
           </div>
           {layout === "tabelle" && (

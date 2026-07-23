@@ -8,6 +8,7 @@ import type {
   ZieleKrContribution,
   RelatedEpic,
   RelatedWorkItem,
+  ScopeRef,
   GoalNode,
   GoalCustomFieldEntry,
 } from "@/server/views/ziele-view";
@@ -22,6 +23,10 @@ import {
   unlinkEpicFromGoalAction,
   addGoalRelatedWorkAction,
   removeGoalRelatedWorkAction,
+  linkGoalValueStreamAction,
+  unlinkGoalValueStreamAction,
+  linkGoalArtAction,
+  unlinkGoalArtAction,
   setGoalCustomFieldValueAction,
 } from "@/features/ziele/actions/ziele";
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
@@ -239,6 +244,14 @@ function ThemePane({
       <div className="space-y-4 rounded-lg border bg-muted/10 p-4">
         <RelatedEpics target="objective" goalId={id} epics={theme.relatedEpics} canEdit={canEdit} />
         <RelatedWork goalId={id} items={theme.relatedWork} canEdit={canEdit} />
+      </div>
+      <div className="rounded-lg border bg-muted/10 p-4">
+        <GoalScopeLinks
+          goalId={id}
+          valueStreams={theme.valueStreams}
+          arts={theme.arts}
+          canEdit={canEdit}
+        />
       </div>
       {theme.customFields.length > 0 && (
         <div className="rounded-lg border bg-muted/10 p-4">
@@ -512,6 +525,14 @@ function KeyResultPane({
         <div className="border-t pt-3">
           <RelatedWork goalId={id} items={kr.relatedWork} canEdit={canEdit} />
         </div>
+        <div className="border-t pt-3">
+          <GoalScopeLinks
+            goalId={id}
+            valueStreams={kr.valueStreams}
+            arts={kr.arts}
+            canEdit={canEdit}
+          />
+        </div>
       </div>
       {kr.customFields.length > 0 && (
         <div className="rounded-lg border bg-muted/10 p-4">
@@ -765,6 +786,156 @@ function RelatedWork({
           </button>
         </div>
       )}
+      {err && <p className="text-xs text-destructive">{err}</p>}
+    </section>
+  );
+}
+
+/**
+ * VS/ART-Verantwortung (Epic 6a): n:m-Zuordnung eines Ziels zu Value Streams
+ * und/oder ARTs — rein organisatorisch, kein Auth-Eingriff. Chips + Add-Picker
+ * (EntitySelect kind="valueStream"/"art" laufen standalone, keine Kaskade).
+ */
+function GoalScopeLinks({
+  goalId,
+  valueStreams,
+  arts,
+  canEdit,
+}: {
+  goalId: string;
+  valueStreams: ScopeRef[];
+  arts: ScopeRef[];
+  canEdit: boolean;
+}) {
+  const [vsId, setVsId] = useState("");
+  const [artId, setArtId] = useState("");
+  const [linkVsState, linkVsRun, linkVsPending] = useActionState(linkGoalValueStreamAction, {});
+  const [unlinkVsState, unlinkVsRun, unlinkVsPending] = useActionState(
+    unlinkGoalValueStreamAction,
+    {},
+  );
+  const [linkArtState, linkArtRun, linkArtPending] = useActionState(linkGoalArtAction, {});
+  const [unlinkArtState, unlinkArtRun, unlinkArtPending] = useActionState(unlinkGoalArtAction, {});
+  const err =
+    linkVsState.error || unlinkVsState.error || linkArtState.error || unlinkArtState.error;
+
+  function addVs() {
+    if (!vsId) return;
+    const fd = new FormData();
+    fd.set("goalId", goalId);
+    fd.set("valueStreamId", vsId);
+    startTransition(() => linkVsRun(fd));
+    setVsId("");
+  }
+  function removeVs(id: string) {
+    const fd = new FormData();
+    fd.set("goalId", goalId);
+    fd.set("valueStreamId", id);
+    startTransition(() => unlinkVsRun(fd));
+  }
+  function addArt() {
+    if (!artId) return;
+    const fd = new FormData();
+    fd.set("goalId", goalId);
+    fd.set("artId", artId);
+    startTransition(() => linkArtRun(fd));
+    setArtId("");
+  }
+  function removeArt(id: string) {
+    const fd = new FormData();
+    fd.set("goalId", goalId);
+    fd.set("artId", id);
+    startTransition(() => unlinkArtRun(fd));
+  }
+
+  function chips(items: ScopeRef[], onRemove: (id: string) => void, removing: boolean) {
+    if (items.length === 0) {
+      return <p className="text-xs text-muted-foreground">Keine Zuordnung.</p>;
+    }
+    return (
+      <ul className="flex flex-wrap gap-1.5">
+        {items.map((it) => (
+          <li
+            key={it.id}
+            className="flex items-center gap-1 rounded-full border bg-card px-2 py-0.5 text-xs"
+          >
+            <span className="truncate">{it.name}</span>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => onRemove(it.id)}
+                disabled={removing}
+                aria-label={`${it.name} entfernen`}
+                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                ✕
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return (
+    <section className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Verantwortung · Value Streams &amp; ARTs
+      </h3>
+      <div className="space-y-1.5">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Value Streams</p>
+        {chips(valueStreams, removeVs, unlinkVsPending)}
+        {canEdit && (
+          <div className="flex items-end gap-1.5">
+            <div className="flex-1">
+              <EntitySelect
+                kind="valueStream"
+                name="goalScopeVs"
+                label=""
+                value={vsId}
+                onChange={setVsId}
+                labelField="name"
+                disabled={linkVsPending}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={addVs}
+              disabled={linkVsPending || vsId === ""}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            >
+              +
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">ARTs</p>
+        {chips(arts, removeArt, unlinkArtPending)}
+        {canEdit && (
+          <div className="flex items-end gap-1.5">
+            <div className="flex-1">
+              <EntitySelect
+                kind="art"
+                name="goalScopeArt"
+                label=""
+                value={artId}
+                onChange={setArtId}
+                labelField="name"
+                disabled={linkArtPending}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={addArt}
+              disabled={linkArtPending || artId === ""}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            >
+              +
+            </button>
+          </div>
+        )}
+      </div>
       {err && <p className="text-xs text-destructive">{err}</p>}
     </section>
   );

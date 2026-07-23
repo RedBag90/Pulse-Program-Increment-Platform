@@ -74,6 +74,12 @@ export interface RelatedWorkItem {
   href: string;
 }
 
+/** VS-/ART-Verantwortungs-Referenz an einem Ziel (Epic 6a). */
+export interface ScopeRef {
+  id: string;
+  name: string;
+}
+
 /** Ein Custom Field mit seinem (evtl. leeren) Wert an einem Ziel-Knoten. */
 export interface GoalCustomFieldEntry {
   defId: string;
@@ -125,6 +131,10 @@ export interface GoalNode {
   relatedEpics: RelatedEpic[];
   /** Referenziell verknüpfte Features/PIs (kein €-Beitrag, nur Deeplink). */
   relatedWork: RelatedWorkItem[];
+  /** VS-Verantwortung (Epic 6a, n:m) — rein organisatorisch. */
+  valueStreams: ScopeRef[];
+  /** ART-Verantwortung (Epic 6a, n:m). */
+  arts: ScopeRef[];
   /** Tenant-Custom-Fields mit dem Wert an diesem Knoten (leer wenn ungesetzt). */
   customFields: GoalCustomFieldEntry[];
   // ── Rekursion + Rollup ──
@@ -180,6 +190,10 @@ export interface StrategyTree {
   tenantTrio: RollupTrio;
   /** Period-Filter (z. B. „2026-Q2") oder `null` fuer „Alle". */
   period: string | null;
+  /** Aktiver VS-Filter oder `null`. */
+  valueStreamId: string | null;
+  /** Aktiver ART-Filter oder `null`. */
+  artId: string | null;
 }
 
 export interface KpiInventory {
@@ -205,9 +219,15 @@ interface ZieleSubTabState {
 export async function loadStrategyTree(
   db: PrismaClient,
   tenantId: string,
-  input: { period?: string | undefined } = {},
+  input: {
+    period?: string | undefined;
+    valueStreamId?: string | undefined;
+    artId?: string | undefined;
+  } = {},
 ): Promise<StrategyTree> {
   const period = input.period ?? null;
+  const filterValueStreamId = input.valueStreamId ?? null;
+  const filterArtId = input.artId ?? null;
 
   // Alle Goal-Knoten des Tenants flach laden (Objective = einziger Knotentyp).
   // Der Baum wird in JS über parentObjectiveId gebaut; kein rekursiver Include.
@@ -363,6 +383,36 @@ export async function loadStrategyTree(
     }
   }
 
+  // VS/ART-Verantwortung (Epic 6a): je zwei Batch-Queries mit Namen (kein N+1).
+  const valueStreamsByNode = new Map<string, ScopeRef[]>();
+  const artsByNode = new Map<string, ScopeRef[]>();
+  if (nodeIds.length > 0) {
+    const [vsLinks, artLinks] = await Promise.all([
+      db.goalValueStreamLink.findMany({
+        where: { tenantId, objectiveId: { in: nodeIds } },
+        select: { objectiveId: true, valueStream: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "asc" },
+      }),
+      db.goalArtLink.findMany({
+        where: { tenantId, objectiveId: { in: nodeIds } },
+        select: { objectiveId: true, art: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
+    for (const l of vsLinks) {
+      (valueStreamsByNode.get(l.objectiveId) ?? setAndGet(valueStreamsByNode, l.objectiveId)).push({
+        id: l.valueStream.id,
+        name: l.valueStream.name,
+      });
+    }
+    for (const l of artLinks) {
+      (artsByNode.get(l.objectiveId) ?? setAndGet(artsByNode, l.objectiveId)).push({
+        id: l.art.id,
+        name: l.art.name,
+      });
+    }
+  }
+
   // Custom Fields: Tenant-Defs einmal + alle Werte über die Knoten-IDs in je
   // einer Query (kein N+1). Je Knoten werden ALLE Defs mit ihrem Wert gezeigt.
   const customFieldDefs = await db.goalCustomFieldDef.findMany({
@@ -510,6 +560,8 @@ export async function loadStrategyTree(
       contributions: contributionDetails,
       relatedEpics,
       relatedWork: relatedWorkByNode.get(o.id) ?? [],
+      valueStreams: valueStreamsByNode.get(o.id) ?? [],
+      arts: artsByNode.get(o.id) ?? [],
       customFields: parsedDefs.map((d) => ({
         ...d,
         value: valueByNode.get(o.id)?.get(d.defId) ?? "",
@@ -523,13 +575,22 @@ export async function loadStrategyTree(
   }
 
   let topLevel = roots.map((o) => build(o, 0).node);
-  // Period-Filter greift auf Top-Level-Knoten (Subtrees bleiben vollständig).
+  // Period-/VS-/ART-Filter greifen auf Top-Level-Knoten (Subtrees bleiben
+  // vollständig — die Verantwortung hängt am Top-Level-Ziel).
   if (period) topLevel = topLevel.filter((n) => n.period === period);
+  if (filterValueStreamId) {
+    topLevel = topLevel.filter((n) => n.valueStreams.some((v) => v.id === filterValueStreamId));
+  }
+  if (filterArtId) {
+    topLevel = topLevel.filter((n) => n.arts.some((a) => a.id === filterArtId));
+  }
 
   return {
     themes: topLevel,
     tenantTrio: sumTrios(topLevel.map((t) => t.trio)),
     period,
+    valueStreamId: filterValueStreamId,
+    artId: filterArtId,
   };
 }
 

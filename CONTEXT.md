@@ -194,6 +194,20 @@ kind, refId)`, FK `objective onDelete: Cascade`. The loader resolves titles +
   `/portfolio/epics/{parentEpicId}?featureId={id}` (no own route — shown as a
   slide-over in its parent epic), PI → `/pi/{id}`. Drawer picker cascades
   ART → Feature/PI (`EntitySelect kind="feature"/"pi"` need an `artId`).
+- **VS/ART-Verantwortung (Epic 6a)** — a goal node may be assigned to **many**
+  Value Streams and/or ARTs (n:m), purely organisational — **no auth effect**
+  (goal mutations stay gated only by `target.manage` at the action layer; the
+  access-level model admin/editor/viewer is a deferred follow-up, ADR-0007).
+  Tables `GoalValueStreamLink` / `GoalArtLink` (`UNIQUE(objectiveId, vs|art)`,
+  FK `onDelete: Cascade` on both sides). Service `goal-scope-link.ts`
+  (`link/unlinkGoalValueStream`, `link/unlinkGoalArt`), audit
+  `goal.value_stream.linked/unlinked` + `goal.art.linked/unlinked`. Loader hangs
+  `valueStreams[]` / `arts[]` (`ScopeRef`) on each `GoalNode` and accepts
+  `{ valueStreamId?, artId? }` — filtering **top-level** nodes (subtrees stay
+  whole, like the period filter). Pages read `?vs=` / `?art=`; the shell's
+  `GoalScopeFilterBar` (self-fetching `<select>`s) writes them via `useUrlState`.
+  Drawer edits via `GoalScopeLinks` chips (`EntitySelect kind="valueStream"/"art"`,
+  standalone — no cascade).
 
 ## Authorization
 
