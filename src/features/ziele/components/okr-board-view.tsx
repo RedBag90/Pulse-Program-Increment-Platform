@@ -4,6 +4,7 @@ import { useRef, useState, useTransition, type MutableRefObject } from "react";
 import Link from "next/link";
 import type { ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
+import { anchorQuarterKey, parseGoalPeriod, goalPeriodLabel } from "@/domain/goal-period";
 import { updateObjectiveAction } from "@/features/ziele/actions/ziele";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 
@@ -80,11 +81,14 @@ export function OkrBoardView({ themes, canEdit }: Props) {
   for (const col of columns) grouped.set(col.key, []);
   const backlog: typeof entries = [];
   for (const entry of entries) {
-    if (!entry.effectivePeriod) {
+    // Halbjahr/Ganzjahr-Ziele auf ihr Start-Quartal ankern, damit sie in der
+    // richtigen Spalte landen statt in den Backlog zu fallen.
+    const anchor = entry.effectivePeriod ? anchorQuarterKey(entry.effectivePeriod) : null;
+    if (!anchor) {
       backlog.push(entry);
       continue;
     }
-    const bucket = grouped.get(entry.effectivePeriod);
+    const bucket = grouped.get(anchor);
     if (bucket) bucket.push(entry);
     else backlog.push(entry);
   }
@@ -179,7 +183,7 @@ function Column({
 }: {
   label: string;
   isCurrent: boolean;
-  entries: Array<{ theme: ZieleTreeTheme }>;
+  entries: Array<{ theme: ZieleTreeTheme; effectivePeriod: string | null }>;
   canEdit: boolean;
   quarterKey: string | null;
   onDropPeriod: () => void;
@@ -216,7 +220,13 @@ function Column({
           </li>
         )}
         {entries.map((e) => (
-          <ThemeCard key={e.theme.id} theme={e.theme} canDrag={canEdit} draggingId={draggingId} />
+          <ThemeCard
+            key={e.theme.id}
+            theme={e.theme}
+            period={e.effectivePeriod}
+            canDrag={canEdit}
+            draggingId={draggingId}
+          />
         ))}
       </ul>
       {canEdit && quarterKey && (
@@ -235,14 +245,20 @@ function Column({
 
 function ThemeCard({
   theme,
+  period,
   canDrag,
   draggingId,
 }: {
   theme: ZieleTreeTheme;
+  period: string | null;
   canDrag: boolean;
   draggingId: MutableRefObject<string | null>;
 }) {
   const atRisk = isAtRisk(theme.trio);
+  // Halbjahr/Ganzjahr-Ziele sitzen in ihrer Start-Quartals-Spalte — ein Chip
+  // macht die tatsächliche Granularität sichtbar (Quartale brauchen keinen).
+  const parsed = period ? parseGoalPeriod(period) : null;
+  const periodChip = parsed && parsed.granularity !== "quarter" ? goalPeriodLabel(period!) : null;
   return (
     <li>
       <Link
@@ -267,6 +283,11 @@ function ThemeCard({
         <div className="space-y-1.5 px-2 py-2">
           <div className="flex items-start justify-between gap-2">
             <p className="line-clamp-2 text-[11px] font-medium leading-tight">{theme.title}</p>
+            {periodChip && (
+              <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[9px] font-semibold uppercase text-muted-foreground">
+                {periodChip}
+              </span>
+            )}
             {atRisk && (
               <span
                 className="shrink-0 rounded-full bg-amber-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-amber-800"

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ZieleTreeTheme } from "@/server/views/ziele-view";
+import { goalPeriodLabel } from "@/domain/goal-period";
 
 /**
  * Strategy-Map · Sankey-Layout — flach (Refactor §Hierarchie-
@@ -68,7 +69,7 @@ export function StrategySankeyView({ themes }: Props) {
     themeNodes.push({
       id: t.id,
       label: t.title,
-      sublabel: t.period ?? "",
+      sublabel: t.period ? goalPeriodLabel(t.period) : "",
       planned: t.trio.planned,
       realized: t.trio.realized,
       weight,

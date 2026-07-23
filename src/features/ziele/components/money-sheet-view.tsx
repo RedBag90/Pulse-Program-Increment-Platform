@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ZieleTreeTheme } from "@/server/views/ziele-view";
+import { goalPeriodLabel } from "@/domain/goal-period";
 import { MoneyExportButton } from "./money-export-button";
 
 /**
@@ -39,7 +40,7 @@ export function MoneySheetView({ themes }: Props) {
         <MoneyExportButton
           rows={sorted.map((t) => ({
             title: t.title,
-            period: t.period ?? "",
+            period: t.period ? goalPeriodLabel(t.period) : "",
             planned: t.trio.planned,
             realized: t.trio.realized,
             runRate: t.trio.runRate,
@@ -102,7 +103,7 @@ function Row({ theme }: { theme: ZieleTreeTheme }) {
       </Td>
       <Td>
         <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-          {theme.period ?? "—"}
+          {theme.period ? goalPeriodLabel(theme.period) : "—"}
         </span>
       </Td>
       <Td align="right">{eur(theme.trio.planned)}</Td>

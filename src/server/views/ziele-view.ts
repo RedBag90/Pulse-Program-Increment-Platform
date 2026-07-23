@@ -73,6 +73,8 @@ export interface ZieleTreeKeyResult {
   baseline: number | null;
   target: number | null;
   current: number | null;
+  /** Zeitraum, kanonisch YYYY-Qn | YYYY-Hn | YYYY (goal-period) oder null. */
+  period: string | null;
   formula: string;
   ownerId: string | null;
   /** Persistierter Goal-Status (src/domain/goal-status.ts) oder null. */
@@ -374,6 +376,7 @@ export async function loadStrategyTree(
         baseline: toFloat(k.baseline),
         target: toFloat(k.target),
         current: toFloat(k.current),
+        period: k.period,
         formula: k.formula,
         ownerId: k.ownerId,
         status: k.status,

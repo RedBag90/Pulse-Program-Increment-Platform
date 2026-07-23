@@ -17,6 +17,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import type { ZieleTreeKeyResult, ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
+import { goalPeriodLabel } from "@/domain/goal-period";
 
 /**
  * Strategie als Netzplan — flach (Refactor §Hierarchie-Vereinfachung).
@@ -134,7 +135,7 @@ function StrategyNode({ data }: NodeProps) {
           <span className="truncate">
             {d.subgoalCount > 0 && `${d.subgoalCount} subgoal${d.subgoalCount === 1 ? "" : "s"}`}
             {d.subgoalCount > 0 && d.period && " · "}
-            {d.period}
+            {d.period && goalPeriodLabel(d.period)}
           </span>
           {d.ownerInitial && (
             <span

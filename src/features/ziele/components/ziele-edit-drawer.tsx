@@ -16,6 +16,7 @@ import {
 } from "@/features/ziele/actions/ziele";
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
 import { EntitySelect } from "@/features/create/entity-select";
+import { PeriodPicker } from "@/features/ziele/components/period-picker";
 import { formatMetricValue } from "@/domain/goal-metric";
 
 /**
@@ -155,14 +156,8 @@ function ThemePane({
         />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Periode (YYYY-Qn)">
-          <input
-            name="period"
-            defaultValue={theme?.period ?? ""}
-            className={INPUT}
-            disabled={!canEdit}
-            placeholder="2026-Q2"
-          />
+        <Field label="Zeitraum">
+          <PeriodPicker name="period" defaultValue={theme?.period ?? null} disabled={!canEdit} />
         </Field>
         <Field label="Confidence (1-5)">
           <input
@@ -402,15 +397,20 @@ function KeyResultPane({
           <option value="auto_from_kpi">aus KPI aggregiert</option>
         </select>
       </Field>
-      <Field label="Fällig am">
-        <input
-          name="dueDate"
-          type="date"
-          defaultValue={kr?.dueDate ? kr.dueDate.slice(0, 10) : ""}
-          className={INPUT}
-          disabled={!canEdit}
-        />
-      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Zeitraum">
+          <PeriodPicker name="period" defaultValue={kr?.period ?? null} disabled={!canEdit} />
+        </Field>
+        <Field label="Fällig am">
+          <input
+            name="dueDate"
+            type="date"
+            defaultValue={kr?.dueDate ? kr.dueDate.slice(0, 10) : ""}
+            className={INPUT}
+            disabled={!canEdit}
+          />
+        </Field>
+      </div>
     </FormShell>
   );
 

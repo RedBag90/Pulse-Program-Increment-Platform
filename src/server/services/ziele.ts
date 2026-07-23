@@ -188,6 +188,7 @@ export interface CreateKeyResultInput {
   baseline?: number | null;
   target?: number | null;
   current?: number | null;
+  period?: string | null;
   formula?: "auto_from_kpi" | "manual";
   ownerId?: string | null;
 }
@@ -222,6 +223,7 @@ export async function createKeyResult(
         baseline: input.baseline ?? null,
         target: input.target ?? null,
         current: input.current ?? null,
+        period: input.period ?? null,
         formula: input.formula ?? "auto_from_kpi",
         ownerId: input.ownerId ?? null,
         createdBy: mctx.actorId,
@@ -247,6 +249,7 @@ export interface UpdateKeyResultInput {
   baseline?: number | null;
   target?: number | null;
   current?: number | null;
+  period?: string | null;
   formula?: "auto_from_kpi" | "manual";
   status?: GoalStatus | null;
   dueDate?: Date | null;
@@ -278,6 +281,7 @@ export async function updateKeyResult(
       baseline: existing.baseline != null ? Number(existing.baseline) : null,
       target: existing.target != null ? Number(existing.target) : null,
       current: existing.current != null ? Number(existing.current) : null,
+      period: existing.period,
       formula: existing.formula,
       status: existing.status,
       dueDate: existing.dueDate,
@@ -296,6 +300,7 @@ export async function updateKeyResult(
         baseline: input.baseline,
         target: input.target,
         current: input.current,
+        period: input.period,
         formula: input.formula,
         status: input.status,
         dueDate: input.dueDate,
@@ -312,6 +317,7 @@ export async function updateKeyResult(
         "baseline",
         "target",
         "current",
+        "period",
         "formula",
         "status",
         "dueDate",

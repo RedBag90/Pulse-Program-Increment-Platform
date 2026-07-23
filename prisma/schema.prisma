@@ -242,6 +242,9 @@ model KeyResult {
   /// `manual` → User pflegt `current` direkt im KR-Editor.
   formula      String   @default("auto_from_kpi")
   current      Decimal? @db.Decimal(14, 4)
+  /// Zeitraum, kanonisch YYYY-Qn | YYYY-Hn | YYYY (src/domain/goal-period.ts).
+  /// Null = kein Zeitraum. Analog zu Objective.period, hier je Key Result.
+  period       String?
   /// Goal-Status (src/domain/goal-status.ts). Null = kein Check-in.
   status       String?
   dueDate      DateTime? @map("due_date")

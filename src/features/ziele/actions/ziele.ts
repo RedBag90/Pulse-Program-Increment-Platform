@@ -16,6 +16,7 @@ import {
 } from "@/server/services/ziele";
 import { setKpiBinding } from "@/server/services/kpi-binding";
 import { linkEpicToGoal, unlinkEpicFromGoal } from "@/server/services/goal-epic-link";
+import { isGoalPeriodKey } from "@/domain/goal-period";
 
 /**
  * Ziele-Modul-Actions. Permission-Gate ueberall `target.manage`
@@ -39,6 +40,16 @@ const goalStatusEnum = z.enum([
 const goalTargetEnum = z.enum(["objective", "kr"]);
 const metricTypeEnum = z.enum(["number", "percent", "currency"]);
 const optPrecision = z.coerce.number().int().min(0).max(6).optional();
+
+/**
+ * Zeitraum-Feld: kanonischer Key (YYYY-Qn | YYYY-Hn | YYYY) ODER "" (löschen)
+ * ODER undefined (unverändert). Der Picker erzeugt nur gültige Keys; der
+ * Refine ist die Sicherheitsnetz-Validierung gegen malforme Eingaben.
+ */
+const periodField = z
+  .string()
+  .refine((v) => v === "" || isGoalPeriodKey(v), "Ungültiger Zeitraum")
+  .optional();
 
 /** Status-Update-Sektionen kommen als JSON-String aus dem FormData. */
 const goalSectionsField = z.preprocess(
@@ -72,7 +83,7 @@ export const createObjectiveAction = createServerAction({
     themeId: z.string().uuid().optional(),
     title: z.string().min(1).max(200),
     narrative: optStr,
-    period: optStr,
+    period: periodField,
     confidence: z.coerce.number().int().min(1).max(5).optional(),
     ownerId: z.string().uuid().optional(),
   }),
@@ -83,7 +94,7 @@ export const createObjectiveAction = createServerAction({
       ...(input.themeId ? { themeId: input.themeId } : {}),
       title: input.title,
       narrative: input.narrative ?? null,
-      period: input.period ?? null,
+      period: input.period || null,
       confidence: input.confidence ?? null,
       ownerId: input.ownerId ?? null,
     }),
@@ -96,7 +107,7 @@ export const updateObjectiveAction = createServerAction({
     id: z.string().uuid(),
     title: z.string().min(1).max(200).optional(),
     narrative: optStr,
-    period: optStr,
+    period: periodField,
     confidence: z.coerce.number().int().min(0).max(5).optional(),
     status: goalStatusEnum.optional().or(z.literal("")),
     dueDate: optStr,
@@ -150,6 +161,7 @@ export const createKeyResultAction = createServerAction({
     baseline: optNum,
     target: optNum,
     current: optNum,
+    period: periodField,
     formula: z.enum(["auto_from_kpi", "manual"]).optional(),
     ownerId: z.string().uuid().optional(),
   }),
@@ -168,6 +180,7 @@ export const createKeyResultAction = createServerAction({
       baseline: input.baseline ?? null,
       target: input.target ?? null,
       current: input.current ?? null,
+      period: input.period || null,
       ...(input.formula ? { formula: input.formula } : {}),
       ownerId: input.ownerId ?? null,
     }),
@@ -188,6 +201,7 @@ export const updateKeyResultAction = createServerAction({
     baseline: optNum,
     target: optNum,
     current: optNum,
+    period: periodField,
     formula: z.enum(["auto_from_kpi", "manual"]).optional(),
     status: goalStatusEnum.optional().or(z.literal("")),
     dueDate: optStr,
@@ -211,6 +225,7 @@ export const updateKeyResultAction = createServerAction({
       ...(input.baseline !== undefined ? { baseline: input.baseline } : {}),
       ...(input.target !== undefined ? { target: input.target } : {}),
       ...(input.current !== undefined ? { current: input.current } : {}),
+      ...(input.period !== undefined ? { period: input.period === "" ? null : input.period } : {}),
       ...(input.formula !== undefined ? { formula: input.formula } : {}),
       ...(input.status !== undefined ? { status: input.status === "" ? null : input.status } : {}),
       ...(dueDate !== undefined ? { dueDate } : {}),

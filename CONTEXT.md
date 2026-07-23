@@ -108,11 +108,18 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
 - **Theme (OKR)** — the top OKR-level entity in the strategy module. Stored as
   `Objective` row in the schema (the legacy `StrategicTheme` table persists as a
   hidden default-anchor after the 2026-06-15 hierarchy simplification). Carries
-  title, narrative, period (YYYY-Qn), confidence (1–5), status, and rolls up to
-  a tenant trio.
+  title, narrative, period (see **Goal-Zeitraum**), confidence (1–5), status, and
+  rolls up to a tenant trio.
 - **Key Result (KR)** — measurable child of a Theme. Either `formula="manual"`
   (own baseline/target/current) or `formula="auto_from_kpi"` (€-rollup via
-  bound Epic-KPIs).
+  bound Epic-KPIs). Carries its own optional `period` too.
+- **Goal-Zeitraum** — a goal's time period (`Objective.period` /
+  `KeyResult.period`), one canonical form: `YYYY-Qn` (quarter), `YYYY-Hn` (half),
+  or `YYYY` (full year); `null` = backlog. All parsing/formatting/labelling lives
+  in `src/domain/goal-period.ts`; the edit UI is the structured `PeriodPicker`
+  (not free text). The OKR board anchors half/full-year goals to their starting
+  quarter via `anchorQuarterKey`. Legacy malformed values fall back to their raw
+  string on display.
 - **Goal-Status** — the open/closed status model on Themes and Key Results
   (`src/domain/goal-status.ts`): open `on_track|at_risk|off_track`, closed
   `achieved|partial|missed|dropped`, `null` = "no recent updates". **Orthogonal

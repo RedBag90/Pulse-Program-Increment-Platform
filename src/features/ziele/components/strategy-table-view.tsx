@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRight, Pencil, Plus } from "lucide-react";
 import type { ZieleTreeKeyResult, ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, keyResultProgress, type RollupTrio } from "@/domain/goals-rollup";
+import { goalPeriodLabel } from "@/domain/goal-period";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 
 /**
@@ -145,7 +146,7 @@ function KrRow({
       checkinAt={kr.latestCheckin?.at ?? null}
       progress={prog}
       trio={kr.trio}
-      period={null}
+      period={kr.period}
       canEdit={canEdit}
       actions={
         canEdit ? (
@@ -253,7 +254,7 @@ function Row({
       <Td>
         <TrioBadge trio={trio} />
       </Td>
-      <Td className="text-xs text-muted-foreground">{period ?? "—"}</Td>
+      <Td className="text-xs text-muted-foreground">{period ? goalPeriodLabel(period) : "—"}</Td>
       {canEdit && <Td>{actions}</Td>}
     </tr>
   );
