@@ -62,6 +62,18 @@ export interface RelatedEpic {
   href: string;
 }
 
+/**
+ * Rein referenzielle Related-Work-Verknüpfung (Feature/PI) — kein €-Beitrag,
+ * nur ein Deeplink. Epics laufen wertbringend über {@link RelatedEpic}.
+ */
+export interface RelatedWorkItem {
+  /** "feature" | "pi". */
+  kind: string;
+  refId: string;
+  title: string;
+  href: string;
+}
+
 /** Ein Custom Field mit seinem (evtl. leeren) Wert an einem Ziel-Knoten. */
 export interface GoalCustomFieldEntry {
   defId: string;
@@ -111,6 +123,8 @@ export interface GoalNode {
   contributions: ZieleKrContribution[];
   /** Direkt verknüpfte Epics ("Related work"); ihr € ist im `trio` enthalten. */
   relatedEpics: RelatedEpic[];
+  /** Referenziell verknüpfte Features/PIs (kein €-Beitrag, nur Deeplink). */
+  relatedWork: RelatedWorkItem[];
   /** Tenant-Custom-Fields mit dem Wert an diesem Knoten (leer wenn ungesetzt). */
   customFields: GoalCustomFieldEntry[];
   // ── Rekursion + Rollup ──
@@ -294,6 +308,61 @@ export async function loadStrategyTree(
     }
   }
 
+  // Related work (referenziell): Feature/PI je Knoten. EINE Link-Query, dann
+  // je Kind EINE Titel-Auflösung (Initiative/ProgramIncrement) — kein N+1.
+  const relatedWorkByNode = new Map<string, RelatedWorkItem[]>();
+  if (nodeIds.length > 0) {
+    const links = await db.goalRelatedWork.findMany({
+      where: { tenantId, objectiveId: { in: nodeIds } },
+      select: { objectiveId: true, kind: true, refId: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+    if (links.length > 0) {
+      const featureIds = [
+        ...new Set(links.filter((l) => l.kind === "feature").map((l) => l.refId)),
+      ];
+      const piIds = [...new Set(links.filter((l) => l.kind === "pi").map((l) => l.refId))];
+      const [features, pis] = await Promise.all([
+        featureIds.length > 0
+          ? db.initiative.findMany({
+              where: { tenantId, id: { in: featureIds }, deletedAt: null },
+              select: { id: true, title: true, parentId: true },
+            })
+          : Promise.resolve([]),
+        piIds.length > 0
+          ? db.programIncrement.findMany({
+              where: { tenantId, id: { in: piIds } },
+              select: { id: true, name: true },
+            })
+          : Promise.resolve([]),
+      ]);
+      const featureById = new Map(features.map((f) => [f.id, f]));
+      const piName = new Map(pis.map((p) => [p.id, p.name]));
+      for (const l of links) {
+        if (l.kind === "feature") {
+          const f = featureById.get(l.refId);
+          // Feature hat keine eigene Route — Deeplink zeigt den Feature-Slide-Over
+          // im Eltern-Epic; ohne Eltern-Epic auf die Feature-Liste ausweichen.
+          const href = f?.parentId
+            ? `/portfolio/epics/${f.parentId}?featureId=${l.refId}`
+            : `/implementation/features`;
+          (
+            relatedWorkByNode.get(l.objectiveId) ?? setAndGet(relatedWorkByNode, l.objectiveId)
+          ).push({ kind: l.kind, refId: l.refId, title: f?.title ?? "(gelöscht)", href });
+        } else {
+          (
+            relatedWorkByNode.get(l.objectiveId) ?? setAndGet(relatedWorkByNode, l.objectiveId)
+          ).push({
+            kind: l.kind,
+            refId: l.refId,
+            title: piName.get(l.refId) ?? "(gelöscht)",
+            href: `/pi/${l.refId}`,
+          });
+        }
+      }
+    }
+  }
+
   // Custom Fields: Tenant-Defs einmal + alle Werte über die Knoten-IDs in je
   // einer Query (kein N+1). Je Knoten werden ALLE Defs mit ihrem Wert gezeigt.
   const customFieldDefs = await db.goalCustomFieldDef.findMany({
@@ -440,6 +509,7 @@ export async function loadStrategyTree(
       kpiCount: o.kpiContributions.length,
       contributions: contributionDetails,
       relatedEpics,
+      relatedWork: relatedWorkByNode.get(o.id) ?? [],
       customFields: parsedDefs.map((d) => ({
         ...d,
         value: valueByNode.get(o.id)?.get(d.defId) ?? "",

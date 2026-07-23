@@ -181,6 +181,19 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   symmetric guard in `setKpiBinding`), and `UNIQUE(epicId)` on `goal_epic_links`
   (each epic feeds ≤ 1 goal). Capability `kpi.bind`; soft-deleted epics are
   filtered out (`Initiative.deletedAt`).
+- **Related work: Feature/PI (referenziell)** — a `GoalRelatedWork` row attaches a
+  Feature (Initiative level 1) or Program Increment to a goal node **purely
+  referentially** (deep-link only, **no €-contribution** — unlike `GoalEpicLink`).
+  `kind` is a validated string (`RELATED_WORK_KINDS = ["feature","pi"]`,
+  `src/domain/goal-related-work.ts`), `refId` is a soft FK (polymorphic; existence
+  checked in the service — Feature `...notDeleted`, PI plain). Service
+  `goal-related-work.ts` (`addGoalRelatedWork`/`removeGoalRelatedWork`), gate
+  `target.manage`, audit `goal.related_work.added/removed`. `UNIQUE(objectiveId,
+kind, refId)`, FK `objective onDelete: Cascade`. The loader resolves titles +
+  deep-links (`RelatedWorkItem[]` on `GoalNode`): Feature →
+  `/portfolio/epics/{parentEpicId}?featureId={id}` (no own route — shown as a
+  slide-over in its parent epic), PI → `/pi/{id}`. Drawer picker cascades
+  ART → Feature/PI (`EntitySelect kind="feature"/"pi"` need an `artId`).
 
 ## Authorization
 

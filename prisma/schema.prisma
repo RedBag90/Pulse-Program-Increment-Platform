@@ -47,6 +47,7 @@ model Tenant {
   krKpiContributions      KrKpiContribution[]
   themeEpicLinks          ThemeEpicLink[]
   goalEpicLinks           GoalEpicLink[]
+  goalRelatedWork         GoalRelatedWork[]
   goalCustomFieldDefs     GoalCustomFieldDef[]
   goalCustomFieldValues   GoalCustomFieldValue[]
   budgetAllocations       BudgetAllocation[]
@@ -235,6 +236,7 @@ model Objective {
   checkins   GoalCheckin[]
   comments   GoalComment[]
   epicLinks  GoalEpicLink[]
+  relatedWork GoalRelatedWork[]
   customFieldValues GoalCustomFieldValue[]
 
   @@index([tenantId])
@@ -358,6 +360,27 @@ model GoalEpicLink {
   @@index([tenantId, objectiveId])
   @@index([epicId])
   @@map("goal_epic_links")
+}
+
+/// Ziel ↔ Related Work (referenziell, kein Wertbeitrag). `kind` = "feature" | "pi";
+/// `refId` verweist auf eine Initiative (Feature, level 1) bzw. ein
+/// ProgramIncrement (polymorph, daher keine harte FK — Existenz im Service).
+/// Epics laufen separat wertbringend über GoalEpicLink.
+model GoalRelatedWork {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  objectiveId String   @map("objective_id") @db.Uuid
+  kind        String
+  refId       String   @map("ref_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   String   @map("created_by") @db.Uuid
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  objective Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+
+  @@unique([objectiveId, kind, refId])
+  @@index([tenantId, objectiveId])
+  @@map("goal_related_work")
 }
 
 /// Tenant-weit definierbares Custom Field an Ziel-Knoten (Epic 7). Der

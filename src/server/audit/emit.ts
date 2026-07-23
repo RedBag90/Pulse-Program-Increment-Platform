@@ -117,6 +117,8 @@ export type AuditAction =
   | "key_result.kpi.unbound"
   | "goal.epic.linked"
   | "goal.epic.unlinked"
+  | "goal.related_work.added"
+  | "goal.related_work.removed"
   | "goal.custom_field.created"
   | "goal.custom_field.updated"
   | "goal.custom_field.deleted"
@@ -155,6 +157,7 @@ export type AuditResourceType =
   | "key_result"
   | "kr_kpi_contribution"
   | "goal_epic_link"
+  | "goal_related_work"
   | "goal_custom_field_def"
   | "goal_custom_field_value"
   | "setup_progress";

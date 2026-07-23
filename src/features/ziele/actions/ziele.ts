@@ -18,6 +18,7 @@ import {
 import { setKpiBinding } from "@/server/services/kpi-binding";
 import { linkEpicToGoal, unlinkEpicFromGoal } from "@/server/services/goal-epic-link";
 import { setGoalCustomFieldValue } from "@/server/services/goal-custom-field";
+import { addGoalRelatedWork, removeGoalRelatedWork } from "@/server/services/goal-related-work";
 import { isGoalPeriodKey } from "@/domain/goal-period";
 
 /**
@@ -407,6 +408,46 @@ export const unlinkEpicFromGoalAction = createServerAction({
   service: (ctx, input) => unlinkEpicFromGoal(ctx, { epicId: input.epicId }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Epic-Verknüpfung lösen fehlgeschlagen" }),
+});
+
+/**
+ * Referenzielle Related-Work-Verknüpfung eines Ziels mit Feature/PI (Epic 5).
+ * Kein Wertbeitrag — nur Deeplink. Gate `target.manage`.
+ */
+export const addGoalRelatedWorkAction = createServerAction({
+  schema: z.object({
+    goalId: z.string().uuid(),
+    kind: z.enum(["feature", "pi"]),
+    refId: z.string().uuid(),
+  }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    addGoalRelatedWork(ctx, {
+      objectiveId: input.goalId,
+      kind: input.kind,
+      refId: input.refId,
+    }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Verknüpfung fehlgeschlagen" }),
+});
+
+export const removeGoalRelatedWorkAction = createServerAction({
+  schema: z.object({
+    goalId: z.string().uuid(),
+    kind: z.enum(["feature", "pi"]),
+    refId: z.string().uuid(),
+  }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    removeGoalRelatedWork(ctx, {
+      objectiveId: input.goalId,
+      kind: input.kind,
+      refId: input.refId,
+    }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Verknüpfung lösen fehlgeschlagen" }),
 });
 
 /**

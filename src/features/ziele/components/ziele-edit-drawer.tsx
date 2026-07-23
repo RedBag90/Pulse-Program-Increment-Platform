@@ -7,6 +7,7 @@ import type {
   ZieleModel,
   ZieleKrContribution,
   RelatedEpic,
+  RelatedWorkItem,
   GoalNode,
   GoalCustomFieldEntry,
 } from "@/server/views/ziele-view";
@@ -19,6 +20,8 @@ import {
   deleteKeyResultAction,
   linkEpicToGoalAction,
   unlinkEpicFromGoalAction,
+  addGoalRelatedWorkAction,
+  removeGoalRelatedWorkAction,
   setGoalCustomFieldValueAction,
 } from "@/features/ziele/actions/ziele";
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
@@ -233,8 +236,9 @@ function ThemePane({
         currentValueLabel=""
         canEdit={canEdit}
       />
-      <div className="rounded-lg border bg-muted/10 p-4">
+      <div className="space-y-4 rounded-lg border bg-muted/10 p-4">
         <RelatedEpics target="objective" goalId={id} epics={theme.relatedEpics} canEdit={canEdit} />
+        <RelatedWork goalId={id} items={theme.relatedWork} canEdit={canEdit} />
       </div>
       {theme.customFields.length > 0 && (
         <div className="rounded-lg border bg-muted/10 p-4">
@@ -505,6 +509,9 @@ function KeyResultPane({
         <div className="border-t pt-3">
           <KpiBindingsReadOnly contributions={kr.contributions} krId={id} />
         </div>
+        <div className="border-t pt-3">
+          <RelatedWork goalId={id} items={kr.relatedWork} canEdit={canEdit} />
+        </div>
       </div>
       {kr.customFields.length > 0 && (
         <div className="rounded-lg border bg-muted/10 p-4">
@@ -621,6 +628,140 @@ function RelatedEpics({
             className="ml-auto block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
           >
             + Epic verbinden
+          </button>
+        </div>
+      )}
+      {err && <p className="text-xs text-destructive">{err}</p>}
+    </section>
+  );
+}
+
+/**
+ * Related work · Feature/PI (Epic 5): rein referenzielle Verknüpfungen ohne
+ * €-Beitrag — nur Deeplinks. Feature/PI werden über die ART kaskadiert
+ * (EntitySelect kind="feature"/"pi" brauchen eine artId).
+ */
+function RelatedWork({
+  goalId,
+  items,
+  canEdit,
+}: {
+  goalId: string;
+  items: RelatedWorkItem[];
+  canEdit: boolean;
+}) {
+  const [kind, setKind] = useState<"feature" | "pi">("feature");
+  const [artId, setArtId] = useState("");
+  const [refId, setRefId] = useState("");
+  const [addState, addRun, addPending] = useActionState(addGoalRelatedWorkAction, {});
+  const [removeState, removeRun, removePending] = useActionState(removeGoalRelatedWorkAction, {});
+  const err = addState.error || removeState.error;
+
+  function add() {
+    if (!refId) return;
+    const fd = new FormData();
+    fd.set("goalId", goalId);
+    fd.set("kind", kind);
+    fd.set("refId", refId);
+    startTransition(() => addRun(fd));
+    setRefId("");
+  }
+
+  function remove(itemKind: string, itemRefId: string) {
+    const fd = new FormData();
+    fd.set("goalId", goalId);
+    fd.set("kind", itemKind);
+    fd.set("refId", itemRefId);
+    startTransition(() => removeRun(fd));
+  }
+
+  return (
+    <section className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Related work · Features &amp; PIs
+      </h3>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Noch keine Arbeit verbunden.</p>
+      ) : (
+        <ul className="space-y-1">
+          {items.map((it) => (
+            <li
+              key={`${it.kind}:${it.refId}`}
+              className="flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 text-xs"
+            >
+              <div className="min-w-0 flex-1">
+                <a href={it.href} className="truncate font-medium text-primary hover:underline">
+                  {it.title}
+                </a>
+                <p className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {it.kind === "feature" ? "Feature" : "PI"}
+                </p>
+              </div>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => remove(it.kind, it.refId)}
+                  disabled={removePending}
+                  aria-label={`Verknüpfung mit ${it.title} entfernen`}
+                  className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  ✕
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {canEdit && (
+        <div className="space-y-1.5 rounded-md border border-dashed p-2">
+          <div className="flex gap-1">
+            {(["feature", "pi"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => {
+                  setKind(k);
+                  setRefId("");
+                }}
+                className={`flex-1 rounded-md border px-2 py-1 text-xs font-medium ${
+                  kind === k
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {k === "feature" ? "Feature" : "PI"}
+              </button>
+            ))}
+          </div>
+          <EntitySelect
+            kind="art"
+            name="relatedWorkArt"
+            label="ART wählen"
+            value={artId}
+            onChange={(v) => {
+              setArtId(v);
+              setRefId("");
+            }}
+            labelField="name"
+            disabled={addPending}
+          />
+          <EntitySelect
+            kind={kind}
+            name="relatedWorkRef"
+            label={kind === "feature" ? "Feature wählen" : "PI wählen"}
+            value={refId}
+            onChange={setRefId}
+            labelField={kind === "feature" ? "title" : "name"}
+            params={{ artId }}
+            disabled={addPending || artId === ""}
+          />
+          <button
+            type="button"
+            onClick={add}
+            disabled={addPending || refId === ""}
+            className="ml-auto block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+          >
+            + Verbinden
           </button>
         </div>
       )}
