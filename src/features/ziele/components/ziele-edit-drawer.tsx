@@ -3,7 +3,12 @@
 import { useActionState, startTransition, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import type { ZieleModel, ZieleKrContribution, RelatedEpic } from "@/server/views/ziele-view";
+import type {
+  ZieleModel,
+  ZieleKrContribution,
+  RelatedEpic,
+  GoalNode,
+} from "@/server/views/ziele-view";
 import {
   createObjectiveAction,
   updateObjectiveAction,
@@ -32,6 +37,20 @@ import { formatMetricValue } from "@/domain/goal-metric";
  * KPI-Bindungen werden read-only angezeigt; Pflege im Controlling-Modul.
  */
 type Entity = "theme" | "kr";
+
+/** Rekursive Knoten-Suche im Goal-Baum (Kaskade); liefert Knoten + Eltern. */
+function findNode(
+  nodes: GoalNode[],
+  id: string,
+  parent: GoalNode | null = null,
+): { node: GoalNode; parent: GoalNode | null } | null {
+  for (const n of nodes) {
+    if (n.id === id) return { node: n, parent };
+    const deeper = findNode(n.children, id, n);
+    if (deeper) return deeper;
+  }
+  return null;
+}
 
 interface Props {
   model: ZieleModel;
@@ -65,7 +84,13 @@ export function ZieleEditDrawer({ model, canEdit }: Props) {
       <SheetContent side="right" className="!max-w-3xl overflow-y-auto p-0 sm:!max-w-3xl">
         <div className="p-5">
           {entity === "theme" && (
-            <ThemePane model={model} id={isNew ? null : id} canEdit={canEdit} onClose={close} />
+            <ThemePane
+              model={model}
+              id={isNew ? null : id}
+              parentId={parentId}
+              canEdit={canEdit}
+              onClose={close}
+            />
           )}
           {entity === "kr" && (
             <KeyResultPane
@@ -87,15 +112,17 @@ export function ZieleEditDrawer({ model, canEdit }: Props) {
 function ThemePane({
   model,
   id,
+  parentId,
   canEdit,
   onClose,
 }: {
   model: ZieleModel;
   id: string | null;
+  parentId: string | null;
   canEdit: boolean;
   onClose: () => void;
 }) {
-  const theme = id ? model.themes.find((t) => t.id === id) : null;
+  const theme = id ? (findNode(model.themes, id)?.node ?? null) : null;
   const [createState, createRun, createPending] = useActionState(createObjectiveAction, {});
   const [updateState, updateRun, updatePending] = useActionState(updateObjectiveAction, {});
   const [deleteState, deleteRun, deletePending] = useActionState(deleteObjectiveAction, {});
@@ -105,8 +132,11 @@ function ThemePane({
   const err = createState.error || updateState.error || deleteState.error;
 
   function submit(fd: FormData) {
-    if (isNew) startTransition(() => createRun(fd));
-    else {
+    if (isNew) {
+      // Sub-Objective unter einem Eltern-Knoten anlegen (Kaskade).
+      if (parentId) fd.set("parentObjectiveId", parentId);
+      startTransition(() => createRun(fd));
+    } else {
       fd.set("id", id);
       startTransition(() => updateRun(fd));
     }
@@ -229,11 +259,9 @@ function KeyResultPane({
 }) {
   const found = useMemo(() => {
     if (!id) return null;
-    for (const t of model.themes) {
-      const kr = t.keyResults.find((x) => x.id === id);
-      if (kr) return { theme: t, kr };
-    }
-    return null;
+    const hit = findNode(model.themes, id);
+    if (!hit) return null;
+    return { theme: hit.parent, kr: hit.node };
   }, [model, id]);
 
   const [createState, createRun, createPending] = useActionState(createKeyResultAction, {});
@@ -272,7 +300,7 @@ function KeyResultPane({
       subtitle={
         isNew
           ? `Anlegen · Theme ${themeId ? "ausgewaehlt" : "?"}`
-          : `Theme ${found?.theme.title ?? "—"}`
+          : `Theme ${found?.theme?.title ?? "—"}`
       }
       pending={pending}
       error={err}
@@ -437,7 +465,7 @@ function KeyResultPane({
     <div className="space-y-6">
       <header className="space-y-0.5 border-b pb-3">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Key Result · {found?.theme.title ?? "—"}
+          Key Result · {found?.theme?.title ?? "—"}
         </p>
         <h2 className="font-heading text-xl font-semibold tracking-tight">{kr.title}</h2>
       </header>

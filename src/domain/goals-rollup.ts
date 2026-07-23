@@ -206,6 +206,56 @@ export function rollupObjectiveProgress(
   return wsum <= 0 ? mean() : clamp01(acc / wsum);
 }
 
+// ── Rekursiver Goal-Knoten-Rollup (Kaskaden-Vereinheitlichung) ──────────────
+
+/**
+ * Ein Knoten im rekursiven Goal-Baum, mit **vorberechneten** Eigen-Werten:
+ * der Loader füllt `progressLeaf` (eigener Metrik-Fortschritt via
+ * `keyResultProgress`, `null` wenn nicht messbar), `trioLeaf` (eigener Metrik-€
+ * via `keyResultTrio`, Null-Trio für Zweige/manuelle Blätter) und
+ * `trioEpicLinks` (via `epicLinkTrio`). Die Domäne besorgt nur die Rekursion.
+ */
+export interface RollupNode {
+  /** Relatives Gewicht im Eltern-Rollup (Default 1). */
+  weight: number;
+  /** Eigener Blatt-Fortschritt 0..1, `null` wenn nicht messbar / kein Blatt. */
+  progressLeaf: number | null;
+  /** Eigener Metrik-€ (Blatt). Null-Trio bei Zweigen/manuellen Blättern. */
+  trioLeaf: RollupTrio;
+  /** €-Beitrag der direkt an diesen Knoten verknüpften Epics. */
+  trioEpicLinks: RollupTrio;
+  children: RollupNode[];
+}
+
+/**
+ * Rekursiver Fortschritt (Post-Order). Hat der Knoten Kinder, gewinnt der
+ * (gewichtete) Rollup über eine etwaige eigene Metrik; Kinder ohne Fortschritt
+ * (`null`) werden ausgeklammert. Blatt ⇒ eigener `progressLeaf`.
+ */
+export function nodeProgress(node: RollupNode): number | null {
+  if (node.children.length > 0) {
+    const kept = node.children
+      .map((c) => ({ p: nodeProgress(c), w: c.weight }))
+      .filter((x): x is { p: number; w: number } => x.p !== null);
+    if (kept.length === 0) return null;
+    return rollupObjectiveProgress(
+      kept.map((x) => x.p),
+      kept.map((x) => x.w),
+    );
+  }
+  return node.progressLeaf;
+}
+
+/**
+ * Rekursiver €-Trio (Post-Order). Zweig ⇒ Summe der Kinder-Trios; Blatt ⇒
+ * eigener Metrik-Trio. In beiden Fällen kommen die Epic-Link-Beiträge dieses
+ * Knotens hinzu (Konzept-Header „Σ Ziel-direkt-Epic").
+ */
+export function nodeTrio(node: RollupNode): RollupTrio {
+  const base = node.children.length > 0 ? sumTrios(node.children.map(nodeTrio)) : node.trioLeaf;
+  return sumTrios([base, node.trioEpicLinks]);
+}
+
 /**
  * Horizont-Anteil: wie viel des Akkumulations-Zeitraums ist schon
  * verstrichen? 0 = Start, 1 = Ende. Werte ausserhalb werden geklemmt.

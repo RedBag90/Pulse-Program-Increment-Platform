@@ -81,6 +81,8 @@ export const createObjectiveAction = createServerAction({
     // Optional; serverseitig wird die Default-StrategicTheme aufgeloest,
     // wenn der Wert fehlt (Hierarchie-Vereinfachung).
     themeId: z.string().uuid().optional(),
+    /** Eltern-Goal-Knoten für ein Sub-Objective (beliebig tiefe Kaskade). */
+    parentObjectiveId: z.string().uuid().optional(),
     title: z.string().min(1).max(200),
     narrative: optStr,
     period: periodField,
@@ -92,6 +94,7 @@ export const createObjectiveAction = createServerAction({
   service: (ctx, input) =>
     createObjective(ctx, {
       ...(input.themeId ? { themeId: input.themeId } : {}),
+      ...(input.parentObjectiveId ? { parentObjectiveId: input.parentObjectiveId } : {}),
       title: input.title,
       narrative: input.narrative ?? null,
       period: input.period || null,

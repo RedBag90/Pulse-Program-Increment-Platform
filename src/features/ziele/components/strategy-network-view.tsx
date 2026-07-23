@@ -172,44 +172,31 @@ function buildGraph(themes: ZieleTreeTheme[]): { nodes: Node[]; edges: Edge[] } 
   const rawNodes: Array<{ id: string; data: NodeData }> = [];
   const rawEdges: Array<{ id: string; source: string; target: string }> = [];
 
-  themes.forEach((t, ti) => {
-    const accent = HUE_PALETTE[ti % HUE_PALETTE.length]!;
+  // Rekursiver Walk über den Goal-Baum: ein Knoten je Ebene + Eltern-Kind-Kante.
+  const visit = (n: ZieleTreeTheme, accent: string, parentGraphId: string | null): void => {
+    const tier: Tier = n.nodeKind === "key_result" ? "kr" : "theme";
+    const gid = nodeId(tier, n.id);
     rawNodes.push({
-      id: nodeId("theme", t.id),
+      id: gid,
       data: {
-        tier: "theme",
-        title: t.title,
-        progress: trioProgress(t.trio),
-        subgoalCount: t.keyResults.length,
-        period: t.period ?? null,
-        ownerInitial: initialOf(t.ownerId),
-        atRisk: isAtRisk(t.trio),
-        href: `/strategy?entity=theme&id=${t.id}`,
+        tier,
+        title: n.title,
+        progress:
+          n.progress ?? (n.nodeKind === "key_result" ? krProgress(n) : trioProgress(n.trio)),
+        subgoalCount: n.children.length > 0 ? n.children.length : n.kpiCount,
+        period: n.period ?? null,
+        ownerInitial: initialOf(n.ownerId),
+        atRisk: isAtRisk(n.trio),
+        href: `/strategy?entity=${tier}&id=${n.id}`,
         accent,
       },
     });
-    for (const kr of t.keyResults) {
-      rawNodes.push({
-        id: nodeId("kr", kr.id),
-        data: {
-          tier: "kr",
-          title: kr.title,
-          progress: krProgress(kr),
-          subgoalCount: kr.kpiCount,
-          period: kr.metricUnit ?? null,
-          ownerInitial: initialOf(kr.ownerId),
-          atRisk: isAtRisk(kr.trio),
-          href: `/strategy?entity=kr&id=${kr.id}`,
-          accent,
-        },
-      });
-      rawEdges.push({
-        id: edgeId(t.id, kr.id),
-        source: nodeId("theme", t.id),
-        target: nodeId("kr", kr.id),
-      });
+    if (parentGraphId) {
+      rawEdges.push({ id: `${parentGraphId}__${gid}`, source: parentGraphId, target: gid });
     }
-  });
+    for (const c of n.children) visit(c, accent, gid);
+  };
+  themes.forEach((t, ti) => visit(t, HUE_PALETTE[ti % HUE_PALETTE.length]!, null));
 
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
@@ -245,10 +232,6 @@ function buildGraph(themes: ZieleTreeTheme[]): { nodes: Node[]; edges: Edge[] } 
 
 function nodeId(tier: Tier, id: string): string {
   return `${tier}-${id}`;
-}
-
-function edgeId(a: string, b: string): string {
-  return `e-${a}-${b}`;
 }
 
 function trioProgress(trio: RollupTrio): number {

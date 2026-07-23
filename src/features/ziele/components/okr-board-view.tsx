@@ -303,16 +303,16 @@ function ThemeCard({
               {"☆".repeat(5 - theme.confidence)}
             </p>
           )}
-          {theme.keyResults.length > 0 && (
+          {theme.children.length > 0 && (
             <ul className="space-y-0.5">
-              {theme.keyResults.slice(0, 4).map((kr) => (
+              {theme.children.slice(0, 4).map((kr) => (
                 <li key={kr.id} className="flex items-center gap-1.5 text-[10px]">
                   <KrMiniBar kr={kr} />
                 </li>
               ))}
-              {theme.keyResults.length > 4 && (
+              {theme.children.length > 4 && (
                 <li className="text-[9px] text-muted-foreground/70">
-                  +{theme.keyResults.length - 4} weitere KRs
+                  +{theme.children.length - 4} weitere
                 </li>
               )}
             </ul>

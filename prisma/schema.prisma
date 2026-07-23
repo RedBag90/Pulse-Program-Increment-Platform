@@ -44,7 +44,6 @@ model Tenant {
   transformationActions   TransformationAction[]
   strategicThemes         StrategicTheme[]
   objectives              Objective[]
-  keyResults              KeyResult[]
   krKpiContributions      KrKpiContribution[]
   themeEpicLinks          ThemeEpicLink[]
   goalEpicLinks           GoalEpicLink[]
@@ -184,9 +183,29 @@ model Objective {
   themeId    String   @map("theme_id") @db.Uuid
   title      String
   narrative  String?  @db.Text
-  /// Quartal-Slot, ISO-Form „YYYY-Qn" (z. B. „2026-Q2"). Null = Backlog
-  /// (noch nicht in einem Quartal eingeplant).
+  /// Zeitraum, kanonisch YYYY-Qn | YYYY-Hn | YYYY (src/domain/goal-period.ts).
+  /// Null = kein Zeitraum / Backlog.
   period     String?
+  /// Knotentyp (Goal-Knoten-Vereinheitlichung): "objective" | "key_result".
+  /// Rein Label-unterscheidend — jeder Knoten kann Kinder UND/ODER eine Metrik
+  /// tragen; hat er Kinder, gewinnt der Rollup über die eigene Metrik.
+  nodeKind   String   @default("objective") @map("node_kind")
+  /// Self-Referenz für beliebig tiefe Zielkaskaden. Null = Top-Level unter Theme.
+  parentObjectiveId String? @map("parent_objective_id") @db.Uuid
+  /// Tiefe (0 = Top-Level) + materialisierter Pfad (Muster wie Initiative).
+  level      Int      @default(0)
+  path       String   @default("")
+  // ── Metrik (aus KeyResult verschmolzen; nur bei messbaren Blättern gesetzt) ──
+  metricName   String?  @map("metric_name")
+  metricUnit   String?  @map("metric_unit")
+  metricType   String   @default("number") @map("metric_type")
+  precision    Int      @default(0)
+  currencyCode String?  @map("currency_code")
+  rollupWeight Decimal? @db.Decimal(6, 4) @map("rollup_weight")
+  baseline     Decimal? @db.Decimal(14, 4)
+  target       Decimal? @db.Decimal(14, 4)
+  current      Decimal? @db.Decimal(14, 4)
+  formula      String   @default("auto_from_kpi")
   /// Fist-of-Five-Confidence (1..5). Wird im PI-Planning / Quartal-Sync
   /// gevotet; treibt die ★-Anzeige in den Cards.
   confidence Int?
@@ -208,7 +227,9 @@ model Objective {
 
   tenant     Tenant         @relation(fields: [tenantId], references: [id])
   theme      StrategicTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
-  keyResults KeyResult[]
+  parent     Objective?  @relation("GoalHierarchy", fields: [parentObjectiveId], references: [id])
+  children   Objective[] @relation("GoalHierarchy")
+  kpiContributions KrKpiContribution[]
   checkins   GoalCheckin[]
   comments   GoalComment[]
   epicLinks  GoalEpicLink[]
@@ -216,55 +237,9 @@ model Objective {
   @@index([tenantId])
   @@index([themeId])
   @@index([period])
+  @@index([parentObjectiveId])
+  @@index([path])
   @@map("objectives")
-}
-
-model KeyResult {
-  id           String   @id @default(uuid()) @db.Uuid
-  tenantId     String   @map("tenant_id") @db.Uuid
-  objectiveId  String   @map("objective_id") @db.Uuid
-  title        String
-  metricName   String?  @map("metric_name")
-  metricUnit   String?  @map("metric_unit")
-  /// Metrik-Typ (src/domain/goal-metric.ts): number | percent | currency.
-  /// Bestimmt Formatierung/Achsen; `metricUnit` bleibt das freie Label.
-  metricType   String   @default("number") @map("metric_type")
-  /// Nachkommastellen 0..6 fuer die Anzeige.
-  precision    Int      @default(0)
-  /// ISO-4217, nur bei metricType=currency.
-  currencyCode String?  @map("currency_code")
-  /// Relatives Gewicht im Objective-Rollup (ADR-0008 / Epic 3). Null =
-  /// Default 1 ⇒ gleichgewichtet; intern via Σ normalisiert.
-  rollupWeight Decimal? @db.Decimal(6, 4) @map("rollup_weight")
-  baseline     Decimal? @db.Decimal(14, 4)
-  target       Decimal? @db.Decimal(14, 4)
-  /// "auto_from_kpi" → `current` wird aus den verlinkten KPIs aggregiert,
-  /// `manual` → User pflegt `current` direkt im KR-Editor.
-  formula      String   @default("auto_from_kpi")
-  current      Decimal? @db.Decimal(14, 4)
-  /// Zeitraum, kanonisch YYYY-Qn | YYYY-Hn | YYYY (src/domain/goal-period.ts).
-  /// Null = kein Zeitraum. Analog zu Objective.period, hier je Key Result.
-  period       String?
-  /// Goal-Status (src/domain/goal-status.ts). Null = kein Check-in.
-  status       String?
-  dueDate      DateTime? @map("due_date")
-  ownerId      String?  @map("owner_id") @db.Uuid
-  sortOrder    Int      @default(0) @map("sort_order")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  createdBy    String   @map("created_by") @db.Uuid
-  updatedBy    String   @map("updated_by") @db.Uuid
-
-  tenant         Tenant              @relation(fields: [tenantId], references: [id])
-  objective      Objective           @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
-  kpiContributions KrKpiContribution[]
-  checkins       GoalCheckin[]
-  comments       GoalComment[]
-  epicLinks      GoalEpicLink[]
-
-  @@index([tenantId])
-  @@index([objectiveId])
-  @@map("key_results")
 }
 
 /// Status-/Progress-Check-in an einem Ziel (Objective ODER Key Result) —
@@ -276,7 +251,6 @@ model GoalCheckin {
   id          String   @id @default(uuid()) @db.Uuid
   tenantId    String   @map("tenant_id") @db.Uuid
   objectiveId String?  @map("objective_id") @db.Uuid
-  keyResultId String?  @map("key_result_id") @db.Uuid
   status      String?
   value       Decimal? @db.Decimal(14, 4)
   progress    Decimal? @db.Decimal(14, 4)
@@ -288,10 +262,8 @@ model GoalCheckin {
   createdBy   String   @map("created_by") @db.Uuid
 
   objective Objective? @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
-  keyResult KeyResult? @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, objectiveId, createdAt])
-  @@index([tenantId, keyResultId, createdAt])
   @@map("goal_checkins")
 }
 
@@ -301,16 +273,13 @@ model GoalComment {
   id          String   @id @default(uuid()) @db.Uuid
   tenantId    String   @map("tenant_id") @db.Uuid
   objectiveId String?  @map("objective_id") @db.Uuid
-  keyResultId String?  @map("key_result_id") @db.Uuid
   body        String   @db.Text
   createdAt   DateTime @default(now()) @map("created_at")
   createdBy   String   @map("created_by") @db.Uuid
 
   objective Objective? @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
-  keyResult KeyResult? @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, objectiveId, createdAt])
-  @@index([tenantId, keyResultId, createdAt])
   @@map("goal_comments")
 }
 
@@ -320,21 +289,23 @@ model GoalComment {
 model KrKpiContribution {
   id                  String   @id @default(uuid()) @db.Uuid
   tenantId            String   @map("tenant_id") @db.Uuid
-  keyResultId         String   @map("key_result_id") @db.Uuid
+  /// Ziel-Knoten (Goal-Knoten-Vereinheitlichung): die KPI bindet an einen
+  /// Objective-Knoten (früher Key Result).
+  objectiveId         String   @map("objective_id") @db.Uuid
   kpiId               String   @map("kpi_id") @db.Uuid
   weight              Decimal  @default(1) @db.Decimal(6, 4) // 0..1
   /// Optional: ueberschreibt den KPI-eigenen valuePerUnit fuer Sicht
-  /// auf diesen KR. Sonst Default = `Kpi.valuePerUnit`.
+  /// auf diesen Knoten. Sonst Default = `Kpi.valuePerUnit`.
   valuePerUnitOverride Decimal? @map("value_per_unit_override") @db.Decimal(14, 2)
   createdAt           DateTime @default(now()) @map("created_at")
   createdBy           String   @map("created_by") @db.Uuid
 
-  tenant    Tenant    @relation(fields: [tenantId], references: [id])
-  keyResult KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
-  kpi       Kpi       @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  objective Objective  @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  kpi       Kpi        @relation(fields: [kpiId], references: [id], onDelete: Cascade)
 
-  @@unique([keyResultId, kpiId])
-  /// Pyramid-Invariante: jede KPI feedet hoechstens einen KR (1 Epic → 1 KPI → ≤ 1 KR).
+  @@unique([objectiveId, kpiId])
+  /// Pyramid-Invariante: jede KPI feedet hoechstens einen Knoten (1 Epic → 1 KPI → ≤ 1 Ziel).
   /// DB-Backstop fuer kpi-binding-invariant + setKpiBinding.
   @@unique([kpiId])
   @@index([tenantId])
@@ -371,20 +342,17 @@ model ThemeEpicLink {
 model GoalEpicLink {
   id          String   @id @default(uuid()) @db.Uuid
   tenantId    String   @map("tenant_id") @db.Uuid
-  objectiveId String?  @map("objective_id") @db.Uuid
-  keyResultId String?  @map("key_result_id") @db.Uuid
+  objectiveId String   @map("objective_id") @db.Uuid
   epicId      String   @map("epic_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at")
   createdBy   String   @map("created_by") @db.Uuid
 
   tenant    Tenant     @relation(fields: [tenantId], references: [id])
-  objective Objective? @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
-  keyResult KeyResult? @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  objective Objective  @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
   epic      Initiative @relation(fields: [epicId], references: [id], onDelete: Cascade)
 
   @@unique([epicId])
   @@index([tenantId, objectiveId])
-  @@index([tenantId, keyResultId])
   @@index([epicId])
   @@map("goal_epic_links")
 }

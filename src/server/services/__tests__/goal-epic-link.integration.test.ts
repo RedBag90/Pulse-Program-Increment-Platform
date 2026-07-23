@@ -82,10 +82,14 @@ async function makeObjectiveWithKr(): Promise<{ objectiveId: string; keyResultId
       updatedBy: seed.actorId,
     },
   });
-  const kr = await db.keyResult.create({
+  // Ein Key Result ist ein Goal-Knoten (nodeKind="key_result") unter dem Objective.
+  const kr = await db.objective.create({
     data: {
       tenantId: seed.tenantId,
-      objectiveId: objective.id,
+      themeId: theme.id,
+      parentObjectiveId: objective.id,
+      nodeKind: "key_result",
+      level: 1,
       title: "Key Result",
       createdBy: seed.actorId,
       updatedBy: seed.actorId,
@@ -104,8 +108,8 @@ describe("linkEpicToGoal", () => {
 
     expect(isOk(result)).toBe(true);
     const link = await db.goalEpicLink.findFirst({ where: { tenantId: seed.tenantId, epicId } });
-    expect(link?.keyResultId).toBe(keyResultId);
-    expect(link?.objectiveId).toBeNull();
+    // Ein KR ist ein Goal-Knoten; der Link speichert dessen id als objectiveId.
+    expect(link?.objectiveId).toBe(keyResultId);
     const after = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
     expect(after).toBe(before + 1);
   });
@@ -129,7 +133,7 @@ describe("linkEpicToGoal", () => {
     expect(isOk(result)).toBe(true);
     const links = await db.goalEpicLink.findMany({ where: { tenantId: seed.tenantId, epicId } });
     expect(links).toHaveLength(1);
-    expect(links[0]!.keyResultId).toBe(keyResultId);
+    expect(links[0]!.objectiveId).toBe(keyResultId);
   });
 
   it("rejects linking when the epic's KPI is already individually KR-bound (count-once)", async () => {

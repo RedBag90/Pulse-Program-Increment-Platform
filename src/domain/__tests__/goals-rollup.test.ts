@@ -5,12 +5,14 @@ import {
   keyResultTrio,
   sumTrios,
   epicLinkTrio,
+  nodeProgress,
+  nodeTrio,
   isAtRisk,
   horizonShare,
   keyResultProgress,
   rollupObjectiveProgress,
 } from "@/domain/goals-rollup";
-import type { KpiInput } from "@/domain/goals-rollup";
+import type { KpiInput, RollupNode, RollupTrio } from "@/domain/goals-rollup";
 
 describe("kpiAchievement", () => {
   it("returns 0 when baseline/target/current are missing", () => {
@@ -270,5 +272,73 @@ describe("epicLinkTrio", () => {
     );
     expect(linkTrio).toEqual(boundTrio);
     expect(linkTrio.realized).toBe(250);
+  });
+});
+
+describe("nodeProgress / nodeTrio (recursive cascade)", () => {
+  const ZERO: RollupTrio = { planned: 0, realized: 0, runRate: 0 };
+  const leaf = (progress: number | null, over: Partial<RollupNode> = {}): RollupNode => ({
+    weight: 1,
+    progressLeaf: progress,
+    trioLeaf: ZERO,
+    trioEpicLinks: ZERO,
+    children: [],
+    ...over,
+  });
+  const branch = (children: RollupNode[], over: Partial<RollupNode> = {}): RollupNode => ({
+    weight: 1,
+    progressLeaf: null,
+    trioLeaf: ZERO,
+    trioEpicLinks: ZERO,
+    children,
+    ...over,
+  });
+
+  it("leaf progress is its own progressLeaf", () => {
+    expect(nodeProgress(leaf(0.4))).toBe(0.4);
+    expect(nodeProgress(leaf(null))).toBeNull();
+  });
+
+  it("branch progress is the weighted average of children", () => {
+    expect(nodeProgress(branch([leaf(0.2), leaf(0.8)]))).toBeCloseTo(0.5);
+    expect(nodeProgress(branch([leaf(0, { weight: 3 }), leaf(1, { weight: 1 })]))).toBeCloseTo(
+      0.25,
+    );
+  });
+
+  it("excludes null-progress children from the average", () => {
+    expect(nodeProgress(branch([leaf(0.6), leaf(null)]))).toBeCloseTo(0.6);
+  });
+
+  it("returns null when a branch has only null children", () => {
+    expect(nodeProgress(branch([leaf(null), branch([leaf(null)])]))).toBeNull();
+  });
+
+  it("rolls up three levels deep", () => {
+    // root → [midA(0.5 avg), leaf 1.0]  → (0.5 + 1.0)/2 = 0.75
+    const midA = branch([leaf(0.25), leaf(0.75)]); // 0.5
+    expect(nodeProgress(branch([midA, leaf(1)]))).toBeCloseTo(0.75);
+  });
+
+  it("nodeTrio sums leaf trios up the tree plus epic links at each level", () => {
+    const t = (planned: number): RollupTrio => ({
+      planned,
+      realized: planned / 2,
+      runRate: planned,
+    });
+    const l1 = leaf(1, { trioLeaf: t(100) });
+    const l2 = leaf(1, { trioLeaf: t(200), trioEpicLinks: t(50) });
+    const root = branch([l1, l2], { trioEpicLinks: t(10) });
+    const trio = nodeTrio(root);
+    // 100 + 200 + 50 (l2 link) + 10 (root link) = 360 planned
+    expect(trio.planned).toBe(360);
+    expect(trio.realized).toBe(180);
+  });
+
+  it("a branch ignores its own leaf trio in favour of children", () => {
+    const root = branch([leaf(1, { trioLeaf: { planned: 100, realized: 100, runRate: 100 } })], {
+      trioLeaf: { planned: 999, realized: 999, runRate: 999 },
+    });
+    expect(nodeTrio(root).planned).toBe(100);
   });
 });

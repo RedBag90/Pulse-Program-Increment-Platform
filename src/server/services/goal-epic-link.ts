@@ -70,9 +70,7 @@ async function applyEpicLink(
     const planResult = checkEpicLink({
       epicId,
       target,
-      existing: existing
-        ? { epicId, objectiveId: existing.objectiveId, keyResultId: existing.keyResultId }
-        : null,
+      existing: existing ? { epicId, objectiveId: existing.objectiveId, keyResultId: null } : null,
       boundKpiCount,
     });
     if (!planResult.ok) return planResult;
@@ -118,34 +116,20 @@ async function applyEpicLink(
         if (!epic) {
           return err({ kind: "not_found" as const, resourceType: "Initiative", id: epicId });
         }
-        // Validate the target goal node exists in this tenant.
-        if (t.keyResultId) {
-          const kr = await tx.keyResult.findFirst({
-            where: { id: t.keyResultId, tenantId: mctx.tenantId },
-          });
-          if (!kr) {
-            return err({
-              kind: "not_found" as const,
-              resourceType: "KeyResult",
-              id: t.keyResultId,
-            });
-          }
-        } else if (t.objectiveId) {
-          const obj = await tx.objective.findFirst({
-            where: { id: t.objectiveId, tenantId: mctx.tenantId },
-          });
-          if (!obj) {
-            return err({
-              kind: "not_found" as const,
-              resourceType: "Objective",
-              id: t.objectiveId,
-            });
-          }
-        } else {
+        // Ziel-Knoten (Goal-Knoten-Vereinheitlichung): jeder Ziel-Knoten ist ein
+        // Objective; die Ziel-id kommt als objectiveId (oder alt keyResultId).
+        const nodeId = t.objectiveId ?? t.keyResultId;
+        if (!nodeId) {
           return err({
             kind: "validation" as const,
-            issues: ["Ziel-Knoten fehlt: objectiveId oder keyResultId muss gesetzt sein."],
+            issues: ["Ziel-Knoten fehlt: objectiveId muss gesetzt sein."],
           });
+        }
+        const node = await tx.objective.findFirst({
+          where: { id: nodeId, tenantId: mctx.tenantId },
+        });
+        if (!node) {
+          return err({ kind: "not_found" as const, resourceType: "Objective", id: nodeId });
         }
 
         const authz = authorizeResource(ctx.principal, "kpi.bind", { tenantId: mctx.tenantId });
@@ -157,8 +141,7 @@ async function applyEpicLink(
         const created = await tx.goalEpicLink.create({
           data: {
             tenantId: mctx.tenantId,
-            objectiveId: t.objectiveId,
-            keyResultId: t.keyResultId,
+            objectiveId: nodeId,
             epicId,
             createdBy: mctx.actorId,
           },
