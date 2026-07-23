@@ -58,11 +58,11 @@ export async function loadEpicGoalContributions(
   const contribs = await db.krKpiContribution.findMany({
     where: { tenantId, kpiId: { in: kpis.map((k) => k.id) } },
     include: {
-      keyResult: {
+      objective: {
         select: {
           id: true,
           title: true,
-          objective: { select: { id: true, title: true } },
+          parent: { select: { id: true, title: true } },
         },
       },
     },
@@ -106,15 +106,17 @@ export async function loadEpicGoalContributions(
     const weight = Number(c.weight);
     const realized = ach != null && vpu ? ach * vpu * span * weight * share : 0;
 
-    const existing = byKr.get(c.keyResult.id);
+    if (!c.objective) continue;
+    const node = c.objective;
+    const existing = byKr.get(node.id);
     if (existing) {
       existing.contributionRealized += realized;
     } else {
-      byKr.set(c.keyResult.id, {
-        krId: c.keyResult.id,
-        krTitle: c.keyResult.title,
-        themeId: c.keyResult.objective.id,
-        themeTitle: c.keyResult.objective.title,
+      byKr.set(node.id, {
+        krId: node.id,
+        krTitle: node.title,
+        themeId: node.parent?.id ?? node.id,
+        themeTitle: node.parent?.title ?? node.title,
         contributionRealized: realized,
         krPlanned: 0,
       });
@@ -126,17 +128,18 @@ export async function loadEpicGoalContributions(
   const krIds = Array.from(byKr.keys());
   if (krIds.length > 0) {
     const allContribs = await db.krKpiContribution.findMany({
-      where: { tenantId, keyResultId: { in: krIds } },
+      where: { tenantId, objectiveId: { in: krIds } },
       include: {
         kpi: { select: { id: true, baseline: true, target: true, valuePerUnit: true } },
       },
     });
     const plannedByKr = new Map<string, number>();
     for (const c of allContribs) {
+      if (!c.objectiveId) continue;
       const span = (toFloat(c.kpi.target) ?? 0) - (toFloat(c.kpi.baseline) ?? 0);
       const vpu = toFloat(c.valuePerUnitOverride) ?? toFloat(c.kpi.valuePerUnit) ?? 0;
       const planned = vpu * span * Number(c.weight) * share;
-      plannedByKr.set(c.keyResultId, (plannedByKr.get(c.keyResultId) ?? 0) + planned);
+      plannedByKr.set(c.objectiveId, (plannedByKr.get(c.objectiveId) ?? 0) + planned);
     }
     for (const [krId, entry] of byKr) {
       entry.krPlanned = plannedByKr.get(krId) ?? 0;

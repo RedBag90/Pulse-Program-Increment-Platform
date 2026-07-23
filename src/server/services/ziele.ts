@@ -17,10 +17,13 @@ export type GoalTarget = "objective" | "kr";
 // ── Objective ──────────────────────────────────────────────────────────
 
 export interface CreateObjectiveInput {
-  /** Optional. Nach Hierarchie-Vereinfachung haengen Objectives an einer
-   *  versteckten Default-StrategicTheme; fehlt der Parameter, wird sie
-   *  serverseitig find-or-created. */
+  /** Optional. Fehlt themeId UND parentObjectiveId, wird die versteckte
+   *  Default-StrategicTheme find-or-created (Top-Level-Knoten). */
   themeId?: string | null;
+  /** Eltern-Goal-Knoten für beliebig tiefe Kaskaden. Erbt dessen themeId/level. */
+  parentObjectiveId?: string | null;
+  /** "objective" | "key_result" — nur Label; Default "objective". */
+  nodeKind?: string;
   title: string;
   narrative?: string | null;
   period?: string | null;
@@ -34,29 +37,45 @@ export async function createObjective(
 ): Promise<Result<{ id: string }>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
-    let themeId = input.themeId;
-    if (!themeId) {
-      // Default-StrategicTheme (versteckter Modell-Anker fuer flache
-      // Hierarchie) suchen oder anlegen.
+    let themeId = input.themeId ?? null;
+    let level = 0;
+    let parentPath = "";
+
+    if (input.parentObjectiveId) {
+      // Kind-Knoten: themeId + level vom Parent erben.
+      const parent = await tx.objective.findFirst({
+        where: { id: input.parentObjectiveId, tenantId: mctx.tenantId },
+      });
+      if (!parent) {
+        return err({
+          kind: "not_found" as const,
+          resourceType: "Objective",
+          id: input.parentObjectiveId,
+        });
+      }
+      themeId = parent.themeId;
+      level = parent.level + 1;
+      parentPath = parent.path;
+    } else if (!themeId) {
+      // Top-Level ohne themeId → Default-StrategicTheme find-or-create.
       const existing = await tx.strategicTheme.findFirst({
         where: { tenantId: mctx.tenantId },
         orderBy: { createdAt: "asc" },
       });
-      if (existing) {
-        themeId = existing.id;
-      } else {
-        const created = await tx.strategicTheme.create({
-          data: {
-            tenantId: mctx.tenantId,
-            title: "Default",
-            kind: "business",
-            color: "#6366f1",
-            createdBy: mctx.actorId,
-            updatedBy: mctx.actorId,
-          },
-        });
-        themeId = created.id;
-      }
+      themeId =
+        existing?.id ??
+        (
+          await tx.strategicTheme.create({
+            data: {
+              tenantId: mctx.tenantId,
+              title: "Default",
+              kind: "business",
+              color: "#6366f1",
+              createdBy: mctx.actorId,
+              updatedBy: mctx.actorId,
+            },
+          })
+        ).id;
     } else {
       const theme = await tx.strategicTheme.findFirst({
         where: { id: themeId, tenantId: mctx.tenantId },
@@ -65,10 +84,15 @@ export async function createObjective(
         return err({ kind: "not_found" as const, resourceType: "StrategicTheme", id: themeId });
       }
     }
+
     const objective = await tx.objective.create({
       data: {
         tenantId: mctx.tenantId,
-        themeId,
+        themeId: themeId!,
+        parentObjectiveId: input.parentObjectiveId ?? null,
+        nodeKind: input.nodeKind ?? "objective",
+        level,
+        path: "",
         title: input.title,
         narrative: input.narrative ?? null,
         period: input.period ?? null,
@@ -77,6 +101,11 @@ export async function createObjective(
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
       },
+    });
+    // Materialisierten Pfad nachtragen (braucht die generierte id).
+    await tx.objective.update({
+      where: { id: objective.id },
+      data: { path: parentPath ? `${parentPath}/${objective.id}` : objective.id },
     });
     return ok({
       result: { id: objective.id },
@@ -166,7 +195,15 @@ export async function deleteObjective(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "Objective", id: input.id });
     }
-    await tx.objective.delete({ where: { id: input.id } });
+    // Rekursiver Subtree-Delete über den materialisierten Pfad (die Self-
+    // Relation trägt kein DB-Cascade). Dependents (Check-ins/Kommentare/
+    // KPI-Bindungen/Epic-Links) fallen per objectiveId-Cascade mit.
+    await tx.objective.deleteMany({
+      where: {
+        tenantId: mctx.tenantId,
+        OR: [{ id: input.id }, { path: { startsWith: `${existing.path}/` } }],
+      },
+    });
     return ok({
       result: undefined,
       audit: { action: "objective.deleted", resourceType: "objective", resourceId: input.id },
@@ -209,10 +246,16 @@ export async function createKeyResult(
         id: input.objectiveId,
       });
     }
-    const kr = await tx.keyResult.create({
+    // Nach der Vereinheitlichung ist ein Key Result ein Goal-Knoten
+    // (nodeKind="key_result") unter dem Parent-Knoten.
+    const kr = await tx.objective.create({
       data: {
         tenantId: mctx.tenantId,
-        objectiveId: input.objectiveId,
+        themeId: objective.themeId,
+        parentObjectiveId: objective.id,
+        nodeKind: "key_result",
+        level: objective.level + 1,
+        path: "",
         title: input.title,
         metricName: input.metricName ?? null,
         metricUnit: input.metricUnit ?? null,
@@ -229,6 +272,10 @@ export async function createKeyResult(
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
       },
+    });
+    await tx.objective.update({
+      where: { id: kr.id },
+      data: { path: `${objective.path}/${kr.id}` },
     });
     return ok({
       result: { id: kr.id },
@@ -262,7 +309,7 @@ export async function updateKeyResult(
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.keyResult.findFirst({
+    const existing = await tx.objective.findFirst({
       where: { id: input.id, tenantId: mctx.tenantId },
     });
     if (!existing) {
@@ -324,7 +371,7 @@ export async function updateKeyResult(
         "ownerId",
       ] as const,
     });
-    await tx.keyResult.update({
+    await tx.objective.update({
       where: { id: input.id },
       data: { ...data, updatedBy: mctx.actorId },
     });
@@ -346,13 +393,19 @@ export async function deleteKeyResult(
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.keyResult.findFirst({
+    const existing = await tx.objective.findFirst({
       where: { id: input.id, tenantId: mctx.tenantId },
     });
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.id });
     }
-    await tx.keyResult.delete({ where: { id: input.id } });
+    // Ein KR ist ein Goal-Knoten; Subtree über den Pfad mitlöschen.
+    await tx.objective.deleteMany({
+      where: {
+        tenantId: mctx.tenantId,
+        OR: [{ id: input.id }, { path: { startsWith: `${existing.path}/` } }],
+      },
+    });
     return ok({
       result: undefined,
       audit: { action: "key_result.deleted", resourceType: "key_result", resourceId: input.id },
@@ -429,7 +482,7 @@ export async function recordGoalCheckin(
       });
     }
 
-    const existing = await tx.keyResult.findFirst({
+    const existing = await tx.objective.findFirst({
       where: { id: input.id, tenantId: mctx.tenantId },
     });
     if (!existing) {
@@ -446,7 +499,7 @@ export async function recordGoalCheckin(
     const checkin = await tx.goalCheckin.create({
       data: {
         tenantId: mctx.tenantId,
-        keyResultId: input.id,
+        objectiveId: input.id,
         status: input.status,
         value: rawValue,
         progress: frozenProgress,
@@ -457,7 +510,7 @@ export async function recordGoalCheckin(
         createdBy: mctx.actorId,
       },
     });
-    await tx.keyResult.update({
+    await tx.objective.update({
       where: { id: input.id },
       data: { status: input.status, updatedBy: mctx.actorId },
     });
@@ -493,7 +546,7 @@ export async function recordGoalProgress(
 ): Promise<Result<{ id: string }>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.keyResult.findFirst({
+    const existing = await tx.objective.findFirst({
       where: { id: input.keyResultId, tenantId: mctx.tenantId },
     });
     if (!existing) {
@@ -510,7 +563,7 @@ export async function recordGoalProgress(
     const checkin = await tx.goalCheckin.create({
       data: {
         tenantId: mctx.tenantId,
-        keyResultId: input.keyResultId,
+        objectiveId: input.keyResultId,
         status: null,
         value: input.value,
         progress: normalizeKrValue(input.value, existing.baseline, existing.target),
@@ -518,7 +571,7 @@ export async function recordGoalProgress(
         createdBy: mctx.actorId,
       },
     });
-    await tx.keyResult.update({
+    await tx.objective.update({
       where: { id: input.keyResultId },
       data: { current: input.value, updatedBy: mctx.actorId },
     });
@@ -561,22 +614,17 @@ export async function addGoalComment(
 ): Promise<Result<{ id: string }>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
-    const isObjective = input.target === "objective";
-    const owner = isObjective
-      ? await tx.objective.findFirst({ where: { id: input.id, tenantId: mctx.tenantId } })
-      : await tx.keyResult.findFirst({ where: { id: input.id, tenantId: mctx.tenantId } });
+    // Jeder Ziel-Knoten ist ein Objective; Kommentare hängen an objectiveId.
+    const owner = await tx.objective.findFirst({
+      where: { id: input.id, tenantId: mctx.tenantId },
+    });
     if (!owner) {
-      return err({
-        kind: "not_found" as const,
-        resourceType: isObjective ? "Objective" : "KeyResult",
-        id: input.id,
-      });
+      return err({ kind: "not_found" as const, resourceType: "Objective", id: input.id });
     }
     const comment = await tx.goalComment.create({
       data: {
         tenantId: mctx.tenantId,
-        objectiveId: isObjective ? input.id : null,
-        keyResultId: isObjective ? null : input.id,
+        objectiveId: input.id,
         body: input.body,
         createdBy: mctx.actorId,
       },
@@ -585,7 +633,7 @@ export async function addGoalComment(
       result: { id: comment.id },
       audit: {
         action: "goal.comment.added",
-        resourceType: isObjective ? "objective" : "key_result",
+        resourceType: input.target === "objective" ? "objective" : "key_result",
         resourceId: input.id,
       },
     });

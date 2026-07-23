@@ -5,11 +5,13 @@ import {
   keyResultProgress,
   kpiContributionDetail,
   epicLinkTrio,
-  rollupObjectiveProgress,
   sumTrios,
+  nodeProgress,
+  nodeTrio,
   type KpiInput,
   type KrContributionInput,
   type RollupTrio,
+  type RollupNode,
 } from "@/domain/goals-rollup";
 
 /**
@@ -59,36 +61,58 @@ export interface RelatedEpic {
   href: string;
 }
 
-export interface ZieleTreeKeyResult {
+/**
+ * **Goal-Knoten** — der eine, rekursive Knotentyp nach der Kaskaden-
+ * Vereinheitlichung (Objective + Key Result verschmolzen). `nodeKind`
+ * unterscheidet nur das Label; jeder Knoten kann `children` UND/ODER eine
+ * eigene Metrik tragen. Top-Level-Knoten sind die „Themes" unter dem Tenant.
+ */
+export interface GoalNode {
   id: string;
+  /** "objective" | "key_result" — rein Label-unterscheidend. */
+  nodeKind: string;
   title: string;
+  narrative: string | null;
+  /** Zeitraum, kanonisch YYYY-Qn | YYYY-Hn | YYYY (goal-period) oder null. */
+  period: string | null;
+  confidence: number | null;
+  /** Persistierter Goal-Status (src/domain/goal-status.ts) oder null. */
+  status: string | null;
+  dueDate: string | null;
+  ownerId: string | null;
+  latestCheckin: GoalLatestCheckin | null;
+  // ── Metrik (nur bei messbaren Blättern relevant) ──
   metricUnit: string | null;
   metricType: string;
   precision: number;
   currencyCode: string | null;
-  /** Relatives Gewicht im Objective-Rollup (Epic 3); null = Default 1. */
+  /** Relatives Gewicht im Eltern-Rollup (Epic 3); null = Default 1. */
   rollupWeight: number | null;
   /** Normalisierter Beitrag 0..1 (= Gewicht / Σ Geschwister-Gewichte). */
   contributionShare: number;
   baseline: number | null;
   target: number | null;
   current: number | null;
-  /** Zeitraum, kanonisch YYYY-Qn | YYYY-Hn | YYYY (goal-period) oder null. */
-  period: string | null;
   formula: string;
-  ownerId: string | null;
-  /** Persistierter Goal-Status (src/domain/goal-status.ts) oder null. */
-  status: string | null;
-  dueDate: string | null;
-  latestCheckin: GoalLatestCheckin | null;
-  trio: RollupTrio;
-  /** Wie viele KPIs an diesen KR gebunden sind. */
+  /** Wie viele KPIs an diesen Knoten gebunden sind. */
   kpiCount: number;
-  /** Liste aller gebundenen KPIs inkl. Weight + €-Beitrag (KPI-Tab). */
+  /** Gebundene KPIs inkl. Weight + €-Beitrag (KPI-Tab). */
   contributions: ZieleKrContribution[];
   /** Direkt verknüpfte Epics ("Related work"); ihr € ist im `trio` enthalten. */
   relatedEpics: RelatedEpic[];
+  // ── Rekursion + Rollup ──
+  /** Kind-Knoten (Sub-Objectives / Key Results), beliebig tief. */
+  children: GoalNode[];
+  /** Tiefe im Baum (0 = Top-Level). */
+  depth: number;
+  /** Completion 0..1 = rekursiver (gewichteter) Ø; `null` wenn nicht messbar. */
+  progress: number | null;
+  trio: RollupTrio;
 }
+
+/** Alt-Namen als Aliase — beide zeigen jetzt auf den einen Goal-Knoten. */
+export type ZieleTreeKeyResult = GoalNode;
+export type ZieleTreeTheme = GoalNode;
 
 export interface ZieleKpiLibraryEntry {
   id: string;
@@ -115,35 +139,6 @@ export interface ZieleKrLibraryEntry {
   themeTitle: string;
 }
 
-/**
- * **Theme** in der flachen 2-Ebenen-Hierarchie (Refactor §Hierarchie-
- * Vereinfachung): die OKR-formulierte Top-Ebene unter dem Tenant.
- *
- * Technisch ist das ein `Objective`-Row aus dem Schema; UI nennt es
- * „Theme". Der ehemalige `StrategicTheme`-Layer existiert noch im
- * Schema (als versteckter Datenmodell-Anker), wird aber nicht mehr
- * gerendert.
- */
-export interface ZieleTreeTheme {
-  id: string;
-  title: string;
-  narrative: string | null;
-  period: string | null;
-  confidence: number | null;
-  /** Persistierter Goal-Status (src/domain/goal-status.ts) oder null. */
-  status: string | null;
-  dueDate: string | null;
-  latestCheckin: GoalLatestCheckin | null;
-  ownerId: string | null;
-  keyResults: ZieleTreeKeyResult[];
-  /** Completion 0..1 = normalisierter Ø der KR-Fortschritte (ADR-0008);
-   *  `null`, wenn das Theme keine Key Results hat. Getrennt vom €-`trio`. */
-  progress: number | null;
-  trio: RollupTrio;
-  /** Direkt am Theme verknüpfte Epics ("Related work"); ihr € ist im `trio`. */
-  relatedEpics: RelatedEpic[];
-}
-
 export interface ZielePermissions {
   /** Strategie + OKRs editieren (LPM-Surface). */
   canEditStrategy: boolean;
@@ -152,8 +147,9 @@ export interface ZielePermissions {
 }
 
 export interface StrategyTree {
-  themes: ZieleTreeTheme[];
-  /** Tenant-Gesamt-Rollup (Summe ueber alle Themes). */
+  /** Top-Level-Goal-Knoten (die „Themes"); je Knoten `children` beliebig tief. */
+  themes: GoalNode[];
+  /** Tenant-Gesamt-Rollup (Summe ueber alle Top-Level-Knoten). */
   tenantTrio: RollupTrio;
   /** Period-Filter (z. B. „2026-Q2") oder `null` fuer „Alle". */
   period: string | null;
@@ -186,28 +182,23 @@ export async function loadStrategyTree(
 ): Promise<StrategyTree> {
   const period = input.period ?? null;
 
-  // Objectives = die flachen „Themes" unter dem Tenant.
-  const objectiveWhere = period ? { tenantId, period } : { tenantId };
+  // Alle Goal-Knoten des Tenants flach laden (Objective = einziger Knotentyp).
+  // Der Baum wird in JS über parentObjectiveId gebaut; kein rekursiver Include.
   const objectiveRows = await db.objective.findMany({
-    where: objectiveWhere,
+    where: { tenantId },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     include: {
-      keyResults: {
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      kpiContributions: {
         include: {
-          kpiContributions: {
-            include: {
-              kpi: {
-                select: {
-                  id: true,
-                  name: true,
-                  baseline: true,
-                  target: true,
-                  measurements: true,
-                  valuePerUnit: true,
-                  initiative: { select: { id: true, title: true } },
-                },
-              },
+          kpi: {
+            select: {
+              id: true,
+              name: true,
+              baseline: true,
+              target: true,
+              measurements: true,
+              valuePerUnit: true,
+              initiative: { select: { id: true, title: true } },
             },
           },
         },
@@ -225,48 +216,30 @@ export async function loadStrategyTree(
   const horizonEnd = tenant?.dashboardHorizonEnd ?? addMonths(now, 12);
   const share = horizonShare(now, horizonStart, horizonEnd);
 
-  // Letzter Check-in je Ziel (Objective + KR) für Pill + „vor X Tagen".
-  // Eine Query, neueste zuerst, in JS auf den ersten Treffer pro Entity
-  // reduziert (Check-ins sind pro Ziel wenige).
-  const objectiveIds = objectiveRows.map((o) => o.id);
-  const keyResultIds = objectiveRows.flatMap((o) => o.keyResults.map((k) => k.id));
-  const latestByObjective = new Map<string, GoalLatestCheckin>();
-  const latestByKeyResult = new Map<string, GoalLatestCheckin>();
-  if (objectiveIds.length > 0 || keyResultIds.length > 0) {
+  const nodeIds = objectiveRows.map((o) => o.id);
+
+  // Letzter Status-Check-in je Knoten (eine Query; alle Knoten sind Objectives).
+  const latestByNode = new Map<string, GoalLatestCheckin>();
+  if (nodeIds.length > 0) {
     const checkins = await db.goalCheckin.findMany({
-      where: {
-        tenantId,
-        // Reine Progress-Updates (status = null) stempeln kein "vor X Tagen"
-        // in der Status-Spalte — nur echte Status-Check-ins.
-        status: { not: null },
-        OR: [{ objectiveId: { in: objectiveIds } }, { keyResultId: { in: keyResultIds } }],
-      },
+      where: { tenantId, status: { not: null }, objectiveId: { in: nodeIds } },
       orderBy: { createdAt: "desc" },
-      select: { objectiveId: true, keyResultId: true, status: true, createdAt: true },
+      select: { objectiveId: true, status: true, createdAt: true },
     });
     for (const c of checkins) {
-      if (c.status == null) continue;
-      if (c.objectiveId && !latestByObjective.has(c.objectiveId)) {
-        latestByObjective.set(c.objectiveId, { status: c.status, at: c.createdAt.toISOString() });
-      }
-      if (c.keyResultId && !latestByKeyResult.has(c.keyResultId)) {
-        latestByKeyResult.set(c.keyResultId, { status: c.status, at: c.createdAt.toISOString() });
+      if (c.status == null || !c.objectiveId) continue;
+      if (!latestByNode.has(c.objectiveId)) {
+        latestByNode.set(c.objectiveId, { status: c.status, at: c.createdAt.toISOString() });
       }
     }
   }
 
-  // "Related work": direkt verknüpfte Epics je Ziel-Knoten — EINE Query über
-  // alle Knoten-IDs (kein N+1), soft-gelöschte Epics ausgeblendet. Der
-  // €-Beitrag jedes Epics kommt aus seinen KPIs (epicLinkTrio).
-  const relatedByObjective = new Map<string, RelatedEpic[]>();
-  const relatedByKeyResult = new Map<string, RelatedEpic[]>();
-  if (objectiveIds.length > 0 || keyResultIds.length > 0) {
+  // "Related work": verknüpfte Epics je Knoten — EINE Query (kein N+1),
+  // soft-gelöschte Epics ausgeblendet. €-Beitrag aus den Epic-KPIs.
+  const relatedByNode = new Map<string, RelatedEpic[]>();
+  if (nodeIds.length > 0) {
     const epicLinks = await db.goalEpicLink.findMany({
-      where: {
-        tenantId,
-        epic: { deletedAt: null },
-        OR: [{ objectiveId: { in: objectiveIds } }, { keyResultId: { in: keyResultIds } }],
-      },
+      where: { tenantId, epic: { deletedAt: null }, objectiveId: { in: nodeIds } },
       include: {
         epic: {
           select: {
@@ -287,6 +260,7 @@ export async function loadStrategyTree(
       },
     });
     for (const link of epicLinks) {
+      if (!link.objectiveId) continue;
       const kpis: KpiInput[] = link.epic.kpis.map((k) => ({
         id: k.id,
         baseline: toFloat(k.baseline),
@@ -301,129 +275,144 @@ export async function loadStrategyTree(
         trio: epicLinkTrio([{ epicId: link.epic.id, kpis }], share),
         href: `/portfolio/epics/${link.epic.id}`,
       };
-      if (link.objectiveId) {
-        (
-          relatedByObjective.get(link.objectiveId) ??
-          setAndGet(relatedByObjective, link.objectiveId)
-        ).push(related);
-      } else if (link.keyResultId) {
-        (
-          relatedByKeyResult.get(link.keyResultId) ??
-          setAndGet(relatedByKeyResult, link.keyResultId)
-        ).push(related);
-      }
+      (relatedByNode.get(link.objectiveId) ?? setAndGet(relatedByNode, link.objectiveId)).push(
+        related,
+      );
     }
   }
 
-  const themes: ZieleTreeTheme[] = objectiveRows.map((o) => {
-    const krs: ZieleTreeKeyResult[] = o.keyResults.map((k) => {
-      const kpisById = new Map<string, KpiInput>();
-      for (const c of k.kpiContributions) {
-        kpisById.set(c.kpi.id, {
-          id: c.kpi.id,
-          baseline: toFloat(c.kpi.baseline),
-          target: toFloat(c.kpi.target),
-          current: latestMeasurement(c.kpi.measurements),
-          valuePerUnit: toFloat(c.kpi.valuePerUnit),
-        });
-      }
-      const contributions: KrContributionInput[] = k.kpiContributions.map((c) => ({
-        kpiId: c.kpiId,
-        weight: Number(c.weight),
-        valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
-      }));
-      const baseTrio =
-        k.formula === "auto_from_kpi"
-          ? keyResultTrio(contributions, kpisById, share)
-          : manualKrTrio();
-      // Direkt am KR verknüpfte Epics tragen ihren KPI-Wert bei (Count-once
-      // stellt sicher, dass diese KPIs nicht zusätzlich einzeln gezählt werden).
-      const krRelatedEpics = relatedByKeyResult.get(k.id) ?? [];
-      const trio = krRelatedEpics.length
-        ? sumTrios([baseTrio, ...krRelatedEpics.map((r) => r.trio)])
-        : baseTrio;
+  // Kinder je Parent (in Load-Reihenfolge = sortOrder, createdAt).
+  const childrenByParent = new Map<string, typeof objectiveRows>();
+  const roots: typeof objectiveRows = [];
+  for (const o of objectiveRows) {
+    if (o.parentObjectiveId) {
+      (
+        childrenByParent.get(o.parentObjectiveId) ??
+        setAndGet(childrenByParent, o.parentObjectiveId)
+      ).push(o);
+    } else {
+      roots.push(o);
+    }
+  }
 
-      const contributionDetails: ZieleKrContribution[] = k.kpiContributions.map((c) => {
-        const detail = kpiContributionDetail(
-          kpisById.get(c.kpiId),
-          {
-            kpiId: c.kpiId,
-            weight: Number(c.weight),
-            valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
-          },
-          share,
-        );
-        return {
+  type Row = (typeof objectiveRows)[number];
+
+  // Rekursiver Aufbau: liefert GoalNode + parallelen RollupNode für die
+  // (getesteten) Domain-Rollups nodeProgress/nodeTrio.
+  function build(o: Row, depth: number): { node: GoalNode; rollup: RollupNode } {
+    const relatedEpics = relatedByNode.get(o.id) ?? [];
+    // relatedEpics tragen bereits fertige Trios (im Batch gerechnet) → summieren.
+    const epicTrio = sumTrios(relatedEpics.map((r) => r.trio));
+
+    const kpisById = new Map<string, KpiInput>();
+    for (const c of o.kpiContributions) {
+      kpisById.set(c.kpi.id, {
+        id: c.kpi.id,
+        baseline: toFloat(c.kpi.baseline),
+        target: toFloat(c.kpi.target),
+        current: latestMeasurement(c.kpi.measurements),
+        valuePerUnit: toFloat(c.kpi.valuePerUnit),
+      });
+    }
+    const contributions: KrContributionInput[] = o.kpiContributions.map((c) => ({
+      kpiId: c.kpiId,
+      weight: Number(c.weight),
+      valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
+    }));
+    const trioLeaf =
+      o.formula === "auto_from_kpi"
+        ? keyResultTrio(contributions, kpisById, share)
+        : manualKrTrio();
+    // Messbares Blatt = Key-Result-Knoten; Objective-Blätter ohne Metrik ⇒ null.
+    const progressLeaf =
+      o.nodeKind === "key_result"
+        ? keyResultProgress({
+            baseline: toFloat(o.baseline),
+            target: toFloat(o.target),
+            current: toFloat(o.current),
+          })
+        : null;
+
+    const contributionDetails: ZieleKrContribution[] = o.kpiContributions.map((c) => {
+      const detail = kpiContributionDetail(
+        kpisById.get(c.kpiId),
+        {
           kpiId: c.kpiId,
-          kpiName: c.kpi.name,
-          epicTitle: c.kpi.initiative.title,
           weight: Number(c.weight),
           valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
-          achievement: detail.achievement,
-          contributionRealized: detail.contributionRealized,
-        };
-      });
-
+        },
+        share,
+      );
       return {
-        id: k.id,
-        title: k.title,
-        metricUnit: k.metricUnit,
-        metricType: k.metricType,
-        precision: k.precision,
-        currencyCode: k.currencyCode,
-        rollupWeight: toFloat(k.rollupWeight),
-        contributionShare: 0, // unten aus Σ Geschwister-Gewichte gefüllt
-        baseline: toFloat(k.baseline),
-        target: toFloat(k.target),
-        current: toFloat(k.current),
-        period: k.period,
-        formula: k.formula,
-        ownerId: k.ownerId,
-        status: k.status,
-        dueDate: k.dueDate ? k.dueDate.toISOString() : null,
-        latestCheckin: latestByKeyResult.get(k.id) ?? null,
-        trio,
-        kpiCount: k.kpiContributions.length,
-        contributions: contributionDetails,
-        relatedEpics: krRelatedEpics,
+        kpiId: c.kpiId,
+        kpiName: c.kpi.name,
+        epicTitle: c.kpi.initiative.title,
+        weight: Number(c.weight),
+        valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
+        achievement: detail.achievement,
+        contributionRealized: detail.contributionRealized,
       };
     });
 
-    // Gewichte (null ⇒ Default 1) normalisieren → contributionShare je KR.
-    const weights = krs.map((k) => k.rollupWeight ?? 1);
-    const weightSum = weights.reduce((s, w) => s + w, 0);
-    krs.forEach((k, i) => {
-      k.contributionShare = weightSum > 0 ? (weights[i] ?? 1) / weightSum : 0;
+    const childRows = childrenByParent.get(o.id) ?? [];
+    const built = childRows.map((c) => build(c, depth + 1));
+    const childNodes = built.map((b) => b.node);
+    const childRollups = built.map((b) => b.rollup);
+
+    // contributionShare je Kind (Gewicht / Σ Geschwister-Gewichte).
+    const childWeights = childNodes.map((c) => c.rollupWeight ?? 1);
+    const childWeightSum = childWeights.reduce((s, w) => s + w, 0);
+    childNodes.forEach((c, i) => {
+      c.contributionShare = childWeightSum > 0 ? (childWeights[i] ?? 1) / childWeightSum : 0;
     });
 
-    // Direkt am Theme (Objective) verknüpfte Epics — zusätzlich zu den KRs.
-    const themeRelatedEpics = relatedByObjective.get(o.id) ?? [];
+    const rollup: RollupNode = {
+      weight: toFloat(o.rollupWeight) ?? 1,
+      progressLeaf,
+      trioLeaf,
+      trioEpicLinks: epicTrio,
+      children: childRollups,
+    };
 
-    return {
+    const node: GoalNode = {
       id: o.id,
+      nodeKind: o.nodeKind,
       title: o.title,
       narrative: o.narrative,
       period: o.period,
       confidence: o.confidence,
       status: o.status,
       dueDate: o.dueDate ? o.dueDate.toISOString() : null,
-      latestCheckin: latestByObjective.get(o.id) ?? null,
       ownerId: o.ownerId,
-      keyResults: krs,
-      // Completion = gewichteter normalisierter Ø der KR-Fortschritte
-      // (ADR-0008 / Epic 3); gleiche Gewichte ⇒ ungewichteter Ø.
-      progress: rollupObjectiveProgress(
-        krs.map((k) => keyResultProgress(k)),
-        weights,
-      ),
-      trio: sumTrios([...krs.map((k) => k.trio), ...themeRelatedEpics.map((r) => r.trio)]),
-      relatedEpics: themeRelatedEpics,
+      latestCheckin: latestByNode.get(o.id) ?? null,
+      metricUnit: o.metricUnit,
+      metricType: o.metricType,
+      precision: o.precision,
+      currencyCode: o.currencyCode,
+      rollupWeight: toFloat(o.rollupWeight),
+      contributionShare: 0, // vom Parent gesetzt (Roots bleiben 0)
+      baseline: toFloat(o.baseline),
+      target: toFloat(o.target),
+      current: toFloat(o.current),
+      formula: o.formula,
+      kpiCount: o.kpiContributions.length,
+      contributions: contributionDetails,
+      relatedEpics,
+      children: childNodes,
+      depth,
+      progress: nodeProgress(rollup),
+      trio: nodeTrio(rollup),
     };
-  });
+    return { node, rollup };
+  }
+
+  let topLevel = roots.map((o) => build(o, 0).node);
+  // Period-Filter greift auf Top-Level-Knoten (Subtrees bleiben vollständig).
+  if (period) topLevel = topLevel.filter((n) => n.period === period);
 
   return {
-    themes,
-    tenantTrio: sumTrios(themes.map((t) => t.trio)),
+    themes: topLevel,
+    tenantTrio: sumTrios(topLevel.map((t) => t.trio)),
     period,
   };
 }
@@ -450,12 +439,18 @@ export async function loadKpiInventory(
     orderBy: [{ name: "asc" }],
   });
 
+  // Flach über alle Knoten jeder Tiefe, mit ihrem Top-Level-Vorfahren.
+  const allNodes: Array<{ node: GoalNode; root: GoalNode }> = [];
+  const walk = (n: GoalNode, root: GoalNode): void => {
+    allNodes.push({ node: n, root });
+    for (const c of n.children) walk(c, root);
+  };
+  for (const t of tree.themes) walk(t, t);
+
   type KrLookup = { title: string; themeId: string; themeTitle: string };
   const krLookup = new Map<string, KrLookup>();
-  for (const t of tree.themes) {
-    for (const kr of t.keyResults) {
-      krLookup.set(kr.id, { title: kr.title, themeId: t.id, themeTitle: t.title });
-    }
+  for (const { node, root } of allNodes) {
+    krLookup.set(node.id, { title: node.title, themeId: root.id, themeTitle: root.title });
   }
 
   type BindingDetail = {
@@ -465,17 +460,15 @@ export async function loadKpiInventory(
     contributionRealized: number;
   };
   const bindingByKpiId = new Map<string, BindingDetail>();
-  for (const t of tree.themes) {
-    for (const kr of t.keyResults) {
-      for (const c of kr.contributions) {
-        if (!bindingByKpiId.has(c.kpiId)) {
-          bindingByKpiId.set(c.kpiId, {
-            keyResultId: kr.id,
-            weight: c.weight,
-            valuePerUnitOverride: c.valuePerUnitOverride,
-            contributionRealized: c.contributionRealized,
-          });
-        }
+  for (const { node } of allNodes) {
+    for (const c of node.contributions) {
+      if (!bindingByKpiId.has(c.kpiId)) {
+        bindingByKpiId.set(c.kpiId, {
+          keyResultId: node.id,
+          weight: c.weight,
+          valuePerUnitOverride: c.valuePerUnitOverride,
+          contributionRealized: c.contributionRealized,
+        });
       }
     }
   }
@@ -504,10 +497,12 @@ export async function loadKpiInventory(
     };
   });
 
+  // KR-Bibliothek für die KPI-Coverage: alle messbaren Blatt-Knoten
+  // (nodeKind = key_result), mit ihrem Top-Level-Theme als Gruppe.
   const krLibrary: ZieleKrLibraryEntry[] = [];
-  for (const t of tree.themes) {
-    for (const kr of t.keyResults) {
-      krLibrary.push({ id: kr.id, title: kr.title, themeId: t.id, themeTitle: t.title });
+  for (const { node, root } of allNodes) {
+    if (node.nodeKind === "key_result") {
+      krLibrary.push({ id: node.id, title: node.title, themeId: root.id, themeTitle: root.title });
     }
   }
   krLibrary.sort(
@@ -578,18 +573,19 @@ export interface GoalDetail {
 export async function loadGoalDetail(
   db: PrismaClient,
   tenantId: string,
-  target: GoalTarget,
+  _target: GoalTarget,
   id: string,
 ): Promise<GoalDetail> {
-  const where =
-    target === "objective" ? { tenantId, objectiveId: id } : { tenantId, keyResultId: id };
-  const auditResourceType = target === "objective" ? "objective" : "key_result";
+  // Nach der Knoten-Vereinheitlichung ist jeder Ziel-Knoten ein Objective;
+  // Check-ins/Kommentare hängen alle an `objectiveId`. Audit-Historie umfasst
+  // sowohl neue `objective`- als auch historische `key_result`-Events dieser id.
+  const where = { tenantId, objectiveId: id };
 
   const [checkinRows, commentRows, auditRows] = await Promise.all([
     db.goalCheckin.findMany({ where, orderBy: { createdAt: "asc" } }),
     db.goalComment.findMany({ where, orderBy: { createdAt: "desc" } }),
     db.auditEvent.findMany({
-      where: { tenantId, resourceType: auditResourceType, resourceId: id },
+      where: { tenantId, resourceType: { in: ["objective", "key_result"] }, resourceId: id },
       orderBy: { occurredAt: "desc" },
       take: 50,
     }),

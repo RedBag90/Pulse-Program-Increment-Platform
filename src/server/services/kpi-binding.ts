@@ -49,10 +49,13 @@ export async function setKpiBinding(
       where: { tenantId: mctx.tenantId, kpiId: input.kpiId },
     });
 
+    // Nach der Knoten-Vereinheitlichung bindet eine KPI an einen Goal-Knoten
+    // (objectiveId). Der Invariant-Validator behält den Feldnamen keyResultId
+    // (= gebundene Knoten-id) bei.
     const planResult = checkKpiBinding({
       kpiId: input.kpiId,
       targetKeyResultId: input.keyResultId,
-      existing: existing ? { kpiId: existing.kpiId, keyResultId: existing.keyResultId } : null,
+      existing: existing ? { kpiId: existing.kpiId, keyResultId: existing.objectiveId } : null,
     });
     if (!planResult.ok) return planResult;
     const plan = planResult.value;
@@ -105,15 +108,15 @@ export async function setKpiBinding(
       }
       case "rebind":
       case "create": {
-        const targetKrId = plan.kind === "rebind" ? plan.toKeyResultId : plan.keyResultId;
-        const kr = await tx.keyResult.findFirst({
-          where: { id: targetKrId, tenantId: mctx.tenantId },
+        const targetNodeId = plan.kind === "rebind" ? plan.toKeyResultId : plan.keyResultId;
+        const node = await tx.objective.findFirst({
+          where: { id: targetNodeId, tenantId: mctx.tenantId },
         });
-        if (!kr) {
+        if (!node) {
           return err({
             kind: "not_found" as const,
-            resourceType: "KeyResult",
-            id: targetKrId,
+            resourceType: "Objective",
+            id: targetNodeId,
           });
         }
         // Count-once (symmetric to checkEpicLink): a KPI whose Epic is already
@@ -139,7 +142,7 @@ export async function setKpiBinding(
         const created = await tx.krKpiContribution.create({
           data: {
             tenantId: mctx.tenantId,
-            keyResultId: kr.id,
+            objectiveId: node.id,
             kpiId: input.kpiId,
             weight: input.weight ?? 1,
             valuePerUnitOverride: input.valuePerUnitOverride ?? null,

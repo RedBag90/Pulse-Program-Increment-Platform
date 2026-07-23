@@ -105,14 +105,23 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
 
 ## Strategy & KPI bindings
 
-- **Theme (OKR)** — the top OKR-level entity in the strategy module. Stored as
-  `Objective` row in the schema (the legacy `StrategicTheme` table persists as a
-  hidden default-anchor after the 2026-06-15 hierarchy simplification). Carries
-  title, narrative, period (see **Goal-Zeitraum**), confidence (1–5), status, and
-  rolls up to a tenant trio.
-- **Key Result (KR)** — measurable child of a Theme. Either `formula="manual"`
-  (own baseline/target/current) or `formula="auto_from_kpi"` (€-rollup via
-  bound Epic-KPIs). Carries its own optional `period` too.
+- **Goal-Knoten** — seit ADR-0010 der **eine, rekursive** Knotentyp: `Objective`
+  absorbiert `KeyResult`. `nodeKind` (`"objective" | "key_result"`) ist nur ein
+  Label; jeder Knoten kann `children` (Self-Relation `parentObjectiveId`, `level`,
+  materialisierter `path`) **und/oder** eine eigene Metrik tragen. Beliebig tief
+  kaskadierbar. Rollup rekursiv (`goals-rollup.ts` `nodeProgress`/`nodeTrio`,
+  Post-Order): Zweig ⇒ (gewichteter) Rollup der Kinder gewinnt über eigene Metrik;
+  Blatt ⇒ eigene Metrik/KPI-Bindung; Epic-Links auf jeder Ebene additiv. Loader baut
+  den Baum flach über `parentObjectiveId`; ein rekursiver `GoalNode`-DTO ersetzt die
+  alten `ZieleTreeTheme`/`ZieleTreeKeyResult` (Aliase). `KrKpiContribution`,
+  `GoalCheckin`, `GoalComment`, `GoalEpicLink` hängen nur noch an `objectiveId`.
+- **Theme (OKR)** — Top-Level-Goal-Knoten (parentObjectiveId = null) unter dem
+  Tenant. Stored as `Objective`-Row; der legacy `StrategicTheme` bleibt versteckter
+  Default-Anker. Carries title, narrative, period (see **Goal-Zeitraum**),
+  confidence (1–5), status, rollt zu einem tenant trio hoch.
+- **Key Result (KR)** — Goal-Knoten mit `nodeKind="key_result"`, messbares Blatt (oder
+  selbst Zweig). Either `formula="manual"` (own baseline/target/current) or
+  `formula="auto_from_kpi"` (€-rollup via bound Epic-KPIs). Eigenes optionales `period`.
 - **Goal-Zeitraum** — a goal's time period (`Objective.period` /
   `KeyResult.period`), one canonical form: `YYYY-Qn` (quarter), `YYYY-Hn` (half),
   or `YYYY` (full year); `null` = backlog. All parsing/formatting/labelling lives
