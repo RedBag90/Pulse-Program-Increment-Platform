@@ -14,6 +14,12 @@ import {
   type RollupNode,
 } from "@/domain/goals-rollup";
 import { parseOptions } from "@/domain/goal-custom-field";
+import {
+  effectiveProgressMode,
+  autoKpiCurrent,
+  isMeasurableGoal,
+  type ProgressMode,
+} from "@/domain/goal-progress-mode";
 
 /**
  * Ziele-/Strategie-/KPI-Coverage Loader. Zwei page-models leben hier:
@@ -121,8 +127,13 @@ export interface GoalNode {
   contributionShare: number;
   baseline: number | null;
   target: number | null;
+  /** Ist-Wert; bei `progressMode = "auto_kpi"` die abgeleitete Summe. */
   current: number | null;
   formula: string;
+  /** Fortschrittsquelle (effektiv aufgelöst): manual | rollup | auto_kpi. */
+  progressMode: ProgressMode;
+  /** Ob der Knoten einen 0..1-Fortschritt liefern kann (für Board/Filter). */
+  isMeasurable: boolean;
   /** Wie viele KPIs an diesen Knoten gebunden sind. */
   kpiCount: number;
   /** Gebundene KPIs inkl. Weight + €-Beitrag (KPI-Tab). */
@@ -282,8 +293,10 @@ export async function loadStrategyTree(
   }
 
   // "Related work": verknüpfte Epics je Knoten — EINE Query (kein N+1),
-  // soft-gelöschte Epics ausgeblendet. €-Beitrag aus den Epic-KPIs.
+  // soft-gelöschte Epics ausgeblendet. €-Beitrag aus den Epic-KPIs. `unit` wird
+  // zusätzlich geladen für die einheitengleiche Fortschritts-Ableitung (auto_kpi).
   const relatedByNode = new Map<string, RelatedEpic[]>();
+  const epicKpisByNode = new Map<string, { unit: string | null; current: number | null }[]>();
   if (nodeIds.length > 0) {
     const epicLinks = await db.goalEpicLink.findMany({
       where: { tenantId, epic: { deletedAt: null }, objectiveId: { in: nodeIds } },
@@ -296,6 +309,7 @@ export async function loadStrategyTree(
             kpis: {
               select: {
                 id: true,
+                unit: true,
                 baseline: true,
                 target: true,
                 measurements: true,
@@ -325,6 +339,11 @@ export async function loadStrategyTree(
       (relatedByNode.get(link.objectiveId) ?? setAndGet(relatedByNode, link.objectiveId)).push(
         related,
       );
+      const kpiUnits =
+        epicKpisByNode.get(link.objectiveId) ?? setAndGet(epicKpisByNode, link.objectiveId);
+      for (const k of link.epic.kpis) {
+        kpiUnits.push({ unit: k.unit, current: latestMeasurement(k.measurements) });
+      }
     }
   }
 
@@ -484,15 +503,32 @@ export async function loadStrategyTree(
       o.formula === "auto_from_kpi"
         ? keyResultTrio(contributions, kpisById, share)
         : manualKrTrio();
-    // Messbares Blatt = Key-Result-Knoten; Objective-Blätter ohne Metrik ⇒ null.
+
+    const childRows = childrenByParent.get(o.id) ?? [];
+    const hasChildren = childRows.length > 0;
+
+    // Fortschrittsquelle (goal-progress-mode.ts). null in der DB ⇒ abgeleitet.
+    const mode = effectiveProgressMode(o.progressMode, hasChildren);
+    const unitSpec = {
+      metricUnit: o.metricUnit,
+      metricType: o.metricType,
+      currencyCode: o.currencyCode,
+    };
+    // Für auto_kpi ist der Ist-Wert die Summe der einheitengleichen KPIs aus den
+    // verknüpften Epics; sonst der manuell gepflegte `current`.
+    const effectiveCurrent =
+      mode === "auto_kpi"
+        ? autoKpiCurrent(unitSpec, epicKpisByNode.get(o.id) ?? [])
+        : toFloat(o.current);
+    // rollup ⇒ Fortschritt kommt aus den Kindern (progressLeaf irrelevant).
     const progressLeaf =
-      o.nodeKind === "key_result"
-        ? keyResultProgress({
+      mode === "rollup"
+        ? null
+        : keyResultProgress({
             baseline: toFloat(o.baseline),
             target: toFloat(o.target),
-            current: toFloat(o.current),
-          })
-        : null;
+            current: effectiveCurrent,
+          });
 
     const contributionDetails: ZieleKrContribution[] = o.kpiContributions.map((c) => {
       const detail = kpiContributionDetail(
@@ -515,7 +551,6 @@ export async function loadStrategyTree(
       };
     });
 
-    const childRows = childrenByParent.get(o.id) ?? [];
     const built = childRows.map((c) => build(c, depth + 1));
     const childNodes = built.map((b) => b.node);
     const childRollups = built.map((b) => b.rollup);
@@ -529,6 +564,7 @@ export async function loadStrategyTree(
 
     const rollup: RollupNode = {
       weight: toFloat(o.rollupWeight) ?? 1,
+      mode,
       progressLeaf,
       trioLeaf,
       trioEpicLinks: epicTrio,
@@ -554,8 +590,15 @@ export async function loadStrategyTree(
       contributionShare: 0, // vom Parent gesetzt (Roots bleiben 0)
       baseline: toFloat(o.baseline),
       target: toFloat(o.target),
-      current: toFloat(o.current),
+      // auto_kpi zeigt den abgeleiteten Summen-Ist; sonst der gepflegte Wert.
+      current: effectiveCurrent,
       formula: o.formula,
+      progressMode: mode,
+      isMeasurable: isMeasurableGoal({
+        progressMode: mode,
+        target: toFloat(o.target),
+        hasChildren,
+      }),
       kpiCount: o.kpiContributions.length,
       contributions: contributionDetails,
       relatedEpics,
@@ -674,11 +717,11 @@ export async function loadKpiInventory(
     };
   });
 
-  // KR-Bibliothek für die KPI-Coverage: alle messbaren Blatt-Knoten
-  // (nodeKind = key_result), mit ihrem Top-Level-Theme als Gruppe.
+  // KR-Bibliothek für die KPI-Coverage: alle messbaren metrik-tragenden Knoten
+  // (eigene Metrik, kein reiner Rollup-Container), mit Top-Level-Theme als Gruppe.
   const krLibrary: ZieleKrLibraryEntry[] = [];
   for (const { node, root } of allNodes) {
-    if (node.nodeKind === "key_result") {
+    if (node.isMeasurable && node.progressMode !== "rollup") {
       krLibrary.push({ id: node.id, title: node.title, themeId: root.id, themeTitle: root.title });
     }
   }

@@ -23,13 +23,26 @@ export interface CreateObjectiveInput {
   themeId?: string | null;
   /** Eltern-Goal-Knoten für beliebig tiefe Kaskaden. Erbt dessen themeId/level. */
   parentObjectiveId?: string | null;
-  /** "objective" | "key_result" — nur Label; Default "objective". */
+  /** "objective" | "key_result" — nur Legacy-Label; Default aus target abgeleitet. */
   nodeKind?: string;
   title: string;
   narrative?: string | null;
   period?: string | null;
   confidence?: number | null;
   ownerId?: string | null;
+  // Optionaler Metrik-Block (jeder Knoten kann messbar sein).
+  metricName?: string | null;
+  metricUnit?: string | null;
+  metricType?: MetricType;
+  precision?: number;
+  currencyCode?: string | null;
+  rollupWeight?: number | null;
+  baseline?: number | null;
+  target?: number | null;
+  current?: number | null;
+  formula?: "auto_from_kpi" | "manual";
+  /** Fortschrittsquelle (manual | rollup | auto_kpi); null/undef ⇒ abgeleitet. */
+  progressMode?: string | null;
 }
 
 export async function createObjective(
@@ -91,7 +104,8 @@ export async function createObjective(
         tenantId: mctx.tenantId,
         themeId: themeId!,
         parentObjectiveId: input.parentObjectiveId ?? null,
-        nodeKind: input.nodeKind ?? "objective",
+        // nodeKind ist nur noch Legacy-Label — best-effort aus der Metrik abgeleitet.
+        nodeKind: input.nodeKind ?? (input.target != null ? "key_result" : "objective"),
         level,
         path: "",
         title: input.title,
@@ -99,6 +113,17 @@ export async function createObjective(
         period: input.period ?? null,
         confidence: input.confidence ?? null,
         ownerId: input.ownerId ?? null,
+        metricName: input.metricName ?? null,
+        metricUnit: input.metricUnit ?? null,
+        ...(input.metricType ? { metricType: input.metricType } : {}),
+        ...(input.precision != null ? { precision: clampPrecision(input.precision) } : {}),
+        currencyCode: input.currencyCode ?? null,
+        rollupWeight: input.rollupWeight ?? null,
+        baseline: input.baseline ?? null,
+        target: input.target ?? null,
+        current: input.current ?? null,
+        ...(input.formula ? { formula: input.formula } : {}),
+        progressMode: input.progressMode ?? null,
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
       },
@@ -125,6 +150,18 @@ export interface UpdateObjectiveInput {
   dueDate?: Date | null;
   closingNote?: string | null;
   ownerId?: string | null;
+  // Optionaler Metrik-Block + Fortschrittsquelle (jeder Knoten kann messbar sein).
+  metricName?: string | null;
+  metricUnit?: string | null;
+  metricType?: MetricType;
+  precision?: number;
+  currencyCode?: string | null;
+  rollupWeight?: number | null;
+  baseline?: number | null;
+  target?: number | null;
+  current?: number | null;
+  formula?: "auto_from_kpi" | "manual";
+  progressMode?: string | null;
 }
 
 export async function updateObjective(
@@ -139,8 +176,31 @@ export async function updateObjective(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "Objective", id: input.id });
     }
+    // Decimal-Spalten auf Zahlen normalisieren, damit der Audit-Snapshot
+    // numerisch liest (nicht `Decimal(…)`).
+    const existingProjected = {
+      title: existing.title,
+      narrative: existing.narrative,
+      period: existing.period,
+      confidence: existing.confidence,
+      status: existing.status,
+      dueDate: existing.dueDate,
+      closingNote: existing.closingNote,
+      ownerId: existing.ownerId,
+      metricName: existing.metricName,
+      metricUnit: existing.metricUnit,
+      metricType: existing.metricType,
+      precision: existing.precision,
+      currencyCode: existing.currencyCode,
+      rollupWeight: existing.rollupWeight != null ? Number(existing.rollupWeight) : null,
+      baseline: existing.baseline != null ? Number(existing.baseline) : null,
+      target: existing.target != null ? Number(existing.target) : null,
+      current: existing.current != null ? Number(existing.current) : null,
+      formula: existing.formula,
+      progressMode: existing.progressMode,
+    };
     const { changes, data } = recordedUpdate({
-      existing,
+      existing: existingProjected,
       updates: {
         title: input.title,
         narrative: input.narrative,
@@ -150,6 +210,17 @@ export async function updateObjective(
         dueDate: input.dueDate,
         closingNote: input.closingNote,
         ownerId: input.ownerId,
+        metricName: input.metricName,
+        metricUnit: input.metricUnit,
+        metricType: input.metricType,
+        precision: input.precision != null ? clampPrecision(input.precision) : input.precision,
+        currencyCode: input.currencyCode,
+        rollupWeight: input.rollupWeight,
+        baseline: input.baseline,
+        target: input.target,
+        current: input.current,
+        formula: input.formula,
+        progressMode: input.progressMode,
       },
       fields: [
         "title",
@@ -160,6 +231,17 @@ export async function updateObjective(
         "dueDate",
         "closingNote",
         "ownerId",
+        "metricName",
+        "metricUnit",
+        "metricType",
+        "precision",
+        "currencyCode",
+        "rollupWeight",
+        "baseline",
+        "target",
+        "current",
+        "formula",
+        "progressMode",
       ] as const,
     });
     // A closed status stamps closedAt; reopening (open status) clears it.

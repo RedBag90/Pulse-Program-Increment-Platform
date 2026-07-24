@@ -151,7 +151,7 @@ function StrategyNode({ data }: NodeProps) {
   };
   const tierLabel: Record<Tier, string> = {
     theme: "THEME (OKR)",
-    kr: "KEY RESULT",
+    kr: "ZIEL",
   };
 
   return (
@@ -262,7 +262,8 @@ function buildGraph(
   // Rekursiver Walk über den Goal-Baum: ein Knoten je Ebene + Eltern-Kind-Kante.
   // Eingeklappte Knoten emittieren ihre Kinder nicht → dagre layoutet nur Sichtbares.
   const visit = (n: ZieleTreeTheme, accent: string, parentGraphId: string | null): void => {
-    const tier: Tier = n.nodeKind === "key_result" ? "kr" : "theme";
+    // „kr"-Tier = messbarer Knoten (eigene Metrik); sonst Container-„theme".
+    const tier: Tier = n.isMeasurable && n.progressMode !== "rollup" ? "kr" : "theme";
     const gid = nodeId(tier, n.id);
     const isCollapsed = collapsed.has(n.id);
     rawNodes.push({
@@ -272,13 +273,12 @@ function buildGraph(
         goalId: n.id,
         title: n.title,
         status: n.status,
-        progress:
-          n.progress ?? (n.nodeKind === "key_result" ? krProgress(n) : trioProgress(n.trio)),
+        progress: n.progress ?? (tier === "kr" ? krProgress(n) : trioProgress(n.trio)),
         subgoalCount: n.children.length > 0 ? n.children.length : n.kpiCount,
         period: n.period ?? null,
         ownerInitial: initialOf(n.ownerId),
         atRisk: isAtRisk(n.trio),
-        href: `/strategy?entity=${tier}&id=${n.id}`,
+        href: `/strategy?entity=goal&id=${n.id}`,
         accent,
         hasChildren: n.children.length > 0,
         descendantCount: descendantCount(n),

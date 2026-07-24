@@ -211,6 +211,9 @@ model Objective {
   target       Decimal? @db.Decimal(14, 4)
   current      Decimal? @db.Decimal(14, 4)
   formula      String   @default("auto_from_kpi")
+  /// Fortschrittsquelle (src/domain/goal-progress-mode.ts): manual | rollup |
+  /// auto_kpi. Null = abgeleitet (Kinder → rollup, sonst manual) = Alt-Verhalten.
+  progressMode String?  @map("progress_mode")
   /// Fist-of-Five-Confidence (1..5). Wird im PI-Planning / Quartal-Sync
   /// gevotet; treibt die ★-Anzeige in den Cards.
   confidence Int?

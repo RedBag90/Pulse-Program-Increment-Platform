@@ -49,6 +49,15 @@ const goalStatusEnum = z.enum([
 const goalTargetEnum = z.enum(["objective", "kr"]);
 const metricTypeEnum = z.enum(["number", "percent", "currency"]);
 const optPrecision = z.coerce.number().int().min(0).max(6).optional();
+/**
+ * Fortschrittsquelle (goal-progress-mode.ts); leer/undef ⇒ abgeleitet. Wie
+ * statusField: abwesendes Union-Feld liest `parseFromSchema` als null → hier
+ * `null → undefined` normalisieren, damit `.optional()` greift.
+ */
+const progressModeField = z.preprocess(
+  (v) => v ?? undefined,
+  z.enum(["manual", "rollup", "auto_kpi"]).optional().or(z.literal("")),
+);
 
 /**
  * Zeitraum-Feld: kanonischer Key (YYYY-Qn | YYYY-Hn | YYYY) ODER "" (löschen)
@@ -100,18 +109,30 @@ function toDueDate(v: string | undefined): Date | null | undefined {
 // ── Objective ──────────────────────────────────────────────────────────
 
 export const createObjectiveAction = createServerAction({
-  describeCreated: (v: { id: string }) => ({ id: v.id, label: "Theme", href: "/strategy" }),
+  describeCreated: (v: { id: string }) => ({ id: v.id, label: "Ziel", href: "/strategy" }),
   schema: z.object({
     // Optional; serverseitig wird die Default-StrategicTheme aufgeloest,
     // wenn der Wert fehlt (Hierarchie-Vereinfachung).
     themeId: z.string().uuid().optional(),
-    /** Eltern-Goal-Knoten für ein Sub-Objective (beliebig tiefe Kaskade). */
+    /** Eltern-Goal-Knoten für ein Sub-Ziel (beliebig tiefe Kaskade). */
     parentObjectiveId: z.string().uuid().optional(),
     title: z.string().min(1).max(200),
     narrative: optStr,
     period: periodField,
     confidence: z.coerce.number().int().min(1).max(5).optional(),
     ownerId: z.string().uuid().optional(),
+    // Optionaler Metrik-Block (jeder Knoten kann messbar sein) + Fortschrittsquelle.
+    metricName: optStr,
+    metricUnit: optStr,
+    metricType: metricTypeEnum.optional(),
+    precision: optPrecision,
+    currencyCode: optStr,
+    rollupWeight: optNum,
+    baseline: optNum,
+    target: optNum,
+    current: optNum,
+    formula: z.enum(["auto_from_kpi", "manual"]).optional(),
+    progressMode: progressModeField,
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -124,10 +145,24 @@ export const createObjectiveAction = createServerAction({
       period: input.period || null,
       confidence: input.confidence ?? null,
       ownerId: input.ownerId ?? null,
+      metricName: input.metricName ?? null,
+      metricUnit: input.metricUnit ?? null,
+      ...(input.metricType ? { metricType: input.metricType } : {}),
+      ...(input.precision != null ? { precision: input.precision } : {}),
+      currencyCode: input.currencyCode && input.currencyCode !== "" ? input.currencyCode : null,
+      rollupWeight: input.rollupWeight ?? null,
+      baseline: input.baseline ?? null,
+      target: input.target ?? null,
+      current: input.current ?? null,
+      ...(input.formula ? { formula: input.formula } : {}),
+      progressMode: input.progressMode ? input.progressMode : null,
     }),
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Objective konnte nicht angelegt werden" }),
+  mapError: (e) => formatDomainError(e, { fallback: "Ziel konnte nicht angelegt werden" }),
 });
+
+/** Vereinheitlichter Alias — ein Erstellungspfad für jeden Goal-Knoten. */
+export const createGoalNodeAction = createObjectiveAction;
 
 export const updateObjectiveAction = createServerAction({
   schema: z.object({
@@ -140,6 +175,18 @@ export const updateObjectiveAction = createServerAction({
     dueDate: optStr,
     closingNote: optStr,
     ownerId: ownerIdField,
+    // Optionaler Metrik-Block + Fortschrittsquelle.
+    metricName: optStr,
+    metricUnit: optStr,
+    metricType: metricTypeEnum.optional(),
+    precision: optPrecision,
+    currencyCode: optStr,
+    rollupWeight: optNum,
+    baseline: optNum,
+    target: optNum,
+    current: optNum,
+    formula: z.enum(["auto_from_kpi", "manual"]).optional(),
+    progressMode: progressModeField,
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -157,11 +204,29 @@ export const updateObjectiveAction = createServerAction({
       ...(input.ownerId !== undefined
         ? { ownerId: input.ownerId === "" ? null : input.ownerId }
         : {}),
+      ...(input.metricName !== undefined ? { metricName: input.metricName } : {}),
+      ...(input.metricUnit !== undefined ? { metricUnit: input.metricUnit } : {}),
+      ...(input.metricType !== undefined ? { metricType: input.metricType } : {}),
+      ...(input.precision !== undefined ? { precision: input.precision } : {}),
+      ...(input.currencyCode !== undefined
+        ? { currencyCode: input.currencyCode === "" ? null : input.currencyCode }
+        : {}),
+      ...(input.rollupWeight !== undefined ? { rollupWeight: input.rollupWeight } : {}),
+      ...(input.baseline !== undefined ? { baseline: input.baseline } : {}),
+      ...(input.target !== undefined ? { target: input.target } : {}),
+      ...(input.current !== undefined ? { current: input.current } : {}),
+      ...(input.formula !== undefined ? { formula: input.formula } : {}),
+      ...(input.progressMode !== undefined
+        ? { progressMode: input.progressMode === "" ? null : input.progressMode }
+        : {}),
     });
   },
   revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "Objective konnte nicht aktualisiert werden" }),
+  mapError: (e) => formatDomainError(e, { fallback: "Ziel konnte nicht aktualisiert werden" }),
 });
+
+/** Vereinheitlichter Alias — ein Update-Pfad für jeden Goal-Knoten. */
+export const updateGoalNodeAction = updateObjectiveAction;
 
 export const deleteObjectiveAction = createServerAction({
   schema: z.object({ id: z.string().uuid() }),

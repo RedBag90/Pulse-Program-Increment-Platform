@@ -76,7 +76,7 @@ export function StrategyTableView({ themes, canEdit }: Props) {
         <div className="max-w-md text-center">
           <p className="font-medium">Noch keine Strategie definiert.</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Leg ein Theme (OKR-Statement) an und haeng Key Results dran.
+            Leg ein Theme (OKR-Statement) an und haeng Unterziele dran.
           </p>
           {canEdit && (
             <div className="mt-4 flex justify-center">
@@ -152,8 +152,8 @@ export function StrategyTableView({ themes, canEdit }: Props) {
 /**
  * Rekursive Knoten-Zeilen — ersetzt die alten fixen 2 Ebenen (Theme + KR).
  * Jeder Knoten rendert eine `Row` (mit tiefen-abhängiger Einrückung) und
- * darunter rekursiv seine Kinder. „+"-Affordance je Knoten: Sub-Objective
- * ODER Key Result anhängen.
+ * darunter rekursiv seine Kinder. „+"-Affordance je Knoten: ein Unterziel
+ * anhängen (Messbarkeit über die Fortschrittsquelle im Drawer).
  */
 function NodeRows({
   node,
@@ -168,14 +168,13 @@ function NodeRows({
   canEdit: boolean;
   drag: DragCtx;
 }) {
-  const isKr = node.nodeKind === "key_result";
-  const entity = isKr ? "kr" : "theme";
-  const kindLabel = depth === 0 ? "Theme (OKR)" : isKr ? "Key Result" : "Objective";
+  // Ein Begriff „Ziel"; Top-Level bleibt „Theme (OKR)". Kein O/KR-Split mehr.
+  const kindLabel = depth === 0 ? "Theme (OKR)" : "Ziel";
   const subtitle =
     depth > 0 && node.rollupWeight != null
       ? `${kindLabel} · trägt ${Math.round(node.contributionShare * 100)} %`
       : kindLabel;
-  const progress = node.progress ?? (isKr ? keyResultProgress(node) : 0);
+  const progress = node.progress ?? (node.isMeasurable ? keyResultProgress(node) : 0);
   return (
     <>
       <Row
@@ -188,7 +187,7 @@ function NodeRows({
         narrative={node.narrative}
         confidence={node.confidence}
         drift={isAtRisk(node.trio)}
-        href={`?entity=${entity}&id=${node.id}`}
+        href={`?entity=goal&id=${node.id}`}
         statusValue={node.status}
         checkinAt={node.latestCheckin?.at ?? null}
         progress={progress}
@@ -198,9 +197,8 @@ function NodeRows({
         actions={
           canEdit ? (
             <RowActions
-              editHref={`/strategy?entity=${entity}&id=${node.id}`}
-              addObjectiveHref={`/strategy?entity=theme&new=1&parent=${node.id}`}
-              addKrHref={`/strategy?entity=kr&new=1&parent=${node.id}`}
+              editHref={`/strategy?entity=goal&id=${node.id}`}
+              addChildHref={`/strategy?entity=goal&new=1&parent=${node.id}`}
             />
           ) : null
         }
@@ -348,35 +346,22 @@ function Row({
 
 function RowActions({
   editHref,
-  addObjectiveHref,
-  addKrHref,
+  addChildHref,
 }: {
   editHref: string;
-  addObjectiveHref?: string | null;
-  addKrHref?: string | null;
+  addChildHref?: string | null;
 }) {
   return (
     <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100">
-      {addObjectiveHref && (
+      {addChildHref && (
         <Link
-          href={addObjectiveHref as never}
+          href={addChildHref as never}
           scroll={false}
           className="grid h-7 place-items-center rounded-md border bg-card px-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-muted"
-          title="Sub-Objective hinzufügen"
-          aria-label="Sub-Objective hinzufügen"
+          title="Unterziel hinzufügen"
+          aria-label="Unterziel hinzufügen"
         >
-          ＋Ziel
-        </Link>
-      )}
-      {addKrHref && (
-        <Link
-          href={addKrHref as never}
-          scroll={false}
-          className="grid h-7 place-items-center rounded-md border bg-card px-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-muted"
-          title="Key Result hinzufügen"
-          aria-label="Key Result hinzufügen"
-        >
-          ＋KR
+          ＋Unterziel
         </Link>
       )}
       <Link

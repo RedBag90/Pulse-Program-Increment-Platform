@@ -106,15 +106,23 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
 ## Strategy & KPI bindings
 
 - **Goal-Knoten** — seit ADR-0010 der **eine, rekursive** Knotentyp: `Objective`
-  absorbiert `KeyResult`. `nodeKind` (`"objective" | "key_result"`) ist nur ein
-  Label; jeder Knoten kann `children` (Self-Relation `parentObjectiveId`, `level`,
-  materialisierter `path`) **und/oder** eine eigene Metrik tragen. Beliebig tief
-  kaskadierbar. Rollup rekursiv (`goals-rollup.ts` `nodeProgress`/`nodeTrio`,
-  Post-Order): Zweig ⇒ (gewichteter) Rollup der Kinder gewinnt über eigene Metrik;
-  Blatt ⇒ eigene Metrik/KPI-Bindung; Epic-Links auf jeder Ebene additiv. Loader baut
-  den Baum flach über `parentObjectiveId`; ein rekursiver `GoalNode`-DTO ersetzt die
-  alten `ZieleTreeTheme`/`ZieleTreeKeyResult` (Aliase). `KrKpiContribution`,
-  `GoalCheckin`, `GoalComment`, `GoalEpicLink` hängen nur noch an `objectiveId`.
+  absorbiert `KeyResult`. Jeder Knoten kann `children` (Self-Relation `parentObjectiveId`,
+  `level`, materialisierter `path`) **und/oder** eine eigene Metrik tragen. Beliebig tief
+  kaskadierbar. Loader baut den Baum flach über `parentObjectiveId`; ein rekursiver
+  `GoalNode`-DTO ersetzt die alten `ZieleTreeTheme`/`ZieleTreeKeyResult` (Aliase).
+  `KrKpiContribution`, `GoalCheckin`, `GoalComment`, `GoalEpicLink` hängen nur noch an
+  `objectiveId`. In der UI heißt jeder Knoten **„Ziel"** (Top-Level = „Theme (OKR)"); ein
+  Erstellungspfad (`createGoalNodeAction`/`GoalPane`). `nodeKind` ist seit ADR-0011
+  vestigial (nur Legacy-Label, behavioral nicht gelesen).
+- **Fortschrittsquelle (ADR-0011)** — `Objective.progressMode` (`src/domain/goal-progress-mode.ts`)
+  wählt **pro Ziel** die 0..1-Fortschritts-Berechnung: `manual` (eigener `current`),
+  `rollup` (gewichteter Kinder-Ø), `auto_kpi` (Ist = **Summe** der einheitengleichen
+  KPI-Ist-Werte aus verknüpften Epics, dann `keyResultProgress` gegen target). `null` ⇒
+  abgeleitet (`hasChildren ? rollup : manual`, = Alt-Verhalten). `nodeProgress`
+  (`goals-rollup.ts`) respektiert den Modus; `manual`/`auto_kpi` gewinnen **auch mit
+  Kindern** (Override). **Getrennt von der Geld-Achse**: der €-Trio (`nodeTrio`, `formula`,
+  `KrKpiContribution`, Epic-Links) bleibt unverändert — `auto_kpi` liest die Epic-KPIs nur
+  zusätzlich für den Fortschritt (Count-once/ADR-0009 unberührt).
 - **Goal-Custom-Fields** — tenant-weit definierbare Zusatzfelder an Ziel-Knoten
   (`GoalCustomFieldDef` type text/number/select; Werte je Knoten in
   `GoalCustomFieldValue`, `@@unique([objectiveId, defId])`). Tenant-Admin verwaltet

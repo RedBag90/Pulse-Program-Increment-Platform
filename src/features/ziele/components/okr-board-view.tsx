@@ -63,12 +63,12 @@ function buildColumns(): QuarterColumn[] {
   return cols;
 }
 
-/** Alle messbaren Blatt-Nachfahren (nodeKind key_result) eines Knotens, rekursiv. */
+/** Alle messbaren metrik-tragenden Nachfahren eines Knotens, rekursiv. */
 function collectLeaves(node: ZieleTreeTheme): ZieleTreeTheme[] {
   const out: ZieleTreeTheme[] = [];
   const walk = (n: ZieleTreeTheme): void => {
     for (const c of n.children) {
-      if (c.nodeKind === "key_result") out.push(c);
+      if (c.isMeasurable && c.progressMode !== "rollup") out.push(c);
       walk(c);
     }
   };
@@ -275,7 +275,7 @@ function ThemeCard({
   return (
     <li>
       <Link
-        href={`?entity=theme&id=${theme.id}` as never}
+        href={`?entity=goal&id=${theme.id}` as never}
         scroll={false}
         draggable={canDrag}
         onDragStart={(e) => {

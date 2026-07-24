@@ -279,6 +279,7 @@ describe("nodeProgress / nodeTrio (recursive cascade)", () => {
   const ZERO: RollupTrio = { planned: 0, realized: 0, runRate: 0 };
   const leaf = (progress: number | null, over: Partial<RollupNode> = {}): RollupNode => ({
     weight: 1,
+    mode: "manual",
     progressLeaf: progress,
     trioLeaf: ZERO,
     trioEpicLinks: ZERO,
@@ -287,6 +288,7 @@ describe("nodeProgress / nodeTrio (recursive cascade)", () => {
   });
   const branch = (children: RollupNode[], over: Partial<RollupNode> = {}): RollupNode => ({
     weight: 1,
+    mode: "rollup",
     progressLeaf: null,
     trioLeaf: ZERO,
     trioEpicLinks: ZERO,
@@ -318,6 +320,19 @@ describe("nodeProgress / nodeTrio (recursive cascade)", () => {
     // root → [midA(0.5 avg), leaf 1.0]  → (0.5 + 1.0)/2 = 0.75
     const midA = branch([leaf(0.25), leaf(0.75)]); // 0.5
     expect(nodeProgress(branch([midA, leaf(1)]))).toBeCloseTo(0.75);
+  });
+
+  it("manual/auto_kpi mode uses own progressLeaf even with children (override)", () => {
+    // A node explicitly set to manual keeps its own progressLeaf, ignoring the
+    // children rollup that would otherwise average to 0.5.
+    const node = branch([leaf(0.2), leaf(0.8)], { mode: "manual", progressLeaf: 0.9 });
+    expect(nodeProgress(node)).toBeCloseTo(0.9);
+    const auto = branch([leaf(0.2), leaf(0.8)], { mode: "auto_kpi", progressLeaf: 0.3 });
+    expect(nodeProgress(auto)).toBeCloseTo(0.3);
+  });
+
+  it("rollup mode with no children returns null", () => {
+    expect(nodeProgress(leaf(0.5, { mode: "rollup", children: [] }))).toBeNull();
   });
 
   it("nodeTrio sums leaf trios up the tree plus epic links at each level", () => {

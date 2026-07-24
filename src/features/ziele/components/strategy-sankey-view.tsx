@@ -82,7 +82,7 @@ export function StrategySankeyView({ themes }: Props) {
   let orderCounter = 0;
   const visit = (n: ZieleTreeTheme, depth: number, parentId: string | null, themeIndex: number) => {
     if (!fallbackMode && n.trio.planned < minEur) return; // prune node + subtree
-    const isLeaf = n.nodeKind === "key_result";
+    const isLeaf = n.children.length === 0;
     const weight = fallbackMode ? (isLeaf ? 1 : Math.max(1, n.children.length)) : n.trio.planned;
     flat.push({
       id: n.id,
@@ -94,7 +94,7 @@ export function StrategySankeyView({ themes }: Props) {
             : ""
           : n.trio.planned > 0
             ? `€${compactEur(n.trio.planned)} Planned`
-            : (n.metricUnit ?? (isLeaf ? "manuell" : "")),
+            : (n.metricUnit ?? ""),
       planned: n.trio.planned,
       realized: n.trio.realized,
       weight,
@@ -102,7 +102,7 @@ export function StrategySankeyView({ themes }: Props) {
       depth,
       parentId,
       order: orderCounter++,
-      href: `/strategy?entity=${isLeaf ? "kr" : "theme"}&id=${n.id}`,
+      href: `/strategy?entity=goal&id=${n.id}`,
     });
     for (const c of n.children) visit(c, depth + 1, n.id, themeIndex);
   };
@@ -192,8 +192,8 @@ export function StrategySankeyView({ themes }: Props) {
           Band-Dicke ={" "}
           {fallbackMode ? (
             <>
-              Anzahl KRs · <span className="text-amber-600">noch keine €-Daten</span> — bindet KPIs
-              an Key Results, dann skaliert der Fluss nach Planned €.
+              Anzahl Ziele · <span className="text-amber-600">noch keine €-Daten</span> — bindet
+              KPIs an messbare Ziele, dann skaliert der Fluss nach Planned €.
             </>
           ) : (
             <>€ Planned · gepunktet = Run-Rate &lt; 70 %</>

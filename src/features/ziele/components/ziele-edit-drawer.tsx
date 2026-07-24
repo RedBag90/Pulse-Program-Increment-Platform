@@ -13,12 +13,9 @@ import type {
   GoalCustomFieldEntry,
 } from "@/server/views/ziele-view";
 import {
-  createObjectiveAction,
-  updateObjectiveAction,
+  createGoalNodeAction,
+  updateGoalNodeAction,
   deleteObjectiveAction,
-  createKeyResultAction,
-  updateKeyResultAction,
-  deleteKeyResultAction,
   linkEpicToGoalAction,
   unlinkEpicFromGoalAction,
   addGoalRelatedWorkAction,
@@ -41,12 +38,15 @@ import { formatMetricValue } from "@/domain/goal-metric";
  * **Key Result**. Vision + alter Strategic-Theme + Theme-Epic-Link
  * sind raus. URL-State:
  *
- *   ?entity=theme|kr&id=<uuid>            → Edit
- *   ?entity=theme|kr&new=1[&parent=<id>]  → Create (parent = Theme-Id fuer KR)
+ *   ?entity=goal&id=<uuid>            → Edit (jede Ebene)
+ *   ?entity=goal&new=1[&parent=<id>]  → Create (parent = Eltern-Ziel)
  *
+ * `theme`/`kr` werden als Alias weiter akzeptiert (alte Deeplinks). Ein
+ * einziger `GoalPane` bedient jede Ebene; die Fortschrittsquelle (manuell /
+ * aus Unterzielen / aus verknüpften KPIs) wird im Formular gewählt.
  * KPI-Bindungen werden read-only angezeigt; Pflege im Controlling-Modul.
  */
-type Entity = "theme" | "kr";
+type Entity = "theme" | "kr" | "goal";
 
 /** Rekursive Knoten-Suche im Goal-Baum (Kaskade); liefert Knoten + Eltern. */
 function findNode(
@@ -93,20 +93,12 @@ export function ZieleEditDrawer({ model, canEdit }: Props) {
     <Sheet open={open} onOpenChange={(o) => !o && close()}>
       <SheetContent side="right" className="!max-w-3xl overflow-y-auto p-0 sm:!max-w-3xl">
         <div className="p-5">
-          {entity === "theme" && (
-            <ThemePane
+          {entity && (
+            <GoalPane
+              key={isNew ? "new" : (id ?? "new")}
               model={model}
               id={isNew ? null : id}
               parentId={parentId}
-              canEdit={canEdit}
-              onClose={close}
-            />
-          )}
-          {entity === "kr" && (
-            <KeyResultPane
-              model={model}
-              id={isNew ? null : id}
-              themeId={parentId}
               canEdit={canEdit}
               onClose={close}
             />
@@ -117,9 +109,18 @@ export function ZieleEditDrawer({ model, canEdit }: Props) {
   );
 }
 
-// ── Theme (= Objective) ──────────────────────────────────────────────
+// ── Goal-Knoten — ein Pane für jede Ebene ────────────────────────────────
 
-function ThemePane({
+type GoalProgressMode = "manual" | "rollup" | "auto_kpi";
+
+/**
+ * Ein einziger Pane für Anlegen + Bearbeiten jedes Goal-Knotens (Theme wie
+ * Unterziel). Die Fortschrittsquelle wird im Formular gewählt:
+ *  - manuell        → Ist-Wert von Hand;
+ *  - aus Unterzielen→ gewichteter Rollup der Kinder;
+ *  - aus KPIs       → Ist = Summe der einheitengleichen KPIs verknüpfter Epics.
+ */
+function GoalPane({
   model,
   id,
   parentId,
@@ -132,29 +133,39 @@ function ThemePane({
   canEdit: boolean;
   onClose: () => void;
 }) {
-  const theme = id ? (findNode(model.themes, id)?.node ?? null) : null;
-  const [createState, createRun, createPending] = useActionState(createObjectiveAction, {});
-  const [updateState, updateRun, updatePending] = useActionState(updateObjectiveAction, {});
-  const [deleteState, deleteRun, deletePending] = useActionState(deleteObjectiveAction, {});
-
+  const found = useMemo(() => (id ? findNode(model.themes, id) : null), [model, id]);
+  const node = found?.node ?? null;
   const isNew = !id;
+
+  const [createState, createRun, createPending] = useActionState(createGoalNodeAction, {});
+  const [updateState, updateRun, updatePending] = useActionState(updateGoalNodeAction, {});
+  const [deleteState, deleteRun, deletePending] = useActionState(deleteObjectiveAction, {});
   const pending = createPending || updatePending || deletePending;
   const err = createState.error || updateState.error || deleteState.error;
 
+  // Top-Level (depth 0) bleibt „Theme (OKR)"; alle Unterebenen heißen „Ziel".
+  const depth = node ? node.depth : parentId ? 1 : 0;
+  const isTopLevel = depth === 0;
+  const kindLabel = isTopLevel ? "Theme (OKR)" : "Ziel";
+
+  const [mode, setMode] = useState<GoalProgressMode>(
+    (node?.progressMode as GoalProgressMode | undefined) ?? (isTopLevel ? "rollup" : "manual"),
+  );
+
   function submit(fd: FormData) {
+    fd.set("progressMode", mode);
     if (isNew) {
-      // Sub-Objective unter einem Eltern-Knoten anlegen (Kaskade).
       if (parentId) fd.set("parentObjectiveId", parentId);
       startTransition(() => createRun(fd));
     } else {
-      fd.set("id", id);
+      fd.set("id", id!);
       startTransition(() => updateRun(fd));
     }
   }
 
   function remove() {
     if (!id) return;
-    if (!confirm("Theme loeschen? Verlinkte Key Results werden mitentfernt.")) return;
+    if (!confirm("Ziel löschen? Unterziele werden mitentfernt.")) return;
     const fd = new FormData();
     fd.set("id", id);
     startTransition(() => {
@@ -163,23 +174,20 @@ function ThemePane({
     });
   }
 
-  // Objective-Completion = normalisierter Ø der KR-Fortschritte (ADR-0008).
-  const themeProgress = theme?.progress ?? 0;
-
   const formNode = (
     <FormShell
-      title={isNew ? "Neues Theme (OKR)" : (theme?.title ?? "Theme")}
-      subtitle={isNew ? "Anlegen" : "Theme · OKR-Statement"}
+      title={isNew ? `Neues ${kindLabel}` : (node?.title ?? "Ziel")}
+      subtitle={isNew ? "Anlegen" : kindLabel}
       pending={pending}
       error={err}
       onSubmit={submit}
       onDelete={isNew ? null : remove}
       canEdit={canEdit}
     >
-      <Field label="Titel (Objective-Statement)">
+      <Field label={isTopLevel ? "Titel (Objective-Statement)" : "Titel"}>
         <input
           name="title"
-          defaultValue={theme?.title ?? ""}
+          defaultValue={node?.title ?? ""}
           required
           className={INPUT}
           disabled={!canEdit}
@@ -189,7 +197,7 @@ function ThemePane({
       <Field label="Narrativ">
         <textarea
           name="narrative"
-          defaultValue={theme?.narrative ?? ""}
+          defaultValue={node?.narrative ?? ""}
           rows={3}
           className={TEXTAREA}
           disabled={!canEdit}
@@ -197,7 +205,7 @@ function ThemePane({
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Zeitraum">
-          <PeriodPicker name="period" defaultValue={theme?.period ?? null} disabled={!canEdit} />
+          <PeriodPicker name="period" defaultValue={node?.period ?? null} disabled={!canEdit} />
         </Field>
         <Field label="Confidence (1-5)">
           <input
@@ -205,7 +213,7 @@ function ThemePane({
             type="number"
             min={0}
             max={5}
-            defaultValue={theme?.confidence ?? ""}
+            defaultValue={node?.confidence ?? ""}
             className={INPUT}
             disabled={!canEdit}
           />
@@ -215,254 +223,151 @@ function ThemePane({
         <input
           name="dueDate"
           type="date"
-          defaultValue={theme?.dueDate ? theme.dueDate.slice(0, 10) : ""}
+          defaultValue={node?.dueDate ? node.dueDate.slice(0, 10) : ""}
           className={INPUT}
           disabled={!canEdit}
         />
       </Field>
-    </FormShell>
-  );
 
-  if (isNew || !id || !theme) return formNode;
-
-  return (
-    <div className="space-y-6">
-      <header className="space-y-0.5 border-b pb-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Theme · OKR-Statement
-        </p>
-        <h2 className="font-heading text-xl font-semibold tracking-tight">{theme.title}</h2>
-      </header>
-      <GoalDetailPanel
-        target="objective"
-        id={id}
-        status={theme.status}
-        progress={themeProgress}
-        currentValueLabel=""
-        canEdit={canEdit}
-      />
-      <div className="space-y-4 rounded-lg border bg-muted/10 p-4">
-        <RelatedEpics target="objective" goalId={id} epics={theme.relatedEpics} canEdit={canEdit} />
-        <RelatedWork goalId={id} items={theme.relatedWork} canEdit={canEdit} />
-      </div>
-      <div className="rounded-lg border bg-muted/10 p-4">
-        <GoalScopeLinks
-          goalId={id}
-          valueStreams={theme.valueStreams}
-          arts={theme.arts}
-          canEdit={canEdit}
-        />
-      </div>
-      {theme.customFields.length > 0 && (
-        <div className="rounded-lg border bg-muted/10 p-4">
-          <CustomFields
-            target="objective"
-            goalId={id}
-            fields={theme.customFields}
-            canEdit={canEdit}
-          />
-        </div>
-      )}
-      <details className="rounded-lg border bg-muted/10 p-4">
-        <summary className="cursor-pointer text-sm font-medium">Details bearbeiten</summary>
-        <div className="mt-3">{formNode}</div>
-      </details>
-    </div>
-  );
-}
-
-// ── Key Result ────────────────────────────────────────────────────────
-
-function KeyResultPane({
-  model,
-  id,
-  themeId,
-  canEdit,
-  onClose,
-}: {
-  model: ZieleModel;
-  id: string | null;
-  themeId: string | null;
-  canEdit: boolean;
-  onClose: () => void;
-}) {
-  const found = useMemo(() => {
-    if (!id) return null;
-    const hit = findNode(model.themes, id);
-    if (!hit) return null;
-    return { theme: hit.parent, kr: hit.node };
-  }, [model, id]);
-
-  const [createState, createRun, createPending] = useActionState(createKeyResultAction, {});
-  const [updateState, updateRun, updatePending] = useActionState(updateKeyResultAction, {});
-  const [deleteState, deleteRun, deletePending] = useActionState(deleteKeyResultAction, {});
-
-  const isNew = !id;
-  const pending = createPending || updatePending || deletePending;
-  const err = createState.error || updateState.error || deleteState.error;
-  const kr = found?.kr;
-
-  function submit(fd: FormData) {
-    if (isNew) {
-      if (themeId) fd.set("objectiveId", themeId);
-      startTransition(() => createRun(fd));
-    } else {
-      fd.set("id", id);
-      startTransition(() => updateRun(fd));
-    }
-  }
-
-  function remove() {
-    if (!id) return;
-    if (!confirm("Key Result loeschen?")) return;
-    const fd = new FormData();
-    fd.set("id", id);
-    startTransition(() => {
-      deleteRun(fd);
-      onClose();
-    });
-  }
-
-  const formNode = (
-    <FormShell
-      title={isNew ? "Neues Key Result" : (kr?.title ?? "KR")}
-      subtitle={
-        isNew
-          ? `Anlegen · Theme ${themeId ? "ausgewaehlt" : "?"}`
-          : `Theme ${found?.theme?.title ?? "—"}`
-      }
-      pending={pending}
-      error={err}
-      onSubmit={submit}
-      onDelete={isNew ? null : remove}
-      canEdit={canEdit}
-    >
-      <Field label="Titel">
-        <input
-          name="title"
-          defaultValue={kr?.title ?? ""}
-          required
-          className={INPUT}
-          disabled={!canEdit}
-        />
-      </Field>
-      <Field label="Einheit (Label)">
-        <input
-          name="metricUnit"
-          defaultValue={kr?.metricUnit ?? ""}
-          className={INPUT}
-          disabled={!canEdit}
-        />
-      </Field>
-      <div className="grid grid-cols-3 gap-3">
-        <Field label="Metriktyp">
+      <div className="space-y-3 rounded-md border border-dashed p-3">
+        <Field label="Fortschrittsquelle">
           <select
-            name="metricType"
-            defaultValue={kr?.metricType ?? "number"}
+            name="progressMode"
+            value={mode}
+            onChange={(e) => setMode(e.target.value as GoalProgressMode)}
             className={INPUT}
             disabled={!canEdit}
-            onChange={(e) => {
-              // Bei „Prozent" leere Baseline/Target auf 0/100 vorbelegen.
-              if (e.target.value !== "percent") return;
-              const form = e.currentTarget.form;
-              if (!form) return;
-              const b = form.elements.namedItem("baseline") as HTMLInputElement | null;
-              const t = form.elements.namedItem("target") as HTMLInputElement | null;
-              if (b && b.value === "") b.value = "0";
-              if (t && t.value === "") t.value = "100";
-            }}
           >
-            <option value="number">Zahl</option>
-            <option value="percent">Prozent</option>
-            <option value="currency">Währung</option>
+            <option value="manual">Manuell</option>
+            <option value="rollup">Aus Unterzielen</option>
+            <option value="auto_kpi">Aus verknüpften KPIs</option>
           </select>
         </Field>
-        <Field label="Nachkomma (0–6)">
+        {mode === "rollup" ? (
+          <p className="text-xs text-muted-foreground">
+            Fortschritt = gewichteter Durchschnitt der Unterziele. Eine eigene Metrik wird
+            ignoriert.
+          </p>
+        ) : (
+          <>
+            <Field label="Einheit (Label)">
+              <input
+                name="metricUnit"
+                defaultValue={node?.metricUnit ?? ""}
+                className={INPUT}
+                disabled={!canEdit}
+              />
+            </Field>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Metriktyp">
+                <select
+                  name="metricType"
+                  defaultValue={node?.metricType ?? "number"}
+                  className={INPUT}
+                  disabled={!canEdit}
+                  onChange={(e) => {
+                    // Bei „Prozent" leere Baseline/Target auf 0/100 vorbelegen.
+                    if (e.target.value !== "percent") return;
+                    const form = e.currentTarget.form;
+                    if (!form) return;
+                    const b = form.elements.namedItem("baseline") as HTMLInputElement | null;
+                    const t = form.elements.namedItem("target") as HTMLInputElement | null;
+                    if (b && b.value === "") b.value = "0";
+                    if (t && t.value === "") t.value = "100";
+                  }}
+                >
+                  <option value="number">Zahl</option>
+                  <option value="percent">Prozent</option>
+                  <option value="currency">Währung</option>
+                </select>
+              </Field>
+              <Field label="Nachkomma (0–6)">
+                <input
+                  name="precision"
+                  type="number"
+                  min={0}
+                  max={6}
+                  defaultValue={node?.precision ?? 0}
+                  className={INPUT}
+                  disabled={!canEdit}
+                />
+              </Field>
+              <Field label="Währung (ISO)">
+                <input
+                  name="currencyCode"
+                  defaultValue={node?.currencyCode ?? ""}
+                  placeholder="EUR"
+                  className={INPUT}
+                  disabled={!canEdit}
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Baseline">
+                <input
+                  name="baseline"
+                  type="number"
+                  step="any"
+                  defaultValue={node?.baseline ?? ""}
+                  className={INPUT}
+                  disabled={!canEdit}
+                />
+              </Field>
+              <Field label="Target (Zielwert)">
+                <input
+                  name="target"
+                  type="number"
+                  step="any"
+                  defaultValue={node?.target ?? ""}
+                  className={INPUT}
+                  disabled={!canEdit}
+                />
+              </Field>
+              <Field label={mode === "auto_kpi" ? "Ist (aus KPIs)" : "Aktuell"}>
+                <input
+                  name="current"
+                  type="number"
+                  step="any"
+                  defaultValue={node?.current ?? ""}
+                  className={INPUT}
+                  disabled={!canEdit || mode === "auto_kpi"}
+                  title={
+                    mode === "auto_kpi"
+                      ? "Summe der einheitengleichen KPIs aus verknüpften Epics"
+                      : undefined
+                  }
+                />
+              </Field>
+            </div>
+            {mode === "auto_kpi" && (
+              <p className="text-xs text-muted-foreground">
+                Ist-Wert = Summe der Ist-Werte aller KPIs mit passender Einheit aus den unten
+                verknüpften Epics. KPI besser → Ziel besser.
+              </p>
+            )}
+            {mode === "manual" && (
+              <Field label="Geldwert-Formel (KPI-Coverage)">
+                <select
+                  name="formula"
+                  defaultValue={node?.formula ?? "manual"}
+                  className={INPUT}
+                  disabled={!canEdit}
+                >
+                  <option value="manual">manuell</option>
+                  <option value="auto_from_kpi">aus KPI aggregiert</option>
+                </select>
+              </Field>
+            )}
+          </>
+        )}
+        <Field label="Gewicht im Rollup des Elternziels (leer = 1)">
           <input
-            name="precision"
+            name="rollupWeight"
             type="number"
+            step="any"
             min={0}
-            max={6}
-            defaultValue={kr?.precision ?? 0}
-            className={INPUT}
-            disabled={!canEdit}
-          />
-        </Field>
-        <Field label="Währung (ISO)">
-          <input
-            name="currencyCode"
-            defaultValue={kr?.currencyCode ?? ""}
-            placeholder="EUR"
-            className={INPUT}
-            disabled={!canEdit}
-          />
-        </Field>
-      </div>
-      <Field label="Gewicht im Rollup (leer = 1)">
-        <input
-          name="rollupWeight"
-          type="number"
-          step="any"
-          min={0}
-          defaultValue={kr?.rollupWeight ?? ""}
-          placeholder="1"
-          className={INPUT}
-          disabled={!canEdit}
-        />
-      </Field>
-      <div className="grid grid-cols-3 gap-3">
-        <Field label="Baseline">
-          <input
-            name="baseline"
-            type="number"
-            step="any"
-            defaultValue={kr?.baseline ?? ""}
-            className={INPUT}
-            disabled={!canEdit}
-          />
-        </Field>
-        <Field label="Target">
-          <input
-            name="target"
-            type="number"
-            step="any"
-            defaultValue={kr?.target ?? ""}
-            className={INPUT}
-            disabled={!canEdit}
-          />
-        </Field>
-        <Field label="Aktuell">
-          <input
-            name="current"
-            type="number"
-            step="any"
-            defaultValue={kr?.current ?? ""}
-            className={INPUT}
-            disabled={!canEdit || kr?.formula === "auto_from_kpi"}
-            title={kr?.formula === "auto_from_kpi" ? "Aus KPI aggregiert" : undefined}
-          />
-        </Field>
-      </div>
-      <Field label="Formel">
-        <select
-          name="formula"
-          defaultValue={kr?.formula ?? "manual"}
-          className={INPUT}
-          disabled={!canEdit}
-        >
-          <option value="manual">manuell</option>
-          <option value="auto_from_kpi">aus KPI aggregiert</option>
-        </select>
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Zeitraum">
-          <PeriodPicker name="period" defaultValue={kr?.period ?? null} disabled={!canEdit} />
-        </Field>
-        <Field label="Fällig am">
-          <input
-            name="dueDate"
-            type="date"
-            defaultValue={kr?.dueDate ? kr.dueDate.slice(0, 10) : ""}
+            defaultValue={node?.rollupWeight ?? ""}
+            placeholder="1"
             className={INPUT}
             disabled={!canEdit}
           />
@@ -471,72 +376,89 @@ function KeyResultPane({
     </FormShell>
   );
 
-  if (isNew || !id || !kr) {
+  if (isNew || !id || !node) {
     return <div className="space-y-5">{formNode}</div>;
   }
 
-  const span = kr.target != null && kr.baseline != null ? kr.target - kr.baseline : null;
-  const krProgress =
-    span && kr.current != null ? Math.max(0, Math.min(1, (kr.current - kr.baseline!) / span)) : 0;
+  // Messbarer Knoten (eigene Metrik) → Value-Check-in ("kr"); sonst Status ("objective").
+  const detailTarget: "objective" | "kr" =
+    node.isMeasurable && node.progressMode !== "rollup" ? "kr" : "objective";
   const metricSpec = {
-    metricType: kr.metricType,
-    precision: kr.precision,
-    currencyCode: kr.currencyCode,
+    metricType: node.metricType,
+    precision: node.precision,
+    currencyCode: node.currencyCode,
   };
   const currentValueLabel =
-    kr.current != null
-      ? `${formatMetricValue(kr.current, metricSpec)}${
-          kr.target != null ? ` / ${formatMetricValue(kr.target, metricSpec)}` : ""
+    detailTarget === "kr" && node.current != null
+      ? `${formatMetricValue(node.current, metricSpec)}${
+          node.target != null ? ` / ${formatMetricValue(node.target, metricSpec)}` : ""
         }`
-      : "—";
+      : "";
 
   return (
     <div className="space-y-6">
       <header className="space-y-0.5 border-b pb-3">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Key Result · {found?.theme?.title ?? "—"}
+          {isTopLevel ? "Theme · OKR-Statement" : `Ziel · ${found?.parent?.title ?? "—"}`}
         </p>
-        <h2 className="font-heading text-xl font-semibold tracking-tight">{kr.title}</h2>
+        <h2 className="font-heading text-xl font-semibold tracking-tight">{node.title}</h2>
       </header>
       <GoalDetailPanel
-        target="kr"
+        target={detailTarget}
         id={id}
-        status={kr.status}
-        progress={krProgress}
+        status={node.status}
+        progress={node.progress ?? 0}
         currentValueLabel={currentValueLabel}
         canEdit={canEdit}
-        formula={kr.formula}
-        krBaseline={kr.baseline}
-        krTarget={kr.target}
-        krCurrent={kr.current}
-        metricType={kr.metricType}
-        precision={kr.precision}
-        currencyCode={kr.currencyCode}
+        formula={node.formula}
+        krBaseline={node.baseline}
+        krTarget={node.target}
+        krCurrent={node.current}
+        metricType={node.metricType}
+        precision={node.precision}
+        currencyCode={node.currencyCode}
       />
       <div className="space-y-3 rounded-lg border bg-muted/10 p-4">
-        <RelatedEpics target="kr" goalId={id} epics={kr.relatedEpics} canEdit={canEdit} />
-        <p className="text-[10px] leading-snug text-muted-foreground">
-          Ein verknüpftes Epic bringt den Wert all seiner KPIs grob mit. Die KPI-Bindungen unten
-          sind die feine Alternative — jede KPI zählt genau einmal.
-        </p>
+        <RelatedEpics
+          target={detailTarget}
+          goalId={id}
+          epics={node.relatedEpics}
+          canEdit={canEdit}
+        />
+        {node.progressMode === "auto_kpi" ? (
+          <p className="text-[10px] leading-snug text-muted-foreground">
+            Die KPIs dieser Epics mit passender Einheit bilden den Ist-Wert dieses Ziels
+            (Fortschrittsquelle „aus verknüpften KPIs").
+          </p>
+        ) : (
+          <p className="text-[10px] leading-snug text-muted-foreground">
+            Ein verknüpftes Epic bringt den €-Wert all seiner KPIs grob mit. Die KPI-Bindungen unten
+            sind die feine Alternative — jede KPI zählt genau einmal.
+          </p>
+        )}
         <div className="border-t pt-3">
-          <KpiBindingsReadOnly contributions={kr.contributions} krId={id} />
+          <KpiBindingsReadOnly contributions={node.contributions} krId={id} />
         </div>
         <div className="border-t pt-3">
-          <RelatedWork goalId={id} items={kr.relatedWork} canEdit={canEdit} />
+          <RelatedWork goalId={id} items={node.relatedWork} canEdit={canEdit} />
         </div>
         <div className="border-t pt-3">
           <GoalScopeLinks
             goalId={id}
-            valueStreams={kr.valueStreams}
-            arts={kr.arts}
+            valueStreams={node.valueStreams}
+            arts={node.arts}
             canEdit={canEdit}
           />
         </div>
       </div>
-      {kr.customFields.length > 0 && (
+      {node.customFields.length > 0 && (
         <div className="rounded-lg border bg-muted/10 p-4">
-          <CustomFields target="kr" goalId={id} fields={kr.customFields} canEdit={canEdit} />
+          <CustomFields
+            target={detailTarget}
+            goalId={id}
+            fields={node.customFields}
+            canEdit={canEdit}
+          />
         </div>
       )}
       <details className="rounded-lg border bg-muted/10 p-4">

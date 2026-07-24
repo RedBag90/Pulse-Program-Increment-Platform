@@ -18,6 +18,7 @@
  */
 
 import { fulfillmentFraction } from "@/domain/kpi-direction";
+import type { ProgressMode } from "@/domain/goal-progress-mode";
 
 export interface KpiInput {
   id: string;
@@ -218,6 +219,8 @@ export function rollupObjectiveProgress(
 export interface RollupNode {
   /** Relatives Gewicht im Eltern-Rollup (Default 1). */
   weight: number;
+  /** Fortschrittsquelle dieses Knotens (vom Loader effektiv aufgelöst). */
+  mode: ProgressMode;
   /** Eigener Blatt-Fortschritt 0..1, `null` wenn nicht messbar / kein Blatt. */
   progressLeaf: number | null;
   /** Eigener Metrik-€ (Blatt). Null-Trio bei Zweigen/manuellen Blättern. */
@@ -228,12 +231,15 @@ export interface RollupNode {
 }
 
 /**
- * Rekursiver Fortschritt (Post-Order). Hat der Knoten Kinder, gewinnt der
- * (gewichtete) Rollup über eine etwaige eigene Metrik; Kinder ohne Fortschritt
- * (`null`) werden ausgeklammert. Blatt ⇒ eigener `progressLeaf`.
+ * Rekursiver Fortschritt (Post-Order), gesteuert vom `mode`:
+ *  - `rollup`  → (gewichteter) Durchschnitt der Kinder; Kinder ohne Fortschritt
+ *               (`null`) werden ausgeklammert; ohne Kinder ⇒ `null`.
+ *  - `manual` / `auto_kpi` → eigener `progressLeaf`, **auch wenn Kinder
+ *               existieren** (expliziter Override der Fortschrittsquelle).
  */
 export function nodeProgress(node: RollupNode): number | null {
-  if (node.children.length > 0) {
+  if (node.mode === "rollup") {
+    if (node.children.length === 0) return null;
     const kept = node.children
       .map((c) => ({ p: nodeProgress(c), w: c.weight }))
       .filter((x): x is { p: number; w: number } => x.p !== null);
