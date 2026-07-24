@@ -132,7 +132,11 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   `entryDate` → `GoalCheckin.createdAt`, eingefrorener `value`, `goalStatusColor`) und **neutrale
   Wert-Punkte** aus `recordGoalProgress` (statusloser Check-in mit `value` + `entryDate`, hohler
   grauer Dot). `ProgressChartPoint.entry` markiert Letztere; die KPI-Pflege bewegt nur die Linie
-  (kein Punkt). Höhe: Roh-Wert (messbar) bzw. % (Rollup); Zeit-X-Achse.
+  (kein Punkt). Höhe: Roh-Wert (messbar) bzw. % (Rollup); Zeit-X-Achse. **Ein Check-in pro Tag:**
+  `recordGoalCheckin`/`recordGoalProgress` upserten nach Tagesschlüssel (`dayStart`, UTC-Mitternacht)
+  über `upsertDayCheckin` — der letzte Eintrag eines Datums überschreibt den Slot (Wert-Eintrag und
+  Status-Update teilen ihn). Die „Latest status"-Card liest den authoritativen `objective.status`
+  (nicht den Feed, wo das gleichnamige Audit-Event `goal.checkin` kollidiert).
 - **Goal-Custom-Fields** — tenant-weit definierbare Zusatzfelder an Ziel-Knoten
   (`GoalCustomFieldDef` type text/number/select; Werte je Knoten in
   `GoalCustomFieldValue`, `@@unique([objectiveId, defId])`). Tenant-Admin verwaltet

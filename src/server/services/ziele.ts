@@ -1,4 +1,4 @@
-import type { Prisma } from "@/generated/prisma";
+import { Prisma } from "@/generated/prisma";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
@@ -9,6 +9,7 @@ import { clampPrecision, type MetricType } from "@/domain/goal-metric";
 import { canReparent } from "@/domain/goal-reparent";
 import { autoKpiCurrent, isProgressMode, effectiveProgressMode } from "@/domain/goal-progress-mode";
 import { latestMeasurement } from "@/domain/kpi-measurement";
+import { dayStart } from "@/domain/calendar";
 
 export type GoalTarget = "objective" | "kr";
 
@@ -615,6 +616,62 @@ export interface CheckInGoalInput {
 }
 
 /**
+ * Ein Check-in **pro Tag**: überschreibt den bestehenden Check-in des Knotens an
+ * diesem Tag (`day` = UTC-Mitternacht) vollständig — sonst neu anlegen. „Letzter
+ * Eintrag des Tages gewinnt" (Wert-Eintrag und Status-Update teilen den Slot).
+ */
+async function upsertDayCheckin(
+  tx: Prisma.TransactionClient,
+  input: {
+    tenantId: string;
+    objectiveId: string;
+    day: Date;
+    createdBy: string;
+    status: string | null;
+    value: number | null;
+    progress: number | null;
+    note?: string | null;
+    sections?: GoalSection[] | null;
+  },
+): Promise<{ id: string }> {
+  const next = new Date(input.day);
+  next.setUTCDate(next.getUTCDate() + 1);
+  const existing = await tx.goalCheckin.findFirst({
+    where: {
+      tenantId: input.tenantId,
+      objectiveId: input.objectiveId,
+      createdAt: { gte: input.day, lt: next },
+    },
+    select: { id: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const data = {
+    status: input.status,
+    value: input.value,
+    progress: input.progress,
+    note: input.note ?? null,
+    sections:
+      input.sections && input.sections.length > 0
+        ? (input.sections as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull,
+    createdAt: input.day,
+  };
+  if (existing) {
+    await tx.goalCheckin.update({ where: { id: existing.id }, data });
+    return { id: existing.id };
+  }
+  const created = await tx.goalCheckin.create({
+    data: {
+      tenantId: input.tenantId,
+      objectiveId: input.objectiveId,
+      createdBy: input.createdBy,
+      ...data,
+    },
+  });
+  return { id: created.id };
+}
+
+/**
  * Records a status/progress check-in on a goal (Objective or Key Result) and
  * stamps the entity's own `status` (+ `current` for a manual KR when a raw
  * value is given). Backs the Asana-style "Update status" flow + history chart.
@@ -632,19 +689,16 @@ export async function recordGoalCheckin(
       if (!existing) {
         return err({ kind: "not_found" as const, resourceType: "Objective", id: input.id });
       }
-      const checkin = await tx.goalCheckin.create({
-        data: {
-          tenantId: mctx.tenantId,
-          objectiveId: input.id,
-          status: input.status,
-          progress: input.progress ?? null,
-          note: input.note ?? null,
-          ...(input.sections && input.sections.length > 0
-            ? { sections: input.sections as unknown as Prisma.InputJsonValue }
-            : {}),
-          ...(input.entryDate ? { createdAt: input.entryDate } : {}),
-          createdBy: mctx.actorId,
-        },
+      const checkin = await upsertDayCheckin(tx, {
+        tenantId: mctx.tenantId,
+        objectiveId: input.id,
+        day: dayStart(input.entryDate ?? new Date()),
+        createdBy: mctx.actorId,
+        status: input.status,
+        value: null,
+        progress: input.progress ?? null,
+        note: input.note ?? null,
+        sections: input.sections ?? null,
       });
       await tx.objective.update({
         where: { id: input.id },
@@ -700,20 +754,16 @@ export async function recordGoalCheckin(
       rawValue != null
         ? normalizeKrValue(rawValue, existing.baseline, existing.target)
         : (input.progress ?? null);
-    const checkin = await tx.goalCheckin.create({
-      data: {
-        tenantId: mctx.tenantId,
-        objectiveId: input.id,
-        status: input.status,
-        value: rawValue,
-        progress: frozenProgress,
-        note: input.note ?? null,
-        ...(input.sections && input.sections.length > 0
-          ? { sections: input.sections as unknown as Prisma.InputJsonValue }
-          : {}),
-        ...(input.entryDate ? { createdAt: input.entryDate } : {}),
-        createdBy: mctx.actorId,
-      },
+    const checkin = await upsertDayCheckin(tx, {
+      tenantId: mctx.tenantId,
+      objectiveId: input.id,
+      day: dayStart(input.entryDate ?? new Date()),
+      createdBy: mctx.actorId,
+      status: input.status,
+      value: rawValue,
+      progress: frozenProgress,
+      note: input.note ?? null,
+      sections: input.sections ?? null,
     });
     await tx.objective.update({
       where: { id: input.id },
@@ -771,16 +821,16 @@ export async function recordGoalProgress(
         ],
       });
     }
-    const checkin = await tx.goalCheckin.create({
-      data: {
-        tenantId: mctx.tenantId,
-        objectiveId: input.keyResultId,
-        status: null,
-        value: input.value,
-        progress: normalizeKrValue(input.value, existing.baseline, existing.target),
-        ...(input.entryDate ? { createdAt: input.entryDate } : {}),
-        createdBy: mctx.actorId,
-      },
+    const checkin = await upsertDayCheckin(tx, {
+      tenantId: mctx.tenantId,
+      objectiveId: input.keyResultId,
+      day: dayStart(input.entryDate ?? new Date()),
+      createdBy: mctx.actorId,
+      status: null,
+      value: input.value,
+      progress: normalizeKrValue(input.value, existing.baseline, existing.target),
+      note: null,
+      sections: null,
     });
     await tx.objective.update({
       where: { id: input.keyResultId },

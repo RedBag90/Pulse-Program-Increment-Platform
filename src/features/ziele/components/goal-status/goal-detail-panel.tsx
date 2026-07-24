@@ -151,7 +151,11 @@ export function GoalDetailPanel({
 
   const pct = Math.round(progress * 100);
   const suggested = suggestOpenStatus(progress);
-  const latest = detail?.activity.find((a) => a.action === "goal.checkin");
+  // „Latest status" aus dem authoritativen `status` (= objective.status, wie die
+  // Pill); die Zeit aus dem jüngsten Status-Check-in. Nicht aus dem Feed ableiten
+  // — dort kollidiert das gleichnamige Audit-Event `goal.checkin` (ohne detail).
+  const latestStatusAt =
+    (detail?.checkins ?? []).filter((c) => c.status != null).at(-1)?.at ?? null;
 
   // Graf-Serie kommt fertig aus dem Loader: die Linie folgt der Fortschrittsquelle,
   // Punkte sind die eigenen Status-Updates (Farbe = Status).
@@ -275,8 +279,8 @@ export function GoalDetailPanel({
         <Card label="Current value" value={currentValueLabel || "—"} />
         <Card
           label="Latest status"
-          value={latest ? goalStatusLabel(latest.detail) : "—"}
-          hint={latest ? relTime(latest.at) : "kein Check-in"}
+          value={status ? goalStatusLabel(status) : "—"}
+          hint={latestStatusAt ? relTime(latestStatusAt) : "kein Check-in"}
         />
       </div>
 
