@@ -43,7 +43,9 @@ export async function setKpiBinding(
     // validator. Without this lock, both would load `existing = null`,
     // both pass validation, and the second insert fails at the
     // UNIQUE(kpiId) constraint instead of returning a domain error.
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${input.kpiId})::int8)`;
+    // $executeRaw (nicht $queryRaw): pg_advisory_xact_lock liefert `void`, das
+    // $queryRaw als Ergebnis-Spalte nicht deserialisieren kann.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.kpiId})::int8)`;
 
     const existing = await tx.krKpiContribution.findFirst({
       where: { tenantId: mctx.tenantId, kpiId: input.kpiId },

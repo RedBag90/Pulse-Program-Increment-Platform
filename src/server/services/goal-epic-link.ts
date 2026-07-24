@@ -56,7 +56,9 @@ async function applyEpicLink(
     // Per-epic advisory transaction lock — serializes concurrent link/unlink of
     // the same epic so the second comer sees the first's commit and is rejected
     // deterministically rather than tripping the UNIQUE(epicId) backstop.
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${epicId})::int8)`;
+    // $executeRaw (nicht $queryRaw): pg_advisory_xact_lock liefert `void`, das
+    // $queryRaw als Ergebnis-Spalte nicht deserialisieren kann.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${epicId})::int8)`;
 
     const existing = await tx.goalEpicLink.findFirst({
       where: { tenantId: mctx.tenantId, epicId },
