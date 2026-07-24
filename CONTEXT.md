@@ -128,11 +128,11 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   Fortschrittsquelle: `auto_kpi` → zeitlicher KPI-Verlauf (`buildAutoKpiSeries`, laufende
   einheitengleiche Summe), `rollup` → gewichteter Ø der Unterziele über die Zeit
   (`buildNodeProgressSeries`, rekursiv über den Subtree), `manual` → Snapshots + Live-Ende.
-  **Punkte** entstehen **nur** aus **Status-Updates** (`recordGoalCheckin`): am gewählten
-  `entryDate` (→ `GoalCheckin.createdAt`), mit eingefrorenem Ist-Wert (`value`) und in der
-  Status-Farbe (`goalStatusColor`, Custom-Dot). Die Ist-Wert-Pflege (`recordGoalProgress` bzw.
-  KPI-Messwerte) bewegt die Linie, erzeugt aber **keinen** Punkt. Höhe: Roh-Wert (messbar)
-  bzw. % (Rollup); Zeit-X-Achse.
+  **Punkte** sind zweierlei: **farbige Status-Punkte** aus `recordGoalCheckin` (Status am gewählten
+  `entryDate` → `GoalCheckin.createdAt`, eingefrorener `value`, `goalStatusColor`) und **neutrale
+  Wert-Punkte** aus `recordGoalProgress` (statusloser Check-in mit `value` + `entryDate`, hohler
+  grauer Dot). `ProgressChartPoint.entry` markiert Letztere; die KPI-Pflege bewegt nur die Linie
+  (kein Punkt). Höhe: Roh-Wert (messbar) bzw. % (Rollup); Zeit-X-Achse.
 - **Goal-Custom-Fields** — tenant-weit definierbare Zusatzfelder an Ziel-Knoten
   (`GoalCustomFieldDef` type text/number/select; Werte je Knoten in
   `GoalCustomFieldValue`, `@@unique([objectiveId, defId])`). Tenant-Admin verwaltet

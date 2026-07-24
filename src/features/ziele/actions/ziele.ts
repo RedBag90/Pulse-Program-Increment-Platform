@@ -390,10 +390,17 @@ export const updateGoalProgressAction = createServerAction({
   schema: z.object({
     id: z.string().uuid(),
     value: z.coerce.number(),
+    /** Gewähltes Datum des Wert-Eintrags (setzt den neutralen Graf-Punkt). */
+    entryDate: optStr,
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) => recordGoalProgress(ctx, { keyResultId: input.id, value: input.value }),
+  service: (ctx, input) =>
+    recordGoalProgress(ctx, {
+      keyResultId: input.id,
+      value: input.value,
+      ...(input.entryDate ? { entryDate: new Date(input.entryDate) } : {}),
+    }),
   revalidate: "ziele",
   mapError: (e) =>
     formatDomainError(e, { fallback: "Fortschritt konnte nicht aktualisiert werden" }),

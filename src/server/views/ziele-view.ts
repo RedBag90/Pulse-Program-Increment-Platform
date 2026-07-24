@@ -792,7 +792,10 @@ export interface GoalActivityEntry {
 export interface ProgressChartPoint {
   at: number;
   value: number;
+  /** Gesetzt ⇒ farbiger Status-Punkt. */
   status: string | null;
+  /** true ⇒ diskreter manueller Wert-Eintrag ⇒ neutraler Punkt. */
+  entry: boolean;
 }
 
 export interface ProgressChart {
@@ -927,8 +930,10 @@ async function buildProgressChart(
   const ids = subtreeRows.map((r) => r.id);
 
   const [checkinAll, epicLinks] = await Promise.all([
+    // Alle Check-ins (auch statuslose Wert-Einträge) — die Linie/Kinder-Serien
+    // brauchen den `progress`, die neutralen Punkte den statuslosen `value`.
     db.goalCheckin.findMany({
-      where: { tenantId, objectiveId: { in: ids }, status: { not: null } },
+      where: { tenantId, objectiveId: { in: ids } },
       select: { objectiveId: true, status: true, value: true, progress: true, createdAt: true },
       orderBy: { createdAt: "asc" },
     }),
@@ -998,41 +1003,42 @@ async function buildProgressChart(
   const mode: "value" | "percent" =
     effMode !== "rollup" && seriesRoot.target != null ? "value" : "percent";
 
-  // Linien-Rows (ohne Status → kein Punkt).
-  const lineRows: { at: number; value: number }[] = [];
+  const points: ProgressChartPoint[] = [];
+
+  // 1) Kontinuierlicher Verlauf (kein Punkt): auto_kpi → KPI-Historie, rollup →
+  //    aggregierter Kinder-Ø. (Bei manual liefert Schritt 2 die Linien-Punkte.)
   if (mode === "percent") {
     for (const p of buildNodeProgressSeries(seriesRoot, nowIso)) {
-      lineRows.push({ at: Date.parse(p.at), value: p.progress * 100 });
+      points.push({ at: Date.parse(p.at), value: p.progress * 100, status: null, entry: false });
     }
   } else if (effMode === "auto_kpi") {
     for (const p of buildAutoKpiSeries(seriesRoot.unitSpec, seriesRoot.kpis)) {
-      lineRows.push({ at: Date.parse(p.at), value: p.value });
+      points.push({ at: Date.parse(p.at), value: p.value, status: null, entry: false });
     }
-  } else {
-    // manual (value): eigene eingefrorene Check-in-Werte + Live-Ende.
-    for (const c of checkinAll) {
-      if (c.objectiveId === id && c.value != null) {
-        lineRows.push({ at: c.createdAt.getTime(), value: Number(c.value) });
-      }
-    }
-    if (seriesRoot.current != null)
-      lineRows.push({ at: Date.parse(nowIso), value: seriesRoot.current });
   }
 
-  // Status-Rows (die farbigen Punkte) aus den eigenen Check-ins.
-  const statusRows: ProgressChartPoint[] = [];
+  // 2) Eigene Check-ins: Status gesetzt → farbiger Status-Punkt; statuslos mit
+  //    Wert (manueller Eintrag) → neutraler Punkt.
   for (const c of checkinAll) {
     if (c.objectiveId !== id) continue;
     const v =
       mode === "value" ? toFloat(c.value) : c.progress != null ? Number(c.progress) * 100 : null;
     if (v == null) continue;
-    statusRows.push({ at: c.createdAt.getTime(), value: v, status: c.status });
+    points.push({ at: c.createdAt.getTime(), value: v, status: c.status, entry: c.status == null });
   }
 
-  // Merge je Zeitpunkt: Linie zuerst, Status-Punkt überschreibt Wert + setzt Farbe.
+  // 3) manual: Live-Ende (aktueller Ist-Wert @ heute) als Linienknick, kein Punkt.
+  if (mode === "value" && effMode === "manual" && seriesRoot.current != null) {
+    points.push({ at: Date.parse(nowIso), value: seriesRoot.current, status: null, entry: false });
+  }
+
+  // Merge je Zeitpunkt mit Vorrang Status-Punkt > neutraler Eintrag > Linie.
+  const rank = (p: ProgressChartPoint): number => (p.status != null ? 2 : p.entry ? 1 : 0);
   const byAt = new Map<number, ProgressChartPoint>();
-  for (const r of lineRows) byAt.set(r.at, { at: r.at, value: r.value, status: null });
-  for (const r of statusRows) byAt.set(r.at, r);
+  for (const p of points) {
+    const ex = byAt.get(p.at);
+    if (!ex || rank(p) >= rank(ex)) byAt.set(p.at, p);
+  }
   const series = [...byAt.values()].sort((a, b) => a.at - b.at);
 
   let yDomain: [number, number];

@@ -735,13 +735,15 @@ export interface RecordGoalProgressInput {
   keyResultId: string;
   /** Raw current value in the KR's metric (e.g. `2` of target 4). */
   value: number;
+  /** Gewähltes Datum des Wert-Eintrags (setzt den neutralen Graf-Punkt); Default now. */
+  entryDate?: Date | null;
 }
 
 /**
- * Setzt den Ist-Wert eines MANUELLEN Key Results (Asana „Update progress") —
- * **ohne** Graf-Punkt. Nur `objective.current` wird gestempelt; ein Punkt
- * entsteht ausschließlich beim Status-Update (recordGoalCheckin). Auto-KRs sind
- * abgelehnt — ihr Ist-Wert kommt aus den KPIs.
+ * Setzt den Ist-Wert eines MANUELLEN Ziels (Asana „Update progress") und legt
+ * einen **statuslosen** Check-in am gewählten Datum an — ein **neutraler**
+ * Graf-Punkt (kein Status-Punkt). `objective.current` wird mitgestempelt.
+ * Auto-/Rollup-Ziele sind abgelehnt — ihr Ist-Wert kommt aus KPIs/Unterzielen.
  */
 export async function recordGoalProgress(
   ctx: RequestContext,
@@ -769,12 +771,23 @@ export async function recordGoalProgress(
         ],
       });
     }
+    const checkin = await tx.goalCheckin.create({
+      data: {
+        tenantId: mctx.tenantId,
+        objectiveId: input.keyResultId,
+        status: null,
+        value: input.value,
+        progress: normalizeKrValue(input.value, existing.baseline, existing.target),
+        ...(input.entryDate ? { createdAt: input.entryDate } : {}),
+        createdBy: mctx.actorId,
+      },
+    });
     await tx.objective.update({
       where: { id: input.keyResultId },
       data: { current: input.value, updatedBy: mctx.actorId },
     });
     return ok({
-      result: { id: input.keyResultId },
+      result: { id: checkin.id },
       audit: {
         action: "goal.progress.updated",
         resourceType: "key_result",

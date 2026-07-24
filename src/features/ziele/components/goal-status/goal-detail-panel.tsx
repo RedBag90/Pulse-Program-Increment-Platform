@@ -73,6 +73,7 @@ export function GoalDetailPanel({
 
   const [progressOpen, setProgressOpen] = useState(false);
   const [progressValue, setProgressValue] = useState("");
+  const [progressDate, setProgressDate] = useState("");
 
   // Status-Update-Composer: gewählter Status + Datum (setzt den Graf-Punkt) + Sektionen.
   const [composerStatus, setComposerStatus] = useState<GoalStatus | null>(null);
@@ -135,6 +136,7 @@ export function GoalDetailPanel({
 
   function openProgress() {
     setProgressValue(krCurrent != null ? String(krCurrent) : "");
+    setProgressDate(new Date().toISOString().slice(0, 10));
     setProgressOpen(true);
   }
 
@@ -143,6 +145,7 @@ export function GoalDetailPanel({
     const fd = new FormData();
     fd.set("id", id);
     fd.set("value", progressValue);
+    if (progressDate) fd.set("entryDate", progressDate);
     startTransition(() => progressRun(fd));
   }
 
@@ -310,6 +313,17 @@ export function GoalDetailPanel({
                   autoFocus
                 />
               </label>
+              <label className="block">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Datum
+                </span>
+                <input
+                  type="date"
+                  value={progressDate}
+                  onChange={(e) => setProgressDate(e.target.value)}
+                  className="mt-1 h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </label>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -391,23 +405,43 @@ export function GoalDetailPanel({
 }
 
 /**
- * Recharts-Dot: zeichnet einen gefüllten Kreis in der Status-Farbe **nur** an
- * Punkten mit `status` (= Status-Updates). Reine Linien-Rows (KPI-Verlauf /
- * Rollup) bekommen keinen Punkt.
+ * Recharts-Dot:
+ *  - `status` gesetzt → gefüllter Kreis in der Status-Farbe (Status-Update);
+ *  - `entry` (statusloser manueller Wert-Eintrag) → hohler neutraler Kreis;
+ *  - reine Linien-Vertices (KPI-Verlauf / Rollup / Live-Ende) → kein Punkt.
  */
-function StatusDot(props: { cx?: number; cy?: number; payload?: { status?: string | null } }) {
+function StatusDot(props: {
+  cx?: number;
+  cy?: number;
+  payload?: { status?: string | null; entry?: boolean };
+}) {
   const { cx, cy, payload } = props;
-  if (payload?.status == null || cx == null || cy == null) return <g />;
-  return (
-    <circle
-      cx={cx}
-      cy={cy}
-      r={4.5}
-      fill={goalStatusColor(payload.status)}
-      stroke="white"
-      strokeWidth={1.5}
-    />
-  );
+  if (cx == null || cy == null) return <g />;
+  if (payload?.status != null) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={4.5}
+        fill={goalStatusColor(payload.status)}
+        stroke="white"
+        strokeWidth={1.5}
+      />
+    );
+  }
+  if (payload?.entry) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={3.5}
+        fill="var(--background)"
+        stroke={goalStatusColor(null)}
+        strokeWidth={1.5}
+      />
+    );
+  }
+  return <g />;
 }
 
 function Card({ label, value, hint }: { label: string; value: string; hint?: string }) {
