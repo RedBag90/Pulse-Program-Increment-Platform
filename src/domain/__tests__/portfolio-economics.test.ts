@@ -142,12 +142,14 @@ describe("recurringFactorByMonth", () => {
           baseline: 40,
           target: 80,
           weight: 0.5,
+          valuePerUnit: null,
         }, // 1.0
         {
           measurements: [{ date: "2024-01-01", value: 40 }],
           baseline: 40,
           target: 80,
           weight: 0.5,
+          valuePerUnit: null,
         }, // 0
       ],
       axis,
@@ -187,41 +189,28 @@ describe("epicMonthlyFlows cost override (budget allocation)", () => {
   });
 });
 
-describe("epicMonthlyFlows with a recurring factor", () => {
+describe("epicMonthlyFlows — KPI-realized-value velocity", () => {
   const axis = buildMonthAxis(utc("2024-01-01"), utc("2026-12-01"));
 
-  it("scales the recurring benefit by the per-month factor", () => {
-    const factor = new Array(axis.monthCount).fill(0.5);
-    const { benefit } = epicMonthlyFlows({ ...epic(), recurringFactorByMonth: factor }, axis);
-    expect(benefit[12]).toBeCloseTo(50 + 500); // recurring 100*0.5 + one-time at go-live
-    expect(benefit[13]).toBeCloseTo(50); // 100 * 0.5
+  it("benefit je Monat = Zuwachs der kumulierten KPI-Realisierung", () => {
+    // kumuliert realisiert: +20k@idx3, +20k@idx6, +20k@idx9 → 60k gesamt
+    const realized = zerosArr(axis.monthCount);
+    for (let i = 3; i < 6; i++) realized[i] = 20000;
+    for (let i = 6; i < 9; i++) realized[i] = 40000;
+    for (let i = 9; i < axis.monthCount; i++) realized[i] = 60000;
+    const { benefit } = epicMonthlyFlows({ ...epic(), kpiRealizedValueByMonth: realized }, axis);
+    expect(benefit[3]).toBeCloseTo(20000); // Zuwachs 0 → 20k
+    expect(benefit[4]).toBeCloseTo(0); // kein Zuwachs
+    expect(benefit[6]).toBeCloseTo(20000); // 20k → 40k
+    expect(benefit[9]).toBeCloseTo(20000); // 40k → 60k
+    // one-time (500) landet bei go-live (idx 12); dort ist der Zuwachs 0.
+    expect(benefit[12]).toBeCloseTo(500);
+    // Summe ohne one-time = volle KPI-Wertung 60k
+    const sum = benefit.reduce((s, v, i) => s + (i === 12 ? v - 500 : v), 0);
+    expect(sum).toBeCloseTo(60000);
   });
 
-  it("books KPI-driven benefit during delivery (before go-live), bound to the KPI", () => {
-    // go-live is index 12; a KPI factor active from month 3 must already pay out.
-    const factor = zerosArr(axis.monthCount);
-    factor[3] = 0.4;
-    factor[6] = 0.4;
-    const { benefit } = epicMonthlyFlows({ ...epic(), recurringFactorByMonth: factor }, axis);
-    expect(benefit[3]).toBeCloseTo(40); // 100 * 0.4 — well before go-live (12)
-    expect(benefit[6]).toBeCloseTo(40);
-    expect(benefit[2]).toBe(0); // factor 0 there
-  });
-
-  it("never books KPI-driven benefit before cost start", () => {
-    // costStart in month 6 of the axis; factor is 1.0 everywhere, but months
-    // before cost start must stay 0.
-    const lateAxis = buildMonthAxis(utc("2024-01-01"), utc("2026-12-01"));
-    const factor = new Array(lateAxis.monthCount).fill(1);
-    const { benefit } = epicMonthlyFlows(
-      { ...epic({ costStart: utc("2024-07-01") }), recurringFactorByMonth: factor },
-      lateAxis,
-    );
-    expect(benefit[5]).toBe(0); // June 2024 — before cost start (July = idx 6)
-    expect(benefit[6]).toBeCloseTo(100); // cost start month, factor 1.0
-  });
-
-  it("keeps the flat forecast gated at go-live when no factor is supplied", () => {
+  it("keeps the flat forecast gated at go-live when no KPI value is supplied", () => {
     const { benefit } = epicMonthlyFlows(epic(), axis);
     expect(benefit[11]).toBe(0); // month before go-live — still gated
     expect(benefit[13]).toBeCloseTo(100);

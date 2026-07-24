@@ -75,13 +75,12 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
     expect(series.costs[0]).toBeCloseTo(100); // March, not the cumulative pre-window cost
   });
 
-  it("applies a per-month KPI factor to the recurring benefit", () => {
-    // Recurring 1200/yr = 100/month; one KPI fully met from the first month →
-    // factor 1.0, so the recurring benefit pays out from cost start.
+  it("velocity folgt der KPI-Wertung (realisierter €-Zuwachs je Monat)", () => {
+    // KPI baseline 0 → target 100, valuePerUnit 12 → planned 1200; voll erfüllt
+    // ab dem ersten Monat → 1200 € werden in Monat 0 realisiert.
     const d = data([
       dto({
         id: "a",
-        recurringBenefit: 1200,
         benefitKpis: [
           {
             kpiId: "k",
@@ -89,6 +88,7 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
             weight: 1,
             baseline: 0,
             target: 100,
+            valuePerUnit: 12,
             measurements: [{ date: "2026-01-01", value: 100 }],
           },
         ],
@@ -99,7 +99,8 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
       fromIso: "2026-01-01",
       toIso: "2026-06-01",
     });
-    expect(series.velocity[0]).toBeCloseTo(100); // 100/month × factor 1.0, from cost start
+    expect(series.velocity[0]).toBeCloseTo(1200); // voller KPI-Wert im ersten Monat
+    expect(series.velocity[1]).toBeCloseTo(0); // kein weiterer Zuwachs
   });
 
   it("uses the budget allocation as the cost override when present", () => {

@@ -15,6 +15,7 @@ const kpi = (over: Partial<EpicEconomicsKpiInput> = {}): EpicEconomicsKpiInput =
   target: 100,
   measurements: [],
   benefitWeight: null,
+  valuePerUnit: null,
   ...over,
 });
 

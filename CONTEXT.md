@@ -64,6 +64,16 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   Stichtag `from`/`to` window) to the rendered `PortfolioSeries`. Runs the same
   in the server loader and the client `useMemo`, so the assembly is tested at
   this seam rather than through the React component.
+- **Realisierter KPI-Wert (eine Quelle)** — der realisierte €-Wert eines Epics
+  ist überall `achievement × valuePerUnit` (letzter Messwert, **einmalig**, ohne
+  Horizont-Skalierung), wie das Epic-„Realisierter Mehrwert"-Tile (`kpi-valuation.ts`).
+  **Related Work / Ziel-Trio** (`goals-rollup.ts`): `realized = achievement ×
+planned`, kein `horizonShare` mehr. **Benefit Velocity** (`portfolio-economics.ts`
+  `kpiRealizedValueByMonth` → `epicMonthlyFlows`): der monatliche Business-Value =
+  Zuwachs der kumulierten KPI-Realisierung (`Σ fulfilment × |target−baseline| ×
+valuePerUnit`), summiert über die Messmonate auf den vollen KPI-Wert. Der
+  Business-Case-`recurringBenefit` ist nur noch der Flat-Forecast-Fallback für
+  Epics **ohne** bewertete KPI.
 - **Roadmap view** — the render-ready Gantt rows + month axis in
   `src/domain/roadmap.ts`: `RoadmapRow` plus one pure builder per perspective
   (`portfolioRoadmapRows`, `artRoadmapRows`, `valueStreamRoadmapRows`) and
