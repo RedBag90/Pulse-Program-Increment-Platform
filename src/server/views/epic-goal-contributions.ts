@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
-import { horizonShare, kpiAchievement, type KpiInput } from "@/domain/goals-rollup";
+import { kpiAchievement, type KpiInput } from "@/domain/goals-rollup";
 
 /**
  * Liefert die strategischen Bezuege eines Epics fuer den Cross-Modul-Badge
@@ -71,18 +71,7 @@ export async function loadEpicGoalContributions(
     return { krContributions: [] };
   }
 
-  // 4) Horizont-Share fuer die Run-Rate-Linse
-  const tenant = await db.tenant.findUnique({
-    where: { id: tenantId },
-    select: { dashboardHorizonEnd: true },
-  });
-  const now = new Date();
-  const horizonStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
-  const horizonEnd =
-    tenant?.dashboardHorizonEnd ?? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
-  const share = horizonShare(now, horizonStart, horizonEnd);
-
-  // 5) KPI-Inputs aufbauen (gleiche Form wie ziele-view, damit kpiAchievement passt)
+  // 4) KPI-Inputs aufbauen (gleiche Form wie ziele-view, damit kpiAchievement passt)
   const kpisById = new Map<string, KpiInput>();
   for (const k of kpis) {
     kpisById.set(k.id, {
@@ -104,7 +93,7 @@ export async function loadEpicGoalContributions(
     const span = (kpi.target ?? 0) - (kpi.baseline ?? 0);
     const vpu = toFloat(c.valuePerUnitOverride) ?? kpi.valuePerUnit ?? 0;
     const weight = Number(c.weight);
-    const realized = ach != null && vpu ? ach * vpu * span * weight * share : 0;
+    const realized = ach != null && vpu ? ach * vpu * span * weight : 0;
 
     if (!c.objective) continue;
     const node = c.objective;
@@ -138,7 +127,7 @@ export async function loadEpicGoalContributions(
       if (!c.objectiveId) continue;
       const span = (toFloat(c.kpi.target) ?? 0) - (toFloat(c.kpi.baseline) ?? 0);
       const vpu = toFloat(c.valuePerUnitOverride) ?? toFloat(c.kpi.valuePerUnit) ?? 0;
-      const planned = vpu * span * Number(c.weight) * share;
+      const planned = vpu * span * Number(c.weight);
       plannedByKr.set(c.objectiveId, (plannedByKr.get(c.objectiveId) ?? 0) + planned);
     }
     for (const [krId, entry] of byKr) {

@@ -1,6 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
 import {
-  horizonShare,
   keyResultTrio,
   keyResultProgress,
   kpiContributionDetail,
@@ -270,16 +269,6 @@ export async function loadStrategyTree(
     },
   });
 
-  // Horizont-Anker: aus Tenant.dashboardHorizonEnd, sonst 1 Jahr ab heute
-  const tenant = await db.tenant.findUnique({
-    where: { id: tenantId },
-    select: { dashboardHorizonEnd: true },
-  });
-  const now = new Date();
-  const horizonStart = startOfYear(now);
-  const horizonEnd = tenant?.dashboardHorizonEnd ?? addMonths(now, 12);
-  const share = horizonShare(now, horizonStart, horizonEnd);
-
   const nodeIds = objectiveRows.map((o) => o.id);
 
   // Letzter Status-Check-in je Knoten (eine Query; alle Knoten sind Objectives).
@@ -339,7 +328,7 @@ export async function loadStrategyTree(
         epicId: link.epic.id,
         title: link.epic.title,
         stageGate: link.epic.stageGate,
-        trio: epicLinkTrio([{ epicId: link.epic.id, kpis }], share),
+        trio: epicLinkTrio([{ epicId: link.epic.id, kpis }]),
         href: `/portfolio/epics/${link.epic.id}`,
       };
       (relatedByNode.get(link.objectiveId) ?? setAndGet(relatedByNode, link.objectiveId)).push(
@@ -506,9 +495,7 @@ export async function loadStrategyTree(
       valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
     }));
     const trioLeaf =
-      o.formula === "auto_from_kpi"
-        ? keyResultTrio(contributions, kpisById, share)
-        : manualKrTrio();
+      o.formula === "auto_from_kpi" ? keyResultTrio(contributions, kpisById) : manualKrTrio();
 
     const childRows = childrenByParent.get(o.id) ?? [];
     const hasChildren = childRows.length > 0;
@@ -537,15 +524,11 @@ export async function loadStrategyTree(
           });
 
     const contributionDetails: ZieleKrContribution[] = o.kpiContributions.map((c) => {
-      const detail = kpiContributionDetail(
-        kpisById.get(c.kpiId),
-        {
-          kpiId: c.kpiId,
-          weight: Number(c.weight),
-          valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
-        },
-        share,
-      );
+      const detail = kpiContributionDetail(kpisById.get(c.kpiId), {
+        kpiId: c.kpiId,
+        weight: Number(c.weight),
+        valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
+      });
       return {
         kpiId: c.kpiId,
         kpiName: c.kpi.name,
@@ -1092,15 +1075,4 @@ function manualKrTrio(): RollupTrio {
   // Manuelle KRs haben keinen €-Rollup (kein valuePerUnit auf der
   // Bruecke). UI zeigt „Manueller Modus".
   return { planned: 0, realized: 0, runRate: 0 };
-}
-
-function startOfYear(d: Date): Date {
-  const y = d.getUTCFullYear();
-  return new Date(Date.UTC(y, 0, 1));
-}
-
-function addMonths(d: Date, months: number): Date {
-  const r = new Date(d);
-  r.setUTCMonth(r.getUTCMonth() + months);
-  return r;
 }

@@ -49,25 +49,25 @@ describe("kpiTrio", () => {
   const kpi = { id: "k", baseline: 0, target: 100, current: 50, valuePerUnit: 200 };
 
   it("planned = span × valuePerUnit", () => {
-    const t = kpiTrio(kpi, 1);
+    const t = kpiTrio(kpi);
     expect(t.planned).toBe(20_000);
   });
 
-  it("realized = achievement × planned × horizonShare", () => {
-    // 50% achievement, full horizon → realized = 0.5 × 20_000 × 1 = 10_000
-    const t = kpiTrio(kpi, 1);
+  it("realized = achievement × planned (voller KPI-Wert, kein Horizont)", () => {
+    // 50% achievement → realized = 0.5 × 20_000 = 10_000; runRate = realized
+    const t = kpiTrio(kpi);
     expect(t.realized).toBe(10_000);
-  });
-
-  it("run-rate hochrechnet auf gesamten horizont", () => {
-    // 50% achievement, 25% des Horizont verstrichen → realized = 2_500, run-rate = 10_000
-    const t = kpiTrio(kpi, 0.25);
-    expect(t.realized).toBe(2_500);
     expect(t.runRate).toBe(10_000);
   });
 
+  it("100% achievement → realized = planned", () => {
+    const t = kpiTrio({ ...kpi, current: 100 });
+    expect(t.realized).toBe(20_000);
+    expect(t.planned).toBe(20_000);
+  });
+
   it("yields 0 when valuePerUnit ist null", () => {
-    const t = kpiTrio({ ...kpi, valuePerUnit: null }, 1);
+    const t = kpiTrio({ ...kpi, valuePerUnit: null });
     expect(t).toEqual({ planned: 0, realized: 0, runRate: 0 });
   });
 });
@@ -90,20 +90,19 @@ describe("keyResultTrio", () => {
         { kpiId: "k2", weight: 0.4, valuePerUnitOverride: null },
       ],
       byId,
-      1,
     );
     expect(t.planned).toBe(200_000); // 0.6*200k + 0.4*200k
     expect(t.realized).toBe(50_000); // 0.6*50k + 0.4*50k
   });
 
   it("override schlaegt KPI-valuePerUnit ueber", () => {
-    const t = keyResultTrio([{ kpiId: "k1", weight: 1, valuePerUnitOverride: 5_000 }], byId, 1);
-    // planned = 20 × 5_000 × 1 = 100k
+    const t = keyResultTrio([{ kpiId: "k1", weight: 1, valuePerUnitOverride: 5_000 }], byId);
+    // planned = 20 × 5_000 = 100k
     expect(t.planned).toBe(100_000);
   });
 
   it("ueberspringt fehlende KPIs", () => {
-    const t = keyResultTrio([{ kpiId: "unknown", weight: 1, valuePerUnitOverride: null }], byId, 1);
+    const t = keyResultTrio([{ kpiId: "unknown", weight: 1, valuePerUnitOverride: null }], byId);
     expect(t).toEqual({ planned: 0, realized: 0, runRate: 0 });
   });
 });
@@ -230,11 +229,11 @@ describe("epicLinkTrio", () => {
   });
 
   it("returns a zero trio for no links", () => {
-    expect(epicLinkTrio([], 1)).toEqual({ planned: 0, realized: 0, runRate: 0 });
+    expect(epicLinkTrio([])).toEqual({ planned: 0, realized: 0, runRate: 0 });
   });
 
   it("returns a zero trio for an epic with no KPIs", () => {
-    expect(epicLinkTrio([{ epicId: "e1", kpis: [] }], 1)).toEqual({
+    expect(epicLinkTrio([{ epicId: "e1", kpis: [] }])).toEqual({
       planned: 0,
       realized: 0,
       runRate: 0,
@@ -242,8 +241,8 @@ describe("epicLinkTrio", () => {
   });
 
   it("sums a single epic's KPI trio (whole epic, no weighting)", () => {
-    // span 100 × vpu 10 = 1000 planned; 50% achievement × full horizon = 500 realized
-    expect(epicLinkTrio([{ epicId: "e1", kpis: [kpi("k1")] }], 1)).toEqual({
+    // span 100 × vpu 10 = 1000 planned; 50% achievement = 500 realized (voller Wert)
+    expect(epicLinkTrio([{ epicId: "e1", kpis: [kpi("k1")] }])).toEqual({
       planned: 1000,
       realized: 500,
       runRate: 500,
@@ -251,27 +250,23 @@ describe("epicLinkTrio", () => {
   });
 
   it("aggregates multiple epics and multiple KPIs", () => {
-    const trio = epicLinkTrio(
-      [
-        { epicId: "e1", kpis: [kpi("k1"), kpi("k2")] },
-        { epicId: "e2", kpis: [kpi("k3")] },
-      ],
-      1,
-    );
+    const trio = epicLinkTrio([
+      { epicId: "e1", kpis: [kpi("k1"), kpi("k2")] },
+      { epicId: "e2", kpis: [kpi("k3")] },
+    ]);
     expect(trio.planned).toBe(3000);
     expect(trio.realized).toBe(1500);
   });
 
-  it("scales realized by horizon share and matches keyResultTrio at weight 1", () => {
+  it("matches keyResultTrio at weight 1 (voller KPI-Wert)", () => {
     const k = kpi("k1");
-    const linkTrio = epicLinkTrio([{ epicId: "e1", kpis: [k] }], 0.5);
+    const linkTrio = epicLinkTrio([{ epicId: "e1", kpis: [k] }]);
     const boundTrio = keyResultTrio(
       [{ kpiId: "k1", weight: 1, valuePerUnitOverride: null }],
       new Map([["k1", k]]),
-      0.5,
     );
     expect(linkTrio).toEqual(boundTrio);
-    expect(linkTrio.realized).toBe(250);
+    expect(linkTrio.realized).toBe(500);
   });
 });
 

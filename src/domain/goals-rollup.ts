@@ -5,14 +5,15 @@
  *
  *   KPI-Achievement = (current − baseline) / (target − baseline), clamp 0..1
  *   KPI-RealizedEUR = achievement × (target − baseline) × valuePerUnit
- *                     × horizonShareDays / 365
  *   KR-RealizedEUR  = Σ (contribution.weight × KPI-RealizedEUR) ueber gebundene KPIs
  *   Objective ⟵ Σ KR
  *   Theme     ⟵ Σ Objective  +  Σ Theme-direct-Epic
  *   Vision    ⟵ Σ Theme
  *
  * Planned-Seite spiegelbildlich: KR-PlannedEUR = (target − baseline) × valuePerUnit.
- * Run-Rate = lineare Hochrechnung der Realisierung auf das Horizont-Ende.
+ * **KPI-Wertung (einmalig):** Realized = voller Wert bei Zielerreichung, ohne
+ * Horizont-Anteiligung — konsistent mit dem Epic-„Realisierter Mehrwert"-Tile.
+ * Run-Rate = Realized.
  *
  * Reine Funktionen, kein I/O — leicht testbar, leicht in Server-Views einbindbar.
  */
@@ -52,11 +53,12 @@ export function kpiAchievement(kpi: KpiInput): number {
 }
 
 /**
- * Geld-Rechnung fuer einen einzelnen KPI. `horizonShare` ist der Anteil
- * des Horizonts, der bereits verstrichen ist (0..1); fuer Run-Rate
- * wird die Realisierung mit 1/horizonShare hochgerechnet.
+ * Geld-Rechnung fuer einen einzelnen KPI — **KPI-Wertung (einmalig)**:
+ * `realized = achievement × planned` (voller Wert bei Zielerreichung, wie das
+ * Epic-„Realisierter Mehrwert"-Tile; **keine** Horizont-Anteiligung). `runRate`
+ * = derselbe volle Wert (Run-Rate = Realisierung im einmalig-Modell).
  */
-export function kpiTrio(kpi: KpiInput, horizonShare: number): RollupTrio {
+export function kpiTrio(kpi: KpiInput): RollupTrio {
   const vpu = kpi.valuePerUnit ?? 0;
   if (kpi.baseline === null || kpi.target === null || vpu === 0) {
     return { planned: 0, realized: 0, runRate: 0 };
@@ -64,11 +66,8 @@ export function kpiTrio(kpi: KpiInput, horizonShare: number): RollupTrio {
   const span = Math.abs(kpi.target - kpi.baseline);
   const planned = span * vpu;
   const achievement = kpiAchievement(kpi);
-  const realized = achievement * planned * clamp01(horizonShare);
-  // Run-Rate: extrapoliert Realisierung auf gesamten Horizont. Wenn schon
-  // > 0 % vom Horizont verstrichen, projiziere proportional; sonst = 0.
-  const runRate = horizonShare > 0 ? realized / clamp01(horizonShare) : 0;
-  return { planned, realized, runRate };
+  const realized = achievement * planned;
+  return { planned, realized, runRate: realized };
 }
 
 /**
@@ -79,7 +78,6 @@ export function kpiTrio(kpi: KpiInput, horizonShare: number): RollupTrio {
 export function keyResultTrio(
   contributions: KrContributionInput[],
   kpisById: ReadonlyMap<string, KpiInput>,
-  horizonShare: number,
 ): RollupTrio {
   let planned = 0;
   let realized = 0;
@@ -89,7 +87,7 @@ export function keyResultTrio(
     if (!kpi) continue;
     const vpu = c.valuePerUnitOverride ?? kpi.valuePerUnit ?? 0;
     const effective: KpiInput = { ...kpi, valuePerUnit: vpu };
-    const trio = kpiTrio(effective, horizonShare);
+    const trio = kpiTrio(effective);
     planned += c.weight * trio.planned;
     realized += c.weight * trio.realized;
     runRate += c.weight * trio.runRate;
@@ -106,14 +104,13 @@ export function keyResultTrio(
 export function kpiContributionDetail(
   kpi: KpiInput | undefined,
   contribution: KrContributionInput,
-  horizonShare: number,
 ): { achievement: number | null; contributionRealized: number } {
   if (!kpi) return { achievement: null, contributionRealized: 0 };
   const raw = fulfillmentFraction(kpi.baseline, kpi.target, kpi.current);
   const ach = raw === null ? null : clamp01(raw);
   const span = (kpi.target ?? 0) - (kpi.baseline ?? 0);
   const vpu = contribution.valuePerUnitOverride ?? kpi.valuePerUnit ?? 0;
-  const realized = ach != null && vpu ? ach * vpu * span * contribution.weight * horizonShare : 0;
+  const realized = ach != null && vpu ? ach * vpu * span * contribution.weight : 0;
   return { achievement: ach, contributionRealized: realized };
 }
 
@@ -132,14 +129,11 @@ export interface EpicLinkInput {
  * (Konzept-Header „Σ Ziel-direkt-Epic"). Count-once garantiert, dass keine
  * KPI zusätzlich über eine `KrKpiContribution` gezählt wird.
  */
-export function epicLinkTrio(
-  links: ReadonlyArray<EpicLinkInput>,
-  horizonShare: number,
-): RollupTrio {
+export function epicLinkTrio(links: ReadonlyArray<EpicLinkInput>): RollupTrio {
   const trios: RollupTrio[] = [];
   for (const link of links) {
     for (const kpi of link.kpis) {
-      trios.push(kpiTrio(kpi, horizonShare));
+      trios.push(kpiTrio(kpi));
     }
   }
   return sumTrios(trios);
