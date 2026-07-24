@@ -410,9 +410,7 @@ function GoalPane({
         progress={node.progress ?? 0}
         currentValueLabel={currentValueLabel}
         canEdit={canEdit}
-        formula={node.formula}
-        krBaseline={node.baseline}
-        krTarget={node.target}
+        progressMode={node.progressMode}
         krCurrent={node.current}
         metricType={node.metricType}
         precision={node.precision}

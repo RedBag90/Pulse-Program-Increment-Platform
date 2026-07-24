@@ -123,6 +123,16 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   Kindern** (Override). **Getrennt von der Geld-Achse**: der €-Trio (`nodeTrio`, `formula`,
   `KrKpiContribution`, Epic-Links) bleibt unverändert — `auto_kpi` liest die Epic-KPIs nur
   zusätzlich für den Fortschritt (Count-once/ADR-0009 unberührt).
+- **Fortschrittsgraf** — `loadGoalDetail` liefert `progressChart { mode, series, yDomain }`
+  (`ziele-view.ts`, Serie via `src/domain/goal-progress-series.ts`). Die **Linie** folgt der
+  Fortschrittsquelle: `auto_kpi` → zeitlicher KPI-Verlauf (`buildAutoKpiSeries`, laufende
+  einheitengleiche Summe), `rollup` → gewichteter Ø der Unterziele über die Zeit
+  (`buildNodeProgressSeries`, rekursiv über den Subtree), `manual` → Snapshots + Live-Ende.
+  **Punkte** entstehen **nur** aus **Status-Updates** (`recordGoalCheckin`): am gewählten
+  `entryDate` (→ `GoalCheckin.createdAt`), mit eingefrorenem Ist-Wert (`value`) und in der
+  Status-Farbe (`goalStatusColor`, Custom-Dot). Die Ist-Wert-Pflege (`recordGoalProgress` bzw.
+  KPI-Messwerte) bewegt die Linie, erzeugt aber **keinen** Punkt. Höhe: Roh-Wert (messbar)
+  bzw. % (Rollup); Zeit-X-Achse.
 - **Goal-Custom-Fields** — tenant-weit definierbare Zusatzfelder an Ziel-Knoten
   (`GoalCustomFieldDef` type text/number/select; Werte je Knoten in
   `GoalCustomFieldValue`, `@@unique([objectiveId, defId])`). Tenant-Admin verwaltet

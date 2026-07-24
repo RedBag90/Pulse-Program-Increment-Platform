@@ -17,7 +17,12 @@ import { GoalStatusSelect } from "@/features/ziele/components/goal-status/goal-s
 import { GoalActivityFeed } from "@/features/ziele/components/goal-status/goal-activity-feed";
 import { checkInGoalAction, updateGoalProgressAction } from "@/features/ziele/actions/ziele";
 import { getGoalDetailAction, type GoalDetailPayload } from "@/features/ziele/actions/goal-detail";
-import { suggestOpenStatus, goalStatusLabel, type GoalStatus } from "@/domain/goal-status";
+import {
+  suggestOpenStatus,
+  goalStatusLabel,
+  goalStatusColor,
+  type GoalStatus,
+} from "@/domain/goal-status";
 import { metricUnitSuffix } from "@/domain/goal-metric";
 import type { GoalTarget } from "@/server/views/ziele-view";
 
@@ -30,11 +35,9 @@ interface Props {
   /** Human "current value" (e.g. KR current/target). */
   currentValueLabel: string;
   canEdit: boolean;
-  /** KR formula — "manual" enables the Update-progress flow. */
-  formula?: string | null | undefined;
-  /** Raw KR metric context for the chart axis + the progress dialog. */
-  krBaseline?: number | null | undefined;
-  krTarget?: number | null | undefined;
+  /** Fortschrittsquelle (manual | rollup | auto_kpi) — steuert Wert-Pflege. */
+  progressMode?: string | null | undefined;
+  /** Ist-Wert für die Vorbelegung des Wert-Update-Dialogs. */
   krCurrent?: number | null | undefined;
   metricType?: string | null | undefined;
   precision?: number | null | undefined;
@@ -54,9 +57,7 @@ export function GoalDetailPanel({
   progress,
   currentValueLabel,
   canEdit,
-  formula,
-  krBaseline,
-  krTarget,
+  progressMode,
   krCurrent,
   metricType,
   precision,
@@ -72,13 +73,14 @@ export function GoalDetailPanel({
 
   const [progressOpen, setProgressOpen] = useState(false);
   const [progressValue, setProgressValue] = useState("");
-  const [progressDate, setProgressDate] = useState("");
 
-  // Status-Update-Composer (Epic 4): gewählter Status + Sektionen.
+  // Status-Update-Composer: gewählter Status + Datum (setzt den Graf-Punkt) + Sektionen.
   const [composerStatus, setComposerStatus] = useState<GoalStatus | null>(null);
+  const [composerDate, setComposerDate] = useState("");
   const [sections, setSections] = useState<{ title: string; body: string }[]>([]);
 
-  const isManualKr = target === "kr" && formula === "manual";
+  // Ist-Wert direkt pflegbar nur bei manueller Fortschrittsquelle.
+  const isManualValue = target === "kr" && progressMode === "manual";
 
   const reloadDetail = useCallback(() => {
     getGoalDetailAction(target, id).then((d) => setDetail(d));
@@ -108,9 +110,10 @@ export function GoalDetailPanel({
     if (!checkinState.error) setComposerStatus(null);
   }, [checkinState, progressState, reloadDetail, router, progressState.error, checkinState.error]);
 
-  // Statuswahl öffnet den Composer (Sektionen), submitted noch nicht.
+  // Statuswahl öffnet den Composer (Datum + Sektionen), submitted noch nicht.
   function openComposer(next: GoalStatus) {
     setComposerStatus(next);
+    setComposerDate(new Date().toISOString().slice(0, 10));
     setSections([{ title: "", body: "" }]);
   }
 
@@ -123,15 +126,15 @@ export function GoalDetailPanel({
     fd.set("target", target);
     fd.set("id", id);
     fd.set("status", composerStatus);
-    // Server freezes the value-at-time for manual KRs; used for objectives/auto-KRs.
+    // Server friert den aktuellen Ist-Wert ein; progress als Fallback für Rollup/Objective.
     fd.set("progress", String(progress));
+    if (composerDate) fd.set("entryDate", composerDate);
     if (clean.length > 0) fd.set("sections", JSON.stringify(clean));
     startTransition(() => checkInRun(fd));
   }
 
   function openProgress() {
     setProgressValue(krCurrent != null ? String(krCurrent) : "");
-    setProgressDate("");
     setProgressOpen(true);
   }
 
@@ -140,7 +143,6 @@ export function GoalDetailPanel({
     const fd = new FormData();
     fd.set("id", id);
     fd.set("value", progressValue);
-    if (progressDate) fd.set("entryDate", progressDate);
     startTransition(() => progressRun(fd));
   }
 
@@ -148,22 +150,13 @@ export function GoalDetailPanel({
   const suggested = suggestOpenStatus(progress);
   const latest = detail?.activity.find((a) => a.action === "goal.checkin");
 
-  const chartData = (detail?.checkins ?? [])
-    .filter((c) => (isManualKr ? c.value != null : c.progress != null))
-    .map((c) => ({
-      at: new Date(c.at).toLocaleDateString("de-DE", { day: "2-digit", month: "short" }),
-      value: isManualKr ? (c.value ?? 0) : Math.round((c.progress ?? 0) * 100),
-    }));
-  const chartVals = chartData.map((d) => d.value);
-  const yDomain: [number, number] = isManualKr
-    ? [
-        Math.min(...(krBaseline != null ? [krBaseline] : []), ...chartVals),
-        Math.max(...(krTarget != null ? [krTarget] : []), ...chartVals),
-      ]
-    : [0, 100];
+  // Graf-Serie kommt fertig aus dem Loader: die Linie folgt der Fortschrittsquelle,
+  // Punkte sind die eigenen Status-Updates (Farbe = Status).
+  const chart = detail?.progressChart;
+  const chartData = chart?.series ?? [];
   const metricSpec = { metricType, precision, currencyCode };
-  // Für manuelle KRs zeigt die Achse Rohwerte in der KR-Einheit; sonst %.
-  const unitSuffix = isManualKr ? metricUnitSuffix(metricSpec) : " %";
+  // Value-Modus zeigt Rohwerte in der Ziel-Einheit; Rollup zeigt %.
+  const unitSuffix = chart?.mode === "value" ? metricUnitSuffix(metricSpec) : " %";
 
   return (
     <div className="space-y-5">
@@ -194,6 +187,22 @@ export function GoalDetailPanel({
             >
               + Sektion
             </button>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="block">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Datum des Punkts
+              </span>
+              <input
+                type="date"
+                value={composerDate}
+                onChange={(e) => setComposerDate(e.target.value)}
+                className="mt-1 h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </label>
+            <p className="pb-2 text-[11px] text-muted-foreground">
+              Der aktuelle Ist-Wert wird am gewählten Datum als farbiger Punkt eingefroren.
+            </p>
           </div>
           <div className="space-y-2">
             {sections.map((s, i) => (
@@ -269,13 +278,13 @@ export function GoalDetailPanel({
       </div>
 
       {/* Progress */}
-      {(isManualKr || chartData.length > 0) && (
+      {(isManualValue || chartData.length > 0) && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Progress
             </p>
-            {isManualKr && canEdit && !progressOpen && (
+            {isManualValue && canEdit && !progressOpen && (
               <button
                 type="button"
                 onClick={openProgress}
@@ -301,17 +310,6 @@ export function GoalDetailPanel({
                   autoFocus
                 />
               </label>
-              <label className="block">
-                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Datum (optional)
-                </span>
-                <input
-                  type="date"
-                  value={progressDate}
-                  onChange={(e) => setProgressDate(e.target.value)}
-                  className="mt-1 h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </label>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -335,20 +333,41 @@ export function GoalDetailPanel({
             </div>
           )}
 
-          {chartData.length > 0 && (
+          {chart && chartData.length > 0 && (
             <div className="h-40 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="at" tick={{ fontSize: 11 }} />
-                  <YAxis domain={yDomain} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v) => `${v}${unitSuffix}`} />
+                  <XAxis
+                    dataKey="at"
+                    type="number"
+                    scale="time"
+                    domain={["dataMin", "dataMax"]}
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(ms: number) =>
+                      new Date(ms).toLocaleDateString("de-DE", { day: "2-digit", month: "short" })
+                    }
+                  />
+                  <YAxis domain={chart.yDomain} tick={{ fontSize: 11 }} />
+                  <Tooltip
+                    formatter={(v) => `${v}${unitSuffix}`}
+                    labelFormatter={(ms) =>
+                      new Date(Number(ms)).toLocaleDateString("de-DE", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    }
+                  />
                   <Line
                     type="monotone"
                     dataKey="value"
                     stroke="var(--primary)"
+                    strokeOpacity={0.4}
                     strokeWidth={2}
-                    dot
+                    isAnimationActive={false}
+                    dot={StatusDot}
+                    activeDot={{ r: 5 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -368,6 +387,26 @@ export function GoalDetailPanel({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Recharts-Dot: zeichnet einen gefüllten Kreis in der Status-Farbe **nur** an
+ * Punkten mit `status` (= Status-Updates). Reine Linien-Rows (KPI-Verlauf /
+ * Rollup) bekommen keinen Punkt.
+ */
+function StatusDot(props: { cx?: number; cy?: number; payload?: { status?: string | null } }) {
+  const { cx, cy, payload } = props;
+  if (payload?.status == null || cx == null || cy == null) return <g />;
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={4.5}
+      fill={goalStatusColor(payload.status)}
+      stroke="white"
+      strokeWidth={1.5}
+    />
   );
 }
 

@@ -367,6 +367,8 @@ export const checkInGoalAction = createServerAction({
     progress: optNum,
     note: optStr,
     sections: goalSectionsField,
+    /** Gewähltes Datum des Status-Updates (setzt den Graf-Punkt). */
+    entryDate: optStr,
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -378,6 +380,7 @@ export const checkInGoalAction = createServerAction({
       ...(input.progress !== undefined ? { progress: input.progress } : {}),
       ...(input.note !== undefined ? { note: input.note } : {}),
       ...(input.sections !== undefined ? { sections: input.sections } : {}),
+      ...(input.entryDate ? { entryDate: new Date(input.entryDate) } : {}),
     }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Check-in fehlgeschlagen" }),
@@ -387,16 +390,10 @@ export const updateGoalProgressAction = createServerAction({
   schema: z.object({
     id: z.string().uuid(),
     value: z.coerce.number(),
-    entryDate: optStr,
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    recordGoalProgress(ctx, {
-      keyResultId: input.id,
-      value: input.value,
-      ...(input.entryDate ? { entryDate: new Date(input.entryDate) } : {}),
-    }),
+  service: (ctx, input) => recordGoalProgress(ctx, { keyResultId: input.id, value: input.value }),
   revalidate: "ziele",
   mapError: (e) =>
     formatDomainError(e, { fallback: "Fortschritt konnte nicht aktualisiert werden" }),

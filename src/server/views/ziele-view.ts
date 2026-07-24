@@ -20,6 +20,12 @@ import {
   isMeasurableGoal,
   type ProgressMode,
 } from "@/domain/goal-progress-mode";
+import { parseMeasurements, latestMeasurement } from "@/domain/kpi-measurement";
+import {
+  buildAutoKpiSeries,
+  buildNodeProgressSeries,
+  type SeriesNode,
+} from "@/domain/goal-progress-series";
 
 /**
  * Ziele-/Strategie-/KPI-Coverage Loader. Zwei page-models leben hier:
@@ -778,12 +784,32 @@ export interface GoalActivityEntry {
   sections?: GoalUpdateSection[];
 }
 
+/**
+ * Ein Punkt der Graf-Serie: `value` speist die Linie (Roh-Wert oder %), `status`
+ * (falls gesetzt) macht ihn zum farbigen Status-Punkt. `at` ist Epoch-ms für die
+ * Zeit-X-Achse.
+ */
+export interface ProgressChartPoint {
+  at: number;
+  value: number;
+  status: string | null;
+}
+
+export interface ProgressChart {
+  /** "value" = Roh-Wert (messbar); "percent" = 0..100 (Rollup). */
+  mode: "value" | "percent";
+  series: ProgressChartPoint[];
+  yDomain: [number, number];
+}
+
 export interface GoalDetail {
-  /** Chronological (ascending) check-ins — backs the progress chart. */
+  /** Chronological (ascending) check-ins — backs the activity feed. */
   checkins: GoalCheckinEntry[];
   comments: GoalCommentEntry[];
   /** Merged feed (audit + check-ins + comments), newest first. */
   activity: GoalActivityEntry[];
+  /** Graf-Serie: Linie folgt der Fortschrittsquelle, Punkte = Status-Updates. */
+  progressChart: ProgressChart;
 }
 
 /**
@@ -860,7 +886,167 @@ export async function loadGoalDetail(
     })),
   ].sort((x, y) => (x.at < y.at ? 1 : -1));
 
-  return { checkins, comments, activity };
+  const progressChart = await buildProgressChart(db, tenantId, id);
+
+  return { checkins, comments, activity, progressChart };
+}
+
+/**
+ * Baut die Graf-Serie: die Linie folgt der Fortschrittsquelle des Knotens
+ * (KPI-Verlauf / Rollup der Unterziele / manuelle Snapshots), die farbigen
+ * Punkte sind die eigenen Status-Check-ins. Lädt dafür den Subtree (Nachfahren
+ * über den `path`-Präfix) samt Check-ins und verknüpften Epic-KPIs.
+ */
+async function buildProgressChart(
+  db: PrismaClient,
+  tenantId: string,
+  id: string,
+): Promise<ProgressChart> {
+  const root = await db.objective.findFirst({
+    where: { id, tenantId },
+    select: { id: true, path: true, target: true, progressMode: true },
+  });
+  const empty: ProgressChart = { mode: "percent", series: [], yDomain: [0, 100] };
+  if (!root) return empty;
+
+  const subtreeRows = await db.objective.findMany({
+    where: { tenantId, OR: [{ id }, { path: { startsWith: `${root.path}/` } }] },
+    select: {
+      id: true,
+      parentObjectiveId: true,
+      progressMode: true,
+      baseline: true,
+      target: true,
+      current: true,
+      rollupWeight: true,
+      metricUnit: true,
+      metricType: true,
+      currencyCode: true,
+    },
+  });
+  const ids = subtreeRows.map((r) => r.id);
+
+  const [checkinAll, epicLinks] = await Promise.all([
+    db.goalCheckin.findMany({
+      where: { tenantId, objectiveId: { in: ids }, status: { not: null } },
+      select: { objectiveId: true, status: true, value: true, progress: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    db.goalEpicLink.findMany({
+      where: { tenantId, objectiveId: { in: ids }, epic: { deletedAt: null } },
+      select: {
+        objectiveId: true,
+        epic: { select: { kpis: { select: { unit: true, measurements: true } } } },
+      },
+    }),
+  ]);
+
+  // Fortschritt (0..1) je Knoten für die rekursive Serie.
+  const checkinsByNode = new Map<string, { at: string; progress: number }[]>();
+  for (const c of checkinAll) {
+    if (!c.objectiveId || c.progress == null) continue;
+    (checkinsByNode.get(c.objectiveId) ?? setAndGet(checkinsByNode, c.objectiveId)).push({
+      at: c.createdAt.toISOString(),
+      progress: Number(c.progress),
+    });
+  }
+  const kpisByNode = new Map<
+    string,
+    { unit: string | null; measurements: ReturnType<typeof parseMeasurements> }[]
+  >();
+  for (const l of epicLinks) {
+    if (!l.objectiveId) continue;
+    const arr = kpisByNode.get(l.objectiveId) ?? setAndGet(kpisByNode, l.objectiveId);
+    for (const k of l.epic.kpis)
+      arr.push({ unit: k.unit, measurements: parseMeasurements(k.measurements) });
+  }
+  const childrenByParent = new Map<string, typeof subtreeRows>();
+  for (const r of subtreeRows) {
+    if (r.parentObjectiveId) {
+      (
+        childrenByParent.get(r.parentObjectiveId) ??
+        setAndGet(childrenByParent, r.parentObjectiveId)
+      ).push(r);
+    }
+  }
+
+  type Row = (typeof subtreeRows)[number];
+  const toSeriesNode = (row: Row): SeriesNode => {
+    const kids = childrenByParent.get(row.id) ?? [];
+    return {
+      progressMode: effectiveProgressMode(row.progressMode, kids.length > 0),
+      baseline: toFloat(row.baseline),
+      target: toFloat(row.target),
+      current: toFloat(row.current),
+      rollupWeight: toFloat(row.rollupWeight) ?? 1,
+      unitSpec: {
+        metricUnit: row.metricUnit,
+        metricType: row.metricType,
+        currencyCode: row.currencyCode,
+      },
+      checkins: checkinsByNode.get(row.id) ?? [],
+      kpis: kpisByNode.get(row.id) ?? [],
+      children: kids.map(toSeriesNode),
+    };
+  };
+  const rootRow = subtreeRows.find((r) => r.id === id);
+  if (!rootRow) return empty;
+  const seriesRoot = toSeriesNode(rootRow);
+
+  const nowIso = new Date().toISOString();
+  const effMode = seriesRoot.progressMode;
+  const mode: "value" | "percent" =
+    effMode !== "rollup" && seriesRoot.target != null ? "value" : "percent";
+
+  // Linien-Rows (ohne Status → kein Punkt).
+  const lineRows: { at: number; value: number }[] = [];
+  if (mode === "percent") {
+    for (const p of buildNodeProgressSeries(seriesRoot, nowIso)) {
+      lineRows.push({ at: Date.parse(p.at), value: p.progress * 100 });
+    }
+  } else if (effMode === "auto_kpi") {
+    for (const p of buildAutoKpiSeries(seriesRoot.unitSpec, seriesRoot.kpis)) {
+      lineRows.push({ at: Date.parse(p.at), value: p.value });
+    }
+  } else {
+    // manual (value): eigene eingefrorene Check-in-Werte + Live-Ende.
+    for (const c of checkinAll) {
+      if (c.objectiveId === id && c.value != null) {
+        lineRows.push({ at: c.createdAt.getTime(), value: Number(c.value) });
+      }
+    }
+    if (seriesRoot.current != null)
+      lineRows.push({ at: Date.parse(nowIso), value: seriesRoot.current });
+  }
+
+  // Status-Rows (die farbigen Punkte) aus den eigenen Check-ins.
+  const statusRows: ProgressChartPoint[] = [];
+  for (const c of checkinAll) {
+    if (c.objectiveId !== id) continue;
+    const v =
+      mode === "value" ? toFloat(c.value) : c.progress != null ? Number(c.progress) * 100 : null;
+    if (v == null) continue;
+    statusRows.push({ at: c.createdAt.getTime(), value: v, status: c.status });
+  }
+
+  // Merge je Zeitpunkt: Linie zuerst, Status-Punkt überschreibt Wert + setzt Farbe.
+  const byAt = new Map<number, ProgressChartPoint>();
+  for (const r of lineRows) byAt.set(r.at, { at: r.at, value: r.value, status: null });
+  for (const r of statusRows) byAt.set(r.at, r);
+  const series = [...byAt.values()].sort((a, b) => a.at - b.at);
+
+  let yDomain: [number, number];
+  if (mode === "percent") {
+    yDomain = [0, 100];
+  } else {
+    const vals = series.map((s) => s.value);
+    const anchors = [seriesRoot.baseline ?? 0, seriesRoot.target ?? 0, ...vals];
+    const lo = Math.min(...anchors);
+    const hi = Math.max(...anchors);
+    yDomain = [lo, hi > lo ? hi : lo + 1];
+  }
+
+  return { mode, series, yDomain };
 }
 
 // ── helpers ────────────────────────────────────────────────────────────
@@ -894,17 +1080,6 @@ function setAndGet<V>(map: Map<string, V[]>, key: string): V[] {
   const arr: V[] = [];
   map.set(key, arr);
   return arr;
-}
-
-function latestMeasurement(raw: unknown): number | null {
-  if (!Array.isArray(raw)) return null;
-  const pts = raw as Array<{ date?: string; value?: number }>;
-  if (pts.length === 0) return null;
-  const sorted = pts
-    .filter((p) => typeof p.value === "number" && typeof p.date === "string")
-    .sort((a, b) => (a.date! < b.date! ? -1 : 1));
-  const last = sorted[sorted.length - 1];
-  return last?.value ?? null;
 }
 
 function manualKrTrio(): RollupTrio {

@@ -67,6 +67,19 @@ export function goalStatusTier(s: string | null | undefined): GoalStatusTier {
   return isGoalStatus(s) ? GOAL_STATUS_TIER[s] : "neutral";
 }
 
+/** Concrete hex per tier (SVG fill for chart points; mirrors the `DOT_CLS` classes). */
+export const GOAL_STATUS_TIER_HEX: Record<GoalStatusTier, string> = {
+  green: "#10b981",
+  amber: "#f59e0b",
+  rose: "#f43f5e",
+  neutral: "#94a3b8",
+};
+
+/** Hex colour for a status value (or neutral for null/unknown) — for chart dots. */
+export function goalStatusColor(s: string | null | undefined): string {
+  return GOAL_STATUS_TIER_HEX[goalStatusTier(s)];
+}
+
 /** Human label for any status value or the no-status (null) case. */
 export function goalStatusLabel(s: string | null | undefined): string {
   return isGoalStatus(s) ? GOAL_STATUS_LABELS[s] : NO_STATUS_LABEL;

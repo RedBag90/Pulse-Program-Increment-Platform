@@ -7,6 +7,8 @@ import { recordedUpdate } from "@/server/services/recorded-update";
 import { isClosed, isOpen, type GoalStatus } from "@/domain/goal-status";
 import { clampPrecision, type MetricType } from "@/domain/goal-metric";
 import { canReparent } from "@/domain/goal-reparent";
+import { autoKpiCurrent, isProgressMode, effectiveProgressMode } from "@/domain/goal-progress-mode";
+import { latestMeasurement } from "@/domain/kpi-measurement";
 
 export type GoalTarget = "objective" | "kr";
 
@@ -608,6 +610,8 @@ export interface CheckInGoalInput {
   note?: string | null;
   /** Structured update sections (Epic 4); backward-compatible with `note`. */
   sections?: GoalSection[] | null;
+  /** Gewähltes Datum des Status-Updates (setzt den Graf-Punkt); Default now. */
+  entryDate?: Date | null;
 }
 
 /**
@@ -638,6 +642,7 @@ export async function recordGoalCheckin(
           ...(input.sections && input.sections.length > 0
             ? { sections: input.sections as unknown as Prisma.InputJsonValue }
             : {}),
+          ...(input.entryDate ? { createdAt: input.entryDate } : {}),
           createdBy: mctx.actorId,
         },
       });
@@ -666,14 +671,35 @@ export async function recordGoalCheckin(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.id });
     }
-    // Freeze the value at check-in time: for a manual KR the raw `current`
-    // plus its normalised progress land on the check-in row. `current` itself
-    // stays untouched — progress edits flow through recordGoalProgress.
-    const isManual = existing.formula === "manual";
-    const rawValue = isManual && existing.current != null ? Number(existing.current) : null;
-    const frozenProgress = isManual
-      ? normalizeKrValue(rawValue, existing.baseline, existing.target)
-      : (input.progress ?? null);
+    // Ist-Wert zum Check-in-Zeitpunkt einfrieren (→ Graf-Punkt am gewählten
+    // Datum): `manual` friert die eigene `current`-Spalte ein, `auto_kpi` leitet
+    // die einheitengleiche Summe der verknüpften Epic-KPIs ab. `current` selbst
+    // bleibt unberührt (Wert-Pflege läuft über recordGoalProgress bzw. KPIs).
+    const mode = isProgressMode(existing.progressMode) ? existing.progressMode : "manual";
+    let rawValue: number | null;
+    if (mode === "auto_kpi") {
+      const links = await tx.goalEpicLink.findMany({
+        where: { tenantId: mctx.tenantId, objectiveId: input.id, epic: { deletedAt: null } },
+        select: { epic: { select: { kpis: { select: { unit: true, measurements: true } } } } },
+      });
+      const kpis = links.flatMap((l) =>
+        l.epic.kpis.map((k) => ({ unit: k.unit, current: latestMeasurement(k.measurements) })),
+      );
+      rawValue = autoKpiCurrent(
+        {
+          metricUnit: existing.metricUnit,
+          metricType: existing.metricType,
+          currencyCode: existing.currencyCode,
+        },
+        kpis,
+      );
+    } else {
+      rawValue = existing.current != null ? Number(existing.current) : null;
+    }
+    const frozenProgress =
+      rawValue != null
+        ? normalizeKrValue(rawValue, existing.baseline, existing.target)
+        : (input.progress ?? null);
     const checkin = await tx.goalCheckin.create({
       data: {
         tenantId: mctx.tenantId,
@@ -685,6 +711,7 @@ export async function recordGoalCheckin(
         ...(input.sections && input.sections.length > 0
           ? { sections: input.sections as unknown as Prisma.InputJsonValue }
           : {}),
+        ...(input.entryDate ? { createdAt: input.entryDate } : {}),
         createdBy: mctx.actorId,
       },
     });
@@ -708,15 +735,13 @@ export interface RecordGoalProgressInput {
   keyResultId: string;
   /** Raw current value in the KR's metric (e.g. `2` of target 4). */
   value: number;
-  /** Optional backdated entry timestamp; defaults to now. */
-  entryDate?: Date | null;
 }
 
 /**
- * Records a progress-only update on a MANUAL Key Result (Asana "Update
- * progress"): appends a status-less check-in row (raw value + normalised
- * progress) and stamps `keyResult.current`. Auto-KRs are rejected — their
- * progress is aggregated from bound KPIs.
+ * Setzt den Ist-Wert eines MANUELLEN Key Results (Asana „Update progress") —
+ * **ohne** Graf-Punkt. Nur `objective.current` wird gestempelt; ein Punkt
+ * entsteht ausschließlich beim Status-Update (recordGoalCheckin). Auto-KRs sind
+ * abgelehnt — ihr Ist-Wert kommt aus den KPIs.
  */
 export async function recordGoalProgress(
   ctx: RequestContext,
@@ -730,31 +755,26 @@ export async function recordGoalProgress(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.keyResultId });
     }
-    if (existing.formula !== "manual") {
+    // Ist-Wert direkt pflegbar nur bei manueller Fortschrittsquelle — auto_kpi
+    // kommt aus KPIs, rollup aus den Unterzielen.
+    const childCount = await tx.objective.count({
+      where: { parentObjectiveId: input.keyResultId, tenantId: mctx.tenantId },
+    });
+    const mode = effectiveProgressMode(existing.progressMode, childCount > 0);
+    if (mode !== "manual") {
       return err({
         kind: "validation" as const,
         issues: [
-          "Progress wird aus KPIs aggregiert — nur manuelle Key Results sind direkt pflegbar.",
+          "Ist-Wert wird aus KPIs bzw. Unterzielen abgeleitet — nur manuelle Ziele sind direkt pflegbar.",
         ],
       });
     }
-    const checkin = await tx.goalCheckin.create({
-      data: {
-        tenantId: mctx.tenantId,
-        objectiveId: input.keyResultId,
-        status: null,
-        value: input.value,
-        progress: normalizeKrValue(input.value, existing.baseline, existing.target),
-        ...(input.entryDate ? { createdAt: input.entryDate } : {}),
-        createdBy: mctx.actorId,
-      },
-    });
     await tx.objective.update({
       where: { id: input.keyResultId },
       data: { current: input.value, updatedBy: mctx.actorId },
     });
     return ok({
-      result: { id: checkin.id },
+      result: { id: input.keyResultId },
       audit: {
         action: "goal.progress.updated",
         resourceType: "key_result",
