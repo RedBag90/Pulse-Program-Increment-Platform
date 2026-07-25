@@ -866,6 +866,12 @@ model Kpi {
   /// Finance Controller valuation: € per natural unit of improvement
   /// baseline→target (e.g. € per day saved, € per +1 % NPS).
   valuePerUnit  Decimal? @map("value_per_unit") @db.Decimal(14, 2)
+  /// Misst diese KPI den Einmal- oder den wiederkehrenden Benefit?
+  /// "one_time" | "recurring" (src/domain/kpi-benefit-kind.ts). Default recurring
+  /// = Alt-Verhalten für Bestands-KPIs.
+  benefitKind   String   @default("recurring") @map("benefit_kind")
+  /// Freitext-Dokumentation der Herleitung (wie kommt man auf die KPI / den Wert).
+  calculationNote String? @map("calculation_note") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at")
   createdBy String   @map("created_by") @db.Uuid

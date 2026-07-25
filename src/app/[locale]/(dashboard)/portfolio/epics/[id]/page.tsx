@@ -339,6 +339,9 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     target: k.target === null ? null : Number(k.target),
     latest: latestKpiValue(parseKpiMeasurements(k.measurements)),
     weight: k.benefitWeight === null ? null : Number(k.benefitWeight),
+    valuePerUnit: k.valuePerUnit === null ? null : Number(k.valuePerUnit),
+    benefitKind: k.benefitKind,
+    calculationNote: k.calculationNote,
     measurements: parseKpiMeasurements(k.measurements),
   }));
 

@@ -6,7 +6,9 @@ import {
   deleteKpiAction,
   recordKpiMeasurementAction,
   updateKpiWeightAction,
+  updateKpiDetailsAction,
 } from "@/features/portfolio/actions/kpi";
+import { benefitKindOrDefault, BENEFIT_KIND_LABELS } from "@/domain/kpi-benefit-kind";
 import { SectionSignoffBanner, type SectionSignoff } from "./section-signoff-banner";
 
 export interface KpiRow {
@@ -18,6 +20,12 @@ export interface KpiRow {
   latest: number | null;
   /** Share of the recurring benefit (fraction 0..1); null = unset → auto equal split. */
   weight: number | null;
+  /** €-Wert je Einheit (Owner-Vorschlag / Finance). */
+  valuePerUnit: number | null;
+  /** "one_time" | "recurring" — misst Einmal- oder wiederkehrenden Nutzen. */
+  benefitKind: string;
+  /** Freitext-Dokumentation der Herleitung. */
+  calculationNote: string | null;
   /** Full measurement history (the KPI's timeline), any order. */
   measurements: { date: string; value: number }[];
 }
@@ -37,22 +45,61 @@ function fmt(n: number | null): string {
   return n === null ? "—" : n.toLocaleString("de-DE");
 }
 
-function KpiItem({ kpi, initiativeId }: { kpi: KpiRow; initiativeId: string }) {
+function fmtEur(n: number | null): string {
+  return n === null
+    ? "—"
+    : n.toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+}
+
+/** |Ziel − Baseline| × €/Einheit — der kalkulatorische Gesamt-€-Wert der KPI. */
+function derivedTotal(kpi: Pick<KpiRow, "baseline" | "target" | "valuePerUnit">): number | null {
+  if (kpi.valuePerUnit == null || kpi.baseline == null || kpi.target == null) return null;
+  return Math.abs(kpi.target - kpi.baseline) * kpi.valuePerUnit;
+}
+
+function KpiItem({
+  kpi,
+  initiativeId,
+  canEdit,
+}: {
+  kpi: KpiRow;
+  initiativeId: string;
+  canEdit: boolean;
+}) {
   const [delState, delAction, delPending] = useActionState(deleteKpiAction, {});
   const [measState, measAction, measPending] = useActionState(recordKpiMeasurementAction, {});
   const [weightState, weightAction, weightPending] = useActionState(updateKpiWeightAction, {});
+  const [detState, detAction, detPending] = useActionState(updateKpiDetailsAction, {});
+
+  const kind = benefitKindOrDefault(kpi.benefitKind);
+  const total = derivedTotal(kpi);
 
   return (
     <div className="rounded border p-3">
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
         <span className="font-medium">{kpi.name}</span>
         {kpi.unit && <span className="text-xs text-muted-foreground">{kpi.unit}</span>}
+        <span
+          className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
+            kind === "one_time"
+              ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+              : "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200"
+          }`}
+        >
+          {BENEFIT_KIND_LABELS[kind]}
+        </span>
         <span className="text-sm text-muted-foreground">
           Baseline {fmt(kpi.baseline)} → Ziel {fmt(kpi.target)}
         </span>
         <span className="text-sm">
           Aktuell: <span className="font-medium">{fmt(kpi.latest)}</span>
         </span>
+        {kpi.valuePerUnit != null && (
+          <span className="text-sm text-muted-foreground">
+            {fmtEur(kpi.valuePerUnit)}/Einheit
+            {total != null && <> · Gesamt {fmtEur(total)}</>}
+          </span>
+        )}
         <form action={delAction} className="ml-auto">
           <input type="hidden" name="id" value={kpi.id} />
           <input type="hidden" name="initiativeId" value={initiativeId} />
@@ -112,9 +159,53 @@ function KpiItem({ kpi, initiativeId }: { kpi: KpiRow; initiativeId: string }) {
         </button>
       </form>
 
-      {(delState.error ?? measState.error ?? weightState.error) && (
+      {canEdit && (
+        <form action={detAction} className="mt-2 space-y-2 border-t pt-2">
+          <input type="hidden" name="id" value={kpi.id} />
+          <input type="hidden" name="initiativeId" value={initiativeId} />
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1 text-xs font-medium">
+              Benefit-Art
+              <select name="benefitKind" defaultValue={kind} className={`${inputCls} w-44`}>
+                <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
+                <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium">
+              €/Einheit
+              <input
+                type="number"
+                step="any"
+                name="valuePerUnit"
+                defaultValue={kpi.valuePerUnit ?? ""}
+                placeholder="—"
+                className={`${inputCls} w-28`}
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={detPending}
+              className="rounded bg-secondary px-2 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
+            >
+              Details speichern
+            </button>
+          </div>
+          <label className="flex flex-col gap-1 text-xs font-medium">
+            Kalkulations-Notiz
+            <textarea
+              name="calculationNote"
+              rows={2}
+              defaultValue={kpi.calculationNote ?? ""}
+              placeholder="Wie wird dieser Wert hergeleitet?"
+              className={`${inputCls} w-full resize-y`}
+            />
+          </label>
+        </form>
+      )}
+
+      {(delState.error ?? measState.error ?? weightState.error ?? detState.error) && (
         <p role="alert" className="mt-1 text-xs text-destructive">
-          {delState.error ?? measState.error ?? weightState.error}
+          {delState.error ?? measState.error ?? weightState.error ?? detState.error}
         </p>
       )}
 
@@ -175,6 +266,23 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
           className={`${inputCls} w-24`}
         />
       </label>
+      <label className="flex flex-col gap-1 text-xs font-medium">
+        Benefit-Art
+        <select name="benefitKind" defaultValue="recurring" className={`${inputCls} w-44`}>
+          <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
+          <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-xs font-medium">
+        €/Einheit (Vorschlag)
+        <input
+          type="number"
+          step="any"
+          name="valuePerUnit"
+          placeholder="—"
+          className={`${inputCls} w-28`}
+        />
+      </label>
       <button
         type="submit"
         disabled={pending}
@@ -208,7 +316,7 @@ export function EpicKpisTab({ initiativeId, kpis, canEdit, signoff }: Props) {
       ) : (
         <div className="space-y-2">
           {kpis.map((kpi) => (
-            <KpiItem key={kpi.id} kpi={kpi} initiativeId={initiativeId} />
+            <KpiItem key={kpi.id} kpi={kpi} initiativeId={initiativeId} canEdit={canEdit} />
           ))}
         </div>
       )}
