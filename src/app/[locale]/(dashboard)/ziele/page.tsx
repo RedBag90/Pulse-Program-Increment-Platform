@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadKpiInventory, loadStrategyTree, type ZieleSubTab } from "@/server/views/ziele-view";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { ZieleShell } from "@/features/ziele/components/ziele-shell";
 
 /**
@@ -46,6 +47,7 @@ export default async function ZielePage({ searchParams }: PageProps) {
     ...(art ? { artId: art } : {}),
   });
   const inventory = await loadKpiInventory(db, principal.tenantId, tree);
+  const userLabels = await listTenantUserLabels(db, principal.tenantId);
 
   // Ziele = nur Wert-Anzeige: Edit-Affordances erzwungen aus.
   const model = {
@@ -57,7 +59,7 @@ export default async function ZielePage({ searchParams }: PageProps) {
 
   return (
     <Suspense fallback={null}>
-      <ZieleShell model={model} layout={layout} mode="ziele" />
+      <ZieleShell model={model} layout={layout} mode="ziele" userLabels={userLabels} />
     </Suspense>
   );
 }

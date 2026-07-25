@@ -4,6 +4,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadKpiInventory, loadStrategyTree, type ZieleSubTab } from "@/server/views/ziele-view";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { ZieleShell } from "@/features/ziele/components/ziele-shell";
 
 /**
@@ -48,6 +49,7 @@ export default async function StrategyPage({ searchParams }: PageProps) {
     ...(art ? { artId: art } : {}),
   });
   const inventory = await loadKpiInventory(db, principal.tenantId, tree);
+  const userLabels = await listTenantUserLabels(db, principal.tenantId);
 
   // Pflege-Surface: Edit-Affordances erzwungen aktiv (target.manage ist
   // schon das Gate); Money/Pflege-Sub-Tabs blendet die Shell weg, wenn
@@ -61,7 +63,7 @@ export default async function StrategyPage({ searchParams }: PageProps) {
 
   return (
     <Suspense fallback={null}>
-      <ZieleShell model={model} layout={layout} mode="strategy" />
+      <ZieleShell model={model} layout={layout} mode="strategy" userLabels={userLabels} />
     </Suspense>
   );
 }

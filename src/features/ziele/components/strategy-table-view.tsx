@@ -3,11 +3,13 @@
 import { useRef, useState, startTransition, useActionState } from "react";
 import Link from "next/link";
 import { ChevronRight, Pencil, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { GoalNode, ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, keyResultProgress, type RollupTrio } from "@/domain/goals-rollup";
 import { goalPeriodLabel } from "@/domain/goal-period";
 import { reparentGoalNodeAction } from "@/features/ziele/actions/ziele";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 /** Drag-to-Reparent-Kontext, durch NodeRows → Row gereicht. */
 interface DragCtx {
@@ -19,6 +21,13 @@ interface DragCtx {
   setOver: (id: string | null) => void;
 }
 
+/** Collapse-Kontext für den ein-/ausklappbaren Baum. */
+interface TreeCtx {
+  collapsed: ReadonlySet<string>;
+  toggle: (id: string) => void;
+  userLabels: Record<string, string>;
+}
+
 /** Enthält der Subtree von `n` die id `id`? (Client-Zyklus-Guard.) */
 function subtreeHas(n: GoalNode, id: string): boolean {
   if (n.id === id) return true;
@@ -27,22 +36,20 @@ function subtreeHas(n: GoalNode, id: string): boolean {
 
 /**
  * Strategie als hierarchische Tabelle — Default-Layout im Strategie-Tab.
- *
- * Zwei Ebenen: **Theme** (OKR-Statement) + **Key Results**. Spalten:
- * `# · Name (incl. Narrativ + Confidence + Drift) · Status · Progress ·
- * €-Trio · Time period · Aktionen`. Edit-Affordances erscheinen nur
- * wenn `canEdit=true` (Strategie-Modul); im Ziele-Modul ist die Sicht
- * read-only.
+ * Ein-/ausklappbarer Ziel-Baum: **Name (Held) · Owner · Status · Progress ·
+ * Wert · Zeitraum · Aktionen**. Edit-Affordances nur bei `canEdit`.
  */
 interface Props {
   themes: ZieleTreeTheme[];
   canEdit: boolean;
+  userLabels?: Record<string, string>;
 }
 
-export function StrategyTableView({ themes, canEdit }: Props) {
+export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
   const dragNode = useRef<GoalNode | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [overTop, setOverTop] = useState(false);
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [, reparentRun] = useActionState(reparentGoalNodeAction, {});
 
   const drag: DragCtx = {
@@ -70,26 +77,36 @@ export function StrategyTableView({ themes, canEdit }: Props) {
     setOver: setOverId,
   };
 
+  const tree: TreeCtx = {
+    collapsed,
+    userLabels,
+    toggle: (id) =>
+      setCollapsed((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      }),
+  };
+
   if (themes.length === 0) {
     return (
-      <div className="grid h-[300px] place-items-center rounded-lg border bg-muted/10">
-        <div className="max-w-md text-center">
-          <p className="font-medium">Noch keine Strategie definiert.</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Leg ein Theme (OKR-Statement) an und haeng Unterziele dran.
-          </p>
-          {canEdit && (
-            <div className="mt-4 flex justify-center">
-              <NewLink entity="theme">+ Theme anlegen</NewLink>
-            </div>
-          )}
-        </div>
+      <div className="rounded-lg border border-dashed p-8 text-center">
+        <p className="font-medium">Noch keine Strategie definiert.</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Leg ein Theme (OKR-Statement) an und häng Unterziele dran.
+        </p>
+        {canEdit && (
+          <div className="mt-4 flex justify-center">
+            <NewLink entity="theme">+ Theme anlegen</NewLink>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {canEdit && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[11px] text-muted-foreground">
@@ -111,36 +128,30 @@ export function StrategyTableView({ themes, canEdit }: Props) {
             e.preventDefault();
             drag.onDropOn(null);
           }}
-          className={`rounded-md border border-dashed px-3 py-1.5 text-center text-[11px] text-muted-foreground transition-colors ${
-            overTop ? "border-primary bg-primary/10" : ""
-          }`}
+          className={cn(
+            "rounded-md border border-dashed px-3 py-1.5 text-center text-[11px] text-muted-foreground transition-colors",
+            overTop && "border-primary bg-primary/10 text-foreground",
+          )}
         >
           ⇧ Hierher ziehen = auf oberste Ebene verschieben
         </div>
       )}
       <div className="overflow-x-auto rounded-lg border bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+          <thead className="border-b bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <Th className="w-10">#</Th>
               <Th>Name</Th>
-              <Th className="w-32">Status</Th>
+              <Th className="w-14">Owner</Th>
+              <Th className="w-36">Status</Th>
               <Th className="w-48">Progress</Th>
-              <Th className="w-40">€ Planned / Realized</Th>
-              <Th className="w-28">Time period</Th>
+              <Th className="w-36">Wert</Th>
+              <Th className="w-24">Zeitraum</Th>
               {canEdit && <Th className="w-24">Aktionen</Th>}
             </tr>
           </thead>
           <tbody className="divide-y">
-            {themes.map((t, ti) => (
-              <NodeRows
-                key={t.id}
-                node={t}
-                depth={0}
-                index={ti + 1}
-                canEdit={canEdit}
-                drag={drag}
-              />
+            {themes.map((t) => (
+              <NodeRows key={t.id} node={t} depth={0} canEdit={canEdit} drag={drag} tree={tree} />
             ))}
           </tbody>
         </table>
@@ -150,38 +161,38 @@ export function StrategyTableView({ themes, canEdit }: Props) {
 }
 
 /**
- * Rekursive Knoten-Zeilen — ersetzt die alten fixen 2 Ebenen (Theme + KR).
- * Jeder Knoten rendert eine `Row` (mit tiefen-abhängiger Einrückung) und
- * darunter rekursiv seine Kinder. „+"-Affordance je Knoten: ein Unterziel
- * anhängen (Messbarkeit über die Fortschrittsquelle im Drawer).
+ * Rekursive Knoten-Zeilen — jeder Knoten rendert eine `Row`; Kinder folgen
+ * rekursiv, es sei denn der Knoten ist eingeklappt.
  */
 function NodeRows({
   node,
   depth,
-  index,
   canEdit,
   drag,
+  tree,
 }: {
   node: GoalNode;
   depth: number;
-  index: number;
   canEdit: boolean;
   drag: DragCtx;
+  tree: TreeCtx;
 }) {
-  // Ein Begriff „Ziel"; Top-Level bleibt „Theme (OKR)". Kein O/KR-Split mehr.
   const kindLabel = depth === 0 ? "Theme (OKR)" : "Ziel";
   const subtitle =
     depth > 0 && node.rollupWeight != null
       ? `${kindLabel} · trägt ${Math.round(node.contributionShare * 100)} %`
       : kindLabel;
   const progress = node.progress ?? (node.isMeasurable ? keyResultProgress(node) : 0);
+  const hasChildren = node.children.length > 0;
+  const isCollapsed = tree.collapsed.has(node.id);
+  const ownerLabel = node.ownerId ? (tree.userLabels[node.ownerId] ?? null) : null;
+
   return (
     <>
       <Row
         node={node}
         drag={drag}
         depth={depth}
-        index={index}
         title={node.title}
         subtitle={subtitle}
         narrative={node.narrative}
@@ -194,6 +205,10 @@ function NodeRows({
         trio={node.trio}
         period={node.period}
         canEdit={canEdit}
+        ownerLabel={ownerLabel}
+        hasChildren={hasChildren}
+        isCollapsed={isCollapsed}
+        onToggle={() => tree.toggle(node.id)}
         actions={
           canEdit ? (
             <RowActions
@@ -203,16 +218,18 @@ function NodeRows({
           ) : null
         }
       />
-      {node.children.map((child, i) => (
-        <NodeRows
-          key={child.id}
-          node={child}
-          depth={depth + 1}
-          index={i + 1}
-          canEdit={canEdit}
-          drag={drag}
-        />
-      ))}
+      {hasChildren &&
+        !isCollapsed &&
+        node.children.map((child) => (
+          <NodeRows
+            key={child.id}
+            node={child}
+            depth={depth + 1}
+            canEdit={canEdit}
+            drag={drag}
+            tree={tree}
+          />
+        ))}
     </>
   );
 }
@@ -221,7 +238,6 @@ interface RowProps {
   node: GoalNode;
   drag: DragCtx;
   depth: number;
-  index: number;
   title: string;
   subtitle: string;
   narrative: string | null;
@@ -234,6 +250,10 @@ interface RowProps {
   trio: RollupTrio;
   period: string | null;
   canEdit: boolean;
+  ownerLabel: string | null;
+  hasChildren: boolean;
+  isCollapsed: boolean;
+  onToggle: () => void;
   actions: React.ReactNode;
 }
 
@@ -241,7 +261,6 @@ function Row({
   node,
   drag,
   depth,
-  index,
   title,
   subtitle,
   narrative,
@@ -254,13 +273,20 @@ function Row({
   trio,
   period,
   canEdit,
+  ownerLabel,
+  hasChildren,
+  isCollapsed,
+  onToggle,
   actions,
 }: RowProps) {
-  const indent = depth * 20 + 8;
+  const indent = depth * 18;
   const isOver = drag.overId === node.id;
   return (
     <tr
-      className={`group hover:bg-muted/30 ${isOver ? "outline outline-2 -outline-offset-2 outline-primary" : ""}`}
+      className={cn(
+        "group align-middle hover:bg-muted/40",
+        isOver && "outline outline-2 -outline-offset-2 outline-primary",
+      )}
       draggable={drag.canEdit}
       onDragStart={(e) => {
         if (!drag.canEdit) return;
@@ -279,53 +305,68 @@ function Row({
         drag.onDropOn(node);
       }}
     >
-      <Td className="text-[10px] text-muted-foreground tabular-nums">{index}</Td>
       <Td>
-        <Link
-          href={href as never}
-          scroll={false}
-          className="block hover:underline"
-          style={{ paddingLeft: indent }}
-        >
-          <span className="flex items-center gap-2">
-            {depth > 0 && (
-              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
-            )}
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2">
-                <span className="truncate font-medium">{title}</span>
-                {drift && (
-                  <span
-                    className="shrink-0 rounded-full bg-amber-100 px-1 py-0.5 text-[9px] font-semibold text-amber-800"
-                    title="Run-Rate < 70 % vom Planned"
-                  >
-                    ⚠
-                  </span>
+        <div className="flex items-start gap-1" style={{ paddingLeft: indent }}>
+          {hasChildren ? (
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-expanded={!isCollapsed}
+              aria-label={isCollapsed ? "Ausklappen" : "Einklappen"}
+              className="mt-0.5 grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <ChevronRight
+                className={cn("h-3.5 w-3.5 transition-transform", !isCollapsed && "rotate-90")}
+                aria-hidden
+              />
+            </button>
+          ) : (
+            <span className="w-5 shrink-0" aria-hidden />
+          )}
+          <Link href={href as never} scroll={false} className="min-w-0 flex-1 hover:underline">
+            <span className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "truncate font-medium",
+                  depth === 0 ? "text-[15px] tracking-tight" : "text-sm",
                 )}
-                {confidence != null && (
-                  <span
-                    className="shrink-0 text-[11px] text-muted-foreground"
-                    title="Confidence (Fist-of-Five)"
-                  >
-                    {"★".repeat(confidence)}
-                    {"☆".repeat(5 - confidence)}
-                  </span>
-                )}
+              >
+                {title}
               </span>
-              <span className="block truncate text-[10px] uppercase tracking-wider text-muted-foreground">
-                {subtitle}
-              </span>
-              {narrative && (
-                <span className="block truncate text-[10px] text-muted-foreground/80">
-                  {narrative}
+              {drift && (
+                <span
+                  className="shrink-0 rounded-full bg-amber-100 px-1 py-0.5 text-[9px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
+                  title="Run-Rate < 70 % vom Planned"
+                >
+                  ⚠
+                </span>
+              )}
+              {confidence != null && (
+                <span
+                  className="shrink-0 text-[11px] leading-none text-amber-500/80"
+                  title="Confidence (Fist-of-Five)"
+                >
+                  {"★".repeat(confidence)}
+                  <span className="text-muted-foreground/40">{"★".repeat(5 - confidence)}</span>
                 </span>
               )}
             </span>
-          </span>
-        </Link>
+            <span className="mt-0.5 block truncate text-[10px] uppercase tracking-wider text-muted-foreground">
+              {subtitle}
+            </span>
+            {narrative && (
+              <span className="block truncate text-[11px] text-muted-foreground/80">
+                {narrative}
+              </span>
+            )}
+          </Link>
+        </div>
       </Td>
       <Td>
-        <span className="flex items-center gap-2">
+        <OwnerAvatar label={ownerLabel} />
+      </Td>
+      <Td>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <GoalStatusPill status={statusValue} />
           {checkinAt && (
             <span className="text-[10px] text-muted-foreground">{relativeGoalTime(checkinAt)}</span>
@@ -344,6 +385,16 @@ function Row({
   );
 }
 
+function OwnerAvatar({ label }: { label: string | null }) {
+  if (!label) return <span className="text-[11px] text-muted-foreground/50">—</span>;
+  const initials = (label.split("@")[0] ?? label).slice(0, 2).toUpperCase();
+  return (
+    <Avatar size="sm" title={label}>
+      <AvatarFallback className="text-[10px] font-medium">{initials}</AvatarFallback>
+    </Avatar>
+  );
+}
+
 function RowActions({
   editHref,
   addChildHref,
@@ -352,7 +403,7 @@ function RowActions({
   addChildHref?: string | null;
 }) {
   return (
-    <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100">
+    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
       {addChildHref && (
         <Link
           href={addChildHref as never}
@@ -409,31 +460,47 @@ function ProgressBar({ value }: { value: number }) {
     <div className="flex items-center gap-2">
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
         <div
-          className={`h-full rounded-full ${
-            value >= 0.7 ? "bg-emerald-500/80" : value >= 0.3 ? "bg-amber-500/80" : "bg-rose-500/80"
-          }`}
+          className={cn(
+            "h-full rounded-full",
+            value >= 0.7 ? "bg-emerald-500" : value >= 0.3 ? "bg-amber-500" : "bg-rose-500",
+          )}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-10 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
-        {pct} %
+      <span className="w-9 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
+        {pct}%
       </span>
     </div>
   );
 }
 
+/** €-Ratio mit dezenter Füllung realized/planned. */
 function TrioBadge({ trio }: { trio: RollupTrio }) {
   if (trio.planned === 0 && trio.realized === 0) {
-    return <span className="text-[10px] text-muted-foreground/60">—</span>;
+    return <span className="text-[11px] text-muted-foreground/50">—</span>;
   }
+  const ratio = trio.planned > 0 ? Math.min(1, trio.realized / trio.planned) : 0;
   return (
     <span
-      className="inline-block rounded-md border bg-background px-1.5 py-0.5 text-[11px] tabular-nums"
-      title={`Planned €${Math.round(trio.planned).toLocaleString("de-DE")} · Realized €${Math.round(trio.realized).toLocaleString("de-DE")} · Run-Rate €${Math.round(trio.runRate).toLocaleString("de-DE")}`}
+      className="inline-flex flex-col gap-1"
+      title={`Planned €${eur(trio.planned)} · Realized €${eur(trio.realized)} · Run-Rate €${eur(trio.runRate)}`}
     >
-      €{compact(trio.planned)} / €{compact(trio.realized)}
+      <span className="font-mono text-[11px] tabular-nums">
+        €{compact(trio.realized)}
+        <span className="text-muted-foreground"> / €{compact(trio.planned)}</span>
+      </span>
+      <span className="h-1 w-full overflow-hidden rounded-full bg-muted">
+        <span
+          className="block h-full rounded-full bg-emerald-500/70"
+          style={{ width: `${Math.round(ratio * 100)}%` }}
+        />
+      </span>
     </span>
   );
+}
+
+function eur(n: number): string {
+  return Math.round(n).toLocaleString("de-DE");
 }
 
 function compact(n: number): string {
@@ -443,9 +510,9 @@ function compact(n: number): string {
 }
 
 function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <th className={`px-3 py-2 text-left ${className ?? ""}`}>{children}</th>;
+  return <th className={cn("px-3 py-2 text-left font-medium", className)}>{children}</th>;
 }
 
 function Td({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <td className={`px-3 py-2 align-middle ${className ?? ""}`}>{children}</td>;
+  return <td className={cn("px-3 py-2.5 align-middle", className)}>{children}</td>;
 }

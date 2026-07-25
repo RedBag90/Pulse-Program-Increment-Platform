@@ -1,5 +1,9 @@
 import type { ZieleModel } from "@/server/views/ziele-view";
+import { Page } from "@/components/layout/page";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageSection } from "@/components/layout/page-section";
 import { ZieleSubTabs } from "./ziele-sub-tabs";
+import { GoalHealthStrip } from "./goal-health-strip";
 import { StrategySankeyView } from "./strategy-sankey-view";
 import { StrategyTableView } from "./strategy-table-view";
 import { StrategyNetworkView } from "./strategy-network-view";
@@ -32,49 +36,47 @@ interface Props {
   model: ZieleModel;
   layout: StrategyLayout;
   mode?: ShellMode;
+  /** Owner-Id → Anzeigename (für die Owner-Avatare in der Tabelle). */
+  userLabels?: Record<string, string>;
 }
 
-export function ZieleShell({ model, layout, mode = "ziele" }: Props) {
+export function ZieleShell({ model, layout, mode = "ziele", userLabels = {} }: Props) {
   const { tab, themes, tenantTrio, permissions } = model;
   const isStrategy = mode === "strategy";
 
   return (
-    <div className="space-y-4 p-6">
-      <header className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            {isStrategy ? "Strategie" : "Ziele"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {isStrategy
-              ? "Themes (OKR-Statements) + Key Results pflegen. Wert-Anzeige unter Ziele."
-              : "Wert-Anzeige Theme → Key Result, mit €-Rollup. Pflege unter Strategie."}
-          </p>
-        </div>
-        <ZieleSubTabs active={tab} mode={mode} />
-      </header>
+    <Page>
+      <PageHeader
+        title={isStrategy ? "Strategie" : "Ziele"}
+        subtitle={
+          isStrategy
+            ? "Themes (OKR-Statements) + Key Results pflegen. Wert-Anzeige unter Ziele."
+            : "Wert-Anzeige Theme → Key Result, mit €-Rollup. Pflege unter Strategie."
+        }
+        actions={<ZieleSubTabs active={tab} mode={mode} />}
+      />
 
-      <div className="flex items-center justify-between rounded-md border bg-card px-4 py-2">
+      <div className="space-y-1.5">
+        <GoalHealthStrip themes={themes} tenantTrio={tenantTrio} />
         <p className="text-xs text-muted-foreground">{themes.length} Themes (OKRs) im Scope</p>
-        <TenantRollup
-          planned={tenantTrio.planned}
-          realized={tenantTrio.realized}
-          runRate={tenantTrio.runRate}
-        />
       </div>
 
       {tab === "strategie" && (
-        <div className="space-y-3">
+        <PageSection>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <GoalScopeFilterBar />
             <StrategyLayoutToggle active={layout} />
           </div>
           {layout === "tabelle" && (
-            <StrategyTableView themes={themes} canEdit={permissions.canEditStrategy} />
+            <StrategyTableView
+              themes={themes}
+              canEdit={permissions.canEditStrategy}
+              userLabels={userLabels}
+            />
           )}
           {layout === "sankey" && <StrategySankeyView themes={themes} />}
           {layout === "netzplan" && <StrategyNetworkView themes={themes} />}
-        </div>
+        </PageSection>
       )}
       {tab === "okrs" && <OkrBoardView themes={themes} canEdit={permissions.canEditStrategy} />}
       {tab === "money" && !isStrategy && <MoneySheetView themes={themes} />}
@@ -82,34 +84,6 @@ export function ZieleShell({ model, layout, mode = "ziele" }: Props) {
       {/* Detail-Drawer in beiden Modi: read-only auf /ziele, editierbar auf
           /strategy (canEdit spiegelt das Permission-Gate). */}
       <ZieleEditDrawer model={model} canEdit={permissions.canEditStrategy} />
-    </div>
-  );
-}
-
-function TenantRollup({
-  planned,
-  realized,
-  runRate,
-}: {
-  planned: number;
-  realized: number;
-  runRate: number;
-}) {
-  const fmt = (n: number) => `€${Math.round(n).toLocaleString("de-DE")}`;
-  return (
-    <div className="flex items-baseline gap-4 text-xs">
-      <span>
-        <span className="text-muted-foreground">Planned</span>{" "}
-        <span className="font-medium tabular-nums">{fmt(planned)}</span>
-      </span>
-      <span>
-        <span className="text-muted-foreground">Realized</span>{" "}
-        <span className="font-medium tabular-nums">{fmt(realized)}</span>
-      </span>
-      <span>
-        <span className="text-muted-foreground">Run-Rate</span>{" "}
-        <span className="font-medium tabular-nums">{fmt(runRate)}</span>
-      </span>
-    </div>
+    </Page>
   );
 }
