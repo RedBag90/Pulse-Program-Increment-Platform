@@ -147,6 +147,7 @@ describe("recurringFactorByMonth", () => {
           weight: 0.5,
           valuePerUnit: null,
           benefitKind: "recurring",
+          recurringInterval: "yearly",
         }, // 1.0
         {
           measurements: [{ date: "2024-01-01", value: 40 }],
@@ -155,6 +156,7 @@ describe("recurringFactorByMonth", () => {
           weight: 0.5,
           valuePerUnit: null,
           benefitKind: "recurring",
+          recurringInterval: "yearly",
         }, // 0
       ],
       axis,
@@ -232,6 +234,7 @@ const bk = (over: Partial<BenefitKpiInput> = {}): BenefitKpiInput => ({
   weight: 1,
   valuePerUnit: 10, // planned = |100-0| × 10 = 1000
   benefitKind: "recurring",
+  recurringInterval: "yearly",
   ...over,
 });
 
@@ -269,13 +272,36 @@ describe("kpiRecurringByMonth — recurring run-rate", () => {
     expect(kpiRecurringByMonth([bk({ benefitKind: "one_time" })], axis)).toBeNull();
   });
 
-  it("is annual/12 × fulfilment per month from the measurement month", () => {
-    // recurring KPI: annual = 1000, monthlyAtFull = 1000/12; fulfilment 0.5 → 500/12
-    const r = kpiRecurringByMonth([bk({ benefitKind: "recurring" })], axis);
+  it("yearly interval: periodValue/12 × fulfilment per month from the measurement month", () => {
+    // recurring/yearly: annual = 1000, monthlyAtFull = 1000/12; fulfilment 0.5 → 500/12
+    const r = kpiRecurringByMonth(
+      [bk({ benefitKind: "recurring", recurringInterval: "yearly" })],
+      axis,
+    );
     expect(r).not.toBeNull();
     expect(r![4]).toBeCloseTo(0); // May — before the measurement
     expect(r![5]).toBeCloseTo(1000 / 12 / 2); // Jun onward — run-rate at 0.5 fulfilment
     expect(r![11]).toBeCloseTo(1000 / 12 / 2); // ongoing, not a one-shot
+  });
+
+  it("monthly interval: periodValue directly per month (12× the yearly variant)", () => {
+    // recurring/monthly: periodValue = 1000 gilt PRO MONAT → monthlyAtFull = 1000; fulfilment 0.5 → 500
+    const r = kpiRecurringByMonth(
+      [bk({ benefitKind: "recurring", recurringInterval: "monthly" })],
+      axis,
+    );
+    expect(r).not.toBeNull();
+    expect(r![4]).toBeCloseTo(0); // before the measurement
+    expect(r![5]).toBeCloseTo(500); // 1000 × 0.5, no /12 — exactly 12× the yearly month
+    expect(r![11]).toBeCloseTo(500); // ongoing
+  });
+
+  it("defaults to yearly when the interval is unknown/absent", () => {
+    const r = kpiRecurringByMonth(
+      [bk({ benefitKind: "recurring", recurringInterval: "bogus" })],
+      axis,
+    );
+    expect(r![5]).toBeCloseTo(1000 / 12 / 2); // fallback = yearly
   });
 });
 

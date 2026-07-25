@@ -11,6 +11,7 @@ export type { ActionState as KpiActionState };
 
 /** Absent Union-Felder liest parseFromSchema als null → auf undefined normalisieren. */
 const kindField = z.preprocess((v) => v ?? undefined, z.enum(["one_time", "recurring"]).optional());
+const intervalField = z.preprocess((v) => v ?? undefined, z.enum(["monthly", "yearly"]).optional());
 const strField = z.preprocess((v) => v ?? undefined, z.string().max(2000).optional());
 /** Roh-String für €-Werte; "" = löschen, leer/absent = unverändert. */
 const numStrField = z.preprocess((v) => v ?? undefined, z.string().optional());
@@ -37,6 +38,7 @@ export const createKpiAction = createServerAction({
     target: z.coerce.number().optional(),
     weightPercent: z.coerce.number().min(0).optional(),
     benefitKind: kindField,
+    recurringInterval: intervalField,
     valuePerUnit: numStrField,
     calculationNote: strField,
   }),
@@ -52,6 +54,7 @@ export const createKpiAction = createServerAction({
       target: input.target,
       ...(input.weightPercent !== undefined && { benefitWeight: input.weightPercent / 100 }),
       ...(input.benefitKind !== undefined && { benefitKind: input.benefitKind }),
+      ...(input.recurringInterval !== undefined && { recurringInterval: input.recurringInterval }),
       ...(vpu !== undefined && { valuePerUnit: vpu }),
       ...(input.calculationNote !== undefined && {
         calculationNote: input.calculationNote || null,
@@ -73,6 +76,7 @@ export const updateKpiDetailsAction = createServerAction({
     id: z.string().uuid(),
     initiativeId: z.string().uuid(),
     benefitKind: kindField,
+    recurringInterval: intervalField,
     valuePerUnit: numStrField,
     calculationNote: strField,
   }),
@@ -83,6 +87,7 @@ export const updateKpiDetailsAction = createServerAction({
     return updateKpi(ctx, {
       id: input.id as KpiId,
       ...(input.benefitKind !== undefined && { benefitKind: input.benefitKind }),
+      ...(input.recurringInterval !== undefined && { recurringInterval: input.recurringInterval }),
       ...(vpu !== undefined && { valuePerUnit: vpu }),
       ...(input.calculationNote !== undefined && {
         calculationNote: input.calculationNote === "" ? null : input.calculationNote,

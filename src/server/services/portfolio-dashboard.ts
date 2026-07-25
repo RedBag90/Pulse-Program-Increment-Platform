@@ -67,6 +67,7 @@ export async function getPortfolioEconomics(
             benefitWeight: true,
             valuePerUnit: true,
             benefitKind: true,
+            recurringInterval: true,
           },
         },
         budgetAllocation: { select: { allocations: true } },
@@ -95,6 +96,7 @@ export async function getPortfolioEconomics(
         benefitWeight: k.benefitWeight === null ? null : Number(k.benefitWeight),
         valuePerUnit: k.valuePerUnit === null ? null : Number(k.valuePerUnit),
         benefitKind: k.benefitKind,
+        recurringInterval: k.recurringInterval,
       })),
     });
 

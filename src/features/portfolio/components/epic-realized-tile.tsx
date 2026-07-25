@@ -2,6 +2,7 @@ import { TrendingUp } from "lucide-react";
 import { kpiValueContribution } from "@/domain/kpi-valuation";
 import { latestKpiValue, parseKpiMeasurements } from "@/domain/kpi";
 import { benefitKindOrDefault, type BenefitKind } from "@/domain/kpi-benefit-kind";
+import { recurringIntervalOrDefault } from "@/domain/kpi-recurring-interval";
 import { formatCompactEUR } from "@/lib/formatting";
 
 /**
@@ -9,7 +10,9 @@ import { formatCompactEUR } from "@/lib/formatting";
  * valuePerUnit je KPI mit gesetztem valuePerUnit — **getrennt nach Benefit-Art**,
  * weil die Einheiten sich unterscheiden: one-time-KPIs realisieren einen einmaligen
  * €-Betrag, recurring-KPIs eine jährliche Run-Rate (€/Jahr). Eine gemeinsame Summe
- * würde Bestand und Fluss vermischen.
+ * würde Bestand und Fluss vermischen. Recurring-KPIs mit monatlichem Intervall
+ * werden ×12 auf ihr Jahresäquivalent normalisiert, damit „Wiederkehrend p.a."
+ * eine konsistente Einheit bleibt.
  *
  * Unterschied zum `EpicGoalsBadge`: jener zeigt nur den ueber KR-Bindungen
  * bewerteten Teil; dieser Tile zeigt die volle Epic-Sicht, unabhaengig von einer
@@ -22,6 +25,7 @@ interface KpiLike {
   measurements: unknown;
   valuePerUnit: unknown;
   benefitKind: unknown;
+  recurringInterval: unknown;
 }
 
 interface Props {
@@ -48,18 +52,26 @@ export function EpicRealizedTile({ kpis }: Props) {
     if (valuePerUnit == null) continue;
     const baseline = toNum(k.baseline);
     const target = toNum(k.target);
-    const b =
-      buckets[benefitKindOrDefault(typeof k.benefitKind === "string" ? k.benefitKind : null)];
+    const kind = benefitKindOrDefault(typeof k.benefitKind === "string" ? k.benefitKind : null);
+    const b = buckets[kind];
+    // Recurring wird auf p.a. normalisiert: monatliches Intervall ×12 aufs Jahr.
+    const factor =
+      kind === "recurring" &&
+      recurringIntervalOrDefault(
+        typeof k.recurringInterval === "string" ? k.recurringInterval : null,
+      ) === "monthly"
+        ? 12
+        : 1;
     b.valued += 1;
 
     if (baseline != null && target != null) {
-      b.planned += Math.abs(target - baseline) * valuePerUnit;
+      b.planned += Math.abs(target - baseline) * valuePerUnit * factor;
     }
 
     const current = latestKpiValue(parseKpiMeasurements(k.measurements));
     const contribution = kpiValueContribution({ baseline, target, current, valuePerUnit });
     if (contribution != null) {
-      b.realized += contribution;
+      b.realized += contribution * factor;
       b.evaluated += 1;
     }
   }

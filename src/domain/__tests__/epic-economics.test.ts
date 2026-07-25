@@ -17,6 +17,7 @@ const kpi = (over: Partial<EpicEconomicsKpiInput> = {}): EpicEconomicsKpiInput =
   benefitWeight: null,
   valuePerUnit: null,
   benefitKind: "recurring",
+  recurringInterval: "yearly",
   ...over,
 });
 

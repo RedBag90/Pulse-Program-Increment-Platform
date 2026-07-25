@@ -35,6 +35,8 @@ export interface EpicEconomicsKpiInput {
   valuePerUnit: number | null;
   /** Benefit-Art: "one_time" | "recurring" (src/domain/kpi-benefit-kind.ts). */
   benefitKind: string;
+  /** Bei recurring: "monthly" | "yearly" (src/domain/kpi-recurring-interval.ts). */
+  recurringInterval: string;
 }
 
 /** The raw per-Epic facts the read-model derives from (post-normalisation). */
@@ -62,6 +64,8 @@ export interface BenefitKpi {
   valuePerUnit: number | null;
   /** Benefit-Art: "one_time" | "recurring" — partitioniert Einmal vs. Run-Rate. */
   benefitKind: string;
+  /** Bei recurring: "monthly" | "yearly" — Intervall des Run-Rate-Werts. */
+  recurringInterval: string;
 }
 
 export interface EpicEconomicsView {
@@ -96,6 +100,7 @@ export function resolveBenefitWeights(kpis: EpicEconomicsKpiInput[]): BenefitKpi
     measurements: k.measurements,
     valuePerUnit: k.valuePerUnit,
     benefitKind: k.benefitKind,
+    recurringInterval: k.recurringInterval,
   });
   if (kpis.some((k) => k.benefitWeight !== null)) {
     return kpis.map((k) => toKpi(k, k.benefitWeight ?? 0));

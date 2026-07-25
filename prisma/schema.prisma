@@ -870,6 +870,10 @@ model Kpi {
   /// "one_time" | "recurring" (src/domain/kpi-benefit-kind.ts). Default recurring
   /// = Alt-Verhalten für Bestands-KPIs.
   benefitKind   String   @default("recurring") @map("benefit_kind")
+  /// Bei benefitKind="recurring": beschreibt valuePerUnit einen monatlich oder
+  /// jährlich wiederkehrenden Mehrwert? "monthly" | "yearly"
+  /// (src/domain/kpi-recurring-interval.ts). Default yearly = Alt-Verhalten.
+  recurringInterval String @default("yearly") @map("recurring_interval")
   /// Freitext-Dokumentation der Herleitung (wie kommt man auf die KPI / den Wert).
   calculationNote String? @map("calculation_note") @db.Text
 

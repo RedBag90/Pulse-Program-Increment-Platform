@@ -90,6 +90,7 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
             target: 100,
             valuePerUnit: 12,
             benefitKind: "one_time",
+            recurringInterval: "yearly",
             measurements: [{ date: "2026-01-01", value: 100 }],
           },
         ],
@@ -118,6 +119,7 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
             target: 100,
             valuePerUnit: 12,
             benefitKind: "recurring",
+            recurringInterval: "yearly",
             measurements: [{ date: "2026-01-01", value: 100 }],
           },
         ],
@@ -130,6 +132,35 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
     });
     expect(series.velocity[0]).toBeCloseTo(100); // Run-Rate, nicht einmalig
     expect(series.velocity[1]).toBeCloseTo(100); // fortlaufend jeden Monat
+  });
+
+  it("recurring-KPI mit monatlichem Intervall: Run-Rate = 12× der jährlichen", () => {
+    // planned 1200 gilt PRO MONAT → 1200 €/Monat statt 100 €/Monat.
+    const d = data([
+      dto({
+        id: "a",
+        benefitKpis: [
+          {
+            kpiId: "k",
+            name: "K",
+            weight: 1,
+            baseline: 0,
+            target: 100,
+            valuePerUnit: 12,
+            benefitKind: "recurring",
+            recurringInterval: "monthly",
+            measurements: [{ date: "2026-01-01", value: 100 }],
+          },
+        ],
+      }),
+    ]);
+    const series = buildPortfolioSeries(d, {
+      selectedEpicIds: new Set(["a"]),
+      fromIso: "2026-01-01",
+      toIso: "2026-06-01",
+    });
+    expect(series.velocity[0]).toBeCloseTo(1200); // Monatswert direkt
+    expect(series.velocity[1]).toBeCloseTo(1200); // fortlaufend
   });
 
   it("uses the budget allocation as the cost override when present", () => {

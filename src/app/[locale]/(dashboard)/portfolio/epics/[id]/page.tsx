@@ -341,6 +341,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     weight: k.benefitWeight === null ? null : Number(k.benefitWeight),
     valuePerUnit: k.valuePerUnit === null ? null : Number(k.valuePerUnit),
     benefitKind: k.benefitKind,
+    recurringInterval: k.recurringInterval,
     calculationNote: k.calculationNote,
     measurements: parseKpiMeasurements(k.measurements),
   }));

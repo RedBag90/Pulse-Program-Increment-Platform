@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   createKpiAction,
   deleteKpiAction,
@@ -9,6 +9,10 @@ import {
   updateKpiDetailsAction,
 } from "@/features/portfolio/actions/kpi";
 import { benefitKindOrDefault, BENEFIT_KIND_LABELS } from "@/domain/kpi-benefit-kind";
+import {
+  recurringIntervalOrDefault,
+  RECURRING_INTERVAL_LABELS,
+} from "@/domain/kpi-recurring-interval";
 import { SectionSignoffBanner, type SectionSignoff } from "./section-signoff-banner";
 
 export interface KpiRow {
@@ -24,6 +28,8 @@ export interface KpiRow {
   valuePerUnit: number | null;
   /** "one_time" | "recurring" — misst Einmal- oder wiederkehrenden Nutzen. */
   benefitKind: string;
+  /** Bei recurring: "monthly" | "yearly" — Intervall des wiederkehrenden Werts. */
+  recurringInterval: string;
   /** Freitext-Dokumentation der Herleitung. */
   calculationNote: string | null;
   /** Full measurement history (the KPI's timeline), any order. */
@@ -73,6 +79,8 @@ function KpiItem({
 
   const kind = benefitKindOrDefault(kpi.benefitKind);
   const total = derivedTotal(kpi);
+  // Controlled im Detail-Formular, damit das Intervall-Feld nur bei "recurring" erscheint.
+  const [detKind, setDetKind] = useState<string>(kind);
 
   return (
     <div className="rounded border p-3">
@@ -87,6 +95,9 @@ function KpiItem({
           }`}
         >
           {BENEFIT_KIND_LABELS[kind]}
+          {kind === "recurring" && (
+            <> · {RECURRING_INTERVAL_LABELS[recurringIntervalOrDefault(kpi.recurringInterval)]}</>
+          )}
         </span>
         <span className="text-sm text-muted-foreground">
           Baseline {fmt(kpi.baseline)} → Ziel {fmt(kpi.target)}
@@ -166,7 +177,12 @@ function KpiItem({
           <div className="flex flex-wrap items-end gap-2">
             <label className="flex flex-col gap-1 text-xs font-medium">
               Benefit-Art
-              <select name="benefitKind" defaultValue={kind} className={`${inputCls} w-44`}>
+              <select
+                name="benefitKind"
+                value={detKind}
+                onChange={(e) => setDetKind(e.target.value)}
+                className={`${inputCls} w-44`}
+              >
                 <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
                 <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
               </select>
@@ -182,6 +198,19 @@ function KpiItem({
                 className={`${inputCls} w-28`}
               />
             </label>
+            {detKind === "recurring" && (
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                Intervall
+                <select
+                  name="recurringInterval"
+                  defaultValue={recurringIntervalOrDefault(kpi.recurringInterval)}
+                  className={`${inputCls} w-32`}
+                >
+                  <option value="yearly">{RECURRING_INTERVAL_LABELS.yearly}</option>
+                  <option value="monthly">{RECURRING_INTERVAL_LABELS.monthly}</option>
+                </select>
+              </label>
+            )}
             <button
               type="submit"
               disabled={detPending}
@@ -203,9 +232,9 @@ function KpiItem({
         </form>
       )}
 
-      {(delState.error ?? measState.error ?? weightState.error ?? detState.error) && (
+      {(delState?.error ?? measState?.error ?? weightState?.error ?? detState?.error) && (
         <p role="alert" className="mt-1 text-xs text-destructive">
-          {delState.error ?? measState.error ?? weightState.error ?? detState.error}
+          {delState?.error ?? measState?.error ?? weightState?.error ?? detState?.error}
         </p>
       )}
 
@@ -232,6 +261,7 @@ function KpiItem({
 
 function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
   const [state, action, pending] = useActionState(createKpiAction, {});
+  const [createKind, setCreateKind] = useState<string>("recurring");
 
   return (
     <form
@@ -268,7 +298,12 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
       </label>
       <label className="flex flex-col gap-1 text-xs font-medium">
         Benefit-Art
-        <select name="benefitKind" defaultValue="recurring" className={`${inputCls} w-44`}>
+        <select
+          name="benefitKind"
+          value={createKind}
+          onChange={(e) => setCreateKind(e.target.value)}
+          className={`${inputCls} w-44`}
+        >
           <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
           <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
         </select>
@@ -283,6 +318,15 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
           className={`${inputCls} w-28`}
         />
       </label>
+      {createKind === "recurring" && (
+        <label className="flex flex-col gap-1 text-xs font-medium">
+          Intervall
+          <select name="recurringInterval" defaultValue="yearly" className={`${inputCls} w-32`}>
+            <option value="yearly">{RECURRING_INTERVAL_LABELS.yearly}</option>
+            <option value="monthly">{RECURRING_INTERVAL_LABELS.monthly}</option>
+          </select>
+        </label>
+      )}
       <button
         type="submit"
         disabled={pending}
@@ -290,7 +334,7 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
       >
         {pending ? "Speichern…" : "KPI hinzufügen"}
       </button>
-      {state.error && (
+      {state?.error && (
         <p role="alert" className="w-full text-xs text-destructive">
           {state.error}
         </p>

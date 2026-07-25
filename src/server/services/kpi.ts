@@ -20,6 +20,8 @@ export interface CreateKpiInput {
   benefitWeight?: number | undefined;
   /** Benefit-Art: "one_time" | "recurring" (src/domain/kpi-benefit-kind.ts). */
   benefitKind?: string | undefined;
+  /** Bei recurring: "monthly" | "yearly" (src/domain/kpi-recurring-interval.ts). */
+  recurringInterval?: string | undefined;
   /** €-Wert je Einheit (Owner-Vorschlag; Finance justiert in der Coverage). */
   valuePerUnit?: number | null | undefined;
   /** Freitext-Dokumentation der Herleitung. */
@@ -36,6 +38,7 @@ export interface UpdateKpiInput {
   /** Share of the recurring benefit (fraction 0..1); null clears it. */
   benefitWeight?: number | null | undefined;
   benefitKind?: string | undefined;
+  recurringInterval?: string | undefined;
   valuePerUnit?: number | null | undefined;
   calculationNote?: string | null | undefined;
 }
@@ -53,6 +56,7 @@ export async function createKpi(
     target,
     benefitWeight,
     benefitKind,
+    recurringInterval,
     valuePerUnit,
     calculationNote,
   } = input;
@@ -83,6 +87,7 @@ export async function createKpi(
         ...(target !== undefined && { target }),
         ...(benefitWeight !== undefined && { benefitWeight }),
         ...(benefitKind !== undefined && { benefitKind }),
+        ...(recurringInterval !== undefined && { recurringInterval }),
         ...(valuePerUnit !== undefined && { valuePerUnit }),
         ...(calculationNote !== undefined && { calculationNote }),
       },
@@ -106,6 +111,7 @@ export async function updateKpi(ctx: RequestContext, input: UpdateKpiInput): Pro
     measurements,
     benefitWeight,
     benefitKind,
+    recurringInterval,
     valuePerUnit,
     calculationNote,
   } = input;
@@ -124,6 +130,7 @@ export async function updateKpi(ctx: RequestContext, input: UpdateKpiInput): Pro
         ...(target !== undefined && { target }),
         ...(benefitWeight !== undefined && { benefitWeight }),
         ...(benefitKind !== undefined && { benefitKind }),
+        ...(recurringInterval !== undefined && { recurringInterval }),
         ...(valuePerUnit !== undefined && { valuePerUnit }),
         ...(calculationNote !== undefined && { calculationNote }),
         ...(measurements !== undefined && {

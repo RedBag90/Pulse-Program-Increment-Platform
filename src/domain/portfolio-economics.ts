@@ -24,6 +24,7 @@ import {
 import { MONTHS_PER_HALF_YEAR, distributeAmountAcrossHalfYearMonths } from "@/domain/period-axis";
 import { saturatedFulfillment } from "@/domain/kpi-direction";
 import { benefitKindOrDefault } from "@/domain/kpi-benefit-kind";
+import { recurringIntervalOrDefault } from "@/domain/kpi-recurring-interval";
 
 export interface EpicEconomicsInput {
   id: string;
@@ -122,6 +123,8 @@ export interface BenefitKpiInput {
   valuePerUnit: number | null;
   /** Benefit-Art: "one_time" | "recurring" — bestimmt Einmal- vs. Run-Rate-Reihe. */
   benefitKind: string;
+  /** Bei recurring: "monthly" | "yearly" — skaliert die Run-Rate (×1 bzw. ÷12). */
+  recurringInterval: string;
 }
 
 /**
@@ -206,8 +209,10 @@ export function kpiRealizedValueByMonth(kpis: BenefitKpiInput[], axis: MonthAxis
 
 /**
  * **Laufende Run-Rate der recurring-KPIs je Monat** (KPI-Wertung): jede recurring-
- * KPI liefert bei voller Zielerreichung eine **jährliche** Run-Rate `annual =
- * |target−baseline| × valuePerUnit`; pro Monat wirksam `annual/12 × fulfilment(m)`.
+ * KPI liefert bei voller Zielerreichung einen Perioden-Wert `periodValue =
+ * |target−baseline| × valuePerUnit`. Je nach `recurringInterval` ist das ein
+ * **monatlicher** (`monthly` → direkt je Monat) oder **jährlicher** (`yearly` →
+ * periodValue/12 je Monat) Betrag; pro Monat wirksam `monthlyAtFull × fulfilment(m)`.
  * Anders als die one-time-Reihe ist das keine einmalige Realisierung, sondern ein
  * fortlaufender Monatsbetrag, der mit der KPI-Erfüllung mitatmet. `null`, wenn
  * keine bewertete **recurring**-KPI verknüpft ist → Business-Case-
@@ -218,9 +223,12 @@ export function kpiRecurringByMonth(kpis: BenefitKpiInput[], axis: MonthAxis): n
   if (valued.length === 0) return null;
   const out = zeros(axis.monthCount);
   for (const k of valued) {
-    const annual = Math.abs((k.target ?? 0) - (k.baseline ?? 0)) * (k.valuePerUnit ?? 0);
-    if (annual === 0) continue;
-    const monthlyAtFull = annual / 12;
+    const periodValue = Math.abs((k.target ?? 0) - (k.baseline ?? 0)) * (k.valuePerUnit ?? 0);
+    if (periodValue === 0) continue;
+    const monthlyAtFull =
+      recurringIntervalOrDefault(k.recurringInterval) === "monthly"
+        ? periodValue
+        : periodValue / 12;
     const f = kpiFulfillmentByMonth(k.measurements, k.baseline, k.target, axis);
     for (let i = 0; i < axis.monthCount; i++) out[i] = (out[i] ?? 0) + monthlyAtFull * (f[i] ?? 0);
   }
@@ -383,6 +391,8 @@ export interface BenefitKpiDTO {
   valuePerUnit: number | null;
   /** Benefit-Art: "one_time" | "recurring" — partitioniert Einmal vs. Run-Rate. */
   benefitKind: string;
+  /** Bei recurring: "monthly" | "yearly" — Intervall des Run-Rate-Werts. */
+  recurringInterval: string;
 }
 
 /** One Epic's economics, serialisable (dates as ISO `yyyy-mm-dd`). */
