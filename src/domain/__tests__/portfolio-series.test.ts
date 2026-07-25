@@ -75,9 +75,9 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
     expect(series.costs[0]).toBeCloseTo(100); // March, not the cumulative pre-window cost
   });
 
-  it("velocity folgt der KPI-Wertung (realisierter €-Zuwachs je Monat)", () => {
+  it("one-time-KPI: velocity = realisierter €-Zuwachs (einmalig)", () => {
     // KPI baseline 0 → target 100, valuePerUnit 12 → planned 1200; voll erfüllt
-    // ab dem ersten Monat → 1200 € werden in Monat 0 realisiert.
+    // ab dem ersten Monat → 1200 € werden in Monat 0 einmalig realisiert.
     const d = data([
       dto({
         id: "a",
@@ -89,6 +89,7 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
             baseline: 0,
             target: 100,
             valuePerUnit: 12,
+            benefitKind: "one_time",
             measurements: [{ date: "2026-01-01", value: 100 }],
           },
         ],
@@ -101,6 +102,34 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
     });
     expect(series.velocity[0]).toBeCloseTo(1200); // voller KPI-Wert im ersten Monat
     expect(series.velocity[1]).toBeCloseTo(0); // kein weiterer Zuwachs
+  });
+
+  it("recurring-KPI: velocity = laufende Run-Rate (annual/12 × fulfilment)", () => {
+    // KPI planned 1200 als jährliche Run-Rate → 100 €/Monat, fortlaufend.
+    const d = data([
+      dto({
+        id: "a",
+        benefitKpis: [
+          {
+            kpiId: "k",
+            name: "K",
+            weight: 1,
+            baseline: 0,
+            target: 100,
+            valuePerUnit: 12,
+            benefitKind: "recurring",
+            measurements: [{ date: "2026-01-01", value: 100 }],
+          },
+        ],
+      }),
+    ]);
+    const series = buildPortfolioSeries(d, {
+      selectedEpicIds: new Set(["a"]),
+      fromIso: "2026-01-01",
+      toIso: "2026-06-01",
+    });
+    expect(series.velocity[0]).toBeCloseTo(100); // Run-Rate, nicht einmalig
+    expect(series.velocity[1]).toBeCloseTo(100); // fortlaufend jeden Monat
   });
 
   it("uses the budget allocation as the cost override when present", () => {

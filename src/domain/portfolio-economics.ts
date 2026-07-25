@@ -23,6 +23,7 @@ import {
 } from "@/domain/calendar";
 import { MONTHS_PER_HALF_YEAR, distributeAmountAcrossHalfYearMonths } from "@/domain/period-axis";
 import { saturatedFulfillment } from "@/domain/kpi-direction";
+import { benefitKindOrDefault } from "@/domain/kpi-benefit-kind";
 
 export interface EpicEconomicsInput {
   id: string;
@@ -37,11 +38,17 @@ export interface EpicEconomicsInput {
   /** Go-live / completion month (Implementation milestone) — see `resolveGoLive`. */
   goLive: Date;
   /**
-   * Kumulierter realisierter KPI-Wert je Monat (length === monthCount, KPI-
-   * Wertung). Vorhanden ⇒ die Benefit-Velocity folgt dem €-Zuwachs dieser Reihe
-   * statt dem Business-Case-`recurringBenefit`. Absent ⇒ Flat-Forecast-Fallback.
+   * Kumulierter realisierter Wert der **one-time**-KPIs je Monat (length ===
+   * monthCount). Vorhanden ⇒ der Einmal-Benefit folgt dem €-Zuwachs dieser Reihe
+   * (Realisierung über die Zeit) statt dem Business-Case-`oneTimeBenefit`-Spike.
    */
   kpiRealizedValueByMonth?: number[];
+  /**
+   * Laufende **recurring**-KPI-Run-Rate je Monat (length === monthCount): der in
+   * diesem Monat wirksame wiederkehrende Nutzen (annual/12 × fulfilment).
+   * Vorhanden ⇒ ersetzt den Business-Case-`recurringBenefit`/12-Fallback.
+   */
+  kpiRecurringByMonth?: number[];
   /**
    * Per-month cost override (length === monthCount) — the participatory-budgeting
    * allocation. When present it replaces the cost-slice forecast entirely.
@@ -113,6 +120,8 @@ export interface BenefitKpiInput {
   weight: number;
   /** €-Wert je Einheit (KPI-Wertung). */
   valuePerUnit: number | null;
+  /** Benefit-Art: "one_time" | "recurring" — bestimmt Einmal- vs. Run-Rate-Reihe. */
+  benefitKind: string;
 }
 
 /**
@@ -159,18 +168,31 @@ export function recurringFactorByMonth(kpis: BenefitKpiInput[], axis: MonthAxis)
   return out;
 }
 
+/** Bewertete KPI (valuePerUnit gesetzt, baseline/target vorhanden) der gegebenen Art. */
+function valuedKpisOfKind(
+  kpis: BenefitKpiInput[],
+  kind: "one_time" | "recurring",
+): BenefitKpiInput[] {
+  return kpis.filter(
+    (k) =>
+      benefitKindOrDefault(k.benefitKind) === kind &&
+      (k.valuePerUnit ?? 0) !== 0 &&
+      k.baseline !== null &&
+      k.target !== null,
+  );
+}
+
 /**
- * **Kumulierter realisierter KPI-Wert je Monat** (KPI-Wertung) = Σ_kpi
- * fulfilment_kpi(m) × plannedₖ, mit `plannedₖ = |target−baseline| × valuePerUnit`.
- * fulfilment × planned = (Messwert−baseline) × valuePerUnit (wie das Epic-Tile,
- * ohne obere Kappung). `null`, wenn keine KPI mit `valuePerUnit` verknüpft ist
- * → Flat-Forecast-Fallback. Kein Contribution-`weight` (jede KPI trägt ihren
- * vollen €-Wert; anders als beim recurringBenefit-Split).
+ * **Kumulierter realisierter Wert der one-time-KPIs je Monat** (KPI-Wertung) =
+ * Σ_kpi fulfilment_kpi(m) × plannedₖ, mit `plannedₖ = |target−baseline| ×
+ * valuePerUnit`. fulfilment × planned = (Messwert−baseline) × valuePerUnit (wie
+ * das Epic-Tile, ohne obere Kappung). Der Monats-Zuwachs dieser Reihe = der in
+ * dem Monat realisierte Einmal-Benefit; über die Zeit summiert er auf den vollen
+ * KPI-Wert. `null`, wenn keine bewertete **one-time**-KPI verknüpft ist →
+ * Business-Case-`oneTimeBenefit`-Spike als Fallback. Kein Contribution-`weight`.
  */
 export function kpiRealizedValueByMonth(kpis: BenefitKpiInput[], axis: MonthAxis): number[] | null {
-  const valued = kpis.filter(
-    (k) => (k.valuePerUnit ?? 0) !== 0 && k.baseline !== null && k.target !== null,
-  );
+  const valued = valuedKpisOfKind(kpis, "one_time");
   if (valued.length === 0) return null;
   const out = zeros(axis.monthCount);
   for (const k of valued) {
@@ -178,6 +200,29 @@ export function kpiRealizedValueByMonth(kpis: BenefitKpiInput[], axis: MonthAxis
     if (planned === 0) continue;
     const f = kpiFulfillmentByMonth(k.measurements, k.baseline, k.target, axis);
     for (let i = 0; i < axis.monthCount; i++) out[i] = (out[i] ?? 0) + (f[i] ?? 0) * planned;
+  }
+  return out;
+}
+
+/**
+ * **Laufende Run-Rate der recurring-KPIs je Monat** (KPI-Wertung): jede recurring-
+ * KPI liefert bei voller Zielerreichung eine **jährliche** Run-Rate `annual =
+ * |target−baseline| × valuePerUnit`; pro Monat wirksam `annual/12 × fulfilment(m)`.
+ * Anders als die one-time-Reihe ist das keine einmalige Realisierung, sondern ein
+ * fortlaufender Monatsbetrag, der mit der KPI-Erfüllung mitatmet. `null`, wenn
+ * keine bewertete **recurring**-KPI verknüpft ist → Business-Case-
+ * `recurringBenefit`/12-Fallback.
+ */
+export function kpiRecurringByMonth(kpis: BenefitKpiInput[], axis: MonthAxis): number[] | null {
+  const valued = valuedKpisOfKind(kpis, "recurring");
+  if (valued.length === 0) return null;
+  const out = zeros(axis.monthCount);
+  for (const k of valued) {
+    const annual = Math.abs((k.target ?? 0) - (k.baseline ?? 0)) * (k.valuePerUnit ?? 0);
+    if (annual === 0) continue;
+    const monthlyAtFull = annual / 12;
+    const f = kpiFulfillmentByMonth(k.measurements, k.baseline, k.target, axis);
+    for (let i = 0; i < axis.monthCount; i++) out[i] = (out[i] ?? 0) + monthlyAtFull * (f[i] ?? 0);
   }
   return out;
 }
@@ -227,31 +272,45 @@ export function epicMonthlyFlows(input: EpicEconomicsInput, axis: MonthAxis): Ep
     });
   }
 
-  // Benefit-Velocity je Monat:
-  //  - KPI-getrieben (`kpiRealizedValueByMonth` vorhanden): der in diesem Monat
-  //    **realisierte** KPI-Wert = Zuwachs der kumulierten Realisierung
-  //    (realized(m) − realized(m−1)). Die Kurve summiert so über die Zeit auf die
-  //    volle KPI-Wertung; €-Wert entsteht nur bei einer KPI-Bewegung.
-  //  - Flat-Forecast (keine KPI-Wertung): Business-Case-`recurringBenefit`/12 ab
-  //    Go-live (cost start + #slices × 6 Monate).
-  // Der one-time-Benefit ist ein Completion-Effekt und landet immer bei go-live.
+  // Benefit-Velocity je Monat — die beiden Nutzen-Arten getrennt (benefitKind):
+  //
+  //  Einmal-Benefit (one-time):
+  //   - KPI-getrieben (`kpiRealizedValueByMonth` vorhanden): der in diesem Monat
+  //     **realisierte** Wert = Zuwachs der kumulierten Realisierung
+  //     (realized(m) − realized(m−1)); über die Zeit summiert auf den vollen
+  //     one-time-KPI-Wert, €-Wert nur bei KPI-Bewegung.
+  //   - Fallback (keine one-time-KPI): Business-Case-`oneTimeBenefit` als Spike
+  //     bei go-live (Completion-Effekt).
+  //
+  //  Wiederkehrender Benefit (recurring):
+  //   - KPI-getrieben (`kpiRecurringByMonth` vorhanden): laufende Run-Rate
+  //     annual/12 × fulfilment(m), fortlaufend über die Achse.
+  //   - Fallback (keine recurring-KPI): Business-Case-`recurringBenefit`/12 ab
+  //     go-live (cost start + #slices × 6 Monate).
   const goLiveIdx = monthDiff(axis.start, monthStart(input.goLive));
-  const realized = input.kpiRealizedValueByMonth;
-  if (realized) {
+
+  const oneTime = input.kpiRealizedValueByMonth;
+  if (oneTime) {
     let prev = 0;
     for (let idx = 0; idx < axis.monthCount; idx++) {
-      const cum = realized[idx] ?? 0;
+      const cum = oneTime[idx] ?? 0;
       benefit[idx] = (benefit[idx] ?? 0) + (cum - prev);
       prev = cum;
+    }
+  } else if (goLiveIdx >= 0 && goLiveIdx < axis.monthCount) {
+    benefit[goLiveIdx] = (benefit[goLiveIdx] ?? 0) + input.oneTimeBenefit;
+  }
+
+  const recurring = input.kpiRecurringByMonth;
+  if (recurring) {
+    for (let idx = 0; idx < axis.monthCount; idx++) {
+      benefit[idx] = (benefit[idx] ?? 0) + (recurring[idx] ?? 0);
     }
   } else {
     const recPerMonth = input.recurringBenefit / 12;
     for (let idx = Math.max(0, goLiveIdx); idx < axis.monthCount; idx++) {
       benefit[idx] = (benefit[idx] ?? 0) + recPerMonth;
     }
-  }
-  if (goLiveIdx >= 0 && goLiveIdx < axis.monthCount) {
-    benefit[goLiveIdx] = (benefit[goLiveIdx] ?? 0) + input.oneTimeBenefit;
   }
 
   return { cost, benefit };
@@ -322,6 +381,8 @@ export interface BenefitKpiDTO {
   measurements: KpiMeasurement[];
   /** €-Wert je Einheit (KPI-Wertung — Quelle der Benefit-Velocity). */
   valuePerUnit: number | null;
+  /** Benefit-Art: "one_time" | "recurring" — partitioniert Einmal vs. Run-Rate. */
+  benefitKind: string;
 }
 
 /** One Epic's economics, serialisable (dates as ISO `yyyy-mm-dd`). */
@@ -372,9 +433,11 @@ const isoToDate = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 
 /** Maps one DTO Epic onto the axis, applying its KPI factor and cost override. */
 function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
-  // KPI-Wertung treibt die Benefit-Velocity (€-Zuwachs über die Zeit); ohne
-  // bewertete KPI → Flat-Forecast über den Business-Case-recurringBenefit.
+  // KPI-Wertung treibt die Benefit-Velocity (€ über die Zeit), nach Art getrennt:
+  // one-time-KPIs → Realisierungs-Zuwachs, recurring-KPIs → laufende Run-Rate.
+  // Ohne bewertete KPI der jeweiligen Art → Business-Case-Fallback (Spike bzw. flat).
   const realized = kpiRealizedValueByMonth(e.benefitKpis, axis);
+  const recurring = kpiRecurringByMonth(e.benefitKpis, axis);
   // A participatory-budgeting allocation drives the cost over the forecast slices.
   const costByMonth = e.hasAllocation ? allocatedCostByMonth(e.allocatedByPeriod, axis) : null;
   return {
@@ -386,6 +449,7 @@ function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
     costStart: isoToDate(e.costStartIso),
     goLive: isoToDate(e.goLiveIso),
     ...(realized ? { kpiRealizedValueByMonth: realized } : {}),
+    ...(recurring ? { kpiRecurringByMonth: recurring } : {}),
     ...(costByMonth ? { costByMonth } : {}),
   };
 }

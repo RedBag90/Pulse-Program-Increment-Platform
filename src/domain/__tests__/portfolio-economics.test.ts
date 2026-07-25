@@ -5,8 +5,11 @@ import {
   aggregatePortfolio,
   kpiFulfillmentByMonth,
   recurringFactorByMonth,
+  kpiRealizedValueByMonth,
+  kpiRecurringByMonth,
   allocatedCostByMonth,
   type EpicEconomicsInput,
+  type BenefitKpiInput,
 } from "@/domain/portfolio-economics";
 import { buildMonthAxis } from "@/domain/calendar";
 import type { KpiMeasurement } from "@/domain/kpi";
@@ -143,6 +146,7 @@ describe("recurringFactorByMonth", () => {
           target: 80,
           weight: 0.5,
           valuePerUnit: null,
+          benefitKind: "recurring",
         }, // 1.0
         {
           measurements: [{ date: "2024-01-01", value: 40 }],
@@ -150,6 +154,7 @@ describe("recurringFactorByMonth", () => {
           target: 80,
           weight: 0.5,
           valuePerUnit: null,
+          benefitKind: "recurring",
         }, // 0
       ],
       axis,
@@ -192,28 +197,99 @@ describe("epicMonthlyFlows cost override (budget allocation)", () => {
 describe("epicMonthlyFlows — KPI-realized-value velocity", () => {
   const axis = buildMonthAxis(utc("2024-01-01"), utc("2026-12-01"));
 
-  it("benefit je Monat = Zuwachs der kumulierten KPI-Realisierung", () => {
-    // kumuliert realisiert: +20k@idx3, +20k@idx6, +20k@idx9 → 60k gesamt
+  it("Einmal-Benefit je Monat = Zuwachs der kumulierten one-time-KPI-Realisierung", () => {
+    // kumuliert realisiert: +20k@idx3, +20k@idx6, +20k@idx9 → 60k gesamt.
+    // recurringBenefit 0 isoliert die Einmal-Realisierung (kein Flat-Fallback).
     const realized = zerosArr(axis.monthCount);
     for (let i = 3; i < 6; i++) realized[i] = 20000;
     for (let i = 6; i < 9; i++) realized[i] = 40000;
     for (let i = 9; i < axis.monthCount; i++) realized[i] = 60000;
-    const { benefit } = epicMonthlyFlows({ ...epic(), kpiRealizedValueByMonth: realized }, axis);
+    const { benefit } = epicMonthlyFlows(
+      { ...epic({ recurringBenefit: 0 }), kpiRealizedValueByMonth: realized },
+      axis,
+    );
     expect(benefit[3]).toBeCloseTo(20000); // Zuwachs 0 → 20k
     expect(benefit[4]).toBeCloseTo(0); // kein Zuwachs
     expect(benefit[6]).toBeCloseTo(20000); // 20k → 40k
     expect(benefit[9]).toBeCloseTo(20000); // 40k → 60k
-    // one-time (500) landet bei go-live (idx 12); dort ist der Zuwachs 0.
-    expect(benefit[12]).toBeCloseTo(500);
-    // Summe ohne one-time = volle KPI-Wertung 60k
-    const sum = benefit.reduce((s, v, i) => s + (i === 12 ? v - 500 : v), 0);
-    expect(sum).toBeCloseTo(60000);
+    // one-time-KPI vorhanden ⇒ kein Business-Case-oneTimeBenefit-Spike bei go-live
+    expect(benefit[12]).toBeCloseTo(0);
+    // Summe = volle one-time-KPI-Wertung 60k
+    expect(benefit.reduce((s, v) => s + v, 0)).toBeCloseTo(60000);
   });
 
   it("keeps the flat forecast gated at go-live when no KPI value is supplied", () => {
     const { benefit } = epicMonthlyFlows(epic(), axis);
     expect(benefit[11]).toBe(0); // month before go-live — still gated
     expect(benefit[13]).toBeCloseTo(100);
+  });
+});
+
+const bk = (over: Partial<BenefitKpiInput> = {}): BenefitKpiInput => ({
+  measurements: [{ date: "2024-06-10", value: 50 }], // fulfilment 0.5 from Jun
+  baseline: 0,
+  target: 100,
+  weight: 1,
+  valuePerUnit: 10, // planned = |100-0| × 10 = 1000
+  benefitKind: "recurring",
+  ...over,
+});
+
+describe("kpiRealizedValueByMonth — one-time only", () => {
+  const axis = buildMonthAxis(utc("2024-01-01"), utc("2024-12-01")); // 12 months
+
+  it("returns null when no valued one-time KPI is linked", () => {
+    expect(kpiRealizedValueByMonth([], axis)).toBeNull();
+    // a valued KPI that is recurring does not count for the one-time series
+    expect(kpiRealizedValueByMonth([bk({ benefitKind: "recurring" })], axis)).toBeNull();
+  });
+
+  it("accrues the realized one-time value from the measurement month", () => {
+    const r = kpiRealizedValueByMonth([bk({ benefitKind: "one_time" })], axis);
+    expect(r).not.toBeNull();
+    expect(r![4]).toBeCloseTo(0); // May — before the measurement
+    expect(r![5]).toBeCloseTo(500); // Jun — fulfilment 0.5 × planned 1000
+    expect(r![11]).toBeCloseTo(500); // plateaus at the last reading
+  });
+
+  it("ignores recurring KPIs when both kinds are linked", () => {
+    const r = kpiRealizedValueByMonth(
+      [bk({ benefitKind: "one_time" }), bk({ benefitKind: "recurring", valuePerUnit: 99 })],
+      axis,
+    );
+    expect(r![11]).toBeCloseTo(500); // only the one-time KPI contributes
+  });
+});
+
+describe("kpiRecurringByMonth — recurring run-rate", () => {
+  const axis = buildMonthAxis(utc("2024-01-01"), utc("2024-12-01"));
+
+  it("returns null when no valued recurring KPI is linked", () => {
+    expect(kpiRecurringByMonth([], axis)).toBeNull();
+    expect(kpiRecurringByMonth([bk({ benefitKind: "one_time" })], axis)).toBeNull();
+  });
+
+  it("is annual/12 × fulfilment per month from the measurement month", () => {
+    // recurring KPI: annual = 1000, monthlyAtFull = 1000/12; fulfilment 0.5 → 500/12
+    const r = kpiRecurringByMonth([bk({ benefitKind: "recurring" })], axis);
+    expect(r).not.toBeNull();
+    expect(r![4]).toBeCloseTo(0); // May — before the measurement
+    expect(r![5]).toBeCloseTo(1000 / 12 / 2); // Jun onward — run-rate at 0.5 fulfilment
+    expect(r![11]).toBeCloseTo(1000 / 12 / 2); // ongoing, not a one-shot
+  });
+});
+
+describe("epicMonthlyFlows — recurring KPI run-rate + one-time fallback", () => {
+  const axis = buildMonthAxis(utc("2024-01-01"), utc("2026-12-01"));
+
+  it("adds the recurring run-rate every month and keeps the one-time spike at go-live", () => {
+    const recurring = zerosArr(axis.monthCount);
+    for (let i = 6; i < axis.monthCount; i++) recurring[i] = 300; // run-rate from idx 6
+    const { benefit } = epicMonthlyFlows({ ...epic(), kpiRecurringByMonth: recurring }, axis);
+    expect(benefit[5]).toBeCloseTo(0); // before the run-rate starts
+    expect(benefit[6]).toBeCloseTo(300); // run-rate, no flat fallback added
+    expect(benefit[13]).toBeCloseTo(300); // ongoing run-rate (not recurringBenefit/12=100)
+    expect(benefit[12]).toBeCloseTo(300 + 500); // go-live: run-rate + one-time spike (no one-time KPI)
   });
 });
 

@@ -66,6 +66,7 @@ export async function getPortfolioEconomics(
             measurements: true,
             benefitWeight: true,
             valuePerUnit: true,
+            benefitKind: true,
           },
         },
         budgetAllocation: { select: { allocations: true } },
@@ -93,6 +94,7 @@ export async function getPortfolioEconomics(
         measurements: parseKpiMeasurements(k.measurements),
         benefitWeight: k.benefitWeight === null ? null : Number(k.benefitWeight),
         valuePerUnit: k.valuePerUnit === null ? null : Number(k.valuePerUnit),
+        benefitKind: k.benefitKind,
       })),
     });
 
