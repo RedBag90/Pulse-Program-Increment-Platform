@@ -28,7 +28,14 @@ interface BusinessCaseEditorProps {
   /** KPI-Namen aus dem KPI-Tab. Ersetzen das frueher freie Leading-
    *  Indicators-Feld: Single-Source-of-Truth ist der KPI-Tab. */
   kpiNames?: string[];
+  /** Nutzen bei 100 % KPI-Zielerreichung — direkt aus den KPIs berechnet (read-only). */
+  kpiBenefit?: { oneTimeBenefit: number; recurringBenefit: number };
+  /** Ob mindestens eine bewertete KPI (valuePerUnit gesetzt) existiert — steuert den Hinweis. */
+  hasValuedKpis?: boolean;
 }
+
+const fmtEur = (n: number): string =>
+  n.toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
 const INPUT_CLASS =
   "w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -55,6 +62,8 @@ export function BusinessCaseEditor({
   lockReason,
   canSubmit = false,
   kpiNames = [],
+  kpiBenefit = { oneTimeBenefit: 0, recurringBenefit: 0 },
+  hasValuedKpis = false,
 }: BusinessCaseEditorProps) {
   const [state, action, isPending] = useActionState(saveBusinessCaseAction, {});
   const [submitState, submitAction, submitPending] = useActionState(
@@ -276,42 +285,28 @@ export function BusinessCaseEditor({
             <div className="grid gap-4 lg:grid-cols-3">
               <div className="space-y-3 lg:col-span-2">
                 <p className="text-sm font-medium">Nutzen</p>
+                <p className="text-xs text-muted-foreground">
+                  Der Nutzen wird direkt aus den KPIs berechnet — der Wert bei 100 % Zielerreichung.
+                  Pflege ihn je KPI im Tab „KPIs" (€/Einheit + Ziel).
+                </p>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="bc-onetime" className="mb-1 block text-sm font-medium">
-                      Einmaliger Nutzen
-                    </label>
-                    <input
-                      id="bc-onetime"
-                      type="number"
-                      step="any"
-                      min={0}
-                      name="oneTimeBenefit"
-                      defaultValue={current.oneTimeBenefit ?? ""}
-                      placeholder="0"
-                      className={INPUT_CLASS}
-                    />
+                  <div className="rounded border bg-muted/20 p-3">
+                    <p className="text-sm font-medium">Einmaliger Nutzen</p>
+                    <p className="mt-1 text-2xl font-semibold tabular-nums">
+                      {hasValuedKpis ? fmtEur(kpiBenefit.oneTimeBenefit) : "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">aus one-time-KPIs</p>
                   </div>
-                  <div>
-                    <label htmlFor="bc-recurring" className="mb-1 block text-sm font-medium">
-                      Wiederkehrender Nutzen p.a. (bei 100 % KPI-Zielerreichung)
-                    </label>
-                    <input
-                      id="bc-recurring"
-                      type="number"
-                      step="any"
-                      min={0}
-                      name="recurringBenefit"
-                      defaultValue={current.recurringBenefit ?? ""}
-                      placeholder="0"
-                      className={INPUT_CLASS}
-                    />
+                  <div className="rounded border bg-muted/20 p-3">
+                    <p className="text-sm font-medium">Wiederkehrender Nutzen p.a.</p>
+                    <p className="mt-1 text-2xl font-semibold tabular-nums">
+                      {hasValuedKpis ? fmtEur(kpiBenefit.recurringBenefit) : "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      aus wiederkehrenden KPIs, auf p.a. normalisiert
+                    </p>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Die Gewichtung, welche KPI den wiederkehrenden Nutzen realisiert, wird im Tab
-                  „KPIs" je KPI als „Nutzen-Anteil" gepflegt.
-                </p>
               </div>
 
               <aside className="self-start rounded-md border bg-muted/30 p-3 text-sm">
@@ -319,8 +314,9 @@ export function BusinessCaseEditor({
                   <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600" />
                   <div className="space-y-2">
                     <p className="text-xs leading-snug text-muted-foreground">
-                      Zur besseren Konkretisierung KPIs hinterlegen — damit der wiederkehrende
-                      Nutzen pro KPI gewichtet werden kann.
+                      {hasValuedKpis
+                        ? "Der Nutzen ergibt sich aus €/Einheit × |Ziel − Baseline| je bewerteter KPI. Zum Anpassen die KPIs pflegen."
+                        : "Noch keine bewertete KPI — hinterlege je KPI Benefit-Art, €/Einheit und Ziel, damit der Nutzen berechnet werden kann."}
                     </p>
                     <Link
                       href={`/portfolio/epics/${epicId}?tab=kpis` as never}

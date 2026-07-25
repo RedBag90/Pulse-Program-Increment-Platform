@@ -21,6 +21,8 @@ import {
 import { parseTimeline } from "@/domain/timeline";
 import { resolveCostStart, resolveGoLive } from "@/domain/epic-schedule";
 import type { KpiMeasurement } from "@/domain/kpi";
+import { benefitKindOrDefault } from "@/domain/kpi-benefit-kind";
+import { recurringIntervalOrDefault } from "@/domain/kpi-recurring-interval";
 
 /** A KPI as the read-model needs it — Prisma `Decimal`s already converted. */
 export interface EpicEconomicsKpiInput {
@@ -84,6 +86,46 @@ export interface EpicEconomicsView {
   benefitKpis: BenefitKpi[];
 }
 
+/** €-Nutzen eines Epics bei 100 % KPI-Zielerreichung, aus den KPIs abgeleitet. */
+export interface EpicBenefit {
+  oneTimeBenefit: number;
+  recurringBenefit: number;
+}
+
+/** Nur die Felder, die `epicBenefitFromKpis` braucht — strukturell erfüllt von KPI-Rows/DTOs. */
+export interface BenefitKpiFacts {
+  baseline: number | null;
+  target: number | null;
+  valuePerUnit: number | null;
+  benefitKind: string;
+  recurringInterval: string;
+}
+
+/**
+ * Leitet den Business-Case-Nutzen **direkt aus den KPIs** ab — der €-Wert bei
+ * 100 % Zielerreichung (single source of truth, ersetzt die manuelle Eingabe):
+ *  - **Einmaliger Nutzen** = Σ über one-time-KPIs von `plannedₖ = |Ziel−Baseline| × valuePerUnit`.
+ *  - **Wiederkehrender Nutzen p.a.** = Σ über recurring-KPIs von `plannedₖ`, annualisiert
+ *    (`recurringInterval="monthly"` → ×12, sonst ×1).
+ * Bewertet = `valuePerUnit`, `baseline` und `target` gesetzt; sonst kein Beitrag → 0.
+ */
+export function epicBenefitFromKpis(kpis: BenefitKpiFacts[]): EpicBenefit {
+  let oneTimeBenefit = 0;
+  let recurringBenefit = 0;
+  for (const k of kpis) {
+    if (k.valuePerUnit == null || k.baseline == null || k.target == null) continue;
+    const planned = Math.abs(k.target - k.baseline) * k.valuePerUnit;
+    if (planned === 0) continue;
+    if (benefitKindOrDefault(k.benefitKind) === "one_time") {
+      oneTimeBenefit += planned;
+    } else {
+      recurringBenefit +=
+        recurringIntervalOrDefault(k.recurringInterval) === "monthly" ? planned * 12 : planned;
+    }
+  }
+  return { oneTimeBenefit, recurringBenefit };
+}
+
 /**
  * Resolves each KPI's share of the recurring benefit:
  *  - some KPI carries a weight → use the weights literally (unweighted = 0);
@@ -124,13 +166,16 @@ export function deriveEpicEconomics(source: EpicEconomicsSource): EpicEconomicsV
     createdAt: source.createdAt,
   });
   const goLive = resolveGoLive(timeline, costStart, costSlices.length);
+  // Nutzen wird direkt aus den KPIs berechnet (100 %-Zielerreichung), nicht mehr
+  // manuell im Business Case gepflegt — kein bewerteter KPI → 0.
+  const benefit = epicBenefitFromKpis(source.kpis);
   return {
     businessCase,
     hasBusinessCase: businessCaseHasContent(businessCase),
     costSlices,
-    oneTimeBenefit: businessCase.oneTimeBenefit ?? 0,
-    recurringBenefit: businessCase.recurringBenefit ?? 0,
-    totals: computeBusinessCaseTotals(businessCase),
+    oneTimeBenefit: benefit.oneTimeBenefit,
+    recurringBenefit: benefit.recurringBenefit,
+    totals: computeBusinessCaseTotals(businessCase, benefit),
     costStart,
     goLive,
     benefitKpis: resolveBenefitWeights(source.kpis),

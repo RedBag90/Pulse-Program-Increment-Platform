@@ -45,6 +45,7 @@ import {
 import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-button";
 import { parseBenefitHypothesis, benefitHypothesisHasContent } from "@/domain/benefit-hypothesis";
 import { parseBusinessCase, businessCaseHasContent } from "@/domain/business-case";
+import { epicBenefitFromKpis } from "@/domain/epic-economics";
 import { epicNextStep } from "@/domain/epic-next-step";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
@@ -346,6 +347,12 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     measurements: parseKpiMeasurements(k.measurements),
   }));
 
+  // Business-Case-Nutzen wird direkt aus den KPIs berechnet (100 %-Zielerreichung).
+  const kpiBenefit = epicBenefitFromKpis(kpiRows);
+  const hasValuedKpis = kpiRows.some(
+    (k) => k.valuePerUnit != null && k.baseline != null && k.target != null,
+  );
+
   const benefitHypothesis = parseBenefitHypothesis(epic.benefitHypothesis);
   const businessCase = parseBusinessCase(epic.businessCase);
   const timeline = parseTimeline(epic.timeline);
@@ -479,6 +486,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               canConfirmImpact={canConfirmImpact}
               approvers={approvers}
               userLabels={userLabels}
+              kpiBenefit={kpiBenefit}
             />
           </div>
         )}
@@ -532,6 +540,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                       history={[]}
                       readOnly
                       kpiNames={kpiNames}
+                      kpiBenefit={kpiBenefit}
+                      hasValuedKpis={hasValuedKpis}
                     />
                   }
                   right={
@@ -541,6 +551,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                       history={businessCase.history}
                       readOnly={!bcEditable}
                       kpiNames={kpiNames}
+                      kpiBenefit={kpiBenefit}
+                      hasValuedKpis={hasValuedKpis}
                       {...(bcLockReason && { lockReason: bcLockReason })}
                     />
                   }
@@ -553,6 +565,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                   readOnly={!bcEditable}
                   canSubmit={canSubmitBusinessCase}
                   kpiNames={kpiNames}
+                  kpiBenefit={kpiBenefit}
+                  hasValuedKpis={hasValuedKpis}
                   {...(bcLockReason && { lockReason: bcLockReason })}
                 />
               );

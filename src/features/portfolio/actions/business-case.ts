@@ -43,8 +43,8 @@ export const saveBusinessCaseAction = createServerAction({
       { length: Math.max(0, num(fd, "costSliceCount") ?? 0) },
       (_unused, i) => ({ amount: num(fd, `costSlice_${i}`) }),
     ),
-    oneTimeBenefit: num(fd, "oneTimeBenefit"),
-    recurringBenefit: num(fd, "recurringBenefit"),
+    // oneTimeBenefit/recurringBenefit werden nicht mehr eingegeben — sie leiten
+    // sich live aus den KPIs ab (epicBenefitFromKpis) und sind read-only.
   }),
   service: (ctx, input) => {
     const { epicId, ...fields } = input;

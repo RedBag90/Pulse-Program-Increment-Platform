@@ -121,6 +121,22 @@ describe("computeBusinessCaseTotals", () => {
       10,
     );
   });
+
+  it("uses the KPI-derived benefit when provided (overrides the fields, even 0)", () => {
+    expect(
+      computeBusinessCaseTotals(
+        { costSlices: [{ amount: 1_000 }], oneTimeBenefit: 5_000, recurringBenefit: 30_000 },
+        { oneTimeBenefit: 800, recurringBenefit: 400 },
+      ),
+    ).toEqual({ implementationCost: 1_000, oneTimeBenefit: 800, recurringBenefit: 400 });
+    // KPI-Benefit 0 gewinnt ebenfalls über die (veralteten) Feld-Werte
+    expect(
+      computeBusinessCaseTotals(
+        { oneTimeBenefit: 5_000, recurringBenefit: 30_000 },
+        { oneTimeBenefit: 0, recurringBenefit: 0 },
+      ),
+    ).toEqual({ implementationCost: 0, oneTimeBenefit: 0, recurringBenefit: 0 });
+  });
 });
 
 describe("costSliceLabel", () => {

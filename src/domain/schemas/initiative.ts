@@ -66,8 +66,8 @@ export const businessCaseSchema = z.object({
   outOfScope: z.string().max(2000).optional(),
   whatYouNeedToBelieve: z.string().max(2000).optional(),
   costSlices: z.array(businessCaseCostSliceSchema).max(24).optional(),
-  oneTimeBenefit: z.number().nonnegative().optional(),
-  recurringBenefit: z.number().nonnegative().optional(),
+  // oneTimeBenefit/recurringBenefit werden nicht mehr eingegeben — sie leiten sich
+  // live aus den KPIs ab (epicBenefitFromKpis) und werden nicht mehr gespeichert.
   customersAffected: z.string().max(5000).optional(),
   impactOnSolutions: z.string().max(5000).optional(),
   analysisSummary: z.string().max(5000).optional(),

@@ -48,8 +48,8 @@ export function businessCaseDiffRows(
       before: slices(baseline.costSlices),
       after: slices(current.costSlices),
     },
-    row("Einmaliger Nutzen", "oneTimeBenefit"),
-    row("Wiederkehrender Nutzen (p.a.)", "recurringBenefit"),
+    // Einmaliger / Wiederkehrender Nutzen sind keine BC-Felder mehr — sie leiten
+    // sich live aus den KPIs ab und erscheinen daher nicht im BC-Revisions-Diff.
   ];
 }
 

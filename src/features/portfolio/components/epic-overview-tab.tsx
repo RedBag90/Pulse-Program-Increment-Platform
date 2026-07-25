@@ -61,6 +61,8 @@ export interface EpicOverviewTabProps {
   canConfirmImpact: boolean;
   approvers: { userId: string; roles: string[] }[];
   userLabels: Record<string, string>;
+  /** Nutzen bei 100 % KPI-Zielerreichung — direkt aus den KPIs berechnet. */
+  kpiBenefit: { oneTimeBenefit: number; recurringBenefit: number };
 }
 
 function formatAmount(n: number): string {
@@ -93,6 +95,7 @@ export function EpicOverviewTab({
   canConfirmImpact,
   approvers,
   userLabels,
+  kpiBenefit,
 }: EpicOverviewTabProps) {
   const completedChildren = epic.children.filter((c) => c.status === "completed").length;
   const totalChildren = epic.children.length;
@@ -111,7 +114,10 @@ export function EpicOverviewTab({
     updatedAt: epic.updatedAt,
   });
 
-  const totals = computeBusinessCaseTotals(parseBusinessCase(epic.businessCase).current);
+  const totals = computeBusinessCaseTotals(
+    parseBusinessCase(epic.businessCase).current,
+    kpiBenefit,
+  );
 
   // Der Confirm-Dialog und die L5-Bestätigungs-Anzeige leben jetzt im
   // Sub-Header (`EpicReifegradActivityBar` auf der Seite). `showImpactConfirm`

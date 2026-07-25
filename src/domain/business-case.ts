@@ -136,16 +136,26 @@ export function businessCaseHasContent(fields: BusinessCaseFields): boolean {
   });
 }
 
-/** Aggregates the cost slices and benefit fields — feeds the Overview tab. */
-export function computeBusinessCaseTotals(fields: BusinessCaseFields): BusinessCaseTotals {
+/**
+ * Aggregates the cost slices and benefit fields — feeds the Overview tab.
+ *
+ * `implementationCost` kommt immer aus den `costSlices`. Der Nutzen wird seit der
+ * KPI-Ableitung aus `kpiBenefit` gespeist (auch 0); nur ohne `kpiBenefit` fällt er
+ * auf die (veralteten) manuellen Feld-Werte zurück — für Aufrufer ohne KPI-Kontext,
+ * die den Nutzen ohnehin nicht anzeigen (z. B. reine Kostenaggregation).
+ */
+export function computeBusinessCaseTotals(
+  fields: BusinessCaseFields,
+  kpiBenefit?: { oneTimeBenefit: number; recurringBenefit: number },
+): BusinessCaseTotals {
   const implementationCost = (fields.costSlices ?? []).reduce(
     (acc, slice) => acc + (slice.amount ?? 0),
     0,
   );
   return {
     implementationCost,
-    oneTimeBenefit: fields.oneTimeBenefit ?? 0,
-    recurringBenefit: fields.recurringBenefit ?? 0,
+    oneTimeBenefit: kpiBenefit ? kpiBenefit.oneTimeBenefit : (fields.oneTimeBenefit ?? 0),
+    recurringBenefit: kpiBenefit ? kpiBenefit.recurringBenefit : (fields.recurringBenefit ?? 0),
   };
 }
 

@@ -3,6 +3,7 @@ import {
   computeBusinessCaseTotals,
   type BusinessCaseTotals,
 } from "@/domain/business-case";
+import { epicBenefitFromKpis } from "@/domain/epic-economics";
 import {
   STAGE_GATES,
   SUB_STAGES,
@@ -83,6 +84,10 @@ interface KpiRow {
   baseline: number | null;
   target: number;
   current: number | null;
+  /** KPI-Wertung — treibt den abgeleiteten Business-Case-Nutzen. */
+  valuePerUnit: number | null;
+  benefitKind: string;
+  recurringInterval: string;
 }
 
 interface ApprovalRow {
@@ -140,10 +145,11 @@ function meanKpiProgress(kpis: KpiRow[]): number | null {
  * empty (a fresh L0 epic) or carries no monetary fields yet; the table shows
  * "—" in that case.
  */
-function deriveEconomics(businessCase: unknown): EpicEconomics {
+function deriveEconomics(businessCase: unknown, kpis: KpiRow[]): EpicEconomics {
   const parsed = parseBusinessCase(businessCase);
   const fields = parsed.current;
-  const totals: BusinessCaseTotals = computeBusinessCaseTotals(fields);
+  // Nutzen kommt direkt aus den KPIs (100 %-Zielerreichung), Kosten aus dem BC.
+  const totals: BusinessCaseTotals = computeBusinessCaseTotals(fields, epicBenefitFromKpis(kpis));
   const hasAny =
     totals.implementationCost > 0 || totals.oneTimeBenefit > 0 || totals.recurringBenefit > 0;
   if (!hasAny) {
@@ -196,7 +202,7 @@ export function buildEpicsListModel(input: {
       ownerLabel: e.ownerId ? (userLabels[e.ownerId] ?? null) : null,
       needsSteeringAttention: e.needsSteeringAttention,
       stagedForBudgeting: e.stagedForBudgeting,
-      economics: deriveEconomics(e.businessCase),
+      economics: deriveEconomics(e.businessCase, e.kpis),
       kpiProgress,
       kpiTier: kpiProgress != null ? ragTier(kpiProgress) : null,
       kpiCount: e.kpis.length,

@@ -807,7 +807,16 @@ export async function listEpicsForPortfolioList(db: PrismaClient, tenantId: Tena
     where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
     include: {
       valueStream: { select: { id: true, name: true } },
-      kpis: { select: { baseline: true, target: true, measurements: true } },
+      kpis: {
+        select: {
+          baseline: true,
+          target: true,
+          measurements: true,
+          valuePerUnit: true,
+          benefitKind: true,
+          recurringInterval: true,
+        },
+      },
       epicApprovals: { select: { revision: true, status: true } },
     },
     orderBy: [{ stageGate: "asc" }, { createdAt: "desc" }],
