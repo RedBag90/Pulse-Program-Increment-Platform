@@ -1,31 +1,18 @@
 import type { PrismaClient } from "@/generated/prisma";
-import {
-  keyResultTrio,
-  keyResultProgress,
-  kpiContributionDetail,
-  epicLinkTrio,
-  sumTrios,
-  nodeProgress,
-  nodeTrio,
-  type KpiInput,
-  type KrContributionInput,
-  type RollupTrio,
-  type RollupNode,
-} from "@/domain/goals-rollup";
+import { sumTrios, type KpiInput, type RollupTrio } from "@/domain/goals-rollup";
 import { parseOptions } from "@/domain/goal-custom-field";
 import { filterGoalBranches } from "@/domain/goal-tree-filter";
-import {
-  effectiveProgressMode,
-  autoKpiCurrent,
-  isMeasurableGoal,
-  type ProgressMode,
-} from "@/domain/goal-progress-mode";
+import { type ProgressMode } from "@/domain/goal-progress-mode";
 import { parseMeasurements, latestMeasurement } from "@/domain/kpi-measurement";
 import {
-  buildAutoKpiSeries,
-  buildNodeProgressSeries,
-  type SeriesNode,
-} from "@/domain/goal-progress-series";
+  buildStrategyTree,
+  buildProgressChart as deriveProgressChart,
+  type ForestObjective,
+  type ForestRelatedEpic,
+  type ForestLookups,
+  type ChartObjective,
+  type ChartRootCheckin,
+} from "./goals-forest";
 
 /**
  * Ziele-/Strategie-/KPI-Coverage Loader. Zwei page-models leben hier:
@@ -291,7 +278,7 @@ export async function loadStrategyTree(
   // "Related work": verknüpfte Epics je Knoten — EINE Query (kein N+1),
   // soft-gelöschte Epics ausgeblendet. €-Beitrag aus den Epic-KPIs. `unit` wird
   // zusätzlich geladen für die einheitengleiche Fortschritts-Ableitung (auto_kpi).
-  const relatedByNode = new Map<string, RelatedEpic[]>();
+  const relatedByNode = new Map<string, ForestRelatedEpic[]>();
   const epicKpisByNode = new Map<string, { unit: string | null; current: number | null }[]>();
   if (nodeIds.length > 0) {
     const epicLinks = await db.goalEpicLink.findMany({
@@ -325,16 +312,15 @@ export async function loadStrategyTree(
         current: latestMeasurement(k.measurements),
         valuePerUnit: toFloat(k.valuePerUnit),
       }));
-      const related: RelatedEpic = {
+      // €-Trio wird im Goal-Forest-Read-Model gerechnet (resolveNode); der Loader
+      // reicht nur die Routing-Infos + normalisierten KPIs durch.
+      (relatedByNode.get(link.objectiveId) ?? setAndGet(relatedByNode, link.objectiveId)).push({
         epicId: link.epic.id,
         title: link.epic.title,
         stageGate: link.epic.stageGate,
-        trio: epicLinkTrio([{ epicId: link.epic.id, kpis }]),
         href: `/portfolio/epics/${link.epic.id}`,
-      };
-      (relatedByNode.get(link.objectiveId) ?? setAndGet(relatedByNode, link.objectiveId)).push(
-        related,
-      );
+        kpis,
+      });
       const kpiUnits =
         epicKpisByNode.get(link.objectiveId) ?? setAndGet(epicKpisByNode, link.objectiveId);
       for (const k of link.epic.kpis) {
@@ -457,160 +443,60 @@ export async function loadStrategyTree(
     options: parseOptions(d.options),
   }));
 
-  // Kinder je Parent (in Load-Reihenfolge = sortOrder, createdAt).
-  const childrenByParent = new Map<string, typeof objectiveRows>();
-  const roots: typeof objectiveRows = [];
-  for (const o of objectiveRows) {
-    if (o.parentObjectiveId) {
-      (
-        childrenByParent.get(o.parentObjectiveId) ??
-        setAndGet(childrenByParent, o.parentObjectiveId)
-      ).push(o);
-    } else {
-      roots.push(o);
-    }
-  }
-
-  type Row = (typeof objectiveRows)[number];
-
-  // Rekursiver Aufbau: liefert GoalNode + parallelen RollupNode für die
-  // (getesteten) Domain-Rollups nodeProgress/nodeTrio.
-  function build(o: Row, depth: number): { node: GoalNode; rollup: RollupNode } {
-    const relatedEpics = relatedByNode.get(o.id) ?? [];
-    // relatedEpics tragen bereits fertige Trios (im Batch gerechnet) → summieren.
-    const epicTrio = sumTrios(relatedEpics.map((r) => r.trio));
-
-    const kpisById = new Map<string, KpiInput>();
-    for (const c of o.kpiContributions) {
-      kpisById.set(c.kpi.id, {
+  // Normalisierte Zeilen fürs Goal-Forest-Read-Model (reine, DB-freie Ableitung).
+  const forestRows: ForestObjective[] = objectiveRows.map((o) => ({
+    id: o.id,
+    parentObjectiveId: o.parentObjectiveId,
+    nodeKind: o.nodeKind,
+    title: o.title,
+    narrative: o.narrative,
+    period: o.period,
+    confidence: o.confidence,
+    status: o.status,
+    dueDate: o.dueDate ? o.dueDate.toISOString() : null,
+    ownerId: o.ownerId,
+    metricUnit: o.metricUnit,
+    metricType: o.metricType,
+    precision: o.precision,
+    currencyCode: o.currencyCode,
+    rollupWeight: toFloat(o.rollupWeight),
+    baseline: toFloat(o.baseline),
+    target: toFloat(o.target),
+    current: toFloat(o.current),
+    formula: o.formula,
+    progressMode: o.progressMode,
+    contributions: o.kpiContributions.map((c) => ({
+      kpiId: c.kpiId,
+      kpiName: c.kpi.name,
+      epicTitle: c.kpi.initiative.title,
+      weight: Number(c.weight),
+      valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
+      kpi: {
         id: c.kpi.id,
         baseline: toFloat(c.kpi.baseline),
         target: toFloat(c.kpi.target),
         current: latestMeasurement(c.kpi.measurements),
         valuePerUnit: toFloat(c.kpi.valuePerUnit),
-      });
-    }
-    const contributions: KrContributionInput[] = o.kpiContributions.map((c) => ({
-      kpiId: c.kpiId,
-      weight: Number(c.weight),
-      valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
-    }));
-    const trioLeaf =
-      o.formula === "auto_from_kpi" ? keyResultTrio(contributions, kpisById) : manualKrTrio();
+      },
+    })),
+  }));
 
-    const childRows = childrenByParent.get(o.id) ?? [];
-    const hasChildren = childRows.length > 0;
+  const lookups: ForestLookups = {
+    latestCheckin: latestByNode,
+    relatedEpics: relatedByNode,
+    epicKpiUnits: epicKpisByNode,
+    relatedWork: relatedWorkByNode,
+    valueStreams: valueStreamsByNode,
+    arts: artsByNode,
+    customFieldDefs: parsedDefs,
+    customFieldValues: valueByNode,
+  };
 
-    // Fortschrittsquelle (goal-progress-mode.ts). null in der DB ⇒ abgeleitet.
-    const mode = effectiveProgressMode(o.progressMode, hasChildren);
-    const unitSpec = {
-      metricUnit: o.metricUnit,
-      metricType: o.metricType,
-      currencyCode: o.currencyCode,
-    };
-    // Für auto_kpi ist der Ist-Wert die Summe der einheitengleichen KPIs aus den
-    // verknüpften Epics; sonst der manuell gepflegte `current`.
-    const effectiveCurrent =
-      mode === "auto_kpi"
-        ? autoKpiCurrent(unitSpec, epicKpisByNode.get(o.id) ?? [])
-        : toFloat(o.current);
-    // rollup ⇒ Fortschritt kommt aus den Kindern (progressLeaf irrelevant).
-    const progressLeaf =
-      mode === "rollup"
-        ? null
-        : keyResultProgress({
-            baseline: toFloat(o.baseline),
-            target: toFloat(o.target),
-            current: effectiveCurrent,
-          });
+  const { themes } = buildStrategyTree({ rows: forestRows, lookups });
 
-    const contributionDetails: ZieleKrContribution[] = o.kpiContributions.map((c) => {
-      const detail = kpiContributionDetail(kpisById.get(c.kpiId), {
-        kpiId: c.kpiId,
-        weight: Number(c.weight),
-        valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
-      });
-      return {
-        kpiId: c.kpiId,
-        kpiName: c.kpi.name,
-        epicTitle: c.kpi.initiative.title,
-        weight: Number(c.weight),
-        valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
-        achievement: detail.achievement,
-        contributionRealized: detail.contributionRealized,
-      };
-    });
-
-    const built = childRows.map((c) => build(c, depth + 1));
-    const childNodes = built.map((b) => b.node);
-    const childRollups = built.map((b) => b.rollup);
-
-    // contributionShare je Kind (Gewicht / Σ Geschwister-Gewichte).
-    const childWeights = childNodes.map((c) => c.rollupWeight ?? 1);
-    const childWeightSum = childWeights.reduce((s, w) => s + w, 0);
-    childNodes.forEach((c, i) => {
-      c.contributionShare = childWeightSum > 0 ? (childWeights[i] ?? 1) / childWeightSum : 0;
-    });
-
-    const rollup: RollupNode = {
-      weight: toFloat(o.rollupWeight) ?? 1,
-      mode,
-      progressLeaf,
-      trioLeaf,
-      trioEpicLinks: epicTrio,
-      children: childRollups,
-    };
-
-    const node: GoalNode = {
-      id: o.id,
-      nodeKind: o.nodeKind,
-      title: o.title,
-      narrative: o.narrative,
-      period: o.period,
-      confidence: o.confidence,
-      status: o.status,
-      dueDate: o.dueDate ? o.dueDate.toISOString() : null,
-      ownerId: o.ownerId,
-      latestCheckin: latestByNode.get(o.id) ?? null,
-      metricUnit: o.metricUnit,
-      metricType: o.metricType,
-      precision: o.precision,
-      currencyCode: o.currencyCode,
-      rollupWeight: toFloat(o.rollupWeight),
-      contributionShare: 0, // vom Parent gesetzt (Roots bleiben 0)
-      baseline: toFloat(o.baseline),
-      target: toFloat(o.target),
-      // auto_kpi zeigt den abgeleiteten Summen-Ist; sonst der gepflegte Wert.
-      current: effectiveCurrent,
-      formula: o.formula,
-      progressMode: mode,
-      isMeasurable: isMeasurableGoal({
-        progressMode: mode,
-        target: toFloat(o.target),
-        hasChildren,
-      }),
-      kpiCount: o.kpiContributions.length,
-      contributions: contributionDetails,
-      relatedEpics,
-      relatedWork: relatedWorkByNode.get(o.id) ?? [],
-      valueStreams: valueStreamsByNode.get(o.id) ?? [],
-      arts: artsByNode.get(o.id) ?? [],
-      customFields: parsedDefs.map((d) => ({
-        ...d,
-        value: valueByNode.get(o.id)?.get(d.defId) ?? "",
-      })),
-      children: childNodes,
-      depth,
-      progress: nodeProgress(rollup),
-      trio: nodeTrio(rollup),
-    };
-    return { node, rollup };
-  }
-
-  let topLevel = roots.map((o) => build(o, 0).node);
-  // Alle Filter nutzen dieselbe „ganzer Ast"-Logik (filterGoalBranches): ein Ziel
-  // bleibt sichtbar, wenn es selbst, ein Vorfahre oder ein Nachfahre matcht —
-  // Treffer + Eltern-Pfad + Unterbaum. Zeitraum greift damit ebenso tief wie VS/ART.
+  // Period-/VS-/ART-Filter: „ganzer Ast" (filterGoalBranches) auf dem fertigen Baum.
+  // tenantTrio wird nach dem Filter über die sichtbaren Roots neu summiert.
+  let topLevel = themes;
   if (period) topLevel = filterGoalBranches(topLevel, (n) => n.period === period);
   if (filterValueStreamId) {
     topLevel = filterGoalBranches(topLevel, (n) =>
@@ -876,7 +762,7 @@ export async function loadGoalDetail(
     })),
   ].sort((x, y) => (x.at < y.at ? 1 : -1));
 
-  const progressChart = await buildProgressChart(db, tenantId, id);
+  const progressChart = await loadProgressChart(db, tenantId, id);
 
   return { checkins, comments, activity, progressChart };
 }
@@ -887,16 +773,16 @@ export async function loadGoalDetail(
  * Punkte sind die eigenen Status-Check-ins. Lädt dafür den Subtree (Nachfahren
  * über den `path`-Präfix) samt Check-ins und verknüpften Epic-KPIs.
  */
-async function buildProgressChart(
+async function loadProgressChart(
   db: PrismaClient,
   tenantId: string,
   id: string,
 ): Promise<ProgressChart> {
+  const empty: ProgressChart = { mode: "percent", series: [], yDomain: [0, 100] };
   const root = await db.objective.findFirst({
     where: { id, tenantId },
-    select: { id: true, path: true, target: true, progressMode: true },
+    select: { id: true, path: true },
   });
-  const empty: ProgressChart = { mode: "percent", series: [], yDomain: [0, 100] };
   if (!root) return empty;
 
   const subtreeRows = await db.objective.findMany({
@@ -933,113 +819,58 @@ async function buildProgressChart(
     }),
   ]);
 
-  // Fortschritt (0..1) je Knoten für die rekursive Serie.
-  const checkinsByNode = new Map<string, { at: string; progress: number }[]>();
+  // Normalisieren fürs reine Goal-Forest-Chart-Read-Model.
+  const progressByNode = new Map<string, { at: string; progress: number }[]>();
+  const rootCheckins: ChartRootCheckin[] = [];
   for (const c of checkinAll) {
-    if (!c.objectiveId || c.progress == null) continue;
-    (checkinsByNode.get(c.objectiveId) ?? setAndGet(checkinsByNode, c.objectiveId)).push({
-      at: c.createdAt.toISOString(),
-      progress: Number(c.progress),
-    });
+    if (!c.objectiveId) continue;
+    if (c.progress != null) {
+      (progressByNode.get(c.objectiveId) ?? setAndGet(progressByNode, c.objectiveId)).push({
+        at: c.createdAt.toISOString(),
+        progress: Number(c.progress),
+      });
+    }
+    if (c.objectiveId === id) {
+      rootCheckins.push({
+        atMs: c.createdAt.getTime(),
+        status: c.status,
+        value: toFloat(c.value),
+        progress: toFloat(c.progress),
+      });
+    }
   }
-  const kpisByNode = new Map<
+  const epicKpisByNode = new Map<
     string,
     { unit: string | null; measurements: ReturnType<typeof parseMeasurements> }[]
   >();
   for (const l of epicLinks) {
     if (!l.objectiveId) continue;
-    const arr = kpisByNode.get(l.objectiveId) ?? setAndGet(kpisByNode, l.objectiveId);
+    const arr = epicKpisByNode.get(l.objectiveId) ?? setAndGet(epicKpisByNode, l.objectiveId);
     for (const k of l.epic.kpis)
       arr.push({ unit: k.unit, measurements: parseMeasurements(k.measurements) });
   }
-  const childrenByParent = new Map<string, typeof subtreeRows>();
-  for (const r of subtreeRows) {
-    if (r.parentObjectiveId) {
-      (
-        childrenByParent.get(r.parentObjectiveId) ??
-        setAndGet(childrenByParent, r.parentObjectiveId)
-      ).push(r);
-    }
-  }
 
-  type Row = (typeof subtreeRows)[number];
-  const toSeriesNode = (row: Row): SeriesNode => {
-    const kids = childrenByParent.get(row.id) ?? [];
-    return {
-      progressMode: effectiveProgressMode(row.progressMode, kids.length > 0),
-      baseline: toFloat(row.baseline),
-      target: toFloat(row.target),
-      current: toFloat(row.current),
-      rollupWeight: toFloat(row.rollupWeight) ?? 1,
-      unitSpec: {
-        metricUnit: row.metricUnit,
-        metricType: row.metricType,
-        currencyCode: row.currencyCode,
-      },
-      checkins: checkinsByNode.get(row.id) ?? [],
-      kpis: kpisByNode.get(row.id) ?? [],
-      children: kids.map(toSeriesNode),
-    };
-  };
-  const rootRow = subtreeRows.find((r) => r.id === id);
-  if (!rootRow) return empty;
-  const seriesRoot = toSeriesNode(rootRow);
+  const rows: ChartObjective[] = subtreeRows.map((r) => ({
+    id: r.id,
+    parentObjectiveId: r.parentObjectiveId,
+    progressMode: r.progressMode,
+    baseline: toFloat(r.baseline),
+    target: toFloat(r.target),
+    current: toFloat(r.current),
+    rollupWeight: toFloat(r.rollupWeight),
+    metricUnit: r.metricUnit,
+    metricType: r.metricType,
+    currencyCode: r.currencyCode,
+  }));
 
-  const nowIso = new Date().toISOString();
-  const effMode = seriesRoot.progressMode;
-  const mode: "value" | "percent" =
-    effMode !== "rollup" && seriesRoot.target != null ? "value" : "percent";
-
-  const points: ProgressChartPoint[] = [];
-
-  // 1) Kontinuierlicher Verlauf (kein Punkt): auto_kpi → KPI-Historie, rollup →
-  //    aggregierter Kinder-Ø. (Bei manual liefert Schritt 2 die Linien-Punkte.)
-  if (mode === "percent") {
-    for (const p of buildNodeProgressSeries(seriesRoot, nowIso)) {
-      points.push({ at: Date.parse(p.at), value: p.progress * 100, status: null, entry: false });
-    }
-  } else if (effMode === "auto_kpi") {
-    for (const p of buildAutoKpiSeries(seriesRoot.unitSpec, seriesRoot.kpis)) {
-      points.push({ at: Date.parse(p.at), value: p.value, status: null, entry: false });
-    }
-  }
-
-  // 2) Eigene Check-ins: Status gesetzt → farbiger Status-Punkt; statuslos mit
-  //    Wert (manueller Eintrag) → neutraler Punkt.
-  for (const c of checkinAll) {
-    if (c.objectiveId !== id) continue;
-    const v =
-      mode === "value" ? toFloat(c.value) : c.progress != null ? Number(c.progress) * 100 : null;
-    if (v == null) continue;
-    points.push({ at: c.createdAt.getTime(), value: v, status: c.status, entry: c.status == null });
-  }
-
-  // 3) manual: Live-Ende (aktueller Ist-Wert @ heute) als Linienknick, kein Punkt.
-  if (mode === "value" && effMode === "manual" && seriesRoot.current != null) {
-    points.push({ at: Date.parse(nowIso), value: seriesRoot.current, status: null, entry: false });
-  }
-
-  // Merge je Zeitpunkt mit Vorrang Status-Punkt > neutraler Eintrag > Linie.
-  const rank = (p: ProgressChartPoint): number => (p.status != null ? 2 : p.entry ? 1 : 0);
-  const byAt = new Map<number, ProgressChartPoint>();
-  for (const p of points) {
-    const ex = byAt.get(p.at);
-    if (!ex || rank(p) >= rank(ex)) byAt.set(p.at, p);
-  }
-  const series = [...byAt.values()].sort((a, b) => a.at - b.at);
-
-  let yDomain: [number, number];
-  if (mode === "percent") {
-    yDomain = [0, 100];
-  } else {
-    const vals = series.map((s) => s.value);
-    const anchors = [seriesRoot.baseline ?? 0, seriesRoot.target ?? 0, ...vals];
-    const lo = Math.min(...anchors);
-    const hi = Math.max(...anchors);
-    yDomain = [lo, hi > lo ? hi : lo + 1];
-  }
-
-  return { mode, series, yDomain };
+  return deriveProgressChart({
+    rootId: id,
+    rows,
+    progressByNode,
+    epicKpisByNode,
+    rootCheckins,
+    now: new Date().toISOString(),
+  });
 }
 
 // ── helpers ────────────────────────────────────────────────────────────
@@ -1073,10 +904,4 @@ function setAndGet<V>(map: Map<string, V[]>, key: string): V[] {
   const arr: V[] = [];
   map.set(key, arr);
   return arr;
-}
-
-function manualKrTrio(): RollupTrio {
-  // Manuelle KRs haben keinen €-Rollup (kein valuePerUnit auf der
-  // Bruecke). UI zeigt „Manueller Modus".
-  return { planned: 0, realized: 0, runRate: 0 };
 }

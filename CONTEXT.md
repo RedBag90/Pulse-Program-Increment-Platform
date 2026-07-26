@@ -92,6 +92,15 @@ valuePerUnit`), summiert über die Messmonate auf den vollen KPI-Wert. Der
   Portfolio Series): a page-model is presentation glue, not business
   computation. Each page-model owns the queries for _its_ page only — a single
   god-loader is a smell.
+- **Goal-Forest read-model** — `src/server/views/goals-forest.ts`, the **pure**
+  derivation behind `loadStrategyTree`/`loadGoalDetail`: normalisierte Objective-
+  Zeilen + Per-Knoten-Lookups → GoalNode-Baum (mit €-Trios/Fortschritt) via
+  `buildStrategyTree`, und die Fortschrittsgraf-Serie via `buildProgressChart`.
+  Der Loader (`ziele-view.ts`) ist nur noch Adapter (Prisma-Fetch + Normalisieren);
+  die Ableitung ist DB-frei testbar (`__tests__/goals-forest.test.ts`). Der Seam
+  ist `resolveNode` — die _eine_ Auflösung „Zeile → effektive Fortschrittsquelle
+  (progressMode) + Ist-Wert + progressLeaf/trioLeaf/trioEpicLinks" für Baum **und**
+  Graf (kein paralleler RollupNode-/SeriesNode-Schattenbaum mehr im Loader).
 
 ## State axes on an Initiative (independent — do not conflate)
 
