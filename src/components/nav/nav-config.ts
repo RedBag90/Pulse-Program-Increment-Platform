@@ -93,6 +93,12 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: LineChart,
         practice: "portfolioLevel",
       },
+      {
+        href: "/portfolio/review",
+        labelKey: "portfolioReview",
+        icon: BarChart2,
+        practice: "portfolioLevel",
+      },
     ],
   },
   {
