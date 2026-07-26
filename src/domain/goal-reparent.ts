@@ -25,3 +25,62 @@ export function canReparent(input: CanReparentInput): boolean {
   }
   return true;
 }
+
+// ── Subtree-Re-Materialisierung (der riskante Teil, jetzt rein & testbar) ──────
+
+/** Der zu verschiebende Knoten mit seinen materialisierten Feldern. */
+export interface ReparentNode {
+  id: string;
+  path: string;
+  level: number;
+  themeId: string;
+  parentObjectiveId: string | null;
+}
+
+/** Ein Knoten des zu verschiebenden Subtrees (Knoten selbst + alle Nachfahren). */
+export interface ReparentSubtreeNode {
+  id: string;
+  path: string;
+  level: number;
+}
+
+/** Ein einzelner Write: neue materialisierte Felder eines Subtree-Knotens. */
+export interface ReparentWrite {
+  id: string;
+  path: string;
+  level: number;
+  themeId: string;
+  /** Nur für den bewegten Knoten selbst gesetzt (neuer Eltern-Verweis). */
+  parentObjectiveId?: string | null;
+}
+
+/**
+ * **Reine Subtree-Re-Materialisierung.** Berechnet für den bewegten Knoten und
+ * jeden Nachfahren die neuen `path`/`level`/`themeId` (vom neuen Parent geerbt);
+ * der bewegte Knoten bekommt zusätzlich den neuen `parentObjectiveId`. Der Service
+ * persistiert nur noch die zurückgegebenen Writes — die riskante Pfad-Arithmetik
+ * (Präfix-Umschreiben, Level-Delta, themeId-Vererbung) ist damit DB-frei testbar.
+ *
+ * `parent = null` ⇒ auf oberste Ebene (level 0, eigener themeId behalten).
+ */
+export function planReparent(input: {
+  node: ReparentNode;
+  parent: { path: string; level: number; themeId: string } | null;
+  newParentId: string | null;
+  subtree: ReparentSubtreeNode[];
+}): ReparentWrite[] {
+  const { node, parent, newParentId, subtree } = input;
+  const oldPath = node.path;
+  const newBasePath = parent ? `${parent.path}/${node.id}` : node.id;
+  const newLevel = parent ? parent.level + 1 : 0;
+  const levelDelta = newLevel - node.level;
+  const newThemeId = parent ? parent.themeId : node.themeId;
+
+  return subtree.map((d) => ({
+    id: d.id,
+    path: d.id === node.id ? newBasePath : `${newBasePath}${d.path.slice(oldPath.length)}`,
+    level: d.level + levelDelta,
+    themeId: newThemeId,
+    ...(d.id === node.id ? { parentObjectiveId: newParentId } : {}),
+  }));
+}

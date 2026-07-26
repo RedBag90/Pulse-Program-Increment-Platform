@@ -10,7 +10,7 @@ import {
 } from "@/server/services/goal-node-fields";
 import { isClosed, isOpen, type GoalStatus } from "@/domain/goal-status";
 import { clampPrecision, type MetricType } from "@/domain/goal-metric";
-import { canReparent } from "@/domain/goal-reparent";
+import { canReparent, planReparent } from "@/domain/goal-reparent";
 import { autoKpiCurrent, isProgressMode, effectiveProgressMode } from "@/domain/goal-progress-mode";
 import { latestMeasurement } from "@/domain/kpi-measurement";
 import { dayStart } from "@/domain/calendar";
@@ -287,29 +287,34 @@ export async function reparentGoalNode(
       });
     }
 
-    const oldPath = node.path;
-    const newBasePath = parent ? `${parent.path}/${node.id}` : node.id;
-    const newLevel = parent ? parent.level + 1 : 0;
-    const levelDelta = newLevel - node.level;
-    const newThemeId = parent ? parent.themeId : node.themeId;
-
     const subtree = await tx.objective.findMany({
       where: {
         tenantId: mctx.tenantId,
-        OR: [{ id: node.id }, { path: { startsWith: `${oldPath}/` } }],
+        OR: [{ id: node.id }, { path: { startsWith: `${node.path}/` } }],
       },
       select: { id: true, path: true, level: true },
     });
-    for (const d of subtree) {
-      const dNewPath =
-        d.id === node.id ? newBasePath : `${newBasePath}${d.path.slice(oldPath.length)}`;
+    // Reine Subtree-Re-Materialisierung (goal-reparent.ts) — der Service persistiert nur.
+    const writes = planReparent({
+      node: {
+        id: node.id,
+        path: node.path,
+        level: node.level,
+        themeId: node.themeId,
+        parentObjectiveId: node.parentObjectiveId ?? null,
+      },
+      parent,
+      newParentId,
+      subtree,
+    });
+    for (const w of writes) {
       await tx.objective.update({
-        where: { id: d.id },
+        where: { id: w.id },
         data: {
-          path: dNewPath,
-          level: d.level + levelDelta,
-          themeId: newThemeId,
-          ...(d.id === node.id ? { parentObjectiveId: newParentId } : {}),
+          path: w.path,
+          level: w.level,
+          themeId: w.themeId,
+          ...("parentObjectiveId" in w ? { parentObjectiveId: w.parentObjectiveId } : {}),
           updatedBy: mctx.actorId,
         },
       });
