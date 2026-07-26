@@ -607,14 +607,19 @@ export async function loadStrategyTree(
   }
 
   let topLevel = roots.map((o) => build(o, 0).node);
-  // Period-/VS-/ART-Filter greifen auf Top-Level-Knoten (Subtrees bleiben
-  // vollständig — die Verantwortung hängt am Top-Level-Ziel).
+  // Period-Filter greift auf den Top-Level-Knoten (der Zeitraum hängt am Theme).
   if (period) topLevel = topLevel.filter((n) => n.period === period);
+  // VS-/ART-Filter greifen **tief**: ein Theme bleibt sichtbar, wenn es selbst
+  // oder ein beliebiges Unterziel dem gewählten Wertstrom / ART zugeordnet ist.
   if (filterValueStreamId) {
-    topLevel = topLevel.filter((n) => n.valueStreams.some((v) => v.id === filterValueStreamId));
+    const hasVs = (n: GoalNode): boolean =>
+      n.valueStreams.some((v) => v.id === filterValueStreamId) || n.children.some(hasVs);
+    topLevel = topLevel.filter(hasVs);
   }
   if (filterArtId) {
-    topLevel = topLevel.filter((n) => n.arts.some((a) => a.id === filterArtId));
+    const hasArt = (n: GoalNode): boolean =>
+      n.arts.some((a) => a.id === filterArtId) || n.children.some(hasArt);
+    topLevel = topLevel.filter(hasArt);
   }
 
   return {

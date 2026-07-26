@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState, startTransition, useActionState } from "react";
+import { useMemo, useRef, useState, startTransition, useActionState } from "react";
 import Link from "next/link";
-import { ChevronRight, Pencil, Plus } from "lucide-react";
+import { ChevronRight, Pencil, Plus, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GoalNode, ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, keyResultProgress, type RollupTrio } from "@/domain/goals-rollup";
@@ -10,6 +10,8 @@ import { goalPeriodLabel } from "@/domain/goal-period";
 import { reparentGoalNodeAction } from "@/features/ziele/actions/ziele";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { useLocalStorageState } from "@/lib/hooks/use-local-storage-state";
 
 /** Drag-to-Reparent-Kontext, durch NodeRows → Row gereicht. */
 interface DragCtx {
@@ -34,6 +36,35 @@ function subtreeHas(n: GoalNode, id: string): boolean {
   return n.children.some((c) => subtreeHas(c, id));
 }
 
+/** Alle Knoten-Ids mit Kindern (Kandidaten fürs Einklappen). */
+function collectParentIds(nodes: GoalNode[], acc: string[] = []): string[] {
+  for (const n of nodes) {
+    if (n.children.length > 0) {
+      acc.push(n.id);
+      collectParentIds(n.children, acc);
+    }
+  }
+  return acc;
+}
+
+/** „Off-track" = Drift (Run-Rate < 70 %) oder Status at_risk/off_track. */
+function isOffTrack(n: GoalNode): boolean {
+  return isAtRisk(n.trio) || n.status === "at_risk" || n.status === "off_track";
+}
+
+/**
+ * Beschneidet den Baum auf off-track-Knoten **plus ihren Vorfahren-Pfad**: ein
+ * Knoten bleibt, wenn er selbst off-track ist oder ein Nachfahre es ist.
+ */
+function pruneOffTrack(nodes: GoalNode[]): GoalNode[] {
+  const out: GoalNode[] = [];
+  for (const n of nodes) {
+    const children = pruneOffTrack(n.children);
+    if (isOffTrack(n) || children.length > 0) out.push({ ...n, children });
+  }
+  return out;
+}
+
 /**
  * Strategie als hierarchische Tabelle — Default-Layout im Strategie-Tab.
  * Ein-/ausklappbarer Ziel-Baum: **Name (Held) · Owner · Status · Progress ·
@@ -49,8 +80,17 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
   const dragNode = useRef<GoalNode | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [overTop, setOverTop] = useState(false);
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  // Auf-/Zuklapp-Zustand überlebt einen Reload (Geräte-Ansichtspräferenz).
+  const [collapsedIds, setCollapsedIds] = useLocalStorageState<string[]>("ziele:collapsed", []);
+  const collapsed = useMemo(() => new Set(collapsedIds), [collapsedIds]);
+  const [offTrackOnly, setOffTrackOnly] = useState(false);
   const [, reparentRun] = useActionState(reparentGoalNodeAction, {});
+
+  const allParentIds = useMemo(() => collectParentIds(themes), [themes]);
+  const visibleThemes = useMemo(
+    () => (offTrackOnly ? pruneOffTrack(themes) : themes),
+    [themes, offTrackOnly],
+  );
 
   const drag: DragCtx = {
     canEdit,
@@ -81,12 +121,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
     collapsed,
     userLabels,
     toggle: (id) =>
-      setCollapsed((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        return next;
-      }),
+      setCollapsedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])),
   };
 
   if (themes.length === 0) {
@@ -105,15 +140,54 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
     );
   }
 
+  const allCollapsed = allParentIds.length > 0 && collapsed.size >= allParentIds.length;
+
   return (
-    <div className="space-y-2.5">
-      {canEdit && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] text-muted-foreground">
-            Klick öffnet den Editor · Zeile ziehen verschiebt das Ziel unter ein anderes.
-          </p>
-          <NewLink entity="theme">+ Theme (OKR)</NewLink>
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex overflow-hidden rounded-md border">
+            <ToolbarButton
+              onClick={() => setCollapsedIds(allParentIds)}
+              disabled={allParentIds.length === 0 || allCollapsed}
+              title="Alle einklappen"
+            >
+              <ChevronsDownUp className="h-3.5 w-3.5" aria-hidden />
+              Einklappen
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => setCollapsedIds([])}
+              disabled={collapsed.size === 0}
+              title="Alle ausklappen"
+              className="border-l"
+            >
+              <ChevronsUpDown className="h-3.5 w-3.5" aria-hidden />
+              Ausklappen
+            </ToolbarButton>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOffTrackOnly((v) => !v)}
+            aria-pressed={offTrackOnly}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+              offTrackOnly
+                ? "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-200"
+                : "bg-card text-muted-foreground hover:bg-muted",
+            )}
+          >
+            ⚠ Nur off-track
+          </button>
+          {offTrackOnly && visibleThemes.length === 0 && (
+            <span className="text-[11px] text-muted-foreground">Keine off-track-Ziele.</span>
+          )}
         </div>
+        {canEdit && <NewLink entity="theme">+ Theme (OKR)</NewLink>}
+      </div>
+      {canEdit && (
+        <p className="text-[11px] text-muted-foreground">
+          Klick öffnet den Editor · Zeile ziehen verschiebt das Ziel unter ein anderes.
+        </p>
       )}
       {canEdit && (
         <div
@@ -138,19 +212,19 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
       )}
       <div className="overflow-x-auto rounded-lg border bg-card">
         <table className="w-full text-sm">
-          <thead className="border-b bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
+          <thead className="sticky top-0 z-10 border-b bg-muted/95 text-xs uppercase tracking-wide text-muted-foreground shadow-sm backdrop-blur">
             <tr>
               <Th>Name</Th>
               <Th className="w-14">Owner</Th>
-              <Th className="w-36">Status</Th>
-              <Th className="w-48">Progress</Th>
-              <Th className="w-36">Wert</Th>
-              <Th className="w-24">Zeitraum</Th>
-              {canEdit && <Th className="w-24">Aktionen</Th>}
+              <Th className="w-32">Status</Th>
+              <Th className="w-44">Progress</Th>
+              <Th className="w-32">Wert</Th>
+              <Th className="w-20">Zeitraum</Th>
+              {canEdit && <Th className="w-20">Aktionen</Th>}
             </tr>
           </thead>
           <tbody className="divide-y">
-            {themes.map((t) => (
+            {visibleThemes.map((t) => (
               <NodeRows key={t.id} node={t} depth={0} canEdit={canEdit} drag={drag} tree={tree} />
             ))}
           </tbody>
@@ -177,11 +251,12 @@ function NodeRows({
   drag: DragCtx;
   tree: TreeCtx;
 }) {
-  const kindLabel = depth === 0 ? "Theme (OKR)" : "Ziel";
+  // Kompakter Inline-Suffix: nur der Beitrags-Anteil bei Unterzielen (die
+  // Hierarchie-Ebene zeigt bereits Theme vs. Unterziel).
   const subtitle =
     depth > 0 && node.rollupWeight != null
-      ? `${kindLabel} · trägt ${Math.round(node.contributionShare * 100)} %`
-      : kindLabel;
+      ? `trägt ${Math.round(node.contributionShare * 100)} %`
+      : "";
   const progress = node.progress ?? (node.isMeasurable ? keyResultProgress(node) : 0);
   const hasChildren = node.children.length > 0;
   const isCollapsed = tree.collapsed.has(node.id);
@@ -195,7 +270,6 @@ function NodeRows({
         depth={depth}
         title={node.title}
         subtitle={subtitle}
-        narrative={node.narrative}
         confidence={node.confidence}
         drift={isAtRisk(node.trio)}
         href={`?entity=goal&id=${node.id}`}
@@ -240,7 +314,6 @@ interface RowProps {
   depth: number;
   title: string;
   subtitle: string;
-  narrative: string | null;
   confidence: number | null;
   drift: boolean;
   href: string;
@@ -263,7 +336,6 @@ function Row({
   depth,
   title,
   subtitle,
-  narrative,
   confidence,
   drift,
   href,
@@ -279,7 +351,6 @@ function Row({
   onToggle,
   actions,
 }: RowProps) {
-  const indent = depth * 18;
   const isOver = drag.overId === node.id;
   return (
     <tr
@@ -306,14 +377,22 @@ function Row({
       }}
     >
       <Td>
-        <div className="flex items-start gap-1" style={{ paddingLeft: indent }}>
+        <div className="flex min-w-0 items-center">
+          {/* Tiefen-Linien: ein vertikaler Guide je Einrück-Stufe. */}
+          {Array.from({ length: depth }).map((_unused, i) => (
+            <span
+              key={i}
+              className="w-[18px] shrink-0 self-stretch border-l border-border/40"
+              aria-hidden
+            />
+          ))}
           {hasChildren ? (
             <button
               type="button"
               onClick={onToggle}
               aria-expanded={!isCollapsed}
               aria-label={isCollapsed ? "Ausklappen" : "Einklappen"}
-              className="mt-0.5 grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <ChevronRight
                 className={cn("h-3.5 w-3.5 transition-transform", !isCollapsed && "rotate-90")}
@@ -323,40 +402,53 @@ function Row({
           ) : (
             <span className="w-5 shrink-0" aria-hidden />
           )}
-          <Link href={href as never} scroll={false} className="min-w-0 flex-1 hover:underline">
-            <span className="flex items-center gap-2">
+          <Link
+            href={href as never}
+            scroll={false}
+            className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
+          >
+            <span className={cn("truncate font-medium", depth === 0 ? "text-sm" : "text-[13px]")}>
+              {title}
+            </span>
+            {drift && (
               <span
-                className={cn(
-                  "truncate font-medium",
-                  depth === 0 ? "text-[15px] tracking-tight" : "text-sm",
-                )}
+                className="shrink-0 rounded-full bg-amber-100 px-1 py-0.5 text-[9px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
+                title="Run-Rate < 70 % vom Planned"
               >
-                {title}
+                ⚠
               </span>
-              {drift && (
-                <span
-                  className="shrink-0 rounded-full bg-amber-100 px-1 py-0.5 text-[9px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
-                  title="Run-Rate < 70 % vom Planned"
-                >
-                  ⚠
-                </span>
-              )}
-              {confidence != null && (
-                <span
-                  className="shrink-0 text-[11px] leading-none text-amber-500/80"
-                  title="Confidence (Fist-of-Five)"
-                >
-                  {"★".repeat(confidence)}
-                  <span className="text-muted-foreground/40">{"★".repeat(5 - confidence)}</span>
-                </span>
-              )}
-            </span>
-            <span className="mt-0.5 block truncate text-[10px] uppercase tracking-wider text-muted-foreground">
-              {subtitle}
-            </span>
-            {narrative && (
-              <span className="block truncate text-[11px] text-muted-foreground/80">
-                {narrative}
+            )}
+            {confidence != null && (
+              <span
+                className="shrink-0 text-[11px] leading-none text-amber-500/80"
+                title="Confidence (Fist-of-Five)"
+              >
+                {"★".repeat(confidence)}
+                <span className="text-muted-foreground/40">{"★".repeat(5 - confidence)}</span>
+              </span>
+            )}
+            {depth === 0 && node.valueStreams.length > 0 && (
+              <span className="flex shrink-0 items-center gap-1">
+                {node.valueStreams.slice(0, 2).map((v) => (
+                  <Badge
+                    key={v.id}
+                    variant="secondary"
+                    className="max-w-[8rem] truncate"
+                    title={`Wertstrom: ${v.name}`}
+                  >
+                    {v.name}
+                  </Badge>
+                ))}
+                {node.valueStreams.length > 2 && (
+                  <span className="text-[10px] text-muted-foreground">
+                    +{node.valueStreams.length - 2}
+                  </span>
+                )}
+              </span>
+            )}
+            {subtitle && (
+              <span className="shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">
+                {subtitle}
               </span>
             )}
           </Link>
@@ -474,27 +566,18 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
-/** €-Ratio mit dezenter Füllung realized/planned. */
+/** €-Ratio einzeilig realized/planned; Details im Tooltip. */
 function TrioBadge({ trio }: { trio: RollupTrio }) {
   if (trio.planned === 0 && trio.realized === 0) {
     return <span className="text-[11px] text-muted-foreground/50">—</span>;
   }
-  const ratio = trio.planned > 0 ? Math.min(1, trio.realized / trio.planned) : 0;
   return (
     <span
-      className="inline-flex flex-col gap-1"
+      className="whitespace-nowrap font-mono text-[11px] tabular-nums"
       title={`Planned €${eur(trio.planned)} · Realized €${eur(trio.realized)} · Run-Rate €${eur(trio.runRate)}`}
     >
-      <span className="font-mono text-[11px] tabular-nums">
-        €{compact(trio.realized)}
-        <span className="text-muted-foreground"> / €{compact(trio.planned)}</span>
-      </span>
-      <span className="h-1 w-full overflow-hidden rounded-full bg-muted">
-        <span
-          className="block h-full rounded-full bg-emerald-500/70"
-          style={{ width: `${Math.round(ratio * 100)}%` }}
-        />
-      </span>
+      €{compact(trio.realized)}
+      <span className="text-muted-foreground"> / €{compact(trio.planned)}</span>
     </span>
   );
 }
@@ -510,9 +593,38 @@ function compact(n: number): string {
 }
 
 function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <th className={cn("px-3 py-2 text-left font-medium", className)}>{children}</th>;
+  return <th className={cn("px-3 py-1.5 text-left font-medium", className)}>{children}</th>;
 }
 
 function Td({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <td className={cn("px-3 py-2.5 align-middle", className)}>{children}</td>;
+  return <td className={cn("px-3 py-1.5 align-middle", className)}>{children}</td>;
+}
+
+function ToolbarButton({
+  onClick,
+  disabled,
+  title,
+  className,
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={cn(
+        "inline-flex items-center gap-1.5 bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:hover:bg-card",
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
 }

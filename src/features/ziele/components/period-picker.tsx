@@ -12,24 +12,48 @@ import {
 } from "@/domain/goal-period";
 
 interface Props {
-  /** FormData-Feldname; ein Hidden-Input trägt den kanonischen Key. */
-  name: string;
-  defaultValue: string | null;
+  /** FormData-Feldname (Form-Modus); ein Hidden-Input trägt den kanonischen Key. */
+  name?: string;
+  defaultValue?: string | null;
   disabled?: boolean;
+  /**
+   * Controlled/Filter-Modus: ist `onChange` gesetzt, kommt der Wert aus `value`
+   * und jede Auswahl ruft `onChange(key|null)` (kein Hidden-Input). Sonst
+   * unkontrollierter Form-Modus (Hidden-Input aus `defaultValue`).
+   */
+  value?: string | null;
+  onChange?: (key: string | null) => void;
+  /** Trigger-/Clear-Label bei leerem Wert (Form: „Kein Zeitraum", Filter: „Alle Zeiträume"). */
+  placeholder?: string;
 }
 
 /**
  * Strukturierter Zeitraum-Picker (Asana-Stil): Jahr-Stepper + Ganzjahr / H1·H2 /
- * Q1–Q4. Erzeugt ausschließlich kanonische Keys (YYYY | YYYY-Hn | YYYY-Qn) und
- * spiegelt sie in ein Hidden-Input, damit unkontrollierte Formulare unverändert
- * submitten. Leerer Wert = kein Zeitraum (Backlog).
+ * Q1–Q4. Erzeugt ausschließlich kanonische Keys (YYYY | YYYY-Hn | YYYY-Qn).
+ * Zwei Modi: **Form** (Hidden-Input aus `name`/`defaultValue`) oder **controlled
+ * Filter** (`value` + `onChange`). Leerer Wert = kein Zeitraum (Backlog).
  */
-export function PeriodPicker({ name, defaultValue, disabled }: Props) {
-  const [value, setValue] = useState<string>(defaultValue ?? "");
+export function PeriodPicker({
+  name,
+  defaultValue,
+  disabled,
+  value: valueProp,
+  onChange,
+  placeholder = "Kein Zeitraum",
+}: Props) {
+  const controlled = onChange !== undefined;
+  const [internalValue, setInternalValue] = useState<string>(defaultValue ?? "");
+  const value = controlled ? (valueProp ?? "") : internalValue;
   const [open, setOpen] = useState(false);
   const parsed = value ? parseGoalPeriod(value) : null;
   const [viewYear, setViewYear] = useState<number>(parsed?.year ?? currentGoalPeriod().year);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  const commit = (key: string) => {
+    if (controlled) onChange?.(key || null);
+    else setInternalValue(key);
+    setOpen(false);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -49,13 +73,11 @@ export function PeriodPicker({ name, defaultValue, disabled }: Props) {
 
   function pick(granularity: PeriodGranularity, index: number | null) {
     const p: GoalPeriod = { year: viewYear, granularity, index };
-    setValue(formatGoalPeriodKey(p));
-    setOpen(false);
+    commit(formatGoalPeriodKey(p));
   }
 
   function clear() {
-    setValue("");
-    setOpen(false);
+    commit("");
   }
 
   function isActive(granularity: PeriodGranularity, index: number | null): boolean {
@@ -70,7 +92,7 @@ export function PeriodPicker({ name, defaultValue, disabled }: Props) {
 
   return (
     <div className="relative" ref={rootRef}>
-      <input type="hidden" name={name} value={value} />
+      {name && <input type="hidden" name={name} value={value} />}
       <button
         type="button"
         onClick={() => !disabled && setOpen((o) => !o)}
@@ -85,7 +107,7 @@ export function PeriodPicker({ name, defaultValue, disabled }: Props) {
             <span className="text-[11px] text-muted-foreground">{goalPeriodDateLabel(value)}</span>
           </span>
         ) : (
-          <span className="text-muted-foreground">Kein Zeitraum</span>
+          <span className="text-muted-foreground">{placeholder}</span>
         )}
         <span aria-hidden className="text-muted-foreground">
           ▾
@@ -158,7 +180,7 @@ export function PeriodPicker({ name, defaultValue, disabled }: Props) {
             onClick={clear}
             className="w-full rounded-md px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted"
           >
-            Kein Zeitraum
+            {placeholder}
           </button>
         </div>
       )}

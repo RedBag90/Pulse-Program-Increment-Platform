@@ -45,7 +45,7 @@ export function GoalHealthStrip({
   return (
     <StatStrip>
       {/* Ø Fortschritt */}
-      <div className="min-w-0 flex-1 px-4 py-3.5">
+      <div className="min-w-0 flex-1 px-4 py-2.5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Ø Fortschritt
         </p>
@@ -62,7 +62,7 @@ export function GoalHealthStrip({
       </div>
 
       {/* Status-Verteilung */}
-      <div className="min-w-0 flex-1 px-4 py-3.5">
+      <div className="min-w-0 flex-1 px-4 py-2.5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Status
         </p>
