@@ -24,7 +24,7 @@ const INPUT =
 
 /**
  * Epic owner — current owner plus, for authorised roles, the nomination control
- * (the VMO and roles above it). Lives on the Overview tab; assigning the first
+ * (the Portfolio Manager and roles above it). Lives on the Overview tab; assigning the first
  * owner is what advances the Epic out of the Funnel.
  */
 export function EpicOwnerAssign({ epicId, ownerId, canAssignOwner, approvers, userLabels }: Props) {

@@ -234,7 +234,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     principal,
   ).allow;
 
-  // The VMO and roles above it (portfolio manager, the epic's value stream owner,
+  // The Portfolio Manager and the epic's value stream owner
   // admins) may nominate the Epic Owner — mirrors the `epic.owner.assign` policy.
   const canAssignOwner = authorize(
     "epic.owner.assign",
@@ -243,7 +243,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   ).allow;
 
   // Advancing the stage gate (incl. the manual "select for analyzing" → L2) mirrors
-  // the `epic.approve` policy (portfolio manager / VMO / admins).
+  // the `epic.approve` policy (portfolio manager / admins).
   const canAdvance = authorize("epic.approve", { tenantId: principal.tenantId }, principal).allow;
 
   // Netzplan-Ansicht — Drag-to-Connect (Roadmap-N2). Tenant-scoped Indikator;
@@ -370,7 +370,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   // Why an artefact is read-only right now — shown as a hint above the locked form.
   const HYPO_LOCK: Partial<Record<ApprovalPhase, string>> = {
     hypothesis_review:
-      "Die Benefit-Hypothese ist zur QS bei der VMO eingereicht und währenddessen gesperrt.",
+      "Die Benefit-Hypothese ist zur QS beim Portfolio Manager eingereicht und währenddessen gesperrt.",
     business_case:
       "Die Hypothese ist freigegeben. Sie ist nun gesperrt — für Änderungen eine neue Revision starten.",
     stakeholder_review:
@@ -380,7 +380,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   };
   const BC_LOCK: Partial<Record<ApprovalPhase, string>> = {
     draft: "Der Business Case wird erst bearbeitbar, sobald die Benefit-Hypothese freigegeben ist.",
-    hypothesis_review: "Der Business Case wird bearbeitbar, sobald die VMO die Hypothese freigibt.",
+    hypothesis_review:
+      "Der Business Case wird bearbeitbar, sobald der Portfolio Manager die Hypothese freigibt.",
     stakeholder_review:
       "Der Business Case ist während der laufenden Stakeholder-Freigaben gesperrt.",
     approved:

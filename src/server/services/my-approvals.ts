@@ -42,15 +42,14 @@ export async function listMyApprovals(
 ): Promise<MyApprovalRow[]> {
   const { id: userId, tenantId, roles } = principal;
   const isAdmin = roles.includes("tenant_admin") || roles.includes("platform_admin");
-  const isVmo = roles.includes("vmo");
+  const isReviewer = roles.includes("portfolio_manager");
 
   // Mirrors the gating on the Epic detail page (Approvals tab): admins decide
-  // anywhere; a VMO decides hypotheses in their value streams *or*, if no value
-  // stream has them pinned, in any value stream (matches the role-only policy
-  // gate so the inbox doesn't go silent on misconfiguration).
+  // anywhere; a Portfolio Manager (the VS's pinned reviewer, formerly "VMO")
+  // decides hypotheses in the value streams they're pinned on via `vmoId`.
   const hypothesisWhere = isAdmin
     ? { tenantId, level: InitiativeLevel.EPIC, deletedAt: null, approvalPhase: "hypothesis_review" }
-    : isVmo
+    : isReviewer
       ? {
           tenantId,
           level: InitiativeLevel.EPIC,
@@ -61,7 +60,7 @@ export async function listMyApprovals(
       : null;
 
   const [hypothesis, partyAndSection] = await Promise.all([
-    // 1) Epic hypothesis — VMO of the value stream, or admin.
+    // 1) Epic hypothesis — Portfolio Manager of the value stream, or admin.
     hypothesisWhere
       ? db.initiative.findMany({
           where: hypothesisWhere,

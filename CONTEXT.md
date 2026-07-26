@@ -253,7 +253,10 @@ kind, refId)`, FK `objective onDelete: Cascade`. The loader resolves titles +
 ## Authorization
 
 - **Principal** — the authenticated user resolved to roles + visibility scopes.
-- **Role** — one of 12 SAFe-oriented roles (`src/domain/roles.ts`).
+- **Role** — one of 8 SAFe-oriented roles (`src/domain/roles.ts`): `platform_admin`,
+  `tenant_admin`, `portfolio_manager` (the consolidated portfolio lead — folds in the
+  former `transformation_lead` and `vmo`), `value_stream_owner`, `epic_owner`, `rte`
+  (also absorbs the former `team_editor`), `feature_owner`, `viewer`.
 - **Capability / Action** — a state-changing operation gated by policy
   (`epic.update`, `feature.review.decide`, …). The full list is the `Action`
   union.

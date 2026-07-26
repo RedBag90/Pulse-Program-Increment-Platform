@@ -7,7 +7,7 @@ import type { StructureTree, StructureTimeline } from "@/server/services/structu
  * list so the user has one place to scan everything (the old page split the
  * same data across three tabs).
  *
- * Each row carries gap signals — VS without VMO/finance approver, ART
+ * Each row carries gap signals — VS without Portfolio-Manager/finance approver, ART
  * without RTE, Team without Scrum Master / PO — so the user spots
  * incomplete structure from the row, not by drilling into a separate
  * "Overview" tab.
@@ -145,7 +145,7 @@ export function buildStructurePageModel(input: {
     const artCount = vs.arts.length;
     const teamCount = vs.arts.reduce((acc, a) => acc + a.teams.length, 0);
     const vsGaps: string[] = [];
-    if (!vs.vmoId) vsGaps.push("Kein:e VMO");
+    if (!vs.vmoId) vsGaps.push("Kein:e Portfolio Manager");
     if (!vs.financeApproverId) vsGaps.push("Kein:e Finance-Approver:in");
     if (mode === "structure") {
       rows.push({

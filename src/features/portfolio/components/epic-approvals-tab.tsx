@@ -126,7 +126,7 @@ export function EpicApprovalsTab({
   const currentSections: Record<ApprovalSection, string> = {} as Record<ApprovalSection, string>;
   for (const s of APPROVAL_SECTIONS) {
     const row = currentApprovals.find((a) => a.kind === "section" && a.section === s);
-    // Pre-fill the section owner with the value stream's VMO when unset.
+    // Pre-fill the section owner with the value stream's Portfolio Manager when unset.
     currentSections[s] = row?.approverUserId ?? defaultVmoId ?? "";
   }
 
@@ -153,7 +153,7 @@ export function EpicApprovalsTab({
         {phase === "draft" && canManage && <SubmitHypothesisButton epicId={epicId} />}
         {phase === "hypothesis_review" && (
           <p className="text-sm text-muted-foreground">
-            Wartet auf VMO-Freigabe der Hypothese — die Entscheidung erfolgt in{" "}
+            Wartet auf Portfolio-Manager-Freigabe der Hypothese — die Entscheidung erfolgt in{" "}
             <Link href="/my-approvals" className="font-medium text-primary hover:underline">
               Meine Freigaben
             </Link>

@@ -21,7 +21,7 @@ interface Props {
   vmoId: string;
   /** All tenant users — options for the Finance Approver picker. */
   users: UserOption[];
-  /** Users holding the `vmo` role — options for the VMO picker. */
+  /** Users holding the `portfolio_manager` role — options for the VS reviewer picker. */
   vmoUsers: UserOption[];
   userLabels: Record<string, string>;
 }
@@ -77,7 +77,7 @@ export function ValueStreamOverviewForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="vs-vmo">VMO</Label>
+        <Label htmlFor="vs-vmo">Portfolio Manager</Label>
         <select id="vs-vmo" name="vmoId" defaultValue={vmoId} className={SELECT}>
           <option value="">— Niemand —</option>
           {vmoUsers.map((u) => (
@@ -87,7 +87,9 @@ export function ValueStreamOverviewForm({
           ))}
         </select>
         {vmoUsers.length === 0 ? (
-          <p className="text-xs text-amber-700">Keine Nutzer mit VMO-Rolle im Mandanten.</p>
+          <p className="text-xs text-amber-700">
+            Keine Nutzer mit Portfolio-Manager-Rolle im Mandanten.
+          </p>
         ) : (
           <p className="text-xs text-muted-foreground">Zuständiges Value Management Office.</p>
         )}

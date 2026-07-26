@@ -24,7 +24,7 @@ interface Props {
   scrumMasterId: string;
   productOwnerId: string;
   teamType: string;
-  /** Users holding the `team_editor` role — options for SM/PO pickers. */
+  /** Users holding the `rte` role — options for SM/PO pickers. */
   teamUsers: UserOption[];
   userLabels: Record<string, string>;
 }

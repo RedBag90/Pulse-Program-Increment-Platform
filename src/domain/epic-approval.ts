@@ -7,7 +7,7 @@
  *
  *   draft → hypothesis_review → business_case → stakeholder_review → approved
  *
- * The Epic Owner drafts, submits the Benefit Hypothesis for VMO review, then
+ * The Epic Owner drafts, submits the Benefit Hypothesis for Portfolio-Manager review, then
  * (once approved) submits the Business Case and collects stakeholder approvals
  * per party plus explicit Breakdown/KPI sign-offs. This module owns the phase
  * transitions and the "is everything approved?" derivation; the service writes

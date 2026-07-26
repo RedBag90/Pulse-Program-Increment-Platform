@@ -41,7 +41,7 @@ function Err({ msg }: { msg?: string | undefined }) {
   ) : null;
 }
 
-/** draft → submit the Benefit Hypothesis for VMO review. */
+/** draft → submit the Benefit Hypothesis for Portfolio-Manager review. */
 export function SubmitHypothesisButton({ epicId }: { epicId: string }) {
   const [state, action, pending] = useActionState(submitEpicHypothesisAction, {});
   return (

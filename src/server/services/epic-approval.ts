@@ -69,7 +69,7 @@ function toRecord(row: ApprovalRow): ApprovalRecord {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 1 — Benefit Hypothesis review (VMO)
+// Phase 1 — Benefit Hypothesis review (Portfolio Manager)
 // ---------------------------------------------------------------------------
 
 export async function submitHypothesis(
@@ -104,7 +104,7 @@ export async function submitHypothesis(
 }
 
 /**
- * VMO decides the Benefit Hypothesis: approve → `business_case`, reject → `draft`.
+ * The Portfolio Manager decides the Benefit Hypothesis: approve → `business_case`, reject → `draft`.
  * Optional `comment` is persisted on the audit (no schema change for v1); the
  * "Meine Freigaben" inbox uses it to capture the reviewer's reasoning, and
  * `intent: "clarification"` lets a "Rückfrage" be distinguished from an outright

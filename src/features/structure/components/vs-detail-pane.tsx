@@ -22,7 +22,7 @@ interface Props {
 /**
  * Right pane for a selected Value Stream. Three cards:
  *
- * - **Header** — name, VMO/Finance approver, ART/Team counts. Gaps show as
+ * - **Header** — name, Portfolio-Manager/Finance approver, ART/Team counts. Gaps show as
  *   amber chips so the user can see what's missing without expanding rows.
  * - **ARTs** — list of child ARTs as compact links that re-select into the
  *   same shell (no navigation). "+ ART hinzufügen" opens the existing
@@ -47,7 +47,7 @@ export function VsDetailPane({ vs, canCreateArt, canUpdateVs, onSelectArt }: Pro
           )}
         </div>
         <dl className="grid grid-cols-[140px_1fr] gap-y-1.5 text-sm">
-          <dt className="text-muted-foreground">VMO</dt>
+          <dt className="text-muted-foreground">Portfolio Manager</dt>
           <dd>{vs.vmoLabel ?? <GapHint>Nicht zugewiesen</GapHint>}</dd>
           <dt className="text-muted-foreground">Finance-Approver</dt>
           <dd>{vs.financeApproverLabel ?? <GapHint>Nicht zugewiesen</GapHint>}</dd>

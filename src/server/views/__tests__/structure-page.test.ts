@@ -85,7 +85,7 @@ describe("buildStructurePageModel", () => {
     expect(rows[2]!.parentId).toBe("art1");
   });
 
-  it("emits gap signals for missing VMO / RTE / Scrum Master", () => {
+  it("emits gap signals for missing Portfolio Manager / RTE / Scrum Master", () => {
     const m = buildStructurePageModel({
       mode: "structure",
       tree: [
@@ -106,7 +106,7 @@ describe("buildStructurePageModel", () => {
       userLabels: {},
       budgetTotals: {},
     });
-    expect(m.rows[0]!.gaps).toContain("Kein:e VMO");
+    expect(m.rows[0]!.gaps).toContain("Kein:e Portfolio Manager");
     expect(m.rows[0]!.gaps).toContain("Kein:e Finance-Approver:in");
     expect(m.rows[1]!.gaps).toContain("Kein:e RTE");
     expect(m.rows[2]!.gaps).toContain("Kein:e Scrum Master:in");

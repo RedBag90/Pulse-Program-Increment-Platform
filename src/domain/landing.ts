@@ -12,18 +12,11 @@ import { ROLES } from "@/domain/roles";
 export function landingPathForRoles(roles: readonly string[]): string {
   const has = (r: string) => roles.includes(r);
 
-  if (has(ROLES.TRANSFORMATION_LEAD)) return "/ziele";
   if (has(ROLES.PLATFORM_ADMIN) || has(ROLES.TENANT_ADMIN)) return "/portfolio";
-  if (
-    has(ROLES.PORTFOLIO_MANAGER) ||
-    has(ROLES.VALUE_STREAM_OWNER) ||
-    has(ROLES.EPIC_OWNER) ||
-    has(ROLES.VMO)
-  ) {
+  if (has(ROLES.PORTFOLIO_MANAGER) || has(ROLES.VALUE_STREAM_OWNER) || has(ROLES.EPIC_OWNER)) {
     return "/portfolio";
   }
   if (has(ROLES.RTE) || has(ROLES.FEATURE_OWNER)) return "/structure?tab=arts";
-  if (has(ROLES.TEAM_EDITOR)) return "/structure?tab=arts";
   if (has(ROLES.VIEWER)) return "/reporting/portfolio-health";
 
   return "/portfolio";

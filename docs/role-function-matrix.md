@@ -1,5 +1,11 @@
 # Pulse — Funktions-Übersicht & Rollen-Funktions-Matrix
 
+> **Status (Rollen-Vereinfachung):** Autoritativ sind die **8 Rollen** in
+> [`src/domain/roles.ts`](../src/domain/roles.ts). `transformation_lead` + `vmo` →
+> **`portfolio_manager`**, `team_editor` → **`rte`**. Zeilen unten mit diesen drei
+> Rollen (oder den nie implementierten `story_owner`/`task_owner` + `story.*`/`task.*`
+> Actions) sind veraltet — maßgeblich sind `roles.ts` + `POLICIES`.
+
 Dieses Dokument listet **alle Funktionen** der Anwendung und ordnet ihnen die
 **Rollen** zu, die sie ausführen dürfen. Es ist **kaskadiert nach SAFe-Ebenen**
 gegliedert (Portfolio → Wertstrom → Epic → ART → Feature → Team → Story → Task).

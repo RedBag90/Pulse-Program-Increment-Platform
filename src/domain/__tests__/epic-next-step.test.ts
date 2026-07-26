@@ -30,9 +30,9 @@ describe("epicNextStep", () => {
     expect(step?.title).toBe("Hypothese zur Entscheidung einreichen");
   });
 
-  it("L0 + hypothesis_review → Warte-Hinweis auf VMO + Link zu Freigaben", () => {
+  it("L0 + hypothesis_review → Warte-Hinweis auf Portfolio Manager + Link zu Freigaben", () => {
     const step = epicNextStep(base({ hasHypothesis: true, approvalPhase: "hypothesis_review" }));
-    expect(step?.title).toBe("Auf VMO-Entscheidung warten");
+    expect(step?.title).toBe("Auf Portfolio-Manager-Entscheidung warten");
     expect(step?.cta).toEqual({
       kind: "link",
       label: "Zu meinen Freigaben",

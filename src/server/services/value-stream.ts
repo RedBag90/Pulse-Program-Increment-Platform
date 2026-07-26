@@ -23,7 +23,7 @@ export interface UpdateValueStreamInput {
   description?: string | undefined;
   /** Finance party approver for this value stream's Epics; null clears it. */
   financeApproverId?: string | null | undefined;
-  /** Responsible VMO for this value stream; null clears it. */
+  /** Responsible reviewer (Portfolio Manager) for this value stream; null clears it. */
   vmoId?: string | null | undefined;
 }
 

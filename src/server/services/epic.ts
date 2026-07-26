@@ -64,7 +64,7 @@ export async function createEpic(
         tenantId: mctx.tenantId,
         level: InitiativeLevel.EPIC,
         title,
-        // Epics start without an owner — the VMO (or a superior role) nominates
+        // Epics start without an owner — the Portfolio Manager (or a superior role) nominates
         // one during detailing, which is what advances the Epic out of the Funnel.
         ownerId: null,
         assigneeIds: [],
@@ -551,7 +551,7 @@ export async function saveTimeline(
 }
 
 // ---------------------------------------------------------------------------
-// Assign Epic Owner (VMO)
+// Assign Epic Owner (Portfolio Manager)
 // ---------------------------------------------------------------------------
 
 export async function assignEpicOwner(
@@ -563,7 +563,7 @@ export async function assignEpicOwner(
 
   return withAuditedTransaction(mctx, async (tx) => {
     // Scope-aware seam check (ADR-0002): a value_stream_owner may only assign
-    // owners within their own stream; portfolio_manager / VMO / admins are
+    // owners within their own stream; portfolio_manager / admins are
     // unscoped.
     const loaded = await loadAndAuthorize({
       principal: ctx.principal,

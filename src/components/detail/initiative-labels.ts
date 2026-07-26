@@ -54,7 +54,7 @@ export const STATUS_LABELS: Record<string, string> = {
  */
 export const APPROVAL_PHASE_LABELS: Record<string, string> = {
   draft: "Entwurf",
-  hypothesis_review: "Hypothese in QS (VMO)",
+  hypothesis_review: "Hypothese in QS (Portfolio Manager)",
   business_case: "Business Case",
   stakeholder_review: "Stakeholder-Freigaben",
   approved: "Freigegeben",

@@ -12,12 +12,8 @@ const TEST_USERS = [
   { email: "portfolio-manager@pulse.dev", role: "Portfolio Manager" },
   { email: "value-stream-owner@pulse.dev", role: "Value Stream Owner" },
   { email: "epic-owner@pulse.dev", role: "Epic Owner" },
-  { email: "vmo@pulse.dev", role: "VMO · Epic QA" },
   { email: "rte@pulse.dev", role: "RTE · Feature QA" },
   { email: "feature-owner@pulse.dev", role: "Feature Owner" },
-  { email: "team-editor@pulse.dev", role: "Team Editor" },
-  { email: "story-owner@pulse.dev", role: "Story Owner" },
-  { email: "task-owner@pulse.dev", role: "Task Owner" },
   { email: "viewer@pulse.dev", role: "Viewer · read-only" },
 ] as const;
 

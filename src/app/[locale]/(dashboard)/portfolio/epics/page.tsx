@@ -42,7 +42,7 @@ function latestMeasurement(raw: unknown): number | null {
 
 /**
  * Portfolio epics list — the rich filterable surface portfolio managers,
- * VMOs, and epic owners use to scan and steer the investment funnel. Loads
+ * and epic owners use to scan and steer the investment funnel. Loads
  * epics + KPIs + approvals in one query, child-feature counts in a tiny
  * groupBy, then hands everything to the URL-state shell. Permission gates
  * for inline mutations (`epic.update`, `epic.approve`) pass straight

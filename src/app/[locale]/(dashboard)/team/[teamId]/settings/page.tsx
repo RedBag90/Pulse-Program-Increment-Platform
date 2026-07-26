@@ -50,7 +50,7 @@ export default async function TeamSettingsPage({ params }: Props) {
     listTenantApprovers(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
   ]);
-  const teamUsers = approvers.filter((u) => u.roles.includes("team_editor"));
+  const teamUsers = approvers.filter((u) => u.roles.includes("rte"));
 
   return (
     <Page>

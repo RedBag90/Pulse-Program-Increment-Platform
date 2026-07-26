@@ -27,7 +27,6 @@ const SECTION_LABELS: Record<ApprovalSection, string> = {
  * users who hold one of these, so the assignment can't be blocked downstream.
  */
 const SECTION_REVIEWER_ROLES = new Set([
-  "vmo",
   "value_stream_owner",
   "portfolio_manager",
   "tenant_admin",
@@ -223,7 +222,7 @@ export function ApproverPicker({ epicId, approvers, current, currentSections, us
         </div>
         {sectionEligible.length === 0 && (
           <p className="mt-2 text-xs text-amber-700">
-            Im Mandanten gibt es keine Nutzer mit Abnahme-Rolle (VMO, Value-Stream-Owner oder
+            Im Mandanten gibt es keine Nutzer mit Abnahme-Rolle (Value-Stream-Owner oder
             Portfolio-Manager).
           </p>
         )}

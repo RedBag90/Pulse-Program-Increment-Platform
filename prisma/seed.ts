@@ -9,11 +9,11 @@
  * Test-User (Passwort `Test1234!` ausser admin = `Admin1234!`):
  *   admin@pulse.dev          → tenant_admin
  *   portfolio@pulse.dev      → portfolio_manager
- *   vmo@pulse.dev            → vmo (Epic-QS)
+ *   vmo@pulse.dev            → portfolio_manager (VMO in PM zusammengelegt)
  *   rte@pulse.dev            → rte (Feature-QS)
  *   owner@pulse.dev          → epic_owner + feature_owner
  *   viewer@pulse.dev         → viewer
- *   transformation@pulse.dev → transformation_lead
+ *   transformation@pulse.dev → portfolio_manager (Transformation Lead in PM zusammengelegt)
  *
  * Run: `pnpm db:seed`
  */
@@ -133,13 +133,14 @@ async function main() {
 
   await assignRole(adminId, "tenant_admin");
   await assignRole(portfolioId, "portfolio_manager");
-  await assignRole(vmoId, "vmo");
+  // VMO + Transformation Lead sind in portfolio_manager zusammengelegt.
+  await assignRole(vmoId, "portfolio_manager");
   await assignRole(rteId, "rte");
   await assignRole(ownerId, "epic_owner");
   await assignRole(ownerId, "feature_owner");
   await assignRole(viewerId, "viewer");
-  await assignRole(transformationLeadId, "transformation_lead");
-  console.log("  ✓ 8 Rollen zugewiesen");
+  await assignRole(transformationLeadId, "portfolio_manager");
+  console.log("  ✓ Rollen zugewiesen");
 
   console.log("\n✅ Minimal-Seed fertig. DB enthält nur Tenant + User + Rollen.\n");
 }

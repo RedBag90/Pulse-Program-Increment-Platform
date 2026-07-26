@@ -64,21 +64,21 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
   if (stageGate === "L0") {
     if (approvalPhase === "hypothesis_review") {
       return {
-        title: "Auf VMO-Entscheidung warten",
-        hint: "Der VMO entscheidet als Nächstes über die Benefit-Hypothese. Solange das nicht passiert ist, bleibt das Epic auf L0.",
+        title: "Auf Portfolio-Manager-Entscheidung warten",
+        hint: "Der Portfolio Manager entscheidet als Nächstes über die Benefit-Hypothese. Solange das nicht passiert ist, bleibt das Epic auf L0.",
         cta: { kind: "link", label: "Zu meinen Freigaben", href: "/my-approvals" },
       };
     }
     if (!hasHypothesis) {
       return {
         title: "Benefit Hypothese ausarbeiten",
-        hint: "Beschreibe im Hypothese-Tab Problem, Zielgruppe, erwarteten Nutzen und Leading Indicators — damit der VMO eine Entscheidungsgrundlage hat.",
+        hint: "Beschreibe im Hypothese-Tab Problem, Zielgruppe, erwarteten Nutzen und Leading Indicators — damit der Portfolio Manager eine Entscheidungsgrundlage hat.",
         cta: { kind: "link", label: "Zur Hypothese", href: tab("benefit-hypothesis") },
       };
     }
     return {
       title: "Hypothese zur Entscheidung einreichen",
-      hint: "Inhalte sind da. Reiche die Hypothese im Hypothese-Tab zur VMO-Entscheidung ein.",
+      hint: "Inhalte sind da. Reiche die Hypothese im Hypothese-Tab zur Portfolio-Manager-Entscheidung ein.",
       cta: { kind: "link", label: "Zur Hypothese", href: tab("benefit-hypothesis") },
     };
   }

@@ -14,7 +14,7 @@ interface BenefitHypothesisEditorProps {
   current: BenefitHypothesisFields;
   history: BenefitHypothesisVersion[];
   /** When true the form is rendered for review only — fields are disabled and
-   *  the save button is hidden. Used by reviewer roles (e.g. VMO). */
+   *  the save button is hidden. Used by reviewer roles (e.g. Portfolio Manager). */
   readOnly?: boolean;
   /** Why the form is locked (the current approval phase) — shown as a hint. */
   lockReason?: string;
@@ -191,7 +191,7 @@ export function BenefitHypothesisEditor({
           )}
           {submitState.success && (
             <p role="status" className="w-full text-right text-sm text-green-700">
-              Hypothese eingereicht — der VMO entscheidet jetzt.
+              Hypothese eingereicht — der Portfolio Manager entscheidet jetzt.
             </p>
           )}
         </form>

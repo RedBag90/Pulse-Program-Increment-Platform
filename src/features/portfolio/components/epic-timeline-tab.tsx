@@ -44,7 +44,7 @@ function StatusIcon({ status }: { status: RowStatus }) {
  * Estimate (owner forecast) and an Actual per phase. Funnel/Detailing/Business
  * Case actuals come from workflow events (read-only); Backlog/Implementation
  * actuals are entered by the Owner — setting the Implementation actual marks the
- * Epic Done. The Owner is nominated by the VMO on the Detailing phase.
+ * Epic Done. The Owner is nominated by the Portfolio Manager on the Detailing phase.
  */
 export function EpicTimelineTab({
   epicId,

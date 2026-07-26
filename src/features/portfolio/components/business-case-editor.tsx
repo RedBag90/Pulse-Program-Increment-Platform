@@ -16,7 +16,7 @@ interface BusinessCaseEditorProps {
   current: BusinessCaseFields;
   history: BusinessCaseVersion[];
   /** When true the form is rendered for review only — fields are disabled and
-   *  the save button is hidden. Used by reviewer roles (e.g. VMO). */
+   *  the save button is hidden. Used by reviewer roles (e.g. Portfolio Manager). */
   readOnly?: boolean;
   /** Why the form is locked (the current approval phase) — shown as a hint. */
   lockReason?: string;

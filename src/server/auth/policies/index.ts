@@ -71,17 +71,8 @@ export interface Grant {
   scope?: ScopeCheck;
 }
 
-const {
-  PORTFOLIO_MANAGER,
-  VALUE_STREAM_OWNER,
-  EPIC_OWNER,
-  VMO,
-  RTE,
-  FEATURE_OWNER,
-  TEAM_EDITOR,
-  TENANT_ADMIN,
-  TRANSFORMATION_LEAD,
-} = ROLES;
+const { PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, EPIC_OWNER, RTE, FEATURE_OWNER, TENANT_ADMIN } =
+  ROLES;
 
 /**
  * Policy registry: action → grants. A request is allowed if it satisfies ANY
@@ -105,9 +96,9 @@ export const POLICIES: Record<Action, Grant[]> = {
   "role.capability.manage": [{ roles: [TENANT_ADMIN] }],
   "goal.custom_field.manage": [{ roles: [TENANT_ADMIN] }],
   // Define/manage the organisation's target operating model (the Soll the
-  // transformation drives toward). Management-owned: the transformation lead
-  // (coach / SPC), the LPM/portfolio lead, and the tenant admin.
-  "target.manage": [{ roles: [TENANT_ADMIN, TRANSFORMATION_LEAD, PORTFOLIO_MANAGER] }],
+  // transformation drives toward). Management-owned: the LPM/portfolio lead
+  // (which now folds in the former transformation-lead) and the tenant admin.
+  "target.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
 
   // Run participatory budgeting: distribute the budget pool across Epics. The
   // portfolio funders own this — the LPM/portfolio lead and the tenant admin.
@@ -126,9 +117,9 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Finance Controller valuation of a KPI's movement (€ per natural unit).
   // Coarse pre-filter; the service-seam check authoritatively allows the Epic's
   // value-stream finance approver too. Strategic KPIs aren't VS-scoped — the
-  // unscoped grants (portfolio_manager / transformation_lead / admins) apply.
+  // unscoped grants (portfolio_manager / admins) apply.
   "kpi.value.manage": [
-    { roles: [PORTFOLIO_MANAGER, TRANSFORMATION_LEAD] },
+    { roles: [PORTFOLIO_MANAGER] },
     { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
   ],
   // Eine Epic-KPI an einen Key Result binden (oder loesen / re-binden).
@@ -138,7 +129,7 @@ export const POLICIES: Record<Action, Grant[]> = {
   // sind. Audience aktuell deckungsgleich mit `target.manage`;
   // perspektivisch koennen Finance-Rollen hier breiter zugelassen werden,
   // ohne den Strategie-Editor zu oeffnen.
-  "kpi.bind": [{ roles: [TENANT_ADMIN, TRANSFORMATION_LEAD, PORTFOLIO_MANAGER] }],
+  "kpi.bind": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
 
   // ── Portfolio ───────────────────────────────────────────────────────────
   // The portfolio manager funds value streams and owns the Epic backlog.
@@ -146,11 +137,11 @@ export const POLICIES: Record<Action, Grant[]> = {
   // multi-party approval workflow (epic.hypothesis.*/approval.*).
   "value_stream.create": [{ roles: [PORTFOLIO_MANAGER] }],
   "epic.delete": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
-  "epic.approve": [{ roles: [PORTFOLIO_MANAGER, VMO] }],
+  "epic.approve": [{ roles: [PORTFOLIO_MANAGER] }],
   // Reifegrad-Modell v2: Impact-Bestätigung schiebt das Epic auf L5.
-  // Controlling-Hand — heute liegt es bei VMO / Portfolio Manager; eine
-  // eigene Controlling-Rolle könnte später dazukommen.
-  "epic.impact.confirm": [{ roles: [PORTFOLIO_MANAGER, VMO] }],
+  // Controlling-Hand — heute beim Portfolio Manager; eine eigene
+  // Controlling-Rolle könnte später dazukommen.
+  "epic.impact.confirm": [{ roles: [PORTFOLIO_MANAGER] }],
 
   // ── Value Stream ────────────────────────────────────────────────────────
   // The value stream owner manages their own value stream and the Epics
@@ -169,26 +160,27 @@ export const POLICIES: Record<Action, Grant[]> = {
   ],
 
   // Multi-party approval workflow (sequential): the Epic Owner submits the
-  // hypothesis (VMO decides), then configures + submits the Business Case for
+  // hypothesis (the Portfolio Manager decides it — the former VMO gate folds
+  // into portfolio_manager), then configures + submits the Business Case for
   // stakeholder approval. `epic.approval.decide` is additionally gated in the
   // service to the assigned approver (the policy can't see the approval row).
+  // Note: portfolio_manager now both submits and decides the hypothesis —
+  // owner↔approver separation remains via the distinct `epic_owner` role.
   "epic.hypothesis.submit": [
     { roles: [EPIC_OWNER, PORTFOLIO_MANAGER] },
     { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
   ],
-  "epic.hypothesis.decide": [{ roles: [VMO] }],
+  "epic.hypothesis.decide": [{ roles: [PORTFOLIO_MANAGER] }],
   "epic.approval.configure": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
   "epic.businesscase.submit": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
-  "epic.approval.decide": [
-    { roles: [PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, VMO, RTE, FEATURE_OWNER] },
-  ],
-  "epic.section.signoff": [{ roles: [VMO, VALUE_STREAM_OWNER, PORTFOLIO_MANAGER] }],
+  "epic.approval.decide": [{ roles: [PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, RTE, FEATURE_OWNER] }],
+  "epic.section.signoff": [{ roles: [VALUE_STREAM_OWNER, PORTFOLIO_MANAGER] }],
   "epic.revision.start": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
-  // The VMO nominates the Epic Owner (precondition for the Detailing phase);
-  // roles above the VMO — the portfolio manager and the value stream owner
-  // (scoped to their stream), plus the admins via authorize() — may also assign.
+  // The Portfolio Manager nominates the Epic Owner (precondition for the
+  // Detailing phase); the value stream owner (scoped to their stream) plus the
+  // admins via authorize() may also assign.
   "epic.owner.assign": [
-    { roles: [PORTFOLIO_MANAGER, VMO] },
+    { roles: [PORTFOLIO_MANAGER] },
     { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
   ],
 
@@ -210,8 +202,8 @@ export const POLICIES: Record<Action, Grant[]> = {
   // `pi.create` (the RTE), not this action.
   "pi_standard.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
 
-  "pi_objective.create": [{ roles: [RTE, TEAM_EDITOR] }],
-  "pi_objective.update": [{ roles: [RTE, TEAM_EDITOR] }],
+  "pi_objective.create": [{ roles: [RTE] }],
+  "pi_objective.update": [{ roles: [RTE] }],
   // System Demo (Roadmap-P4): RTE haelt die Agenda, Feature Owner
   // pflegen ihre eigenen Demo-Items. Scope ist heute global (pro
   // Tenant) — eine ART-Scope-Verschaerfung folgt, wenn noetig.
@@ -236,21 +228,15 @@ export const POLICIES: Record<Action, Grant[]> = {
   "feature.delivery.set": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
 
   // ── Dependencies ────────────────────────────────────────────────────────
-  "dependency.link": [
-    { roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] },
-    { roles: [TEAM_EDITOR], scope: "team" },
-  ],
-  "dependency.unlink": [
-    { roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] },
-    { roles: [TEAM_EDITOR], scope: "team" },
-  ],
+  "dependency.link": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
+  "dependency.unlink": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
 
   // ── Impediments ─────────────────────────────────────────────────────────
   // Anyone operating delivery may raise an impediment; escalation and
   // resolution stay with the coordinating roles.
-  "impediment.create": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER, TEAM_EDITOR] }],
-  "impediment.escalate": [{ roles: [PORTFOLIO_MANAGER, RTE, TEAM_EDITOR] }],
-  "impediment.resolve": [{ roles: [PORTFOLIO_MANAGER, RTE, TEAM_EDITOR] }],
+  "impediment.create": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
+  "impediment.escalate": [{ roles: [PORTFOLIO_MANAGER, RTE] }],
+  "impediment.resolve": [{ roles: [PORTFOLIO_MANAGER, RTE] }],
 };
 
 /**

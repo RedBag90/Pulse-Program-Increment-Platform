@@ -13,7 +13,7 @@ describe("signInviteToken / verifyInviteToken", () => {
     const token = await signInviteToken({
       email: "user@example.com",
       tenantId,
-      role: "team_editor",
+      role: "rte",
     });
 
     expect(typeof token).toBe("string");
@@ -24,7 +24,7 @@ describe("signInviteToken / verifyInviteToken", () => {
     if (result.ok) {
       expect(result.value.email).toBe("user@example.com");
       expect(result.value.tenantId).toBe(tenantId);
-      expect(result.value.role).toBe("team_editor");
+      expect(result.value.role).toBe("rte");
     }
   });
 

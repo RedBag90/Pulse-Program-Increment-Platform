@@ -133,7 +133,8 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
     action: e.action,
     occurredAt: e.occurredAt.toISOString(),
   }));
-  const vmoUsers = approvers.filter((u) => u.roles.includes("vmo"));
+  // Verantwortlicher Prüfer je Value Stream (früher „VMO") — jetzt Portfolio Manager.
+  const vmoUsers = approvers.filter((u) => u.roles.includes("portfolio_manager"));
 
   return (
     <EntityDetailShell

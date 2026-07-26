@@ -72,7 +72,7 @@ export const MILESTONES: readonly Milestone[] = [
     id: "m4",
     name: "M4 · Strategy & Funnel",
     outcome: "Strategische Themen sind definiert, der Funnel ist mit ersten Epic-Ideen befuellt.",
-    who: "Transformation Lead, VMO / Portfolio Manager",
+    who: "Portfolio Manager",
     where: [
       { href: "/ziele", label: "Ziele & Themes" },
       { href: "/portfolio/epics", label: "Portfolio · Epics" },
@@ -88,7 +88,7 @@ export const MILESTONES: readonly Milestone[] = [
     name: "M5 · Bestand einspielen",
     outcome:
       "Laufende Initiativen aus der Vor-Pulse-Welt sind im Portfolio sichtbar — als L0-Epics angelegt, damit das Reporting den realen Stand kennt.",
-    who: "Tenant-Admin, VMO / Portfolio Manager",
+    who: "Tenant-Admin, Portfolio Manager",
     where: [{ href: "/portfolio/epics", label: "Portfolio · Epics (+ Neues Epic)" }],
     checks: [
       {
@@ -107,7 +107,7 @@ export const MILESTONES: readonly Milestone[] = [
     name: "M6 · Portfolio gepflegt",
     outcome:
       "Top-Funnel-Epics haben Owner, Hypothese und freigegebenen Business Case (Sub-Stage L2.2).",
-    who: "VMO / Portfolio Manager, Epic Owner",
+    who: "Portfolio Manager, Epic Owner",
     where: [{ href: "/portfolio/epics", label: "Portfolio · Epics" }],
     checks: [
       { id: "m6-1", label: "Owner pro Epic gesetzt" },
@@ -120,7 +120,7 @@ export const MILESTONES: readonly Milestone[] = [
     name: "M7 · Lean Budget aktiv",
     outcome:
       "Top-Prio-Epics sind finanziert und wandern automatisch auf Stage Gate L3 'Budget alloziert'.",
-    who: "Controller, VMO",
+    who: "Controller, Portfolio Manager",
     where: [
       { href: "/controlling/budget-plan", label: "Budget-Plan (Pool + Perioden)" },
       { href: "/portfolio/budgeting", label: "Participatory Budgeting" },

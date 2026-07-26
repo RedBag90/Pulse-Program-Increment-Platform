@@ -70,7 +70,7 @@ describe("hypothesis phase", () => {
     if (isErr(res)) expect(res.error.kind).toBe("conflict");
   });
 
-  it("VMO approve → business_case, reject → draft", async () => {
+  it("Portfolio Manager approve → business_case, reject → draft", async () => {
     const id = await makeEpic("hypothesis_review");
     expect(isOk(await decideHypothesis(ctx(), { epicId: id, decision: "approve" }))).toBe(true);
     const approved = await db.initiative.findFirst({ where: { id } });

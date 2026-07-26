@@ -48,7 +48,7 @@ export function TeamSettingsTab({ team, canEdit, approvers, userLabels }: Props)
     team.teamType ?? "",
   ].join("|");
 
-  const teamUsers = approvers.filter((u) => u.roles.includes("team_editor"));
+  const teamUsers = approvers.filter((u) => u.roles.includes("rte"));
 
   return (
     <section className="space-y-4">

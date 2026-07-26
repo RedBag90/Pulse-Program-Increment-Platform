@@ -1,8 +1,13 @@
 # Pulse — User Personas
 
-One persona per RBAC role. The role model in
-[`src/domain/roles.ts`](../src/domain/roles.ts) has **12 roles** — a SAFe-oriented
-set. Below, every role gets exactly one persona.
+> **Status (Rollen-Vereinfachung):** Das autoritative Rollenmodell in
+> [`src/domain/roles.ts`](../src/domain/roles.ts) hat **8 Rollen**. `transformation_lead`
+> und `vmo` sind in **`portfolio_manager`** zusammengelegt; `team_editor` ist in **`rte`**
+> aufgegangen. Passagen unten, die diese drei Rollen (oder die nie implementierten
+> `story_owner`/`task_owner`) als eigenständig beschreiben, sind veraltet — maßgeblich
+> sind `roles.ts` + CONTEXT.md §Authorization.
+
+One persona per RBAC role — SAFe-oriented.
 
 Permissions are cross-checked against the live policy registry
 [`src/server/auth/policies/index.ts`](../src/server/auth/policies/index.ts).
