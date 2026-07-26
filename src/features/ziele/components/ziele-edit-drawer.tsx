@@ -2,6 +2,7 @@
 
 import { useActionState, startTransition, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import type {
   ZieleModel,
@@ -396,14 +397,18 @@ function GoalPane({
         }`
       : "";
 
+  const linkSummary = summarizeLinks(node);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <header className="space-y-0.5 border-b pb-3">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {isTopLevel ? "Theme · OKR-Statement" : `Ziel · ${found?.parent?.title ?? "—"}`}
         </p>
         <h2 className="font-heading text-xl font-semibold tracking-tight">{node.title}</h2>
       </header>
+
+      {/* Übersicht — immer sichtbar: Status, Kennzahlen, Chart, Aktivität. */}
       <GoalDetailPanel
         target={detailTarget}
         id={id}
@@ -417,54 +422,103 @@ function GoalPane({
         precision={node.precision}
         currencyCode={node.currencyCode}
       />
-      <div className="space-y-3 rounded-lg border bg-muted/10 p-4">
-        <RelatedEpics
-          target={detailTarget}
-          goalId={id}
-          epics={node.relatedEpics}
-          canEdit={canEdit}
-        />
-        {node.progressMode === "auto_kpi" ? (
-          <p className="text-[10px] leading-snug text-muted-foreground">
-            Die KPIs dieser Epics mit passender Einheit bilden den Ist-Wert dieses Ziels
-            (Fortschrittsquelle „aus verknüpften KPIs").
-          </p>
-        ) : (
-          <p className="text-[10px] leading-snug text-muted-foreground">
-            Ein verknüpftes Epic bringt den €-Wert all seiner KPIs grob mit. Die KPI-Bindungen unten
-            sind die feine Alternative — jede KPI zählt genau einmal.
-          </p>
-        )}
-        <div className="border-t pt-3">
-          <KpiBindingsReadOnly contributions={node.contributions} krId={id} />
-        </div>
-        <div className="border-t pt-3">
-          <RelatedWork goalId={id} items={node.relatedWork} canEdit={canEdit} />
-        </div>
-        <div className="border-t pt-3">
-          <GoalScopeLinks
-            goalId={id}
-            valueStreams={node.valueStreams}
-            arts={node.arts}
-            canEdit={canEdit}
-          />
-        </div>
-      </div>
-      {node.customFields.length > 0 && (
-        <div className="rounded-lg border bg-muted/10 p-4">
-          <CustomFields
+
+      {/* Sekundäres — eingeklappt (Progressive Disclosure). */}
+      <DrawerSection title="Verknüpfungen" hint={linkSummary}>
+        <div className="space-y-3">
+          <RelatedEpics
             target={detailTarget}
             goalId={id}
-            fields={node.customFields}
+            epics={node.relatedEpics}
             canEdit={canEdit}
           />
+          {node.progressMode === "auto_kpi" ? (
+            <p className="text-[10px] leading-snug text-muted-foreground">
+              Die KPIs dieser Epics mit passender Einheit bilden den Ist-Wert dieses Ziels
+              (Fortschrittsquelle „aus verknüpften KPIs").
+            </p>
+          ) : (
+            <p className="text-[10px] leading-snug text-muted-foreground">
+              Ein verknüpftes Epic bringt den €-Wert all seiner KPIs grob mit. Die KPI-Bindungen
+              unten sind die feine Alternative — jede KPI zählt genau einmal.
+            </p>
+          )}
+          <div className="border-t pt-3">
+            <KpiBindingsReadOnly contributions={node.contributions} krId={id} />
+          </div>
+          <div className="border-t pt-3">
+            <RelatedWork goalId={id} items={node.relatedWork} canEdit={canEdit} />
+          </div>
+          <div className="border-t pt-3">
+            <GoalScopeLinks
+              goalId={id}
+              valueStreams={node.valueStreams}
+              arts={node.arts}
+              canEdit={canEdit}
+            />
+          </div>
         </div>
-      )}
-      <details className="rounded-lg border bg-muted/10 p-4">
-        <summary className="cursor-pointer text-sm font-medium">Details bearbeiten</summary>
-        <div className="mt-3">{formNode}</div>
-      </details>
+      </DrawerSection>
+
+      <DrawerSection title="Details">
+        <div className="space-y-4">
+          {node.customFields.length > 0 && (
+            <CustomFields
+              target={detailTarget}
+              goalId={id}
+              fields={node.customFields}
+              canEdit={canEdit}
+            />
+          )}
+          {formNode}
+        </div>
+      </DrawerSection>
     </div>
+  );
+}
+
+/** Kompakte, nicht-leere Verknüpfungs-Zusammenfassung für die eingeklappte Summary. */
+function summarizeLinks(node: GoalNode): string {
+  const features = node.relatedWork.filter((w) => w.kind === "feature").length;
+  const pis = node.relatedWork.filter((w) => w.kind === "pi").length;
+  const parts: string[] = [];
+  if (node.relatedEpics.length) parts.push(`${node.relatedEpics.length} Epics`);
+  if (node.contributions.length) parts.push(`${node.contributions.length} KPIs`);
+  if (features) parts.push(`${features} Features`);
+  if (pis) parts.push(`${pis} PIs`);
+  if (node.valueStreams.length) parts.push(`${node.valueStreams.length} Value Streams`);
+  if (node.arts.length) parts.push(`${node.arts.length} ARTs`);
+  return parts.length > 0 ? parts.join(" · ") : "keine";
+}
+
+/**
+ * Eingeklappter Drawer-Abschnitt (Progressive Disclosure): gestyltes `<details>`
+ * mit Titel, optionalem grauem Hinweis (z. B. Zähl-Zusammenfassung) und Chevron.
+ * Default zu — hält die Ziel-Übersicht fokussiert.
+ */
+function DrawerSection({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group rounded-lg border bg-muted/10">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3">
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="text-sm font-medium">{title}</span>
+          {hint && <span className="truncate text-xs text-muted-foreground">· {hint}</span>}
+        </span>
+        <ChevronDown
+          className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+          aria-hidden
+        />
+      </summary>
+      <div className="border-t px-4 py-3">{children}</div>
+    </details>
   );
 }
 
