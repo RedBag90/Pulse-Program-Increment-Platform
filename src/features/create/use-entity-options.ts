@@ -12,7 +12,8 @@ export type ParentKind =
   | "team"
   | "story"
   | "piStandard"
-  | "timeline";
+  | "timeline"
+  | "goal";
 
 /**
  * Resolves the `GET /api/v1/…` endpoint for a parent-option list. Returns
@@ -21,7 +22,7 @@ export type ParentKind =
  */
 export function optionsEndpoint(
   kind: ParentKind,
-  params?: { artId?: string; featureId?: string },
+  params?: { artId?: string; featureId?: string; excludeSubtreeOf?: string },
 ): string | null {
   switch (kind) {
     case "valueStream":
@@ -42,6 +43,10 @@ export function optionsEndpoint(
       return "/api/v1/pi-standards";
     case "timeline":
       return "/api/v1/timelines";
+    case "goal":
+      return params?.excludeSubtreeOf
+        ? `/api/v1/goals?excludeSubtreeOf=${params.excludeSubtreeOf}`
+        : "/api/v1/goals";
   }
 }
 

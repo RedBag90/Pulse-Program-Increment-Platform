@@ -1,4 +1,4 @@
-import { Prisma } from "@/generated/prisma";
+import { Prisma, type PrismaClient } from "@/generated/prisma";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
@@ -786,4 +786,61 @@ export async function addGoalComment(
       },
     });
   });
+}
+
+// ── Goal picker (read) ──────────────────────────────────────────────────
+
+/** Ein Ziel-Knoten für den Verbinden-/Eltern-Picker. */
+export interface GoalPickerOption {
+  id: string;
+  /** Titel (als `name` für EntitySelect). */
+  name: string;
+  nodeKind: string;
+  period: string | null;
+  status: string | null;
+}
+
+/**
+ * Tenant-scoped Ziel-Suche für den Drawer-Picker („Bestehendes Ziel verbinden",
+ * Elternziel setzen). `q` filtert per Titel (case-insensitive). `excludeSubtreeOf`
+ * blendet den Knoten **selbst + alle Nachfahren** aus (Zyklus-Guard fürs Umhängen,
+ * via materialisiertem `path`-Präfix).
+ */
+export async function listGoalsForPicker(
+  db: PrismaClient,
+  tenantId: string,
+  opts: { q?: string; excludeSubtreeOf?: string } = {},
+): Promise<GoalPickerOption[]> {
+  let excludePath: string | null = null;
+  if (opts.excludeSubtreeOf) {
+    const n = await db.objective.findFirst({
+      where: { id: opts.excludeSubtreeOf, tenantId },
+      select: { path: true },
+    });
+    excludePath = n?.path ?? null;
+  }
+  const rows = await db.objective.findMany({
+    where: {
+      tenantId,
+      ...(opts.q ? { title: { contains: opts.q, mode: "insensitive" } } : {}),
+      ...(opts.excludeSubtreeOf
+        ? {
+            AND: [
+              { id: { not: opts.excludeSubtreeOf } },
+              ...(excludePath ? [{ NOT: { path: { startsWith: `${excludePath}/` } } }] : []),
+            ],
+          }
+        : {}),
+    },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    take: 50,
+    select: { id: true, title: true, nodeKind: true, period: true, status: true },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.title,
+    nodeKind: r.nodeKind,
+    period: r.period,
+    status: r.status,
+  }));
 }

@@ -21,7 +21,7 @@ interface EntitySelectProps {
   value: string;
   onChange: (value: string) => void;
   /** Cascading parent ids; the select stays idle until the needed one is set. */
-  params?: { artId?: string; featureId?: string };
+  params?: { artId?: string; featureId?: string; excludeSubtreeOf?: string };
   /** Whether options carry their display text on `name` or on `title`. */
   labelField: "name" | "title";
   required?: boolean;

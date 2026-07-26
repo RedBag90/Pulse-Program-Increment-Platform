@@ -2,8 +2,11 @@
 
 import { useActionState, startTransition, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import type { ReadonlyURLSearchParams } from "next/navigation";
+import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { goalPeriodLabel } from "@/domain/goal-period";
 import type {
   ZieleModel,
   ZieleKrContribution,
@@ -26,6 +29,7 @@ import {
   linkGoalArtAction,
   unlinkGoalArtAction,
   setGoalCustomFieldValueAction,
+  reparentGoalNodeAction,
 } from "@/features/ziele/actions/ziele";
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
 import { EntitySelect } from "@/features/create/entity-select";
@@ -423,6 +427,10 @@ function GoalPane({
         currencyCode={node.currencyCode}
       />
 
+      {/* Hierarchie — in Asana prominent, daher offen (kurz). */}
+      <SubGoals parentId={id} subgoals={node.children} canEdit={canEdit} />
+      <ParentGoalSection nodeId={id} parent={found?.parent ?? null} canEdit={canEdit} />
+
       {/* Sekundäres — eingeklappt (Progressive Disclosure). */}
       <DrawerSection title="Verknüpfungen" hint={linkSummary}>
         <div className="space-y-3">
@@ -474,6 +482,247 @@ function GoalPane({
         </div>
       </DrawerSection>
     </div>
+  );
+}
+
+/** Baut einen Drawer-Href relativ zum aktuellen URL-State (Query-Patch). */
+function withGoalParams(sp: ReadonlyURLSearchParams, patch: Record<string, string | null>): string {
+  const p = new URLSearchParams(sp.toString());
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === null) p.delete(k);
+    else p.set(k, v);
+  }
+  const qs = p.toString();
+  return qs ? `?${qs}` : "?";
+}
+
+/** Kleiner Fortschrittsbalken 0..1 für Kind-/Eltern-Zeilen. */
+function MiniBar({ value }: { value: number }) {
+  const pct = Math.round(value * 100);
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+        <span className="block h-full rounded-full bg-primary/70" style={{ width: `${pct}%` }} />
+      </span>
+      <span className="w-8 shrink-0 text-right tabular-nums text-muted-foreground">{pct}%</span>
+    </span>
+  );
+}
+
+const KIND_LABEL = (k: string) => (k === "key_result" ? "Key result" : "Ziel");
+
+/**
+ * Unterziele des geöffneten Ziels (Asana „Sub-goals"): Liste der Kinder mit
+ * Fortschritt; „Neues Unterziel" (Create), „Bestehendes Ziel verbinden"
+ * (Reparent unter dieses Ziel) und „Trennen" (Reparent auf Top-Level). Alles
+ * über die bestehenden Actions; Zyklen verhindert `reparentGoalNode` serverseitig.
+ */
+function SubGoals({
+  parentId,
+  subgoals,
+  canEdit,
+}: {
+  parentId: string;
+  subgoals: GoalNode[];
+  canEdit: boolean;
+}) {
+  const searchParams = useSearchParams();
+  const [connectId, setConnectId] = useState("");
+  const [state, run, pending] = useActionState(reparentGoalNodeAction, {});
+
+  function connect() {
+    if (!connectId) return;
+    const fd = new FormData();
+    fd.set("id", connectId);
+    fd.set("newParentId", parentId);
+    startTransition(() => run(fd));
+    setConnectId("");
+  }
+  function disconnect(childId: string) {
+    const fd = new FormData();
+    fd.set("id", childId);
+    fd.set("newParentId", "");
+    startTransition(() => run(fd));
+  }
+
+  const openHref = (goalId: string) =>
+    withGoalParams(searchParams, { entity: "goal", id: goalId, new: null, parent: null });
+  const createHref = withGoalParams(searchParams, {
+    entity: "goal",
+    new: "1",
+    parent: parentId,
+    id: null,
+  });
+
+  return (
+    <section className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Unterziele
+      </h3>
+      {subgoals.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Noch keine Unterziele.</p>
+      ) : (
+        <ul className="space-y-1">
+          {subgoals.map((sg) => (
+            <li
+              key={sg.id}
+              className="flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 text-xs"
+            >
+              <Link
+                href={openHref(sg.id) as never}
+                scroll={false}
+                className="min-w-0 flex-1 hover:underline"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="truncate font-medium">{sg.title}</span>
+                  <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[9px] uppercase text-muted-foreground">
+                    {KIND_LABEL(sg.nodeKind)}
+                  </span>
+                </span>
+                <span className="block truncate text-[10px] text-muted-foreground">
+                  {sg.period ? goalPeriodLabel(sg.period) : "—"}
+                </span>
+              </Link>
+              <span className="w-24 shrink-0">
+                <MiniBar value={sg.progress ?? 0} />
+              </span>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => disconnect(sg.id)}
+                  disabled={pending}
+                  aria-label={`${sg.title} trennen`}
+                  title="Trennen (auf oberste Ebene)"
+                  className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  ✕
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {canEdit && (
+        <div className="space-y-1.5 rounded-md border border-dashed p-2">
+          <EntitySelect
+            kind="goal"
+            name="connectSubgoal"
+            label="Bestehendes Ziel verbinden"
+            value={connectId}
+            onChange={setConnectId}
+            labelField="name"
+            params={{ excludeSubtreeOf: parentId }}
+            disabled={pending}
+          />
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              href={createHref as never}
+              scroll={false}
+              className="text-xs font-medium text-blue-700 hover:underline"
+            >
+              + Neues Unterziel
+            </Link>
+            <button
+              type="button"
+              onClick={connect}
+              disabled={pending || connectId === ""}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            >
+              Verbinden
+            </button>
+          </div>
+        </div>
+      )}
+      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
+    </section>
+  );
+}
+
+/**
+ * Elternziel des geöffneten Ziels (Asana „Parent goals"): Karte des Elternziels
+ * + Setzen/Ändern (Reparent dieses Ziels) / Entfernen (auf Top-Level). Der Picker
+ * blendet dieses Ziel + seine Nachfahren aus (`excludeSubtreeOf`, Zyklus-Guard).
+ */
+function ParentGoalSection({
+  nodeId,
+  parent,
+  canEdit,
+}: {
+  nodeId: string;
+  parent: GoalNode | null;
+  canEdit: boolean;
+}) {
+  const searchParams = useSearchParams();
+  const [pickId, setPickId] = useState("");
+  const [state, run, pending] = useActionState(reparentGoalNodeAction, {});
+
+  function setParent(newParentId: string) {
+    const fd = new FormData();
+    fd.set("id", nodeId);
+    fd.set("newParentId", newParentId);
+    startTransition(() => run(fd));
+    setPickId("");
+  }
+
+  const openHref = (goalId: string) =>
+    withGoalParams(searchParams, { entity: "goal", id: goalId, new: null, parent: null });
+
+  return (
+    <section className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Elternziel
+      </h3>
+      {parent ? (
+        <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm">
+          <Link
+            href={openHref(parent.id) as never}
+            scroll={false}
+            className="min-w-0 flex-1 hover:underline"
+          >
+            <span className="truncate font-medium">{parent.title}</span>
+            <span className="block truncate text-[10px] text-muted-foreground">
+              {Math.round((parent.progress ?? 0) * 100)} % ·{" "}
+              {parent.period ? goalPeriodLabel(parent.period) : "—"}
+            </span>
+          </Link>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setParent("")}
+              disabled={pending}
+              className="shrink-0 text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
+            >
+              Entfernen
+            </button>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Kein Elternziel (oberste Ebene).</p>
+      )}
+      {canEdit && (
+        <div className="space-y-1.5 rounded-md border border-dashed p-2">
+          <EntitySelect
+            kind="goal"
+            name="setParentGoal"
+            label={parent ? "Elternziel ändern" : "Elternziel setzen"}
+            value={pickId}
+            onChange={setPickId}
+            labelField="name"
+            params={{ excludeSubtreeOf: nodeId }}
+            disabled={pending}
+          />
+          <button
+            type="button"
+            onClick={() => pickId && setParent(pickId)}
+            disabled={pending || pickId === ""}
+            className="ml-auto block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+          >
+            Übernehmen
+          </button>
+        </div>
+      )}
+      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
+    </section>
   );
 }
 
