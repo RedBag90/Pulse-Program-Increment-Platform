@@ -33,6 +33,7 @@ export interface GoalFieldValues {
   current: number | null;
   formula: string;
   progressMode: string | null;
+  accountableTeamId: string | null;
 }
 
 export type GoalFieldKey = keyof GoalFieldValues;
@@ -58,6 +59,7 @@ export interface GoalFieldUpdateInput {
   current?: number | null | undefined;
   formula?: "auto_from_kpi" | "manual" | undefined;
   progressMode?: string | null | undefined;
+  accountableTeamId?: string | null | undefined;
 }
 
 /** Die von einem Update auditierten Felder eines vollen Objectives. */
@@ -81,6 +83,7 @@ export const OBJECTIVE_FIELD_KEYS = [
   "current",
   "formula",
   "progressMode",
+  "accountableTeamId",
 ] as const satisfies readonly GoalFieldKey[];
 
 /** Die Teilmenge, die ein KR-Update pflegt (kein narrative/confidence/closingNote/progressMode). */
@@ -125,6 +128,7 @@ type GoalRowSnapshot = {
   current: unknown;
   formula: string;
   progressMode: string | null;
+  accountableTeamId: string | null;
 };
 
 /** Decimal-Spalten auf number normalisieren, damit der Audit-Snapshot numerisch liest. */
@@ -149,6 +153,7 @@ export function projectGoalFields(existing: GoalRowSnapshot): GoalFieldValues {
     current: num(existing.current),
     formula: existing.formula,
     progressMode: existing.progressMode,
+    accountableTeamId: existing.accountableTeamId,
   };
 }
 
@@ -176,6 +181,7 @@ export function readGoalFieldUpdates(input: GoalFieldUpdateInput): {
     current: input.current,
     formula: input.formula,
     progressMode: input.progressMode,
+    accountableTeamId: input.accountableTeamId,
   };
 }
 

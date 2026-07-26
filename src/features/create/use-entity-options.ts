@@ -36,7 +36,8 @@ export function optionsEndpoint(
     case "pi":
       return params?.artId ? `/api/v1/pis?artId=${params.artId}` : null;
     case "team":
-      return params?.artId ? `/api/v1/teams?artId=${params.artId}` : null;
+      // Ohne artId: alle Tenant-Teams (Goal-„Accountable team"-Picker).
+      return params?.artId ? `/api/v1/teams?artId=${params.artId}` : "/api/v1/teams";
     case "story":
       return params?.featureId ? `/api/v1/stories?featureId=${params.featureId}` : null;
     case "piStandard":

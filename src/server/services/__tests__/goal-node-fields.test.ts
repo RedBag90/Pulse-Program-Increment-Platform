@@ -29,6 +29,7 @@ const row = (over: Partial<GoalFieldValues> = {}): GoalFieldValues => ({
   current: null,
   formula: "manual",
   progressMode: null,
+  accountableTeamId: null,
   ...over,
 });
 

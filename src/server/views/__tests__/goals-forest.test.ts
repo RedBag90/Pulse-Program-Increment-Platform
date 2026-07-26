@@ -29,6 +29,7 @@ const obj = (over: Partial<ForestObjective>): ForestObjective => ({
   status: null,
   dueDate: null,
   ownerId: null,
+  accountableTeam: null,
   metricUnit: null,
   metricType: "number",
   precision: 0,

@@ -218,6 +218,8 @@ model Objective {
   /// gevotet; treibt die ★-Anzeige in den Cards.
   confidence Int?
   ownerId    String?  @map("owner_id") @db.Uuid
+  /// Verantwortliches Team (Asana „Accountable team"). Null = kein Team.
+  accountableTeamId String? @map("accountable_team_id") @db.Uuid
   sortOrder  Int      @default(0) @map("sort_order")
   /// Goal-Status (src/domain/goal-status.ts). Null = kein Check-in ("No
   /// recent updates"). Open: on_track | at_risk | off_track. Closed:
@@ -237,6 +239,7 @@ model Objective {
   theme      StrategicTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
   parent     Objective?  @relation("GoalHierarchy", fields: [parentObjectiveId], references: [id])
   children   Objective[] @relation("GoalHierarchy")
+  accountableTeam Team?  @relation("GoalAccountableTeam", fields: [accountableTeamId], references: [id])
   kpiContributions KrKpiContribution[]
   checkins   GoalCheckin[]
   comments   GoalComment[]
@@ -251,6 +254,7 @@ model Objective {
   @@index([period])
   @@index([parentObjectiveId])
   @@index([path])
+  @@index([accountableTeamId])
   @@map("objectives")
 }
 
@@ -574,6 +578,7 @@ model Team {
   tenant     Tenant        @relation(fields: [tenantId], references: [id])
   art        Art           @relation(fields: [artId], references: [id])
   objectives PiObjective[]
+  accountableGoals Objective[] @relation("GoalAccountableTeam")
 
   @@unique([tenantId, name])
   @@index([artId])

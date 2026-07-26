@@ -108,6 +108,8 @@ export interface GoalNode {
   status: string | null;
   dueDate: string | null;
   ownerId: string | null;
+  /** Verantwortliches Team (Asana „Accountable team"); null = keins. */
+  accountableTeam: ScopeRef | null;
   latestCheckin: GoalLatestCheckin | null;
   // ── Metrik (nur bei messbaren Blättern relevant) ──
   metricUnit: string | null;
@@ -235,6 +237,7 @@ export async function loadStrategyTree(
     where: { tenantId },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     include: {
+      accountableTeam: { select: { id: true, name: true } },
       kpiContributions: {
         include: {
           kpi: {
@@ -451,6 +454,9 @@ export async function loadStrategyTree(
     status: o.status,
     dueDate: o.dueDate ? o.dueDate.toISOString() : null,
     ownerId: o.ownerId,
+    accountableTeam: o.accountableTeam
+      ? { id: o.accountableTeam.id, name: o.accountableTeam.name }
+      : null,
     metricUnit: o.metricUnit,
     metricType: o.metricType,
     precision: o.precision,

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTeam, listTeams } from "@/server/services/team";
+import { createTeam, listTeams, listTenantTeams } from "@/server/services/team";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import type { ArtId } from "@/domain/types";
@@ -9,11 +9,15 @@ const createSchema = z.object({
   name: z.string().min(1).max(100),
 });
 
-const listParamsSchema = z.object({ artId: z.string().uuid() });
+// artId optional: mit artId die Teams einer ART, ohne alle Tenant-Teams (Goal-Picker).
+const listParamsSchema = z.object({ artId: z.string().uuid().optional() });
 
 export const GET = createQueryHandler({
   params: listParamsSchema,
-  query: (ctx, { artId }) => listTeams(ctx.db, ctx.principal.tenantId, artId as ArtId),
+  query: (ctx, { artId }) =>
+    artId
+      ? listTeams(ctx.db, ctx.principal.tenantId, artId as ArtId)
+      : listTenantTeams(ctx.db, ctx.principal.tenantId),
 });
 
 export const POST = createMutationHandler({

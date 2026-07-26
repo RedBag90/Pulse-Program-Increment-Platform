@@ -138,6 +138,15 @@ export async function listTeams(db: PrismaClient, tenantId: TenantId, artId: Art
   });
 }
 
+/** Alle Teams eines Tenants (ART-übergreifend) — für den Goal-„Accountable team"-Picker. */
+export async function listTenantTeams(db: PrismaClient, tenantId: TenantId) {
+  return db.team.findMany({
+    where: { tenantId },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+}
+
 export async function getTeam(db: PrismaClient, tenantId: TenantId, id: TeamId) {
   return db.team.findFirst({
     where: { id, tenantId },

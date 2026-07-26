@@ -30,6 +30,7 @@ import {
   unlinkGoalArtAction,
   setGoalCustomFieldValueAction,
   reparentGoalNodeAction,
+  setGoalAccountableTeamAction,
 } from "@/features/ziele/actions/ziele";
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
 import { EntitySelect } from "@/features/create/entity-select";
@@ -459,7 +460,8 @@ function GoalPane({
           <div className="border-t pt-3">
             <KpiBindingsReadOnly contributions={node.contributions} krId={id} />
           </div>
-          <div className="border-t pt-3">
+          <div className="space-y-3 border-t pt-3">
+            <AccountableTeam goalId={id} team={node.accountableTeam} canEdit={canEdit} />
             <GoalScopeLinks
               goalId={id}
               valueStreams={node.valueStreams}
@@ -582,7 +584,8 @@ function SubGoals({
                   </span>
                 </span>
                 <span className="block truncate text-[10px] text-muted-foreground">
-                  {sg.period ? goalPeriodLabel(sg.period) : "—"}
+                  {sg.period ? goalPeriodLabel(sg.period) : "—"} ·{" "}
+                  {sg.accountableTeam?.name ?? "Kein Team"}
                 </span>
               </Link>
               <span className="w-24 shrink-0">
@@ -882,6 +885,82 @@ function RelatedWorkUnified({
         )}
       </LinkList>
       {err && <p className="text-xs text-destructive">{err}</p>}
+    </section>
+  );
+}
+
+/**
+ * Verantwortliches Team am Ziel (Asana „Accountable team"): ein Team (Single-FK,
+ * `accountableTeamId`) — setzen/entfernen via `setGoalAccountableTeamAction`. Der
+ * Picker listet alle Tenant-Teams (ART-übergreifend).
+ */
+function AccountableTeam({
+  goalId,
+  team,
+  canEdit,
+}: {
+  goalId: string;
+  team: ScopeRef | null;
+  canEdit: boolean;
+}) {
+  const [teamId, setTeamId] = useState("");
+  const [state, run, pending] = useActionState(setGoalAccountableTeamAction, {});
+
+  function set(id: string) {
+    const fd = new FormData();
+    fd.set("id", goalId);
+    fd.set("accountableTeamId", id);
+    startTransition(() => run(fd));
+    setTeamId("");
+  }
+
+  return (
+    <section className="space-y-1.5">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        Verantwortliches Team
+      </p>
+      {team ? (
+        <span className="flex w-fit items-center gap-1 rounded-full border bg-card px-2 py-0.5 text-xs">
+          <span className="truncate">{team.name}</span>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => set("")}
+              disabled={pending}
+              aria-label={`${team.name} entfernen`}
+              className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              ✕
+            </button>
+          )}
+        </span>
+      ) : (
+        <p className="text-xs text-muted-foreground">Kein Team.</p>
+      )}
+      {canEdit && (
+        <div className="flex items-end gap-1.5">
+          <div className="flex-1">
+            <EntitySelect
+              kind="team"
+              name="goalTeam"
+              label=""
+              value={teamId}
+              onChange={setTeamId}
+              labelField="name"
+              disabled={pending}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => teamId && set(teamId)}
+            disabled={pending || teamId === ""}
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+          >
+            +
+          </button>
+        </div>
+      )}
+      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
     </section>
   );
 }

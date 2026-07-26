@@ -254,6 +254,24 @@ export const reparentGoalNodeAction = createServerAction({
   mapError: (e) => formatDomainError(e, { fallback: "Verschieben fehlgeschlagen" }),
 });
 
+/** Verantwortliches Team am Ziel setzen/entfernen (Asana „Accountable team"). */
+export const setGoalAccountableTeamAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    accountableTeamId: z.string().uuid().optional().or(z.literal("")),
+  }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    updateObjective(ctx, {
+      id: input.id,
+      accountableTeamId:
+        input.accountableTeamId && input.accountableTeamId !== "" ? input.accountableTeamId : null,
+    }),
+  revalidate: "ziele",
+  mapError: (e) => formatDomainError(e, { fallback: "Team konnte nicht gesetzt werden" }),
+});
+
 // ── KeyResult ──────────────────────────────────────────────────────────
 
 export const createKeyResultAction = createServerAction({

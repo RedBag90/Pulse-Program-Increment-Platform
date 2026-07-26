@@ -170,6 +170,7 @@ export interface UpdateObjectiveInput {
   current?: number | null;
   formula?: "auto_from_kpi" | "manual";
   progressMode?: string | null;
+  accountableTeamId?: string | null;
 }
 
 export async function updateObjective(
