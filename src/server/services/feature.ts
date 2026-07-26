@@ -765,9 +765,19 @@ export async function setFeatureDeliveryStatus(
       }
     }
 
+    // Ist-Lieferdatum stempeln: Übergang nach "completed" setzt completedAt;
+    // Rücknahme (weg von completed) leert es wieder. Basis für Plantreue/
+    // Terminabweichung im LPM-Portfolio-Review.
+    const completedAtPatch: { completedAt?: Date | null } =
+      to === "completed"
+        ? { completedAt: new Date() }
+        : feature.status === "completed"
+          ? { completedAt: null }
+          : {};
+
     await tx.initiative.update({
       where: { id },
-      data: { status: to, updatedBy: mctx.actorId },
+      data: { status: to, updatedBy: mctx.actorId, ...completedAtPatch },
     });
 
     if (advanceParentToL4 && feature.parentId) {

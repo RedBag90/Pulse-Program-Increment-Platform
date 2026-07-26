@@ -766,6 +766,10 @@ model Initiative {
 
   stageGate String @default("L0") @map("stage_gate")
   status    String @default("draft")
+  /// Ist-Lieferdatum (FEATURE only): gestempelt beim Delivery-Übergang nach
+  /// "completed", geleert bei Rücknahme. Basis für Plantreue/Terminabweichung
+  /// im LPM-Portfolio-Review (Soll = Plan-PI-Ende).
+  completedAt DateTime? @map("completed_at")
 
   // Multi-party approval workflow phase (EPIC only): draft → hypothesis_review →
   // business_case → stakeholder_review → approved. Independent of stageGate.

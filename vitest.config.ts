@@ -31,6 +31,7 @@ export default defineConfig({
           setupFiles: ["./src/test/setup.ts"],
           include: [
             "src/domain/**/*.test.ts",
+            "src/lib/**/*.test.ts",
             "src/features/**/*.test.tsx",
             "src/app/**/*.test.tsx",
             "src/components/**/*.test.tsx",

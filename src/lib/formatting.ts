@@ -60,6 +60,30 @@ export function formatCompactNumber(n: number): string {
 }
 
 /**
+ * Deutscher Kompakt-Euro für Portfolio-Kennzahlen: `24,6 Mio €` / `1,3 Mrd €`,
+ * eine Nachkommastelle, deutsche Dezimaltrennung (Komma). Anders als
+ * `formatCompactEUR` (`€24.60M`, englisch) folgt dies der LPM-Review-Vorgabe
+ * (Spec: „24,6 Mio €"). Werte < 1 Mio werden ebenfalls in Mio dargestellt
+ * (z. B. `0,4 Mio €`), damit KPI-Karten und Achsen eine Einheit teilen.
+ */
+export function formatMioEUR(n: number): string {
+  const abs = Math.abs(n);
+  const de = (x: number) =>
+    x.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  if (abs >= 1_000_000_000) return `${de(n / 1_000_000_000)} Mrd €`;
+  return `${de(n / 1_000_000)} Mio €`;
+}
+
+/**
+ * Prozent aus einem 0..1-Verhältnis, ganzzahlig gerundet, mit Leerzeichen vor
+ * `%` (de-Konvention): `formatPercent(0.876)` → `88 %`. Konvention im Ziele-/
+ * Portfolio-Code: Verhältnisse bleiben 0..1 und werden erst am Rand formatiert.
+ */
+export function formatPercent(ratio: number): string {
+  return `${Math.round(ratio * 100)} %`;
+}
+
+/**
  * de-DE date formatter. `iso` may be a `Date`, an ISO string, or `null`
  * (renders as em-dash). Default mode is `"date"` (`05.06.2026`); `"datetime"`
  * adds time (`05.06.2026, 14:32`).
