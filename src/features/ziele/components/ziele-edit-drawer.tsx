@@ -29,6 +29,7 @@ import {
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
 import { EntitySelect } from "@/features/create/entity-select";
 import { PeriodPicker } from "@/features/ziele/components/period-picker";
+import { LinkList } from "@/features/ziele/components/link-list";
 import { formatMetricValue } from "@/domain/goal-metric";
 
 /**
@@ -512,66 +513,51 @@ function RelatedEpics({
           Related work · Epics
         </h3>
       </header>
-      {epics.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Noch kein Epic verbunden.</p>
-      ) : (
-        <ul className="space-y-1">
-          {epics.map((e) => (
-            <li
-              key={e.epicId}
-              className="flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 text-xs"
+      <LinkList
+        variant="row"
+        emptyText="Noch kein Epic verbunden."
+        canEdit={canEdit}
+        onRemove={remove}
+        removePending={unlinkPending}
+        items={epics.map((e) => ({
+          key: e.epicId,
+          label: e.title,
+          href: e.href,
+          subtitle: `Epic · ${e.stageGate}`,
+          removeLabel: `Verknüpfung mit ${e.title} entfernen`,
+          trailing: (
+            <span className="text-[10px] tabular-nums text-muted-foreground">
+              {e.trio.planned > 0
+                ? `€${Math.round(e.trio.realized).toLocaleString("de-DE")} / ${Math.round(
+                    e.trio.planned,
+                  ).toLocaleString("de-DE")}`
+                : "—"}
+            </span>
+          ),
+        }))}
+      >
+        {canEdit && (
+          <div className="space-y-1.5 rounded-md border border-dashed p-2">
+            <EntitySelect
+              kind="epic"
+              name="relatedEpicPicker"
+              label="Epic verbinden"
+              value={epicId}
+              onChange={setEpicId}
+              labelField="title"
+              disabled={linkPending}
+            />
+            <button
+              type="button"
+              onClick={add}
+              disabled={linkPending || epicId === ""}
+              className="ml-auto block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
             >
-              <div className="min-w-0 flex-1">
-                <a href={e.href} className="truncate font-medium text-primary hover:underline">
-                  {e.title}
-                </a>
-                <p className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Epic · {e.stageGate}
-                </p>
-              </div>
-              <span className="text-[10px] tabular-nums text-muted-foreground">
-                {e.trio.planned > 0
-                  ? `€${Math.round(e.trio.realized).toLocaleString("de-DE")} / ${Math.round(
-                      e.trio.planned,
-                    ).toLocaleString("de-DE")}`
-                  : "—"}
-              </span>
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={() => remove(e.epicId)}
-                  disabled={unlinkPending}
-                  aria-label={`Verknüpfung mit ${e.title} entfernen`}
-                  className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                >
-                  ✕
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {canEdit && (
-        <div className="space-y-1.5 rounded-md border border-dashed p-2">
-          <EntitySelect
-            kind="epic"
-            name="relatedEpicPicker"
-            label="Epic verbinden"
-            value={epicId}
-            onChange={setEpicId}
-            labelField="title"
-            disabled={linkPending}
-          />
-          <button
-            type="button"
-            onClick={add}
-            disabled={linkPending || epicId === ""}
-            className="ml-auto block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-          >
-            + Epic verbinden
-          </button>
-        </div>
-      )}
+              + Epic verbinden
+            </button>
+          </div>
+        )}
+      </LinkList>
       {err && <p className="text-xs text-destructive">{err}</p>}
     </section>
   );
@@ -621,91 +607,77 @@ function RelatedWork({
       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Related work · Features &amp; PIs
       </h3>
-      {items.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Noch keine Arbeit verbunden.</p>
-      ) : (
-        <ul className="space-y-1">
-          {items.map((it) => (
-            <li
-              key={`${it.kind}:${it.refId}`}
-              className="flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 text-xs"
-            >
-              <div className="min-w-0 flex-1">
-                <a href={it.href} className="truncate font-medium text-primary hover:underline">
-                  {it.title}
-                </a>
-                <p className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {it.kind === "feature" ? "Feature" : "PI"}
-                </p>
-              </div>
-              {canEdit && (
+      <LinkList
+        variant="row"
+        emptyText="Noch keine Arbeit verbunden."
+        canEdit={canEdit}
+        removePending={removePending}
+        onRemove={(key) => {
+          const i = key.indexOf(":");
+          remove(key.slice(0, i), key.slice(i + 1));
+        }}
+        items={items.map((it) => ({
+          key: `${it.kind}:${it.refId}`,
+          label: it.title,
+          href: it.href,
+          subtitle: it.kind === "feature" ? "Feature" : "PI",
+          removeLabel: `Verknüpfung mit ${it.title} entfernen`,
+        }))}
+      >
+        {canEdit && (
+          <div className="space-y-1.5 rounded-md border border-dashed p-2">
+            <div className="flex gap-1">
+              {(["feature", "pi"] as const).map((k) => (
                 <button
+                  key={k}
                   type="button"
-                  onClick={() => remove(it.kind, it.refId)}
-                  disabled={removePending}
-                  aria-label={`Verknüpfung mit ${it.title} entfernen`}
-                  className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  onClick={() => {
+                    setKind(k);
+                    setRefId("");
+                  }}
+                  className={`flex-1 rounded-md border px-2 py-1 text-xs font-medium ${
+                    kind === k
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
                 >
-                  ✕
+                  {k === "feature" ? "Feature" : "PI"}
                 </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {canEdit && (
-        <div className="space-y-1.5 rounded-md border border-dashed p-2">
-          <div className="flex gap-1">
-            {(["feature", "pi"] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => {
-                  setKind(k);
-                  setRefId("");
-                }}
-                className={`flex-1 rounded-md border px-2 py-1 text-xs font-medium ${
-                  kind === k
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                {k === "feature" ? "Feature" : "PI"}
-              </button>
-            ))}
+              ))}
+            </div>
+            <EntitySelect
+              kind="art"
+              name="relatedWorkArt"
+              label="ART wählen"
+              value={artId}
+              onChange={(v) => {
+                setArtId(v);
+                setRefId("");
+              }}
+              labelField="name"
+              disabled={addPending}
+            />
+            <EntitySelect
+              kind={kind}
+              name="relatedWorkRef"
+              label={kind === "feature" ? "Feature wählen" : "PI wählen"}
+              value={refId}
+              onChange={setRefId}
+              labelField={kind === "feature" ? "title" : "name"}
+              params={{ artId }}
+              disabled={addPending || artId === ""}
+            />
+            <button
+              type="button"
+              onClick={add}
+              disabled={addPending || refId === ""}
+              className="ml-auto block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            >
+              + Verbinden
+            </button>
           </div>
-          <EntitySelect
-            kind="art"
-            name="relatedWorkArt"
-            label="ART wählen"
-            value={artId}
-            onChange={(v) => {
-              setArtId(v);
-              setRefId("");
-            }}
-            labelField="name"
-            disabled={addPending}
-          />
-          <EntitySelect
-            kind={kind}
-            name="relatedWorkRef"
-            label={kind === "feature" ? "Feature wählen" : "PI wählen"}
-            value={refId}
-            onChange={setRefId}
-            labelField={kind === "feature" ? "title" : "name"}
-            params={{ artId }}
-            disabled={addPending || artId === ""}
-          />
-          <button
-            type="button"
-            onClick={add}
-            disabled={addPending || refId === ""}
-            className="ml-auto block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-          >
-            + Verbinden
-          </button>
-        </div>
-      )}
+        )}
+      </LinkList>
       {err && <p className="text-xs text-destructive">{err}</p>}
     </section>
   );
@@ -768,34 +740,8 @@ function GoalScopeLinks({
     startTransition(() => unlinkArtRun(fd));
   }
 
-  function chips(items: ScopeRef[], onRemove: (id: string) => void, removing: boolean) {
-    if (items.length === 0) {
-      return <p className="text-xs text-muted-foreground">Keine Zuordnung.</p>;
-    }
-    return (
-      <ul className="flex flex-wrap gap-1.5">
-        {items.map((it) => (
-          <li
-            key={it.id}
-            className="flex items-center gap-1 rounded-full border bg-card px-2 py-0.5 text-xs"
-          >
-            <span className="truncate">{it.name}</span>
-            {canEdit && (
-              <button
-                type="button"
-                onClick={() => onRemove(it.id)}
-                disabled={removing}
-                aria-label={`${it.name} entfernen`}
-                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
-              >
-                ✕
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-    );
-  }
+  const scopeItems = (items: ScopeRef[]) =>
+    items.map((it) => ({ key: it.id, label: it.name, removeLabel: `${it.name} entfernen` }));
 
   return (
     <section className="space-y-2">
@@ -804,57 +750,73 @@ function GoalScopeLinks({
       </h3>
       <div className="space-y-1.5">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Value Streams</p>
-        {chips(valueStreams, removeVs, unlinkVsPending)}
-        {canEdit && (
-          <div className="flex items-end gap-1.5">
-            <div className="flex-1">
-              <EntitySelect
-                kind="valueStream"
-                name="goalScopeVs"
-                label=""
-                value={vsId}
-                onChange={setVsId}
-                labelField="name"
-                disabled={linkVsPending}
-              />
+        <LinkList
+          variant="pill"
+          emptyText="Keine Zuordnung."
+          canEdit={canEdit}
+          onRemove={removeVs}
+          removePending={unlinkVsPending}
+          items={scopeItems(valueStreams)}
+        >
+          {canEdit && (
+            <div className="flex items-end gap-1.5">
+              <div className="flex-1">
+                <EntitySelect
+                  kind="valueStream"
+                  name="goalScopeVs"
+                  label=""
+                  value={vsId}
+                  onChange={setVsId}
+                  labelField="name"
+                  disabled={linkVsPending}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={addVs}
+                disabled={linkVsPending || vsId === ""}
+                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+              >
+                +
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={addVs}
-              disabled={linkVsPending || vsId === ""}
-              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-            >
-              +
-            </button>
-          </div>
-        )}
+          )}
+        </LinkList>
       </div>
       <div className="space-y-1.5">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">ARTs</p>
-        {chips(arts, removeArt, unlinkArtPending)}
-        {canEdit && (
-          <div className="flex items-end gap-1.5">
-            <div className="flex-1">
-              <EntitySelect
-                kind="art"
-                name="goalScopeArt"
-                label=""
-                value={artId}
-                onChange={setArtId}
-                labelField="name"
-                disabled={linkArtPending}
-              />
+        <LinkList
+          variant="pill"
+          emptyText="Keine Zuordnung."
+          canEdit={canEdit}
+          onRemove={removeArt}
+          removePending={unlinkArtPending}
+          items={scopeItems(arts)}
+        >
+          {canEdit && (
+            <div className="flex items-end gap-1.5">
+              <div className="flex-1">
+                <EntitySelect
+                  kind="art"
+                  name="goalScopeArt"
+                  label=""
+                  value={artId}
+                  onChange={setArtId}
+                  labelField="name"
+                  disabled={linkArtPending}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={addArt}
+                disabled={linkArtPending || artId === ""}
+                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+              >
+                +
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={addArt}
-              disabled={linkArtPending || artId === ""}
-              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-            >
-              +
-            </button>
-          </div>
-        )}
+          )}
+        </LinkList>
       </div>
       {err && <p className="text-xs text-destructive">{err}</p>}
     </section>
