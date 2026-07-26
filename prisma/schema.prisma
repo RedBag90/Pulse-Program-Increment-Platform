@@ -13,6 +13,14 @@ model Tenant {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
   region    String   @db.VarChar(10)
+  /// Tenant-Art: "organization" (Klienten-Tenant, Platform-Admin-angelegt) |
+  /// "personal" (privater Free-Bereich eines einzelnen Nutzers, auto-erzeugt).
+  kind      String   @default("organization")
+  /// Entitlement-Set (Freemium): Modul-Keys aus src/domain/modules.ts, die dieser
+  /// Tenant nutzen darf. Leeres Array = kind-Default (personal → ["ziele"],
+  /// organization → alle Module). Pflege ausschließlich über die
+  /// Platform-Admin-API — kein tenant-seitiges Self-Service.
+  enabledModules String[] @map("enabled_modules")
   createdAt DateTime @default(now()) @map("created_at")
 
   // Portfolio Dashboard settings (the "Soll" for the economics view).

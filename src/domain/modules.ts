@@ -1,0 +1,165 @@
+/**
+ * Modul-Registry — die Entitlement-Achse des Freemium-Modells (eine Quelle für
+ * Nav-Filter, Route-Guard und Action-Gate). Ein **Modul** ist ein verkaufbarer
+ * Funktionsblock; ein Tenant darf nur die Module in `Tenant.enabledModules`
+ * nutzen (leer = kind-Default). Orthogonal zu den Operating-Model-Practices
+ * (was der Tenant davon *fahren will*) und zu RBAC (wer *innerhalb* eines
+ * Moduls was darf): effektiv sichtbar = Entitlement ∧ Practice ∧ Capability.
+ *
+ * Fail-closed-Regeln:
+ *  - Ein Dashboard-Segment, das hier nicht registriert ist, ist gesperrt —
+ *    neue Segmente müssen registriert werden (Vollständigkeits-Test erzwingt das).
+ *  - `CORE_SEGMENTS` (start / my-tasks / my-approvals) sind immer verfügbar.
+ *  - Actions ohne Modul-Zuordnung (nur `tenant.create`, Platform-API) bleiben
+ *    ungegated — alles andere mappt auf ein Modul.
+ */
+
+export const MODULE_KEYS = [
+  "ziele",
+  "portfolio",
+  "program",
+  "controlling",
+  "roadmap",
+  "reporting",
+  "structure",
+  "admin",
+] as const;
+
+export type ModuleKey = (typeof MODULE_KEYS)[number];
+
+export interface ModuleDef {
+  label: string;
+  /** Erste URL-Segmente (locale-los), die zu diesem Modul gehören. */
+  segments: readonly string[];
+  /** Action-Matcher: exakter Name oder Dot-Präfix (endet auf "."). */
+  actions: readonly string[];
+  /** Redirect-/Einstiegsziel des Moduls. */
+  home: string;
+}
+
+/** Immer verfügbare Segmente (kein Entitlement): Einstieg + persönliche Inbox. */
+export const CORE_SEGMENTS: readonly string[] = ["start", "my-tasks", "my-approvals"];
+
+export const MODULES: Record<ModuleKey, ModuleDef> = {
+  ziele: {
+    label: "Ziele & OKRs",
+    segments: ["ziele", "strategy"],
+    actions: ["target.manage", "goal.", "kpi.bind"],
+    home: "/ziele",
+  },
+  portfolio: {
+    label: "Portfolio-Management",
+    segments: ["portfolio", "value-streams"],
+    actions: ["value_stream.", "epic.", "kpi.value.manage"],
+    home: "/portfolio",
+  },
+  program: {
+    label: "Programm & PI-Planung",
+    segments: [
+      "umsetzung",
+      "implementation",
+      "pi",
+      "pi-planning",
+      "art",
+      "team",
+      "feature",
+      "dependencies",
+      "impediments",
+      "quality",
+      "rte",
+      "capacity",
+    ],
+    actions: ["art.", "pi.", "pi_objective.", "feature.", "team.", "dependency.", "impediment."],
+    home: "/umsetzung",
+  },
+  controlling: {
+    label: "Budget & Controlling",
+    segments: ["controlling"],
+    actions: ["budget.", "budget_plan.", "art_budget."],
+    home: "/controlling",
+  },
+  roadmap: {
+    label: "Roadmap",
+    segments: ["roadmap"],
+    actions: [],
+    home: "/roadmap/portfolio",
+  },
+  reporting: {
+    label: "Reporting",
+    segments: ["reporting"],
+    actions: [],
+    home: "/reporting/portfolio-health",
+  },
+  structure: {
+    label: "Setup & Struktur",
+    segments: ["setup", "structure", "timelines", "transformation"],
+    actions: ["timeline.manage", "pi_standard.manage"],
+    home: "/structure",
+  },
+  admin: {
+    label: "Administration",
+    segments: ["admin"],
+    actions: ["tenant.users.manage", "integration.manage", "role.capability.manage", "admin."],
+    home: "/admin/users",
+  },
+};
+
+/** Free-Set eines persönlichen Tenants. */
+export const PERSONAL_DEFAULT_MODULES: readonly ModuleKey[] = ["ziele"];
+
+const SEGMENT_TO_MODULE: ReadonlyMap<string, ModuleKey> = new Map(
+  (Object.entries(MODULES) as [ModuleKey, ModuleDef][]).flatMap(([key, def]) =>
+    def.segments.map((s) => [s, key] as const),
+  ),
+);
+
+/** Locale-Präfix („/de/…") abstreifen; Eingabe darf mit oder ohne kommen. */
+function stripLocale(path: string): string {
+  const m = /^\/[a-z]{2}(\/|$)/i.exec(path);
+  return m ? path.slice(3) : path;
+}
+
+/**
+ * Modul eines Pfads: `"core"` für die immer verfügbaren Segmente, ein
+ * `ModuleKey` für registrierte, `null` für unbekannte Segmente (fail-closed —
+ * der Route-Guard behandelt `null` wie „nicht freigeschaltet").
+ */
+export function moduleForPath(path: string): ModuleKey | "core" | null {
+  const seg = stripLocale(path).split("/").filter(Boolean)[0];
+  if (!seg) return "core"; // Root → /start-Dispatch
+  if (CORE_SEGMENTS.includes(seg)) return "core";
+  return SEGMENT_TO_MODULE.get(seg) ?? null;
+}
+
+/** Modul einer Action (exakt oder Dot-Präfix); `null` = ungegated (tenant.create). */
+export function moduleForAction(action: string): ModuleKey | null {
+  for (const [key, def] of Object.entries(MODULES) as [ModuleKey, ModuleDef][]) {
+    for (const matcher of def.actions) {
+      if (matcher.endsWith(".") ? action.startsWith(matcher) : action === matcher) {
+        return key;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Effektives Entitlement-Set eines Tenants: gespeicherte Liste (auf bekannte
+ * Keys gefiltert) oder kind-Default — personal → Free-Set, organization → alle.
+ */
+export function enabledModulesOrDefault(tenant: {
+  kind: string;
+  enabledModules: readonly string[];
+}): readonly ModuleKey[] {
+  const known = tenant.enabledModules.filter((m): m is ModuleKey =>
+    (MODULE_KEYS as readonly string[]).includes(m),
+  );
+  if (known.length > 0) return known;
+  return tenant.kind === "personal" ? PERSONAL_DEFAULT_MODULES : MODULE_KEYS;
+}
+
+/** Einstiegsroute des ersten freigeschalteten Moduls (Redirect-Ziel des Guards). */
+export function firstEnabledHome(enabled: readonly ModuleKey[]): string {
+  const first = MODULE_KEYS.find((k) => enabled.includes(k));
+  return first ? MODULES[first].home : "/my-tasks";
+}
