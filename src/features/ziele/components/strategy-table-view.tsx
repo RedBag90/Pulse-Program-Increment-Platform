@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import type { GoalNode, ZieleTreeTheme } from "@/server/views/ziele-view";
 import { isAtRisk, keyResultProgress, type RollupTrio } from "@/domain/goals-rollup";
 import { goalPeriodLabel } from "@/domain/goal-period";
+import { filterGoalBranches } from "@/domain/goal-tree-filter";
 import { reparentGoalNodeAction } from "@/features/ziele/actions/ziele";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -53,19 +54,6 @@ function isOffTrack(n: GoalNode): boolean {
 }
 
 /**
- * Beschneidet den Baum auf off-track-Knoten **plus ihren Vorfahren-Pfad**: ein
- * Knoten bleibt, wenn er selbst off-track ist oder ein Nachfahre es ist.
- */
-function pruneOffTrack(nodes: GoalNode[]): GoalNode[] {
-  const out: GoalNode[] = [];
-  for (const n of nodes) {
-    const children = pruneOffTrack(n.children);
-    if (isOffTrack(n) || children.length > 0) out.push({ ...n, children });
-  }
-  return out;
-}
-
-/**
  * Strategie als hierarchische Tabelle — Default-Layout im Strategie-Tab.
  * Ein-/ausklappbarer Ziel-Baum: **Name (Held) · Owner · Status · Progress ·
  * Wert · Zeitraum · Aktionen**. Edit-Affordances nur bei `canEdit`.
@@ -88,7 +76,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
 
   const allParentIds = useMemo(() => collectParentIds(themes), [themes]);
   const visibleThemes = useMemo(
-    () => (offTrackOnly ? pruneOffTrack(themes) : themes),
+    () => (offTrackOnly ? filterGoalBranches(themes, isOffTrack) : themes),
     [themes, offTrackOnly],
   );
 

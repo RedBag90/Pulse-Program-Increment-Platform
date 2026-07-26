@@ -13,6 +13,7 @@ import {
   type RollupNode,
 } from "@/domain/goals-rollup";
 import { parseOptions } from "@/domain/goal-custom-field";
+import { filterGoalBranches } from "@/domain/goal-tree-filter";
 import {
   effectiveProgressMode,
   autoKpiCurrent,
@@ -607,19 +608,17 @@ export async function loadStrategyTree(
   }
 
   let topLevel = roots.map((o) => build(o, 0).node);
-  // Period-Filter greift auf den Top-Level-Knoten (der Zeitraum hängt am Theme).
-  if (period) topLevel = topLevel.filter((n) => n.period === period);
-  // VS-/ART-Filter greifen **tief**: ein Theme bleibt sichtbar, wenn es selbst
-  // oder ein beliebiges Unterziel dem gewählten Wertstrom / ART zugeordnet ist.
+  // Alle Filter nutzen dieselbe „ganzer Ast"-Logik (filterGoalBranches): ein Ziel
+  // bleibt sichtbar, wenn es selbst, ein Vorfahre oder ein Nachfahre matcht —
+  // Treffer + Eltern-Pfad + Unterbaum. Zeitraum greift damit ebenso tief wie VS/ART.
+  if (period) topLevel = filterGoalBranches(topLevel, (n) => n.period === period);
   if (filterValueStreamId) {
-    const hasVs = (n: GoalNode): boolean =>
-      n.valueStreams.some((v) => v.id === filterValueStreamId) || n.children.some(hasVs);
-    topLevel = topLevel.filter(hasVs);
+    topLevel = filterGoalBranches(topLevel, (n) =>
+      n.valueStreams.some((v) => v.id === filterValueStreamId),
+    );
   }
   if (filterArtId) {
-    const hasArt = (n: GoalNode): boolean =>
-      n.arts.some((a) => a.id === filterArtId) || n.children.some(hasArt);
-    topLevel = topLevel.filter(hasArt);
+    topLevel = filterGoalBranches(topLevel, (n) => n.arts.some((a) => a.id === filterArtId));
   }
 
   return {
