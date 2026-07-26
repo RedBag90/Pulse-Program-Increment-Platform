@@ -256,17 +256,6 @@ export function nodeTrio(node: RollupNode): RollupTrio {
   return sumTrios([base, node.trioEpicLinks]);
 }
 
-/**
- * Horizont-Anteil: wie viel des Akkumulations-Zeitraums ist schon
- * verstrichen? 0 = Start, 1 = Ende. Werte ausserhalb werden geklemmt.
- */
-export function horizonShare(now: Date, start: Date, end: Date): number {
-  const total = end.getTime() - start.getTime();
-  if (total <= 0) return 0;
-  const elapsed = now.getTime() - start.getTime();
-  return clamp01(elapsed / total);
-}
-
 function clamp01(x: number): number {
   if (Number.isNaN(x)) return 0;
   if (x < 0) return 0;

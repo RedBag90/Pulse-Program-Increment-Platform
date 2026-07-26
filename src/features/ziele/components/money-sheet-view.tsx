@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ZieleTreeTheme } from "@/server/views/ziele-view";
+import type { GoalNode } from "@/server/views/ziele-view";
 import { goalPeriodLabel } from "@/domain/goal-period";
 import { MoneyExportButton } from "./money-export-button";
 
@@ -12,7 +12,7 @@ import { MoneyExportButton } from "./money-export-button";
  * Footer. Klick auf eine Theme-Zeile deeplinkt in den Strategie-Drawer.
  */
 interface Props {
-  themes: ZieleTreeTheme[];
+  themes: GoalNode[];
 }
 
 export function MoneySheetView({ themes }: Props) {
@@ -87,7 +87,7 @@ export function MoneySheetView({ themes }: Props) {
   );
 }
 
-function Row({ theme }: { theme: ZieleTreeTheme }) {
+function Row({ theme }: { theme: GoalNode }) {
   const drift = theme.trio.planned > 0 ? theme.trio.runRate / theme.trio.planned : 1;
   const atRisk = drift < 0.7;
   return (

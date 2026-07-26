@@ -151,10 +151,6 @@ export interface GoalNode {
   trio: RollupTrio;
 }
 
-/** Alt-Namen als Aliase — beide zeigen jetzt auf den einen Goal-Knoten. */
-export type ZieleTreeKeyResult = GoalNode;
-export type ZieleTreeTheme = GoalNode;
-
 export interface ZieleKpiLibraryEntry {
   id: string;
   name: string;

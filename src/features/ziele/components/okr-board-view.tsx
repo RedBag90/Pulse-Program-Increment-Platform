@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition, type MutableRefObject } from "react";
 import Link from "next/link";
-import type { ZieleTreeTheme } from "@/server/views/ziele-view";
+import type { GoalNode } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
 import { anchorQuarterKey, parseGoalPeriod, goalPeriodLabel } from "@/domain/goal-period";
 import { updateObjectiveAction } from "@/features/ziele/actions/ziele";
@@ -19,7 +19,7 @@ import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-sta
  * (UI-Begriff), also direkter Mapping.
  */
 interface Props {
-  themes: ZieleTreeTheme[];
+  themes: GoalNode[];
   canEdit: boolean;
 }
 
@@ -64,9 +64,9 @@ function buildColumns(): QuarterColumn[] {
 }
 
 /** Alle messbaren metrik-tragenden Nachfahren eines Knotens, rekursiv. */
-function collectLeaves(node: ZieleTreeTheme): ZieleTreeTheme[] {
-  const out: ZieleTreeTheme[] = [];
-  const walk = (n: ZieleTreeTheme): void => {
+function collectLeaves(node: GoalNode): GoalNode[] {
+  const out: GoalNode[] = [];
+  const walk = (n: GoalNode): void => {
     for (const c of n.children) {
       if (c.isMeasurable && c.progressMode !== "rollup") out.push(c);
       walk(c);
@@ -83,12 +83,10 @@ export function OkrBoardView({ themes, canEdit }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [optimistic, setOptimistic] = useState<Record<string, string | null>>({});
 
-  const entries: Array<{ theme: ZieleTreeTheme; effectivePeriod: string | null }> = themes.map(
-    (t) => {
-      const override = optimistic[t.id];
-      return { theme: t, effectivePeriod: override !== undefined ? override : t.period };
-    },
-  );
+  const entries: Array<{ theme: GoalNode; effectivePeriod: string | null }> = themes.map((t) => {
+    const override = optimistic[t.id];
+    return { theme: t, effectivePeriod: override !== undefined ? override : t.period };
+  });
 
   const grouped = new Map<string, typeof entries>();
   for (const col of columns) grouped.set(col.key, []);
@@ -196,7 +194,7 @@ function Column({
 }: {
   label: string;
   isCurrent: boolean;
-  entries: Array<{ theme: ZieleTreeTheme; effectivePeriod: string | null }>;
+  entries: Array<{ theme: GoalNode; effectivePeriod: string | null }>;
   canEdit: boolean;
   quarterKey: string | null;
   onDropPeriod: () => void;
@@ -262,7 +260,7 @@ function ThemeCard({
   canDrag,
   draggingId,
 }: {
-  theme: ZieleTreeTheme;
+  theme: GoalNode;
   period: string | null;
   canDrag: boolean;
   draggingId: MutableRefObject<string | null>;

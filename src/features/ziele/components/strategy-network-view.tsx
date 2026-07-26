@@ -15,7 +15,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import type { ZieleTreeKeyResult, ZieleTreeTheme } from "@/server/views/ziele-view";
+import type { GoalNode } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
 import { goalPeriodLabel } from "@/domain/goal-period";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
@@ -30,7 +30,7 @@ import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-sta
  * Read-only — kein Drag-and-Drop, keine Inline-Edits.
  */
 interface Props {
-  themes: ZieleTreeTheme[];
+  themes: GoalNode[];
 }
 
 type Tier = "theme" | "kr";
@@ -252,7 +252,7 @@ function ProgressBar({ value }: { value: number }) {
 }
 
 function buildGraph(
-  themes: ZieleTreeTheme[],
+  themes: GoalNode[],
   collapsed: Set<string>,
   onToggle: (goalId: string) => void,
 ): { nodes: Node[]; edges: Edge[] } {
@@ -261,7 +261,7 @@ function buildGraph(
 
   // Rekursiver Walk über den Goal-Baum: ein Knoten je Ebene + Eltern-Kind-Kante.
   // Eingeklappte Knoten emittieren ihre Kinder nicht → dagre layoutet nur Sichtbares.
-  const visit = (n: ZieleTreeTheme, accent: string, parentGraphId: string | null): void => {
+  const visit = (n: GoalNode, accent: string, parentGraphId: string | null): void => {
     // „kr"-Tier = messbarer Knoten (eigene Metrik); sonst Container-„theme".
     const tier: Tier = n.isMeasurable && n.progressMode !== "rollup" ? "kr" : "theme";
     const gid = nodeId(tier, n.id);
@@ -330,14 +330,14 @@ function nodeId(tier: Tier, id: string): string {
 }
 
 /** Gesamtzahl der Nachfahren eines Knotens (für das „+N"-Collapse-Badge). */
-function descendantCount(n: ZieleTreeTheme): number {
+function descendantCount(n: GoalNode): number {
   return n.children.reduce((sum, c) => sum + 1 + descendantCount(c), 0);
 }
 
 /** Alle Knoten-IDs mit Kindern (für „Alle einklappen"). */
-function collapsibleIds(themes: ZieleTreeTheme[]): Set<string> {
+function collapsibleIds(themes: GoalNode[]): Set<string> {
   const ids = new Set<string>();
-  const walk = (n: ZieleTreeTheme): void => {
+  const walk = (n: GoalNode): void => {
     if (n.children.length > 0) {
       ids.add(n.id);
       n.children.forEach(walk);
@@ -352,7 +352,7 @@ function trioProgress(trio: RollupTrio): number {
   return Math.max(0, Math.min(1, trio.realized / trio.planned));
 }
 
-function krProgress(kr: ZieleTreeKeyResult): number {
+function krProgress(kr: GoalNode): number {
   if (kr.baseline == null || kr.target == null || kr.current == null) return 0;
   const span = kr.target - kr.baseline;
   if (span === 0) return kr.current === kr.target ? 1 : 0;

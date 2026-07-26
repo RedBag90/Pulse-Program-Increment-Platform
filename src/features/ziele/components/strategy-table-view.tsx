@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, startTransition, useActionState } from "reac
 import Link from "next/link";
 import { ChevronRight, Pencil, Plus, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { GoalNode, ZieleTreeTheme } from "@/server/views/ziele-view";
+import type { GoalNode } from "@/server/views/ziele-view";
 import { isAtRisk, keyResultProgress, type RollupTrio } from "@/domain/goals-rollup";
 import { goalPeriodLabel } from "@/domain/goal-period";
 import { filterGoalBranches } from "@/domain/goal-tree-filter";
@@ -59,7 +59,7 @@ function isOffTrack(n: GoalNode): boolean {
  * Wert · Zeitraum · Aktionen**. Edit-Affordances nur bei `canEdit`.
  */
 interface Props {
-  themes: ZieleTreeTheme[];
+  themes: GoalNode[];
   canEdit: boolean;
   userLabels?: Record<string, string>;
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { ZieleTreeTheme } from "@/server/views/ziele-view";
+import type { GoalNode } from "@/server/views/ziele-view";
 import { goalPeriodLabel } from "@/domain/goal-period";
 
 /**
@@ -20,7 +20,7 @@ import { goalPeriodLabel } from "@/domain/goal-period";
  *   - Klick auf Knoten oeffnet den Pflege-Drawer (/strategy)
  */
 interface Props {
-  themes: ZieleTreeTheme[];
+  themes: GoalNode[];
 }
 
 const COLUMN_WIDTH = 240;
@@ -80,7 +80,7 @@ export function StrategySankeyView({ themes }: Props) {
   //    wird beschnitten, sobald ein Knoten unter der €-Schwelle liegt.
   const flat: SankeyNode[] = [];
   let orderCounter = 0;
-  const visit = (n: ZieleTreeTheme, depth: number, parentId: string | null, themeIndex: number) => {
+  const visit = (n: GoalNode, depth: number, parentId: string | null, themeIndex: number) => {
     if (!fallbackMode && n.trio.planned < minEur) return; // prune node + subtree
     const isLeaf = n.children.length === 0;
     const weight = fallbackMode ? (isLeaf ? 1 : Math.max(1, n.children.length)) : n.trio.planned;

@@ -8,7 +8,6 @@ import {
   nodeProgress,
   nodeTrio,
   isAtRisk,
-  horizonShare,
   keyResultProgress,
   rollupObjectiveProgress,
 } from "@/domain/goals-rollup";
@@ -137,27 +136,6 @@ describe("isAtRisk", () => {
 
   it("Schwelle ist konfigurierbar", () => {
     expect(isAtRisk({ planned: 1000, realized: 500, runRate: 750 }, 0.8)).toBe(true);
-  });
-});
-
-describe("horizonShare", () => {
-  const start = new Date("2024-01-01");
-  const end = new Date("2027-01-01");
-
-  it("vor Start = 0", () => {
-    expect(horizonShare(new Date("2023-06-01"), start, end)).toBe(0);
-  });
-
-  it("nach Ende = 1", () => {
-    expect(horizonShare(new Date("2028-01-01"), start, end)).toBe(1);
-  });
-
-  it("auf der Mitte ~0.5", () => {
-    expect(horizonShare(new Date("2025-07-02"), start, end)).toBeCloseTo(0.5, 2);
-  });
-
-  it("degenerate range = 0", () => {
-    expect(horizonShare(new Date("2025-01-01"), end, start)).toBe(0);
   });
 });
 
