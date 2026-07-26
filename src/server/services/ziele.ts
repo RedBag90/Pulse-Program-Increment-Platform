@@ -3,7 +3,11 @@ import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
-import { recordedUpdate } from "@/server/services/recorded-update";
+import {
+  goalRecordedUpdate,
+  OBJECTIVE_FIELD_KEYS,
+  KEY_RESULT_FIELD_KEYS,
+} from "@/server/services/goal-node-fields";
 import { isClosed, isOpen, type GoalStatus } from "@/domain/goal-status";
 import { clampPrecision, type MetricType } from "@/domain/goal-metric";
 import { canReparent } from "@/domain/goal-reparent";
@@ -179,74 +183,7 @@ export async function updateObjective(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "Objective", id: input.id });
     }
-    // Decimal-Spalten auf Zahlen normalisieren, damit der Audit-Snapshot
-    // numerisch liest (nicht `Decimal(…)`).
-    const existingProjected = {
-      title: existing.title,
-      narrative: existing.narrative,
-      period: existing.period,
-      confidence: existing.confidence,
-      status: existing.status,
-      dueDate: existing.dueDate,
-      closingNote: existing.closingNote,
-      ownerId: existing.ownerId,
-      metricName: existing.metricName,
-      metricUnit: existing.metricUnit,
-      metricType: existing.metricType,
-      precision: existing.precision,
-      currencyCode: existing.currencyCode,
-      rollupWeight: existing.rollupWeight != null ? Number(existing.rollupWeight) : null,
-      baseline: existing.baseline != null ? Number(existing.baseline) : null,
-      target: existing.target != null ? Number(existing.target) : null,
-      current: existing.current != null ? Number(existing.current) : null,
-      formula: existing.formula,
-      progressMode: existing.progressMode,
-    };
-    const { changes, data } = recordedUpdate({
-      existing: existingProjected,
-      updates: {
-        title: input.title,
-        narrative: input.narrative,
-        period: input.period,
-        confidence: input.confidence,
-        status: input.status,
-        dueDate: input.dueDate,
-        closingNote: input.closingNote,
-        ownerId: input.ownerId,
-        metricName: input.metricName,
-        metricUnit: input.metricUnit,
-        metricType: input.metricType,
-        precision: input.precision != null ? clampPrecision(input.precision) : input.precision,
-        currencyCode: input.currencyCode,
-        rollupWeight: input.rollupWeight,
-        baseline: input.baseline,
-        target: input.target,
-        current: input.current,
-        formula: input.formula,
-        progressMode: input.progressMode,
-      },
-      fields: [
-        "title",
-        "narrative",
-        "period",
-        "confidence",
-        "status",
-        "dueDate",
-        "closingNote",
-        "ownerId",
-        "metricName",
-        "metricUnit",
-        "metricType",
-        "precision",
-        "currencyCode",
-        "rollupWeight",
-        "baseline",
-        "target",
-        "current",
-        "formula",
-        "progressMode",
-      ] as const,
-    });
+    const { changes, data } = goalRecordedUpdate(existing, input, OBJECTIVE_FIELD_KEYS);
     // A closed status stamps closedAt; reopening (open status) clears it.
     const closedAt: { closedAt?: Date | null } = {};
     if (input.status !== undefined) {
@@ -496,62 +433,7 @@ export async function updateKeyResult(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.id });
     }
-    // Normalise the existing row's Decimal columns to numbers before snapshotting
-    // so the audit reads as numeric values, not `Decimal(…)`.
-    const existingProjected = {
-      title: existing.title,
-      metricName: existing.metricName,
-      metricUnit: existing.metricUnit,
-      metricType: existing.metricType,
-      precision: existing.precision,
-      currencyCode: existing.currencyCode,
-      rollupWeight: existing.rollupWeight != null ? Number(existing.rollupWeight) : null,
-      baseline: existing.baseline != null ? Number(existing.baseline) : null,
-      target: existing.target != null ? Number(existing.target) : null,
-      current: existing.current != null ? Number(existing.current) : null,
-      period: existing.period,
-      formula: existing.formula,
-      status: existing.status,
-      dueDate: existing.dueDate,
-      ownerId: existing.ownerId,
-    };
-    const { changes, data } = recordedUpdate({
-      existing: existingProjected,
-      updates: {
-        title: input.title,
-        metricName: input.metricName,
-        metricUnit: input.metricUnit,
-        metricType: input.metricType,
-        precision: input.precision != null ? clampPrecision(input.precision) : input.precision,
-        currencyCode: input.currencyCode,
-        rollupWeight: input.rollupWeight,
-        baseline: input.baseline,
-        target: input.target,
-        current: input.current,
-        period: input.period,
-        formula: input.formula,
-        status: input.status,
-        dueDate: input.dueDate,
-        ownerId: input.ownerId,
-      },
-      fields: [
-        "title",
-        "metricName",
-        "metricUnit",
-        "metricType",
-        "precision",
-        "currencyCode",
-        "rollupWeight",
-        "baseline",
-        "target",
-        "current",
-        "period",
-        "formula",
-        "status",
-        "dueDate",
-        "ownerId",
-      ] as const,
-    });
+    const { changes, data } = goalRecordedUpdate(existing, input, KEY_RESULT_FIELD_KEYS);
     await tx.objective.update({
       where: { id: input.id },
       data: { ...data, updatedBy: mctx.actorId },
