@@ -36,7 +36,7 @@ export function Topbar({ userEmail, visibleHrefs }: TopbarProps) {
   const menu = useMegaMenu();
 
   return (
-    <header className="relative flex shrink-0 flex-col border-b bg-background/80 backdrop-blur-sm">
+    <header className="relative flex shrink-0 flex-col border-b bg-background/80 backdrop-blur-sm print:hidden">
       {/* Topbar row */}
       <div className="flex h-12 items-center gap-5 px-4 md:px-6">
         {/* Mobile nav trigger (hidden on desktop) */}

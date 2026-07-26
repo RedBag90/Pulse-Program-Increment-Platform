@@ -167,3 +167,23 @@
     @apply font-sans;
   }
 }
+
+/*
+ * Druck / PDF-Export (LPM-Portfolio-Review „Als PDF"). App-Chrome ist via
+ * `print:hidden` ausgeblendet; hier die Seiten-Regeln: Ampel-/Chart-Farben
+ * mitdrucken, Karten/Sektionen nicht über Umbrüche zerreißen, Ränder setzen.
+ */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  @page {
+    margin: 12mm;
+  }
+  section,
+  table,
+  .rounded-lg {
+    break-inside: avoid;
+  }
+}

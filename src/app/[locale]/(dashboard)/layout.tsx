@@ -30,10 +30,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     .map((item) => item.href);
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="flex h-screen flex-col overflow-hidden bg-background print:block print:h-auto print:overflow-visible">
       {/* Top navigation bar (replaces the desktop sidebar; mobile uses the drawer) */}
       <Topbar userEmail={principal.email ?? ""} visibleHrefs={visibleHrefs} />
-      <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+      <main className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</main>
     </div>
   );
 }
