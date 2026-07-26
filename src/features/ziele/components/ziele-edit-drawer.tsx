@@ -31,6 +31,7 @@ import {
   setGoalCustomFieldValueAction,
   reparentGoalNodeAction,
   setGoalAccountableTeamAction,
+  setGoalRollupInclusionAction,
 } from "@/features/ziele/actions/ziele";
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
 import { EntitySelect } from "@/features/create/entity-select";
@@ -533,6 +534,7 @@ function SubGoals({
   const searchParams = useSearchParams();
   const [connectId, setConnectId] = useState("");
   const [state, run, pending] = useActionState(reparentGoalNodeAction, {});
+  const [, runIncl, inclPending] = useActionState(setGoalRollupInclusionAction, {});
 
   function connect() {
     if (!connectId) return;
@@ -547,6 +549,12 @@ function SubGoals({
     fd.set("id", childId);
     fd.set("newParentId", "");
     startTransition(() => run(fd));
+  }
+  function toggleInclusion(childId: string, include: boolean) {
+    const fd = new FormData();
+    fd.set("id", childId);
+    fd.set("include", include ? "true" : "false");
+    startTransition(() => runIncl(fd));
   }
 
   const openHref = (goalId: string) =>
@@ -586,11 +594,43 @@ function SubGoals({
                 <span className="block truncate text-[10px] text-muted-foreground">
                   {sg.period ? goalPeriodLabel(sg.period) : "—"} ·{" "}
                   {sg.accountableTeam?.name ?? "Kein Team"}
+                  {!sg.includeInParentRollup && (
+                    <span
+                      className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[9px] font-medium text-amber-800"
+                      title="Zählt nicht im automatischen Fortschritt dieses Ziels"
+                    >
+                      nicht im Rollup
+                    </span>
+                  )}
                 </span>
               </Link>
-              <span className="w-24 shrink-0">
+              <span className={`w-24 shrink-0 ${sg.includeInParentRollup ? "" : "opacity-40"}`}>
                 <MiniBar value={sg.progress ?? 0} />
               </span>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => toggleInclusion(sg.id, !sg.includeInParentRollup)}
+                  disabled={inclPending}
+                  aria-label={
+                    sg.includeInParentRollup
+                      ? `${sg.title} aus automatischem Fortschritt ausnehmen`
+                      : `${sg.title} in automatischen Fortschritt aufnehmen`
+                  }
+                  title={
+                    sg.includeInParentRollup
+                      ? "Aus automatischem Fortschritt ausnehmen"
+                      : "In automatischen Fortschritt aufnehmen"
+                  }
+                  className={`grid size-5 shrink-0 place-items-center rounded hover:bg-muted disabled:opacity-50 ${
+                    sg.includeInParentRollup
+                      ? "text-muted-foreground hover:text-foreground"
+                      : "text-amber-700"
+                  }`}
+                >
+                  {sg.includeInParentRollup ? "⊘" : "⊕"}
+                </button>
+              )}
               {canEdit && (
                 <button
                   type="button"

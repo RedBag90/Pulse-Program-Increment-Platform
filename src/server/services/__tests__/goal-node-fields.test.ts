@@ -30,6 +30,7 @@ const row = (over: Partial<GoalFieldValues> = {}): GoalFieldValues => ({
   formula: "manual",
   progressMode: null,
   accountableTeamId: null,
+  includeInParentRollup: true,
   ...over,
 });
 

@@ -252,6 +252,7 @@ describe("nodeProgress / nodeTrio (recursive cascade)", () => {
   const ZERO: RollupTrio = { planned: 0, realized: 0, runRate: 0 };
   const leaf = (progress: number | null, over: Partial<RollupNode> = {}): RollupNode => ({
     weight: 1,
+    includeInRollup: true,
     mode: "manual",
     progressLeaf: progress,
     trioLeaf: ZERO,
@@ -261,6 +262,7 @@ describe("nodeProgress / nodeTrio (recursive cascade)", () => {
   });
   const branch = (children: RollupNode[], over: Partial<RollupNode> = {}): RollupNode => ({
     weight: 1,
+    includeInRollup: true,
     mode: "rollup",
     progressLeaf: null,
     trioLeaf: ZERO,
@@ -306,6 +308,18 @@ describe("nodeProgress / nodeTrio (recursive cascade)", () => {
 
   it("rollup mode with no children returns null", () => {
     expect(nodeProgress(leaf(0.5, { mode: "rollup", children: [] }))).toBeNull();
+  });
+
+  it("excludes includeInRollup=false children from progress and trio", () => {
+    // B (1.0) is excluded ⇒ average is just A (0.0), not 0.5.
+    expect(nodeProgress(branch([leaf(0), leaf(1, { includeInRollup: false })]))).toBeCloseTo(0);
+    // Same for €: the excluded leaf's trioLeaf drops out of the branch sum.
+    const t = (planned: number): RollupTrio => ({ planned, realized: planned, runRate: planned });
+    const root = branch([
+      leaf(1, { trioLeaf: t(100) }),
+      leaf(1, { trioLeaf: t(999), includeInRollup: false }),
+    ]);
+    expect(nodeTrio(root).planned).toBe(100);
   });
 
   it("nodeTrio sums leaf trios up the tree plus epic links at each level", () => {

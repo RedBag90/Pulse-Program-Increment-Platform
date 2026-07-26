@@ -213,6 +213,12 @@ export function rollupObjectiveProgress(
 export interface RollupNode {
   /** Relatives Gewicht im Eltern-Rollup (Default 1). */
   weight: number;
+  /**
+   * Ob dieser Knoten in den Fortschritt/€-Rollup **seines Elternteils** zählt
+   * (Asana „Remove from automatic progress"). `false` blendet ihn — nicht seine
+   * eigenen Kinder — aus dem Eltern-Ø/Σ aus; der Knoten selbst bleibt sichtbar.
+   */
+  includeInRollup: boolean;
   /** Fortschrittsquelle dieses Knotens (vom Loader effektiv aufgelöst). */
   mode: ProgressMode;
   /** Eigener Blatt-Fortschritt 0..1, `null` wenn nicht messbar / kein Blatt. */
@@ -235,6 +241,7 @@ export function nodeProgress(node: RollupNode): number | null {
   if (node.mode === "rollup") {
     if (node.children.length === 0) return null;
     const kept = node.children
+      .filter((c) => c.includeInRollup)
       .map((c) => ({ p: nodeProgress(c), w: c.weight }))
       .filter((x): x is { p: number; w: number } => x.p !== null);
     if (kept.length === 0) return null;
@@ -252,7 +259,10 @@ export function nodeProgress(node: RollupNode): number | null {
  * Knotens hinzu (Konzept-Header „Σ Ziel-direkt-Epic").
  */
 export function nodeTrio(node: RollupNode): RollupTrio {
-  const base = node.children.length > 0 ? sumTrios(node.children.map(nodeTrio)) : node.trioLeaf;
+  const base =
+    node.children.length > 0
+      ? sumTrios(node.children.filter((c) => c.includeInRollup).map(nodeTrio))
+      : node.trioLeaf;
   return sumTrios([base, node.trioEpicLinks]);
 }
 

@@ -118,6 +118,8 @@ export interface GoalNode {
   currencyCode: string | null;
   /** Relatives Gewicht im Eltern-Rollup (Epic 3); null = Default 1. */
   rollupWeight: number | null;
+  /** Asana „Remove from automatic progress": false = zählt nicht im Eltern-Rollup. */
+  includeInParentRollup: boolean;
   /** Normalisierter Beitrag 0..1 (= Gewicht / Σ Geschwister-Gewichte). */
   contributionShare: number;
   baseline: number | null;
@@ -462,6 +464,7 @@ export async function loadStrategyTree(
     precision: o.precision,
     currencyCode: o.currencyCode,
     rollupWeight: toFloat(o.rollupWeight),
+    includeInParentRollup: o.includeInParentRollup,
     baseline: toFloat(o.baseline),
     target: toFloat(o.target),
     current: toFloat(o.current),

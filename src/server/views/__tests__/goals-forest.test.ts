@@ -35,6 +35,7 @@ const obj = (over: Partial<ForestObjective>): ForestObjective => ({
   precision: 0,
   currencyCode: null,
   rollupWeight: null,
+  includeInParentRollup: true,
   baseline: null,
   target: null,
   current: null,
@@ -121,6 +122,36 @@ describe("buildStrategyTree — Baum-Assemblierung + Rollup", () => {
     expect(T.children.map((c) => c.contributionShare)).toEqual([0.25, 0.75]);
     expect(T.children[0]!.progress).toBeCloseTo(0.5);
     expect(T.children[1]!.depth).toBe(1);
+  });
+
+  it("includeInParentRollup=false: Kind fällt aus Ø und Σ des Elternteils", () => {
+    const rows: ForestObjective[] = [
+      obj({ id: "T", title: "Theme", progressMode: "rollup" }),
+      obj({
+        id: "A",
+        parentObjectiveId: "T",
+        baseline: 0,
+        target: 10,
+        current: 0,
+        rollupWeight: 1,
+      }),
+      obj({
+        id: "B",
+        parentObjectiveId: "T",
+        baseline: 0,
+        target: 10,
+        current: 10,
+        rollupWeight: 1,
+        includeInParentRollup: false,
+      }),
+    ];
+    const { themes } = buildStrategyTree({ rows, lookups: emptyLookups() });
+    const T = themes[0]!;
+    // Nur A zählt (0.0); B (1.0) ist ausgenommen ⇒ Ø = 0, nicht 0.5.
+    expect(T.progress).toBeCloseTo(0);
+    // Ausgenommenes Kind bleibt sichtbar im Baum.
+    expect(T.children.map((c) => c.id)).toEqual(["A", "B"]);
+    expect(T.children[1]!.includeInParentRollup).toBe(false);
   });
 
   it("Trio summiert von unten nach oben; tenantTrio über die Roots", () => {

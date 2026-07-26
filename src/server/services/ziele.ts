@@ -165,6 +165,7 @@ export interface UpdateObjectiveInput {
   precision?: number;
   currencyCode?: string | null;
   rollupWeight?: number | null;
+  includeInParentRollup?: boolean;
   baseline?: number | null;
   target?: number | null;
   current?: number | null;

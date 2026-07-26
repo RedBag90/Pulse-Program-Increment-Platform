@@ -207,6 +207,9 @@ model Objective {
   precision    Int      @default(0)
   currencyCode String?  @map("currency_code")
   rollupWeight Decimal? @db.Decimal(6, 4) @map("rollup_weight")
+  /// Asana „Remove from automatic progress": false blendet diesen Knoten aus
+  /// dem Fortschritt/€-Rollup des Elternteils aus. Default true = zählt mit.
+  includeInParentRollup Boolean @default(true) @map("include_in_parent_rollup")
   baseline     Decimal? @db.Decimal(14, 4)
   target       Decimal? @db.Decimal(14, 4)
   current      Decimal? @db.Decimal(14, 4)

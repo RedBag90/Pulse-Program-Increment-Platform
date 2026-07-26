@@ -28,6 +28,7 @@ export interface GoalFieldValues {
   precision: number;
   currencyCode: string | null;
   rollupWeight: number | null;
+  includeInParentRollup: boolean;
   baseline: number | null;
   target: number | null;
   current: number | null;
@@ -54,6 +55,7 @@ export interface GoalFieldUpdateInput {
   precision?: number | undefined;
   currencyCode?: string | null | undefined;
   rollupWeight?: number | null | undefined;
+  includeInParentRollup?: boolean | undefined;
   baseline?: number | null | undefined;
   target?: number | null | undefined;
   current?: number | null | undefined;
@@ -78,6 +80,7 @@ export const OBJECTIVE_FIELD_KEYS = [
   "precision",
   "currencyCode",
   "rollupWeight",
+  "includeInParentRollup",
   "baseline",
   "target",
   "current",
@@ -123,6 +126,7 @@ type GoalRowSnapshot = {
   precision: number;
   currencyCode: string | null;
   rollupWeight: unknown;
+  includeInParentRollup: boolean;
   baseline: unknown;
   target: unknown;
   current: unknown;
@@ -148,6 +152,7 @@ export function projectGoalFields(existing: GoalRowSnapshot): GoalFieldValues {
     precision: existing.precision,
     currencyCode: existing.currencyCode,
     rollupWeight: num(existing.rollupWeight),
+    includeInParentRollup: existing.includeInParentRollup,
     baseline: num(existing.baseline),
     target: num(existing.target),
     current: num(existing.current),
@@ -176,6 +181,7 @@ export function readGoalFieldUpdates(input: GoalFieldUpdateInput): {
     precision: input.precision != null ? clampPrecision(input.precision) : input.precision,
     currencyCode: input.currencyCode,
     rollupWeight: input.rollupWeight,
+    includeInParentRollup: input.includeInParentRollup,
     baseline: input.baseline,
     target: input.target,
     current: input.current,

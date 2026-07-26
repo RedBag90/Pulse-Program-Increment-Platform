@@ -90,6 +90,8 @@ export interface ForestObjective {
   precision: number;
   currencyCode: string | null;
   rollupWeight: number | null;
+  /** Asana „Remove from automatic progress": false = zählt nicht im Eltern-Rollup. */
+  includeInParentRollup: boolean;
   baseline: number | null;
   target: number | null;
   current: number | null;
@@ -273,6 +275,7 @@ export function buildStrategyTree(input: GoalForestInput): {
 
     const rollup: RollupNode = {
       weight: o.rollupWeight ?? 1,
+      includeInRollup: o.includeInParentRollup,
       mode: resolved.mode,
       progressLeaf: resolved.progressLeaf,
       trioLeaf: resolved.trioLeaf,
@@ -297,6 +300,7 @@ export function buildStrategyTree(input: GoalForestInput): {
       precision: o.precision,
       currencyCode: o.currencyCode,
       rollupWeight: o.rollupWeight,
+      includeInParentRollup: o.includeInParentRollup,
       contributionShare: 0, // vom Parent gesetzt (Roots bleiben 0)
       baseline: o.baseline,
       target: o.target,

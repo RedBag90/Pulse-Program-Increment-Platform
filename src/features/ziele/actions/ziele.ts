@@ -272,6 +272,23 @@ export const setGoalAccountableTeamAction = createServerAction({
   mapError: (e) => formatDomainError(e, { fallback: "Team konnte nicht gesetzt werden" }),
 });
 
+/** Asana „Remove from automatic progress" — ein Unterziel aus dem Eltern-Rollup nehmen/aufnehmen. */
+export const setGoalRollupInclusionAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    // FormData liefert Strings; String-Enum statt z.boolean() (siehe form-data-schema).
+    // Kein .transform() — der Next-„use server"-Checker lehnt inline-Closures ab.
+    include: z.enum(["true", "false"]),
+  }),
+  action: "target.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    updateObjective(ctx, { id: input.id, includeInParentRollup: input.include === "true" }),
+  revalidate: "ziele",
+  mapError: (e) =>
+    formatDomainError(e, { fallback: "Rollup-Einstellung konnte nicht geändert werden" }),
+});
+
 // ── KeyResult ──────────────────────────────────────────────────────────
 
 export const createKeyResultAction = createServerAction({
