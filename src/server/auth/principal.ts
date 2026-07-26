@@ -1,8 +1,17 @@
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createPrismaClient } from "@/server/db/prisma";
 import type { TenantId, UserId } from "@/domain/types";
 import type { Action, ScopeCheck } from "@/server/auth/policies";
+import { enabledModulesOrDefault, type ModuleKey } from "@/domain/modules";
+
+/**
+ * Cookie mit der aktiven Tenant-Auswahl eines Multi-Tenant-Users (Switcher).
+ * Fehlt es oder zeigt es auf einen Tenant ohne Assignment, gilt das älteste
+ * Assignment (das bisherige Single-Tenant-Verhalten).
+ */
+export const ACTIVE_TENANT_COOKIE = "pulse-tenant";
 
 /**
  * Aggregated visibility scopes across all of a user's role assignments.
@@ -32,6 +41,61 @@ export interface Principal {
   scopes: PrincipalScopes;
   /** Resolvierte Capabilities (Vereinigung über alle Rollen des Principal). */
   capabilities: PrincipalCapability[];
+  /** "organization" | "personal" — Art des aktiven Tenants. */
+  tenantKind: string;
+  /** Freigeschaltete Module des aktiven Tenants (Entitlement-Achse, fail-closed). */
+  enabledModules: readonly ModuleKey[];
+}
+
+/** Die Assignment-Felder, die die Tenant-Auflösung braucht (Prisma-Row-Teilmenge). */
+export interface AssignmentRow {
+  tenantId: string;
+  role: string;
+  valueStreamIds: string[];
+  artIds: string[];
+  teamIds: string[];
+}
+
+/**
+ * Pure Kern der Multi-Tenant-Auflösung: wählt den aktiven Tenant (gewünschter
+ * Tenant, wenn dort ein Assignment existiert; sonst das älteste Assignment)
+ * und aggregiert Rollen/Scopes **ausschließlich aus Assignments dieses
+ * Tenants**. Vorher wurden Rollen tenant-blind über alle Tenants unioniert —
+ * ein `tenant_admin` in Tenant B wäre via authorize()-Fast-Path auch in
+ * Tenant A Admin gewesen (latente Privilege-Escalation).
+ *
+ * `assignments` müssen nach `createdAt` aufsteigend sortiert sein.
+ */
+export function resolveActiveAssignments(
+  assignments: readonly AssignmentRow[],
+  requestedTenantId: string | null,
+): { tenantId: TenantId; roles: string[]; scopes: PrincipalScopes } | null {
+  if (assignments.length === 0) return null;
+
+  const tenantId = (
+    requestedTenantId && assignments.some((a) => a.tenantId === requestedTenantId)
+      ? requestedTenantId
+      : assignments[0]!.tenantId
+  ) as TenantId;
+
+  const active = assignments.filter((a) => a.tenantId === tenantId);
+  const roles = active.map((a) => a.role);
+
+  // Sichtbarkeits-Scopes je Ebene vereinigen; ein leeres Array in irgendeinem
+  // (aktiven) Assignment bedeutet „alle in Reichweite" (Konzept §7.4).
+  const scopes: PrincipalScopes = {
+    valueStreamIds: active.some((a) => a.valueStreamIds.length === 0)
+      ? []
+      : [...new Set(active.flatMap((a) => a.valueStreamIds))],
+    artIds: active.some((a) => a.artIds.length === 0)
+      ? []
+      : [...new Set(active.flatMap((a) => a.artIds))],
+    teamIds: active.some((a) => a.teamIds.length === 0)
+      ? []
+      : [...new Set(active.flatMap((a) => a.teamIds))],
+  };
+
+  return { tenantId, roles, scopes };
 }
 
 /**
@@ -60,33 +124,33 @@ export const getPrincipal = cache(async (): Promise<Principal | null> => {
     orderBy: { createdAt: "asc" },
   });
 
-  if (assignments.length === 0) return null;
+  // Aktive Tenant-Auswahl aus dem Switcher-Cookie; Auflösung + tenant-
+  // gefilterte Rollen-/Scope-Aggregation im puren Kern (Security: keine
+  // tenant-übergreifende Rollen-Union mehr).
+  const cookieStore = await cookies();
+  const requestedTenantId = cookieStore.get(ACTIVE_TENANT_COOKIE)?.value ?? null;
+  const resolved = resolveActiveAssignments(assignments, requestedTenantId);
+  if (!resolved) return null;
+  const { tenantId, roles, scopes } = resolved;
 
-  // All assignments for a user share the same tenantId (single-tenant per user for v1)
-  const tenantId = assignments[0]!.tenantId as TenantId;
-  const roles = assignments.map((a) => a.role);
+  // Capabilities + Entitlements des aktiven Tenants parallel laden. Wenn die
+  // `role_capabilities`-Tabelle für den Tenant leer ist (frischer Tenant ohne
+  // Backfill), wird auf die Code-`POLICIES` als Fallback zurückgegriffen —
+  // kein Lockout. `platform_admin` / `tenant_admin` brauchen die Liste nicht
+  // (Fast-Path in `authorize()`), wir laden sie aber trotzdem fürs Admin-UI.
+  const [capabilities, tenant] = await Promise.all([
+    resolveCapabilities(db, tenantId, roles),
+    db.tenant.findUnique({
+      where: { id: tenantId },
+      select: { kind: true, enabledModules: true },
+    }),
+  ]);
 
-  // Aggregate visibility scopes across all assignments (union).
-  // If any assignment has an empty list at a level, that level is unscoped ("all").
-  const scopes: PrincipalScopes = {
-    valueStreamIds: assignments.some((a) => a.valueStreamIds.length === 0)
-      ? []
-      : [...new Set(assignments.flatMap((a) => a.valueStreamIds))],
-    artIds: assignments.some((a) => a.artIds.length === 0)
-      ? []
-      : [...new Set(assignments.flatMap((a) => a.artIds))],
-    teamIds: assignments.some((a) => a.teamIds.length === 0)
-      ? []
-      : [...new Set(assignments.flatMap((a) => a.teamIds))],
-  };
-
-  // Capabilities: einmalig pro Session laden. Wenn die `role_capabilities`-
-  // Tabelle für den Tenant leer ist (frischer Tenant ohne Backfill), wird
-  // auf die Code-`POLICIES` als Fallback zurückgegriffen — kein Lockout, kein
-  // Verhaltenswechsel. `platform_admin` / `tenant_admin` brauchen die Liste
-  // nicht (Fast-Path in `authorize()`), wir laden sie aber trotzdem, damit
-  // das Admin-UI sinnvolle Aussagen treffen kann.
-  const capabilities = await resolveCapabilities(db, tenantId, roles);
+  const tenantKind = tenant?.kind ?? "organization";
+  const enabledModules = enabledModulesOrDefault({
+    kind: tenantKind,
+    enabledModules: tenant?.enabledModules ?? [],
+  });
 
   return {
     id: user.id as UserId,
@@ -95,6 +159,8 @@ export const getPrincipal = cache(async (): Promise<Principal | null> => {
     roles,
     scopes,
     capabilities,
+    tenantKind,
+    enabledModules,
   };
 });
 

@@ -2,6 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, UserId, ArtId, ValueStreamId, TimelineId } from "@/domain/types";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { randomUUID } from "crypto";
+import { MODULE_KEYS } from "@/domain/modules";
 
 export interface SeedResult {
   tenantId: TenantId;
@@ -31,6 +32,8 @@ export function testRequestContext(
       // authorize-Gates per Test-Setup, oder die Service-Tests setzen
       // explizit Roles + Capabilities.
       capabilities: [],
+      tenantKind: "organization",
+      enabledModules: MODULE_KEYS,
     },
   };
 }

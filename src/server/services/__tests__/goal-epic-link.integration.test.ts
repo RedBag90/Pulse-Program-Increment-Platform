@@ -8,6 +8,7 @@ import { InitiativeLevel } from "@/domain/types";
 import { ROLES } from "@/domain/roles";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { isOk, isErr } from "@/domain/errors";
+import { MODULE_KEYS } from "@/domain/modules";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;
 
@@ -28,6 +29,8 @@ function adminCtx(): RequestContext {
       roles: [ROLES.TENANT_ADMIN],
       scopes: { valueStreamIds: [], artIds: [], teamIds: [] },
       capabilities: [],
+      tenantKind: "organization",
+      enabledModules: MODULE_KEYS,
     },
   };
 }

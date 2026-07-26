@@ -1,4 +1,5 @@
-import type { TenantId } from "@/domain/types";
+import type { PrismaClient } from "@/generated/prisma";
+import type { TenantId, UserId } from "@/domain/types";
 import { ROLES } from "@/domain/roles";
 import type { Result } from "@/domain/errors";
 import { ok } from "@/domain/errors";
@@ -68,4 +69,30 @@ export async function createTenant(
     },
     { onPrismaError: onUniqueConstraint(`Tenant "${name}" already exists`) },
   );
+}
+
+/** Ein Tenant, in dem der User mindestens ein Assignment hält (Switcher-Datenquelle). */
+export interface UserTenant {
+  id: TenantId;
+  name: string;
+  /** "personal" | "organization". */
+  kind: string;
+}
+
+/**
+ * Alle Tenants eines Users, dedupliziert über seine Role-Assignments —
+ * persönlicher Bereich zuerst, danach Organisationen alphabetisch. Läuft über
+ * den Bootstrap-Client (Identitäts-Feststellung, wie `getPrincipal`).
+ */
+export async function listUserTenants(db: PrismaClient, userId: UserId): Promise<UserTenant[]> {
+  const assignments = await db.userRoleAssignment.findMany({
+    where: { userId },
+    select: { tenant: { select: { id: true, name: true, kind: true } } },
+  });
+  const byId = new Map(assignments.map((a) => [a.tenant.id, a.tenant]));
+  return [...byId.values()]
+    .map((t) => ({ id: t.id as TenantId, name: t.name, kind: t.kind }))
+    .sort((a, b) =>
+      a.kind === b.kind ? a.name.localeCompare(b.name, "de") : a.kind === "personal" ? -1 : 1,
+    );
 }

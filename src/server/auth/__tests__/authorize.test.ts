@@ -11,6 +11,7 @@ import { ROLES } from "@/domain/roles";
 import { enumerateDefaultCapabilities } from "@/server/auth/policies";
 import type { TenantId, UserId } from "@/domain/types";
 import { isErr, isOk } from "@/domain/errors";
+import { MODULE_KEYS } from "@/domain/modules";
 
 /**
  * Test-Principal-Factory. Mit dem RoleCapability-Modell (PR B) trägt der
@@ -32,6 +33,8 @@ const principal = (over: Partial<Principal> = {}): Principal => {
     roles,
     scopes: { valueStreamIds: [], artIds: [], teamIds: [] } as PrincipalScopes,
     capabilities,
+    tenantKind: "organization",
+    enabledModules: MODULE_KEYS,
     ...over,
   };
 };
