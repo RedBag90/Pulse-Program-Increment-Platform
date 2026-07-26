@@ -34,7 +34,11 @@ import {
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
 import { EntitySelect } from "@/features/create/entity-select";
 import { PeriodPicker } from "@/features/ziele/components/period-picker";
-import { LinkList } from "@/features/ziele/components/link-list";
+import { LinkList, type LinkChip } from "@/features/ziele/components/link-list";
+import {
+  RelatedWorkSearch,
+  type RelatedWorkResult,
+} from "@/features/ziele/components/related-work-search";
 import { formatMetricValue } from "@/domain/goal-metric";
 
 /**
@@ -434,15 +438,16 @@ function GoalPane({
       {/* Sekundäres — eingeklappt (Progressive Disclosure). */}
       <DrawerSection title="Verknüpfungen" hint={linkSummary}>
         <div className="space-y-3">
-          <RelatedEpics
+          <RelatedWorkUnified
             target={detailTarget}
             goalId={id}
             epics={node.relatedEpics}
+            items={node.relatedWork}
             canEdit={canEdit}
           />
           {node.progressMode === "auto_kpi" ? (
             <p className="text-[10px] leading-snug text-muted-foreground">
-              Die KPIs dieser Epics mit passender Einheit bilden den Ist-Wert dieses Ziels
+              Die KPIs verknüpfter Epics mit passender Einheit bilden den Ist-Wert dieses Ziels
               (Fortschrittsquelle „aus verknüpften KPIs").
             </p>
           ) : (
@@ -453,9 +458,6 @@ function GoalPane({
           )}
           <div className="border-t pt-3">
             <KpiBindingsReadOnly contributions={node.contributions} krId={id} />
-          </div>
-          <div className="border-t pt-3">
-            <RelatedWork goalId={id} items={node.relatedWork} canEdit={canEdit} />
           </div>
           <div className="border-t pt-3">
             <GoalScopeLinks
@@ -772,212 +774,110 @@ function DrawerSection({
 }
 
 /**
- * "Related work" — Epics direkt an einen Ziel-Knoten (Objective ODER KR)
- * verknüpfen. Referenziell (Deeplink) plus wertbringend: der KPI-Mehrwert des
- * Epics ist bereits im Knoten-€ enthalten. Grobe Alternative zur feinen
- * KPI→KR-Bindung (Count-once: jede KPI zählt genau einmal).
+ * „Related work" vereinheitlicht (Asana-Stil): EIN Suchfeld + EINE Liste über
+ * Epics (wertbringend, €), Features und PIs (referenziell). Der Typ des Treffers
+ * bestimmt die Action: Epic → GoalEpicLink, Feature/PI → GoalRelatedWork. Der
+ * €-Mehrwert der Epics bleibt sichtbar (Trailing); Count-once ggü. KPI-Bindungen
+ * bleibt unberührt.
  */
-function RelatedEpics({
+function RelatedWorkUnified({
   target,
   goalId,
   epics,
+  items,
   canEdit,
 }: {
   target: "objective" | "kr";
   goalId: string;
   epics: RelatedEpic[];
-  canEdit: boolean;
-}) {
-  const [epicId, setEpicId] = useState("");
-  const [linkState, linkRun, linkPending] = useActionState(linkEpicToGoalAction, {});
-  const [unlinkState, unlinkRun, unlinkPending] = useActionState(unlinkEpicFromGoalAction, {});
-  const err = linkState.error || unlinkState.error;
-
-  function add() {
-    if (!epicId) return;
-    const fd = new FormData();
-    fd.set("target", target);
-    fd.set("goalId", goalId);
-    fd.set("epicId", epicId);
-    startTransition(() => linkRun(fd));
-    setEpicId("");
-  }
-
-  function remove(id: string) {
-    const fd = new FormData();
-    fd.set("epicId", id);
-    startTransition(() => unlinkRun(fd));
-  }
-
-  return (
-    <section className="space-y-2">
-      <header className="flex items-baseline justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Related work · Epics
-        </h3>
-      </header>
-      <LinkList
-        variant="row"
-        emptyText="Noch kein Epic verbunden."
-        canEdit={canEdit}
-        onRemove={remove}
-        removePending={unlinkPending}
-        items={epics.map((e) => ({
-          key: e.epicId,
-          label: e.title,
-          href: e.href,
-          subtitle: `Epic · ${e.stageGate}`,
-          removeLabel: `Verknüpfung mit ${e.title} entfernen`,
-          trailing: (
-            <span className="text-[10px] tabular-nums text-muted-foreground">
-              {e.trio.planned > 0
-                ? `€${Math.round(e.trio.realized).toLocaleString("de-DE")} / ${Math.round(
-                    e.trio.planned,
-                  ).toLocaleString("de-DE")}`
-                : "—"}
-            </span>
-          ),
-        }))}
-      >
-        {canEdit && (
-          <div className="space-y-1.5 rounded-md border border-dashed p-2">
-            <EntitySelect
-              kind="epic"
-              name="relatedEpicPicker"
-              label="Epic verbinden"
-              value={epicId}
-              onChange={setEpicId}
-              labelField="title"
-              disabled={linkPending}
-            />
-            <button
-              type="button"
-              onClick={add}
-              disabled={linkPending || epicId === ""}
-              className="ml-auto block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-            >
-              + Epic verbinden
-            </button>
-          </div>
-        )}
-      </LinkList>
-      {err && <p className="text-xs text-destructive">{err}</p>}
-    </section>
-  );
-}
-
-/**
- * Related work · Feature/PI (Epic 5): rein referenzielle Verknüpfungen ohne
- * €-Beitrag — nur Deeplinks. Feature/PI werden über die ART kaskadiert
- * (EntitySelect kind="feature"/"pi" brauchen eine artId).
- */
-function RelatedWork({
-  goalId,
-  items,
-  canEdit,
-}: {
-  goalId: string;
   items: RelatedWorkItem[];
   canEdit: boolean;
 }) {
-  const [kind, setKind] = useState<"feature" | "pi">("feature");
-  const [artId, setArtId] = useState("");
-  const [refId, setRefId] = useState("");
+  const [linkEpicState, linkEpicRun, linkEpicPending] = useActionState(linkEpicToGoalAction, {});
+  const [unlinkEpicState, unlinkEpicRun, unlinkEpicPending] = useActionState(
+    unlinkEpicFromGoalAction,
+    {},
+  );
   const [addState, addRun, addPending] = useActionState(addGoalRelatedWorkAction, {});
   const [removeState, removeRun, removePending] = useActionState(removeGoalRelatedWorkAction, {});
-  const err = addState.error || removeState.error;
+  const pending = linkEpicPending || unlinkEpicPending || addPending || removePending;
+  const err = linkEpicState.error || unlinkEpicState.error || addState.error || removeState.error;
 
-  function add() {
-    if (!refId) return;
-    const fd = new FormData();
-    fd.set("goalId", goalId);
-    fd.set("kind", kind);
-    fd.set("refId", refId);
-    startTransition(() => addRun(fd));
-    setRefId("");
+  function pick(r: RelatedWorkResult) {
+    if (r.type === "epic") {
+      const fd = new FormData();
+      fd.set("target", target);
+      fd.set("goalId", goalId);
+      fd.set("epicId", r.id);
+      startTransition(() => linkEpicRun(fd));
+    } else {
+      const fd = new FormData();
+      fd.set("goalId", goalId);
+      fd.set("kind", r.type);
+      fd.set("refId", r.id);
+      startTransition(() => addRun(fd));
+    }
   }
 
-  function remove(itemKind: string, itemRefId: string) {
-    const fd = new FormData();
-    fd.set("goalId", goalId);
-    fd.set("kind", itemKind);
-    fd.set("refId", itemRefId);
-    startTransition(() => removeRun(fd));
+  function remove(key: string) {
+    const i = key.indexOf(":");
+    const type = key.slice(0, i);
+    const rid = key.slice(i + 1);
+    if (type === "epic") {
+      const fd = new FormData();
+      fd.set("epicId", rid);
+      startTransition(() => unlinkEpicRun(fd));
+    } else {
+      const fd = new FormData();
+      fd.set("goalId", goalId);
+      fd.set("kind", type);
+      fd.set("refId", rid);
+      startTransition(() => removeRun(fd));
+    }
   }
+
+  const chips: LinkChip[] = [
+    ...epics.map((e) => ({
+      key: `epic:${e.epicId}`,
+      label: e.title,
+      href: e.href,
+      subtitle: `Epic · ${e.stageGate}`,
+      removeLabel: `Verknüpfung mit ${e.title} entfernen`,
+      trailing: (
+        <span className="text-[10px] tabular-nums text-muted-foreground">
+          {e.trio.planned > 0
+            ? `€${Math.round(e.trio.realized).toLocaleString("de-DE")} / ${Math.round(
+                e.trio.planned,
+              ).toLocaleString("de-DE")}`
+            : "—"}
+        </span>
+      ),
+    })),
+    ...items.map((it) => ({
+      key: `${it.kind}:${it.refId}`,
+      label: it.title,
+      href: it.href,
+      subtitle: it.kind === "feature" ? "Feature" : "PI",
+      removeLabel: `Verknüpfung mit ${it.title} entfernen`,
+    })),
+  ];
 
   return (
     <section className="space-y-2">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Related work · Features &amp; PIs
+        Related work
       </h3>
       <LinkList
         variant="row"
         emptyText="Noch keine Arbeit verbunden."
         canEdit={canEdit}
-        removePending={removePending}
-        onRemove={(key) => {
-          const i = key.indexOf(":");
-          remove(key.slice(0, i), key.slice(i + 1));
-        }}
-        items={items.map((it) => ({
-          key: `${it.kind}:${it.refId}`,
-          label: it.title,
-          href: it.href,
-          subtitle: it.kind === "feature" ? "Feature" : "PI",
-          removeLabel: `Verknüpfung mit ${it.title} entfernen`,
-        }))}
+        onRemove={remove}
+        removePending={pending}
+        items={chips}
       >
         {canEdit && (
-          <div className="space-y-1.5 rounded-md border border-dashed p-2">
-            <div className="flex gap-1">
-              {(["feature", "pi"] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => {
-                    setKind(k);
-                    setRefId("");
-                  }}
-                  className={`flex-1 rounded-md border px-2 py-1 text-xs font-medium ${
-                    kind === k
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {k === "feature" ? "Feature" : "PI"}
-                </button>
-              ))}
-            </div>
-            <EntitySelect
-              kind="art"
-              name="relatedWorkArt"
-              label="ART wählen"
-              value={artId}
-              onChange={(v) => {
-                setArtId(v);
-                setRefId("");
-              }}
-              labelField="name"
-              disabled={addPending}
-            />
-            <EntitySelect
-              kind={kind}
-              name="relatedWorkRef"
-              label={kind === "feature" ? "Feature wählen" : "PI wählen"}
-              value={refId}
-              onChange={setRefId}
-              labelField={kind === "feature" ? "title" : "name"}
-              params={{ artId }}
-              disabled={addPending || artId === ""}
-            />
-            <button
-              type="button"
-              onClick={add}
-              disabled={addPending || refId === ""}
-              className="ml-auto block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-            >
-              + Verbinden
-            </button>
+          <div className="rounded-md border border-dashed p-2">
+            <RelatedWorkSearch onPick={pick} disabled={pending} />
           </div>
         )}
       </LinkList>

@@ -14,6 +14,7 @@ import { canReparent, planReparent } from "@/domain/goal-reparent";
 import { autoKpiCurrent, isProgressMode, effectiveProgressMode } from "@/domain/goal-progress-mode";
 import { latestMeasurement } from "@/domain/kpi-measurement";
 import { dayStart } from "@/domain/calendar";
+import { InitiativeLevel } from "@/domain/types";
 
 export type GoalTarget = "objective" | "kr";
 
@@ -843,4 +844,56 @@ export async function listGoalsForPicker(
     period: r.period,
     status: r.status,
   }));
+}
+
+// ── Related-work-Suche (Epics + Features + PIs, ein Feld) ────────────────
+
+/** Ein „Related work"-Treffer: Epic (€-tragend), Feature oder PI. */
+export interface RelatedWorkOption {
+  id: string;
+  type: "epic" | "feature" | "pi";
+  /** Titel (als `name` für die Anzeige). */
+  name: string;
+}
+
+/**
+ * Tenant-scoped Volltextsuche über Epics + Features (Initiatives) + PIs für das
+ * vereinheitlichte „Related work"-Suchfeld im Drawer. `type` diskriminiert, welche
+ * Verknüpfungs-Action der Client aufruft (Epic → GoalEpicLink, Feature/PI →
+ * GoalRelatedWork). Ohne `q` die ersten Treffer je Kategorie (Cap).
+ */
+export async function searchRelatedWork(
+  db: PrismaClient,
+  tenantId: string,
+  q: string,
+): Promise<RelatedWorkOption[]> {
+  const [inis, pis] = await Promise.all([
+    db.initiative.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        level: { in: [InitiativeLevel.EPIC, InitiativeLevel.FEATURE] },
+        ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
+      },
+      select: { id: true, title: true, level: true },
+      orderBy: { title: "asc" },
+      take: 40,
+    }),
+    db.programIncrement.findMany({
+      where: { tenantId, ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}) },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+      take: 20,
+    }),
+  ]);
+  const out: RelatedWorkOption[] = [];
+  for (const i of inis) {
+    out.push({
+      id: i.id,
+      type: i.level === InitiativeLevel.EPIC ? "epic" : "feature",
+      name: i.title,
+    });
+  }
+  for (const p of pis) out.push({ id: p.id, type: "pi", name: p.name });
+  return out;
 }
