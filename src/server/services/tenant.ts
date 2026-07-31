@@ -1,6 +1,8 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, UserId } from "@/domain/types";
 import { ROLES } from "@/domain/roles";
+import { PERSONAL_DEFAULT_MODULES } from "@/domain/modules";
+import { emitAuditEvent } from "@/server/audit/emit";
 import type { Result } from "@/domain/errors";
 import { ok } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
@@ -69,6 +71,56 @@ export async function createTenant(
     },
     { onPrismaError: onUniqueConstraint(`Tenant "${name}" already exists`) },
   );
+}
+
+/**
+ * Persönlichen Free-Tenant eines Users sicherstellen (find-or-create,
+ * idempotent). Läuft OHNE RequestContext — der Aufrufer (/start) hat evtl.
+ * noch gar keinen Principal (Session ohne Assignment; fixt die frühere
+ * /start↔/sign-in-Endlosschleife). kind=personal, Free-Set `["ziele"]`,
+ * User = tenant_admin seines eigenen Bereichs (unscoped).
+ */
+export async function ensurePersonalTenant(
+  db: PrismaClient,
+  userId: UserId,
+  email: string,
+): Promise<{ tenantId: TenantId; created: boolean }> {
+  const existing = await db.tenant.findFirst({
+    where: { kind: "personal", userRoleAssignments: { some: { userId } } },
+    select: { id: true },
+  });
+  if (existing) return { tenantId: existing.id as TenantId, created: false };
+
+  const localpart = email.split("@")[0] || "privat";
+  const tenantId = await db.$transaction(async (tx) => {
+    const tenant = await tx.tenant.create({
+      data: {
+        name: `Mein Bereich (${localpart})`,
+        region: "eu",
+        kind: "personal",
+        enabledModules: [...PERSONAL_DEFAULT_MODULES],
+      },
+    });
+    await tx.userRoleAssignment.create({
+      data: {
+        userId,
+        tenantId: tenant.id,
+        role: ROLES.TENANT_ADMIN,
+        valueStreamIds: [],
+        artIds: [],
+        teamIds: [],
+      },
+    });
+    await emitAuditEvent(tx, {
+      tenantId: tenant.id as TenantId,
+      actorId: userId,
+      action: "tenant.created",
+      resourceType: "tenant",
+      resourceId: tenant.id,
+    });
+    return tenant.id as TenantId;
+  });
+  return { tenantId, created: true };
 }
 
 /** Ein Tenant, in dem der User mindestens ein Assignment hält (Switcher-Datenquelle). */

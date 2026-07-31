@@ -22,7 +22,10 @@ export default function SignInPage() {
 
   return (
     <>
-      <h1 className="mb-6 text-2xl font-bold">{t("signIn")}</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Willkommen zurück</h1>
+      <p className="mb-6 mt-1.5 text-sm text-muted-foreground">
+        Melde dich an und arbeite an deinen Zielen weiter.
+      </p>
       <SignInForm />
       <p className="mt-4 text-center text-sm">
         <Link href="/forgot-password" className="font-medium text-primary hover:underline">

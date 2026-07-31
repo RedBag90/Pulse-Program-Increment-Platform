@@ -31,18 +31,6 @@ export function SignUpForm() {
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="tenantCode">{t("tenantCode")}</Label>
-        <Input
-          id="tenantCode"
-          name="tenantCode"
-          type="text"
-          required
-          minLength={3}
-          maxLength={50}
-        />
-      </div>
-
       {state && !state.ok && (
         <p role="alert" className="text-sm text-destructive">
           {state.error}

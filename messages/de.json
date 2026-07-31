@@ -73,7 +73,6 @@
     "dependenciesGroup": "Abhängigkeiten",
     "setupControlling": "Setup & Controlling",
     "others": "Weitere",
-    "rteCockpit": "RTE-Cockpit",
     "targetState": "Zielzustand",
     "openMenu": "Menü öffnen"
   },
@@ -91,8 +90,7 @@
     "sendResetLink": "Link senden",
     "resetLinkSent": "Falls ein Konto mit dieser E-Mail existiert, wurde ein Link zum Zurücksetzen gesendet. Bitte prüfe dein Postfach.",
     "noAccount": "Noch kein Konto?",
-    "alreadyAccount": "Bereits ein Konto?",
-    "tenantCode": "Mandanten-Code"
+    "alreadyAccount": "Bereits ein Konto?"
   },
   "portfolio": {
     "title": "Portfolio",
