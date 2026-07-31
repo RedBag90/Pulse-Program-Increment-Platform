@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import { authorize, type AuthResource } from "@/server/auth/authorize";
+import { moduleForAction } from "@/domain/modules";
 import type { Action } from "@/server/auth/policies";
 import type { Principal } from "@/server/auth/principal";
 import { forbidden, notFound, unauthorized, unprocessable } from "@/server/http/problem";
@@ -88,6 +89,12 @@ export function createQueryHandler<TParams = Record<string, never>, TResult = un
     if (readAction !== undefined && resource !== undefined) {
       const decision = authorize(readAction, resource(validatedParams, principal), principal);
       if (!decision.allow) return forbidden(decision.reason);
+      // Modul-Gate (Entitlement): Reads mit deklarierter Action folgen derselben
+      // Modul-Zuordnung wie Mutationen; Reads ohne readAction bleiben RLS-only.
+      const requiredModule = moduleForAction(readAction);
+      if (requiredModule && !principal.enabledModules.includes(requiredModule)) {
+        return forbidden("Dieses Modul ist in diesem Bereich nicht verfügbar");
+      }
     }
 
     const queryCtx: QueryContext = { principal, db };

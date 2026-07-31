@@ -25,4 +25,13 @@ describe("landingPathForRoles", () => {
   it("defaults to the portfolio when no role matches", () => {
     expect(landingPathForRoles([])).toBe("/portfolio");
   });
+
+  it("modul-bewusst: Personal-Tenant (nur ziele) landet auf /ziele statt /portfolio", () => {
+    expect(landingPathForRoles([ROLES.TENANT_ADMIN], ["ziele"])).toBe("/ziele");
+    expect(landingPathForRoles([ROLES.RTE], ["ziele"])).toBe("/ziele");
+  });
+
+  it("modul-bewusst: Kandidat bleibt, wenn sein Modul freigeschaltet ist", () => {
+    expect(landingPathForRoles([ROLES.RTE], ["ziele", "structure"])).toBe("/structure?tab=arts");
+  });
 });

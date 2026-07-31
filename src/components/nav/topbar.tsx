@@ -21,13 +21,15 @@ import { useMegaMenu } from "@/components/nav/use-mega-menu";
 interface TopbarProps {
   userEmail: string;
   visibleHrefs: string[];
+  /** Modul-gesperrte Items (Entitlement) — ausgegraut mit 🔒 gerendert (Upsell). */
+  lockedHrefs?: string[];
 }
 
 /**
  * The application's top bar. The mega-menu interaction state-machine lives in
  * `useMegaMenu`; Topbar is composition only.
  */
-export function Topbar({ userEmail, visibleHrefs }: TopbarProps) {
+export function Topbar({ userEmail, visibleHrefs, lockedHrefs = [] }: TopbarProps) {
   const { theme, setTheme } = useTheme();
   const locale = useLocale();
   const t = useTranslations("common");
@@ -51,7 +53,7 @@ export function Topbar({ userEmail, visibleHrefs }: TopbarProps) {
         </Link>
 
         {/* Primary navigation (desktop) */}
-        <TopNavMegaTriggers visibleHrefs={visibleHrefs} menu={menu} />
+        <TopNavMegaTriggers visibleHrefs={visibleHrefs} lockedHrefs={lockedHrefs} menu={menu} />
 
         <div className="flex-1" />
 

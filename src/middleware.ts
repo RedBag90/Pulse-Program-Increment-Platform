@@ -42,6 +42,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Pfad als Request-Header durchreichen — das Dashboard-Layout braucht ihn
+  // für den Modul-Route-Guard (Layouts kennen ihre Pathname sonst nicht).
+  // next-intl übernimmt die Request-Header in seine Response.
+  request.headers.set("x-pathname", pathname);
+
   // Run next-intl middleware and merge Set-Cookie headers from Supabase.
   const intlResponse = intlMiddleware(request);
 

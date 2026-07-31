@@ -3,6 +3,7 @@ import { authorize, type AuthResource } from "@/server/auth/authorize";
 import type { Action } from "@/server/auth/policies";
 import type { Principal } from "@/server/auth/principal";
 import { isErr } from "@/domain/errors";
+import { moduleForAction } from "@/domain/modules";
 import type { DomainError, Result } from "@/domain/errors";
 import { revalidateFor, type RevalidationResource } from "@/server/http/revalidation";
 import { buildRequestContext, type RequestContext } from "@/server/http/request-context";
@@ -122,6 +123,16 @@ export function createServerAction<TInput, TOutput = unknown>(
     if (!decision.allow) {
       logActionTiming(config.action, performance.now() - startedAt, "err");
       return { error: "Insufficient permissions" };
+    }
+
+    // Modul-Gate (Entitlement-Achse, fail-closed): Mutationen eines Moduls,
+    // das der aktive Tenant nicht freigeschaltet hat, sind gesperrt — auch
+    // wenn RBAC (oben) erlauben würde. Actions ohne Modul-Zuordnung
+    // (nur tenant.create) bleiben ungegated.
+    const requiredModule = moduleForAction(config.action);
+    if (requiredModule && !principal.enabledModules.includes(requiredModule)) {
+      logActionTiming(config.action, performance.now() - startedAt, "err");
+      return { error: "Dieses Modul ist in diesem Bereich nicht verfügbar" };
     }
 
     // Batch mode: loop the iterated field, calling the per-item service.

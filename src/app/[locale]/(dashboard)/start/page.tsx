@@ -12,5 +12,5 @@ export default async function StartPage({ params }: { params: Promise<{ locale: 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect(`/${locale}/sign-in`);
 
-  redirect(`/${locale}${landingPathForRoles(principal.roles)}`);
+  redirect(`/${locale}${landingPathForRoles(principal.roles, principal.enabledModules)}`);
 }

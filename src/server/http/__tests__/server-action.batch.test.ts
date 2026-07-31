@@ -28,6 +28,17 @@ const tenantCtx = {
     email: "",
     roles: [],
     scopes: { artIds: [], teamIds: [], valueStreamIds: [] },
+    tenantKind: "organization",
+    enabledModules: [
+      "ziele",
+      "portfolio",
+      "program",
+      "controlling",
+      "roadmap",
+      "reporting",
+      "structure",
+      "admin",
+    ],
   },
   db: {},
 } as unknown;
