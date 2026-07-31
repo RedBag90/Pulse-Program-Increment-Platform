@@ -43,6 +43,17 @@ const fakePrincipal = {
   id: "user-1",
   tenantId: "tenant-1",
   email: "test@example.com",
+  tenantKind: "organization",
+  enabledModules: [
+    "ziele",
+    "portfolio",
+    "program",
+    "controlling",
+    "roadmap",
+    "reporting",
+    "structure",
+    "admin",
+  ],
   scopes: { artIds: [], teamIds: [], valueStreamIds: [] },
 };
 

@@ -4,7 +4,7 @@ import { ROLES } from "@/domain/roles";
 import { PERSONAL_DEFAULT_MODULES } from "@/domain/modules";
 import { emitAuditEvent } from "@/server/audit/emit";
 import type { Result } from "@/domain/errors";
-import { ok } from "@/domain/errors";
+import { ok, err } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,
@@ -17,6 +17,10 @@ export type TenantRegion = "EU" | "US" | "APAC";
 export interface CreateTenantInput {
   name: string;
   region: TenantRegion;
+  /** "organization" (Default) | "personal". */
+  kind?: string;
+  /** Entitlement-Set (Modul-Keys); leer = kind-Default (org → alle). */
+  enabledModules?: string[];
 }
 
 export interface CreatedTenant {
@@ -41,7 +45,14 @@ export async function createTenant(
   return withAuditedTransaction(
     mctx,
     async (tx) => {
-      const tenant = await tx.tenant.create({ data: { name, region } });
+      const tenant = await tx.tenant.create({
+        data: {
+          name,
+          region,
+          kind: input.kind ?? "organization",
+          enabledModules: input.enabledModules ?? [],
+        },
+      });
 
       await tx.userRoleAssignment.create({
         data: {
@@ -71,6 +82,51 @@ export async function createTenant(
     },
     { onPrismaError: onUniqueConstraint(`Tenant "${name}" already exists`) },
   );
+}
+
+export interface UpdateTenantEntitlementsInput {
+  tenantId: string;
+  /** Neues Entitlement-Set (Modul-Keys); leeres Array = kind-Default. */
+  enabledModules: string[];
+}
+
+/**
+ * Entitlement-Pflege (Freemium): setzt das Modul-Set eines Tenants. Nur über
+ * die Platform-Admin-API erreichbar (`tenant.create`-Gate = platform_admin-
+ * Fast-Path) — bewusst KEIN tenant-seitiges Self-Service. Unbekannte Modul-Keys
+ * lehnt die Route per Zod ab; hier wird nur geschrieben + auditiert.
+ */
+export async function updateTenantEntitlements(
+  ctx: RequestContext,
+  input: UpdateTenantEntitlementsInput,
+): Promise<Result<{ tenantId: TenantId; enabledModules: string[] }>> {
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.tenant.findUnique({
+      where: { id: input.tenantId },
+      select: { enabledModules: true },
+    });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "Tenant", id: input.tenantId });
+    }
+    const tenant = await tx.tenant.update({
+      where: { id: input.tenantId },
+      data: { enabledModules: input.enabledModules },
+      select: { id: true, enabledModules: true },
+    });
+    return ok({
+      result: { tenantId: tenant.id as TenantId, enabledModules: tenant.enabledModules },
+      audit: {
+        action: "tenant.updated" as const,
+        resourceType: "tenant" as const,
+        resourceId: tenant.id,
+        tenantId: tenant.id as TenantId,
+        changes: {
+          enabledModules: { before: existing.enabledModules, after: tenant.enabledModules },
+        },
+      },
+    });
+  });
 }
 
 /**

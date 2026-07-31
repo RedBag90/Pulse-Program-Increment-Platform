@@ -1,5 +1,6 @@
 import type { ZodSchema } from "zod";
 import { authorize, type AuthResource } from "@/server/auth/authorize";
+import { moduleForAction } from "@/domain/modules";
 import type { Action } from "@/server/auth/policies";
 import type { Principal } from "@/server/auth/principal";
 import { isErr, type DomainError, type Result } from "@/domain/errors";
@@ -107,6 +108,13 @@ export function createMutationHandler<TInput>(
 
       const decision = authorize(action, resource(parsed.data, principal), principal);
       if (!decision.allow) return forbidden(decision.reason);
+
+      // Modul-Gate (Entitlement, fail-closed) — gleiche Regel wie im
+      // Server-Action-Factory; Actions ohne Modul-Zuordnung bleiben ungegated.
+      const requiredModule = moduleForAction(action);
+      if (requiredModule && !principal.enabledModules.includes(requiredModule)) {
+        return forbidden("Dieses Modul ist in diesem Bereich nicht verfügbar");
+      }
 
       const result = await service(ctx, parsed.data);
 

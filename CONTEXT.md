@@ -276,6 +276,35 @@ resource)` is the _authoritative, scope-aware_ check, run inside a service
   vacuously. See ADR-0002 (and its deferred story/task/dependency ancestor-scope
   cases).
 
+## Modules (Freemium-Entitlements)
+
+- **Module** — a sellable feature block (`src/domain/modules.ts`): `ziele`,
+  `portfolio`, `program`, `controlling`, `roadmap`, `reporting`, `structure`,
+  `admin`, plus the always-on **core** segments (`start`, `my-tasks`,
+  `my-approvals`). The registry maps each module to route segments and action
+  prefixes — one source for nav filter, route guard and action gate.
+- **Entitlement** — `Tenant.enabledModules` (empty = kind default). Managed
+  **only** via the platform-admin API (`POST/PATCH /api/v1/admin/tenants`,
+  `tenant.create` gate) — never tenant self-service. Orthogonal to practices
+  (operating model) and RBAC: effective visibility = entitlement ∧ practice ∧
+  capability.
+- **Tenant kinds** — `organization` (client tenant, platform-admin-created,
+  default all modules) and `personal` (auto-created free workspace via
+  `ensurePersonalTenant` on `/start`, default `["ziele"]`, its user is
+  `tenant_admin` of it, not invitable — `tenant.users.manage` maps to the
+  locked `admin` module).
+- **Active tenant** — the `pulse-tenant` cookie selects among a user's role
+  assignments (`resolveActiveAssignments`); roles/scopes/capabilities are
+  aggregated **per active tenant only** (never across tenants). The topbar
+  `TenantSwitcher` sets the cookie; sign-out clears it.
+- **Enforcement (fail-closed)** — dashboard layout redirects deep links to
+  locked modules (`x-pathname` header from middleware → `moduleForPath`);
+  module-locked nav groups render greyed with a lock + "Vollversion" popover
+  (practice/capability-hidden items stay hidden); `createServerAction`,
+  `createMutationHandler` and `createQueryHandler` (with `readAction`) block
+  actions via `moduleForAction`. Unregistered route segments are locked — the
+  module-registry completeness test forces new segments to be registered.
+
 ## UI layout
 
 - **Layout primitives** — `<Page>`, `<PageHeader>`, `<PageSection>` from
