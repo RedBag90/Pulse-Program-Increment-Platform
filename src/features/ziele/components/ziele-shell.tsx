@@ -41,7 +41,7 @@ interface Props {
 }
 
 export function ZieleShell({ model, layout, mode = "ziele", userLabels = {} }: Props) {
-  const { tab, themes, tenantTrio, permissions } = model;
+  const { tab, themes, tenantTrio, permissions, modules } = model;
   const isStrategy = mode === "strategy";
 
   return (
@@ -57,14 +57,14 @@ export function ZieleShell({ model, layout, mode = "ziele", userLabels = {} }: P
       />
 
       <div className="space-y-1.5">
-        <GoalHealthStrip themes={themes} tenantTrio={tenantTrio} />
+        <GoalHealthStrip themes={themes} tenantTrio={tenantTrio} showMoney={modules.portfolio} />
         <p className="text-xs text-muted-foreground">{themes.length} Themes (OKRs) im Scope</p>
       </div>
 
       {tab === "strategie" && (
         <PageSection>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <GoalScopeFilterBar />
+            <GoalScopeFilterBar showValueStreams={modules.portfolio} showArts={modules.program} />
             <StrategyLayoutToggle active={layout} />
           </div>
           {layout === "tabelle" && (
@@ -79,7 +79,9 @@ export function ZieleShell({ model, layout, mode = "ziele", userLabels = {} }: P
         </PageSection>
       )}
       {tab === "okrs" && <OkrBoardView themes={themes} canEdit={permissions.canEditStrategy} />}
-      {tab === "money" && !isStrategy && <MoneySheetView themes={themes} />}
+      {tab === "money" && !isStrategy && (
+        <MoneySheetView themes={themes} hasPortfolio={modules.portfolio} />
+      )}
 
       {/* Detail-Drawer in beiden Modi: read-only auf /ziele, editierbar auf
           /strategy (canEdit spiegelt das Permission-Gate). */}

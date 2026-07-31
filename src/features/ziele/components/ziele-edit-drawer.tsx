@@ -4,7 +4,7 @@ import { useActionState, startTransition, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Lock } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { goalPeriodLabel } from "@/domain/goal-period";
 import type {
@@ -37,6 +37,7 @@ import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-de
 import { EntitySelect } from "@/features/create/entity-select";
 import { PeriodPicker } from "@/features/ziele/components/period-picker";
 import { LinkList, type LinkChip } from "@/features/ziele/components/link-list";
+import { LockedHint } from "@/components/ui/locked-hint";
 import {
   RelatedWorkSearch,
   type RelatedWorkResult,
@@ -252,7 +253,10 @@ function GoalPane({
           >
             <option value="manual">Manuell</option>
             <option value="rollup">Aus Unterzielen</option>
-            <option value="auto_kpi">Aus verknüpften KPIs</option>
+            {/* Epic-KPIs sind Portfolio-Inhalt — Option nur mit Modul (oder wenn bereits gewählt). */}
+            {(model.modules.portfolio || mode === "auto_kpi") && (
+              <option value="auto_kpi">Aus verknüpften KPIs</option>
+            )}
           </select>
         </Field>
         {mode === "rollup" ? (
@@ -366,7 +370,9 @@ function GoalPane({
                   disabled={!canEdit}
                 >
                   <option value="manual">manuell</option>
-                  <option value="auto_from_kpi">aus KPI aggregiert</option>
+                  {(model.modules.portfolio || (node?.formula ?? "manual") === "auto_from_kpi") && (
+                    <option value="auto_from_kpi">aus KPI aggregiert</option>
+                  )}
                 </select>
               </Field>
             )}
@@ -446,6 +452,7 @@ function GoalPane({
             epics={node.relatedEpics}
             items={node.relatedWork}
             canEdit={canEdit}
+            searchEnabled={model.modules.portfolio || model.modules.program}
           />
           {node.progressMode === "auto_kpi" ? (
             <p className="text-[10px] leading-snug text-muted-foreground">
@@ -459,15 +466,26 @@ function GoalPane({
             </p>
           )}
           <div className="border-t pt-3">
-            <KpiBindingsReadOnly contributions={node.contributions} krId={id} />
+            <KpiBindingsReadOnly
+              contributions={node.contributions}
+              krId={id}
+              controllingEnabled={model.modules.controlling}
+            />
           </div>
           <div className="space-y-3 border-t pt-3">
-            <AccountableTeam goalId={id} team={node.accountableTeam} canEdit={canEdit} />
+            <AccountableTeam
+              goalId={id}
+              team={node.accountableTeam}
+              canEdit={canEdit}
+              pickerEnabled={model.modules.program}
+            />
             <GoalScopeLinks
               goalId={id}
               valueStreams={node.valueStreams}
               arts={node.arts}
               canEdit={canEdit}
+              vsEnabled={model.modules.portfolio}
+              artEnabled={model.modules.program}
             />
           </div>
         </div>
@@ -829,12 +847,15 @@ function RelatedWorkUnified({
   epics,
   items,
   canEdit,
+  searchEnabled,
 }: {
   target: "objective" | "kr";
   goalId: string;
   epics: RelatedEpic[];
   items: RelatedWorkItem[];
   canEdit: boolean;
+  /** Epics/Features/PIs sind Premium-Inhalt — false ⇒ 🔒 statt Suchfeld. */
+  searchEnabled: boolean;
 }) {
   const [linkEpicState, linkEpicRun, linkEpicPending] = useActionState(linkEpicToGoalAction, {});
   const [unlinkEpicState, unlinkEpicRun, unlinkEpicPending] = useActionState(
@@ -918,11 +939,14 @@ function RelatedWorkUnified({
         removePending={pending}
         items={chips}
       >
-        {canEdit && (
-          <div className="rounded-md border border-dashed p-2">
-            <RelatedWorkSearch onPick={pick} disabled={pending} />
-          </div>
-        )}
+        {canEdit &&
+          (searchEnabled ? (
+            <div className="rounded-md border border-dashed p-2">
+              <RelatedWorkSearch onPick={pick} disabled={pending} />
+            </div>
+          ) : (
+            <LockedHint text="Verknüpfungen mit Epics, Features & PIs" />
+          ))}
       </LinkList>
       {err && <p className="text-xs text-destructive">{err}</p>}
     </section>
@@ -938,10 +962,13 @@ function AccountableTeam({
   goalId,
   team,
   canEdit,
+  pickerEnabled,
 }: {
   goalId: string;
   team: ScopeRef | null;
   canEdit: boolean;
+  /** Teams sind Programm-Inhalt — false ⇒ 🔒 statt Picker. */
+  pickerEnabled: boolean;
 }) {
   const [teamId, setTeamId] = useState("");
   const [state, run, pending] = useActionState(setGoalAccountableTeamAction, {});
@@ -977,29 +1004,32 @@ function AccountableTeam({
       ) : (
         <p className="text-xs text-muted-foreground">Kein Team.</p>
       )}
-      {canEdit && (
-        <div className="flex items-end gap-1.5">
-          <div className="flex-1">
-            <EntitySelect
-              kind="team"
-              name="goalTeam"
-              label=""
-              value={teamId}
-              onChange={setTeamId}
-              labelField="name"
-              disabled={pending}
-            />
+      {canEdit &&
+        (pickerEnabled ? (
+          <div className="flex items-end gap-1.5">
+            <div className="flex-1">
+              <EntitySelect
+                kind="team"
+                name="goalTeam"
+                label=""
+                value={teamId}
+                onChange={setTeamId}
+                labelField="name"
+                disabled={pending}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => teamId && set(teamId)}
+              disabled={pending || teamId === ""}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            >
+              +
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => teamId && set(teamId)}
-            disabled={pending || teamId === ""}
-            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-          >
-            +
-          </button>
-        </div>
-      )}
+        ) : (
+          <LockedHint text="Team-Verantwortung" />
+        ))}
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
     </section>
   );
@@ -1015,11 +1045,17 @@ function GoalScopeLinks({
   valueStreams,
   arts,
   canEdit,
+  vsEnabled,
+  artEnabled,
 }: {
   goalId: string;
   valueStreams: ScopeRef[];
   arts: ScopeRef[];
   canEdit: boolean;
+  /** Value Streams = Portfolio-Inhalt; false ⇒ 🔒 statt Picker. */
+  vsEnabled: boolean;
+  /** ARTs = Programm-Inhalt; false ⇒ 🔒 statt Picker. */
+  artEnabled: boolean;
 }) {
   const [vsId, setVsId] = useState("");
   const [artId, setArtId] = useState("");
@@ -1080,29 +1116,32 @@ function GoalScopeLinks({
           removePending={unlinkVsPending}
           items={scopeItems(valueStreams)}
         >
-          {canEdit && (
-            <div className="flex items-end gap-1.5">
-              <div className="flex-1">
-                <EntitySelect
-                  kind="valueStream"
-                  name="goalScopeVs"
-                  label=""
-                  value={vsId}
-                  onChange={setVsId}
-                  labelField="name"
-                  disabled={linkVsPending}
-                />
+          {canEdit &&
+            (vsEnabled ? (
+              <div className="flex items-end gap-1.5">
+                <div className="flex-1">
+                  <EntitySelect
+                    kind="valueStream"
+                    name="goalScopeVs"
+                    label=""
+                    value={vsId}
+                    onChange={setVsId}
+                    labelField="name"
+                    disabled={linkVsPending}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={addVs}
+                  disabled={linkVsPending || vsId === ""}
+                  className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  +
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={addVs}
-                disabled={linkVsPending || vsId === ""}
-                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-              >
-                +
-              </button>
-            </div>
-          )}
+            ) : (
+              <LockedHint text="Value-Stream-Zuordnung" />
+            ))}
         </LinkList>
       </div>
       <div className="space-y-1.5">
@@ -1115,29 +1154,32 @@ function GoalScopeLinks({
           removePending={unlinkArtPending}
           items={scopeItems(arts)}
         >
-          {canEdit && (
-            <div className="flex items-end gap-1.5">
-              <div className="flex-1">
-                <EntitySelect
-                  kind="art"
-                  name="goalScopeArt"
-                  label=""
-                  value={artId}
-                  onChange={setArtId}
-                  labelField="name"
-                  disabled={linkArtPending}
-                />
+          {canEdit &&
+            (artEnabled ? (
+              <div className="flex items-end gap-1.5">
+                <div className="flex-1">
+                  <EntitySelect
+                    kind="art"
+                    name="goalScopeArt"
+                    label=""
+                    value={artId}
+                    onChange={setArtId}
+                    labelField="name"
+                    disabled={linkArtPending}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={addArt}
+                  disabled={linkArtPending || artId === ""}
+                  className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  +
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={addArt}
-                disabled={linkArtPending || artId === ""}
-                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-              >
-                +
-              </button>
-            </div>
-          )}
+            ) : (
+              <LockedHint text="ART-Zuordnung" />
+            ))}
         </LinkList>
       </div>
       {err && <p className="text-xs text-destructive">{err}</p>}
@@ -1247,9 +1289,12 @@ function CustomFieldRow({
 function KpiBindingsReadOnly({
   contributions,
   krId,
+  controllingEnabled,
 }: {
   contributions: ZieleKrContribution[];
   krId: string;
+  /** KPI-Coverage-Pflege liegt im Controlling-Modul — false ⇒ 🔒 statt Deeplink. */
+  controllingEnabled: boolean;
 }) {
   const weightSum = contributions.reduce(
     (s, c) => s + (Number.isFinite(c.weight) ? c.weight : 0),
@@ -1261,12 +1306,19 @@ function KpiBindingsReadOnly({
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           KPI-Bindungen
         </h3>
-        <a
-          href={`/controlling/kpi-coverage#kr-${krId}`}
-          className="text-[11px] text-primary hover:underline"
-        >
-          Im Controlling pflegen →
-        </a>
+        {controllingEnabled ? (
+          <a
+            href={`/controlling/kpi-coverage#kr-${krId}`}
+            className="text-[11px] text-primary hover:underline"
+          >
+            Im Controlling pflegen →
+          </a>
+        ) : (
+          <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
+            <Lock className="size-3" aria-hidden />
+            Pflege in der Vollversion
+          </span>
+        )}
       </header>
       {contributions.length === 0 ? (
         <p className="text-xs text-muted-foreground">

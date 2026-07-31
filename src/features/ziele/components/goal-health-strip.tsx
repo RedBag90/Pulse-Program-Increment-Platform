@@ -27,9 +27,12 @@ const TIER_ORDER: GoalStatusTier[] = ["green", "amber", "rose", "neutral"];
 export function GoalHealthStrip({
   themes,
   tenantTrio,
+  showMoney = true,
 }: {
   themes: GoalNode[];
   tenantTrio: RollupTrio;
+  /** €-Rollup stammt aus Epic-KPIs (Portfolio) — im Free-Tenant ausgeblendet. */
+  showMoney?: boolean;
 }) {
   const withProgress = themes.filter((t) => t.progress != null);
   const avg =
@@ -90,9 +93,13 @@ export function GoalHealthStrip({
         </div>
       </div>
 
-      <Stat label="Planned" value={formatEURPrefix(tenantTrio.planned)} />
-      <Stat label="Realized" value={formatEURPrefix(tenantTrio.realized)} />
-      <Stat label="Run-Rate" value={formatEURPrefix(tenantTrio.runRate)} />
+      {showMoney && (
+        <>
+          <Stat label="Planned" value={formatEURPrefix(tenantTrio.planned)} />
+          <Stat label="Realized" value={formatEURPrefix(tenantTrio.realized)} />
+          <Stat label="Run-Rate" value={formatEURPrefix(tenantTrio.runRate)} />
+        </>
+      )}
     </StatStrip>
   );
 }

@@ -187,6 +187,23 @@ export interface ZielePermissions {
   canEditKpiValuation: boolean;
 }
 
+/**
+ * Entitlement-Sicht des aktiven Tenants für die Ziele-UI (Freemium): welche
+ * Quell-Module für Premium-Inhalte freigeschaltet sind. Im Personal-Free-Tenant
+ * (nur `ziele`) sind alle drei false — die Shell/der Drawer rendern dann
+ * 🔒-Upsell-Hinweise statt leerer Premium-Picker (Money-Tab, Related-Work-Suche,
+ * Team-/VS-/ART-Picker, Controlling-Deeplink). Von den Pages aus
+ * `principal.enabledModules` abgeleitet.
+ */
+export interface ZieleModuleAccess {
+  /** Epics/KPIs/Value Streams (€-Rollup, Epic-Verknüpfung, VS-Verantwortung). */
+  portfolio: boolean;
+  /** ARTs/Teams/Features/PIs (Team-Picker, ART-Verantwortung, Related Work). */
+  program: boolean;
+  /** KPI-Coverage-Pflegefläche (Controlling-Deeplink). */
+  controlling: boolean;
+}
+
 export interface StrategyTree {
   /** Top-Level-Goal-Knoten (die „Themes"); je Knoten `children` beliebig tief. */
   themes: GoalNode[];
@@ -212,6 +229,8 @@ export interface KpiInventory {
  */
 export interface ZieleModel extends StrategyTree, ZieleSubTabState {
   permissions: ZielePermissions;
+  /** Freigeschaltete Premium-Quell-Module (Freemium-Entitlement des Tenants). */
+  modules: ZieleModuleAccess;
   kpiLibrary: ZieleKpiLibraryEntry[];
   krLibrary: ZieleKrLibraryEntry[];
 }

@@ -19,7 +19,15 @@ const SELECT =
  * konsumiert sie server­seitig. VS/ART-Optionen laden selbst über die v1-APIs;
  * der Zeitraum nutzt den `PeriodPicker` im controlled/Filter-Modus.
  */
-export function GoalScopeFilterBar() {
+export function GoalScopeFilterBar({
+  showValueStreams = true,
+  showArts = true,
+}: {
+  /** VS = Portfolio-Inhalt — im Free-Tenant ausgeblendet (leeres Dropdown wäre tot). */
+  showValueStreams?: boolean;
+  /** ARTs = Programm-Inhalt — dito. */
+  showArts?: boolean;
+} = {}) {
   const { params, push } = useUrlState();
   const period = params.get("period");
   const vs = params.get("vs") ?? "";
@@ -39,38 +47,42 @@ export function GoalScopeFilterBar() {
           />
         </div>
       </Field>
-      <Field label="Wertstrom">
-        <select
-          value={vs}
-          onChange={(e) => push({ vs: e.target.value || null })}
-          disabled={valueStreams.loading}
-          aria-label="Nach Wertstrom filtern"
-          className={SELECT}
-        >
-          <option value="">Alle Wertströme</option>
-          {valueStreams.data.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.name ?? v.id}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field label="ART">
-        <select
-          value={art}
-          onChange={(e) => push({ art: e.target.value || null })}
-          disabled={arts.loading}
-          aria-label="Nach ART filtern"
-          className={SELECT}
-        >
-          <option value="">Alle ARTs</option>
-          {arts.data.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name ?? a.id}
-            </option>
-          ))}
-        </select>
-      </Field>
+      {showValueStreams && (
+        <Field label="Wertstrom">
+          <select
+            value={vs}
+            onChange={(e) => push({ vs: e.target.value || null })}
+            disabled={valueStreams.loading}
+            aria-label="Nach Wertstrom filtern"
+            className={SELECT}
+          >
+            <option value="">Alle Wertströme</option>
+            {valueStreams.data.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name ?? v.id}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      {showArts && (
+        <Field label="ART">
+          <select
+            value={art}
+            onChange={(e) => push({ art: e.target.value || null })}
+            disabled={arts.loading}
+            aria-label="Nach ART filtern"
+            className={SELECT}
+          >
+            <option value="">Alle ARTs</option>
+            {arts.data.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name ?? a.id}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
     </div>
   );
 }

@@ -59,6 +59,13 @@ export default async function StrategyPage({ searchParams }: PageProps) {
     ...inventory,
     tab,
     permissions: { canEditStrategy: true, canEditKpiValuation: true },
+    // Freemium: welche Premium-Quell-Module der Tenant freigeschaltet hat —
+    // steuert 🔒-Upsell-Hinweise statt leerer Premium-Picker im Personal-Tenant.
+    modules: {
+      portfolio: principal.enabledModules.includes("portfolio"),
+      program: principal.enabledModules.includes("program"),
+      controlling: principal.enabledModules.includes("controlling"),
+    },
   };
 
   return (
