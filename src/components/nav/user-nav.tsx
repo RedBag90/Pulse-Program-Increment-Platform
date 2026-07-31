@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, User, ChevronUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { clearTenantCookieAction } from "@/features/auth/actions/switch-tenant";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -35,6 +36,8 @@ export function UserNav({ email, placement = "sidebar" }: UserNavProps) {
 
   const handleSignOut = () => {
     startTransition(async () => {
+      // Tenant-Auswahl serverseitig räumen (httpOnly-Cookie), dann Session beenden.
+      await clearTenantCookieAction();
       const supabase = createClient();
       await supabase.auth.signOut();
       router.push("/sign-in");

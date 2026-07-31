@@ -15,6 +15,7 @@ import {
 import { CreateMenu } from "@/features/create/create-menu";
 import { MobileNav } from "@/components/nav/mobile-nav";
 import { TopNavMegaTriggers } from "@/components/nav/top-nav-mega-triggers";
+import { TenantSwitcher, type TenantOption } from "@/components/nav/tenant-switcher";
 import { UserNav } from "@/components/nav/user-nav";
 import { useMegaMenu } from "@/components/nav/use-mega-menu";
 
@@ -23,13 +24,22 @@ interface TopbarProps {
   visibleHrefs: string[];
   /** Modul-gesperrte Items (Entitlement) — ausgegraut mit 🔒 gerendert (Upsell). */
   lockedHrefs?: string[];
+  /** Tenants des Users (Switcher-Datenquelle); aktiver Tenant markiert. */
+  tenants?: TenantOption[];
+  activeTenantId?: string;
 }
 
 /**
  * The application's top bar. The mega-menu interaction state-machine lives in
  * `useMegaMenu`; Topbar is composition only.
  */
-export function Topbar({ userEmail, visibleHrefs, lockedHrefs = [] }: TopbarProps) {
+export function Topbar({
+  userEmail,
+  visibleHrefs,
+  lockedHrefs = [],
+  tenants = [],
+  activeTenantId = "",
+}: TopbarProps) {
   const { theme, setTheme } = useTheme();
   const locale = useLocale();
   const t = useTranslations("common");
@@ -59,6 +69,13 @@ export function Topbar({ userEmail, visibleHrefs, lockedHrefs = [] }: TopbarProp
 
         {/* Actions — right */}
         <div className="flex shrink-0 items-center gap-1">
+          {/* Bereichs-Wechsler (Privat ↔ Klienten-Tenant) */}
+          {tenants.length > 0 && (
+            <div className="mr-1">
+              <TenantSwitcher tenants={tenants} activeTenantId={activeTenantId} />
+            </div>
+          )}
+
           {/* Global create menu */}
           <CreateMenu />
 

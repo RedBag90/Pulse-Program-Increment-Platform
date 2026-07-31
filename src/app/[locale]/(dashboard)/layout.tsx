@@ -5,6 +5,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getActiveTargetModel } from "@/server/services/target-model";
+import { listUserTenants } from "@/server/services/tenant";
 import { effectivePractices } from "@/domain/operating-model";
 import { moduleForPath, firstEnabledHome, type ModuleKey } from "@/domain/modules";
 import { NAV_GROUPS } from "@/components/nav/nav-config";
@@ -39,7 +40,11 @@ export default async function DashboardLayout({
   // Tailor the navigation to the tenant's target operating model (which
   // practices/levels are in scope) and the principal's capabilities.
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const practices = effectivePractices(await getActiveTargetModel(db, principal.tenantId));
+  const [targetModel, tenants] = await Promise.all([
+    getActiveTargetModel(db, principal.tenantId),
+    listUserTenants(db, principal.id),
+  ]);
+  const practices = effectivePractices(targetModel);
 
   // Drei Achsen: practice/capability verstecken (wie bisher); das Modul-
   // Entitlement sperrt sichtbar — gesperrte Items wandern in `lockedHrefs`
@@ -68,6 +73,8 @@ export default async function DashboardLayout({
         userEmail={principal.email ?? ""}
         visibleHrefs={visibleHrefs}
         lockedHrefs={lockedHrefs}
+        tenants={tenants}
+        activeTenantId={principal.tenantId}
       />
       <main className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</main>
     </div>
