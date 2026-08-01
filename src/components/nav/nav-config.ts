@@ -173,6 +173,12 @@ export const NAV_GROUPS: NavGroup[] = [
         capability: "role.capability.manage",
       },
       {
+        href: "/admin/anfragen",
+        labelKey: "joinRequests",
+        icon: Inbox,
+        capability: "tenant.users.manage",
+      },
+      {
         href: "/admin/goal-fields",
         labelKey: "goalFields",
         icon: ListTodo,

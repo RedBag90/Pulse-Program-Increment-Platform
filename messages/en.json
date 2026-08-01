@@ -58,6 +58,7 @@
     "goalFields": "Custom Fields",
     "integrations": "Integrations",
     "auditLog": "Audit Log",
+    "joinRequests": "Join Requests",
     "transformation": "Transformation",
     "transformationCockpit": "Cockpit",
     "goals": "Goals",
