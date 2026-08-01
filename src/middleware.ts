@@ -23,23 +23,29 @@ function isAuthOnly(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
-  const { supabaseResponse, user } = await updateSession(request);
+  const { supabaseResponse, user, authCheckFailed } = await updateSession(request);
   const pathname = request.nextUrl.pathname;
 
   // Detect the locale prefix (e.g. /en, /de)
   const localeMatch = pathname.match(/^\/([a-z]{2})(\/|$)/);
   const locale = localeMatch ? localeMatch[1] : routing.defaultLocale;
 
-  if (!user && isProtected(pathname)) {
-    const url = request.nextUrl.clone();
-    url.pathname = `/${locale}/sign-in`;
-    return NextResponse.redirect(url);
-  }
+  // Bei transientem Auth-Netzwerkfehler (Edge-Runtime-`ENOTFOUND`) NICHT
+  // umleiten — sonst würde ein eingeloggter Nutzer bei jedem Supabase-Blip auf
+  // /sign-in geworfen. Die serverseitige `requirePrincipal` (Node-Runtime,
+  // zuverlässige DNS-Auflösung) bleibt der eigentliche Auth-Wächter.
+  if (!authCheckFailed) {
+    if (!user && isProtected(pathname)) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${locale}/sign-in`;
+      return NextResponse.redirect(url);
+    }
 
-  if (user && isAuthOnly(pathname)) {
-    const url = request.nextUrl.clone();
-    url.pathname = `/${locale}/start`;
-    return NextResponse.redirect(url);
+    if (user && isAuthOnly(pathname)) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${locale}/start`;
+      return NextResponse.redirect(url);
+    }
   }
 
   // Pfad als Request-Header durchreichen — das Dashboard-Layout braucht ihn

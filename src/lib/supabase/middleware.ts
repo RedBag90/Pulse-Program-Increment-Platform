@@ -28,9 +28,20 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // `getUser()` gibt bei „keine Session" ein `{ data, error }` zurück, WIRFT aber
+  // bei Netzwerk-/DNS-Fehlern (im Edge-Runtime-Sandbox tritt sporadisch
+  // `ENOTFOUND` beim Supabase-Host auf). Diese beiden Fälle müssen unterschieden
+  // werden: „keine Session" ⇒ Redirect auf /sign-in ist korrekt; „Netzwerkfehler"
+  // ⇒ NICHT ausloggen (der Node-Runtime-`getPrincipal` auf der Seite prüft Auth
+  // ohnehin zuverlässig). `authCheckFailed` signalisiert den transienten Fehler.
+  let user = null;
+  let authCheckFailed = false;
+  try {
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+  } catch {
+    authCheckFailed = true;
+  }
 
-  return { supabaseResponse, user };
+  return { supabaseResponse, user, authCheckFailed };
 }
