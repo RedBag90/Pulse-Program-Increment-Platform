@@ -53,6 +53,7 @@ export default async function DashboardLayout({
   // Drei Achsen (alle blenden aus): practice/capability wie bisher; das Modul-
   // Entitlement blendet nicht freigeschaltete Module komplett aus — kein
   // Upsell-Schloss mehr, gesperrte Module tauchen gar nicht in der Nav auf.
+  const isPersonal = principal.tenantKind === "personal";
   const visibleHrefs = NAV_GROUPS.flatMap((group) => group.items)
     .filter((item) => {
       if (item.practice && !practices[item.practice]) return false;
@@ -61,6 +62,10 @@ export default async function DashboardLayout({
         !authorize(item.capability, { tenantId: principal.tenantId }, principal).allow
       )
         return false;
+      // Privater Free-Bereich: Core-Inboxen (My Tasks / My Approvals) ausblenden
+      // — im Solo-/nur-Ziele-Tenant nutzlos. Der Route-Guard (moduleAllowed)
+      // bleibt separat, /start-Bootstrap + Deep-Links funktionieren weiter.
+      if (isPersonal && moduleForPath(item.href) === "core") return false;
       return moduleAllowed(item.href, principal.enabledModules);
     })
     .map((item) => item.href);
