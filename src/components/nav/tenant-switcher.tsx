@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -73,27 +74,31 @@ export function TenantSwitcher({ tenants, activeTenantId }: Props) {
         <ChevronDown className="size-3 opacity-60" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Bereich wechseln
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Bereich wechseln
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        {tenants.map((t) => {
-          const Icon = t.kind === "personal" ? Lock : Building2;
-          const isActive = t.id === activeTenantId;
-          return (
-            <DropdownMenuItem
-              key={t.id}
-              onClick={() => switchTo(t.id)}
-              className={cn("gap-2", isActive && "font-medium")}
-            >
-              <Icon className="size-3.5 shrink-0 opacity-70" aria-hidden />
-              <span className="min-w-0 flex-1 truncate">
-                {t.kind === "personal" ? `Privat (${t.name})` : t.name}
-              </span>
-              {isActive && <Check className="size-3.5 shrink-0 text-primary" aria-hidden />}
-            </DropdownMenuItem>
-          );
-        })}
+        <DropdownMenuGroup>
+          {tenants.map((t) => {
+            const Icon = t.kind === "personal" ? Lock : Building2;
+            const isActive = t.id === activeTenantId;
+            return (
+              <DropdownMenuItem
+                key={t.id}
+                onClick={() => switchTo(t.id)}
+                className={cn("gap-2", isActive && "font-medium")}
+              >
+                <Icon className="size-3.5 shrink-0 opacity-70" aria-hidden />
+                <span className="min-w-0 flex-1 truncate">
+                  {t.kind === "personal" ? `Privat (${t.name})` : t.name}
+                </span>
+                {isActive && <Check className="size-3.5 shrink-0 text-primary" aria-hidden />}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
