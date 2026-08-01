@@ -27,6 +27,24 @@ export async function resolveUserEmails(
   return out;
 }
 
+/**
+ * Ist der User aktuell gesperrt (Supabase-Ban)? Best-effort: bei fehlender
+ * Service-Role-Env oder Fehler `false` (fail-open — die Sperre degradiert
+ * höchstens auf „nächster Token-Refresh", statt den Login aller zu brechen).
+ * Läuft im getPrincipal-Batch parallel, kostet also kaum Wall-Time.
+ */
+export async function isUserBanned(userId: string): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin.auth.admin.getUserById(userId);
+    if (error || !data.user) return false;
+    const until = (data.user as { banned_until?: string | null }).banned_until;
+    return until != null && new Date(until).getTime() > Date.now();
+  } catch {
+    return false;
+  }
+}
+
 /** Sucht die Supabase-User-Id zu einer E-Mail (case-insensitiv). Null, wenn unbekannt. */
 export async function findUserIdByEmail(email: string): Promise<string | null> {
   const target = email.trim().toLowerCase();

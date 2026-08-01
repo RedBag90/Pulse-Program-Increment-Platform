@@ -5,6 +5,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import type { TenantId, UserId } from "@/domain/types";
 import type { Action, ScopeCheck } from "@/server/auth/policies";
 import { enabledModulesOrDefault, type ModuleKey } from "@/domain/modules";
+import { isUserBanned } from "@/server/services/user-directory";
 
 /**
  * Cookie mit der aktiven Tenant-Auswahl eines Multi-Tenant-Users (Switcher).
@@ -127,10 +128,18 @@ export const getPrincipal = cache(async (): Promise<Principal | null> => {
   // Use a bootstrap client (no RLS context yet — we're establishing identity)
   const db = createPrismaClient({ userId: user.id as UserId, tenantId: "" as TenantId });
 
-  const assignments = await db.userRoleAssignment.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "asc" },
-  });
+  // Assignments + Supabase-Ban-Check parallel (der Ban-Check ist ein Admin-
+  // Roundtrip, kostet in Parallelität kaum Wall-Time). Gebannt ⇒ kein Principal
+  // → das Layout leitet auf /sign-in um (sofortiger Lockout, nicht erst beim
+  // nächsten Token-Refresh).
+  const [assignments, banned] = await Promise.all([
+    db.userRoleAssignment.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "asc" },
+    }),
+    isUserBanned(user.id),
+  ]);
+  if (banned) return null;
 
   // Aktive Tenant-Auswahl aus dem Switcher-Cookie; Auflösung + tenant-
   // gefilterte Rollen-/Scope-Aggregation im puren Kern (Security: keine

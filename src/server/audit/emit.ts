@@ -86,6 +86,8 @@ export type AuditAction =
   | "user.invited"
   | "user.role.assigned"
   | "user.role.removed"
+  | "platform.user.suspended"
+  | "platform.user.reactivated"
   | "user.erased"
   | "user.data_exported"
   | "tenant.created"
