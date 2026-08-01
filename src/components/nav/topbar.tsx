@@ -58,7 +58,7 @@ export function Topbar({
         <MobileNav userEmail={userEmail} visibleHrefs={visibleHrefs} />
 
         {/* Logo */}
-        <Link href="/" onClick={menu.close} className="flex shrink-0 items-center gap-2.5">
+        <Link href="/start" onClick={menu.close} className="flex shrink-0 items-center gap-2.5">
           <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary">
             <Zap className="size-4 text-primary-foreground" strokeWidth={2.5} />
           </div>

@@ -28,7 +28,7 @@ export default async function PlatformLayout({ children }: { children: ReactNode
           <div className="flex-1" />
           <span className="hidden text-xs text-muted-foreground md:inline">{principal.email}</span>
           <Link
-            href="/"
+            href="/start"
             className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted"
           >
             <ArrowLeft className="size-3" aria-hidden />

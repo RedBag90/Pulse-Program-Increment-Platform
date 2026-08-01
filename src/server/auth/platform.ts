@@ -35,7 +35,8 @@ export function isPlatformAdmin(principal: Principal | null): boolean {
 export async function requirePlatformAdmin(): Promise<Principal> {
   const principal = await getPrincipal();
   if (!principal || !principal.isPlatformAdmin) {
-    redirect("/");
+    // Nicht-Admins sauber in die App zurückführen (nicht auf die leere Root).
+    redirect("/start");
   }
   return principal;
 }
