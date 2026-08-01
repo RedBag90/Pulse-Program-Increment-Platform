@@ -305,6 +305,56 @@ resource)` is the _authoritative, scope-aware_ check, run inside a service
   actions via `moduleForAction`. Unregistered route segments are locked — the
   module-registry completeness test forces new segments to be registered.
 
+## Platform-Admin (cross-tenant governance)
+
+- **`platform_admin` is GLOBAL** — unlike every other role it is not scoped to the
+  active tenant. `Principal.isPlatformAdmin` is resolved tenant-blind in
+  `getPrincipal` (a single `findFirst({ userId, role: "platform_admin" })`, no
+  role union). The grant physically lives in the user's **personal tenant**.
+  Bootstrap: env `PLATFORM_ADMIN_EMAIL` (assigned on `/start`) or
+  `scripts/grant-platform-admin.ts` (idempotent).
+- **Own `(dashboard)`-free area** — `src/app/[locale]/platform/*` is a real path
+  segment (NOT a `(group)` — a route group is stripped from the URL) with its
+  own `layout.tsx`. Being a sibling of `(dashboard)`, it escapes the module
+  route-guard. The layout calls `requirePlatformAdmin` (redirect on miss); tabs:
+  Tenants · Nutzer · Anfragen · Tenant-Anfragen. Entry point is in the user menu.
+- **Guard is the only wall** — `src/server/auth/platform.ts`:
+  `isPlatformAdmin`/`requirePlatformAdmin` (layout) / `assertPlatformAdmin`
+  (service) + `platformDb(actorId)` = a greppable cross-tenant Prisma client
+  (`tenantId: ""`). The two Actions `platform.tenants.manage`/
+  `platform.users.manage` have **empty grants** — they are documented for audit,
+  not enforced via `authorize()` (no `tenant_admin` fast-path leaks in). Every
+  platform service re-checks `isPlatformAdmin` and takes the target `tenantId`
+  as an **argument**; audit is written against the **target** tenant, actor is
+  the platform admin.
+- **RLS stance** — RLS is enabled but owner-bypass (Prisma connects as the DB
+  owner, no `FORCE ROW LEVEL SECURITY`), so cross-tenant reads work by simply
+  omitting the tenant filter. Security therefore rests **entirely** on the
+  app-level `isPlatformAdmin` gate — hardening to FORCE-RLS is a deferred ADR.
+- **Tenant lifecycle** — `Tenant.status` ∈ `active | suspended | archived`.
+  Suspended/archived **active** tenant → `getPrincipal` carries `tenantStatus`,
+  dashboard layout redirects to `/suspended` (outside `(dashboard)`, so no
+  loop); `listUserTenants` returns only active tenants (switcher + `/suspended`
+  offer only valid targets). Personal tenants are never suspendable. **Delete**
+  is hard and only for **completely empty** tenants (no `onDelete: Cascade` on
+  Tenant relations → a delete with children FK-fails); for anything non-empty,
+  **archive** is the substitute.
+- **User suspend** — Supabase ban (`admin.updateUserById({ ban_duration })`).
+  Enforced immediately by `isUserBanned` in the `getPrincipal` batch (banned ⇒
+  no principal). Guardrails: no self-suspend, cannot demote the last
+  `platform_admin`.
+- **Two self-service inflows, different owners** — **Join** (existing tenant):
+  `TenantInvite` (shared link + code, `autoAccept`) → `TenantJoinRequest`;
+  approval belongs to the **`tenant_admin`** in `/admin/anfragen` (the platform
+  "Anfragen" tab is read-only cross-tenant). New members join as `viewer`.
+  **Provision** (new organization): public `/request-tenant` →
+  `TenantProvisionRequest`; approval belongs to the **`platform_admin`** (approve
+  runs `createOrgTenant` + invites the requester as `tenant_admin`). The targeted
+  JWT `inviteUser` (admin → concrete email) coexists with the open invite.
+- **Public surfaces** — the `(public)` route group (`/join`, `/join/[token]`,
+  `/request-tenant`) renders without `requirePrincipal`. It is an abuse surface;
+  rate-limiting/captcha is a deferred follow-up.
+
 ## UI layout
 
 - **Layout primitives** — `<Page>`, `<PageHeader>`, `<PageSection>` from
