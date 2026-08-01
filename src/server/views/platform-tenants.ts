@@ -14,6 +14,8 @@ export interface PlatformTenantRow {
   name: string;
   /** "organization" | "personal". */
   kind: string;
+  /** "active" | "suspended" | "archived". */
+  status: string;
   region: string;
   enabledModules: string[];
   memberCount: number;
@@ -35,6 +37,7 @@ export async function listAllTenants(
       id: true,
       name: true,
       kind: true,
+      status: true,
       region: true,
       enabledModules: true,
       createdAt: true,
@@ -46,6 +49,7 @@ export async function listAllTenants(
     id: t.id,
     name: t.name,
     kind: t.kind,
+    status: t.status,
     region: t.region,
     enabledModules: t.enabledModules,
     memberCount: t._count.userRoleAssignments,
@@ -65,6 +69,7 @@ export interface PlatformTenantDetail {
   id: string;
   name: string;
   kind: string;
+  status: string;
   region: string;
   enabledModules: string[];
   createdAt: string;
@@ -82,6 +87,7 @@ export async function loadTenantDetail(
       id: true,
       name: true,
       kind: true,
+      status: true,
       region: true,
       enabledModules: true,
       createdAt: true,
@@ -98,6 +104,7 @@ export async function loadTenantDetail(
     id: tenant.id,
     name: tenant.name,
     kind: tenant.kind,
+    status: tenant.status,
     region: tenant.region,
     enabledModules: tenant.enabledModules,
     createdAt: tenant.createdAt.toISOString().slice(0, 10),

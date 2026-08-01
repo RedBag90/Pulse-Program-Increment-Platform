@@ -29,6 +29,7 @@ const tenantCtx = {
     roles: [],
     scopes: { artIds: [], teamIds: [], valueStreamIds: [] },
     tenantKind: "organization",
+    tenantStatus: "active",
     isPlatformAdmin: false,
     enabledModules: [
       "ziele",

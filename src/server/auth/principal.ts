@@ -43,6 +43,8 @@ export interface Principal {
   capabilities: PrincipalCapability[];
   /** "organization" | "personal" — Art des aktiven Tenants. */
   tenantKind: string;
+  /** Lifecycle-Status des aktiven Tenants: "active" | "suspended" | "archived". */
+  tenantStatus: string;
   /** Freigeschaltete Module des aktiven Tenants (Entitlement-Achse, fail-closed). */
   enabledModules: readonly ModuleKey[];
   /**
@@ -148,7 +150,7 @@ export const getPrincipal = cache(async (): Promise<Principal | null> => {
     resolveCapabilities(db, tenantId, roles),
     db.tenant.findUnique({
       where: { id: tenantId },
-      select: { kind: true, enabledModules: true },
+      select: { kind: true, enabledModules: true, status: true },
     }),
     // GLOBAL, tenant-blind: ein einziger platform_admin-Grant in irgendeinem
     // Tenant macht den User zum Plattform-Admin (bewusst KEINE Rollen-Union —
@@ -173,6 +175,7 @@ export const getPrincipal = cache(async (): Promise<Principal | null> => {
     scopes,
     capabilities,
     tenantKind,
+    tenantStatus: tenant?.status ?? "active",
     enabledModules,
     isPlatformAdmin: platformRow != null,
   };

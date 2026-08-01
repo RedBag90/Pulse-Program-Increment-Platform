@@ -10,6 +10,8 @@ import {
   setTenantModules,
   addTenantMember,
   removeTenantMember,
+  setTenantStatus,
+  deleteTenant,
 } from "@/server/services/platform-tenant";
 
 /**
@@ -125,6 +127,42 @@ export async function removeTenantMemberAction(
 
   const actor = await requirePlatformAdmin();
   const res = await removeTenantMember(actor, parsed.data.tenantId, parsed.data.assignmentId);
+  if (!res.ok) return { error: res.error };
+  return { success: true };
+}
+
+export async function setTenantStatusAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = z
+    .object({
+      tenantId: z.string().uuid(),
+      status: z.enum(["active", "suspended", "archived"]),
+    })
+    .safeParse({
+      tenantId: formData.get("tenantId"),
+      status: formData.get("status"),
+    });
+  if (!parsed.success) return { error: "Ungültige Eingabe" };
+
+  const actor = await requirePlatformAdmin();
+  const res = await setTenantStatus(actor, parsed.data.tenantId, parsed.data.status);
+  if (!res.ok) return { error: res.error };
+  return { success: true };
+}
+
+export async function deleteTenantAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = z
+    .object({ tenantId: z.string().uuid() })
+    .safeParse({ tenantId: formData.get("tenantId") });
+  if (!parsed.success) return { error: "Ungültige Eingabe" };
+
+  const actor = await requirePlatformAdmin();
+  const res = await deleteTenant(actor, parsed.data.tenantId);
   if (!res.ok) return { error: res.error };
   return { success: true };
 }

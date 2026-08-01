@@ -232,6 +232,107 @@ export async function addTenantMember(
   return { ok: true, invited: true };
 }
 
+export type TenantStatus = "active" | "suspended" | "archived";
+
+const STATUS_AUDIT: Record<
+  Exclude<TenantStatus, "active"> | "active",
+  "tenant.suspended" | "tenant.archived" | "tenant.reactivated"
+> = {
+  suspended: "tenant.suspended",
+  archived: "tenant.archived",
+  active: "tenant.reactivated",
+};
+
+/**
+ * Lifecycle-Status setzen: `suspended` (Login-Sperre), `archived` (Stilllegung /
+ * Löschen-Ersatz für nicht-leere Tenants) oder zurück auf `active`. Personal-
+ * Tenants (privater Free-Bereich) sind ausgenommen — sie werden nie gesperrt.
+ */
+export async function setTenantStatus(
+  actor: Principal,
+  tenantId: string,
+  status: TenantStatus,
+): Promise<ServiceOutcome> {
+  const denied = requireAdmin(actor);
+  if (denied) return { ok: false, error: denied };
+
+  const db = platformDb(actor.id);
+  const tenant = await db.tenant.findUnique({
+    where: { id: tenantId },
+    select: { status: true, kind: true },
+  });
+  if (!tenant) return { ok: false, error: "Tenant nicht gefunden" };
+  if (tenant.kind === "personal") {
+    return { ok: false, error: "Private Bereiche können nicht gesperrt werden" };
+  }
+  if (tenant.status === status) return { ok: true };
+
+  await db.$transaction(async (tx) => {
+    await tx.tenant.update({ where: { id: tenantId }, data: { status } });
+    await emitAuditEvent(tx, {
+      tenantId: tenantId as TenantId,
+      actorId: actor.id,
+      action: STATUS_AUDIT[status],
+      resourceType: "tenant",
+      resourceId: tenantId,
+      changes: { status: { before: tenant.status, after: status } },
+    });
+  });
+  return { ok: true };
+}
+
+/**
+ * Harte Löschung — NUR für vollständig leere Tenants (keine Tenant-Cascades im
+ * Schema; ein Delete mit Kind-Rows schlägt an der FK fehl). Bei Inhalt gibt der
+ * Service einen Fehler zurück → „Archivieren" ist der Ersatz. Der Emptiness-
+ * Check deckt die großen Content-Tabellen ab; ein FK-Fehler beim Delete fängt
+ * den Rest ab.
+ */
+export async function deleteTenant(actor: Principal, tenantId: string): Promise<ServiceOutcome> {
+  const denied = requireAdmin(actor);
+  if (denied) return { ok: false, error: denied };
+
+  const db = platformDb(actor.id);
+  const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+  if (!tenant) return { ok: false, error: "Tenant nicht gefunden" };
+
+  const [members, valueStreams, arts, teams, initiatives, objectives, themes, kpis, timelines] =
+    await Promise.all([
+      db.userRoleAssignment.count({ where: { tenantId } }),
+      db.valueStream.count({ where: { tenantId } }),
+      db.art.count({ where: { tenantId } }),
+      db.team.count({ where: { tenantId } }),
+      db.initiative.count({ where: { tenantId } }),
+      db.objective.count({ where: { tenantId } }),
+      db.strategicTheme.count({ where: { tenantId } }),
+      db.kpi.count({ where: { tenantId } }),
+      db.timeline.count({ where: { tenantId } }),
+    ]);
+  const total =
+    members + valueStreams + arts + teams + initiatives + objectives + themes + kpis + timelines;
+  if (total > 0) {
+    return { ok: false, error: "Tenant ist nicht leer — bitte archivieren statt löschen" };
+  }
+
+  try {
+    await db.$transaction(async (tx) => {
+      // Audit VOR dem Delete (Ziel-Tenant existiert noch); FK auf tenant im
+      // AuditEvent? — audit_events referenzieren tenantId als String ohne FK.
+      await emitAuditEvent(tx, {
+        tenantId: tenantId as TenantId,
+        actorId: actor.id,
+        action: "tenant.deleted",
+        resourceType: "tenant",
+        resourceId: tenantId,
+      });
+      await tx.tenant.delete({ where: { id: tenantId } });
+    });
+  } catch {
+    return { ok: false, error: "Tenant ist nicht leer — bitte archivieren statt löschen" };
+  }
+  return { ok: true };
+}
+
 /**
  * Mitglied (ein Assignment) entfernen. Guardrail: den **letzten tenant_admin**
  * eines Tenants nicht entziehen (sonst wäre die Organisation verwaist).

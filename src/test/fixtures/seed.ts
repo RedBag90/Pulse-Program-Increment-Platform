@@ -33,6 +33,7 @@ export function testRequestContext(
       // explizit Roles + Capabilities.
       capabilities: [],
       tenantKind: "organization",
+      tenantStatus: "active",
       isPlatformAdmin: false,
       enabledModules: MODULE_KEYS,
     },

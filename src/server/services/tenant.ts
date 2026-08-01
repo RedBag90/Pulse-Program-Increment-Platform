@@ -244,12 +244,17 @@ export interface UserTenant {
 export async function listUserTenants(db: PrismaClient, userId: UserId): Promise<UserTenant[]> {
   const assignments = await db.userRoleAssignment.findMany({
     where: { userId },
-    select: { tenant: { select: { id: true, name: true, kind: true } } },
+    select: { tenant: { select: { id: true, name: true, kind: true, status: true } } },
   });
   const byId = new Map(assignments.map((a) => [a.tenant.id, a.tenant]));
-  return [...byId.values()]
-    .map((t) => ({ id: t.id as TenantId, name: t.name, kind: t.kind }))
-    .sort((a, b) =>
-      a.kind === b.kind ? a.name.localeCompare(b.name, "de") : a.kind === "personal" ? -1 : 1,
-    );
+  return (
+    [...byId.values()]
+      // Gesperrte/archivierte Tenants sind keine gültigen Wechsel-Ziele — der
+      // Switcher (und die /suspended-Seite) zeigen nur aktive Bereiche.
+      .filter((t) => t.status === "active")
+      .map((t) => ({ id: t.id as TenantId, name: t.name, kind: t.kind }))
+      .sort((a, b) =>
+        a.kind === b.kind ? a.name.localeCompare(b.name, "de") : a.kind === "personal" ? -1 : 1,
+      )
+  );
 }

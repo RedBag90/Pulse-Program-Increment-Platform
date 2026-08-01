@@ -28,6 +28,10 @@ export default async function DashboardLayout({
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
+  // Ist der aktive Tenant gesperrt/archiviert, ist keine Arbeit darin möglich —
+  // raus auf die Sperr-Seite (außerhalb dieses Layouts, kein Redirect-Loop).
+  if (principal.tenantStatus !== "active") redirect(`/${locale}/suspended`);
+
   // Modul-Route-Guard (Entitlement-Achse, fail-closed): Deep-Links auf nicht
   // freigeschaltete Module landen auf dem Home des ersten erlaubten Moduls.
   // Der Pfad kommt als `x-pathname` aus der Middleware; fehlt der Header

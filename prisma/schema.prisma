@@ -16,6 +16,10 @@ model Tenant {
   /// Tenant-Art: "organization" (Klienten-Tenant, Platform-Admin-angelegt) |
   /// "personal" (privater Free-Bereich eines einzelnen Nutzers, auto-erzeugt).
   kind      String   @default("organization")
+  /// Lifecycle-Status (Platform-Admin): "active" | "suspended" (gesperrt,
+  /// Login-Redirect) | "archived" (stillgelegt, Löschen-Ersatz bei nicht-leeren
+  /// Tenants). Nur über die Platform-Admin-API pflegbar.
+  status    String   @default("active")
   /// Entitlement-Set (Freemium): Modul-Keys aus src/domain/modules.ts, die dieser
   /// Tenant nutzen darf. Leeres Array = kind-Default (personal → ["ziele"],
   /// organization → alle Module). Pflege ausschließlich über die
@@ -67,6 +71,7 @@ model Tenant {
   timelines               Timeline[]
   setupProgress           SetupProgress[]
 
+  @@index([status])
   @@map("tenants")
 }
 

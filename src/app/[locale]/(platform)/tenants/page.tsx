@@ -7,6 +7,7 @@ import { Page } from "@/components/layout/page";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageSection } from "@/components/layout/page-section";
 import { CreateTenantForm } from "@/features/platform/components/create-tenant-form";
+import { TenantStatusBadge } from "@/features/platform/components/tenant-status-badge";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -43,6 +44,7 @@ export default async function PlatformTenantsPage({ searchParams }: PageProps) {
             <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 font-medium">Name</th>
+                <th className="px-3 py-2 font-medium">Status</th>
                 <th className="px-3 py-2 font-medium">Region</th>
                 <th className="px-3 py-2 font-medium">Mitglieder</th>
                 <th className="px-3 py-2 font-medium">Module</th>
@@ -63,6 +65,9 @@ export default async function PlatformTenantsPage({ searchParams }: PageProps) {
                         <span className="truncate">{t.name}</span>
                       </Link>
                     </td>
+                    <td className="px-3 py-2">
+                      <TenantStatusBadge status={t.status} />
+                    </td>
                     <td className="px-3 py-2 uppercase text-muted-foreground">{t.region}</td>
                     <td className="px-3 py-2 tabular-nums">{t.memberCount}</td>
                     <td className="px-3 py-2 text-xs text-muted-foreground">
@@ -78,7 +83,7 @@ export default async function PlatformTenantsPage({ searchParams }: PageProps) {
               })}
               {tenants.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
                     Keine Tenants.
                   </td>
                 </tr>

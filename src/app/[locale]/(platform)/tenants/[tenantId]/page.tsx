@@ -8,6 +8,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PageSection } from "@/components/layout/page-section";
 import { TenantModulesEditor } from "@/features/platform/components/tenant-modules-editor";
 import { TenantMembers } from "@/features/platform/components/tenant-members";
+import { TenantStatusBadge } from "@/features/platform/components/tenant-status-badge";
+import { TenantLifecycleControls } from "@/features/platform/components/tenant-lifecycle-controls";
 
 interface PageProps {
   params: Promise<{ tenantId: string }>;
@@ -33,6 +35,7 @@ export default async function PlatformTenantDetailPage({ params }: PageProps) {
             Alle Tenants
           </Link>
         }
+        eyebrow={<TenantStatusBadge status={detail.status} />}
         title={
           <span className="flex items-center gap-2">
             <Icon className="size-5 shrink-0 opacity-60" aria-hidden />
@@ -49,6 +52,12 @@ export default async function PlatformTenantDetailPage({ params }: PageProps) {
       <PageSection title="Mitglieder">
         <TenantMembers tenantId={detail.id} members={detail.members} />
       </PageSection>
+
+      {detail.kind !== "personal" && (
+        <PageSection title="Lifecycle">
+          <TenantLifecycleControls tenantId={detail.id} status={detail.status} name={detail.name} />
+        </PageSection>
+      )}
     </Page>
   );
 }

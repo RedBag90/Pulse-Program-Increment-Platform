@@ -29,6 +29,7 @@ const principal = (over: Partial<Principal> = {}): Principal => ({
   scopes: { valueStreamIds: [], artIds: [], teamIds: [] } as PrincipalScopes,
   capabilities: [],
   tenantKind: "organization",
+  tenantStatus: "active",
   enabledModules: MODULE_KEYS,
   isPlatformAdmin: false,
   ...over,
