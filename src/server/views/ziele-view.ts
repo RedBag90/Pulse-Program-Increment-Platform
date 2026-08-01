@@ -28,7 +28,7 @@ import {
  * CONTEXT.md §Page-model.
  */
 
-export type ZieleSubTab = "strategie" | "okrs" | "money" | "pflege";
+export type ZieleSubTab = "strategie" | "money" | "pflege";
 
 export interface ZieleKrContribution {
   kpiId: string;

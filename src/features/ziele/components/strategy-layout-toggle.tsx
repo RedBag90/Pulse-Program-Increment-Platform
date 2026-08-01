@@ -3,22 +3,20 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 /**
- * Sub-Toolbar-Toggle fuer den Strategie-Tab. Drei Layouts mit URL-
+ * Sub-Toolbar-Toggle fuer den Strategie-Tab. Zwei Layouts mit URL-
  * State `?layout=…`; Default **Tabelle** (URL-Param weglassen).
  *
  *   - **Tabelle** — hierarchische Liste, Asana-Stil (Default)
- *   - **Sankey** — €-Fluss-Diagramm
  *   - **Netzplan** — Node-Graph (Asana Strategy-Map-Style)
  *
  * Die alte „Tree"-Sicht wurde mit Refactor §„Tabelle wird Haupt-
  * Layout" entfernt; alle Pflege-/€-Affordances sind in die Tabelle
  * gewandert.
  */
-export type StrategyLayout = "tabelle" | "sankey" | "netzplan";
+export type StrategyLayout = "tabelle" | "netzplan";
 
 const OPTIONS: ReadonlyArray<{ id: StrategyLayout; label: string }> = [
   { id: "tabelle", label: "Tabelle" },
-  { id: "sankey", label: "Sankey" },
   { id: "netzplan", label: "Netzplan" },
 ];
 

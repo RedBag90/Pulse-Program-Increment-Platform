@@ -4,13 +4,11 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PageSection } from "@/components/layout/page-section";
 import { ZieleSubTabs } from "./ziele-sub-tabs";
 import { GoalHealthStrip } from "./goal-health-strip";
-import { StrategySankeyView } from "./strategy-sankey-view";
 import { StrategyTableView } from "./strategy-table-view";
 import { StrategyNetworkView } from "./strategy-network-view";
 import { StrategyLayoutToggle, type StrategyLayout } from "./strategy-layout-toggle";
 import { GoalScopeFilterBar } from "./goal-scope-filter-bar";
 import { ZieleEditDrawer } from "./ziele-edit-drawer";
-import { OkrBoardView } from "./okr-board-view";
 import { MoneySheetView } from "./money-sheet-view";
 
 /**
@@ -20,12 +18,12 @@ import { MoneySheetView } from "./money-sheet-view";
  * Loader (`loadStrategyTree` + `loadKpiInventory`); der Unterschied steckt im `canEdit`-
  * Flag (vom Page-Loader gesetzt) und in den Sub-Tabs:
  *
- *  - `mode="ziele"`   → Tabs Strategie · OKRs · Money (Pflege ist
- *                       in der Refactor-Phase nach Controlling gewandert)
- *  - `mode="strategy"`→ Tabs Strategie · OKRs (Pflege-Surface fuer
- *                       Vision/Theme/Objective/KR + KPI-Coverage)
+ *  - `mode="ziele"`   → Tabs Strategie · Money (Pflege ist in der
+ *                       Refactor-Phase nach Controlling gewandert)
+ *  - `mode="strategy"`→ kein Sub-Tab-Toggle (nur die Strategie-Pflege-
+ *                       Surface fuer Vision/Theme/Objective/KR)
  *
- * Money/Sankey/Tree bleiben dieselben Komponenten; sie respektieren
+ * Money/Tabelle/Netzplan bleiben dieselben Komponenten; sie respektieren
  * `permissions.canEditStrategy` fuer Edit-Affordances. Die Hrefs in
  * den Komponenten zeigen alle auf `/strategy?entity=…` — von der
  * Ziele-Seite navigiert ein Klick auf eine Card also in die Pflege.
@@ -53,7 +51,7 @@ export function ZieleShell({ model, layout, mode = "ziele", userLabels = {} }: P
             ? "Themes (OKR-Statements) + Key Results pflegen. Wert-Anzeige unter Ziele."
             : "Wert-Anzeige Theme → Key Result, mit €-Rollup. Pflege unter Strategie."
         }
-        actions={<ZieleSubTabs active={tab} mode={mode} />}
+        actions={!isStrategy && <ZieleSubTabs active={tab} />}
       />
 
       <div className="space-y-1.5">
@@ -74,11 +72,9 @@ export function ZieleShell({ model, layout, mode = "ziele", userLabels = {} }: P
               userLabels={userLabels}
             />
           )}
-          {layout === "sankey" && <StrategySankeyView themes={themes} />}
           {layout === "netzplan" && <StrategyNetworkView themes={themes} />}
         </PageSection>
       )}
-      {tab === "okrs" && <OkrBoardView themes={themes} canEdit={permissions.canEditStrategy} />}
       {tab === "money" && !isStrategy && (
         <MoneySheetView themes={themes} hasPortfolio={modules.portfolio} />
       )}

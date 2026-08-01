@@ -17,9 +17,6 @@ import { ZieleShell } from "@/features/ziele/components/ziele-shell";
  * Gate: `target.manage` (LPM-Audience). Ohne Capability redirect
  * auf `/ziele` — Wert ohne Pflege ist die Default-Surface.
  */
-function parseTab(raw: string | undefined): ZieleSubTab {
-  return raw === "okrs" ? raw : "strategie";
-}
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -33,14 +30,15 @@ export default async function StrategyPage({ searchParams }: PageProps) {
   if (!canManage) redirect("/ziele");
 
   const params = await searchParams;
-  const tab = parseTab(typeof params.tab === "string" ? params.tab : undefined);
+  // Kein Sub-Tab-Toggle mehr auf /strategy — Alt-Deeplinks (?tab=…) fallen
+  // auf die Strategie-Ansicht zurück.
+  const tab: ZieleSubTab = "strategie";
   const period = typeof params.period === "string" ? params.period : undefined;
   const vs = typeof params.vs === "string" ? params.vs : undefined;
   const art = typeof params.art === "string" ? params.art : undefined;
-  const layout =
-    params.layout === "sankey" || params.layout === "netzplan" ? params.layout : "tabelle";
+  const layout = params.layout === "netzplan" ? params.layout : "tabelle";
 
-  const effectivePeriod = tab === "okrs" ? undefined : period;
+  const effectivePeriod = period;
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const tree = await loadStrategyTree(db, principal.tenantId, {
