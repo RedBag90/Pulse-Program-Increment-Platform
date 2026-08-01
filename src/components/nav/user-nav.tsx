@@ -2,8 +2,9 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, User, ChevronUp } from "lucide-react";
+import { LogOut, User, ChevronUp, Shield } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Link } from "@/i18n/navigation";
 import { clearTenantCookieAction } from "@/features/auth/actions/switch-tenant";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -20,6 +21,8 @@ interface UserNavProps {
   email: string;
   /** `sidebar` (default) = full-width row, menu opens upward; `topbar` = compact avatar, menu opens down. */
   placement?: "sidebar" | "topbar";
+  /** Blendet den Einstieg in die Plattform-Verwaltung ein (globaler platform_admin). */
+  isPlatformAdmin?: boolean;
 }
 
 function getInitials(email: string): string {
@@ -30,7 +33,7 @@ function getInitials(email: string): string {
   return email.slice(0, 2).toUpperCase();
 }
 
-export function UserNav({ email, placement = "sidebar" }: UserNavProps) {
+export function UserNav({ email, placement = "sidebar", isPlatformAdmin = false }: UserNavProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -85,6 +88,17 @@ export function UserNav({ email, placement = "sidebar" }: UserNavProps) {
             Profile
           </DropdownMenuItem>
         </DropdownMenuGroup>
+        {isPlatformAdmin && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem render={<Link href="/platform/tenants" />}>
+                <Shield className="size-4 mr-2" />
+                Plattform-Verwaltung
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem

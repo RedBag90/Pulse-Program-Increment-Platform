@@ -75,6 +75,7 @@ export default async function DashboardLayout({
         lockedHrefs={lockedHrefs}
         tenants={tenants}
         activeTenantId={principal.tenantId}
+        isPlatformAdmin={principal.isPlatformAdmin}
       />
       <main className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</main>
     </div>

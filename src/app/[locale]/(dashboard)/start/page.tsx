@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getPrincipal } from "@/server/auth/principal";
 import { createClient } from "@/lib/supabase/server";
 import { createPrismaClient } from "@/server/db/prisma";
-import { ensurePersonalTenant } from "@/server/services/tenant";
+import { ensurePersonalTenant, ensurePlatformAdminBootstrap } from "@/server/services/tenant";
 import { landingPathForRoles } from "@/domain/landing";
 import { PERSONAL_DEFAULT_MODULES, firstEnabledHome } from "@/domain/modules";
 import type { TenantId, UserId } from "@/domain/types";
@@ -30,14 +30,20 @@ export default async function StartPage({ params }: { params: Promise<{ locale: 
     if (!user) redirect(`/${locale}/sign-in`);
 
     const db = createPrismaClient({ userId: user.id as UserId, tenantId: "" as TenantId });
-    await ensurePersonalTenant(db, user.id as UserId, user.email ?? "");
+    const { tenantId } = await ensurePersonalTenant(db, user.id as UserId, user.email ?? "");
+    await ensurePlatformAdminBootstrap(db, user.id as UserId, user.email ?? "", tenantId);
     // Frischer personal-Tenant ⇒ deterministisch ins Free-Modul (kein
     // /start-Re-Entry — vermeidet jede Loop-Möglichkeit).
     redirect(`/${locale}${firstEnabledHome(PERSONAL_DEFAULT_MODULES)}`);
   }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  await ensurePersonalTenant(db, principal.id, principal.email);
+  const { tenantId: personalTenantId } = await ensurePersonalTenant(
+    db,
+    principal.id,
+    principal.email,
+  );
+  await ensurePlatformAdminBootstrap(db, principal.id, principal.email, personalTenantId);
 
   redirect(`/${locale}${landingPathForRoles(principal.roles, principal.enabledModules)}`);
 }

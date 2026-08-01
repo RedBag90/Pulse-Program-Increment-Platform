@@ -7,6 +7,8 @@ import { ROLES, type Role } from "@/domain/roles";
 export type Action =
   | "tenant.create"
   | "tenant.users.manage"
+  | "platform.tenants.manage"
+  | "platform.users.manage"
   | "integration.manage"
   | "value_stream.create"
   | "value_stream.update"
@@ -84,6 +86,12 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Platform- and tenant-level administration. `tenant_admin` already passes
   // every action via authorize(); the explicit grants document intent.
   "tenant.create": [], // platform_admin only
+  // Cross-tenant Plattform-Verwaltung. Bewusst LEERE Grant-Liste: kein
+  // tenant_admin-Fast-Path — die Enforcement läuft ausschliesslich über den
+  // globalen `isPlatformAdmin`-Guard (`requirePlatformAdmin`), NICHT über
+  // `authorize()`. Die Actions existieren fürs Audit/Doku + Nav-Gating.
+  "platform.tenants.manage": [],
+  "platform.users.manage": [],
   "tenant.users.manage": [{ roles: [TENANT_ADMIN] }],
   "integration.manage": [{ roles: [TENANT_ADMIN] }],
   "admin.audit-log.read": [{ roles: [TENANT_ADMIN] }],

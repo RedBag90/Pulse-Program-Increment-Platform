@@ -179,6 +179,55 @@ export async function ensurePersonalTenant(
   return { tenantId, created: true };
 }
 
+/**
+ * Bootstrap des ersten Plattform-Admins über die Umgebungsvariable
+ * `PLATFORM_ADMIN_EMAIL` (idempotent). Passt die E-Mail des einloggenden Users
+ * (case-insensitiv) und hat er noch KEIN `platform_admin`-Assignment, wird die
+ * globale Rolle in seinem **Personal-Tenant** vergeben (isPlatformAdmin ist
+ * tenant-blind — s. `getPrincipal`). Ohne gesetzte Env passiert nichts.
+ * Läuft ohne RequestContext (Bootstrap-Client, wie `ensurePersonalTenant`).
+ */
+export async function ensurePlatformAdminBootstrap(
+  db: PrismaClient,
+  userId: UserId,
+  email: string,
+  personalTenantId: TenantId,
+): Promise<boolean> {
+  const configured = process.env.PLATFORM_ADMIN_EMAIL?.trim().toLowerCase();
+  if (!configured || configured !== email.trim().toLowerCase()) return false;
+
+  const existing = await db.userRoleAssignment.findFirst({
+    where: { userId, role: ROLES.PLATFORM_ADMIN },
+    select: { id: true },
+  });
+  if (existing) return false;
+
+  await db.$transaction(async (tx) => {
+    await tx.userRoleAssignment.create({
+      data: {
+        userId,
+        tenantId: personalTenantId,
+        role: ROLES.PLATFORM_ADMIN,
+        valueStreamIds: [],
+        artIds: [],
+        teamIds: [],
+      },
+    });
+    await emitAuditEvent(tx, {
+      tenantId: personalTenantId,
+      actorId: userId,
+      action: "user.role.assigned",
+      resourceType: "user_role_assignment",
+      resourceId: userId,
+      changes: {
+        role: { before: null, after: ROLES.PLATFORM_ADMIN },
+        via: { before: null, after: "env_bootstrap" },
+      },
+    });
+  });
+  return true;
+}
+
 /** Ein Tenant, in dem der User mindestens ein Assignment hält (Switcher-Datenquelle). */
 export interface UserTenant {
   id: TenantId;

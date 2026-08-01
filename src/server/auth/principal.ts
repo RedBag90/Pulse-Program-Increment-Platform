@@ -45,6 +45,12 @@ export interface Principal {
   tenantKind: string;
   /** Freigeschaltete Module des aktiven Tenants (Entitlement-Achse, fail-closed). */
   enabledModules: readonly ModuleKey[];
+  /**
+   * GLOBALE Plattform-Admin-Rolle — tenant-übergreifend, unabhängig vom aktiven
+   * Tenant (ein `platform_admin`-Assignment in irgendeinem Tenant genügt).
+   * Wächter für den `/platform`-Bereich (RLS ist Owner-Bypass, App-Gating zählt).
+   */
+  isPlatformAdmin: boolean;
 }
 
 /** Die Assignment-Felder, die die Tenant-Auflösung braucht (Prisma-Row-Teilmenge). */
@@ -138,11 +144,18 @@ export const getPrincipal = cache(async (): Promise<Principal | null> => {
   // Backfill), wird auf die Code-`POLICIES` als Fallback zurückgegriffen —
   // kein Lockout. `platform_admin` / `tenant_admin` brauchen die Liste nicht
   // (Fast-Path in `authorize()`), wir laden sie aber trotzdem fürs Admin-UI.
-  const [capabilities, tenant] = await Promise.all([
+  const [capabilities, tenant, platformRow] = await Promise.all([
     resolveCapabilities(db, tenantId, roles),
     db.tenant.findUnique({
       where: { id: tenantId },
       select: { kind: true, enabledModules: true },
+    }),
+    // GLOBAL, tenant-blind: ein einziger platform_admin-Grant in irgendeinem
+    // Tenant macht den User zum Plattform-Admin (bewusst KEINE Rollen-Union —
+    // ein gezielter Einzel-Check, kein Re-Öffnen des früheren Escalation-Befunds).
+    db.userRoleAssignment.findFirst({
+      where: { userId: user.id, role: "platform_admin" },
+      select: { id: true },
     }),
   ]);
 
@@ -161,6 +174,7 @@ export const getPrincipal = cache(async (): Promise<Principal | null> => {
     capabilities,
     tenantKind,
     enabledModules,
+    isPlatformAdmin: platformRow != null,
   };
 });
 

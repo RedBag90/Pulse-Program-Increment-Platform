@@ -30,6 +30,7 @@ function adminCtx(): RequestContext {
       scopes: { valueStreamIds: [], artIds: [], teamIds: [] },
       capabilities: [],
       tenantKind: "organization",
+      isPlatformAdmin: false,
       enabledModules: MODULE_KEYS,
     },
   };

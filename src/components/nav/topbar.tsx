@@ -27,6 +27,8 @@ interface TopbarProps {
   /** Tenants des Users (Switcher-Datenquelle); aktiver Tenant markiert. */
   tenants?: TenantOption[];
   activeTenantId?: string;
+  /** Globaler platform_admin → Einstieg in die Plattform-Verwaltung im User-Menü. */
+  isPlatformAdmin?: boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ export function Topbar({
   lockedHrefs = [],
   tenants = [],
   activeTenantId = "",
+  isPlatformAdmin = false,
 }: TopbarProps) {
   const { theme, setTheme } = useTheme();
   const locale = useLocale();
@@ -114,7 +117,7 @@ export function Topbar({
 
           {/* User menu */}
           <div className="ml-1 pl-1">
-            <UserNav email={userEmail} placement="topbar" />
+            <UserNav email={userEmail} placement="topbar" isPlatformAdmin={isPlatformAdmin} />
           </div>
         </div>
       </div>

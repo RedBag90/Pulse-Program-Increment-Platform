@@ -44,6 +44,7 @@ const fakePrincipal = {
   tenantId: "tenant-1",
   email: "test@example.com",
   tenantKind: "organization",
+  isPlatformAdmin: false,
   enabledModules: [
     "ziele",
     "portfolio",
