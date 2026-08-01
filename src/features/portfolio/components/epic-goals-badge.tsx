@@ -48,7 +48,7 @@ export function EpicGoalsBadge({ contributions }: Props) {
               )}
             </span>
             <Link
-              href={`/strategy?entity=kr&id=${c.krId}` as never}
+              href={`/ziele?entity=kr&id=${c.krId}` as never}
               className="text-[10px] text-muted-foreground hover:text-foreground hover:underline"
               title="Im Strategie-Modul oeffnen"
             >

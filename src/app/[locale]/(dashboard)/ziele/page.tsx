@@ -1,20 +1,17 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
+import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadKpiInventory, loadStrategyTree, type ZieleSubTab } from "@/server/views/ziele-view";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { ZieleShell } from "@/features/ziele/components/ziele-shell";
 
 /**
- * Ziele-Modul — reine **Wert-Anzeige** (Refactor-Plan Stage D).
- *
- * Zwei Sub-Tabs: Strategie · Money. Alle read-only. Pflege
- * der Strategie-Kaskade (Vision/Theme/Objective/KR) lebt unter
- * `/strategy`; KPI-Coverage + Bindungen unter `/controlling`.
- *
- * Auch wenn der User `target.manage` haette: hier ist kein Edit
- * sichtbar. Klicks auf Cards/Rows deeplinken nach `/strategy`.
+ * Ziele-Modul — **eine** Surface für Übersicht **und** Pflege (die frühere
+ * Trennung /ziele read-only vs. /strategy edit ist zusammengelegt). Wer
+ * `target.manage` hält, sieht die Edit-Affordances; alle anderen dieselbe
+ * Seite read-only. KPI-Coverage + Bindungen leben weiter unter `/controlling`.
  */
 function parseTab(raw: string | undefined): ZieleSubTab {
   return raw === "money" ? raw : "strategie";
@@ -46,12 +43,24 @@ export default async function ZielePage({ searchParams }: PageProps) {
   const inventory = await loadKpiInventory(db, principal.tenantId, tree);
   const userLabels = await listTenantUserLabels(db, principal.tenantId);
 
-  // Ziele = nur Wert-Anzeige: Edit-Affordances erzwungen aus.
+  // Edit-Affordances sind Capability-gesteuert (nicht mehr route-hart):
+  // `target.manage` schaltet Strategie-Pflege frei, `kpi.bind` die KPI-Bewertung.
+  const canEditStrategy = authorize(
+    "target.manage",
+    { tenantId: principal.tenantId },
+    principal,
+  ).allow;
+  const canEditKpiValuation = authorize(
+    "kpi.bind",
+    { tenantId: principal.tenantId },
+    principal,
+  ).allow;
+
   const model = {
     ...tree,
     ...inventory,
     tab,
-    permissions: { canEditStrategy: false, canEditKpiValuation: false },
+    permissions: { canEditStrategy, canEditKpiValuation },
     // Freemium: welche Premium-Quell-Module der Tenant freigeschaltet hat —
     // steuert 🔒-Upsell-Hinweise statt leerer Premium-Picker im Personal-Tenant.
     modules: {
@@ -63,7 +72,7 @@ export default async function ZielePage({ searchParams }: PageProps) {
 
   return (
     <Suspense fallback={null}>
-      <ZieleShell model={model} layout={layout} mode="ziele" userLabels={userLabels} />
+      <ZieleShell model={model} layout={layout} userLabels={userLabels} />
     </Suspense>
   );
 }

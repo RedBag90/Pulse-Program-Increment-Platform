@@ -82,7 +82,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   dependency: ["/feature/[featureId]", "/pi/[piId]/dependencies"],
   ziele: ["/ziele"],
   // Feld-Defs wirken auf die Admin-Seite UND auf jeden Ziel-Drawer.
-  goalCustomFields: ["/admin/goal-fields", "/ziele", "/strategy"],
+  goalCustomFields: ["/admin/goal-fields", "/ziele"],
   setup: ["/setup"],
 };
 

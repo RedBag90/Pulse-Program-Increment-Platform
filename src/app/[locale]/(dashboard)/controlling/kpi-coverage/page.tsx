@@ -10,7 +10,7 @@ import { Page, PageHeader } from "@/components/layout";
 /**
  * KPI-Coverage (Refactor-Plan §B). KPI-Bibliothek mit valuePerUnit-
  * Pflege + KR↔KPI-Bindungen pro Key Result. Strategie-Definition
- * lebt unter `/strategy`; hier nur die Bewertungs-Bruecke zwischen
+ * lebt unter `/ziele`; hier nur die Bewertungs-Bruecke zwischen
  * Strategie und KPIs.
  *
  * Gate: `target.manage` (LPM/Controlling-Audience).
@@ -33,7 +33,7 @@ export default async function KpiCoveragePage() {
         subtitle={
           <>
             valuePerUnit pflegen, Key Results an KPIs binden. Strategie-Definition unter{" "}
-            <Link href="/strategy" className="text-primary hover:underline">
+            <Link href="/ziele" className="text-primary hover:underline">
               Strategie
             </Link>
             .

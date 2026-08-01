@@ -12,46 +12,31 @@ import { ZieleEditDrawer } from "./ziele-edit-drawer";
 import { MoneySheetView } from "./money-sheet-view";
 
 /**
- * Geteilte Shell fuer das **Ziele-Modul** (Wert-Anzeige, read-only,
- * `mode="ziele"`) und das **Strategie-Pflege-Modul** (volle Edit-
- * Affordances, `mode="strategy"`). Beide laufen ueber denselben
- * Loader (`loadStrategyTree` + `loadKpiInventory`); der Unterschied steckt im `canEdit`-
- * Flag (vom Page-Loader gesetzt) und in den Sub-Tabs:
+ * Ziele-Shell — die **eine** Surface für Übersicht **und** Pflege (die frühere
+ * Trennung /ziele read-only vs. /strategy edit ist zusammengelegt). Läuft über
+ * `loadStrategyTree` + `loadKpiInventory`; ob Edit-Affordances sichtbar sind,
+ * steuert `permissions.canEditStrategy` (aus der Capability `target.manage`,
+ * von der Page gesetzt) — nicht mehr die Route.
  *
- *  - `mode="ziele"`   → Tabs Strategie · Money (Pflege ist in der
- *                       Refactor-Phase nach Controlling gewandert)
- *  - `mode="strategy"`→ kein Sub-Tab-Toggle (nur die Strategie-Pflege-
- *                       Surface fuer Vision/Theme/Objective/KR)
- *
- * Money/Tabelle/Netzplan bleiben dieselben Komponenten; sie respektieren
- * `permissions.canEditStrategy` fuer Edit-Affordances. Die Hrefs in
- * den Komponenten zeigen alle auf `/strategy?entity=…` — von der
- * Ziele-Seite navigiert ein Klick auf eine Card also in die Pflege.
+ * Sub-Tabs: Strategie · Money. Layout im Strategie-Tab: Tabelle / Netzplan.
+ * Deeplinks der Komponenten zeigen auf `/ziele?entity=…`.
  */
-type ShellMode = "ziele" | "strategy";
-
 interface Props {
   model: ZieleModel;
   layout: StrategyLayout;
-  mode?: ShellMode;
   /** Owner-Id → Anzeigename (für die Owner-Avatare in der Tabelle). */
   userLabels?: Record<string, string>;
 }
 
-export function ZieleShell({ model, layout, mode = "ziele", userLabels = {} }: Props) {
+export function ZieleShell({ model, layout, userLabels = {} }: Props) {
   const { tab, themes, tenantTrio, permissions, modules } = model;
-  const isStrategy = mode === "strategy";
 
   return (
     <Page>
       <PageHeader
-        title={isStrategy ? "Strategie" : "Ziele"}
-        subtitle={
-          isStrategy
-            ? "Themes (OKR-Statements) + Key Results pflegen. Wert-Anzeige unter Ziele."
-            : "Wert-Anzeige Theme → Key Result, mit €-Rollup. Pflege unter Strategie."
-        }
-        actions={!isStrategy && <ZieleSubTabs active={tab} />}
+        title="Ziele"
+        subtitle="Themes (OKR-Statements) → Key Results — Übersicht und Pflege in einer Ansicht."
+        actions={<ZieleSubTabs active={tab} />}
       />
 
       <div className="space-y-1.5">
@@ -75,12 +60,9 @@ export function ZieleShell({ model, layout, mode = "ziele", userLabels = {} }: P
           {layout === "netzplan" && <StrategyNetworkView themes={themes} />}
         </PageSection>
       )}
-      {tab === "money" && !isStrategy && (
-        <MoneySheetView themes={themes} hasPortfolio={modules.portfolio} />
-      )}
+      {tab === "money" && <MoneySheetView themes={themes} hasPortfolio={modules.portfolio} />}
 
-      {/* Detail-Drawer in beiden Modi: read-only auf /ziele, editierbar auf
-          /strategy (canEdit spiegelt das Permission-Gate). */}
+      {/* Detail-Drawer: read-only oder editierbar je nach `canEdit` (Capability). */}
       <ZieleEditDrawer model={model} canEdit={permissions.canEditStrategy} />
     </Page>
   );

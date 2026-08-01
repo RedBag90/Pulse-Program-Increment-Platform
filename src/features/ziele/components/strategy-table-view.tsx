@@ -273,8 +273,8 @@ function NodeRows({
         actions={
           canEdit ? (
             <RowActions
-              editHref={`/strategy?entity=goal&id=${node.id}`}
-              addChildHref={`/strategy?entity=goal&new=1&parent=${node.id}`}
+              editHref={`/ziele?entity=goal&id=${node.id}`}
+              addChildHref={`/ziele?entity=goal&new=1&parent=${node.id}`}
             />
           ) : null
         }
@@ -499,7 +499,7 @@ function RowActions({
 function NewLink({ entity, children }: { entity: "theme"; children: React.ReactNode }) {
   return (
     <Link
-      href={`/strategy?entity=${entity}&new=1` as never}
+      href={`/ziele?entity=${entity}&new=1` as never}
       scroll={false}
       className="inline-flex items-center gap-1 rounded-md border border-dashed bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground"
     >

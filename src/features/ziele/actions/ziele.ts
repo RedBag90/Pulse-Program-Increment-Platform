@@ -109,7 +109,7 @@ function toDueDate(v: string | undefined): Date | null | undefined {
 // ── Objective ──────────────────────────────────────────────────────────
 
 export const createObjectiveAction = createServerAction({
-  describeCreated: (v: { id: string }) => ({ id: v.id, label: "Ziel", href: "/strategy" }),
+  describeCreated: (v: { id: string }) => ({ id: v.id, label: "Ziel", href: "/ziele" }),
   schema: z.object({
     // Optional; serverseitig wird die Default-StrategicTheme aufgeloest,
     // wenn der Wert fehlt (Hierarchie-Vereinfachung).

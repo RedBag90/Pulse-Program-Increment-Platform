@@ -25,7 +25,7 @@ import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-sta
  *
  * Top-Down xyflow + dagre: **Themes** (OKRs) oben, **KRs** darunter.
  * Knoten als Cards mit Title, Progress-Bar, Subgoal-Count, Periode +
- * Owner-Initiale. Klick = Deeplink nach `/strategy?entity=…&id=…`.
+ * Owner-Initiale. Klick = Deeplink nach `/ziele?entity=…&id=…`.
  *
  * Read-only — kein Drag-and-Drop, keine Inline-Edits.
  */
@@ -278,7 +278,7 @@ function buildGraph(
         period: n.period ?? null,
         ownerInitial: initialOf(n.ownerId),
         atRisk: isAtRisk(n.trio),
-        href: `/strategy?entity=goal&id=${n.id}`,
+        href: `/ziele?entity=goal&id=${n.id}`,
         accent,
         hasChildren: n.children.length > 0,
         descendantCount: descendantCount(n),

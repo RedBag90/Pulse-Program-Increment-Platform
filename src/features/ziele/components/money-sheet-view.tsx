@@ -105,7 +105,7 @@ function Row({ theme }: { theme: GoalNode }) {
     <tr className="hover:bg-muted/30">
       <Td>
         <Link
-          href={`/strategy?entity=theme&id=${theme.id}` as never}
+          href={`/ziele?entity=theme&id=${theme.id}` as never}
           scroll={false}
           className="truncate hover:underline"
         >

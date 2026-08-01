@@ -71,8 +71,9 @@ export const NAV_GROUPS: NavGroup[] = [
     labelKey: "goals",
     defaultHref: "/ziele",
     items: [
-      { href: "/ziele", labelKey: "goalOverview", icon: LayoutDashboard, exact: true },
-      { href: "/strategy", labelKey: "strategy", icon: Goal, capability: "target.manage" },
+      // Übersicht + Strategie-Pflege sind zusammengelegt — eine Ziele-Surface
+      // (Edit-Affordances Capability-gesteuert via `target.manage`).
+      { href: "/ziele", labelKey: "goalOverview", icon: Goal, exact: true },
     ],
   },
   {

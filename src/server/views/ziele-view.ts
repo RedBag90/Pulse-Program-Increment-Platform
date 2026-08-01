@@ -19,7 +19,7 @@ import {
  *
  *  - `loadStrategyTree(db, tenantId, { period? })` — die Theme→KR-
  *    Hierarchie mit €-Trios pro Ebene. Konsumenten: `/ziele`-Shell
- *    (read-only), `/strategy`-Shell (edit).
+ *    (Übersicht + Pflege, eine Surface).
  *  - `loadKpiInventory(db, tenantId, tree)` — KPI-Bibliothek mit
  *    Pyramid-Bindungen + KR-Index fuer die KPI-Coverage-Tabelle.
  *
