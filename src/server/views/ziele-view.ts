@@ -103,7 +103,6 @@ export interface GoalNode {
   narrative: string | null;
   /** Zeitraum, kanonisch YYYY-Qn | YYYY-Hn | YYYY (goal-period) oder null. */
   period: string | null;
-  confidence: number | null;
   /** Persistierter Goal-Status (src/domain/goal-status.ts) oder null. */
   status: string | null;
   dueDate: string | null;
@@ -471,7 +470,6 @@ export async function loadStrategyTree(
     title: o.title,
     narrative: o.narrative,
     period: o.period,
-    confidence: o.confidence,
     status: o.status,
     dueDate: o.dueDate ? o.dueDate.toISOString() : null,
     ownerId: o.ownerId,

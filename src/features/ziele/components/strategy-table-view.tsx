@@ -258,7 +258,6 @@ function NodeRows({
         depth={depth}
         title={node.title}
         subtitle={subtitle}
-        confidence={node.confidence}
         drift={isAtRisk(node.trio)}
         href={`?entity=goal&id=${node.id}`}
         statusValue={node.status}
@@ -302,7 +301,6 @@ interface RowProps {
   depth: number;
   title: string;
   subtitle: string;
-  confidence: number | null;
   drift: boolean;
   href: string;
   statusValue: string | null;
@@ -324,7 +322,6 @@ function Row({
   depth,
   title,
   subtitle,
-  confidence,
   drift,
   href,
   statusValue,
@@ -404,15 +401,6 @@ function Row({
                 title="Run-Rate < 70 % vom Planned"
               >
                 ⚠
-              </span>
-            )}
-            {confidence != null && (
-              <span
-                className="shrink-0 text-[11px] leading-none text-amber-500/80"
-                title="Confidence (Fist-of-Five)"
-              >
-                {"★".repeat(confidence)}
-                <span className="text-muted-foreground/40">{"★".repeat(5 - confidence)}</span>
               </span>
             )}
             {depth === 0 && node.valueStreams.length > 0 && (

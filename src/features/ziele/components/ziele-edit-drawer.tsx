@@ -216,22 +216,9 @@ function GoalPane({
           disabled={!canEdit}
         />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Zeitraum">
-          <PeriodPicker name="period" defaultValue={node?.period ?? null} disabled={!canEdit} />
-        </Field>
-        <Field label="Confidence (1-5)">
-          <input
-            name="confidence"
-            type="number"
-            min={0}
-            max={5}
-            defaultValue={node?.confidence ?? ""}
-            className={INPUT}
-            disabled={!canEdit}
-          />
-        </Field>
-      </div>
+      <Field label="Zeitraum">
+        <PeriodPicker name="period" defaultValue={node?.period ?? null} disabled={!canEdit} />
+      </Field>
       <Field label="Fällig am">
         <input
           name="dueDate"

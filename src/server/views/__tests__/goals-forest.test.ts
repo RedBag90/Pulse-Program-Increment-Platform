@@ -25,7 +25,6 @@ const obj = (over: Partial<ForestObjective>): ForestObjective => ({
   title: "X",
   narrative: null,
   period: null,
-  confidence: null,
   status: null,
   dueDate: null,
   ownerId: null,

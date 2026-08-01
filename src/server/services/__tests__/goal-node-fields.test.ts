@@ -13,7 +13,6 @@ const row = (over: Partial<GoalFieldValues> = {}): GoalFieldValues => ({
   title: "Old",
   narrative: null,
   period: null,
-  confidence: null,
   status: null,
   dueDate: null,
   closingNote: null,

@@ -79,7 +79,6 @@ export interface ForestObjective {
   title: string;
   narrative: string | null;
   period: string | null;
-  confidence: number | null;
   status: string | null;
   /** ISO-String oder null. */
   dueDate: string | null;
@@ -289,7 +288,6 @@ export function buildStrategyTree(input: GoalForestInput): {
       title: o.title,
       narrative: o.narrative,
       period: o.period,
-      confidence: o.confidence,
       status: o.status,
       dueDate: o.dueDate,
       ownerId: o.ownerId,

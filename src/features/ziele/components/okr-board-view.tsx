@@ -12,8 +12,8 @@ import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-sta
  * OKR-Quarterly-Board — flach (Refactor §Hierarchie-Vereinfachung).
  *
  * Vier Quartals-Spalten um das aktuelle Quartal + Backlog (Themes
- * ohne `period`). Pro Theme eine Card mit Title, Confidence-Sternen,
- * KR-Mini-Bars und €-Linse. Drag horizontal = Period-Update.
+ * ohne `period`). Pro Theme eine Card mit Title, KR-Mini-Bars und
+ * €-Linse. Drag horizontal = Period-Update.
  *
  * Vorher waren Cards pro Objective; jetzt ist „Theme" = Objective
  * (UI-Begriff), also direkter Mapping.
@@ -308,12 +308,6 @@ function ThemeCard({
               </span>
             )}
           </div>
-          {theme.confidence != null && (
-            <p className="text-[10px] text-muted-foreground">
-              {"★".repeat(theme.confidence)}
-              {"☆".repeat(5 - theme.confidence)}
-            </p>
-          )}
           {(() => {
             // Alle messbaren Blatt-Nachfahren (rekursiv) statt nur direkter Kinder.
             const leaves = collectLeaves(theme);

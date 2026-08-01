@@ -225,9 +225,6 @@ model Objective {
   /// Fortschrittsquelle (src/domain/goal-progress-mode.ts): manual | rollup |
   /// auto_kpi. Null = abgeleitet (Kinder → rollup, sonst manual) = Alt-Verhalten.
   progressMode String?  @map("progress_mode")
-  /// Fist-of-Five-Confidence (1..5). Wird im PI-Planning / Quartal-Sync
-  /// gevotet; treibt die ★-Anzeige in den Cards.
-  confidence Int?
   ownerId    String?  @map("owner_id") @db.Uuid
   /// Verantwortliches Team (Asana „Accountable team"). Null = kein Team.
   accountableTeamId String? @map("accountable_team_id") @db.Uuid
