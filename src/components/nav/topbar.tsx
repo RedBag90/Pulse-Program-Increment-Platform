@@ -22,8 +22,6 @@ import { useMegaMenu } from "@/components/nav/use-mega-menu";
 interface TopbarProps {
   userEmail: string;
   visibleHrefs: string[];
-  /** Modul-gesperrte Items (Entitlement) — ausgegraut mit 🔒 gerendert (Upsell). */
-  lockedHrefs?: string[];
   /** Tenants des Users (Switcher-Datenquelle); aktiver Tenant markiert. */
   tenants?: TenantOption[];
   activeTenantId?: string;
@@ -38,7 +36,6 @@ interface TopbarProps {
 export function Topbar({
   userEmail,
   visibleHrefs,
-  lockedHrefs = [],
   tenants = [],
   activeTenantId = "",
   isPlatformAdmin = false,
@@ -66,7 +63,7 @@ export function Topbar({
         </Link>
 
         {/* Primary navigation (desktop) */}
-        <TopNavMegaTriggers visibleHrefs={visibleHrefs} lockedHrefs={lockedHrefs} menu={menu} />
+        <TopNavMegaTriggers visibleHrefs={visibleHrefs} menu={menu} />
 
         <div className="flex-1" />
 

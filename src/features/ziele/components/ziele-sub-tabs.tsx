@@ -16,13 +16,15 @@ const TABS: ReadonlyArray<{ id: ZieleSubTab; label: string }> = [
 
 interface Props {
   active: ZieleSubTab;
+  /** Money entsteht aus Epic-KPIs (Portfolio-Modul) — ohne Portfolio ausgeblendet. */
+  showMoney?: boolean;
 }
 
-export function ZieleSubTabs({ active }: Props) {
+export function ZieleSubTabs({ active, showMoney = true }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const tabs = TABS;
+  const tabs = showMoney ? TABS : TABS.filter((t) => t.id !== "money");
 
   function setTab(next: ZieleSubTab) {
     const params = new URLSearchParams(searchParams.toString());

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { LockedHint } from "@/components/ui/locked-hint";
 import type { GoalNode } from "@/server/views/ziele-view";
 import { goalPeriodLabel } from "@/domain/goal-period";
 import { MoneyExportButton } from "./money-export-button";
@@ -14,19 +13,14 @@ import { MoneyExportButton } from "./money-export-button";
  */
 interface Props {
   themes: GoalNode[];
-  /** €-Werte entstehen aus Epic-KPIs (Portfolio-Modul) — false ⇒ 🔒-Karte. */
+  /** €-Werte entstehen aus Epic-KPIs (Portfolio-Modul) — ohne Portfolio ausgeblendet. */
   hasPortfolio?: boolean;
 }
 
 export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
-  if (!hasPortfolio) {
-    return (
-      <LockedHint
-        variant="card"
-        text="Die Money-Ansicht zeigt Planned/Realized/Run-Rate in € — die Werte entstehen aus den Epic-KPIs des Portfolio-Moduls."
-      />
-    );
-  }
+  // Ohne Portfolio-Modul wird der Money-Tab gar nicht erst angeboten
+  // (ZieleSubTabs/Shell); defensiv rendern wir hier nichts.
+  if (!hasPortfolio) return null;
   const sorted = [...themes].sort((a, b) => b.trio.realized - a.trio.realized);
   const totals = sorted.reduce(
     (acc, t) => {

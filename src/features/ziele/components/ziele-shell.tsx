@@ -30,13 +30,16 @@ interface Props {
 
 export function ZieleShell({ model, layout, userLabels = {} }: Props) {
   const { tab, themes, tenantTrio, permissions, modules } = model;
+  // Money existiert nur mit Portfolio-Modul — Deep-Link `?tab=money` ohne
+  // Portfolio fällt still auf „Strategie" zurück (keine leere Fläche).
+  const effectiveTab = tab === "money" && !modules.portfolio ? "strategie" : tab;
 
   return (
     <Page>
       <PageHeader
         title="Ziele"
         subtitle="Themes (OKR-Statements) → Key Results — Übersicht und Pflege in einer Ansicht."
-        actions={<ZieleSubTabs active={tab} />}
+        actions={<ZieleSubTabs active={effectiveTab} showMoney={modules.portfolio} />}
       />
 
       <div className="space-y-1.5">
@@ -44,7 +47,7 @@ export function ZieleShell({ model, layout, userLabels = {} }: Props) {
         <p className="text-xs text-muted-foreground">{themes.length} Themes (OKRs) im Scope</p>
       </div>
 
-      {tab === "strategie" && (
+      {effectiveTab === "strategie" && (
         <PageSection>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <GoalScopeFilterBar showValueStreams={modules.portfolio} showArts={modules.program} />
@@ -60,7 +63,9 @@ export function ZieleShell({ model, layout, userLabels = {} }: Props) {
           {layout === "netzplan" && <StrategyNetworkView themes={themes} />}
         </PageSection>
       )}
-      {tab === "money" && <MoneySheetView themes={themes} hasPortfolio={modules.portfolio} />}
+      {effectiveTab === "money" && (
+        <MoneySheetView themes={themes} hasPortfolio={modules.portfolio} />
+      )}
 
       {/* Detail-Drawer: read-only oder editierbar je nach `canEdit` (Capability). */}
       <ZieleEditDrawer model={model} canEdit={permissions.canEditStrategy} />

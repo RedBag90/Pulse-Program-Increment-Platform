@@ -2,7 +2,6 @@
 
 import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Lock } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import type { NavItem } from "@/components/nav/nav-config";
@@ -11,8 +10,6 @@ import type { MegaMenuApi } from "@/components/nav/use-mega-menu";
 
 interface Props {
   items: readonly NavItem[];
-  /** Modul-gesperrte Hrefs — ausgegraut mit 🔒 gerendert, nicht navigierbar. */
-  lockedHrefs?: readonly string[];
   /** Group's `labelKey` — only used for the panel's accessible label. */
   labelKey: string;
   menu: MegaMenuApi;
@@ -25,11 +22,10 @@ interface Props {
  * to anchor without any JS x-position tracking. Clicking an item closes the
  * panel via `menu.close`.
  */
-export function TopNavMegaPanel({ items, lockedHrefs = [], labelKey, menu }: Props) {
+export function TopNavMegaPanel({ items, labelKey, menu }: Props) {
   const pathname = usePathname();
   const search = useSearchParams();
   const t = useTranslations("nav");
-  const locked = new Set(lockedHrefs);
 
   return (
     <div
@@ -39,20 +35,6 @@ export function TopNavMegaPanel({ items, lockedHrefs = [], labelKey, menu }: Pro
     >
       <ul className="flex flex-col gap-0.5 p-1">
         {items.map(({ href, labelKey: itemLabelKey, icon: Icon, exact }) => {
-          if (locked.has(href)) {
-            return (
-              <li key={href}>
-                <div
-                  className="flex cursor-default items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground/50"
-                  title="Teil der Vollversion"
-                >
-                  <Icon className="size-4 shrink-0 opacity-40" />
-                  <span>{t(itemLabelKey)}</span>
-                  <Lock className="ml-auto size-3 shrink-0 opacity-60" aria-label="Gesperrt" />
-                </div>
-              </li>
-            );
-          }
           const active = isActiveLink(pathname, search, href, exact ?? false);
           return (
             <li key={href}>

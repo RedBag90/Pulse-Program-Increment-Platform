@@ -50,25 +50,20 @@ export default async function DashboardLayout({
   ]);
   const practices = effectivePractices(targetModel);
 
-  // Drei Achsen: practice/capability verstecken (wie bisher); das Modul-
-  // Entitlement sperrt sichtbar — gesperrte Items wandern in `lockedHrefs`
-  // und werden ausgegraut mit 🔒 gerendert (Upsell), nicht entfernt.
-  const renderable = NAV_GROUPS.flatMap((group) => group.items).filter((item) => {
-    if (item.practice && !practices[item.practice]) return false;
-    if (
-      item.capability &&
-      !authorize(item.capability, { tenantId: principal.tenantId }, principal).allow
-    )
-      return false;
-    return true;
-  });
-  const visibleHrefs: string[] = [];
-  const lockedHrefs: string[] = [];
-  for (const item of renderable) {
-    (moduleAllowed(item.href, principal.enabledModules) ? visibleHrefs : lockedHrefs).push(
-      item.href,
-    );
-  }
+  // Drei Achsen (alle blenden aus): practice/capability wie bisher; das Modul-
+  // Entitlement blendet nicht freigeschaltete Module komplett aus — kein
+  // Upsell-Schloss mehr, gesperrte Module tauchen gar nicht in der Nav auf.
+  const visibleHrefs = NAV_GROUPS.flatMap((group) => group.items)
+    .filter((item) => {
+      if (item.practice && !practices[item.practice]) return false;
+      if (
+        item.capability &&
+        !authorize(item.capability, { tenantId: principal.tenantId }, principal).allow
+      )
+        return false;
+      return moduleAllowed(item.href, principal.enabledModules);
+    })
+    .map((item) => item.href);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background print:block print:h-auto print:overflow-visible">
@@ -76,7 +71,6 @@ export default async function DashboardLayout({
       <Topbar
         userEmail={principal.email ?? ""}
         visibleHrefs={visibleHrefs}
-        lockedHrefs={lockedHrefs}
         tenants={tenants}
         activeTenantId={principal.tenantId}
         isPlatformAdmin={principal.isPlatformAdmin}
