@@ -4,6 +4,8 @@ import {
   SUB_STAGE_RULES,
   BUCKET_RULES,
   BLOCKED_MANUAL_TRANSITIONS,
+  manualForwardBlockReason,
+  type ManualAdvanceState,
 } from "@/domain/epic-lifecycle-doc";
 import { SUB_STAGES } from "@/domain/stage-gate";
 
@@ -69,5 +71,55 @@ describe("BLOCKED_MANUAL_TRANSITIONS", () => {
     const l4 = BLOCKED_MANUAL_TRANSITIONS.find((b) => b.from === "L4");
     expect(l2?.reason).toMatch(/budget/i);
     expect(l4?.reason).toMatch(/impact/i);
+  });
+});
+
+describe("manualForwardBlockReason", () => {
+  const base: ManualAdvanceState = {
+    multiPartyApproval: true,
+    hypothesisApprovedAt: null,
+    hasHypothesisContent: false,
+    hasBusinessCaseContent: false,
+    startedChildFeatureCount: 0,
+  };
+
+  it("L0→L1 (Approval an): blockt ohne freigegebene Hypothese, erlaubt mit", () => {
+    expect(manualForwardBlockReason("L0", "L1", base)).toMatch(/Hypothese/i);
+    expect(
+      manualForwardBlockReason("L0", "L1", { ...base, hypothesisApprovedAt: new Date() }),
+    ).toBeNull();
+  });
+
+  it("L0→L1 (Approval aus): blockt ohne Hypothese-Inhalt, erlaubt mit", () => {
+    expect(manualForwardBlockReason("L0", "L1", { ...base, multiPartyApproval: false })).toMatch(
+      /Hypothese/i,
+    );
+    expect(
+      manualForwardBlockReason("L0", "L1", {
+        ...base,
+        multiPartyApproval: false,
+        hasHypothesisContent: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("L1→L2: blockt ohne Business-Case-Inhalt, erlaubt mit", () => {
+    expect(manualForwardBlockReason("L1", "L2", base)).toMatch(/Business Case/i);
+    expect(
+      manualForwardBlockReason("L1", "L2", { ...base, hasBusinessCaseContent: true }),
+    ).toBeNull();
+  });
+
+  it("L3→L4: blockt ohne gestartetes Feature, erlaubt mit ≥1", () => {
+    expect(manualForwardBlockReason("L3", "L4", base)).toMatch(/Feature/i);
+    expect(
+      manualForwardBlockReason("L3", "L4", { ...base, startedChildFeatureCount: 1 }),
+    ).toBeNull();
+  });
+
+  it("Rückwärts-Wechsel sind erlaubt (kein Guard)", () => {
+    expect(manualForwardBlockReason("L1", "L0", base)).toBeNull();
+    expect(manualForwardBlockReason("L2", "L1", base)).toBeNull();
+    expect(manualForwardBlockReason("L4", "L3", base)).toBeNull();
   });
 });

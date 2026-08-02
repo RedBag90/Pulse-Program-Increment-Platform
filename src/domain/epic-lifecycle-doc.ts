@@ -174,3 +174,54 @@ export function findBlockedManualTransition(
 ): BlockedManualTransition | undefined {
   return BLOCKED_MANUAL_TRANSITIONS.find((b) => b.from === from && b.to === to);
 }
+
+/** Zustand, den der Vorbedingungs-Guard für einen manuellen Advance braucht. */
+export interface ManualAdvanceState {
+  /** Läuft die Mehrparteien-Freigabe im Tenant? */
+  multiPartyApproval: boolean;
+  /** Wurde die Benefit-Hypothese freigegeben (Stempel gesetzt)? */
+  hypothesisApprovedAt: Date | null;
+  /** Inhalte in der Benefit-Hypothese vorhanden? */
+  hasHypothesisContent: boolean;
+  /** Inhalte im Business Case vorhanden? */
+  hasBusinessCaseContent: boolean;
+  /** Anzahl bereits gestarteter Child-Features (Status in_progress/completed). */
+  startedChildFeatureCount: number;
+}
+
+/**
+ * Vorbedingungs-Guard für **manuelle Vorwärts-Stage-Gate-Wechsel**. Gibt eine
+ * Reason zurück, wenn der Wechsel die nötige Vorleistung überspringt — sonst
+ * `null` (erlaubt). Spiegelt die Auto-Advance-Trigger aus `LIFECYCLE_TRIGGERS`:
+ * L1 verlangt eine freigegebene (bzw. bei ausgeschalteter Mehrparteien-Freigabe:
+ * ausgearbeitete) Hypothese, L2 Business-Case-Inhalt, L4 ein gestartetes Feature.
+ * L2→L3 / L4→L5 sind separat über `BLOCKED_MANUAL_TRANSITIONS` gesperrt;
+ * Rückwärts-Wechsel (Korrektur) und alle übrigen Paare geben `null`.
+ */
+export function manualForwardBlockReason(
+  from: string,
+  to: string,
+  state: ManualAdvanceState,
+): string | null {
+  if (from === "L0" && to === "L1") {
+    if (state.multiPartyApproval) {
+      return state.hypothesisApprovedAt != null
+        ? null
+        : "L1 verlangt eine vom Portfolio Manager freigegebene Benefit-Hypothese — reiche sie zuerst ein und lass sie entscheiden.";
+    }
+    return state.hasHypothesisContent
+      ? null
+      : "L1 verlangt eine ausgearbeitete Benefit-Hypothese — fülle sie zuerst im Hypothese-Tab aus.";
+  }
+  if (from === "L1" && to === "L2") {
+    return state.hasBusinessCaseContent
+      ? null
+      : "L2 verlangt einen ausgearbeiteten Business Case — detailliere ihn zuerst im BC-Tab.";
+  }
+  if (from === "L3" && to === "L4") {
+    return state.startedChildFeatureCount > 0
+      ? null
+      : "L4 verlangt mindestens ein gestartetes Child-Feature — starte zuerst ein Feature in einem PI.";
+  }
+  return null;
+}

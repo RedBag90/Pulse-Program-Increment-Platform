@@ -16,7 +16,10 @@ beforeEach(async () => {
   await testDb.$disconnect();
 });
 
-async function makeEpic(stageGate: StageGate = "L0"): Promise<EpicId> {
+async function makeEpic(
+  stageGate: StageGate = "L0",
+  extra: Record<string, unknown> = {},
+): Promise<EpicId> {
   const epic = await db.initiative.create({
     data: {
       tenantId: seed.tenantId,
@@ -28,15 +31,22 @@ async function makeEpic(stageGate: StageGate = "L0"): Promise<EpicId> {
       createdBy: seed.actorId,
       updatedBy: seed.actorId,
       stageGate,
+      ...extra,
     },
   });
   await db.initiative.update({ where: { id: epic.id }, data: { path: epic.id } });
   return epic.id as EpicId;
 }
 
+/** Erfüllt die L0→L1-Vorbedingung (freigegebene + ausgearbeitete Hypothese). */
+const APPROVED_HYPOTHESIS = {
+  hypothesisApprovedAt: new Date(),
+  benefitHypothesis: { current: { problem: "Testproblem" }, history: [] },
+};
+
 describe("advanceStageGate", () => {
   it("advances an Epic one gate forward and emits an AuditEvent", async () => {
-    const epicId = await makeEpic("L0");
+    const epicId = await makeEpic("L0", APPROVED_HYPOTHESIS);
     const before = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 
     const result = await advanceStageGate(testRequestContext(db, seed), {
@@ -50,6 +60,21 @@ describe("advanceStageGate", () => {
 
     const after = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
     expect(after).toBe(before + 1);
+  });
+
+  it("blocks L0→L1 without an approved/ausgearbeitete Hypothese (Reifegrad-Guard)", async () => {
+    const epicId = await makeEpic("L0"); // keine Hypothese, kein Approval
+
+    const result = await advanceStageGate(testRequestContext(db, seed), {
+      epicId,
+      toGate: "L1",
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("forbidden");
+    const epic = await db.initiative.findFirst({ where: { id: epicId } });
+    expect(epic!.stageGate).toBe("L0");
   });
 
   it("rejects an invalid gate-skipping transition", async () => {

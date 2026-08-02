@@ -1,12 +1,9 @@
 "use client";
 
 import { useActionState, startTransition } from "react";
-import { AlertTriangle, Coins, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertTriangle, Coins, MoreHorizontal, ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { STAGE_GATES } from "@/domain/stage-gate";
-import type { StageGate } from "@/domain/types";
 import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiative-labels";
-import { advanceStageGateAction } from "@/features/portfolio/actions/stage-gate";
 import { setEpicFlagAction, deleteEpicAction } from "@/features/portfolio/actions/epic";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,7 +13,12 @@ import type { RagTier } from "@/domain/transformation-delta";
 interface Props {
   row: EpicListRow;
   canEdit: boolean;
-  canAdvance: boolean;
+  /**
+   * Wird von Tabelle/Shell durchgereicht (Bulk-Leiste nutzt es noch). Die Zeile
+   * selbst steuert den Reifegrad nicht mehr manuell — sie zeigt stattdessen den
+   * Nächster-Schritt-Hinweis; daher hier akzeptiert, aber ungenutzt.
+   */
+  canAdvance?: boolean;
   stageGatesEnabled: boolean;
   /** Selection checkbox is wired by the parent — null hides the column. */
   selected: boolean | null;
@@ -67,39 +69,22 @@ function money(n: number | null): string {
 export function EpicListRowComponent({
   row,
   canEdit,
-  canAdvance,
   stageGatesEnabled,
   selected,
   onToggleSelect,
   compact,
 }: Props) {
-  const [stageGateState, stageGate, advancing] = useActionState(advanceStageGateAction, {});
   const [flagState, flag, flagging] = useActionState(setEpicFlagAction, {});
   const [deleteState, del, deleting] = useActionState(deleteEpicAction, {});
-  const busy = advancing || flagging || deleting;
+  const busy = flagging || deleting;
 
-  const showMove = canAdvance && stageGatesEnabled;
-  const stageIndex = STAGE_GATES.indexOf(row.stageGate as StageGate);
-  const prev: StageGate | null = stageIndex > 0 ? (STAGE_GATES[stageIndex - 1] as StageGate) : null;
-  // Vorwaerts-Pfad ausblenden, wenn der naechste Schritt nur via Workflow-
-  // Trigger erreichbar ist (L2 → L3 via Budget, L4 → L5 via Impact-Confirm).
-  // Single-Source: src/domain/epic-lifecycle-doc.ts BLOCKED_MANUAL_TRANSITIONS.
-  const nextIsAutoOnly = row.stageGate === "L2" || row.stageGate === "L4";
-  const next: StageGate | null =
-    !nextIsAutoOnly && stageIndex < STAGE_GATES.length - 1
-      ? (STAGE_GATES[stageIndex + 1] as StageGate)
-      : null;
-
-  // React 19 verlangt, dass useActionState-Dispatches außerhalb von
-  // <form action=…> in startTransition gewrappt werden — sonst meckert
-  // der Dev-Mode mit „called outside of a transition".
-  function moveTo(toGate: StageGate | null) {
-    if (!toGate) return;
-    const fd = new FormData();
-    fd.set("epicId", row.id);
-    fd.set("toGate", toGate);
-    startTransition(() => stageGate(fd));
-  }
+  // Statt manueller Pfeile (die den Reifegrad ohne Vorleistung überspringen
+  // ließen) zeigt die Zeile den nächsten notwendigen Schritt — dieselbe
+  // `epicNextStep`-Guidance wie die Detailseite, serverseitig vorberechnet.
+  // Nur wenn Stage Gates aktiv sind und ein Schritt aussteht (L5/fertig ⇒ null).
+  const showNextStep = stageGatesEnabled && row.nextStep != null;
+  const nextHref =
+    row.nextStep?.cta?.kind === "link" ? row.nextStep.cta.href : `/portfolio/epics/${row.id}`;
 
   function toggleFlag(which: "steering" | "budgeting") {
     const current = which === "steering" ? row.needsSteeringAttention : row.stagedForBudgeting;
@@ -123,7 +108,7 @@ export function EpicListRowComponent({
     startTransition(() => del(fd));
   }
 
-  const lastError = stageGateState.error ?? flagState.error ?? deleteState.error;
+  const lastError = flagState.error ?? deleteState.error;
 
   return (
     <tr className="border-b align-middle hover:bg-muted/40">
@@ -237,40 +222,18 @@ export function EpicListRowComponent({
         </td>
       )}
 
-      {(showMove || canEdit) && (
+      {(showNextStep || canEdit) && (
         <td className="py-2 pl-2 pr-3">
           <div className="flex items-center justify-end gap-1">
-            {showMove && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => moveTo(prev)}
-                  disabled={busy || !prev}
-                  className="inline-flex size-7 items-center justify-center rounded border border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:opacity-30"
-                  title={prev ? `Zurück zu ${STAGE_GATE_LABELS[prev] ?? prev}` : "Bereits L0"}
-                  aria-label="Stage zurück"
-                >
-                  <ChevronLeft className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveTo(next)}
-                  disabled={busy || !next}
-                  className="inline-flex size-7 items-center justify-center rounded border border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:opacity-30"
-                  title={
-                    next
-                      ? `Weiter zu ${STAGE_GATE_LABELS[next] ?? next}`
-                      : row.stageGate === "L2"
-                        ? "L3 wird automatisch beim Speichern eines Budgets > 0 erreicht"
-                        : row.stageGate === "L4"
-                          ? "L5 wird nur per Impact-Bestaetigung erreicht"
-                          : "Bereits L5"
-                  }
-                  aria-label="Stage weiter"
-                >
-                  <ChevronRight className="size-3.5" />
-                </button>
-              </>
+            {showNextStep && row.nextStep && (
+              <Link
+                href={nextHref}
+                title={`${row.nextStep.title} — ${row.nextStep.hint}`}
+                className="inline-flex max-w-[11rem] items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+              >
+                <span className="truncate">{row.nextStep.title}</span>
+                <ArrowRight className="size-3 shrink-0 opacity-60" aria-hidden />
+              </Link>
             )}
             <Popover>
               <PopoverTrigger

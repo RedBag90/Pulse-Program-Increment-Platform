@@ -6,7 +6,7 @@ import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
 import { recordedUpdate } from "@/server/services/recorded-update";
 import { isValidTransition, isApprovalTransition, autoAdvanceTarget } from "@/domain/stage-gate";
-import { findBlockedManualTransition } from "@/domain/epic-lifecycle-doc";
+import { findBlockedManualTransition, manualForwardBlockReason } from "@/domain/epic-lifecycle-doc";
 import type { EpicType, Horizon } from "@/domain/portfolio-guardrails";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
@@ -249,6 +249,35 @@ export async function advanceStageGate(
     const blocked = findBlockedManualTransition(from, toGate);
     if (blocked) {
       return err({ kind: "forbidden" as const, reason: blocked.reason });
+    }
+
+    // Vorbedingungs-Guard: ein manueller Vorwärts-Wechsel darf die nötige
+    // Vorleistung nicht überspringen (L1 = Hypothese freigegeben/ausgearbeitet,
+    // L2 = Business-Case-Inhalt, L4 = gestartetes Feature). Der Zustand kommt aus
+    // dem geladenen Epic; die gestarteten Child-Features nur bei L3→L4 zählen.
+    const startedChildFeatureCount =
+      from === "L3" && toGate === "L4"
+        ? await tx.initiative.count({
+            where: {
+              parentId: epicId,
+              tenantId: mctx.tenantId,
+              level: InitiativeLevel.FEATURE,
+              deletedAt: null,
+              status: { in: ["in_progress", "completed"] },
+            },
+          })
+        : 0;
+    const blockReason = manualForwardBlockReason(from, toGate, {
+      multiPartyApproval: practices.multiPartyApproval,
+      hypothesisApprovedAt: epic.hypothesisApprovedAt,
+      hasHypothesisContent: benefitHypothesisHasContent(
+        parseBenefitHypothesis(epic.benefitHypothesis).current,
+      ),
+      hasBusinessCaseContent: businessCaseHasContent(parseBusinessCase(epic.businessCase).current),
+      startedChildFeatureCount,
+    });
+    if (blockReason) {
+      return err({ kind: "forbidden" as const, reason: blockReason });
     }
 
     const isApproval = isApprovalTransition(from, toGate);

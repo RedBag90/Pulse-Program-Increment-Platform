@@ -98,6 +98,7 @@ export default async function MyTasksPage() {
       needsSteeringAttention: e.needsSteeringAttention,
       stagedForBudgeting: e.stagedForBudgeting,
       businessCase: e.businessCase,
+      benefitHypothesis: e.benefitHypothesis,
       businessCaseApprovedAt: e.businessCaseApprovedAt,
       plannedStartAt: e.plannedStartAt,
       plannedEndAt: e.plannedEndAt,

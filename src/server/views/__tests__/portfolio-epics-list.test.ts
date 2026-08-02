@@ -168,6 +168,22 @@ describe("buildEpicsListModel", () => {
     expect(m.rows[2]!.ownerLabel).toBeNull();
   });
 
+  it("setzt nextStep: L0 ohne Hypothese → 'Benefit Hypothese ausarbeiten', L5 → null", () => {
+    const m = buildEpicsListModel({
+      epics: [epic({ id: "l0", stageGate: "L0" }), epic({ id: "l5", stageGate: "L5" })],
+      valueStreams: [],
+      userLabels: {},
+      stageGatesEnabled: true,
+    });
+    const l0 = m.rows.find((r) => r.id === "l0")!;
+    expect(l0.nextStep?.title).toMatch(/Benefit Hypothese/i);
+    expect(l0.nextStep?.cta).toMatchObject({
+      kind: "link",
+      href: expect.stringContaining("benefit-hypothesis"),
+    });
+    expect(m.rows.find((r) => r.id === "l5")!.nextStep).toBeNull();
+  });
+
   it("keeps approvalPhase and status independent (two pills)", () => {
     const m = buildEpicsListModel({
       epics: [

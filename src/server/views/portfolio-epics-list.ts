@@ -1,8 +1,11 @@
 import {
   parseBusinessCase,
+  businessCaseHasContent,
   computeBusinessCaseTotals,
   type BusinessCaseTotals,
 } from "@/domain/business-case";
+import { parseBenefitHypothesis, benefitHypothesisHasContent } from "@/domain/benefit-hypothesis";
+import { epicNextStep, type EpicNextStep } from "@/domain/epic-next-step";
 import { epicBenefitFromKpis } from "@/domain/epic-economics";
 import {
   STAGE_GATES,
@@ -38,6 +41,8 @@ export interface EpicListRow {
   stageGate: StageGate;
   /** Derived sub-stage inside L2 / L4 — null elsewhere. UI-only. */
   subStage: SubStage | null;
+  /** Nächster notwendiger Schritt (Reifegrad-Guidance) — null bei L5/fertig. */
+  nextStep: EpicNextStep | null;
   /** QS status — orthogonal to approvalPhase. */
   status: string;
   /** Multi-party approval phase pill — null when not yet entered the workflow. */
@@ -107,6 +112,9 @@ interface EpicRow {
   needsSteeringAttention: boolean;
   stagedForBudgeting: boolean;
   businessCase: unknown;
+  /** Benefit-Hypothese-Dokument — treibt `hasHypothesis` im Nächster-Schritt.
+   *  Optional: fehlt es (z. B. Test-Fixture), gilt „keine Hypothese". */
+  benefitHypothesis?: unknown;
   /** Stamp set, wenn der BC die vollständige Freigabe abgeschlossen hat —
    *  treibt die Sub-Stage L2.2 in `subStageFor`. */
   businessCaseApprovedAt: Date | null;
@@ -182,19 +190,39 @@ export function buildEpicsListModel(input: {
   const rows: EpicListRow[] = epics.map((e) => {
     const kpiProgress = meanKpiProgress(e.kpis);
     const stageGate = e.stageGate as StageGate;
+    const childFeatureStats = {
+      total: e.childFeatureCount,
+      completed: e.completedChildFeatureCount,
+    };
+    const subStage = subStageFor({
+      stageGate,
+      businessCase: e.businessCase,
+      businessCaseApprovedAt: e.businessCaseApprovedAt,
+      childFeatureStats,
+    });
+    // Nächster-Schritt-Guidance — dieselbe reine Logik wie die Detailseite.
+    // `budgetAllocated`/`impactRecognizedAt` sind hier nicht per Row geladen:
+    // Erstes beeinflusst nur eine L3-Hinweis-Nuance, Zweites ist bei L5 ohnehin
+    // terminal (epicNextStep gibt dort null).
+    const nextStep = epicNextStep({
+      epicId: e.id,
+      stageGate,
+      subStage,
+      approvalPhase: e.approvalPhase,
+      hasHypothesis: benefitHypothesisHasContent(
+        parseBenefitHypothesis(e.benefitHypothesis).current,
+      ),
+      hasBusinessCase: businessCaseHasContent(parseBusinessCase(e.businessCase).current),
+      budgetAllocated: false,
+      impactRecognizedAt: null,
+      childFeatureStats,
+    });
     return {
       id: e.id,
       title: e.title,
       stageGate,
-      subStage: subStageFor({
-        stageGate,
-        businessCase: e.businessCase,
-        businessCaseApprovedAt: e.businessCaseApprovedAt,
-        childFeatureStats: {
-          total: e.childFeatureCount,
-          completed: e.completedChildFeatureCount,
-        },
-      }),
+      subStage,
+      nextStep,
       status: e.status,
       approvalPhase: e.approvalPhase,
       valueStream: e.valueStream,
