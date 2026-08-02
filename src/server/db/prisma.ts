@@ -1,5 +1,15 @@
 import { PrismaClient } from "@/generated/prisma";
 
+// Vercel–Supabase-Integration liefert die Connection-Strings als
+// POSTGRES_PRISMA_URL / POSTGRES_URL_NON_POOLING statt der von Prisma
+// erwarteten DATABASE_URL / DIRECT_URL. Hier gemappt, damit ohne manuelles
+// Kopieren der Env-Vars deployt werden kann (und robust gegen Passwort-Rotation
+// der Integration). Läuft im Node-Runtime VOR jeder PrismaClient-Instanziierung;
+// lokal ist DATABASE_URL bereits gesetzt → No-op. Die Edge-Middleware importiert
+// dieses Modul nicht, ist also nicht betroffen.
+process.env.DATABASE_URL ||= process.env.POSTGRES_PRISMA_URL;
+process.env.DIRECT_URL ||= process.env.POSTGRES_URL_NON_POOLING;
+
 // ---------------------------------------------------------------------------
 // Singleton base client — one connection pool per process
 // ---------------------------------------------------------------------------
