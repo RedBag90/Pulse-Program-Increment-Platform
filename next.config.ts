@@ -6,9 +6,12 @@ import withBundleAnalyzer from "@next/bundle-analyzer";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
-  experimental: {
-    typedRoutes: true,
-  },
+  // typedRoutes (experimental) wurde in Next 15.5 strenger und lehnt dynamische
+  // Template-Literal-Routen mit `?query` ab (z. B. `redirect(`/admin/users?
+  // selected=…`)`), was den Vercel-Build blockierte. Da es eine reine DX-Feature
+  // ist (Compile-Zeit-Routen-Strings) und der Code das Feature ohnehin mit
+  // `as never`-Casts umgeht, ist es hier deaktiviert. Reaktivierbar, sobald alle
+  // Query-String-Navigationen sauber getypt sind.
 };
 
 const withIntl = withNextIntl(nextConfig);
