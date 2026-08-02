@@ -9,7 +9,6 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { goalPeriodLabel } from "@/domain/goal-period";
 import type {
   ZieleModel,
-  ZieleKrContribution,
   RelatedEpic,
   RelatedWorkItem,
   ScopeRef,
@@ -30,7 +29,6 @@ import {
   unlinkGoalArtAction,
   setGoalCustomFieldValueAction,
   reparentGoalNodeAction,
-  setGoalAccountableTeamAction,
   setGoalRollupInclusionAction,
 } from "@/features/ziele/actions/ziele";
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
@@ -376,6 +374,27 @@ function GoalPane({
             disabled={!canEdit}
           />
         </Field>
+        {!isTopLevel && (
+          <Field
+            label={`Beitrag zum Elternziel — 1 ${node?.metricUnit || "Einheit"} = ▢ ${
+              found?.parent?.metricUnit || "Eltern-Einheit"
+            } (leer = kein Wertbeitrag)`}
+          >
+            <input
+              name="parentUnitPerChildUnit"
+              type="number"
+              step="any"
+              defaultValue={node?.parentUnitPerChildUnit ?? ""}
+              placeholder="z. B. 10000"
+              className={INPUT}
+              disabled={!canEdit}
+            />
+            <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
+              Einheiten-Kaskade: Wie viel der Eltern-Einheit trägt 1 {node?.metricUnit || "Einheit"}{" "}
+              dieses Ziels bei, wenn du seine KPI bewegst?
+            </p>
+          </Field>
+        )}
       </div>
     </FormShell>
   );
@@ -425,6 +444,26 @@ function GoalPane({
         currencyCode={node.currencyCode}
       />
 
+      {/* Einheiten-Kaskade: hochgerechneter Wert in der EIGENEN Ziel-Einheit
+          (Σ Unterziele × Faktor + verknüpfte Erfolgs-KPIs). */}
+      {node.unitValue.planned > 0 && (
+        <div className="rounded-md border bg-muted/20 px-3 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Wert aus Kaskade (KPIs + Unterziele)
+          </p>
+          <p className="mt-0.5 text-sm tabular-nums">
+            <span className="font-medium">
+              {formatMetricValue(node.unitValue.realized, metricSpec)}
+            </span>
+            <span className="text-muted-foreground">
+              {" / "}
+              {formatMetricValue(node.unitValue.planned, metricSpec)}
+            </span>
+            {node.metricUnit ? ` ${node.metricUnit}` : ""}
+          </p>
+        </div>
+      )}
+
       {/* Hierarchie — in Asana prominent, daher offen (kurz). */}
       <SubGoals parentId={id} subgoals={node.children} canEdit={canEdit} />
       <ParentGoalSection nodeId={id} parent={found?.parent ?? null} canEdit={canEdit} />
@@ -433,38 +472,19 @@ function GoalPane({
       <DrawerSection title="Verknüpfungen" hint={linkSummary}>
         <div className="space-y-3">
           <RelatedWorkUnified
-            target={detailTarget}
             goalId={id}
             epics={node.relatedEpics}
             items={node.relatedWork}
             canEdit={canEdit}
             searchEnabled={model.modules.portfolio || model.modules.program}
           />
-          {node.progressMode === "auto_kpi" ? (
+          {node.progressMode === "auto_kpi" && (
             <p className="text-[10px] leading-snug text-muted-foreground">
               Die KPIs verknüpfter Epics mit passender Einheit bilden den Ist-Wert dieses Ziels
               (Fortschrittsquelle „aus verknüpften KPIs").
             </p>
-          ) : (
-            <p className="text-[10px] leading-snug text-muted-foreground">
-              Ein verknüpftes Epic bringt den €-Wert all seiner KPIs grob mit. Die KPI-Bindungen
-              unten sind die feine Alternative — jede KPI zählt genau einmal.
-            </p>
           )}
-          <div className="border-t pt-3">
-            <KpiBindingsReadOnly
-              contributions={node.contributions}
-              krId={id}
-              controllingEnabled={model.modules.controlling}
-            />
-          </div>
           <div className="space-y-3 border-t pt-3">
-            <AccountableTeam
-              goalId={id}
-              team={node.accountableTeam}
-              canEdit={canEdit}
-              pickerEnabled={model.modules.program}
-            />
             <GoalScopeLinks
               goalId={id}
               valueStreams={node.valueStreams}
@@ -596,8 +616,7 @@ function SubGoals({
                   </span>
                 </span>
                 <span className="block truncate text-[10px] text-muted-foreground">
-                  {sg.period ? goalPeriodLabel(sg.period) : "—"} ·{" "}
-                  {sg.accountableTeam?.name ?? "Kein Team"}
+                  {sg.period ? goalPeriodLabel(sg.period) : "—"}
                   {!sg.includeInParentRollup && (
                     <span
                       className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[9px] font-medium text-amber-800"
@@ -781,7 +800,6 @@ function summarizeLinks(node: GoalNode): string {
   const pis = node.relatedWork.filter((w) => w.kind === "pi").length;
   const parts: string[] = [];
   if (node.relatedEpics.length) parts.push(`${node.relatedEpics.length} Epics`);
-  if (node.contributions.length) parts.push(`${node.contributions.length} KPIs`);
   if (features) parts.push(`${features} Features`);
   if (pis) parts.push(`${pis} PIs`);
   if (node.valueStreams.length) parts.push(`${node.valueStreams.length} Value Streams`);
@@ -828,14 +846,12 @@ function DrawerSection({
  * bleibt unberührt.
  */
 function RelatedWorkUnified({
-  target,
   goalId,
   epics,
   items,
   canEdit,
   searchEnabled,
 }: {
-  target: "objective" | "kr";
   goalId: string;
   epics: RelatedEpic[];
   items: RelatedWorkItem[];
@@ -855,8 +871,9 @@ function RelatedWorkUnified({
 
   function pick(r: RelatedWorkResult) {
     if (r.type === "epic") {
+      // Referenzielle Verknüpfung (Einheiten-Kaskade: KPI + Faktor werden im
+      // Epic-KPI-Bereich je Ziel definiert).
       const fd = new FormData();
-      fd.set("target", target);
       fd.set("goalId", goalId);
       fd.set("epicId", r.id);
       startTransition(() => linkEpicRun(fd));
@@ -876,6 +893,7 @@ function RelatedWorkUnified({
     if (type === "epic") {
       const fd = new FormData();
       fd.set("epicId", rid);
+      fd.set("goalId", goalId);
       startTransition(() => unlinkEpicRun(fd));
     } else {
       const fd = new FormData();
@@ -932,85 +950,6 @@ function RelatedWorkUnified({
         )}
       </LinkList>
       {err && <p className="text-xs text-destructive">{err}</p>}
-    </section>
-  );
-}
-
-/**
- * Verantwortliches Team am Ziel (Asana „Accountable team"): ein Team (Single-FK,
- * `accountableTeamId`) — setzen/entfernen via `setGoalAccountableTeamAction`. Der
- * Picker listet alle Tenant-Teams (ART-übergreifend).
- */
-function AccountableTeam({
-  goalId,
-  team,
-  canEdit,
-  pickerEnabled,
-}: {
-  goalId: string;
-  team: ScopeRef | null;
-  canEdit: boolean;
-  /** Teams sind Programm-Inhalt — false ⇒ 🔒 statt Picker. */
-  pickerEnabled: boolean;
-}) {
-  const [teamId, setTeamId] = useState("");
-  const [state, run, pending] = useActionState(setGoalAccountableTeamAction, {});
-
-  function set(id: string) {
-    const fd = new FormData();
-    fd.set("id", goalId);
-    fd.set("accountableTeamId", id);
-    startTransition(() => run(fd));
-    setTeamId("");
-  }
-
-  return (
-    <section className="space-y-1.5">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-        Verantwortliches Team
-      </p>
-      {team ? (
-        <span className="flex w-fit items-center gap-1 rounded-full border bg-card px-2 py-0.5 text-xs">
-          <span className="truncate">{team.name}</span>
-          {canEdit && (
-            <button
-              type="button"
-              onClick={() => set("")}
-              disabled={pending}
-              aria-label={`${team.name} entfernen`}
-              className="text-muted-foreground hover:text-foreground disabled:opacity-50"
-            >
-              ✕
-            </button>
-          )}
-        </span>
-      ) : (
-        <p className="text-xs text-muted-foreground">Kein Team.</p>
-      )}
-      {canEdit && pickerEnabled && (
-        <div className="flex items-end gap-1.5">
-          <div className="flex-1">
-            <EntitySelect
-              kind="team"
-              name="goalTeam"
-              label=""
-              value={teamId}
-              onChange={setTeamId}
-              labelField="name"
-              disabled={pending}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => teamId && set(teamId)}
-            disabled={pending || teamId === ""}
-            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-          >
-            +
-          </button>
-        </div>
-      )}
-      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
     </section>
   );
 }
@@ -1257,74 +1196,6 @@ function CustomFieldRow({
       )}
       {state.error && <span className="text-[11px] text-destructive">{state.error}</span>}
     </label>
-  );
-}
-
-function KpiBindingsReadOnly({
-  contributions,
-  krId,
-  controllingEnabled,
-}: {
-  contributions: ZieleKrContribution[];
-  krId: string;
-  /** KPI-Coverage-Pflege liegt im Controlling-Modul — false ⇒ 🔒 statt Deeplink. */
-  controllingEnabled: boolean;
-}) {
-  const weightSum = contributions.reduce(
-    (s, c) => s + (Number.isFinite(c.weight) ? c.weight : 0),
-    0,
-  );
-  return (
-    <section className="space-y-2">
-      <header className="flex items-baseline justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          KPI-Bindungen
-        </h3>
-        {controllingEnabled && (
-          <a
-            href={`/controlling/kpi-coverage#kr-${krId}`}
-            className="text-[11px] text-primary hover:underline"
-          >
-            Im Controlling pflegen →
-          </a>
-        )}
-      </header>
-      {contributions.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          Noch keine KPI gebunden — Bindung im Controlling-Modul.
-        </p>
-      ) : (
-        <>
-          <ul className="space-y-1">
-            {contributions.map((c) => (
-              <li
-                key={c.kpiId}
-                className="flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 text-xs"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{c.kpiName}</p>
-                  <p className="truncate text-[10px] text-muted-foreground">
-                    Epic · {c.epicTitle} · Weight {(c.weight * 100).toFixed(0)} %
-                  </p>
-                </div>
-                <span className="text-[10px] tabular-nums text-muted-foreground">
-                  {c.achievement != null
-                    ? `${Math.round(c.achievement * 100)}% · €${Math.round(c.contributionRealized).toLocaleString("de-DE")}`
-                    : "—"}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p
-            className={`text-right text-[10px] tabular-nums ${
-              Math.abs(weightSum - 1) < 0.001 ? "text-emerald-600" : "text-amber-600"
-            }`}
-          >
-            Σ Weights {(weightSum * 100).toFixed(0)} %
-          </p>
-        </>
-      )}
-    </section>
   );
 }
 

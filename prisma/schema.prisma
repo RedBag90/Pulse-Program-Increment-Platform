@@ -10,22 +10,22 @@ datasource db {
 }
 
 model Tenant {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  region    String   @db.VarChar(10)
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String
+  region         String   @db.VarChar(10)
   /// Tenant-Art: "organization" (Klienten-Tenant, Platform-Admin-angelegt) |
   /// "personal" (privater Free-Bereich eines einzelnen Nutzers, auto-erzeugt).
-  kind      String   @default("organization")
+  kind           String   @default("organization")
   /// Lifecycle-Status (Platform-Admin): "active" | "suspended" (gesperrt,
   /// Login-Redirect) | "archived" (stillgelegt, Löschen-Ersatz bei nicht-leeren
   /// Tenants). Nur über die Platform-Admin-API pflegbar.
-  status    String   @default("active")
+  status         String   @default("active")
   /// Entitlement-Set (Freemium): Modul-Keys aus src/domain/modules.ts, die dieser
   /// Tenant nutzen darf. Leeres Array = kind-Default (personal → ["ziele"],
   /// organization → alle Module). Pflege ausschließlich über die
   /// Platform-Admin-API — kein tenant-seitiges Self-Service.
   enabledModules String[] @map("enabled_modules")
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   // Portfolio Dashboard settings (the "Soll" for the economics view).
   costNeutralTarget   Decimal?  @map("cost_neutral_target") @db.Decimal(14, 2) // self-funding threshold / month
@@ -43,33 +43,32 @@ model Tenant {
   // 100 %; Defaults in `src/domain/portfolio-guardrails.ts`.
   guardrailTargets Json? @map("guardrail_targets")
 
-  valueStreams            ValueStream[]
-  arts                    Art[]
-  teams                   Team[]
-  initiatives             Initiative[]
-  kpis                    Kpi[]
-  epicApprovals           EpicApproval[]
-  userRoleAssignments     UserRoleAssignment[]
-  jiraConfig              JiraConfig?
-  azureDevOpsConfig       AzureDevOpsConfig?
-  targetModels            TargetOperatingModel[]
-  transformationActions   TransformationAction[]
-  strategicThemes         StrategicTheme[]
-  objectives              Objective[]
-  krKpiContributions      KrKpiContribution[]
-  themeEpicLinks          ThemeEpicLink[]
-  goalEpicLinks           GoalEpicLink[]
-  goalRelatedWork         GoalRelatedWork[]
-  goalValueStreamLinks    GoalValueStreamLink[]
-  goalArtLinks            GoalArtLink[]
-  goalCustomFieldDefs     GoalCustomFieldDef[]
-  goalCustomFieldValues   GoalCustomFieldValue[]
-  budgetAllocations       BudgetAllocation[]
-  artBudgets              ArtBudget[]
-  budgetPlanRevisions     BudgetPlanRevision[]
-  piStandards             PiStandard[]
-  timelines               Timeline[]
-  setupProgress           SetupProgress[]
+  valueStreams          ValueStream[]
+  arts                  Art[]
+  teams                 Team[]
+  initiatives           Initiative[]
+  kpis                  Kpi[]
+  epicApprovals         EpicApproval[]
+  userRoleAssignments   UserRoleAssignment[]
+  jiraConfig            JiraConfig?
+  azureDevOpsConfig     AzureDevOpsConfig?
+  targetModels          TargetOperatingModel[]
+  transformationActions TransformationAction[]
+  strategicThemes       StrategicTheme[]
+  objectives            Objective[]
+  themeEpicLinks        ThemeEpicLink[]
+  goalEpicLinks         GoalEpicLink[]
+  goalRelatedWork       GoalRelatedWork[]
+  goalValueStreamLinks  GoalValueStreamLink[]
+  goalArtLinks          GoalArtLink[]
+  goalCustomFieldDefs   GoalCustomFieldDef[]
+  goalCustomFieldValues GoalCustomFieldValue[]
+  budgetAllocations     BudgetAllocation[]
+  artBudgets            ArtBudget[]
+  budgetPlanRevisions   BudgetPlanRevision[]
+  piStandards           PiStandard[]
+  timelines             Timeline[]
+  setupProgress         SetupProgress[]
 
   @@index([status])
   @@map("tenants")
@@ -165,27 +164,27 @@ model TargetOperatingModel {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model StrategicTheme {
-  id              String   @id @default(uuid()) @db.Uuid
-  tenantId        String   @map("tenant_id") @db.Uuid
-  title           String
-  narrative       String?  @db.Text
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  title         String
+  narrative     String?  @db.Text
   /// Hex-Color fuer Strategy-Map (Tree-Card-Stripe + Sankey-Band-Farbe).
-  color           String   @default("#6366f1")
+  color         String   @default("#6366f1")
   /// "business" oder "enabler" (Petras Heimat). Treibt Investment-Mix-
   /// Sicht im Money-Tab.
-  kind            String   @default("business")
+  kind          String   @default("business")
   /// Lean-Budget-Anker in € pro Jahr (Investment-Bucket). Wird als
   /// Vergleichs-Basis fuer ROI in der Money-Sicht verwendet.
-  budgetPlanned   Decimal? @map("budget_planned") @db.Decimal(14, 2)
+  budgetPlanned Decimal? @map("budget_planned") @db.Decimal(14, 2)
   /// Frei-konfigurierbare Guardrails, JSON (z. B. {minEnablerRatio: 0.2}).
-  guardrails      Json?
-  ownerId         String?  @map("owner_id") @db.Uuid
-  sortOrder       Int      @default(0) @map("sort_order")
-  status          String   @default("active") // active | sunsetted | archived
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  createdBy       String   @map("created_by") @db.Uuid
-  updatedBy       String   @map("updated_by") @db.Uuid
+  guardrails    Json?
+  ownerId       String?  @map("owner_id") @db.Uuid
+  sortOrder     Int      @default(0) @map("sort_order")
+  status        String   @default("active") // active | sunsetted | archived
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdBy     String   @map("created_by") @db.Uuid
+  updatedBy     String   @map("updated_by") @db.Uuid
 
   tenant     Tenant          @relation(fields: [tenantId], references: [id])
   objectives Objective[]
@@ -196,70 +195,74 @@ model StrategicTheme {
 }
 
 model Objective {
-  id         String   @id @default(uuid()) @db.Uuid
-  tenantId   String   @map("tenant_id") @db.Uuid
-  themeId    String   @map("theme_id") @db.Uuid
-  title      String
-  narrative  String?  @db.Text
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenantId               String    @map("tenant_id") @db.Uuid
+  themeId                String    @map("theme_id") @db.Uuid
+  title                  String
+  narrative              String?   @db.Text
   /// Zeitraum, kanonisch YYYY-Qn | YYYY-Hn | YYYY (src/domain/goal-period.ts).
   /// Null = kein Zeitraum / Backlog.
-  period     String?
+  period                 String?
   /// Knotentyp (Goal-Knoten-Vereinheitlichung): "objective" | "key_result".
   /// Rein Label-unterscheidend — jeder Knoten kann Kinder UND/ODER eine Metrik
   /// tragen; hat er Kinder, gewinnt der Rollup über die eigene Metrik.
-  nodeKind   String   @default("objective") @map("node_kind")
+  nodeKind               String    @default("objective") @map("node_kind")
   /// Self-Referenz für beliebig tiefe Zielkaskaden. Null = Top-Level unter Theme.
-  parentObjectiveId String? @map("parent_objective_id") @db.Uuid
+  parentObjectiveId      String?   @map("parent_objective_id") @db.Uuid
   /// Tiefe (0 = Top-Level) + materialisierter Pfad (Muster wie Initiative).
-  level      Int      @default(0)
-  path       String   @default("")
+  level                  Int       @default(0)
+  path                   String    @default("")
   // ── Metrik (aus KeyResult verschmolzen; nur bei messbaren Blättern gesetzt) ──
-  metricName   String?  @map("metric_name")
-  metricUnit   String?  @map("metric_unit")
-  metricType   String   @default("number") @map("metric_type")
-  precision    Int      @default(0)
-  currencyCode String?  @map("currency_code")
-  rollupWeight Decimal? @db.Decimal(6, 4) @map("rollup_weight")
+  metricName             String?   @map("metric_name")
+  metricUnit             String?   @map("metric_unit")
+  metricType             String    @default("number") @map("metric_type")
+  precision              Int       @default(0)
+  currencyCode           String?   @map("currency_code")
+  rollupWeight           Decimal?  @map("rollup_weight") @db.Decimal(6, 4)
   /// Asana „Remove from automatic progress": false blendet diesen Knoten aus
   /// dem Fortschritt/€-Rollup des Elternteils aus. Default true = zählt mit.
-  includeInParentRollup Boolean @default(true) @map("include_in_parent_rollup")
-  baseline     Decimal? @db.Decimal(14, 4)
-  target       Decimal? @db.Decimal(14, 4)
-  current      Decimal? @db.Decimal(14, 4)
-  formula      String   @default("auto_from_kpi")
+  includeInParentRollup  Boolean   @default(true) @map("include_in_parent_rollup")
+  /// Wert-Kaskade (Einheiten-Achse, orthogonal zu rollupWeight/Progress): wieviel
+  /// der ELTERN-Metrik-Einheit dieser Knoten je 1 Einheit eigener Bewegung
+  /// beiträgt (z. B. Kind misst „Wagen", Eltern „€" → 10000). Null = kein
+  /// einheiten-basierter Wertbeitrag ins Eltern-Aggregat (Alt-Verhalten).
+  parentUnitPerChildUnit Decimal?  @map("parent_unit_per_child_unit") @db.Decimal(18, 6)
+  baseline               Decimal?  @db.Decimal(14, 4)
+  target                 Decimal?  @db.Decimal(14, 4)
+  current                Decimal?  @db.Decimal(14, 4)
+  formula                String    @default("auto_from_kpi")
   /// Fortschrittsquelle (src/domain/goal-progress-mode.ts): manual | rollup |
   /// auto_kpi. Null = abgeleitet (Kinder → rollup, sonst manual) = Alt-Verhalten.
-  progressMode String?  @map("progress_mode")
-  ownerId    String?  @map("owner_id") @db.Uuid
+  progressMode           String?   @map("progress_mode")
+  ownerId                String?   @map("owner_id") @db.Uuid
   /// Verantwortliches Team (Asana „Accountable team"). Null = kein Team.
-  accountableTeamId String? @map("accountable_team_id") @db.Uuid
-  sortOrder  Int      @default(0) @map("sort_order")
+  accountableTeamId      String?   @map("accountable_team_id") @db.Uuid
+  sortOrder              Int       @default(0) @map("sort_order")
   /// Goal-Status (src/domain/goal-status.ts). Null = kein Check-in ("No
   /// recent updates"). Open: on_track | at_risk | off_track. Closed:
   /// achieved | partial | missed | dropped.
-  status     String?
-  dueDate    DateTime? @map("due_date")
+  status                 String?
+  dueDate                DateTime? @map("due_date")
   /// Gesetzt, sobald ein Closed-Status gewaehlt wird.
-  closedAt   DateTime? @map("closed_at")
+  closedAt               DateTime? @map("closed_at")
   /// Lessons-Learned-Notiz, gepflegt beim Quartal-Reset-Wizard.
-  closingNote String? @map("closing_note") @db.Text
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-  createdBy  String   @map("created_by") @db.Uuid
-  updatedBy  String   @map("updated_by") @db.Uuid
+  closingNote            String?   @map("closing_note") @db.Text
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  createdBy              String    @map("created_by") @db.Uuid
+  updatedBy              String    @map("updated_by") @db.Uuid
 
-  tenant     Tenant         @relation(fields: [tenantId], references: [id])
-  theme      StrategicTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
-  parent     Objective?  @relation("GoalHierarchy", fields: [parentObjectiveId], references: [id])
-  children   Objective[] @relation("GoalHierarchy")
-  accountableTeam Team?  @relation("GoalAccountableTeam", fields: [accountableTeamId], references: [id])
-  kpiContributions KrKpiContribution[]
-  checkins   GoalCheckin[]
-  comments   GoalComment[]
-  epicLinks  GoalEpicLink[]
-  relatedWork GoalRelatedWork[]
-  valueStreamLinks GoalValueStreamLink[]
-  artLinks   GoalArtLink[]
+  tenant            Tenant                 @relation(fields: [tenantId], references: [id])
+  theme             StrategicTheme         @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  parent            Objective?             @relation("GoalHierarchy", fields: [parentObjectiveId], references: [id])
+  children          Objective[]            @relation("GoalHierarchy")
+  accountableTeam   Team?                  @relation("GoalAccountableTeam", fields: [accountableTeamId], references: [id])
+  checkins          GoalCheckin[]
+  comments          GoalComment[]
+  epicLinks         GoalEpicLink[]
+  relatedWork       GoalRelatedWork[]
+  valueStreamLinks  GoalValueStreamLink[]
+  artLinks          GoalArtLink[]
   customFieldValues GoalCustomFieldValue[]
 
   @@index([tenantId])
@@ -312,35 +315,6 @@ model GoalComment {
   @@map("goal_comments")
 }
 
-/// Brueckentabelle KeyResult ↔ Epic-Kpi mit Gewicht. Mehrere Epic-KPIs
-/// koennen denselben KR bedienen (verteilt ueber `weight`), und ein KPI
-/// kann mehrere KRs befuettern (z. B. NPS treibt CX-Theme + Quality-Theme).
-model KrKpiContribution {
-  id                  String   @id @default(uuid()) @db.Uuid
-  tenantId            String   @map("tenant_id") @db.Uuid
-  /// Ziel-Knoten (Goal-Knoten-Vereinheitlichung): die KPI bindet an einen
-  /// Objective-Knoten (früher Key Result).
-  objectiveId         String   @map("objective_id") @db.Uuid
-  kpiId               String   @map("kpi_id") @db.Uuid
-  weight              Decimal  @default(1) @db.Decimal(6, 4) // 0..1
-  /// Optional: ueberschreibt den KPI-eigenen valuePerUnit fuer Sicht
-  /// auf diesen Knoten. Sonst Default = `Kpi.valuePerUnit`.
-  valuePerUnitOverride Decimal? @map("value_per_unit_override") @db.Decimal(14, 2)
-  createdAt           DateTime @default(now()) @map("created_at")
-  createdBy           String   @map("created_by") @db.Uuid
-
-  tenant    Tenant     @relation(fields: [tenantId], references: [id])
-  objective Objective  @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
-  kpi       Kpi        @relation(fields: [kpiId], references: [id], onDelete: Cascade)
-
-  @@unique([objectiveId, kpiId])
-  /// Pyramid-Invariante: jede KPI feedet hoechstens einen Knoten (1 Epic → 1 KPI → ≤ 1 Ziel).
-  /// DB-Backstop fuer kpi-binding-invariant + setKpiBinding.
-  @@unique([kpiId])
-  @@index([tenantId])
-  @@map("kr_kpi_contributions")
-}
-
 /// Theme ↔ Epic n:m (Theme-direkte Verlinkung ohne KR-Schritt — z. B.
 /// fuer Epics die einen Theme-Beitrag liefern, aber keinen messbaren KR).
 model ThemeEpicLink {
@@ -361,26 +335,40 @@ model ThemeEpicLink {
   @@map("theme_epic_links")
 }
 
-/// Ziel ↔ Epic Direktverknüpfung ("Related work"). Ein Epic wird direkt an
-/// ein Ziel (Objective ODER Key Result) gehängt — genau eine der beiden FKs
-/// ist gesetzt. Referenziell PLUS wertbringend: der von den Epic-KPIs
-/// bestimmte Mehrwert rollt in den Ziel-Trio (goals-rollup epicLinkTrio).
-/// `@@unique([epicId])` = Count-once: jedes Epic feedet ≤ 1 Ziel-Knoten;
-/// zusammen mit der KPI-Pyramide zählt jeder Euro genau einmal pro Ebene
-/// (ADR: epic-goal-link-value-single-path).
+/// Ziel ↔ Epic Direktverknüpfung ("Related work"). Ein Epic kann an mehrere
+/// Ziel-Knoten gehängt werden — je Link OPTIONAL über eine gewählte Erfolgs-KPI
+/// (`kpiId`) + Einheiten-Umrechnungsfaktor (`conversionFactor`) wertbringend.
+/// Count-once liegt jetzt auf KPI-Ebene (`@@unique([kpiId])`, NULLs distinct)
+/// statt Epic-Ebene: jede einzelne KPI erreicht den Ziel-Baum über genau einen
+/// Mechanismus (GoalEpicLink ODER KrKpiContribution). Alt-Zeilen (kpiId=null)
+/// bleiben Ganz-Epic-€-Links (goals-rollup epicLinkTrio).
 model GoalEpicLink {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenantId    String   @map("tenant_id") @db.Uuid
-  objectiveId String   @map("objective_id") @db.Uuid
-  epicId      String   @map("epic_id") @db.Uuid
-  createdAt   DateTime @default(now()) @map("created_at")
-  createdBy   String   @map("created_by") @db.Uuid
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  objectiveId       String   @map("objective_id") @db.Uuid
+  epicId            String   @map("epic_id") @db.Uuid
+  /// Gewählte Erfolgs-KPI dieses Epics, die DIESES Ziel treibt. Null = Alt-
+  /// Verhalten (ganzes Epic, alle KPIs, €-Pfad über epicLinkTrio).
+  kpiId             String?  @map("kpi_id") @db.Uuid
+  /// Ziel-Metrik-Einheit je 1 Einheit der gewählten Epic-KPI (Unit→Unit-Konversion,
+  /// z. B. 10000 €/Wagon). Nur bei gesetztem kpiId sinnvoll.
+  conversionFactor  Decimal? @map("conversion_factor") @db.Decimal(18, 6)
+  /// Wirkungsart DIESES Links: "one_time" | "recurring". Entkoppelt von der
+  /// KPI-eigenen benefitKind — dieselbe KPI kann an Ziel A einmalig, an Ziel B
+  /// wiederkehrend wirken (Wagen-Beispiel).
+  impactKind        String   @default("recurring") @map("impact_kind")
+  /// Bei impactKind="recurring": "monthly" | "yearly" Run-Rate.
+  recurringInterval String   @default("yearly") @map("recurring_interval")
+  createdAt         DateTime @default(now()) @map("created_at")
+  createdBy         String   @map("created_by") @db.Uuid
 
   tenant    Tenant     @relation(fields: [tenantId], references: [id])
   objective Objective  @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
   epic      Initiative @relation(fields: [epicId], references: [id], onDelete: Cascade)
+  kpi       Kpi?       @relation(fields: [kpiId], references: [id], onDelete: Cascade)
 
-  @@unique([epicId])
+  @@unique([epicId, objectiveId])
+  @@unique([kpiId])
   @@index([tenantId, objectiveId])
   @@index([epicId])
   @@map("goal_epic_links")
@@ -531,9 +519,9 @@ model ValueStream {
   createdAt         DateTime  @default(now()) @map("created_at")
   deletedAt         DateTime? @map("deleted_at")
 
-  tenant Tenant       @relation(fields: [tenantId], references: [id])
-  arts   Art[]
-  epics  Initiative[] @relation("EpicValueStream")
+  tenant    Tenant                @relation(fields: [tenantId], references: [id])
+  arts      Art[]
+  epics     Initiative[]          @relation("EpicValueStream")
   goalLinks GoalValueStreamLink[]
 
   // Uniqueness among *active* (non-deleted) rows is enforced by a partial unique
@@ -588,10 +576,10 @@ model Team {
   productOwnerId String? @map("product_owner_id") @db.Uuid
   teamType       String? @map("team_type") // stream_aligned | complicated_subsystem | platform | enabling
 
-  tenant     Tenant        @relation(fields: [tenantId], references: [id])
-  art        Art           @relation(fields: [artId], references: [id])
-  objectives PiObjective[]
-  accountableGoals Objective[] @relation("GoalAccountableTeam")
+  tenant           Tenant        @relation(fields: [tenantId], references: [id])
+  art              Art           @relation(fields: [artId], references: [id])
+  objectives       PiObjective[]
+  accountableGoals Objective[]   @relation("GoalAccountableTeam")
 
   @@unique([tenantId, name])
   @@index([artId])
@@ -599,18 +587,18 @@ model Team {
 }
 
 model ProgramIncrement {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
   /// Legacy direct link to ART. Backfilled into `timelineId` during rollout;
   /// kept nullable for transitional safety and dropped in a cleanup PR.
-  artId     String?  @map("art_id") @db.Uuid
+  artId      String?  @map("art_id") @db.Uuid
   /// The PI's owning Timeline. Nullable only during the migration window;
   /// new PIs must always carry a timelineId.
-  timelineId String? @map("timeline_id") @db.Uuid
-  name      String
-  startDate DateTime @map("start_date") @db.Date
-  endDate   DateTime @map("end_date") @db.Date
-  status    String   @default("planned")
+  timelineId String?  @map("timeline_id") @db.Uuid
+  name       String
+  startDate  DateTime @map("start_date") @db.Date
+  endDate    DateTime @map("end_date") @db.Date
+  status     String   @default("planned")
 
   // PI Planning capacity (overrides). When null, the auto-prorated value from
   // the ART budget is used for the €-axis; Job-Size capacity is "unlimited"
@@ -621,10 +609,10 @@ model ProgramIncrement {
   // PI-Closure-Metadaten — vom RTE via Closure-Wizard gesetzt; werden vom
   // pre-check in `completePi` zwingend erwartet, bevor das PI auf
   // "completed" gehen darf.
-  systemDemoAt        DateTime? @map("system_demo_at") @db.Date
-  inspectAdaptAt      DateTime? @map("inspect_adapt_at") @db.Date
-  retrospectiveNotes  String?   @map("retrospective_notes") @db.Text
-  retrospectiveAt     DateTime? @map("retrospective_at")
+  systemDemoAt       DateTime? @map("system_demo_at") @db.Date
+  inspectAdaptAt     DateTime? @map("inspect_adapt_at") @db.Date
+  retrospectiveNotes String?   @map("retrospective_notes") @db.Text
+  retrospectiveAt    DateTime? @map("retrospective_at")
 
   art         Art?          @relation(fields: [artId], references: [id])
   timeline    Timeline?     @relation(fields: [timelineId], references: [id], onDelete: Cascade)
@@ -643,10 +631,10 @@ model ProgramIncrement {
 /// private PI list. Reduces duplication when multiple ARTs follow the same
 /// rhythm; one Timeline → many ARTs → one shared PI grid.
 model Timeline {
-  id           String   @id @default(uuid()) @db.Uuid
-  tenantId     String   @map("tenant_id") @db.Uuid
-  name         String
-  createdAt    DateTime @default(now()) @map("created_at")
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
 
   tenant            Tenant             @relation(fields: [tenantId], references: [id])
   arts              Art[]
@@ -765,7 +753,7 @@ model Initiative {
   // derived "Ist" window (the span of its Features' PIs); divergences surface
   // as warnings without blocking scheduling.
   plannedStartAt DateTime? @map("planned_start_at") @db.Date
-  plannedEndAt   DateTime? @map("planned_end_at")   @db.Date
+  plannedEndAt   DateTime? @map("planned_end_at") @db.Date
 
   // Acceptance criteria (FEATURE only)
   acceptanceCriteria String[] @map("acceptance_criteria")
@@ -774,8 +762,8 @@ model Initiative {
   externalId     String? @map("external_id")
   externalSystem String? @map("external_system") // "jira" | "ado"
 
-  stageGate String @default("L0") @map("stage_gate")
-  status    String @default("draft")
+  stageGate   String    @default("L0") @map("stage_gate")
+  status      String    @default("draft")
   /// Ist-Lieferdatum (FEATURE only): gestempelt beim Delivery-Übergang nach
   /// "completed", geleert bei Rücknahme. Basis für Plantreue/Terminabweichung
   /// im LPM-Portfolio-Review (Soll = Plan-PI-Ende).
@@ -874,39 +862,39 @@ model EpicApproval {
 }
 
 model Kpi {
-  id            String   @id @default(uuid()) @db.Uuid
-  tenantId      String   @map("tenant_id") @db.Uuid
-  initiativeId  String   @map("initiative_id") @db.Uuid
-  name          String
-  unit          String?
-  baseline      Decimal? @db.Decimal(14, 2)
-  target        Decimal? @db.Decimal(14, 2)
-  measurements  Json // [{ date: ISO, value: number }] — time series of actuals
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  initiativeId      String   @map("initiative_id") @db.Uuid
+  name              String
+  unit              String?
+  baseline          Decimal? @db.Decimal(14, 2)
+  target            Decimal? @db.Decimal(14, 2)
+  measurements      Json // [{ date: ISO, value: number }] — time series of actuals
   // Share of the Epic's recurring benefit this KPI realises (fraction 0..1);
   // null = unset → the dashboard splits the benefit equally across the KPIs.
-  benefitWeight Decimal? @map("benefit_weight") @db.Decimal(6, 4)
+  benefitWeight     Decimal? @map("benefit_weight") @db.Decimal(6, 4)
   /// Finance Controller valuation: € per natural unit of improvement
   /// baseline→target (e.g. € per day saved, € per +1 % NPS).
-  valuePerUnit  Decimal? @map("value_per_unit") @db.Decimal(14, 2)
+  valuePerUnit      Decimal? @map("value_per_unit") @db.Decimal(14, 2)
   /// Misst diese KPI den Einmal- oder den wiederkehrenden Benefit?
   /// "one_time" | "recurring" (src/domain/kpi-benefit-kind.ts). Default recurring
   /// = Alt-Verhalten für Bestands-KPIs.
-  benefitKind   String   @default("recurring") @map("benefit_kind")
+  benefitKind       String   @default("recurring") @map("benefit_kind")
   /// Bei benefitKind="recurring": beschreibt valuePerUnit einen monatlich oder
   /// jährlich wiederkehrenden Mehrwert? "monthly" | "yearly"
   /// (src/domain/kpi-recurring-interval.ts). Default yearly = Alt-Verhalten.
-  recurringInterval String @default("yearly") @map("recurring_interval")
+  recurringInterval String   @default("yearly") @map("recurring_interval")
   /// Freitext-Dokumentation der Herleitung (wie kommt man auf die KPI / den Wert).
-  calculationNote String? @map("calculation_note") @db.Text
+  calculationNote   String?  @map("calculation_note") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at")
   createdBy String   @map("created_by") @db.Uuid
   updatedAt DateTime @updatedAt @map("updated_at")
   updatedBy String   @map("updated_by") @db.Uuid
 
-  tenant        Tenant              @relation(fields: [tenantId], references: [id])
-  initiative    Initiative          @relation(fields: [initiativeId], references: [id])
-  krContributions KrKpiContribution[]
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+  initiative      Initiative          @relation(fields: [initiativeId], references: [id])
+  goalEpicLinks   GoalEpicLink[]
 
   @@index([tenantId, initiativeId])
   @@map("kpis")
@@ -941,10 +929,10 @@ model BudgetAllocation {
 /// ("YYYY-H1" → amount). One row per ART. Mirrors BudgetAllocation; the VS budget
 /// it draws against is derived from participatory budgeting (getValueStreamBudgets).
 model ArtBudget {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
-  artId     String   @unique @map("art_id") @db.Uuid
-  byPeriod  Json     @default("{}")
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  artId    String @unique @map("art_id") @db.Uuid
+  byPeriod Json   @default("{}")
 
   createdAt DateTime @default(now()) @map("created_at")
   createdBy String   @map("created_by") @db.Uuid
@@ -1158,8 +1146,8 @@ model Impediment {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  art    Art               @relation(fields: [artId], references: [id])
-  pi     ProgramIncrement? @relation(fields: [piId], references: [id])
+  art Art               @relation(fields: [artId], references: [id])
+  pi  ProgramIncrement? @relation(fields: [piId], references: [id])
 
   @@index([artId, status])
   @@index([piId])

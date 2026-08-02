@@ -27,6 +27,7 @@ export interface GoalFieldValues {
   precision: number;
   currencyCode: string | null;
   rollupWeight: number | null;
+  parentUnitPerChildUnit: number | null;
   includeInParentRollup: boolean;
   baseline: number | null;
   target: number | null;
@@ -53,6 +54,7 @@ export interface GoalFieldUpdateInput {
   precision?: number | undefined;
   currencyCode?: string | null | undefined;
   rollupWeight?: number | null | undefined;
+  parentUnitPerChildUnit?: number | null | undefined;
   includeInParentRollup?: boolean | undefined;
   baseline?: number | null | undefined;
   target?: number | null | undefined;
@@ -77,6 +79,7 @@ export const OBJECTIVE_FIELD_KEYS = [
   "precision",
   "currencyCode",
   "rollupWeight",
+  "parentUnitPerChildUnit",
   "includeInParentRollup",
   "baseline",
   "target",
@@ -95,6 +98,7 @@ export const KEY_RESULT_FIELD_KEYS = [
   "precision",
   "currencyCode",
   "rollupWeight",
+  "parentUnitPerChildUnit",
   "baseline",
   "target",
   "current",
@@ -122,6 +126,7 @@ type GoalRowSnapshot = {
   precision: number;
   currencyCode: string | null;
   rollupWeight: unknown;
+  parentUnitPerChildUnit: unknown;
   includeInParentRollup: boolean;
   baseline: unknown;
   target: unknown;
@@ -147,6 +152,7 @@ export function projectGoalFields(existing: GoalRowSnapshot): GoalFieldValues {
     precision: existing.precision,
     currencyCode: existing.currencyCode,
     rollupWeight: num(existing.rollupWeight),
+    parentUnitPerChildUnit: num(existing.parentUnitPerChildUnit),
     includeInParentRollup: existing.includeInParentRollup,
     baseline: num(existing.baseline),
     target: num(existing.target),
@@ -175,6 +181,7 @@ export function readGoalFieldUpdates(input: GoalFieldUpdateInput): {
     precision: input.precision != null ? clampPrecision(input.precision) : input.precision,
     currencyCode: input.currencyCode,
     rollupWeight: input.rollupWeight,
+    parentUnitPerChildUnit: input.parentUnitPerChildUnit,
     includeInParentRollup: input.includeInParentRollup,
     baseline: input.baseline,
     target: input.target,

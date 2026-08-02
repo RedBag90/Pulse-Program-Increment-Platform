@@ -44,6 +44,7 @@ export interface CreateObjectiveInput {
   precision?: number;
   currencyCode?: string | null;
   rollupWeight?: number | null;
+  parentUnitPerChildUnit?: number | null;
   baseline?: number | null;
   target?: number | null;
   current?: number | null;
@@ -125,6 +126,7 @@ export async function createObjective(
         ...(input.precision != null ? { precision: clampPrecision(input.precision) } : {}),
         currencyCode: input.currencyCode ?? null,
         rollupWeight: input.rollupWeight ?? null,
+        parentUnitPerChildUnit: input.parentUnitPerChildUnit ?? null,
         baseline: input.baseline ?? null,
         target: input.target ?? null,
         current: input.current ?? null,
@@ -162,6 +164,7 @@ export interface UpdateObjectiveInput {
   precision?: number;
   currencyCode?: string | null;
   rollupWeight?: number | null;
+  parentUnitPerChildUnit?: number | null;
   includeInParentRollup?: boolean;
   baseline?: number | null;
   target?: number | null;
@@ -345,6 +348,7 @@ export interface CreateKeyResultInput {
   precision?: number;
   currencyCode?: string | null;
   rollupWeight?: number | null;
+  parentUnitPerChildUnit?: number | null;
   baseline?: number | null;
   target?: number | null;
   current?: number | null;
@@ -386,6 +390,7 @@ export async function createKeyResult(
         ...(input.precision != null ? { precision: clampPrecision(input.precision) } : {}),
         currencyCode: input.currencyCode ?? null,
         rollupWeight: input.rollupWeight ?? null,
+        parentUnitPerChildUnit: input.parentUnitPerChildUnit ?? null,
         baseline: input.baseline ?? null,
         target: input.target ?? null,
         current: input.current ?? null,
@@ -416,6 +421,7 @@ export interface UpdateKeyResultInput {
   precision?: number;
   currencyCode?: string | null;
   rollupWeight?: number | null;
+  parentUnitPerChildUnit?: number | null;
   baseline?: number | null;
   target?: number | null;
   current?: number | null;

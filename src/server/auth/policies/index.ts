@@ -58,7 +58,6 @@ export type Action =
   | "budget_plan.revision.capture"
   | "timeline.manage"
   | "art_budget.manage"
-  | "kpi.value.manage"
   | "kpi.bind"
   | "role.capability.manage"
   | "goal.custom_field.manage"
@@ -122,14 +121,6 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Distribute a Value Stream's budget down to its ARTs. Coarse pre-filter; the
   // service-seam check authoritatively allows the VS's finance approver too.
   "art_budget.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER] }],
-  // Finance Controller valuation of a KPI's movement (€ per natural unit).
-  // Coarse pre-filter; the service-seam check authoritatively allows the Epic's
-  // value-stream finance approver too. Strategic KPIs aren't VS-scoped — the
-  // unscoped grants (portfolio_manager / admins) apply.
-  "kpi.value.manage": [
-    { roles: [PORTFOLIO_MANAGER] },
-    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
-  ],
   // Eine Epic-KPI an einen Key Result binden (oder loesen / re-binden).
   // Eigener Capability statt `target.manage`, weil Strategie-Pflege
   // (Themes/KRs anlegen) und KPI-Bindungs-Pflege (Bewertungs-Brücke

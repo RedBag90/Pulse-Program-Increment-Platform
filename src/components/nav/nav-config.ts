@@ -12,7 +12,6 @@ import {
   Route,
   BarChart2,
   Trophy,
-  Calculator,
   ShieldCheck,
   Plug,
   ClipboardCheck,
@@ -137,12 +136,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/structure", labelKey: "structure", icon: Network },
       { href: "/timelines", labelKey: "timelines", icon: CalendarDays },
       { href: "/controlling", labelKey: "controllingOverview", icon: Gauge, exact: true },
-      {
-        href: "/controlling/kpi-coverage",
-        labelKey: "kpiCoverage",
-        icon: Calculator,
-        capability: "target.manage",
-      },
       {
         href: "/controlling/budgeting",
         labelKey: "participatoryBudgeting",

@@ -5,7 +5,7 @@ import { getEpic } from "@/server/services/epic";
 import { loadBreakdownLayout } from "@/server/services/breakdown-layout";
 import { EpicGoalsBadge } from "@/features/portfolio/components/epic-goals-badge";
 import { EpicRealizedTile } from "@/features/portfolio/components/epic-realized-tile";
-import { loadEpicGoalContributions } from "@/server/views/epic-goal-contributions";
+import { loadEpicGoalLinks } from "@/server/views/epic-goal-contributions";
 import { listInitiativeHistory } from "@/server/services/initiative";
 import { listKpis } from "@/server/services/kpi";
 import { listProgramIncrementsForArts } from "@/server/services/pi";
@@ -413,7 +413,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     ? await loadCockpitFeatureDetail(db, principal, featureId)
     : null;
 
-  const goalContributions = await loadEpicGoalContributions(db, principal, epic.id);
+  const goalLinks = await loadEpicGoalLinks(db, principal, epic.id);
 
   return (
     <>
@@ -479,7 +479,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         {activeTab === "overview" && (
           <div className="space-y-4">
             <EpicRealizedTile kpis={kpis} />
-            <EpicGoalsBadge contributions={goalContributions} />
+            <EpicGoalsBadge goalLinks={goalLinks.links} />
             <EpicOverviewTab
               epic={epic}
               canEdit={canEdit}
@@ -554,6 +554,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                       kpiNames={kpiNames}
                       kpiBenefit={kpiBenefit}
                       hasValuedKpis={hasValuedKpis}
+                      topGoalBenefits={goalLinks.topGoalBenefits}
                       {...(bcLockReason && { lockReason: bcLockReason })}
                     />
                   }
@@ -568,6 +569,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                   kpiNames={kpiNames}
                   kpiBenefit={kpiBenefit}
                   hasValuedKpis={hasValuedKpis}
+                  topGoalBenefits={goalLinks.topGoalBenefits}
                   {...(bcLockReason && { lockReason: bcLockReason })}
                 />
               );
@@ -636,6 +638,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             initiativeId={epic.id}
             kpis={kpiRows}
             canEdit={canEdit}
+            goalLinks={goalLinks.links}
             signoff={kpisSignoff}
           />
         )}

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { loadKpiInventory, loadStrategyTree, type ZieleSubTab } from "@/server/views/ziele-view";
+import { loadStrategyTree, type ZieleSubTab } from "@/server/views/ziele-view";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { ZieleShell } from "@/features/ziele/components/ziele-shell";
 
@@ -40,7 +40,6 @@ export default async function ZielePage({ searchParams }: PageProps) {
     ...(vs ? { valueStreamId: vs } : {}),
     ...(art ? { artId: art } : {}),
   });
-  const inventory = await loadKpiInventory(db, principal.tenantId, tree);
   const userLabels = await listTenantUserLabels(db, principal.tenantId);
 
   // Edit-Affordances sind Capability-gesteuert (nicht mehr route-hart):
@@ -58,7 +57,6 @@ export default async function ZielePage({ searchParams }: PageProps) {
 
   const model = {
     ...tree,
-    ...inventory,
     tab,
     permissions: { canEditStrategy, canEditKpiValuation },
     // Freemium: welche Premium-Quell-Module der Tenant freigeschaltet hat —

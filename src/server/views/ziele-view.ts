@@ -15,13 +15,11 @@ import {
 } from "./goals-forest";
 
 /**
- * Ziele-/Strategie-/KPI-Coverage Loader. Zwei page-models leben hier:
+ * Ziele-/Strategie-Loader.
  *
  *  - `loadStrategyTree(db, tenantId, { period? })` — die Theme→KR-
  *    Hierarchie mit €-Trios pro Ebene. Konsumenten: `/ziele`-Shell
  *    (Übersicht + Pflege, eine Surface).
- *  - `loadKpiInventory(db, tenantId, tree)` — KPI-Bibliothek mit
- *    Pyramid-Bindungen + KR-Index fuer die KPI-Coverage-Tabelle.
  *
  * Ein Page-Model fasst Page-spezifische Daten zusammen — `permissions`
  * und der UI-`tab` leben deshalb in der Page, nicht im Loader.
@@ -29,18 +27,6 @@ import {
  */
 
 export type ZieleSubTab = "strategie" | "money" | "pflege";
-
-export interface ZieleKrContribution {
-  kpiId: string;
-  kpiName: string;
-  epicTitle: string;
-  weight: number;
-  valuePerUnitOverride: number | null;
-  /** Achievement-Anteil 0..1 zum Anzeigen im Picker (current vs. target). */
-  achievement: number | null;
-  /** € Beitrag dieses KPI zum KR (Realized). */
-  contributionRealized: number;
-}
 
 /** Der letzte Status-Check-in eines Ziels — backt Pill + „vor X Tagen". */
 export interface GoalLatestCheckin {
@@ -117,6 +103,8 @@ export interface GoalNode {
   currencyCode: string | null;
   /** Relatives Gewicht im Eltern-Rollup (Epic 3); null = Default 1. */
   rollupWeight: number | null;
+  /** Umrechnung eigene Metrik-Einheit → Eltern-Metrik-Einheit (Einheiten-Kaskade). */
+  parentUnitPerChildUnit: number | null;
   /** Asana „Remove from automatic progress": false = zählt nicht im Eltern-Rollup. */
   includeInParentRollup: boolean;
   /** Normalisierter Beitrag 0..1 (= Gewicht / Σ Geschwister-Gewichte). */
@@ -130,10 +118,6 @@ export interface GoalNode {
   progressMode: ProgressMode;
   /** Ob der Knoten einen 0..1-Fortschritt liefern kann (für Board/Filter). */
   isMeasurable: boolean;
-  /** Wie viele KPIs an diesen Knoten gebunden sind. */
-  kpiCount: number;
-  /** Gebundene KPIs inkl. Weight + €-Beitrag (KPI-Tab). */
-  contributions: ZieleKrContribution[];
   /** Direkt verknüpfte Epics ("Related work"); ihr € ist im `trio` enthalten. */
   relatedEpics: RelatedEpic[];
   /** Referenziell verknüpfte Features/PIs (kein €-Beitrag, nur Deeplink). */
@@ -152,31 +136,9 @@ export interface GoalNode {
   /** Completion 0..1 = rekursiver (gewichteter) Ø; `null` wenn nicht messbar. */
   progress: number | null;
   trio: RollupTrio;
-}
-
-export interface ZieleKpiLibraryEntry {
-  id: string;
-  name: string;
-  unit: string | null;
-  valuePerUnit: number | null;
-  epicId: string;
-  epicTitle: string;
-  /** Pyramid-Invariante: maximal eine Bindung pro KPI. */
-  binding: {
-    keyResultId: string;
-    keyResultTitle: string;
-    themeTitle: string;
-    weight: number;
-    valuePerUnitOverride: number | null;
-    contributionRealized: number;
-  } | null;
-}
-
-export interface ZieleKrLibraryEntry {
-  id: string;
-  title: string;
-  themeId: string;
-  themeTitle: string;
+  /** Einheiten-Kaskade: rekursiver Wert in der EIGENEN Metrik-Einheit dieses
+   *  Knotens (Σ Kinder × Faktor + verknüpfte Erfolgs-KPIs). */
+  unitValue: RollupTrio;
 }
 
 export interface ZielePermissions {
@@ -216,22 +178,15 @@ export interface StrategyTree {
   artId: string | null;
 }
 
-export interface KpiInventory {
-  kpiLibrary: ZieleKpiLibraryEntry[];
-  krLibrary: ZieleKrLibraryEntry[];
-}
-
 /**
  * Composite-Modell, das die Ziele/Strategy-Shell konsumiert. Das Modell
  * wird in der Page zusammengesetzt — der Loader liefert nur den
- * Strategy-Tree; tab/permissions/Inventory kommen von oben dazu.
+ * Strategy-Tree; tab/permissions kommen von oben dazu.
  */
 export interface ZieleModel extends StrategyTree, ZieleSubTabState {
   permissions: ZielePermissions;
   /** Freigeschaltete Premium-Quell-Module (Freemium-Entitlement des Tenants). */
   modules: ZieleModuleAccess;
-  kpiLibrary: ZieleKpiLibraryEntry[];
-  krLibrary: ZieleKrLibraryEntry[];
 }
 
 interface ZieleSubTabState {
@@ -258,21 +213,6 @@ export async function loadStrategyTree(
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     include: {
       accountableTeam: { select: { id: true, name: true } },
-      kpiContributions: {
-        include: {
-          kpi: {
-            select: {
-              id: true,
-              name: true,
-              baseline: true,
-              target: true,
-              measurements: true,
-              valuePerUnit: true,
-              initiative: { select: { id: true, title: true } },
-            },
-          },
-        },
-      },
     },
   });
 
@@ -303,6 +243,15 @@ export async function loadStrategyTree(
     const epicLinks = await db.goalEpicLink.findMany({
       where: { tenantId, epic: { deletedAt: null }, objectiveId: { in: nodeIds } },
       include: {
+        kpi: {
+          select: {
+            id: true,
+            baseline: true,
+            target: true,
+            measurements: true,
+            valuePerUnit: true,
+          },
+        },
         epic: {
           select: {
             id: true,
@@ -331,6 +280,16 @@ export async function loadStrategyTree(
         current: latestMeasurement(k.measurements),
         valuePerUnit: toFloat(k.valuePerUnit),
       }));
+      // Einheiten-Kaskade: gewählte Erfolgs-KPI (falls gesetzt) + Umrechnungsfaktor.
+      const successKpi: KpiInput | null = link.kpi
+        ? {
+            id: link.kpi.id,
+            baseline: toFloat(link.kpi.baseline),
+            target: toFloat(link.kpi.target),
+            current: latestMeasurement(link.kpi.measurements),
+            valuePerUnit: toFloat(link.kpi.valuePerUnit),
+          }
+        : null;
       // €-Trio wird im Goal-Forest-Read-Model gerechnet (resolveNode); der Loader
       // reicht nur die Routing-Infos + normalisierten KPIs durch.
       (relatedByNode.get(link.objectiveId) ?? setAndGet(relatedByNode, link.objectiveId)).push({
@@ -339,6 +298,10 @@ export async function loadStrategyTree(
         stageGate: link.epic.stageGate,
         href: `/portfolio/epics/${link.epic.id}`,
         kpis,
+        successKpi,
+        conversionFactor: toFloat(link.conversionFactor),
+        impactKind: link.impactKind,
+        recurringInterval: link.recurringInterval,
       });
       const kpiUnits =
         epicKpisByNode.get(link.objectiveId) ?? setAndGet(epicKpisByNode, link.objectiveId);
@@ -481,26 +444,13 @@ export async function loadStrategyTree(
     precision: o.precision,
     currencyCode: o.currencyCode,
     rollupWeight: toFloat(o.rollupWeight),
+    parentUnitPerChildUnit: toFloat(o.parentUnitPerChildUnit),
     includeInParentRollup: o.includeInParentRollup,
     baseline: toFloat(o.baseline),
     target: toFloat(o.target),
     current: toFloat(o.current),
     formula: o.formula,
     progressMode: o.progressMode,
-    contributions: o.kpiContributions.map((c) => ({
-      kpiId: c.kpiId,
-      kpiName: c.kpi.name,
-      epicTitle: c.kpi.initiative.title,
-      weight: Number(c.weight),
-      valuePerUnitOverride: toFloat(c.valuePerUnitOverride),
-      kpi: {
-        id: c.kpi.id,
-        baseline: toFloat(c.kpi.baseline),
-        target: toFloat(c.kpi.target),
-        current: latestMeasurement(c.kpi.measurements),
-        valuePerUnit: toFloat(c.kpi.valuePerUnit),
-      },
-    })),
   }));
 
   const lookups: ForestLookups = {
@@ -536,101 +486,6 @@ export async function loadStrategyTree(
     valueStreamId: filterValueStreamId,
     artId: filterArtId,
   };
-}
-
-/**
- * KPI-Coverage Page-Model. Nimmt den schon geladenen Strategy-Tree
- * mit, damit Theme/KR-Titles + KPI-Beitraege ohne zweiten Roundtrip
- * aufgeloest werden.
- */
-export async function loadKpiInventory(
-  db: PrismaClient,
-  tenantId: string,
-  tree: StrategyTree,
-): Promise<KpiInventory> {
-  const kpiRows = await db.kpi.findMany({
-    where: { tenantId },
-    select: {
-      id: true,
-      name: true,
-      unit: true,
-      valuePerUnit: true,
-      initiative: { select: { id: true, title: true } },
-    },
-    orderBy: [{ name: "asc" }],
-  });
-
-  // Flach über alle Knoten jeder Tiefe, mit ihrem Top-Level-Vorfahren.
-  const allNodes: Array<{ node: GoalNode; root: GoalNode }> = [];
-  const walk = (n: GoalNode, root: GoalNode): void => {
-    allNodes.push({ node: n, root });
-    for (const c of n.children) walk(c, root);
-  };
-  for (const t of tree.themes) walk(t, t);
-
-  type KrLookup = { title: string; themeId: string; themeTitle: string };
-  const krLookup = new Map<string, KrLookup>();
-  for (const { node, root } of allNodes) {
-    krLookup.set(node.id, { title: node.title, themeId: root.id, themeTitle: root.title });
-  }
-
-  type BindingDetail = {
-    keyResultId: string;
-    weight: number;
-    valuePerUnitOverride: number | null;
-    contributionRealized: number;
-  };
-  const bindingByKpiId = new Map<string, BindingDetail>();
-  for (const { node } of allNodes) {
-    for (const c of node.contributions) {
-      if (!bindingByKpiId.has(c.kpiId)) {
-        bindingByKpiId.set(c.kpiId, {
-          keyResultId: node.id,
-          weight: c.weight,
-          valuePerUnitOverride: c.valuePerUnitOverride,
-          contributionRealized: c.contributionRealized,
-        });
-      }
-    }
-  }
-
-  const kpiLibrary: ZieleKpiLibraryEntry[] = kpiRows.map((k) => {
-    const b = bindingByKpiId.get(k.id);
-    const krInfo = b ? krLookup.get(b.keyResultId) : null;
-    return {
-      id: k.id,
-      name: k.name,
-      unit: k.unit,
-      valuePerUnit: toFloat(k.valuePerUnit),
-      epicId: k.initiative.id,
-      epicTitle: k.initiative.title,
-      binding:
-        b && krInfo
-          ? {
-              keyResultId: b.keyResultId,
-              keyResultTitle: krInfo.title,
-              themeTitle: krInfo.themeTitle,
-              weight: b.weight,
-              valuePerUnitOverride: b.valuePerUnitOverride,
-              contributionRealized: b.contributionRealized,
-            }
-          : null,
-    };
-  });
-
-  // KR-Bibliothek für die KPI-Coverage: alle messbaren metrik-tragenden Knoten
-  // (eigene Metrik, kein reiner Rollup-Container), mit Top-Level-Theme als Gruppe.
-  const krLibrary: ZieleKrLibraryEntry[] = [];
-  for (const { node, root } of allNodes) {
-    if (node.isMeasurable && node.progressMode !== "rollup") {
-      krLibrary.push({ id: node.id, title: node.title, themeId: root.id, themeTitle: root.title });
-    }
-  }
-  krLibrary.sort(
-    (a, b) => a.themeTitle.localeCompare(b.themeTitle) || a.title.localeCompare(b.title),
-  );
-
-  return { kpiLibrary, krLibrary };
 }
 
 // ── Goal detail (Drawer) ────────────────────────────────────────────────

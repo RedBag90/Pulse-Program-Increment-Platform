@@ -19,6 +19,7 @@
  */
 
 import { fulfillmentFraction } from "@/domain/kpi-direction";
+import { kpiDelta } from "@/domain/kpi-valuation";
 import type { ProgressMode } from "@/domain/goal-progress-mode";
 
 export interface KpiInput {
@@ -28,13 +29,6 @@ export interface KpiInput {
   current: number | null;
   /** Default-€-Pro-Einheit am KPI (vom Finance Controller). */
   valuePerUnit: number | null;
-}
-
-export interface KrContributionInput {
-  kpiId: string;
-  weight: number;
-  /** Optional Override gegenueber `Kpi.valuePerUnit`. */
-  valuePerUnitOverride: number | null;
 }
 
 export interface RollupTrio {
@@ -70,50 +64,6 @@ export function kpiTrio(kpi: KpiInput): RollupTrio {
   return { planned, realized, runRate: realized };
 }
 
-/**
- * Geld-Rechnung fuer einen Key Result. Aggregiert die KPI-Beitraege mit
- * den Contribution-Weights; jede KPI kann ihren eigenen `valuePerUnit`
- * via Override haben.
- */
-export function keyResultTrio(
-  contributions: KrContributionInput[],
-  kpisById: ReadonlyMap<string, KpiInput>,
-): RollupTrio {
-  let planned = 0;
-  let realized = 0;
-  let runRate = 0;
-  for (const c of contributions) {
-    const kpi = kpisById.get(c.kpiId);
-    if (!kpi) continue;
-    const vpu = c.valuePerUnitOverride ?? kpi.valuePerUnit ?? 0;
-    const effective: KpiInput = { ...kpi, valuePerUnit: vpu };
-    const trio = kpiTrio(effective);
-    planned += c.weight * trio.planned;
-    realized += c.weight * trio.realized;
-    runRate += c.weight * trio.runRate;
-  }
-  return { planned, realized, runRate };
-}
-
-/**
- * Pro-KPI-Beitrag innerhalb eines Key Results: Achievement-Anteil sowie
- * realisierter €-Anteil dieses einen KPI an seinem KR. Pendant zu
- * `keyResultTrio`, das die Summe rechnet; hier liefern wir die Einzel-
- * Komponente fuer Anzeigen (KPI-Tab, KPI-Coverage-Zeile, etc.).
- */
-export function kpiContributionDetail(
-  kpi: KpiInput | undefined,
-  contribution: KrContributionInput,
-): { achievement: number | null; contributionRealized: number } {
-  if (!kpi) return { achievement: null, contributionRealized: 0 };
-  const raw = fulfillmentFraction(kpi.baseline, kpi.target, kpi.current);
-  const ach = raw === null ? null : clamp01(raw);
-  const span = (kpi.target ?? 0) - (kpi.baseline ?? 0);
-  const vpu = contribution.valuePerUnitOverride ?? kpi.valuePerUnit ?? 0;
-  const realized = ach != null && vpu ? ach * vpu * span * contribution.weight : 0;
-  return { achievement: ach, contributionRealized: realized };
-}
-
 /** Ein direkt an ein Ziel verknüpftes Epic samt seiner (nicht-gelöschten) KPIs. */
 export interface EpicLinkInput {
   epicId: string;
@@ -123,11 +73,9 @@ export interface EpicLinkInput {
 /**
  * Geld-Rechnung für die „Related work"-Epics eines Ziel-Knotens: die Summe
  * der KPI-Trios aller direkt verknüpften Epics. Ganzes Epic = alle seine KPIs
- * mit ihrem eigenen `valuePerUnit` (kein Contribution-Weight, keine Overrides —
- * Feinjustierung bleibt der KPI→KR-Bindung vorbehalten). Pendant zu
- * `keyResultTrio`; wird im Loader neben diesem in den Knoten-Trio summiert
- * (Konzept-Header „Σ Ziel-direkt-Epic"). Count-once garantiert, dass keine
- * KPI zusätzlich über eine `KrKpiContribution` gezählt wird.
+ * mit ihrem eigenen `valuePerUnit`. Wird im Loader in den Knoten-Trio summiert
+ * (Konzept-Header „Σ Ziel-direkt-Epic"). Der €-Wert eines Ziels stammt damit
+ * ausschließlich aus verknüpften Epics + Kinder-Rollup.
  */
 export function epicLinkTrio(links: ReadonlyArray<EpicLinkInput>): RollupTrio {
   const trios: RollupTrio[] = [];
@@ -228,6 +176,18 @@ export interface RollupNode {
   /** €-Beitrag der direkt an diesen Knoten verknüpften Epics. */
   trioEpicLinks: RollupTrio;
   children: RollupNode[];
+  // ── Einheiten-Kaskade (dritte Achse, orthogonal zu Progress/€) ──
+  // Optional: bis der Loader (goals-forest) sie füllt, verhält sich die
+  // Einheiten-Achse als Null (kein Effekt auf Progress/€-Rollup).
+  /** Eigener Metrik-Wert in EIGENER Einheit (Blatt). Default Null-Trio. */
+  unitValueLeaf?: RollupTrio;
+  /** Beitrag der verknüpften Epic-Erfolgs-KPIs, bereits in EIGENER Einheit. */
+  unitEpicLinks?: RollupTrio;
+  /**
+   * Umrechnung EIGENE Einheit → ELTERN-Einheit (`Objective.parentUnitPerChildUnit`),
+   * angewandt wenn dieser Knoten in seinen Elternteil rollt. Null = kein Beitrag.
+   */
+  childUnitFactor?: number | null;
 }
 
 /**
@@ -264,6 +224,152 @@ export function nodeTrio(node: RollupNode): RollupTrio {
       ? sumTrios(node.children.filter((c) => c.includeInRollup).map(nodeTrio))
       : node.trioLeaf;
   return sumTrios([base, node.trioEpicLinks]);
+}
+
+// ── Einheiten-Kaskade (Unit→Unit) ───────────────────────────────────────────
+
+const ZERO_TRIO: RollupTrio = { planned: 0, realized: 0, runRate: 0 };
+
+/** Skaliert einen Trio linear (Einheiten-Umrechnung entlang einer Baum-Kante). */
+export function scaleTrio(trio: RollupTrio, factor: number): RollupTrio {
+  return {
+    planned: trio.planned * factor,
+    realized: trio.realized * factor,
+    runRate: trio.runRate * factor,
+  };
+}
+
+/** Bei recurring+monthly auf Jahres-Run-Rate hochrechnen (×12), sonst ×1 —
+ *  konsistent mit `epicBenefitFromKpis` (epic-economics.ts). */
+function intervalMultiplier(impactKind: string, recurringInterval: string): number {
+  return impactKind === "recurring" && recurringInterval === "monthly" ? 12 : 1;
+}
+
+/**
+ * Wert einer gewählten Epic-Erfolgs-KPI-Bewegung in der ZIEL-Einheit:
+ *   planned  = |target − baseline| × conversionFactor × interval
+ *   realized = kpiDelta(baseline,target,current) × conversionFactor × interval
+ *   runRate  = realized (einmalig-Wertung, wie kpiTrio)
+ * `conversionFactor` = Ziel-Einheit je 1 KPI-Einheit (z. B. 10000 €/Wagon).
+ */
+export function epicSuccessKpiContribution(
+  kpi: KpiInput,
+  conversionFactor: number | null,
+  impactKind: string,
+  recurringInterval: string,
+): RollupTrio {
+  if (conversionFactor == null || conversionFactor === 0) return ZERO_TRIO;
+  if (kpi.baseline === null || kpi.target === null) return ZERO_TRIO;
+  const mult = conversionFactor * intervalMultiplier(impactKind, recurringInterval);
+  const span = Math.abs(kpi.target - kpi.baseline);
+  const planned = span * mult;
+  const realized = kpiDelta(kpi) * mult;
+  return { planned, realized, runRate: realized };
+}
+
+/**
+ * Rekursiver Wert eines Knotens in SEINER EIGENEN Einheit (Post-Order),
+ * `mode`-bewusst (spiegelt `nodeProgress`, damit ein manuell gepflegtes Ziel
+ * vom Epic-Rollup entkoppelt bleibt):
+ *  - `rollup` mit Kindern → Σ (nodeUnitValue(Kind) × Kind.childUnitFactor) für
+ *    Kinder mit `includeInRollup`, PLUS eigene Epic-Link-Beiträge.
+ *  - `manual` / `auto_kpi` (oder rollup ohne Kinder) → eigenes Blatt gewinnt:
+ *    `unitValueLeaf` + eigene Epic-Link-Beiträge.
+ */
+export function nodeUnitValue(node: RollupNode): RollupTrio {
+  const epicLinks = node.unitEpicLinks ?? ZERO_TRIO;
+  if (node.mode === "rollup" && node.children.length > 0) {
+    const childSum = sumTrios(
+      node.children
+        .filter((c) => c.includeInRollup)
+        .map((c) => scaleTrio(nodeUnitValue(c), c.childUnitFactor ?? 0)),
+    );
+    return sumTrios([childSum, epicLinks]);
+  }
+  return sumTrios([node.unitValueLeaf ?? ZERO_TRIO, epicLinks]);
+}
+
+/** Metadaten eines Ziel-Knotens für den Aufstieg zum Top-Ziel. */
+export interface GoalNodeMeta {
+  id: string;
+  parentId: string | null;
+  name: string;
+  /** Metrik-Einheit dieses Knotens (Freitext-Label). */
+  unit: string | null;
+  /** Umrechnung eigene Einheit → Eltern-Einheit. Null = kein Beitrag nach oben. */
+  parentUnitPerChildUnit: number | null;
+}
+
+/** Ein Erfolgs-KPI-Link eines Epics an einen Ziel-Knoten. */
+export interface EpicGoalLinkInput {
+  objectiveId: string;
+  kpi: KpiInput;
+  conversionFactor: number | null;
+  impactKind: string;
+  recurringInterval: string;
+}
+
+/** Eine Business-Case-Nutzen-Zeile: Beitrag des Epics zu einem Top-Ziel. */
+export interface TopGoalBenefit {
+  topGoalId: string;
+  topGoalName: string;
+  /** Einheit des Top-Ziels (Freitext-Label). */
+  unit: string | null;
+  planned: number;
+  realized: number;
+  impactKind: string;
+}
+
+/**
+ * Business-Case-Nutzen anhand der TOP-Ziel-KPI(s): rechnet jeden Erfolgs-KPI-Link
+ * die Eltern-Kette hoch (× Π `parentUnitPerChildUnit`) bis zum Top-Ziel und weist
+ * den Wert in dessen Einheit aus. Ist ein Faktor in der Kette null, bricht der
+ * Beitrag ab (0 — kein einheiten-basierter Beitrag). Gruppiert nach
+ * (Top-Ziel × impactKind) ⇒ mehrere Zeilen bei mehreren Top-Zielen.
+ */
+export function epicTopGoalBenefits(
+  links: readonly EpicGoalLinkInput[],
+  nodesById: ReadonlyMap<string, GoalNodeMeta>,
+): TopGoalBenefit[] {
+  const grouped = new Map<string, TopGoalBenefit>();
+  for (const link of links) {
+    if (link.conversionFactor == null) continue;
+    let trio = epicSuccessKpiContribution(
+      link.kpi,
+      link.conversionFactor,
+      link.impactKind,
+      link.recurringInterval,
+    );
+    // Aufstieg zum Top-Ziel, jede Kante skaliert die Einheit.
+    let node = nodesById.get(link.objectiveId);
+    if (!node) continue;
+    const seen = new Set<string>();
+    while (node.parentId !== null) {
+      if (seen.has(node.id)) break; // Zyklus-Schutz
+      seen.add(node.id);
+      trio = scaleTrio(trio, node.parentUnitPerChildUnit ?? 0);
+      const parent = nodesById.get(node.parentId);
+      if (!parent) break;
+      node = parent;
+    }
+    const top = node;
+    const key = `${top.id}::${link.impactKind}`;
+    const prev = grouped.get(key);
+    if (prev) {
+      prev.planned += trio.planned;
+      prev.realized += trio.realized;
+    } else {
+      grouped.set(key, {
+        topGoalId: top.id,
+        topGoalName: top.name,
+        unit: top.unit,
+        planned: trio.planned,
+        realized: trio.realized,
+        impactKind: link.impactKind,
+      });
+    }
+  }
+  return [...grouped.values()];
 }
 
 function clamp01(x: number): number {

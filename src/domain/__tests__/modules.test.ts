@@ -54,7 +54,6 @@ describe("moduleForAction", () => {
     expect(moduleForAction("goal.custom_field.manage")).toBe("ziele");
     expect(moduleForAction("kpi.bind")).toBe("ziele");
     expect(moduleForAction("epic.hypothesis.decide")).toBe("portfolio");
-    expect(moduleForAction("kpi.value.manage")).toBe("portfolio");
     expect(moduleForAction("pi.demo.manage")).toBe("program");
     expect(moduleForAction("feature.wsjf.set")).toBe("program");
     expect(moduleForAction("budget_plan.revision.capture")).toBe("controlling");

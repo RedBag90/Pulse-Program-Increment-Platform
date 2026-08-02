@@ -1,94 +1,71 @@
 import { describe, it, expect } from "vitest";
-import { checkEpicLink } from "@/domain/epic-link-invariant";
+import { checkEpicLink, type CheckEpicLinkInput } from "@/domain/epic-link-invariant";
 import { isOk, isErr } from "@/domain/errors";
 
-const krTarget = { objectiveId: null, keyResultId: "kr1" };
-const objTarget = { objectiveId: "obj1", keyResultId: null };
+const base: CheckEpicLinkInput = {
+  target: { objectiveId: "obj1", kpiId: null, conversionFactor: null },
+  existing: null,
+  chosenKpiLinkedElsewhere: false,
+  chosenKpiBelongsToEpic: false,
+};
 
 describe("checkEpicLink", () => {
-  it("links an unbound epic to a key result (create)", () => {
-    const r = checkEpicLink({
-      epicId: "e1",
-      target: krTarget,
-      existing: null,
-      boundKpiCount: 0,
-    });
+  it("legacy € link (no kpi) to a fresh goal ⇒ create", () => {
+    const r = checkEpicLink(base);
     expect(isOk(r) && r.value.kind).toBe("create");
   });
 
-  it("links an unbound epic to an objective (create)", () => {
-    const r = checkEpicLink({
-      epicId: "e1",
-      target: objTarget,
+  it("updates when the (epic, goal) pair already exists", () => {
+    const r = checkEpicLink({ ...base, existing: { kpiId: null } });
+    expect(isOk(r) && r.value.kind).toBe("update");
+  });
+
+  it("links an epic to two goals via different KPIs (multi-goal allowed)", () => {
+    const link = (objectiveId: string, kpiId: string): CheckEpicLinkInput => ({
+      target: { objectiveId, kpiId, conversionFactor: 10000 },
       existing: null,
-      boundKpiCount: 0,
+      chosenKpiLinkedElsewhere: false,
+      chosenKpiBelongsToEpic: true,
     });
-    expect(isOk(r) && r.value.kind).toBe("create");
+    expect(isOk(checkEpicLink(link("g1", "kA")))).toBe(true);
+    expect(isOk(checkEpicLink(link("g2", "kB")))).toBe(true);
   });
 
-  it("is a noop when already linked to the same target", () => {
+  it("rejects a chosen KPI that already drives another goal", () => {
     const r = checkEpicLink({
-      epicId: "e1",
-      target: krTarget,
-      existing: { epicId: "e1", objectiveId: null, keyResultId: "kr1" },
-      boundKpiCount: 0,
+      ...base,
+      target: { objectiveId: "obj1", kpiId: "k1", conversionFactor: 5 },
+      chosenKpiBelongsToEpic: true,
+      chosenKpiLinkedElsewhere: true,
     });
-    expect(isOk(r) && r.value.kind).toBe("noop");
+    expect(isErr(r) && r.error.kind).toBe("conflict");
   });
 
-  it("rebinds when moving to a different target and reports the old one", () => {
+  it("rejects a link with a kpi but no conversion factor (validation)", () => {
     const r = checkEpicLink({
-      epicId: "e1",
-      target: krTarget,
-      existing: { epicId: "e1", objectiveId: "obj1", keyResultId: null },
-      boundKpiCount: 0,
+      ...base,
+      target: { objectiveId: "obj1", kpiId: "k1", conversionFactor: null },
+      chosenKpiBelongsToEpic: true,
     });
-    expect(isOk(r)).toBe(true);
-    if (isOk(r) && r.value.kind === "rebind") {
-      expect(r.value.from).toEqual(objTarget);
-    } else {
-      throw new Error("expected rebind");
-    }
+    expect(isErr(r) && r.error.kind).toBe("validation");
   });
 
-  it("deletes when unlinking an existing link", () => {
+  it("rejects a link whose chosen KPI does not belong to the epic (validation)", () => {
     const r = checkEpicLink({
-      epicId: "e1",
-      target: null,
-      existing: { epicId: "e1", objectiveId: null, keyResultId: "kr1" },
-      boundKpiCount: 0,
+      ...base,
+      target: { objectiveId: "obj1", kpiId: "k1", conversionFactor: 5 },
+      chosenKpiBelongsToEpic: false,
     });
+    expect(isErr(r) && r.error.kind).toBe("validation");
+  });
+
+  it("deletes when unlinking an existing (epic, goal) link", () => {
+    const r = checkEpicLink({ ...base, target: null, existing: { kpiId: "k1" } });
     expect(isOk(r) && r.value.kind).toBe("delete");
   });
 
-  it("is a noop when unlinking an epic that is not linked", () => {
-    const r = checkEpicLink({
-      epicId: "e1",
-      target: null,
-      existing: null,
-      boundKpiCount: 0,
-    });
+  it("is a noop when unlinking a pair that is not linked", () => {
+    const r = checkEpicLink({ ...base, target: null, existing: null });
     expect(isOk(r) && r.value.kind).toBe("noop");
-  });
-
-  it("rejects linking when the epic's KPIs are already individually KR-bound (count-once)", () => {
-    const r = checkEpicLink({
-      epicId: "e1",
-      target: krTarget,
-      existing: null,
-      boundKpiCount: 2,
-    });
-    expect(isErr(r)).toBe(true);
-    if (isErr(r)) expect(r.error.kind).toBe("conflict");
-  });
-
-  it("still allows unlinking even if KPIs appear bound (count-once only guards linking)", () => {
-    const r = checkEpicLink({
-      epicId: "e1",
-      target: null,
-      existing: { epicId: "e1", objectiveId: null, keyResultId: "kr1" },
-      boundKpiCount: 3,
-    });
-    expect(isOk(r) && r.value.kind).toBe("delete");
   });
 });

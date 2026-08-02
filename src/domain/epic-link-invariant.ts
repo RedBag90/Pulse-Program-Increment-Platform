@@ -2,91 +2,81 @@ import type { DomainError, Result } from "./errors";
 import { ok, err } from "./errors";
 
 /**
- * **Count-once-Invariante** für Ziel ↔ Epic-Verknüpfungen ("Related work").
+ * **Count-once-Invariante** für Ziel ↔ Epic-Verknüpfungen (Einheiten-Kaskade).
  *
- * Domain-Regel: der von einer KPI bestimmte Mehrwert erreicht Ziele über
- * *genau einen* Pfad — entweder die direkte KPI→KR-Bindung
- * (`KrKpiContribution`) **oder** das Verknüpfen des Epics an ein Ziel
- * (`GoalEpicLink`), nie über beide. Zusammen mit `@@unique([epicId])`
- * (jedes Epic feedet ≤ 1 Ziel-Knoten) zählt jeder Euro auf jeder Rollup-
- * Ebene genau einmal. ADR: epic-goal-link-value-single-path.
+ * Domain-Regel: jede einzelne KPI treibt höchstens EIN Ziel — ein Epic darf
+ * mehrere Ziele treiben, aber je über eine andere KPI. Das Count-once liegt auf
+ * **KPI-Ebene** (`@@unique([kpiId])` auf `goal_epic_links`, NULLs distinct).
  *
- * Drei Durchsetzungs-Seams (parallel zur KPI-Pyramide):
+ * Zwei Durchsetzungs-Seams:
  *  - dieses Modul (Validierung vor jedem Schreiben),
- *  - `linkEpicToGoal`-Service (advisory-lock + atomarer re-link) plus die
- *    symmetrische Prüfung in `setKpiBinding` (KPI eines bereits verlinkten
- *    Epics darf nicht einzeln gebunden werden),
- *  - `UNIQUE(epicId)` auf `goal_epic_links` (DB-Backstop).
+ *  - `linkEpicToGoal`-Service (advisory-lock + atomarer Upsert),
+ *  - `UNIQUE(kpiId)` auf `goal_epic_links` (DB-Backstop).
  */
-export interface ExistingGoalLink {
-  epicId: string;
-  /** Genau eine der beiden ist gesetzt (der aktuell verknüpfte Ziel-Knoten). */
-  objectiveId: string | null;
-  keyResultId: string | null;
-}
-
-/** Ziel-Knoten, an den verknüpft werden soll (genau eine FK gesetzt). */
-export interface GoalLinkTarget {
-  objectiveId: string | null;
-  keyResultId: string | null;
+export interface EpicLinkTargetInput {
+  /** Ziel-Knoten (Objective), an den verknüpft werden soll. */
+  objectiveId: string;
+  /** Gewählte Erfolgs-KPI, die dieses Ziel treibt; `null` = Alt-€-Ganz-Epic-Link. */
+  kpiId: string | null;
+  /** Ziel-Einheit je 1 KPI-Einheit (z. B. 10000 €/Wagon). Pflicht bei gesetzter KPI. */
+  conversionFactor: number | null;
 }
 
 export interface CheckEpicLinkInput {
-  epicId: string;
-  /** Ziel-Knoten für die Verknüpfung; `null` = Epic vom Ziel lösen. */
-  target: GoalLinkTarget | null;
-  /** Aktuelle Verknüpfung dieses Epics (`null` wenn keine). */
-  existing: ExistingGoalLink | null;
-  /**
-   * Anzahl KPIs dieses Epics, die bereits einzeln via `KrKpiContribution`
-   * an einen KR gebunden sind. `> 0` ⇒ Count-once-Konflikt beim Verknüpfen.
-   */
-  boundKpiCount: number;
+  /** Ziel für die Verknüpfung; `null` = Epic von DIESEM Ziel lösen. */
+  target: EpicLinkTargetInput | null;
+  /** Bestehender Link für DIESES (epicId, objectiveId)-Paar; `null` = keiner. */
+  existing: { kpiId: string | null } | null;
+  /** Treibt die gewählte KPI bereits ein ANDERES Ziel (anderer GoalEpicLink)? */
+  chosenKpiLinkedElsewhere: boolean;
+  /** Gehört die gewählte KPI zu diesem Epic? */
+  chosenKpiBelongsToEpic: boolean;
 }
 
 export type EpicLinkPlan =
   | { kind: "noop" }
   | { kind: "create" }
-  | { kind: "delete" }
-  | { kind: "rebind"; from: GoalLinkTarget };
-
-function sameTarget(a: GoalLinkTarget, b: GoalLinkTarget): boolean {
-  return a.objectiveId === b.objectiveId && a.keyResultId === b.keyResultId;
-}
+  | { kind: "update" }
+  | { kind: "delete" };
 
 /**
- * Plant die Verknüpfungs-Mutation unter Count-once-Garantie.
+ * Plant die Verknüpfungs-Mutation für ein (epicId, objectiveId)-Paar unter
+ * Count-once-Garantie auf KPI-Ebene.
  * - Lösen (`target = null`): `delete` falls verknüpft, sonst `noop`.
- * - Verknüpfen: `conflict`, falls KPIs des Epics bereits einzeln gebunden
- *   sind (`boundKpiCount > 0`); sonst `create`, `noop` (schon am selben Ziel)
- *   oder `rebind` (Epic zu einem anderen Ziel-Knoten verschieben).
+ * - Verknüpfen mit gewählter KPI: validiert Erfolgs-KPI-Markierung +
+ *   Umrechnungsfaktor und lehnt `conflict` ab, wenn die KPI bereits einzeln
+ *   gebunden ist oder schon ein anderes Ziel treibt. Danach `update` (Paar
+ *   existiert) oder `create`.
  */
 export function checkEpicLink(input: CheckEpicLinkInput): Result<EpicLinkPlan, DomainError> {
-  const { target, existing, boundKpiCount } = input;
+  const { target, existing } = input;
 
   // Unlink
   if (target === null) {
-    if (!existing) return ok({ kind: "noop" });
-    return ok({ kind: "delete" });
+    return ok(existing ? { kind: "delete" } : { kind: "noop" });
   }
 
-  // Link/rebind — Count-once: keine KPI darf schon einzeln gebunden sein.
-  if (boundKpiCount > 0) {
-    return err({
-      kind: "conflict",
-      reason:
-        "KPIs dieses Epics sind bereits einzeln an ein Key Result gebunden — " +
-        "erst im Controlling lösen, dann das Epic verknüpfen.",
-    });
+  // Link/Update mit gewählter KPI → Validierung + Count-once.
+  if (target.kpiId !== null) {
+    if (!input.chosenKpiBelongsToEpic) {
+      return err({
+        kind: "validation" as const,
+        issues: ["Die gewählte KPI muss zu diesem Epic gehören."],
+      });
+    }
+    if (target.conversionFactor === null) {
+      return err({
+        kind: "validation" as const,
+        issues: ["Umrechnungsfaktor (Ziel-Einheit je 1 KPI-Einheit) ist erforderlich."],
+      });
+    }
+    if (input.chosenKpiLinkedElsewhere) {
+      return err({
+        kind: "conflict" as const,
+        reason: "Diese KPI treibt bereits ein anderes Ziel — jede KPI kann nur ein Ziel treiben.",
+      });
+    }
   }
 
-  if (!existing) return ok({ kind: "create" });
-
-  const existingTarget: GoalLinkTarget = {
-    objectiveId: existing.objectiveId,
-    keyResultId: existing.keyResultId,
-  };
-  if (sameTarget(existingTarget, target)) return ok({ kind: "noop" });
-
-  return ok({ kind: "rebind", from: existingTarget });
+  return ok(existing ? { kind: "update" } : { kind: "create" });
 }

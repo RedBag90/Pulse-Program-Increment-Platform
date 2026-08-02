@@ -15,7 +15,6 @@ import {
   recordGoalProgress,
   addGoalComment,
 } from "@/server/services/ziele";
-import { setKpiBinding } from "@/server/services/kpi-binding";
 import { linkEpicToGoal, unlinkEpicFromGoal } from "@/server/services/goal-epic-link";
 import { setGoalCustomFieldValue } from "@/server/services/goal-custom-field";
 import { addGoalRelatedWork, removeGoalRelatedWork } from "@/server/services/goal-related-work";
@@ -127,6 +126,7 @@ export const createObjectiveAction = createServerAction({
     precision: optPrecision,
     currencyCode: optStr,
     rollupWeight: optNum,
+    parentUnitPerChildUnit: optNum,
     baseline: optNum,
     target: optNum,
     current: optNum,
@@ -149,6 +149,7 @@ export const createObjectiveAction = createServerAction({
       ...(input.precision != null ? { precision: input.precision } : {}),
       currencyCode: input.currencyCode && input.currencyCode !== "" ? input.currencyCode : null,
       rollupWeight: input.rollupWeight ?? null,
+      parentUnitPerChildUnit: input.parentUnitPerChildUnit ?? null,
       baseline: input.baseline ?? null,
       target: input.target ?? null,
       current: input.current ?? null,
@@ -179,6 +180,7 @@ export const updateObjectiveAction = createServerAction({
     precision: optPrecision,
     currencyCode: optStr,
     rollupWeight: optNum,
+    parentUnitPerChildUnit: optNum,
     baseline: optNum,
     target: optNum,
     current: optNum,
@@ -208,6 +210,9 @@ export const updateObjectiveAction = createServerAction({
         ? { currencyCode: input.currencyCode === "" ? null : input.currencyCode }
         : {}),
       ...(input.rollupWeight !== undefined ? { rollupWeight: input.rollupWeight } : {}),
+      ...(input.parentUnitPerChildUnit !== undefined
+        ? { parentUnitPerChildUnit: input.parentUnitPerChildUnit }
+        : {}),
       ...(input.baseline !== undefined ? { baseline: input.baseline } : {}),
       ...(input.target !== undefined ? { target: input.target } : {}),
       ...(input.current !== undefined ? { current: input.current } : {}),
@@ -298,6 +303,7 @@ export const createKeyResultAction = createServerAction({
     precision: optPrecision,
     currencyCode: optStr,
     rollupWeight: optNum,
+    parentUnitPerChildUnit: optNum,
     baseline: optNum,
     target: optNum,
     current: optNum,
@@ -317,6 +323,7 @@ export const createKeyResultAction = createServerAction({
       ...(input.precision != null ? { precision: input.precision } : {}),
       currencyCode: input.currencyCode && input.currencyCode !== "" ? input.currencyCode : null,
       rollupWeight: input.rollupWeight ?? null,
+      parentUnitPerChildUnit: input.parentUnitPerChildUnit ?? null,
       baseline: input.baseline ?? null,
       target: input.target ?? null,
       current: input.current ?? null,
@@ -338,6 +345,7 @@ export const updateKeyResultAction = createServerAction({
     precision: optPrecision,
     currencyCode: optStr,
     rollupWeight: optNum,
+    parentUnitPerChildUnit: optNum,
     baseline: optNum,
     target: optNum,
     current: optNum,
@@ -362,6 +370,9 @@ export const updateKeyResultAction = createServerAction({
         ? { currencyCode: input.currencyCode === "" ? null : input.currencyCode }
         : {}),
       ...(input.rollupWeight !== undefined ? { rollupWeight: input.rollupWeight } : {}),
+      ...(input.parentUnitPerChildUnit !== undefined
+        ? { parentUnitPerChildUnit: input.parentUnitPerChildUnit }
+        : {}),
       ...(input.baseline !== undefined ? { baseline: input.baseline } : {}),
       ...(input.target !== undefined ? { target: input.target } : {}),
       ...(input.current !== undefined ? { current: input.current } : {}),
@@ -451,39 +462,6 @@ export const addGoalCommentAction = createServerAction({
   mapError: (e) => formatDomainError(e, { fallback: "Kommentar konnte nicht gespeichert werden" }),
 });
 
-// ── KR ↔ KPI Bindung ──────────────────────────────────────────────────
-
-/**
- * Atomic Re-Bind fuer die KPI-Coverage-Tabelle: setzt die KR-Bindung
- * einer KPI auf `keyResultId` (oder `null` zum Entkoppeln) in einer
- * Transaktion. Damit kann eine KPI per Dropdown von einem KR auf einen
- * anderen umgehaengt werden, ohne die Pyramid-Invariante zu verletzen.
- */
-export const setKpiBindingAction = createServerAction({
-  schema: z.object({
-    kpiId: z.string().uuid(),
-    keyResultId: z.string().uuid().optional().or(z.literal("")),
-    weight: z.coerce.number().min(0).max(1).optional(),
-    valuePerUnitOverride: z.coerce.number().optional().or(z.literal("")),
-  }),
-  action: "kpi.bind",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    setKpiBinding(ctx, {
-      kpiId: input.kpiId,
-      keyResultId: input.keyResultId && input.keyResultId !== "" ? input.keyResultId : null,
-      ...(input.weight !== undefined ? { weight: input.weight } : {}),
-      ...(input.valuePerUnitOverride !== undefined
-        ? {
-            valuePerUnitOverride:
-              input.valuePerUnitOverride === "" ? null : Number(input.valuePerUnitOverride),
-          }
-        : {}),
-    }),
-  revalidate: "ziele",
-  mapError: (e) => formatDomainError(e, { fallback: "KPI-Bindung fehlgeschlagen" }),
-});
-
 /**
  * Epic ↔ Ziel-Verknüpfung ("Related work"). Hängt ein Epic direkt an ein
  * Objective oder Key Result; sein KPI-Mehrwert rollt danach in den Ziel-Trio.
@@ -491,27 +469,35 @@ export const setKpiBindingAction = createServerAction({
  */
 export const linkEpicToGoalAction = createServerAction({
   schema: z.object({
-    target: z.enum(["objective", "kr"]),
     goalId: z.string().uuid(),
     epicId: z.string().uuid(),
+    // Einheiten-Kaskade: gewählte Erfolgs-KPI + Umrechnungsfaktor + Wirkungsart.
+    kpiId: z.string().uuid().optional(),
+    conversionFactor: optNum,
+    impactKind: z.enum(["one_time", "recurring"]).optional(),
+    recurringInterval: z.enum(["monthly", "yearly"]).optional(),
   }),
   action: "kpi.bind",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
     linkEpicToGoal(ctx, {
       epicId: input.epicId,
-      objectiveId: input.target === "objective" ? input.goalId : null,
-      keyResultId: input.target === "kr" ? input.goalId : null,
+      objectiveId: input.goalId,
+      kpiId: input.kpiId ?? null,
+      conversionFactor: input.conversionFactor ?? null,
+      ...(input.impactKind ? { impactKind: input.impactKind } : {}),
+      ...(input.recurringInterval ? { recurringInterval: input.recurringInterval } : {}),
     }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Epic-Verknüpfung fehlgeschlagen" }),
 });
 
 export const unlinkEpicFromGoalAction = createServerAction({
-  schema: z.object({ epicId: z.string().uuid() }),
+  schema: z.object({ epicId: z.string().uuid(), goalId: z.string().uuid() }),
   action: "kpi.bind",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) => unlinkEpicFromGoal(ctx, { epicId: input.epicId }),
+  service: (ctx, input) =>
+    unlinkEpicFromGoal(ctx, { epicId: input.epicId, objectiveId: input.goalId }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Epic-Verknüpfung lösen fehlgeschlagen" }),
 });

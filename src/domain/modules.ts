@@ -50,7 +50,7 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
   portfolio: {
     label: "Portfolio-Management",
     segments: ["portfolio", "value-streams"],
-    actions: ["value_stream.", "epic.", "kpi.value.manage"],
+    actions: ["value_stream.", "epic."],
     home: "/portfolio",
   },
   program: {

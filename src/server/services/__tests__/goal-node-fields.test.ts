@@ -23,6 +23,7 @@ const row = (over: Partial<GoalFieldValues> = {}): GoalFieldValues => ({
   precision: 2,
   currencyCode: null,
   rollupWeight: null,
+  parentUnitPerChildUnit: null,
   baseline: null,
   target: null,
   current: null,

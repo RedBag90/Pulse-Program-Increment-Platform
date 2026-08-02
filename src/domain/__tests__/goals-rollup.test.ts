@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   kpiAchievement,
   kpiTrio,
-  keyResultTrio,
   sumTrios,
   epicLinkTrio,
   nodeProgress,
@@ -10,8 +9,17 @@ import {
   isAtRisk,
   keyResultProgress,
   rollupObjectiveProgress,
+  epicSuccessKpiContribution,
+  nodeUnitValue,
+  epicTopGoalBenefits,
 } from "@/domain/goals-rollup";
-import type { KpiInput, RollupNode, RollupTrio } from "@/domain/goals-rollup";
+import type {
+  KpiInput,
+  RollupNode,
+  RollupTrio,
+  GoalNodeMeta,
+  EpicGoalLinkInput,
+} from "@/domain/goals-rollup";
 
 describe("kpiAchievement", () => {
   it("returns 0 when baseline/target/current are missing", () => {
@@ -67,41 +75,6 @@ describe("kpiTrio", () => {
 
   it("yields 0 when valuePerUnit ist null", () => {
     const t = kpiTrio({ ...kpi, valuePerUnit: null });
-    expect(t).toEqual({ planned: 0, realized: 0, runRate: 0 });
-  });
-});
-
-describe("keyResultTrio", () => {
-  const npsMobile = { id: "k1", baseline: 30, target: 50, current: 35, valuePerUnit: 10_000 };
-  const npsWeb = { id: "k2", baseline: 25, target: 45, current: 30, valuePerUnit: 10_000 };
-  const byId = new Map([
-    [npsMobile.id, npsMobile],
-    [npsWeb.id, npsWeb],
-  ]);
-
-  it("aggregiert mit weights", () => {
-    // npsMobile: span 20 × 10k = 200k planned. achievement (35-30)/20 = 0.25 → realized 50k.
-    // npsWeb:    span 20 × 10k = 200k planned. achievement (30-25)/20 = 0.25 → realized 50k.
-    // contributions: 60% / 40% → planned 200k, realized 50k
-    const t = keyResultTrio(
-      [
-        { kpiId: "k1", weight: 0.6, valuePerUnitOverride: null },
-        { kpiId: "k2", weight: 0.4, valuePerUnitOverride: null },
-      ],
-      byId,
-    );
-    expect(t.planned).toBe(200_000); // 0.6*200k + 0.4*200k
-    expect(t.realized).toBe(50_000); // 0.6*50k + 0.4*50k
-  });
-
-  it("override schlaegt KPI-valuePerUnit ueber", () => {
-    const t = keyResultTrio([{ kpiId: "k1", weight: 1, valuePerUnitOverride: 5_000 }], byId);
-    // planned = 20 × 5_000 = 100k
-    expect(t.planned).toBe(100_000);
-  });
-
-  it("ueberspringt fehlende KPIs", () => {
-    const t = keyResultTrio([{ kpiId: "unknown", weight: 1, valuePerUnitOverride: null }], byId);
     expect(t).toEqual({ planned: 0, realized: 0, runRate: 0 });
   });
 });
@@ -236,14 +209,8 @@ describe("epicLinkTrio", () => {
     expect(trio.realized).toBe(1500);
   });
 
-  it("matches keyResultTrio at weight 1 (voller KPI-Wert)", () => {
-    const k = kpi("k1");
-    const linkTrio = epicLinkTrio([{ epicId: "e1", kpis: [k] }]);
-    const boundTrio = keyResultTrio(
-      [{ kpiId: "k1", weight: 1, valuePerUnitOverride: null }],
-      new Map([["k1", k]]),
-    );
-    expect(linkTrio).toEqual(boundTrio);
+  it("summiert den vollen KPI-Wert (weight-frei)", () => {
+    const linkTrio = epicLinkTrio([{ epicId: "e1", kpis: [kpi("k1")] }]);
     expect(linkTrio.realized).toBe(500);
   });
 });
@@ -342,5 +309,274 @@ describe("nodeProgress / nodeTrio (recursive cascade)", () => {
       trioLeaf: { planned: 999, realized: 999, runRate: 999 },
     });
     expect(nodeTrio(root).planned).toBe(100);
+  });
+});
+
+// ── Einheiten-Kaskade (Unit→Unit) ───────────────────────────────────────────
+
+describe("epicSuccessKpiContribution", () => {
+  const kpi = (over: Partial<KpiInput> = {}): KpiInput => ({
+    id: "k",
+    baseline: 0,
+    target: 10,
+    current: 4,
+    valuePerUnit: null,
+    ...over,
+  });
+
+  it("one_time: planned = span×factor, realized = kpiDelta×factor", () => {
+    const t = epicSuccessKpiContribution(kpi(), 10000, "one_time", "yearly");
+    expect(t.planned).toBe(100000); // |10−0| × 10000
+    expect(t.realized).toBe(40000); // (4−0) × 10000
+    expect(t.runRate).toBe(40000);
+  });
+
+  it("recurring monthly annualises ×12", () => {
+    const t = epicSuccessKpiContribution(
+      kpi({ target: 10, current: 5 }),
+      1000,
+      "recurring",
+      "monthly",
+    );
+    expect(t.planned).toBe(120000); // 10 × 1000 × 12
+    expect(t.realized).toBe(60000); // 5 × 1000 × 12
+  });
+
+  it("recurring yearly is ×1", () => {
+    const t = epicSuccessKpiContribution(kpi(), 1000, "recurring", "yearly");
+    expect(t.planned).toBe(10000);
+  });
+
+  it("null or zero factor ⇒ zero trio", () => {
+    expect(epicSuccessKpiContribution(kpi(), null, "one_time", "yearly")).toEqual({
+      planned: 0,
+      realized: 0,
+      runRate: 0,
+    });
+    expect(epicSuccessKpiContribution(kpi(), 0, "one_time", "yearly").planned).toBe(0);
+  });
+
+  it("inverted scale (lower is better) yields positive movement", () => {
+    // baseline 100 → target 0 (fewer defects), current 60 = 40 saved.
+    const t = epicSuccessKpiContribution(
+      kpi({ baseline: 100, target: 0, current: 60 }),
+      50,
+      "one_time",
+      "yearly",
+    );
+    expect(t.planned).toBe(5000); // |0−100| × 50
+    expect(t.realized).toBe(2000); // 40 × 50
+  });
+});
+
+describe("nodeUnitValue (unit cascade)", () => {
+  const ZERO: RollupTrio = { planned: 0, realized: 0, runRate: 0 };
+  const t = (planned: number, realized = planned): RollupTrio => ({
+    planned,
+    realized,
+    runRate: realized,
+  });
+  const leaf = (over: Partial<RollupNode> = {}): RollupNode => ({
+    weight: 1,
+    includeInRollup: true,
+    mode: "manual",
+    progressLeaf: null,
+    trioLeaf: ZERO,
+    trioEpicLinks: ZERO,
+    children: [],
+    unitValueLeaf: ZERO,
+    unitEpicLinks: ZERO,
+    childUnitFactor: null,
+    ...over,
+  });
+  const branch = (children: RollupNode[], over: Partial<RollupNode> = {}): RollupNode => ({
+    weight: 1,
+    includeInRollup: true,
+    mode: "rollup",
+    progressLeaf: null,
+    trioLeaf: ZERO,
+    trioEpicLinks: ZERO,
+    children,
+    unitValueLeaf: ZERO,
+    unitEpicLinks: ZERO,
+    childUnitFactor: null,
+    ...over,
+  });
+
+  it("Wagen example: child in 'Wagen' rolls into '€' parent via childUnitFactor", () => {
+    // child measures wagons: value 10 planned / 4 realized; 10000 €/Wagon.
+    const child = leaf({ unitValueLeaf: t(10, 4), childUnitFactor: 10000 });
+    const parent = branch([child]); // parent unit = €
+    const v = nodeUnitValue(parent);
+    expect(v.planned).toBe(100000); // 10 × 10000
+    expect(v.realized).toBe(40000); // 4 × 10000
+  });
+
+  it("adds the node's own epic-link contributions in its own unit", () => {
+    const child = leaf({ unitValueLeaf: t(1), childUnitFactor: 1000 });
+    const parent = branch([child], { unitEpicLinks: t(500) });
+    expect(nodeUnitValue(parent).planned).toBe(1500); // 1×1000 + 500
+  });
+
+  it("null childUnitFactor breaks the child's contribution to 0", () => {
+    const child = leaf({ unitValueLeaf: t(10), childUnitFactor: null });
+    expect(nodeUnitValue(branch([child])).planned).toBe(0);
+  });
+
+  it("manual mode with children: own leaf wins (decoupled from epic rollup)", () => {
+    const child = leaf({ unitValueLeaf: t(999), childUnitFactor: 1 });
+    const manual = branch([child], { mode: "manual", unitValueLeaf: t(42) });
+    expect(nodeUnitValue(manual).planned).toBe(42);
+  });
+
+  it("€-equivalence lock: factor=1 currency tree ⇒ nodeUnitValue === nodeTrio", () => {
+    // Mirror leaf/branch trios into the unit fields with childUnitFactor 1.
+    const mkLeaf = (planned: number, links = 0): RollupNode =>
+      leaf({
+        trioLeaf: t(planned),
+        trioEpicLinks: t(links),
+        unitValueLeaf: t(planned),
+        unitEpicLinks: t(links),
+        childUnitFactor: 1,
+      });
+    const l1 = mkLeaf(100);
+    const l2 = mkLeaf(200, 50);
+    const root = branch([l1, l2], {
+      trioEpicLinks: t(10),
+      unitEpicLinks: t(10),
+      childUnitFactor: 1,
+    });
+    expect(nodeUnitValue(root)).toEqual(nodeTrio(root));
+  });
+});
+
+describe("epicTopGoalBenefits", () => {
+  const kpi = (over: Partial<KpiInput> = {}): KpiInput => ({
+    id: "k",
+    baseline: 0,
+    target: 10,
+    current: 5,
+    valuePerUnit: null,
+    ...over,
+  });
+
+  it("Wagen example: one epic → two top goals ⇒ two benefit lines in correct units", () => {
+    // Two top-level goals, each its own unit.
+    const nodes = new Map<string, GoalNodeMeta>([
+      [
+        "annual",
+        {
+          id: "annual",
+          parentId: null,
+          name: "Annual Impact",
+          unit: "€",
+          parentUnitPerChildUnit: null,
+        },
+      ],
+      [
+        "onetime",
+        {
+          id: "onetime",
+          parentId: null,
+          name: "One-time Impact",
+          unit: "€",
+          parentUnitPerChildUnit: null,
+        },
+      ],
+    ]);
+    const links: EpicGoalLinkInput[] = [
+      // implementierte Wagen → Annual Impact, recurring, 10000 €/Wagon
+      {
+        objectiveId: "annual",
+        kpi: kpi({ id: "impl", target: 10, current: 5 }),
+        conversionFactor: 10000,
+        impactKind: "recurring",
+        recurringInterval: "yearly",
+      },
+      // verkaufte Wagen → One-time Impact, one_time, 25000 €/Wagon
+      {
+        objectiveId: "onetime",
+        kpi: kpi({ id: "sold", target: 4, current: 1 }),
+        conversionFactor: 25000,
+        impactKind: "one_time",
+        recurringInterval: "yearly",
+      },
+    ];
+    const rows = epicTopGoalBenefits(links, nodes);
+    expect(rows).toHaveLength(2);
+    const annual = rows.find((r) => r.topGoalId === "annual")!;
+    expect(annual.unit).toBe("€");
+    expect(annual.impactKind).toBe("recurring");
+    expect(annual.planned).toBe(100000); // 10 × 10000
+    expect(annual.realized).toBe(50000); // 5 × 10000
+    const onetime = rows.find((r) => r.topGoalId === "onetime")!;
+    expect(onetime.planned).toBe(100000); // 4 × 25000
+    expect(onetime.realized).toBe(25000); // 1 × 25000
+  });
+
+  it("walks the parent chain, multiplying parentUnitPerChildUnit up to the top", () => {
+    // top '€' ← mid 'Wagen' (10000 €/Wagon) ← link at mid.
+    const nodes = new Map<string, GoalNodeMeta>([
+      ["top", { id: "top", parentId: null, name: "Top", unit: "€", parentUnitPerChildUnit: null }],
+      [
+        "mid",
+        { id: "mid", parentId: "top", name: "Mid", unit: "Wagen", parentUnitPerChildUnit: 10000 },
+      ],
+    ]);
+    const links: EpicGoalLinkInput[] = [
+      {
+        objectiveId: "mid",
+        kpi: kpi({ target: 10, current: 5 }), // KPI in "produzierte Teile", factor 2 Wagen/Teil
+        conversionFactor: 2,
+        impactKind: "one_time",
+        recurringInterval: "yearly",
+      },
+    ];
+    const rows = epicTopGoalBenefits(links, nodes);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.topGoalId).toBe("top");
+    expect(rows[0]!.unit).toBe("€");
+    // planned: |10| × 2 (Wagen) × 10000 (€/Wagon) = 200000
+    expect(rows[0]!.planned).toBe(200000);
+    expect(rows[0]!.realized).toBe(100000); // 5 × 2 × 10000
+  });
+
+  it("a null factor in the chain breaks the benefit to 0", () => {
+    const nodes = new Map<string, GoalNodeMeta>([
+      ["top", { id: "top", parentId: null, name: "Top", unit: "€", parentUnitPerChildUnit: null }],
+      [
+        "mid",
+        { id: "mid", parentId: "top", name: "Mid", unit: "Wagen", parentUnitPerChildUnit: null },
+      ],
+    ]);
+    const rows = epicTopGoalBenefits(
+      [
+        {
+          objectiveId: "mid",
+          kpi: kpi(),
+          conversionFactor: 2,
+          impactKind: "one_time",
+          recurringInterval: "yearly",
+        },
+      ],
+      nodes,
+    );
+    expect(rows[0]!.planned).toBe(0);
+  });
+
+  it("groups two links into the same top goal + impactKind", () => {
+    const nodes = new Map<string, GoalNodeMeta>([
+      ["top", { id: "top", parentId: null, name: "Top", unit: "€", parentUnitPerChildUnit: null }],
+    ]);
+    const link = (id: string, factor: number): EpicGoalLinkInput => ({
+      objectiveId: "top",
+      kpi: kpi({ id, target: 1, current: 1 }),
+      conversionFactor: factor,
+      impactKind: "recurring",
+      recurringInterval: "yearly",
+    });
+    const rows = epicTopGoalBenefits([link("a", 100), link("b", 200)], nodes);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.planned).toBe(300);
   });
 });

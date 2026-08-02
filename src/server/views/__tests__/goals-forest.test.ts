@@ -34,13 +34,13 @@ const obj = (over: Partial<ForestObjective>): ForestObjective => ({
   precision: 0,
   currencyCode: null,
   rollupWeight: null,
+  parentUnitPerChildUnit: null,
   includeInParentRollup: true,
   baseline: null,
   target: null,
   current: null,
   formula: "manual",
   progressMode: null,
-  contributions: [],
   ...over,
 });
 
@@ -59,18 +59,10 @@ describe("resolveNode — der Mode/Leaf-Seam", () => {
     expect(resolveNode(obj({ target: 10 }), { ...ctx, hasChildren: true }).progressLeaf).toBeNull();
   });
 
-  it("trioLeaf: auto_from_kpi ⇒ keyResultTrio, sonst Null-Trio", () => {
-    const kpiC = {
-      kpiId: "k",
-      kpiName: "K",
-      epicTitle: "E",
-      weight: 1,
-      valuePerUnitOverride: null,
-      kpi: { id: "k", baseline: 0, target: 100, current: 50, valuePerUnit: 10 },
-    };
-    const auto = resolveNode(obj({ formula: "auto_from_kpi", contributions: [kpiC] }), ctx);
-    expect(auto.trioLeaf).toEqual({ planned: 1000, realized: 500, runRate: 500 });
-    const manual = resolveNode(obj({ formula: "manual", contributions: [kpiC] }), ctx);
+  it("trioLeaf ist immer Null-Trio (Ziel-Eigen-Metrik trägt €0 bei)", () => {
+    const auto = resolveNode(obj({ formula: "auto_from_kpi", baseline: 0, target: 100 }), ctx);
+    expect(auto.trioLeaf).toEqual({ planned: 0, realized: 0, runRate: 0 });
+    const manual = resolveNode(obj({ formula: "manual", baseline: 0, target: 100 }), ctx);
     expect(manual.trioLeaf).toEqual({ planned: 0, realized: 0, runRate: 0 });
   });
 
@@ -153,30 +145,55 @@ describe("buildStrategyTree — Baum-Assemblierung + Rollup", () => {
     expect(T.children[1]!.includeInParentRollup).toBe(false);
   });
 
-  it("Trio summiert von unten nach oben; tenantTrio über die Roots", () => {
+  it("Trio summiert von unten nach oben (aus verknüpften Epics); tenantTrio über die Roots", () => {
     const rows: ForestObjective[] = [
       obj({ id: "T", progressMode: "rollup" }),
-      obj({
-        id: "KR",
-        parentObjectiveId: "T",
-        formula: "auto_from_kpi",
-        baseline: 0,
-        target: 100,
-        contributions: [
-          {
-            kpiId: "k",
-            kpiName: "K",
-            epicTitle: "E",
-            weight: 1,
-            valuePerUnitOverride: null,
-            kpi: { id: "k", baseline: 0, target: 100, current: 50, valuePerUnit: 10 },
-          },
-        ],
-      }),
+      obj({ id: "KR", parentObjectiveId: "T", baseline: 0, target: 100 }),
     ];
-    const { themes, tenantTrio } = buildStrategyTree({ rows, lookups: emptyLookups() });
+    // €-Wert stammt aus einem am KR verknüpften Epic (trioEpicLinks), nicht aus
+    // der Eigen-Metrik: span 100 × 10 = 1000 planned, achievement 0.5 → 500.
+    const lookups: ForestLookups = {
+      ...emptyLookups(),
+      relatedEpics: new Map([
+        [
+          "KR",
+          [
+            {
+              epicId: "e",
+              title: "E",
+              stageGate: "L2",
+              href: "/x",
+              kpis: [{ id: "k", baseline: 0, target: 100, current: 50, valuePerUnit: 10 }],
+            },
+          ],
+        ],
+      ]),
+    };
+    const { themes, tenantTrio } = buildStrategyTree({ rows, lookups });
     expect(themes[0]!.trio).toEqual({ planned: 1000, realized: 500, runRate: 500 });
     expect(tenantTrio).toEqual({ planned: 1000, realized: 500, runRate: 500 });
+  });
+
+  it("unitValue: Kind in 'Wagen' rollt via parentUnitPerChildUnit in '€'-Theme", () => {
+    const rows: ForestObjective[] = [
+      obj({ id: "T", title: "Annual Impact", progressMode: "rollup", metricUnit: "€" }),
+      obj({
+        id: "W",
+        parentObjectiveId: "T",
+        metricUnit: "Wagen",
+        baseline: 0,
+        target: 10,
+        current: 4,
+        parentUnitPerChildUnit: 10000, // 10000 €/Wagon
+      }),
+    ];
+    const { themes } = buildStrategyTree({ rows, lookups: emptyLookups() });
+    const T = themes[0]!;
+    // Kind-Eigenwert: planned |10−0|=10, realized 4 → × 10000 im Eltern.
+    expect(T.unitValue.planned).toBe(100000);
+    expect(T.unitValue.realized).toBe(40000);
+    // Das Kind selbst trägt seinen Wert in EIGENER Einheit (Wagen).
+    expect(themes[0]!.children[0]!.unitValue).toEqual({ planned: 10, realized: 4, runRate: 4 });
   });
 });
 

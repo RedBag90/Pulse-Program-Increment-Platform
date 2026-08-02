@@ -10,6 +10,8 @@ import {
   type BusinessCaseFields,
   type BusinessCaseVersion,
 } from "@/domain/business-case";
+import { benefitKindOrDefault, BENEFIT_KIND_LABELS } from "@/domain/kpi-benefit-kind";
+import type { TopGoalBenefit } from "@/domain/goals-rollup";
 
 interface BusinessCaseEditorProps {
   epicId: string;
@@ -32,7 +34,12 @@ interface BusinessCaseEditorProps {
   kpiBenefit?: { oneTimeBenefit: number; recurringBenefit: number };
   /** Ob mindestens eine bewertete KPI (valuePerUnit gesetzt) existiert — steuert den Hinweis. */
   hasValuedKpis?: boolean;
+  /** Strategischer Nutzen je Top-Ziel (Einheiten-Kaskade, read-only). Eine Zeile je
+   *  Top-Ziel-KPI, die dieses Epic über seine Erfolgs-KPIs treibt. */
+  topGoalBenefits?: TopGoalBenefit[];
 }
+
+const fmtUnit = (n: number): string => n.toLocaleString("de-DE", { maximumFractionDigits: 2 });
 
 const fmtEur = (n: number): string =>
   n.toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -64,6 +71,7 @@ export function BusinessCaseEditor({
   kpiNames = [],
   kpiBenefit = { oneTimeBenefit: 0, recurringBenefit: 0 },
   hasValuedKpis = false,
+  topGoalBenefits = [],
 }: BusinessCaseEditorProps) {
   const [state, action, isPending] = useActionState(saveBusinessCaseAction, {});
   const [submitState, submitAction, submitPending] = useActionState(
@@ -329,6 +337,33 @@ export function BusinessCaseEditor({
               </aside>
             </div>
           </section>
+
+          {/* Strategischer Nutzen (Top-Ziel) — Einheiten-Kaskade, read-only. */}
+          {topGoalBenefits.length > 0 && (
+            <section className="rounded-lg border p-4">
+              <p className="text-sm font-medium">Strategischer Nutzen (Top-Ziel)</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Was dieses Epic über seine Erfolgs-KPIs zum jeweiligen Top-Ziel beiträgt — in dessen
+                Einheit, über die Ziel-Kaskade hochgerechnet.
+              </p>
+              <ul className="mt-2 space-y-1">
+                {topGoalBenefits.map((b) => (
+                  <li
+                    key={`${b.topGoalId}-${b.impactKind}`}
+                    className="flex flex-wrap items-baseline justify-between gap-2 border-b py-1 text-sm last:border-b-0"
+                  >
+                    <span className="font-medium">{b.topGoalName}</span>
+                    <span className="tabular-nums">
+                      +{fmtUnit(b.planned)} {b.unit ?? ""}
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        ({BENEFIT_KIND_LABELS[benefitKindOrDefault(b.impactKind)]})
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <div>
             <label htmlFor="bc-customers" className="block text-sm font-medium mb-1">

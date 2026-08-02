@@ -3,7 +3,6 @@ import { db } from "@/test/setup-db";
 import { seedTenant } from "@/test/fixtures/seed";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { linkEpicToGoal, unlinkEpicFromGoal } from "@/server/services/goal-epic-link";
-import { setKpiBinding } from "@/server/services/kpi-binding";
 import { InitiativeLevel } from "@/domain/types";
 import { ROLES } from "@/domain/roles";
 import type { RequestContext } from "@/server/http/mutation-handler";
@@ -37,7 +36,8 @@ function adminCtx(): RequestContext {
   };
 }
 
-async function makeEpicWithKpi(): Promise<{ epicId: string; kpiId: string }> {
+/** Ein Epic mit `n` KPIs; alle als Erfolgs-KPI markiert (für die Kaskade). */
+async function makeEpic(n = 1): Promise<{ epicId: string; kpiIds: string[] }> {
   const epic = await db.initiative.create({
     data: {
       tenantId: seed.tenantId,
@@ -51,23 +51,28 @@ async function makeEpicWithKpi(): Promise<{ epicId: string; kpiId: string }> {
     },
   });
   await db.initiative.update({ where: { id: epic.id }, data: { path: epic.id } });
-  const kpi = await db.kpi.create({
-    data: {
-      tenantId: seed.tenantId,
-      initiativeId: epic.id,
-      name: "Durchlaufzeit",
-      baseline: 0,
-      target: 100,
-      measurements: [],
-      valuePerUnit: 10,
-      createdBy: seed.actorId,
-      updatedBy: seed.actorId,
-    },
-  });
-  return { epicId: epic.id, kpiId: kpi.id };
+  const kpiIds: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const kpi = await db.kpi.create({
+      data: {
+        tenantId: seed.tenantId,
+        initiativeId: epic.id,
+        name: `KPI ${i}`,
+        baseline: 0,
+        target: 100,
+        measurements: [],
+        valuePerUnit: 10,
+        createdBy: seed.actorId,
+        updatedBy: seed.actorId,
+      },
+    });
+    kpiIds.push(kpi.id);
+  }
+  return { epicId: epic.id, kpiIds };
 }
 
-async function makeObjectiveWithKr(): Promise<{ objectiveId: string; keyResultId: string }> {
+/** Zwei Ziel-Knoten (Objective + Kind) unter einem Theme. */
+async function makeGoals(): Promise<{ goalA: string; goalB: string }> {
   const theme = await db.strategicTheme.create({
     data: {
       tenantId: seed.tenantId,
@@ -78,97 +83,137 @@ async function makeObjectiveWithKr(): Promise<{ objectiveId: string; keyResultId
       updatedBy: seed.actorId,
     },
   });
-  const objective = await db.objective.create({
+  const goalA = await db.objective.create({
     data: {
       tenantId: seed.tenantId,
       themeId: theme.id,
-      title: "Objective",
+      title: "Goal A",
       createdBy: seed.actorId,
       updatedBy: seed.actorId,
     },
   });
-  // Ein Key Result ist ein Goal-Knoten (nodeKind="key_result") unter dem Objective.
-  const kr = await db.objective.create({
+  const goalB = await db.objective.create({
     data: {
       tenantId: seed.tenantId,
       themeId: theme.id,
-      parentObjectiveId: objective.id,
-      nodeKind: "key_result",
+      parentObjectiveId: goalA.id,
       level: 1,
-      title: "Key Result",
+      title: "Goal B",
       createdBy: seed.actorId,
       updatedBy: seed.actorId,
     },
   });
-  return { objectiveId: objective.id, keyResultId: kr.id };
+  return { goalA: goalA.id, goalB: goalB.id };
 }
 
 describe("linkEpicToGoal", () => {
-  it("links an epic to a key result and writes the row + audit", async () => {
-    const { epicId } = await makeEpicWithKpi();
-    const { keyResultId } = await makeObjectiveWithKr();
+  it("links an epic to a goal via a chosen success KPI + factor (row + audit)", async () => {
+    const { epicId, kpiIds } = await makeEpic();
+    const { goalA } = await makeGoals();
 
     const before = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
-    const result = await linkEpicToGoal(adminCtx(), { epicId, keyResultId });
-
+    const result = await linkEpicToGoal(adminCtx(), {
+      epicId,
+      objectiveId: goalA,
+      kpiId: kpiIds[0]!,
+      conversionFactor: 10000,
+      impactKind: "recurring",
+    });
     expect(isOk(result)).toBe(true);
     const link = await db.goalEpicLink.findFirst({ where: { tenantId: seed.tenantId, epicId } });
-    // Ein KR ist ein Goal-Knoten; der Link speichert dessen id als objectiveId.
-    expect(link?.objectiveId).toBe(keyResultId);
+    expect(link?.objectiveId).toBe(goalA);
+    expect(link?.kpiId).toBe(kpiIds[0]);
+    expect(Number(link?.conversionFactor)).toBe(10000);
     const after = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
     expect(after).toBe(before + 1);
   });
 
-  it("links an epic to an objective", async () => {
-    const { epicId } = await makeEpicWithKpi();
-    const { objectiveId } = await makeObjectiveWithKr();
+  it("links one epic to TWO goals via different KPIs (multi-goal; @@unique([epicId]) gone)", async () => {
+    const { epicId, kpiIds } = await makeEpic(2);
+    const { goalA, goalB } = await makeGoals();
 
-    const result = await linkEpicToGoal(adminCtx(), { epicId, objectiveId });
-    expect(isOk(result)).toBe(true);
-    const link = await db.goalEpicLink.findFirst({ where: { tenantId: seed.tenantId, epicId } });
-    expect(link?.objectiveId).toBe(objectiveId);
+    const r1 = await linkEpicToGoal(adminCtx(), {
+      epicId,
+      objectiveId: goalA,
+      kpiId: kpiIds[0]!,
+      conversionFactor: 100,
+    });
+    const r2 = await linkEpicToGoal(adminCtx(), {
+      epicId,
+      objectiveId: goalB,
+      kpiId: kpiIds[1]!,
+      conversionFactor: 200,
+    });
+    expect(isOk(r1)).toBe(true);
+    expect(isOk(r2)).toBe(true);
+    const links = await db.goalEpicLink.findMany({ where: { tenantId: seed.tenantId, epicId } });
+    expect(links).toHaveLength(2);
   });
 
-  it("rebinds an epic to a different goal (unique epicId holds — only one row)", async () => {
-    const { epicId } = await makeEpicWithKpi();
-    const { objectiveId, keyResultId } = await makeObjectiveWithKr();
+  it("updates the same (epic, goal) pair in place rather than duplicating", async () => {
+    const { epicId, kpiIds } = await makeEpic();
+    const { goalA } = await makeGoals();
 
-    await linkEpicToGoal(adminCtx(), { epicId, objectiveId });
-    const result = await linkEpicToGoal(adminCtx(), { epicId, keyResultId });
-    expect(isOk(result)).toBe(true);
+    await linkEpicToGoal(adminCtx(), {
+      epicId,
+      objectiveId: goalA,
+      kpiId: kpiIds[0]!,
+      conversionFactor: 100,
+    });
+    await linkEpicToGoal(adminCtx(), {
+      epicId,
+      objectiveId: goalA,
+      kpiId: kpiIds[0]!,
+      conversionFactor: 250,
+    });
     const links = await db.goalEpicLink.findMany({ where: { tenantId: seed.tenantId, epicId } });
     expect(links).toHaveLength(1);
-    expect(links[0]!.objectiveId).toBe(keyResultId);
+    expect(Number(links[0]!.conversionFactor)).toBe(250);
   });
 
-  it("rejects linking when the epic's KPI is already individually KR-bound (count-once)", async () => {
-    const { epicId, kpiId } = await makeEpicWithKpi();
-    const { keyResultId } = await makeObjectiveWithKr();
+  it("rejects a chosen KPI that already drives another goal (count-once)", async () => {
+    const { epicId, kpiIds } = await makeEpic();
+    const { goalA, goalB } = await makeGoals();
 
-    const bound = await setKpiBinding(adminCtx(), { kpiId, keyResultId });
-    expect(isOk(bound)).toBe(true);
-
-    const result = await linkEpicToGoal(adminCtx(), { epicId, keyResultId });
+    await linkEpicToGoal(adminCtx(), {
+      epicId,
+      objectiveId: goalA,
+      kpiId: kpiIds[0]!,
+      conversionFactor: 5,
+    });
+    const result = await linkEpicToGoal(adminCtx(), {
+      epicId,
+      objectiveId: goalB,
+      kpiId: kpiIds[0]!,
+      conversionFactor: 5,
+    });
     expect(isErr(result)).toBe(true);
     if (isErr(result)) expect(result.error.kind).toBe("conflict");
   });
 
-  it("rejects binding a KPI whose epic is already linked (symmetric count-once)", async () => {
-    const { epicId, kpiId } = await makeEpicWithKpi();
-    const { keyResultId } = await makeObjectiveWithKr();
-
-    await linkEpicToGoal(adminCtx(), { epicId, keyResultId });
-    const bound = await setKpiBinding(adminCtx(), { kpiId, keyResultId });
-    expect(isErr(bound)).toBe(true);
-    if (isErr(bound)) expect(bound.error.kind).toBe("conflict");
+  it("rejects a link with a chosen KPI but no conversion factor (validation)", async () => {
+    const { epicId, kpiIds } = await makeEpic();
+    const { goalA } = await makeGoals();
+    const result = await linkEpicToGoal(adminCtx(), {
+      epicId,
+      objectiveId: goalA,
+      kpiId: kpiIds[0]!,
+    });
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) expect(result.error.kind).toBe("validation");
   });
 
-  it("unlinks an epic (row removed)", async () => {
-    const { epicId } = await makeEpicWithKpi();
-    const { keyResultId } = await makeObjectiveWithKr();
+  it("unlinks a specific (epic, goal) pair", async () => {
+    const { epicId, kpiIds } = await makeEpic();
+    const { goalA } = await makeGoals();
 
-    await linkEpicToGoal(adminCtx(), { epicId, keyResultId });
-    const result = await unlinkEpicFromGoal(adminCtx(), { epicId });
+    await linkEpicToGoal(adminCtx(), {
+      epicId,
+      objectiveId: goalA,
+      kpiId: kpiIds[0]!,
+      conversionFactor: 5,
+    });
+    const result = await unlinkEpicFromGoal(adminCtx(), { epicId, objectiveId: goalA });
     expect(isOk(result)).toBe(true);
     const link = await db.goalEpicLink.findFirst({ where: { tenantId: seed.tenantId, epicId } });
     expect(link).toBeNull();

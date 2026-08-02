@@ -274,7 +274,7 @@ function buildGraph(
         title: n.title,
         status: n.status,
         progress: n.progress ?? (tier === "kr" ? krProgress(n) : trioProgress(n.trio)),
-        subgoalCount: n.children.length > 0 ? n.children.length : n.kpiCount,
+        subgoalCount: n.children.length,
         period: n.period ?? null,
         ownerInitial: initialOf(n.ownerId),
         atRisk: isAtRisk(n.trio),

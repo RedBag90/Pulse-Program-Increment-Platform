@@ -174,7 +174,8 @@
       "Bash(sed -i '' 's/, ArtId//; s/ArtId, //' src/features/pi/actions/pi.ts)",
       "Bash(sed -i '' 's/, TimelineId//; s/TimelineId, //' src/server/services/art-setup.ts)",
       "Bash(grep -E '\\\\.\\(ts\\)$')",
-      "Bash(grep -E '\\\\.\\(tsx|ts\\)$')"
+      "Bash(grep -E '\\\\.\\(tsx|ts\\)$')",
+      "Bash(echo \"tsc exit=$?\")"
     ],
     "additionalDirectories": [
       "/Users/philippkoch/Documents/GitHub/Pulse-Program-Increment-Platform/src/app/[locale]/(dashboard)",

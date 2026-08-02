@@ -15,18 +15,18 @@
  */
 
 import {
-  keyResultTrio,
   keyResultProgress,
-  kpiContributionDetail,
   epicLinkTrio,
+  epicSuccessKpiContribution,
   sumTrios,
   nodeProgress,
   nodeTrio,
+  nodeUnitValue,
   type KpiInput,
-  type KrContributionInput,
   type RollupTrio,
   type RollupNode,
 } from "@/domain/goals-rollup";
+import { kpiDelta } from "@/domain/kpi-valuation";
 import {
   effectiveProgressMode,
   autoKpiCurrent,
@@ -40,7 +40,6 @@ import {
 } from "@/domain/goal-progress-series";
 import type {
   GoalNode,
-  ZieleKrContribution,
   GoalLatestCheckin,
   RelatedEpic,
   RelatedWorkItem,
@@ -52,16 +51,6 @@ import type {
 
 // ── Eingabetypen (vom Loader normalisiert; reines plain-JS, kein Prisma) ──────
 
-/** Ein KPI-Beitrag an einem Ziel-Knoten samt den (normalisierten) KPI-Fakten. */
-export interface ForestContribution {
-  kpiId: string;
-  kpiName: string;
-  epicTitle: string;
-  weight: number;
-  valuePerUnitOverride: number | null;
-  kpi: KpiInput;
-}
-
 /** Ein direkt verknüpftes Epic — Routing/Titel vom Loader, KPIs für den €-Trio. */
 export interface ForestRelatedEpic {
   epicId: string;
@@ -69,6 +58,13 @@ export interface ForestRelatedEpic {
   stageGate: string;
   href: string;
   kpis: KpiInput[];
+  // ── Einheiten-Kaskade (optional; nur bei GoalEpicLink mit gewählter KPI) ──
+  /** Gewählte Erfolgs-KPI dieses Links; null/undefined = Alt-€-Link. */
+  successKpi?: KpiInput | null;
+  /** Ziel-Metrik-Einheit je 1 Einheit der gewählten KPI. */
+  conversionFactor?: number | null;
+  impactKind?: string;
+  recurringInterval?: string;
 }
 
 /** Eine normalisierte Objective-Zeile (alle Decimal→number, Date→ISO). */
@@ -89,6 +85,8 @@ export interface ForestObjective {
   precision: number;
   currencyCode: string | null;
   rollupWeight: number | null;
+  /** Umrechnung eigene Metrik-Einheit → Eltern-Metrik-Einheit (Einheiten-Kaskade). */
+  parentUnitPerChildUnit: number | null;
   /** Asana „Remove from automatic progress": false = zählt nicht im Eltern-Rollup. */
   includeInParentRollup: boolean;
   baseline: number | null;
@@ -97,7 +95,6 @@ export interface ForestObjective {
   formula: string;
   /** Roh-Wert aus der DB (`null` ⇒ abgeleitet); `resolveNode` löst effektiv auf. */
   progressMode: string | null;
-  contributions: ForestContribution[];
 }
 
 /** Custom-Field-Definition (tenant-weit). */
@@ -137,8 +134,11 @@ export interface ResolvedNode {
   progressLeaf: number | null;
   trioLeaf: RollupTrio;
   trioEpicLinks: RollupTrio;
+  /** Eigener Metrik-Wert in EIGENER Einheit (Einheiten-Kaskade). */
+  unitValueLeaf: RollupTrio;
+  /** Einheiten-Beitrag der verknüpften Epic-Erfolgs-KPIs, in EIGENER Einheit. */
+  unitEpicLinks: RollupTrio;
   isMeasurable: boolean;
-  contributions: ZieleKrContribution[];
   relatedEpics: RelatedEpic[];
 }
 
@@ -156,18 +156,9 @@ export function resolveNode(
     relatedEpics: ForestRelatedEpic[];
   },
 ): ResolvedNode {
-  const kpisById = new Map<string, KpiInput>();
-  for (const c of o.contributions) kpisById.set(c.kpiId, c.kpi);
-  const contributionInputs: KrContributionInput[] = o.contributions.map((c) => ({
-    kpiId: c.kpiId,
-    weight: c.weight,
-    valuePerUnitOverride: c.valuePerUnitOverride,
-  }));
-
-  const trioLeaf =
-    o.formula === "auto_from_kpi"
-      ? keyResultTrio(contributionInputs, kpisById)
-      : { planned: 0, realized: 0, runRate: 0 };
+  // Der €-Wert eines Ziels stammt ausschließlich aus verknüpften Epics
+  // (`trioEpicLinks`) + Kinder-Rollup; die Eigen-Metrik trägt €0 bei.
+  const trioLeaf: RollupTrio = { planned: 0, realized: 0, runRate: 0 };
 
   const mode = effectiveProgressMode(o.progressMode, ctx.hasChildren);
   const unitSpec = {
@@ -182,23 +173,6 @@ export function resolveNode(
       ? null
       : keyResultProgress({ baseline: o.baseline, target: o.target, current: effectiveCurrent });
 
-  const contributions: ZieleKrContribution[] = o.contributions.map((c) => {
-    const detail = kpiContributionDetail(kpisById.get(c.kpiId), {
-      kpiId: c.kpiId,
-      weight: c.weight,
-      valuePerUnitOverride: c.valuePerUnitOverride,
-    });
-    return {
-      kpiId: c.kpiId,
-      kpiName: c.kpiName,
-      epicTitle: c.epicTitle,
-      weight: c.weight,
-      valuePerUnitOverride: c.valuePerUnitOverride,
-      achievement: detail.achievement,
-      contributionRealized: detail.contributionRealized,
-    };
-  });
-
   const relatedEpics: RelatedEpic[] = ctx.relatedEpics.map((e) => ({
     epicId: e.epicId,
     title: e.title,
@@ -208,18 +182,42 @@ export function resolveNode(
   }));
   const trioEpicLinks = sumTrios(relatedEpics.map((r) => r.trio));
 
+  // Einheiten-Kaskade: eigener Metrik-Wert (in eigener Einheit) + die in die
+  // eigene Einheit umgerechneten Beiträge der verknüpften Erfolgs-KPIs.
+  const unitValueLeaf: RollupTrio =
+    o.baseline !== null && o.target !== null
+      ? {
+          planned: Math.abs(o.target - o.baseline),
+          realized: kpiDelta({ baseline: o.baseline, target: o.target, current: effectiveCurrent }),
+          runRate: kpiDelta({ baseline: o.baseline, target: o.target, current: effectiveCurrent }),
+        }
+      : { planned: 0, realized: 0, runRate: 0 };
+  const unitEpicLinks = sumTrios(
+    ctx.relatedEpics.map((e) =>
+      e.successKpi
+        ? epicSuccessKpiContribution(
+            e.successKpi,
+            e.conversionFactor ?? null,
+            e.impactKind ?? "recurring",
+            e.recurringInterval ?? "yearly",
+          )
+        : { planned: 0, realized: 0, runRate: 0 },
+    ),
+  );
+
   return {
     mode,
     effectiveCurrent,
     progressLeaf,
     trioLeaf,
     trioEpicLinks,
+    unitValueLeaf,
+    unitEpicLinks,
     isMeasurable: isMeasurableGoal({
       progressMode: mode,
       target: o.target,
       hasChildren: ctx.hasChildren,
     }),
-    contributions,
     relatedEpics,
   };
 }
@@ -280,6 +278,9 @@ export function buildStrategyTree(input: GoalForestInput): {
       trioLeaf: resolved.trioLeaf,
       trioEpicLinks: resolved.trioEpicLinks,
       children: childRollups,
+      unitValueLeaf: resolved.unitValueLeaf,
+      unitEpicLinks: resolved.unitEpicLinks,
+      childUnitFactor: o.parentUnitPerChildUnit,
     };
 
     const node: GoalNode = {
@@ -298,6 +299,7 @@ export function buildStrategyTree(input: GoalForestInput): {
       precision: o.precision,
       currencyCode: o.currencyCode,
       rollupWeight: o.rollupWeight,
+      parentUnitPerChildUnit: o.parentUnitPerChildUnit,
       includeInParentRollup: o.includeInParentRollup,
       contributionShare: 0, // vom Parent gesetzt (Roots bleiben 0)
       baseline: o.baseline,
@@ -306,8 +308,6 @@ export function buildStrategyTree(input: GoalForestInput): {
       formula: o.formula,
       progressMode: resolved.mode,
       isMeasurable: resolved.isMeasurable,
-      kpiCount: o.contributions.length,
-      contributions: resolved.contributions,
       relatedEpics: resolved.relatedEpics,
       relatedWork: lookups.relatedWork.get(o.id) ?? [],
       valueStreams: lookups.valueStreams.get(o.id) ?? [],
@@ -323,6 +323,7 @@ export function buildStrategyTree(input: GoalForestInput): {
       depth,
       progress: nodeProgress(rollup),
       trio: nodeTrio(rollup),
+      unitValue: nodeUnitValue(rollup),
     };
     return { node, rollup };
   }

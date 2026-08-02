@@ -174,20 +174,6 @@ export default async function ControllingOverviewPage() {
         )}
       </section>
 
-      {/* KPI-Wertbeitrag — Pflege lebt in /controlling/kpi-coverage */}
-      <section className="space-y-3">
-        <SectionLabel>KPI-Wertbeitrag</SectionLabel>
-        <div className="flex items-baseline justify-between rounded-lg border bg-card p-4">
-          <p className="text-sm text-muted-foreground">€/Einheit + KR↔KPI-Bindungen pflegen.</p>
-          <Link
-            href="/controlling/kpi-coverage"
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            KPI-Coverage öffnen →
-          </Link>
-        </div>
-      </section>
-
       {/* Portfolio-Guardrails — Targets-Pflege */}
       <section className="space-y-3">
         <SectionLabel>Portfolio-Guardrails</SectionLabel>

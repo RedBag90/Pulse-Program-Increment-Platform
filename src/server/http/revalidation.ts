@@ -24,7 +24,6 @@ export type RevalidationResource =
   | "valueStream"
   | "pi"
   | "piStandard"
-  | "kpiTree"
   | "budgetPlanRevision"
   | "timeline"
   | "story"
@@ -65,7 +64,6 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   valueStream: ["/structure", "/value-streams/[id]"],
   pi: ["/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi/[piId]/objectives", "/pi-planning"],
   piStandard: ["/structure", "/value-streams/[id]"],
-  kpiTree: ["/controlling/kpi-tree", "/ziele"],
   budgetPlanRevision: ["/controlling", "/controlling/budget-plan", "/controlling/budget-plan/[id]"],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
   // the structure tab that hosts the management UI.

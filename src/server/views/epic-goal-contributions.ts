@@ -1,145 +1,156 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
-import { kpiAchievement, type KpiInput } from "@/domain/goals-rollup";
+import {
+  epicTopGoalBenefits,
+  type GoalNodeMeta,
+  type EpicGoalLinkInput,
+  type TopGoalBenefit,
+} from "@/domain/goals-rollup";
+
+// ── Einheiten-Kaskade: GoalEpicLink-Pfad (Epic → mehrere Ziele) ───────────────
+
+/** Eine Ziel-Verknüpfung dieses Epics (neuer Kaskaden-Pfad) für die KPIs-Tab. */
+export interface EpicGoalLinkRow {
+  objectiveId: string;
+  goalTitle: string;
+  /** Metrik-Einheit des Ziels (Freitext-Label). */
+  goalUnit: string | null;
+  // ── Ziel-eigene KPI (Metrik-Block des Ziels) — für die Messwert-Anzeige ──
+  goalMetricName: string | null;
+  goalMetricType: string;
+  goalPrecision: number;
+  goalCurrencyCode: string | null;
+  goalBaseline: number | null;
+  goalTarget: number | null;
+  goalCurrent: number | null;
+  /** Gewählte Erfolgs-KPI (null = Alt-€-Link ohne Kaskade). */
+  kpiId: string | null;
+  kpiName: string | null;
+  kpiUnit: string | null;
+  /** Messwerte der gewählten Erfolgs-KPI. */
+  kpiBaseline: number | null;
+  kpiTarget: number | null;
+  kpiCurrent: number | null;
+  /** Ziel-Einheit je 1 KPI-Einheit (z. B. 10000 €/Wagon). */
+  conversionFactor: number | null;
+  impactKind: string;
+  recurringInterval: string;
+}
+
+export interface EpicGoalLinksModel {
+  /** Alle Ziel-Links dieses Epics (für die „Verknüpfte Ziele"-Zeilen). */
+  links: EpicGoalLinkRow[];
+  /** Business-Case-Nutzen je Top-Ziel (Kaskade bis zur Wurzel hochgerechnet). */
+  topGoalBenefits: TopGoalBenefit[];
+}
 
 /**
- * Liefert die strategischen Bezuege eines Epics fuer den Cross-Modul-Badge
- * (Konzept V10): direkt verlinkte Themes + Key Results, in die KPIs des Epics
- * via Bridge-Tabelle einzahlen. Jeder KR-Eintrag bringt den €-Beitrag, den
- * THIS Epic faktisch leistet — also nur den KPI-Anteil, nicht die ganze
- * KR-Realized-Summe.
- *
- * Tenant-Scope wird ueber die uebergebene Prisma-Instanz erzwungen (RLS),
- * zusaetzlich filtern wir explizit nach `tenantId`.
+ * Lädt die GoalEpicLink-Verknüpfungen eines Epics (neuer Einheiten-Kaskaden-Pfad)
+ * und rechnet den Nutzen je verknüpfter Erfolgs-KPI die Ziel-Eltern-Kette bis zum
+ * Top-Ziel hoch (`epicTopGoalBenefits`). Speist die KPIs-Tab-Zeilen „Verknüpfte
+ * Ziele" und die Business-Case-Nutzen-Anzeige.
  */
-
-export interface EpicGoalKrContribution {
-  krId: string;
-  krTitle: string;
-  /** Parent-Theme (= im Schema „Objective") — nach Hierarchie-Vereinfachung
-   *  die einzige sichtbare Ebene oberhalb des KR. */
-  themeId: string;
-  themeTitle: string;
-  /** € Beitrag, der direkt aus den KPIs dieses Epics stammt (Realized). */
-  contributionRealized: number;
-  /** Soll-€ des KRs als Vergleichsanker (Planned des gesamten KRs). */
-  krPlanned: number;
-}
-
-export interface EpicGoalContributions {
-  /** KRs, die per KPI an das Epic zahlen. */
-  krContributions: EpicGoalKrContribution[];
-}
-
-export async function loadEpicGoalContributions(
+export async function loadEpicGoalLinks(
   db: PrismaClient,
   principal: Principal,
   epicId: string,
-): Promise<EpicGoalContributions> {
+): Promise<EpicGoalLinksModel> {
   const { tenantId } = principal;
 
-  // 2) Alle KPIs des Epics
-  const kpis = await db.kpi.findMany({
-    where: { tenantId, initiativeId: epicId },
-    select: {
-      id: true,
-      baseline: true,
-      target: true,
-      measurements: true,
-      valuePerUnit: true,
-    },
-  });
-  if (kpis.length === 0) {
-    return { krContributions: [] };
-  }
-
-  // 3) KR-Beitraege fuer diese KPIs (Bridge-Tabelle); Parent = Objective
-  //    (in der UI „Theme" nach Hierarchie-Vereinfachung)
-  const contribs = await db.krKpiContribution.findMany({
-    where: { tenantId, kpiId: { in: kpis.map((k) => k.id) } },
+  const links = await db.goalEpicLink.findMany({
+    where: { tenantId, epicId },
     include: {
       objective: {
         select: {
           id: true,
           title: true,
-          parent: { select: { id: true, title: true } },
+          metricName: true,
+          metricUnit: true,
+          metricType: true,
+          precision: true,
+          currencyCode: true,
+          baseline: true,
+          target: true,
+          current: true,
+        },
+      },
+      kpi: {
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          baseline: true,
+          target: true,
+          measurements: true,
         },
       },
     },
   });
-  if (contribs.length === 0) {
-    return { krContributions: [] };
-  }
+  if (links.length === 0) return { links: [], topGoalBenefits: [] };
 
-  // 4) KPI-Inputs aufbauen (gleiche Form wie ziele-view, damit kpiAchievement passt)
-  const kpisById = new Map<string, KpiInput>();
-  for (const k of kpis) {
-    kpisById.set(k.id, {
-      id: k.id,
-      baseline: toFloat(k.baseline),
-      target: toFloat(k.target),
-      current: latestMeasurement(k.measurements),
-      valuePerUnit: toFloat(k.valuePerUnit),
-    });
-  }
+  const linkRows: EpicGoalLinkRow[] = links.map((l) => ({
+    objectiveId: l.objectiveId,
+    goalTitle: l.objective.title,
+    goalUnit: l.objective.metricUnit,
+    goalMetricName: l.objective.metricName,
+    goalMetricType: l.objective.metricType,
+    goalPrecision: l.objective.precision,
+    goalCurrencyCode: l.objective.currencyCode,
+    goalBaseline: toFloat(l.objective.baseline),
+    goalTarget: toFloat(l.objective.target),
+    goalCurrent: toFloat(l.objective.current),
+    kpiId: l.kpi?.id ?? null,
+    kpiName: l.kpi?.name ?? null,
+    kpiUnit: l.kpi?.unit ?? null,
+    kpiBaseline: l.kpi ? toFloat(l.kpi.baseline) : null,
+    kpiTarget: l.kpi ? toFloat(l.kpi.target) : null,
+    kpiCurrent: l.kpi ? latestMeasurement(l.kpi.measurements) : null,
+    conversionFactor: toFloat(l.conversionFactor),
+    impactKind: l.impactKind,
+    recurringInterval: l.recurringInterval,
+  }));
 
-  // 6) Aggregation pro KR — wir summieren NUR die KPI-Beitraege aus diesem Epic.
-  //    Damit zeigt der Badge „dein Epic traegt €X" und nicht „dieser KR ist €Y wert".
-  const byKr = new Map<string, EpicGoalKrContribution>();
-  for (const c of contribs) {
-    const kpi = kpisById.get(c.kpiId);
-    if (!kpi) continue;
-    const ach = kpiAchievement(kpi);
-    const span = (kpi.target ?? 0) - (kpi.baseline ?? 0);
-    const vpu = toFloat(c.valuePerUnitOverride) ?? kpi.valuePerUnit ?? 0;
-    const weight = Number(c.weight);
-    const realized = ach != null && vpu ? ach * vpu * span * weight : 0;
-
-    if (!c.objective) continue;
-    const node = c.objective;
-    const existing = byKr.get(node.id);
-    if (existing) {
-      existing.contributionRealized += realized;
-    } else {
-      byKr.set(node.id, {
-        krId: node.id,
-        krTitle: node.title,
-        themeId: node.parent?.id ?? node.id,
-        themeTitle: node.parent?.title ?? node.title,
-        contributionRealized: realized,
-        krPlanned: 0,
-      });
-    }
-  }
-
-  // 7) krPlanned pro KR — gesamte Soll-€-Summe ueber alle Contributions des KRs
-  //    (Vergleichswert; nicht epic-spezifisch, sondern Theme-weit)
-  const krIds = Array.from(byKr.keys());
-  if (krIds.length > 0) {
-    const allContribs = await db.krKpiContribution.findMany({
-      where: { tenantId, objectiveId: { in: krIds } },
-      include: {
-        kpi: { select: { id: true, baseline: true, target: true, valuePerUnit: true } },
+  // Alle Tenant-Ziele für den Aufstieg zum Top-Ziel (id → Meta).
+  const nodes = await db.objective.findMany({
+    where: { tenantId },
+    select: {
+      id: true,
+      parentObjectiveId: true,
+      title: true,
+      metricUnit: true,
+      parentUnitPerChildUnit: true,
+    },
+  });
+  const nodesById = new Map<string, GoalNodeMeta>(
+    nodes.map((n) => [
+      n.id,
+      {
+        id: n.id,
+        parentId: n.parentObjectiveId,
+        name: n.title,
+        unit: n.metricUnit,
+        parentUnitPerChildUnit: toFloat(n.parentUnitPerChildUnit),
       },
-    });
-    const plannedByKr = new Map<string, number>();
-    for (const c of allContribs) {
-      if (!c.objectiveId) continue;
-      const span = (toFloat(c.kpi.target) ?? 0) - (toFloat(c.kpi.baseline) ?? 0);
-      const vpu = toFloat(c.valuePerUnitOverride) ?? toFloat(c.kpi.valuePerUnit) ?? 0;
-      const planned = vpu * span * Number(c.weight);
-      plannedByKr.set(c.objectiveId, (plannedByKr.get(c.objectiveId) ?? 0) + planned);
-    }
-    for (const [krId, entry] of byKr) {
-      entry.krPlanned = plannedByKr.get(krId) ?? 0;
-    }
-  }
+    ]),
+  );
 
-  return {
-    krContributions: Array.from(byKr.values()).sort(
-      (a, b) => b.contributionRealized - a.contributionRealized,
-    ),
-  };
+  const benefitInputs: EpicGoalLinkInput[] = links
+    .filter((l) => l.kpi && l.conversionFactor != null)
+    .map((l) => ({
+      objectiveId: l.objectiveId,
+      kpi: {
+        id: l.kpi!.id,
+        baseline: toFloat(l.kpi!.baseline),
+        target: toFloat(l.kpi!.target),
+        current: latestMeasurement(l.kpi!.measurements),
+        valuePerUnit: null,
+      },
+      conversionFactor: toFloat(l.conversionFactor),
+      impactKind: l.impactKind,
+      recurringInterval: l.recurringInterval,
+    }));
+
+  return { links: linkRows, topGoalBenefits: epicTopGoalBenefits(benefitInputs, nodesById) };
 }
 
 function toFloat(d: unknown): number | null {

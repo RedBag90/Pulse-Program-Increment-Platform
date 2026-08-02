@@ -8,11 +8,23 @@ import {
   updateKpiWeightAction,
   updateKpiDetailsAction,
 } from "@/features/portfolio/actions/kpi";
+import { linkEpicToGoalAction } from "@/features/ziele/actions/ziele";
 import { benefitKindOrDefault, BENEFIT_KIND_LABELS } from "@/domain/kpi-benefit-kind";
 import {
   recurringIntervalOrDefault,
   RECURRING_INTERVAL_LABELS,
 } from "@/domain/kpi-recurring-interval";
+import { formatMetricValue } from "@/domain/goal-metric";
+import type { EpicGoalLinkRow } from "@/server/views/epic-goal-contributions";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { useCreateResult } from "@/features/create/use-create-result";
 import { SectionSignoffBanner, type SectionSignoff } from "./section-signoff-banner";
 
 export interface KpiRow {
@@ -40,6 +52,8 @@ interface Props {
   initiativeId: string;
   kpis: KpiRow[];
   canEdit: boolean;
+  /** Verknüpfte Ziele dieses Epics (Einheiten-Kaskade); leer = keine. */
+  goalLinks?: EpicGoalLinkRow[];
   /** Sign-off state for the KPIs section (omit to hide the banner). */
   signoff?: SectionSignoff;
 }
@@ -259,92 +273,289 @@ function KpiItem({
   );
 }
 
+/** KPI-Erfassung als Pop-up (entlastet die volle Detailseite). */
 function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
+  const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(createKpiAction, {});
   const [createKind, setCreateKind] = useState<string>("recurring");
+  useCreateResult(state, () => setOpen(false));
 
   return (
-    <form
-      action={action}
-      className="flex flex-wrap items-end gap-2 rounded border border-dashed p-3"
-    >
-      <input type="hidden" name="initiativeId" value={initiativeId} />
-      <label className="flex flex-col gap-1 text-xs font-medium">
-        Name
-        <input name="name" required className={`${inputCls} w-48`} />
-      </label>
-      <label className="flex flex-col gap-1 text-xs font-medium">
-        Einheit
-        <input name="unit" className={`${inputCls} w-24`} />
-      </label>
-      <label className="flex flex-col gap-1 text-xs font-medium">
-        Baseline
-        <input type="number" step="any" name="baseline" className={`${inputCls} w-28`} />
-      </label>
-      <label className="flex flex-col gap-1 text-xs font-medium">
-        Ziel
-        <input type="number" step="any" name="target" className={`${inputCls} w-28`} />
-      </label>
-      <label className="flex flex-col gap-1 text-xs font-medium">
-        Nutzen-Anteil %
-        <input
-          type="number"
-          step="any"
-          min={0}
-          name="weightPercent"
-          placeholder="auto"
-          className={`${inputCls} w-24`}
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-xs font-medium">
-        Benefit-Art
-        <select
-          name="benefitKind"
-          value={createKind}
-          onChange={(e) => setCreateKind(e.target.value)}
-          className={`${inputCls} w-44`}
-        >
-          <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
-          <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
-        </select>
-      </label>
-      <label className="flex flex-col gap-1 text-xs font-medium">
-        €/Einheit (Vorschlag)
-        <input
-          type="number"
-          step="any"
-          name="valuePerUnit"
-          placeholder="—"
-          className={`${inputCls} w-28`}
-        />
-      </label>
-      {createKind === "recurring" && (
-        <label className="flex flex-col gap-1 text-xs font-medium">
-          Intervall
-          <select name="recurringInterval" defaultValue="yearly" className={`${inputCls} w-32`}>
-            <option value="yearly">{RECURRING_INTERVAL_LABELS.yearly}</option>
-            <option value="monthly">{RECURRING_INTERVAL_LABELS.monthly}</option>
-          </select>
-        </label>
+    <>
+      <Button onClick={() => setOpen(true)}>KPI hinzufügen</Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>KPI hinzufügen</DialogTitle>
+          </DialogHeader>
+          <form action={action} className="space-y-3">
+            <input type="hidden" name="initiativeId" value={initiativeId} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                Name
+                <input name="name" required className={`${inputCls} w-full`} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                Einheit
+                <input name="unit" className={`${inputCls} w-full`} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                Baseline
+                <input type="number" step="any" name="baseline" className={`${inputCls} w-full`} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                Ziel
+                <input type="number" step="any" name="target" className={`${inputCls} w-full`} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                Nutzen-Anteil %
+                <input
+                  type="number"
+                  step="any"
+                  min={0}
+                  name="weightPercent"
+                  placeholder="auto"
+                  className={`${inputCls} w-full`}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                Benefit-Art
+                <select
+                  name="benefitKind"
+                  value={createKind}
+                  onChange={(e) => setCreateKind(e.target.value)}
+                  className={`${inputCls} w-full`}
+                >
+                  <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
+                  <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                €/Einheit (Vorschlag)
+                <input
+                  type="number"
+                  step="any"
+                  name="valuePerUnit"
+                  placeholder="—"
+                  className={`${inputCls} w-full`}
+                />
+              </label>
+              {createKind === "recurring" && (
+                <label className="flex flex-col gap-1 text-xs font-medium">
+                  Intervall
+                  <select
+                    name="recurringInterval"
+                    defaultValue="yearly"
+                    className={`${inputCls} w-full`}
+                  >
+                    <option value="yearly">{RECURRING_INTERVAL_LABELS.yearly}</option>
+                    <option value="monthly">{RECURRING_INTERVAL_LABELS.monthly}</option>
+                  </select>
+                </label>
+              )}
+            </div>
+            {state?.error && (
+              <p role="alert" className="text-xs text-destructive">
+                {state.error}
+              </p>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Speichern…" : "KPI hinzufügen"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/** Eine Zeile je verknüpftem Ziel: wähle die treibende KPI + Umrechnungsfaktor. */
+function LinkedGoalRow({
+  link,
+  initiativeId,
+  kpis,
+  canEdit,
+}: {
+  link: EpicGoalLinkRow;
+  initiativeId: string;
+  kpis: KpiRow[];
+  canEdit: boolean;
+}) {
+  const [state, action, pending] = useActionState(linkEpicToGoalAction, {});
+  const chosen = kpis.find((k) => k.id === link.kpiId) ?? null;
+  const [kind, setKind] = useState<string>(link.impactKind || "recurring");
+  const goalSpec = {
+    metricType: link.goalMetricType,
+    precision: link.goalPrecision,
+    currencyCode: link.goalCurrencyCode,
+  };
+  const hasGoalMetric =
+    link.goalBaseline != null || link.goalTarget != null || link.goalCurrent != null;
+
+  return (
+    <div className="rounded border p-3">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <span className="font-medium">{link.goalTitle}</span>
+        {link.goalUnit && (
+          <span className="text-xs text-muted-foreground">Ziel-Einheit: {link.goalUnit}</span>
+        )}
+        {chosen && link.conversionFactor != null ? (
+          <span className="text-sm text-muted-foreground">
+            1 {link.kpiUnit || chosen.unit || "KPI-Einheit"} →{" "}
+            <span className="font-medium">
+              {link.conversionFactor.toLocaleString("de-DE")} {link.goalUnit || ""}
+            </span>{" "}
+            · {BENEFIT_KIND_LABELS[benefitKindOrDefault(link.impactKind)]}
+          </span>
+        ) : (
+          <span className="text-xs text-amber-700 dark:text-amber-300">
+            Noch keine treibende KPI / kein Faktor gesetzt
+          </span>
+        )}
+      </div>
+
+      {/* Ziel-KPI (Metrik des Ziels) + Messwert. */}
+      <p className="mt-1 text-xs text-muted-foreground">
+        Ziel-KPI: {link.goalMetricName ? `${link.goalMetricName} · ` : ""}
+        {hasGoalMetric ? (
+          <>
+            {formatMetricValue(link.goalBaseline, goalSpec)} →{" "}
+            {formatMetricValue(link.goalTarget, goalSpec)}
+            {" · aktuell "}
+            <span className="font-medium text-foreground">
+              {formatMetricValue(link.goalCurrent, goalSpec)}
+            </span>
+            {link.goalUnit ? ` ${link.goalUnit}` : ""}
+          </>
+        ) : (
+          "— noch nicht gepflegt (im Ziele-Modul)"
+        )}
+      </p>
+
+      {canEdit && kpis.length === 0 && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Lege zuerst eine KPI an, um die Umrechnung zu diesem Ziel zu definieren.
+        </p>
       )}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-      >
-        {pending ? "Speichern…" : "KPI hinzufügen"}
-      </button>
+
+      {canEdit && kpis.length > 0 && (
+        <form action={action} className="mt-2 flex flex-wrap items-end gap-2">
+          <input type="hidden" name="epicId" value={initiativeId} />
+          <input type="hidden" name="goalId" value={link.objectiveId} />
+          <label className="flex flex-col gap-1 text-xs font-medium">
+            KPI
+            <select name="kpiId" defaultValue={link.kpiId ?? ""} className={`${inputCls} w-48`}>
+              <option value="">— wählen —</option>
+              {kpis.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.name}
+                  {k.unit ? ` (${k.unit})` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium">
+            {link.goalUnit ? `${link.goalUnit} je 1 KPI-Einheit` : "Ziel-Einheit je 1 KPI-Einheit"}
+            <input
+              type="number"
+              step="any"
+              name="conversionFactor"
+              defaultValue={link.conversionFactor ?? ""}
+              placeholder="z. B. 10000"
+              className={`${inputCls} w-32`}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium">
+            Wirkung
+            <select
+              name="impactKind"
+              value={kind}
+              onChange={(e) => setKind(e.target.value)}
+              className={`${inputCls} w-44`}
+            >
+              <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
+              <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
+            </select>
+          </label>
+          {kind === "recurring" && (
+            <label className="flex flex-col gap-1 text-xs font-medium">
+              Intervall
+              <select
+                name="recurringInterval"
+                defaultValue={recurringIntervalOrDefault(link.recurringInterval)}
+                className={`${inputCls} w-32`}
+              >
+                <option value="yearly">{RECURRING_INTERVAL_LABELS.yearly}</option>
+                <option value="monthly">{RECURRING_INTERVAL_LABELS.monthly}</option>
+              </select>
+            </label>
+          )}
+          <button
+            type="submit"
+            disabled={pending}
+            className="rounded bg-secondary px-2 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
+          >
+            Speichern
+          </button>
+        </form>
+      )}
       {state?.error && (
-        <p role="alert" className="w-full text-xs text-destructive">
+        <p role="alert" className="mt-1 text-xs text-destructive">
           {state.error}
         </p>
       )}
-    </form>
+    </div>
+  );
+}
+
+/** „Verknüpfte Ziele" — je Ziel die treibende KPI + Einheiten-Umrechnung definieren. */
+function LinkedGoalsSection({
+  initiativeId,
+  goalLinks,
+  kpis,
+  canEdit,
+}: {
+  initiativeId: string;
+  goalLinks: EpicGoalLinkRow[];
+  kpis: KpiRow[];
+  canEdit: boolean;
+}) {
+  return (
+    <div className="space-y-2 border-t pt-4">
+      <h3 className="text-sm font-medium">Verknüpfte Ziele</h3>
+      <p className="text-xs text-muted-foreground">
+        Verknüpfe Epics im jeweiligen Ziel („Related work"). Pro Ziel legst du hier fest, welche KPI
+        es treibt und wie viel Ziel-Einheit eine KPI-Einheit bewegt (z. B. 10000 €/Wagon).
+      </p>
+      {goalLinks.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Noch mit keinem Ziel verknüpft. Verknüpfung erfolgt im Ziele-Modul („Related work").
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {goalLinks.map((link) => (
+            <LinkedGoalRow
+              key={link.objectiveId}
+              link={link}
+              initiativeId={initiativeId}
+              kpis={kpis}
+              canEdit={canEdit}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
 /** KPIs tab — lists the Epic's KPIs with baseline/target/actual and inline CRUD. */
-export function EpicKpisTab({ initiativeId, kpis, canEdit, signoff }: Props) {
+export function EpicKpisTab({ initiativeId, kpis, canEdit, goalLinks, signoff }: Props) {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-medium">KPIs</h2>
@@ -366,6 +577,15 @@ export function EpicKpisTab({ initiativeId, kpis, canEdit, signoff }: Props) {
       )}
 
       {canEdit && <CreateKpiForm initiativeId={initiativeId} />}
+
+      {goalLinks && (
+        <LinkedGoalsSection
+          initiativeId={initiativeId}
+          goalLinks={goalLinks}
+          kpis={kpis}
+          canEdit={canEdit}
+        />
+      )}
     </div>
   );
 }

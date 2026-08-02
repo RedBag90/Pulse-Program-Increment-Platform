@@ -35,7 +35,6 @@ export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly
       "budget_plan.revision.capture",
       "timeline.manage",
       "art_budget.manage",
-      "kpi.value.manage",
     ],
   },
   {
