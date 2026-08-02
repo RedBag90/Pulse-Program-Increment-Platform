@@ -45,5 +45,7 @@ export default async function StartPage({ params }: { params: Promise<{ locale: 
   );
   await ensurePlatformAdminBootstrap(db, principal.id, principal.email, personalTenantId);
 
-  redirect(`/${locale}${landingPathForRoles(principal.roles, principal.enabledModules)}`);
+  redirect(
+    `/${locale}${landingPathForRoles(principal.roles, principal.enabledModules, principal.tenantKind)}`,
+  );
 }
