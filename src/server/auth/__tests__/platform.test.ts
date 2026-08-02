@@ -79,12 +79,12 @@ describe("requirePlatformAdmin — layout guard", () => {
   it("redirects a tenant_admin (blocked)", async () => {
     getPrincipalMock.mockResolvedValue(principal({ roles: [ROLES.TENANT_ADMIN] }));
     await expect(requirePlatformAdmin()).rejects.toThrow("NEXT_REDIRECT");
-    expect(redirectMock).toHaveBeenCalledWith("/");
+    expect(redirectMock).toHaveBeenCalledWith("/start");
   });
 
   it("redirects when unauthenticated", async () => {
     getPrincipalMock.mockResolvedValue(null);
     await expect(requirePlatformAdmin()).rejects.toThrow("NEXT_REDIRECT");
-    expect(redirectMock).toHaveBeenCalledWith("/");
+    expect(redirectMock).toHaveBeenCalledWith("/start");
   });
 });
