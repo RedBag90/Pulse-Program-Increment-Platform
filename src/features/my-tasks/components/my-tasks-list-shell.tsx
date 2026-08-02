@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
-import { MyTasksFunnelBar } from "@/features/my-tasks/components/my-tasks-funnel-bar";
 import { MyTasksFilterBar } from "@/features/my-tasks/components/my-tasks-filter-bar";
 import { MyTasksEpicsSection } from "@/features/my-tasks/components/my-tasks-epics-section";
 import { MyTasksFeaturesSection } from "@/features/my-tasks/components/my-tasks-features-section";
@@ -26,9 +25,6 @@ function parseLevel(raw: string | null): TaskLevel | null {
   if (!raw) return null;
   return (LEVELS as readonly string[]).includes(raw) ? (raw as TaskLevel) : null;
 }
-function parseDensity(raw: string | null): "comfortable" | "compact" {
-  return raw === "compact" ? "compact" : "comfortable";
-}
 
 /**
  * Shell für /my-tasks. Owns URL-State, computed beide Section-Inhalte
@@ -48,12 +44,7 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
   const epicId = params.get("epic");
   const piId = params.get("pi");
   const query = params.get("q") ?? "";
-  const density = parseDensity(params.get("density"));
 
-  const onBucketChange = useCallback(
-    (next: Bucket | null) => pushParam({ bucket: next }),
-    [pushParam],
-  );
   const onLevelChange = useCallback(
     (next: TaskLevel | null) => pushParam({ level: next }),
     [pushParam],
@@ -66,11 +57,6 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
   const onEpicChange = useCallback((next: string | null) => pushParam({ epic: next }), [pushParam]);
   const onPiChange = useCallback((next: string | null) => pushParam({ pi: next }), [pushParam]);
   const onQueryChange = useCallback((next: string) => pushParam({ q: next || null }), [pushParam]);
-  const onDensityChange = useCallback(
-    (next: "comfortable" | "compact") =>
-      pushParam({ density: next === "comfortable" ? null : next }),
-    [pushParam],
-  );
 
   // ── Epic-Filter: bucket (via bucketById) + level + vs + epic-search.
   const filteredEpics = useMemo<EpicListRow[]>(() => {
@@ -124,7 +110,7 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
     query,
   ]);
 
-  const compact = density === "compact";
+  const compact = false;
 
   return (
     <Page>
@@ -133,8 +119,6 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
         subtitle="Alles, wofür ich Owner oder Assignee bin — Epics und Features mit denselben Zeileninhalten wie auf den Hauptlisten."
       />
 
-      <MyTasksFunnelBar counts={model.funnelCounts} active={bucket} onChange={onBucketChange} />
-
       <MyTasksFilterBar
         query={query}
         level={level}
@@ -142,7 +126,6 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
         artId={artId}
         epicId={epicId}
         piId={piId}
-        density={density}
         options={{
           levelOptions: model.levelOptions,
           valueStreamOptions: model.valueStreamOptions,
@@ -156,7 +139,6 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
         onArtChange={onArtChange}
         onEpicChange={onEpicChange}
         onPiChange={onPiChange}
-        onDensityChange={onDensityChange}
       />
 
       <MyTasksEpicsSection

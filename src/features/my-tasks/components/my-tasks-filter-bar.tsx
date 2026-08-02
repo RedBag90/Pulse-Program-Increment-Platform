@@ -11,7 +11,6 @@ interface Props {
   artId: string | null;
   epicId: string | null;
   piId: string | null;
-  density: "comfortable" | "compact";
   options: Pick<
     MyTasksListModel,
     "levelOptions" | "valueStreamOptions" | "artOptions" | "parentEpicOptions" | "piOptions"
@@ -22,7 +21,6 @@ interface Props {
   onArtChange: (next: string | null) => void;
   onEpicChange: (next: string | null) => void;
   onPiChange: (next: string | null) => void;
-  onDensityChange: (next: "comfortable" | "compact") => void;
 }
 
 const LEVEL_LABEL: Record<TaskLevel, string> = { epic: "Epic", feature: "Feature" };
@@ -47,7 +45,7 @@ export function MyTasksFilterBar(props: Props) {
   }, [localQuery, externalQuery, onQueryChange]);
 
   return (
-    <div className="grid gap-2 md:grid-cols-[1fr_repeat(5,auto)_auto]">
+    <div className="grid gap-2 md:grid-cols-[1fr_repeat(5,auto)]">
       <input
         type="search"
         value={localQuery}
@@ -117,14 +115,6 @@ export function MyTasksFilterBar(props: Props) {
             {p.name}
           </option>
         ))}
-      </select>
-      <select
-        value={props.density}
-        onChange={(e) => props.onDensityChange(e.target.value as "comfortable" | "compact")}
-        className="rounded-md border border-input bg-card px-2 py-1.5 text-sm"
-      >
-        <option value="comfortable">Bequem</option>
-        <option value="compact">Kompakt</option>
       </select>
     </div>
   );
