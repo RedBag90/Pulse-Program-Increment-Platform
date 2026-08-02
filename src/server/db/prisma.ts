@@ -18,37 +18,40 @@ declare global {
   var __prisma: PrismaClient | undefined;
 }
 
-function getBaseClient(): PrismaClient {
-  if (process.env.NODE_ENV === "production") {
-    return new PrismaClient();
-  }
-  // In development, reuse across hot reloads to avoid pool exhaustion.
+function makeClient(): PrismaClient {
   // Opt-in Query-Logging via PRISMA_DEBUG=1 — laesst N+1 sofort sehen.
-  if (!globalThis.__prisma) {
-    const debug = process.env.PRISMA_DEBUG === "1";
-    const client = debug
-      ? new PrismaClient({ log: [{ emit: "event", level: "query" }] })
-      : new PrismaClient();
-    if (debug) {
-      let count = 0;
-      let windowStart = Date.now();
-      (
-        client as unknown as {
-          $on: (e: string, cb: (q: { query: string; duration: number }) => void) => void;
-        }
-      ).$on("query", (q) => {
-        const now = Date.now();
-        if (now - windowStart > 1000) {
-          windowStart = now;
-          count = 0;
-        }
-        count++;
-        // eslint-disable-next-line no-console
-        console.log(`[prisma #${count}] ${q.duration}ms · ${q.query.slice(0, 120)}`);
-      });
-    }
-    globalThis.__prisma = client;
+  const debug = process.env.PRISMA_DEBUG === "1";
+  const client = debug
+    ? new PrismaClient({ log: [{ emit: "event", level: "query" }] })
+    : new PrismaClient();
+  if (debug) {
+    let count = 0;
+    let windowStart = Date.now();
+    (
+      client as unknown as {
+        $on: (e: string, cb: (q: { query: string; duration: number }) => void) => void;
+      }
+    ).$on("query", (q) => {
+      const now = Date.now();
+      if (now - windowStart > 1000) {
+        windowStart = now;
+        count = 0;
+      }
+      count++;
+      // eslint-disable-next-line no-console
+      console.log(`[prisma #${count}] ${q.duration}ms · ${q.query.slice(0, 120)}`);
+    });
   }
+  return client;
+}
+
+// EIN PrismaClient (= ein Connection-Pool) pro Prozess/Lambda-Instanz — über
+// `globalThis` in ALLEN Umgebungen. In Serverless überlebt globalThis die
+// Invocations einer warmen Instanz; früher gab Production bei jedem Aufruf einen
+// neuen Pool zurück → Connection-Leak bis zum Pooler-Limit (EMAXCONN). In Dev
+// überlebt der Singleton zusätzlich HMR-Reloads.
+function getBaseClient(): PrismaClient {
+  globalThis.__prisma ??= makeClient();
   return globalThis.__prisma;
 }
 
