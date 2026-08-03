@@ -262,8 +262,14 @@ function buildGraph(
   // Rekursiver Walk über den Goal-Baum: ein Knoten je Ebene + Eltern-Kind-Kante.
   // Eingeklappte Knoten emittieren ihre Kinder nicht → dagre layoutet nur Sichtbares.
   const visit = (n: GoalNode, accent: string, parentGraphId: string | null): void => {
-    // „kr"-Tier = messbarer Knoten (eigene Metrik); sonst Container-„theme".
-    const tier: Tier = n.isMeasurable && n.progressMode !== "rollup" ? "kr" : "theme";
+    // „kr"-Tier = messbares Blatt (eigene Metrik); aggregierende Knoten (rollup,
+    // kpi_tree-Ast) sind Container-„theme".
+    const tier: Tier =
+      n.isMeasurable &&
+      n.progressMode !== "rollup" &&
+      !(n.progressMode === "kpi_tree" && n.children.length > 0)
+        ? "kr"
+        : "theme";
     const gid = nodeId(tier, n.id);
     const isCollapsed = collapsed.has(n.id);
     rawNodes.push({

@@ -10,7 +10,7 @@ import {
 const emptyLookups = (): ForestLookups => ({
   latestCheckin: new Map(),
   relatedEpics: new Map(),
-  epicKpiUnits: new Map(),
+  autoKpiLinks: new Map(),
   relatedWork: new Map(),
   valueStreams: new Map(),
   arts: new Map(),
@@ -45,7 +45,7 @@ const obj = (over: Partial<ForestObjective>): ForestObjective => ({
 });
 
 describe("resolveNode — der Mode/Leaf-Seam", () => {
-  const ctx = { hasChildren: false, epicKpiUnits: [], relatedEpics: [] };
+  const ctx = { hasChildren: false, autoKpiLinks: [], relatedEpics: [] };
 
   it("löst progressMode ab: null+Kinder ⇒ rollup, null+Blatt ⇒ manual", () => {
     expect(resolveNode(obj({}), { ...ctx, hasChildren: true }).mode).toBe("rollup");
@@ -57,6 +57,41 @@ describe("resolveNode — der Mode/Leaf-Seam", () => {
       0.5,
     );
     expect(resolveNode(obj({ target: 10 }), { ...ctx, hasChildren: true }).progressLeaf).toBeNull();
+  });
+
+  it("auto_kpi ⇒ Ist delta-basiert auf Ziel-Skala (TAT: 122−25=97 ⇒ ~40 %)", () => {
+    const tat = obj({
+      progressMode: "auto_kpi",
+      metricUnit: "Days",
+      baseline: 122,
+      target: 60,
+    });
+    // Faktor-Link: KPI-Δ 50 × Faktor 0,5 = 25 Days ⇒ Ist 97 ⇒ (122−97)/(122−60)=0,40
+    const factored = resolveNode(tat, {
+      ...ctx,
+      autoKpiLinks: [
+        { kind: "factor", kpi: { baseline: 0, target: 100, current: 50 }, factor: 0.5 },
+      ],
+    });
+    expect(factored.effectiveCurrent).toBe(97);
+    expect(factored.progressLeaf).toBeCloseTo(0.403, 2);
+    // Unit-Kaskade ohne Doppelzählung: realized 25 Days, planned 62.
+    expect(factored.unitValueLeaf).toEqual({ planned: 62, realized: 25, runRate: 25 });
+    expect(factored.unitEpicLinks).toEqual({ planned: 0, realized: 0, runRate: 0 });
+
+    // sameUnit-Fallback: einheiten-gleiche KPI ("Days") als Delta auf die Baseline.
+    const grow = obj({ progressMode: "auto_kpi", metricUnit: "Days", baseline: 0, target: 500 });
+    expect(
+      resolveNode(grow, {
+        ...ctx,
+        autoKpiLinks: [
+          {
+            kind: "sameUnit",
+            kpis: [{ unit: "Days", point: { baseline: 0, target: 500, current: 250 } }],
+          },
+        ],
+      }).progressLeaf,
+    ).toBeCloseTo(0.5);
   });
 
   it("trioLeaf ist immer Null-Trio (Ziel-Eigen-Metrik trägt €0 bei)", () => {
@@ -195,6 +230,53 @@ describe("buildStrategyTree — Baum-Assemblierung + Rollup", () => {
     // Das Kind selbst trägt seinen Wert in EIGENER Einheit (Wagen).
     expect(themes[0]!.children[0]!.unitValue).toEqual({ planned: 10, realized: 4, runRate: 4 });
   });
+
+  const tatTree = (parentMode: "kpi_tree" | "rollup"): ForestObjective[] => [
+    obj({
+      id: "P",
+      title: "TAT Optimierun",
+      progressMode: parentMode,
+      metricType: "currency",
+      metricUnit: "€",
+      currencyCode: "€",
+      baseline: 0,
+      target: 10_000_000,
+    }),
+    obj({
+      id: "C",
+      parentObjectiveId: "P",
+      progressMode: "kpi_tree",
+      metricUnit: "Days",
+      baseline: 122,
+      target: 60,
+      parentUnitPerChildUnit: 16000, // 1 Day = 16.000 €
+    }),
+  ];
+  const tatLookups = (): ForestLookups => ({
+    ...emptyLookups(),
+    autoKpiLinks: new Map([
+      ["C", [{ kind: "factor", kpi: { baseline: 0, target: 100, current: 50 }, factor: 0.5 }]],
+    ]),
+  });
+
+  it("kpi_tree: €-Parent misst wert-basiert am kaskadierten Wert (TAT: Kind 40 %, Parent 4 %)", () => {
+    const { themes } = buildStrategyTree({ rows: tatTree("kpi_tree"), lookups: tatLookups() });
+    const P = themes[0]!;
+    const C = P.children[0]!;
+    // Kind (kpi_tree-Blatt): Ist 97 Days ⇒ 40 %; Wert 25 Days (ohne Doppelzählung).
+    expect(C.progress).toBeCloseTo(0.403, 2);
+    expect(C.unitValue).toEqual({ planned: 62, realized: 25, runRate: 25 });
+    // Parent (kpi_tree-Ast): 25 Days × 16000 = 400.000 € realized; Completion 400k/10M = 4 %.
+    expect(P.unitValue.realized).toBe(400_000);
+    expect(P.progress).toBeCloseTo(0.04, 4);
+  });
+
+  it("rollup-Parent bleibt der Kinder-Durchschnitt (kein Wert-Override) — hier = Kind 40 %", () => {
+    const { themes } = buildStrategyTree({ rows: tatTree("rollup"), lookups: tatLookups() });
+    const P = themes[0]!;
+    // rollup misst den Ø der Kind-Fortschritte (ein Kind mit 40 %), nicht 4 %.
+    expect(P.progress).toBeCloseTo(0.403, 2);
+  });
 });
 
 describe("buildProgressChart", () => {
@@ -216,7 +298,7 @@ describe("buildProgressChart", () => {
         },
       ],
       progressByNode: new Map(),
-      epicKpisByNode: new Map(),
+      autoKpiSeriesByNode: new Map(),
       rootCheckins: [
         { atMs: Date.parse("2026-01-01"), status: "on_track", value: 5, progress: 0.5 },
       ],
@@ -236,7 +318,7 @@ describe("buildProgressChart", () => {
         rootId: "nope",
         rows: [],
         progressByNode: new Map(),
-        epicKpisByNode: new Map(),
+        autoKpiSeriesByNode: new Map(),
         rootCheckins: [],
         now: "2026-01-01T00:00:00.000Z",
       }),

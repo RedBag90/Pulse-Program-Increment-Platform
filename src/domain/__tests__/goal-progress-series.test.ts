@@ -35,28 +35,80 @@ describe("parseMeasurements / latestMeasurement", () => {
   });
 });
 
-describe("buildAutoKpiSeries", () => {
-  it("running sum of matching-unit KPIs over the union of dates", () => {
-    const kpis = [
+describe("buildAutoKpiSeries (delta-basiert, absolut auf Ziel-Skala)", () => {
+  const grow = { ...unit, baseline: 0, target: 100 }; // Steigerung, dir +1
+  const tat = {
+    metricUnit: "Days",
+    metricType: "number",
+    currencyCode: null,
+    baseline: 122,
+    target: 60,
+  }; // Reduktion
+
+  it("sameUnit: laufende Δ-Summe über die Termin-Union (baseline 0 ⇒ = Rohwerte)", () => {
+    const links = [
       {
-        unit: "Kunden",
-        measurements: [
-          { at: "2026-01-01", value: 10 },
-          { at: "2026-03-01", value: 30 },
+        kind: "sameUnit" as const,
+        kpis: [
+          {
+            unit: "Kunden",
+            baseline: 0,
+            target: 100,
+            measurements: [
+              { at: "2026-01-01", value: 10 },
+              { at: "2026-03-01", value: 30 },
+            ],
+          },
+          {
+            unit: "Kunden",
+            baseline: 0,
+            target: 100,
+            measurements: [{ at: "2026-02-01", value: 5 }],
+          },
+          {
+            unit: "Leads",
+            baseline: 0,
+            target: 100,
+            measurements: [{ at: "2026-02-15", value: 999 }],
+          }, // ignoriert
         ],
       },
-      { unit: "Kunden", measurements: [{ at: "2026-02-01", value: 5 }] },
-      { unit: "Leads", measurements: [{ at: "2026-02-15", value: 999 }] }, // ignoriert
     ];
-    expect(buildAutoKpiSeries(unit, kpis)).toEqual([
+    expect(buildAutoKpiSeries(grow, links)).toEqual([
       { at: "2026-01-01", value: 10 }, // nur KPI A
       { at: "2026-02-01", value: 15 }, // A(10) + B(5)
       { at: "2026-03-01", value: 35 }, // A(30) + B(5)
     ]);
   });
-  it("empty when no unit matches", () => {
+  it("factor auf Reduktionsziel: KPI-Δ × Faktor senkt den Ist (TAT: 122 − …)", () => {
     expect(
-      buildAutoKpiSeries(unit, [{ unit: "Leads", measurements: [{ at: "x", value: 1 }] }]),
+      buildAutoKpiSeries(tat, [
+        {
+          kind: "factor",
+          kpiBaseline: 0,
+          kpiTarget: 100,
+          factor: 0.5,
+          measurements: [
+            { at: "2026-01-01", value: 20 }, // Δ 20×0,5=10 ⇒ 122−10=112
+            { at: "2026-02-01", value: 50 }, // Δ 50×0,5=25 ⇒ 122−25=97
+          ],
+        },
+      ]),
+    ).toEqual([
+      { at: "2026-01-01", value: 112 },
+      { at: "2026-02-01", value: 97 },
+    ]);
+  });
+  it("empty when no unit matches / baseline fehlt", () => {
+    expect(
+      buildAutoKpiSeries(grow, [
+        {
+          kind: "sameUnit",
+          kpis: [
+            { unit: "Leads", baseline: 0, target: 100, measurements: [{ at: "x", value: 1 }] },
+          ],
+        },
+      ]),
     ).toEqual([]);
   });
 });
@@ -70,7 +122,7 @@ function leaf(over: Partial<SeriesNode>): SeriesNode {
     rollupWeight: 1,
     unitSpec: unit,
     checkins: [],
-    kpis: [],
+    autoKpiLinks: [],
     children: [],
     ...over,
   };
@@ -81,12 +133,19 @@ describe("buildNodeProgressSeries", () => {
     const node = leaf({
       progressMode: "auto_kpi",
       target: 100,
-      kpis: [
+      autoKpiLinks: [
         {
-          unit: "Kunden",
-          measurements: [
-            { at: "2026-01-01", value: 20 },
-            { at: "2026-02-01", value: 60 },
+          kind: "sameUnit",
+          kpis: [
+            {
+              unit: "Kunden",
+              baseline: 0,
+              target: 100,
+              measurements: [
+                { at: "2026-01-01", value: 20 },
+                { at: "2026-02-01", value: 60 },
+              ],
+            },
           ],
         },
       ],
@@ -94,6 +153,52 @@ describe("buildNodeProgressSeries", () => {
     expect(buildNodeProgressSeries(node, "2026-03-01")).toEqual([
       { at: "2026-01-01", progress: 0.2 },
       { at: "2026-02-01", progress: 0.6 },
+    ]);
+  });
+
+  it("kpi_tree-Blatt: gleiche KPI-Serie wie auto_kpi", () => {
+    const node = leaf({
+      progressMode: "kpi_tree",
+      target: 100,
+      autoKpiLinks: [
+        {
+          kind: "sameUnit",
+          kpis: [
+            {
+              unit: "Kunden",
+              baseline: 0,
+              target: 100,
+              measurements: [
+                { at: "2026-01-01", value: 20 },
+                { at: "2026-02-01", value: 60 },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(buildNodeProgressSeries(node, "2026-03-01")).toEqual([
+      { at: "2026-01-01", progress: 0.2 },
+      { at: "2026-02-01", progress: 0.6 },
+    ]);
+  });
+
+  it("kpi_tree-Ast: gewichteter Kinder-Ø über die Zeit (wie rollup)", () => {
+    const a = leaf({
+      progressMode: "manual",
+      rollupWeight: 1,
+      checkins: [{ at: "2026-01-01", progress: 0.2 }],
+      current: null,
+    });
+    const b = leaf({
+      progressMode: "manual",
+      rollupWeight: 1,
+      checkins: [{ at: "2026-01-01", progress: 0.8 }],
+      current: null,
+    });
+    const ast = leaf({ progressMode: "kpi_tree", target: null, children: [a, b], current: null });
+    expect(buildNodeProgressSeries(ast, "2026-02-01")).toEqual([
+      { at: "2026-01-01", progress: 0.5 },
     ]);
   });
 

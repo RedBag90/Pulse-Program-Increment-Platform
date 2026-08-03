@@ -20,7 +20,7 @@
 
 import { fulfillmentFraction } from "@/domain/kpi-direction";
 import { kpiDelta } from "@/domain/kpi-valuation";
-import type { ProgressMode } from "@/domain/goal-progress-mode";
+import { aggregatesFromChildren, type ProgressMode } from "@/domain/goal-progress-mode";
 
 export interface KpiInput {
   id: string;
@@ -192,14 +192,17 @@ export interface RollupNode {
 
 /**
  * Rekursiver Fortschritt (Post-Order), gesteuert vom `mode`:
- *  - `rollup`  → (gewichteter) Durchschnitt der Kinder; Kinder ohne Fortschritt
- *               (`null`) werden ausgeklammert; ohne Kinder ⇒ `null`.
- *  - `manual` / `auto_kpi` → eigener `progressLeaf`, **auch wenn Kinder
- *               existieren** (expliziter Override der Fortschrittsquelle).
+ *  - aggregierend (`rollup`, oder `kpi_tree`-**Ast**) → (gewichteter) Durchschnitt
+ *    der Kinder; Kinder ohne Fortschritt (`null`) werden ausgeklammert; ohne
+ *    Kinder ⇒ `null`. (Der `kpi_tree`-Ast bekommt hier den Ø als Basis; ein
+ *    wert-basiertes Override rechnet der Loader in `goals-forest.build()`.)
+ *  - sonst (`manual` / `auto_kpi` / `kpi_tree`-**Blatt**) → eigener `progressLeaf`,
+ *    **auch wenn Kinder existieren** (expliziter Override der Fortschrittsquelle).
  */
 export function nodeProgress(node: RollupNode): number | null {
-  if (node.mode === "rollup") {
-    if (node.children.length === 0) return null;
+  // `rollup` aggregiert immer (ohne verwertbare Kinder ⇒ null); `kpi_tree`
+  // aggregiert nur als Ast (mit Kindern), sonst gewinnt sein Blatt-`progressLeaf`.
+  if (node.mode === "rollup" || aggregatesFromChildren(node.mode, node.children.length > 0)) {
     const kept = node.children
       .filter((c) => c.includeInRollup)
       .map((c) => ({ p: nodeProgress(c), w: c.weight }))
@@ -271,14 +274,14 @@ export function epicSuccessKpiContribution(
  * Rekursiver Wert eines Knotens in SEINER EIGENEN Einheit (Post-Order),
  * `mode`-bewusst (spiegelt `nodeProgress`, damit ein manuell gepflegtes Ziel
  * vom Epic-Rollup entkoppelt bleibt):
- *  - `rollup` mit Kindern → Σ (nodeUnitValue(Kind) × Kind.childUnitFactor) für
- *    Kinder mit `includeInRollup`, PLUS eigene Epic-Link-Beiträge.
- *  - `manual` / `auto_kpi` (oder rollup ohne Kinder) → eigenes Blatt gewinnt:
+ *  - aggregierend (`rollup`, oder `kpi_tree`-Ast) mit Kindern → Σ (nodeUnitValue(Kind)
+ *    × Kind.childUnitFactor) für Kinder mit `includeInRollup`, PLUS eigene Epic-Beiträge.
+ *  - sonst (`manual` / `auto_kpi` / `kpi_tree`-Blatt) → eigenes Blatt gewinnt:
  *    `unitValueLeaf` + eigene Epic-Link-Beiträge.
  */
 export function nodeUnitValue(node: RollupNode): RollupTrio {
   const epicLinks = node.unitEpicLinks ?? ZERO_TRIO;
-  if (node.mode === "rollup" && node.children.length > 0) {
+  if (aggregatesFromChildren(node.mode, node.children.length > 0)) {
     const childSum = sumTrios(
       node.children
         .filter((c) => c.includeInRollup)

@@ -31,7 +31,11 @@ import {
   effectiveProgressMode,
   autoKpiCurrent,
   isMeasurableGoal,
+  derivesCurrentFromKpis,
+  aggregatesFromChildren,
+  usesValueBasedCompletion,
   type ProgressMode,
+  type AutoKpiLink,
 } from "@/domain/goal-progress-mode";
 import {
   buildAutoKpiSeries,
@@ -109,7 +113,8 @@ export interface ForestCustomFieldDef {
 export interface ForestLookups {
   latestCheckin: ReadonlyMap<string, GoalLatestCheckin>;
   relatedEpics: ReadonlyMap<string, ForestRelatedEpic[]>;
-  epicKpiUnits: ReadonlyMap<string, { unit: string | null; current: number | null }[]>;
+  /** auto_kpi-Ist-Beiträge je Knoten (Faktor bevorzugt, sonst gleiche Einheit). */
+  autoKpiLinks: ReadonlyMap<string, AutoKpiLink[]>;
   relatedWork: ReadonlyMap<string, RelatedWorkItem[]>;
   valueStreams: ReadonlyMap<string, ScopeRef[]>;
   arts: ReadonlyMap<string, ScopeRef[]>;
@@ -152,7 +157,7 @@ export function resolveNode(
   o: ForestObjective,
   ctx: {
     hasChildren: boolean;
-    epicKpiUnits: { unit: string | null; current: number | null }[];
+    autoKpiLinks: AutoKpiLink[];
     relatedEpics: ForestRelatedEpic[];
   },
 ): ResolvedNode {
@@ -161,17 +166,21 @@ export function resolveNode(
   const trioLeaf: RollupTrio = { planned: 0, realized: 0, runRate: 0 };
 
   const mode = effectiveProgressMode(o.progressMode, ctx.hasChildren);
+  const kpiLeaf = derivesCurrentFromKpis(mode, ctx.hasChildren);
+  const aggregates = aggregatesFromChildren(mode, ctx.hasChildren);
   const unitSpec = {
     metricUnit: o.metricUnit,
     metricType: o.metricType,
     currencyCode: o.currencyCode,
   };
-  const effectiveCurrent =
-    mode === "auto_kpi" ? autoKpiCurrent(unitSpec, ctx.epicKpiUnits) : o.current;
-  const progressLeaf =
-    mode === "rollup"
-      ? null
-      : keyResultProgress({ baseline: o.baseline, target: o.target, current: effectiveCurrent });
+  const effectiveCurrent = kpiLeaf
+    ? autoKpiCurrent({ ...unitSpec, baseline: o.baseline, target: o.target }, ctx.autoKpiLinks)
+    : o.current;
+  // Aggregierende Knoten (rollup / kpi_tree-Ast) liefern keinen Blatt-Fortschritt;
+  // ihr Fortschritt kommt aus `nodeProgress` (Ø) bzw. dem wert-basierten Override.
+  const progressLeaf = aggregates
+    ? null
+    : keyResultProgress({ baseline: o.baseline, target: o.target, current: effectiveCurrent });
 
   const relatedEpics: RelatedEpic[] = ctx.relatedEpics.map((e) => ({
     epicId: e.epicId,
@@ -192,18 +201,25 @@ export function resolveNode(
           runRate: kpiDelta({ baseline: o.baseline, target: o.target, current: effectiveCurrent }),
         }
       : { planned: 0, realized: 0, runRate: 0 };
-  const unitEpicLinks = sumTrios(
-    ctx.relatedEpics.map((e) =>
-      e.successKpi
-        ? epicSuccessKpiContribution(
-            e.successKpi,
-            e.conversionFactor ?? null,
-            e.impactKind ?? "recurring",
-            e.recurringInterval ?? "yearly",
-          )
-        : { planned: 0, realized: 0, runRate: 0 },
-    ),
-  );
+  // Bei KPI-getriebenen Blättern (`auto_kpi`, `kpi_tree`-Blatt) fließen die
+  // Epic-Erfolgs-KPIs bereits über `effectiveCurrent` in `unitValueLeaf` ein —
+  // sie hier NICHT ein zweites Mal addieren (`nodeUnitValue` summiert
+  // `unitValueLeaf + unitEpicLinks`). Nur bei manual/rollup ist der Epic-Link-
+  // Beitrag eine eigenständige Achse.
+  const unitEpicLinks = kpiLeaf
+    ? { planned: 0, realized: 0, runRate: 0 }
+    : sumTrios(
+        ctx.relatedEpics.map((e) =>
+          e.successKpi
+            ? epicSuccessKpiContribution(
+                e.successKpi,
+                e.conversionFactor ?? null,
+                e.impactKind ?? "recurring",
+                e.recurringInterval ?? "yearly",
+              )
+            : { planned: 0, realized: 0, runRate: 0 },
+        ),
+      );
 
   return {
     mode,
@@ -255,7 +271,7 @@ export function buildStrategyTree(input: GoalForestInput): {
 
     const resolved = resolveNode(o, {
       hasChildren,
-      epicKpiUnits: lookups.epicKpiUnits.get(o.id) ?? [],
+      autoKpiLinks: lookups.autoKpiLinks.get(o.id) ?? [],
       relatedEpics: lookups.relatedEpics.get(o.id) ?? [],
     });
 
@@ -282,6 +298,21 @@ export function buildStrategyTree(input: GoalForestInput): {
       unitEpicLinks: resolved.unitEpicLinks,
       childUnitFactor: o.parentUnitPerChildUnit,
     };
+
+    // Wert-basierte Completion: ein `kpi_tree`-**Ast** mit EIGENEM numerischem
+    // Zielwert und aktiver Unit-Kaskade (Kinder mit `childUnitFactor`) misst
+    // seine Erfüllung magnituden-gewichtet am kaskadierten Wert
+    // (`realized / |target − baseline|`) statt am Kinder-Durchschnitt. `rollup`
+    // bleibt der einheiten-unabhängige Ø (ADR-0008).
+    const unitValue = nodeUnitValue(rollup);
+    const ownSpan = o.baseline !== null && o.target !== null ? Math.abs(o.target - o.baseline) : 0;
+    const valueBasedRollup =
+      usesValueBasedCompletion(resolved.mode, hasChildren) &&
+      ownSpan > 0 &&
+      childRollups.some((c) => c.childUnitFactor != null);
+    const progress = valueBasedRollup
+      ? Math.max(0, Math.min(1, unitValue.realized / ownSpan))
+      : nodeProgress(rollup);
 
     const node: GoalNode = {
       id: o.id,
@@ -321,9 +352,9 @@ export function buildStrategyTree(input: GoalForestInput): {
       })) satisfies GoalCustomFieldEntry[],
       children: childNodes,
       depth,
-      progress: nodeProgress(rollup),
+      progress,
       trio: nodeTrio(rollup),
-      unitValue: nodeUnitValue(rollup),
+      unitValue,
     };
     return { node, rollup };
   }
@@ -362,8 +393,8 @@ export interface GoalChartInput {
   rows: ChartObjective[];
   /** 0..1-Fortschritts-Snapshots je Knoten (für die rekursive Serie). */
   progressByNode: ReadonlyMap<string, SeriesNode["checkins"]>;
-  /** Verknüpfte Epic-KPIs (Einheit + Messreihe) je Knoten — für auto_kpi. */
-  epicKpisByNode: ReadonlyMap<string, SeriesNode["kpis"]>;
+  /** Verknüpfte Epic-KPIs (faktor-bewusst, mit Messreihe) je Knoten — für auto_kpi. */
+  autoKpiSeriesByNode: ReadonlyMap<string, SeriesNode["autoKpiLinks"]>;
   /** Eigene Check-ins des Wurzelknotens (Punkte-Quelle). */
   rootCheckins: ChartRootCheckin[];
   /** „Jetzt" als ISO — injizierbar für Tests. */
@@ -377,7 +408,7 @@ export interface GoalChartInput {
  */
 export function buildProgressChart(input: GoalChartInput): ProgressChart {
   const empty: ProgressChart = { mode: "percent", series: [], yDomain: [0, 100] };
-  const { rootId, rows, progressByNode, epicKpisByNode, rootCheckins, now } = input;
+  const { rootId, rows, progressByNode, autoKpiSeriesByNode, rootCheckins, now } = input;
 
   const childrenByParent = new Map<string, ChartObjective[]>();
   for (const r of rows) {
@@ -402,7 +433,7 @@ export function buildProgressChart(input: GoalChartInput): ProgressChart {
         currencyCode: row.currencyCode,
       },
       checkins: progressByNode.get(row.id) ?? [],
-      kpis: epicKpisByNode.get(row.id) ?? [],
+      autoKpiLinks: autoKpiSeriesByNode.get(row.id) ?? [],
       children: kids.map(toSeriesNode),
     };
   };
@@ -412,19 +443,29 @@ export function buildProgressChart(input: GoalChartInput): ProgressChart {
   const seriesRoot = toSeriesNode(rootRow);
 
   const effMode = seriesRoot.progressMode;
+  const rootHasChildren = seriesRoot.children.length > 0;
+  // Wert-Achse nur für KPI-/Metrik-Blätter mit Zielwert; aggregierende Knoten
+  // (rollup, kpi_tree-Ast) fahren die Prozent-Achse (Kinder-Ø).
   const mode: "value" | "percent" =
-    effMode !== "rollup" && seriesRoot.target != null ? "value" : "percent";
+    !aggregatesFromChildren(effMode, rootHasChildren) && seriesRoot.target != null
+      ? "value"
+      : "percent";
 
   const points: ProgressChartPoint[] = [];
 
-  // 1) Kontinuierlicher Verlauf (kein Punkt): auto_kpi → KPI-Historie, rollup →
-  //    aggregierter Kinder-Ø. (Bei manual liefert Schritt 2 die Linien-Punkte.)
+  // 1) Kontinuierlicher Verlauf (kein Punkt): KPI-Blatt → KPI-Historie,
+  //    aggregierend → Kinder-Ø. (Bei manual liefert Schritt 2 die Linien-Punkte.)
   if (mode === "percent") {
     for (const p of buildNodeProgressSeries(seriesRoot, now)) {
       points.push({ at: Date.parse(p.at), value: p.progress * 100, status: null, entry: false });
     }
-  } else if (effMode === "auto_kpi") {
-    for (const p of buildAutoKpiSeries(seriesRoot.unitSpec, seriesRoot.kpis)) {
+  } else if (derivesCurrentFromKpis(effMode, rootHasChildren)) {
+    const seriesGoal = {
+      ...seriesRoot.unitSpec,
+      baseline: seriesRoot.baseline,
+      target: seriesRoot.target,
+    };
+    for (const p of buildAutoKpiSeries(seriesGoal, seriesRoot.autoKpiLinks)) {
       points.push({ at: Date.parse(p.at), value: p.value, status: null, entry: false });
     }
   }

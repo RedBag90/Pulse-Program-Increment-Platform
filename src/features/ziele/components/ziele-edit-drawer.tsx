@@ -121,7 +121,7 @@ export function ZieleEditDrawer({ model, canEdit }: Props) {
 
 // ── Goal-Knoten — ein Pane für jede Ebene ────────────────────────────────
 
-type GoalProgressMode = "manual" | "rollup" | "auto_kpi";
+type GoalProgressMode = "manual" | "rollup" | "auto_kpi" | "kpi_tree";
 
 /**
  * Ein einziger Pane für Anlegen + Bearbeiten jedes Goal-Knotens (Theme wie
@@ -237,12 +237,22 @@ function GoalPane({
           >
             <option value="manual">Manuell</option>
             <option value="rollup">Aus Unterzielen</option>
-            {/* Epic-KPIs sind Portfolio-Inhalt — Option nur mit Modul (oder wenn bereits gewählt). */}
+            {/* Epic-KPIs sind Portfolio-Inhalt — Optionen nur mit Modul (oder wenn bereits gewählt). */}
             {(model.modules.portfolio || mode === "auto_kpi") && (
               <option value="auto_kpi">Aus verknüpften KPIs</option>
             )}
+            {(model.modules.portfolio || mode === "kpi_tree") && (
+              <option value="kpi_tree">KPI-Tree</option>
+            )}
           </select>
         </Field>
+        {mode === "kpi_tree" && (
+          <p className="text-xs text-muted-foreground">
+            KPI-Baum: als Blatt zieht das Ziel seinen Ist aus verknüpften KPIs (Δ × Faktor); mit
+            Unterzielen kaskadiert es deren Werte hoch und misst die Erfüllung wert-basiert
+            (erreichter Wert ÷ Zielwert).
+          </p>
+        )}
         {mode === "rollup" ? (
           <p className="text-xs text-muted-foreground">
             Fortschritt = gewichteter Durchschnitt der Unterziele. Eine eigene Metrik wird
@@ -323,17 +333,19 @@ function GoalPane({
                   disabled={!canEdit}
                 />
               </Field>
-              <Field label={mode === "auto_kpi" ? "Ist (aus KPIs)" : "Aktuell"}>
+              <Field
+                label={mode === "auto_kpi" || mode === "kpi_tree" ? "Ist (abgeleitet)" : "Aktuell"}
+              >
                 <input
                   name="current"
                   type="number"
                   step="any"
                   defaultValue={node?.current ?? ""}
                   className={INPUT}
-                  disabled={!canEdit || mode === "auto_kpi"}
+                  disabled={!canEdit || mode === "auto_kpi" || mode === "kpi_tree"}
                   title={
-                    mode === "auto_kpi"
-                      ? "Summe der einheitengleichen KPIs aus verknüpften Epics"
+                    mode === "auto_kpi" || mode === "kpi_tree"
+                      ? "Abgeleitet aus verknüpften KPIs bzw. der Unterziel-Kaskade"
                       : undefined
                   }
                 />
@@ -404,8 +416,14 @@ function GoalPane({
   }
 
   // Messbarer Knoten (eigene Metrik) → Value-Check-in ("kr"); sonst Status ("objective").
+  // Aggregierende Knoten (rollup, kpi_tree-Ast) sind Container → "objective".
+  const nodeHasChildren = node.children.length > 0;
   const detailTarget: "objective" | "kr" =
-    node.isMeasurable && node.progressMode !== "rollup" ? "kr" : "objective";
+    node.isMeasurable &&
+    node.progressMode !== "rollup" &&
+    !(node.progressMode === "kpi_tree" && nodeHasChildren)
+      ? "kr"
+      : "objective";
   const metricSpec = {
     metricType: node.metricType,
     precision: node.precision,
@@ -461,6 +479,10 @@ function GoalPane({
             </span>
             {node.metricUnit ? ` ${node.metricUnit}` : ""}
           </p>
+          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+            Erreichter Beitrag in dieser Ziel-Einheit, aus verknüpften KPIs und Unterzielen
+            hochgerechnet (KPI-Bewegung × Umrechnungsfaktor).
+          </p>
         </div>
       )}
 
@@ -478,10 +500,12 @@ function GoalPane({
             canEdit={canEdit}
             searchEnabled={model.modules.portfolio || model.modules.program}
           />
-          {node.progressMode === "auto_kpi" && (
+          {(node.progressMode === "auto_kpi" ||
+            (node.progressMode === "kpi_tree" && !nodeHasChildren)) && (
             <p className="text-[10px] leading-snug text-muted-foreground">
-              Die KPIs verknüpfter Epics mit passender Einheit bilden den Ist-Wert dieses Ziels
-              (Fortschrittsquelle „aus verknüpften KPIs").
+              Die KPIs verknüpfter Epics bilden über Δ × Umrechnungsfaktor den Ist-Wert dieses Ziels
+              (Fortschrittsquelle „
+              {node.progressMode === "kpi_tree" ? "KPI-Tree" : "aus verknüpften KPIs"}").
             </p>
           )}
           <div className="space-y-3 border-t pt-3">

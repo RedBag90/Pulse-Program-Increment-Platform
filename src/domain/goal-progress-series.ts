@@ -11,7 +11,13 @@
  */
 
 import { keyResultProgress } from "@/domain/goals-rollup";
-import { unitsMatch, type ProgressMode } from "@/domain/goal-progress-mode";
+import {
+  unitsMatch,
+  aggregatesFromChildren,
+  derivesCurrentFromKpis,
+  type ProgressMode,
+} from "@/domain/goal-progress-mode";
+import { direction } from "@/domain/kpi-valuation";
 import type { Measurement } from "@/domain/kpi-measurement";
 
 export interface SeriesPoint {
@@ -29,10 +35,32 @@ interface UnitSpec {
   currencyCode: string | null;
 }
 
-interface SeriesKpi {
-  unit: string | null;
-  measurements: Measurement[];
-}
+/**
+ * Ein zeitlicher Beitrag zum `auto_kpi`-Verlauf, je verknüpftem Epic — analog zu
+ * `AutoKpiLink` (goal-progress-mode.ts), aber mit der vollen **Messreihe** je KPI.
+ * Jede Messung liefert ein **Delta** (Verbesserung ggü. KPI-Baseline Richtung
+ * KPI-Target), das über den Faktor (bzw. 1 bei sameUnit) in die Ziel-Einheit
+ * übersetzt wird:
+ *  - `factor`   — gewählte KPI + Faktor; Delta = `(value − kpiBaseline) × dir × factor`.
+ *  - `sameUnit` — einheiten-gleiche KPIs; Delta = `(value − kpiBaseline) × dir`.
+ */
+export type AutoKpiSeriesLink =
+  | {
+      kind: "factor";
+      kpiBaseline: number | null;
+      kpiTarget: number | null;
+      measurements: Measurement[];
+      factor: number;
+    }
+  | {
+      kind: "sameUnit";
+      kpis: {
+        unit: string | null;
+        baseline: number | null;
+        target: number | null;
+        measurements: Measurement[];
+      }[];
+    };
 
 export interface SeriesNode {
   progressMode: ProgressMode;
@@ -44,36 +72,77 @@ export interface SeriesNode {
   unitSpec: UnitSpec;
   /** Eigene Status-Check-ins (eingefrorener Fortschritt 0..1), beliebige Reihenfolge. */
   checkins: ProgressPoint[];
-  /** Verknüpfte Epic-KPIs (nur bei auto_kpi relevant). */
-  kpis: SeriesKpi[];
+  /** Verknüpfte Epic-KPIs (nur bei auto_kpi relevant), faktor-bewusst. */
+  autoKpiLinks: AutoKpiSeriesLink[];
   children: SeriesNode[];
+}
+
+/** Ziel-Spezifikation für `buildAutoKpiSeries`: Einheit + baseline/target-Skala. */
+interface AutoKpiSeriesGoal extends UnitSpec {
+  baseline: number | null;
+  target: number | null;
 }
 
 const byAt = (a: { at: string }, b: { at: string }): number =>
   a.at < b.at ? -1 : a.at > b.at ? 1 : 0;
 
 /**
- * Wert-Verlauf für auto_kpi: Union der Messtermine der einheitengleichen KPIs;
- * je Termin die laufende Summe der zuletzt bekannten Werte pro KPI (Step).
+ * **Absoluter** Wert-Verlauf für auto_kpi in der Ziel-Einheit, konsistent mit
+ * `autoKpiCurrent`: je Termin `baseline + Richtung(Ziel) × Σ (KPI-Δ × Faktor)`.
+ * Jeder beitragende KPI-Strom trägt sein zuletzt bekanntes Delta bei (Step).
  */
-export function buildAutoKpiSeries(unitSpec: UnitSpec, kpis: SeriesKpi[]): SeriesPoint[] {
-  const matched = kpis.filter((k) => unitsMatch(unitSpec, k.unit));
+export function buildAutoKpiSeries(
+  goal: AutoKpiSeriesGoal,
+  links: AutoKpiSeriesLink[],
+): SeriesPoint[] {
+  if (goal.baseline == null || goal.target == null) return [];
+  const goalDir = direction(goal.baseline, goal.target);
+  const goalBaseline = goal.baseline;
+
+  // Beitragende Ströme: je Strom KPI-Baseline/Richtung/Faktor + Messreihe.
+  const streams: { baseline: number; dir: number; factor: number; ms: Measurement[] }[] = [];
+  for (const l of links) {
+    if (l.kind === "factor") {
+      if (l.kpiBaseline == null || l.kpiTarget == null) continue;
+      streams.push({
+        baseline: l.kpiBaseline,
+        dir: direction(l.kpiBaseline, l.kpiTarget),
+        factor: l.factor,
+        ms: l.measurements,
+      });
+    } else {
+      for (const k of l.kpis) {
+        if (!unitsMatch(goal, k.unit)) continue;
+        if (k.baseline == null || k.target == null) continue;
+        streams.push({
+          baseline: k.baseline,
+          dir: direction(k.baseline, k.target),
+          factor: 1,
+          ms: k.measurements,
+        });
+      }
+    }
+  }
+
   const events: { i: number; at: string; value: number }[] = [];
-  matched.forEach((k, i) => {
-    for (const m of k.measurements) events.push({ i, at: m.at, value: m.value });
+  streams.forEach((s, i) => {
+    for (const m of s.ms) events.push({ i, at: m.at, value: m.value });
   });
   events.sort(byAt);
 
-  const latest = new Map<number, number>();
+  const latest = new Map<number, number>(); // Strom i → aktueller Δ-Beitrag (Ziel-Einheit)
   const out: SeriesPoint[] = [];
   for (const e of events) {
-    latest.set(e.i, e.value);
+    const s = streams[e.i];
+    if (!s) continue;
+    latest.set(e.i, (e.value - s.baseline) * s.dir * s.factor);
     let sum = 0;
     for (const v of latest.values()) sum += v;
+    const abs = goalBaseline + goalDir * sum;
     const last = out[out.length - 1];
     if (last && last.at === e.at)
-      last.value = sum; // ein Punkt je Termin
-    else out.push({ at: e.at, value: sum });
+      last.value = abs; // ein Punkt je Termin
+    else out.push({ at: e.at, value: abs });
   }
   return out;
 }
@@ -90,10 +159,12 @@ function progressAt(series: ProgressPoint[], at: string): number | null {
 
 /**
  * Fortschritts-Verlauf (0..1) eines Knotens, rekursiv nach Fortschrittsquelle.
- * `now` (ISO) markiert das Live-Ende für manual/auto_kpi.
+ * `now` (ISO) markiert das Live-Ende für manual/KPI-Blätter.
  */
 export function buildNodeProgressSeries(node: SeriesNode, now: string): ProgressPoint[] {
-  if (node.progressMode === "rollup") {
+  const hasChildren = node.children.length > 0;
+
+  if (aggregatesFromChildren(node.progressMode, hasChildren)) {
     const childSeries = node.children.map((c) => ({
       w: c.rollupWeight > 0 ? c.rollupWeight : 1,
       s: buildNodeProgressSeries(c, now),
@@ -114,8 +185,11 @@ export function buildNodeProgressSeries(node: SeriesNode, now: string): Progress
     return out;
   }
 
-  if (node.progressMode === "auto_kpi") {
-    return buildAutoKpiSeries(node.unitSpec, node.kpis).map((p) => ({
+  if (derivesCurrentFromKpis(node.progressMode, hasChildren)) {
+    return buildAutoKpiSeries(
+      { ...node.unitSpec, baseline: node.baseline, target: node.target },
+      node.autoKpiLinks,
+    ).map((p) => ({
       at: p.at,
       progress: keyResultProgress({
         baseline: node.baseline,

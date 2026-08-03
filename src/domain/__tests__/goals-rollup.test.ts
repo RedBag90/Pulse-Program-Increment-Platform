@@ -273,6 +273,14 @@ describe("nodeProgress / nodeTrio (recursive cascade)", () => {
     expect(nodeProgress(auto)).toBeCloseTo(0.3);
   });
 
+  it("kpi_tree aggregiert mit Kindern (Ast = Ø), aber nutzt progressLeaf ohne Kinder (Blatt)", () => {
+    // Ast: kpi_tree mit Kindern mittelt (der wert-basierte Override sitzt im Loader).
+    const ast = branch([leaf(0.2), leaf(0.8)], { mode: "kpi_tree", progressLeaf: 0.99 });
+    expect(nodeProgress(ast)).toBeCloseTo(0.5);
+    // Blatt: kpi_tree ohne Kinder nutzt den eigenen progressLeaf.
+    expect(nodeProgress(leaf(0.4, { mode: "kpi_tree" }))).toBeCloseTo(0.4);
+  });
+
   it("rollup mode with no children returns null", () => {
     expect(nodeProgress(leaf(0.5, { mode: "rollup", children: [] }))).toBeNull();
   });
@@ -427,6 +435,18 @@ describe("nodeUnitValue (unit cascade)", () => {
     const child = leaf({ unitValueLeaf: t(999), childUnitFactor: 1 });
     const manual = branch([child], { mode: "manual", unitValueLeaf: t(42) });
     expect(nodeUnitValue(manual).planned).toBe(42);
+  });
+
+  it("kpi_tree-Ast kaskadiert die Kinder-Werte (wie rollup)", () => {
+    const child = leaf({ unitValueLeaf: t(10, 4), childUnitFactor: 16000 });
+    const ast = branch([child], { mode: "kpi_tree" });
+    expect(nodeUnitValue(ast).planned).toBe(160000); // 10 × 16000
+    expect(nodeUnitValue(ast).realized).toBe(64000); // 4 × 16000
+  });
+
+  it("kpi_tree-Blatt nutzt das eigene unitValueLeaf (keine Kaskade)", () => {
+    const blatt = leaf({ mode: "kpi_tree", unitValueLeaf: t(62, 25) });
+    expect(nodeUnitValue(blatt)).toEqual(t(62, 25));
   });
 
   it("€-equivalence lock: factor=1 currency tree ⇒ nodeUnitValue === nodeTrio", () => {

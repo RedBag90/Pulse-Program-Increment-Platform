@@ -232,7 +232,8 @@ model Objective {
   current                Decimal?  @db.Decimal(14, 4)
   formula                String    @default("auto_from_kpi")
   /// Fortschrittsquelle (src/domain/goal-progress-mode.ts): manual | rollup |
-  /// auto_kpi. Null = abgeleitet (Kinder → rollup, sonst manual) = Alt-Verhalten.
+  /// auto_kpi | kpi_tree. Null = abgeleitet (Kinder → rollup, sonst manual) =
+  /// Alt-Verhalten.
   progressMode           String?   @map("progress_mode")
   ownerId                String?   @map("owner_id") @db.Uuid
   /// Verantwortliches Team (Asana „Accountable team"). Null = kein Team.
@@ -892,9 +893,9 @@ model Kpi {
   updatedAt DateTime @updatedAt @map("updated_at")
   updatedBy String   @map("updated_by") @db.Uuid
 
-  tenant          Tenant              @relation(fields: [tenantId], references: [id])
-  initiative      Initiative          @relation(fields: [initiativeId], references: [id])
-  goalEpicLinks   GoalEpicLink[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  initiative    Initiative     @relation(fields: [initiativeId], references: [id])
+  goalEpicLinks GoalEpicLink[]
 
   @@index([tenantId, initiativeId])
   @@map("kpis")

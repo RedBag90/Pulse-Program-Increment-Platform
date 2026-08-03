@@ -2,7 +2,8 @@ import type { PrismaClient } from "@/generated/prisma";
 import { sumTrios, type KpiInput, type RollupTrio } from "@/domain/goals-rollup";
 import { parseOptions } from "@/domain/goal-custom-field";
 import { filterGoalBranches } from "@/domain/goal-tree-filter";
-import { type ProgressMode } from "@/domain/goal-progress-mode";
+import { type ProgressMode, type AutoKpiLink } from "@/domain/goal-progress-mode";
+import { type AutoKpiSeriesLink } from "@/domain/goal-progress-series";
 import { parseMeasurements, latestMeasurement } from "@/domain/kpi-measurement";
 import {
   buildStrategyTree,
@@ -238,7 +239,7 @@ export async function loadStrategyTree(
   // soft-gelöschte Epics ausgeblendet. €-Beitrag aus den Epic-KPIs. `unit` wird
   // zusätzlich geladen für die einheitengleiche Fortschritts-Ableitung (auto_kpi).
   const relatedByNode = new Map<string, ForestRelatedEpic[]>();
-  const epicKpisByNode = new Map<string, { unit: string | null; current: number | null }[]>();
+  const autoKpiLinksByNode = new Map<string, AutoKpiLink[]>();
   if (nodeIds.length > 0) {
     const epicLinks = await db.goalEpicLink.findMany({
       where: { tenantId, epic: { deletedAt: null }, objectiveId: { in: nodeIds } },
@@ -303,11 +304,34 @@ export async function loadStrategyTree(
         impactKind: link.impactKind,
         recurringInterval: link.recurringInterval,
       });
-      const kpiUnits =
-        epicKpisByNode.get(link.objectiveId) ?? setAndGet(epicKpisByNode, link.objectiveId);
-      for (const k of link.epic.kpis) {
-        kpiUnits.push({ unit: k.unit, current: latestMeasurement(k.measurements) });
-      }
+      // auto_kpi-Ist: Faktor bevorzugt (gewählte KPI-Δ × Faktor), sonst
+      // einheiten-gleiches KPI-Δ. Je Link die volle baseline/target/current-Info,
+      // damit `autoKpiCurrent` das Delta (Verbesserung) rechnen kann.
+      const autoLinks =
+        autoKpiLinksByNode.get(link.objectiveId) ?? setAndGet(autoKpiLinksByNode, link.objectiveId);
+      autoLinks.push(
+        link.kpi && link.conversionFactor != null
+          ? {
+              kind: "factor",
+              kpi: {
+                baseline: toFloat(link.kpi.baseline),
+                target: toFloat(link.kpi.target),
+                current: latestMeasurement(link.kpi.measurements),
+              },
+              factor: Number(link.conversionFactor),
+            }
+          : {
+              kind: "sameUnit",
+              kpis: link.epic.kpis.map((k) => ({
+                unit: k.unit,
+                point: {
+                  baseline: toFloat(k.baseline),
+                  target: toFloat(k.target),
+                  current: latestMeasurement(k.measurements),
+                },
+              })),
+            },
+      );
     }
   }
 
@@ -456,7 +480,7 @@ export async function loadStrategyTree(
   const lookups: ForestLookups = {
     latestCheckin: latestByNode,
     relatedEpics: relatedByNode,
-    epicKpiUnits: epicKpisByNode,
+    autoKpiLinks: autoKpiLinksByNode,
     relatedWork: relatedWorkByNode,
     valueStreams: valueStreamsByNode,
     arts: artsByNode,
@@ -691,7 +715,13 @@ async function loadProgressChart(
       where: { tenantId, objectiveId: { in: ids }, epic: { deletedAt: null } },
       select: {
         objectiveId: true,
-        epic: { select: { kpis: { select: { unit: true, measurements: true } } } },
+        conversionFactor: true,
+        kpi: { select: { baseline: true, target: true, measurements: true } },
+        epic: {
+          select: {
+            kpis: { select: { unit: true, baseline: true, target: true, measurements: true } },
+          },
+        },
       },
     }),
   ]);
@@ -716,15 +746,32 @@ async function loadProgressChart(
       });
     }
   }
-  const epicKpisByNode = new Map<
-    string,
-    { unit: string | null; measurements: ReturnType<typeof parseMeasurements> }[]
-  >();
+  // auto_kpi-Verlauf: je Link Faktor bevorzugt (gewählte KPI-Messreihe × Faktor),
+  // sonst die Messreihen der einheiten-gleichen Epic-KPIs — analog `autoKpiCurrent`.
+  const autoKpiSeriesByNode = new Map<string, AutoKpiSeriesLink[]>();
   for (const l of epicLinks) {
     if (!l.objectiveId) continue;
-    const arr = epicKpisByNode.get(l.objectiveId) ?? setAndGet(epicKpisByNode, l.objectiveId);
-    for (const k of l.epic.kpis)
-      arr.push({ unit: k.unit, measurements: parseMeasurements(k.measurements) });
+    const arr =
+      autoKpiSeriesByNode.get(l.objectiveId) ?? setAndGet(autoKpiSeriesByNode, l.objectiveId);
+    arr.push(
+      l.kpi && l.conversionFactor != null
+        ? {
+            kind: "factor",
+            kpiBaseline: toFloat(l.kpi.baseline),
+            kpiTarget: toFloat(l.kpi.target),
+            measurements: parseMeasurements(l.kpi.measurements),
+            factor: Number(l.conversionFactor),
+          }
+        : {
+            kind: "sameUnit",
+            kpis: l.epic.kpis.map((k) => ({
+              unit: k.unit,
+              baseline: toFloat(k.baseline),
+              target: toFloat(k.target),
+              measurements: parseMeasurements(k.measurements),
+            })),
+          },
+    );
   }
 
   const rows: ChartObjective[] = subtreeRows.map((r) => ({
@@ -744,7 +791,7 @@ async function loadProgressChart(
     rootId: id,
     rows,
     progressByNode,
-    epicKpisByNode,
+    autoKpiSeriesByNode,
     rootCheckins,
     now: new Date().toISOString(),
   });

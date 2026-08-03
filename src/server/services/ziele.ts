@@ -11,7 +11,12 @@ import {
 import { isClosed, isOpen, type GoalStatus } from "@/domain/goal-status";
 import { clampPrecision, type MetricType } from "@/domain/goal-metric";
 import { canReparent, planReparent } from "@/domain/goal-reparent";
-import { autoKpiCurrent, isProgressMode, effectiveProgressMode } from "@/domain/goal-progress-mode";
+import {
+  autoKpiCurrent,
+  isProgressMode,
+  effectiveProgressMode,
+  type AutoKpiLink,
+} from "@/domain/goal-progress-mode";
 import { latestMeasurement } from "@/domain/kpi-measurement";
 import { dayStart } from "@/domain/calendar";
 import { InitiativeLevel } from "@/domain/types";
@@ -619,26 +624,60 @@ export async function recordGoalCheckin(
       return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.id });
     }
     // Ist-Wert zum Check-in-Zeitpunkt einfrieren (→ Graf-Punkt am gewählten
-    // Datum): `manual` friert die eigene `current`-Spalte ein, `auto_kpi` leitet
-    // die einheitengleiche Summe der verknüpften Epic-KPIs ab. `current` selbst
-    // bleibt unberührt (Wert-Pflege läuft über recordGoalProgress bzw. KPIs).
+    // Datum): `manual` friert die eigene `current`-Spalte ein, `auto_kpi` /
+    // `kpi_tree` leiten den Ist aus den verknüpften Epic-KPIs ab (Δ×Faktor auf
+    // die Ziel-Skala). `current` selbst bleibt unberührt (Wert-Pflege läuft über
+    // recordGoalProgress bzw. KPIs). Ein `kpi_tree`-Ast ohne KPI-Links liefert
+    // `null` (kein Freeze) — sein Wert kommt aus der Kinder-Kaskade.
     const mode = isProgressMode(existing.progressMode) ? existing.progressMode : "manual";
     let rawValue: number | null;
-    if (mode === "auto_kpi") {
+    if (mode === "auto_kpi" || mode === "kpi_tree") {
       const links = await tx.goalEpicLink.findMany({
         where: { tenantId: mctx.tenantId, objectiveId: input.id, epic: { deletedAt: null } },
-        select: { epic: { select: { kpis: { select: { unit: true, measurements: true } } } } },
+        select: {
+          conversionFactor: true,
+          kpi: { select: { baseline: true, target: true, measurements: true } },
+          epic: {
+            select: {
+              kpis: { select: { unit: true, baseline: true, target: true, measurements: true } },
+            },
+          },
+        },
       });
-      const kpis = links.flatMap((l) =>
-        l.epic.kpis.map((k) => ({ unit: k.unit, current: latestMeasurement(k.measurements) })),
+      // Faktor bevorzugt (KPI-Δ × Faktor), sonst einheiten-gleiches KPI-Δ;
+      // `autoKpiCurrent` rechnet daraus den absoluten Ist auf der Ziel-Skala.
+      const autoLinks: AutoKpiLink[] = links.map((l) =>
+        l.kpi && l.conversionFactor != null
+          ? {
+              kind: "factor" as const,
+              kpi: {
+                baseline: toFloat(l.kpi.baseline),
+                target: toFloat(l.kpi.target),
+                current: latestMeasurement(l.kpi.measurements),
+              },
+              factor: Number(l.conversionFactor),
+            }
+          : {
+              kind: "sameUnit" as const,
+              kpis: l.epic.kpis.map((k) => ({
+                unit: k.unit,
+                point: {
+                  baseline: toFloat(k.baseline),
+                  target: toFloat(k.target),
+                  current: latestMeasurement(k.measurements),
+                },
+              })),
+            },
       );
       rawValue = autoKpiCurrent(
         {
           metricUnit: existing.metricUnit,
           metricType: existing.metricType,
           currencyCode: existing.currencyCode,
+          baseline: toFloat(existing.baseline),
+          target: toFloat(existing.target),
         },
-        kpis,
+        autoLinks,
       );
     } else {
       rawValue = existing.current != null ? Number(existing.current) : null;
@@ -747,6 +786,11 @@ export async function recordGoalProgress(
 }
 
 /** Normalised 0..1 progress for a raw KR value; null when the span is unknown. */
+/** Prisma-Decimal → number (null-durchreichend), lokal wie in den View-Loadern. */
+function toFloat(d: unknown): number | null {
+  return d == null ? null : Number(d);
+}
+
 function normalizeKrValue(value: number | null, baseline: unknown, target: unknown): number | null {
   if (value == null) return null;
   const b = baseline != null ? Number(baseline) : null;

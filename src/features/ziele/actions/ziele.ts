@@ -55,7 +55,7 @@ const optPrecision = z.coerce.number().int().min(0).max(6).optional();
  */
 const progressModeField = z.preprocess(
   (v) => v ?? undefined,
-  z.enum(["manual", "rollup", "auto_kpi"]).optional().or(z.literal("")),
+  z.enum(["manual", "rollup", "auto_kpi", "kpi_tree"]).optional().or(z.literal("")),
 );
 
 /**
