@@ -1,7 +1,7 @@
 /**
  * Fortschrittsquelle eines Ziel-Knotens (Asana-Modell „progress source").
- * Orthogonal zur **Geld**-Achse (`formula`/€-Trio) — dieses Feld steuert nur den
- * normalisierten 0..1-**Fortschritt** eines Knotens.
+ * Orthogonal zur **Geld**-Achse (€-Trio aus verknüpften Epics) — dieses Feld
+ * steuert nur den normalisierten 0..1-**Fortschritt** eines Knotens.
  *
  *  - `manual`   — Ist-Wert von Hand gepflegt (`keyResultProgress` über die
  *                 `current`-Spalte); gilt auf jeder Ebene, auch als Override bei

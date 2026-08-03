@@ -357,21 +357,6 @@ function GoalPane({
                 verknüpften Epics. KPI besser → Ziel besser.
               </p>
             )}
-            {mode === "manual" && (
-              <Field label="Geldwert-Formel (KPI-Coverage)">
-                <select
-                  name="formula"
-                  defaultValue={node?.formula ?? "manual"}
-                  className={INPUT}
-                  disabled={!canEdit}
-                >
-                  <option value="manual">manuell</option>
-                  {(model.modules.portfolio || (node?.formula ?? "manual") === "auto_from_kpi") && (
-                    <option value="auto_from_kpi">aus KPI aggregiert</option>
-                  )}
-                </select>
-              </Field>
-            )}
           </>
         )}
         <Field label="Gewicht im Rollup des Elternziels (leer = 1)">

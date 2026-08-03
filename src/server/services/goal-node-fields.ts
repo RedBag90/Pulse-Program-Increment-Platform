@@ -32,7 +32,6 @@ export interface GoalFieldValues {
   baseline: number | null;
   target: number | null;
   current: number | null;
-  formula: string;
   progressMode: string | null;
   accountableTeamId: string | null;
 }
@@ -59,7 +58,6 @@ export interface GoalFieldUpdateInput {
   baseline?: number | null | undefined;
   target?: number | null | undefined;
   current?: number | null | undefined;
-  formula?: "auto_from_kpi" | "manual" | undefined;
   progressMode?: string | null | undefined;
   accountableTeamId?: string | null | undefined;
 }
@@ -84,7 +82,6 @@ export const OBJECTIVE_FIELD_KEYS = [
   "baseline",
   "target",
   "current",
-  "formula",
   "progressMode",
   "accountableTeamId",
 ] as const satisfies readonly GoalFieldKey[];
@@ -103,7 +100,6 @@ export const KEY_RESULT_FIELD_KEYS = [
   "target",
   "current",
   "period",
-  "formula",
   "status",
   "dueDate",
   "ownerId",
@@ -131,7 +127,6 @@ type GoalRowSnapshot = {
   baseline: unknown;
   target: unknown;
   current: unknown;
-  formula: string;
   progressMode: string | null;
   accountableTeamId: string | null;
 };
@@ -157,7 +152,6 @@ export function projectGoalFields(existing: GoalRowSnapshot): GoalFieldValues {
     baseline: num(existing.baseline),
     target: num(existing.target),
     current: num(existing.current),
-    formula: existing.formula,
     progressMode: existing.progressMode,
     accountableTeamId: existing.accountableTeamId,
   };
@@ -186,7 +180,6 @@ export function readGoalFieldUpdates(input: GoalFieldUpdateInput): {
     baseline: input.baseline,
     target: input.target,
     current: input.current,
-    formula: input.formula,
     progressMode: input.progressMode,
     accountableTeamId: input.accountableTeamId,
   };

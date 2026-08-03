@@ -96,7 +96,6 @@ export interface ForestObjective {
   baseline: number | null;
   target: number | null;
   current: number | null;
-  formula: string;
   /** Roh-Wert aus der DB (`null` ⇒ abgeleitet); `resolveNode` löst effektiv auf. */
   progressMode: string | null;
 }
@@ -150,8 +149,8 @@ export interface ResolvedNode {
 /**
  * **Der Seam.** Löst für einen Knoten die Fortschrittsquelle und alle abgeleiteten
  * Blatt-Fakten (Ist-Wert, progressLeaf, trioLeaf, trioEpicLinks) auf — die eine
- * Stelle, an der `formula==="auto_from_kpi"`, der `rollup ⇒ progressLeaf=null`-
- * Spezialfall und die auto_kpi-Einheitenanpassung leben. Rein, ohne I/O.
+ * Stelle, an der der `rollup ⇒ progressLeaf=null`-Spezialfall und die
+ * KPI-getriebene Wertableitung (auto_kpi/kpi_tree) leben. Rein, ohne I/O.
  */
 export function resolveNode(
   o: ForestObjective,
@@ -336,7 +335,6 @@ export function buildStrategyTree(input: GoalForestInput): {
       baseline: o.baseline,
       target: o.target,
       current: resolved.effectiveCurrent,
-      formula: o.formula,
       progressMode: resolved.mode,
       isMeasurable: resolved.isMeasurable,
       relatedEpics: resolved.relatedEpics,

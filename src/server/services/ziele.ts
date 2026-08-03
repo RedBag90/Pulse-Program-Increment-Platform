@@ -53,7 +53,6 @@ export interface CreateObjectiveInput {
   baseline?: number | null;
   target?: number | null;
   current?: number | null;
-  formula?: "auto_from_kpi" | "manual";
   /** Fortschrittsquelle (manual | rollup | auto_kpi); null/undef ⇒ abgeleitet. */
   progressMode?: string | null;
 }
@@ -135,7 +134,6 @@ export async function createObjective(
         baseline: input.baseline ?? null,
         target: input.target ?? null,
         current: input.current ?? null,
-        ...(input.formula ? { formula: input.formula } : {}),
         progressMode: input.progressMode ?? null,
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
@@ -174,7 +172,6 @@ export interface UpdateObjectiveInput {
   baseline?: number | null;
   target?: number | null;
   current?: number | null;
-  formula?: "auto_from_kpi" | "manual";
   progressMode?: string | null;
   accountableTeamId?: string | null;
 }
@@ -358,7 +355,6 @@ export interface CreateKeyResultInput {
   target?: number | null;
   current?: number | null;
   period?: string | null;
-  formula?: "auto_from_kpi" | "manual";
   ownerId?: string | null;
 }
 
@@ -400,7 +396,6 @@ export async function createKeyResult(
         target: input.target ?? null,
         current: input.current ?? null,
         period: input.period ?? null,
-        formula: input.formula ?? "auto_from_kpi",
         ownerId: input.ownerId ?? null,
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
@@ -431,7 +426,6 @@ export interface UpdateKeyResultInput {
   target?: number | null;
   current?: number | null;
   period?: string | null;
-  formula?: "auto_from_kpi" | "manual";
   status?: GoalStatus | null;
   dueDate?: Date | null;
   ownerId?: string | null;

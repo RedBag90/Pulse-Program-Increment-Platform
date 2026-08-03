@@ -27,7 +27,6 @@ const row = (over: Partial<GoalFieldValues> = {}): GoalFieldValues => ({
   baseline: null,
   target: null,
   current: null,
-  formula: "manual",
   progressMode: null,
   accountableTeamId: null,
   includeInParentRollup: true,

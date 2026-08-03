@@ -39,7 +39,6 @@ const obj = (over: Partial<ForestObjective>): ForestObjective => ({
   baseline: null,
   target: null,
   current: null,
-  formula: "manual",
   progressMode: null,
   ...over,
 });
@@ -95,9 +94,9 @@ describe("resolveNode — der Mode/Leaf-Seam", () => {
   });
 
   it("trioLeaf ist immer Null-Trio (Ziel-Eigen-Metrik trägt €0 bei)", () => {
-    const auto = resolveNode(obj({ formula: "auto_from_kpi", baseline: 0, target: 100 }), ctx);
+    const auto = resolveNode(obj({ progressMode: "auto_kpi", baseline: 0, target: 100 }), ctx);
     expect(auto.trioLeaf).toEqual({ planned: 0, realized: 0, runRate: 0 });
-    const manual = resolveNode(obj({ formula: "manual", baseline: 0, target: 100 }), ctx);
+    const manual = resolveNode(obj({ progressMode: "manual", baseline: 0, target: 100 }), ctx);
     expect(manual.trioLeaf).toEqual({ planned: 0, realized: 0, runRate: 0 });
   });
 

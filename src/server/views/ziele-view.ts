@@ -114,7 +114,6 @@ export interface GoalNode {
   target: number | null;
   /** Ist-Wert; bei `progressMode = "auto_kpi"` die abgeleitete Summe. */
   current: number | null;
-  formula: string;
   /** Fortschrittsquelle (effektiv aufgelöst): manual | rollup | auto_kpi. */
   progressMode: ProgressMode;
   /** Ob der Knoten einen 0..1-Fortschritt liefern kann (für Board/Filter). */
@@ -473,7 +472,6 @@ export async function loadStrategyTree(
     baseline: toFloat(o.baseline),
     target: toFloat(o.target),
     current: toFloat(o.current),
-    formula: o.formula,
     progressMode: o.progressMode,
   }));
 
