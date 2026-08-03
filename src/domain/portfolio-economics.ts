@@ -86,6 +86,53 @@ export interface PortfolioSeries {
   breakEvenIndex: number | null;
 }
 
+/**
+ * Fasst die Epic-Serien zu **Value-Stream-Gruppen** zusammen: je Gruppe die
+ * element-weise Summe aller sechs Monats-Arrays. Für die Portfolio-Dashboard-
+ * Umschaltung „nach Value Stream" statt „nach Epic". `vsNameByEpicId` liefert den
+ * VS-Namen je Epic (`null` ⇒ `unassignedLabel`-Bucket). Deterministische
+ * Reihenfolge: VS-Name aufsteigend, der Unassigned-Bucket zuletzt. Alle Serien
+ * teilen dieselbe Achsenlänge (`series.axis`).
+ */
+export function groupSeriesByValueStream(
+  perEpic: readonly EpicSeries[],
+  vsNameByEpicId: ReadonlyMap<string, string | null>,
+  unassignedLabel = "Ohne Wertstrom",
+): EpicSeries[] {
+  const UNASSIGNED_KEY = "￿"; // sortiert nach allen echten Namen ⇒ zuletzt
+  const groups = new Map<string, EpicSeries>();
+  for (const e of perEpic) {
+    const name = vsNameByEpicId.get(e.id) ?? null;
+    const key = name ?? UNASSIGNED_KEY;
+    let g = groups.get(key);
+    if (!g) {
+      g = {
+        id: name != null ? `vs:${name}` : "vs:__none__",
+        title: name ?? unassignedLabel,
+        cost: [],
+        benefit: [],
+        net: [],
+        accCost: [],
+        accBenefit: [],
+        accNet: [],
+      };
+      groups.set(key, g);
+    }
+    addInto(g.cost, e.cost);
+    addInto(g.benefit, e.benefit);
+    addInto(g.net, e.net);
+    addInto(g.accCost, e.accCost);
+    addInto(g.accBenefit, e.accBenefit);
+    addInto(g.accNet, e.accNet);
+  }
+  return [...groups.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).map((k) => groups.get(k)!);
+}
+
+/** Element-weise Summe: addiert `src` in `dst` (verlängert `dst` bei Bedarf). */
+function addInto(dst: number[], src: readonly number[]): void {
+  for (let i = 0; i < src.length; i++) dst[i] = (dst[i] ?? 0) + (src[i] ?? 0);
+}
+
 // The Backlog/Implementation anchor resolution (`resolveCostStart`,
 // `resolveGoLive`) lives in `@/domain/epic-schedule` — economics consumes the
 // already-resolved `costStart`/`goLive` on `EpicEconomicsInput`.

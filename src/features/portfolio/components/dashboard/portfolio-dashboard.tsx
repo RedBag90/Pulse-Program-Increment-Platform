@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import {
   buildPortfolioSeries,
+  groupSeriesByValueStream,
   type PortfolioSeries,
   type PortfolioEconomicsData,
 } from "@/domain/portfolio-economics";
@@ -102,24 +103,50 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
     [data, selected, fromIso, toIso],
   );
 
+  // Darstellung: Standard nach Value Stream gebündelt, umschaltbar auf Epic-Sicht.
+  const [groupMode, setGroupMode] = useState<"valueStream" | "epic">("valueStream");
+  const vsByEpicId = useMemo(
+    () => new Map(data.epics.map((e) => [e.id, e.valueStream] as const)),
+    [data.epics],
+  );
+  const displaySeries = useMemo<PortfolioSeries>(
+    () =>
+      groupMode === "valueStream"
+        ? { ...series, perEpic: groupSeriesByValueStream(series.perEpic, vsByEpicId) }
+        : series,
+    [series, groupMode, vsByEpicId],
+  );
+  // „confirmed" je Value-Stream-Gruppe: nur wenn ALLE Epics der Gruppe eine
+  // Budget-Allocation haben, sonst schraffiert (wie im Epic-Modus je Epic).
+  const confirmedByGroup = useMemo(() => {
+    const members = new Map<string, boolean[]>();
+    for (const e of data.epics) {
+      const gid = e.valueStream != null ? `vs:${e.valueStream}` : "vs:__none__";
+      (members.get(gid) ?? members.set(gid, []).get(gid)!).push(e.hasAllocation);
+    }
+    const map = new Map<string, boolean>();
+    for (const [gid, arr] of members) map.set(gid, arr.every(Boolean));
+    return map;
+  }, [data.epics]);
+
   const months = series.axis.months;
   const ticks = months.map((m) => m.label).filter((l) => quarterTick(l) !== "");
 
   const benefitRows = useMemo(
-    () => stackRows(series, (i, m) => series.perEpic[i]!.benefit[m] ?? 0),
-    [series],
+    () => stackRows(displaySeries, (i, m) => displaySeries.perEpic[i]!.benefit[m] ?? 0),
+    [displaySeries],
   );
   const costRows = useMemo(
-    () => stackRows(series, (i, m) => series.perEpic[i]!.cost[m] ?? 0),
-    [series],
+    () => stackRows(displaySeries, (i, m) => displaySeries.perEpic[i]!.cost[m] ?? 0),
+    [displaySeries],
   );
   const accValueRows = useMemo(
-    () => stackRows(series, (i, m) => series.perEpic[i]!.accBenefit[m] ?? 0),
-    [series],
+    () => stackRows(displaySeries, (i, m) => displaySeries.perEpic[i]!.accBenefit[m] ?? 0),
+    [displaySeries],
   );
   const accCostRows = useMemo(
-    () => stackRows(series, (i, m) => series.perEpic[i]!.accCost[m] ?? 0),
-    [series],
+    () => stackRows(displaySeries, (i, m) => displaySeries.perEpic[i]!.accCost[m] ?? 0),
+    [displaySeries],
   );
   const roiRows = useMemo(
     () =>
@@ -153,16 +180,22 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
     });
   }
 
-  const stacks = series.perEpic.map((e) => ({
+  // Stacks der aktiven Sicht: im VS-Modus je Gruppe (Farbe nach Position), im
+  // Epic-Modus je Epic (stabile Epic-Farbe/Allocation).
+  const displayStacks = displaySeries.perEpic.map((e, i) => ({
     id: e.id,
     title: e.title,
-    color: colorById[e.id]!,
-    confirmed: confirmedById[e.id] ?? false,
+    color: groupMode === "valueStream" ? epicColor(i) : colorById[e.id]!,
+    confirmed:
+      groupMode === "valueStream"
+        ? (confirmedByGroup.get(e.id) ?? false)
+        : (confirmedById[e.id] ?? false),
   }));
+  const stackedBy = groupMode === "valueStream" ? "Value Stream" : "Epic";
 
   return (
     <div className="space-y-6">
-      <HatchDefs stacks={stacks} />
+      <HatchDefs stacks={displayStacks} />
       <Slicers
         epics={data.epics}
         selected={selected}
@@ -174,6 +207,8 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
         toIso={toIso}
         onFrom={setFromIso}
         onTo={setToIso}
+        groupMode={groupMode}
+        onGroupMode={setGroupMode}
       />
 
       {canEdit && (
@@ -188,7 +223,7 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
           title="Benefit Velocity"
           subtitle="Business Value je Monat — Linie = kostenneutraler Betrieb"
         >
-          <StackedChart rows={benefitRows} stacks={stacks} ticks={ticks}>
+          <StackedChart rows={benefitRows} stacks={displayStacks} ticks={ticks}>
             {data.costNeutralTarget != null && (
               <ReferenceLine
                 y={data.costNeutralTarget}
@@ -200,8 +235,8 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
           </StackedChart>
         </Panel>
 
-        <Panel title="Cost Distribution" subtitle="Kosten je Monat, gestapelt nach Epic">
-          <StackedChart rows={costRows} stacks={stacks} ticks={ticks} hatchUnconfirmed />
+        <Panel title="Cost Distribution" subtitle={`Kosten je Monat, gestapelt nach ${stackedBy}`}>
+          <StackedChart rows={costRows} stacks={displayStacks} ticks={ticks} hatchUnconfirmed />
         </Panel>
 
         <Panel title="ROI" subtitle="Business Value (grün) vs. Kosten (rot) je Monat">
@@ -262,19 +297,19 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
         </Panel>
 
         <Panel title="Gained Value Analyse" subtitle="Kumulierter Business Value">
-          <StackedChart rows={accValueRows} stacks={stacks} ticks={ticks} />
+          <StackedChart rows={accValueRows} stacks={displayStacks} ticks={ticks} />
         </Panel>
 
         <Panel title="Cost Analysis" subtitle="Kumulierte Kosten">
-          <StackedChart rows={accCostRows} stacks={stacks} ticks={ticks} hatchUnconfirmed />
+          <StackedChart rows={accCostRows} stacks={displayStacks} ticks={ticks} hatchUnconfirmed />
         </Panel>
 
         <Panel
           title="Positiver und Negativer Cash-Flow"
-          subtitle="Laufender kumulierter Saldo je Epic — negative Epics unterhalb, positive oberhalb der 0-Linie"
+          subtitle={`Laufender kumulierter Saldo je ${stackedBy} — negative unterhalb, positive oberhalb der 0-Linie`}
           className="xl:col-span-2"
         >
-          <CashFlowChart series={series} stacks={stacks} ticks={ticks} />
+          <CashFlowChart series={displaySeries} stacks={displayStacks} ticks={ticks} />
         </Panel>
       </div>
     </div>
@@ -591,6 +626,8 @@ function Slicers({
   toIso,
   onFrom,
   onTo,
+  groupMode,
+  onGroupMode,
 }: {
   epics: PortfolioEconomicsData["epics"];
   selected: Set<string>;
@@ -602,6 +639,8 @@ function Slicers({
   toIso: string;
   onFrom: (v: string) => void;
   onTo: (v: string) => void;
+  groupMode: "valueStream" | "epic";
+  onGroupMode: (m: "valueStream" | "epic") => void;
 }) {
   return (
     <Card className="flex flex-wrap items-start gap-x-8 gap-y-4 p-4">
@@ -654,6 +693,32 @@ function Slicers({
             value={toIso}
             onChange={(e) => onTo(e.target.value)}
           />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <h2 className="font-heading text-sm font-medium">Ansicht</h2>
+        <div className="inline-flex rounded-full border p-0.5 text-xs">
+          {(
+            [
+              ["valueStream", "Nach Value Stream"],
+              ["epic", "Nach Epic"],
+            ] as const
+          ).map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => onGroupMode(mode)}
+              aria-pressed={groupMode === mode}
+              className={`rounded-full px-3 py-1 transition-colors ${
+                groupMode === mode
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
     </Card>

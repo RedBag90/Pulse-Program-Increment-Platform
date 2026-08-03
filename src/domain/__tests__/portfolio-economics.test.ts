@@ -3,6 +3,7 @@ import {
   goLiveMonth,
   epicMonthlyFlows,
   aggregatePortfolio,
+  groupSeriesByValueStream,
   kpiFulfillmentByMonth,
   recurringFactorByMonth,
   kpiRealizedValueByMonth,
@@ -10,6 +11,7 @@ import {
   allocatedCostByMonth,
   type EpicEconomicsInput,
   type BenefitKpiInput,
+  type EpicSeries,
 } from "@/domain/portfolio-economics";
 import { buildMonthAxis } from "@/domain/calendar";
 import type { KpiMeasurement } from "@/domain/kpi";
@@ -322,3 +324,47 @@ describe("epicMonthlyFlows — recurring KPI run-rate + one-time fallback", () =
 function zerosArr(n: number): number[] {
   return new Array<number>(n).fill(0);
 }
+
+describe("groupSeriesByValueStream", () => {
+  const mk = (id: string, base: number): EpicSeries => ({
+    id,
+    title: id,
+    cost: [base, base],
+    benefit: [base * 2, base * 2],
+    net: [base, base],
+    accCost: [base, base * 2],
+    accBenefit: [base * 2, base * 4],
+    accNet: [base, base * 2],
+  });
+
+  it("summiert element-weise je Value Stream; Reihenfolge = Name aufsteigend", () => {
+    const per = [mk("e1", 10), mk("e2", 5), mk("e3", 7)];
+    const vs = new Map<string, string | null>([
+      ["e1", "Payments"],
+      ["e2", "Payments"],
+      ["e3", "Banking"],
+    ]);
+    const groups = groupSeriesByValueStream(per, vs);
+    expect(groups.map((g) => g.title)).toEqual(["Banking", "Payments"]);
+    const banking = groups[0]!;
+    const payments = groups[1]!;
+    expect(banking.id).toBe("vs:Banking");
+    expect(banking.cost).toEqual([7, 7]);
+    // Payments = e1 + e2 element-weise
+    expect(payments.cost).toEqual([15, 15]); // 10+5
+    expect(payments.accBenefit).toEqual([30, 60]); // (20+10), (40+20)
+    expect(payments.accNet).toEqual([15, 30]); // (10+5), (20+10)
+  });
+
+  it("null-Value-Stream ⇒ 'Ohne Wertstrom'-Bucket, immer zuletzt", () => {
+    const per = [mk("e1", 3), mk("e2", 4)];
+    const vs = new Map<string, string | null>([
+      ["e1", null],
+      ["e2", "Alpha"],
+    ]);
+    const groups = groupSeriesByValueStream(per, vs);
+    expect(groups.map((g) => g.title)).toEqual(["Alpha", "Ohne Wertstrom"]);
+    expect(groups[1]!.id).toBe("vs:__none__");
+    expect(groups[1]!.cost).toEqual([3, 3]);
+  });
+});
