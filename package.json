@@ -23,6 +23,7 @@
     "check:network-bundle": "node scripts/check-network-bundle.mjs",
     "prisma": "prisma",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:demo": "tsx prisma/seed-demo.ts",
     "prepare": "husky"
   },
   "dependencies": {
