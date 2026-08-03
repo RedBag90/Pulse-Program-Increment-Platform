@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import {
   createKpiAction,
   deleteKpiAction,
@@ -15,8 +16,14 @@ import {
   RECURRING_INTERVAL_LABELS,
 } from "@/domain/kpi-recurring-interval";
 import { formatMetricValue } from "@/domain/goal-metric";
+import { formatCompactEUR } from "@/lib/formatting";
 import type { EpicGoalLinkRow } from "@/server/views/epic-goal-contributions";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { SectionLabel } from "@/components/ui/section-label";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -58,8 +65,9 @@ interface Props {
   signoff?: SectionSignoff;
 }
 
-const inputCls =
-  "rounded border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+/** Native-Select im Look der `Input`-Primitive (kein Select-Primitive im Kit). */
+const selectCls =
+  "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 function fmt(n: number | null): string {
   return n === null ? "—" : n.toLocaleString("de-DE");
@@ -75,6 +83,44 @@ function fmtEur(n: number | null): string {
 function derivedTotal(kpi: Pick<KpiRow, "baseline" | "target" | "valuePerUnit">): number | null {
   if (kpi.valuePerUnit == null || kpi.baseline == null || kpi.target == null) return null;
   return Math.abs(kpi.target - kpi.baseline) * kpi.valuePerUnit;
+}
+
+/** Zielerreichung 0..1 (Aktuell relativ zu Baseline→Ziel); null wenn nicht messbar. */
+function kpiRatio(kpi: Pick<KpiRow, "baseline" | "target" | "latest">): number | null {
+  const { baseline, target, latest } = kpi;
+  if (baseline == null || target == null) return null;
+  const denom = target - baseline;
+  if (denom === 0) return latest != null ? 1 : 0;
+  if (latest == null) return null;
+  return Math.min(1, Math.max(0, (latest - baseline) / denom));
+}
+
+/** Schlanker Fortschrittsbalken im „Realisierter Mehrwert"-Stil. */
+function TileBar({ ratio }: { ratio: number | null }) {
+  const pct = ratio == null ? 0 : Math.round(ratio * 100);
+  return (
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+      <div
+        className="h-full rounded-full bg-primary/70 transition-[width]"
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
+
+/** Kleiner „Bearbeiten"-Umschalter (kein Collapsible-Primitive im Kit). */
+function EditToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+    >
+      {open ? "Fertig" : "Bearbeiten"}
+      <ChevronDown className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+    </button>
+  );
 }
 
 function KpiItem({
@@ -93,181 +139,214 @@ function KpiItem({
 
   const kind = benefitKindOrDefault(kpi.benefitKind);
   const total = derivedTotal(kpi);
-  // Controlled im Detail-Formular, damit das Intervall-Feld nur bei "recurring" erscheint.
+  const ratio = kpiRatio(kpi);
   const [detKind, setDetKind] = useState<string>(kind);
+  const [editing, setEditing] = useState(false);
+
+  const err = delState?.error ?? measState?.error ?? weightState?.error ?? detState?.error;
+  const history = [...(kpi.measurements ?? [])].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
-    <div className="rounded border p-3">
-      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
-        <span className="font-medium">{kpi.name}</span>
-        {kpi.unit && <span className="text-xs text-muted-foreground">{kpi.unit}</span>}
-        <span
-          className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
-            kind === "one_time"
-              ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
-              : "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200"
-          }`}
-        >
-          {BENEFIT_KIND_LABELS[kind]}
-          {kind === "recurring" && (
-            <> · {RECURRING_INTERVAL_LABELS[recurringIntervalOrDefault(kpi.recurringInterval)]}</>
-          )}
-        </span>
-        <span className="text-sm text-muted-foreground">
-          Baseline {fmt(kpi.baseline)} → Ziel {fmt(kpi.target)}
-        </span>
-        <span className="text-sm">
-          Aktuell: <span className="font-medium">{fmt(kpi.latest)}</span>
-        </span>
-        {kpi.valuePerUnit != null && (
-          <span className="text-sm text-muted-foreground">
-            {fmtEur(kpi.valuePerUnit)}/Einheit
-            {total != null && <> · Gesamt {fmtEur(total)}</>}
-          </span>
-        )}
-        <form action={delAction} className="ml-auto">
-          <input type="hidden" name="id" value={kpi.id} />
-          <input type="hidden" name="initiativeId" value={initiativeId} />
-          <button
-            type="submit"
-            disabled={delPending}
-            className="text-xs text-destructive hover:underline disabled:opacity-50"
+    <div className="rounded-lg border bg-card p-4">
+      {/* Kopf: Name + Benefit-Badge + Bearbeiten */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-medium">{kpi.name}</span>
+          {kpi.unit && <span className="text-xs text-muted-foreground">{kpi.unit}</span>}
+          <Badge
+            className={
+              kind === "one_time"
+                ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                : "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200"
+            }
           >
-            Entfernen
-          </button>
-        </form>
+            {BENEFIT_KIND_LABELS[kind]}
+            {kind === "recurring" &&
+              ` · ${RECURRING_INTERVAL_LABELS[recurringIntervalOrDefault(kpi.recurringInterval)]}`}
+          </Badge>
+        </div>
+        {canEdit && <EditToggle open={editing} onToggle={() => setEditing((v) => !v)} />}
       </div>
 
-      <form action={weightAction} className="mt-2 flex flex-wrap items-center gap-2">
-        <input type="hidden" name="id" value={kpi.id} />
-        <input type="hidden" name="initiativeId" value={initiativeId} />
-        <label className="text-xs text-muted-foreground">Nutzen-Anteil</label>
-        <input
-          type="number"
-          step="any"
-          min={0}
-          name="weightPercent"
-          defaultValue={kpi.weight != null ? kpi.weight * 100 : ""}
-          placeholder="auto"
-          className={`${inputCls} w-20`}
-          aria-label="Nutzen-Anteil in Prozent"
-        />
-        <span className="text-xs text-muted-foreground">%</span>
-        <button
-          type="submit"
-          disabled={weightPending}
-          className="rounded bg-secondary px-2 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
-        >
-          Anteil speichern
-        </button>
-      </form>
+      {/* Lese-Körper: große Ist-Zahl + „von Ziel" + €-Gesamt */}
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <p className="text-2xl font-semibold tabular-nums">{fmt(kpi.latest)}</p>
+        <p className="text-sm text-muted-foreground">
+          von <span className="font-medium text-foreground">{fmt(kpi.target)}</span>
+          {kpi.unit ? ` ${kpi.unit}` : ""}
+        </p>
+        {total != null && (
+          <p className="ml-auto text-sm text-muted-foreground">
+            ≈ <span className="font-medium text-foreground">{formatCompactEUR(total)}</span> Nutzen
+          </p>
+        )}
+      </div>
 
-      <form action={measAction} className="mt-2 flex flex-wrap items-center gap-2">
-        <input type="hidden" name="id" value={kpi.id} />
-        <input type="hidden" name="initiativeId" value={initiativeId} />
-        <input type="date" name="date" required className={inputCls} aria-label="Datum" />
-        <input
-          type="number"
-          step="any"
-          name="value"
-          required
-          placeholder="Messwert"
-          className={`${inputCls} w-32`}
-          aria-label="Messwert"
-        />
-        <button
-          type="submit"
-          disabled={measPending}
-          className="rounded bg-secondary px-2 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
-        >
-          Messwert erfassen
-        </button>
-      </form>
+      <div className="mt-2">
+        <TileBar ratio={ratio} />
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          Baseline {fmt(kpi.baseline)} → Ziel {fmt(kpi.target)}
+          {ratio != null && ` · ${Math.round(ratio * 100)} % erreicht`}
+          {kpi.valuePerUnit != null && ` · ${fmtEur(kpi.valuePerUnit)}/Einheit`}
+        </p>
+      </div>
 
-      {canEdit && (
-        <form action={detAction} className="mt-2 space-y-2 border-t pt-2">
-          <input type="hidden" name="id" value={kpi.id} />
-          <input type="hidden" name="initiativeId" value={initiativeId} />
-          <div className="flex flex-wrap items-end gap-2">
+      {/* Bearbeiten (Default eingeklappt) */}
+      {canEdit && editing && (
+        <div className="mt-3 space-y-3 border-t pt-3">
+          {/* Messwert erfassen */}
+          <form action={measAction} className="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="id" value={kpi.id} />
+            <input type="hidden" name="initiativeId" value={initiativeId} />
             <label className="flex flex-col gap-1 text-xs font-medium">
-              Benefit-Art
-              <select
-                name="benefitKind"
-                value={detKind}
-                onChange={(e) => setDetKind(e.target.value)}
-                className={`${inputCls} w-44`}
-              >
-                <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
-                <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
-              </select>
+              Messwert erfassen
+              <div className="flex items-center gap-2">
+                <Input type="date" name="date" required aria-label="Datum" className="w-40" />
+                <Input
+                  type="number"
+                  step="any"
+                  name="value"
+                  required
+                  placeholder="Wert"
+                  aria-label="Messwert"
+                  className="w-32"
+                />
+                <Button type="submit" variant="secondary" size="sm" disabled={measPending}>
+                  Erfassen
+                </Button>
+              </div>
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium">
-              €/Einheit
-              <input
-                type="number"
-                step="any"
-                name="valuePerUnit"
-                defaultValue={kpi.valuePerUnit ?? ""}
-                placeholder="—"
-                className={`${inputCls} w-28`}
-              />
-            </label>
-            {detKind === "recurring" && (
+          </form>
+
+          {/* Nutzen-Anteil + Bewertung */}
+          <div className="flex flex-wrap items-end gap-4">
+            <form action={weightAction} className="flex items-end gap-2">
+              <input type="hidden" name="id" value={kpi.id} />
+              <input type="hidden" name="initiativeId" value={initiativeId} />
               <label className="flex flex-col gap-1 text-xs font-medium">
-                Intervall
+                Nutzen-Anteil %
+                <Input
+                  type="number"
+                  step="any"
+                  min={0}
+                  name="weightPercent"
+                  defaultValue={kpi.weight != null ? kpi.weight * 100 : ""}
+                  placeholder="auto"
+                  aria-label="Nutzen-Anteil in Prozent"
+                  className="w-24"
+                />
+              </label>
+              <Button type="submit" variant="secondary" size="sm" disabled={weightPending}>
+                Speichern
+              </Button>
+            </form>
+
+            <form action={detAction} className="flex flex-wrap items-end gap-2">
+              <input type="hidden" name="id" value={kpi.id} />
+              <input type="hidden" name="initiativeId" value={initiativeId} />
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                Benefit-Art
                 <select
-                  name="recurringInterval"
-                  defaultValue={recurringIntervalOrDefault(kpi.recurringInterval)}
-                  className={`${inputCls} w-32`}
+                  name="benefitKind"
+                  value={detKind}
+                  onChange={(e) => setDetKind(e.target.value)}
+                  className={`${selectCls} w-44`}
                 >
-                  <option value="yearly">{RECURRING_INTERVAL_LABELS.yearly}</option>
-                  <option value="monthly">{RECURRING_INTERVAL_LABELS.monthly}</option>
+                  <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
+                  <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
                 </select>
               </label>
-            )}
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                €/Einheit
+                <Input
+                  type="number"
+                  step="any"
+                  name="valuePerUnit"
+                  defaultValue={kpi.valuePerUnit ?? ""}
+                  placeholder="—"
+                  className="w-28"
+                />
+              </label>
+              {detKind === "recurring" && (
+                <label className="flex flex-col gap-1 text-xs font-medium">
+                  Intervall
+                  <select
+                    name="recurringInterval"
+                    defaultValue={recurringIntervalOrDefault(kpi.recurringInterval)}
+                    className={`${selectCls} w-32`}
+                  >
+                    <option value="yearly">{RECURRING_INTERVAL_LABELS.yearly}</option>
+                    <option value="monthly">{RECURRING_INTERVAL_LABELS.monthly}</option>
+                  </select>
+                </label>
+              )}
+              <Button type="submit" variant="secondary" size="sm" disabled={detPending}>
+                Details speichern
+              </Button>
+            </form>
+          </div>
+
+          {/* Kalkulations-Notiz — eigener Save (Benefit-Art bleibt unverändert). */}
+          <form action={detAction} className="flex flex-col gap-1">
+            <input type="hidden" name="id" value={kpi.id} />
+            <input type="hidden" name="initiativeId" value={initiativeId} />
+            <label className="flex flex-col gap-1 text-xs font-medium">
+              Kalkulations-Notiz
+              <Textarea
+                name="calculationNote"
+                rows={2}
+                defaultValue={kpi.calculationNote ?? ""}
+                placeholder="Wie wird dieser Wert hergeleitet?"
+                className="resize-y"
+              />
+            </label>
+            <Button
+              type="submit"
+              variant="secondary"
+              size="sm"
+              disabled={detPending}
+              className="self-start"
+            >
+              Notiz speichern
+            </Button>
+          </form>
+
+          {/* Verlauf */}
+          {history.length > 0 && (
+            <div>
+              <SectionLabel className="mb-1">Verlauf</SectionLabel>
+              <ul className="space-y-0.5 text-xs tabular-nums">
+                {history.map((m, i) => (
+                  <li key={`${m.date}-${i}`} className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">
+                      {new Date(m.date).toLocaleDateString("de-DE")}
+                    </span>
+                    <span className="font-medium">{m.value.toLocaleString("de-DE")}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Entfernen */}
+          <form action={delAction} className="border-t pt-2">
+            <input type="hidden" name="id" value={kpi.id} />
+            <input type="hidden" name="initiativeId" value={initiativeId} />
             <button
               type="submit"
-              disabled={detPending}
-              className="rounded bg-secondary px-2 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
+              disabled={delPending}
+              className="text-xs text-destructive hover:underline disabled:opacity-50"
             >
-              Details speichern
+              KPI entfernen
             </button>
-          </div>
-          <label className="flex flex-col gap-1 text-xs font-medium">
-            Kalkulations-Notiz
-            <textarea
-              name="calculationNote"
-              rows={2}
-              defaultValue={kpi.calculationNote ?? ""}
-              placeholder="Wie wird dieser Wert hergeleitet?"
-              className={`${inputCls} w-full resize-y`}
-            />
-          </label>
-        </form>
-      )}
-
-      {(delState?.error ?? measState?.error ?? weightState?.error ?? detState?.error) && (
-        <p role="alert" className="mt-1 text-xs text-destructive">
-          {delState?.error ?? measState?.error ?? weightState?.error ?? detState?.error}
-        </p>
-      )}
-
-      {(kpi.measurements ?? []).length > 0 && (
-        <div className="mt-3 border-t pt-2">
-          <p className="mb-1 text-xs font-medium text-muted-foreground">Verlauf</p>
-          <ul className="space-y-0.5 text-xs tabular-nums">
-            {[...(kpi.measurements ?? [])]
-              .sort((a, b) => b.date.localeCompare(a.date))
-              .map((m, i) => (
-                <li key={`${m.date}-${i}`} className="flex justify-between gap-4">
-                  <span className="text-muted-foreground">
-                    {new Date(m.date).toLocaleDateString("de-DE")}
-                  </span>
-                  <span className="font-medium">{m.value.toLocaleString("de-DE")}</span>
-                </li>
-              ))}
-          </ul>
+          </form>
         </div>
+      )}
+
+      {err && (
+        <p role="alert" className="mt-2 text-xs text-destructive">
+          {err}
+        </p>
       )}
     </div>
   );
@@ -282,7 +361,9 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>KPI hinzufügen</Button>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        KPI hinzufügen
+      </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -294,30 +375,23 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-xs font-medium">
                 Name
-                <input name="name" required className={`${inputCls} w-full`} />
+                <Input name="name" required />
               </label>
               <label className="flex flex-col gap-1 text-xs font-medium">
                 Einheit
-                <input name="unit" className={`${inputCls} w-full`} />
+                <Input name="unit" />
               </label>
               <label className="flex flex-col gap-1 text-xs font-medium">
                 Baseline
-                <input type="number" step="any" name="baseline" className={`${inputCls} w-full`} />
+                <Input type="number" step="any" name="baseline" />
               </label>
               <label className="flex flex-col gap-1 text-xs font-medium">
                 Ziel
-                <input type="number" step="any" name="target" className={`${inputCls} w-full`} />
+                <Input type="number" step="any" name="target" />
               </label>
               <label className="flex flex-col gap-1 text-xs font-medium">
                 Nutzen-Anteil %
-                <input
-                  type="number"
-                  step="any"
-                  min={0}
-                  name="weightPercent"
-                  placeholder="auto"
-                  className={`${inputCls} w-full`}
-                />
+                <Input type="number" step="any" min={0} name="weightPercent" placeholder="auto" />
               </label>
               <label className="flex flex-col gap-1 text-xs font-medium">
                 Benefit-Art
@@ -325,7 +399,7 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
                   name="benefitKind"
                   value={createKind}
                   onChange={(e) => setCreateKind(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className={selectCls}
                 >
                   <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
                   <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
@@ -333,22 +407,12 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
               </label>
               <label className="flex flex-col gap-1 text-xs font-medium">
                 €/Einheit (Vorschlag)
-                <input
-                  type="number"
-                  step="any"
-                  name="valuePerUnit"
-                  placeholder="—"
-                  className={`${inputCls} w-full`}
-                />
+                <Input type="number" step="any" name="valuePerUnit" placeholder="—" />
               </label>
               {createKind === "recurring" && (
                 <label className="flex flex-col gap-1 text-xs font-medium">
                   Intervall
-                  <select
-                    name="recurringInterval"
-                    defaultValue="yearly"
-                    className={`${inputCls} w-full`}
-                  >
+                  <select name="recurringInterval" defaultValue="yearly" className={selectCls}>
                     <option value="yearly">{RECURRING_INTERVAL_LABELS.yearly}</option>
                     <option value="monthly">{RECURRING_INTERVAL_LABELS.monthly}</option>
                   </select>
@@ -375,7 +439,7 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
   );
 }
 
-/** Eine Zeile je verknüpftem Ziel: wähle die treibende KPI + Umrechnungsfaktor. */
+/** Eine Kachel je verknüpftem Ziel: Lese-Ansicht + aufklappbares Umrechnungs-Formular. */
 function LinkedGoalRow({
   link,
   initiativeId,
@@ -390,6 +454,7 @@ function LinkedGoalRow({
   const [state, action, pending] = useActionState(linkEpicToGoalAction, {});
   const chosen = kpis.find((k) => k.id === link.kpiId) ?? null;
   const [kind, setKind] = useState<string>(link.impactKind || "recurring");
+  const [editing, setEditing] = useState(false);
   const goalSpec = {
     metricType: link.goalMetricType,
     precision: link.goalPrecision,
@@ -397,37 +462,53 @@ function LinkedGoalRow({
   };
   const hasGoalMetric =
     link.goalBaseline != null || link.goalTarget != null || link.goalCurrent != null;
+  const isSet = chosen != null && link.conversionFactor != null;
+  const kpiUnit = link.kpiUnit || chosen?.unit || "KPI-Einheit";
 
   return (
-    <div className="rounded border p-3">
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <span className="font-medium">{link.goalTitle}</span>
-        {link.goalUnit && (
-          <span className="text-xs text-muted-foreground">Ziel-Einheit: {link.goalUnit}</span>
-        )}
-        {chosen && link.conversionFactor != null ? (
-          <span className="text-sm text-muted-foreground">
-            1 {link.kpiUnit || chosen.unit || "KPI-Einheit"} →{" "}
-            <span className="font-medium">
-              {link.conversionFactor.toLocaleString("de-DE")} {link.goalUnit || ""}
-            </span>{" "}
-            · {BENEFIT_KIND_LABELS[benefitKindOrDefault(link.impactKind)]}
-          </span>
-        ) : (
-          <span className="text-xs text-amber-700 dark:text-amber-300">
-            Noch keine treibende KPI / kein Faktor gesetzt
-          </span>
+    <div className="rounded-lg border bg-card p-4">
+      {/* Kopf: Ziel-Titel + Bearbeiten */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium">{link.goalTitle}</p>
+          {link.goalUnit && (
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Ziel-Einheit: {link.goalUnit}
+            </p>
+          )}
+        </div>
+        {canEdit && kpis.length > 0 && (
+          <EditToggle open={editing} onToggle={() => setEditing((v) => !v)} />
         )}
       </div>
 
-      {/* Ziel-KPI (Metrik des Ziels) + Messwert. */}
-      <p className="mt-1 text-xs text-muted-foreground">
+      {/* Lese-Körper: Umrechnung + Ziel-KPI-Messwert */}
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        {isSet ? (
+          <>
+            <p className="text-xl font-semibold tabular-nums">
+              {link.conversionFactor!.toLocaleString("de-DE")}
+              <span className="ml-1 text-sm font-normal text-muted-foreground">
+                {link.goalUnit || ""} je 1 {kpiUnit}
+              </span>
+            </p>
+            <Badge variant="outline">
+              {BENEFIT_KIND_LABELS[benefitKindOrDefault(link.impactKind)]}
+            </Badge>
+          </>
+        ) : (
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            Noch keine treibende KPI / kein Faktor gesetzt
+          </p>
+        )}
+      </div>
+
+      <p className="mt-1 text-[10px] text-muted-foreground">
         Ziel-KPI: {link.goalMetricName ? `${link.goalMetricName} · ` : ""}
         {hasGoalMetric ? (
           <>
             {formatMetricValue(link.goalBaseline, goalSpec)} →{" "}
-            {formatMetricValue(link.goalTarget, goalSpec)}
-            {" · aktuell "}
+            {formatMetricValue(link.goalTarget, goalSpec)} · aktuell{" "}
             <span className="font-medium text-foreground">
               {formatMetricValue(link.goalCurrent, goalSpec)}
             </span>
@@ -444,13 +525,14 @@ function LinkedGoalRow({
         </p>
       )}
 
-      {canEdit && kpis.length > 0 && (
-        <form action={action} className="mt-2 flex flex-wrap items-end gap-2">
+      {/* Umrechnungs-Formular (Default eingeklappt) */}
+      {canEdit && kpis.length > 0 && editing && (
+        <form action={action} className="mt-3 flex flex-wrap items-end gap-2 border-t pt-3">
           <input type="hidden" name="epicId" value={initiativeId} />
           <input type="hidden" name="goalId" value={link.objectiveId} />
           <label className="flex flex-col gap-1 text-xs font-medium">
             KPI
-            <select name="kpiId" defaultValue={link.kpiId ?? ""} className={`${inputCls} w-48`}>
+            <select name="kpiId" defaultValue={link.kpiId ?? ""} className={`${selectCls} w-48`}>
               <option value="">— wählen —</option>
               {kpis.map((k) => (
                 <option key={k.id} value={k.id}>
@@ -462,13 +544,13 @@ function LinkedGoalRow({
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium">
             {link.goalUnit ? `${link.goalUnit} je 1 KPI-Einheit` : "Ziel-Einheit je 1 KPI-Einheit"}
-            <input
+            <Input
               type="number"
               step="any"
               name="conversionFactor"
               defaultValue={link.conversionFactor ?? ""}
               placeholder="z. B. 10000"
-              className={`${inputCls} w-32`}
+              className="w-32"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium">
@@ -477,7 +559,7 @@ function LinkedGoalRow({
               name="impactKind"
               value={kind}
               onChange={(e) => setKind(e.target.value)}
-              className={`${inputCls} w-44`}
+              className={`${selectCls} w-44`}
             >
               <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
               <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
@@ -489,24 +571,20 @@ function LinkedGoalRow({
               <select
                 name="recurringInterval"
                 defaultValue={recurringIntervalOrDefault(link.recurringInterval)}
-                className={`${inputCls} w-32`}
+                className={`${selectCls} w-32`}
               >
                 <option value="yearly">{RECURRING_INTERVAL_LABELS.yearly}</option>
                 <option value="monthly">{RECURRING_INTERVAL_LABELS.monthly}</option>
               </select>
             </label>
           )}
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded bg-secondary px-2 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
-          >
+          <Button type="submit" variant="secondary" size="sm" disabled={pending}>
             Speichern
-          </button>
+          </Button>
         </form>
       )}
       {state?.error && (
-        <p role="alert" className="mt-1 text-xs text-destructive">
+        <p role="alert" className="mt-2 text-xs text-destructive">
           {state.error}
         </p>
       )}
@@ -527,18 +605,16 @@ function LinkedGoalsSection({
   canEdit: boolean;
 }) {
   return (
-    <div className="space-y-2 border-t pt-4">
-      <h3 className="text-sm font-medium">Verknüpfte Ziele</h3>
+    <section className="space-y-3">
+      <SectionLabel>Verknüpfte Ziele</SectionLabel>
       <p className="text-xs text-muted-foreground">
-        Verknüpfe Epics im jeweiligen Ziel („Related work"). Pro Ziel legst du hier fest, welche KPI
-        es treibt und wie viel Ziel-Einheit eine KPI-Einheit bewegt (z. B. 10000 €/Wagon).
+        Pro Ziel legst du fest, welche KPI es treibt und wie viel Ziel-Einheit eine KPI-Einheit
+        bewegt (z. B. 10000 €/Wagon). Verknüpfung erfolgt im Ziele-Modul („Related work").
       </p>
       {goalLinks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Noch mit keinem Ziel verknüpft. Verknüpfung erfolgt im Ziele-Modul („Related work").
-        </p>
+        <p className="text-sm text-muted-foreground">Noch mit keinem Ziel verknüpft.</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {goalLinks.map((link) => (
             <LinkedGoalRow
               key={link.objectiveId}
@@ -550,41 +626,47 @@ function LinkedGoalsSection({
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
-/** KPIs tab — lists the Epic's KPIs with baseline/target/actual and inline CRUD. */
+/** KPIs tab — read-first tiles per KPI with edit-on-demand + linked-goal cascade. */
 export function EpicKpisTab({ initiativeId, kpis, canEdit, goalLinks, signoff }: Props) {
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-medium">KPIs</h2>
-      <p className="text-xs text-muted-foreground">
-        Der „Nutzen-Anteil" je KPI bestimmt, welchen Teil des wiederkehrenden Nutzens diese KPI
-        realisiert. Ohne Anteil tragen alle KPIs des Epics gleichmäßig bei.
-      </p>
-
+    <div className="space-y-6">
       {signoff && <SectionSignoffBanner epicId={initiativeId} section="kpis" {...signoff} />}
 
-      {kpis.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Noch keine KPIs erfasst.</p>
-      ) : (
-        <div className="space-y-2">
-          {kpis.map((kpi) => (
-            <KpiItem key={kpi.id} kpi={kpi} initiativeId={initiativeId} canEdit={canEdit} />
-          ))}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <SectionLabel>KPIs</SectionLabel>
+          {canEdit && <CreateKpiForm initiativeId={initiativeId} />}
         </div>
-      )}
+        <p className="text-xs text-muted-foreground">
+          Der „Nutzen-Anteil" je KPI bestimmt, welchen Teil des wiederkehrenden Nutzens diese KPI
+          realisiert. Ohne Anteil tragen alle KPIs gleichmäßig bei.
+        </p>
 
-      {canEdit && <CreateKpiForm initiativeId={initiativeId} />}
+        {kpis.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Noch keine KPIs erfasst.</p>
+        ) : (
+          <div className="space-y-3">
+            {kpis.map((kpi) => (
+              <KpiItem key={kpi.id} kpi={kpi} initiativeId={initiativeId} canEdit={canEdit} />
+            ))}
+          </div>
+        )}
+      </section>
 
       {goalLinks && (
-        <LinkedGoalsSection
-          initiativeId={initiativeId}
-          goalLinks={goalLinks}
-          kpis={kpis}
-          canEdit={canEdit}
-        />
+        <>
+          <Separator />
+          <LinkedGoalsSection
+            initiativeId={initiativeId}
+            goalLinks={goalLinks}
+            kpis={kpis}
+            canEdit={canEdit}
+          />
+        </>
       )}
     </div>
   );
