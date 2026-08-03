@@ -116,6 +116,48 @@ describe("resolveNode — der Mode/Leaf-Seam", () => {
     expect(r.relatedEpics[0]!.trio.planned).toBe(50);
     expect(r.trioEpicLinks).toEqual({ planned: 50, realized: 50, runRate: 50 });
   });
+
+  it("trioEpicLinks: mit gewählter Erfolgs-KPI zählt NUR diese, nicht alle Epic-KPIs", () => {
+    // Epic mit zwei KPIs; nur die zweite (successKpi) treibt das Ziel.
+    const success = { id: "linked", baseline: 0, target: 10, current: 5, valuePerUnit: 8 };
+    const r = resolveNode(obj({}), {
+      ...ctx,
+      relatedEpics: [
+        {
+          epicId: "e",
+          title: "E",
+          stageGate: "L2",
+          href: "/x",
+          kpis: [
+            { id: "other", baseline: 0, target: 10, current: 10, valuePerUnit: 5 }, // NICHT verknüpft
+            success,
+          ],
+          successKpi: success,
+        },
+      ],
+    });
+    // Nur die Erfolgs-KPI: planned |10−0|×8 = 80, realized 0.5×80 = 40.
+    expect(r.trioEpicLinks).toEqual({ planned: 80, realized: 40, runRate: 40 });
+  });
+
+  it("trioEpicLinks: ohne successKpi (Alt-Link) weiterhin Summe aller Epic-KPIs", () => {
+    const r = resolveNode(obj({}), {
+      ...ctx,
+      relatedEpics: [
+        {
+          epicId: "e",
+          title: "E",
+          stageGate: "L2",
+          href: "/x",
+          kpis: [
+            { id: "a", baseline: 0, target: 10, current: 10, valuePerUnit: 5 }, // 50
+            { id: "b", baseline: 0, target: 10, current: 10, valuePerUnit: 3 }, // 30
+          ],
+        },
+      ],
+    });
+    expect(r.trioEpicLinks).toEqual({ planned: 80, realized: 80, runRate: 80 });
+  });
 });
 
 describe("buildStrategyTree — Baum-Assemblierung + Rollup", () => {

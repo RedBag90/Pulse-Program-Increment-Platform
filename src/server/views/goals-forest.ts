@@ -185,7 +185,10 @@ export function resolveNode(
     epicId: e.epicId,
     title: e.title,
     stageGate: e.stageGate,
-    trio: epicLinkTrio([{ epicId: e.epicId, kpis: e.kpis }]),
+    // Ist im GoalEpicLink eine Erfolgs-KPI gewählt (`successKpi`), treibt NUR diese
+    // den Ziel-€-Wert — nicht alle Epic-KPIs. Ohne Wahl (Alt-„Ganz-Epic"-Link,
+    // kpiId=null) bleibt die Summe aller KPIs (rückwärtskompatibel).
+    trio: epicLinkTrio([{ epicId: e.epicId, kpis: e.successKpi ? [e.successKpi] : e.kpis }]),
     href: e.href,
   }));
   const trioEpicLinks = sumTrios(relatedEpics.map((r) => r.trio));
