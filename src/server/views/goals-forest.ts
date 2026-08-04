@@ -461,12 +461,15 @@ export function buildProgressChart(input: GoalChartInput): ProgressChart {
   const closed = isClosed(rootRow.status);
 
   const points: ProgressChartPoint[] = [];
+  // Abgeleitete Linien-Punkte separat halten: Status-Marker abgeleiteter Ziele
+  // werden darauf projiziert (statt auf einen eingefrorenen „heute"-Snapshot).
+  const linePoints: { at: number; value: number }[] = [];
 
   // 1) Kontinuierlicher Verlauf (kein Punkt): KPI-Blatt → KPI-Historie,
   //    aggregierend → Kinder-Ø. (Bei manual liefert Schritt 2 die Linien-Punkte.)
   if (mode === "percent") {
     for (const p of buildNodeProgressSeries(seriesRoot, now, !closed)) {
-      points.push({ at: Date.parse(p.at), value: p.progress * 100, status: null, entry: false });
+      linePoints.push({ at: Date.parse(p.at), value: p.progress * 100 });
     }
   } else if (derivesCurrentFromKpis(effMode, rootHasChildren)) {
     const seriesGoal = {
@@ -475,14 +478,34 @@ export function buildProgressChart(input: GoalChartInput): ProgressChart {
       target: seriesRoot.target,
     };
     for (const p of buildAutoKpiSeries(seriesGoal, seriesRoot.autoKpiLinks)) {
-      points.push({ at: Date.parse(p.at), value: p.value, status: null, entry: false });
+      linePoints.push({ at: Date.parse(p.at), value: p.value });
     }
   }
+  for (const lp of linePoints) {
+    points.push({ at: lp.at, value: lp.value, status: null, entry: false });
+  }
+
+  // Step-Lookup auf der abgeleiteten Linie: jüngster Punkt mit at ≤ ts; vor dem
+  // ersten Punkt der erste. (linePoints sind aufsteigend sortiert.)
+  const lineValueAt = (ts: number): number | null => {
+    if (linePoints.length === 0) return null;
+    let val: number | null = null;
+    for (const lp of linePoints) {
+      if (lp.at <= ts) val = lp.value;
+      else break;
+    }
+    return val ?? linePoints[0]!.value;
+  };
 
   // 2) Eigene Check-ins: Status gesetzt → farbiger Status-Punkt; statuslos mit
-  //    Wert (manueller Eintrag) → neutraler Punkt.
+  //    Wert (manueller Eintrag) → neutraler Punkt. Abgeleitete Ziele (rollup/
+  //    auto_kpi/kpi_tree) haben an jedem Datum einen abgeleiteten Wert ⇒ den
+  //    Marker auf die Linie am Check-in-Datum projizieren, nicht den eingefrorenen
+  //    „heute"-Snapshot nutzen (der sonst Punkt UND Linie am Backdate verzerrt).
+  //    Nur manuelle Ziele sind selbst die Wert-Quelle.
   for (const c of rootCheckins) {
-    const v = mode === "value" ? c.value : c.progress != null ? c.progress * 100 : null;
+    const frozen = mode === "value" ? c.value : c.progress != null ? c.progress * 100 : null;
+    const v = effMode === "manual" ? frozen : (lineValueAt(c.atMs) ?? frozen);
     if (v == null) continue;
     points.push({ at: c.atMs, value: v, status: c.status, entry: c.status == null });
   }

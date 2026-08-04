@@ -375,6 +375,34 @@ describe("buildProgressChart", () => {
     expect(last.status).toBe("achieved");
   });
 
+  it("abgeleitetes Ziel (rollup): Status-Punkt sitzt auf der Kinder-Linie am Datum, nicht auf dem heutigen Wert", () => {
+    const parent = manualRow({ id: "R", progressMode: "rollup", status: "at_risk" });
+    const child = manualRow({
+      id: "C",
+      parentObjectiveId: "R",
+      progressMode: "manual",
+      baseline: 0,
+      target: 10,
+      current: 8,
+    });
+    const chart = buildProgressChart({
+      rootId: "R",
+      rows: [parent, child],
+      progressByNode: new Map([["C", [{ at: "2026-03-20", progress: 0.5 }]]]),
+      autoKpiSeriesByNode: new Map(),
+      rootCheckins: [
+        // „heute"-Snapshot 0.99 am zurückdatierten Status — darf NICHT durchschlagen.
+        { atMs: Date.parse("2026-03-20"), status: "at_risk", value: null, progress: 0.99 },
+      ],
+      now: "2026-06-01T00:00:00.000Z",
+    });
+    expect(chart.mode).toBe("percent");
+    const marker = chart.series.find((p) => p.at === Date.parse("2026-03-20"))!;
+    expect(marker.status).toBe("at_risk");
+    // Kinder-Ø am 20.03 = 0.5 × 100 = 50 (projiziert), nicht der eingefrorene 99.
+    expect(marker.value).toBe(50);
+  });
+
   it("unbekannte Wurzel ⇒ leerer Chart", () => {
     expect(
       buildProgressChart({
