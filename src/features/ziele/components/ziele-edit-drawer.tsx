@@ -158,8 +158,11 @@ function GoalPane({
   const isTopLevel = depth === 0;
   const kindLabel = isTopLevel ? "Theme (OKR)" : "Ziel";
 
+  // Anlegen zeigt für Top-Goal UND Unterziel dasselbe volle Formular: Default
+  // „manual" ⇒ Metrik-Block sichtbar (Rollup würde ihn ausblenden). Ein
+  // aggregierendes Theme wählt „Aus Unterzielen" explizit.
   const [mode, setMode] = useState<GoalProgressMode>(
-    (node?.progressMode as GoalProgressMode | undefined) ?? (isTopLevel ? "rollup" : "manual"),
+    (node?.progressMode as GoalProgressMode | undefined) ?? "manual",
   );
 
   function submit(fd: FormData) {
