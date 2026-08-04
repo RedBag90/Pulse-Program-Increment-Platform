@@ -399,6 +399,8 @@ export const checkInGoalAction = createServerAction({
     id: z.string().uuid(),
     status: goalStatusEnum,
     progress: optNum,
+    /** Neuer Ist-Wert bei manuellen Zielen (optional, nur „kr"). */
+    value: optNum,
     note: optStr,
     sections: goalSectionsField,
     /** Gewähltes Datum des Status-Updates (setzt den Graf-Punkt). */
@@ -412,6 +414,7 @@ export const checkInGoalAction = createServerAction({
       id: input.id,
       status: input.status,
       ...(input.progress !== undefined ? { progress: input.progress } : {}),
+      ...(input.value !== undefined ? { value: input.value } : {}),
       ...(input.note !== undefined ? { note: input.note } : {}),
       ...(input.sections !== undefined ? { sections: input.sections } : {}),
       ...(input.entryDate ? { entryDate: new Date(input.entryDate) } : {}),

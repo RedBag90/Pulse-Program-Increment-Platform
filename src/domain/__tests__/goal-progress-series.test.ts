@@ -214,6 +214,17 @@ describe("buildNodeProgressSeries", () => {
     ]);
   });
 
+  it("manual: liveEnd=false unterdrueckt das heute-Ende (geschlossenes Ziel)", () => {
+    const node = leaf({
+      progressMode: "manual",
+      current: 40,
+      checkins: [{ at: "2026-01-10", progress: 0.1 }],
+    });
+    expect(buildNodeProgressSeries(node, "2026-02-01", false)).toEqual([
+      { at: "2026-01-10", progress: 0.1 },
+    ]);
+  });
+
   it("rollup: weighted average of children over the date union (step)", () => {
     const a = leaf({
       progressMode: "manual",

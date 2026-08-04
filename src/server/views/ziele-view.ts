@@ -697,6 +697,7 @@ async function loadProgressChart(
       metricUnit: true,
       metricType: true,
       currencyCode: true,
+      status: true,
     },
   });
   const ids = subtreeRows.map((r) => r.id);
@@ -783,6 +784,7 @@ async function loadProgressChart(
     metricUnit: r.metricUnit,
     metricType: r.metricType,
     currencyCode: r.currencyCode,
+    status: r.status,
   }));
 
   return deriveProgressChart({

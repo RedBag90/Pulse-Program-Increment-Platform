@@ -159,15 +159,21 @@ function progressAt(series: ProgressPoint[], at: string): number | null {
 
 /**
  * Fortschritts-Verlauf (0..1) eines Knotens, rekursiv nach Fortschrittsquelle.
- * `now` (ISO) markiert das Live-Ende für manual/KPI-Blätter.
+ * `now` (ISO) markiert das Live-Ende für manual/KPI-Blätter. `liveEnd = false`
+ * unterdrückt diesen „heute"-Punkt (z. B. bei einem geschlossenen Ziel — der
+ * Verlauf endet dann am letzten echten Check-in).
  */
-export function buildNodeProgressSeries(node: SeriesNode, now: string): ProgressPoint[] {
+export function buildNodeProgressSeries(
+  node: SeriesNode,
+  now: string,
+  liveEnd = true,
+): ProgressPoint[] {
   const hasChildren = node.children.length > 0;
 
   if (aggregatesFromChildren(node.progressMode, hasChildren)) {
     const childSeries = node.children.map((c) => ({
       w: c.rollupWeight > 0 ? c.rollupWeight : 1,
-      s: buildNodeProgressSeries(c, now),
+      s: buildNodeProgressSeries(c, now, liveEnd),
     }));
     const dates = [...new Set(childSeries.flatMap((cs) => cs.s.map((p) => p.at)))].sort();
     const out: ProgressPoint[] = [];
@@ -201,7 +207,7 @@ export function buildNodeProgressSeries(node: SeriesNode, now: string): Progress
 
   // manual: eigene Status-Snapshots + Live-Ende aus dem aktuellen Ist-Wert.
   const pts = [...node.checkins].sort(byAt).map((c) => ({ at: c.at, progress: c.progress }));
-  if (node.current != null && node.target != null) {
+  if (liveEnd && node.current != null && node.target != null) {
     pts.push({
       at: now,
       progress: keyResultProgress({

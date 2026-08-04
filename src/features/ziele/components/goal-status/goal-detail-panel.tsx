@@ -75,9 +75,11 @@ export function GoalDetailPanel({
   const [progressValue, setProgressValue] = useState("");
   const [progressDate, setProgressDate] = useState("");
 
-  // Status-Update-Composer: gewählter Status + Datum (setzt den Graf-Punkt) + Sektionen.
+  // Status-Update-Composer: gewählter Status + Datum (setzt den Graf-Punkt) + Sektionen
+  // + optional neuer Ist-Wert (nur manuelle Ziele).
   const [composerStatus, setComposerStatus] = useState<GoalStatus | null>(null);
   const [composerDate, setComposerDate] = useState("");
+  const [composerValue, setComposerValue] = useState("");
   const [sections, setSections] = useState<{ title: string; body: string }[]>([]);
 
   // Ist-Wert direkt pflegbar nur bei manueller Fortschrittsquelle.
@@ -111,10 +113,11 @@ export function GoalDetailPanel({
     if (!checkinState.error) setComposerStatus(null);
   }, [checkinState, progressState, reloadDetail, router, progressState.error, checkinState.error]);
 
-  // Statuswahl öffnet den Composer (Datum + Sektionen), submitted noch nicht.
+  // Statuswahl öffnet den Composer (Datum + Sektionen + ggf. Wert), submitted noch nicht.
   function openComposer(next: GoalStatus) {
     setComposerStatus(next);
     setComposerDate(new Date().toISOString().slice(0, 10));
+    setComposerValue(isManualValue && krCurrent != null ? String(krCurrent) : "");
     setSections([{ title: "", body: "" }]);
   }
 
@@ -127,8 +130,9 @@ export function GoalDetailPanel({
     fd.set("target", target);
     fd.set("id", id);
     fd.set("status", composerStatus);
-    // Server friert den aktuellen Ist-Wert ein; progress als Fallback für Rollup/Objective.
+    // Server friert den (ggf. neuen) Ist-Wert ein; progress als Fallback für Rollup/Objective.
     fd.set("progress", String(progress));
+    if (isManualValue && composerValue.trim() !== "") fd.set("value", composerValue);
     if (composerDate) fd.set("entryDate", composerDate);
     if (clean.length > 0) fd.set("sections", JSON.stringify(clean));
     startTransition(() => checkInRun(fd));
@@ -207,8 +211,24 @@ export function GoalDetailPanel({
                 className="mt-1 h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </label>
+            {isManualValue && (
+              <label className="block">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Aktueller Wert
+                </span>
+                <input
+                  type="number"
+                  step="any"
+                  value={composerValue}
+                  onChange={(e) => setComposerValue(e.target.value)}
+                  className="mt-1 h-9 w-32 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </label>
+            )}
             <p className="pb-2 text-[11px] text-muted-foreground">
-              Der aktuelle Ist-Wert wird am gewählten Datum als farbiger Punkt eingefroren.
+              {isManualValue
+                ? "Der eingetragene Ist-Wert wird am gewählten Datum als farbiger Punkt eingefroren."
+                : "Der aktuelle Ist-Wert wird am gewählten Datum als farbiger Punkt eingefroren."}
             </p>
           </div>
           <div className="space-y-2">

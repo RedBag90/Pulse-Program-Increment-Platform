@@ -5,6 +5,7 @@ import {
   buildProgressChart,
   type ForestObjective,
   type ForestLookups,
+  type ChartObjective,
 } from "@/server/views/goals-forest";
 
 const emptyLookups = (): ForestLookups => ({
@@ -321,23 +322,25 @@ describe("buildStrategyTree — Baum-Assemblierung + Rollup", () => {
 });
 
 describe("buildProgressChart", () => {
+  const manualRow = (over: Partial<ChartObjective> = {}): ChartObjective => ({
+    id: "R",
+    parentObjectiveId: null,
+    progressMode: "manual",
+    baseline: 0,
+    target: 10,
+    current: 8,
+    rollupWeight: null,
+    metricUnit: null,
+    metricType: "number",
+    currencyCode: null,
+    status: "on_track" as string | null,
+    ...over,
+  });
+
   it("value-Mode: Status-Punkt + manuelles Live-Ende", () => {
     const chart = buildProgressChart({
       rootId: "R",
-      rows: [
-        {
-          id: "R",
-          parentObjectiveId: null,
-          progressMode: "manual",
-          baseline: 0,
-          target: 10,
-          current: 8,
-          rollupWeight: null,
-          metricUnit: null,
-          metricType: "number",
-          currencyCode: null,
-        },
-      ],
+      rows: [manualRow()],
       progressByNode: new Map(),
       autoKpiSeriesByNode: new Map(),
       rootCheckins: [
@@ -351,6 +354,25 @@ describe("buildProgressChart", () => {
     expect(points.some((p) => p.value === 8 && p.status === null)).toBe(true); // Live-Ende
     expect(chart.yDomain[0]).toBeLessThanOrEqual(0);
     expect(chart.yDomain[1]).toBeGreaterThanOrEqual(10);
+  });
+
+  it("geschlossenes Ziel (achieved) ⇒ kein Live-Ende; Linie endet am letzten Check-in", () => {
+    const chart = buildProgressChart({
+      rootId: "R",
+      rows: [manualRow({ status: "achieved" })],
+      progressByNode: new Map(),
+      autoKpiSeriesByNode: new Map(),
+      rootCheckins: [
+        { atMs: Date.parse("2026-03-20"), status: "achieved", value: 5, progress: 0.5 },
+      ],
+      now: "2026-06-01T00:00:00.000Z",
+    });
+    // Kein „heute"-Live-Ende (kein statusloser Punkt bei current=8 @ now).
+    expect(chart.series.some((p) => p.value === 8 && p.status === null)).toBe(false);
+    // Der letzte Punkt ist der geschlossene Check-in, nicht `now`.
+    const last = chart.series.at(-1)!;
+    expect(last.at).toBe(Date.parse("2026-03-20"));
+    expect(last.status).toBe("achieved");
   });
 
   it("unbekannte Wurzel ⇒ leerer Chart", () => {

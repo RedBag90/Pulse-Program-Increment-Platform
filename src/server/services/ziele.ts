@@ -500,6 +500,13 @@ export interface CheckInGoalInput {
   status: GoalStatus;
   /** Optional progress snapshot (0..1 rollup or raw KR value). */
   progress?: number | null;
+  /**
+   * Neuer Ist-Wert bei MANUELLEN Zielen: setzt zusammen mit dem Status-Update den
+   * eingefrorenen Wert am gewählten Datum und aktualisiert `current` (nach der
+   * „letzter Check-in gewinnt"-Regel). Ignoriert bei auto_kpi/kpi_tree (dort
+   * kommt der Ist aus den KPIs).
+   */
+  value?: number | null;
   note?: string | null;
   /** Structured update sections (Epic 4); backward-compatible with `note`. */
   sections?: GoalSection[] | null;
@@ -561,6 +568,26 @@ async function upsertDayCheckin(
     },
   });
   return { id: created.id };
+}
+
+/**
+ * Ist-Wert eines manuellen Ziels = Wert des **zeitlich letzten** Wert-Check-ins
+ * (max `createdAt`, `value != null`). Ein rückdatierter Eintrag (Datum vor dem
+ * letzten Update) fügt nur den Datenpunkt hinzu und lässt `current` unberührt.
+ * `fallback` greift, wenn es (noch) keinen Wert-Check-in gibt.
+ */
+async function latestCheckinCurrent(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  objectiveId: string,
+  fallback: number,
+): Promise<number> {
+  const latest = await tx.goalCheckin.findFirst({
+    where: { tenantId, objectiveId, value: { not: null } },
+    orderBy: { createdAt: "desc" },
+    select: { value: true },
+  });
+  return latest?.value != null ? Number(latest.value) : fallback;
 }
 
 /**
@@ -674,7 +701,13 @@ export async function recordGoalCheckin(
         autoLinks,
       );
     } else {
-      rawValue = existing.current != null ? Number(existing.current) : null;
+      // manual: ein mitgelieferter neuer Wert gewinnt, sonst der bestehende Ist.
+      rawValue =
+        input.value != null
+          ? input.value
+          : existing.current != null
+            ? Number(existing.current)
+            : null;
     }
     const frozenProgress =
       rawValue != null
@@ -691,9 +724,19 @@ export async function recordGoalCheckin(
       note: input.note ?? null,
       sections: input.sections ?? null,
     });
+    // Bei manuellem Wert-Update `current` mitziehen (letzter Check-in gewinnt),
+    // damit ein Status-Update mit neuem Wert den Ist aktualisiert.
+    const manualValueUpdate = mode === "manual" && input.value != null;
     await tx.objective.update({
       where: { id: input.id },
-      data: { status: input.status, updatedBy: mctx.actorId },
+      data: {
+        status: input.status,
+        closedAt: isClosed(input.status) ? (existing.closedAt ?? new Date()) : null,
+        ...(manualValueUpdate
+          ? { current: await latestCheckinCurrent(tx, mctx.tenantId, input.id, input.value!) }
+          : {}),
+        updatedBy: mctx.actorId,
+      },
     });
     return ok({
       result: { id: checkin.id },
@@ -758,9 +801,16 @@ export async function recordGoalProgress(
       note: null,
       sections: null,
     });
+    // `current` folgt dem zeitlich letzten Wert-Check-in (s. `latestCheckinCurrent`).
+    const newCurrent = await latestCheckinCurrent(
+      tx,
+      mctx.tenantId,
+      input.keyResultId,
+      input.value,
+    );
     await tx.objective.update({
       where: { id: input.keyResultId },
-      data: { current: input.value, updatedBy: mctx.actorId },
+      data: { current: newCurrent, updatedBy: mctx.actorId },
     });
     return ok({
       result: { id: checkin.id },
@@ -771,7 +821,7 @@ export async function recordGoalProgress(
         changes: {
           current: {
             before: existing.current != null ? Number(existing.current) : null,
-            after: input.value,
+            after: newCurrent,
           },
         },
       },

@@ -42,6 +42,7 @@ import {
   buildNodeProgressSeries,
   type SeriesNode,
 } from "@/domain/goal-progress-series";
+import { isClosed } from "@/domain/goal-status";
 import type {
   GoalNode,
   GoalLatestCheckin,
@@ -378,6 +379,8 @@ export interface ChartObjective {
   metricUnit: string | null;
   metricType: string;
   currencyCode: string | null;
+  /** Aktueller Ziel-Status (null = kein Check-in); closed ⇒ kein Live-Ende. */
+  status: string | null;
 }
 
 /** Eigener Status-/Wert-Check-in des Wurzelknotens (für die Punkte). */
@@ -452,12 +455,17 @@ export function buildProgressChart(input: GoalChartInput): ProgressChart {
       ? "value"
       : "percent";
 
+  // Geschlossenes Ziel (letzter Status = achieved/partial/missed/dropped) ⇒ die
+  // Linie „zählt nicht weiter": kein Live-Ende. Der Verlauf endet am letzten
+  // Check-in; ein späteres (offenes) Status-Update lässt ihn wieder fortlaufen.
+  const closed = isClosed(rootRow.status);
+
   const points: ProgressChartPoint[] = [];
 
   // 1) Kontinuierlicher Verlauf (kein Punkt): KPI-Blatt → KPI-Historie,
   //    aggregierend → Kinder-Ø. (Bei manual liefert Schritt 2 die Linien-Punkte.)
   if (mode === "percent") {
-    for (const p of buildNodeProgressSeries(seriesRoot, now)) {
+    for (const p of buildNodeProgressSeries(seriesRoot, now, !closed)) {
       points.push({ at: Date.parse(p.at), value: p.progress * 100, status: null, entry: false });
     }
   } else if (derivesCurrentFromKpis(effMode, rootHasChildren)) {
@@ -480,7 +488,8 @@ export function buildProgressChart(input: GoalChartInput): ProgressChart {
   }
 
   // 3) manual: Live-Ende (aktueller Ist-Wert @ heute) als Linienknick, kein Punkt.
-  if (mode === "value" && effMode === "manual" && seriesRoot.current != null) {
+  //    Bei geschlossenem Ziel entfällt es → die Linie endet am letzten Check-in.
+  if (mode === "value" && effMode === "manual" && seriesRoot.current != null && !closed) {
     points.push({ at: Date.parse(now), value: seriesRoot.current, status: null, entry: false });
   }
 
