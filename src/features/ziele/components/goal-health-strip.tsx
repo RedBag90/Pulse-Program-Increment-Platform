@@ -53,16 +53,16 @@ export function GoalHealthStrip({
   const total = themes.length || 1;
 
   return (
-    <StatStrip>
+    <StatStrip className="rounded-xl bg-gradient-to-r from-primary/[0.05] to-card shadow-sm">
       {/* Ø Fortschritt */}
-      <div className="min-w-0 flex-1 px-4 py-2.5">
+      <div className="min-w-0 flex-1 px-4 py-3.5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Ø Fortschritt
         </p>
         <p className="mt-1.5 font-mono text-2xl font-light leading-none tabular-nums">
           {pct != null ? `${pct} %` : "—"}
         </p>
-        <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-primary/70"
             style={{ width: `${pct ?? 0}%` }}
@@ -72,7 +72,7 @@ export function GoalHealthStrip({
       </div>
 
       {/* Status-Verteilung */}
-      <div className="min-w-0 flex-1 px-4 py-2.5">
+      <div className="min-w-0 flex-1 px-4 py-3.5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Status
         </p>
@@ -87,7 +87,7 @@ export function GoalHealthStrip({
           )}
           {themes.length === 0 && <span className="text-muted-foreground">—</span>}
         </div>
-        <div className="mt-2 flex h-1 overflow-hidden rounded-full bg-muted">
+        <div className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-muted">
           {TIER_ORDER.map((tier) =>
             counts[tier] > 0 ? (
               <div

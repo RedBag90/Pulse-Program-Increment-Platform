@@ -17,6 +17,7 @@ import { isAtRisk, keyResultProgress, type RollupTrio } from "@/domain/goals-rol
 import { goalPeriodLabel } from "@/domain/goal-period";
 import { filterGoalBranches } from "@/domain/goal-tree-filter";
 import { reparentGoalNodeAction } from "@/features/ziele/actions/ziele";
+import { HEAD_GOAL_ACCENT } from "@/features/ziele/lib/goal-accent";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -273,7 +274,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
           ⇧ Hierher ziehen = auf oberste Ebene verschieben
         </div>
       )}
-      <div className="overflow-x-auto rounded-lg border bg-card">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10 border-b bg-muted/95 text-xs uppercase tracking-wide text-muted-foreground shadow-sm backdrop-blur">
             <tr>
@@ -412,12 +413,16 @@ function Row({
   actions,
 }: RowProps) {
   const isOver = drag.overId === node.id;
+  // Kopf-Ziele (Top-Level-Themes) tragen eine einheitliche hellblaue Schiene links
+  // (inset shadow, robust gegen border-collapse) — kein pro-Theme-Regenbogen mehr.
+  const isHead = depth === 0;
   return (
     <tr
       className={cn(
         "group align-middle hover:bg-muted/40",
         isOver && "outline outline-2 -outline-offset-2 outline-primary",
       )}
+      style={isHead ? { boxShadow: `inset 3px 0 0 0 ${HEAD_GOAL_ACCENT}` } : undefined}
       draggable={drag.canEdit}
       onDragStart={(e) => {
         if (!drag.canEdit) return;
@@ -467,12 +472,10 @@ function Row({
             scroll={false}
             className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
           >
-            <span className={cn("truncate font-medium", depth === 0 ? "text-sm" : "text-[13px]")}>
-              {title}
-            </span>
+            <span className="truncate text-sm font-medium">{title}</span>
             {drift && (
               <span
-                className="shrink-0 rounded-full bg-amber-100 px-1 py-0.5 text-[9px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
+                className="shrink-0 rounded-full bg-amber-100 px-1 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
                 title="Run-Rate < 70 % vom Planned"
               >
                 ⚠
@@ -498,7 +501,7 @@ function Row({
               </span>
             )}
             {subtitle && (
-              <span className="shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span className="shrink-0 text-[11px] uppercase tracking-wider text-muted-foreground">
                 {subtitle}
               </span>
             )}
@@ -506,13 +509,13 @@ function Row({
         </div>
       </Td>
       <Td>
-        <OwnerAvatar label={ownerLabel} />
+        <OwnerAvatar label={ownerLabel} head={isHead} />
       </Td>
       <Td>
         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <GoalStatusPill status={statusValue} />
           {checkinAt && (
-            <span className="text-[10px] text-muted-foreground">{relativeGoalTime(checkinAt)}</span>
+            <span className="text-[11px] text-muted-foreground">{relativeGoalTime(checkinAt)}</span>
           )}
         </span>
       </Td>
@@ -528,12 +531,16 @@ function Row({
   );
 }
 
-function OwnerAvatar({ label }: { label: string | null }) {
+function OwnerAvatar({ label, head }: { label: string | null; head?: boolean }) {
   if (!label) return <span className="text-[11px] text-muted-foreground/50">—</span>;
   const initials = (label.split("@")[0] ?? label).slice(0, 2).toUpperCase();
   return (
     <Avatar size="sm" title={label}>
-      <AvatarFallback className="text-[10px] font-medium">{initials}</AvatarFallback>
+      <AvatarFallback
+        className={cn("text-[10px] font-medium", head && "bg-primary/10 text-primary")}
+      >
+        {initials}
+      </AvatarFallback>
     </Avatar>
   );
 }
@@ -603,11 +610,15 @@ function ProgressBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
         <div
           className={cn(
-            "h-full rounded-full",
-            value >= 0.7 ? "bg-emerald-500" : value >= 0.3 ? "bg-amber-500" : "bg-rose-500",
+            "h-full rounded-full bg-gradient-to-r",
+            value >= 0.7
+              ? "from-emerald-600 to-emerald-400"
+              : value >= 0.3
+                ? "from-amber-600 to-amber-400"
+                : "from-rose-600 to-rose-400",
           )}
           style={{ width: `${pct}%` }}
         />
@@ -646,11 +657,11 @@ function compact(n: number): string {
 }
 
 function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <th className={cn("px-3 py-1.5 text-left font-medium", className)}>{children}</th>;
+  return <th className={cn("px-3 py-2 text-left font-medium", className)}>{children}</th>;
 }
 
 function Td({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <td className={cn("px-3 py-1.5 align-middle", className)}>{children}</td>;
+  return <td className={cn("px-3 py-2.5 align-middle", className)}>{children}</td>;
 }
 
 function ToolbarButton({

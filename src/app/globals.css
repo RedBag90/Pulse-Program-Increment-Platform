@@ -46,37 +46,51 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
+
+  /* Elevation-Skala: re-skinnt shadow-*-Utilities app-weit mit weichen,
+     themed Schatten (Werte je Theme in :root / .dark). */
+  --shadow-xs: var(--elevation-xs);
+  --shadow-sm: var(--elevation-sm);
+  --shadow-md: var(--elevation-md);
 }
 
 /* ── Light Theme ─────────────────────────────────── */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* Neutrals dezent blau-getönt (hue ~262) statt reinem Grau — „gewählt",
+     nicht geerbt. Grund minimal getönt, Karten bleiben Weiß ⇒ Elevation. */
+  --background: oklch(0.985 0.004 262);
+  --foreground: oklch(0.145 0.005 262);
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.145 0.005 262);
 
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.145 0.005 262);
 
   /* Blue primary — approx blue-600 */
   --primary: oklch(0.546 0.245 262.881);
   --primary-foreground: oklch(0.985 0 0);
 
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.965 0.006 262);
+  --secondary-foreground: oklch(0.205 0.01 262);
 
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted: oklch(0.965 0.006 262);
+  --muted-foreground: oklch(0.556 0.02 262);
 
   --accent: oklch(0.95 0.02 262);
   --accent-foreground: oklch(0.3 0.1 262);
 
   --destructive: oklch(0.577 0.245 27.325);
 
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  --border: oklch(0.912 0.008 262);
+  --input: oklch(0.912 0.008 262);
   --ring: oklch(0.546 0.245 262.881);
+
+  /* Elevation (Light) — weich, geschichtet, blau-neutraler Schattenton. */
+  --elevation-xs: 0 1px 2px 0 oklch(0.2 0.03 262 / 0.06);
+  --elevation-sm: 0 1px 2px 0 oklch(0.2 0.03 262 / 0.06), 0 2px 6px -1px oklch(0.2 0.03 262 / 0.07);
+  --elevation-md:
+    0 2px 4px -1px oklch(0.2 0.03 262 / 0.06), 0 6px 16px -2px oklch(0.2 0.03 262 / 0.09);
 
   /* Charts — blue scale + complementary */
   --chart-1: oklch(0.546 0.245 262.881);
@@ -137,6 +151,11 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.623 0.214 259.815);
+
+  /* Elevation (Dark) — stärkerer Alpha, damit Karten auf dunklem Grund abheben. */
+  --elevation-xs: 0 1px 2px 0 oklch(0 0 0 / 0.4);
+  --elevation-sm: 0 1px 2px 0 oklch(0 0 0 / 0.4), 0 2px 8px -1px oklch(0 0 0 / 0.4);
+  --elevation-md: 0 2px 4px -1px oklch(0 0 0 / 0.45), 0 8px 20px -2px oklch(0 0 0 / 0.5);
 
   /* Charts */
   --chart-1: oklch(0.623 0.214 259.815);

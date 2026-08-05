@@ -532,7 +532,7 @@ function GoalPane({
           {/* Einheiten-Kaskade: hochgerechneter Wert in der EIGENEN Ziel-Einheit
               (Σ Unterziele × Faktor + verknüpfte Erfolgs-KPIs). */}
           {node.unitValue.planned > 0 && (
-            <div className="rounded-md border bg-muted/20 px-3 py-2">
+            <div className="rounded-xl border bg-gradient-to-br from-emerald-500/10 to-card px-3.5 py-2.5 shadow-sm">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Wert aus Kaskade (KPIs + Unterziele)
               </p>

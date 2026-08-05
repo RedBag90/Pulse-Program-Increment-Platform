@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState, startTransition, useActionSta
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -295,7 +295,7 @@ export function GoalDetailPanel({
 
       {/* Cards */}
       <div className="grid grid-cols-3 gap-3">
-        <Card label="Zielerreichung" value={`${pct} %`} />
+        <Card label="Zielerreichung" value={`${pct} %`} accent />
         <Card label="Aktueller Wert" value={currentValueLabel || "—"} />
         <Card
           label="Letzter Status"
@@ -372,9 +372,15 @@ export function GoalDetailPanel({
           )}
 
           {chart && chartData.length > 0 && (
-            <div className="h-40 w-full">
+            <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
+                <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
+                  <defs>
+                    <linearGradient id="goalArea" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.22} />
+                      <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis
                     dataKey="at"
@@ -397,17 +403,17 @@ export function GoalDetailPanel({
                       })
                     }
                   />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="value"
                     stroke="var(--primary)"
-                    strokeOpacity={0.4}
-                    strokeWidth={2}
+                    strokeWidth={2.5}
+                    fill="url(#goalArea)"
                     isAnimationActive={false}
                     dot={StatusDot}
                     activeDot={{ r: 5 }}
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
@@ -478,12 +484,26 @@ function StatusDot(props: {
   return <g />;
 }
 
-function Card({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Card({
+  label,
+  value,
+  hint,
+  accent,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  accent?: boolean;
+}) {
   return (
-    <div className="rounded-lg border p-3">
-      <p className="text-[11px] text-muted-foreground">{label}</p>
-      <p className="mt-0.5 text-lg font-semibold tabular-nums">{value}</p>
-      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+    <div className="rounded-xl border bg-card p-3.5 shadow-sm">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p className={`mt-1 text-xl font-semibold tabular-nums ${accent ? "text-primary" : ""}`}>
+        {value}
+      </p>
+      {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }

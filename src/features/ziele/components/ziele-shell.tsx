@@ -42,9 +42,12 @@ export function ZieleShell({ model, layout, userLabels = {} }: Props) {
         actions={<ZieleSubTabs active={effectiveTab} showMoney={modules.portfolio} />}
       />
 
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <GoalHealthStrip themes={themes} tenantTrio={tenantTrio} showMoney={modules.portfolio} />
-        <p className="text-xs text-muted-foreground">{themes.length} Themes (OKRs) im Scope</p>
+        <p className="px-1 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{themes.length}</span> Themes (OKRs) im
+          Scope
+        </p>
       </div>
 
       {effectiveTab === "strategie" && (

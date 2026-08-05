@@ -20,6 +20,7 @@ import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
 import { goalPeriodLabel } from "@/domain/goal-period";
 import { filterGoalBranches } from "@/domain/goal-tree-filter";
 import { cn } from "@/lib/utils";
+import { HEAD_GOAL_ACCENT } from "@/features/ziele/lib/goal-accent";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 
 /** „Off-track" = Drift (Run-Rate < 70 %) oder Status at_risk/off_track. */
@@ -68,17 +69,6 @@ interface NodeData extends Record<string, unknown> {
 
 const NODE_WIDTH = 240;
 const NODE_HEIGHT = 140;
-
-const HUE_PALETTE = [
-  "#6366f1",
-  "#0ea5e9",
-  "#10b981",
-  "#f59e0b",
-  "#a855f7",
-  "#ec4899",
-  "#14b8a6",
-  "#f97316",
-];
 
 export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -202,10 +192,10 @@ function StrategyNode({ data }: NodeProps) {
             open();
           }
         }}
-        className={`flex h-full w-full cursor-pointer flex-col gap-1.5 rounded-lg p-3 text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring ${tierStyle[d.tier]}`}
+        className={`flex h-full w-full cursor-pointer flex-col gap-1.5 rounded-xl p-3 text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring ${tierStyle[d.tier]}`}
         style={d.tier === "theme" ? { borderLeftColor: d.accent } : undefined}
       >
-        <header className="flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <header className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           <span className="flex items-center gap-1">
             {d.hasChildren && (
               <button
@@ -271,13 +261,20 @@ function StrategyNode({ data }: NodeProps) {
 function ProgressBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
   const tone =
-    value >= 0.7 ? "bg-emerald-500/80" : value >= 0.3 ? "bg-amber-500/80" : "bg-rose-500/80";
+    value >= 0.7
+      ? "from-emerald-600 to-emerald-400"
+      : value >= 0.3
+        ? "from-amber-600 to-amber-400"
+        : "from-rose-600 to-rose-400";
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-        <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} />
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className={`h-full rounded-full bg-gradient-to-r ${tone}`}
+          style={{ width: `${pct}%` }}
+        />
       </div>
-      <span className="w-9 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
+      <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
         {pct} %
       </span>
     </div>
@@ -333,7 +330,7 @@ function buildGraph(
     }
     if (!isCollapsed) for (const c of n.children) visit(c, accent, gid);
   };
-  themes.forEach((t, ti) => visit(t, HUE_PALETTE[ti % HUE_PALETTE.length]!, null));
+  themes.forEach((t) => visit(t, HEAD_GOAL_ACCENT, null));
 
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));

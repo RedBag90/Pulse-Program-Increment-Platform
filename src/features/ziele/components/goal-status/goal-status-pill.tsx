@@ -1,9 +1,9 @@
 import { goalStatusLabel, goalStatusTier, type GoalStatusTier } from "@/domain/goal-status";
 
 const PILL_CLS: Record<GoalStatusTier, string> = {
-  green: "bg-emerald-50 text-emerald-700",
-  amber: "bg-amber-100 text-amber-800",
-  rose: "bg-rose-100 text-rose-800",
+  green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  amber: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  rose: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
   neutral: "bg-muted text-muted-foreground",
 };
 
@@ -22,7 +22,7 @@ export function GoalStatusPill({ status }: { status: string | null | undefined }
   const tier = goalStatusTier(status);
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] ${PILL_CLS[tier]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${PILL_CLS[tier]}`}
     >
       <span aria-hidden className={`size-1.5 rounded-full ${DOT_CLS[tier]}`} />
       {goalStatusLabel(status)}
