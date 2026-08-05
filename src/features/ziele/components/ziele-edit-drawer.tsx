@@ -6,6 +6,18 @@ import type { ReadonlyURLSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { ToggleGroup } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { goalPeriodLabel } from "@/domain/goal-period";
 import type {
   ZieleModel,
@@ -67,6 +79,16 @@ function findNode(
   for (const n of nodes) {
     if (n.id === id) return { node: n, parent };
     const deeper = findNode(n.children, id, n);
+    if (deeper) return deeper;
+  }
+  return null;
+}
+
+/** Ahnen-Pfad (Wurzel … Elternteil) zum Knoten `id`, ohne den Knoten selbst. */
+function findPath(nodes: GoalNode[], id: string, trail: GoalNode[] = []): GoalNode[] | null {
+  for (const n of nodes) {
+    if (n.id === id) return trail;
+    const deeper = findPath(n.children, id, [...trail, n]);
     if (deeper) return deeper;
   }
   return null;
@@ -146,6 +168,8 @@ function GoalPane({
   const found = useMemo(() => (id ? findNode(model.themes, id) : null), [model, id]);
   const node = found?.node ?? null;
   const isNew = !id;
+  // Ahnen-Pfad für die Breadcrumb im Drawer-Kopf (Ortungs-Hinweis).
+  const ancestors = useMemo(() => (id ? (findPath(model.themes, id) ?? []) : []), [model, id]);
 
   const [createState, createRun, createPending] = useActionState(createGoalNodeAction, {});
   const [updateState, updateRun, updatePending] = useActionState(updateGoalNodeAction, {});
@@ -164,6 +188,9 @@ function GoalPane({
   const [mode, setMode] = useState<GoalProgressMode>(
     (node?.progressMode as GoalProgressMode | undefined) ?? "manual",
   );
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // Edit-Drawer-Tabs (B2): Überblick / Verknüpfungen / Einstellungen.
+  const [tab, setTab] = useState<"overview" | "links" | "settings">("overview");
 
   function submit(fd: FormData) {
     fd.set("progressMode", mode);
@@ -176,16 +203,179 @@ function GoalPane({
     }
   }
 
-  function remove() {
+  // Löschen fragt erst über einen Dialog nach (statt native confirm()).
+  function performDelete() {
     if (!id) return;
-    if (!confirm("Ziel löschen? Unterziele werden mitentfernt.")) return;
     const fd = new FormData();
     fd.set("id", id);
+    setConfirmOpen(false);
     startTransition(() => {
       deleteRun(fd);
       onClose();
     });
   }
+
+  // „Erweitert" — beim Anlegen eingeklappt (Progressive Disclosure), beim
+  // Bearbeiten offen im Einstellungen-Tab. Felder bleiben im DOM ⇒ submitten mit.
+  const advancedFields = (
+    <div className="space-y-3">
+      <Field label="Narrativ">
+        <textarea
+          name="narrative"
+          defaultValue={node?.narrative ?? ""}
+          rows={3}
+          className={TEXTAREA}
+          disabled={!canEdit}
+        />
+      </Field>
+      <Field label="Fällig am">
+        <input
+          name="dueDate"
+          type="date"
+          defaultValue={node?.dueDate ? node.dueDate.slice(0, 10) : ""}
+          className={INPUT}
+          disabled={!canEdit}
+        />
+      </Field>
+      {mode !== "rollup" && (
+        <div className="space-y-3 rounded-md border border-dashed p-3">
+          <Field label="Einheit (Label)">
+            <input
+              name="metricUnit"
+              defaultValue={node?.metricUnit ?? ""}
+              className={INPUT}
+              disabled={!canEdit}
+            />
+          </Field>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Metriktyp">
+              <select
+                name="metricType"
+                defaultValue={node?.metricType ?? "number"}
+                className={INPUT}
+                disabled={!canEdit}
+                onChange={(e) => {
+                  // Bei „Prozent" leere Baseline/Target auf 0/100 vorbelegen.
+                  if (e.target.value !== "percent") return;
+                  const form = e.currentTarget.form;
+                  if (!form) return;
+                  const b = form.elements.namedItem("baseline") as HTMLInputElement | null;
+                  const t = form.elements.namedItem("target") as HTMLInputElement | null;
+                  if (b && b.value === "") b.value = "0";
+                  if (t && t.value === "") t.value = "100";
+                }}
+              >
+                <option value="number">Zahl</option>
+                <option value="percent">Prozent</option>
+                <option value="currency">Währung</option>
+              </select>
+            </Field>
+            <Field label="Nachkomma (0–6)">
+              <input
+                name="precision"
+                type="number"
+                min={0}
+                max={6}
+                defaultValue={node?.precision ?? 0}
+                className={INPUT}
+                disabled={!canEdit}
+              />
+            </Field>
+            <Field label="Währung (ISO)">
+              <input
+                name="currencyCode"
+                defaultValue={node?.currencyCode ?? ""}
+                placeholder="EUR"
+                className={INPUT}
+                disabled={!canEdit}
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Baseline">
+              <input
+                name="baseline"
+                type="number"
+                step="any"
+                defaultValue={node?.baseline ?? ""}
+                className={INPUT}
+                disabled={!canEdit}
+              />
+            </Field>
+            <Field label="Target (Zielwert)">
+              <input
+                name="target"
+                type="number"
+                step="any"
+                defaultValue={node?.target ?? ""}
+                className={INPUT}
+                disabled={!canEdit}
+              />
+            </Field>
+            <Field
+              label={mode === "auto_kpi" || mode === "kpi_tree" ? "Ist (abgeleitet)" : "Aktuell"}
+            >
+              <input
+                name="current"
+                type="number"
+                step="any"
+                defaultValue={node?.current ?? ""}
+                className={INPUT}
+                disabled={!canEdit || mode === "auto_kpi" || mode === "kpi_tree"}
+                title={
+                  mode === "auto_kpi" || mode === "kpi_tree"
+                    ? "Abgeleitet aus verknüpften KPIs bzw. der Unterziel-Kaskade"
+                    : undefined
+                }
+              />
+            </Field>
+          </div>
+          {mode === "auto_kpi" && (
+            <p className="text-xs text-muted-foreground">
+              Ist-Wert = Summe der Ist-Werte aller KPIs mit passender Einheit aus den unten
+              verknüpften Epics. KPI besser → Ziel besser.
+            </p>
+          )}
+        </div>
+      )}
+      <Field
+        label="Gewicht im Rollup des Elternziels (leer = 1)"
+        hint="Wie stark dieses Unterziel im Durchschnitt des Elternziels zählt. Leer = 1 (alle Unterziele gleich gewichtet)."
+      >
+        <input
+          name="rollupWeight"
+          type="number"
+          step="any"
+          min={0}
+          defaultValue={node?.rollupWeight ?? ""}
+          placeholder="1"
+          className={INPUT}
+          disabled={!canEdit}
+        />
+      </Field>
+      {!isTopLevel && (
+        <Field
+          label={`Beitrag zum Elternziel — 1 ${node?.metricUnit || "Einheit"} = ▢ ${
+            found?.parent?.metricUnit || "Eltern-Einheit"
+          } (leer = kein Wertbeitrag)`}
+        >
+          <input
+            name="parentUnitPerChildUnit"
+            type="number"
+            step="any"
+            defaultValue={node?.parentUnitPerChildUnit ?? ""}
+            placeholder="z. B. 10000"
+            className={INPUT}
+            disabled={!canEdit}
+          />
+          <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
+            Einheiten-Kaskade: Wie viel der Eltern-Einheit trägt 1 {node?.metricUnit || "Einheit"}{" "}
+            dieses Ziels bei, wenn du seine KPI bewegst?
+          </p>
+        </Field>
+      )}
+    </div>
+  );
 
   const formNode = (
     <FormShell
@@ -194,8 +384,27 @@ function GoalPane({
       pending={pending}
       error={err}
       onSubmit={submit}
-      onDelete={isNew ? null : remove}
+      onDelete={isNew ? null : () => setConfirmOpen(true)}
       canEdit={canEdit}
+      confirmDelete={
+        <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ziel löschen?</DialogTitle>
+              <DialogDescription>
+                „{node?.title ?? "Dieses Ziel"}" und alle Unterziele werden entfernt. Das lässt sich
+                nicht rückgängig machen.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline" />}>Abbrechen</DialogClose>
+              <Button variant="destructive" onClick={performDelete} disabled={pending}>
+                {pending ? "Löscht…" : "Löschen"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      }
     >
       <Field label={isTopLevel ? "Titel (Objective-Statement)" : "Titel"}>
         <input
@@ -207,195 +416,46 @@ function GoalPane({
           placeholder="z.B. Konversion verdoppeln"
         />
       </Field>
-      <Field label="Narrativ">
-        <textarea
-          name="narrative"
-          defaultValue={node?.narrative ?? ""}
-          rows={3}
-          className={TEXTAREA}
-          disabled={!canEdit}
-        />
-      </Field>
       <Field label="Zeitraum">
         <PeriodPicker name="period" defaultValue={node?.period ?? null} disabled={!canEdit} />
       </Field>
-      <Field label="Fällig am">
-        <input
-          name="dueDate"
-          type="date"
-          defaultValue={node?.dueDate ? node.dueDate.slice(0, 10) : ""}
+
+      <Field
+        label="Fortschrittsquelle"
+        hint="Woraus sich der Fortschritt berechnet: Manuell (du pflegst den Wert selbst), Aus Unterzielen (Ø der Kinder), Aus verknüpften KPIs (Δ × Faktor) oder KPI-Baum (kaskadierte KPI-Werte über die Unterziele)."
+      >
+        <select
+          name="progressMode"
+          value={mode}
+          onChange={(e) => setMode(e.target.value as GoalProgressMode)}
           className={INPUT}
           disabled={!canEdit}
-        />
+        >
+          <option value="manual">Manuell</option>
+          <option value="rollup">Aus Unterzielen</option>
+          {/* Epic-KPIs sind Portfolio-Inhalt — Optionen nur mit Modul (oder wenn bereits gewählt). */}
+          {(model.modules.portfolio || mode === "auto_kpi") && (
+            <option value="auto_kpi">Aus verknüpften KPIs</option>
+          )}
+          {(model.modules.portfolio || mode === "kpi_tree") && (
+            <option value="kpi_tree">KPI-Baum</option>
+          )}
+        </select>
       </Field>
+      {mode === "kpi_tree" && (
+        <p className="text-xs text-muted-foreground">
+          KPI-Baum: als Blatt zieht das Ziel seinen Ist aus verknüpften KPIs (Δ × Faktor); mit
+          Unterzielen kaskadiert es deren Werte hoch und misst die Erfüllung wert-basiert
+          (erreichter Wert ÷ Zielwert).
+        </p>
+      )}
+      {mode === "rollup" && (
+        <p className="text-xs text-muted-foreground">
+          Fortschritt = gewichteter Durchschnitt der Unterziele. Eine eigene Metrik wird ignoriert.
+        </p>
+      )}
 
-      <div className="space-y-3 rounded-md border border-dashed p-3">
-        <Field label="Fortschrittsquelle">
-          <select
-            name="progressMode"
-            value={mode}
-            onChange={(e) => setMode(e.target.value as GoalProgressMode)}
-            className={INPUT}
-            disabled={!canEdit}
-          >
-            <option value="manual">Manuell</option>
-            <option value="rollup">Aus Unterzielen</option>
-            {/* Epic-KPIs sind Portfolio-Inhalt — Optionen nur mit Modul (oder wenn bereits gewählt). */}
-            {(model.modules.portfolio || mode === "auto_kpi") && (
-              <option value="auto_kpi">Aus verknüpften KPIs</option>
-            )}
-            {(model.modules.portfolio || mode === "kpi_tree") && (
-              <option value="kpi_tree">KPI-Tree</option>
-            )}
-          </select>
-        </Field>
-        {mode === "kpi_tree" && (
-          <p className="text-xs text-muted-foreground">
-            KPI-Baum: als Blatt zieht das Ziel seinen Ist aus verknüpften KPIs (Δ × Faktor); mit
-            Unterzielen kaskadiert es deren Werte hoch und misst die Erfüllung wert-basiert
-            (erreichter Wert ÷ Zielwert).
-          </p>
-        )}
-        {mode === "rollup" ? (
-          <p className="text-xs text-muted-foreground">
-            Fortschritt = gewichteter Durchschnitt der Unterziele. Eine eigene Metrik wird
-            ignoriert.
-          </p>
-        ) : (
-          <>
-            <Field label="Einheit (Label)">
-              <input
-                name="metricUnit"
-                defaultValue={node?.metricUnit ?? ""}
-                className={INPUT}
-                disabled={!canEdit}
-              />
-            </Field>
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Metriktyp">
-                <select
-                  name="metricType"
-                  defaultValue={node?.metricType ?? "number"}
-                  className={INPUT}
-                  disabled={!canEdit}
-                  onChange={(e) => {
-                    // Bei „Prozent" leere Baseline/Target auf 0/100 vorbelegen.
-                    if (e.target.value !== "percent") return;
-                    const form = e.currentTarget.form;
-                    if (!form) return;
-                    const b = form.elements.namedItem("baseline") as HTMLInputElement | null;
-                    const t = form.elements.namedItem("target") as HTMLInputElement | null;
-                    if (b && b.value === "") b.value = "0";
-                    if (t && t.value === "") t.value = "100";
-                  }}
-                >
-                  <option value="number">Zahl</option>
-                  <option value="percent">Prozent</option>
-                  <option value="currency">Währung</option>
-                </select>
-              </Field>
-              <Field label="Nachkomma (0–6)">
-                <input
-                  name="precision"
-                  type="number"
-                  min={0}
-                  max={6}
-                  defaultValue={node?.precision ?? 0}
-                  className={INPUT}
-                  disabled={!canEdit}
-                />
-              </Field>
-              <Field label="Währung (ISO)">
-                <input
-                  name="currencyCode"
-                  defaultValue={node?.currencyCode ?? ""}
-                  placeholder="EUR"
-                  className={INPUT}
-                  disabled={!canEdit}
-                />
-              </Field>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Baseline">
-                <input
-                  name="baseline"
-                  type="number"
-                  step="any"
-                  defaultValue={node?.baseline ?? ""}
-                  className={INPUT}
-                  disabled={!canEdit}
-                />
-              </Field>
-              <Field label="Target (Zielwert)">
-                <input
-                  name="target"
-                  type="number"
-                  step="any"
-                  defaultValue={node?.target ?? ""}
-                  className={INPUT}
-                  disabled={!canEdit}
-                />
-              </Field>
-              <Field
-                label={mode === "auto_kpi" || mode === "kpi_tree" ? "Ist (abgeleitet)" : "Aktuell"}
-              >
-                <input
-                  name="current"
-                  type="number"
-                  step="any"
-                  defaultValue={node?.current ?? ""}
-                  className={INPUT}
-                  disabled={!canEdit || mode === "auto_kpi" || mode === "kpi_tree"}
-                  title={
-                    mode === "auto_kpi" || mode === "kpi_tree"
-                      ? "Abgeleitet aus verknüpften KPIs bzw. der Unterziel-Kaskade"
-                      : undefined
-                  }
-                />
-              </Field>
-            </div>
-            {mode === "auto_kpi" && (
-              <p className="text-xs text-muted-foreground">
-                Ist-Wert = Summe der Ist-Werte aller KPIs mit passender Einheit aus den unten
-                verknüpften Epics. KPI besser → Ziel besser.
-              </p>
-            )}
-          </>
-        )}
-        <Field label="Gewicht im Rollup des Elternziels (leer = 1)">
-          <input
-            name="rollupWeight"
-            type="number"
-            step="any"
-            min={0}
-            defaultValue={node?.rollupWeight ?? ""}
-            placeholder="1"
-            className={INPUT}
-            disabled={!canEdit}
-          />
-        </Field>
-        {!isTopLevel && (
-          <Field
-            label={`Beitrag zum Elternziel — 1 ${node?.metricUnit || "Einheit"} = ▢ ${
-              found?.parent?.metricUnit || "Eltern-Einheit"
-            } (leer = kein Wertbeitrag)`}
-          >
-            <input
-              name="parentUnitPerChildUnit"
-              type="number"
-              step="any"
-              defaultValue={node?.parentUnitPerChildUnit ?? ""}
-              placeholder="z. B. 10000"
-              className={INPUT}
-              disabled={!canEdit}
-            />
-            <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
-              Einheiten-Kaskade: Wie viel der Eltern-Einheit trägt 1 {node?.metricUnit || "Einheit"}{" "}
-              dieses Ziels bei, wenn du seine KPI bewegst?
-            </p>
-          </Field>
-        )}
-      </div>
+      {isNew ? <DrawerSection title="Erweitert">{advancedFields}</DrawerSection> : advancedFields}
     </FormShell>
   );
 
@@ -430,86 +490,111 @@ function GoalPane({
     <div className="space-y-4">
       <header className="space-y-0.5 border-b pb-3">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {isTopLevel ? "Theme · OKR-Statement" : `Ziel · ${found?.parent?.title ?? "—"}`}
+          {isTopLevel
+            ? "Theme · OKR-Statement"
+            : ancestors.length > 0
+              ? ancestors.map((a) => a.title).join(" › ")
+              : `Ziel · ${found?.parent?.title ?? "—"}`}
         </p>
         <h2 className="font-heading text-xl font-semibold tracking-tight">{node.title}</h2>
       </header>
 
-      {/* Übersicht — immer sichtbar: Status, Kennzahlen, Chart, Aktivität. */}
-      <GoalDetailPanel
-        target={detailTarget}
-        id={id}
-        status={node.status}
-        progress={node.progress ?? 0}
-        currentValueLabel={currentValueLabel}
-        canEdit={canEdit}
-        progressMode={node.progressMode}
-        krCurrent={node.current}
-        metricType={node.metricType}
-        precision={node.precision}
-        currencyCode={node.currencyCode}
+      {/* Tabs (B2): Überblick / Verknüpfungen / Einstellungen — hält den Drawer fokussiert. */}
+      <ToggleGroup
+        value={tab}
+        onChange={setTab}
+        ariaLabel="Ansicht"
+        className="text-xs font-medium"
+        options={[
+          { id: "overview", label: "Überblick" },
+          { id: "links", label: "Verknüpfungen" },
+          { id: "settings", label: "Einstellungen" },
+        ]}
       />
 
-      {/* Einheiten-Kaskade: hochgerechneter Wert in der EIGENEN Ziel-Einheit
-          (Σ Unterziele × Faktor + verknüpfte Erfolgs-KPIs). */}
-      {node.unitValue.planned > 0 && (
-        <div className="rounded-md border bg-muted/20 px-3 py-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Wert aus Kaskade (KPIs + Unterziele)
-          </p>
-          <p className="mt-0.5 text-sm tabular-nums">
-            <span className="font-medium">
-              {formatMetricValue(node.unitValue.realized, metricSpec)}
-            </span>
-            <span className="text-muted-foreground">
-              {" / "}
-              {formatMetricValue(node.unitValue.planned, metricSpec)}
-            </span>
-            {node.metricUnit ? ` ${node.metricUnit}` : ""}
-          </p>
-          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-            Erreichter Beitrag in dieser Ziel-Einheit, aus verknüpften KPIs und Unterzielen
-            hochgerechnet (KPI-Bewegung × Umrechnungsfaktor).
-          </p>
+      {/* Überblick — Status, Kennzahlen, Chart, Aktivität. */}
+      {tab === "overview" && (
+        <div className="space-y-4">
+          <GoalDetailPanel
+            target={detailTarget}
+            id={id}
+            status={node.status}
+            progress={node.progress ?? 0}
+            currentValueLabel={currentValueLabel}
+            canEdit={canEdit}
+            progressMode={node.progressMode}
+            krCurrent={node.current}
+            metricType={node.metricType}
+            precision={node.precision}
+            currencyCode={node.currencyCode}
+          />
+
+          {/* Einheiten-Kaskade: hochgerechneter Wert in der EIGENEN Ziel-Einheit
+              (Σ Unterziele × Faktor + verknüpfte Erfolgs-KPIs). */}
+          {node.unitValue.planned > 0 && (
+            <div className="rounded-md border bg-muted/20 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Wert aus Kaskade (KPIs + Unterziele)
+              </p>
+              <p className="mt-0.5 text-sm tabular-nums">
+                <span className="font-medium">
+                  {formatMetricValue(node.unitValue.realized, metricSpec)}
+                </span>
+                <span className="text-muted-foreground">
+                  {" / "}
+                  {formatMetricValue(node.unitValue.planned, metricSpec)}
+                </span>
+                {node.metricUnit ? ` ${node.metricUnit}` : ""}
+              </p>
+              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                Erreichter Beitrag in dieser Ziel-Einheit, aus verknüpften KPIs und Unterzielen
+                hochgerechnet (KPI-Bewegung × Umrechnungsfaktor).
+              </p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Hierarchie — in Asana prominent, daher offen (kurz). */}
-      <SubGoals parentId={id} subgoals={node.children} canEdit={canEdit} />
-      <ParentGoalSection nodeId={id} parent={found?.parent ?? null} canEdit={canEdit} />
+      {/* Verknüpfungen — Unterziele, Elternziel, Related work, Wertströme/ARTs. */}
+      {tab === "links" && (
+        <div className="space-y-4">
+          <SubGoals parentId={id} subgoals={node.children} canEdit={canEdit} />
+          <ParentGoalSection nodeId={id} parent={found?.parent ?? null} canEdit={canEdit} />
 
-      {/* Sekundäres — eingeklappt (Progressive Disclosure). */}
-      <DrawerSection title="Verknüpfungen" hint={linkSummary}>
-        <div className="space-y-3">
-          <RelatedWorkUnified
-            goalId={id}
-            epics={node.relatedEpics}
-            items={node.relatedWork}
-            canEdit={canEdit}
-            searchEnabled={model.modules.portfolio || model.modules.program}
-          />
-          {(node.progressMode === "auto_kpi" ||
-            (node.progressMode === "kpi_tree" && !nodeHasChildren)) && (
-            <p className="text-[10px] leading-snug text-muted-foreground">
-              Die KPIs verknüpfter Epics bilden über Δ × Umrechnungsfaktor den Ist-Wert dieses Ziels
-              (Fortschrittsquelle „
-              {node.progressMode === "kpi_tree" ? "KPI-Tree" : "aus verknüpften KPIs"}").
-            </p>
-          )}
-          <div className="space-y-3 border-t pt-3">
-            <GoalScopeLinks
-              goalId={id}
-              valueStreams={node.valueStreams}
-              arts={node.arts}
-              canEdit={canEdit}
-              vsEnabled={model.modules.portfolio}
-              artEnabled={model.modules.program}
-            />
-          </div>
+          <DrawerSection title="Related work & Scope" hint={linkSummary}>
+            <div className="space-y-3">
+              <RelatedWorkUnified
+                goalId={id}
+                epics={node.relatedEpics}
+                items={node.relatedWork}
+                canEdit={canEdit}
+                searchEnabled={model.modules.portfolio || model.modules.program}
+              />
+              {(node.progressMode === "auto_kpi" ||
+                (node.progressMode === "kpi_tree" && !nodeHasChildren)) && (
+                <p className="text-[10px] leading-snug text-muted-foreground">
+                  Die KPIs verknüpfter Epics bilden über Δ × Umrechnungsfaktor den Ist-Wert dieses
+                  Ziels (Fortschrittsquelle „
+                  {node.progressMode === "kpi_tree" ? "KPI-Baum" : "aus verknüpften KPIs"}").
+                </p>
+              )}
+              <div className="space-y-3 border-t pt-3">
+                <GoalScopeLinks
+                  goalId={id}
+                  valueStreams={node.valueStreams}
+                  arts={node.arts}
+                  canEdit={canEdit}
+                  vsEnabled={model.modules.portfolio}
+                  artEnabled={model.modules.program}
+                />
+              </div>
+            </div>
+          </DrawerSection>
         </div>
-      </DrawerSection>
+      )}
 
-      <DrawerSection title="Details">
+      {/* Einstellungen — Custom Fields + vollständiges Formular. */}
+      {tab === "settings" && (
         <div className="space-y-4">
           {node.customFields.length > 0 && (
             <CustomFields
@@ -521,7 +606,7 @@ function GoalPane({
           )}
           {formNode}
         </div>
-      </DrawerSection>
+      )}
     </div>
   );
 }
@@ -1218,14 +1303,40 @@ const INPUT =
 const TEXTAREA =
   "w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50";
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block space-y-1">
-      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
         {label}
+        {hint ? <InfoHint text={hint} /> : null}
       </span>
       {children}
     </label>
+  );
+}
+
+/** Kleines ⓘ mit Erklärungs-Tooltip für Fachbegriffe (klick fokussiert nur das Feld). */
+function InfoHint({ text }: { text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        type="button"
+        aria-label="Erklärung"
+        onClick={(e) => e.preventDefault()}
+        className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border text-[10px] font-normal normal-case leading-none text-muted-foreground hover:border-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        i
+      </TooltipTrigger>
+      <TooltipContent>{text}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -1238,6 +1349,7 @@ function FormShell({
   onSubmit,
   onDelete,
   canEdit,
+  confirmDelete,
 }: {
   title: string;
   subtitle: string;
@@ -1247,6 +1359,7 @@ function FormShell({
   onSubmit: (fd: FormData) => void;
   onDelete: (() => void) | null;
   canEdit: boolean;
+  confirmDelete?: React.ReactNode;
 }) {
   return (
     <form
@@ -1272,7 +1385,7 @@ function FormShell({
             disabled={pending || !canEdit}
             className="text-xs text-destructive hover:underline disabled:opacity-50"
           >
-            Loeschen
+            Löschen
           </button>
         ) : (
           <span />
@@ -1285,6 +1398,7 @@ function FormShell({
           {pending ? "Speichert…" : "Speichern"}
         </button>
       </footer>
+      {confirmDelete}
     </form>
   );
 }

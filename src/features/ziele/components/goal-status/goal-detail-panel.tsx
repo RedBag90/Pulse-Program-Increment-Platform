@@ -295,10 +295,10 @@ export function GoalDetailPanel({
 
       {/* Cards */}
       <div className="grid grid-cols-3 gap-3">
-        <Card label="Goal completion" value={`${pct} %`} />
-        <Card label="Current value" value={currentValueLabel || "—"} />
+        <Card label="Zielerreichung" value={`${pct} %`} />
+        <Card label="Aktueller Wert" value={currentValueLabel || "—"} />
         <Card
-          label="Latest status"
+          label="Letzter Status"
           value={status ? goalStatusLabel(status) : "—"}
           hint={latestStatusAt ? relTime(latestStatusAt) : "kein Check-in"}
         />
@@ -309,7 +309,7 @@ export function GoalDetailPanel({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Progress
+              Fortschritt
             </p>
             {isManualValue && canEdit && !progressOpen && (
               <button
@@ -317,7 +317,7 @@ export function GoalDetailPanel({
                 onClick={openProgress}
                 className="inline-flex items-center gap-1 rounded-md border bg-background px-2.5 py-1 text-xs font-medium shadow-xs hover:bg-muted/50"
               >
-                <Plus className="size-3.5" /> Update progress
+                <Plus className="size-3.5" /> Fortschritt aktualisieren
               </button>
             )}
           </div>
@@ -411,6 +411,16 @@ export function GoalDetailPanel({
               </ResponsiveContainer>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Ladezustand: Verlauf + Aktivität werden async geholt (getGoalDetailAction). */}
+      {!detail && (
+        <div className="space-y-3" aria-hidden>
+          <div className="h-40 w-full animate-pulse rounded-lg bg-muted" />
+          <div className="h-3.5 w-28 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-full animate-pulse rounded bg-muted" />
+          <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
         </div>
       )}
 

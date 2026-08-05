@@ -18,7 +18,14 @@ import "@xyflow/react/dist/style.css";
 import type { GoalNode } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
 import { goalPeriodLabel } from "@/domain/goal-period";
+import { filterGoalBranches } from "@/domain/goal-tree-filter";
+import { cn } from "@/lib/utils";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
+
+/** „Off-track" = Drift (Run-Rate < 70 %) oder Status at_risk/off_track. */
+function isOffTrack(n: GoalNode): boolean {
+  return isAtRisk(n.trio) || n.status === "at_risk" || n.status === "off_track";
+}
 
 /**
  * Strategie als Netzplan — flach (Refactor §Hierarchie-Vereinfachung).
@@ -31,6 +38,8 @@ import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-sta
  */
 interface Props {
   themes: GoalNode[];
+  /** Owner-Id → Anzeigename (für die Owner-Initialen im Knoten). */
+  userLabels?: Record<string, string>;
 }
 
 type Tier = "theme" | "kr";
@@ -44,6 +53,7 @@ interface NodeData extends Record<string, unknown> {
   subgoalCount: number;
   period: string | null;
   ownerInitial: string;
+  ownerLabel: string;
   atRisk: boolean;
   href: string;
   accent: string;
@@ -70,8 +80,9 @@ const HUE_PALETTE = [
   "#f97316",
 ];
 
-export function StrategyNetworkView({ themes }: Props) {
+export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [offTrackOnly, setOffTrackOnly] = useState(false);
 
   const onToggle = useCallback((goalId: string) => {
     setCollapsed((prev) => {
@@ -85,12 +96,16 @@ export function StrategyNetworkView({ themes }: Props) {
   const collapseAll = useCallback(() => setCollapsed(collapsibleIds(themes)), [themes]);
   const expandAll = useCallback(() => setCollapsed(new Set()), []);
 
+  const visibleThemes = useMemo(
+    () => (offTrackOnly ? filterGoalBranches(themes, isOffTrack) : themes),
+    [themes, offTrackOnly],
+  );
   const { nodes, edges } = useMemo(
-    () => buildGraph(themes, collapsed, onToggle),
-    [themes, collapsed, onToggle],
+    () => buildGraph(visibleThemes, collapsed, onToggle, userLabels),
+    [visibleThemes, collapsed, onToggle, userLabels],
   );
 
-  if (nodes.length === 0) {
+  if (themes.length === 0) {
     return (
       <div className="grid h-[420px] place-items-center rounded-lg border bg-muted/10 text-sm text-muted-foreground">
         Noch keine Strategie definiert.
@@ -100,22 +115,40 @@ export function StrategyNetworkView({ themes }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={collapseAll}
-          className="rounded-md border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+          onClick={() => setOffTrackOnly((v) => !v)}
+          aria-pressed={offTrackOnly}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors",
+            offTrackOnly
+              ? "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-200"
+              : "bg-card text-muted-foreground hover:bg-muted",
+          )}
         >
-          Alle einklappen
+          ⚠ Nur off-track
         </button>
-        <button
-          type="button"
-          onClick={expandAll}
-          className="rounded-md border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
-        >
-          Alle ausklappen
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={collapseAll}
+            className="rounded-md border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+          >
+            Alle einklappen
+          </button>
+          <button
+            type="button"
+            onClick={expandAll}
+            className="rounded-md border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+          >
+            Alle ausklappen
+          </button>
+        </div>
       </div>
+      {offTrackOnly && nodes.length === 0 && (
+        <p className="text-[11px] text-muted-foreground">Keine off-track-Ziele.</p>
+      )}
       <div className="h-[680px] overflow-hidden rounded-lg border bg-card">
         <ReactFlow
           nodes={nodes}
@@ -223,7 +256,7 @@ function StrategyNode({ data }: NodeProps) {
           {d.ownerInitial && (
             <span
               className="grid size-5 shrink-0 place-items-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary"
-              title="Owner"
+              title={d.ownerLabel || "Owner"}
             >
               {d.ownerInitial}
             </span>
@@ -255,6 +288,7 @@ function buildGraph(
   themes: GoalNode[],
   collapsed: Set<string>,
   onToggle: (goalId: string) => void,
+  userLabels: Record<string, string>,
 ): { nodes: Node[]; edges: Edge[] } {
   const rawNodes: Array<{ id: string; data: NodeData }> = [];
   const rawEdges: Array<{ id: string; source: string; target: string }> = [];
@@ -272,6 +306,7 @@ function buildGraph(
         : "theme";
     const gid = nodeId(tier, n.id);
     const isCollapsed = collapsed.has(n.id);
+    const ownerLabel = n.ownerId ? (userLabels[n.ownerId] ?? "") : "";
     rawNodes.push({
       id: gid,
       data: {
@@ -282,7 +317,8 @@ function buildGraph(
         progress: n.progress ?? (tier === "kr" ? krProgress(n) : trioProgress(n.trio)),
         subgoalCount: n.children.length,
         period: n.period ?? null,
-        ownerInitial: initialOf(n.ownerId),
+        ownerInitial: initialsOf(ownerLabel),
+        ownerLabel,
         atRisk: isAtRisk(n.trio),
         href: `/ziele?entity=goal&id=${n.id}`,
         accent,
@@ -365,7 +401,9 @@ function krProgress(kr: GoalNode): number {
   return Math.max(0, Math.min(1, (kr.current - kr.baseline) / span));
 }
 
-function initialOf(ownerId: string | null): string {
-  if (!ownerId) return "";
-  return ownerId.slice(0, 2).toUpperCase();
+/** Initialen aus dem Anzeigenamen (2 Wörter → 2 Initialen; sonst 2 Zeichen). */
+function initialsOf(label: string): string {
+  const parts = label.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0]!.charAt(0) + parts[1]!.charAt(0)).toUpperCase();
+  return (parts[0] ?? "").slice(0, 2).toUpperCase();
 }

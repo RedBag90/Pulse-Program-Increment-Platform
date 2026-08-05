@@ -16,6 +16,13 @@ const TIER_TEXT: Record<GoalStatusTier, string> = {
   rose: "text-rose-600 dark:text-rose-400",
   neutral: "text-muted-foreground",
 };
+/** Text-Legende je Tier (WCAG: Status nicht allein über Farbe vermitteln). */
+const TIER_LABEL: Record<GoalStatusTier, string> = {
+  green: "On track",
+  amber: "At risk",
+  rose: "Off track",
+  neutral: "Ohne Status",
+};
 /** Reihenfolge im Verteilungs-Balken (on-track → at-risk → off-track → neutral). */
 const TIER_ORDER: GoalStatusTier[] = ["green", "amber", "rose", "neutral"];
 
@@ -69,11 +76,12 @@ export function GoalHealthStrip({
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Status
         </p>
-        <div className="mt-1.5 flex h-5 items-center gap-3 text-[13px] font-medium tabular-nums">
+        <div className="mt-1.5 flex h-5 flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[13px] font-medium tabular-nums">
           {TIER_ORDER.map((tier) =>
             counts[tier] > 0 ? (
-              <span key={tier} className={`font-mono ${TIER_TEXT[tier]}`}>
-                {counts[tier]}
+              <span key={tier} className={`inline-flex items-baseline gap-1 ${TIER_TEXT[tier]}`}>
+                <span className="font-mono">{counts[tier]}</span>
+                <span className="text-[11px] font-normal">{TIER_LABEL[tier]}</span>
               </span>
             ) : null,
           )}

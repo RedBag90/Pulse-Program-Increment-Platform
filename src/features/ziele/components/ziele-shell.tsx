@@ -60,7 +60,7 @@ export function ZieleShell({ model, layout, userLabels = {} }: Props) {
               userLabels={userLabels}
             />
           )}
-          {layout === "netzplan" && <StrategyNetworkView themes={themes} />}
+          {layout === "netzplan" && <StrategyNetworkView themes={themes} userLabels={userLabels} />}
         </PageSection>
       )}
       {effectiveTab === "money" && (

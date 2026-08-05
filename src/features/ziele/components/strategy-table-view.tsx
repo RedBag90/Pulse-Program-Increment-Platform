@@ -2,7 +2,15 @@
 
 import { useMemo, useRef, useState, startTransition, useActionState } from "react";
 import Link from "next/link";
-import { ChevronRight, Pencil, Plus, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import {
+  ChevronRight,
+  Pencil,
+  Plus,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GoalNode } from "@/server/views/ziele-view";
 import { isAtRisk, keyResultProgress, type RollupTrio } from "@/domain/goals-rollup";
@@ -53,6 +61,9 @@ function isOffTrack(n: GoalNode): boolean {
   return isAtRisk(n.trio) || n.status === "at_risk" || n.status === "off_track";
 }
 
+/** Sortierkriterium der Top-Level-Themes (Geschwister); „manual" = Server-Reihenfolge. */
+type SortKey = "manual" | "progress" | "value" | "period" | "title";
+
 /**
  * Strategie als hierarchische Tabelle — Default-Layout im Strategie-Tab.
  * Ein-/ausklappbarer Ziel-Baum: **Name (Held) · Owner · Status · Progress ·
@@ -72,6 +83,8 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
   const [collapsedIds, setCollapsedIds] = useLocalStorageState<string[]>("ziele:collapsed", []);
   const collapsed = useMemo(() => new Set(collapsedIds), [collapsedIds]);
   const [offTrackOnly, setOffTrackOnly] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("manual");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [, reparentRun] = useActionState(reparentGoalNodeAction, {});
 
   const allParentIds = useMemo(() => collectParentIds(themes), [themes]);
@@ -79,6 +92,26 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
     () => (offTrackOnly ? filterGoalBranches(themes, isOffTrack) : themes),
     [themes, offTrackOnly],
   );
+  // Sortierung betrifft nur die Top-Level-Themes; Kinder behalten ihre Reihenfolge.
+  const sortedThemes = useMemo(() => {
+    if (sortKey === "manual") return visibleThemes;
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...visibleThemes].sort((a, b) => {
+      switch (sortKey) {
+        case "progress":
+          return ((a.progress ?? -1) - (b.progress ?? -1)) * dir;
+        case "value":
+          return ((a.trio.realized ?? 0) - (b.trio.realized ?? 0)) * dir;
+        case "period":
+          return (a.period ?? "").localeCompare(b.period ?? "") * dir;
+        case "title":
+          return a.title.localeCompare(b.title) * dir;
+        default:
+          return 0;
+      }
+    });
+  }, [visibleThemes, sortKey, sortDir]);
+  const filtersActive = sortKey !== "manual" || offTrackOnly;
 
   const drag: DragCtx = {
     canEdit,
@@ -153,6 +186,35 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
               Ausklappen
             </ToolbarButton>
           </div>
+          <label className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2 py-1">
+            <span className="text-[11px] font-medium text-muted-foreground">Sortieren</span>
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as SortKey)}
+              className="bg-transparent text-xs font-medium focus:outline-none"
+              aria-label="Sortierkriterium"
+            >
+              <option value="manual">Manuell</option>
+              <option value="progress">Fortschritt</option>
+              <option value="value">Wert</option>
+              <option value="period">Zeitraum</option>
+              <option value="title">Titel</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+              disabled={sortKey === "manual"}
+              aria-label={sortDir === "asc" ? "Aufsteigend" : "Absteigend"}
+              title={sortDir === "asc" ? "Aufsteigend" : "Absteigend"}
+              className="grid size-5 place-items-center rounded text-muted-foreground hover:text-foreground disabled:opacity-40"
+            >
+              {sortDir === "asc" ? (
+                <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+              )}
+            </button>
+          </label>
           <button
             type="button"
             onClick={() => setOffTrackOnly((v) => !v)}
@@ -166,6 +228,19 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
           >
             ⚠ Nur off-track
           </button>
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={() => {
+                setSortKey("manual");
+                setSortDir("desc");
+                setOffTrackOnly(false);
+              }}
+              className="inline-flex items-center rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Zurücksetzen
+            </button>
+          )}
           {offTrackOnly && visibleThemes.length === 0 && (
             <span className="text-[11px] text-muted-foreground">Keine off-track-Ziele.</span>
           )}
@@ -212,7 +287,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {visibleThemes.map((t) => (
+            {sortedThemes.map((t) => (
               <NodeRows key={t.id} node={t} depth={0} canEdit={canEdit} drag={drag} tree={tree} />
             ))}
           </tbody>
@@ -471,26 +546,28 @@ function RowActions({
   addChildHref?: string | null;
 }) {
   return (
-    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+    // Sichtbar bei Hover ODER Tastatur-Fokus (fokussierbar trotz opacity-0);
+    // Trefferflächen ≥32px für Maus/Touch/Tastatur.
+    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 group-focus-within:opacity-100">
       {addChildHref && (
         <Link
           href={addChildHref as never}
           scroll={false}
-          className="grid h-7 place-items-center rounded-md border bg-card px-1.5 text-[9px] font-semibold text-muted-foreground hover:bg-muted"
+          className="inline-flex h-8 items-center gap-1 rounded-md border bg-card px-2 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           title="Unterziel hinzufügen"
           aria-label="Unterziel hinzufügen"
         >
-          ＋Unterziel
+          <Plus className="h-3.5 w-3.5" aria-hidden /> Unterziel
         </Link>
       )}
       <Link
         href={editHref as never}
         scroll={false}
-        className="grid size-7 place-items-center rounded-md border bg-card hover:bg-muted"
+        className="grid size-8 place-items-center rounded-md border bg-card hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         title="Bearbeiten"
         aria-label="Bearbeiten"
       >
-        <Pencil className="h-3.5 w-3.5" aria-hidden />
+        <Pencil className="h-4 w-4" aria-hidden />
       </Link>
     </div>
   );

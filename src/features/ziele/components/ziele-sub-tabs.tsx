@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { ZieleSubTab } from "@/server/views/ziele-view";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 
 /**
  * Sub-Tabs fuer die Ziele-Shell (nur `mode="ziele"`): Strategie · Money.
@@ -35,29 +36,12 @@ export function ZieleSubTabs({ active, showMoney = true }: Props) {
   }
 
   return (
-    <div
-      role="tablist"
-      aria-label="Ziele-Sub-Tabs"
-      className="inline-flex overflow-hidden rounded-md border bg-card text-sm"
-    >
-      {tabs.map((t) => {
-        const isActive = t.id === active;
-        const cls = isActive
-          ? "bg-primary text-primary-foreground"
-          : "text-muted-foreground hover:bg-muted/50";
-        return (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => setTab(t.id)}
-            className={`px-3 py-1.5 transition-colors ${cls}`}
-          >
-            {t.label}
-          </button>
-        );
-      })}
-    </div>
+    <ToggleGroup
+      value={active}
+      options={tabs}
+      onChange={setTab}
+      ariaLabel="Ziele-Sub-Tabs"
+      className="bg-card text-sm"
+    />
   );
 }
