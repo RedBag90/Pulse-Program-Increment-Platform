@@ -10,7 +10,7 @@ import {
 } from "@/server/services/goal-node-fields";
 import { isClosed, isOpen, type GoalStatus } from "@/domain/goal-status";
 import { clampPrecision, type MetricType } from "@/domain/goal-metric";
-import { canReparent, planReparent } from "@/domain/goal-reparent";
+import { canReparent, planReparent, reorderSiblingIds } from "@/domain/goal-reparent";
 import {
   autoKpiCurrent,
   isProgressMode,
@@ -247,16 +247,27 @@ export async function deleteObjective(
  */
 export async function reparentGoalNode(
   ctx: RequestContext,
-  input: { id: string; newParentId?: string | null },
+  input: { id: string; newParentId?: string | null; beforeId?: string | null },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   const newParentId = input.newParentId ?? null;
+  const beforeId = input.beforeId ?? null;
   return withAuditedTransaction(mctx, async (tx) => {
     const node = await tx.objective.findFirst({
       where: { id: input.id, tenantId: mctx.tenantId },
     });
     if (!node) {
       return err({ kind: "not_found" as const, resourceType: "Objective", id: input.id });
+    }
+
+    const parentChanged = (node.parentObjectiveId ?? null) !== newParentId;
+
+    // Reiner Kein-Op: gleicher Parent UND keine Positionsangabe (Drawer-Fall).
+    if (!parentChanged && input.beforeId === undefined) {
+      return ok({
+        result: undefined,
+        audit: { action: "objective.updated", resourceType: "objective", resourceId: node.id },
+      });
     }
 
     let parent: { id: string; path: string; level: number; themeId: string } | null = null;
@@ -270,58 +281,70 @@ export async function reparentGoalNode(
       parent = { id: p.id, path: p.path, level: p.level, themeId: p.themeId };
     }
 
-    if (
-      !canReparent({
-        nodeId: node.id,
-        nodePath: node.path,
-        targetId: newParentId,
-        targetPath: parent?.path ?? null,
-      })
-    ) {
-      return err({
-        kind: "conflict" as const,
-        reason: "Ein Ziel kann nicht unter sich selbst oder einen Nachfahren verschoben werden.",
-      });
-    }
+    // Parent-Wechsel: Zyklus-Guard + Subtree-Re-Materialisierung (path/level/themeId).
+    if (parentChanged) {
+      if (
+        !canReparent({
+          nodeId: node.id,
+          nodePath: node.path,
+          targetId: newParentId,
+          targetPath: parent?.path ?? null,
+        })
+      ) {
+        return err({
+          kind: "conflict" as const,
+          reason: "Ein Ziel kann nicht unter sich selbst oder einen Nachfahren verschoben werden.",
+        });
+      }
 
-    // Kein-Op, wenn schon am Ziel-Parent.
-    if ((node.parentObjectiveId ?? null) === newParentId) {
-      return ok({
-        result: undefined,
-        audit: { action: "objective.updated", resourceType: "objective", resourceId: node.id },
-      });
-    }
-
-    const subtree = await tx.objective.findMany({
-      where: {
-        tenantId: mctx.tenantId,
-        OR: [{ id: node.id }, { path: { startsWith: `${node.path}/` } }],
-      },
-      select: { id: true, path: true, level: true },
-    });
-    // Reine Subtree-Re-Materialisierung (goal-reparent.ts) — der Service persistiert nur.
-    const writes = planReparent({
-      node: {
-        id: node.id,
-        path: node.path,
-        level: node.level,
-        themeId: node.themeId,
-        parentObjectiveId: node.parentObjectiveId ?? null,
-      },
-      parent,
-      newParentId,
-      subtree,
-    });
-    for (const w of writes) {
-      await tx.objective.update({
-        where: { id: w.id },
-        data: {
-          path: w.path,
-          level: w.level,
-          themeId: w.themeId,
-          ...("parentObjectiveId" in w ? { parentObjectiveId: w.parentObjectiveId } : {}),
-          updatedBy: mctx.actorId,
+      const subtree = await tx.objective.findMany({
+        where: {
+          tenantId: mctx.tenantId,
+          OR: [{ id: node.id }, { path: { startsWith: `${node.path}/` } }],
         },
+        select: { id: true, path: true, level: true },
+      });
+      const writes = planReparent({
+        node: {
+          id: node.id,
+          path: node.path,
+          level: node.level,
+          themeId: node.themeId,
+          parentObjectiveId: node.parentObjectiveId ?? null,
+        },
+        parent,
+        newParentId,
+        subtree,
+      });
+      for (const w of writes) {
+        await tx.objective.update({
+          where: { id: w.id },
+          data: {
+            path: w.path,
+            level: w.level,
+            themeId: w.themeId,
+            ...("parentObjectiveId" in w ? { parentObjectiveId: w.parentObjectiveId } : {}),
+            updatedBy: mctx.actorId,
+          },
+        });
+      }
+    }
+
+    // Geschwister am Ziel-Parent neu indizieren (Reorder + Reparent-Einsortierung).
+    const siblings = await tx.objective.findMany({
+      where: { tenantId: mctx.tenantId, parentObjectiveId: newParentId, id: { not: node.id } },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true },
+    });
+    const orderedIds = reorderSiblingIds(
+      siblings.map((s) => s.id),
+      node.id,
+      beforeId,
+    );
+    for (const [i, id] of orderedIds.entries()) {
+      await tx.objective.update({
+        where: { id },
+        data: { sortOrder: i, updatedBy: mctx.actorId },
       });
     }
 
@@ -331,9 +354,13 @@ export async function reparentGoalNode(
         action: "objective.updated",
         resourceType: "objective",
         resourceId: node.id,
-        changes: {
-          parentObjectiveId: { before: node.parentObjectiveId, after: newParentId },
-        },
+        ...(parentChanged
+          ? {
+              changes: {
+                parentObjectiveId: { before: node.parentObjectiveId, after: newParentId },
+              },
+            }
+          : {}),
       },
     });
   });

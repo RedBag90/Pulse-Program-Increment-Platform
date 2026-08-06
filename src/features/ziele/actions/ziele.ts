@@ -239,6 +239,9 @@ export const reparentGoalNodeAction = createServerAction({
   schema: z.object({
     id: z.string().uuid(),
     newParentId: z.string().uuid().optional().or(z.literal("")),
+    // Geschwister-Position: Ziel wird VOR diese id einsortiert; "" = ans Ende;
+    // Feld fehlt (Drawer „Elternziel setzen") = kein Reorder (Append).
+    beforeId: z.string().uuid().optional().or(z.literal("")),
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -246,6 +249,9 @@ export const reparentGoalNodeAction = createServerAction({
     reparentGoalNode(ctx, {
       id: input.id,
       newParentId: input.newParentId && input.newParentId !== "" ? input.newParentId : null,
+      ...(input.beforeId !== undefined
+        ? { beforeId: input.beforeId === "" ? null : input.beforeId }
+        : {}),
     }),
   revalidate: "ziele",
   mapError: (e) => formatDomainError(e, { fallback: "Verschieben fehlgeschlagen" }),

@@ -19,7 +19,7 @@ interface Props {
  */
 export function MoneyExportButton({ rows }: Props) {
   function download() {
-    const header = ["Theme", "Periode", "Planned EUR", "Realized EUR", "Run-Rate EUR"];
+    const header = ["Ziel", "Periode", "Planned EUR", "Realized EUR", "Run-Rate EUR"];
     const body = rows.map((r) => [
       r.title,
       r.period,

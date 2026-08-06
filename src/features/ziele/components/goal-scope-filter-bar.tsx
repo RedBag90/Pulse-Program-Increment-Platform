@@ -3,6 +3,7 @@
 import { useEntityOptions } from "@/features/create/use-entity-options";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { MultiSelectFilter, type MultiSelectSection } from "@/components/ui/multi-select-filter";
+import { PeriodMultiSelect } from "@/features/ziele/components/period-multi-select";
 import {
   OPEN_STATUSES,
   CLOSED_STATUSES,
@@ -17,20 +18,17 @@ interface ScopeOption {
 
 /**
  * Prominente Filterleiste für die Strategie/Ziele-Liste: **Zeitraum · Wertstrom ·
- * ART · Status** — alle als **Mehrfachauswahl** (Popover-Checkboxen). Jede Auswahl
- * wird als CSV im URL-State abgelegt (`?period=`/`?vs=`/`?art=`/`?status=`); der
- * Loader (`loadStrategyTree`) filtert serverseitig (UND zwischen Gruppen, ODER
- * innerhalb). Zeitraum-Optionen kommen vom Server (`availablePeriods`), VS/ART aus
- * den v1-APIs. Status ist gruppiert (Offen/Geschlossen/Ohne Status) — die
+ * ART · Status** — alle als **Mehrfachauswahl**. Jede Auswahl wird als CSV im
+ * URL-State abgelegt (`?period=`/`?vs=`/`?art=`/`?status=`); der Loader
+ * (`loadStrategyTree`) filtert serverseitig (UND zwischen Gruppen, ODER innerhalb).
+ * Zeitraum ist der strukturierte `PeriodMultiSelect` (Jahr-Stepper + FY/H1·H2/Q1–Q4),
+ * VS/ART aus den v1-APIs. Status ist gruppiert (Offen/Geschlossen/Ohne Status) — die
  * Gruppen-„alle" deckt Aktiv/Geschlossen ab. Sentinel `none` = ohne Status.
  */
 export function GoalScopeFilterBar({
-  availablePeriods = [],
   showValueStreams = true,
   showArts = true,
 }: {
-  /** Im Baum vorkommende Zeiträume (Server) als Filter-Optionen. */
-  availablePeriods?: { value: string; label: string }[];
   /** VS = Portfolio-Inhalt — im Free-Tenant ausgeblendet. */
   showValueStreams?: boolean;
   /** ARTs = Programm-Inhalt — dito. */
@@ -69,7 +67,6 @@ export function GoalScopeFilterBar({
 
   const anyActive = periodSel.size + vsSel.size + artSel.size + statusSel.size > 0;
 
-  const periodSections: MultiSelectSection[] = [{ options: availablePeriods }];
   const vsSections: MultiSelectSection[] = [
     { options: valueStreams.data.map((v) => ({ value: v.id, label: v.name ?? v.id })) },
   ];
@@ -98,11 +95,10 @@ export function GoalScopeFilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2.5 shadow-xs">
-      <MultiSelectFilter
-        label="Zeitraum"
-        sections={periodSections}
+      <PeriodMultiSelect
         selected={periodSel}
-        {...handlers("period", periodSel)}
+        onToggle={handlers("period", periodSel).onToggle}
+        onClear={() => push({ period: null })}
       />
       {showValueStreams && (
         <MultiSelectFilter

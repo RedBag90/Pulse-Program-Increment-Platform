@@ -34,7 +34,10 @@ export default async function ZielePage({ searchParams }: PageProps) {
   const valueStreamIds = splitCsv(params.vs);
   const artIds = splitCsv(params.art);
   const statuses = splitCsv(params.status);
-  const layout = params.layout === "netzplan" ? params.layout : "tabelle";
+  const layout =
+    params.layout === "netzplan" || params.layout === "roadmap" || params.layout === "alignment"
+      ? params.layout
+      : "tabelle";
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const tree = await loadStrategyTree(db, principal.tenantId, {

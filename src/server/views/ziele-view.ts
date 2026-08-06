@@ -2,7 +2,6 @@ import type { PrismaClient } from "@/generated/prisma";
 import { sumTrios, type KpiInput, type RollupTrio } from "@/domain/goals-rollup";
 import { parseOptions } from "@/domain/goal-custom-field";
 import { filterGoalBranches } from "@/domain/goal-tree-filter";
-import { goalPeriodLabel, parseGoalPeriod, compareGoalPeriod } from "@/domain/goal-period";
 import { type ProgressMode, type AutoKpiLink } from "@/domain/goal-progress-mode";
 import { type AutoKpiSeriesLink } from "@/domain/goal-progress-series";
 import { parseMeasurements, latestMeasurement } from "@/domain/kpi-measurement";
@@ -177,8 +176,6 @@ export interface StrategyTree {
   artIds: string[];
   /** Status-Filter: `GoalStatus`-Werte + Sentinel `"none"` (= ohne Status). */
   statuses: string[];
-  /** Alle im Baum vorkommenden Zeiträume (chronologisch) für die Filter-Optionen. */
-  availablePeriods: { value: string; label: string }[];
 }
 
 /**
@@ -493,24 +490,6 @@ export async function loadStrategyTree(
 
   const { themes } = buildStrategyTree({ rows: forestRows, lookups });
 
-  // Alle vorkommenden Zeiträume (über den ganzen Baum) für die Filter-Optionen —
-  // VOR dem Filtern gesammelt, damit die Auswahl vollständig bleibt.
-  const periodSet = new Set<string>();
-  const collectPeriods = (nodes: GoalNode[]): void => {
-    for (const n of nodes) {
-      if (n.period) periodSet.add(n.period);
-      collectPeriods(n.children);
-    }
-  };
-  collectPeriods(themes);
-  const availablePeriods = [...periodSet]
-    .sort((a, b) => {
-      const pa = parseGoalPeriod(a);
-      const pb = parseGoalPeriod(b);
-      return pa && pb ? compareGoalPeriod(pa, pb) : a.localeCompare(b);
-    })
-    .map((value) => ({ value, label: goalPeriodLabel(value) }));
-
   // Filter (Mehrfachauswahl): „ganzer Ast" (filterGoalBranches), UND zwischen den
   // Gruppen (Komposition), ODER innerhalb (`includes`/`some`). tenantTrio wird
   // danach über die sichtbaren Roots neu summiert.
@@ -543,7 +522,6 @@ export async function loadStrategyTree(
     valueStreamIds,
     artIds,
     statuses,
-    availablePeriods,
   };
 }
 

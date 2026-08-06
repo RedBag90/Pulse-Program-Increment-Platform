@@ -6,6 +6,8 @@ import { ZieleSubTabs } from "./ziele-sub-tabs";
 import { GoalHealthStrip } from "./goal-health-strip";
 import { StrategyTableView } from "./strategy-table-view";
 import { StrategyNetworkView } from "./strategy-network-view";
+import { StrategyRoadmapView } from "./strategy-roadmap-view";
+import { StrategyAlignmentView } from "./strategy-alignment-view";
 import { StrategyLayoutToggle, type StrategyLayout } from "./strategy-layout-toggle";
 import { GoalScopeFilterBar } from "./goal-scope-filter-bar";
 import { ZieleEditDrawer } from "./ziele-edit-drawer";
@@ -38,26 +40,21 @@ export function ZieleShell({ model, layout, userLabels = {} }: Props) {
     <Page>
       <PageHeader
         title="Ziele"
-        subtitle="Themes (OKR-Statements) → Key Results — Übersicht und Pflege in einer Ansicht."
+        subtitle="Ziele und Unterziele — Übersicht und Pflege in einer Ansicht."
         actions={<ZieleSubTabs active={effectiveTab} showMoney={modules.portfolio} />}
       />
 
       <div className="space-y-2">
         <GoalHealthStrip themes={themes} tenantTrio={tenantTrio} showMoney={modules.portfolio} />
         <p className="px-1 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{themes.length}</span> Themes (OKRs) im
-          Scope
+          <span className="font-medium text-foreground">{themes.length}</span> Ziele im Scope
         </p>
       </div>
 
       {effectiveTab === "strategie" && (
         <PageSection>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <GoalScopeFilterBar
-              availablePeriods={model.availablePeriods}
-              showValueStreams={modules.portfolio}
-              showArts={modules.program}
-            />
+            <GoalScopeFilterBar showValueStreams={modules.portfolio} showArts={modules.program} />
             <StrategyLayoutToggle active={layout} />
           </div>
           {layout === "tabelle" && (
@@ -68,6 +65,10 @@ export function ZieleShell({ model, layout, userLabels = {} }: Props) {
             />
           )}
           {layout === "netzplan" && <StrategyNetworkView themes={themes} userLabels={userLabels} />}
+          {layout === "roadmap" && <StrategyRoadmapView themes={themes} />}
+          {layout === "alignment" && (
+            <StrategyAlignmentView themes={themes} userLabels={userLabels} />
+          )}
         </PageSection>
       )}
       {effectiveTab === "money" && (

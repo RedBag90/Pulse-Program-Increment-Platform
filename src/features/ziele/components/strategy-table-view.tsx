@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, startTransition, useActionState } from "react";
+import { useEffect, useMemo, useRef, useState, startTransition, useActionState } from "react";
 import Link from "next/link";
 import {
   ChevronRight,
@@ -23,14 +23,45 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useLocalStorageState } from "@/lib/hooks/use-local-storage-state";
 
-/** Drag-to-Reparent-Kontext, durch NodeRows → Row gereicht. */
+/** Drop-Position relativ zur Ziel-Zeile: davor/dazwischen (Geschwister) oder unterordnen. */
+type Placement = "before" | "inside" | "after";
+
+/** Drag-Kontext (Umsortieren + Unterordnen), durch NodeRows → Row gereicht. */
 interface DragCtx {
   canEdit: boolean;
+  /** Umsortieren (davor/danach) nur im Sortier-Modus „Manuell". */
+  reorderable: boolean;
   onStart: (node: GoalNode) => void;
-  onDropOn: (target: GoalNode | null) => void;
+  onDropOn: (target: GoalNode | null, placement: Placement) => void;
   isValidTarget: (targetId: string) => boolean;
   overId: string | null;
-  setOver: (id: string | null) => void;
+  overPlacement: Placement | null;
+  setOver: (id: string | null, placement: Placement | null) => void;
+}
+
+/** Findet Parent-Id + Geschwister-Array (das Array, das `targetId` enthält). */
+function locateSiblings(
+  nodes: GoalNode[],
+  targetId: string,
+  parentId: string | null = null,
+): { parentId: string | null; siblings: GoalNode[] } | null {
+  if (nodes.some((n) => n.id === targetId)) return { parentId, siblings: nodes };
+  for (const n of nodes) {
+    const r = locateSiblings(n.children, targetId, n.id);
+    if (r) return r;
+  }
+  return null;
+}
+
+/** Nächster scrollbarer Vorfahr (für Auto-Scroll beim Ziehen); Fallback = Dokument. */
+function getScrollParent(el: HTMLElement | null): HTMLElement | null {
+  let p = el?.parentElement ?? null;
+  while (p) {
+    const oy = getComputedStyle(p).overflowY;
+    if ((oy === "auto" || oy === "scroll") && p.scrollHeight > p.clientHeight) return p;
+    p = p.parentElement;
+  }
+  return (document.scrollingElement as HTMLElement | null) ?? null;
 }
 
 /** Collapse-Kontext für den ein-/ausklappbaren Baum. */
@@ -78,8 +109,10 @@ interface Props {
 
 export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
   const dragNode = useRef<GoalNode | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
+  const [over, setOver] = useState<{ id: string; placement: Placement } | null>(null);
   const [overTop, setOverTop] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   // Auf-/Zuklapp-Zustand überlebt einen Reload (Geräte-Ansichtspräferenz).
   const [collapsedIds, setCollapsedIds] = useLocalStorageState<string[]>("ziele:collapsed", []);
   const collapsed = useMemo(() => new Set(collapsedIds), [collapsedIds]);
@@ -113,31 +146,89 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
     });
   }, [visibleThemes, sortKey, sortDir]);
   const filtersActive = sortKey !== "manual" || offTrackOnly;
+  const reorderable = sortKey === "manual";
 
   const drag: DragCtx = {
     canEdit,
+    reorderable,
     onStart: (node) => {
       dragNode.current = node;
+      setDragging(true);
     },
     isValidTarget: (targetId) => {
       const src = dragNode.current;
       return !!src && src.id !== targetId && !subtreeHas(src, targetId);
     },
-    onDropOn: (target) => {
+    onDropOn: (target, placement) => {
       const src = dragNode.current;
       dragNode.current = null;
-      setOverId(null);
+      setOver(null);
       setOverTop(false);
+      setDragging(false);
       if (!src) return;
       if (target && (src.id === target.id || subtreeHas(src, target.id))) return;
+
+      let newParentId = "";
+      let beforeId = "";
+      if (target && placement === "inside") {
+        newParentId = target.id; // unterordnen (ans Ende)
+      } else if (target) {
+        const loc = locateSiblings(themes, target.id);
+        newParentId = loc?.parentId ?? "";
+        if (placement === "before") {
+          beforeId = target.id;
+        } else {
+          const sibs = loc?.siblings ?? [];
+          const i = sibs.findIndex((s) => s.id === target.id);
+          beforeId = i >= 0 && i + 1 < sibs.length ? (sibs[i + 1]?.id ?? "") : "";
+        }
+      }
+      // target null = oberste Ebene (Append): newParentId "" bleibt.
+
       const fd = new FormData();
       fd.set("id", src.id);
-      fd.set("newParentId", target?.id ?? "");
+      fd.set("newParentId", newParentId);
+      fd.set("beforeId", beforeId);
       startTransition(() => reparentRun(fd));
     },
-    overId,
-    setOver: setOverId,
+    overId: over?.id ?? null,
+    overPlacement: over?.placement ?? null,
+    setOver: (id, placement) => setOver(id && placement ? { id, placement } : null),
   };
+
+  // Auto-Scroll: natives HTML5-Drag scrollt nicht — am oberen/unteren Rand des
+  // Scroll-Containers automatisch weiterscrollen, damit lange Listen erreichbar sind.
+  useEffect(() => {
+    if (!dragging) return;
+    const scroller = getScrollParent(containerRef.current);
+    if (!scroller) return;
+    let raf = 0;
+    let lastY = 0;
+    const EDGE = 72;
+    const MAX = 22;
+    const onOver = (e: DragEvent) => {
+      lastY = e.clientY;
+    };
+    const step = () => {
+      const r = scroller.getBoundingClientRect();
+      const top = lastY - r.top;
+      const bottom = r.bottom - lastY;
+      if (top >= 0 && top < EDGE) scroller.scrollTop -= MAX * (1 - top / EDGE);
+      else if (bottom >= 0 && bottom < EDGE) scroller.scrollTop += MAX * (1 - bottom / EDGE);
+      raf = requestAnimationFrame(step);
+    };
+    const stop = () => setDragging(false);
+    window.addEventListener("dragover", onOver);
+    window.addEventListener("dragend", stop);
+    window.addEventListener("drop", stop);
+    raf = requestAnimationFrame(step);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("dragover", onOver);
+      window.removeEventListener("dragend", stop);
+      window.removeEventListener("drop", stop);
+    };
+  }, [dragging]);
 
   const tree: TreeCtx = {
     collapsed,
@@ -151,11 +242,11 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
       <div className="rounded-lg border border-dashed p-8 text-center">
         <p className="font-medium">Noch keine Strategie definiert.</p>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Leg ein Theme (OKR-Statement) an und häng Unterziele dran.
+          Leg ein Ziel an und häng Unterziele dran.
         </p>
         {canEdit && (
           <div className="mt-4 flex justify-center">
-            <NewLink entity="theme">+ Theme anlegen</NewLink>
+            <NewLink entity="theme">+ Ziel anlegen</NewLink>
           </div>
         )}
       </div>
@@ -246,11 +337,14 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
             <span className="text-[11px] text-muted-foreground">Keine off-track-Ziele.</span>
           )}
         </div>
-        {canEdit && <NewLink entity="theme">+ Theme (OKR)</NewLink>}
+        {canEdit && <NewLink entity="theme">+ Ziel</NewLink>}
       </div>
       {canEdit && (
         <p className="text-[11px] text-muted-foreground">
-          Klick öffnet den Editor · Zeile ziehen verschiebt das Ziel unter ein anderes.
+          Klick öffnet den Editor · Zeile ziehen:{" "}
+          {reorderable
+            ? "oben/unten = umsortieren, Mitte = unterordnen."
+            : "auf ein Ziel = unterordnen (Umsortieren nur im Modus Manuell)."}
         </p>
       )}
       {canEdit && (
@@ -264,7 +358,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
           onDragLeave={() => setOverTop(false)}
           onDrop={(e) => {
             e.preventDefault();
-            drag.onDropOn(null);
+            drag.onDropOn(null, "inside");
           }}
           className={cn(
             "rounded-md border border-dashed px-3 py-1.5 text-center text-[11px] text-muted-foreground transition-colors",
@@ -274,17 +368,19 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
           ⇧ Hierher ziehen = auf oberste Ebene verschieben
         </div>
       )}
-      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+      <div ref={containerRef} className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 border-b bg-muted/95 text-xs uppercase tracking-wide text-muted-foreground shadow-sm backdrop-blur">
+          <thead className="sticky top-0 z-20 border-b bg-muted/95 text-xs uppercase tracking-wide text-muted-foreground shadow-sm backdrop-blur">
             <tr>
               <Th>Name</Th>
               <Th className="w-14">Owner</Th>
               <Th className="w-32">Status</Th>
-              <Th className="w-44">Progress</Th>
-              <Th className="w-32">Wert</Th>
+              <Th className="w-36">Progress</Th>
+              <Th className="w-28">Wert</Th>
               <Th className="w-20">Zeitraum</Th>
-              {canEdit && <Th className="w-20">Aktionen</Th>}
+              {canEdit && (
+                <Th className="sticky right-0 z-30 w-24 border-l bg-muted/95">Aktionen</Th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -413,16 +509,21 @@ function Row({
   actions,
 }: RowProps) {
   const isOver = drag.overId === node.id;
-  // Kopf-Ziele (Top-Level-Themes) tragen eine einheitliche hellblaue Schiene links
-  // (inset shadow, robust gegen border-collapse) — kein pro-Theme-Regenbogen mehr.
+  const placement = isOver ? drag.overPlacement : null;
+  // Kopf-Ziele (Top-Level-Themes) tragen eine hellblaue Schiene links; beim Ziehen
+  // zeigt eine blaue Linie oben/unten die Einfüge-Position (davor/danach).
   const isHead = depth === 0;
+  const shadow: string[] = [];
+  if (isHead) shadow.push(`inset 3px 0 0 0 ${HEAD_GOAL_ACCENT}`);
+  if (placement === "before") shadow.push("inset 0 2px 0 0 var(--primary)");
+  if (placement === "after") shadow.push("inset 0 -2px 0 0 var(--primary)");
   return (
     <tr
       className={cn(
         "group align-middle hover:bg-muted/40",
-        isOver && "outline outline-2 -outline-offset-2 outline-primary",
+        placement === "inside" && "outline outline-2 -outline-offset-2 outline-primary",
       )}
-      style={isHead ? { boxShadow: `inset 3px 0 0 0 ${HEAD_GOAL_ACCENT}` } : undefined}
+      style={shadow.length ? { boxShadow: shadow.join(", ") } : undefined}
       draggable={drag.canEdit}
       onDragStart={(e) => {
         if (!drag.canEdit) return;
@@ -430,15 +531,22 @@ function Row({
         e.dataTransfer.effectAllowed = "move";
       }}
       onDragOver={(e) => {
-        if (drag.canEdit && drag.isValidTarget(node.id)) {
-          e.preventDefault();
-          if (!isOver) drag.setOver(node.id);
+        if (!drag.canEdit || !drag.isValidTarget(node.id)) return;
+        e.preventDefault();
+        let next: Placement = "inside";
+        if (drag.reorderable) {
+          const r = e.currentTarget.getBoundingClientRect();
+          const rel = (e.clientY - r.top) / r.height;
+          next = rel < 0.4 ? "before" : rel > 0.6 ? "after" : "inside";
         }
+        if (drag.overId !== node.id || drag.overPlacement !== next) drag.setOver(node.id, next);
       }}
-      onDragLeave={() => isOver && drag.setOver(null)}
+      onDragLeave={() => {
+        if (drag.overId === node.id) drag.setOver(null, null);
+      }}
       onDrop={(e) => {
         e.preventDefault();
-        drag.onDropOn(node);
+        drag.onDropOn(node, drag.overPlacement ?? "inside");
       }}
     >
       <Td>
@@ -526,7 +634,9 @@ function Row({
         <TrioBadge trio={trio} />
       </Td>
       <Td className="text-xs text-muted-foreground">{period ? goalPeriodLabel(period) : "—"}</Td>
-      {canEdit && <Td>{actions}</Td>}
+      {canEdit && (
+        <Td className="sticky right-0 z-10 border-l bg-card group-hover:bg-muted/40">{actions}</Td>
+      )}
     </tr>
   );
 }
@@ -560,11 +670,11 @@ function RowActions({
         <Link
           href={addChildHref as never}
           scroll={false}
-          className="inline-flex h-8 items-center gap-1 rounded-md border bg-card px-2 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="grid size-8 place-items-center rounded-md border bg-card text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           title="Unterziel hinzufügen"
           aria-label="Unterziel hinzufügen"
         >
-          <Plus className="h-3.5 w-3.5" aria-hidden /> Unterziel
+          <Plus className="h-4 w-4" aria-hidden />
         </Link>
       )}
       <Link
@@ -657,11 +767,11 @@ function compact(n: number): string {
 }
 
 function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <th className={cn("px-3 py-2 text-left font-medium", className)}>{children}</th>;
+  return <th className={cn("px-3 py-1.5 text-left font-medium", className)}>{children}</th>;
 }
 
 function Td({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <td className={cn("px-3 py-2.5 align-middle", className)}>{children}</td>;
+  return <td className={cn("px-3 py-1.5 align-middle", className)}>{children}</td>;
 }
 
 function ToolbarButton({

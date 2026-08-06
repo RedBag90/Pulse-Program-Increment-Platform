@@ -61,12 +61,15 @@ export function MultiSelectFilter({
         <ChevronDown className="size-3.5 opacity-60" aria-hidden />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 gap-1 p-1.5">
-        <div className="max-h-72 overflow-y-auto">
+        <div className="max-h-96 overflow-y-auto">
           {sections.map((section, si) => {
             const values = section.options.map((o) => o.value);
             const allOn = values.length > 0 && values.every((v) => selected.has(v));
             return (
-              <div key={section.heading ?? si} className="py-0.5">
+              <div
+                key={section.heading ?? si}
+                className={cn("py-0.5", !section.heading && si > 0 && "mt-1 border-t pt-1.5")}
+              >
                 {section.heading && (
                   <div className="flex items-center justify-between px-2 pb-1 pt-1.5">
                     <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">

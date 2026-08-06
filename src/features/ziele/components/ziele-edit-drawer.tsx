@@ -177,10 +177,10 @@ function GoalPane({
   const pending = createPending || updatePending || deletePending;
   const err = createState.error || updateState.error || deleteState.error;
 
-  // Top-Level (depth 0) bleibt „Theme (OKR)"; alle Unterebenen heißen „Ziel".
+  // Einheitliche Benennung: jeder Knoten heißt „Ziel" (Top-Level wie Unterebene).
   const depth = node ? node.depth : parentId ? 1 : 0;
   const isTopLevel = depth === 0;
-  const kindLabel = isTopLevel ? "Theme (OKR)" : "Ziel";
+  const kindLabel = "Ziel";
 
   // Anlegen zeigt für Top-Goal UND Unterziel dasselbe volle Formular: Default
   // „manual" ⇒ Metrik-Block sichtbar (Rollup würde ihn ausblenden). Ein
@@ -406,7 +406,7 @@ function GoalPane({
         </Dialog>
       }
     >
-      <Field label={isTopLevel ? "Titel (Objective-Statement)" : "Titel"}>
+      <Field label="Titel">
         <input
           name="title"
           defaultValue={node?.title ?? ""}
@@ -491,7 +491,7 @@ function GoalPane({
       <header className="space-y-0.5 border-b pb-3">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {isTopLevel
-            ? "Theme · OKR-Statement"
+            ? "Ziel"
             : ancestors.length > 0
               ? ancestors.map((a) => a.title).join(" › ")
               : `Ziel · ${found?.parent?.title ?? "—"}`}

@@ -84,3 +84,26 @@ export function planReparent(input: {
     ...(d.id === node.id ? { parentObjectiveId: newParentId } : {}),
   }));
 }
+
+// ── Geschwister-Reihenfolge (manuelles Sortieren per Drag) ────────────────────
+
+/**
+ * Fügt `movedId` in eine geordnete Geschwister-Liste ein: **vor** `beforeId`, bzw.
+ * ans Ende, wenn `beforeId` null oder nicht (mehr) enthalten ist. `movedId` wird
+ * vorher entfernt (Dedupe / Umsortieren im selben Parent). Rückgabe = neue
+ * Reihenfolge; der Aufrufer schreibt daraus dichte `sortOrder`-Werte. Rein & testbar.
+ */
+export function reorderSiblingIds(
+  orderedIds: string[],
+  movedId: string,
+  beforeId: string | null,
+): string[] {
+  const without = orderedIds.filter((id) => id !== movedId);
+  const idx = beforeId != null && beforeId !== movedId ? without.indexOf(beforeId) : -1;
+  if (idx < 0) {
+    without.push(movedId);
+    return without;
+  }
+  without.splice(idx, 0, movedId);
+  return without;
+}

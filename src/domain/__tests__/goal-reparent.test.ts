@@ -1,5 +1,37 @@
 import { describe, it, expect } from "vitest";
-import { canReparent, planReparent } from "@/domain/goal-reparent";
+import { canReparent, planReparent, reorderSiblingIds } from "@/domain/goal-reparent";
+
+describe("reorderSiblingIds", () => {
+  const base = ["a", "b", "c", "d"];
+
+  it("inserts before the anchor (Mitte)", () => {
+    expect(reorderSiblingIds(base, "d", "b")).toEqual(["a", "d", "b", "c"]);
+  });
+
+  it("inserts at the front", () => {
+    expect(reorderSiblingIds(base, "c", "a")).toEqual(["c", "a", "b", "d"]);
+  });
+
+  it("appends when beforeId is null", () => {
+    expect(reorderSiblingIds(base, "a", null)).toEqual(["b", "c", "d", "a"]);
+  });
+
+  it("appends when beforeId is unknown", () => {
+    expect(reorderSiblingIds(base, "b", "zzz")).toEqual(["a", "c", "d", "b"]);
+  });
+
+  it("dedupes the moved id (no double entry)", () => {
+    expect(reorderSiblingIds(base, "b", "d")).toEqual(["a", "c", "b", "d"]);
+  });
+
+  it("beforeId === movedId → append (no-op anchor)", () => {
+    expect(reorderSiblingIds(base, "b", "b")).toEqual(["a", "c", "d", "b"]);
+  });
+
+  it("inserts a brand-new id", () => {
+    expect(reorderSiblingIds(["a", "b"], "x", "b")).toEqual(["a", "x", "b"]);
+  });
+});
 
 describe("canReparent", () => {
   it("allows moving to the top level (targetId null)", () => {

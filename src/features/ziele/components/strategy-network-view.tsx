@@ -173,7 +173,7 @@ function StrategyNode({ data }: NodeProps) {
     kr: "border bg-muted/30",
   };
   const tierLabel: Record<Tier, string> = {
-    theme: "THEME (OKR)",
+    theme: "ZIEL",
     kr: "ZIEL",
   };
 

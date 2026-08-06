@@ -36,7 +36,7 @@ export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[11px] text-muted-foreground">
-          Top-down pro Theme (OKR) aggregiert. Bottom-up je Epic siehst du im{" "}
+          Top-down pro Ziel aggregiert. Bottom-up je Epic siehst du im{" "}
           <Link href={"/portfolio/dashboard" as never} className="text-primary hover:underline">
             Portfolio-Dashboard
           </Link>
@@ -56,7 +56,7 @@ export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
             <tr>
-              <Th>Theme (OKR)</Th>
+              <Th>Ziel</Th>
               <Th>Periode</Th>
               <Th align="right">Planned €</Th>
               <Th align="right">Realized €</Th>
@@ -68,7 +68,7 @@ export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
             {sorted.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-3 py-6 text-center text-xs text-muted-foreground">
-                  Keine Themes — leg eines im Tab „Strategie" an.
+                  Keine Ziele — leg eines im Tab „Strategie" an.
                 </td>
               </tr>
             )}
