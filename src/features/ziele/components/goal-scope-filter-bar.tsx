@@ -2,98 +2,141 @@
 
 import { useEntityOptions } from "@/features/create/use-entity-options";
 import { useUrlState } from "@/lib/hooks/use-url-state";
-import { PeriodPicker } from "./period-picker";
+import { MultiSelectFilter, type MultiSelectSection } from "@/components/ui/multi-select-filter";
+import {
+  OPEN_STATUSES,
+  CLOSED_STATUSES,
+  goalStatusLabel,
+  goalStatusColor,
+} from "@/domain/goal-status";
 
 interface ScopeOption {
   id: string;
   name?: string;
 }
 
-const SELECT =
-  "h-9 rounded-md border border-input bg-card px-2 text-sm shadow-xs focus:outline-none focus:ring-2 focus:ring-ring";
-
 /**
  * Prominente Filterleiste für die Strategie/Ziele-Liste: **Zeitraum · Wertstrom ·
- * ART**. Alle drei schreiben URL-State via `useUrlState` (`router.replace`, kein
- * Scroll-Sprung): `?period=` / `?vs=` / `?art=` — der Loader (`loadStrategyTree`)
- * konsumiert sie server­seitig. VS/ART-Optionen laden selbst über die v1-APIs;
- * der Zeitraum nutzt den `PeriodPicker` im controlled/Filter-Modus.
+ * ART · Status** — alle als **Mehrfachauswahl** (Popover-Checkboxen). Jede Auswahl
+ * wird als CSV im URL-State abgelegt (`?period=`/`?vs=`/`?art=`/`?status=`); der
+ * Loader (`loadStrategyTree`) filtert serverseitig (UND zwischen Gruppen, ODER
+ * innerhalb). Zeitraum-Optionen kommen vom Server (`availablePeriods`), VS/ART aus
+ * den v1-APIs. Status ist gruppiert (Offen/Geschlossen/Ohne Status) — die
+ * Gruppen-„alle" deckt Aktiv/Geschlossen ab. Sentinel `none` = ohne Status.
  */
 export function GoalScopeFilterBar({
+  availablePeriods = [],
   showValueStreams = true,
   showArts = true,
 }: {
-  /** VS = Portfolio-Inhalt — im Free-Tenant ausgeblendet (leeres Dropdown wäre tot). */
+  /** Im Baum vorkommende Zeiträume (Server) als Filter-Optionen. */
+  availablePeriods?: { value: string; label: string }[];
+  /** VS = Portfolio-Inhalt — im Free-Tenant ausgeblendet. */
   showValueStreams?: boolean;
   /** ARTs = Programm-Inhalt — dito. */
   showArts?: boolean;
 } = {}) {
   const { params, push } = useUrlState();
-  const period = params.get("period");
-  const vs = params.get("vs") ?? "";
-  const art = params.get("art") ?? "";
+  const readSet = (key: string): Set<string> =>
+    new Set((params.get(key) ?? "").split(",").filter(Boolean));
+  const writeSet = (key: string, set: Set<string>): void =>
+    push({ [key]: set.size ? [...set].join(",") : null });
 
-  const valueStreams = useEntityOptions<ScopeOption>("/api/v1/value-streams", true);
-  const arts = useEntityOptions<ScopeOption>("/api/v1/arts", true);
+  const handlers = (key: string, set: Set<string>) => ({
+    onToggle: (v: string) => {
+      const next = new Set(set);
+      if (next.has(v)) next.delete(v);
+      else next.add(v);
+      writeSet(key, next);
+    },
+    onToggleSection: (values: string[], on: boolean) => {
+      const next = new Set(set);
+      for (const v of values)
+        if (on) next.add(v);
+        else next.delete(v);
+      writeSet(key, next);
+    },
+    onClear: () => push({ [key]: null }),
+  });
+
+  const periodSel = readSet("period");
+  const vsSel = readSet("vs");
+  const artSel = readSet("art");
+  const statusSel = readSet("status");
+
+  const valueStreams = useEntityOptions<ScopeOption>("/api/v1/value-streams", showValueStreams);
+  const arts = useEntityOptions<ScopeOption>("/api/v1/arts", showArts);
+
+  const anyActive = periodSel.size + vsSel.size + artSel.size + statusSel.size > 0;
+
+  const periodSections: MultiSelectSection[] = [{ options: availablePeriods }];
+  const vsSections: MultiSelectSection[] = [
+    { options: valueStreams.data.map((v) => ({ value: v.id, label: v.name ?? v.id })) },
+  ];
+  const artSections: MultiSelectSection[] = [
+    { options: arts.data.map((a) => ({ value: a.id, label: a.name ?? a.id })) },
+  ];
+  const statusSections: MultiSelectSection[] = [
+    {
+      heading: "Offen",
+      options: OPEN_STATUSES.map((s) => ({
+        value: s,
+        label: goalStatusLabel(s),
+        color: goalStatusColor(s),
+      })),
+    },
+    {
+      heading: "Geschlossen",
+      options: CLOSED_STATUSES.map((s) => ({
+        value: s,
+        label: goalStatusLabel(s),
+        color: goalStatusColor(s),
+      })),
+    },
+    { options: [{ value: "none", label: "Ohne Status" }] },
+  ];
 
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-2.5">
-      <Field label="Zeitraum">
-        <div className="w-52">
-          <PeriodPicker
-            value={period}
-            onChange={(key) => push({ period: key })}
-            placeholder="Alle Zeiträume"
-          />
-        </div>
-      </Field>
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2.5 shadow-xs">
+      <MultiSelectFilter
+        label="Zeitraum"
+        sections={periodSections}
+        selected={periodSel}
+        {...handlers("period", periodSel)}
+      />
       {showValueStreams && (
-        <Field label="Wertstrom">
-          <select
-            value={vs}
-            onChange={(e) => push({ vs: e.target.value || null })}
-            disabled={valueStreams.loading}
-            aria-label="Nach Wertstrom filtern"
-            className={SELECT}
-          >
-            <option value="">Alle Wertströme</option>
-            {valueStreams.data.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name ?? v.id}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <MultiSelectFilter
+          label="Wertstrom"
+          sections={vsSections}
+          selected={vsSel}
+          disabled={valueStreams.loading}
+          {...handlers("vs", vsSel)}
+        />
       )}
       {showArts && (
-        <Field label="ART">
-          <select
-            value={art}
-            onChange={(e) => push({ art: e.target.value || null })}
-            disabled={arts.loading}
-            aria-label="Nach ART filtern"
-            className={SELECT}
-          >
-            <option value="">Alle ARTs</option>
-            {arts.data.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name ?? a.id}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <MultiSelectFilter
+          label="ART"
+          sections={artSections}
+          selected={artSel}
+          disabled={arts.loading}
+          {...handlers("art", artSel)}
+        />
+      )}
+      <MultiSelectFilter
+        label="Status"
+        sections={statusSections}
+        selected={statusSel}
+        {...handlers("status", statusSel)}
+      />
+      {anyActive && (
+        <button
+          type="button"
+          onClick={() => push({ period: null, vs: null, art: null, status: null })}
+          className="ml-auto rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+        >
+          Alle Filter zurücksetzen
+        </button>
       )}
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </span>
-      {children}
-    </label>
   );
 }

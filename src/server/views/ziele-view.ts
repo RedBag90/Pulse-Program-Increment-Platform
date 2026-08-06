@@ -2,6 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import { sumTrios, type KpiInput, type RollupTrio } from "@/domain/goals-rollup";
 import { parseOptions } from "@/domain/goal-custom-field";
 import { filterGoalBranches } from "@/domain/goal-tree-filter";
+import { goalPeriodLabel, parseGoalPeriod, compareGoalPeriod } from "@/domain/goal-period";
 import { type ProgressMode, type AutoKpiLink } from "@/domain/goal-progress-mode";
 import { type AutoKpiSeriesLink } from "@/domain/goal-progress-series";
 import { parseMeasurements, latestMeasurement } from "@/domain/kpi-measurement";
@@ -170,12 +171,14 @@ export interface StrategyTree {
   themes: GoalNode[];
   /** Tenant-Gesamt-Rollup (Summe ueber alle Top-Level-Knoten). */
   tenantTrio: RollupTrio;
-  /** Period-Filter (z. B. „2026-Q2") oder `null` fuer „Alle". */
-  period: string | null;
-  /** Aktiver VS-Filter oder `null`. */
-  valueStreamId: string | null;
-  /** Aktiver ART-Filter oder `null`. */
-  artId: string | null;
+  /** Aktive Filter (Mehrfachauswahl, CSV in der URL) — Echo für Deep-Links/Badges. */
+  periods: string[];
+  valueStreamIds: string[];
+  artIds: string[];
+  /** Status-Filter: `GoalStatus`-Werte + Sentinel `"none"` (= ohne Status). */
+  statuses: string[];
+  /** Alle im Baum vorkommenden Zeiträume (chronologisch) für die Filter-Optionen. */
+  availablePeriods: { value: string; label: string }[];
 }
 
 /**
@@ -197,14 +200,16 @@ export async function loadStrategyTree(
   db: PrismaClient,
   tenantId: string,
   input: {
-    period?: string | undefined;
-    valueStreamId?: string | undefined;
-    artId?: string | undefined;
+    periods?: string[] | undefined;
+    valueStreamIds?: string[] | undefined;
+    artIds?: string[] | undefined;
+    statuses?: string[] | undefined;
   } = {},
 ): Promise<StrategyTree> {
-  const period = input.period ?? null;
-  const filterValueStreamId = input.valueStreamId ?? null;
-  const filterArtId = input.artId ?? null;
+  const periods = input.periods ?? [];
+  const valueStreamIds = input.valueStreamIds ?? [];
+  const artIds = input.artIds ?? [];
+  const statuses = input.statuses ?? [];
 
   // Alle Goal-Knoten des Tenants flach laden (Objective = einziger Knotentyp).
   // Der Baum wird in JS über parentObjectiveId gebaut; kein rekursiver Include.
@@ -488,25 +493,57 @@ export async function loadStrategyTree(
 
   const { themes } = buildStrategyTree({ rows: forestRows, lookups });
 
-  // Period-/VS-/ART-Filter: „ganzer Ast" (filterGoalBranches) auf dem fertigen Baum.
-  // tenantTrio wird nach dem Filter über die sichtbaren Roots neu summiert.
+  // Alle vorkommenden Zeiträume (über den ganzen Baum) für die Filter-Optionen —
+  // VOR dem Filtern gesammelt, damit die Auswahl vollständig bleibt.
+  const periodSet = new Set<string>();
+  const collectPeriods = (nodes: GoalNode[]): void => {
+    for (const n of nodes) {
+      if (n.period) periodSet.add(n.period);
+      collectPeriods(n.children);
+    }
+  };
+  collectPeriods(themes);
+  const availablePeriods = [...periodSet]
+    .sort((a, b) => {
+      const pa = parseGoalPeriod(a);
+      const pb = parseGoalPeriod(b);
+      return pa && pb ? compareGoalPeriod(pa, pb) : a.localeCompare(b);
+    })
+    .map((value) => ({ value, label: goalPeriodLabel(value) }));
+
+  // Filter (Mehrfachauswahl): „ganzer Ast" (filterGoalBranches), UND zwischen den
+  // Gruppen (Komposition), ODER innerhalb (`includes`/`some`). tenantTrio wird
+  // danach über die sichtbaren Roots neu summiert.
   let topLevel = themes;
-  if (period) topLevel = filterGoalBranches(topLevel, (n) => n.period === period);
-  if (filterValueStreamId) {
+  if (periods.length) {
+    topLevel = filterGoalBranches(topLevel, (n) => n.period != null && periods.includes(n.period));
+  }
+  if (valueStreamIds.length) {
     topLevel = filterGoalBranches(topLevel, (n) =>
-      n.valueStreams.some((v) => v.id === filterValueStreamId),
+      n.valueStreams.some((v) => valueStreamIds.includes(v.id)),
     );
   }
-  if (filterArtId) {
-    topLevel = filterGoalBranches(topLevel, (n) => n.arts.some((a) => a.id === filterArtId));
+  if (artIds.length) {
+    topLevel = filterGoalBranches(topLevel, (n) => n.arts.some((a) => artIds.includes(a.id)));
+  }
+  if (statuses.length) {
+    const wantNull = statuses.includes("none");
+    const realStatuses = statuses.filter((s) => s !== "none");
+    topLevel = filterGoalBranches(
+      topLevel,
+      (n) =>
+        (n.status == null && wantNull) || (n.status != null && realStatuses.includes(n.status)),
+    );
   }
 
   return {
     themes: topLevel,
     tenantTrio: sumTrios(topLevel.map((t) => t.trio)),
-    period,
-    valueStreamId: filterValueStreamId,
-    artId: filterArtId,
+    periods,
+    valueStreamIds,
+    artIds,
+    statuses,
+    availablePeriods,
   };
 }
 

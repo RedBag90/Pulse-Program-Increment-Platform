@@ -53,7 +53,11 @@ export function ZieleShell({ model, layout, userLabels = {} }: Props) {
       {effectiveTab === "strategie" && (
         <PageSection>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <GoalScopeFilterBar showValueStreams={modules.portfolio} showArts={modules.program} />
+            <GoalScopeFilterBar
+              availablePeriods={model.availablePeriods}
+              showValueStreams={modules.portfolio}
+              showArts={modules.program}
+            />
             <StrategyLayoutToggle active={layout} />
           </div>
           {layout === "tabelle" && (

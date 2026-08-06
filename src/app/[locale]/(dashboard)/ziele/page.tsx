@@ -27,18 +27,21 @@ export default async function ZielePage({ searchParams }: PageProps) {
 
   const params = await searchParams;
   const tab = parseTab(typeof params.tab === "string" ? params.tab : undefined);
-  const period = typeof params.period === "string" ? params.period : undefined;
-  const vs = typeof params.vs === "string" ? params.vs : undefined;
-  const art = typeof params.art === "string" ? params.art : undefined;
+  // Filter sind Mehrfachauswahl → CSV in der URL, hier zu Arrays gesplittet.
+  const splitCsv = (v: string | string[] | undefined): string[] =>
+    typeof v === "string" && v ? v.split(",").filter(Boolean) : [];
+  const periods = splitCsv(params.period);
+  const valueStreamIds = splitCsv(params.vs);
+  const artIds = splitCsv(params.art);
+  const statuses = splitCsv(params.status);
   const layout = params.layout === "netzplan" ? params.layout : "tabelle";
-
-  const effectivePeriod = period;
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const tree = await loadStrategyTree(db, principal.tenantId, {
-    ...(effectivePeriod ? { period: effectivePeriod } : {}),
-    ...(vs ? { valueStreamId: vs } : {}),
-    ...(art ? { artId: art } : {}),
+    ...(periods.length ? { periods } : {}),
+    ...(valueStreamIds.length ? { valueStreamIds } : {}),
+    ...(artIds.length ? { artIds } : {}),
+    ...(statuses.length ? { statuses } : {}),
   });
   const userLabels = await listTenantUserLabels(db, principal.tenantId);
 
