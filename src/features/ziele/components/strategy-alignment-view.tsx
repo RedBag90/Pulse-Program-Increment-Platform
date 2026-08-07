@@ -6,10 +6,15 @@ import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { goalDetailHref } from "@/features/ziele/lib/goal-href";
+import {
+  goalNodeProgress,
+  goalNodeTimeframe,
+  goalNodeOwner,
+  goalInitials,
+} from "@/features/ziele/lib/goal-node-view";
 import type { GoalNode } from "@/server/views/ziele-view";
-import { keyResultProgress } from "@/domain/goals-rollup";
 import { goalStatusColor } from "@/domain/goal-status";
-import { goalTimeframe, goalTimeframeLabel } from "@/domain/goal-period";
+import { goalTimeframeLabel } from "@/domain/goal-period";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 
 /**
@@ -17,16 +22,6 @@ import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-sta
  * Owner, ein-/ausklappbar in Eltern-Kind-Struktur (Konnektoren links). Rein lesend
  * — Klick öffnet das Ziel im Drawer.
  */
-
-function progressOf(n: GoalNode): number {
-  return n.progress ?? (n.isMeasurable ? keyResultProgress(n) : 0);
-}
-
-function initialsOf(label: string): string {
-  const parts = label.split("@")[0]?.trim().split(/\s+/).filter(Boolean) ?? [];
-  if (parts.length >= 2) return (parts[0]!.charAt(0) + parts[1]!.charAt(0)).toUpperCase();
-  return (parts[0] ?? "").slice(0, 2).toUpperCase();
-}
 
 function Ring({ value, status }: { value: number; status: string | null }) {
   const r = 13;
@@ -75,9 +70,9 @@ function GoalCard({
   const kids = node.children;
   const hasKids = kids.length > 0;
   const isOpen = !collapsed.has(node.id);
-  const owner = node.ownerId ? (userLabels[node.ownerId] ?? null) : null;
+  const owner = goalNodeOwner(node, userLabels);
   const sp = useSearchParams();
-  const tf = goalTimeframe(node.period, node.periodStart, node.periodEnd);
+  const tf = goalNodeTimeframe(node);
 
   return (
     <div>
@@ -101,7 +96,7 @@ function GoalCard({
         ) : (
           <span className="w-5 shrink-0" aria-hidden />
         )}
-        <Ring value={progressOf(node)} status={node.status} />
+        <Ring value={goalNodeProgress(node)} status={node.status} />
         <Link
           href={goalDetailHref(sp, node.id) as never}
           scroll={false}
@@ -123,7 +118,7 @@ function GoalCard({
             title={owner}
             className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary"
           >
-            {initialsOf(owner)}
+            {goalInitials(owner)}
           </span>
         )}
       </div>

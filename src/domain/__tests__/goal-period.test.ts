@@ -13,6 +13,7 @@ import {
   goalTimeframeLabel,
   goalTimeframeStart,
   rangesOverlap,
+  timeframeMatchesPeriodKeys,
   type GoalPeriod,
 } from "@/domain/goal-period";
 
@@ -180,5 +181,30 @@ describe("compareGoalPeriod", () => {
     // full year and q1 share a start; quarter (shorter) first
     expect(compareGoalPeriod(q1, fy)).toBeLessThan(0);
     expect(compareGoalPeriod(q3, q1)).toBeGreaterThan(0);
+  });
+});
+
+describe("timeframeMatchesPeriodKeys (Filter-Diskriminierung)", () => {
+  it("Bucket-Ziel matcht nur den exakten Key (H2 trifft Q3 NICHT)", () => {
+    const q3 = goalTimeframe("2026-Q3", null, null);
+    expect(timeframeMatchesPeriodKeys(q3, ["2026-Q3"])).toBe(true);
+    expect(timeframeMatchesPeriodKeys(q3, ["2026-Q2", "2026-Q4"])).toBe(false);
+    const h2 = goalTimeframe("2026-H2", null, null);
+    expect(timeframeMatchesPeriodKeys(h2, ["2026-Q3"])).toBe(false);
+    expect(timeframeMatchesPeriodKeys(h2, ["2026-H2"])).toBe(true);
+  });
+
+  it("Range-Ziel matcht per Überlappung mit dem Bucket-Zeitraum", () => {
+    // 1. Mär – 30. Jun überlappt Q1 und Q2, nicht Q3.
+    const range = goalTimeframe(null, "2026-03-01", "2026-06-30");
+    expect(timeframeMatchesPeriodKeys(range, ["2026-Q1"])).toBe(true);
+    expect(timeframeMatchesPeriodKeys(range, ["2026-Q2"])).toBe(true);
+    expect(timeframeMatchesPeriodKeys(range, ["2026-Q3"])).toBe(false);
+    expect(timeframeMatchesPeriodKeys(range, ["2026-Q3", "2026-Q1"])).toBe(true);
+  });
+
+  it("null / leere Auswahl trifft nie", () => {
+    expect(timeframeMatchesPeriodKeys(null, ["2026-Q1"])).toBe(false);
+    expect(timeframeMatchesPeriodKeys(goalTimeframe("2026-Q1", null, null), [])).toBe(false);
   });
 });

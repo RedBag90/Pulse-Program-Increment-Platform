@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { goalDetailHref } from "@/features/ziele/lib/goal-href";
+import { goalNodeProgress, goalNodeTimeframe } from "@/features/ziele/lib/goal-node-view";
+import { flattenGoalTree } from "@/domain/goal-tree-filter";
 import type { GoalNode } from "@/server/views/ziele-view";
-import { keyResultProgress } from "@/domain/goals-rollup";
-import { goalTimeframe, goalTimeframeLabel, currentGoalPeriod } from "@/domain/goal-period";
+import { goalTimeframeLabel, currentGoalPeriod } from "@/domain/goal-period";
 import type { GoalTimeframe } from "@/domain/goal-period";
 import { goalStatusTier, goalStatusColor, goalStatusLabel } from "@/domain/goal-status";
 import type { GoalStatusTier } from "@/domain/goal-status";
@@ -28,10 +29,7 @@ const TIER_BAR: Record<GoalStatusTier, string> = {
   neutral: "bg-muted text-muted-foreground border-border",
 };
 
-interface FlatRow {
-  node: GoalNode;
-  depth: number;
-}
+type FlatRow = { node: GoalNode; depth: number };
 
 /** Monate seit Jahresbeginn `minYear` (Tages-gebrochen) — gemeinsame Achse. */
 function monthsFrom(minYear: number, d: Date): number {
@@ -56,17 +54,6 @@ function shortTag(tf: GoalTimeframe): string {
   return tf.key.includes("-") ? (tf.key.split("-")[1] ?? "") : "FY";
 }
 
-function flatten(nodes: GoalNode[], depth: number, acc: FlatRow[]): void {
-  for (const n of nodes) {
-    acc.push({ node: n, depth });
-    if (n.children.length > 0) flatten(n.children, depth + 1, acc);
-  }
-}
-
-function progressOf(n: GoalNode): number {
-  return n.progress ?? (n.isMeasurable ? keyResultProgress(n) : 0);
-}
-
 const LABEL_W = 220;
 
 export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
@@ -75,7 +62,7 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
     const years: number[] = [];
     const collect = (nodes: GoalNode[]): void => {
       for (const n of nodes) {
-        const tf = goalTimeframe(n.period, n.periodStart, n.periodEnd);
+        const tf = goalNodeTimeframe(n);
         if (tf) {
           years.push(tf.start.getUTCFullYear(), new Date(tf.end.getTime() - 1).getUTCFullYear());
         }
@@ -145,15 +132,14 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
 
         {/* Lanes je Top-Level-Theme */}
         {themes.map((theme, ti) => {
-          const rows: FlatRow[] = [];
-          flatten([theme], 0, rows);
+          const rows: FlatRow[] = flattenGoalTree([theme]);
           return (
             <div key={theme.id} className={cn(ti > 0 && "mt-1 border-t pt-1")}>
               {rows.map(({ node, depth }) => {
-                const tf = goalTimeframe(node.period, node.periodStart, node.periodEnd);
+                const tf = goalNodeTimeframe(node);
                 const pl = tf ? placeTimeframe(tf, minYear, totalQ) : null;
                 const tier = goalStatusTier(node.status);
-                const pct = Math.round(progressOf(node) * 100);
+                const pct = Math.round(goalNodeProgress(node) * 100);
                 return (
                   <Link
                     key={node.id}

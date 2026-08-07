@@ -37,3 +37,37 @@ export function filterGoalBranches<T extends { children: T[] }>(
   }
   return out;
 }
+
+/**
+ * Alle Knoten-Ids mit mindestens einem Kind (die einklappbaren Knoten). Ein
+ * Ergebnis, das Tabelle (Array) und Netzplan (`new Set(...)`) gemeinsam nutzen —
+ * statt zweier paralleler Rekursionen (`collectParentIds` / `collapsibleIds`).
+ */
+export function collectNodeIdsWithChildren<T extends { id: string; children: T[] }>(
+  nodes: T[],
+  acc: string[] = [],
+): string[] {
+  for (const n of nodes) {
+    if (n.children.length > 0) {
+      acc.push(n.id);
+      collectNodeIdsWithChildren(n.children, acc);
+    }
+  }
+  return acc;
+}
+
+/**
+ * Pre-order-Flachlegung des Baums zu `{ node, depth }`-Zeilen; `depth` ist relativ
+ * zu den übergebenen Wurzeln (0 = Wurzel). Ein Walker für alle Zeilen-Renderer.
+ */
+export function flattenGoalTree<T extends { children: T[] }>(
+  nodes: T[],
+  depth = 0,
+  acc: { node: T; depth: number }[] = [],
+): { node: T; depth: number }[] {
+  for (const n of nodes) {
+    acc.push({ node: n, depth });
+    flattenGoalTree(n.children, depth + 1, acc);
+  }
+  return acc;
+}

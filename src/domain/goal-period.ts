@@ -191,3 +191,22 @@ export function goalTimeframeStart(tf: GoalTimeframe | null): number {
 export function rangesOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
   return aStart.getTime() < bEnd.getTime() && bStart.getTime() < aEnd.getTime();
 }
+
+/**
+ * Trifft ein Zeitraum einen der gewählten Bucket-Filter-Keys? **Bucket**-Ziel →
+ * exakte Key-Zugehörigkeit (ein H2-Ziel matcht `Q3` also **nicht** — Alt-Verhalten
+ * bleibt); **Range**-Ziel → Überlappung mit dem Zeitraum irgendeines gewählten
+ * Buckets. `null`/leere Auswahl trifft nie. Die _eine_ Stelle, die die
+ * Range-vs-Bucket-Diskriminierung für den Filter kennt (der Loader ruft nur noch).
+ */
+export function timeframeMatchesPeriodKeys(tf: GoalTimeframe | null, keys: string[]): boolean {
+  if (!tf || keys.length === 0) return false;
+  if (tf.kind === "bucket") return keys.includes(tf.key);
+  for (const k of keys) {
+    const p = parseGoalPeriod(k);
+    if (!p) continue;
+    const r = goalPeriodRange(p);
+    if (rangesOverlap(tf.start, tf.end, r.start, r.end)) return true;
+  }
+  return false;
+}

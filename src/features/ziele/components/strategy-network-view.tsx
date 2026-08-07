@@ -16,18 +16,20 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { GoalNode } from "@/server/views/ziele-view";
-import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
-import { goalTimeframe, goalTimeframeLabel } from "@/domain/goal-period";
-import { filterGoalBranches } from "@/domain/goal-tree-filter";
+import { keyResultProgress, type RollupTrio } from "@/domain/goals-rollup";
+import { goalTimeframeLabel } from "@/domain/goal-period";
+import { filterGoalBranches, collectNodeIdsWithChildren } from "@/domain/goal-tree-filter";
+import {
+  goalNodeTimeframe,
+  goalNodeOwner,
+  goalInitials,
+  isGoalDrifting,
+  isGoalOffTrack,
+} from "@/features/ziele/lib/goal-node-view";
 import { cn } from "@/lib/utils";
 import { HEAD_GOAL_ACCENT } from "@/features/ziele/lib/goal-accent";
 import { goalDetailHref } from "@/features/ziele/lib/goal-href";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
-
-/** „Off-track" = Drift (Run-Rate < 70 %) oder Status at_risk/off_track. */
-function isOffTrack(n: GoalNode): boolean {
-  return isAtRisk(n.trio) || n.status === "at_risk" || n.status === "off_track";
-}
 
 /**
  * Strategie als Netzplan — flach (Refactor §Hierarchie-Vereinfachung).
@@ -57,7 +59,6 @@ interface NodeData extends Record<string, unknown> {
   ownerInitial: string;
   ownerLabel: string;
   atRisk: boolean;
-  href: string;
   accent: string;
   /** Hat der Knoten Kinder (Expand/Collapse-Toggle anzeigen)? */
   hasChildren: boolean;
@@ -84,11 +85,14 @@ export function StrategyNetworkView({ themes, userLabels = {} }: Props) {
     });
   }, []);
 
-  const collapseAll = useCallback(() => setCollapsed(collapsibleIds(themes)), [themes]);
+  const collapseAll = useCallback(
+    () => setCollapsed(new Set(collectNodeIdsWithChildren(themes))),
+    [themes],
+  );
   const expandAll = useCallback(() => setCollapsed(new Set()), []);
 
   const visibleThemes = useMemo(
-    () => (offTrackOnly ? filterGoalBranches(themes, isOffTrack) : themes),
+    () => (offTrackOnly ? filterGoalBranches(themes, isGoalOffTrack) : themes),
     [themes, offTrackOnly],
   );
   const { nodes, edges } = useMemo(
@@ -306,8 +310,8 @@ function buildGraph(
         : "theme";
     const gid = nodeId(tier, n.id);
     const isCollapsed = collapsed.has(n.id);
-    const ownerLabel = n.ownerId ? (userLabels[n.ownerId] ?? "") : "";
-    const tf = goalTimeframe(n.period, n.periodStart, n.periodEnd);
+    const ownerLabel = goalNodeOwner(n, userLabels) ?? "";
+    const tf = goalNodeTimeframe(n);
     rawNodes.push({
       id: gid,
       data: {
@@ -315,13 +319,15 @@ function buildGraph(
         goalId: n.id,
         title: n.title,
         status: n.status,
-        progress: n.progress ?? (tier === "kr" ? krProgress(n) : trioProgress(n.trio)),
+        // Container-Knoten ohne aufgelösten Fortschritt fallen bewusst auf die
+        // €-Trio-Quote zurück (netzplan-spezifisch); ein messbares Blatt nutzt den
+        // Domain-Helfer keyResultProgress (= goalNodeProgress ohne Container-Sonderfall).
+        progress: n.progress ?? (tier === "kr" ? keyResultProgress(n) : trioProgress(n.trio)),
         subgoalCount: n.children.length,
         periodLabel: tf ? goalTimeframeLabel(tf) : "",
-        ownerInitial: initialsOf(ownerLabel),
+        ownerInitial: goalInitials(ownerLabel),
         ownerLabel,
-        atRisk: isAtRisk(n.trio),
-        href: `/ziele?entity=goal&id=${n.id}`,
+        atRisk: isGoalDrifting(n),
         accent,
         hasChildren: n.children.length > 0,
         descendantCount: descendantCount(n),
@@ -377,34 +383,8 @@ function descendantCount(n: GoalNode): number {
   return n.children.reduce((sum, c) => sum + 1 + descendantCount(c), 0);
 }
 
-/** Alle Knoten-IDs mit Kindern (für „Alle einklappen"). */
-function collapsibleIds(themes: GoalNode[]): Set<string> {
-  const ids = new Set<string>();
-  const walk = (n: GoalNode): void => {
-    if (n.children.length > 0) {
-      ids.add(n.id);
-      n.children.forEach(walk);
-    }
-  };
-  themes.forEach(walk);
-  return ids;
-}
-
+/** Netzplan-spezifischer Container-Fallback: €-Trio-Quote (realized/planned). */
 function trioProgress(trio: RollupTrio): number {
   if (trio.planned <= 0) return 0;
   return Math.max(0, Math.min(1, trio.realized / trio.planned));
-}
-
-function krProgress(kr: GoalNode): number {
-  if (kr.baseline == null || kr.target == null || kr.current == null) return 0;
-  const span = kr.target - kr.baseline;
-  if (span === 0) return kr.current === kr.target ? 1 : 0;
-  return Math.max(0, Math.min(1, (kr.current - kr.baseline) / span));
-}
-
-/** Initialen aus dem Anzeigenamen (2 Wörter → 2 Initialen; sonst 2 Zeichen). */
-function initialsOf(label: string): string {
-  const parts = label.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0]!.charAt(0) + parts[1]!.charAt(0)).toUpperCase();
-  return (parts[0] ?? "").slice(0, 2).toUpperCase();
 }

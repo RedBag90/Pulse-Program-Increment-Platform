@@ -92,6 +92,20 @@ export const OBJECTIVE_FIELD_KEYS = [
   "accountableTeamId",
 ] as const satisfies readonly GoalFieldKey[];
 
+/**
+ * Compile-Guard: `keys` muss **jeden** GoalFieldValues-Schlüssel enthalten. Fehlt
+ * einer (z. B. ein neu ergänztes Feld, das man in OBJECTIVE_FIELD_KEYS vergessen
+ * hat), wird der Parametertyp `never` und der Aufruf schlägt fehl — statt dass das
+ * Feld still nie auditiert/geschrieben wird (`satisfies` allein prüft nur, dass die
+ * gelisteten Einträge gültige Schlüssel sind, nicht die Vollständigkeit).
+ */
+function assertAllGoalFieldKeys<T extends readonly GoalFieldKey[]>(
+  keys: T & ([Exclude<GoalFieldKey, T[number]>] extends [never] ? unknown : never),
+): void {
+  void keys;
+}
+assertAllGoalFieldKeys(OBJECTIVE_FIELD_KEYS);
+
 /** Die Teilmenge, die ein KR-Update pflegt (kein narrative/closingNote/progressMode). */
 export const KEY_RESULT_FIELD_KEYS = [
   "title",
@@ -169,9 +183,13 @@ export function projectGoalFields(existing: GoalRowSnapshot): GoalFieldValues {
   };
 }
 
-/** Input → Spaltenwerte (undefined = unverändert); `precision` wird geklemmt. */
+/**
+ * Input → Spaltenwerte (undefined = unverändert); `precision` wird geklemmt.
+ * Rückgabetyp ist **vollständig** (jeder Schlüssel non-optional): fehlt eine Zeile,
+ * ist es ein Compile-Fehler statt eines still nie geschriebenen Feldes.
+ */
 export function readGoalFieldUpdates(input: GoalFieldUpdateInput): {
-  [K in GoalFieldKey]?: GoalFieldValues[K] | undefined;
+  [K in GoalFieldKey]: GoalFieldValues[K] | undefined;
 } {
   return {
     title: input.title,

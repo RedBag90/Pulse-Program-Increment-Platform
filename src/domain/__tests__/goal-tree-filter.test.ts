@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { filterGoalBranches } from "@/domain/goal-tree-filter";
+import {
+  filterGoalBranches,
+  collectNodeIdsWithChildren,
+  flattenGoalTree,
+} from "@/domain/goal-tree-filter";
 
 interface N {
   id: string;
@@ -60,5 +64,42 @@ describe("filterGoalBranches — strikt (nur Treffer + Eltern-Pfad)", () => {
     filterGoalBranches(tree, matchX);
     expect(ids(tree)).toEqual(before);
     expect(tree[0]!.children).toHaveLength(3); // T behält im Original alle 3 Kinder
+  });
+});
+
+describe("collectNodeIdsWithChildren", () => {
+  it("liefert alle Knoten mit mindestens einem Kind, pre-order", () => {
+    // T→A→A1, B→B1→B2b, B→B2, C→C1. Knoten mit Kindern: T, A, B, B1, C.
+    expect(collectNodeIdsWithChildren(tree)).toEqual(["T", "A", "B", "B1", "C"]);
+  });
+
+  it("leerer Baum → []", () => {
+    expect(collectNodeIdsWithChildren([])).toEqual([]);
+  });
+
+  it("Blätter zählen nicht", () => {
+    expect(collectNodeIdsWithChildren([n("solo", undefined)])).toEqual([]);
+  });
+});
+
+describe("flattenGoalTree", () => {
+  it("legt pre-order flach mit relativer Tiefe", () => {
+    const rows = flattenGoalTree(tree);
+    expect(rows.map((r) => [r.node.id, r.depth])).toEqual([
+      ["T", 0],
+      ["A", 1],
+      ["A1", 2],
+      ["B", 1],
+      ["B1", 2],
+      ["B2b", 3],
+      ["B2", 2],
+      ["C", 1],
+      ["C1", 2],
+    ]);
+  });
+
+  it("Tiefe ist relativ zu den übergebenen Wurzeln", () => {
+    const rows = flattenGoalTree(tree[0]!.children);
+    expect(rows[0]).toEqual({ node: tree[0]!.children[0], depth: 0 });
   });
 });

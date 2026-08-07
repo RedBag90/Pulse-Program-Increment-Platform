@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { GoalNode } from "@/server/views/ziele-view";
-import { goalPeriodLabel } from "@/domain/goal-period";
+import { goalTimeframeLabel } from "@/domain/goal-period";
+import { goalNodeTimeframe, goalNodeTimeframeLabel } from "@/features/ziele/lib/goal-node-view";
 import { MoneyExportButton } from "./money-export-button";
 
 /**
@@ -43,13 +44,16 @@ export function MoneySheetView({ themes, hasPortfolio = true }: Props) {
           .
         </p>
         <MoneyExportButton
-          rows={sorted.map((t) => ({
-            title: t.title,
-            period: t.period ? goalPeriodLabel(t.period) : "",
-            planned: t.trio.planned,
-            realized: t.trio.realized,
-            runRate: t.trio.runRate,
-          }))}
+          rows={sorted.map((t) => {
+            const tf = goalNodeTimeframe(t);
+            return {
+              title: t.title,
+              period: tf ? goalTimeframeLabel(tf) : "",
+              planned: t.trio.planned,
+              realized: t.trio.realized,
+              runRate: t.trio.runRate,
+            };
+          })}
         />
       </div>
       <div className="overflow-x-auto rounded-lg border bg-card">
@@ -108,7 +112,7 @@ function Row({ theme }: { theme: GoalNode }) {
       </Td>
       <Td>
         <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-          {theme.period ? goalPeriodLabel(theme.period) : "—"}
+          {goalNodeTimeframeLabel(theme)}
         </span>
       </Td>
       <Td align="right">{eur(theme.trio.planned)}</Td>

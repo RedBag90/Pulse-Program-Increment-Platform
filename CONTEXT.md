@@ -167,6 +167,17 @@ valuePerUnit`), summiert über die Messmonate auf den vollen KPI-Wert. Der
   Expand/Collapse je Knoten (eingeklappt = „+N" verborgene Nachfahren, Teilbaum
   wird nicht gelayoutet) und Klick → Drawer als Side-Pane. Client-only auf dem
   `GoalNode`-DTO; Collapse-Zustand ephemer.
+- **Goal-Knoten-Präsentationsmodell** — `src/features/ziele/lib/goal-node-view.ts`,
+  die _eine_ Stelle, die aus den rohen `GoalNode`-Feldern die Anzeige-Fakten ableitet,
+  die alle vier Ziel-Ansichten (Tabelle/Netzplan/Roadmap/Alignment) **und** der Drawer
+  teilen: `goalNodeProgress` (aufgelöster `progress`, sonst `keyResultProgress`),
+  `goalNodeTimeframe`/`goalNodeTimeframeLabel` (Range gewinnt über Bucket),
+  `goalNodeOwner`, `goalInitials` (@-Suffix entfällt, kanonisch), `isGoalDrifting`
+  (⚠ Run-Rate) und `isGoalOffTrack` (Drift ODER Status at_risk/off_track). Vorher hat
+  jede Ansicht diese Fakten eigenständig neu berechnet (divergierende Progress- und
+  Initialen-Varianten). Der Baum-Walk teilen sie über `flattenGoalTree` /
+  `collectNodeIdsWithChildren` (`goal-tree-filter.ts`). Der Netzplan behält bewusst
+  einen eigenen Container-Fortschritts-Fallback (€-Trio-Quote).
 - **Theme (OKR)** — Top-Level-Goal-Knoten (parentObjectiveId = null) unter dem
   Tenant. Stored as `Objective`-Row; der legacy `StrategicTheme` bleibt versteckter
   Default-Anker. Carries title, narrative, period (see **Goal-Zeitraum**),
