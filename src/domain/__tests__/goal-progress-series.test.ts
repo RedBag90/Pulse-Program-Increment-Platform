@@ -1,10 +1,26 @@
 import { describe, it, expect } from "vitest";
 import { buildAutoKpiSeries, buildNodeProgressSeries } from "@/domain/goal-progress-series";
 import type { SeriesNode } from "@/domain/goal-progress-series";
+import { nodeProgress, type RollupNode, type RollupTrio } from "@/domain/goals-rollup";
 import { goalStatusColor } from "@/domain/goal-status";
 import { parseMeasurements, latestMeasurement } from "@/domain/kpi-measurement";
 
 const unit = { metricUnit: "Kunden", metricType: "number", currencyCode: null };
+const ZERO: RollupTrio = { planned: 0, realized: 0, runRate: 0 };
+
+/** Minimaler RollupNode-Blatt für den Invarianten-Abgleich Serie ↔ Kennzahl. */
+function rollupLeaf(over: Partial<RollupNode>): RollupNode {
+  return {
+    weight: 1,
+    includeInRollup: true,
+    mode: "manual",
+    progressLeaf: null,
+    trioLeaf: ZERO,
+    trioEpicLinks: ZERO,
+    children: [],
+    ...over,
+  };
+}
 
 describe("goalStatusColor", () => {
   it("maps status to tier hex", () => {
@@ -120,6 +136,7 @@ function leaf(over: Partial<SeriesNode>): SeriesNode {
     target: 100,
     current: null,
     rollupWeight: 1,
+    includeInParentRollup: true,
     unitSpec: unit,
     checkins: [],
     autoKpiLinks: [],
@@ -267,5 +284,81 @@ describe("buildNodeProgressSeries", () => {
     expect(buildNodeProgressSeries(parent, "2026-02-01")).toEqual([
       { at: "2026-01-01", progress: 0.25 },
     ]);
+  });
+
+  it("rollup: stabiler Nenner — ein spät gestartetes Kind erzeugt KEINE Delle", () => {
+    // a=0.3, b=0.6 durchgehend; c startet erst am 15.7. bei 0, steigt dann auf 0.3.
+    const a = leaf({ checkins: [{ at: "2026-01-01", progress: 0.3 }], current: null });
+    const b = leaf({ checkins: [{ at: "2026-01-01", progress: 0.6 }], current: null });
+    const c = leaf({
+      checkins: [
+        { at: "2026-07-15", progress: 0 },
+        { at: "2026-08-01", progress: 0.3 },
+      ],
+      current: null,
+    });
+    const parent = leaf({
+      progressMode: "rollup",
+      target: null,
+      children: [a, b, c],
+      current: null,
+    });
+    const s = buildNodeProgressSeries(parent, "2026-09-01");
+    // c zählt von Anfang an (bei 0), nicht erst ab 15.7. → Frühwert 0.3 (nicht 0.45),
+    // und die Reihe ist MONOTON steigend (keine 0.45→0.3-Delle).
+    expect(s.map((p) => p.at)).toEqual(["2026-01-01", "2026-07-15", "2026-08-01"]);
+    const vals = s.map((p) => p.progress);
+    [0.3, 0.3, 0.4].forEach((exp, i) => expect(vals[i]!).toBeCloseTo(exp, 10));
+    expect(vals).toEqual([...vals].sort((x, y) => x - y)); // monoton nicht-fallend
+  });
+
+  it("rollup: includeInParentRollup=false zählt weder in Linie noch Endpunkt", () => {
+    const a = leaf({ checkins: [{ at: "2026-01-01", progress: 0.3 }], current: null });
+    const b = leaf({
+      includeInParentRollup: false,
+      checkins: [{ at: "2026-01-01", progress: 0.9 }],
+      current: null,
+    });
+    const parent = leaf({ progressMode: "rollup", target: null, children: [a, b], current: null });
+    expect(buildNodeProgressSeries(parent, "2026-02-01")).toEqual([
+      { at: "2026-01-01", progress: 0.3 }, // nur a; b ausgeschlossen (nicht 0.6)
+    ]);
+  });
+
+  it("rollup: leeres Kind (nie Fortschritt) wird ausgeklammert wie nodeProgress-null", () => {
+    const a = leaf({ checkins: [{ at: "2026-01-01", progress: 0.4 }], current: null });
+    const empty = leaf({ checkins: [], current: null }); // keine Punkte, kein Live-Ende
+    const parent = leaf({
+      progressMode: "rollup",
+      target: null,
+      children: [a, empty],
+      current: null,
+    });
+    expect(buildNodeProgressSeries(parent, "2026-02-01")).toEqual([
+      { at: "2026-01-01", progress: 0.4 }, // nur a; leeres Kind zählt nicht (kein 0.2)
+    ]);
+  });
+
+  it("rollup: Serien-Endpunkt = nodeProgress (dieselbe Rollup-Regel)", () => {
+    const a = leaf({ progressMode: "manual", current: 30, rollupWeight: 2 }); // 0.3 @ target 100
+    const b = leaf({ progressMode: "manual", current: 90, rollupWeight: 1 }); // 0.9
+    const parent = leaf({ progressMode: "rollup", target: null, children: [a, b], current: null });
+    const s = buildNodeProgressSeries(parent, "2026-02-01");
+    const end = s.at(-1)!.progress;
+    // Kennzahl: gewichteter Ø der Kind-Ist-Fortschritte = (2·0.3 + 1·0.9)/3 = 0.5.
+    const expected = nodeProgress({
+      weight: 1,
+      includeInRollup: true,
+      mode: "rollup",
+      progressLeaf: null,
+      trioLeaf: ZERO,
+      trioEpicLinks: ZERO,
+      children: [
+        rollupLeaf({ weight: 2, progressLeaf: 0.3 }),
+        rollupLeaf({ weight: 1, progressLeaf: 0.9 }),
+      ],
+    });
+    expect(end).toBeCloseTo(expected!, 10);
+    expect(end).toBeCloseTo(0.5, 10);
   });
 });

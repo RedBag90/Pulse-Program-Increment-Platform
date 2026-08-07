@@ -69,6 +69,8 @@ export interface SeriesNode {
   current: number | null;
   /** Gewicht im Eltern-Rollup (Default 1). */
   rollupWeight: number;
+  /** Asana „Remove from automatic progress": false ⇒ zählt nicht im Eltern-Rollup. */
+  includeInParentRollup: boolean;
   unitSpec: UnitSpec;
   /** Eigene Status-Check-ins (eingefrorener Fortschritt 0..1), beliebige Reihenfolge. */
   checkins: ProgressPoint[];
@@ -171,18 +173,28 @@ export function buildNodeProgressSeries(
   const hasChildren = node.children.length > 0;
 
   if (aggregatesFromChildren(node.progressMode, hasChildren)) {
-    const childSeries = node.children.map((c) => ({
-      w: c.rollupWeight > 0 ? c.rollupWeight : 1,
-      s: buildNodeProgressSeries(c, now, liveEnd),
-    }));
+    // Asana-Logik: **stabiler Nenner**. Alle verbundenen Kinder (außer aus dem
+    // automatischen Fortschritt entfernte) zählen durchgehend; vor ihrem ersten
+    // Update stehen sie auf Baseline (Fortschritt 0), werden NICHT ausgeklammert.
+    // So wechselt der Nenner nicht, wenn ein spät gestartetes Kind eintritt — keine
+    // Kompositions-Delle; die Linie ist auf monotonen Eingaben monoton und ihr
+    // rechter Rand deckt sich mit `nodeProgress` (dieselbe Rollup-Regel über die Zeit).
+    const childSeries = node.children
+      .filter((c) => c.includeInParentRollup)
+      .map((c) => ({
+        w: c.rollupWeight > 0 ? c.rollupWeight : 1,
+        s: buildNodeProgressSeries(c, now, liveEnd),
+      }))
+      // Leere Serie = nie ein verwertbarer Fortschritt ⇒ ausklammern, exakt wie
+      // `nodeProgress` Kinder mit `null` ausschließt (Serien-Ende = Kennzahl).
+      .filter((cs) => cs.s.length > 0);
     const dates = [...new Set(childSeries.flatMap((cs) => cs.s.map((p) => p.at)))].sort();
     const out: ProgressPoint[] = [];
     for (const at of dates) {
       let wsum = 0;
       let acc = 0;
       for (const cs of childSeries) {
-        const p = progressAt(cs.s, at);
-        if (p == null) continue; // Kind ohne Wert (noch) → ausklammern
+        const p = progressAt(cs.s, at) ?? 0; // vor erstem Update: Baseline 0, aber mitzählen
         wsum += cs.w;
         acc += cs.w * p;
       }

@@ -332,6 +332,7 @@ describe("buildProgressChart", () => {
     target: 10,
     current: 8,
     rollupWeight: null,
+    includeInParentRollup: true,
     metricUnit: null,
     metricType: "number",
     currencyCode: null,
@@ -415,6 +416,41 @@ describe("buildProgressChart", () => {
         rootCheckins: [],
         now: "2026-01-01T00:00:00.000Z",
       }),
-    ).toEqual({ mode: "percent", series: [], yDomain: [0, 100] });
+    ).toEqual({ mode: "percent", series: [], yDomain: [0, 100], pace: null });
+  });
+
+  it("pace: Ideallinie Baseline→Target über den Ziel-Zeitraum (value-Mode)", () => {
+    const chart = buildProgressChart({
+      rootId: "R",
+      rows: [manualRow({ baseline: 0, target: 10 })],
+      progressByNode: new Map(),
+      autoKpiSeriesByNode: new Map(),
+      rootCheckins: [
+        { atMs: Date.parse("2026-03-01"), status: "on_track", value: 4, progress: 0.4 },
+      ],
+      now: "2026-06-01T00:00:00.000Z",
+      rootPeriod: "2026",
+    });
+    // Ganzjahr 2026: Start 1.1.2026 (Baseline 0) → Ende 1.1.2027 (Target 10).
+    expect(chart.pace).toEqual({
+      fromMs: Date.UTC(2026, 0, 1),
+      toMs: Date.UTC(2027, 0, 1),
+      from: 0,
+      to: 10,
+    });
+  });
+
+  it("pace: null wenn kein Zeitraum am Wurzel-Ziel", () => {
+    const chart = buildProgressChart({
+      rootId: "R",
+      rows: [manualRow()],
+      progressByNode: new Map(),
+      autoKpiSeriesByNode: new Map(),
+      rootCheckins: [
+        { atMs: Date.parse("2026-03-01"), status: "on_track", value: 8, progress: 0.8 },
+      ],
+      now: "2026-06-01T00:00:00.000Z",
+    });
+    expect(chart.pace).toBeNull();
   });
 });

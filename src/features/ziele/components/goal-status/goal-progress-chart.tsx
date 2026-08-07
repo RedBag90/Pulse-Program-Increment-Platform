@@ -7,10 +7,11 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
 import { goalStatusColor } from "@/domain/goal-status";
-import type { ProgressChartPoint } from "@/server/views/ziele-view";
+import type { ProgressChartPoint, ProgressPace } from "@/server/views/ziele-view";
 
 /**
  * Fortschritts-Verlaufsgraf des Ziel-Detail-Panels — die **einzige** Stelle, die
@@ -22,11 +23,21 @@ export function GoalProgressChart({
   data,
   yDomain,
   unitSuffix,
+  pace,
 }: {
   data: ProgressChartPoint[];
   yDomain: [number, number];
   unitSuffix: string;
+  pace?: ProgressPace | null;
 }) {
+  // Achse ggf. bis zur Deadline erweitern, damit die Pace-Linie nicht abgeschnitten wird.
+  const xs = data.map((d) => d.at);
+  const dataMin = xs.length ? Math.min(...xs) : 0;
+  const dataMax = xs.length ? Math.max(...xs) : 1;
+  const xDomain: [number, number] = pace
+    ? [Math.min(dataMin, pace.fromMs), Math.max(dataMax, pace.toMs)]
+    : [dataMin, dataMax];
+
   return (
     <div className="h-48 w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -38,11 +49,24 @@ export function GoalProgressChart({
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+          {/* „Expected pace"-Ideallinie (Baseline→Target über den Zeitraum). */}
+          {pace && (
+            <ReferenceLine
+              stroke="var(--muted-foreground)"
+              strokeDasharray="4 4"
+              strokeOpacity={0.45}
+              segment={[
+                { x: pace.fromMs, y: pace.from },
+                { x: pace.toMs, y: pace.to },
+              ]}
+            />
+          )}
           <XAxis
             dataKey="at"
             type="number"
             scale="time"
-            domain={["dataMin", "dataMax"]}
+            domain={xDomain}
+            allowDataOverflow
             tick={{ fontSize: 11 }}
             tickFormatter={(ms: number) =>
               new Date(ms).toLocaleDateString("de-DE", { day: "2-digit", month: "short" })

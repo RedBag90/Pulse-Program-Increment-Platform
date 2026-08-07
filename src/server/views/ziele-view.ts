@@ -603,11 +603,24 @@ export interface ProgressChartPoint {
   entry: boolean;
 }
 
+/**
+ * „Expected pace" — die Ideallinie (Asana): von (Zeitraum-Start, Baseline bzw. 0 %)
+ * zu (Deadline, Target bzw. 100 %). Rein visuelle Orientierung (vor/hinter Plan).
+ */
+export interface ProgressPace {
+  fromMs: number;
+  toMs: number;
+  from: number;
+  to: number;
+}
+
 export interface ProgressChart {
   /** "value" = Roh-Wert (messbar); "percent" = 0..100 (Rollup). */
   mode: "value" | "percent";
   series: ProgressChartPoint[];
   yDomain: [number, number];
+  /** Ideallinie über den Ziel-Zeitraum; null wenn kein Zeitraum gesetzt. */
+  pace: ProgressPace | null;
 }
 
 export interface GoalDetail {
@@ -710,10 +723,10 @@ async function loadProgressChart(
   tenantId: string,
   id: string,
 ): Promise<ProgressChart> {
-  const empty: ProgressChart = { mode: "percent", series: [], yDomain: [0, 100] };
+  const empty: ProgressChart = { mode: "percent", series: [], yDomain: [0, 100], pace: null };
   const root = await db.objective.findFirst({
     where: { id, tenantId },
-    select: { id: true, path: true },
+    select: { id: true, path: true, period: true, periodStart: true, periodEnd: true },
   });
   if (!root) return empty;
 
@@ -727,6 +740,7 @@ async function loadProgressChart(
       target: true,
       current: true,
       rollupWeight: true,
+      includeInParentRollup: true,
       metricUnit: true,
       metricType: true,
       currencyCode: true,
@@ -814,6 +828,7 @@ async function loadProgressChart(
     target: toFloat(r.target),
     current: toFloat(r.current),
     rollupWeight: toFloat(r.rollupWeight),
+    includeInParentRollup: r.includeInParentRollup,
     metricUnit: r.metricUnit,
     metricType: r.metricType,
     currencyCode: r.currencyCode,
@@ -827,6 +842,9 @@ async function loadProgressChart(
     autoKpiSeriesByNode,
     rootCheckins,
     now: new Date().toISOString(),
+    rootPeriod: root.period,
+    rootPeriodStart: root.periodStart ? root.periodStart.toISOString() : null,
+    rootPeriodEnd: root.periodEnd ? root.periodEnd.toISOString() : null,
   });
 }
 

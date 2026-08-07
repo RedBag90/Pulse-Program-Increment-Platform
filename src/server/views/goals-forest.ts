@@ -43,6 +43,7 @@ import {
   type SeriesNode,
 } from "@/domain/goal-progress-series";
 import { isClosed } from "@/domain/goal-status";
+import { goalTimeframe } from "@/domain/goal-period";
 import type {
   GoalNode,
   GoalLatestCheckin,
@@ -52,6 +53,7 @@ import type {
   GoalCustomFieldEntry,
   ProgressChart,
   ProgressChartPoint,
+  ProgressPace,
 } from "./ziele-view";
 
 // ── Eingabetypen (vom Loader normalisiert; reines plain-JS, kein Prisma) ──────
@@ -385,6 +387,8 @@ export interface ChartObjective {
   target: number | null;
   current: number | null;
   rollupWeight: number | null;
+  /** Asana „Remove from automatic progress": false ⇒ zählt nicht im Eltern-Rollup. */
+  includeInParentRollup: boolean;
   metricUnit: string | null;
   metricType: string;
   currencyCode: string | null;
@@ -412,6 +416,10 @@ export interface GoalChartInput {
   rootCheckins: ChartRootCheckin[];
   /** „Jetzt" als ISO — injizierbar für Tests. */
   now: string;
+  /** Ziel-Zeitraum des Wurzelknotens (für die Expected-Pace-Ideallinie). */
+  rootPeriod?: string | null;
+  rootPeriodStart?: string | null;
+  rootPeriodEnd?: string | null;
 }
 
 /**
@@ -420,7 +428,7 @@ export interface GoalChartInput {
  * die eigenen Status-Check-ins. Baut den `SeriesNode`-Baum hinter diesem Seam.
  */
 export function buildProgressChart(input: GoalChartInput): ProgressChart {
-  const empty: ProgressChart = { mode: "percent", series: [], yDomain: [0, 100] };
+  const empty: ProgressChart = { mode: "percent", series: [], yDomain: [0, 100], pace: null };
   const { rootId, rows, progressByNode, autoKpiSeriesByNode, rootCheckins, now } = input;
 
   const childrenByParent = new Map<string, ChartObjective[]>();
@@ -440,6 +448,7 @@ export function buildProgressChart(input: GoalChartInput): ProgressChart {
       target: row.target,
       current: row.current,
       rollupWeight: row.rollupWeight ?? 1,
+      includeInParentRollup: row.includeInParentRollup,
       unitSpec: {
         metricUnit: row.metricUnit,
         metricType: row.metricType,
@@ -545,5 +554,17 @@ export function buildProgressChart(input: GoalChartInput): ProgressChart {
     yDomain = [lo, hi > lo ? hi : lo + 1];
   }
 
-  return { mode, series, yDomain };
+  // Expected-Pace-Ideallinie: vom Zeitraum-Start (Baseline bzw. 0 %) zur Deadline
+  // (Target bzw. 100 %). Nur wenn ein effektiver Zeitraum am Wurzel-Ziel gesetzt ist.
+  const tf = goalTimeframe(input.rootPeriod, input.rootPeriodStart, input.rootPeriodEnd);
+  let pace: ProgressPace | null = null;
+  if (tf) {
+    const [from, to] =
+      mode === "value" ? [seriesRoot.baseline ?? 0, seriesRoot.target ?? 0] : [0, 100];
+    if (to !== from) {
+      pace = { fromMs: tf.start.getTime(), toMs: tf.end.getTime(), from, to };
+    }
+  }
+
+  return { mode, series, yDomain, pace };
 }

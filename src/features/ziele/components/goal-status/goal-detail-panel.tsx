@@ -379,7 +379,12 @@ export function GoalDetailPanel({
           )}
 
           {chart && chartData.length > 0 && (
-            <GoalProgressChart data={chartData} yDomain={chart.yDomain} unitSuffix={unitSuffix} />
+            <GoalProgressChart
+              data={chartData}
+              yDomain={chart.yDomain}
+              unitSuffix={unitSuffix}
+              pace={chart.pace}
+            />
           )}
         </div>
       )}
