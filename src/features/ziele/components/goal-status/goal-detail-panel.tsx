@@ -2,22 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState, startTransition, useActionState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Plus } from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 import { GoalStatusSelect } from "@/features/ziele/components/goal-status/goal-status-select";
 import { GoalActivityFeed } from "@/features/ziele/components/goal-status/goal-activity-feed";
 import { checkInGoalAction, updateGoalProgressAction } from "@/features/ziele/actions/ziele";
 import { getGoalDetailAction, type GoalDetailPayload } from "@/features/ziele/actions/goal-detail";
-import { suggestOpenStatus, goalStatusColor, type GoalStatus } from "@/domain/goal-status";
+import { suggestOpenStatus, type GoalStatus } from "@/domain/goal-status";
+
+// recharts (~150 kb gz) erst laden, wenn das Detail-Panel gerendert wird (Drawer
+// offen mit Verlauf) — nicht im Initial-Bundle des immer-gemounteten Drawers.
+const GoalProgressChart = dynamic(
+  () => import("./goal-progress-chart").then((m) => m.GoalProgressChart),
+  { ssr: false, loading: () => <div className="h-48 w-full animate-pulse rounded-lg bg-muted" /> },
+);
 import { metricUnitSuffix } from "@/domain/goal-metric";
 import type { GoalTarget } from "@/server/views/ziele-view";
 
@@ -380,50 +379,7 @@ export function GoalDetailPanel({
           )}
 
           {chart && chartData.length > 0 && (
-            <div className="h-48 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
-                  <defs>
-                    <linearGradient id="goalArea" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.22} />
-                      <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis
-                    dataKey="at"
-                    type="number"
-                    scale="time"
-                    domain={["dataMin", "dataMax"]}
-                    tick={{ fontSize: 11 }}
-                    tickFormatter={(ms: number) =>
-                      new Date(ms).toLocaleDateString("de-DE", { day: "2-digit", month: "short" })
-                    }
-                  />
-                  <YAxis domain={chart.yDomain} tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    formatter={(v) => `${v}${unitSuffix}`}
-                    labelFormatter={(ms) =>
-                      new Date(Number(ms)).toLocaleDateString("de-DE", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })
-                    }
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="var(--primary)"
-                    strokeWidth={2.5}
-                    fill="url(#goalArea)"
-                    isAnimationActive={false}
-                    dot={StatusDot}
-                    activeDot={{ r: 5 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <GoalProgressChart data={chartData} yDomain={chart.yDomain} unitSuffix={unitSuffix} />
           )}
         </div>
       )}
@@ -450,46 +406,6 @@ export function GoalDetailPanel({
       )}
     </div>
   );
-}
-
-/**
- * Recharts-Dot:
- *  - `status` gesetzt → gefüllter Kreis in der Status-Farbe (Status-Update);
- *  - `entry` (statusloser manueller Wert-Eintrag) → hohler neutraler Kreis;
- *  - reine Linien-Vertices (KPI-Verlauf / Rollup / Live-Ende) → kein Punkt.
- */
-function StatusDot(props: {
-  cx?: number;
-  cy?: number;
-  payload?: { status?: string | null; entry?: boolean };
-}) {
-  const { cx, cy, payload } = props;
-  if (cx == null || cy == null) return <g />;
-  if (payload?.status != null) {
-    return (
-      <circle
-        cx={cx}
-        cy={cy}
-        r={4.5}
-        fill={goalStatusColor(payload.status)}
-        stroke="white"
-        strokeWidth={1.5}
-      />
-    );
-  }
-  if (payload?.entry) {
-    return (
-      <circle
-        cx={cx}
-        cy={cy}
-        r={3.5}
-        fill="var(--background)"
-        stroke={goalStatusColor(null)}
-        strokeWidth={1.5}
-      />
-    );
-  }
-  return <g />;
 }
 
 function Card({

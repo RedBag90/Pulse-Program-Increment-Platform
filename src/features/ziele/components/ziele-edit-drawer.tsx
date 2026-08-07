@@ -18,7 +18,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { goalPeriodLabel } from "@/domain/goal-period";
+import { goalNodeTimeframeLabel } from "@/features/ziele/lib/goal-node-view";
 import type {
   ZieleModel,
   RelatedEpic,
@@ -580,11 +580,17 @@ function GoalPane({
       {/* Einstellungen — Custom Fields + vollständiges Formular. */}
       {tab === "settings" && (
         <div className="space-y-4">
-          {node.customFields.length > 0 && (
+          {model.customFieldDefs.length > 0 && (
             <CustomFields
               target={detailTarget}
               goalId={id}
-              fields={node.customFields}
+              // Tenant-Defs (einmalig aus dem Modell) + die gesetzten Werte dieses
+              // Knotens (sparse) → volle editierbare Feldliste, ohne Defs × alle
+              // Knoten im First-Paint-Payload.
+              fields={model.customFieldDefs.map((d) => ({
+                ...d,
+                value: node.customFields.find((f) => f.defId === d.defId)?.value ?? "",
+              }))}
               canEdit={canEdit}
             />
           )}
@@ -697,7 +703,7 @@ function SubGoals({
                   </span>
                 </span>
                 <span className="block truncate text-[10px] text-muted-foreground">
-                  {sg.period ? goalPeriodLabel(sg.period) : "—"}
+                  {goalNodeTimeframeLabel(sg)}
                   {!sg.includeInParentRollup && (
                     <span
                       className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[9px] font-medium text-amber-800"
@@ -830,8 +836,7 @@ function ParentGoalSection({
           >
             <span className="truncate font-medium">{parent.title}</span>
             <span className="block truncate text-[10px] text-muted-foreground">
-              {Math.round((parent.progress ?? 0) * 100)} % ·{" "}
-              {parent.period ? goalPeriodLabel(parent.period) : "—"}
+              {Math.round((parent.progress ?? 0) * 100)} % · {goalNodeTimeframeLabel(parent)}
             </span>
           </Link>
           {canEdit && (

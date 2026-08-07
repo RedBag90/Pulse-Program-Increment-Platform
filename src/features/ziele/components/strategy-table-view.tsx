@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, startTransition, useActionState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  startTransition,
+  useActionState,
+  memo,
+} from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { goalHref, goalDetailHref, goalCreateHref } from "@/features/ziele/lib/goal-href";
@@ -15,9 +24,17 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GoalNode } from "@/server/views/ziele-view";
-import { isAtRisk, keyResultProgress, type RollupTrio } from "@/domain/goals-rollup";
-import { goalTimeframe, goalTimeframeLabel, goalTimeframeStart } from "@/domain/goal-period";
-import { filterGoalBranches } from "@/domain/goal-tree-filter";
+import { type RollupTrio } from "@/domain/goals-rollup";
+import { goalTimeframe, goalTimeframeStart } from "@/domain/goal-period";
+import { filterGoalBranches, collectNodeIdsWithChildren } from "@/domain/goal-tree-filter";
+import {
+  goalNodeProgress,
+  goalNodeOwner,
+  goalNodeTimeframeLabel,
+  goalInitials,
+  isGoalDrifting,
+  isGoalOffTrack,
+} from "@/features/ziele/lib/goal-node-view";
 import { reparentGoalNodeAction } from "@/features/ziele/actions/ziele";
 import { HEAD_GOAL_ACCENT } from "@/features/ziele/lib/goal-accent";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
@@ -28,7 +45,12 @@ import { useLocalStorageState } from "@/lib/hooks/use-local-storage-state";
 /** Drop-Position relativ zur Ziel-Zeile: davor/dazwischen (Geschwister) oder unterordnen. */
 type Placement = "before" | "inside" | "after";
 
-/** Drag-Kontext (Umsortieren + Unterordnen), durch NodeRows → Row gereicht. */
+/**
+ * Drag-Kontext — **nur stabile Handler** (durch NodeRows → Row gereicht). Der
+ * häufig wechselnde Over-Zustand (`overId`/`overPlacement`) wird bewusst NICHT
+ * hier geführt, sondern als Per-Zeilen-Primitive gereicht, damit ein Hover nur
+ * die betroffenen (memoisierten) Zeilen neu rendert, nicht den ganzen Baum.
+ */
 interface DragCtx {
   canEdit: boolean;
   /** Umsortieren (davor/danach) nur im Sortier-Modus „Manuell". */
@@ -36,8 +58,6 @@ interface DragCtx {
   onStart: (node: GoalNode) => void;
   onDropOn: (target: GoalNode | null, placement: Placement) => void;
   isValidTarget: (targetId: string) => boolean;
-  overId: string | null;
-  overPlacement: Placement | null;
   setOver: (id: string | null, placement: Placement | null) => void;
 }
 
@@ -79,22 +99,6 @@ function subtreeHas(n: GoalNode, id: string): boolean {
   return n.children.some((c) => subtreeHas(c, id));
 }
 
-/** Alle Knoten-Ids mit Kindern (Kandidaten fürs Einklappen). */
-function collectParentIds(nodes: GoalNode[], acc: string[] = []): string[] {
-  for (const n of nodes) {
-    if (n.children.length > 0) {
-      acc.push(n.id);
-      collectParentIds(n.children, acc);
-    }
-  }
-  return acc;
-}
-
-/** „Off-track" = Drift (Run-Rate < 70 %) oder Status at_risk/off_track. */
-function isOffTrack(n: GoalNode): boolean {
-  return isAtRisk(n.trio) || n.status === "at_risk" || n.status === "off_track";
-}
-
 /** Sortierkriterium der Top-Level-Themes (Geschwister); „manual" = Server-Reihenfolge. */
 type SortKey = "manual" | "progress" | "value" | "period" | "title";
 
@@ -123,9 +127,9 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [, reparentRun] = useActionState(reparentGoalNodeAction, {});
 
-  const allParentIds = useMemo(() => collectParentIds(themes), [themes]);
+  const allParentIds = useMemo(() => collectNodeIdsWithChildren(themes), [themes]);
   const visibleThemes = useMemo(
-    () => (offTrackOnly ? filterGoalBranches(themes, isOffTrack) : themes),
+    () => (offTrackOnly ? filterGoalBranches(themes, isGoalOffTrack) : themes),
     [themes, offTrackOnly],
   );
   // Sortierung betrifft nur die Top-Level-Themes; Kinder behalten ihre Reihenfolge.
@@ -154,18 +158,12 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
   const filtersActive = sortKey !== "manual" || offTrackOnly;
   const reorderable = sortKey === "manual";
 
-  const drag: DragCtx = {
-    canEdit,
-    reorderable,
-    onStart: (node) => {
-      dragNode.current = node;
-      setDragging(true);
-    },
-    isValidTarget: (targetId) => {
-      const src = dragNode.current;
-      return !!src && src.id !== targetId && !subtreeHas(src, targetId);
-    },
-    onDropOn: (target, placement) => {
+  // Deep-Links erhalten die aktiven Filter/Layout-Params — einmal an der Wurzel
+  // lesen (statt via Hook pro Zeile) und als `sp` durch den Baum reichen.
+  const sp = useSearchParams();
+
+  const onDropOn = useCallback(
+    (target: GoalNode | null, placement: Placement) => {
       const src = dragNode.current;
       dragNode.current = null;
       setOver(null);
@@ -197,10 +195,28 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
       fd.set("beforeId", beforeId);
       startTransition(() => reparentRun(fd));
     },
-    overId: over?.id ?? null,
-    overPlacement: over?.placement ?? null,
-    setOver: (id, placement) => setOver(id && placement ? { id, placement } : null),
-  };
+    [themes, reparentRun],
+  );
+
+  // Stabile Handler → `drag`-Identität wechselt NICHT bei jedem Hover; der
+  // Over-Zustand kommt separat als Per-Zeilen-Primitive.
+  const drag: DragCtx = useMemo(
+    () => ({
+      canEdit,
+      reorderable,
+      onStart: (node) => {
+        dragNode.current = node;
+        setDragging(true);
+      },
+      isValidTarget: (targetId) => {
+        const src = dragNode.current;
+        return !!src && src.id !== targetId && !subtreeHas(src, targetId);
+      },
+      onDropOn,
+      setOver: (id, placement) => setOver(id && placement ? { id, placement } : null),
+    }),
+    [canEdit, reorderable, onDropOn],
+  );
 
   // Auto-Scroll: natives HTML5-Drag scrollt nicht — am oberen/unteren Rand des
   // Scroll-Containers automatisch weiterscrollen, damit lange Listen erreichbar sind.
@@ -236,12 +252,15 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
     };
   }, [dragging]);
 
-  const tree: TreeCtx = {
-    collapsed,
-    userLabels,
-    toggle: (id) =>
+  const toggle = useCallback(
+    (id: string) =>
       setCollapsedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])),
-  };
+    [setCollapsedIds],
+  );
+  const tree: TreeCtx = useMemo(
+    () => ({ collapsed, userLabels, toggle }),
+    [collapsed, userLabels, toggle],
+  );
 
   if (themes.length === 0) {
     return (
@@ -391,7 +410,17 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
           </thead>
           <tbody className="divide-y">
             {sortedThemes.map((t) => (
-              <NodeRows key={t.id} node={t} depth={0} canEdit={canEdit} drag={drag} tree={tree} />
+              <NodeRows
+                key={t.id}
+                node={t}
+                depth={0}
+                canEdit={canEdit}
+                drag={drag}
+                tree={tree}
+                sp={sp}
+                overId={over?.id ?? null}
+                overPlacement={over?.placement ?? null}
+              />
             ))}
           </tbody>
         </table>
@@ -410,12 +439,18 @@ function NodeRows({
   canEdit,
   drag,
   tree,
+  sp,
+  overId,
+  overPlacement,
 }: {
   node: GoalNode;
   depth: number;
   canEdit: boolean;
   drag: DragCtx;
   tree: TreeCtx;
+  sp: ReturnType<typeof useSearchParams>;
+  overId: string | null;
+  overPlacement: Placement | null;
 }) {
   // Kompakter Inline-Suffix: nur der Beitrags-Anteil bei Unterzielen (die
   // Hierarchie-Ebene zeigt bereits Theme vs. Unterziel).
@@ -423,12 +458,13 @@ function NodeRows({
     depth > 0 && node.rollupWeight != null
       ? `trägt ${Math.round(node.contributionShare * 100)} %`
       : "";
-  const progress = node.progress ?? (node.isMeasurable ? keyResultProgress(node) : 0);
+  const progress = goalNodeProgress(node);
   const hasChildren = node.children.length > 0;
   const isCollapsed = tree.collapsed.has(node.id);
-  const ownerLabel = node.ownerId ? (tree.userLabels[node.ownerId] ?? null) : null;
-  // Deep-Links erhalten die aktiven Filter/Layout-Params (kein bares ?entity=…).
-  const sp = useSearchParams();
+  const ownerLabel = goalNodeOwner(node, tree.userLabels);
+  // Nur dieser Knoten sieht seinen eigenen Over-Zustand → memoisierte Row rendert
+  // bei einem Hover auf eine ANDERE Zeile nicht neu.
+  const isOver = overId === node.id;
 
   return (
     <>
@@ -438,28 +474,22 @@ function NodeRows({
         depth={depth}
         title={node.title}
         subtitle={subtitle}
-        drift={isAtRisk(node.trio)}
+        drift={isGoalDrifting(node)}
         href={goalDetailHref(sp, node.id)}
         statusValue={node.status}
         checkinAt={node.latestCheckin?.at ?? null}
         progress={progress}
         trio={node.trio}
-        periodLabel={goalTimeframeLabel(
-          goalTimeframe(node.period, node.periodStart, node.periodEnd),
-        )}
+        periodLabel={goalNodeTimeframeLabel(node)}
         canEdit={canEdit}
         ownerLabel={ownerLabel}
         hasChildren={hasChildren}
         isCollapsed={isCollapsed}
-        onToggle={() => tree.toggle(node.id)}
-        actions={
-          canEdit ? (
-            <RowActions
-              editHref={goalDetailHref(sp, node.id)}
-              addChildHref={goalCreateHref(sp, node.id)}
-            />
-          ) : null
-        }
+        toggle={tree.toggle}
+        isOver={isOver}
+        overPlacement={isOver ? overPlacement : null}
+        editHref={goalDetailHref(sp, node.id)}
+        addChildHref={goalCreateHref(sp, node.id)}
       />
       {hasChildren &&
         !isCollapsed &&
@@ -471,6 +501,9 @@ function NodeRows({
             canEdit={canEdit}
             drag={drag}
             tree={tree}
+            sp={sp}
+            overId={overId}
+            overPlacement={overPlacement}
           />
         ))}
     </>
@@ -494,11 +527,16 @@ interface RowProps {
   ownerLabel: string | null;
   hasChildren: boolean;
   isCollapsed: boolean;
-  onToggle: () => void;
-  actions: React.ReactNode;
+  /** Stabiler Toggle (Row bindet die id selbst) — memo-freundlich. */
+  toggle: (id: string) => void;
+  /** Per-Zeilen-Over-Zustand (nur diese Zeile wechselt beim Hover). */
+  isOver: boolean;
+  overPlacement: Placement | null;
+  editHref: string;
+  addChildHref: string;
 }
 
-function Row({
+const Row = memo(function Row({
   node,
   drag,
   depth,
@@ -515,11 +553,13 @@ function Row({
   ownerLabel,
   hasChildren,
   isCollapsed,
-  onToggle,
-  actions,
+  toggle,
+  isOver,
+  overPlacement,
+  editHref,
+  addChildHref,
 }: RowProps) {
-  const isOver = drag.overId === node.id;
-  const placement = isOver ? drag.overPlacement : null;
+  const placement = isOver ? overPlacement : null;
   // Kopf-Ziele (Top-Level-Themes) tragen eine hellblaue Schiene links; beim Ziehen
   // zeigt eine blaue Linie oben/unten die Einfüge-Position (davor/danach).
   const isHead = depth === 0;
@@ -549,14 +589,14 @@ function Row({
           const rel = (e.clientY - r.top) / r.height;
           next = rel < 0.4 ? "before" : rel > 0.6 ? "after" : "inside";
         }
-        if (drag.overId !== node.id || drag.overPlacement !== next) drag.setOver(node.id, next);
+        if (!isOver || overPlacement !== next) drag.setOver(node.id, next);
       }}
       onDragLeave={() => {
-        if (drag.overId === node.id) drag.setOver(null, null);
+        if (isOver) drag.setOver(null, null);
       }}
       onDrop={(e) => {
         e.preventDefault();
-        drag.onDropOn(node, drag.overPlacement ?? "inside");
+        drag.onDropOn(node, overPlacement ?? "inside");
       }}
     >
       <Td>
@@ -572,7 +612,7 @@ function Row({
           {hasChildren ? (
             <button
               type="button"
-              onClick={onToggle}
+              onClick={() => toggle(node.id)}
               aria-expanded={!isCollapsed}
               aria-label={isCollapsed ? "Ausklappen" : "Einklappen"}
               className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -645,15 +685,17 @@ function Row({
       </Td>
       <Td className="text-xs text-muted-foreground">{periodLabel}</Td>
       {canEdit && (
-        <Td className="sticky right-0 z-10 border-l bg-card group-hover:bg-muted/40">{actions}</Td>
+        <Td className="sticky right-0 z-10 border-l bg-card group-hover:bg-muted/40">
+          <RowActions editHref={editHref} addChildHref={addChildHref} />
+        </Td>
       )}
     </tr>
   );
-}
+});
 
 function OwnerAvatar({ label, head }: { label: string | null; head?: boolean }) {
   if (!label) return <span className="text-[11px] text-muted-foreground/50">—</span>;
-  const initials = (label.split("@")[0] ?? label).slice(0, 2).toUpperCase();
+  const initials = goalInitials(label);
   return (
     <Avatar size="sm" title={label}>
       <AvatarFallback

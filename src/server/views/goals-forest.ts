@@ -349,13 +349,18 @@ export function buildStrategyTree(input: GoalForestInput): {
       relatedWork: lookups.relatedWork.get(o.id) ?? [],
       valueStreams: lookups.valueStreams.get(o.id) ?? [],
       arts: lookups.arts.get(o.id) ?? [],
-      customFields: lookups.customFieldDefs.map((d) => ({
-        defId: d.defId,
-        name: d.name,
-        type: d.type,
-        options: d.options,
-        value: lookups.customFieldValues.get(o.id)?.get(d.defId) ?? "",
-      })) satisfies GoalCustomFieldEntry[],
+      // Nur **gesetzte** Custom-Field-Werte je Knoten (sparse) — nicht alle Defs ×
+      // alle Knoten. Die vollständige Def-Liste kommt einmal über `customFieldDefs`
+      // im Modell; der Drawer merged Defs + diese Werte für das Editier-Formular.
+      customFields: lookups.customFieldDefs
+        .map((d) => ({
+          defId: d.defId,
+          name: d.name,
+          type: d.type,
+          options: d.options,
+          value: lookups.customFieldValues.get(o.id)?.get(d.defId) ?? "",
+        }))
+        .filter((e) => e.value !== "") satisfies GoalCustomFieldEntry[],
       children: childNodes,
       depth,
       progress,

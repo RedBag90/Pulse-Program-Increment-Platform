@@ -2,12 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import { sumTrios, type KpiInput, type RollupTrio } from "@/domain/goals-rollup";
 import { parseOptions } from "@/domain/goal-custom-field";
 import { filterGoalBranches } from "@/domain/goal-tree-filter";
-import {
-  parseGoalPeriod,
-  goalPeriodRange,
-  rangesOverlap,
-  type GoalPeriod,
-} from "@/domain/goal-period";
+import { goalTimeframe, timeframeMatchesPeriodKeys } from "@/domain/goal-period";
 import { type ProgressMode, type AutoKpiLink } from "@/domain/goal-progress-mode";
 import { type AutoKpiSeriesLink } from "@/domain/goal-progress-series";
 import { parseMeasurements, latestMeasurement } from "@/domain/kpi-measurement";
@@ -17,6 +12,7 @@ import {
   type ForestObjective,
   type ForestRelatedEpic,
   type ForestLookups,
+  type ForestCustomFieldDef,
   type ChartObjective,
   type ChartRootCheckin,
 } from "./goals-forest";
@@ -185,6 +181,12 @@ export interface StrategyTree {
   artIds: string[];
   /** Status-Filter: `GoalStatus`-Werte + Sentinel `"none"` (= ohne Status). */
   statuses: string[];
+  /**
+   * Tenant-weite Custom-Field-Definitionen (einmalig, NICHT je Knoten). Die
+   * Knoten tragen nur ihre gesetzten Werte (`GoalNode.customFields`, sparse); der
+   * Drawer merged Defs + Werte fürs Editier-Formular.
+   */
+  customFieldDefs: ForestCustomFieldDef[];
 }
 
 /**
@@ -506,20 +508,11 @@ export async function loadStrategyTree(
   // danach über die sichtbaren Roots neu summiert.
   let topLevel = themes;
   if (periods.length) {
-    // Range-Ziele (periodStart+periodEnd gesetzt) matchen einen gewählten Bucket, wenn ihr
-    // Zeitbereich den Bucket-Zeitraum überlappt; reine Bucket-Ziele wie bisher exakt per Key.
-    const selectedRanges = periods
-      .map((k) => parseGoalPeriod(k))
-      .filter((p): p is GoalPeriod => p != null)
-      .map((p) => goalPeriodRange(p));
-    topLevel = filterGoalBranches(topLevel, (n) => {
-      if (n.periodStart != null && n.periodEnd != null) {
-        const s = new Date(n.periodStart);
-        const e = new Date(n.periodEnd);
-        return selectedRanges.some((r) => rangesOverlap(s, e, r.start, r.end));
-      }
-      return n.period != null && periods.includes(n.period);
-    });
+    // Range-Ziel → Überlappung mit einem gewählten Bucket, Bucket-Ziel → exakter Key;
+    // die Diskriminierung kennt allein `timeframeMatchesPeriodKeys` (goal-period).
+    topLevel = filterGoalBranches(topLevel, (n) =>
+      timeframeMatchesPeriodKeys(goalTimeframe(n.period, n.periodStart, n.periodEnd), periods),
+    );
   }
   if (valueStreamIds.length) {
     topLevel = filterGoalBranches(topLevel, (n) =>
@@ -546,6 +539,7 @@ export async function loadStrategyTree(
     valueStreamIds,
     artIds,
     statuses,
+    customFieldDefs: parsedDefs,
   };
 }
 

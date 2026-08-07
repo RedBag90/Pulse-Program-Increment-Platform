@@ -12,6 +12,11 @@ const nextConfig: NextConfig = {
   // ein verirrtes `~/package-lock.json` das Home-Verzeichnis als Root und scannt
   // beim File-Tracing das ganze Home (blockiert `next dev` auf FS/iCloud-I/O).
   outputFileTracingRoot: dirname(fileURLToPath(import.meta.url)),
+  // Barrel-/Tree-Shaking-Optimierung für schwere Pakete (nur die tatsächlich
+  // genutzten Exporte landen im Bundle). Wirkt app-weit, additiv.
+  experimental: {
+    optimizePackageImports: ["lucide-react", "recharts", "@xyflow/react", "@dagrejs/dagre"],
+  },
   // typedRoutes (experimental) wurde in Next 15.5 strenger und lehnt dynamische
   // Template-Literal-Routen mit `?query` ab (z. B. `redirect(`/admin/users?
   // selected=…`)`), was den Vercel-Build blockierte. Da es eine reine DX-Feature

@@ -5,7 +5,7 @@ import { PageSection } from "@/components/layout/page-section";
 import { ZieleSubTabs } from "./ziele-sub-tabs";
 import { GoalHealthStrip } from "./goal-health-strip";
 import { StrategyTableView } from "./strategy-table-view";
-import { StrategyNetworkView } from "./strategy-network-view";
+import { StrategyNetworkViewLazy } from "./strategy-network-view-lazy";
 import { StrategyRoadmapView } from "./strategy-roadmap-view";
 import { StrategyAlignmentView } from "./strategy-alignment-view";
 import { StrategyLayoutToggle, type StrategyLayout } from "./strategy-layout-toggle";
@@ -64,7 +64,9 @@ export function ZieleShell({ model, layout, userLabels = {} }: Props) {
               userLabels={userLabels}
             />
           )}
-          {layout === "netzplan" && <StrategyNetworkView themes={themes} userLabels={userLabels} />}
+          {layout === "netzplan" && (
+            <StrategyNetworkViewLazy themes={themes} userLabels={userLabels} />
+          )}
           {layout === "roadmap" && <StrategyRoadmapView themes={themes} />}
           {layout === "alignment" && (
             <StrategyAlignmentView themes={themes} userLabels={userLabels} />

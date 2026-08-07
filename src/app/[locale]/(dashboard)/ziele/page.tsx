@@ -40,13 +40,17 @@ export default async function ZielePage({ searchParams }: PageProps) {
       : "tabelle";
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const tree = await loadStrategyTree(db, principal.tenantId, {
-    ...(periods.length ? { periods } : {}),
-    ...(valueStreamIds.length ? { valueStreamIds } : {}),
-    ...(artIds.length ? { artIds } : {}),
-    ...(statuses.length ? { statuses } : {}),
-  });
-  const userLabels = await listTenantUserLabels(db, principal.tenantId);
+  // Baum-Load und User-Labels (inkl. blockierendem Supabase-listUsers) laufen
+  // unabhängig → parallel, statt seriell auf dem kritischen Renderpfad.
+  const [tree, userLabels] = await Promise.all([
+    loadStrategyTree(db, principal.tenantId, {
+      ...(periods.length ? { periods } : {}),
+      ...(valueStreamIds.length ? { valueStreamIds } : {}),
+      ...(artIds.length ? { artIds } : {}),
+      ...(statuses.length ? { statuses } : {}),
+    }),
+    listTenantUserLabels(db, principal.tenantId),
+  ]);
 
   // Edit-Affordances sind Capability-gesteuert (nicht mehr route-hart):
   // `target.manage` schaltet Strategie-Pflege frei, `kpi.bind` die KPI-Bewertung.
