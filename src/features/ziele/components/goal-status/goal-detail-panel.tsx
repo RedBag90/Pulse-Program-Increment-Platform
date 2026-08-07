@@ -17,12 +17,7 @@ import { GoalStatusSelect } from "@/features/ziele/components/goal-status/goal-s
 import { GoalActivityFeed } from "@/features/ziele/components/goal-status/goal-activity-feed";
 import { checkInGoalAction, updateGoalProgressAction } from "@/features/ziele/actions/ziele";
 import { getGoalDetailAction, type GoalDetailPayload } from "@/features/ziele/actions/goal-detail";
-import {
-  suggestOpenStatus,
-  goalStatusLabel,
-  goalStatusColor,
-  type GoalStatus,
-} from "@/domain/goal-status";
+import { suggestOpenStatus, goalStatusColor, type GoalStatus } from "@/domain/goal-status";
 import { metricUnitSuffix } from "@/domain/goal-metric";
 import type { GoalTarget } from "@/server/views/ziele-view";
 
@@ -34,6 +29,8 @@ interface Props {
   progress: number;
   /** Human "current value" (e.g. KR current/target). */
   currentValueLabel: string;
+  /** Optionaler Hinweis unter „Aktueller Wert" (z. B. Kaskaden-Erklärung). */
+  currentValueHint?: string | null | undefined;
   canEdit: boolean;
   /** Fortschrittsquelle (manual | rollup | auto_kpi) — steuert Wert-Pflege. */
   progressMode?: string | null | undefined;
@@ -56,6 +53,7 @@ export function GoalDetailPanel({
   status,
   progress,
   currentValueLabel,
+  currentValueHint,
   canEdit,
   progressMode,
   krCurrent,
@@ -171,18 +169,18 @@ export function GoalDetailPanel({
 
   return (
     <div className="space-y-5">
-      {/* Status row */}
-      <div className="flex items-center gap-3">
-        <GoalStatusPill status={status} />
-        {canEdit && (
+      {/* Status row — nur der Select (der Status-Indikator lebt in der „Letzter
+          Status"-Card, sonst steht dieselbe Info doppelt). */}
+      {canEdit && (
+        <div className="flex items-center gap-3">
           <GoalStatusSelect
             value={composerStatus ?? status}
             suggested={suggested}
             onChange={openComposer}
             disabled={checkInPending}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Status-Update-Composer */}
       {composerStatus && canEdit && (
@@ -296,12 +294,22 @@ export function GoalDetailPanel({
       {/* Cards */}
       <div className="grid grid-cols-3 gap-3">
         <Card label="Zielerreichung" value={`${pct} %`} accent />
-        <Card label="Aktueller Wert" value={currentValueLabel || "—"} />
         <Card
-          label="Letzter Status"
-          value={status ? goalStatusLabel(status) : "—"}
-          hint={latestStatusAt ? relTime(latestStatusAt) : "kein Check-in"}
+          label="Aktueller Wert"
+          value={currentValueLabel || "—"}
+          {...(currentValueHint ? { hint: currentValueHint } : {})}
         />
+        <div className="rounded-xl border bg-card p-3.5 shadow-sm">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Letzter Status
+          </p>
+          <div className="mt-1.5">
+            <GoalStatusPill status={status} />
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {latestStatusAt ? relTime(latestStatusAt) : "kein Check-in"}
+          </p>
+        </div>
       </div>
 
       {/* Progress */}

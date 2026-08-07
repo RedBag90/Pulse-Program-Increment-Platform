@@ -2,6 +2,12 @@ import type { PrismaClient } from "@/generated/prisma";
 import { sumTrios, type KpiInput, type RollupTrio } from "@/domain/goals-rollup";
 import { parseOptions } from "@/domain/goal-custom-field";
 import { filterGoalBranches } from "@/domain/goal-tree-filter";
+import {
+  parseGoalPeriod,
+  goalPeriodRange,
+  rangesOverlap,
+  type GoalPeriod,
+} from "@/domain/goal-period";
 import { type ProgressMode, type AutoKpiLink } from "@/domain/goal-progress-mode";
 import { type AutoKpiSeriesLink } from "@/domain/goal-progress-series";
 import { parseMeasurements, latestMeasurement } from "@/domain/kpi-measurement";
@@ -90,6 +96,9 @@ export interface GoalNode {
   narrative: string | null;
   /** Zeitraum, kanonisch YYYY-Qn | YYYY-Hn | YYYY (goal-period) oder null. */
   period: string | null;
+  /** Individueller Umsetzungszeitraum (ISO) — gewinnt über `period`, wenn gesetzt. */
+  periodStart: string | null;
+  periodEnd: string | null;
   /** Persistierter Goal-Status (src/domain/goal-status.ts) oder null. */
   status: string | null;
   dueDate: string | null;
@@ -458,6 +467,8 @@ export async function loadStrategyTree(
     title: o.title,
     narrative: o.narrative,
     period: o.period,
+    periodStart: o.periodStart ? o.periodStart.toISOString() : null,
+    periodEnd: o.periodEnd ? o.periodEnd.toISOString() : null,
     status: o.status,
     dueDate: o.dueDate ? o.dueDate.toISOString() : null,
     ownerId: o.ownerId,
@@ -490,12 +501,25 @@ export async function loadStrategyTree(
 
   const { themes } = buildStrategyTree({ rows: forestRows, lookups });
 
-  // Filter (Mehrfachauswahl): „ganzer Ast" (filterGoalBranches), UND zwischen den
+  // Filter (Mehrfachauswahl): strikt (filterGoalBranches — nur Treffer + Eltern-Pfad), UND zwischen den
   // Gruppen (Komposition), ODER innerhalb (`includes`/`some`). tenantTrio wird
   // danach über die sichtbaren Roots neu summiert.
   let topLevel = themes;
   if (periods.length) {
-    topLevel = filterGoalBranches(topLevel, (n) => n.period != null && periods.includes(n.period));
+    // Range-Ziele (periodStart+periodEnd gesetzt) matchen einen gewählten Bucket, wenn ihr
+    // Zeitbereich den Bucket-Zeitraum überlappt; reine Bucket-Ziele wie bisher exakt per Key.
+    const selectedRanges = periods
+      .map((k) => parseGoalPeriod(k))
+      .filter((p): p is GoalPeriod => p != null)
+      .map((p) => goalPeriodRange(p));
+    topLevel = filterGoalBranches(topLevel, (n) => {
+      if (n.periodStart != null && n.periodEnd != null) {
+        const s = new Date(n.periodStart);
+        const e = new Date(n.periodEnd);
+        return selectedRanges.some((r) => rangesOverlap(s, e, r.start, r.end));
+      }
+      return n.period != null && periods.includes(n.period);
+    });
   }
   if (valueStreamIds.length) {
     topLevel = filterGoalBranches(topLevel, (n) =>

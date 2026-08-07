@@ -17,6 +17,8 @@ export interface GoalFieldValues {
   title: string;
   narrative: string | null;
   period: string | null;
+  periodStart: Date | null;
+  periodEnd: Date | null;
   status: string | null;
   dueDate: Date | null;
   closingNote: string | null;
@@ -43,6 +45,8 @@ export interface GoalFieldUpdateInput {
   title?: string | undefined;
   narrative?: string | null | undefined;
   period?: string | null | undefined;
+  periodStart?: Date | null | undefined;
+  periodEnd?: Date | null | undefined;
   status?: GoalStatus | null | undefined;
   dueDate?: Date | null | undefined;
   closingNote?: string | null | undefined;
@@ -67,6 +71,8 @@ export const OBJECTIVE_FIELD_KEYS = [
   "title",
   "narrative",
   "period",
+  "periodStart",
+  "periodEnd",
   "status",
   "dueDate",
   "closingNote",
@@ -100,6 +106,8 @@ export const KEY_RESULT_FIELD_KEYS = [
   "target",
   "current",
   "period",
+  "periodStart",
+  "periodEnd",
   "status",
   "dueDate",
   "ownerId",
@@ -112,6 +120,8 @@ type GoalRowSnapshot = {
   title: string;
   narrative: string | null;
   period: string | null;
+  periodStart: Date | null;
+  periodEnd: Date | null;
   status: string | null;
   dueDate: Date | null;
   closingNote: string | null;
@@ -137,6 +147,8 @@ export function projectGoalFields(existing: GoalRowSnapshot): GoalFieldValues {
     title: existing.title,
     narrative: existing.narrative,
     period: existing.period,
+    periodStart: existing.periodStart,
+    periodEnd: existing.periodEnd,
     status: existing.status,
     dueDate: existing.dueDate,
     closingNote: existing.closingNote,
@@ -165,6 +177,8 @@ export function readGoalFieldUpdates(input: GoalFieldUpdateInput): {
     title: input.title,
     narrative: input.narrative,
     period: input.period,
+    periodStart: input.periodStart,
+    periodEnd: input.periodEnd,
     status: input.status,
     dueDate: input.dueDate,
     closingNote: input.closingNote,

@@ -25,33 +25,34 @@ const tree: N[] = [
 
 const ids = (nodes: N[]): string[] => nodes.flatMap((x) => [x.id, ...ids(x.children)]);
 
-describe("filterGoalBranches — ganzer Ast", () => {
+describe("filterGoalBranches — strikt (nur Treffer + Eltern-Pfad)", () => {
   const matchX = (x: N) => x.tag === "x";
 
   it("gibt [] zurück, wenn nichts matcht", () => {
     expect(filterGoalBranches(tree, () => false)).toEqual([]);
   });
 
-  it("zeigt bei self-match den kompletten Unterbaum", () => {
-    // nur A matcht direkt → A + A1 sichtbar; via Eltern-Pfad auch T.
+  it("self-match zeigt den Knoten OHNE nicht-passende Kinder", () => {
+    // A matcht, A1 nicht → nur A (+ Eltern-Pfad root); A1 fällt weg.
     const out = filterGoalBranches(
       [n("root", undefined, [n("A", "x", [n("A1", undefined)])])],
       matchX,
     );
-    expect(ids(out)).toEqual(["root", "A", "A1"]);
+    expect(ids(out)).toEqual(["root", "A"]);
   });
 
-  it("hält Eltern-Pfad zum Nachfahre-Treffer und prunt unbeteiligte Geschwister", () => {
+  it("hält Eltern-Pfad zum Treffer, prunt nicht-passende Geschwister UND Nachfahren", () => {
     const out = filterGoalBranches(tree, matchX);
-    // Treffer: A (self) → A+A1; B1 (self) → B1+B2b; Eltern-Pfade: T, B.
-    // Weg: B2 (kein Treffer, kein Treffer-Nachfahre) und C/C1 (unbeteiligt).
-    expect(ids(out)).toEqual(["T", "A", "A1", "B", "B1", "B2b"]);
+    // Treffer: A (self), B1 (self). Eltern-Pfade: T, B.
+    // Weg: A1 (unter Treffer A, kein Match), B2b (unter Treffer B1, kein Match),
+    //      B2 und C/C1 (unbeteiligt).
+    expect(ids(out)).toEqual(["T", "A", "B", "B1"]);
   });
 
-  it("zeigt bei Vorfahre-Match den ganzen Unterbaum (auch nicht-passende Kinder)", () => {
-    // T matcht → alles darunter sichtbar, unabhängig von tag.
+  it("Vorfahr-Match zieht NICHT den ganzen Unterbaum mit", () => {
+    // Nur T matcht → nur T (keine passenden Nachfahren).
     const out = filterGoalBranches(tree, (x) => x.id === "T");
-    expect(ids(out)).toEqual(["T", "A", "A1", "B", "B1", "B2b", "B2", "C", "C1"]);
+    expect(ids(out)).toEqual(["T"]);
   });
 
   it("mutiert die Eingabe nicht", () => {

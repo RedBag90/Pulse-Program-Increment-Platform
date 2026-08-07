@@ -2,17 +2,21 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { goalDetailHref } from "@/features/ziele/lib/goal-href";
 import type { GoalNode } from "@/server/views/ziele-view";
 import { keyResultProgress } from "@/domain/goals-rollup";
-import { parseGoalPeriod, currentGoalPeriod } from "@/domain/goal-period";
+import { goalTimeframe, goalTimeframeLabel, currentGoalPeriod } from "@/domain/goal-period";
+import type { GoalTimeframe } from "@/domain/goal-period";
 import { goalStatusTier, goalStatusColor, goalStatusLabel } from "@/domain/goal-status";
 import type { GoalStatusTier } from "@/domain/goal-status";
 
 /**
  * Roadmap / Zeitachse — Ziele als Balken über einer Quartals-Achse. Position &
- * Breite folgen dem Perioden-Key (Quartal = 1 Spalte, Halbjahr = 2, Ganzjahr = 4);
- * gruppiert in **Theme-Lanes** (Top-Level-Ziel + Unterziele darunter). Farbe =
+ * Breite folgen dem **Umsetzungszeitraum**: Bucket (Quartal/Halbjahr/Ganzjahr)
+ * oder individueller Start–Ende-Bereich (auf Monatsgenauigkeit platziert).
+ * Gruppiert in **Theme-Lanes** (Top-Level-Ziel + Unterziele darunter). Farbe =
  * Status, „heute"-Linie. Rein lesend — Klick öffnet das Ziel im Drawer.
  */
 
@@ -29,31 +33,27 @@ interface FlatRow {
   depth: number;
 }
 
-/** Platzierung eines Zeitraum-Keys auf der globalen Quartals-Achse. */
-function placement(
-  period: string | null,
+/** Monate seit Jahresbeginn `minYear` (Tages-gebrochen) — gemeinsame Achse. */
+function monthsFrom(minYear: number, d: Date): number {
+  return (d.getUTCFullYear() - minYear) * 12 + d.getUTCMonth() + (d.getUTCDate() - 1) / 30;
+}
+
+/** Balken-Position (links/breite in %) aus dem Umsetzungszeitraum. */
+function placeTimeframe(
+  tf: GoalTimeframe,
   minYear: number,
-): { start: number; span: number; tag: string } | null {
-  if (!period) return null;
-  const p = parseGoalPeriod(period);
-  if (!p) return null;
-  let startInYear = 1; // 1-basiert
-  let span = 1;
-  let tag = "FY";
-  if (p.granularity === "quarter" && p.index != null) {
-    startInYear = p.index;
-    span = 1;
-    tag = `Q${p.index}`;
-  } else if (p.granularity === "half" && p.index != null) {
-    startInYear = p.index === 1 ? 1 : 3;
-    span = 2;
-    tag = p.index === 1 ? "H1" : "H2";
-  } else {
-    startInYear = 1;
-    span = 4;
-    tag = "FY";
-  }
-  return { start: (p.year - minYear) * 4 + (startInYear - 1), span, tag };
+  totalQ: number,
+): { left: number; width: number } {
+  const totalMonths = totalQ * 3;
+  const left = Math.max(0, (monthsFrom(minYear, tf.start) / totalMonths) * 100);
+  const right = Math.min(100, (monthsFrom(minYear, tf.end) / totalMonths) * 100);
+  return { left, width: Math.max(1.5, right - left) };
+}
+
+/** Kurz-Tag im Balken: „Q3"/„H1"/„FY" (Bucket) oder leer (individueller Bereich). */
+function shortTag(tf: GoalTimeframe): string {
+  if (tf.kind === "range") return "";
+  return tf.key.includes("-") ? (tf.key.split("-")[1] ?? "") : "FY";
 }
 
 function flatten(nodes: GoalNode[], depth: number, acc: FlatRow[]): void {
@@ -70,12 +70,15 @@ function progressOf(n: GoalNode): number {
 const LABEL_W = 220;
 
 export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
+  const sp = useSearchParams();
   const { minYear, totalQ, todayFrac } = useMemo(() => {
     const years: number[] = [];
     const collect = (nodes: GoalNode[]): void => {
       for (const n of nodes) {
-        const p = n.period ? parseGoalPeriod(n.period) : null;
-        if (p) years.push(p.year);
+        const tf = goalTimeframe(n.period, n.periodStart, n.periodEnd);
+        if (tf) {
+          years.push(tf.start.getUTCFullYear(), new Date(tf.end.getTime() - 1).getUTCFullYear());
+        }
         collect(n.children);
       }
     };
@@ -147,13 +150,14 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
           return (
             <div key={theme.id} className={cn(ti > 0 && "mt-1 border-t pt-1")}>
               {rows.map(({ node, depth }) => {
-                const pl = placement(node.period, minYear);
+                const tf = goalTimeframe(node.period, node.periodStart, node.periodEnd);
+                const pl = tf ? placeTimeframe(tf, minYear, totalQ) : null;
                 const tier = goalStatusTier(node.status);
                 const pct = Math.round(progressOf(node) * 100);
                 return (
                   <Link
                     key={node.id}
-                    href={`?entity=goal&id=${node.id}` as never}
+                    href={goalDetailHref(sp, node.id) as never}
                     scroll={false}
                     className="flex min-h-[34px] items-center rounded-md hover:bg-muted/40"
                   >
@@ -168,23 +172,20 @@ export function StrategyRoadmapView({ themes }: { themes: GoalNode[] }) {
                       {node.title}
                     </div>
                     <div className="relative h-[34px] flex-1" style={{ backgroundImage: gridBg }}>
-                      {pl ? (
+                      {pl && tf ? (
                         <div
-                          title={`${node.title} · ${goalStatusLabel(node.status)}`}
+                          title={`${node.title} · ${goalStatusLabel(node.status)} · ${goalTimeframeLabel(tf)}`}
                           className={cn(
                             "absolute top-[5px] flex h-6 items-center gap-1.5 overflow-hidden rounded-lg border px-2 text-[11px] font-medium shadow-xs",
                             TIER_BAR[tier],
                           )}
-                          style={{
-                            left: `${(pl.start / totalQ) * 100}%`,
-                            width: `${(pl.span / totalQ) * 100}%`,
-                          }}
+                          style={{ left: `${pl.left}%`, width: `${pl.width}%` }}
                         >
                           <span
                             className="size-1.5 shrink-0 rounded-full"
                             style={{ backgroundColor: goalStatusColor(node.status) }}
                           />
-                          {pl.tag}
+                          {shortTag(tf)}
                           <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums opacity-80">
                             {pct}%
                           </span>

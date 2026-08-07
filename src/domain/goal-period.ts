@@ -133,3 +133,61 @@ export function compareGoalPeriod(a: GoalPeriod, b: GoalPeriod): number {
   const rb = goalPeriodRange(b);
   return ra.start.getTime() - rb.start.getTime() || ra.end.getTime() - rb.end.getTime();
 }
+
+// ── Umsetzungszeitraum: Bucket (FY/H/Q) ODER individueller Start–Ende-Bereich ──
+
+/**
+ * Effektiver Umsetzungszeitraum eines Ziels: entweder ein individueller Bereich
+ * (`periodStart`/`periodEnd` gesetzt) — der **gewinnt** — oder der kanonische
+ * Bucket `period`. Beide leer ⇒ `null`. `start`/`end` inklusiv im Sinne des
+ * gewählten Datums; für Überlappungs-/Balken-Mathematik als [start, end) genutzt.
+ */
+export type GoalTimeframe =
+  | { kind: "range"; start: Date; end: Date }
+  | { kind: "bucket"; key: string; start: Date; end: Date };
+
+function toDate(v: Date | string | null | undefined): Date | null {
+  if (v == null) return null;
+  const d = v instanceof Date ? v : new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export function goalTimeframe(
+  period: string | null | undefined,
+  start: Date | string | null | undefined,
+  end: Date | string | null | undefined,
+): GoalTimeframe | null {
+  const s = toDate(start);
+  const e = toDate(end);
+  if (s && e) return { kind: "range", start: s, end: e };
+  if (period) {
+    const p = parseGoalPeriod(period);
+    if (p) {
+      const r = goalPeriodRange(p);
+      return { kind: "bucket", key: period, start: r.start, end: r.end };
+    }
+  }
+  return null;
+}
+
+/** Anzeige-Label: Bucket → „Q3 2026"; Range → „1. Mär – 30. Jun 2026". */
+export function goalTimeframeLabel(tf: GoalTimeframe | null): string {
+  if (!tf) return "—";
+  if (tf.kind === "bucket") return goalPeriodLabel(tf.key);
+  const fmt = (d: Date): string => `${d.getUTCDate()}. ${MONTHS_DE[d.getUTCMonth()]}`;
+  const sy = tf.start.getUTCFullYear();
+  const ey = tf.end.getUTCFullYear();
+  return sy === ey
+    ? `${fmt(tf.start)} – ${fmt(tf.end)} ${ey}`
+    : `${fmt(tf.start)} ${sy} – ${fmt(tf.end)} ${ey}`;
+}
+
+/** Sortier-Key nach Startzeitpunkt; ohne Zeitraum ans Ende. */
+export function goalTimeframeStart(tf: GoalTimeframe | null): number {
+  return tf ? tf.start.getTime() : Number.POSITIVE_INFINITY;
+}
+
+/** Überlappen sich [aStart, aEnd) und [bStart, bEnd)? */
+export function rangesOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
+  return aStart.getTime() < bEnd.getTime() && bStart.getTime() < aEnd.getTime();
+}

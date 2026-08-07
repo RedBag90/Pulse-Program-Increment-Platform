@@ -41,6 +41,8 @@ export interface CreateObjectiveInput {
   title: string;
   narrative?: string | null;
   period?: string | null;
+  periodStart?: Date | null;
+  periodEnd?: Date | null;
   ownerId?: string | null;
   // Optionaler Metrik-Block (jeder Knoten kann messbar sein).
   metricName?: string | null;
@@ -123,6 +125,8 @@ export async function createObjective(
         title: input.title,
         narrative: input.narrative ?? null,
         period: input.period ?? null,
+        periodStart: input.periodStart ?? null,
+        periodEnd: input.periodEnd ?? null,
         ownerId: input.ownerId ?? null,
         metricName: input.metricName ?? null,
         metricUnit: input.metricUnit ?? null,
@@ -156,6 +160,8 @@ export interface UpdateObjectiveInput {
   title?: string;
   narrative?: string | null;
   period?: string | null;
+  periodStart?: Date | null;
+  periodEnd?: Date | null;
   status?: GoalStatus | null;
   dueDate?: Date | null;
   closingNote?: string | null;

@@ -118,6 +118,8 @@ export const createObjectiveAction = createServerAction({
     title: z.string().min(1).max(200),
     narrative: optStr,
     period: periodField,
+    periodStart: optStr,
+    periodEnd: optStr,
     ownerId: z.string().uuid().optional(),
     // Optionaler Metrik-Block (jeder Knoten kann messbar sein) + Fortschrittsquelle.
     metricName: optStr,
@@ -141,6 +143,8 @@ export const createObjectiveAction = createServerAction({
       title: input.title,
       narrative: input.narrative ?? null,
       period: input.period || null,
+      periodStart: input.periodStart ? new Date(input.periodStart) : null,
+      periodEnd: input.periodEnd ? new Date(input.periodEnd) : null,
       ownerId: input.ownerId ?? null,
       metricName: input.metricName ?? null,
       metricUnit: input.metricUnit ?? null,
@@ -167,6 +171,8 @@ export const updateObjectiveAction = createServerAction({
     title: z.string().min(1).max(200).optional(),
     narrative: optStr,
     period: periodField,
+    periodStart: optStr,
+    periodEnd: optStr,
     status: statusField,
     dueDate: optStr,
     closingNote: optStr,
@@ -188,11 +194,15 @@ export const updateObjectiveAction = createServerAction({
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => {
     const dueDate = toDueDate(input.dueDate);
+    const periodStart = toDueDate(input.periodStart);
+    const periodEnd = toDueDate(input.periodEnd);
     return updateObjective(ctx, {
       id: input.id,
       ...(input.title !== undefined ? { title: input.title } : {}),
       ...(input.narrative !== undefined ? { narrative: input.narrative } : {}),
       ...(input.period !== undefined ? { period: input.period === "" ? null : input.period } : {}),
+      ...(periodStart !== undefined ? { periodStart } : {}),
+      ...(periodEnd !== undefined ? { periodEnd } : {}),
       ...(input.status !== undefined ? { status: input.status === "" ? null : input.status } : {}),
       ...(dueDate !== undefined ? { dueDate } : {}),
       ...(input.closingNote !== undefined ? { closingNote: input.closingNote } : {}),

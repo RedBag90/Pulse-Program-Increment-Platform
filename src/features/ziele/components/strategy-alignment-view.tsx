@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { goalDetailHref } from "@/features/ziele/lib/goal-href";
 import type { GoalNode } from "@/server/views/ziele-view";
 import { keyResultProgress } from "@/domain/goals-rollup";
 import { goalStatusColor } from "@/domain/goal-status";
-import { goalPeriodLabel } from "@/domain/goal-period";
+import { goalTimeframe, goalTimeframeLabel } from "@/domain/goal-period";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 
 /**
@@ -74,6 +76,8 @@ function GoalCard({
   const hasKids = kids.length > 0;
   const isOpen = !collapsed.has(node.id);
   const owner = node.ownerId ? (userLabels[node.ownerId] ?? null) : null;
+  const sp = useSearchParams();
+  const tf = goalTimeframe(node.period, node.periodStart, node.periodEnd);
 
   return (
     <div>
@@ -99,14 +103,14 @@ function GoalCard({
         )}
         <Ring value={progressOf(node)} status={node.status} />
         <Link
-          href={`?entity=goal&id=${node.id}` as never}
+          href={goalDetailHref(sp, node.id) as never}
           scroll={false}
           className="min-w-0 flex-1 hover:underline"
         >
           <div className="truncate text-sm font-medium">{node.title}</div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
             <GoalStatusPill status={node.status} />
-            {node.period && <span>{goalPeriodLabel(node.period)}</span>}
+            {tf && <span>{goalTimeframeLabel(tf)}</span>}
             {hasKids && (
               <span>
                 · {kids.length} Unterziel{kids.length === 1 ? "" : "e"}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dagre from "@dagrejs/dagre";
 import {
   ReactFlow,
@@ -17,10 +17,11 @@ import {
 import "@xyflow/react/dist/style.css";
 import type { GoalNode } from "@/server/views/ziele-view";
 import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
-import { goalPeriodLabel } from "@/domain/goal-period";
+import { goalTimeframe, goalTimeframeLabel } from "@/domain/goal-period";
 import { filterGoalBranches } from "@/domain/goal-tree-filter";
 import { cn } from "@/lib/utils";
 import { HEAD_GOAL_ACCENT } from "@/features/ziele/lib/goal-accent";
+import { goalDetailHref } from "@/features/ziele/lib/goal-href";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
 
 /** „Off-track" = Drift (Run-Rate < 70 %) oder Status at_risk/off_track. */
@@ -52,7 +53,7 @@ interface NodeData extends Record<string, unknown> {
   status: string | null;
   progress: number;
   subgoalCount: number;
-  period: string | null;
+  periodLabel: string;
   ownerInitial: string;
   ownerLabel: string;
   atRisk: boolean;
@@ -166,7 +167,9 @@ const NODE_TYPES = { strategyNode: StrategyNode };
 function StrategyNode({ data }: NodeProps) {
   const d = data as NodeData;
   const router = useRouter();
-  const open = () => router.push(d.href as never);
+  const sp = useSearchParams();
+  // Deep-Link erhält die aktiven Filter/Layout-Params (kein bares ?entity=…).
+  const open = () => router.push(goalDetailHref(sp, d.goalId) as never);
 
   const tierStyle: Record<Tier, string> = {
     theme: "border-l-4 bg-card",
@@ -240,8 +243,8 @@ function StrategyNode({ data }: NodeProps) {
         <footer className="mt-auto flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
           <span className="truncate">
             {d.subgoalCount > 0 && `${d.subgoalCount} subgoal${d.subgoalCount === 1 ? "" : "s"}`}
-            {d.subgoalCount > 0 && d.period && " · "}
-            {d.period && goalPeriodLabel(d.period)}
+            {d.subgoalCount > 0 && d.periodLabel && " · "}
+            {d.periodLabel}
           </span>
           {d.ownerInitial && (
             <span
@@ -304,6 +307,7 @@ function buildGraph(
     const gid = nodeId(tier, n.id);
     const isCollapsed = collapsed.has(n.id);
     const ownerLabel = n.ownerId ? (userLabels[n.ownerId] ?? "") : "";
+    const tf = goalTimeframe(n.period, n.periodStart, n.periodEnd);
     rawNodes.push({
       id: gid,
       data: {
@@ -313,7 +317,7 @@ function buildGraph(
         status: n.status,
         progress: n.progress ?? (tier === "kr" ? krProgress(n) : trioProgress(n.trio)),
         subgoalCount: n.children.length,
-        period: n.period ?? null,
+        periodLabel: tf ? goalTimeframeLabel(tf) : "",
         ownerInitial: initialsOf(ownerLabel),
         ownerLabel,
         atRisk: isAtRisk(n.trio),

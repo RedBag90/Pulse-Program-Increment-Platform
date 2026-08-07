@@ -45,7 +45,7 @@ import {
 } from "@/features/ziele/actions/ziele";
 import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
 import { EntitySelect } from "@/features/create/entity-select";
-import { PeriodPicker } from "@/features/ziele/components/period-picker";
+import { GoalPeriodField } from "@/features/ziele/components/goal-period-field";
 import { LinkList, type LinkChip } from "@/features/ziele/components/link-list";
 import {
   RelatedWorkSearch,
@@ -417,7 +417,12 @@ function GoalPane({
         />
       </Field>
       <Field label="Zeitraum">
-        <PeriodPicker name="period" defaultValue={node?.period ?? null} disabled={!canEdit} />
+        <GoalPeriodField
+          defaultPeriod={node?.period ?? null}
+          defaultStart={node?.periodStart ?? null}
+          defaultEnd={node?.periodEnd ?? null}
+          disabled={!canEdit}
+        />
       </Field>
 
       <Field
@@ -527,31 +532,10 @@ function GoalPane({
             metricType={node.metricType}
             precision={node.precision}
             currencyCode={node.currencyCode}
+            {...(node.unitValue.planned > 0
+              ? { currentValueHint: "Aus verknüpften KPIs und Unterzielen hochgerechnet." }
+              : {})}
           />
-
-          {/* Einheiten-Kaskade: hochgerechneter Wert in der EIGENEN Ziel-Einheit
-              (Σ Unterziele × Faktor + verknüpfte Erfolgs-KPIs). */}
-          {node.unitValue.planned > 0 && (
-            <div className="rounded-xl border bg-gradient-to-br from-emerald-500/10 to-card px-3.5 py-2.5 shadow-sm">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Wert aus Kaskade (KPIs + Unterziele)
-              </p>
-              <p className="mt-0.5 text-sm tabular-nums">
-                <span className="font-medium">
-                  {formatMetricValue(node.unitValue.realized, metricSpec)}
-                </span>
-                <span className="text-muted-foreground">
-                  {" / "}
-                  {formatMetricValue(node.unitValue.planned, metricSpec)}
-                </span>
-                {node.metricUnit ? ` ${node.metricUnit}` : ""}
-              </p>
-              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                Erreichter Beitrag in dieser Ziel-Einheit, aus verknüpften KPIs und Unterzielen
-                hochgerechnet (KPI-Bewegung × Umrechnungsfaktor).
-              </p>
-            </div>
-          )}
         </div>
       )}
 

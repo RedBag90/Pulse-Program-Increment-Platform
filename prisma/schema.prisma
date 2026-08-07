@@ -201,8 +201,13 @@ model Objective {
   title                  String
   narrative              String?   @db.Text
   /// Zeitraum, kanonisch YYYY-Qn | YYYY-Hn | YYYY (src/domain/goal-period.ts).
-  /// Null = kein Zeitraum / Backlog.
+  /// Null = kein Zeitraum / Backlog. Ein individueller Bereich (periodStart/End)
+  /// gewinnt über diesen Bucket, wenn gesetzt.
   period                 String?
+  /// Individueller Umsetzungszeitraum (Start/Ende) — Alternative zum Bucket
+  /// `period`. Beide gesetzt ⇒ Range gewinnt; Roadmap/Sortierung/Filter nutzen ihn.
+  periodStart            DateTime? @map("period_start")
+  periodEnd              DateTime? @map("period_end")
   /// Knotentyp (Goal-Knoten-Vereinheitlichung): "objective" | "key_result".
   /// Rein Label-unterscheidend — jeder Knoten kann Kinder UND/ODER eine Metrik
   /// tragen; hat er Kinder, gewinnt der Rollup über die eigene Metrik.

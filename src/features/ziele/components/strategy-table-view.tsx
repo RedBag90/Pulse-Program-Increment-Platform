@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, startTransition, useActionState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { goalHref, goalDetailHref, goalCreateHref } from "@/features/ziele/lib/goal-href";
 import {
   ChevronRight,
   Pencil,
@@ -14,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { GoalNode } from "@/server/views/ziele-view";
 import { isAtRisk, keyResultProgress, type RollupTrio } from "@/domain/goals-rollup";
-import { goalPeriodLabel } from "@/domain/goal-period";
+import { goalTimeframe, goalTimeframeLabel, goalTimeframeStart } from "@/domain/goal-period";
 import { filterGoalBranches } from "@/domain/goal-tree-filter";
 import { reparentGoalNodeAction } from "@/features/ziele/actions/ziele";
 import { HEAD_GOAL_ACCENT } from "@/features/ziele/lib/goal-accent";
@@ -137,7 +139,11 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
         case "value":
           return ((a.trio.realized ?? 0) - (b.trio.realized ?? 0)) * dir;
         case "period":
-          return (a.period ?? "").localeCompare(b.period ?? "") * dir;
+          return (
+            (goalTimeframeStart(goalTimeframe(a.period, a.periodStart, a.periodEnd)) -
+              goalTimeframeStart(goalTimeframe(b.period, b.periodStart, b.periodEnd))) *
+            dir
+          );
         case "title":
           return a.title.localeCompare(b.title) * dir;
         default:
@@ -421,6 +427,8 @@ function NodeRows({
   const hasChildren = node.children.length > 0;
   const isCollapsed = tree.collapsed.has(node.id);
   const ownerLabel = node.ownerId ? (tree.userLabels[node.ownerId] ?? null) : null;
+  // Deep-Links erhalten die aktiven Filter/Layout-Params (kein bares ?entity=…).
+  const sp = useSearchParams();
 
   return (
     <>
@@ -431,12 +439,14 @@ function NodeRows({
         title={node.title}
         subtitle={subtitle}
         drift={isAtRisk(node.trio)}
-        href={`?entity=goal&id=${node.id}`}
+        href={goalDetailHref(sp, node.id)}
         statusValue={node.status}
         checkinAt={node.latestCheckin?.at ?? null}
         progress={progress}
         trio={node.trio}
-        period={node.period}
+        periodLabel={goalTimeframeLabel(
+          goalTimeframe(node.period, node.periodStart, node.periodEnd),
+        )}
         canEdit={canEdit}
         ownerLabel={ownerLabel}
         hasChildren={hasChildren}
@@ -445,8 +455,8 @@ function NodeRows({
         actions={
           canEdit ? (
             <RowActions
-              editHref={`/ziele?entity=goal&id=${node.id}`}
-              addChildHref={`/ziele?entity=goal&new=1&parent=${node.id}`}
+              editHref={goalDetailHref(sp, node.id)}
+              addChildHref={goalCreateHref(sp, node.id)}
             />
           ) : null
         }
@@ -479,7 +489,7 @@ interface RowProps {
   checkinAt: string | null;
   progress: number;
   trio: RollupTrio;
-  period: string | null;
+  periodLabel: string;
   canEdit: boolean;
   ownerLabel: string | null;
   hasChildren: boolean;
@@ -500,7 +510,7 @@ function Row({
   checkinAt,
   progress,
   trio,
-  period,
+  periodLabel,
   canEdit,
   ownerLabel,
   hasChildren,
@@ -633,7 +643,7 @@ function Row({
       <Td>
         <TrioBadge trio={trio} />
       </Td>
-      <Td className="text-xs text-muted-foreground">{period ? goalPeriodLabel(period) : "—"}</Td>
+      <Td className="text-xs text-muted-foreground">{periodLabel}</Td>
       {canEdit && (
         <Td className="sticky right-0 z-10 border-l bg-card group-hover:bg-muted/40">{actions}</Td>
       )}
@@ -691,9 +701,10 @@ function RowActions({
 }
 
 function NewLink({ entity, children }: { entity: "theme"; children: React.ReactNode }) {
+  const sp = useSearchParams();
   return (
     <Link
-      href={`/ziele?entity=${entity}&new=1` as never}
+      href={goalHref(sp, { entity, new: "1", id: null, parent: null }) as never}
       scroll={false}
       className="inline-flex items-center gap-1 rounded-md border border-dashed bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground"
     >
