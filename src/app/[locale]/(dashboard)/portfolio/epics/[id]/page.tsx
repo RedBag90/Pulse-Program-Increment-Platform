@@ -43,7 +43,12 @@ import {
 } from "@/features/portfolio/components/revision-diff";
 import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-button";
 import { parseBenefitHypothesis, benefitHypothesisHasContent } from "@/domain/benefit-hypothesis";
-import { parseBusinessCase, businessCaseHasContent } from "@/domain/business-case";
+import {
+  parseBusinessCase,
+  businessCaseHasContent,
+  computeBusinessCaseTotals,
+} from "@/domain/business-case";
+import { EpicHeroFacts } from "@/features/portfolio/components/epic-hero-facts";
 import { epicBenefitFromKpis } from "@/domain/epic-economics";
 import { epicNextStep } from "@/domain/epic-next-step";
 import { Link } from "@/i18n/navigation";
@@ -351,6 +356,20 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   const businessCase = parseBusinessCase(epic.businessCase);
   const timeline = parseTimeline(epic.timeline);
 
+  // Kernfakten fürs Hero-Band im Sub-Header (Kosten/Nutzen + KPI-Durchschnitt).
+  const heroTotals = computeBusinessCaseTotals(businessCase.current, kpiBenefit);
+  const heroKpiRatios = kpiRows
+    .map((k) => {
+      if (k.baseline == null || k.target == null || k.latest == null) return null;
+      const denom = k.target - k.baseline;
+      if (denom === 0) return 1;
+      return Math.min(1, Math.max(0, (k.latest - k.baseline) / denom));
+    })
+    .filter((r): r is number => r != null);
+  const heroKpiAvgPct = heroKpiRatios.length
+    ? Math.round((heroKpiRatios.reduce((a, b) => a + b, 0) / heroKpiRatios.length) * 100)
+    : null;
+
   // Last-approved baseline for the revision diff (null until a revision is started).
   const bcBaseline =
     epic.baselineBusinessCase != null ? parseBusinessCase(epic.baselineBusinessCase).current : null;
@@ -460,12 +479,25 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             actionSlot = <EpicImpactConfirmDialog epicId={epic.id} epicTitle={epic.title} />;
           }
           return (
-            <EpicReifegradActivityBar
-              stageGate={epic.stageGate as StageGate}
-              subStage={subStage}
-              nextStep={nextStep}
-              actionSlot={actionSlot}
-            />
+            <div className="space-y-4">
+              <EpicHeroFacts
+                ownerId={epic.ownerId}
+                userLabels={userLabels}
+                valueStreamName={epic.valueStream?.name ?? null}
+                plannedStartAt={epic.plannedStartAt}
+                plannedEndAt={epic.plannedEndAt}
+                recurringBenefit={heroTotals.recurringBenefit}
+                implementationCost={heroTotals.implementationCost}
+                kpiCount={kpiRows.length}
+                kpiAvgPct={heroKpiAvgPct}
+              />
+              <EpicReifegradActivityBar
+                stageGate={epic.stageGate as StageGate}
+                subStage={subStage}
+                nextStep={nextStep}
+                actionSlot={actionSlot}
+              />
+            </div>
           );
         })()}
         aside={<InitiativeActivitySidebar events={activityEvents} userLabels={userLabels} />}
@@ -478,7 +510,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               epic={epic}
               canEdit={canEdit}
               canConfirmImpact={canConfirmImpact}
-              userLabels={userLabels}
               kpiBenefit={kpiBenefit}
             />
           </div>

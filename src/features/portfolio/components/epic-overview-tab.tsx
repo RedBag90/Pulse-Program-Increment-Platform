@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Info, ArrowRight, Flag } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { EpicClassificationForm } from "./epic-classification-form";
@@ -6,8 +5,6 @@ import { EpicEditForm } from "./epic-edit-form";
 import { EpicGovernanceFlags } from "./epic-governance-flags";
 import { EpicPlannedWindowForm } from "./epic-planned-window-form";
 import { PhaseBadge } from "@/components/detail/phase-badge";
-import { STAGE_GATE_LABELS, userLabel, initials } from "@/components/detail/initiative-labels";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SectionLabel } from "@/components/ui/section-label";
 import { formatCompactEUR } from "@/lib/formatting";
 import { buildInitiativeSummary } from "@/domain/initiative-summary";
@@ -59,21 +56,8 @@ export interface EpicOverviewTabProps {
   canEdit: boolean;
   /** Reifegrad v2 Controlling-Capability für Impact-Confirm. */
   canConfirmImpact: boolean;
-  /** Resolved user-id → display label (email) map — für die read-only Owner-Anzeige. */
-  userLabels: Record<string, string>;
   /** Nutzen bei 100 % KPI-Zielerreichung — direkt aus den KPIs berechnet. */
   kpiBenefit: { oneTimeBenefit: number; recurringBenefit: number };
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <SectionLabel className="mb-1.5">{label}</SectionLabel>
-      <div className="flex min-h-9 items-center rounded-lg border bg-card px-3 py-2 text-sm leading-snug shadow-xs">
-        {children}
-      </div>
-    </div>
-  );
 }
 
 /** Kennzahl-Kachel (Wirtschaftlichkeit) — großer € -Wert mit semantischem Akzent. */
@@ -113,7 +97,6 @@ export function EpicOverviewTab({
   epic,
   canEdit,
   canConfirmImpact,
-  userLabels,
   kpiBenefit,
 }: EpicOverviewTabProps) {
   const completedChildren = epic.children.filter((c) => c.status === "completed").length;
@@ -154,25 +137,6 @@ export function EpicOverviewTab({
       </section>
 
       <section className="space-y-5">
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-          <Field label="Stage (Funnel)">
-            {STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate}
-          </Field>
-          <Field label="Initiative Owner">
-            {epic.ownerId ? (
-              <span className="flex items-center gap-2">
-                <Avatar size="sm">
-                  <AvatarFallback>{initials(userLabel(epic.ownerId, userLabels))}</AvatarFallback>
-                </Avatar>
-                <span className="truncate">{userLabel(epic.ownerId, userLabels)}</span>
-              </span>
-            ) : (
-              <span className="text-muted-foreground">Nicht zugewiesen</span>
-            )}
-          </Field>
-          <Field label="Value Stream">{epic.valueStream?.name ?? "—"}</Field>
-        </div>
-
         <div>
           <SectionLabel className="mb-2">Geplantes Zeitfenster</SectionLabel>
           <EpicPlannedWindowForm
