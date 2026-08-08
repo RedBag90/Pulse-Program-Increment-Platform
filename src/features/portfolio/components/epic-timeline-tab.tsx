@@ -1,10 +1,21 @@
 "use client";
 
-import { useActionState, useState, startTransition, type ReactNode } from "react";
-import { CheckCircle2, CircleDot, Circle, Lock } from "lucide-react";
+import { useActionState, useState, startTransition, Fragment } from "react";
+import { CheckCircle2, CircleDot, Circle, Lock, ChevronRight, ArrowDown } from "lucide-react";
 import { saveTimelineAction } from "@/features/portfolio/actions/timeline";
 import { advanceStageGateAction } from "@/features/portfolio/actions/stage-gate";
 import type { TimelineFields, TimelineEstimatePhase, TimelineManualPhase } from "@/domain/timeline";
+import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { SectionLabel } from "@/components/ui/section-label";
+import { reifegradGroups } from "@/features/portfolio/lib/reifegrad-groups";
+import { EpicOwnerAssign } from "./epic-owner-assign";
+import {
+  EpicHypothesisApproval,
+  EpicBusinessCaseApproval,
+  type ApprovalRow,
+} from "./epic-approvals-tab";
+import type { TenantApprover } from "./approver-picker";
+import type { ApprovalPhase } from "@/domain/epic-approval";
 
 interface Props {
   epicId: string;
@@ -15,10 +26,30 @@ interface Props {
   hypothesisApprovedAt: string | null;
   selectedForAnalyzingAt: string | null;
   businessCaseApprovedAt: string | null;
+  /** Stamped when the Epic enters L4 (manual advance or first feature start). */
+  implementationStartedAt: string | null;
+  /** Set by Controlling on impact confirmation (L5). */
+  impactRecognizedAt: string | null;
   timeline: TimelineFields;
   canEdit: boolean;
   /** May advance the stage gate (`epic.approve`) — gates the "Für Analyse auswählen" action. */
   canAdvance: boolean;
+  /** Current Epic owner — nominated in the "Selected for Detailing" phase expander. */
+  ownerId: string | null;
+  /** May nominate/replace the Epic owner (`epic.owner.assign`). */
+  canAssignOwner: boolean;
+  /** Tenant approver pool (owner nomination + phase approvers). */
+  approvers: TenantApprover[];
+  userLabels: Record<string, string>;
+  // ── Freigabe-Workflow (früher eigener „Freigaben"-Tab) — lebt jetzt im
+  //    „Business Case"-Phasen-Expander. Nur aktiv bei multiPartyApproval. ──
+  multiPartyApproval: boolean;
+  approvalPhase: ApprovalPhase;
+  approvalRevision: number;
+  approvals: ApprovalRow[];
+  currentUserId: string;
+  defaultFinanceApproverId?: string | null;
+  defaultVmoId?: string | null;
 }
 
 const INPUT =
@@ -42,9 +73,10 @@ function StatusIcon({ status }: { status: RowStatus }) {
 /**
  * Epic Timeline — the lifecycle as phase milestones (stage gates L0–L5) with an
  * Estimate (owner forecast) and an Actual per phase. Funnel/Detailing/Business
- * Case actuals come from workflow events (read-only); Backlog/Implementation
- * actuals are entered by the Owner — setting the Implementation actual marks the
- * Epic Done. The Owner is nominated by the Portfolio Manager on the Detailing phase.
+ * Case/Implementation-started actuals come from workflow events (read-only);
+ * Backlog/Implementation-done actuals are entered by the Owner. Impact Realized
+ * (L5) is stamped by Controlling via confirmEpicImpact. The Owner is nominated by
+ * the Portfolio Manager on the Detailing phase.
  */
 export function EpicTimelineTab({
   epicId,
@@ -54,12 +86,33 @@ export function EpicTimelineTab({
   hypothesisApprovedAt,
   selectedForAnalyzingAt,
   businessCaseApprovedAt,
+  implementationStartedAt,
+  impactRecognizedAt,
   timeline,
   canEdit,
   canAdvance,
+  ownerId,
+  canAssignOwner,
+  approvers,
+  userLabels,
+  multiPartyApproval,
+  approvalPhase,
+  approvalRevision,
+  approvals,
+  currentUserId,
+  defaultFinanceApproverId,
+  defaultVmoId,
 }: Props) {
   const [saveState, saveAction, saving] = useActionState(saveTimelineAction, {});
   const [analyzeState, analyzeAction, analyzing] = useActionState(advanceStageGateAction, {});
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const toggle = (key: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   // "Selected for analyzing" is a deliberate manual step: once the hypothesis is
   // done and the Epic still sits at L1, an authorised user moves it into L2.
@@ -73,11 +126,25 @@ export function EpicTimelineTab({
     startTransition(() => analyzeAction(fd));
   }
 
+  // Manueller L3→L4-Übergang („Implementation started"), entkoppelt vom Feature-Start.
+  const canStartImplementation = canAdvance && stageGate === "L3";
+
+  function startImplementation() {
+    const fd = new FormData();
+    fd.set("epicId", epicId);
+    fd.set("toGate", "L4");
+    startTransition(() => analyzeAction(fd));
+  }
+
   const [estimates, setEstimates] = useState<Record<TimelineEstimatePhase, string>>(() => ({
     detailing: timeline.estimates.detailing ?? "",
+    hypothesis: timeline.estimates.hypothesis ?? "",
+    analyzing: timeline.estimates.analyzing ?? "",
     business_case: timeline.estimates.business_case ?? "",
     backlog: timeline.estimates.backlog ?? "",
+    implementation_started: timeline.estimates.implementation_started ?? "",
     implementation: timeline.estimates.implementation ?? "",
+    done: timeline.estimates.done ?? "",
   }));
   const [actuals, setActuals] = useState<Record<TimelineManualPhase, string>>(() => ({
     backlog: timeline.actuals.backlog ?? "",
@@ -103,9 +170,10 @@ export function EpicTimelineTab({
     Boolean(hypothesisApprovedAt), // business hypothesis done
     Boolean(selectedForAnalyzingAt), // selected for analyzing (→ L2)
     Boolean(businessCaseApprovedAt), // business case approved
-    Boolean(actuals.backlog),
-    Boolean(implementationActual),
-    Boolean(implementationActual), // done reached when implementation is actualised
+    Boolean(actuals.backlog), // backlog
+    Boolean(implementationStartedAt), // implementation started (→ L4)
+    Boolean(implementationActual), // implementation done (owner-set actual)
+    Boolean(impactRecognizedAt), // impact realized (L5 — set by Controlling)
   ];
   const firstOpen = actualPresent.indexOf(false);
   const statusAt = (i: number): RowStatus =>
@@ -118,7 +186,7 @@ export function EpicTimelineTab({
         aria-label="Estimate"
         value={estimates[phase]}
         onChange={(e) => setEstimates((p) => ({ ...p, [phase]: e.target.value }))}
-        className={`${INPUT} w-full`}
+        className={`${INPUT} w-full self-start`}
       />
     ) : (
       <span className="text-sm text-muted-foreground/80">{fmt(estimates[phase])}</span>
@@ -132,85 +200,248 @@ export function EpicTimelineTab({
         aria-label="Actual"
         value={actuals[phase]}
         onChange={(e) => setActuals((p) => ({ ...p, [phase]: e.target.value }))}
-        className={`${INPUT} w-full`}
+        className={`${INPUT} w-full self-start`}
       />
     ) : (
       <span className="text-sm">{fmt(actuals[phase])}</span>
     );
   }
 
-  const Row = ({
-    index,
-    children,
-    last,
-  }: {
-    index: number;
-    children: ReactNode;
-    last?: boolean;
-  }) => (
-    <li className="grid grid-cols-[1.25rem_1fr] gap-x-3 gap-y-2 sm:grid-cols-[1.25rem_minmax(0,1fr)_11rem_11rem]">
-      <div className="flex flex-col items-center">
-        <StatusIcon status={statusAt(index)} />
-        {!last && <span className="mt-1 w-px flex-1 bg-border" />}
-      </div>
-      {children}
-    </li>
-  );
+  // Lifecycle phases in order. `level` (L0–L5) drives the left Reifegrad gutter;
+  // `estimatePhase` → editable Owner estimate (every phase except Funnel);
+  // `actualPhase` → editable manual actual; `actualIso` → read-only workflow
+  // actual; no actual field → em dash.
+  const phases: {
+    key: string;
+    title: string;
+    subtitle: string;
+    level: string;
+    estimatePhase?: TimelineEstimatePhase;
+    actualPhase?: TimelineManualPhase;
+    actualIso?: string | null;
+    expandable?: boolean;
+  }[] = [
+    {
+      key: "funnel",
+      title: "Funnel Entry",
+      subtitle: "Erstellung des Epics",
+      level: "L0",
+      actualIso: createdAt,
+    },
+    {
+      key: "detailing",
+      title: "Selected for Detailing",
+      subtitle: "Owner nominiert",
+      level: "L1",
+      estimatePhase: "detailing",
+      actualIso: selectedForDetailingAt,
+      expandable: true,
+    },
+    {
+      key: "hypothesis",
+      title: "Business hypothesis done",
+      subtitle: "Benefit-Hypothese freigegeben",
+      level: "L1",
+      estimatePhase: "hypothesis",
+      actualIso: hypothesisApprovedAt,
+      expandable:
+        multiPartyApproval && (approvalPhase === "draft" || approvalPhase === "hypothesis_review"),
+    },
+    {
+      key: "analyzing",
+      title: "Selected for analyzing",
+      subtitle: "Für Analyse ausgewählt",
+      level: "L2",
+      estimatePhase: "analyzing",
+      actualIso: selectedForAnalyzingAt,
+    },
+    {
+      key: "business_case",
+      title: "Business Case",
+      subtitle: "Lean Business Case freigegeben",
+      level: "L2",
+      estimatePhase: "business_case",
+      actualIso: businessCaseApprovedAt,
+      expandable: multiPartyApproval,
+    },
+    {
+      key: "backlog",
+      title: "Backlog",
+      subtitle: "Portfolio-Backlog",
+      level: "L3",
+      estimatePhase: "backlog",
+      actualPhase: "backlog",
+    },
+    {
+      key: "implementation_started",
+      title: "Implementation started",
+      subtitle: "Umsetzung gestartet",
+      level: "L4",
+      estimatePhase: "implementation_started",
+      actualIso: implementationStartedAt,
+    },
+    {
+      key: "implementation",
+      title: "Implementation done",
+      subtitle: "Ist-Datum = Umsetzung abgeschlossen.",
+      level: "L4",
+      estimatePhase: "implementation",
+      actualPhase: "implementation",
+    },
+    {
+      key: "done",
+      title: "Impact Realized",
+      subtitle: "Impact durch Controlling bestätigt",
+      level: "L5",
+      estimatePhase: "done",
+      actualIso: impactRecognizedAt,
+    },
+  ];
 
-  // Column headers (desktop)
+  const groups = reifegradGroups(phases.map((p) => p.level));
+
+  function EstimateSlot({ phase }: { phase: (typeof phases)[number] }) {
+    if (!phase.estimatePhase)
+      return <span className="text-sm text-muted-foreground/80 sm:pt-0.5">—</span>;
+    return <EstimateCell phase={phase.estimatePhase} />;
+  }
+
+  function ActualSlot({ phase }: { phase: (typeof phases)[number] }) {
+    if (phase.actualPhase) return <ManualActualCell phase={phase.actualPhase} />;
+    if (phase.actualIso !== undefined)
+      return <span className="text-sm sm:pt-0.5">{fmt(phase.actualIso)}</span>;
+    return <span className="text-sm text-muted-foreground/80 sm:pt-0.5">—</span>;
+  }
+
+  /**
+   * Aufgeklappter Inhalt je Phase: Owner-Nominierung an „Selected for Detailing",
+   * Hypothese-Freigabe an „Business hypothesis done", Business-Case-/Stakeholder-
+   * Freigabe an „Business Case". Die Phasen selbst ersetzen den Freigabe-Stepper.
+   */
+  function ExpandedContent({ phase }: { phase: (typeof phases)[number] }) {
+    if (phase.key === "detailing") {
+      return (
+        <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+          <SectionLabel>Epic Owner</SectionLabel>
+          <EpicOwnerAssign
+            epicId={epicId}
+            ownerId={ownerId}
+            canAssignOwner={canAssignOwner}
+            approvers={approvers}
+            userLabels={userLabels}
+          />
+        </div>
+      );
+    }
+    if (phase.key === "hypothesis" && multiPartyApproval) {
+      return (
+        <div className="rounded-md border bg-muted/20 p-3">
+          <EpicHypothesisApproval epicId={epicId} phase={approvalPhase} canManage={canEdit} />
+        </div>
+      );
+    }
+    if (phase.key === "business_case" && multiPartyApproval) {
+      return (
+        <div className="rounded-md border bg-muted/20 p-3">
+          <EpicBusinessCaseApproval
+            epicId={epicId}
+            phase={approvalPhase}
+            revision={approvalRevision}
+            approvals={approvals}
+            approvers={approvers}
+            userLabels={userLabels}
+            currentUserId={currentUserId}
+            canManage={canEdit}
+            defaultFinanceApproverId={defaultFinanceApproverId ?? null}
+            defaultVmoId={defaultVmoId ?? null}
+          />
+        </div>
+      );
+    }
+    return null;
+  }
+
   return (
     <div className="space-y-6">
-      <div className="hidden grid-cols-[1.25rem_minmax(0,1fr)_11rem_11rem] gap-x-3 px-0 text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:grid">
+      {/* Column headers (desktop) — pl offset = Reifegrad-Gutter (2.5rem) + gap (0.75rem). */}
+      <div className="hidden gap-x-3 pl-[3.25rem] text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:grid sm:grid-cols-[1.25rem_minmax(0,1fr)_11rem_11rem]">
         <span />
         <span>Phase</span>
         <span>Estimate</span>
         <span>Actual</span>
       </div>
 
-      <ol className="space-y-4">
-        {/* Funnel Entry — actual = creation date */}
-        <Row index={0}>
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Funnel Entry</p>
-            <p className="text-xs text-muted-foreground">Erstellung des Epics</p>
-          </div>
-          <span className="text-sm text-muted-foreground/80 sm:pt-0.5">—</span>
-          <span className="text-sm sm:pt-0.5">{fmt(createdAt)}</span>
-        </Row>
+      {/* Ein Block je Reifegrad-Gruppe: links das L-Kürzel, durch eine vertikale
+          Linie von den Phasen getrennt — die Linie spannt über alle Phasen der Gruppe. */}
+      <div className="space-y-4">
+        {groups.map((g) => (
+          <Fragment key={`${g.level}-${g.start}`}>
+            <div className="flex gap-3">
+              <div
+                className="flex w-[2.5rem] shrink-0 items-start justify-end gap-2"
+                title={STAGE_GATE_LABELS[g.level] ?? g.level}
+              >
+                <span className="pt-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+                  {g.level}
+                </span>
+                <span className="w-px self-stretch bg-border" />
+              </div>
 
-        {/* Selected for Detailing — actual = owner nominated (→ L1) */}
-        <Row index={1}>
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Selected for Detailing</p>
-            <p className="text-xs text-muted-foreground">Owner nominiert</p>
-          </div>
-          <EstimateCell phase="detailing" />
-          <span className="text-sm sm:pt-0.5">{fmt(selectedForDetailingAt)}</span>
-        </Row>
+              <ol className="flex-1 space-y-4">
+                {phases.slice(g.start, g.start + g.span).map((phase, j) => {
+                  const index = g.start + j;
+                  return (
+                    <li
+                      key={phase.key}
+                      className="grid grid-cols-[1.25rem_1fr] gap-x-3 gap-y-2 sm:grid-cols-[1.25rem_minmax(0,1fr)_11rem_11rem]"
+                    >
+                      <div className="flex justify-center sm:pt-0.5">
+                        <StatusIcon status={statusAt(index)} />
+                      </div>
+                      <div className="min-w-0 space-y-1.5">
+                        {phase.expandable ? (
+                          <button
+                            type="button"
+                            onClick={() => toggle(phase.key)}
+                            aria-expanded={expanded.has(phase.key)}
+                            className="flex items-center gap-1 text-sm font-medium hover:text-primary"
+                          >
+                            <ChevronRight
+                              className={`size-3.5 shrink-0 transition-transform ${
+                                expanded.has(phase.key) ? "rotate-90" : ""
+                              }`}
+                            />
+                            {phase.title}
+                          </button>
+                        ) : (
+                          <p className="text-sm font-medium">{phase.title}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">{phase.subtitle}</p>
+                      </div>
+                      <EstimateSlot phase={phase} />
+                      <ActualSlot phase={phase} />
+                      {phase.expandable && expanded.has(phase.key) && (
+                        <div className="col-span-2 sm:col-span-4">
+                          <ExpandedContent phase={phase} />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
 
-        {/* Business hypothesis done — actual = hypothesis approved */}
-        <Row index={2}>
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Business hypothesis done</p>
-            <p className="text-xs text-muted-foreground">Benefit-Hypothese freigegeben</p>
-          </div>
-          <span className="text-sm text-muted-foreground/80 sm:pt-0.5">—</span>
-          <span className="text-sm sm:pt-0.5">{fmt(hypothesisApprovedAt)}</span>
-        </Row>
-
-        {/* Selected for analyzing — manual step → L2 Analyzing */}
-        <Row index={3}>
-          <div className="min-w-0 space-y-1.5">
-            <p className="text-sm font-medium">Selected for analyzing</p>
-            <p className="text-xs text-muted-foreground">Für Analyse ausgewählt (L2)</p>
-            {canSelectForAnalyzing && (
-              <div className="flex flex-wrap items-center gap-2">
+            {/* Advance-Button im Übergang L1→L2: zwischen „Business hypothesis done"
+              und „Selected for analyzing". */}
+            {g.level === "L1" && canSelectForAnalyzing && (
+              <div className="flex flex-wrap items-center gap-2 pl-[3.25rem]">
                 <button
                   type="button"
                   onClick={selectForAnalyzing}
                   disabled={analyzing}
-                  className="rounded-md bg-secondary px-2 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-md bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
                 >
+                  <ArrowDown className="size-3.5" />
                   {analyzing ? "…" : "Für Analyse auswählen"}
                 </button>
                 {analyzeState.error && (
@@ -218,53 +449,27 @@ export function EpicTimelineTab({
                 )}
               </div>
             )}
-          </div>
-          <span className="text-sm text-muted-foreground/80 sm:pt-0.5">—</span>
-          <span className="text-sm sm:pt-0.5">{fmt(selectedForAnalyzingAt)}</span>
-        </Row>
 
-        {/* Business Case — actual = full approval finalized */}
-        <Row index={4}>
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Business Case</p>
-            <p className="text-xs text-muted-foreground">Lean Business Case freigegeben</p>
-          </div>
-          <EstimateCell phase="business_case" />
-          <span className="text-sm sm:pt-0.5">{fmt(businessCaseApprovedAt)}</span>
-        </Row>
-
-        {/* Backlog — manual actual */}
-        <Row index={5}>
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Backlog</p>
-            <p className="text-xs text-muted-foreground">Portfolio-Backlog</p>
-          </div>
-          <EstimateCell phase="backlog" />
-          <ManualActualCell phase="backlog" />
-        </Row>
-
-        {/* Implementation — manual actual → Done */}
-        <Row index={6}>
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Implementation</p>
-            <p className="text-xs text-muted-foreground">
-              Actual setzen markiert das Epic als <span className="font-medium">Done</span>.
-            </p>
-          </div>
-          <EstimateCell phase="implementation" />
-          <ManualActualCell phase="implementation" />
-        </Row>
-
-        {/* Done — terminal, no end date */}
-        <Row index={7} last>
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Done</p>
-            <p className="text-xs text-muted-foreground">Abgeschlossen — kein Enddatum</p>
-          </div>
-          <span className="text-sm text-muted-foreground/80 sm:pt-0.5">—</span>
-          <span className="text-sm sm:pt-0.5">—</span>
-        </Row>
-      </ol>
+            {/* Advance-Button im Übergang L3→L4: zwischen „Backlog" und „Implementation started". */}
+            {g.level === "L3" && canStartImplementation && (
+              <div className="flex flex-wrap items-center gap-2 pl-[3.25rem]">
+                <button
+                  type="button"
+                  onClick={startImplementation}
+                  disabled={analyzing}
+                  className="inline-flex items-center gap-1 rounded-md bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
+                >
+                  <ArrowDown className="size-3.5" />
+                  {analyzing ? "…" : "Implementation starten"}
+                </button>
+                {analyzeState.error && (
+                  <span className="text-xs text-destructive">{analyzeState.error}</span>
+                )}
+              </div>
+            )}
+          </Fragment>
+        ))}
+      </div>
 
       {canEdit ? (
         <div className="flex items-center gap-3 border-t pt-4">

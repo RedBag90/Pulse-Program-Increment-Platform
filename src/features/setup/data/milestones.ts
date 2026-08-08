@@ -138,7 +138,7 @@ export const MILESTONES: readonly Milestone[] = [
       "Das erste PI hat geplanten Inhalt — Features sind Teams zugewiesen, mind. eines gestartet, Epic auf L4.",
     who: "RTE, Team Leads, Epic Owner",
     where: [
-      { href: "/portfolio/epics", label: "Portfolio · Epics (Breakdown-Tab)" },
+      { href: "/portfolio/epics", label: "Portfolio · Epics (Deliverables-Tab)" },
       { href: "/umsetzung", label: "Umsetzungs-Cockpit" },
     ],
     checks: [

@@ -34,7 +34,6 @@ import {
 } from "@/features/portfolio/components/epic-breakdown-tab";
 import { BenefitHypothesisEditor } from "@/features/portfolio/components/benefit-hypothesis-editor";
 import { BusinessCaseEditor } from "@/features/portfolio/components/business-case-editor";
-import { EpicApprovalsTab } from "@/features/portfolio/components/epic-approvals-tab";
 import { EpicTimelineTab } from "@/features/portfolio/components/epic-timeline-tab";
 import {
   RevisionDiff,
@@ -197,12 +196,10 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     : 0;
   const budgetAllocated = budgetAllocatedSum > 0;
 
-  // The multi-party approval workflow is only present when the target enables it
-  // — otherwise the "Freigaben" tab and the phase badge are hidden.
-  const tabs = practices.multiPartyApproval
-    ? EPIC_TABS
-    : EPIC_TABS.filter((t) => t.key !== "approvals");
-  const activeTab = resolveTab(tabs, tab);
+  // The multi-party approval workflow lives in the Timeline's "Business Case"
+  // phase expander; when the target disables it, that expander + the phase badge
+  // stay hidden (gated by `practices.multiPartyApproval`).
+  const activeTab = resolveTab(EPIC_TABS, tab);
 
   const approvalPhase = (epic.approvalPhase as ApprovalPhase | null) ?? "draft";
   // Gates the side-by-side review diff on the Benefit Hypothesis tab — the
@@ -419,7 +416,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         backLabel="Zurück zu den Epics"
         title={epic.title}
         badge={practices.multiPartyApproval ? <PhaseBadge phase={approvalPhase} /> : undefined}
-        tabs={tabs}
+        tabs={EPIC_TABS}
         activeTab={activeTab}
         basePath={`/portfolio/epics/${epic.id}`}
         headerActions={canEdit ? <DeleteEpicButton id={epic.id} title={epic.title} /> : undefined}
@@ -480,9 +477,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             <EpicOverviewTab
               epic={epic}
               canEdit={canEdit}
-              canAssignOwner={canAssignOwner}
               canConfirmImpact={canConfirmImpact}
-              approvers={approvers}
               userLabels={userLabels}
               kpiBenefit={kpiBenefit}
             />
@@ -491,7 +486,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
         {activeTab === "timeline" && (
           <section>
-            <h2 className="mb-4 font-heading text-lg font-medium">Timeline</h2>
+            <h2 className="mb-4 font-heading text-lg font-medium">Reifegrad-Phasen und Timeline</h2>
             <EpicTimelineTab
               epicId={epic.id}
               stageGate={epic.stageGate}
@@ -500,26 +495,24 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               hypothesisApprovedAt={epic.hypothesisApprovedAt?.toISOString() ?? null}
               selectedForAnalyzingAt={epic.selectedForAnalyzingAt?.toISOString() ?? null}
               businessCaseApprovedAt={epic.businessCaseApprovedAt?.toISOString() ?? null}
+              implementationStartedAt={epic.implementationStartedAt?.toISOString() ?? null}
+              impactRecognizedAt={epic.impactRecognizedAt?.toISOString() ?? null}
               timeline={timeline}
               canEdit={canEdit}
               canAdvance={canAdvance}
+              ownerId={epic.ownerId}
+              canAssignOwner={canAssignOwner}
+              approvers={approvers}
+              userLabels={userLabels}
+              multiPartyApproval={practices.multiPartyApproval}
+              approvalPhase={approvalPhase}
+              approvalRevision={activeRevision}
+              approvals={approvals}
+              currentUserId={principal.id}
+              defaultFinanceApproverId={epic.valueStream?.financeApproverId ?? null}
+              defaultVmoId={epic.valueStream?.vmoId ?? null}
             />
           </section>
-        )}
-
-        {activeTab === "approvals" && (
-          <EpicApprovalsTab
-            epicId={epic.id}
-            phase={approvalPhase}
-            revision={activeRevision}
-            approvals={approvals}
-            approvers={approvers}
-            userLabels={userLabels}
-            currentUserId={principal.id}
-            canManage={canEdit}
-            defaultFinanceApproverId={epic.valueStream?.financeApproverId ?? null}
-            defaultVmoId={epic.valueStream?.vmoId ?? null}
-          />
         )}
 
         {activeTab === "business-case" && (

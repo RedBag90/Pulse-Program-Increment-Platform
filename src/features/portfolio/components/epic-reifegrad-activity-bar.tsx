@@ -1,9 +1,10 @@
 import { CheckCircle2 } from "lucide-react";
-import { STAGE_GATES, SUB_STAGES_BY_GATE, type SubStage } from "@/domain/stage-gate";
+import { type SubStage } from "@/domain/stage-gate";
 import type { StageGate } from "@/domain/types";
-import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiative-labels";
+import { SectionLabel } from "@/components/ui/section-label";
 import type { EpicNextStep } from "@/domain/epic-next-step";
 import { StageGateLifecycleHelp } from "@/features/portfolio/components/stage-gate-lifecycle-help";
+import { ReifegradStepper } from "@/features/portfolio/components/reifegrad-stepper";
 
 interface Props {
   stageGate: StageGate;
@@ -17,15 +18,6 @@ interface Props {
    *  der Seite gerendert, weil die Variante Capability-abhängig ist. */
   actionSlot?: React.ReactNode;
 }
-
-const STAGE_DOT: Record<StageGate, string> = {
-  L0: "bg-muted-foreground/40",
-  L1: "bg-amber-400",
-  L2: "bg-blue-400",
-  L3: "bg-indigo-400",
-  L4: "bg-primary",
-  L5: "bg-emerald-500",
-};
 
 /**
  * Sub-Header für die Epic-Detail-Seite — trennt die zwei Achsen visuell:
@@ -44,65 +36,19 @@ export function EpicReifegradActivityBar({ stageGate, subStage, nextStep, action
   return (
     <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
       {/* ── Reifegrad ──────────────────────────────────────── */}
-      <section className="space-y-2">
+      <section className="space-y-3">
         <div className="flex items-center gap-1.5">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Reifegrad
-          </p>
+          <SectionLabel>Reifegrad</SectionLabel>
           <StageGateLifecycleHelp />
         </div>
-        <div className="flex flex-wrap items-start gap-1.5">
-          {STAGE_GATES.map((g) => {
-            const isActive = g === stageGate;
-            const isPast = STAGE_GATES.indexOf(g) < STAGE_GATES.indexOf(stageGate);
-            const subs = SUB_STAGES_BY_GATE[g as StageGate];
-            return (
-              <div key={g} className="flex flex-col gap-0.5">
-                <div
-                  className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${
-                    isActive
-                      ? "border-foreground bg-card font-medium"
-                      : isPast
-                        ? "border-input bg-muted/40 text-muted-foreground"
-                        : "border-dashed border-input bg-transparent text-muted-foreground/60"
-                  }`}
-                >
-                  <span className={`size-2 rounded-full ${STAGE_DOT[g as StageGate]}`} />
-                  <span>{STAGE_GATE_LABELS[g] ?? g}</span>
-                </div>
-                {subs && (
-                  <div className="flex gap-0.5 px-0.5">
-                    {subs.map((s) => {
-                      const isSubActive = subStage === s;
-                      return (
-                        <span
-                          key={s}
-                          title={`${s} ${SUB_STAGE_LABELS[s]}`}
-                          className={`flex flex-1 items-center justify-center rounded px-1.5 py-0.5 text-[10px] ${
-                            isSubActive
-                              ? "bg-foreground font-medium text-background"
-                              : isActive
-                                ? "bg-muted/60 text-muted-foreground"
-                                : "bg-muted/30 text-muted-foreground/60"
-                          }`}
-                        >
-                          {s}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <div className="pr-2">
+          <ReifegradStepper stageGate={stageGate} subStage={subStage} />
         </div>
       </section>
 
       {/* ── Nächster Schritt ───────────────────────────────── */}
       <section className="space-y-2 border-l-0 lg:border-l lg:pl-4">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          Nächster Schritt
-        </p>
+        <SectionLabel>Nächster Schritt</SectionLabel>
         {nextStep === null ? (
           <div className="space-y-1">
             <p className="inline-flex items-center gap-1.5 text-sm font-medium">

@@ -103,15 +103,33 @@ describe("manualForwardBlockReason", () => {
     ).toBeNull();
   });
 
-  it("L1→L2: blockt ohne Business-Case-Inhalt, erlaubt mit", () => {
-    expect(manualForwardBlockReason("L1", "L2", base)).toMatch(/Business Case/i);
+  it("L1→L2 (Approval an): blockt ohne freigegebene Hypothese, erlaubt mit", () => {
+    // Analyse steht vor „Business Case done" — Voraussetzung ist die Hypothese, kein BC.
+    expect(manualForwardBlockReason("L1", "L2", base)).toMatch(/Hypothese/i);
     expect(
-      manualForwardBlockReason("L1", "L2", { ...base, hasBusinessCaseContent: true }),
+      manualForwardBlockReason("L1", "L2", { ...base, hypothesisApprovedAt: new Date() }),
+    ).toBeNull();
+    // Business-Case-Inhalt allein reicht NICHT (die Hypothese fehlt noch).
+    expect(manualForwardBlockReason("L1", "L2", { ...base, hasBusinessCaseContent: true })).toMatch(
+      /Hypothese/i,
+    );
+  });
+
+  it("L1→L2 (Approval aus): blockt ohne Hypothese-Inhalt, erlaubt mit", () => {
+    expect(manualForwardBlockReason("L1", "L2", { ...base, multiPartyApproval: false })).toMatch(
+      /Hypothese/i,
+    );
+    expect(
+      manualForwardBlockReason("L1", "L2", {
+        ...base,
+        multiPartyApproval: false,
+        hasHypothesisContent: true,
+      }),
     ).toBeNull();
   });
 
-  it("L3→L4: blockt ohne gestartetes Feature, erlaubt mit ≥1", () => {
-    expect(manualForwardBlockReason("L3", "L4", base)).toMatch(/Feature/i);
+  it("L3→L4: kein Guard mehr — immer erlaubt (entkoppelt vom Feature-Start)", () => {
+    expect(manualForwardBlockReason("L3", "L4", base)).toBeNull();
     expect(
       manualForwardBlockReason("L3", "L4", { ...base, startedChildFeatureCount: 1 }),
     ).toBeNull();

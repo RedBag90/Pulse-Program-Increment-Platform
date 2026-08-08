@@ -263,14 +263,14 @@ export function BusinessCaseEditor({
                   <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600" />
                   <div className="space-y-2">
                     <p className="text-xs leading-snug text-muted-foreground">
-                      Zur besseren Konkretisierung nimm ein Breakdown vor — Features mit Aufwand
-                      machen die Kostenkalkulation belastbarer.
+                      Zur besseren Konkretisierung brich das Epic in Deliverables herunter —
+                      Features mit Aufwand machen die Kostenkalkulation belastbarer.
                     </p>
                     <Link
                       href={`/portfolio/epics/${epicId}?tab=breakdown` as never}
                       className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
                     >
-                      Zum Breakdown <ArrowRight className="size-3" />
+                      Zu den Deliverables <ArrowRight className="size-3" />
                     </Link>
                   </div>
                 </div>

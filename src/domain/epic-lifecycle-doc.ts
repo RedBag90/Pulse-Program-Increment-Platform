@@ -192,11 +192,13 @@ export interface ManualAdvanceState {
 /**
  * Vorbedingungs-Guard für **manuelle Vorwärts-Stage-Gate-Wechsel**. Gibt eine
  * Reason zurück, wenn der Wechsel die nötige Vorleistung überspringt — sonst
- * `null` (erlaubt). Spiegelt die Auto-Advance-Trigger aus `LIFECYCLE_TRIGGERS`:
- * L1 verlangt eine freigegebene (bzw. bei ausgeschalteter Mehrparteien-Freigabe:
- * ausgearbeitete) Hypothese, L2 Business-Case-Inhalt, L4 ein gestartetes Feature.
- * L2→L3 / L4→L5 sind separat über `BLOCKED_MANUAL_TRANSITIONS` gesperrt;
- * Rückwärts-Wechsel (Korrektur) und alle übrigen Paare geben `null`.
+ * `null` (erlaubt). L1 **und** L2 verlangen eine freigegebene (bzw. bei ausge-
+ * schalteter Mehrparteien-Freigabe: ausgearbeitete) Benefit-Hypothese — L2 ist der
+ * Eintritt in die Analyse und steht vor „Business Case done" (BC-Inhalt ist erst
+ * Voraussetzung fürs Business-Case-Einreichen, nicht hier). L3→L4 („Implementation
+ * started") ist manuell ohne Vorbedingung erlaubt (der Feature-Start advanct L4
+ * zusätzlich automatisch). L2→L3 / L4→L5 sind separat über `BLOCKED_MANUAL_TRANSITIONS`
+ * gesperrt; Rückwärts-Wechsel (Korrektur) und alle übrigen Paare geben `null`.
  */
 export function manualForwardBlockReason(
   from: string,
@@ -214,14 +216,21 @@ export function manualForwardBlockReason(
       : "L1 verlangt eine ausgearbeitete Benefit-Hypothese — fülle sie zuerst im Hypothese-Tab aus.";
   }
   if (from === "L1" && to === "L2") {
-    return state.hasBusinessCaseContent
+    // L2 = Eintritt in die Analyse — steht VOR „Business Case done". Voraussetzung
+    // ist die freigegebene/ausgearbeitete Benefit-Hypothese (L1-Deliverable), NICHT
+    // ein Business Case (den schreibt man erst in der Analyse; BC-Inhalt ist Voraus-
+    // setzung fürs Business-Case-Einreichen). Spiegelt L0→L1.
+    if (state.multiPartyApproval) {
+      return state.hypothesisApprovedAt != null
+        ? null
+        : "Analyse (L2) verlangt eine vom Portfolio Manager freigegebene Benefit-Hypothese — reiche sie zuerst ein und lass sie entscheiden.";
+    }
+    return state.hasHypothesisContent
       ? null
-      : "L2 verlangt einen ausgearbeiteten Business Case — detailliere ihn zuerst im BC-Tab.";
+      : "Analyse (L2) verlangt eine ausgearbeitete Benefit-Hypothese — fülle sie zuerst im Hypothese-Tab aus.";
   }
-  if (from === "L3" && to === "L4") {
-    return state.startedChildFeatureCount > 0
-      ? null
-      : "L4 verlangt mindestens ein gestartetes Child-Feature — starte zuerst ein Feature in einem PI.";
-  }
+  // L3→L4 (Implementation started) ist manuell **ohne** Vorbedingung erlaubt: der
+  // Owner darf die Umsetzung explizit starten. Der Feature-Start advanct L4 zusätzlich
+  // automatisch (autoAdvanceStageGate) — daher hier kein Guard mehr.
   return null;
 }

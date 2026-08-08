@@ -6,12 +6,19 @@
  * Flat, not versioned. No I/O.
  */
 
-/** Phases whose target date the Owner forecasts as an estimate. */
+/**
+ * Phases whose target date the Owner forecasts as an estimate. Every lifecycle
+ * phase except Funnel Entry (= creation / t0, already an actual) may carry one.
+ */
 export const TIMELINE_ESTIMATE_PHASES = [
   "detailing",
+  "hypothesis",
+  "analyzing",
   "business_case",
   "backlog",
+  "implementation_started",
   "implementation",
+  "done",
 ] as const;
 export type TimelineEstimatePhase = (typeof TIMELINE_ESTIMATE_PHASES)[number];
 

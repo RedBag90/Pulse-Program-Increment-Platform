@@ -93,7 +93,7 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
       return {
         title: "Auf Stakeholder-Freigabe warten",
         hint: "Der Business Case ist eingereicht. Die zugewiesenen Approver entscheiden als Naechstes.",
-        cta: { kind: "link", label: "Zu den Freigaben", href: tab("approvals") },
+        cta: { kind: "link", label: "Zu den Freigaben", href: tab("timeline") },
       };
     }
     if (approvalPhase === "approved") {
@@ -131,7 +131,7 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
       return {
         title: "Auf Stakeholder-Freigabe warten",
         hint: "Die zugewiesenen Approver entscheiden als Nächstes über den Business Case.",
-        cta: { kind: "link", label: "Zu den Freigaben", href: tab("approvals") },
+        cta: { kind: "link", label: "Zu den Freigaben", href: tab("timeline") },
       };
     }
     if (hasBusinessCase) {
@@ -152,9 +152,9 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
     return {
       title: "Erstes Feature starten",
       hint: budgetAllocated
-        ? "Budget ist alloziert. Lege im Breakdown Features an und starte das erste in einem PI — das Epic rückt damit auf L4."
-        : "Lege im Breakdown Features an und starte das erste in einem PI — das Epic rückt damit auf L4.",
-      cta: { kind: "link", label: "Zum Breakdown", href: tab("breakdown") },
+        ? "Budget ist alloziert. Lege in den Deliverables Features an und starte das erste in einem PI — das Epic rückt damit auf L4."
+        : "Lege in den Deliverables Features an und starte das erste in einem PI — das Epic rückt damit auf L4.",
+      cta: { kind: "link", label: "Zu den Deliverables", href: tab("breakdown") },
     };
   }
 
@@ -173,8 +173,8 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
       hint:
         total > 0
           ? "Die Implementierung läuft. Schließe die restlichen Features ab — sobald alle abgeschlossen sind, kann das Controlling den Impact bestätigen."
-          : "Es sind noch keine Child-Features am Epic. Lege im Breakdown welche an und starte sie.",
-      cta: { kind: "link", label: "Zum Breakdown", href: tab("breakdown") },
+          : "Es sind noch keine Child-Features am Epic. Lege in den Deliverables welche an und starte sie.",
+      cta: { kind: "link", label: "Zu den Deliverables", href: tab("breakdown") },
     };
   }
 

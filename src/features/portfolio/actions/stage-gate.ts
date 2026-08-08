@@ -25,10 +25,14 @@ export const advanceStageGateAction = createServerAction({
   revalidate: "epic",
   mapError: (e) =>
     e.kind === "not_found"
-      ? "Epic not found"
+      ? "Epic nicht gefunden"
       : e.kind === "hierarchy_violation"
         ? e.detail
-        : "Failed to advance stage gate",
+        : e.kind === "forbidden"
+          ? e.reason
+          : e.kind === "conflict"
+            ? e.reason
+            : "Stage-Gate-Übergang fehlgeschlagen",
 });
 
 /**

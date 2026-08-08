@@ -19,9 +19,13 @@ const timelineSchema = z.object({
   epicId: z.string().uuid(),
   estimates: z.object({
     detailing: isoDate,
+    hypothesis: isoDate,
+    analyzing: isoDate,
     business_case: isoDate,
     backlog: isoDate,
+    implementation_started: isoDate,
     implementation: isoDate,
+    done: isoDate,
   }),
   actuals: z.object({
     backlog: isoDate,

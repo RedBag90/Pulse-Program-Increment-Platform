@@ -255,11 +255,11 @@ export function EpicBreakdownTab({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-medium">Breakdown</h2>
+        <h2 className="text-lg font-medium">Deliverables</h2>
         <div className="flex items-center gap-2">
           <div
             role="tablist"
-            aria-label="Breakdown-Ansicht"
+            aria-label="Deliverables-Ansicht"
             className="inline-flex overflow-hidden rounded-md border bg-card text-xs"
           >
             <button
@@ -299,7 +299,7 @@ export function EpicBreakdownTab({
 
       <p className="text-xs text-muted-foreground">
         Die QS einzelner Features (durch den RTE) ist unabhängig von der Epic-Freigabe: hier nimmst
-        du den <span className="font-medium">Breakdown als Ganzes</span> für die Freigabe ab.
+        du die <span className="font-medium">Deliverables als Ganzes</span> für die Freigabe ab.
       </p>
 
       {view === "graph" ? (

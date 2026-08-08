@@ -18,7 +18,7 @@ import { Page, PageHeader, PageSection } from "@/components/layout";
 const KIND_LABELS: Record<MyApprovalRow["kind"], string> = {
   epic_hypothesis: "Epic-Hypothesen",
   epic_party: "Epic-Stakeholder-Freigaben",
-  epic_section: "Epic-Abschnitte (Breakdown / KPIs)",
+  epic_section: "Epic-Abschnitte (Deliverables / KPIs)",
 };
 
 const KIND_ORDER: MyApprovalRow["kind"][] = ["epic_hypothesis", "epic_party", "epic_section"];
@@ -32,7 +32,7 @@ const PARTY_LABELS: Record<ApprovalParty, string> = {
 };
 
 const SECTION_LABELS: Record<ApprovalSection, string> = {
-  breakdown: "Breakdown",
+  breakdown: "Deliverables",
   kpis: "KPIs",
 };
 

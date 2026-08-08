@@ -7,6 +7,11 @@ import { APPROVAL_PARTIES, type ApprovalParty } from "@/domain/business-case";
 import { APPROVAL_SECTIONS, type ApprovalSection } from "@/domain/epic-approval";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SectionLabel } from "@/components/ui/section-label";
+
+/** Gemeinsame Basis für alle Auswahl-Controls (Parteien-Trigger + Sektions-Select). */
+const CONTROL =
+  "min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-left text-xs";
 
 const PARTY_LABELS: Record<ApprovalParty, string> = {
   mgmt: "MGMT",
@@ -17,7 +22,7 @@ const PARTY_LABELS: Record<ApprovalParty, string> = {
 };
 
 const SECTION_LABELS: Record<ApprovalSection, string> = {
-  breakdown: "Breakdown",
+  breakdown: "Deliverables",
   kpis: "KPIs",
 };
 
@@ -72,7 +77,7 @@ function MultiUserSelect({
 
   return (
     <Popover>
-      <PopoverTrigger className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded border border-input bg-background px-2 py-1 text-left text-xs">
+      <PopoverTrigger className={`flex items-center justify-between gap-2 ${CONTROL}`}>
         <span className={`truncate ${selected.size === 0 ? "text-muted-foreground" : ""}`}>
           {summary}
         </span>
@@ -165,18 +170,19 @@ export function ApproverPicker({ epicId, approvers, current, currentSections, us
   );
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
         Wähle je Partei die Personen, deren Freigabe du einholen willst (Mehrfachauswahl möglich).
       </p>
-      <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Stakeholder-Parteien
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
+      <div className="space-y-2">
+        <SectionLabel>Stakeholder-Parteien</SectionLabel>
+        <div className="grid gap-2 sm:grid-cols-2">
           {APPROVAL_PARTIES.map((party) => (
-            <div key={party} className="flex items-center gap-2 rounded border p-3">
-              <span className="w-28 shrink-0 text-sm font-medium">{PARTY_LABELS[party]}</span>
+            <div
+              key={party}
+              className="flex items-center gap-2 rounded-md border bg-card px-3 py-2"
+            >
+              <span className="w-28 shrink-0 text-xs font-medium">{PARTY_LABELS[party]}</span>
               <MultiUserSelect
                 options={approvers}
                 selected={selected[party]}
@@ -188,40 +194,44 @@ export function ApproverPicker({ epicId, approvers, current, currentSections, us
         </div>
       </div>
 
-      <div>
-        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Inhaltliche Abnahmen
+      <div className="space-y-2">
+        <SectionLabel>Inhaltliche Abnahmen</SectionLabel>
+        <p className="text-xs text-muted-foreground">
+          Deliverables und KPIs sind Teil des Business Case — lege je einen Verantwortlichen fest,
+          der den Abschnitt für die Freigabe abnimmt.
         </p>
-        <p className="mb-2 text-xs text-muted-foreground">
-          Breakdown und KPIs sind Teil des Business Case — lege je einen Verantwortlichen fest, der
-          den Abschnitt für die Freigabe abnimmt.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-2">
           {APPROVAL_SECTIONS.map((section) => (
-            <div key={section} className="flex items-center gap-2 rounded border p-3">
-              <label htmlFor={`section-${section}`} className="w-24 shrink-0 text-sm font-medium">
+            <div
+              key={section}
+              className="flex items-center gap-2 rounded-md border bg-card px-3 py-2"
+            >
+              <label htmlFor={`section-${section}`} className="w-28 shrink-0 text-xs font-medium">
                 {SECTION_LABELS[section]}
               </label>
-              <select
-                id={`section-${section}`}
-                value={sectionOwners[section]}
-                onChange={(e) =>
-                  setSectionOwners((prev) => ({ ...prev, [section]: e.target.value }))
-                }
-                className="min-w-0 flex-1 rounded border border-input bg-background px-2 py-1 text-xs"
-              >
-                <option value="">— Verantwortlichen wählen —</option>
-                {sectionEligible.map((u) => (
-                  <option key={u.userId} value={u.userId}>
-                    {userLabel(u.userId, userLabels)} ({u.roles.join(", ")})
-                  </option>
-                ))}
-              </select>
+              <div className="relative min-w-0 flex-1">
+                <select
+                  id={`section-${section}`}
+                  value={sectionOwners[section]}
+                  onChange={(e) =>
+                    setSectionOwners((prev) => ({ ...prev, [section]: e.target.value }))
+                  }
+                  className={`w-full appearance-none pr-7 ${CONTROL}`}
+                >
+                  <option value="">— Verantwortlichen wählen —</option>
+                  {sectionEligible.map((u) => (
+                    <option key={u.userId} value={u.userId}>
+                      {userLabel(u.userId, userLabels)} ({u.roles.join(", ")})
+                    </option>
+                  ))}
+                </select>
+                <ChevronsUpDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              </div>
             </div>
           ))}
         </div>
         {sectionEligible.length === 0 && (
-          <p className="mt-2 text-xs text-amber-700">
+          <p className="text-xs text-amber-700">
             Im Mandanten gibt es keine Nutzer mit Abnahme-Rolle (Value-Stream-Owner oder
             Portfolio-Manager).
           </p>
@@ -229,12 +239,12 @@ export function ApproverPicker({ epicId, approvers, current, currentSections, us
       </div>
 
       {state.error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-xs text-red-600">
           {state.error}
         </p>
       )}
       {state.success && (
-        <p role="status" className="text-sm text-emerald-600">
+        <p role="status" className="text-xs text-emerald-600">
           Approver gespeichert.
         </p>
       )}
@@ -243,7 +253,7 @@ export function ApproverPicker({ epicId, approvers, current, currentSections, us
         type="button"
         onClick={submit}
         disabled={pending}
-        className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+        className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
       >
         {pending ? "Speichern…" : "Approver speichern"}
       </button>

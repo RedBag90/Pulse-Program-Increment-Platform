@@ -42,7 +42,7 @@ export const APPROVAL_PARTY_LABELS: Record<ApprovalParty, string> = {
 
 /** Display labels for the review sign-off sections. */
 export const APPROVAL_SECTION_LABELS: Record<ApprovalSection, string> = {
-  breakdown: "Breakdown",
+  breakdown: "Deliverables",
   kpis: "KPIs",
 };
 

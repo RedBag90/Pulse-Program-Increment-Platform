@@ -277,7 +277,7 @@ export async function submitBusinessCase(
     if (!APPROVAL_SECTIONS.every((s) => have.has(s))) {
       return err({
         kind: "conflict" as const,
-        reason: "Für Breakdown und KPIs muss je ein Verantwortlicher zugewiesen sein",
+        reason: "Für Deliverables und KPIs muss je ein Verantwortlicher zugewiesen sein",
       });
     }
 

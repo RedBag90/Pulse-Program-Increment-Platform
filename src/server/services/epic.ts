@@ -297,6 +297,8 @@ export async function advanceStageGate(
           !epic.selectedForDetailingAt && { selectedForDetailingAt: new Date() }),
         ...(toGate === "L2" &&
           !epic.selectedForAnalyzingAt && { selectedForAnalyzingAt: new Date() }),
+        ...(toGate === "L4" &&
+          !epic.implementationStartedAt && { implementationStartedAt: new Date() }),
       },
     });
 
@@ -338,7 +340,12 @@ export async function autoAdvanceStageGate(
 
   const epic = await tx.initiative.findFirst({
     where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
-    select: { stageGate: true, selectedForDetailingAt: true, selectedForAnalyzingAt: true },
+    select: {
+      stageGate: true,
+      selectedForDetailingAt: true,
+      selectedForAnalyzingAt: true,
+      implementationStartedAt: true,
+    },
   });
   if (!epic) return;
 
@@ -356,6 +363,7 @@ export async function autoAdvanceStageGate(
       // Stamp the per-gate-entry milestone the first time the Epic reaches it.
       ...(to === "L1" && !epic.selectedForDetailingAt && { selectedForDetailingAt: new Date() }),
       ...(to === "L2" && !epic.selectedForAnalyzingAt && { selectedForAnalyzingAt: new Date() }),
+      ...(to === "L4" && !epic.implementationStartedAt && { implementationStartedAt: new Date() }),
     },
   });
 

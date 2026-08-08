@@ -14,6 +14,29 @@ export const STAGE_GATE_LABELS: Record<string, string> = {
   L5: "L5 Impact realisiert",
 };
 
+/** Kurzlabel je Reifegrad-Gate — für kompakte Stepper/Tracks (ohne L-Präfix). */
+export const STAGE_SHORT: Record<string, string> = {
+  L0: "Funnel",
+  L1: "Hypothese",
+  L2: "Business Case",
+  L3: "Backlog",
+  L4: "Umsetzung",
+  L5: "Impact",
+};
+
+/**
+ * Reifegrad-Punktfarbe (Tailwind) je Gate — **eine** Quelle für Reifegrad-Bar,
+ * Epics-Tabelle und Stepper (vorher dreifach dupliziert).
+ */
+export const STAGE_DOT: Record<string, string> = {
+  L0: "bg-muted-foreground/40",
+  L1: "bg-amber-400",
+  L2: "bg-blue-400",
+  L3: "bg-indigo-400",
+  L4: "bg-primary",
+  L5: "bg-emerald-500",
+};
+
 /**
  * Sub-Step-Labels innerhalb der Major-Gates L2 und L4. Werden derived
  * (`subStageFor` in `@/domain/stage-gate`) und nur in der UI gerendert.

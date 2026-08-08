@@ -752,6 +752,7 @@ model Initiative {
   hypothesisApprovedAt   DateTime? @map("hypothesis_approved_at")
   selectedForAnalyzingAt DateTime? @map("selected_for_analyzing_at") // stamped when the Epic enters L2
   businessCaseApprovedAt DateTime? @map("business_case_approved_at")
+  implementationStartedAt DateTime? @map("implementation_started_at") // stamped when the Epic enters L4
 
   // Geplantes Umsetzungsfenster (EPIC only): the owner-set "Soll" window for
   // when the Epic should be in delivery. Roadmap shows this alongside the

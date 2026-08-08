@@ -4,10 +4,12 @@ import { Link } from "@/i18n/navigation";
 import { EpicClassificationForm } from "./epic-classification-form";
 import { EpicEditForm } from "./epic-edit-form";
 import { EpicGovernanceFlags } from "./epic-governance-flags";
-import { EpicOwnerAssign } from "./epic-owner-assign";
 import { EpicPlannedWindowForm } from "./epic-planned-window-form";
 import { PhaseBadge } from "@/components/detail/phase-badge";
-import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { STAGE_GATE_LABELS, userLabel, initials } from "@/components/detail/initiative-labels";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { SectionLabel } from "@/components/ui/section-label";
+import { formatCompactEUR } from "@/lib/formatting";
 import { buildInitiativeSummary } from "@/domain/initiative-summary";
 import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
 import type { StageGate, InitiativeStatus } from "@/domain/types";
@@ -55,29 +57,48 @@ export interface EpicOverviewTabProps {
     investmentHorizon: string | null;
   };
   canEdit: boolean;
-  /** May nominate/replace the Epic owner (`epic.owner.assign`). */
-  canAssignOwner: boolean;
   /** Reifegrad v2 Controlling-Capability für Impact-Confirm. */
   canConfirmImpact: boolean;
-  approvers: { userId: string; roles: string[] }[];
+  /** Resolved user-id → display label (email) map — für die read-only Owner-Anzeige. */
   userLabels: Record<string, string>;
   /** Nutzen bei 100 % KPI-Zielerreichung — direkt aus den KPIs berechnet. */
   kpiBenefit: { oneTimeBenefit: number; recurringBenefit: number };
 }
 
-function formatAmount(n: number): string {
-  return n > 0 ? n.toLocaleString("de-DE") : "—";
-}
-
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
-      <div className="flex min-h-9 items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm leading-snug">
+      <SectionLabel className="mb-1.5">{label}</SectionLabel>
+      <div className="flex min-h-9 items-center rounded-lg border bg-card px-3 py-2 text-sm leading-snug shadow-xs">
         {children}
       </div>
+    </div>
+  );
+}
+
+/** Kennzahl-Kachel (Wirtschaftlichkeit) — großer € -Wert mit semantischem Akzent. */
+function StatTile({
+  label,
+  value,
+  accent,
+  sub,
+}: {
+  label: string;
+  value: number;
+  accent?: "emerald" | "default";
+  sub?: string;
+}) {
+  return (
+    <div className="rounded-lg border bg-card p-4 shadow-xs">
+      <SectionLabel>{label}</SectionLabel>
+      <p
+        className={`mt-1 text-2xl font-semibold tracking-tight tabular-nums ${
+          accent === "emerald" && value > 0 ? "text-emerald-600 dark:text-emerald-400" : ""
+        }`}
+      >
+        {value > 0 ? formatCompactEUR(value) : "—"}
+      </p>
+      {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
     </div>
   );
 }
@@ -91,9 +112,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 export function EpicOverviewTab({
   epic,
   canEdit,
-  canAssignOwner,
   canConfirmImpact,
-  approvers,
   userLabels,
   kpiBenefit,
 }: EpicOverviewTabProps) {
@@ -126,12 +145,10 @@ export function EpicOverviewTab({
 
   return (
     <div className="space-y-8">
-      <section className="flex gap-3 rounded-lg border border-l-4 border-l-primary bg-muted/40 p-4">
+      <section className="flex gap-3 rounded-lg border border-l-4 border-l-primary bg-card p-4 shadow-xs">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <div className="flex-1">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Summary
-          </p>
+          <SectionLabel>Summary</SectionLabel>
           <p className="mt-1 text-sm">{summary}</p>
         </div>
       </section>
@@ -142,21 +159,22 @@ export function EpicOverviewTab({
             {STAGE_GATE_LABELS[epic.stageGate] ?? epic.stageGate}
           </Field>
           <Field label="Initiative Owner">
-            <EpicOwnerAssign
-              epicId={epic.id}
-              ownerId={epic.ownerId}
-              canAssignOwner={canAssignOwner}
-              approvers={approvers}
-              userLabels={userLabels}
-            />
+            {epic.ownerId ? (
+              <span className="flex items-center gap-2">
+                <Avatar size="sm">
+                  <AvatarFallback>{initials(userLabel(epic.ownerId, userLabels))}</AvatarFallback>
+                </Avatar>
+                <span className="truncate">{userLabel(epic.ownerId, userLabels)}</span>
+              </span>
+            ) : (
+              <span className="text-muted-foreground">Nicht zugewiesen</span>
+            )}
           </Field>
           <Field label="Value Stream">{epic.valueStream?.name ?? "—"}</Field>
         </div>
 
         <div>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Geplantes Zeitfenster
-          </p>
+          <SectionLabel className="mb-2">Geplantes Zeitfenster</SectionLabel>
           <EpicPlannedWindowForm
             epicId={epic.id}
             plannedStartAt={epic.plannedStartAt}
@@ -167,24 +185,24 @@ export function EpicOverviewTab({
         </div>
 
         <div>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Financials
-          </p>
+          <SectionLabel className="mb-2">Wirtschaftlichkeit</SectionLabel>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-            <Field label="Net recurring benefits">{formatAmount(totals.recurringBenefit)}</Field>
-            <Field label="One-time benefits">{formatAmount(totals.oneTimeBenefit)}</Field>
-            <Field label="Implementation costs">{formatAmount(totals.implementationCost)}</Field>
+            <StatTile
+              label="Nutzen wiederkehrend p.a."
+              value={totals.recurringBenefit}
+              accent="emerald"
+            />
+            <StatTile label="Einmaliger Effekt" value={totals.oneTimeBenefit} />
+            <StatTile label="Umsetzungskosten" value={totals.implementationCost} />
           </div>
         </div>
       </section>
 
-      <section className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          Freigabe-Status
-        </span>
+      <section className="flex flex-wrap items-center gap-3 rounded-lg border bg-card px-4 py-3 shadow-xs">
+        <SectionLabel>Freigabe-Status</SectionLabel>
         <PhaseBadge phase={epic.approvalPhase ?? "draft"} />
         <Link
-          href={`/portfolio/epics/${epic.id}?tab=approvals`}
+          href={`/portfolio/epics/${epic.id}?tab=timeline`}
           className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-primary transition-colors hover:bg-primary/10"
         >
           Freigaben verwalten
@@ -193,10 +211,10 @@ export function EpicOverviewTab({
       </section>
 
       <section>
-        <p className="mb-2 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <SectionLabel className="mb-2 flex items-center gap-1.5">
           <Flag className="h-3.5 w-3.5" />
           Governance
-        </p>
+        </SectionLabel>
         {canEdit ? (
           <EpicGovernanceFlags
             epicId={epic.id}
