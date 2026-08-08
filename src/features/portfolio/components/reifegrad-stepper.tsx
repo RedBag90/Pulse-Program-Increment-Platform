@@ -26,18 +26,18 @@ export function ReifegradStepper({
         return (
           <li
             key={g}
-            className="relative flex flex-1 flex-col items-center gap-1.5"
+            className="relative flex flex-1 flex-col items-center gap-2"
             title={STAGE_GATE_LABELS[g] ?? g}
           >
             {i > 0 && (
               <span
-                className={`absolute top-2 left-[-50%] h-0.5 w-full ${
+                className={`absolute top-3 left-[-50%] h-0.5 w-full ${
                   reached ? "bg-primary" : "bg-border"
                 }`}
               />
             )}
             <span
-              className={`relative z-10 grid size-4 place-items-center rounded-full border-2 ${
+              className={`relative z-10 grid size-6 place-items-center rounded-full border-2 ${
                 done
                   ? "border-primary bg-primary text-primary-foreground"
                   : current
@@ -45,18 +45,18 @@ export function ReifegradStepper({
                     : "border-border bg-card"
               }`}
             >
-              {done && <Check className="size-2.5" />}
-              {current && <span className="size-1.5 rounded-full bg-primary" />}
+              {done && <Check className="size-3.5" />}
+              {current && <span className="size-2 rounded-full bg-primary" />}
             </span>
             <span
-              className={`text-center text-[10px] leading-tight font-medium ${
+              className={`text-center text-sm leading-tight font-medium ${
                 reached ? "text-foreground" : "text-muted-foreground/70"
               }`}
             >
               {STAGE_SHORT[g] ?? g}
             </span>
             {current && subStage && (
-              <span className="text-[9px] font-medium text-primary">{subStage}</span>
+              <span className="text-xs font-medium text-primary">{subStage}</span>
             )}
           </li>
         );

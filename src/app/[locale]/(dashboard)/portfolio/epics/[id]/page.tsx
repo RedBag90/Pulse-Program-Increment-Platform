@@ -484,8 +484,20 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                 ownerId={epic.ownerId}
                 userLabels={userLabels}
                 valueStreamName={epic.valueStream?.name ?? null}
-                plannedStartAt={epic.plannedStartAt}
-                plannedEndAt={epic.plannedEndAt}
+                planStart={
+                  timeline.estimates.implementation_started
+                    ? new Date(timeline.estimates.implementation_started)
+                    : null
+                }
+                planEnd={
+                  timeline.estimates.implementation
+                    ? new Date(timeline.estimates.implementation)
+                    : null
+                }
+                istStart={epic.implementationStartedAt}
+                istEnd={
+                  timeline.actuals.implementation ? new Date(timeline.actuals.implementation) : null
+                }
                 recurringBenefit={heroTotals.recurringBenefit}
                 implementationCost={heroTotals.implementationCost}
                 kpiCount={kpiRows.length}

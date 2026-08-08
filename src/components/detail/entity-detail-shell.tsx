@@ -61,7 +61,7 @@ export function EntityDetailShell({
 }: Props) {
   return (
     <div className="flex flex-col">
-      <header className="border-b px-6 py-4">
+      <header className="border-b bg-surface-frame px-6 py-4">
         {backHref && backLabel && (
           <Link
             href={backHref}
@@ -83,10 +83,10 @@ export function EntityDetailShell({
         </div>
       </header>
 
-      {subHeader && <div className="border-b bg-muted/20 px-6 py-4">{subHeader}</div>}
+      {subHeader && <div className="border-b bg-surface-frame px-6 py-4">{subHeader}</div>}
 
       <div className="flex min-h-[70vh]">
-        <nav aria-label="Bereiche" className="w-48 shrink-0 border-r p-3">
+        <nav aria-label="Bereiche" className="w-48 shrink-0 border-r bg-surface-frame p-3">
           <ul className="space-y-0.5">
             {tabs.map((tab) => {
               const active = tab.key === activeTab;
@@ -121,7 +121,7 @@ export function EntityDetailShell({
           </ul>
         </nav>
 
-        <main className="min-w-0 flex-1 overflow-auto p-6">{children}</main>
+        <main className="min-w-0 flex-1 overflow-auto bg-background p-6">{children}</main>
 
         {aside}
       </div>

@@ -67,7 +67,7 @@ export function InitiativeActivitySidebar({
   const shown = filter === "all" ? events : events.filter((e) => category(e.action) === filter);
 
   return (
-    <aside className="w-72 shrink-0 border-l bg-muted/20">
+    <aside className="w-72 shrink-0 border-l bg-surface-frame">
       <div className="space-y-2 border-b p-3">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Aktivität

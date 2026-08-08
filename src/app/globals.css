@@ -38,6 +38,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-surface-frame: var(--surface-frame);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
 
@@ -63,6 +64,10 @@
 
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0.005 262);
+
+  /* Frame/Chrome-Fläche (Header, Tab-Rail, Aside) — bewusst dunkler als
+     Background/Card, damit die helle Inhaltsmitte klar heraussticht. */
+  --surface-frame: oklch(0.935 0.01 262);
 
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0.005 262);
@@ -129,6 +134,10 @@
 
   --card: oklch(0.18 0.01 260);
   --card-foreground: oklch(0.97 0 0);
+
+  /* Frame/Chrome-Fläche — zwischen Void (0.13) und Card (0.18), liest sich
+     als Chrome; Content-Karten bleiben die hellste Ebene. */
+  --surface-frame: oklch(0.155 0.01 260);
 
   --popover: oklch(0.18 0.01 260);
   --popover-foreground: oklch(0.97 0 0);

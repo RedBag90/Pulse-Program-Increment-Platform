@@ -34,7 +34,7 @@ interface Props {
  */
 export function EpicReifegradActivityBar({ stageGate, subStage, nextStep, actionSlot }: Props) {
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+    <div className="grid gap-4 rounded-lg border bg-card p-3.5 shadow-xs lg:grid-cols-[1.6fr_1fr]">
       {/* ── Reifegrad ──────────────────────────────────────── */}
       <section className="space-y-3">
         <div className="flex items-center gap-1.5">

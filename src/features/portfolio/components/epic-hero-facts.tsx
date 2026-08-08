@@ -29,8 +29,10 @@ export function EpicHeroFacts({
   ownerId,
   userLabels,
   valueStreamName,
-  plannedStartAt,
-  plannedEndAt,
+  planStart,
+  planEnd,
+  istStart,
+  istEnd,
   recurringBenefit,
   implementationCost,
   kpiCount,
@@ -39,8 +41,10 @@ export function EpicHeroFacts({
   ownerId: string | null;
   userLabels: Record<string, string>;
   valueStreamName: string | null;
-  plannedStartAt: Date | null;
-  plannedEndAt: Date | null;
+  planStart: Date | null;
+  planEnd: Date | null;
+  istStart: Date | null;
+  istEnd: Date | null;
   recurringBenefit: number;
   implementationCost: number;
   kpiCount: number;
@@ -62,9 +66,25 @@ export function EpicHeroFacts({
         )}
       </Fact>
       <Fact label="Value Stream">{valueStreamName ?? "—"}</Fact>
-      <Fact label="PI-Fenster">
-        <span className="tabular-nums">{fmtWindow(plannedStartAt, plannedEndAt)}</span>
-      </Fact>
+      <div className="min-w-0">
+        <SectionLabel>PI-Fenster</SectionLabel>
+        <div className="mt-0.5 space-y-0.5 text-xs">
+          <div className="flex items-baseline gap-1.5">
+            <span className="w-6 shrink-0 text-[10px] tracking-wide text-muted-foreground uppercase">
+              Plan
+            </span>
+            <span className="truncate font-medium tabular-nums">
+              {fmtWindow(planStart, planEnd)}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="w-6 shrink-0 text-[10px] tracking-wide text-muted-foreground uppercase">
+              Ist
+            </span>
+            <span className="truncate font-medium tabular-nums">{fmtWindow(istStart, istEnd)}</span>
+          </div>
+        </div>
+      </div>
       <Fact label="Kosten">
         <span className="tabular-nums">
           {implementationCost > 0 ? formatCompactEUR(implementationCost) : "—"}
