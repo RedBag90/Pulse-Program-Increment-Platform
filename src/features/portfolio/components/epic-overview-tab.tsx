@@ -199,7 +199,10 @@ export function EpicOverviewTab({
             )}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">Keine Markierung.</p>
+          <div className="flex items-center gap-2 rounded-lg border border-dashed bg-card/50 px-3 py-3 text-sm text-muted-foreground">
+            <Flag className="size-4 text-muted-foreground/60" />
+            Keine Governance-Markierung.
+          </div>
         )}
       </section>
 
