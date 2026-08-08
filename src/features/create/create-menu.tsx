@@ -18,10 +18,9 @@ import { CreateValueStreamDialog } from "@/features/portfolio/components/create-
 import { CreateEpicDialog } from "@/features/portfolio/components/create-epic-dialog";
 import { CreateArtDialog } from "@/features/art/components/create-art-dialog";
 import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
-import { CreateTeamDialog } from "@/features/team/components/create-team-dialog";
 import { CreateImpedimentDialog } from "@/features/impediment/components/create-impediment-dialog";
-import { CreateKpiDialog } from "@/features/portfolio/components/create-kpi-dialog";
 import { CreateDependencyDialog } from "@/features/dependencies/components/create-dependency-dialog";
+import { CreateGoalDialog } from "@/features/ziele/components/create-goal-dialog";
 
 /** Left padding per hierarchy level — reproduces the screenshot's indentation. */
 const INDENT = ["pl-2", "pl-6", "pl-10", "pl-14"] as const;
@@ -74,15 +73,14 @@ export function CreateMenu() {
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {openKey === "goal" && <CreateGoalDialog open onOpenChange={close} />}
       {openKey === "value-stream" && <CreateValueStreamDialog open onOpenChange={close} />}
       {openKey === "epic" && <CreateEpicDialog open onOpenChange={close} />}
       {openKey === "art" && <CreateArtDialog open onOpenChange={close} />}
       {openKey === "feature" && <CreateFeatureDialog open onOpenChange={close} context={ctx} />}
-      {openKey === "team" && <CreateTeamDialog open onOpenChange={close} context={ctx} />}
       {openKey === "impediment" && (
         <CreateImpedimentDialog open onOpenChange={close} context={ctx} />
       )}
-      {openKey === "kpi" && <CreateKpiDialog open onOpenChange={close} context={ctx} />}
       {openKey === "dependency" && <CreateDependencyDialog open onOpenChange={close} />}
     </>
   );

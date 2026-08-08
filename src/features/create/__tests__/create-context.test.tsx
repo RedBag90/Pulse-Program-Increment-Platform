@@ -44,7 +44,10 @@ describe("CREATE_REGISTRY resolveHref", () => {
     expect(entry("epic").resolveHref({})).toBe("/portfolio/epics?create=epic");
   });
 
-  it("routes KPI creation to the Epic's KPIs tab when an epic context exists", () => {
-    expect(entry("kpi").resolveHref({ epicId: "e1" })).toBe("/portfolio/epics/e1?tab=kpis");
+  it("exposes an in-place Ziel create under the Strategie group", () => {
+    const goal = entry("goal");
+    expect(goal.group).toBe("strategy");
+    expect(goal.inPlace).toBe(true);
+    expect(goal.resolveHref({})).toBe("/ziele?entity=goal&new=1");
   });
 });

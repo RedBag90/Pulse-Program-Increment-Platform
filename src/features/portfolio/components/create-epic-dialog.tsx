@@ -1,10 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState, startTransition } from "react";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
 import { createEpicAction } from "@/features/portfolio/actions/epic";
+import { linkEpicToGoalAction } from "@/features/ziele/actions/ziele";
 import { useCreateResult } from "@/features/create/use-create-result";
 import { useEntityOptions, optionsEndpoint } from "@/features/create/use-entity-options";
+import { GoalTreePicker } from "@/features/ziele/components/goal-tree-picker";
 import type { ActionState } from "@/server/http/server-action";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,7 +46,41 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
   const setDialogOpen = (v: boolean) => (isControlled ? onOpenChange?.(v) : setSelfOpen(v));
 
   const [state, action, isPending] = useActionState(createEpicAction, initialState);
-  useCreateResult(state, () => setDialogOpen(false));
+  // Optionale Ziel-Verknüpfung: nach der Epic-Anlage in einem zweiten Schritt.
+  const [linkState, linkRun, linkPending] = useActionState(linkEpicToGoalAction, initialState);
+  const [goalId, setGoalId] = useState("");
+  const linkDone = useRef(false);
+
+  // Epic angelegt: wenn ein Ziel gewählt ist, dieses verknüpfen (nicht schließen —
+  // das erledigt der Link-Effekt); sonst normal schließen. `useCreateResult` zeigt
+  // den „Epic created"-Toast (mit Open-Link) in beiden Fällen.
+  useCreateResult(state, () => {
+    const id = state.created?.id;
+    if (id && goalId) {
+      const fd = new FormData();
+      fd.set("goalId", goalId);
+      fd.set("epicId", id);
+      startTransition(() => linkRun(fd));
+    } else {
+      setDialogOpen(false);
+    }
+  });
+
+  // Link aufgelöst: bei Erfolg schließen; bei Fehler (z. B. fehlendes `kpi.bind`)
+  // ist das Epic trotzdem angelegt — informieren und schließen (kein Doppel-Anlegen).
+  useEffect(() => {
+    if (linkDone.current) return;
+    if (linkState.success) {
+      linkDone.current = true;
+      setDialogOpen(false);
+    } else if (linkState.error) {
+      linkDone.current = true;
+      toast.error(`Epic angelegt — Ziel-Verknüpfung nicht möglich: ${linkState.error}`, {
+        duration: 8000,
+      });
+      setDialogOpen(false);
+    }
+  }, [linkState]);
 
   const needFetch = valueStreams === undefined;
   const fetched = useEntityOptions<ValueStream>(
@@ -56,7 +93,7 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
     <>
       {!isControlled && (
         <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="size-4 mr-1.5" />
+          <Plus className="mr-1.5 size-4" />
           Neues Epic
         </Button>
       )}
@@ -96,6 +133,11 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
             </div>
 
             <div className="space-y-1.5">
+              <Label>Unterstütztes Ziel</Label>
+              <GoalTreePicker value={goalId} onChange={setGoalId} />
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="epic-description">Beschreibung</Label>
               <Textarea id="epic-description" name="description" rows={3} />
             </div>
@@ -110,8 +152,8 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Abbrechen
               </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? "Lege an…" : "Anlegen"}
+              <Button type="submit" disabled={isPending || linkPending}>
+                {isPending ? "Lege an…" : linkPending ? "Verknüpfe…" : "Anlegen"}
               </Button>
             </DialogFooter>
           </form>

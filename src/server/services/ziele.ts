@@ -922,6 +922,8 @@ export interface GoalPickerOption {
   id: string;
   /** Titel (als `name` für EntitySelect). */
   name: string;
+  /** Eltern-Knoten (null = Top-Level) — für Baum-Darstellung im Picker. */
+  parentObjectiveId: string | null;
   nodeKind: string;
   period: string | null;
   status: string | null;
@@ -960,12 +962,21 @@ export async function listGoalsForPicker(
         : {}),
     },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    take: 50,
-    select: { id: true, title: true, nodeKind: true, period: true, status: true },
+    // Baum-Picker braucht den vollen Satz (sonst verwaisen Kinder jenseits des Caps).
+    take: 500,
+    select: {
+      id: true,
+      title: true,
+      parentObjectiveId: true,
+      nodeKind: true,
+      period: true,
+      status: true,
+    },
   });
   return rows.map((r) => ({
     id: r.id,
     name: r.title,
+    parentObjectiveId: r.parentObjectiveId,
     nodeKind: r.nodeKind,
     period: r.period,
     status: r.status,

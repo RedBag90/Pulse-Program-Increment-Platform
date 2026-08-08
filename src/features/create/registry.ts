@@ -12,19 +12,28 @@ import type { CreateContext } from "./create-context";
 export interface CreateEntry {
   key: string;
   label: string;
-  group: "portfolio" | "initiative" | "more";
+  group: "strategy" | "portfolio" | "initiative" | "more";
   indentLevel: 0 | 1 | 2 | 3;
   inPlace?: boolean;
   resolveHref: (ctx: CreateContext) => string;
 }
 
 export const CREATE_GROUPS: { key: CreateEntry["group"]; label: string }[] = [
+  { key: "strategy", label: "Strategie" },
   { key: "portfolio", label: "Portfolio" },
   { key: "initiative", label: "Initiative" },
   { key: "more", label: "More" },
 ];
 
 export const CREATE_REGISTRY: CreateEntry[] = [
+  {
+    key: "goal",
+    label: "Ziel",
+    group: "strategy",
+    indentLevel: 0,
+    inPlace: true,
+    resolveHref: () => "/ziele?entity=goal&new=1",
+  },
   {
     key: "value-stream",
     label: "Value Stream",
@@ -42,14 +51,6 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     resolveHref: () => "/capacity?create=art",
   },
   {
-    key: "team",
-    label: "Team",
-    group: "portfolio",
-    indentLevel: 2,
-    inPlace: true,
-    resolveHref: (c) => (c.artId ? `/art/${c.artId}/teams` : "/structure"),
-  },
-  {
     key: "epic",
     label: "Epic",
     group: "initiative",
@@ -64,14 +65,6 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     indentLevel: 1,
     inPlace: true,
     resolveHref: (c) => (c.artId ? `/art/${c.artId}/features?create=feature` : "/art"),
-  },
-  {
-    key: "kpi",
-    label: "KPI",
-    group: "initiative",
-    indentLevel: 1,
-    inPlace: true,
-    resolveHref: (c) => (c.epicId ? `/portfolio/epics/${c.epicId}?tab=kpis` : "/portfolio/epics"),
   },
   {
     key: "impediment",
