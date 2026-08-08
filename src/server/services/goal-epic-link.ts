@@ -120,6 +120,14 @@ async function applyEpicLink(
         const authz = authorizeResource(ctx.principal, "kpi.bind", { tenantId: mctx.tenantId });
         if (!authz.ok) return authz;
         await tx.goalEpicLink.delete({ where: { id: existing!.id } });
+        // „Kein Wert ohne Verknüpfung": die Bewertung lebt am Link, also beim
+        // Entlinken die €-Bewertung der KPI leeren (valuePerUnit → null).
+        if (existing!.kpiId) {
+          await tx.kpi.update({
+            where: { id: existing!.kpiId },
+            data: { valuePerUnit: null },
+          });
+        }
         return ok({
           result: { epicId },
           audit: {
@@ -172,6 +180,28 @@ async function applyEpicLink(
                   ...data,
                 },
               });
+
+        // Die Nutzenbewertung wird ausschließlich am Ziel-Link gepflegt und in die
+        // gewählte KPI zurückgeschrieben (die ~35 €-Ökonomie-Verbraucher lesen weiter
+        // KPI.valuePerUnit). €-Wert nur bei €-Zielen: bei Nicht-€-Zielen (NPS/%) bleibt
+        // valuePerUnit leer — der strategische Effekt erscheint in den Nutzen-Kacheln.
+        if (f.kpiId) {
+          await tx.kpi.update({
+            where: { id: f.kpiId },
+            data: {
+              benefitKind: f.impactKind,
+              recurringInterval: f.recurringInterval,
+              valuePerUnit: node.metricType === "currency" ? f.conversionFactor : null,
+            },
+          });
+        }
+        // Wechselte die gewählte KPI (Update mit anderem kpiId), die alte entwerten.
+        if (plan.kind === "update" && existing!.kpiId && existing!.kpiId !== f.kpiId) {
+          await tx.kpi.update({
+            where: { id: existing!.kpiId },
+            data: { valuePerUnit: null },
+          });
+        }
         return ok({
           result: { epicId },
           audit: {

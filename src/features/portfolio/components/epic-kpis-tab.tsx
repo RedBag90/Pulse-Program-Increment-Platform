@@ -140,7 +140,6 @@ function KpiItem({
   const kind = benefitKindOrDefault(kpi.benefitKind);
   const total = derivedTotal(kpi);
   const ratio = kpiRatio(kpi);
-  const [detKind, setDetKind] = useState<string>(kind);
   const [editing, setEditing] = useState(false);
 
   const err = delState?.error ?? measState?.error ?? weightState?.error ?? detState?.error;
@@ -218,75 +217,29 @@ function KpiItem({
             </label>
           </form>
 
-          {/* Nutzen-Anteil + Bewertung */}
-          <div className="flex flex-wrap items-end gap-4">
-            <form action={weightAction} className="flex items-end gap-2">
-              <input type="hidden" name="id" value={kpi.id} />
-              <input type="hidden" name="initiativeId" value={initiativeId} />
-              <label className="flex flex-col gap-1 text-xs font-medium">
-                Nutzen-Anteil %
-                <Input
-                  type="number"
-                  step="any"
-                  min={0}
-                  name="weightPercent"
-                  defaultValue={kpi.weight != null ? kpi.weight * 100 : ""}
-                  placeholder="auto"
-                  aria-label="Nutzen-Anteil in Prozent"
-                  className="w-24"
-                />
-              </label>
-              <Button type="submit" variant="secondary" size="sm" disabled={weightPending}>
-                Speichern
-              </Button>
-            </form>
+          {/* Nutzen-Anteil — Bewertung (€/Benefit-Art/Intervall) liegt am Ziel-Link. */}
+          <form action={weightAction} className="flex items-end gap-2">
+            <input type="hidden" name="id" value={kpi.id} />
+            <input type="hidden" name="initiativeId" value={initiativeId} />
+            <label className="flex flex-col gap-1 text-xs font-medium">
+              Nutzen-Anteil %
+              <Input
+                type="number"
+                step="any"
+                min={0}
+                name="weightPercent"
+                defaultValue={kpi.weight != null ? kpi.weight * 100 : ""}
+                placeholder="auto"
+                aria-label="Nutzen-Anteil in Prozent"
+                className="w-24"
+              />
+            </label>
+            <Button type="submit" variant="secondary" size="sm" disabled={weightPending}>
+              Speichern
+            </Button>
+          </form>
 
-            <form action={detAction} className="flex flex-wrap items-end gap-2">
-              <input type="hidden" name="id" value={kpi.id} />
-              <input type="hidden" name="initiativeId" value={initiativeId} />
-              <label className="flex flex-col gap-1 text-xs font-medium">
-                Benefit-Art
-                <select
-                  name="benefitKind"
-                  value={detKind}
-                  onChange={(e) => setDetKind(e.target.value)}
-                  className={`${selectCls} w-44`}
-                >
-                  <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
-                  <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-xs font-medium">
-                €/Einheit
-                <Input
-                  type="number"
-                  step="any"
-                  name="valuePerUnit"
-                  defaultValue={kpi.valuePerUnit ?? ""}
-                  placeholder="—"
-                  className="w-28"
-                />
-              </label>
-              {detKind === "recurring" && (
-                <label className="flex flex-col gap-1 text-xs font-medium">
-                  Intervall
-                  <select
-                    name="recurringInterval"
-                    defaultValue={recurringIntervalOrDefault(kpi.recurringInterval)}
-                    className={`${selectCls} w-32`}
-                  >
-                    <option value="yearly">{RECURRING_INTERVAL_LABELS.yearly}</option>
-                    <option value="monthly">{RECURRING_INTERVAL_LABELS.monthly}</option>
-                  </select>
-                </label>
-              )}
-              <Button type="submit" variant="secondary" size="sm" disabled={detPending}>
-                Details speichern
-              </Button>
-            </form>
-          </div>
-
-          {/* Kalkulations-Notiz — eigener Save (Benefit-Art bleibt unverändert). */}
+          {/* Kalkulations-Notiz — eigener Save. */}
           <form action={detAction} className="flex flex-col gap-1">
             <input type="hidden" name="id" value={kpi.id} />
             <input type="hidden" name="initiativeId" value={initiativeId} />
@@ -356,7 +309,6 @@ function KpiItem({
 function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(createKpiAction, {});
-  const [createKind, setCreateKind] = useState<string>("recurring");
   useCreateResult(state, () => setOpen(false));
 
   return (
@@ -393,32 +345,11 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
                 Nutzen-Anteil %
                 <Input type="number" step="any" min={0} name="weightPercent" placeholder="auto" />
               </label>
-              <label className="flex flex-col gap-1 text-xs font-medium">
-                Benefit-Art
-                <select
-                  name="benefitKind"
-                  value={createKind}
-                  onChange={(e) => setCreateKind(e.target.value)}
-                  className={selectCls}
-                >
-                  <option value="recurring">{BENEFIT_KIND_LABELS.recurring}</option>
-                  <option value="one_time">{BENEFIT_KIND_LABELS.one_time}</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-xs font-medium">
-                €/Einheit (Vorschlag)
-                <Input type="number" step="any" name="valuePerUnit" placeholder="—" />
-              </label>
-              {createKind === "recurring" && (
-                <label className="flex flex-col gap-1 text-xs font-medium">
-                  Intervall
-                  <select name="recurringInterval" defaultValue="yearly" className={selectCls}>
-                    <option value="yearly">{RECURRING_INTERVAL_LABELS.yearly}</option>
-                    <option value="monthly">{RECURRING_INTERVAL_LABELS.monthly}</option>
-                  </select>
-                </label>
-              )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Die Nutzenbewertung (€/Einheit, Benefit-Art, Intervall) wird beim Verknüpfen mit einem
+              Ziel gepflegt.
+            </p>
             {state?.error && (
               <p role="alert" className="text-xs text-destructive">
                 {state.error}

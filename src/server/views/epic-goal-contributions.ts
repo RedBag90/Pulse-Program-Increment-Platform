@@ -1,10 +1,10 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import {
-  epicTopGoalBenefits,
+  epicCascadeBreakdown,
   type GoalNodeMeta,
   type EpicGoalLinkInput,
-  type TopGoalBenefit,
+  type EpicCascadeContribution,
 } from "@/domain/goals-rollup";
 
 // ── Einheiten-Kaskade: GoalEpicLink-Pfad (Epic → mehrere Ziele) ───────────────
@@ -40,15 +40,15 @@ export interface EpicGoalLinkRow {
 export interface EpicGoalLinksModel {
   /** Alle Ziel-Links dieses Epics (für die „Verknüpfte Ziele"-Zeilen). */
   links: EpicGoalLinkRow[];
-  /** Business-Case-Nutzen je Top-Ziel (Kaskade bis zur Wurzel hochgerechnet). */
-  topGoalBenefits: TopGoalBenefit[];
+  /** Der Kaskaden-Beitrag je Link Ebene für Ebene (verknüpftes Ziel → Top-Ziel). */
+  cascade: EpicCascadeContribution[];
 }
 
 /**
  * Lädt die GoalEpicLink-Verknüpfungen eines Epics (neuer Einheiten-Kaskaden-Pfad)
  * und rechnet den Nutzen je verknüpfter Erfolgs-KPI die Ziel-Eltern-Kette bis zum
- * Top-Ziel hoch (`epicTopGoalBenefits`). Speist die KPIs-Tab-Zeilen „Verknüpfte
- * Ziele" und die Business-Case-Nutzen-Anzeige.
+ * Top-Ziel hoch (`epicCascadeBreakdown`, Ebene für Ebene). Speist die KPIs-Tab-
+ * Zeilen „Verknüpfte Ziele" und die Business-Case-Nutzen-Kacheln.
  */
 export async function loadEpicGoalLinks(
   db: PrismaClient,
@@ -86,7 +86,7 @@ export async function loadEpicGoalLinks(
       },
     },
   });
-  if (links.length === 0) return { links: [], topGoalBenefits: [] };
+  if (links.length === 0) return { links: [], cascade: [] };
 
   const linkRows: EpicGoalLinkRow[] = links.map((l) => ({
     objectiveId: l.objectiveId,
@@ -148,9 +148,13 @@ export async function loadEpicGoalLinks(
       conversionFactor: toFloat(l.conversionFactor),
       impactKind: l.impactKind,
       recurringInterval: l.recurringInterval,
+      kpiName: l.kpi?.name ?? null,
     }));
 
-  return { links: linkRows, topGoalBenefits: epicTopGoalBenefits(benefitInputs, nodesById) };
+  return {
+    links: linkRows,
+    cascade: epicCascadeBreakdown(benefitInputs, nodesById),
+  };
 }
 
 function toFloat(d: unknown): number | null {

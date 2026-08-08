@@ -12,6 +12,7 @@ import {
   epicSuccessKpiContribution,
   nodeUnitValue,
   epicTopGoalBenefits,
+  epicCascadeBreakdown,
 } from "@/domain/goals-rollup";
 import type {
   KpiInput,
@@ -598,5 +599,70 @@ describe("epicTopGoalBenefits", () => {
     const rows = epicTopGoalBenefits([link("a", 100), link("b", 200)], nodes);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.planned).toBe(300);
+  });
+});
+
+describe("epicCascadeBreakdown", () => {
+  const kpi = (over: Partial<KpiInput> = {}): KpiInput => ({
+    id: "k",
+    baseline: 0,
+    target: 10,
+    current: 5,
+    valuePerUnit: null,
+    ...over,
+  });
+  // top '€' ← mid 'Wagen' (10000 €/Wagon); Link am mid (KPI→Wagen, factor 2).
+  const nodes = new Map<string, GoalNodeMeta>([
+    ["top", { id: "top", parentId: null, name: "Top", unit: "€", parentUnitPerChildUnit: null }],
+    [
+      "mid",
+      { id: "mid", parentId: "top", name: "Mid", unit: "Wagen", parentUnitPerChildUnit: 10000 },
+    ],
+  ]);
+  const link = (over: Partial<EpicGoalLinkInput> = {}): EpicGoalLinkInput => ({
+    objectiveId: "mid",
+    kpi: kpi(),
+    conversionFactor: 2,
+    impactKind: "one_time",
+    recurringInterval: "yearly",
+    ...over,
+  });
+
+  it("gibt jede Stufe aus: verknüpftes Ziel → Top-Ziel, je in dessen Einheit", () => {
+    const [c] = epicCascadeBreakdown([link()], nodes);
+    expect(c!.impactKind).toBe("one_time");
+    expect(c!.steps.map((s) => [s.goalId, s.unit, s.planned, s.realized])).toEqual([
+      ["mid", "Wagen", 20, 10], // 10×2, 5×2
+      ["top", "€", 200000, 100000], // ×10000
+    ]);
+    expect(c!.steps.every((s) => !s.brokenHere)).toBe(true);
+    // letzte Stufe == epicTopGoalBenefits-Top-Wert
+    expect(c!.steps.at(-1)!.planned).toBe(epicTopGoalBenefits([link()], nodes)[0]!.planned);
+  });
+
+  it("markiert die Ebene mit fehlendem Faktor (brokenHere) und nullt ab dort", () => {
+    const broken = new Map<string, GoalNodeMeta>([
+      ["top", { id: "top", parentId: null, name: "Top", unit: "€", parentUnitPerChildUnit: null }],
+      [
+        "mid",
+        { id: "mid", parentId: "top", name: "Mid", unit: "Wagen", parentUnitPerChildUnit: null },
+      ],
+    ]);
+    const [c] = epicCascadeBreakdown([link()], broken);
+    expect(c!.steps[0]).toMatchObject({ goalId: "mid", planned: 20, brokenHere: false });
+    expect(c!.steps[1]).toMatchObject({ goalId: "top", planned: 0, brokenHere: true });
+  });
+
+  it("recurring+monthly annualisiert am Blatt (×12)", () => {
+    const [c] = epicCascadeBreakdown(
+      [link({ impactKind: "recurring", recurringInterval: "monthly" })],
+      nodes,
+    );
+    expect(c!.steps[0]!.planned).toBe(240); // 10×2×12
+    expect(c!.steps[1]!.planned).toBe(2_400_000); // ×10000
+  });
+
+  it("Links ohne conversionFactor werden übersprungen", () => {
+    expect(epicCascadeBreakdown([link({ conversionFactor: null })], nodes)).toEqual([]);
   });
 });

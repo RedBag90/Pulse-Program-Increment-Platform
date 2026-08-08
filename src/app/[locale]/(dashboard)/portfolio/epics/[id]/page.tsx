@@ -347,11 +347,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     measurements: parseKpiMeasurements(k.measurements),
   }));
 
-  // Business-Case-Nutzen wird direkt aus den KPIs berechnet (100 %-Zielerreichung).
+  // Overview-Tab-Nutzen wird direkt aus den KPIs berechnet (100 %-Zielerreichung).
   const kpiBenefit = epicBenefitFromKpis(kpiRows);
-  const hasValuedKpis = kpiRows.some(
-    (k) => k.valuePerUnit != null && k.baseline != null && k.target != null,
-  );
 
   const benefitHypothesis = parseBenefitHypothesis(epic.benefitHypothesis);
   const businessCase = parseBusinessCase(epic.businessCase);
@@ -541,8 +538,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                       history={[]}
                       readOnly
                       kpiNames={kpiNames}
-                      kpiBenefit={kpiBenefit}
-                      hasValuedKpis={hasValuedKpis}
                     />
                   }
                   right={
@@ -552,9 +547,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                       history={businessCase.history}
                       readOnly={!bcEditable}
                       kpiNames={kpiNames}
-                      kpiBenefit={kpiBenefit}
-                      hasValuedKpis={hasValuedKpis}
-                      topGoalBenefits={goalLinks.topGoalBenefits}
+                      cascade={goalLinks.cascade}
                       {...(bcLockReason && { lockReason: bcLockReason })}
                     />
                   }
@@ -567,9 +560,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                   readOnly={!bcEditable}
                   canSubmit={canSubmitBusinessCase}
                   kpiNames={kpiNames}
-                  kpiBenefit={kpiBenefit}
-                  hasValuedKpis={hasValuedKpis}
-                  topGoalBenefits={goalLinks.topGoalBenefits}
+                  cascade={goalLinks.cascade}
                   {...(bcLockReason && { lockReason: bcLockReason })}
                 />
               );

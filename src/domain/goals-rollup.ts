@@ -310,6 +310,8 @@ export interface EpicGoalLinkInput {
   conversionFactor: number | null;
   impactKind: string;
   recurringInterval: string;
+  /** Name der treibenden KPI (nur für die Anzeige-Kaskade). */
+  kpiName?: string | null;
 }
 
 /** Eine Business-Case-Nutzen-Zeile: Beitrag des Epics zu einem Top-Ziel. */
@@ -373,6 +375,89 @@ export function epicTopGoalBenefits(
     }
   }
   return [...grouped.values()];
+}
+
+/** Eine Stufe der Nutzen-Kaskade: der Beitrag in der Einheit dieses Ziel-Knotens. */
+export interface CascadeStep {
+  goalId: string;
+  goalName: string;
+  /** Einheit dieses Knotens (Freitext-Label). */
+  unit: string | null;
+  planned: number;
+  realized: number;
+  /** true, wenn die Umrechnung ZU dieser Ebene fehlte (`parentUnitPerChildUnit` null)
+   *  ⇒ der Beitrag bricht hier ab (0). Macht Konfigurationslücken in der Kaskade sichtbar. */
+  brokenHere: boolean;
+}
+
+/** Der Kaskaden-Beitrag EINES Erfolgs-KPI-Links, Ebene für Ebene bis zum Top-Ziel. */
+export interface EpicCascadeContribution {
+  linkedGoalId: string;
+  impactKind: string;
+  /** Name der treibenden KPI (für die Blatt-Annotation im Anzeige-Baum). */
+  kpiName: string | null;
+  /** Vom verknüpften Ziel (Index 0) bis zum Top-Ziel (letzter Eintrag); Wert je in dessen Einheit. */
+  steps: CascadeStep[];
+}
+
+/**
+ * Wie `epicTopGoalBenefits`, aber gibt **jede Zwischenstufe** der Einheiten-Kaskade
+ * aus (verknüpftes Ziel → … → Top-Ziel), statt nur den Top-Endwert. Nutzt denselben
+ * Aufstieg (× `parentUnitPerChildUnit` je Kante); markiert die Ebene, an der ein
+ * fehlender Faktor den Beitrag abbrechen lässt. Für die „Beitrag über die Kaskade"-
+ * Sicht im Business-Case-Nutzen.
+ */
+export function epicCascadeBreakdown(
+  links: readonly EpicGoalLinkInput[],
+  nodesById: ReadonlyMap<string, GoalNodeMeta>,
+): EpicCascadeContribution[] {
+  const out: EpicCascadeContribution[] = [];
+  for (const link of links) {
+    if (link.conversionFactor == null) continue;
+    const start = nodesById.get(link.objectiveId);
+    if (!start) continue;
+    let trio = epicSuccessKpiContribution(
+      link.kpi,
+      link.conversionFactor,
+      link.impactKind,
+      link.recurringInterval,
+    );
+    const steps: CascadeStep[] = [
+      {
+        goalId: start.id,
+        goalName: start.name,
+        unit: start.unit,
+        planned: trio.planned,
+        realized: trio.realized,
+        brokenHere: false,
+      },
+    ];
+    let node = start;
+    const seen = new Set<string>([node.id]);
+    while (node.parentId !== null) {
+      const parent = nodesById.get(node.parentId);
+      if (!parent || seen.has(parent.id)) break; // fehlend / Zyklus
+      seen.add(parent.id);
+      const factor = node.parentUnitPerChildUnit;
+      trio = scaleTrio(trio, factor ?? 0);
+      steps.push({
+        goalId: parent.id,
+        goalName: parent.name,
+        unit: parent.unit,
+        planned: trio.planned,
+        realized: trio.realized,
+        brokenHere: factor == null,
+      });
+      node = parent;
+    }
+    out.push({
+      linkedGoalId: link.objectiveId,
+      impactKind: link.impactKind,
+      kpiName: link.kpiName ?? null,
+      steps,
+    });
+  }
+  return out;
 }
 
 function clamp01(x: number): number {

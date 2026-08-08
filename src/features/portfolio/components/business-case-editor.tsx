@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Lock, Lightbulb, ArrowRight } from "lucide-react";
+import { Lock, Lightbulb, ArrowRight, ChevronRight } from "lucide-react";
 import { saveBusinessCaseAction } from "@/features/portfolio/actions/business-case";
 import { submitEpicBusinessCaseAction } from "@/features/portfolio/actions/epic-approval";
 import { Link } from "@/i18n/navigation";
@@ -10,8 +10,8 @@ import {
   type BusinessCaseFields,
   type BusinessCaseVersion,
 } from "@/domain/business-case";
-import { benefitKindOrDefault, BENEFIT_KIND_LABELS } from "@/domain/kpi-benefit-kind";
-import type { TopGoalBenefit } from "@/domain/goals-rollup";
+import type { EpicCascadeContribution } from "@/domain/goals-rollup";
+import { buildCascadeTree, type CascadeTreeNode } from "@/features/portfolio/lib/cascade-tree";
 
 interface BusinessCaseEditorProps {
   epicId: string;
@@ -30,19 +30,11 @@ interface BusinessCaseEditorProps {
   /** KPI-Namen aus dem KPI-Tab. Ersetzen das frueher freie Leading-
    *  Indicators-Feld: Single-Source-of-Truth ist der KPI-Tab. */
   kpiNames?: string[];
-  /** Nutzen bei 100 % KPI-Zielerreichung — direkt aus den KPIs berechnet (read-only). */
-  kpiBenefit?: { oneTimeBenefit: number; recurringBenefit: number };
-  /** Ob mindestens eine bewertete KPI (valuePerUnit gesetzt) existiert — steuert den Hinweis. */
-  hasValuedKpis?: boolean;
-  /** Strategischer Nutzen je Top-Ziel (Einheiten-Kaskade, read-only). Eine Zeile je
-   *  Top-Ziel-KPI, die dieses Epic über seine Erfolgs-KPIs treibt. */
-  topGoalBenefits?: TopGoalBenefit[];
+  /** Kaskaden-Beitrag je Link, Ebene für Ebene (verknüpftes Ziel → Top-Ziel). */
+  cascade?: EpicCascadeContribution[];
 }
 
 const fmtUnit = (n: number): string => n.toLocaleString("de-DE", { maximumFractionDigits: 2 });
-
-const fmtEur = (n: number): string =>
-  n.toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
 const INPUT_CLASS =
   "w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -69,9 +61,7 @@ export function BusinessCaseEditor({
   lockReason,
   canSubmit = false,
   kpiNames = [],
-  kpiBenefit = { oneTimeBenefit: 0, recurringBenefit: 0 },
-  hasValuedKpis = false,
-  topGoalBenefits = [],
+  cascade = [],
 }: BusinessCaseEditorProps) {
   const [state, action, isPending] = useActionState(saveBusinessCaseAction, {});
   const [submitState, submitAction, submitPending] = useActionState(
@@ -288,82 +278,32 @@ export function BusinessCaseEditor({
             </div>
           </section>
 
-          {/* Expected benefit */}
-          <section className="rounded-lg border p-4">
-            <div className="grid gap-4 lg:grid-cols-3">
-              <div className="space-y-3 lg:col-span-2">
-                <p className="text-sm font-medium">Nutzen</p>
-                <p className="text-xs text-muted-foreground">
-                  Der Nutzen wird direkt aus den KPIs berechnet — der Wert bei 100 % Zielerreichung.
-                  Pflege ihn je KPI im Tab „KPIs" (€/Einheit + Ziel).
-                </p>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded border bg-muted/20 p-3">
-                    <p className="text-sm font-medium">Einmaliger Nutzen</p>
-                    <p className="mt-1 text-2xl font-semibold tabular-nums">
-                      {hasValuedKpis ? fmtEur(kpiBenefit.oneTimeBenefit) : "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">aus one-time-KPIs</p>
-                  </div>
-                  <div className="rounded border bg-muted/20 p-3">
-                    <p className="text-sm font-medium">Wiederkehrender Nutzen p.a.</p>
-                    <p className="mt-1 text-2xl font-semibold tabular-nums">
-                      {hasValuedKpis ? fmtEur(kpiBenefit.recurringBenefit) : "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      aus wiederkehrenden KPIs, auf p.a. normalisiert
-                    </p>
-                  </div>
-                </div>
-              </div>
+          {/* Nutzen: zwei Kacheln (einmalig / wiederkehrend), je Effekt in Top-Ziel-Einheit
+              + Explorer-Baum, der die Kaskade Ebene für Ebene bis zu den KPIs aufschlüsselt. */}
+          <section className="space-y-4 rounded-lg border p-4">
+            <div>
+              <p className="text-sm font-medium">Nutzen</p>
+              <p className="text-xs text-muted-foreground">
+                Was dieses Epic über seine Erfolgs-KPIs beiträgt — in der Einheit des Top-Ziels,
+                über die Ziel-Kaskade hochgerechnet, getrennt nach einmalig und wiederkehrend.
+              </p>
+            </div>
 
-              <aside className="self-start rounded-md border bg-muted/30 p-3 text-sm">
-                <div className="flex items-start gap-2">
-                  <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600" />
-                  <div className="space-y-2">
-                    <p className="text-xs leading-snug text-muted-foreground">
-                      {hasValuedKpis
-                        ? "Der Nutzen ergibt sich aus €/Einheit × |Ziel − Baseline| je bewerteter KPI. Zum Anpassen die KPIs pflegen."
-                        : "Noch keine bewertete KPI — hinterlege je KPI Benefit-Art, €/Einheit und Ziel, damit der Nutzen berechnet werden kann."}
-                    </p>
-                    <Link
-                      href={`/portfolio/epics/${epicId}?tab=kpis` as never}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
-                    >
-                      Zu den KPIs <ArrowRight className="size-3" />
-                    </Link>
-                  </div>
-                </div>
-              </aside>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <EffectTile
+                title="Einmaliger Effekt"
+                epicId={epicId}
+                cascade={cascade}
+                kind="one_time"
+              />
+              <EffectTile
+                title="Wiederkehrender Effekt"
+                epicId={epicId}
+                cascade={cascade}
+                kind="recurring"
+              />
             </div>
           </section>
-
-          {/* Strategischer Nutzen (Top-Ziel) — Einheiten-Kaskade, read-only. */}
-          {topGoalBenefits.length > 0 && (
-            <section className="rounded-lg border p-4">
-              <p className="text-sm font-medium">Strategischer Nutzen (Top-Ziel)</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Was dieses Epic über seine Erfolgs-KPIs zum jeweiligen Top-Ziel beiträgt — in dessen
-                Einheit, über die Ziel-Kaskade hochgerechnet.
-              </p>
-              <ul className="mt-2 space-y-1">
-                {topGoalBenefits.map((b) => (
-                  <li
-                    key={`${b.topGoalId}-${b.impactKind}`}
-                    className="flex flex-wrap items-baseline justify-between gap-2 border-b py-1 text-sm last:border-b-0"
-                  >
-                    <span className="font-medium">{b.topGoalName}</span>
-                    <span className="tabular-nums">
-                      +{fmtUnit(b.planned)} {b.unit ?? ""}
-                      <span className="ml-1 text-xs text-muted-foreground">
-                        ({BENEFIT_KIND_LABELS[benefitKindOrDefault(b.impactKind)]})
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
 
           <div>
             <label htmlFor="bc-customers" className="block text-sm font-medium mb-1">
@@ -489,5 +429,159 @@ export function BusinessCaseEditor({
         </details>
       )}
     </div>
+  );
+}
+
+/**
+ * Eine Nutzen-Kachel (einmalig / wiederkehrend): der aggregierte Effekt je Top-Ziel
+ * in dessen Einheit als große Kennzahl, darunter der Explorer-Baum, der die Kaskade
+ * Ebene für Ebene bis zu den treibenden KPIs aufschlüsselt.
+ */
+function EffectTile({
+  title,
+  epicId,
+  cascade,
+  kind,
+}: {
+  title: string;
+  epicId: string;
+  cascade: EpicCascadeContribution[];
+  kind: string;
+}) {
+  const roots = buildCascadeTree(cascade.filter((c) => c.impactKind === kind));
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const toggle = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  return (
+    <div className="space-y-3 rounded-lg border bg-muted/10 p-3">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {title}
+      </p>
+      {roots.length === 0 ? (
+        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+          <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          <div className="space-y-2">
+            <p className="leading-snug">
+              Kein {title.toLowerCase()} — verknüpfe im Tab „KPIs" ein Ziel (Erfolgs-KPI) und pflege
+              die Einheiten-Umrechnung je Ziel-Ebene, damit die Kaskade bis zum Top-Ziel rechnet.
+            </p>
+            <Link
+              href={`/portfolio/epics/${epicId}?tab=kpis` as never}
+              className="inline-flex items-center gap-1 font-medium text-blue-700 hover:underline"
+            >
+              Zu den KPIs <ArrowRight className="size-3" />
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {roots.map((root) => (
+            <div key={root.goalId} className="space-y-1.5">
+              <div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-semibold tabular-nums">
+                    +{fmtUnit(root.planned)}
+                  </span>
+                  <span className="text-sm text-muted-foreground">{root.unit ?? ""}</span>
+                  {root.brokenHere && (
+                    <span className="text-amber-600" title="Einheiten-Umrechnung fehlt.">
+                      ⚠
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs font-medium">{root.name}</p>
+              </div>
+              {root.children.length > 0 && (
+                <CascadeRows
+                  nodes={root.children}
+                  depth={0}
+                  pathPrefix={root.goalId}
+                  collapsed={collapsed}
+                  toggle={toggle}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Rekursive Explorer-Zeilen: Einrückung nach Tiefe, ChevronRight zum Auf-/Zuklappen. */
+function CascadeRows({
+  nodes,
+  depth,
+  pathPrefix,
+  collapsed,
+  toggle,
+}: {
+  nodes: CascadeTreeNode[];
+  depth: number;
+  pathPrefix: string;
+  collapsed: Set<string>;
+  toggle: (key: string) => void;
+}) {
+  return (
+    <ul className="space-y-0.5">
+      {nodes.map((node) => {
+        const path = `${pathPrefix}/${node.goalId}`;
+        const hasChildren = node.children.length > 0;
+        const isCollapsed = collapsed.has(path);
+        return (
+          <li key={path}>
+            <div
+              className="flex items-center gap-1 text-xs"
+              style={{ paddingLeft: `${depth * 14}px` }}
+            >
+              {hasChildren ? (
+                <button
+                  type="button"
+                  onClick={() => toggle(path)}
+                  className="flex size-4 shrink-0 items-center justify-center rounded hover:bg-muted"
+                  aria-label={isCollapsed ? "Aufklappen" : "Zuklappen"}
+                >
+                  <ChevronRight
+                    className={`size-3 transition-transform ${isCollapsed ? "" : "rotate-90"}`}
+                  />
+                </button>
+              ) : (
+                <span className="size-4 shrink-0" />
+              )}
+              <span className="font-medium">{node.name}:</span>
+              <span className="tabular-nums">
+                +{fmtUnit(node.planned)} {node.unit ?? ""}
+              </span>
+              {node.kpiNames.length > 0 && (
+                <span className="text-muted-foreground">· KPI: {node.kpiNames.join(", ")}</span>
+              )}
+              {node.brokenHere && (
+                <span
+                  className="text-amber-600"
+                  title="Ab hier keine Einheiten-Umrechnung hinterlegt — Beitrag bricht ab."
+                >
+                  ⚠
+                </span>
+              )}
+            </div>
+            {hasChildren && !isCollapsed && (
+              <CascadeRows
+                nodes={node.children}
+                depth={depth + 1}
+                pathPrefix={path}
+                collapsed={collapsed}
+                toggle={toggle}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
