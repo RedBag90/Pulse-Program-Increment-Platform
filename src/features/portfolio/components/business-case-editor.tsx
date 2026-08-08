@@ -1,9 +1,12 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Lock, Lightbulb, ArrowRight, ChevronRight } from "lucide-react";
+import { Lock, Lightbulb, ArrowRight, ChevronRight, AlertTriangle } from "lucide-react";
 import { saveBusinessCaseAction } from "@/features/portfolio/actions/business-case";
 import { submitEpicBusinessCaseAction } from "@/features/portfolio/actions/epic-approval";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import {
   costSliceLabel,
@@ -35,9 +38,6 @@ interface BusinessCaseEditorProps {
 }
 
 const fmtUnit = (n: number): string => n.toLocaleString("de-DE", { maximumFractionDigits: 2 });
-
-const INPUT_CLASS =
-  "w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
 function parseNum(value: string): number | undefined {
   if (value.trim() === "") return undefined;
@@ -77,7 +77,7 @@ export function BusinessCaseEditor({
   return (
     <div className="space-y-6">
       {readOnly && lockReason && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
           <Lock className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{lockReason}</span>
         </div>
@@ -90,11 +90,10 @@ export function BusinessCaseEditor({
             <label htmlFor="bc-stakeholders" className="block text-sm font-medium mb-1">
               Key Stakeholders
             </label>
-            <input
+            <Input
               id="bc-stakeholders"
               name="keyStakeholders"
               defaultValue={current.keyStakeholders}
-              className={INPUT_CLASS}
             />
           </div>
 
@@ -102,12 +101,11 @@ export function BusinessCaseEditor({
             <label htmlFor="bc-description" className="block text-sm font-medium mb-1">
               Initiative Description
             </label>
-            <textarea
+            <Textarea
               id="bc-description"
               name="initiativeDescription"
               rows={4}
               defaultValue={current.initiativeDescription}
-              className={INPUT_CLASS}
             />
           </div>
 
@@ -116,12 +114,11 @@ export function BusinessCaseEditor({
               <label htmlFor="bc-outcome" className="block text-sm font-medium mb-1">
                 Business Outcome Hypothesis
               </label>
-              <textarea
+              <Textarea
                 id="bc-outcome"
                 name="businessOutcomeHypothesis"
                 rows={4}
                 defaultValue={current.businessOutcomeHypothesis}
-                className={INPUT_CLASS}
               />
             </div>
             <div>
@@ -129,7 +126,7 @@ export function BusinessCaseEditor({
                 <label className="block text-sm font-medium">Leading Indicators</label>
                 <a
                   href="?tab=kpis"
-                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                 >
                   Im KPI-Tab pflegen <ArrowRight className="size-3" />
                 </a>
@@ -143,7 +140,7 @@ export function BusinessCaseEditor({
                 value={current.leadingIndicators ?? ""}
               />
               {kpiNames.length === 0 ? (
-                <p className="rounded border border-dashed border-gray-300 px-3 py-2 text-sm text-muted-foreground">
+                <p className="rounded border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
                   Noch keine KPI erfasst — pflege sie im KPI-Tab.
                 </p>
               ) : (
@@ -151,7 +148,7 @@ export function BusinessCaseEditor({
                   {kpiNames.map((name) => (
                     <li
                       key={name}
-                      className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium"
+                      className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium"
                     >
                       {name}
                     </li>
@@ -166,36 +163,28 @@ export function BusinessCaseEditor({
               <label htmlFor="bc-inscope" className="block text-sm font-medium mb-1">
                 In Scope
               </label>
-              <textarea
-                id="bc-inscope"
-                name="inScope"
-                rows={3}
-                defaultValue={current.inScope}
-                className={INPUT_CLASS}
-              />
+              <Textarea id="bc-inscope" name="inScope" rows={3} defaultValue={current.inScope} />
             </div>
             <div>
               <label htmlFor="bc-outscope" className="block text-sm font-medium mb-1">
                 Out of Scope
               </label>
-              <textarea
+              <Textarea
                 id="bc-outscope"
                 name="outOfScope"
                 rows={3}
                 defaultValue={current.outOfScope}
-                className={INPUT_CLASS}
               />
             </div>
             <div>
               <label htmlFor="bc-believe" className="block text-sm font-medium mb-1">
                 What you need to believe in
               </label>
-              <textarea
+              <Textarea
                 id="bc-believe"
                 name="whatYouNeedToBelieve"
                 rows={3}
                 defaultValue={current.whatYouNeedToBelieve}
-                className={INPUT_CLASS}
               />
             </div>
           </div>
@@ -219,7 +208,7 @@ export function BusinessCaseEditor({
                       <span className="w-32 shrink-0 text-sm text-muted-foreground">
                         {costSliceLabel(i)}
                       </span>
-                      <input
+                      <Input
                         type="number"
                         step="any"
                         min={0}
@@ -230,13 +219,13 @@ export function BusinessCaseEditor({
                           setSlices((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
                         }
                         placeholder="0"
-                        className={`${INPUT_CLASS} max-w-[12rem]`}
+                        className="max-w-[12rem]"
                       />
                       <button
                         type="button"
                         onClick={() => setSlices((prev) => prev.filter((_, j) => j !== i))}
                         disabled={slices.length <= 1}
-                        className="text-sm text-muted-foreground hover:text-red-600 disabled:opacity-40"
+                        className="text-sm text-muted-foreground hover:text-destructive disabled:opacity-40"
                       >
                         Entfernen
                       </button>
@@ -247,7 +236,7 @@ export function BusinessCaseEditor({
                 <button
                   type="button"
                   onClick={() => setSlices((prev) => [...prev, ""])}
-                  className="text-sm font-medium text-blue-700 hover:underline"
+                  className="text-sm font-medium text-primary hover:underline"
                 >
                   + Periode hinzufügen
                 </button>
@@ -268,7 +257,7 @@ export function BusinessCaseEditor({
                     </p>
                     <Link
                       href={`/portfolio/epics/${epicId}?tab=breakdown` as never}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                     >
                       Zu den Deliverables <ArrowRight className="size-3" />
                     </Link>
@@ -309,12 +298,11 @@ export function BusinessCaseEditor({
             <label htmlFor="bc-customers" className="block text-sm font-medium mb-1">
               Which internal and/or external customers are affected, and how?
             </label>
-            <textarea
+            <Textarea
               id="bc-customers"
               name="customersAffected"
               rows={3}
               defaultValue={current.customersAffected}
-              className={INPUT_CLASS}
             />
           </div>
 
@@ -322,12 +310,11 @@ export function BusinessCaseEditor({
             <label htmlFor="bc-impact" className="block text-sm font-medium mb-1">
               What is the potential impact on solutions, programs and services?
             </label>
-            <textarea
+            <Textarea
               id="bc-impact"
               name="impactOnSolutions"
               rows={3}
               defaultValue={current.impactOnSolutions}
-              className={INPUT_CLASS}
             />
           </div>
 
@@ -335,12 +322,11 @@ export function BusinessCaseEditor({
             <label htmlFor="bc-summary" className="block text-sm font-medium mb-1">
               Analysis Summary
             </label>
-            <textarea
+            <Textarea
               id="bc-summary"
               name="analysisSummary"
               rows={4}
               defaultValue={current.analysisSummary}
-              className={INPUT_CLASS}
             />
           </div>
 
@@ -351,25 +337,21 @@ export function BusinessCaseEditor({
         </fieldset>
 
         {state.error && (
-          <p role="alert" className="text-red-600 text-sm">
+          <p role="alert" className="text-destructive text-sm">
             {state.error}
           </p>
         )}
         {state.success && (
-          <p role="status" className="text-green-600 text-sm">
+          <p role="status" className="text-emerald-600 text-sm">
             Business Case gespeichert.
           </p>
         )}
 
         {!readOnly && (
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <button
-              type="submit"
-              disabled={isPending}
-              className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
-            >
+            <Button type="submit" disabled={isPending}>
               {isPending ? "Speichern…" : "Business Case speichern"}
-            </button>
+            </Button>
           </div>
         )}
       </form>
@@ -392,22 +374,16 @@ export function BusinessCaseEditor({
             />
             Fertig zum Einreichen
           </label>
-          <button
-            type="submit"
-            disabled={submitDisabled}
-            className={`rounded px-4 py-2 text-sm font-medium text-white transition-opacity ${
-              submitDisabled ? "cursor-not-allowed bg-blue-700/40" : "bg-blue-700 hover:bg-blue-800"
-            }`}
-          >
+          <Button type="submit" disabled={submitDisabled}>
             {submitPending ? "Einreichen…" : "Business Case einreichen"}
-          </button>
+          </Button>
           {submitState.error && (
-            <p role="alert" className="w-full text-right text-sm text-red-600">
+            <p role="alert" className="w-full text-right text-sm text-destructive">
               {submitState.error}
             </p>
           )}
           {submitState.success && (
-            <p role="status" className="w-full text-right text-sm text-green-700">
+            <p role="status" className="w-full text-right text-sm text-emerald-600">
               Business Case eingereicht — die Stakeholder entscheiden jetzt.
             </p>
           )}
@@ -473,7 +449,7 @@ function EffectTile({
             </p>
             <Link
               href={`/portfolio/epics/${epicId}?tab=kpis` as never}
-              className="inline-flex items-center gap-1 font-medium text-blue-700 hover:underline"
+              className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
             >
               Zu den KPIs <ArrowRight className="size-3" />
             </Link>
@@ -490,9 +466,10 @@ function EffectTile({
                   </span>
                   <span className="text-sm text-muted-foreground">{root.unit ?? ""}</span>
                   {root.brokenHere && (
-                    <span className="text-amber-600" title="Einheiten-Umrechnung fehlt.">
-                      ⚠
-                    </span>
+                    <AlertTriangle
+                      className="size-3.5 text-amber-600"
+                      aria-label="Einheiten-Umrechnung fehlt."
+                    />
                   )}
                 </div>
                 <p className="text-xs font-medium">{root.name}</p>
@@ -562,12 +539,10 @@ function CascadeRows({
                 <span className="text-muted-foreground">· KPI: {node.kpiNames.join(", ")}</span>
               )}
               {node.brokenHere && (
-                <span
-                  className="text-amber-600"
-                  title="Ab hier keine Einheiten-Umrechnung hinterlegt — Beitrag bricht ab."
-                >
-                  ⚠
-                </span>
+                <AlertTriangle
+                  className="size-3.5 shrink-0 text-amber-600"
+                  aria-label="Ab hier keine Einheiten-Umrechnung hinterlegt — Beitrag bricht ab."
+                />
               )}
             </div>
             {hasChildren && !isCollapsed && (

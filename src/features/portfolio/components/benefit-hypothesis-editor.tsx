@@ -4,6 +4,8 @@ import { useActionState, useState } from "react";
 import { Lock } from "lucide-react";
 import { saveBenefitHypothesisAction } from "@/features/portfolio/actions/benefit-hypothesis";
 import { submitEpicHypothesisAction } from "@/features/portfolio/actions/epic-approval";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import type {
   BenefitHypothesisFields,
   BenefitHypothesisVersion,
@@ -25,9 +27,6 @@ interface BenefitHypothesisEditorProps {
   canSubmit?: boolean;
 }
 
-const TEXTAREA_CLASS =
-  "w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-
 function formatVersionField(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value.join(", ") : (value ?? "");
 }
@@ -48,7 +47,7 @@ export function BenefitHypothesisEditor({
   return (
     <div className="space-y-6">
       {readOnly && lockReason && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
           <Lock className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{lockReason}</span>
         </div>
@@ -61,12 +60,11 @@ export function BenefitHypothesisEditor({
             <label htmlFor="bh-measures" className="block text-sm font-medium mb-1">
               Maßnahmen-Hypothese
             </label>
-            <textarea
+            <Textarea
               id="bh-measures"
               name="measuresHypothesis"
               rows={4}
               defaultValue={current.measuresHypothesis}
-              className={TEXTAREA_CLASS}
               placeholder="Welche Maßnahme wird vorgeschlagen und warum?"
             />
           </div>
@@ -75,12 +73,11 @@ export function BenefitHypothesisEditor({
             <label htmlFor="bh-change" className="block text-sm font-medium mb-1">
               Veränderung ggü. Startpunkt
             </label>
-            <textarea
+            <Textarea
               id="bh-change"
               name="changeFromBaseline"
               rows={3}
               defaultValue={current.changeFromBaseline}
-              className={TEXTAREA_CLASS}
               placeholder="Wie unterscheidet sich die Lösung vom heutigen Zustand?"
             />
           </div>
@@ -90,12 +87,11 @@ export function BenefitHypothesisEditor({
               Business Outcomes
               <span className="ml-2 font-normal text-muted-foreground">— ein Punkt pro Zeile</span>
             </label>
-            <textarea
+            <Textarea
               id="bh-outcomes"
               name="businessOutcomes"
               rows={4}
               defaultValue={current.businessOutcomes?.join("\n")}
-              className={TEXTAREA_CLASS}
               placeholder={
                 "Messbare Vorteile, die das Unternehmen erzielen kann\n(eine Zeile = ein Outcome)"
               }
@@ -107,12 +103,11 @@ export function BenefitHypothesisEditor({
               Leading Indicators
               <span className="ml-2 font-normal text-muted-foreground">— ein Punkt pro Zeile</span>
             </label>
-            <textarea
+            <Textarea
               id="bh-indicators"
               name="leadingIndicators"
               rows={4}
               defaultValue={current.leadingIndicators?.join("\n")}
-              className={TEXTAREA_CLASS}
               placeholder={"Frühindikatoren, die den Business Outcome vorhersagen"}
             />
           </div>
@@ -122,37 +117,32 @@ export function BenefitHypothesisEditor({
               Risks &amp; Abhängigkeiten
               <span className="ml-2 font-normal text-muted-foreground">— ein Punkt pro Zeile</span>
             </label>
-            <textarea
+            <Textarea
               id="bh-risks"
               name="risks"
               rows={4}
               defaultValue={current.risks?.join("\n")}
-              className={TEXTAREA_CLASS}
               placeholder={"Risiken und Abhängigkeiten"}
             />
           </div>
         </fieldset>
 
         {state.error && (
-          <p role="alert" className="text-red-600 text-sm">
+          <p role="alert" className="text-sm text-destructive">
             {state.error}
           </p>
         )}
         {state.success && (
-          <p role="status" className="text-green-600 text-sm">
+          <p role="status" className="text-sm text-emerald-600">
             Benefit Hypothese gespeichert.
           </p>
         )}
 
         {!readOnly && (
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <button
-              type="submit"
-              disabled={isPending}
-              className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
-            >
+            <Button type="submit" disabled={isPending}>
               {isPending ? "Speichern…" : "Benefit Hypothese speichern"}
-            </button>
+            </Button>
           </div>
         )}
       </form>
@@ -175,22 +165,16 @@ export function BenefitHypothesisEditor({
             />
             Fertig zum Einreichen
           </label>
-          <button
-            type="submit"
-            disabled={submitDisabled}
-            className={`rounded px-4 py-2 text-sm font-medium text-white transition-opacity ${
-              submitDisabled ? "cursor-not-allowed bg-blue-700/40" : "bg-blue-700 hover:bg-blue-800"
-            }`}
-          >
+          <Button type="submit" disabled={submitDisabled}>
             {submitPending ? "Einreichen…" : "Hypothese einreichen"}
-          </button>
+          </Button>
           {submitState.error && (
-            <p role="alert" className="w-full text-right text-sm text-red-600">
+            <p role="alert" className="w-full text-right text-sm text-destructive">
               {submitState.error}
             </p>
           )}
           {submitState.success && (
-            <p role="status" className="w-full text-right text-sm text-green-700">
+            <p role="status" className="w-full text-right text-sm text-emerald-600">
               Hypothese eingereicht — der Portfolio Manager entscheidet jetzt.
             </p>
           )}
@@ -204,7 +188,7 @@ export function BenefitHypothesisEditor({
           </summary>
           <div className="mt-3 space-y-3">
             {history.map((v, i) => (
-              <div key={i} className="rounded border bg-white p-3 text-xs space-y-1">
+              <div key={i} className="space-y-1 rounded-md border bg-card p-3 text-xs">
                 <p className="text-muted-foreground/60">
                   {new Date(v.savedAt).toLocaleString("de-DE")}
                 </p>
