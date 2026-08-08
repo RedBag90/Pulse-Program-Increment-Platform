@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Gauge, Target } from "lucide-react";
 import {
   createKpiAction,
   deleteKpiAction,
@@ -108,6 +108,36 @@ function TileBar({ ratio }: { ratio: number | null }) {
   );
 }
 
+/** Mini-Trendlinie über die Messwert-Historie (chronologisch, letzter Punkt markiert). */
+function Sparkline({ points }: { points: number[] }) {
+  if (points.length < 2) return null;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const step = 100 / (points.length - 1);
+  const y = (v: number) => (22 - ((v - min) / range) * 18 + 1).toFixed(1);
+  const coords = points.map((v, i) => `${(i * step).toFixed(1)},${y(v)}`).join(" ");
+  return (
+    <svg
+      viewBox="0 0 100 24"
+      preserveAspectRatio="none"
+      className="h-6 w-20 shrink-0 overflow-visible text-primary"
+      aria-hidden="true"
+    >
+      <polyline
+        points={coords}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+      <circle cx={100} cy={y(points[points.length - 1]!)} r={1.8} className="fill-primary" />
+    </svg>
+  );
+}
+
 /** Kleiner „Bearbeiten"-Umschalter (kein Collapsible-Primitive im Kit). */
 function EditToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   return (
@@ -144,6 +174,9 @@ function KpiItem({
 
   const err = delState?.error ?? measState?.error ?? weightState?.error ?? detState?.error;
   const history = [...(kpi.measurements ?? [])].sort((a, b) => b.date.localeCompare(a.date));
+  const series = [...(kpi.measurements ?? [])]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((m) => m.value);
 
   return (
     <div className="rounded-lg border bg-card p-4">
@@ -181,13 +214,16 @@ function KpiItem({
         )}
       </div>
 
-      <div className="mt-2">
-        <TileBar ratio={ratio} />
-        <p className="mt-1 text-[10px] text-muted-foreground">
-          Baseline {fmt(kpi.baseline)} → Ziel {fmt(kpi.target)}
-          {ratio != null && ` · ${Math.round(ratio * 100)} % erreicht`}
-          {kpi.valuePerUnit != null && ` · ${fmtEur(kpi.valuePerUnit)}/Einheit`}
-        </p>
+      <div className="mt-2 flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <TileBar ratio={ratio} />
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Baseline {fmt(kpi.baseline)} → Ziel {fmt(kpi.target)}
+            {ratio != null && ` · ${Math.round(ratio * 100)} % erreicht`}
+            {kpi.valuePerUnit != null && ` · ${fmtEur(kpi.valuePerUnit)}/Einheit`}
+          </p>
+        </div>
+        <Sparkline points={series} />
       </div>
 
       {/* Bearbeiten (Default eingeklappt) */}
@@ -543,7 +579,10 @@ function LinkedGoalsSection({
         bewegt (z. B. 10000 €/Wagon). Verknüpfung erfolgt im Ziele-Modul („Related work").
       </p>
       {goalLinks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Noch mit keinem Ziel verknüpft.</p>
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-card/50 px-4 py-8 text-center">
+          <Target className="size-6 text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">Noch mit keinem Ziel verknüpft.</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {goalLinks.map((link) => (
@@ -578,7 +617,10 @@ export function EpicKpisTab({ initiativeId, kpis, canEdit, goalLinks, signoff }:
         </p>
 
         {kpis.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Noch keine KPIs erfasst.</p>
+          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-card/50 px-4 py-8 text-center">
+            <Gauge className="size-6 text-muted-foreground/60" />
+            <p className="text-sm text-muted-foreground">Noch keine KPIs erfasst.</p>
+          </div>
         ) : (
           <div className="space-y-3">
             {kpis.map((kpi) => (
