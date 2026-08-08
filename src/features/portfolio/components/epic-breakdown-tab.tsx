@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { PackageOpen } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { updateFeatureAction } from "@/features/art/actions/feature";
@@ -12,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { STATUS_LABELS, STATUS_BADGE } from "@/components/detail/initiative-labels";
 
 /** Lazy-import den Netzplan, damit der List-Modus die ~130 KB ReactFlow
  *  + dagre nicht ins Initial-Bundle zieht. */
@@ -119,7 +121,7 @@ function FeatureRow({
   ];
 
   return (
-    <div className="rounded border">
+    <div className="rounded-lg border bg-card shadow-xs">
       <div className="flex items-center gap-3 p-3">
         <button
           type="button"
@@ -129,8 +131,16 @@ function FeatureRow({
           {feature.title}
         </button>
         <span className="shrink-0 text-xs text-muted-foreground">{feature.artName}</span>
-        <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs">{feature.status}</span>
-        <span className="shrink-0 text-xs text-muted-foreground">WSJF {feature.wsjf.computed}</span>
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+            STATUS_BADGE[feature.status] ?? STATUS_BADGE.draft
+          }`}
+        >
+          {STATUS_LABELS[feature.status] ?? feature.status}
+        </span>
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+          WSJF {feature.wsjf.computed}
+        </span>
         {canEdit && (
           <>
             <FeaturePiSelect
@@ -255,7 +265,7 @@ export function EpicBreakdownTab({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-medium">Deliverables</h2>
+        <h2 className="font-heading text-lg font-medium">Deliverables</h2>
         <div className="flex items-center gap-2">
           <div
             role="tablist"
@@ -328,7 +338,10 @@ export function EpicBreakdownTab({
           savedPositions={breakdownLayoutPositions}
         />
       ) : features.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Noch keine Features in diesem Epic.</p>
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-card/50 px-4 py-10 text-center">
+          <PackageOpen className="size-6 text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">Noch keine Deliverables in diesem Epic.</p>
+        </div>
       ) : (
         <div className="space-y-2">
           {features.map((f) => (

@@ -71,6 +71,20 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 /**
+ * Semantische Status-Chips (Tailwind, dark-safe) für QS-/Delivery-Status —
+ * eine Quelle für Feature-Rows u. Ä. statt monochromem `bg-muted`.
+ */
+export const STATUS_BADGE: Record<string, string> = {
+  draft: "bg-muted text-muted-foreground",
+  in_review: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200",
+  approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200",
+  in_progress: "bg-primary/10 text-primary",
+  blocked: "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-200",
+  completed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200",
+  cancelled: "bg-muted text-muted-foreground/70 line-through",
+};
+
+/**
  * The Epic's primary lifecycle — the multi-party approval workflow phase. This is
  * the one status surfaced prominently on the Epic; the stage gate is contextual
  * and the QS `status` is not shown as a competing status.

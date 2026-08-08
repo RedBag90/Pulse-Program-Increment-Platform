@@ -20,7 +20,7 @@ import {
   type ActivityItem,
 } from "@/components/detail/initiative-activity-sidebar";
 import { PhaseBadge } from "@/components/detail/phase-badge";
-import { actionLabel, userLabel } from "@/components/detail/initiative-labels";
+import { EpicHistoryTimeline } from "@/features/portfolio/components/epic-history-timeline";
 import { EPIC_TABS } from "@/features/portfolio/components/epic-detail-shell";
 import { EpicOverviewTab } from "@/features/portfolio/components/epic-overview-tab";
 import { EpicReifegradActivityBar } from "@/features/portfolio/components/epic-reifegrad-activity-bar";
@@ -629,36 +629,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
         {activeTab === "history" && (
           <section>
-            <h2 className="mb-3 text-lg font-medium">History</h2>
-            {activityEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Keine Historie.</p>
-            ) : (
-              <ul className="divide-y rounded border">
-                {activityEvents.map((e) => (
-                  <li key={e.id} className="px-3 py-2 text-sm">
-                    <div className="flex items-center gap-3">
-                      <span className="font-medium">{actionLabel(e.action)}</span>
-                      {e.detail && (
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                          {e.detail}
-                        </span>
-                      )}
-                      <span className="text-xs text-muted-foreground">
-                        {userLabel(e.actorId, userLabels)}
-                      </span>
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        {new Date(e.occurredAt).toLocaleString("de-DE")}
-                      </span>
-                    </div>
-                    {e.comment && (
-                      <p className="mt-1 whitespace-pre-wrap border-l-2 border-border pl-2 text-sm text-foreground/80">
-                        {e.comment}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <h2 className="mb-3 font-heading text-lg font-medium">History</h2>
+            <EpicHistoryTimeline events={activityEvents} userLabels={userLabels} />
           </section>
         )}
       </EntityDetailShell>
