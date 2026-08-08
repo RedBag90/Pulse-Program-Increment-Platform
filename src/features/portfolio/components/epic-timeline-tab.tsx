@@ -62,6 +62,35 @@ function fmt(iso: string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("de-DE");
 }
 
+/** Tage seit Epoch (auf den Tag genau), oder null bei ungültigem Datum. */
+function toDay(s: string | null | undefined): number | null {
+  if (!s) return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : Math.floor(d.getTime() / 86_400_000);
+}
+
+/** Estimate-vs-Actual: pünktlich/früh (emerald) oder verspätet (amber). */
+function VarianceBadge({ estimate, actual }: { estimate: string; actual: string }) {
+  const e = toDay(estimate);
+  const a = toDay(actual);
+  if (e == null || a == null) return null;
+  const diff = a - e; // Tage (positiv = später als geplant)
+  const late = diff > 0;
+  const label = diff === 0 ? "pünktlich" : late ? `+${diff} T` : `${-diff} T früher`;
+  return (
+    <span
+      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+        late
+          ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
+          : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+      }`}
+      title={`Ist ${late ? diff + " Tage nach" : diff === 0 ? "am" : -diff + " Tage vor"} dem Estimate`}
+    >
+      {label}
+    </span>
+  );
+}
+
 type RowStatus = "done" | "current" | "upcoming";
 
 function StatusIcon({ status }: { status: RowStatus }) {
@@ -307,9 +336,27 @@ export function EpicTimelineTab({
   }
 
   function ActualSlot({ phase }: { phase: (typeof phases)[number] }) {
-    if (phase.actualPhase) return <ManualActualCell phase={phase.actualPhase} />;
-    if (phase.actualIso !== undefined)
-      return <span className="text-sm sm:pt-0.5">{fmt(phase.actualIso)}</span>;
+    const estimate = phase.estimatePhase ? estimates[phase.estimatePhase] : "";
+    const actualDate = phase.actualPhase ? actuals[phase.actualPhase] : (phase.actualIso ?? "");
+    const variance =
+      estimate && actualDate ? <VarianceBadge estimate={estimate} actual={actualDate} /> : null;
+
+    if (phase.actualPhase) {
+      return (
+        <div className="space-y-1">
+          <ManualActualCell phase={phase.actualPhase} />
+          {variance}
+        </div>
+      );
+    }
+    if (phase.actualIso !== undefined) {
+      return (
+        <div className="flex flex-wrap items-center gap-1.5 sm:pt-0.5">
+          <span className="text-sm">{fmt(phase.actualIso)}</span>
+          {variance}
+        </div>
+      );
+    }
     return <span className="text-sm text-muted-foreground/80 sm:pt-0.5">—</span>;
   }
 
