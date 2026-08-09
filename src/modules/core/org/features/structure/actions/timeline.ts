@@ -8,7 +8,7 @@ import {
   joinArtToTimeline,
   leaveArtFromTimeline,
   updateTimeline,
-} from "@/server/services/timeline";
+} from "@/modules/core/org/server/services/timeline";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { formatDomainError } from "@/server/http/domain-error-display";

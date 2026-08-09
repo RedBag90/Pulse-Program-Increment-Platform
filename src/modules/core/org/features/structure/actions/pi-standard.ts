@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createPiStandard, deletePiStandard, applyPiStandard } from "@/server/services/pi-standard";
+import { createPiStandard, deletePiStandard, applyPiStandard } from "@/modules/core/org/server/services/pi-standard";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { TimelineId } from "@/modules/core/kernel/domain/types";

@@ -3,7 +3,7 @@ import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, isErr } from "@/modules/core/kernel/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { createArt, updateArt } from "@/modules/core/org/server/services/art";
-import { joinArtToTimeline } from "@/server/services/timeline";
+import { joinArtToTimeline } from "@/modules/core/org/server/services/timeline";
 
 export interface StartArtInput {
   valueStreamId: ValueStreamId;

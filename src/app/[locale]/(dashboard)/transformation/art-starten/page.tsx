@@ -5,7 +5,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { listTimelines } from "@/server/services/timeline";
+import { listTimelines } from "@/modules/core/org/server/services/timeline";
 import { StartArtForm } from "@/features/transformation/components/start-art-form";
 import { Page, PageHeader } from "@/components/layout";
 

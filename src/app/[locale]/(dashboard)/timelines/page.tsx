@@ -6,7 +6,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getStructureTree, getStructureTimeline } from "@/modules/core/org/server/services/structure";
 import { getValueStreamBudgets } from "@/server/services/budgeting";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { listPiStandards } from "@/server/services/pi-standard";
+import { listPiStandards } from "@/modules/core/org/server/services/pi-standard";
 import { buildStructurePageModel } from "@/modules/core/org/server/views/structure-page";
 import { StructurePageShell } from "@/modules/core/org/features/structure/components/structure-page-shell";
 

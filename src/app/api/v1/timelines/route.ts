@@ -1,4 +1,4 @@
-import { listTimelines } from "@/server/services/timeline";
+import { listTimelines } from "@/modules/core/org/server/services/timeline";
 import { createQueryHandler } from "@/server/http/query-handler";
 
 export const GET = createQueryHandler({
