@@ -5,7 +5,7 @@ import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { buildDependenciesOverviewModel } from "@/server/views/dependencies-overview";
-import { DependenciesOverviewShell } from "@/features/dependencies/components/dependencies-overview-shell";
+import { DependenciesOverviewShell } from "@/modules/drumbeat/features/dependencies/components/dependencies-overview-shell";
 import { Page } from "@/components/layout";
 
 /**

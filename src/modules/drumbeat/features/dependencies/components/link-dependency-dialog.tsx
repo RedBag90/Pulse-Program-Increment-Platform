@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { useCreateDialogState } from "@/features/create/use-create-dialog-state";
 import { Link2 } from "lucide-react";
 import { useActionResult } from "@/lib/hooks/use-action-result";
-import { linkDependencyAction } from "@/features/dependencies/actions/dependency";
+import { linkDependencyAction } from "@/modules/drumbeat/features/dependencies/actions/dependency";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

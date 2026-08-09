@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Link2, ShieldAlert, Split, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { unlinkDependencyBatchAction } from "@/features/dependencies/actions/dependency";
+import { unlinkDependencyBatchAction } from "@/modules/drumbeat/features/dependencies/actions/dependency";
 import {
   DEPENDENCY_TYPES,
   type DependencyType,

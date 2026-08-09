@@ -15,8 +15,8 @@ import { DeleteFeatureButton } from "@/modules/work/features/feature/components/
 import { FeatureDeliveryControls } from "@/modules/drumbeat/features/feature/components/feature-delivery-controls";
 import { getBlockerWindowsForFeatures } from "@/modules/drumbeat/server/services/dependency";
 import { earliestStartFromBlockers } from "@/modules/core/kernel/domain/dependency-graph";
-import { LinkDependencyDialog } from "@/features/dependencies/components/link-dependency-dialog";
-import { UnlinkDependencyButton } from "@/features/dependencies/components/unlink-dependency-button";
+import { LinkDependencyDialog } from "@/modules/drumbeat/features/dependencies/components/link-dependency-dialog";
+import { UnlinkDependencyButton } from "@/modules/drumbeat/features/dependencies/components/unlink-dependency-button";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { redirect, notFound } from "next/navigation";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";

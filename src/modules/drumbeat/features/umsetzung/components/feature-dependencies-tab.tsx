@@ -1,5 +1,5 @@
-import { LinkDependencyDialog } from "@/features/dependencies/components/link-dependency-dialog";
-import { UnlinkDependencyButton } from "@/features/dependencies/components/unlink-dependency-button";
+import { LinkDependencyDialog } from "@/modules/drumbeat/features/dependencies/components/link-dependency-dialog";
+import { UnlinkDependencyButton } from "@/modules/drumbeat/features/dependencies/components/unlink-dependency-button";
 
 export interface DependencyEdge {
   id: string;

@@ -10,7 +10,7 @@ import { Page, PageHeader, PageSection } from "@/components/layout";
 import { PiSubNav } from "@/modules/drumbeat/features/pi/components/pi-sub-nav";
 import { DependencyGraph } from "@/modules/drumbeat/features/pi/components/dependency-graph";
 import { buildDependenciesListModel } from "@/server/views/dependencies-list";
-import { DependenciesListShell } from "@/features/dependencies/components/dependencies-list-shell";
+import { DependenciesListShell } from "@/modules/drumbeat/features/dependencies/components/dependencies-list-shell";
 
 interface Props {
   params: Promise<{ piId: string }>;

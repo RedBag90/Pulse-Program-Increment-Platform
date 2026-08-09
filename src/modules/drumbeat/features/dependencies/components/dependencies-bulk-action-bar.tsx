@@ -3,7 +3,7 @@
 import { useActionState, useEffect, startTransition } from "react";
 import { Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { unlinkDependencyBatchAction } from "@/features/dependencies/actions/dependency";
+import { unlinkDependencyBatchAction } from "@/modules/drumbeat/features/dependencies/actions/dependency";
 import type { DependencyListRow } from "@/server/views/dependencies-list";
 
 interface Props {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { unlinkDependencyAction } from "@/features/dependencies/actions/dependency";
+import { unlinkDependencyAction } from "@/modules/drumbeat/features/dependencies/actions/dependency";
 
 interface Props {
   fromId: string;

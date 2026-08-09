@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { createDependencyAction } from "@/features/dependencies/actions/dependency";
+import { createDependencyAction } from "@/modules/drumbeat/features/dependencies/actions/dependency";
 import { useCreateResult } from "@/features/create/use-create-result";
 import { InitiativeSearchField } from "@/features/create/initiative-search-field";
 import type { ActionState } from "@/server/http/server-action";

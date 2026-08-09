@@ -25,9 +25,9 @@ import {
   linkDependencyAction,
   unlinkDependencyAction,
   changeDependencyTypeAction,
-} from "@/features/dependencies/actions/dependency";
-import { EdgeTypeMenu } from "@/features/dependencies/components/edge-type-popover";
-import { FeaturePickerPopover } from "@/features/dependencies/components/feature-picker-popover";
+} from "@/modules/drumbeat/features/dependencies/actions/dependency";
+import { EdgeTypeMenu } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
+import { FeaturePickerPopover } from "@/modules/drumbeat/features/dependencies/components/feature-picker-popover";
 import type { DependencyEdgeType } from "@/server/views/breakdown-network-view";
 
 /**

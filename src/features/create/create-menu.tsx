@@ -19,7 +19,7 @@ import { CreateEpicDialog } from "@/modules/work/features/portfolio/components/c
 import { CreateArtDialog } from "@/modules/core/org/features/art/components/create-art-dialog";
 import { CreateFeatureDialog } from "@/modules/work/features/feature/components/create-feature-dialog";
 import { CreateImpedimentDialog } from "@/modules/drumbeat/features/impediment/components/create-impediment-dialog";
-import { CreateDependencyDialog } from "@/features/dependencies/components/create-dependency-dialog";
+import { CreateDependencyDialog } from "@/modules/drumbeat/features/dependencies/components/create-dependency-dialog";
 import { CreateGoalDialog } from "@/modules/core/goals/features/components/create-goal-dialog";
 
 /** Left padding per hierarchy level — reproduces the screenshot's indentation. */

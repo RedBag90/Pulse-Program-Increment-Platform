@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { DEPENDENCY_TYPES, type DependencyType } from "@/server/views/dependencies-list";
-import { DependencyListRowComponent } from "@/features/dependencies/components/dependency-list-row";
+import { DependencyListRowComponent } from "@/modules/drumbeat/features/dependencies/components/dependency-list-row";
 import type { DependencyListRow } from "@/server/views/dependencies-list";
 
 interface Props {

@@ -3,14 +3,14 @@
 import { useCallback, useMemo } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { useUrlSelection } from "@/lib/hooks/use-url-selection";
-import { DependenciesFunnelBar } from "@/features/dependencies/components/dependencies-funnel-bar";
+import { DependenciesFunnelBar } from "@/modules/drumbeat/features/dependencies/components/dependencies-funnel-bar";
 import {
   DependenciesFilterBar,
   type ScopeFilter,
   type SortKey,
-} from "@/features/dependencies/components/dependencies-filter-bar";
-import { DependenciesListTable } from "@/features/dependencies/components/dependencies-list-table";
-import { DependenciesBulkActionBar } from "@/features/dependencies/components/dependencies-bulk-action-bar";
+} from "@/modules/drumbeat/features/dependencies/components/dependencies-filter-bar";
+import { DependenciesListTable } from "@/modules/drumbeat/features/dependencies/components/dependencies-list-table";
+import { DependenciesBulkActionBar } from "@/modules/drumbeat/features/dependencies/components/dependencies-bulk-action-bar";
 import {
   DEPENDENCY_TYPES,
   type DependencyType,

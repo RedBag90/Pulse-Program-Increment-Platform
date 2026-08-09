@@ -45,7 +45,7 @@ import {
   linkDependencyAction,
   unlinkDependencyAction,
   changeDependencyTypeAction,
-} from "@/features/dependencies/actions/dependency";
+} from "@/modules/drumbeat/features/dependencies/actions/dependency";
 import { updateFeatureAction } from "@/modules/work/features/feature/actions/feature";
 import { saveBreakdownLayoutAction } from "@/modules/work/features/portfolio/actions/breakdown-layout";
 import { useBreakdownRealtime } from "@/modules/work/features/portfolio/hooks/use-breakdown-realtime";
@@ -62,7 +62,7 @@ import {
   EdgeTypePopover,
   EDGE_COLOR as SHARED_EDGE_COLOR,
   EDGE_LABEL as SHARED_EDGE_LABEL,
-} from "@/features/dependencies/components/edge-type-popover";
+} from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import {
   buildBreakdownGraph,
   type BreakdownGhostNode,
