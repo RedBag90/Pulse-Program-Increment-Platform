@@ -21,6 +21,7 @@ import { CreateFeatureDialog } from "@/modules/work/features/feature/components/
 import { CreateImpedimentDialog } from "@/modules/drumbeat/features/impediment/components/create-impediment-dialog";
 import { CreateDependencyDialog } from "@/modules/drumbeat/features/dependencies/components/create-dependency-dialog";
 import { CreateGoalDialog } from "@/modules/core/goals/features/components/create-goal-dialog";
+import { CreateRiskDialog } from "@/modules/risks/features/risk/components/create-risk-dialog";
 
 /** Left padding per hierarchy level — reproduces the screenshot's indentation. */
 const INDENT = ["pl-2", "pl-6", "pl-10", "pl-14"] as const;
@@ -82,6 +83,7 @@ export function CreateMenu() {
         <CreateImpedimentDialog open onOpenChange={close} context={ctx} />
       )}
       {openKey === "dependency" && <CreateDependencyDialog open onOpenChange={close} />}
+      {openKey === "risk" && <CreateRiskDialog open onOpenChange={close} />}
     </>
   );
 }

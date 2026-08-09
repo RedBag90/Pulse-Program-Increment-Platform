@@ -71,6 +71,7 @@
     "roam": "ROAM",
     "dependencies": "Abhängigkeiten",
     "dependenciesGroup": "Abhängigkeiten",
+    "risks": "Risks",
     "setupControlling": "Setup & Controlling",
     "others": "Weitere",
     "targetState": "Zielzustand",

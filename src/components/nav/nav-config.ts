@@ -22,6 +22,7 @@ import {
   Hammer,
   Wrench,
   MoreHorizontal,
+  ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
 import type { Practice } from "@/modules/core/kernel/domain/operating-model";
@@ -127,6 +128,14 @@ export const NAV_GROUPS: NavGroup[] = [
       // Die Routen `/pi-planning`, `/impediments`, `/dependencies` bleiben
       // als Deep-Link-Targets erreichbar; aus dem Nav sind sie raus.
     ],
+  },
+  {
+    // Risks & Dependencies als horizontale Domänen (IA-Rework). Single-Item-
+    // Gruppe → rendert als eigenständiger Top-Level-Link (wie „Ziele"); via
+    // moduleAllowed automatisch ausgeblendet, wenn das Risks-Modul aus ist.
+    labelKey: "risks",
+    defaultHref: "/risks",
+    items: [{ href: "/risks", labelKey: "risks", icon: ShieldAlert, exact: true }],
   },
   {
     labelKey: "setupControlling",

@@ -31,7 +31,8 @@ export type RevalidationResource =
   | "dependency"
   | "ziele"
   | "goalCustomFields"
-  | "setup";
+  | "setup"
+  | "risk";
 
 const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   art: ["/structure", "/art/[artId]", "/art/[artId]/settings", "/value-streams/[id]"],
@@ -81,6 +82,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   // Feld-Defs wirken auf die Admin-Seite UND auf jeden Ziel-Drawer.
   goalCustomFields: ["/admin/goal-fields", "/ziele"],
   setup: ["/setup"],
+  risk: ["/risks", "/portfolio/epics/[id]"],
 };
 
 /** Revalidates every route registered for the given resource. */

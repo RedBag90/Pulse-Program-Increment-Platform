@@ -83,4 +83,12 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     resolveHref: (c) =>
       c.featureId ? `/feature/${c.featureId}?create=dependency` : "/pi-planning",
   },
+  {
+    key: "risk",
+    label: "Risk",
+    group: "more",
+    indentLevel: 0,
+    inPlace: true,
+    resolveHref: () => "/risks?create=risk",
+  },
 ];

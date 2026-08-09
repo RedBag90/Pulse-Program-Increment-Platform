@@ -107,7 +107,7 @@ function toPosition(p: RiskLevel, i: RiskLevel): Position {
  * `current` is the latest point and drives the exposure badge + ROAM bucket.
  */
 export function riskPositions(
-  inherent: Partial<Scoring> | null | undefined,
+  inherent: { probability?: string | null; impact?: string | null } | null | undefined,
   assessments: readonly Scoring[] = [],
 ): RiskPositions {
   const inh =
