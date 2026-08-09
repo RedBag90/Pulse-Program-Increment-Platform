@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fulfillmentFraction, saturatedFulfillment } from "@/domain/kpi-direction";
+import { fulfillmentFraction, saturatedFulfillment } from "@/modules/core/kpi/domain/kpi-direction";
 
 describe("fulfillmentFraction (raw, unclamped)", () => {
   it("NPS (40 → 80, current 60) → 0.5", () => {

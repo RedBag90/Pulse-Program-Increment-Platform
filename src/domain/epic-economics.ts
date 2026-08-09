@@ -20,9 +20,9 @@ import {
 } from "@/domain/business-case";
 import { parseTimeline } from "@/domain/timeline";
 import { resolveCostStart, resolveGoLive } from "@/domain/epic-schedule";
-import type { KpiMeasurement } from "@/domain/kpi";
-import { benefitKindOrDefault } from "@/domain/kpi-benefit-kind";
-import { recurringIntervalOrDefault } from "@/domain/kpi-recurring-interval";
+import type { KpiMeasurement } from "@/modules/core/kpi/domain/kpi";
+import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
+import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";
 
 /** A KPI as the read-model needs it — Prisma `Decimal`s already converted. */
 export interface EpicEconomicsKpiInput {

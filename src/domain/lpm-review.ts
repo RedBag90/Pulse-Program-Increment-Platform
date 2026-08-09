@@ -17,9 +17,9 @@
  * Konvention (wie im Ziele-/Portfolio-Code): Verhältnisse sind 0..1.
  */
 
-import { fulfillmentFraction } from "@/domain/kpi-direction";
-import { benefitKindOrDefault } from "@/domain/kpi-benefit-kind";
-import { recurringIntervalOrDefault } from "@/domain/kpi-recurring-interval";
+import { fulfillmentFraction } from "@/modules/core/kpi/domain/kpi-direction";
+import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
+import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";
 import { thresholdTier, type AmpelTier, type AmpelThresholds } from "@/domain/portfolio-ampel";
 
 /**

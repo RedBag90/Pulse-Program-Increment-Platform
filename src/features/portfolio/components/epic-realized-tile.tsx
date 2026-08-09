@@ -1,8 +1,8 @@
 import { TrendingUp } from "lucide-react";
-import { kpiValueContribution } from "@/domain/kpi-valuation";
-import { latestKpiValue, parseKpiMeasurements } from "@/domain/kpi";
-import { benefitKindOrDefault, type BenefitKind } from "@/domain/kpi-benefit-kind";
-import { recurringIntervalOrDefault } from "@/domain/kpi-recurring-interval";
+import { kpiValueContribution } from "@/modules/core/kpi/domain/kpi-valuation";
+import { latestKpiValue, parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";
+import { benefitKindOrDefault, type BenefitKind } from "@/modules/core/kpi/domain/kpi-benefit-kind";
+import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";
 import { formatCompactEUR } from "@/lib/formatting";
 
 /**

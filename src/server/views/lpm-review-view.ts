@@ -12,7 +12,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
-import { parseMeasurements } from "@/domain/kpi-measurement";
+import { parseMeasurements } from "@/modules/core/kpi/domain/kpi-measurement";
 import {
   computeLpmReview,
   type LpmEpicInput,

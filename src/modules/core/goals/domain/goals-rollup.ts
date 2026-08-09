@@ -18,8 +18,8 @@
  * Reine Funktionen, kein I/O — leicht testbar, leicht in Server-Views einbindbar.
  */
 
-import { fulfillmentFraction } from "@/domain/kpi-direction";
-import { kpiDelta } from "@/domain/kpi-valuation";
+import { fulfillmentFraction } from "@/modules/core/kpi/domain/kpi-direction";
+import { kpiDelta } from "@/modules/core/kpi/domain/kpi-valuation";
 import {
   aggregatesFromChildren,
   type ProgressMode,

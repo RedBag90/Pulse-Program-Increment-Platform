@@ -7,7 +7,7 @@ import { EpicGoalsBadge } from "@/features/portfolio/components/epic-goals-badge
 import { EpicRealizedTile } from "@/features/portfolio/components/epic-realized-tile";
 import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import { listInitiativeHistory } from "@/server/services/initiative";
-import { listKpis } from "@/server/services/kpi";
+import { listKpis } from "@/modules/core/kpi/server/kpi";
 import { listProgramIncrementsForArts } from "@/server/services/pi";
 import { listEpicApprovals, listTenantApprovers } from "@/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
@@ -53,7 +53,7 @@ import { epicBenefitFromKpis } from "@/domain/epic-economics";
 import { epicNextStep } from "@/domain/epic-next-step";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
-import { parseKpiMeasurements, latestKpiValue } from "@/domain/kpi";
+import { parseKpiMeasurements, latestKpiValue } from "@/modules/core/kpi/domain/kpi";
 import { parseTimeline } from "@/domain/timeline";
 import {
   sectionStatus,

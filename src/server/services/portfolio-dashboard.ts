@@ -11,7 +11,7 @@ import type { TenantId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok } from "@/domain/errors";
-import { parseKpiMeasurements } from "@/domain/kpi";
+import { parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";
 import { isoDay, monthStart } from "@/domain/calendar";
 import { deriveEpicEconomics } from "@/domain/epic-economics";
 import { parsePeriodAmountMap } from "@/domain/budgeting";

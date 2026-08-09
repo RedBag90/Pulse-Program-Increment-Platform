@@ -18,7 +18,7 @@
  */
 
 import { isMetricType } from "@/modules/core/goals/domain/goal-metric";
-import { kpiDelta, direction, type KpiPoint } from "@/domain/kpi-valuation";
+import { kpiDelta, direction, type KpiPoint } from "@/modules/core/kpi/domain/kpi-valuation";
 
 export const PROGRESS_MODES = ["manual", "rollup", "auto_kpi", "kpi_tree"] as const;
 export type ProgressMode = (typeof PROGRESS_MODES)[number];

@@ -17,8 +17,8 @@ import {
   derivesCurrentFromKpis,
   type ProgressMode,
 } from "@/modules/core/goals/domain/goal-progress-mode";
-import { direction } from "@/domain/kpi-valuation";
-import type { Measurement } from "@/domain/kpi-measurement";
+import { direction } from "@/modules/core/kpi/domain/kpi-valuation";
+import type { Measurement } from "@/modules/core/kpi/domain/kpi-measurement";
 
 export interface SeriesPoint {
   at: string;

@@ -12,7 +12,7 @@
  *   horizon end (inclusive).
  */
 
-import type { KpiMeasurement } from "@/domain/kpi";
+import type { KpiMeasurement } from "@/modules/core/kpi/domain/kpi";
 import {
   monthStart,
   addMonths,
@@ -22,9 +22,9 @@ import {
   type MonthAxis,
 } from "@/domain/calendar";
 import { MONTHS_PER_HALF_YEAR, distributeAmountAcrossHalfYearMonths } from "@/domain/period-axis";
-import { saturatedFulfillment } from "@/domain/kpi-direction";
-import { benefitKindOrDefault } from "@/domain/kpi-benefit-kind";
-import { recurringIntervalOrDefault } from "@/domain/kpi-recurring-interval";
+import { saturatedFulfillment } from "@/modules/core/kpi/domain/kpi-direction";
+import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
+import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";
 
 export interface EpicEconomicsInput {
   id: string;

@@ -13,7 +13,7 @@
  * as the canonical `kpi-direction.ts` helpers.
  */
 
-import { fulfillmentFraction } from "@/domain/kpi-direction";
+import { fulfillmentFraction } from "@/modules/core/kpi/domain/kpi-direction";
 
 export interface KpiPoint {
   baseline: number | null;

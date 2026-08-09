@@ -1,8 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { createKpi, updateKpi, deleteKpi, recordKpiMeasurement } from "@/server/services/kpi";
-import type { KpiId } from "@/server/services/kpi";
+import { createKpi, updateKpi, deleteKpi, recordKpiMeasurement } from "@/modules/core/kpi/server/kpi";
+import type { KpiId } from "@/modules/core/kpi/server/kpi";
 import { createServerAction } from "@/server/http/server-action";
 import type { ActionState } from "@/server/http/server-action";
 import type { EpicId } from "@/domain/types";

@@ -21,7 +21,7 @@ import {
   effectiveProgressMode,
   type AutoKpiLink,
 } from "@/modules/core/goals/domain/goal-progress-mode";
-import { latestMeasurement } from "@/domain/kpi-measurement";
+import { latestMeasurement } from "@/modules/core/kpi/domain/kpi-measurement";
 import { dayStart } from "@/domain/calendar";
 import { InitiativeLevel } from "@/domain/types";
 

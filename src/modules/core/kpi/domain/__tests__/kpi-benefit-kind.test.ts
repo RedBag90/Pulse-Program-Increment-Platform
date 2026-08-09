@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { BENEFIT_KINDS, isBenefitKind, benefitKindOrDefault } from "@/domain/kpi-benefit-kind";
+import {
+  BENEFIT_KINDS,
+  isBenefitKind,
+  benefitKindOrDefault,
+} from "@/modules/core/kpi/domain/kpi-benefit-kind";
 
 describe("kpi benefit kind", () => {
   it("exposes the two kinds", () => {

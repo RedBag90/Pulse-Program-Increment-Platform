@@ -14,7 +14,7 @@ import {
   type EpicSeries,
 } from "@/domain/portfolio-economics";
 import { buildMonthAxis } from "@/domain/calendar";
-import type { KpiMeasurement } from "@/domain/kpi";
+import type { KpiMeasurement } from "@/modules/core/kpi/domain/kpi";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 

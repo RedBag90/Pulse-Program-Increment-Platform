@@ -8,7 +8,7 @@ import {
   type AutoKpiLink,
 } from "@/modules/core/goals/domain/goal-progress-mode";
 import { type AutoKpiSeriesLink } from "@/modules/core/goals/domain/goal-progress-series";
-import { parseMeasurements, latestMeasurement } from "@/domain/kpi-measurement";
+import { parseMeasurements, latestMeasurement } from "@/modules/core/kpi/domain/kpi-measurement";
 import {
   buildStrategyTree,
   buildProgressChart as deriveProgressChart,

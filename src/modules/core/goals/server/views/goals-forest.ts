@@ -26,7 +26,7 @@ import {
   type RollupTrio,
   type RollupNode,
 } from "@/modules/core/goals/domain/goals-rollup";
-import { kpiDelta } from "@/domain/kpi-valuation";
+import { kpiDelta } from "@/modules/core/kpi/domain/kpi-valuation";
 import {
   effectiveProgressMode,
   autoKpiCurrent,

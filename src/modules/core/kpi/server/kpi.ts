@@ -3,7 +3,7 @@ import type { TenantId, EpicId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
-import { parseKpiMeasurements, type KpiMeasurement } from "@/domain/kpi";
+import { parseKpiMeasurements, type KpiMeasurement } from "@/modules/core/kpi/domain/kpi";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
 import { findOr404 } from "@/server/services/tenant-scope";

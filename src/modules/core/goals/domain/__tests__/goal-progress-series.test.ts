@@ -10,7 +10,7 @@ import {
   type RollupTrio,
 } from "@/modules/core/goals/domain/goals-rollup";
 import { goalStatusColor } from "@/modules/core/goals/domain/goal-status";
-import { parseMeasurements, latestMeasurement } from "@/domain/kpi-measurement";
+import { parseMeasurements, latestMeasurement } from "@/modules/core/kpi/domain/kpi-measurement";
 
 const unit = { metricUnit: "Kunden", metricType: "number", currencyCode: null };
 const ZERO: RollupTrio = { planned: 0, realized: 0, runRate: 0 };

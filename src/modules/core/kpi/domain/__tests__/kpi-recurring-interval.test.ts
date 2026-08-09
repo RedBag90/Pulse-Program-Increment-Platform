@@ -3,7 +3,7 @@ import {
   RECURRING_INTERVALS,
   isRecurringInterval,
   recurringIntervalOrDefault,
-} from "@/domain/kpi-recurring-interval";
+} from "@/modules/core/kpi/domain/kpi-recurring-interval";
 
 describe("kpi recurring interval", () => {
   it("exposes the two intervals", () => {

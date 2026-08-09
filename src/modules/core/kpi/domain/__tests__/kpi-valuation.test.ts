@@ -5,7 +5,7 @@ import {
   kpiValueContribution,
   percentOfTargetGap,
   eurPerPercentagePoint,
-} from "@/domain/kpi-valuation";
+} from "@/modules/core/kpi/domain/kpi-valuation";
 
 describe("direction", () => {
   it("returns +1 when higher is better, −1 when lower is better, 0 otherwise", () => {

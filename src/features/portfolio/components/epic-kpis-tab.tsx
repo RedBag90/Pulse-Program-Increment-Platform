@@ -10,11 +10,11 @@ import {
   updateKpiDetailsAction,
 } from "@/features/portfolio/actions/kpi";
 import { linkEpicToGoalAction } from "@/modules/core/goals/features/actions/ziele";
-import { benefitKindOrDefault, BENEFIT_KIND_LABELS } from "@/domain/kpi-benefit-kind";
+import { benefitKindOrDefault, BENEFIT_KIND_LABELS } from "@/modules/core/kpi/domain/kpi-benefit-kind";
 import {
   recurringIntervalOrDefault,
   RECURRING_INTERVAL_LABELS,
-} from "@/domain/kpi-recurring-interval";
+} from "@/modules/core/kpi/domain/kpi-recurring-interval";
 import { formatMetricValue } from "@/modules/core/goals/domain/goal-metric";
 import { formatCompactEUR } from "@/lib/formatting";
 import type { EpicGoalLinkRow } from "@/modules/core/goals/server/views/epic-goal-contributions";
