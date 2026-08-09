@@ -46,6 +46,84 @@ const config = [
       "no-console": ["warn", { allow: ["warn", "error"] }],
     },
   },
+  // ── Modul-Grenzen (ADR-0013): Importe nur abwärts, Drumbeat ⊥ Budgeting.
+  //    Greift, sobald Code nach src/modules/<m>/ wandert (P2+). Bis dahin dormant.
+  {
+    files: ["src/modules/core/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/modules/work",
+                "@/modules/work/**",
+                "@/modules/drumbeat",
+                "@/modules/drumbeat/**",
+                "@/modules/budgeting",
+                "@/modules/budgeting/**",
+              ],
+              message: "core darf nicht aufwärts importieren (ADR-0013).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/modules/work/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/modules/drumbeat",
+                "@/modules/drumbeat/**",
+                "@/modules/budgeting",
+                "@/modules/budgeting/**",
+              ],
+              message: "work darf nicht aufwärts importieren (ADR-0013).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/modules/drumbeat/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/modules/budgeting", "@/modules/budgeting/**"],
+              message: "drumbeat ↮ budgeting (ADR-0013).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/modules/budgeting/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/modules/drumbeat", "@/modules/drumbeat/**"],
+              message: "budgeting ↮ drumbeat (ADR-0013).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettierConfig,
 ];
 
