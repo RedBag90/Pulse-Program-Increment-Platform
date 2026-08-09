@@ -20,6 +20,8 @@ import {
   SEVERITY_LABEL,
   STATUS_LABEL,
 } from "@/modules/drumbeat/features/impediment/labels";
+// Canonical ROAM palette/labels (shared Core primitive, ADR-0013).
+import { ROAM_LABELS as ROAM_LABEL, ROAM_DOT } from "@/modules/core/kernel/domain/roam";
 import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
@@ -27,21 +29,6 @@ interface Props {
   canBulk: boolean;
 }
 
-const ROAM_LABEL: Record<RoamStatus, string> = {
-  open: "Offen",
-  resolved: "Resolved",
-  owned: "Owned",
-  accepted: "Accepted",
-  mitigated: "Mitigated",
-};
-
-const ROAM_DOT: Record<RoamStatus, string> = {
-  open: "bg-amber-500",
-  resolved: "bg-emerald-500",
-  owned: "bg-blue-500",
-  accepted: "bg-slate-500",
-  mitigated: "bg-purple-500",
-};
 
 function parseRoam(raw: string | null): RoamStatus | null {
   if (!raw) return null;

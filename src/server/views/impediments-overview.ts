@@ -7,9 +7,10 @@
 
 import { diffInDays } from "@/modules/core/kernel/domain/calendar";
 import { buildFunnelCounts } from "@/server/views/lib/page-model-utils";
+// ROAM vocabulary is the shared Core primitive (ADR-0013).
+import { ROAM_STATUSES, type RoamStatus } from "@/modules/core/kernel/domain/roam";
 
-export const ROAM_STATUSES = ["open", "resolved", "owned", "accepted", "mitigated"] as const;
-export type RoamStatus = (typeof ROAM_STATUSES)[number];
+export { ROAM_STATUSES, type RoamStatus };
 
 export const IMPEDIMENT_WORKFLOW_STATUSES = ["open", "escalated", "resolved"] as const;
 export type ImpedimentWorkflowStatus = (typeof IMPEDIMENT_WORKFLOW_STATUSES)[number];

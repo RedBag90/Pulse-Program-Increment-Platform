@@ -6,6 +6,7 @@ import type {
   SprintId,
   ImpedimentId,
 } from "@/modules/core/kernel/domain/types";
+import { ROAM_STATUSES, type RoamStatus } from "@/modules/core/kernel/domain/roam";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { publishDomainEvent } from "@/server/events/publish";
@@ -17,14 +18,9 @@ import { paginate, type PageParams } from "@/server/db/paginate";
 export type { ImpedimentId };
 export type Severity = "low" | "medium" | "high" | "critical";
 export type ImpedimentStatus = "open" | "escalated" | "resolved";
-export type RoamStatus = "open" | "resolved" | "owned" | "accepted" | "mitigated";
-export const ROAM_STATUSES: readonly RoamStatus[] = [
-  "open",
-  "resolved",
-  "owned",
-  "accepted",
-  "mitigated",
-];
+// ROAM is a shared Core primitive (ADR-0013); re-export so existing importers
+// (`@/modules/drumbeat/server/services/impediment`) keep working unchanged.
+export { ROAM_STATUSES, type RoamStatus };
 
 export interface CreateImpedimentInput {
   artId: ArtId;

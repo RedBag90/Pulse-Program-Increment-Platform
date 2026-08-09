@@ -23,6 +23,7 @@ describe("moduleForPath", () => {
     expect(moduleForPath("/de/umsetzung")).toBe("drumbeat");
     expect(moduleForPath("/roadmap/portfolio")).toBe("drumbeat");
     expect(moduleForPath("/controlling/budget-plan")).toBe("budgeting");
+    expect(moduleForPath("/de/risks")).toBe("risks");
   });
 
   it("core-Segmente + Root sind immer verfügbar", () => {
@@ -71,6 +72,8 @@ describe("moduleForAction", () => {
     expect(moduleForAction("impediment.raise")).toBe("drumbeat");
     expect(moduleForAction("budget_plan.revision.capture")).toBe("budgeting");
     expect(moduleForAction("art_budget.manage")).toBe("budgeting");
+    expect(moduleForAction("risk.suggest")).toBe("risks");
+    expect(moduleForAction("risk.settings.manage")).toBe("risks");
   });
 
   it("Präfix-Grenzen: art. (core) ≠ art_budget. (budgeting), pi. ≠ pi_standard. (beide drumbeat)", () => {
@@ -101,6 +104,10 @@ describe("applyModulePrerequisites", () => {
       "drumbeat",
       "budgeting",
     ]);
+  });
+
+  it("risks zieht work (und core) nach", () => {
+    expect(applyModulePrerequisites(["risks"])).toEqual(["core", "work", "risks"]);
   });
 });
 
@@ -146,7 +153,8 @@ describe("Registry-Konsistenz", () => {
     for (const k of MODULE_KEYS) {
       const resolved = applyModulePrerequisites([k]);
       expect(resolved).toContain("core");
-      if (k === "drumbeat" || k === "budgeting") expect(resolved).toContain("work");
+      if (k === "drumbeat" || k === "budgeting" || k === "risks")
+        expect(resolved).toContain("work");
     }
   });
 });

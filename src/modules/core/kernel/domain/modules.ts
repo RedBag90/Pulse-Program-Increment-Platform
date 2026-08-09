@@ -19,7 +19,7 @@
  *    ungegated — alles andere mappt auf ein Modul.
  */
 
-export const MODULE_KEYS = ["core", "work", "drumbeat", "budgeting"] as const;
+export const MODULE_KEYS = ["core", "work", "drumbeat", "budgeting", "risks"] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 
@@ -46,6 +46,7 @@ export const MODULE_PREREQUISITES: Record<ModuleKey, readonly ModuleKey[]> = {
   work: [],
   drumbeat: ["work"],
   budgeting: ["work"],
+  risks: ["work"],
 };
 
 export const MODULES: Record<ModuleKey, ModuleDef> = {
@@ -112,6 +113,14 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
     segments: ["controlling"],
     actions: ["budget.", "budget_plan.", "art_budget."],
     home: "/controlling",
+  },
+  risks: {
+    label: "Risks",
+    // Tenant-weites Risk-Register mit ROAM + n:m-Epic-Verknüpfung (Sibling von
+    // Drumbeat/Budgeting, benötigt Work). Siehe docs/concepts/risk-management-module.md.
+    segments: ["risks"],
+    actions: ["risk."],
+    home: "/risks",
   },
 };
 

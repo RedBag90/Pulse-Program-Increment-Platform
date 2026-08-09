@@ -63,6 +63,8 @@ const config = [
                 "@/modules/drumbeat/**",
                 "@/modules/budgeting",
                 "@/modules/budgeting/**",
+                "@/modules/risks",
+                "@/modules/risks/**",
               ],
               message: "core darf nicht aufwärts importieren (ADR-0013).",
             },
@@ -84,6 +86,8 @@ const config = [
                 "@/modules/drumbeat/**",
                 "@/modules/budgeting",
                 "@/modules/budgeting/**",
+                "@/modules/risks",
+                "@/modules/risks/**",
               ],
               message: "work darf nicht aufwärts importieren (ADR-0013).",
             },
@@ -100,8 +104,13 @@ const config = [
         {
           patterns: [
             {
-              group: ["@/modules/budgeting", "@/modules/budgeting/**"],
-              message: "drumbeat ↮ budgeting (ADR-0013).",
+              group: [
+                "@/modules/budgeting",
+                "@/modules/budgeting/**",
+                "@/modules/risks",
+                "@/modules/risks/**",
+              ],
+              message: "drumbeat ↮ budgeting/risks (ADR-0013).",
             },
           ],
         },
@@ -116,8 +125,34 @@ const config = [
         {
           patterns: [
             {
-              group: ["@/modules/drumbeat", "@/modules/drumbeat/**"],
-              message: "budgeting ↮ drumbeat (ADR-0013).",
+              group: [
+                "@/modules/drumbeat",
+                "@/modules/drumbeat/**",
+                "@/modules/risks",
+                "@/modules/risks/**",
+              ],
+              message: "budgeting ↮ drumbeat/risks (ADR-0013).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/modules/risks/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/modules/drumbeat",
+                "@/modules/drumbeat/**",
+                "@/modules/budgeting",
+                "@/modules/budgeting/**",
+              ],
+              message: "risks ↮ drumbeat/budgeting; darf nur work+core importieren (ADR-0013).",
             },
           ],
         },
@@ -152,6 +187,8 @@ const config = [
                 "@/modules/drumbeat/**",
                 "@/modules/budgeting",
                 "@/modules/budgeting/**",
+                "@/modules/risks",
+                "@/modules/risks/**",
               ],
               message:
                 "Core-Tier-Infra darf keine Feature-Module importieren; nur src/app komponiert Module (P7 / ADR-0013).",
