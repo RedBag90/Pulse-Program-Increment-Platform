@@ -3,12 +3,17 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getStructureTree, getStructureTimeline } from "@/modules/core/org/server/services/structure";
+import {
+  getStructureTree,
+  getStructureTimeline,
+} from "@/modules/core/org/server/services/structure";
 import { getValueStreamBudgets } from "@/modules/budgeting/server/services/budgeting";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { listPiStandards } from "@/modules/core/org/server/services/pi-standard";
 import { buildStructurePageModel } from "@/modules/core/org/server/views/structure-page";
 import { StructurePageShell } from "@/modules/core/org/features/structure/components/structure-page-shell";
+import { CreateTimelineButton } from "@/modules/core/org/features/structure/components/create-timeline-button";
+import { TimelineDetailPane } from "@/modules/core/org/features/structure/components/timeline-detail-pane";
 
 /**
  * Timelines-Page — Master-Detail-Layout fuer **Timelines** + ihre PIs +
@@ -64,7 +69,15 @@ export default async function TimelinesPage() {
         canDeleteArt={canDeleteArt}
         canCreateTeam={canCreateTeam}
         canManageTimeline={canManageTimeline}
-        piStandards={piStandards}
+        createTimelineSlot={<CreateTimelineButton />}
+        renderTimelineDetail={(timeline, onSelectNode) => (
+          <TimelineDetailPane
+            timeline={timeline}
+            canManage={canManageTimeline}
+            piStandards={piStandards}
+            onSelectNode={onSelectNode}
+          />
+        )}
       />
     </Suspense>
   );

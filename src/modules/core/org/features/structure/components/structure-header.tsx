@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CreateValueStreamDialog } from "@/modules/core/org/features/value-stream/components/create-value-stream-dialog";
-import { CreateTimelineButton } from "@/modules/core/org/features/structure/components/create-timeline-button";
 import type { NodeKind } from "@/modules/core/org/server/views/structure-page";
 
 interface Props {
@@ -14,6 +13,9 @@ interface Props {
   kindFilter: NodeKind | null;
   canCreateVs: boolean;
   canManageTimeline: boolean;
+  /** Kadenz-CTA (Drumbeat), vom Composition-Root injiziert; nur gerendert wenn
+   *  `canManageTimeline`. */
+  createTimelineSlot?: ReactNode;
   kindCounts: Record<NodeKind, number>;
   /** Welche Filter-Chips angezeigt werden. Bestimmt, fuer welche Knoten-
    *  Arten Chips sichtbar sind; reihenfolge fixiert via `KIND_ORDER`. */
@@ -42,6 +44,7 @@ export function StructureHeader({
   kindFilter,
   canCreateVs,
   canManageTimeline,
+  createTimelineSlot,
   kindCounts,
   availableKinds,
   onQueryChange,
@@ -69,7 +72,7 @@ export function StructureHeader({
         </div>
         <div className="flex items-center gap-2">
           {canCreateVs && <CreateValueStreamDialog />}
-          {canManageTimeline && <CreateTimelineButton />}
+          {canManageTimeline && createTimelineSlot}
         </div>
       </div>
 

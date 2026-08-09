@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Network } from "lucide-react";
 import { StructureHeader } from "@/modules/core/org/features/structure/components/structure-header";
@@ -8,7 +8,6 @@ import { StructureList } from "@/modules/core/org/features/structure/components/
 import { VsDetailPane } from "@/modules/core/org/features/structure/components/vs-detail-pane";
 import { ArtDetailPane } from "@/modules/core/org/features/structure/components/art-detail-pane";
 import { TeamDetailPane } from "@/modules/core/org/features/structure/components/team-detail-pane";
-import { TimelineDetailPane } from "@/modules/core/org/features/structure/components/timeline-detail-pane";
 import {
   parseSelection,
   encodeSelection,
@@ -30,16 +29,15 @@ interface Props {
   canDeleteArt: boolean;
   canCreateTeam: boolean;
   canManageTimeline: boolean;
-  /** Verfügbare PI-Standards für „Standard auf Timeline anwenden". */
-  piStandards: {
-    id: string;
-    name: string;
-    anchorMonth: number;
-    anchorDay: number;
-    cadenceWeeks: number;
-    piCount: number;
-  }[];
+  /** Kadenz-Slots (Drumbeat). Vom Composition-Root (`/timelines`) injiziert,
+   *  damit dieser Core-Org-Shell die Kadenz-Komponenten (Drumbeat) nicht direkt
+   *  importiert (ADR-0013). `/structure` lässt sie weg. */
+  createTimelineSlot?: ReactNode;
+  renderTimelineDetail?: (timeline: TimelineNode, onSelectNode: OnSelectNode) => ReactNode;
 }
+
+type TimelineNode = NonNullable<ReturnType<StructurePageModel["timeline"]["get"]>>;
+type OnSelectNode = (kind: NodeKind, id: string) => void;
 
 const NODE_KIND_SET = new Set<NodeKind>(["vs", "art", "team", "timeline"]);
 
@@ -66,7 +64,8 @@ export function StructurePageShell({
   canDeleteArt,
   canCreateTeam,
   canManageTimeline,
-  piStandards,
+  createTimelineSlot,
+  renderTimelineDetail,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -121,6 +120,7 @@ export function StructurePageShell({
         kindFilter={kindFilter}
         canCreateVs={canCreateVs}
         canManageTimeline={canManageTimeline}
+        createTimelineSlot={createTimelineSlot}
         kindCounts={model.kindCounts}
         availableKinds={availableKinds}
         onQueryChange={onQueryChange}
@@ -150,13 +150,10 @@ export function StructurePageShell({
             />
           ) : selection.kind === "team" && model.team.has(selection.id) ? (
             <TeamDetailPane team={model.team.get(selection.id)!} onSelectNode={onSelectNode} />
-          ) : selection.kind === "timeline" && model.timeline.has(selection.id) ? (
-            <TimelineDetailPane
-              timeline={model.timeline.get(selection.id)!}
-              canManage={canManageTimeline}
-              piStandards={piStandards}
-              onSelectNode={onSelectNode}
-            />
+          ) : selection.kind === "timeline" &&
+            model.timeline.has(selection.id) &&
+            renderTimelineDetail ? (
+            renderTimelineDetail(model.timeline.get(selection.id)!, onSelectNode)
           ) : (
             <EmptyPane />
           )}
