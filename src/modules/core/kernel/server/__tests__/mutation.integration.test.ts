@@ -6,7 +6,7 @@ import {
   withAuditedTransaction,
   onUniqueConstraint,
   type MutationContext,
-} from "@/server/services/mutation";
+} from "@/modules/core/kernel/server/mutation";
 import { ok, err, isOk, isErr } from "@/domain/errors";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;

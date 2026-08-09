@@ -1,4 +1,4 @@
-import { ROLES } from "@/domain/roles";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
 import { ok, err, type Result } from "@/domain/errors";
 import type { Principal, PrincipalCapability } from "@/server/auth/principal";
 import type { Action, ScopeCheck } from "@/server/auth/policies";

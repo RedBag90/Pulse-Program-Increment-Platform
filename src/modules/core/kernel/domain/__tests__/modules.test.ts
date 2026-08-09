@@ -11,7 +11,7 @@ import {
   applyModulePrerequisites,
   firstEnabledHome,
   PERSONAL_DEFAULT_MODULES,
-} from "@/domain/modules";
+} from "@/modules/core/kernel/domain/modules";
 
 describe("moduleForPath", () => {
   it("mappt Segmente auf die 4 Module (mit und ohne Locale-Präfix)", () => {

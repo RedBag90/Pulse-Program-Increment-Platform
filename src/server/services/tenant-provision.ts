@@ -3,7 +3,7 @@ import type { TenantId } from "@/domain/types";
 import { platformDb, assertPlatformAdmin } from "@/server/auth/platform";
 import { createPrismaClient } from "@/server/db/prisma";
 import { emitAuditEvent } from "@/server/audit/emit";
-import { MODULE_KEYS } from "@/domain/modules";
+import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 import { createOrgTenant, type ServiceOutcome } from "@/server/services/platform-tenant";
 import type { UserId } from "@/domain/types";
 

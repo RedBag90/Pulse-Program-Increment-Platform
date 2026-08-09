@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type * as PrincipalModule from "@/server/auth/principal";
 import type { Principal, PrincipalScopes } from "@/server/auth/principal";
-import { ROLES } from "@/domain/roles";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
 import type { TenantId, UserId } from "@/domain/types";
-import { MODULE_KEYS } from "@/domain/modules";
+import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 
 // getPrincipal + next/navigation redirect werden für requirePlatformAdmin
 // gemockt — der Guard darf sich AUSSCHLIESSLICH auf `isPlatformAdmin` stützen,

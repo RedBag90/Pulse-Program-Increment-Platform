@@ -3,13 +3,13 @@ import type { TenantId, ArtId, PiId, TimelineId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
 import { validatePiDates } from "@/domain/pi-planning";
-import { recordedUpdate } from "@/server/services/recorded-update";
+import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,
   toMutationContext,
   onUniqueConstraint,
-} from "@/server/services/mutation";
+} from "@/modules/core/kernel/server/mutation";
 import { paginate, type PageParams } from "@/server/db/paginate";
 
 export interface CreatePiInput {

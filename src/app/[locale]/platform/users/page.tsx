@@ -1,7 +1,7 @@
 import { Shield } from "lucide-react";
 import { requirePlatformAdmin, platformDb } from "@/server/auth/platform";
 import { listAllUsers } from "@/server/views/platform-users";
-import { ROLE_LABELS } from "@/domain/roles";
+import { ROLE_LABELS } from "@/modules/core/kernel/domain/roles";
 import { Page } from "@/components/layout/page";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageSection } from "@/components/layout/page-section";

@@ -4,7 +4,7 @@ import type { TenantId, EpicId, ValueStreamId, StageGate } from "@/domain/types"
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
-import { recordedUpdate } from "@/server/services/recorded-update";
+import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 import { isValidTransition, isApprovalTransition, autoAdvanceTarget } from "@/domain/stage-gate";
 import { findBlockedManualTransition, manualForwardBlockReason } from "@/domain/epic-lifecycle-doc";
 import type { EpicType, Horizon } from "@/domain/portfolio-guardrails";
@@ -13,8 +13,8 @@ import {
   withAuditedTransaction,
   toMutationContext,
   type MutationContext,
-} from "@/server/services/mutation";
-import { createInitiativeWithDerivedPath } from "@/server/services/initiative-write";
+} from "@/modules/core/kernel/server/mutation";
+import { createInitiativeWithDerivedPath } from "@/modules/core/kernel/server/initiative-write";
 import { loadAndAuthorize } from "@/server/services/load-and-authorize";
 import { appendVersion } from "@/domain/versioned-document";
 import { emitAuditEvent } from "@/server/audit/emit";

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTenant, updateTenantEntitlements } from "@/server/services/tenant";
 import { createMutationHandler } from "@/server/http/mutation-handler";
-import { MODULE_KEYS } from "@/domain/modules";
+import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 
 const moduleKeyEnum = z.enum(MODULE_KEYS);
 

@@ -13,7 +13,7 @@ import {
   withAuditedTransaction,
   toMutationContext,
   onUniqueConstraint,
-} from "@/server/services/mutation";
+} from "@/modules/core/kernel/server/mutation";
 import { findOr404 } from "@/server/services/tenant-scope";
 
 /**

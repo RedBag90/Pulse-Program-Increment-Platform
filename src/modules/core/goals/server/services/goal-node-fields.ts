@@ -8,7 +8,7 @@
  * Stellen.
  */
 
-import { recordedUpdate, type RecordedUpdate } from "@/server/services/recorded-update";
+import { recordedUpdate, type RecordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 import { clampPrecision, type MetricType } from "@/modules/core/goals/domain/goal-metric";
 import type { GoalStatus } from "@/modules/core/goals/domain/goal-status";
 

@@ -3,14 +3,14 @@ import type { TenantId, FeatureId, EpicId, ArtId, PiId, FibonacciValue } from "@
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err, isErr } from "@/domain/errors";
-import { recordedUpdate } from "@/server/services/recorded-update";
+import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 import { computeWsjf } from "@/domain/schemas/initiative";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import {
   createInitiativeWithDerivedPath,
   findValidatedParent,
-} from "@/server/services/initiative-write";
+} from "@/modules/core/kernel/server/initiative-write";
 import { paginate, type PageParams } from "@/server/db/paginate";
 import { rangeOverlapsPlannedWindow } from "@/domain/epic-schedule";
 import { canDeliveryTransition } from "@/modules/core/kernel/domain/initiative-status";

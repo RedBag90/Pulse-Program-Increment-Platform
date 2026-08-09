@@ -8,7 +8,7 @@ import { aggregateArtFeatureLoad, type ArtFeatureLoad } from "@/domain/art-budge
 import { parsePeriodAmountMap } from "@/domain/budgeting";
 import { getValueStreamBudgets } from "@/server/services/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 
 export interface ArtBudgetRow {
   artId: string;

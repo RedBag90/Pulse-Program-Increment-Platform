@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import { ROLES } from "@/domain/roles";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
 import type { Principal } from "@/server/auth/principal";
 import type { TenantId, UserId } from "@/domain/types";
 import { createPrismaClient } from "@/server/db/prisma";

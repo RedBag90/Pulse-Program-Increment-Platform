@@ -3,7 +3,7 @@ import type { InitiativeLevel } from "@/domain/types";
 import { ok, err, isErr, type Result } from "@/domain/errors";
 import { validateParentLevel } from "@/modules/core/kernel/domain/hierarchy";
 import { notDeleted } from "@/server/db/soft-delete";
-import type { MutationContext } from "@/server/services/mutation";
+import type { MutationContext } from "@/modules/core/kernel/server/mutation";
 
 // ---------------------------------------------------------------------------
 // Initiative write module

@@ -20,7 +20,7 @@ vi.mock("@/server/http/revalidation", () => ({
 // Imported after mocks so the factory sees the mocked dependencies.
 import { createServerAction } from "@/server/http/server-action";
 import { ok, err } from "@/domain/errors";
-import { MODULE_KEYS } from "@/domain/modules";
+import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 
 const tenantCtx = {
   principal: {

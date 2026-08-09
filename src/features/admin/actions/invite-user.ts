@@ -3,8 +3,8 @@
 import { z } from "zod";
 import { inviteUser } from "@/server/services/invitation";
 import { createServerAction } from "@/server/http/server-action";
-import { ROLES } from "@/domain/roles";
-import type { Role } from "@/domain/roles";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
+import type { Role } from "@/modules/core/kernel/domain/roles";
 import { formatDomainError } from "@/server/http/domain-error-display";
 
 export interface InviteUserState {

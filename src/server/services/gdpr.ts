@@ -3,7 +3,7 @@ import type { TenantId, UserId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 
 /**
  * Collects everything Pulse holds about a user within a tenant, for a GDPR

@@ -3,7 +3,7 @@ import { publishDomainEvent } from "@/server/events/publish";
 import type { DomainEvent } from "@/server/events/types";
 import type { TenantId, ArtId, UserId } from "@/domain/types";
 import type { ImpedimentId } from "@/server/services/impediment";
-import type { Role } from "@/domain/roles";
+import type { Role } from "@/modules/core/kernel/domain/roles";
 
 const tenantId = "tenant-1" as TenantId;
 

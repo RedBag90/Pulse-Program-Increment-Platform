@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { Role } from "@/domain/roles";
-import { ROLES } from "@/domain/roles";
+import type { Role } from "@/modules/core/kernel/domain/roles";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**

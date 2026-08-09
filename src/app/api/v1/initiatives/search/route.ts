@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createQueryHandler } from "@/server/http/query-handler";
-import { searchInitiatives } from "@/server/services/initiative";
+import { searchInitiatives } from "@/modules/core/kernel/server/initiative";
 
 const paramsSchema = z.object({ q: z.string().optional() });
 

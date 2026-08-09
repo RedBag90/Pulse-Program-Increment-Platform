@@ -15,7 +15,7 @@
 /* eslint-disable no-console -- one-off CLI script; console output is the UX */
 import { PrismaClient } from "@/generated/prisma";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ROLES } from "@/domain/roles";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
 
 const db = new PrismaClient();
 

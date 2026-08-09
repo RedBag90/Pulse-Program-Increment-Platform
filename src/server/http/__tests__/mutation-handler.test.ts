@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { z } from "zod";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { ok, err } from "@/domain/errors";
-import { MODULE_KEYS } from "@/domain/modules";
+import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 import type { PrismaClient } from "@/generated/prisma";
 
 // ---------------------------------------------------------------------------

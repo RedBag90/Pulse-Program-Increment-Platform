@@ -8,7 +8,7 @@ import {
   withAuditedTransaction,
   toMutationContext,
   onUniqueConstraint,
-} from "@/server/services/mutation";
+} from "@/modules/core/kernel/server/mutation";
 
 export type DependencyType = "blocks" | "depends_on" | "relates_to";
 

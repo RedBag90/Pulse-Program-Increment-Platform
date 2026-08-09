@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { landingPathForRoles } from "@/domain/landing";
-import { ROLES } from "@/domain/roles";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
 
 describe("landingPathForRoles", () => {
   it("Organisations-Tenant landet auf /my-tasks (rollen-unabhängig)", () => {

@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, UserId } from "@/domain/types";
-import type { Role } from "@/domain/roles";
+import type { Role } from "@/modules/core/kernel/domain/roles";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
 import { publishDomainEvent } from "@/server/events/publish";
@@ -11,7 +11,7 @@ import {
   toMutationContext,
   onUniqueConstraint,
   type MutationContext,
-} from "@/server/services/mutation";
+} from "@/modules/core/kernel/server/mutation";
 
 const INVITE_EXPIRY_DAYS = 7;
 const INVITE_AUDIENCE = "pulse:invite";

@@ -7,11 +7,11 @@ import {
   type AuthResource,
 } from "@/server/auth/authorize";
 import type { Principal, PrincipalScopes } from "@/server/auth/principal";
-import { ROLES } from "@/domain/roles";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
 import { enumerateDefaultCapabilities } from "@/server/auth/policies";
 import type { TenantId, UserId } from "@/domain/types";
 import { isErr, isOk } from "@/domain/errors";
-import { MODULE_KEYS } from "@/domain/modules";
+import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 
 /**
  * Test-Principal-Factory. Mit dem RoleCapability-Modell (PR B) trägt der

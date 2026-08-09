@@ -1,6 +1,6 @@
 "use client";
 
-import { MODULE_KEYS, MODULES } from "@/domain/modules";
+import { MODULE_KEYS, MODULES } from "@/modules/core/kernel/domain/modules";
 
 /**
  * Modul-Entitlement-Auswahl (Checkbox-Gitter) — geteilt von Tenant-Anlage und

@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { Role } from "@/domain/roles";
+import type { Role } from "@/modules/core/kernel/domain/roles";
 import { resolveUserEmails } from "@/server/services/user-directory";
 
 /**

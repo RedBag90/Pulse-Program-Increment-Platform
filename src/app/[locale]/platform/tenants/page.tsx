@@ -2,7 +2,7 @@ import { Link } from "@/i18n/navigation";
 import { Building2, Lock } from "lucide-react";
 import { requirePlatformAdmin, platformDb } from "@/server/auth/platform";
 import { listAllTenants } from "@/server/views/platform-tenants";
-import { MODULES, type ModuleKey } from "@/domain/modules";
+import { MODULES, type ModuleKey } from "@/modules/core/kernel/domain/modules";
 import { Page } from "@/components/layout/page";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageSection } from "@/components/layout/page-section";

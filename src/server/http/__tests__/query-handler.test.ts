@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { z } from "zod";
 import { createQueryHandler } from "@/server/http/query-handler";
-import { MODULE_KEYS } from "@/domain/modules";
+import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 import type { PrismaClient } from "@/generated/prisma";
 
 // ---------------------------------------------------------------------------

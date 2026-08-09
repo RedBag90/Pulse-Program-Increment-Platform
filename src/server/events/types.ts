@@ -1,6 +1,6 @@
 import type { TenantId, UserId, ArtId } from "@/domain/types";
 import type { ImpedimentId } from "@/server/services/impediment";
-import type { Role } from "@/domain/roles";
+import type { Role } from "@/modules/core/kernel/domain/roles";
 
 export type DomainEvent =
   | {

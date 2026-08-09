@@ -3,7 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { X } from "lucide-react";
-import { ROLES, ROLE_LABELS, type Role } from "@/domain/roles";
+import { ROLES, ROLE_LABELS, type Role } from "@/modules/core/kernel/domain/roles";
 import {
   addTenantMemberAction,
   removeTenantMemberAction,

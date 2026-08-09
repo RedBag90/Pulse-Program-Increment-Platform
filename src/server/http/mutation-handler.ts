@@ -1,6 +1,6 @@
 import type { ZodSchema } from "zod";
 import { authorize, type AuthResource } from "@/server/auth/authorize";
-import { moduleForAction } from "@/domain/modules";
+import { moduleForAction } from "@/modules/core/kernel/domain/modules";
 import type { Action } from "@/server/auth/policies";
 import type { Principal } from "@/server/auth/principal";
 import { isErr, type DomainError, type Result } from "@/domain/errors";

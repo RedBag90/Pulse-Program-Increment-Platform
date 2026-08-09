@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Search, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ROLE_LABELS, type Role } from "@/domain/roles";
+import { ROLE_LABELS, type Role } from "@/modules/core/kernel/domain/roles";
 
 interface Props {
   query: string;

@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import { authorize, type AuthResource } from "@/server/auth/authorize";
-import { moduleForAction } from "@/domain/modules";
+import { moduleForAction } from "@/modules/core/kernel/domain/modules";
 import type { Action } from "@/server/auth/policies";
 import type { Principal } from "@/server/auth/principal";
 import { forbidden, notFound, unauthorized, unprocessable } from "@/server/http/problem";

@@ -2,13 +2,13 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId, TeamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
-import { recordedUpdate } from "@/server/services/recorded-update";
+import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,
   toMutationContext,
   onUniqueConstraint,
-} from "@/server/services/mutation";
+} from "@/modules/core/kernel/server/mutation";
 
 export interface CreateTeamInput {
   artId: ArtId;

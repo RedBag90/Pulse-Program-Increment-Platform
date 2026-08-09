@@ -4,8 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { assignRole, removeRole } from "@/server/services/role-assignment";
 import { createServerAction } from "@/server/http/server-action";
-import { ROLES } from "@/domain/roles";
-import type { Role } from "@/domain/roles";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
+import type { Role } from "@/modules/core/kernel/domain/roles";
 import type { UserId } from "@/domain/types";
 import { formatDomainError } from "@/server/http/domain-error-display";
 

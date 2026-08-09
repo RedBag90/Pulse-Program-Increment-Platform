@@ -7,7 +7,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { extractRequestMeta } from "@/server/audit/emit";
-import { ALL_ROLES, type Role } from "@/domain/roles";
+import { ALL_ROLES, type Role } from "@/modules/core/kernel/domain/roles";
 import { enumerateDefaultCapabilities, type Action, type ScopeCheck } from "@/server/auth/policies";
 
 const ROLE_SET = new Set<string>(ALL_ROLES);

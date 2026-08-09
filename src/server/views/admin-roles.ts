@@ -8,7 +8,7 @@
  * aktuellen Zustand: die `RoleCapability`-Tabelle (PR A Backfill).
  */
 
-import { ALL_ROLES, ROLE_LABELS, type Role } from "@/domain/roles";
+import { ALL_ROLES, ROLE_LABELS, type Role } from "@/modules/core/kernel/domain/roles";
 import { enumerateDefaultCapabilities, type Action, type ScopeCheck } from "@/server/auth/policies";
 
 /** Domänen-Gruppierung wie in der Plan-Datei dokumentiert. */

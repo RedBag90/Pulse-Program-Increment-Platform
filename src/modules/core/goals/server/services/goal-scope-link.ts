@@ -4,7 +4,7 @@ import {
   withAuditedTransaction,
   toMutationContext,
   onUniqueConstraint,
-} from "@/server/services/mutation";
+} from "@/modules/core/kernel/server/mutation";
 
 /**
  * VS/ART-Verantwortung eines Ziels (Epic 6a, n:m). Rein organisatorisch —

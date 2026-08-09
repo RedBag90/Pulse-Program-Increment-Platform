@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, UserId } from "@/domain/types";
-import { ROLES } from "@/domain/roles";
-import { PERSONAL_DEFAULT_MODULES } from "@/domain/modules";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
+import { PERSONAL_DEFAULT_MODULES } from "@/modules/core/kernel/domain/modules";
 import { emitAuditEvent } from "@/server/audit/emit";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
@@ -10,7 +10,7 @@ import {
   withAuditedTransaction,
   toMutationContext,
   onUniqueConstraint,
-} from "@/server/services/mutation";
+} from "@/modules/core/kernel/server/mutation";
 
 export type TenantRegion = "EU" | "US" | "APAC";
 

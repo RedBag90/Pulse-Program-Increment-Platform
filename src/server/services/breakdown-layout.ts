@@ -16,7 +16,7 @@ import type { TenantId, EpicId, InitiativeId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 
 export interface PositionInput {
   initiativeId: InitiativeId;

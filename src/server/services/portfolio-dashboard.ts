@@ -17,7 +17,7 @@ import { deriveEpicEconomics } from "@/domain/epic-economics";
 import { parsePeriodAmountMap } from "@/domain/budgeting";
 import type { EpicEconomicsDTO, PortfolioEconomicsData } from "@/domain/portfolio-economics";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import type { Prisma } from "@/generated/prisma";
 import {
   parseGuardrailTargetsDetailed,

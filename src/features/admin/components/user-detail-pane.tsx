@@ -3,8 +3,8 @@
 import { useActionState, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { assignRoleAction } from "@/features/admin/actions/role-assignment";
-import { ROLES, ROLE_LABELS } from "@/domain/roles";
-import type { Role } from "@/domain/roles";
+import { ROLES, ROLE_LABELS } from "@/modules/core/kernel/domain/roles";
+import type { Role } from "@/modules/core/kernel/domain/roles";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScopePicker } from "@/features/admin/components/scope-picker";

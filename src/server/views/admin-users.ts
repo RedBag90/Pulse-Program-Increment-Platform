@@ -1,5 +1,5 @@
-import type { Role } from "@/domain/roles";
-import { ALL_ROLES } from "@/domain/roles";
+import type { Role } from "@/modules/core/kernel/domain/roles";
+import { ALL_ROLES } from "@/modules/core/kernel/domain/roles";
 
 /**
  * Admin users page-model — turns the loaded `UserRoleAssignment` rows + the

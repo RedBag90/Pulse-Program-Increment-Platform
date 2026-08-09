@@ -1,4 +1,4 @@
-import { ROLES, type Role } from "@/domain/roles";
+import { ROLES, type Role } from "@/modules/core/kernel/domain/roles";
 
 /**
  * The set of authorizable actions. Read actions are not gated here — RLS

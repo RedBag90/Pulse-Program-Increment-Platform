@@ -12,7 +12,7 @@ import {
   encodeSelection,
   type Selection,
 } from "@/features/admin/components/users-selection";
-import { ALL_ROLES, ROLE_LABELS, type Role } from "@/domain/roles";
+import { ALL_ROLES, ROLE_LABELS, type Role } from "@/modules/core/kernel/domain/roles";
 import type { UsersPageModel } from "@/server/views/admin-users";
 
 interface Props {

@@ -9,7 +9,7 @@ import {
   withAuditedTransaction,
   toMutationContext,
   type MutationContext,
-} from "@/server/services/mutation";
+} from "@/modules/core/kernel/server/mutation";
 import { autoAdvanceStageGate } from "@/server/services/epic";
 import {
   parseBusinessCase,

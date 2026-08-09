@@ -2,9 +2,9 @@
 
 import { z } from "zod";
 import { requirePlatformAdmin } from "@/server/auth/platform";
-import { ROLES } from "@/domain/roles";
-import type { Role } from "@/domain/roles";
-import { MODULE_KEYS } from "@/domain/modules";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
+import type { Role } from "@/modules/core/kernel/domain/roles";
+import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 import {
   createOrgTenant,
   setTenantModules,

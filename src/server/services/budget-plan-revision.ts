@@ -12,7 +12,7 @@ import {
 } from "@/domain/budget-plan-snapshot";
 import { parsePeriodAmountMap } from "@/domain/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { getBudgetingBoard } from "@/server/services/budgeting";
 
 /**

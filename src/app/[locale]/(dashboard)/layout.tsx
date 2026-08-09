@@ -7,7 +7,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getActiveTargetModel } from "@/server/services/target-model";
 import { listUserTenants } from "@/server/services/tenant";
 import { effectivePractices } from "@/modules/core/kernel/domain/operating-model";
-import { moduleForPath, firstEnabledHome, type ModuleKey } from "@/domain/modules";
+import { moduleForPath, firstEnabledHome, type ModuleKey } from "@/modules/core/kernel/domain/modules";
 import { NAV_GROUPS } from "@/components/nav/nav-config";
 import { Topbar } from "@/components/nav/topbar";
 

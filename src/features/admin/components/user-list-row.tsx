@@ -1,6 +1,6 @@
 "use client";
 
-import { ROLE_LABELS } from "@/domain/roles";
+import { ROLE_LABELS } from "@/modules/core/kernel/domain/roles";
 import type { UserListItem } from "@/server/views/admin-users";
 
 interface Props {

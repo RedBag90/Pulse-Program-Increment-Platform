@@ -3,7 +3,7 @@ import { authorize, type AuthResource } from "@/server/auth/authorize";
 import type { Action } from "@/server/auth/policies";
 import type { Principal } from "@/server/auth/principal";
 import { isErr } from "@/domain/errors";
-import { moduleForAction } from "@/domain/modules";
+import { moduleForAction } from "@/modules/core/kernel/domain/modules";
 import type { DomainError, Result } from "@/domain/errors";
 import { revalidateFor, type RevalidationResource } from "@/server/http/revalidation";
 import { buildRequestContext, type RequestContext } from "@/server/http/request-context";

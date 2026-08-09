@@ -4,7 +4,7 @@ import { useActionState, useEffect, startTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { removeRoleAction } from "@/features/admin/actions/role-assignment";
 import { Button } from "@/components/ui/button";
-import { ROLE_LABELS } from "@/domain/roles";
+import { ROLE_LABELS } from "@/modules/core/kernel/domain/roles";
 import type { RoleAssignmentView, ValueStreamOption } from "@/server/views/admin-users";
 
 interface Props {

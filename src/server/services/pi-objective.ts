@@ -16,7 +16,7 @@ import type { TenantId, PiId, TeamId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, isErr } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { findOr404 } from "@/server/services/tenant-scope";
 
 export type PiObjectiveId = string & { readonly __brand: "PiObjectiveId" };

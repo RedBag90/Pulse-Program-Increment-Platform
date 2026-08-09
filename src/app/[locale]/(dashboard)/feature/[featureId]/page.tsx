@@ -2,7 +2,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getFeature } from "@/server/services/feature";
-import { listInitiativeHistory } from "@/server/services/initiative";
+import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
 import {
   EntityDetailShell,
   resolveTab,

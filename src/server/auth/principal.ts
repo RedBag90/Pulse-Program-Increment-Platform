@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createPrismaClient } from "@/server/db/prisma";
 import type { TenantId, UserId } from "@/domain/types";
 import type { Action, ScopeCheck } from "@/server/auth/policies";
-import { enabledModulesOrDefault, type ModuleKey } from "@/domain/modules";
+import { enabledModulesOrDefault, type ModuleKey } from "@/modules/core/kernel/domain/modules";
 import { isUserBanned } from "@/server/services/user-directory";
 
 /**

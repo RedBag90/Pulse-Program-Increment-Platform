@@ -2,8 +2,8 @@
 
 import { useActionState } from "react";
 import { inviteUserAction } from "@/features/admin/actions/invite-user";
-import { ROLES, ROLE_LABELS } from "@/domain/roles";
-import type { Role } from "@/domain/roles";
+import { ROLES, ROLE_LABELS } from "@/modules/core/kernel/domain/roles";
+import type { Role } from "@/modules/core/kernel/domain/roles";
 
 /**
  * Invite-by-email form. Embedded in the master-detail "Einladen"-Pane.

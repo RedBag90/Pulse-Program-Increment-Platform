@@ -4,7 +4,7 @@ import { InitiativeLevel } from "@/domain/types";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { authorizeResource } from "@/server/auth/authorize";
 import { notDeleted } from "@/server/db/soft-delete";
-import { withAuditedTransaction, toMutationContext } from "@/server/services/mutation";
+import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 
 /**
  * Ziel ↔ Epic-Verknüpfungs-Service (Einheiten-Kaskade). Hängt ein Epic an einen

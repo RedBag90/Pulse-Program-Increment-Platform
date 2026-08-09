@@ -7,10 +7,10 @@ import {
   unlinkEpicFromGoal,
 } from "@/modules/core/goals/server/services/goal-epic-link";
 import { InitiativeLevel } from "@/domain/types";
-import { ROLES } from "@/domain/roles";
+import { ROLES } from "@/modules/core/kernel/domain/roles";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { isOk, isErr } from "@/domain/errors";
-import { MODULE_KEYS } from "@/domain/modules";
+import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;
 

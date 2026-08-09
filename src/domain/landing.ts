@@ -1,4 +1,4 @@
-import { MODULE_KEYS, firstEnabledHome, type ModuleKey } from "@/domain/modules";
+import { MODULE_KEYS, firstEnabledHome, type ModuleKey } from "@/modules/core/kernel/domain/modules";
 
 /**
  * The post-login landing route for a principal. Pure; returns a locale-less path

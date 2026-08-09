@@ -3,7 +3,7 @@ import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { InitiativeLevel } from "@/domain/types";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { listInitiativeHistory } from "@/server/services/initiative";
+import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
 import { buildFeatureDetailModel, type FeatureDetailModel } from "@/server/views/feature-detail";
 import type { DependencyEdge } from "@/features/umsetzung/components/feature-dependencies-tab";
 import type { ActivityItem } from "@/components/detail/initiative-activity-sidebar";
