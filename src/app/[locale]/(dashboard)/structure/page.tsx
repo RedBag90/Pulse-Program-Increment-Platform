@@ -7,7 +7,7 @@ import { getStructureTree, getStructureTimeline } from "@/modules/core/org/serve
 import { getValueStreamBudgets } from "@/server/services/budgeting";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { buildStructurePageModel } from "@/modules/core/org/server/views/structure-page";
-import { StructurePageShell } from "@/features/structure/components/structure-page-shell";
+import { StructurePageShell } from "@/modules/core/org/features/structure/components/structure-page-shell";
 
 /**
  * Struktur-Page — Master-Detail-Layout fuer **Value Streams + ARTs + Teams**.

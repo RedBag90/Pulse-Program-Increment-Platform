@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import { setFeaturePiAction } from "@/features/art/actions/feature";
+import { setFeaturePiAction } from "@/modules/core/org/features/art/actions/feature";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

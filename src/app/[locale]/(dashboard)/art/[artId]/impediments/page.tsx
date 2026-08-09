@@ -6,7 +6,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { listImpediments } from "@/server/services/impediment";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { buildImpedimentsListModel } from "@/server/views/impediments-list";
-import { ArtSubNav } from "@/features/art/components/art-sub-nav";
+import { ArtSubNav } from "@/modules/core/org/features/art/components/art-sub-nav";
 import { Page } from "@/components/layout";
 import { ImpedimentsListShell } from "@/features/impediment/components/impediments-list-shell";
 import type { TenantId, ArtId } from "@/domain/types";

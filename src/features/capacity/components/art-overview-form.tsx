@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { updateArtAction } from "@/features/art/actions/art";
+import { updateArtAction } from "@/modules/core/org/features/art/actions/art";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

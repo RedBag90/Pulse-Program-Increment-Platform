@@ -8,7 +8,7 @@ import { getValueStreamBudgets } from "@/server/services/budgeting";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { listPiStandards } from "@/server/services/pi-standard";
 import { buildStructurePageModel } from "@/modules/core/org/server/views/structure-page";
-import { StructurePageShell } from "@/features/structure/components/structure-page-shell";
+import { StructurePageShell } from "@/modules/core/org/features/structure/components/structure-page-shell";
 
 /**
  * Timelines-Page — Master-Detail-Layout fuer **Timelines** + ihre PIs +

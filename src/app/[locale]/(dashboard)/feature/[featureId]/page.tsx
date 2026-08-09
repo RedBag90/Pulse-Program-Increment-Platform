@@ -10,8 +10,8 @@ import {
 } from "@/components/detail/entity-detail-shell";
 import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
-import { FeatureOverviewTab } from "@/features/art/components/feature-overview-tab";
-import { DeleteFeatureButton } from "@/features/art/components/delete-feature-button";
+import { FeatureOverviewTab } from "@/modules/core/org/features/art/components/feature-overview-tab";
+import { DeleteFeatureButton } from "@/modules/core/org/features/art/components/delete-feature-button";
 import { FeatureDeliveryControls } from "@/features/feature/components/feature-delivery-controls";
 import { getBlockerWindowsForFeatures } from "@/server/services/dependency";
 import { earliestStartFromBlockers } from "@/domain/dependency-graph";

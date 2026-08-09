@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { updateTeamAction } from "@/features/team/actions/team";
+import { updateTeamAction } from "@/modules/core/org/features/team/actions/team";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { TEAM_TYPES, TEAM_TYPE_LABELS } from "@/modules/core/org/domain/team-type";
 import { Input } from "@/components/ui/input";

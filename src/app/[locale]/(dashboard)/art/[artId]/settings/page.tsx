@@ -6,7 +6,7 @@ import { getArt } from "@/modules/core/org/server/services/art";
 import { listTenantApprovers } from "@/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { userLabel } from "@/components/detail/initiative-labels";
-import { ArtSubNav } from "@/features/art/components/art-sub-nav";
+import { ArtSubNav } from "@/modules/core/org/features/art/components/art-sub-nav";
 import { ArtOverviewForm } from "@/features/capacity/components/art-overview-form";
 import { Page, PageHeader, PageSection } from "@/components/layout";
 import { redirect, notFound } from "next/navigation";

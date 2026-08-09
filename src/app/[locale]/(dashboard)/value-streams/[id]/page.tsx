@@ -17,7 +17,7 @@ import {
 } from "@/components/detail/entity-detail-shell";
 import { AuditTimeline } from "@/components/detail/audit-timeline";
 import { ValueStreamOverviewForm } from "@/features/capacity/components/value-stream-overview-form";
-import { CreateArtDialog } from "@/features/art/components/create-art-dialog";
+import { CreateArtDialog } from "@/modules/core/org/features/art/components/create-art-dialog";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { ValueStreamId } from "@/domain/types";

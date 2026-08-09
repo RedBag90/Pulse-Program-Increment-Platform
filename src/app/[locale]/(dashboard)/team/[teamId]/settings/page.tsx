@@ -7,7 +7,7 @@ import { listTenantApprovers } from "@/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { teamTypeLabel } from "@/modules/core/org/domain/team-type";
-import { TeamSubNav } from "@/features/team/components/team-sub-nav";
+import { TeamSubNav } from "@/modules/core/org/features/team/components/team-sub-nav";
 import { TeamOverviewForm } from "@/features/capacity/components/team-overview-form";
 import { Page, PageHeader, PageSection } from "@/components/layout";
 import { redirect, notFound } from "next/navigation";

@@ -2,7 +2,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/modules/core/org/server/services/art";
 import { listPis } from "@/server/services/pi";
-import { ArtSubNav } from "@/features/art/components/art-sub-nav";
+import { ArtSubNav } from "@/modules/core/org/features/art/components/art-sub-nav";
 import { Page, PageHeader, PageSection } from "@/components/layout";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";

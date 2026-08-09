@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, startTransition } from "react";
-import { updateFeatureAction } from "@/features/art/actions/feature";
+import { updateFeatureAction } from "@/modules/core/org/features/art/actions/feature";
 import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/domain/portfolio-guardrails";
 
 interface Props {
