@@ -9,11 +9,15 @@ import { listAuditHistory } from "@/server/services/audit-history";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { buildImpedimentsListModel } from "@/server/views/impediments-list";
-import { ArtDetailShell, resolveArtTab } from "@/modules/core/org/features/art/components/art-detail-shell";
+import {
+  ArtDetailShell,
+  resolveArtTab,
+} from "@/modules/core/org/features/art/components/art-detail-shell";
 import { ArtOverviewTab } from "@/modules/core/org/features/art/components/tabs/art-overview-tab";
 import { ArtTeamsTab } from "@/modules/core/org/features/art/components/tabs/art-teams-tab";
 import { ArtPiTab } from "@/modules/core/org/features/art/components/tabs/art-pi-tab";
-import { ArtImpedimentsTab } from "@/modules/core/org/features/art/components/tabs/art-impediments-tab";
+import { Suspense } from "react";
+import { ImpedimentsListShell } from "@/features/impediment/components/impediments-list-shell";
 import { ArtSettingsTab } from "@/modules/core/org/features/art/components/tabs/art-settings-tab";
 import { ArtHistoryTab } from "@/modules/core/org/features/art/components/tabs/art-history-tab";
 import { LayoutToggle } from "@/components/nav/layout-toggle";
@@ -95,13 +99,15 @@ export default async function ArtV2Page({ params, searchParams }: Props) {
       userLabels,
     });
     tabContent = (
-      <ArtImpedimentsTab
-        artId={artId}
-        model={model}
-        canCreate={canCreate}
-        canEscalate={canEscalate}
-        canResolve={canResolve}
-      />
+      <Suspense fallback={null}>
+        <ImpedimentsListShell
+          model={model}
+          artId={artId}
+          canCreate={canCreate}
+          canEscalate={canEscalate}
+          canResolve={canResolve}
+        />
+      </Suspense>
     );
   } else if (tab === "settings") {
     const [approvers, userLabels] = await Promise.all([
