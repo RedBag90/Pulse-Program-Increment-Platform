@@ -27,7 +27,7 @@ import {
   halfYearStart,
   parseHalfYearKey,
 } from "@/modules/core/kernel/domain/calendar";
-import { fundedPeriodRange, fundedEndDate } from "@/domain/budgeting";
+import { fundedPeriodRange, fundedEndDate } from "@/modules/core/kernel/domain/budget-period";
 
 /** The dated facts a cost-start resolution falls back through, newest-first. */
 export interface EpicScheduleAnchors {

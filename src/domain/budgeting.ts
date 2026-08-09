@@ -6,29 +6,20 @@
  * "YYYY-H1" / "YYYY-H2".
  */
 
-/**
- * Defensive parser for a `{ "YYYY-H1": 12345, … }` JSON map: drops entries
- * whose value isn't a finite number, returns an empty map on null/non-object.
- * Lives here because the budgeting domain is the only place that *should*
- * read these values; portfolio-dashboard / art-budget / budget-plan-revision
- * each had their own identical copy.
- */
-export function parsePeriodAmountMap(raw: unknown): Record<string, number> {
-  if (raw == null || typeof raw !== "object") return {};
-  const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
-  }
-  return out;
-}
-
 import {
-  halfYearStart,
   parseHalfYearKey,
-  addHalfYears,
   halfYearsBetween,
   type HalfYearAxis,
 } from "@/modules/core/kernel/domain/calendar";
+
+// Geteilte Budget-Perioden-Primitive leben im Core-Kernel (Work + Budgeting
+// konsumieren sie); hier re-exportiert, damit Budgeting-interne Caller (Service/
+// Board/Revision) weiter aus `@/domain/budgeting` importieren.
+export {
+  parsePeriodAmountMap,
+  fundedEndDate,
+  fundedPeriodRange,
+} from "@/modules/core/kernel/domain/budget-period";
 
 // Half-year period maths lives in the calendar module; re-exported so existing
 // callers (budgeting service/board, tests) keep importing them from here.
@@ -52,33 +43,6 @@ export interface BudgetEpicView {
   /** Granted amount per half-year key. */
   allocations: Record<string, number>;
   priority: number;
-}
-
-// --- funded window ---------------------------------------------------------
-
-/**
- * Last day of the last of `periods` half-years starting at `start` — i.e. the
- * day before the half-year after the funded window. `start=2026-07-01, periods=3`
- * → `2027-12-31`. Used to set an Epic's estimated implementation end.
- */
-export function fundedEndDate(start: Date, periods: number): Date {
-  const afterLast = addHalfYears(halfYearStart(start), Math.max(1, periods));
-  return new Date(afterLast.getTime() - 24 * 60 * 60 * 1000);
-}
-
-/**
- * The first and last half-year keys that received funding (allocation > 0),
- * or null when nothing is funded. Keys sort lexically ("YYYY-H1" < "YYYY-H2").
- */
-export function fundedPeriodRange(
-  allocations: Record<string, number>,
-): { firstKey: string; lastKey: string } | null {
-  const keys = Object.entries(allocations)
-    .filter(([, v]) => v > 0)
-    .map(([k]) => k)
-    .sort((a, b) => a.localeCompare(b));
-  if (keys.length === 0) return null;
-  return { firstKey: keys[0]!, lastKey: keys[keys.length - 1]! };
 }
 
 // --- per-Epic need, roll-up, remaining ------------------------------------

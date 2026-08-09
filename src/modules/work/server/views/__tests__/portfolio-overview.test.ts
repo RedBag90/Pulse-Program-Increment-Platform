@@ -42,8 +42,8 @@ function baseInputs(): PortfolioOverviewInputs {
   return {
     epics: [],
     themes: [],
-    board: { epics: [], periods: [], pool: {} },
-    vsBudgets: { periods: [], valueStreams: [] },
+    board: { periods: [], pool: {} },
+    vsBudgets: { valueStreams: [] },
     activePis: [],
     impedimentsOpen: 0,
     structureGap: { hasTarget: false, targetDate: null, dimensions: [], overallProgress: 0 },
@@ -208,7 +208,6 @@ describe("buildPortfolioOverviewModel", () => {
   it("marks the current cycle and trims upcomingPeriods to 2", () => {
     const inputs = baseInputs();
     inputs.board = {
-      epics: [],
       periods: [
         { key: "2026-H1", label: "H1 2026" },
         { key: "2026-H2", label: "H2 2026" },
@@ -218,7 +217,6 @@ describe("buildPortfolioOverviewModel", () => {
       pool: { "2026-H1": 100, "2026-H2": 80 },
     };
     inputs.vsBudgets = {
-      periods: inputs.board.periods,
       valueStreams: [{ valueStreamId: "vs1", name: "VS1", byPeriod: { "2026-H1": 40 }, total: 40 }],
     };
     const m = buildPortfolioOverviewModel(inputs);

@@ -14,7 +14,7 @@ import { ok } from "@/modules/core/kernel/domain/errors";
 import { parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";
 import { isoDay, monthStart } from "@/modules/core/kernel/domain/calendar";
 import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
-import { parsePeriodAmountMap } from "@/domain/budgeting";
+import { parsePeriodAmountMap } from "@/modules/core/kernel/domain/budget-period";
 import type {
   EpicEconomicsDTO,
   PortfolioEconomicsData,

@@ -1,7 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId } from "@/modules/core/kernel/domain/types";
 import { listEpics } from "@/modules/work/server/services/epic";
-import { getBudgetingBoard, getValueStreamBudgets } from "@/server/services/budgeting";
 import {
   computeStructureGap,
   computePracticeAdoption,
@@ -156,8 +155,8 @@ export interface PortfolioOverviewTheme {
 export interface PortfolioOverviewInputs {
   epics: Awaited<ReturnType<typeof listEpics>>;
   themes: PortfolioOverviewTheme[];
-  board: Awaited<ReturnType<typeof getBudgetingBoard>>;
-  vsBudgets: Awaited<ReturnType<typeof getValueStreamBudgets>>;
+  board: PortfolioBudgetingBoard;
+  vsBudgets: PortfolioVsBudgets;
   activePis: Array<{ id: string; name: string; endDate: Date }>;
   impedimentsOpen: number;
   structureGap: StructureGap;
@@ -394,17 +393,37 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
  *  den Impediment-Service (Drumbeat) nicht direkt (ADR-0013). */
 export type OpenImpedimentsCountPort = (artIds: ArtId[]) => Promise<number>;
 
+/** Budgeting-Daten, die die Portfolio-Übersicht anzeigt — als Struktur-Vertrag,
+ *  damit das Work-View den Budgeting-Service (oberer Layer) nicht importiert
+ *  (ADR-0013). Der Composition-Root (Route) reicht den Budgeting-Adapter herein. */
+export interface PortfolioBudgetingBoard {
+  periods: { key: string; label: string }[];
+  pool: Record<string, number>;
+}
+export interface PortfolioVsBudgets {
+  valueStreams: {
+    valueStreamId: string;
+    name: string;
+    total: number;
+    byPeriod: Record<string, number>;
+  }[];
+}
+export type BudgetingDataPort = () => Promise<{
+  board: PortfolioBudgetingBoard;
+  vsBudgets: PortfolioVsBudgets;
+}>;
+
 export async function loadPortfolioOverviewInputs(
   db: PrismaClient,
   tenantId: TenantId,
   getOpenImpedimentsCount: OpenImpedimentsCountPort,
+  getBudgetingData: BudgetingDataPort,
 ): Promise<PortfolioOverviewInputs> {
-  const [epics, strategyTree, board, vsBudgets, arts, activePis, structureGap, practiceAdoption] =
+  const [epics, strategyTree, budgeting, arts, activePis, structureGap, practiceAdoption] =
     await Promise.all([
       listEpics(db, tenantId),
       loadStrategyTree(db, tenantId),
-      getBudgetingBoard(db, tenantId),
-      getValueStreamBudgets(db, tenantId),
+      getBudgetingData(),
       db.art.findMany({
         where: { tenantId, deletedAt: null },
         select: { id: true },
@@ -431,6 +450,7 @@ export async function loadPortfolioOverviewInputs(
 
   const artIds = arts.map((a) => a.id as ArtId);
   const impedimentsOpen = artIds.length === 0 ? 0 : await getOpenImpedimentsCount(artIds);
+  const { board, vsBudgets } = budgeting;
 
   return {
     epics,
@@ -453,8 +473,9 @@ export async function loadPortfolioOverview(
   db: PrismaClient,
   tenantId: TenantId,
   getOpenImpedimentsCount: OpenImpedimentsCountPort,
+  getBudgetingData: BudgetingDataPort,
 ): Promise<PortfolioOverview> {
   return buildPortfolioOverviewModel(
-    await loadPortfolioOverviewInputs(db, tenantId, getOpenImpedimentsCount),
+    await loadPortfolioOverviewInputs(db, tenantId, getOpenImpedimentsCount, getBudgetingData),
   );
 }
