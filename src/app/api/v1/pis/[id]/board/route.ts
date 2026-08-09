@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getPi } from "@/server/services/pi";
+import { getPi } from "@/modules/drumbeat/server/services/pi";
 import { createQueryHandler } from "@/server/http/query-handler";
 import type { PiId } from "@/modules/core/kernel/domain/types";
 

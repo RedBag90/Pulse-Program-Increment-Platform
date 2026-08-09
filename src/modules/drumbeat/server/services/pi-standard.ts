@@ -10,7 +10,7 @@ import {
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { findOr404 } from "@/server/services/tenant-scope";
-import { createPi } from "@/server/services/pi";
+import { createPi } from "@/modules/drumbeat/server/services/pi";
 
 export interface CreatePiStandardInput {
   name: string;

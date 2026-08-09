@@ -8,7 +8,7 @@ import { EpicRealizedTile } from "@/modules/work/features/portfolio/components/e
 import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
 import { listKpis } from "@/modules/core/kpi/server/kpi";
-import { listProgramIncrementsForArts } from "@/server/services/pi";
+import { listProgramIncrementsForArts } from "@/modules/drumbeat/server/services/pi";
 import { listEpicApprovals, listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";

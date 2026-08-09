@@ -9,7 +9,7 @@ import {
   deletePi,
   setPiCapacity,
   setPiClosureMeta,
-} from "@/server/services/pi";
+} from "@/modules/drumbeat/server/services/pi";
 import { authorize } from "@/server/auth/authorize";
 import { headers } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";

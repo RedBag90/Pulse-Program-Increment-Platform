@@ -1,7 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getPi } from "@/server/services/pi";
+import { getPi } from "@/modules/drumbeat/server/services/pi";
 import { listPiObjectives } from "@/modules/drumbeat/server/services/pi-objective";
 import { listImpedimentsForArts } from "@/modules/drumbeat/server/services/impediment";
 import { buildPiDetailModel } from "@/server/views/pi-detail";

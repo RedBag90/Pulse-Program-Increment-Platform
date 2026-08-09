@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createPi, updatePi, deletePi } from "@/server/services/pi";
+import { createPi, updatePi, deletePi } from "@/modules/drumbeat/server/services/pi";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { PiId, TimelineId } from "@/modules/core/kernel/domain/types";

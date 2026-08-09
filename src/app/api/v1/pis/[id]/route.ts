@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getPi, updatePi } from "@/server/services/pi";
+import { getPi, updatePi } from "@/modules/drumbeat/server/services/pi";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import type { PiId } from "@/modules/core/kernel/domain/types";

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createMutationHandler } from "@/server/http/mutation-handler";
-import { completePi } from "@/server/services/pi";
+import { completePi } from "@/modules/drumbeat/server/services/pi";
 import type { PiId } from "@/modules/core/kernel/domain/types";
 
 interface Ctx {
