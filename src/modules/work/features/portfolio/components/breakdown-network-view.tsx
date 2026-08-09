@@ -39,7 +39,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { toast } from "sonner";
-import { detectCycle } from "@/domain/dependency-graph";
+import { detectCycle } from "@/modules/core/kernel/domain/dependency-graph";
 import { CreateFeatureDialog } from "@/modules/core/org/features/art/components/create-feature-dialog";
 import {
   linkDependencyAction,

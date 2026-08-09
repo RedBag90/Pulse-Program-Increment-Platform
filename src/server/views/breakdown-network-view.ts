@@ -11,7 +11,7 @@
  */
 
 import type { Initiative } from "@/generated/prisma";
-import { wsjfTier } from "@/domain/wsjf";
+import { wsjfTier } from "@/modules/drumbeat/domain/wsjf";
 
 export type DependencyEdgeType = "blocks" | "depends_on" | "relates_to";
 

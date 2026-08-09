@@ -6,7 +6,7 @@ import {
   standardPiSchedule,
   selectFreeStandardPis,
   type PiStandardSpec,
-} from "@/domain/pi-standard";
+} from "@/modules/core/org/domain/pi-standard";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { findOr404 } from "@/server/services/tenant-scope";

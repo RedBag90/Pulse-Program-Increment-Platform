@@ -9,7 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { addStandardPisAction } from "@/modules/core/org/features/structure/actions/pi-standard";
-import { standardPiSchedule, selectFreeStandardPis } from "@/domain/pi-standard";
+import { standardPiSchedule, selectFreeStandardPis } from "@/modules/core/org/domain/pi-standard";
 import type { ActionState } from "@/server/http/server-action";
 
 export interface FullPiStandardOption {

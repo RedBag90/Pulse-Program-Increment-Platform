@@ -2,7 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId, PiId, TimelineId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
-import { validatePiDates } from "@/domain/pi-planning";
+import { validatePiDates } from "@/modules/drumbeat/domain/pi-planning";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {

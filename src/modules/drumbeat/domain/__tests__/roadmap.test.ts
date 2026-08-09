@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { deriveTimeframe, buildGanttMonthSpan, barMetrics } from "@/domain/roadmap";
-import type { DateRange } from "@/domain/roadmap";
+import {
+  deriveTimeframe,
+  buildGanttMonthSpan,
+  barMetrics,
+} from "@/modules/drumbeat/domain/roadmap";
+import type { DateRange } from "@/modules/drumbeat/domain/roadmap";
 
 /** UTC date helper — `d(2026, 1, 5)` = 5 Jan 2026 (month is 1-based). */
 function d(year: number, month: number, day: number): Date {
@@ -111,7 +115,7 @@ import {
   valueStreamRoadmapRows,
   roadmapAxis,
   type RoadmapRow,
-} from "@/domain/roadmap";
+} from "@/modules/drumbeat/domain/roadmap";
 
 const pi = (s: Date, e: Date) => ({ startDate: s, endDate: e });
 

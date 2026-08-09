@@ -14,7 +14,7 @@ import {
 import { paginate, type PageParams } from "@/server/db/paginate";
 import { rangeOverlapsPlannedWindow } from "@/modules/work/domain/epic-schedule";
 import { canDeliveryTransition } from "@/modules/core/kernel/domain/initiative-status";
-import { earliestStartFromBlockers, type BlockerWindow } from "@/domain/dependency-graph";
+import { earliestStartFromBlockers, type BlockerWindow } from "@/modules/core/kernel/domain/dependency-graph";
 import type { FeatureType } from "@/modules/work/domain/portfolio-guardrails";
 import { emitAuditEvent } from "@/server/audit/emit";
 

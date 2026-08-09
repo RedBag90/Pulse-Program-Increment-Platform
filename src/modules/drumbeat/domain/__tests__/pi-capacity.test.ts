@@ -5,7 +5,7 @@ import {
   computeDemand,
   utilizationBand,
   combineBands,
-} from "@/domain/pi-capacity";
+} from "@/modules/drumbeat/domain/pi-capacity";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 

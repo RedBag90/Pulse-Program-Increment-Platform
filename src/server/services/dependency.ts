@@ -2,7 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, InitiativeId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err } from "@/modules/core/kernel/domain/errors";
-import { detectCycle } from "@/domain/dependency-graph";
+import { detectCycle } from "@/modules/core/kernel/domain/dependency-graph";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,

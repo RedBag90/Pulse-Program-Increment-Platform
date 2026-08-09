@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { summarizePiOverview, type PiOverviewInput } from "@/domain/pi-overview";
+import { summarizePiOverview, type PiOverviewInput } from "@/modules/drumbeat/domain/pi-overview";
 
 const EMPTY: PiOverviewInput = {
   teams: [],

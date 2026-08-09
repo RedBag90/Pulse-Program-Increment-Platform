@@ -1,4 +1,4 @@
-import { summarizePiOverview, type PiOverviewSummary } from "@/domain/pi-overview";
+import { summarizePiOverview, type PiOverviewSummary } from "@/modules/drumbeat/domain/pi-overview";
 
 /**
  * PI Detail page-model — turns the loaded PI + objectives + impediments +

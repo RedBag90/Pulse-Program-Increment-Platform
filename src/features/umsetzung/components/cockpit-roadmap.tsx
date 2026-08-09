@@ -6,7 +6,7 @@ import {
   cockpitRoadmapRows,
   type CockpitRoadmapFeature,
   type RoadmapRowAccent,
-} from "@/domain/roadmap";
+} from "@/modules/drumbeat/domain/roadmap";
 import { RoadmapGantt, type GanttDependency } from "@/features/roadmap/components/roadmap-gantt";
 import type {
   CockpitDependency,

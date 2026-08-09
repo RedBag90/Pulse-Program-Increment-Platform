@@ -3,7 +3,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
 import { getValueStreamRoadmap } from "@/server/services/roadmap";
 import { RoadmapGantt } from "@/features/roadmap/components/roadmap-gantt";
-import { valueStreamRoadmapRows, roadmapAxis } from "@/domain/roadmap";
+import { valueStreamRoadmapRows, roadmapAxis } from "@/modules/drumbeat/domain/roadmap";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { ValueStreamId } from "@/modules/core/kernel/domain/types";

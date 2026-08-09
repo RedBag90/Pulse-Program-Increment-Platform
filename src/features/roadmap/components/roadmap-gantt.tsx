@@ -7,11 +7,11 @@ import {
   type GanttMonthSpan,
   type RoadmapRow,
   type RoadmapRowAccent,
-} from "@/domain/roadmap";
+} from "@/modules/drumbeat/domain/roadmap";
 
 // RoadmapRow now lives in the domain roadmap view-model; re-exported so existing
 // importers of the component keep working.
-export type { RoadmapRow } from "@/domain/roadmap";
+export type { RoadmapRow } from "@/modules/drumbeat/domain/roadmap";
 
 export type GanttDependencyType = "blocks" | "depends_on" | "relates_to";
 

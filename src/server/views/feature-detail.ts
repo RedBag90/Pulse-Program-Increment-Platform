@@ -15,7 +15,7 @@ import {
   canDeliveryTransition,
   type DeliveryStatus,
 } from "@/modules/core/kernel/domain/initiative-status";
-import { wsjfTier, type WsjfTier } from "@/domain/wsjf";
+import { wsjfTier, type WsjfTier } from "@/modules/drumbeat/domain/wsjf";
 
 // Re-export so existing importers of feature-detail keep working.
 export { wsjfTier, type WsjfTier };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectCycle, earliestStartFromBlockers } from "@/domain/dependency-graph";
+import { detectCycle, earliestStartFromBlockers } from "@/modules/core/kernel/domain/dependency-graph";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 

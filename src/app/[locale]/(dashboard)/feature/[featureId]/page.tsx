@@ -14,7 +14,7 @@ import { FeatureOverviewTab } from "@/modules/core/org/features/art/components/f
 import { DeleteFeatureButton } from "@/modules/core/org/features/art/components/delete-feature-button";
 import { FeatureDeliveryControls } from "@/features/feature/components/feature-delivery-controls";
 import { getBlockerWindowsForFeatures } from "@/server/services/dependency";
-import { earliestStartFromBlockers } from "@/domain/dependency-graph";
+import { earliestStartFromBlockers } from "@/modules/core/kernel/domain/dependency-graph";
 import { LinkDependencyDialog } from "@/features/dependencies/components/link-dependency-dialog";
 import { UnlinkDependencyButton } from "@/features/dependencies/components/unlink-dependency-button";
 import { PermissionGate } from "@/components/auth/permission-gate";
