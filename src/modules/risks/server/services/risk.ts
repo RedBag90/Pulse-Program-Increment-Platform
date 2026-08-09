@@ -456,6 +456,13 @@ export async function deleteRisk(
 
 // ── read ──────────────────────────────────────────────────────────────────────
 
+/** Shared include for the list/detail page-model (trail + mitigation text + epic titles). */
+export const RISK_LIST_INCLUDE = {
+  assessments: { orderBy: { createdAt: "asc" } },
+  epicLinks: { select: { epicId: true, epic: { select: { id: true, title: true } } } },
+  mitigations: { select: { id: true, description: true, createdAt: true } },
+} satisfies Prisma.RiskInclude;
+
 /** The risk row shape the page-model consumes (with its assessment trail + links). */
 export async function listRisks(
   db: PrismaClient,
@@ -474,11 +481,7 @@ export async function listRisks(
         orderBy: [{ createdAt: "desc" }],
         take,
         skip,
-        include: {
-          assessments: { orderBy: { createdAt: "asc" } },
-          epicLinks: { select: { epicId: true } },
-          mitigations: { select: { id: true } },
-        },
+        include: RISK_LIST_INCLUDE,
       }),
     () => db.risk.count({ where }),
     pageParams,

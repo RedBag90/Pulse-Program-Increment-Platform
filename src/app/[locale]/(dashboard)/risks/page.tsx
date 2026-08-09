@@ -28,21 +28,20 @@ export default async function RisksPage() {
 
   const model = buildRisksListModel({ risks: items, prefix: settings.prefix, userLabels });
 
-  const canDocument = hasCapability(principal, "risk.document", { tenantId: principal.tenantId });
-  const canReview = hasCapability(principal, "risk.review", { tenantId: principal.tenantId });
-  const canManageSettings = hasCapability(principal, "risk.settings.manage", {
-    tenantId: principal.tenantId,
-  });
+  const scope = { tenantId: principal.tenantId };
+  const caps = {
+    canDocument: hasCapability(principal, "risk.document", scope),
+    canUpdate: hasCapability(principal, "risk.update", scope),
+    canRoam: hasCapability(principal, "risk.roam", scope),
+    canLink: hasCapability(principal, "risk.link", scope),
+    canDelete: hasCapability(principal, "risk.delete", scope),
+    canReview: hasCapability(principal, "risk.review", scope),
+    canManageSettings: hasCapability(principal, "risk.settings.manage", scope),
+  };
 
   return (
     <Suspense fallback={<Page>Lädt…</Page>}>
-      <RisksListShell
-        model={model}
-        prefix={settings.prefix}
-        canDocument={canDocument}
-        canReview={canReview}
-        canManageSettings={canManageSettings}
-      />
+      <RisksListShell model={model} prefix={settings.prefix} userLabels={userLabels} caps={caps} />
     </Suspense>
   );
 }

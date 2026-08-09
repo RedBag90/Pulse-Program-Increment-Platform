@@ -1,13 +1,12 @@
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadEpicDetail } from "@/modules/work/server/views/epic-detail";
 import { listProgramIncrementsForArts } from "@/modules/drumbeat/server/services/pi";
 import { listBreakdownDependencies } from "@/modules/drumbeat/server/services/dependency";
 import { getEpicBudgetAllocation } from "@/modules/budgeting/server/services/epic-allocation";
-import { loadEpicRiskMatrix } from "@/modules/risks/server/views/epic-risk-matrix";
-import { RiskMatrix } from "@/modules/risks/features/risk/components/risk-matrix";
-import { CreateRiskDialog } from "@/modules/risks/features/risk/components/create-risk-dialog";
-import type { MatrixCellCount, MatrixPlot } from "@/modules/risks/server/views/risks-list";
+import { loadEpicRisksModel } from "@/modules/risks/server/views/epic-risk-matrix";
+import { RisksManager } from "@/modules/risks/features/risk/components/risks-manager";
 import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
@@ -81,7 +80,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         pis: (artIds) => listProgramIncrementsForArts(db, tenantId, artIds),
         dependencies: (featureIds) => listBreakdownDependencies(db, tenantId, featureIds),
         budget: () => getEpicBudgetAllocation(db, tenantId, epicId),
-        risks: () => loadEpicRiskMatrix(db, tenantId, epicId),
       },
       enabled,
     ),
@@ -90,6 +88,19 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     loadEpicGoalLinks(db, principal, epicId),
   ]);
   if (!model) redirect("/portfolio/epics");
+
+  // Risks tab content (composition root may import the risks module).
+  const epicRisks = enabled.risks ? await loadEpicRisksModel(db, principal, epicId) : null;
+  const riskScope = { tenantId };
+  const riskCaps = {
+    canDocument: hasCapability(principal, "risk.document", riskScope),
+    canUpdate: hasCapability(principal, "risk.update", riskScope),
+    canRoam: hasCapability(principal, "risk.roam", riskScope),
+    canLink: hasCapability(principal, "risk.link", riskScope),
+    canDelete: hasCapability(principal, "risk.delete", riskScope),
+    canReview: hasCapability(principal, "risk.review", riskScope),
+    canManageSettings: hasCapability(principal, "risk.settings.manage", riskScope),
+  };
 
   const { epic, timeline, benefitHypothesis, businessCase, kpiRows } = model;
   // Risks tab only when the module is entitled (slice present).
@@ -331,26 +342,14 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           </section>
         )}
 
-        {activeTab === "risks" && !model.risks.disabled && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading text-lg font-medium">
-                Risiken ({model.risks.riskCount})
-              </h2>
-              <CreateRiskDialog canDocument={model.canEdit} epicId={epic.id} />
-            </div>
-            <RiskMatrix
-              cells={model.risks.cells as unknown as MatrixCellCount[]}
-              plots={model.risks.plots as unknown as MatrixPlot[]}
-              emptyLabel="Noch keine bewerteten Risiken mit diesem Epic verknüpft."
-            />
-            {model.risks.suggestionCount > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {model.risks.suggestionCount} offene(r) Vorschlag/Vorschläge — im Risks-Register
-                prüfen.
-              </p>
-            )}
-          </section>
+        {activeTab === "risks" && epicRisks && (
+          <RisksManager
+            model={epicRisks.model}
+            prefix={epicRisks.prefix}
+            userLabels={epicRisks.userLabels}
+            caps={riskCaps}
+            epicId={epic.id}
+          />
         )}
       </EntityDetailShell>
       {slideOverDetail && <FeatureSlideOver detail={slideOverDetail} />}

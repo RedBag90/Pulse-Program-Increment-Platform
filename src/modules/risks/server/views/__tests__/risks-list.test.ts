@@ -14,6 +14,7 @@ function makeRisk(over: Partial<RiskRow> = {}): RiskRow {
     targetResolutionDate: null,
     reviewStatus: "documented",
     roamStatus: "open",
+    roamRationale: null,
     ownerId: null,
     raisedBy: "u1",
     createdAt: new Date("2026-01-01T00:00:00Z"),

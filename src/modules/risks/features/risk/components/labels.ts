@@ -22,6 +22,16 @@ export const REVIEW_LABELS: Record<string, string> = {
   rejected: "Abgelehnt",
 };
 
+/** Hex fills for the matrix cell (SVG `fill` — NOT Tailwind `bg-*`, which SVG
+ *  ignores). Green→amber→orange→red heat, mid-tone so ROAM dots + labels read on
+ *  both themes. */
+export const BAND_FILL: Record<ExposureBand, string> = {
+  low: "#86efac", // emerald-300
+  medium: "#fde047", // yellow-300
+  high: "#fb923c", // orange-400
+  critical: "#ef4444", // red-500
+};
+
 /** Tailwind band tints for the matrix cell background. */
 export const BAND_BG: Record<ExposureBand, string> = {
   low: "bg-emerald-100 dark:bg-emerald-950/40",

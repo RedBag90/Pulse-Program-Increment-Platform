@@ -1,46 +1,50 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId } from "@/modules/core/kernel/domain/types";
+import type { Principal } from "@/server/auth/principal";
 import { getRiskSettings } from "@/modules/risks/server/services/risk-settings";
-import {
-  buildRisksListModel,
-  type MatrixCellCount,
-  type MatrixPlot,
-} from "@/modules/risks/server/views/risks-list";
+import { RISK_LIST_INCLUDE } from "@/modules/risks/server/services/risk";
+import { riskReadFilter } from "@/modules/risks/server/services/risk-read-scope";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { buildRisksListModel, type RisksListModel } from "@/modules/risks/server/views/risks-list";
 
-export interface EpicRiskMatrix {
-  cells: MatrixCellCount[];
-  plots: MatrixPlot[];
+export interface EpicRisksView {
+  model: RisksListModel;
+  prefix: string;
+  userLabels: Record<string, string>;
   riskCount: number;
   suggestionCount: number;
 }
 
 /**
- * Epic-scoped risk matrix — the risks linked to this Epic via `RiskEpicLink`,
- * run through the shared `buildRisksListModel` aggregation (same band + number
- * source of truth). Consumed by the Epic detail page's Risks tab through a port
- * (Work never imports this module — ADR-0013).
+ * Full epic-scoped risks model — the risks linked to this Epic (via `RiskEpicLink`
+ * and read-scoped to the principal), through the shared `buildRisksListModel`. The
+ * Epic detail page's Risks tab renders the same `RisksManager` off this (Work never
+ * imports risks — the Epic route, as composition root, does; ADR-0013).
  */
-export async function loadEpicRiskMatrix(
+export async function loadEpicRisksModel(
   db: PrismaClient,
-  tenantId: TenantId,
+  principal: Principal,
   epicId: string,
-): Promise<EpicRiskMatrix> {
-  const [settings, risks] = await Promise.all([
-    getRiskSettings(db, tenantId),
+): Promise<EpicRisksView> {
+  const [settings, userLabels, risks] = await Promise.all([
+    getRiskSettings(db, principal.tenantId),
+    listTenantUserLabels(db, principal.tenantId),
     db.risk.findMany({
-      where: { tenantId, deletedAt: null, epicLinks: { some: { epicId } } },
-      include: {
-        assessments: { orderBy: { createdAt: "asc" } },
-        epicLinks: { select: { epicId: true } },
-        mitigations: { select: { id: true } },
+      where: {
+        tenantId: principal.tenantId,
+        deletedAt: null,
+        epicLinks: { some: { epicId } },
+        AND: [riskReadFilter(principal)],
       },
+      orderBy: { createdAt: "desc" },
+      include: RISK_LIST_INCLUDE,
     }),
   ]);
 
-  const model = buildRisksListModel({ risks, prefix: settings.prefix, userLabels: {} });
+  const model = buildRisksListModel({ risks, prefix: settings.prefix, userLabels });
   return {
-    cells: model.matrix.cells,
-    plots: model.matrix.plots,
+    model,
+    prefix: settings.prefix,
+    userLabels,
     riskCount: model.rows.length,
     suggestionCount: model.suggestions.length,
   };

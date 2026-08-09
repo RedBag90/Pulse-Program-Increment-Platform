@@ -98,7 +98,6 @@ function makeInputs(over: Partial<EpicDetailInputs> = {}): EpicDetailInputs {
     pis: [],
     dependencies: [],
     budget: null,
-    risks: null,
     breakdownPositions: new Map(),
     enabled: { drumbeat: true, budgeting: true, risks: false },
     multiPartyApproval: true,
@@ -177,16 +176,13 @@ describe("buildEpicDetailModel — degradation matrix", () => {
     expect(on.nextStep?.hint.startsWith("Budget ist alloziert.")).toBe(true);
   });
 
-  it("risks ON: slice carries the epic-scoped matrix; OFF: {disabled:true}", () => {
-    const matrix = { cells: [], plots: [], riskCount: 3, suggestionCount: 1 };
+  it("risks slice is an entitlement gate (composed in the route)", () => {
     const on = buildEpicDetailModel(
-      makeInputs({ enabled: { drumbeat: true, budgeting: true, risks: true }, risks: matrix }),
+      makeInputs({ enabled: { drumbeat: true, budgeting: true, risks: true } }),
     );
-    expect(on.risks.disabled).toBe(false);
-    if (!on.risks.disabled) expect(on.risks.riskCount).toBe(3);
-
+    expect(on.risks).toEqual({ disabled: false });
     const off = buildEpicDetailModel(
-      makeInputs({ enabled: { drumbeat: true, budgeting: true, risks: false }, risks: matrix }),
+      makeInputs({ enabled: { drumbeat: true, budgeting: true, risks: false } }),
     );
     expect(off.risks).toEqual({ disabled: true });
   });

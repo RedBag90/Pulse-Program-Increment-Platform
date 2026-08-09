@@ -15,6 +15,15 @@ export interface RiskAssessmentRow {
   probability: string;
   impact: string;
   createdAt: Date;
+  note?: string | null;
+}
+export interface RiskMitigationRow {
+  id: string;
+  description: string;
+}
+export interface RiskEpicLinkRow {
+  epicId: string;
+  epic?: { id: string; title: string } | null;
 }
 export interface RiskRow {
   id: string;
@@ -27,12 +36,13 @@ export interface RiskRow {
   targetResolutionDate: Date | null;
   reviewStatus: string;
   roamStatus: string;
+  roamRationale: string | null;
   ownerId: string | null;
   raisedBy: string;
   createdAt: Date;
   assessments: readonly RiskAssessmentRow[];
-  epicLinks: readonly { epicId: string }[];
-  mitigations: readonly { id: string }[];
+  epicLinks: readonly RiskEpicLinkRow[];
+  mitigations: readonly RiskMitigationRow[];
 }
 
 // ── Output ────────────────────────────────────────────────────────────────────
@@ -43,12 +53,19 @@ export interface RiskListRow {
   description: string | null;
   reviewStatus: string;
   roamStatus: string;
+  roamRationale: string | null;
   category: string | null;
+  // Raw inherent levels (drawer edit/reassess forms need the level, not the band).
+  probability: string | null;
+  impact: string | null;
   ownerId: string | null;
   ownerLabel: string | null;
   targetResolutionDate: string | null;
   isOverdue: boolean;
   band: ExposureBand | null;
+  epics: { id: string; title: string }[];
+  mitigations: { id: string; description: string }[];
+  assessments: { probability: string; impact: string; createdAt: string; note: string | null }[];
   epicCount: number;
   mitigationCount: number;
 }
@@ -115,12 +132,23 @@ export function buildRisksListModel(input: {
       description: r.description,
       reviewStatus: r.reviewStatus,
       roamStatus: r.roamStatus,
+      roamRationale: r.roamRationale,
       category: r.category,
+      probability: r.probability,
+      impact: r.impact,
       ownerId: r.ownerId,
       ownerLabel: r.ownerId ? (userLabels[r.ownerId] ?? null) : null,
       targetResolutionDate: r.targetResolutionDate?.toISOString() ?? null,
       isOverdue: overdue,
       band: pos.current?.band ?? null,
+      epics: r.epicLinks.flatMap((l) => (l.epic ? [{ id: l.epic.id, title: l.epic.title }] : [])),
+      mitigations: r.mitigations.map((m) => ({ id: m.id, description: m.description })),
+      assessments: r.assessments.map((a) => ({
+        probability: a.probability,
+        impact: a.impact,
+        createdAt: a.createdAt.toISOString(),
+        note: a.note ?? null,
+      })),
       epicCount: r.epicLinks.length,
       mitigationCount: r.mitigations.length,
     };
