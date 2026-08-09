@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { teamTypeLabel } from "@/modules/core/org/domain/team-type";
-import { TeamOverviewForm } from "@/features/capacity/components/team-overview-form";
+import { TeamOverviewForm } from "@/modules/core/org/features/capacity/components/team-overview-form";
 
 interface Team {
   id: string;

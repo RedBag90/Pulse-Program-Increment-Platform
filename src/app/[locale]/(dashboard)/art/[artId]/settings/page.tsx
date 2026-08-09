@@ -7,7 +7,7 @@ import { listTenantApprovers } from "@/modules/work/server/services/epic-approva
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { ArtSubNav } from "@/modules/core/org/features/art/components/art-sub-nav";
-import { ArtOverviewForm } from "@/features/capacity/components/art-overview-form";
+import { ArtOverviewForm } from "@/modules/core/org/features/capacity/components/art-overview-form";
 import { Page, PageHeader, PageSection } from "@/components/layout";
 import { redirect, notFound } from "next/navigation";
 import type { ArtId } from "@/modules/core/kernel/domain/types";

@@ -5,7 +5,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getValueStream } from "@/modules/core/org/server/services/value-stream";
 import { getValueStreamBudgets, type ValueStreamBudget } from "@/modules/budgeting/server/services/budgeting";
 import { getArtBudgetBreakdown } from "@/modules/budgeting/server/services/art-budget";
-import { ArtBudgetBreakdown } from "@/features/capacity/components/art-budget-breakdown";
+import { ArtBudgetBreakdown } from "@/modules/budgeting/features/art-budget/components/art-budget-breakdown";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
@@ -16,7 +16,7 @@ import {
   type DetailTab,
 } from "@/components/detail/entity-detail-shell";
 import { AuditTimeline } from "@/components/detail/audit-timeline";
-import { ValueStreamOverviewForm } from "@/features/capacity/components/value-stream-overview-form";
+import { ValueStreamOverviewForm } from "@/modules/core/org/features/capacity/components/value-stream-overview-form";
 import { CreateArtDialog } from "@/modules/core/org/features/art/components/create-art-dialog";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";

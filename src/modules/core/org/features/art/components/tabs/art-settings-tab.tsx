@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { userLabel } from "@/components/detail/initiative-labels";
-import { ArtOverviewForm } from "@/features/capacity/components/art-overview-form";
+import { ArtOverviewForm } from "@/modules/core/org/features/capacity/components/art-overview-form";
 
 interface Art {
   id: string;
