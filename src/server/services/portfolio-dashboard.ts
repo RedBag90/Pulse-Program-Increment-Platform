@@ -12,7 +12,7 @@ import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok } from "@/domain/errors";
 import { parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";
-import { isoDay, monthStart } from "@/domain/calendar";
+import { isoDay, monthStart } from "@/modules/core/kernel/domain/calendar";
 import { deriveEpicEconomics } from "@/domain/epic-economics";
 import { parsePeriodAmountMap } from "@/domain/budgeting";
 import type { EpicEconomicsDTO, PortfolioEconomicsData } from "@/domain/portfolio-economics";

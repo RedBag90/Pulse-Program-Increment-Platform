@@ -5,7 +5,7 @@
  * Row trägt ART und PI als Filter-Kontext.
  */
 
-import { diffInDays } from "@/domain/calendar";
+import { diffInDays } from "@/modules/core/kernel/domain/calendar";
 import { buildFunnelCounts } from "@/server/views/lib/page-model-utils";
 
 export const ROAM_STATUSES = ["open", "resolved", "owned", "accepted", "mitigated"] as const;

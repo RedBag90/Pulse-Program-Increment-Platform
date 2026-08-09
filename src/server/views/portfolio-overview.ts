@@ -11,7 +11,7 @@ import {
   type PracticeAdoption,
   type NextStep,
 } from "@/server/services/transformation";
-import { halfYearKey } from "@/domain/calendar";
+import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 import { epicBucket } from "@/domain/stage-gate";
 import { isAtRisk, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { isClosed } from "@/modules/core/goals/domain/goal-status";

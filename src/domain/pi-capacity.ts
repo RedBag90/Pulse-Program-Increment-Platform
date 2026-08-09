@@ -9,7 +9,7 @@
  * auto-prorated from the ART budget's half-year cells.
  */
 
-import { halfYearKey, halfYearStart, addHalfYears } from "@/domain/calendar";
+import { halfYearKey, halfYearStart, addHalfYears } from "@/modules/core/kernel/domain/calendar";
 
 export interface PiWindow {
   id: string;

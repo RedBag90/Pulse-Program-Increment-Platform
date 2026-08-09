@@ -10,7 +10,7 @@
  * not unified; the name says which semantics you get.
  */
 
-import { monthStart, addMonths, MONTH_LABELS } from "@/domain/calendar";
+import { monthStart, addMonths, MONTH_LABELS } from "@/modules/core/kernel/domain/calendar";
 
 export interface DateRange {
   start: Date;

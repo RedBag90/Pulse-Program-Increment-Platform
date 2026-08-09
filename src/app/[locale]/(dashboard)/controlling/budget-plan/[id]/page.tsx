@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
-import { halfYearKey, halfYearLabel } from "@/domain/calendar";
+import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import {
   getBudgetPlanRevision,
   listBudgetPlanRevisions,

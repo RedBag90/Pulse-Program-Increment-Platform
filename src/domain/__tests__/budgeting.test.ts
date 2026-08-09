@@ -8,7 +8,7 @@ import {
   totalAllocatedByPeriod,
   type BudgetEpicView,
 } from "@/domain/budgeting";
-import { buildHalfYearAxis } from "@/domain/calendar";
+import { buildHalfYearAxis } from "@/modules/core/kernel/domain/calendar";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 

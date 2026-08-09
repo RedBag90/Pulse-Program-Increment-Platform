@@ -3,7 +3,7 @@ import type { TenantId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok } from "@/domain/errors";
-import { halfYearKey } from "@/domain/calendar";
+import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 import {
   buildBudgetPlanSnapshot,
   type ArtSnapshotInput,

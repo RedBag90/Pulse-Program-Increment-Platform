@@ -24,7 +24,7 @@ import {
   MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
-import type { Practice } from "@/domain/operating-model";
+import type { Practice } from "@/modules/core/kernel/domain/operating-model";
 import type { Action } from "@/server/auth/policies";
 
 /**

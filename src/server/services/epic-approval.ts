@@ -3,7 +3,7 @@ import { InitiativeLevel } from "@/domain/types";
 import type { EpicId, TenantId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
-import type { ChangeMap } from "@/domain/change-log";
+import type { ChangeMap } from "@/modules/core/kernel/domain/change-log";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,

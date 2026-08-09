@@ -26,7 +26,7 @@ import {
   isoDay,
   halfYearStart,
   parseHalfYearKey,
-} from "@/domain/calendar";
+} from "@/modules/core/kernel/domain/calendar";
 import { fundedPeriodRange, fundedEndDate } from "@/domain/budgeting";
 
 /** The dated facts a cost-start resolution falls back through, newest-first. */

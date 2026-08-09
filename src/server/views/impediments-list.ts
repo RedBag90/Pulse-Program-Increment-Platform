@@ -5,7 +5,7 @@
  * badges are derived server-side so the client stays a pure render seam.
  */
 
-import { diffInDays } from "@/domain/calendar";
+import { diffInDays } from "@/modules/core/kernel/domain/calendar";
 import { buildFunnelCounts, extractUniqueFacet } from "@/server/views/lib/page-model-utils";
 
 export const IMPEDIMENT_STATUSES = ["open", "escalated", "resolved"] as const;

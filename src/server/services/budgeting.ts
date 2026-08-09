@@ -13,7 +13,7 @@ import { ok } from "@/domain/errors";
 import { parseTimeline } from "@/domain/timeline";
 import { fundedWindow, withScheduleEstimates } from "@/domain/epic-schedule";
 import { deriveEpicEconomics } from "@/domain/epic-economics";
-import { halfYearKey, parseHalfYearKey, halfYearStart, addHalfYears } from "@/domain/calendar";
+import { halfYearKey, parseHalfYearKey, halfYearStart, addHalfYears } from "@/modules/core/kernel/domain/calendar";
 import {
   buildHalfYearAxis,
   parsePeriodAmountMap,

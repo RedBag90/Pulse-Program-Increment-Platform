@@ -12,7 +12,7 @@
  * No I/O.
  */
 
-import { halfYearKey } from "@/domain/calendar";
+import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 
 /** A Feature as the load aggregation needs it (Prisma rows normalised by the caller). */
 export interface ArtFeatureInput {

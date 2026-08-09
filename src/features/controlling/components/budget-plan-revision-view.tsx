@@ -4,7 +4,7 @@ import { SectionLabel } from "@/components/ui/section-label";
 import { fmtEur } from "@/components/format/eur";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { cn } from "@/lib/utils";
-import { addHalfYears, halfYearKey, halfYearLabel, parseHalfYearKey } from "@/domain/calendar";
+import { addHalfYears, halfYearKey, halfYearLabel, parseHalfYearKey } from "@/modules/core/kernel/domain/calendar";
 import type {
   BudgetPlanSnapshot,
   BudgetPlanSnapshotArt,

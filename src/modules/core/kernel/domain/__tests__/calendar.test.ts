@@ -14,7 +14,7 @@ import {
   addHalfYears,
   halfYearsBetween,
   buildHalfYearAxis,
-} from "@/domain/calendar";
+} from "@/modules/core/kernel/domain/calendar";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 

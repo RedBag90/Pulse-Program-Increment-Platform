@@ -22,7 +22,7 @@ import {
   type AutoKpiLink,
 } from "@/modules/core/goals/domain/goal-progress-mode";
 import { latestMeasurement } from "@/modules/core/kpi/domain/kpi-measurement";
-import { dayStart } from "@/domain/calendar";
+import { dayStart } from "@/modules/core/kernel/domain/calendar";
 import { InitiativeLevel } from "@/domain/types";
 
 export type GoalTarget = "objective" | "kr";

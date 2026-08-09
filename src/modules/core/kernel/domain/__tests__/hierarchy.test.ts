@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateParentLevel, PARENT_LEVEL } from "@/domain/hierarchy";
+import { validateParentLevel, PARENT_LEVEL } from "@/modules/core/kernel/domain/hierarchy";
 import { InitiativeLevel } from "@/domain/types";
 import { isOk, isErr } from "@/domain/errors";
 

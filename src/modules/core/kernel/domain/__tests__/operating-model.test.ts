@@ -4,7 +4,7 @@ import {
   DEFAULT_PRACTICES,
   OPERATING_MODEL_TEMPLATE_DEFS,
   effectivePractices,
-} from "@/domain/operating-model";
+} from "@/modules/core/kernel/domain/operating-model";
 
 describe("effectivePractices", () => {
   it("returns all-on when no model is defined (backward compatible)", () => {

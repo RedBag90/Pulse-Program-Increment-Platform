@@ -6,7 +6,7 @@
  * here so the row stays a pure render seam.
  */
 
-import { diffInDays } from "@/domain/calendar";
+import { diffInDays } from "@/modules/core/kernel/domain/calendar";
 import { buildFunnelCounts } from "@/server/views/lib/page-model-utils";
 
 export const DEPENDENCY_TYPES = ["blocks", "depends_on", "relates_to"] as const;

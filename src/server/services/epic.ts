@@ -18,7 +18,7 @@ import { createInitiativeWithDerivedPath } from "@/server/services/initiative-wr
 import { loadAndAuthorize } from "@/server/services/load-and-authorize";
 import { appendVersion } from "@/domain/versioned-document";
 import { emitAuditEvent } from "@/server/audit/emit";
-import { effectivePractices } from "@/domain/operating-model";
+import { effectivePractices } from "@/modules/core/kernel/domain/operating-model";
 import {
   parseBenefitHypothesis,
   benefitHypothesisHasContent,

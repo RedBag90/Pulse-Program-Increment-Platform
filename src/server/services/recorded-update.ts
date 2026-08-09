@@ -1,4 +1,4 @@
-import { buildChangelog, type ChangeMap } from "@/domain/change-log";
+import { buildChangelog, type ChangeMap } from "@/modules/core/kernel/domain/change-log";
 
 /**
  * Concentrate the "snapshot before + filter undefined updates + build changelog

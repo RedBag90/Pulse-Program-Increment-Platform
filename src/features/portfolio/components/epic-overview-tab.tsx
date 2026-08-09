@@ -7,7 +7,7 @@ import { EpicPlannedWindowForm } from "./epic-planned-window-form";
 import { PhaseBadge } from "@/components/detail/phase-badge";
 import { SectionLabel } from "@/components/ui/section-label";
 import { formatCompactEUR } from "@/lib/formatting";
-import { buildInitiativeSummary } from "@/domain/initiative-summary";
+import { buildInitiativeSummary } from "@/modules/core/kernel/domain/initiative-summary";
 import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
 import type { StageGate, InitiativeStatus } from "@/domain/types";
 

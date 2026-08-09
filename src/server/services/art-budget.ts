@@ -3,7 +3,7 @@ import type { TenantId, ValueStreamId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, err } from "@/domain/errors";
-import { halfYearKey, halfYearLabel } from "@/domain/calendar";
+import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import { aggregateArtFeatureLoad, type ArtFeatureLoad } from "@/domain/art-budget";
 import { parsePeriodAmountMap } from "@/domain/budgeting";
 import { getValueStreamBudgets } from "@/server/services/budgeting";

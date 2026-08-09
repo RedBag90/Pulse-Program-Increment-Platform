@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildChangelog } from "@/domain/change-log";
+import { buildChangelog } from "@/modules/core/kernel/domain/change-log";
 
 describe("buildChangelog", () => {
   it("returns empty map when no fields changed", () => {

@@ -14,7 +14,7 @@ import {
   DELIVERY_STATUSES,
   canDeliveryTransition,
   type DeliveryStatus,
-} from "@/domain/initiative-status";
+} from "@/modules/core/kernel/domain/initiative-status";
 import { wsjfTier, type WsjfTier } from "@/domain/wsjf";
 
 // Re-export so existing importers of feature-detail keep working.

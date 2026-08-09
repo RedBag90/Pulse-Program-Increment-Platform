@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/domain/types";
-import { effectivePractices, type PracticeFlags } from "@/domain/operating-model";
+import { effectivePractices, type PracticeFlags } from "@/modules/core/kernel/domain/operating-model";
 
 /**
  * Target operating model — the management-defined "Soll". At most one `active`

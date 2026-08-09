@@ -3,7 +3,7 @@ import { Link } from "@/i18n/navigation";
 import { FeatureEditForm } from "./feature-edit-form";
 import { WsjfScoreDialog } from "./wsjf-score-dialog";
 import { STAGE_GATE_LABELS, STATUS_LABELS } from "@/components/detail/initiative-labels";
-import { buildInitiativeSummary } from "@/domain/initiative-summary";
+import { buildInitiativeSummary } from "@/modules/core/kernel/domain/initiative-summary";
 import type { StageGate, InitiativeStatus } from "@/domain/types";
 
 export interface FeatureOverviewTabProps {

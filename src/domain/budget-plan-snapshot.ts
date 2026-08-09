@@ -9,7 +9,7 @@
  * `buildBudgetPlanSnapshot`, and upserts the result onto `BudgetPlanRevision`.
  */
 
-import { halfYearKey, halfYearLabel } from "@/domain/calendar";
+import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import type { BudgetEpicView } from "@/domain/budgeting";
 
 /** Marker for the synthetic Value-Stream bucket that catches Epics without a VS. */

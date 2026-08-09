@@ -28,12 +28,12 @@ import {
   addHalfYears,
   halfYearsBetween,
   type HalfYearAxis,
-} from "@/domain/calendar";
+} from "@/modules/core/kernel/domain/calendar";
 
 // Half-year period maths lives in the calendar module; re-exported so existing
 // callers (budgeting service/board, tests) keep importing them from here.
-export { parseHalfYearKey, buildHalfYearAxis } from "@/domain/calendar";
-export type { HalfYearAxis } from "@/domain/calendar";
+export { parseHalfYearKey, buildHalfYearAxis } from "@/modules/core/kernel/domain/calendar";
+export type { HalfYearAxis } from "@/modules/core/kernel/domain/calendar";
 
 /** A candidate Epic on the budgeting board (built by the service). */
 export interface BudgetEpicView {

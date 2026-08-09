@@ -13,7 +13,7 @@ import {
 } from "@/server/services/initiative-write";
 import { paginate, type PageParams } from "@/server/db/paginate";
 import { rangeOverlapsPlannedWindow } from "@/domain/epic-schedule";
-import { canDeliveryTransition } from "@/domain/initiative-status";
+import { canDeliveryTransition } from "@/modules/core/kernel/domain/initiative-status";
 import { earliestStartFromBlockers, type BlockerWindow } from "@/domain/dependency-graph";
 import type { FeatureType } from "@/domain/portfolio-guardrails";
 import { emitAuditEvent } from "@/server/audit/emit";

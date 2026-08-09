@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { buildInitiativeSummary, STALE_AFTER_DAYS } from "@/domain/initiative-summary";
+import {
+  buildInitiativeSummary,
+  STALE_AFTER_DAYS,
+} from "@/modules/core/kernel/domain/initiative-summary";
 
 const NOW = new Date("2026-05-17T12:00:00Z");
 

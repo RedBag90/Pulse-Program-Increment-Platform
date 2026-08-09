@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { MONTHS_PER_HALF_YEAR, distributeAmountAcrossHalfYearMonths } from "@/domain/period-axis";
+import {
+  MONTHS_PER_HALF_YEAR,
+  distributeAmountAcrossHalfYearMonths,
+} from "@/modules/core/kernel/domain/period-axis";
 
 describe("distributeAmountAcrossHalfYearMonths", () => {
   it("spreizt einen Half-Year-Betrag gleichmaessig auf 6 Monate", () => {
