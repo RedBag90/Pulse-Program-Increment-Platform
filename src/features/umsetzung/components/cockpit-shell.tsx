@@ -48,7 +48,7 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
         canCreate={permissions.canCreate}
       />
       <CockpitPiStrip pis={piStrip} />
-      <div className="flex items-center justify-between gap-3 px-6 py-3">
+      <div className="flex items-center justify-between gap-3 border-b bg-surface-frame px-6 py-3">
         <CockpitViewTabs view={view} />
         <p className="text-xs text-muted-foreground">{features.length} Features im Scope</p>
       </div>

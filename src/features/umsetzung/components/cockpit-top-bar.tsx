@@ -32,7 +32,7 @@ export function CockpitTopBar({ availableArts, selectedArt, canCreate }: Props) 
   const valueStreamName = selectedArt?.valueStreamName ?? null;
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-6 py-3">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-surface-frame px-6 py-3">
       <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
         {valueStreamName && (
           <>

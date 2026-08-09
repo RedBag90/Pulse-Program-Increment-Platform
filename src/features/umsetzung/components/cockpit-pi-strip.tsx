@@ -13,7 +13,7 @@ interface Props {
 export function CockpitPiStrip({ pis }: Props) {
   if (pis.length === 0) {
     return (
-      <div className="border-b bg-muted/20 px-6 py-2 text-xs text-muted-foreground">
+      <div className="border-b bg-surface-frame px-6 py-2 text-xs text-muted-foreground">
         Keine PIs in dieser Timeline.
       </div>
     );
@@ -22,7 +22,7 @@ export function CockpitPiStrip({ pis }: Props) {
   return (
     <nav
       aria-label="PI-Strip"
-      className="flex items-center gap-2 overflow-x-auto border-b bg-muted/10 px-6 py-3"
+      className="flex items-center gap-2 overflow-x-auto border-b bg-surface-frame px-6 py-3"
     >
       {pis.map((p) => {
         const cls = p.isCurrent

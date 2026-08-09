@@ -62,7 +62,7 @@ export function RolesPageShell({ model, canManage }: Props) {
       />
 
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-        <nav aria-label="Rollen" className="space-y-1">
+        <nav aria-label="Rollen" className="space-y-1 rounded-lg border bg-surface-frame p-2">
           {model.roles.map((r) => {
             const isActive = r.role === selectedRole.role;
             const hasDiff =

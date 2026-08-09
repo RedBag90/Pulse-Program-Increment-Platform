@@ -128,7 +128,7 @@ export function StructurePageShell({
       />
 
       <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
-        <div className="lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto lg:pr-1">
+        <div className="rounded-lg border bg-surface-frame p-2 lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto">
           <StructureList rows={filteredRows} selection={selection} onSelect={onSelectNode} />
         </div>
 
