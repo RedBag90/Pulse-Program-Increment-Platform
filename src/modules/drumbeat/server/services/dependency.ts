@@ -319,3 +319,47 @@ export async function getBlockerWindowsForFeatures(
   }
   return out;
 }
+
+/** One breakdown-network edge that has at least one endpoint among the Epic's
+ *  Features. Cross-Epic endpoints carry their `parent` (the other Epic) so the
+ *  network can render them as ghost-nodes with a click-through. */
+export interface BreakdownDependencyEdge {
+  id: string;
+  fromId: string;
+  toId: string;
+  type: string;
+  from: { id: string; title: string; parent: { id: string; title: string } | null } | null;
+  to: { id: string; title: string; parent: { id: string; title: string } | null } | null;
+}
+
+/**
+ * Edges with MINDESTENS einem Endpunkt in `featureIds` — the raw material for an
+ * Epic's breakdown network (Roadmap-N1 + P6). Drumbeat owns the `dependency`
+ * table; the Epic route consumes this via a port so Work never reads it directly
+ * (ADR-0013). Returns `[]` for an empty feature set.
+ */
+export async function listBreakdownDependencies(
+  db: PrismaClient,
+  tenantId: TenantId,
+  featureIds: readonly string[],
+): Promise<BreakdownDependencyEdge[]> {
+  if (featureIds.length === 0) return [];
+  return db.dependency.findMany({
+    where: {
+      tenantId,
+      OR: [{ fromId: { in: featureIds as string[] } }, { toId: { in: featureIds as string[] } }],
+    },
+    select: {
+      id: true,
+      fromId: true,
+      toId: true,
+      type: true,
+      from: {
+        select: { id: true, title: true, parent: { select: { id: true, title: true } } },
+      },
+      to: {
+        select: { id: true, title: true, parent: { select: { id: true, title: true } } },
+      },
+    },
+  });
+}
