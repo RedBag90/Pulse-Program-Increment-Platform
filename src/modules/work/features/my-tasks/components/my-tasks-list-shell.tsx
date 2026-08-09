@@ -2,10 +2,15 @@
 
 import { useCallback, useMemo } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
-import { MyTasksFilterBar } from "@/features/my-tasks/components/my-tasks-filter-bar";
-import { MyTasksEpicsSection } from "@/features/my-tasks/components/my-tasks-epics-section";
-import { MyTasksFeaturesSection } from "@/features/my-tasks/components/my-tasks-features-section";
-import { BUCKETS, LEVELS, type Bucket, type MyTasksListModel } from "@/server/views/my-tasks-list";
+import { MyTasksFilterBar } from "@/modules/work/features/my-tasks/components/my-tasks-filter-bar";
+import { MyTasksEpicsSection } from "@/modules/work/features/my-tasks/components/my-tasks-epics-section";
+import { MyTasksFeaturesSection } from "@/modules/work/features/my-tasks/components/my-tasks-features-section";
+import {
+  BUCKETS,
+  LEVELS,
+  type Bucket,
+  type MyTasksListModel,
+} from "@/modules/work/server/views/my-tasks-list";
 import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 import type { FeatureListRow } from "@/server/views/features-list";
 import type { TaskLevel } from "@/server/services/my-tasks";

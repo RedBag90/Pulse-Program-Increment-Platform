@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { MyTasksListModel } from "@/server/views/my-tasks-list";
+import type { MyTasksListModel } from "@/modules/work/server/views/my-tasks-list";
 import type { TaskLevel } from "@/server/services/my-tasks";
 
 interface Props {

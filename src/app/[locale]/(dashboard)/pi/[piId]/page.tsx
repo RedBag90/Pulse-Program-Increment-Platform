@@ -4,7 +4,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getPi } from "@/modules/drumbeat/server/services/pi";
 import { listPiObjectives } from "@/modules/drumbeat/server/services/pi-objective";
 import { listImpedimentsForArts } from "@/modules/drumbeat/server/services/impediment";
-import { buildPiDetailModel } from "@/server/views/pi-detail";
+import { buildPiDetailModel } from "@/modules/drumbeat/server/views/pi-detail";
 import { PiTransitionButton } from "@/modules/drumbeat/features/pi/components/pi-transition-button";
 import { DeletePiButton } from "@/modules/drumbeat/features/pi/components/delete-pi-button";
 import { PiSubNav } from "@/modules/drumbeat/features/pi/components/pi-sub-nav";

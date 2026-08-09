@@ -11,7 +11,7 @@ import {
 } from "@/modules/drumbeat/features/umsetzung/components/feature-dependencies-tab";
 import { FeatureAcceptanceTab } from "@/modules/drumbeat/features/umsetzung/components/feature-acceptance-tab";
 import { FeatureHistoryTab } from "@/modules/drumbeat/features/umsetzung/components/feature-history-tab";
-import type { FeatureDetailModel } from "@/server/views/feature-detail";
+import type { FeatureDetailModel } from "@/modules/drumbeat/server/views/feature-detail";
 
 const FEATURE_DETAIL_TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },

@@ -124,6 +124,43 @@ const config = [
       ],
     },
   },
+  // ── Composition-Root (P7 / ADR-0013): Core-Tier-Infra außerhalb von
+  //    src/modules (geteilte Nav/Server/Lib/Components) liegt auf Core-Ebene und
+  //    darf die Feature-Module (work/drumbeat/budgeting) NICHT importieren.
+  //    Modul-übergreifende Kompositionen leben ausschließlich im App-/Route-Shell
+  //    (`src/app`) — die einzige Schicht, die mehrere Module verdrahten darf.
+  {
+    files: [
+      "src/features/**/*.{ts,tsx}",
+      "src/server/**/*.{ts,tsx}",
+      "src/components/**/*.{ts,tsx}",
+      "src/lib/**/*.{ts,tsx}",
+      "src/hooks/**/*.{ts,tsx}",
+      "src/i18n/**/*.{ts,tsx}",
+      "src/domain/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/modules/work",
+                "@/modules/work/**",
+                "@/modules/drumbeat",
+                "@/modules/drumbeat/**",
+                "@/modules/budgeting",
+                "@/modules/budgeting/**",
+              ],
+              message:
+                "Core-Tier-Infra darf keine Feature-Module importieren; nur src/app komponiert Module (P7 / ADR-0013).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   prettierConfig,
 ];
 

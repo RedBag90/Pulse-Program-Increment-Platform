@@ -1,5 +1,5 @@
 import type { TenantId, UserId, ArtId } from "@/modules/core/kernel/domain/types";
-import type { ImpedimentId } from "@/modules/drumbeat/server/services/impediment";
+import type { ImpedimentId } from "@/modules/core/kernel/domain/types";
 import type { Role } from "@/modules/core/kernel/domain/roles";
 
 export type DomainEvent =

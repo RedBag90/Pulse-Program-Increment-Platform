@@ -1,7 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { listMyApprovals, type MyApprovalRow } from "@/server/services/my-approvals";
-import { ApprovalActions } from "@/features/my-approvals/components/approval-actions";
+import { listMyApprovals, type MyApprovalRow } from "@/modules/work/server/services/my-approvals";
+import { ApprovalActions } from "@/modules/work/features/my-approvals/components/approval-actions";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { ApprovalParty } from "@/modules/work/domain/business-case";

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildMyTasksListModel } from "@/server/views/my-tasks-list";
+import { buildMyTasksListModel } from "@/modules/work/server/views/my-tasks-list";
 import type { MyTaskRow } from "@/server/services/my-tasks";
 import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 import type { FeatureListRow } from "@/server/views/features-list";

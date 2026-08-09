@@ -13,7 +13,7 @@ import { listEpicApprovals, listTenantApprovers } from "@/modules/work/server/se
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";
 import { EntityDetailShell, resolveTab } from "@/components/detail/entity-detail-shell";
-import { loadCockpitFeatureDetail } from "@/server/views/cockpit-feature-detail";
+import { loadCockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 import { FeatureSlideOver } from "@/modules/drumbeat/features/umsetzung/components/feature-slide-over";
 import {
   InitiativeActivitySidebar,

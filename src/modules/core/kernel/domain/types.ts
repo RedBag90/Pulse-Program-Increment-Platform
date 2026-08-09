@@ -21,6 +21,7 @@ export type ValueStreamId = string & { readonly __brand: "ValueStreamId" };
 export type PiId = string & { readonly __brand: "PiId" };
 export type TimelineId = string & { readonly __brand: "TimelineId" };
 export type SprintId = string & { readonly __brand: "SprintId" };
+export type ImpedimentId = string & { readonly __brand: "ImpedimentId" };
 
 // ---------------------------------------------------------------------------
 // Supporting value types

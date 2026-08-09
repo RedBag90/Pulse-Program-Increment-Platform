@@ -15,8 +15,8 @@ import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";
 import { buildEpicsListModel } from "@/modules/work/server/views/portfolio-epics-list";
 import { buildFeaturesListModel } from "@/server/views/features-list";
-import { buildMyTasksListModel } from "@/server/views/my-tasks-list";
-import { MyTasksListShell } from "@/features/my-tasks/components/my-tasks-list-shell";
+import { buildMyTasksListModel } from "@/modules/work/server/views/my-tasks-list";
+import { MyTasksListShell } from "@/modules/work/features/my-tasks/components/my-tasks-list-shell";
 
 /** Pickt den jüngsten KPI-Messwert (gleicher Helper wie auf /portfolio/epics). */
 interface KpiMeasurement {

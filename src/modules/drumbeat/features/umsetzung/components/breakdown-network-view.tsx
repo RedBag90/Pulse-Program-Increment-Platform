@@ -69,7 +69,7 @@ import {
   type BreakdownGraphEdge,
   type BreakdownGraphNode,
   type DependencyEdgeType,
-} from "@/server/views/breakdown-network-view";
+} from "@/modules/drumbeat/server/views/breakdown-network-view";
 
 interface Props {
   epicId: string;

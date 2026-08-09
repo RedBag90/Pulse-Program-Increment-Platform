@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadCockpitModel, type CockpitView } from "@/server/views/umsetzung-cockpit-view";
-import { loadCockpitFeatureDetail } from "@/server/views/cockpit-feature-detail";
+import { loadCockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 import { CockpitShell } from "@/modules/drumbeat/features/umsetzung/components/cockpit-shell";
 
 /**

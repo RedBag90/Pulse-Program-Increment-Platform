@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildBreakdownGraph } from "@/server/views/breakdown-network-view";
+import { buildBreakdownGraph } from "@/modules/drumbeat/server/views/breakdown-network-view";
 
 const feature = (over: Partial<{ id: string; wsjfComputed: number | null }> = {}) => ({
   id: over.id ?? "f1",

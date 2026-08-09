@@ -1,5 +1,11 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, ArtId, PiId, SprintId } from "@/modules/core/kernel/domain/types";
+import type {
+  TenantId,
+  ArtId,
+  PiId,
+  SprintId,
+  ImpedimentId,
+} from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { publishDomainEvent } from "@/server/events/publish";
@@ -8,7 +14,7 @@ import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel
 import { findOr404 } from "@/server/services/tenant-scope";
 import { paginate, type PageParams } from "@/server/db/paginate";
 
-export type ImpedimentId = string & { readonly __brand: "ImpedimentId" };
+export type { ImpedimentId };
 export type Severity = "low" | "medium" | "high" | "critical";
 export type ImpedimentStatus = "open" | "escalated" | "resolved";
 export type RoamStatus = "open" | "resolved" | "owned" | "accepted" | "mitigated";

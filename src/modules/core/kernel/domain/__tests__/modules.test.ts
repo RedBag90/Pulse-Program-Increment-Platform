@@ -40,6 +40,9 @@ describe("moduleForPath", () => {
   it("VOLLSTÄNDIGKEIT: jedes Dashboard-Segment ist registriert oder core", () => {
     const dir = join(process.cwd(), "src/app/[locale]/(dashboard)");
     const segments = readdirSync(dir).filter((e) => {
+      // Next.js behandelt `_`-präfixierte Ordner als private (keine Route) —
+      // z. B. `_components` (Composition-Root-UI wie das Create-Menü).
+      if (e.startsWith("_")) return false;
       try {
         return statSync(join(dir, e)).isDirectory();
       } catch {

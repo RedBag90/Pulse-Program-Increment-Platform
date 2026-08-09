@@ -3,7 +3,7 @@ import {
   buildFeatureDetailModel,
   wsjfTier,
   type FeatureDetailInput,
-} from "@/server/views/feature-detail";
+} from "@/modules/drumbeat/server/views/feature-detail";
 
 const base = (over: Partial<FeatureDetailInput> = {}): FeatureDetailInput => ({
   id: "f1",

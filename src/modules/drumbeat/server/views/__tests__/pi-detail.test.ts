@@ -4,7 +4,7 @@ import {
   type PiDetailInputs,
   type PiDetailCandidateRow,
   type PiDetailFeatureRow,
-} from "@/server/views/pi-detail";
+} from "@/modules/drumbeat/server/views/pi-detail";
 
 const today = new Date("2026-06-01T00:00:00Z");
 const later = new Date("2026-09-30T00:00:00Z");

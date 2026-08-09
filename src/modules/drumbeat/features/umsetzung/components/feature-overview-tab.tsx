@@ -7,7 +7,7 @@ import { setFeatureDeliveryStatusAction } from "@/modules/work/features/feature/
 import { FeatureClassificationForm } from "./feature-classification-form";
 import { STATUS_DOT, STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { formatDate } from "@/lib/formatting";
-import type { FeatureDetailModel } from "@/server/views/feature-detail";
+import type { FeatureDetailModel } from "@/modules/drumbeat/server/views/feature-detail";
 import type { DeliveryStatus } from "@/modules/core/kernel/domain/initiative-status";
 
 interface Props {

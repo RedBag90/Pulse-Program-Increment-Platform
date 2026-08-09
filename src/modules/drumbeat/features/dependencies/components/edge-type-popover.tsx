@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { DependencyEdgeType } from "@/server/views/breakdown-network-view";
+import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
 
 /**
  * Shared Edge-Type-Popover — wird vom Epic-Breakdown-Netzplan UND vom

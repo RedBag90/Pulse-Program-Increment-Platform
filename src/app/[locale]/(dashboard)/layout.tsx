@@ -7,9 +7,14 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getActiveTargetModel } from "@/server/services/target-model";
 import { listUserTenants } from "@/server/services/tenant";
 import { effectivePractices } from "@/modules/core/kernel/domain/operating-model";
-import { moduleForPath, firstEnabledHome, type ModuleKey } from "@/modules/core/kernel/domain/modules";
+import {
+  moduleForPath,
+  firstEnabledHome,
+  type ModuleKey,
+} from "@/modules/core/kernel/domain/modules";
 import { NAV_GROUPS } from "@/components/nav/nav-config";
 import { Topbar } from "@/components/nav/topbar";
+import { CreateMenu } from "@/app/[locale]/(dashboard)/_components/create-menu";
 
 /** Ob ein Pfad/Item mit dem Entitlement-Set des Tenants nutzbar ist (fail-closed). */
 function moduleAllowed(path: string, enabled: readonly ModuleKey[]): boolean {
@@ -79,6 +84,7 @@ export default async function DashboardLayout({
         tenants={tenants}
         activeTenantId={principal.tenantId}
         isPlatformAdmin={principal.isPlatformAdmin}
+        createSlot={<CreateMenu />}
       />
       <main className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</main>
     </div>

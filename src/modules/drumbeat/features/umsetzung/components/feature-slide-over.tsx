@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FeatureDetailShell } from "@/modules/drumbeat/features/umsetzung/components/feature-detail-shell";
-import type { CockpitFeatureDetail } from "@/server/views/cockpit-feature-detail";
+import type { CockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 
 /**
  * Slide-Over fuer das Feature-Detail. URL-State `?featureId=<id>`

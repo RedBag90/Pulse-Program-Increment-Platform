@@ -28,7 +28,7 @@ import {
 } from "@/modules/drumbeat/features/dependencies/actions/dependency";
 import { EdgeTypeMenu } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import { FeaturePickerPopover } from "@/modules/drumbeat/features/dependencies/components/feature-picker-popover";
-import type { DependencyEdgeType } from "@/server/views/breakdown-network-view";
+import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
 
 /**
  * Netzplan-Sicht des Cockpits — flacher Network-Graph aller Features

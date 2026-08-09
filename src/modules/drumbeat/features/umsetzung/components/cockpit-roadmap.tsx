@@ -17,7 +17,7 @@ import type {
   CockpitPiWindow,
   FeatureStatus,
 } from "@/server/views/umsetzung-cockpit-view";
-import type { DependencyEdgeType } from "@/server/views/breakdown-network-view";
+import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
 import {
   linkDependencyAction,
   unlinkDependencyAction,

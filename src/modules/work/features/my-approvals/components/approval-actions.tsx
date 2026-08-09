@@ -6,7 +6,7 @@ import {
   decideEpicApprovalAction,
   signoffEpicSectionAction,
 } from "@/modules/work/features/portfolio/actions/epic-approval";
-import type { ApprovalKind, MyApprovalRow } from "@/server/services/my-approvals";
+import type { ApprovalKind, MyApprovalRow } from "@/modules/work/server/services/my-approvals";
 
 /**
  * "Meine Freigaben" decision UI — three buttons (Freigeben / In Klärung

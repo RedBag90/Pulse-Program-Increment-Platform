@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Sun, Moon, Globe, Zap } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useLocale, useTranslations } from "next-intl";
@@ -12,7 +13,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CreateMenu } from "@/features/create/create-menu";
 import { MobileNav } from "@/components/nav/mobile-nav";
 import { TopNavMegaTriggers } from "@/components/nav/top-nav-mega-triggers";
 import { TenantSwitcher, type TenantOption } from "@/components/nav/tenant-switcher";
@@ -27,6 +27,10 @@ interface TopbarProps {
   activeTenantId?: string;
   /** Globaler platform_admin → Einstieg in die Plattform-Verwaltung im User-Menü. */
   isPlatformAdmin?: boolean;
+  /** Globales „+"-Create-Menü (komponiert mehrere Module) — vom Composition-Root
+   *  (`(dashboard)/layout`) injiziert, damit diese Core-Nav-Shell nicht mehrere
+   *  Module direkt importiert (P7 / ADR-0013). */
+  createSlot?: ReactNode;
 }
 
 /**
@@ -39,6 +43,7 @@ export function Topbar({
   tenants = [],
   activeTenantId = "",
   isPlatformAdmin = false,
+  createSlot,
 }: TopbarProps) {
   const { theme, setTheme } = useTheme();
   const locale = useLocale();
@@ -76,8 +81,8 @@ export function Topbar({
             </div>
           )}
 
-          {/* Global create menu */}
-          <CreateMenu />
+          {/* Global create menu — injected by the composition root */}
+          {createSlot}
 
           {/* Locale switcher */}
           <DropdownMenu>
