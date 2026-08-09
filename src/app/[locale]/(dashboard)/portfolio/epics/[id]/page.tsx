@@ -4,6 +4,10 @@ import { loadEpicDetail } from "@/modules/work/server/views/epic-detail";
 import { listProgramIncrementsForArts } from "@/modules/drumbeat/server/services/pi";
 import { listBreakdownDependencies } from "@/modules/drumbeat/server/services/dependency";
 import { getEpicBudgetAllocation } from "@/modules/budgeting/server/services/epic-allocation";
+import { loadEpicRiskMatrix } from "@/modules/risks/server/views/epic-risk-matrix";
+import { RiskMatrix } from "@/modules/risks/features/risk/components/risk-matrix";
+import { CreateRiskDialog } from "@/modules/risks/features/risk/components/create-risk-dialog";
+import type { MatrixCellCount, MatrixPlot } from "@/modules/risks/server/views/risks-list";
 import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
@@ -65,6 +69,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   const enabled = {
     drumbeat: principal.enabledModules.includes("drumbeat"),
     budgeting: principal.enabledModules.includes("budgeting"),
+    risks: principal.enabledModules.includes("risks"),
   };
 
   const [model, approvers, userLabels, goalLinks] = await Promise.all([
@@ -76,6 +81,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         pis: (artIds) => listProgramIncrementsForArts(db, tenantId, artIds),
         dependencies: (featureIds) => listBreakdownDependencies(db, tenantId, featureIds),
         budget: () => getEpicBudgetAllocation(db, tenantId, epicId),
+        risks: () => loadEpicRiskMatrix(db, tenantId, epicId),
       },
       enabled,
     ),
@@ -86,7 +92,9 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   if (!model) redirect("/portfolio/epics");
 
   const { epic, timeline, benefitHypothesis, businessCase, kpiRows } = model;
-  const activeTab = resolveTab(EPIC_TABS, tab);
+  // Risks tab only when the module is entitled (slice present).
+  const tabs = model.risks.disabled ? EPIC_TABS : [...EPIC_TABS, { key: "risks", label: "Risks" }];
+  const activeTab = resolveTab(tabs, tab);
 
   // Slide-Over-Detail nur laden wenn ?featureId= im URL — gleiche Sicht wie im
   // Cockpit; ein Klick auf eine Feature-Karte springt nicht in eine Voll-Route.
@@ -103,7 +111,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         backLabel="Zurück zu den Epics"
         title={epic.title}
         badge={model.multiPartyApproval ? <PhaseBadge phase={model.approvalPhase} /> : undefined}
-        tabs={EPIC_TABS}
+        tabs={tabs}
         activeTab={activeTab}
         basePath={`/portfolio/epics/${epic.id}`}
         headerActions={
@@ -320,6 +328,28 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           <section>
             <h2 className="mb-3 font-heading text-lg font-medium">History</h2>
             <EpicHistoryTimeline events={model.activityEvents} userLabels={userLabels} />
+          </section>
+        )}
+
+        {activeTab === "risks" && !model.risks.disabled && (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-heading text-lg font-medium">
+                Risiken ({model.risks.riskCount})
+              </h2>
+              <CreateRiskDialog canDocument={model.canEdit} epicId={epic.id} />
+            </div>
+            <RiskMatrix
+              cells={model.risks.cells as unknown as MatrixCellCount[]}
+              plots={model.risks.plots as unknown as MatrixPlot[]}
+              emptyLabel="Noch keine bewerteten Risiken mit diesem Epic verknüpft."
+            />
+            {model.risks.suggestionCount > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {model.risks.suggestionCount} offene(r) Vorschlag/Vorschläge — im Risks-Register
+                prüfen.
+              </p>
+            )}
           </section>
         )}
       </EntityDetailShell>

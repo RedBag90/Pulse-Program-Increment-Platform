@@ -79,10 +79,35 @@ export type EpicDependenciesPort = (featureIds: string[]) => Promise<BreakdownEd
 /** Port: the Epic's budget allocation sum (Budgeting), or null when none exists. */
 export type EpicBudgetPort = () => Promise<{ allocatedSum: number } | null>;
 
+/** Structural epic-scoped risk-matrix DTO (Risks module owns the computation;
+ *  string-typed here so Work never imports `@/modules/risks`). */
+export interface EpicRiskCell {
+  probability: string;
+  impact: string;
+  key: string;
+  band: string;
+  count: number;
+}
+export interface EpicRiskPlot {
+  riskId: string;
+  displayNumber: string | null;
+  roamStatus: string;
+  trail: { probability: string; impact: string }[];
+}
+export interface EpicRiskMatrixDTO {
+  cells: EpicRiskCell[];
+  plots: EpicRiskPlot[];
+  riskCount: number;
+  suggestionCount: number;
+}
+/** Port: the epic-scoped risk matrix (Risks). */
+export type EpicRisksPort = () => Promise<EpicRiskMatrixDTO>;
+
 export interface EpicDetailPorts {
   pis: EpicPisPort;
   dependencies: EpicDependenciesPort;
   budget: EpicBudgetPort;
+  risks: EpicRisksPort;
 }
 
 // ---------------------------------------------------------------------------
@@ -101,6 +126,8 @@ export type DrumbeatSlice =
     };
 
 export type BudgetingSlice = { disabled: true } | { disabled: false; allocated: boolean };
+
+export type RisksSlice = ({ disabled: false } & EpicRiskMatrixDTO) | { disabled: true };
 
 /** Active-revision section sign-off state (page lines 326-335). */
 export interface SectionSignoffState {
@@ -127,9 +154,11 @@ export interface EpicDetailInputs {
   dependencies: BreakdownEdge[];
   /** Port result — null when `enabled.budgeting` is false. */
   budget: { allocatedSum: number } | null;
+  /** Port result — null when `enabled.risks` is false. */
+  risks: EpicRiskMatrixDTO | null;
   /** Persisted breakdown-network node positions (Work-owned, always loaded). */
   breakdownPositions: Map<string, { x: number; y: number }>;
-  enabled: { drumbeat: boolean; budgeting: boolean };
+  enabled: { drumbeat: boolean; budgeting: boolean; risks: boolean };
   /** `practices.multiPartyApproval` — gates the approval-phase-aware branches. */
   multiPartyApproval: boolean;
   /** The viewing principal's id — drives the sign-off / open-approval checks. */
@@ -169,6 +198,7 @@ export interface EpicDetailModel {
 
   drumbeat: DrumbeatSlice;
   budgeting: BudgetingSlice;
+  risks: RisksSlice;
 
   activityEvents: ActivityItem[];
 
@@ -245,6 +275,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     pis,
     dependencies,
     budget,
+    risks,
     enabled,
     multiPartyApproval,
     principalId,
@@ -289,6 +320,10 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     ? { disabled: false, allocated: (budget?.allocatedSum ?? 0) > 0 }
     : { disabled: true };
   const budgetAllocated = budgetingSlice.disabled ? false : budgetingSlice.allocated;
+
+  // Risks slice — the epic-scoped risk matrix (computed in the Risks module).
+  const risksSlice: RisksSlice =
+    enabled.risks && risks ? { disabled: false, ...risks } : { disabled: true };
 
   // Drumbeat slice — PI groupings + the dependency edges (page lines 258-276).
   let drumbeatSlice: DrumbeatSlice;
@@ -484,6 +519,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     approvalPhase,
     drumbeat: drumbeatSlice,
     budgeting: budgetingSlice,
+    risks: risksSlice,
     activityEvents,
     activeRevision,
     sectionRecords,
@@ -535,7 +571,7 @@ export async function loadEpicDetailInputs(
   principal: Principal,
   epicId: EpicId,
   ports: EpicDetailPorts,
-  enabled: { drumbeat: boolean; budgeting: boolean },
+  enabled: { drumbeat: boolean; budgeting: boolean; risks: boolean },
 ): Promise<EpicDetailInputs | null> {
   const epic = await getEpic(db, principal.tenantId, epicId);
   if (!epic) return null;
@@ -579,17 +615,27 @@ export async function loadEpicDetailInputs(
     tenantId: principal.tenantId,
   });
 
-  const [historyEvents, kpis, approvals, practices, breakdownPositions, pis, dependencies, budget] =
-    await Promise.all([
-      listInitiativeHistory(db, principal.tenantId, epic.id),
-      listKpis(db, principal.tenantId, epic.id as EpicId),
-      listEpicApprovals(db, principal.tenantId, epic.id as EpicId),
-      getTenantPractices(db, principal.tenantId),
-      loadBreakdownLayout(db, principal.tenantId, epic.id as EpicId),
-      enabled.drumbeat ? ports.pis(artIds) : Promise.resolve([] as EpicPi[]),
-      enabled.drumbeat ? ports.dependencies(featureIds) : Promise.resolve([] as BreakdownEdge[]),
-      enabled.budgeting ? ports.budget() : Promise.resolve(null),
-    ]);
+  const [
+    historyEvents,
+    kpis,
+    approvals,
+    practices,
+    breakdownPositions,
+    pis,
+    dependencies,
+    budget,
+    risks,
+  ] = await Promise.all([
+    listInitiativeHistory(db, principal.tenantId, epic.id),
+    listKpis(db, principal.tenantId, epic.id as EpicId),
+    listEpicApprovals(db, principal.tenantId, epic.id as EpicId),
+    getTenantPractices(db, principal.tenantId),
+    loadBreakdownLayout(db, principal.tenantId, epic.id as EpicId),
+    enabled.drumbeat ? ports.pis(artIds) : Promise.resolve([] as EpicPi[]),
+    enabled.drumbeat ? ports.dependencies(featureIds) : Promise.resolve([] as BreakdownEdge[]),
+    enabled.budgeting ? ports.budget() : Promise.resolve(null),
+    enabled.risks ? ports.risks() : Promise.resolve(null),
+  ]);
 
   return {
     epic,
@@ -599,6 +645,7 @@ export async function loadEpicDetailInputs(
     pis,
     dependencies,
     budget,
+    risks,
     breakdownPositions,
     enabled,
     multiPartyApproval: practices.multiPartyApproval,
@@ -624,7 +671,7 @@ export async function loadEpicDetail(
   principal: Principal,
   epicId: EpicId,
   ports: EpicDetailPorts,
-  enabled: { drumbeat: boolean; budgeting: boolean },
+  enabled: { drumbeat: boolean; budgeting: boolean; risks: boolean },
 ): Promise<EpicDetailModel | null> {
   const inputs = await loadEpicDetailInputs(db, principal, epicId, ports, enabled);
   return inputs ? buildEpicDetailModel(inputs) : null;

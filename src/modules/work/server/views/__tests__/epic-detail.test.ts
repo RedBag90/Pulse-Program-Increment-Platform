@@ -98,8 +98,9 @@ function makeInputs(over: Partial<EpicDetailInputs> = {}): EpicDetailInputs {
     pis: [],
     dependencies: [],
     budget: null,
+    risks: null,
     breakdownPositions: new Map(),
-    enabled: { drumbeat: true, budgeting: true },
+    enabled: { drumbeat: true, budgeting: true, risks: false },
     multiPartyApproval: true,
     principalId: PRINCIPAL_ID,
     canEdit: true,
@@ -117,7 +118,7 @@ function makeInputs(over: Partial<EpicDetailInputs> = {}): EpicDetailInputs {
 describe("buildEpicDetailModel — degradation matrix", () => {
   it("drumbeat ON + budgeting ON: both slices enabled with computed data", () => {
     const inputs = makeInputs({
-      enabled: { drumbeat: true, budgeting: true },
+      enabled: { drumbeat: true, budgeting: true, risks: false },
       budget: { allocatedSum: 500 },
       pis: [
         { id: "pi-2", name: "PI 2", artId: "art-1", startDate: "2026-07-01" },
@@ -143,7 +144,11 @@ describe("buildEpicDetailModel — degradation matrix", () => {
 
   it("drumbeat OFF: slice is {disabled:true} even though port data is empty", () => {
     const m = buildEpicDetailModel(
-      makeInputs({ enabled: { drumbeat: false, budgeting: true }, pis: [], dependencies: [] }),
+      makeInputs({
+        enabled: { drumbeat: false, budgeting: true, risks: false },
+        pis: [],
+        dependencies: [],
+      }),
     );
     expect(m.drumbeat).toEqual({ disabled: true });
     expect(m.budgeting.disabled).toBe(false);
@@ -155,7 +160,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
     const off = buildEpicDetailModel(
       makeInputs({
         epic: makeEpic({ stageGate: "L3" }),
-        enabled: { drumbeat: true, budgeting: false },
+        enabled: { drumbeat: true, budgeting: false, risks: false },
         budget: null,
       }),
     );
@@ -165,11 +170,25 @@ describe("buildEpicDetailModel — degradation matrix", () => {
     const on = buildEpicDetailModel(
       makeInputs({
         epic: makeEpic({ stageGate: "L3" }),
-        enabled: { drumbeat: true, budgeting: true },
+        enabled: { drumbeat: true, budgeting: true, risks: false },
         budget: { allocatedSum: 1000 },
       }),
     );
     expect(on.nextStep?.hint.startsWith("Budget ist alloziert.")).toBe(true);
+  });
+
+  it("risks ON: slice carries the epic-scoped matrix; OFF: {disabled:true}", () => {
+    const matrix = { cells: [], plots: [], riskCount: 3, suggestionCount: 1 };
+    const on = buildEpicDetailModel(
+      makeInputs({ enabled: { drumbeat: true, budgeting: true, risks: true }, risks: matrix }),
+    );
+    expect(on.risks.disabled).toBe(false);
+    if (!on.risks.disabled) expect(on.risks.riskCount).toBe(3);
+
+    const off = buildEpicDetailModel(
+      makeInputs({ enabled: { drumbeat: true, budgeting: true, risks: false }, risks: matrix }),
+    );
+    expect(off.risks).toEqual({ disabled: true });
   });
 
   it("budgeting ON with allocatedSum 0 → allocated=false", () => {
