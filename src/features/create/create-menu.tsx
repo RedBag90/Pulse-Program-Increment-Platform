@@ -20,7 +20,7 @@ import { CreateArtDialog } from "@/features/art/components/create-art-dialog";
 import { CreateFeatureDialog } from "@/features/art/components/create-feature-dialog";
 import { CreateImpedimentDialog } from "@/features/impediment/components/create-impediment-dialog";
 import { CreateDependencyDialog } from "@/features/dependencies/components/create-dependency-dialog";
-import { CreateGoalDialog } from "@/features/ziele/components/create-goal-dialog";
+import { CreateGoalDialog } from "@/modules/core/goals/features/components/create-goal-dialog";
 
 /** Left padding per hierarchy level — reproduces the screenshot's indentation. */
 const INDENT = ["pl-2", "pl-6", "pl-10", "pl-14"] as const;

@@ -18,7 +18,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { goalNodeTimeframeLabel } from "@/features/ziele/lib/goal-node-view";
+import { goalNodeTimeframeLabel } from "@/modules/core/goals/features/lib/goal-node-view";
 import type {
   ZieleModel,
   RelatedEpic,
@@ -42,15 +42,15 @@ import {
   setGoalCustomFieldValueAction,
   reparentGoalNodeAction,
   setGoalRollupInclusionAction,
-} from "@/features/ziele/actions/ziele";
-import { GoalDetailPanel } from "@/features/ziele/components/goal-status/goal-detail-panel";
+} from "@/modules/core/goals/features/actions/ziele";
+import { GoalDetailPanel } from "@/modules/core/goals/features/components/goal-status/goal-detail-panel";
 import { EntitySelect } from "@/features/create/entity-select";
-import { GoalPeriodField } from "@/features/ziele/components/goal-period-field";
-import { LinkList, type LinkChip } from "@/features/ziele/components/link-list";
+import { GoalPeriodField } from "@/modules/core/goals/features/components/goal-period-field";
+import { LinkList, type LinkChip } from "@/modules/core/goals/features/components/link-list";
 import {
   RelatedWorkSearch,
   type RelatedWorkResult,
-} from "@/features/ziele/components/related-work-search";
+} from "@/modules/core/goals/features/components/related-work-search";
 import { formatMetricValue } from "@/modules/core/goals/domain/goal-metric";
 
 /**

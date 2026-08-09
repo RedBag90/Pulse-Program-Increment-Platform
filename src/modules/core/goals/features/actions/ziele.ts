@@ -15,9 +15,15 @@ import {
   recordGoalProgress,
   addGoalComment,
 } from "@/modules/core/goals/server/services/ziele";
-import { linkEpicToGoal, unlinkEpicFromGoal } from "@/modules/core/goals/server/services/goal-epic-link";
+import {
+  linkEpicToGoal,
+  unlinkEpicFromGoal,
+} from "@/modules/core/goals/server/services/goal-epic-link";
 import { setGoalCustomFieldValue } from "@/modules/core/goals/server/services/goal-custom-field";
-import { addGoalRelatedWork, removeGoalRelatedWork } from "@/modules/core/goals/server/services/goal-related-work";
+import {
+  addGoalRelatedWork,
+  removeGoalRelatedWork,
+} from "@/modules/core/goals/server/services/goal-related-work";
 import {
   linkGoalValueStream,
   unlinkGoalValueStream,

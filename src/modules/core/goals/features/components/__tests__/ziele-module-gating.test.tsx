@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MoneySheetView } from "@/features/ziele/components/money-sheet-view";
-import { GoalHealthStrip } from "@/features/ziele/components/goal-health-strip";
-import { GoalScopeFilterBar } from "@/features/ziele/components/goal-scope-filter-bar";
-import { ZieleSubTabs } from "@/features/ziele/components/ziele-sub-tabs";
+import { MoneySheetView } from "@/modules/core/goals/features/components/money-sheet-view";
+import { GoalHealthStrip } from "@/modules/core/goals/features/components/goal-health-strip";
+import { GoalScopeFilterBar } from "@/modules/core/goals/features/components/goal-scope-filter-bar";
+import { ZieleSubTabs } from "@/modules/core/goals/features/components/ziele-sub-tabs";
 
 // useUrlState + next/navigation + Options-Fetch stubben — hier interessiert nur
 // das modul-bewusste Rendern, nicht das URL-/Fetch-Verhalten.

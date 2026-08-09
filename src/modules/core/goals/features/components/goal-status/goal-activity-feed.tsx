@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, startTransition, useState } from "react";
-import { addGoalCommentAction } from "@/features/ziele/actions/ziele";
+import { addGoalCommentAction } from "@/modules/core/goals/features/actions/ziele";
 import { goalStatusLabel } from "@/modules/core/goals/domain/goal-status";
 import type { GoalActivityEntry, GoalTarget } from "@/modules/core/goals/server/views/ziele-view";
 

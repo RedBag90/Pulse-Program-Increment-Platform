@@ -2,9 +2,9 @@
 
 import { useActionState, useState } from "react";
 import { Plus } from "lucide-react";
-import { createGoalNodeAction } from "@/features/ziele/actions/ziele";
+import { createGoalNodeAction } from "@/modules/core/goals/features/actions/ziele";
 import { useCreateResult } from "@/features/create/use-create-result";
-import { GoalPeriodField } from "@/features/ziele/components/goal-period-field";
+import { GoalPeriodField } from "@/modules/core/goals/features/components/goal-period-field";
 import type { ActionState } from "@/server/http/server-action";
 import { Button } from "@/components/ui/button";
 import {

@@ -12,7 +12,11 @@
 
 import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { keyResultProgress, isAtRisk } from "@/modules/core/goals/domain/goals-rollup";
-import { goalTimeframe, goalTimeframeLabel, type GoalTimeframe } from "@/modules/core/goals/domain/goal-period";
+import {
+  goalTimeframe,
+  goalTimeframeLabel,
+  type GoalTimeframe,
+} from "@/modules/core/goals/domain/goal-period";
 
 /**
  * Normalisierter 0..1-Fortschritt für die Anzeige: bevorzugt den vom Loader

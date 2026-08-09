@@ -4,10 +4,10 @@ import { useActionState, useEffect, useRef, useState, startTransition } from "re
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createEpicAction } from "@/features/portfolio/actions/epic";
-import { linkEpicToGoalAction } from "@/features/ziele/actions/ziele";
+import { linkEpicToGoalAction } from "@/modules/core/goals/features/actions/ziele";
 import { useCreateResult } from "@/features/create/use-create-result";
 import { useEntityOptions, optionsEndpoint } from "@/features/create/use-entity-options";
-import { GoalTreePicker } from "@/features/ziele/components/goal-tree-picker";
+import { GoalTreePicker } from "@/modules/core/goals/features/components/goal-tree-picker";
 import type { ActionState } from "@/server/http/server-action";
 import { Button } from "@/components/ui/button";
 import {

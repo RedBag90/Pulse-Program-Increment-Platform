@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PeriodPicker } from "@/features/ziele/components/period-picker";
+import { PeriodPicker } from "@/modules/core/goals/features/components/period-picker";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 
 const INPUT =

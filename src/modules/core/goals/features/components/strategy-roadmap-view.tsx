@@ -4,13 +4,20 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { goalDetailHref } from "@/features/ziele/lib/goal-href";
-import { goalNodeProgress, goalNodeTimeframe } from "@/features/ziele/lib/goal-node-view";
+import { goalDetailHref } from "@/modules/core/goals/features/lib/goal-href";
+import {
+  goalNodeProgress,
+  goalNodeTimeframe,
+} from "@/modules/core/goals/features/lib/goal-node-view";
 import { flattenGoalTree } from "@/modules/core/goals/domain/goal-tree-filter";
 import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { goalTimeframeLabel, currentGoalPeriod } from "@/modules/core/goals/domain/goal-period";
 import type { GoalTimeframe } from "@/modules/core/goals/domain/goal-period";
-import { goalStatusTier, goalStatusColor, goalStatusLabel } from "@/modules/core/goals/domain/goal-status";
+import {
+  goalStatusTier,
+  goalStatusColor,
+  goalStatusLabel,
+} from "@/modules/core/goals/domain/goal-status";
 import type { GoalStatusTier } from "@/modules/core/goals/domain/goal-status";
 
 /**

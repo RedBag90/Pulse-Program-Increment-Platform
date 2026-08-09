@@ -5,17 +5,17 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { goalDetailHref } from "@/features/ziele/lib/goal-href";
+import { goalDetailHref } from "@/modules/core/goals/features/lib/goal-href";
 import {
   goalNodeProgress,
   goalNodeTimeframe,
   goalNodeOwner,
   goalInitials,
-} from "@/features/ziele/lib/goal-node-view";
+} from "@/modules/core/goals/features/lib/goal-node-view";
 import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { goalStatusColor } from "@/modules/core/goals/domain/goal-status";
 import { goalTimeframeLabel } from "@/modules/core/goals/domain/goal-period";
-import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
+import { GoalStatusPill } from "@/modules/core/goals/features/components/goal-status/goal-status-pill";
 
 /**
  * Alignment-Karten-Baum — Ziele als Karten mit Fortschritts-Ring, Status-Pill und

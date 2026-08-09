@@ -4,11 +4,17 @@ import { useCallback, useEffect, useRef, useState, startTransition, useActionSta
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Plus } from "lucide-react";
-import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
-import { GoalStatusSelect } from "@/features/ziele/components/goal-status/goal-status-select";
-import { GoalActivityFeed } from "@/features/ziele/components/goal-status/goal-activity-feed";
-import { checkInGoalAction, updateGoalProgressAction } from "@/features/ziele/actions/ziele";
-import { getGoalDetailAction, type GoalDetailPayload } from "@/features/ziele/actions/goal-detail";
+import { GoalStatusPill } from "@/modules/core/goals/features/components/goal-status/goal-status-pill";
+import { GoalStatusSelect } from "@/modules/core/goals/features/components/goal-status/goal-status-select";
+import { GoalActivityFeed } from "@/modules/core/goals/features/components/goal-status/goal-activity-feed";
+import {
+  checkInGoalAction,
+  updateGoalProgressAction,
+} from "@/modules/core/goals/features/actions/ziele";
+import {
+  getGoalDetailAction,
+  type GoalDetailPayload,
+} from "@/modules/core/goals/features/actions/goal-detail";
 import { suggestOpenStatus, type GoalStatus } from "@/modules/core/goals/domain/goal-status";
 
 // recharts (~150 kb gz) erst laden, wenn das Detail-Panel gerendert wird (Drawer

@@ -3,7 +3,7 @@
 import { useEntityOptions } from "@/features/create/use-entity-options";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { MultiSelectFilter, type MultiSelectSection } from "@/components/ui/multi-select-filter";
-import { PeriodMultiSelect } from "@/features/ziele/components/period-multi-select";
+import { PeriodMultiSelect } from "@/modules/core/goals/features/components/period-multi-select";
 import {
   OPEN_STATUSES,
   CLOSED_STATUSES,

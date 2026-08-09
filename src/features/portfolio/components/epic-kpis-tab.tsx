@@ -9,7 +9,7 @@ import {
   updateKpiWeightAction,
   updateKpiDetailsAction,
 } from "@/features/portfolio/actions/kpi";
-import { linkEpicToGoalAction } from "@/features/ziele/actions/ziele";
+import { linkEpicToGoalAction } from "@/modules/core/goals/features/actions/ziele";
 import { benefitKindOrDefault, BENEFIT_KIND_LABELS } from "@/domain/kpi-benefit-kind";
 import {
   recurringIntervalOrDefault,

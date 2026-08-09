@@ -12,7 +12,11 @@ import {
 } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { goalHref, goalDetailHref, goalCreateHref } from "@/features/ziele/lib/goal-href";
+import {
+  goalHref,
+  goalDetailHref,
+  goalCreateHref,
+} from "@/modules/core/goals/features/lib/goal-href";
 import {
   ChevronRight,
   Pencil,
@@ -26,7 +30,10 @@ import { cn } from "@/lib/utils";
 import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { goalTimeframe, goalTimeframeStart } from "@/modules/core/goals/domain/goal-period";
-import { filterGoalBranches, collectNodeIdsWithChildren } from "@/modules/core/goals/domain/goal-tree-filter";
+import {
+  filterGoalBranches,
+  collectNodeIdsWithChildren,
+} from "@/modules/core/goals/domain/goal-tree-filter";
 import {
   goalNodeProgress,
   goalNodeOwner,
@@ -34,10 +41,10 @@ import {
   goalInitials,
   isGoalDrifting,
   isGoalOffTrack,
-} from "@/features/ziele/lib/goal-node-view";
-import { reparentGoalNodeAction } from "@/features/ziele/actions/ziele";
-import { HEAD_GOAL_ACCENT } from "@/features/ziele/lib/goal-accent";
-import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
+} from "@/modules/core/goals/features/lib/goal-node-view";
+import { reparentGoalNodeAction } from "@/modules/core/goals/features/actions/ziele";
+import { HEAD_GOAL_ACCENT } from "@/modules/core/goals/features/lib/goal-accent";
+import { GoalStatusPill } from "@/modules/core/goals/features/components/goal-status/goal-status-pill";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useLocalStorageState } from "@/lib/hooks/use-local-storage-state";

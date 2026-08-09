@@ -5,7 +5,7 @@ import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadStrategyTree, type ZieleSubTab } from "@/modules/core/goals/server/views/ziele-view";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { ZieleShell } from "@/features/ziele/components/ziele-shell";
+import { ZieleShell } from "@/modules/core/goals/features/components/ziele-shell";
 
 /**
  * Ziele-Modul — **eine** Surface für Übersicht **und** Pflege (die frühere

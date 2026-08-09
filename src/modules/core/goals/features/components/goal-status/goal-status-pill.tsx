@@ -1,4 +1,8 @@
-import { goalStatusLabel, goalStatusTier, type GoalStatusTier } from "@/modules/core/goals/domain/goal-status";
+import {
+  goalStatusLabel,
+  goalStatusTier,
+  type GoalStatusTier,
+} from "@/modules/core/goals/domain/goal-status";
 
 const PILL_CLS: Record<GoalStatusTier, string> = {
   green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",

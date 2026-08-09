@@ -18,18 +18,21 @@ import "@xyflow/react/dist/style.css";
 import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { keyResultProgress, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { goalTimeframeLabel } from "@/modules/core/goals/domain/goal-period";
-import { filterGoalBranches, collectNodeIdsWithChildren } from "@/modules/core/goals/domain/goal-tree-filter";
+import {
+  filterGoalBranches,
+  collectNodeIdsWithChildren,
+} from "@/modules/core/goals/domain/goal-tree-filter";
 import {
   goalNodeTimeframe,
   goalNodeOwner,
   goalInitials,
   isGoalDrifting,
   isGoalOffTrack,
-} from "@/features/ziele/lib/goal-node-view";
+} from "@/modules/core/goals/features/lib/goal-node-view";
 import { cn } from "@/lib/utils";
-import { HEAD_GOAL_ACCENT } from "@/features/ziele/lib/goal-accent";
-import { goalDetailHref } from "@/features/ziele/lib/goal-href";
-import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";
+import { HEAD_GOAL_ACCENT } from "@/modules/core/goals/features/lib/goal-accent";
+import { goalDetailHref } from "@/modules/core/goals/features/lib/goal-href";
+import { GoalStatusPill } from "@/modules/core/goals/features/components/goal-status/goal-status-pill";
 
 /**
  * Strategie als Netzplan — flach (Refactor §Hierarchie-Vereinfachung).

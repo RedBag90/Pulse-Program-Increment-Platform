@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { buildGoalPickerTree, type GoalPickerRow } from "@/features/ziele/lib/goal-picker-tree";
+import {
+  buildGoalPickerTree,
+  type GoalPickerRow,
+} from "@/modules/core/goals/features/lib/goal-picker-tree";
 
 const row = (id: string, parentObjectiveId: string | null, name = id): GoalPickerRow => ({
   id,

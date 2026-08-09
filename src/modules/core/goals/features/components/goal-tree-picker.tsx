@@ -9,7 +9,7 @@ import {
   buildGoalPickerTree,
   type GoalPickerRow,
   type PickerTreeNode,
-} from "@/features/ziele/lib/goal-picker-tree";
+} from "@/modules/core/goals/features/lib/goal-picker-tree";
 import { Input } from "@/components/ui/input";
 
 /**
