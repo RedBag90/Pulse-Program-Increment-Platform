@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkEpicLink, type CheckEpicLinkInput } from "@/domain/epic-link-invariant";
+import { checkEpicLink, type CheckEpicLinkInput } from "@/modules/core/goals/domain/epic-link-invariant";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 
 const base: CheckEpicLinkInput = {
