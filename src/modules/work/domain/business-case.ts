@@ -11,7 +11,7 @@ import {
   parseVersionedDocument,
   type VersionedDocument,
   type VersionSnapshot,
-} from "@/domain/versioned-document";
+} from "@/modules/work/domain/versioned-document";
 
 export const APPROVAL_PARTIES = [
   "mgmt",

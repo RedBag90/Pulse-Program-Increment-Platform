@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { costSliceLabel, type BusinessCaseFields } from "@/domain/business-case";
-import type { BenefitHypothesisFields } from "@/domain/benefit-hypothesis";
+import { costSliceLabel, type BusinessCaseFields } from "@/modules/work/domain/business-case";
+import type { BenefitHypothesisFields } from "@/modules/work/domain/benefit-hypothesis";
 
 /** One compared field: its label and the baseline / new rendered values. */
 export interface DiffRow {

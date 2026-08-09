@@ -1,5 +1,5 @@
 import { GOAL_STATUS_TIER_HEX } from "@/modules/core/goals/domain/goal-status";
-import type { LpmAmpel } from "@/domain/lpm-review";
+import type { LpmAmpel } from "@/modules/work/domain/lpm-review";
 
 /** Geteilte Chart-Tokens für das LPM-Review (ruhig/flach, eine Akzentfarbe Blau). */
 

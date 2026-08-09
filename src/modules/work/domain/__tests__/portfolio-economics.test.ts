@@ -12,7 +12,7 @@ import {
   type EpicEconomicsInput,
   type BenefitKpiInput,
   type EpicSeries,
-} from "@/domain/portfolio-economics";
+} from "@/modules/work/domain/portfolio-economics";
 import { buildMonthAxis } from "@/modules/core/kernel/domain/calendar";
 import type { KpiMeasurement } from "@/modules/core/kpi/domain/kpi";
 

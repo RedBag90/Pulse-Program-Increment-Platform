@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { epicNextStep, type EpicNextStepInput } from "@/domain/epic-next-step";
+import { epicNextStep, type EpicNextStepInput } from "@/modules/work/domain/epic-next-step";
 
 const base = (over: Partial<EpicNextStepInput> = {}): EpicNextStepInput => ({
   epicId: "epic-1",

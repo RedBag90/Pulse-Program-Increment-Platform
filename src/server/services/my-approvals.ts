@@ -1,8 +1,8 @@
 import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Principal } from "@/server/auth/principal";
-import type { ApprovalParty } from "@/domain/business-case";
-import type { ApprovalSection } from "@/domain/epic-approval";
+import type { ApprovalParty } from "@/modules/work/domain/business-case";
+import type { ApprovalSection } from "@/modules/work/domain/epic-approval";
 /**
  * "Meine Freigaben" — the personal approval inbox. Aggregates every pending
  * Epic approval assigned to the current principal (Hypothesis, Party,

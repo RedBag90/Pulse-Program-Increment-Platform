@@ -2,7 +2,7 @@
 
 import { Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { BUCKET_RULES } from "@/domain/epic-lifecycle-doc";
+import { BUCKET_RULES } from "@/modules/work/domain/epic-lifecycle-doc";
 
 /**
  * In-App-Hilfe fuer das Portfolio-Kanban: erklaert die Mapping-Regel

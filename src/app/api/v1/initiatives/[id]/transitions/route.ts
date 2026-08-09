@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { advanceStageGate } from "@/server/services/epic";
-import { STAGE_GATES } from "@/domain/stage-gate";
+import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 const transitionSchema = z.object({

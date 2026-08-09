@@ -3,8 +3,8 @@
 import { type ReactNode } from "react";
 import { AlertTriangle, Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { HORIZONS, HORIZON_LABEL, type Horizon } from "@/domain/portfolio-guardrails";
-import { STAGE_GATES } from "@/domain/stage-gate";
+import { HORIZONS, HORIZON_LABEL, type Horizon } from "@/modules/work/domain/portfolio-guardrails";
+import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import {

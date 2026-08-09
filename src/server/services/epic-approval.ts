@@ -15,7 +15,7 @@ import {
   parseBusinessCase,
   businessCaseHasContent,
   type ApprovalParty,
-} from "@/domain/business-case";
+} from "@/modules/work/domain/business-case";
 import {
   nextPhaseFor,
   decisionStatus,
@@ -26,7 +26,7 @@ import {
   type ApprovalRecord,
   type ApprovalPhase,
   type RevisionMode,
-} from "@/domain/epic-approval";
+} from "@/modules/work/domain/epic-approval";
 
 /**
  * Epic multi-party approval workflow — the audited, transactional service over

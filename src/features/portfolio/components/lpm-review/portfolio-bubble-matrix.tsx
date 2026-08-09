@@ -12,7 +12,7 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
-import type { LpmAmpel } from "@/domain/lpm-review";
+import type { LpmAmpel } from "@/modules/work/domain/lpm-review";
 import { formatMioEUR } from "@/lib/formatting";
 import { tierHex, TOOLTIP_STYLE } from "./chart-theme";
 

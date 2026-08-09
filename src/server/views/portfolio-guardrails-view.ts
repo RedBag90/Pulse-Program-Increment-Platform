@@ -18,9 +18,9 @@ import {
   epicCapacityBucket,
   isEpicType,
   isHorizon,
-} from "@/domain/portfolio-guardrails";
-import { computeMixAxis, type MixRow } from "@/domain/guardrail-rules";
-import { STAGE_GATES } from "@/domain/stage-gate";
+} from "@/modules/work/domain/portfolio-guardrails";
+import { computeMixAxis, type MixRow } from "@/modules/work/domain/guardrail-rules";
+import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 
 export type { MixRow };

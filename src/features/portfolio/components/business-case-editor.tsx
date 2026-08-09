@@ -12,7 +12,7 @@ import {
   costSliceLabel,
   type BusinessCaseFields,
   type BusinessCaseVersion,
-} from "@/domain/business-case";
+} from "@/modules/work/domain/business-case";
 import type { EpicCascadeContribution } from "@/modules/core/goals/domain/goals-rollup";
 import { buildCascadeTree, type CascadeTreeNode } from "@/features/portfolio/lib/cascade-tree";
 

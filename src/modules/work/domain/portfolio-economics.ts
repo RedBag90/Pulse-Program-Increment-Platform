@@ -21,7 +21,10 @@ import {
   buildMonthAxis,
   type MonthAxis,
 } from "@/modules/core/kernel/domain/calendar";
-import { MONTHS_PER_HALF_YEAR, distributeAmountAcrossHalfYearMonths } from "@/modules/core/kernel/domain/period-axis";
+import {
+  MONTHS_PER_HALF_YEAR,
+  distributeAmountAcrossHalfYearMonths,
+} from "@/modules/core/kernel/domain/period-axis";
 import { saturatedFulfillment } from "@/modules/core/kpi/domain/kpi-direction";
 import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
 import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";

@@ -3,7 +3,7 @@ import {
   computePortfolioGuardrails,
   type GuardrailsEpicInput,
 } from "@/server/views/portfolio-guardrails-view";
-import { DEFAULT_GUARDRAIL_TARGETS } from "@/domain/portfolio-guardrails";
+import { DEFAULT_GUARDRAIL_TARGETS } from "@/modules/work/domain/portfolio-guardrails";
 
 const epic = (over: Partial<GuardrailsEpicInput> = {}): GuardrailsEpicInput => ({
   id: "e1",

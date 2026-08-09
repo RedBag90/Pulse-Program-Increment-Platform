@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { createServerAction, type ActionState } from "@/server/http/server-action";
 import { advanceStageGate } from "@/server/services/epic";
-import { STAGE_GATES } from "@/domain/stage-gate";
+import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 export type { ActionState as StageGateActionState };

@@ -12,7 +12,7 @@ import {
   type NextStep,
 } from "@/server/services/transformation";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
-import { epicBucket } from "@/domain/stage-gate";
+import { epicBucket } from "@/modules/work/domain/stage-gate";
 import { isAtRisk, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { isClosed } from "@/modules/core/goals/domain/goal-status";
 import { loadStrategyTree } from "@/modules/core/goals/server/views/ziele-view";

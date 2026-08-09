@@ -1,6 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import type { ApprovalSection } from "@/domain/epic-approval";
+import type { ApprovalSection } from "@/modules/work/domain/epic-approval";
 
 /** A section's sign-off state for the Epic's active approval revision. */
 export interface SectionSignoff {

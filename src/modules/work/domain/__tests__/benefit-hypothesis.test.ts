@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { parseBenefitHypothesis, benefitHypothesisHasContent } from "@/domain/benefit-hypothesis";
+import {
+  parseBenefitHypothesis,
+  benefitHypothesisHasContent,
+} from "@/modules/work/domain/benefit-hypothesis";
 
 describe("parseBenefitHypothesis", () => {
   it("returns an empty hypothesis for null", () => {

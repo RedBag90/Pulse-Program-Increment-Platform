@@ -6,7 +6,7 @@ import {
   LIFECYCLE_TRIGGERS,
   SUB_STAGE_RULES,
   BLOCKED_MANUAL_TRANSITIONS,
-} from "@/domain/epic-lifecycle-doc";
+} from "@/modules/work/domain/epic-lifecycle-doc";
 
 /**
  * In-App-Hilfe fuer den Stage-Gate-Lebenszyklus auf der Epic-Detail-Page.

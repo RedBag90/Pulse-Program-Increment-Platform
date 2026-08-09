@@ -13,8 +13,8 @@ import {
 } from "@/server/services/epic-approval";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import { APPROVAL_PARTIES } from "@/domain/business-case";
-import { APPROVAL_SECTIONS } from "@/domain/epic-approval";
+import { APPROVAL_PARTIES } from "@/modules/work/domain/business-case";
+import { APPROVAL_SECTIONS } from "@/modules/work/domain/epic-approval";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 const DECISION = z.enum(["approve", "reject"]);

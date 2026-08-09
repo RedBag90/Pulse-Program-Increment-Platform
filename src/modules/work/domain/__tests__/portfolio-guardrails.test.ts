@@ -8,7 +8,7 @@ import {
   parseGuardrailTargets,
   validateGuardrailTargets,
   DEFAULT_GUARDRAIL_TARGETS,
-} from "@/domain/portfolio-guardrails";
+} from "@/modules/work/domain/portfolio-guardrails";
 
 describe("Type-Guards", () => {
   it("akzeptiert nur die drei Epic-Typen", () => {

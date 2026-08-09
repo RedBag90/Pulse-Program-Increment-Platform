@@ -2,7 +2,7 @@
 
 import { useActionState, startTransition } from "react";
 import { updateFeatureAction } from "@/modules/core/org/features/art/actions/feature";
-import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/domain/portfolio-guardrails";
+import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/modules/work/domain/portfolio-guardrails";
 
 interface Props {
   featureId: string;

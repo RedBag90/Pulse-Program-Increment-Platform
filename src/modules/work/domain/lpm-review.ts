@@ -20,7 +20,11 @@
 import { fulfillmentFraction } from "@/modules/core/kpi/domain/kpi-direction";
 import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
 import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";
-import { thresholdTier, type AmpelTier, type AmpelThresholds } from "@/domain/portfolio-ampel";
+import {
+  thresholdTier,
+  type AmpelTier,
+  type AmpelThresholds,
+} from "@/modules/work/domain/portfolio-ampel";
 
 /**
  * Ampel einer Kennzahl **inklusive „neutral"** — für Epics/VS ohne Liefer-Signal

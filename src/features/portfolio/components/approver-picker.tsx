@@ -3,8 +3,8 @@
 import { useActionState, useState, startTransition } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { configureApproversAction } from "@/features/portfolio/actions/epic-approval";
-import { APPROVAL_PARTIES, type ApprovalParty } from "@/domain/business-case";
-import { APPROVAL_SECTIONS, type ApprovalSection } from "@/domain/epic-approval";
+import { APPROVAL_PARTIES, type ApprovalParty } from "@/modules/work/domain/business-case";
+import { APPROVAL_SECTIONS, type ApprovalSection } from "@/modules/work/domain/epic-approval";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SectionLabel } from "@/components/ui/section-label";

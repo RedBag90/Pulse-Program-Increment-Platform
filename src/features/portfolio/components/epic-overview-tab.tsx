@@ -8,7 +8,7 @@ import { PhaseBadge } from "@/components/detail/phase-badge";
 import { SectionLabel } from "@/components/ui/section-label";
 import { formatCompactEUR } from "@/lib/formatting";
 import { buildInitiativeSummary } from "@/modules/core/kernel/domain/initiative-summary";
-import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
+import { parseBusinessCase, computeBusinessCaseTotals } from "@/modules/work/domain/business-case";
 import type { StageGate, InitiativeStatus } from "@/modules/core/kernel/domain/types";
 
 /** Compress the Epic's children-with-PIs into the derived Ist-Fenster (or null). */

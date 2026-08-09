@@ -18,7 +18,7 @@ import {
   type LpmEpicInput,
   type LpmPi,
   type LpmReviewModel,
-} from "@/domain/lpm-review";
+} from "@/modules/work/domain/lpm-review";
 
 const num = (d: unknown): number | null => (d != null ? Number(d) : null);
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { appendVersion, parseVersionedDocument } from "@/domain/versioned-document";
+import { appendVersion, parseVersionedDocument } from "@/modules/work/domain/versioned-document";
 
 interface Fields {
   title?: string;

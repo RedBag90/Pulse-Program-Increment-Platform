@@ -18,7 +18,7 @@
  * owner's manual actuals always survive a re-allocation. No I/O.
  */
 
-import type { TimelineFields } from "@/domain/timeline";
+import type { TimelineFields } from "@/modules/work/domain/timeline";
 import {
   parseIsoMonth,
   monthStart,

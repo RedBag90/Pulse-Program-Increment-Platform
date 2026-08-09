@@ -7,7 +7,7 @@ import {
   autoAdvanceTarget,
   subStageFor,
   epicBucket,
-} from "@/domain/stage-gate";
+} from "@/modules/work/domain/stage-gate";
 
 describe("STAGE_GATES", () => {
   it("lists the six gates L0–L5 in order", () => {

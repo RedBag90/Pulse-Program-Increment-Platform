@@ -10,7 +10,7 @@ import {
   HORIZONS,
   EPIC_TYPE_LABEL,
   HORIZON_LABEL,
-} from "@/domain/portfolio-guardrails";
+} from "@/modules/work/domain/portfolio-guardrails";
 
 export type SortKey =
   | "createdAt:desc"

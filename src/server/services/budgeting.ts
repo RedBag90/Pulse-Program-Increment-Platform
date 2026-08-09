@@ -10,9 +10,9 @@ import type { TenantId, EpicId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok } from "@/modules/core/kernel/domain/errors";
-import { parseTimeline } from "@/domain/timeline";
-import { fundedWindow, withScheduleEstimates } from "@/domain/epic-schedule";
-import { deriveEpicEconomics } from "@/domain/epic-economics";
+import { parseTimeline } from "@/modules/work/domain/timeline";
+import { fundedWindow, withScheduleEstimates } from "@/modules/work/domain/epic-schedule";
+import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
 import { halfYearKey, parseHalfYearKey, halfYearStart, addHalfYears } from "@/modules/core/kernel/domain/calendar";
 import {
   buildHalfYearAxis,

@@ -6,8 +6,8 @@ import {
   BLOCKED_MANUAL_TRANSITIONS,
   manualForwardBlockReason,
   type ManualAdvanceState,
-} from "@/domain/epic-lifecycle-doc";
-import { SUB_STAGES } from "@/domain/stage-gate";
+} from "@/modules/work/domain/epic-lifecycle-doc";
+import { SUB_STAGES } from "@/modules/work/domain/stage-gate";
 
 /**
  * Sanity-Checks der Lebenszyklus-Dokumentations-Konstanten. Falls ein

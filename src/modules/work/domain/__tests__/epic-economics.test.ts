@@ -6,7 +6,7 @@ import {
   type BenefitKpiFacts,
   type EpicEconomicsKpiInput,
   type EpicEconomicsSource,
-} from "@/domain/epic-economics";
+} from "@/modules/work/domain/epic-economics";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 

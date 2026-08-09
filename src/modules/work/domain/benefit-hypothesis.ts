@@ -10,7 +10,7 @@ import {
   parseVersionedDocument,
   type VersionedDocument,
   type VersionSnapshot,
-} from "@/domain/versioned-document";
+} from "@/modules/work/domain/versioned-document";
 
 export interface BenefitHypothesisFields {
   /** Maßnahmen-Hypothese — the solution/measures hypothesis. */

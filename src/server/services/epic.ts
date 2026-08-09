@@ -5,9 +5,9 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
-import { isValidTransition, isApprovalTransition, autoAdvanceTarget } from "@/domain/stage-gate";
-import { findBlockedManualTransition, manualForwardBlockReason } from "@/domain/epic-lifecycle-doc";
-import type { EpicType, Horizon } from "@/domain/portfolio-guardrails";
+import { isValidTransition, isApprovalTransition, autoAdvanceTarget } from "@/modules/work/domain/stage-gate";
+import { findBlockedManualTransition, manualForwardBlockReason } from "@/modules/work/domain/epic-lifecycle-doc";
+import type { EpicType, Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,
@@ -16,7 +16,7 @@ import {
 } from "@/modules/core/kernel/server/mutation";
 import { createInitiativeWithDerivedPath } from "@/modules/core/kernel/server/initiative-write";
 import { loadAndAuthorize } from "@/server/services/load-and-authorize";
-import { appendVersion } from "@/domain/versioned-document";
+import { appendVersion } from "@/modules/work/domain/versioned-document";
 import { emitAuditEvent } from "@/server/audit/emit";
 import { effectivePractices } from "@/modules/core/kernel/domain/operating-model";
 import {
@@ -24,14 +24,14 @@ import {
   benefitHypothesisHasContent,
   type BenefitHypothesisFields,
   type BenefitHypothesis,
-} from "@/domain/benefit-hypothesis";
+} from "@/modules/work/domain/benefit-hypothesis";
 import {
   parseBusinessCase,
   businessCaseHasContent,
   type BusinessCaseFields,
   type BusinessCase,
-} from "@/domain/business-case";
-import type { TimelineFields } from "@/domain/timeline";
+} from "@/modules/work/domain/business-case";
+import type { TimelineFields } from "@/modules/work/domain/timeline";
 
 // ---------------------------------------------------------------------------
 // Create Epic (level 0)

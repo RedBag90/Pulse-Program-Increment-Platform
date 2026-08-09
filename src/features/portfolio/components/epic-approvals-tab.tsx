@@ -1,6 +1,6 @@
 "use client";
 
-import { APPROVAL_PARTIES, type ApprovalParty } from "@/domain/business-case";
+import { APPROVAL_PARTIES, type ApprovalParty } from "@/modules/work/domain/business-case";
 import {
   APPROVAL_SECTIONS,
   partyStatus,
@@ -10,7 +10,7 @@ import {
   type ApprovalPhase,
   type ApprovalRecord,
   type ApprovalSection,
-} from "@/domain/epic-approval";
+} from "@/modules/work/domain/epic-approval";
 import {
   SubmitHypothesisButton,
   SubmitBusinessCaseButton,

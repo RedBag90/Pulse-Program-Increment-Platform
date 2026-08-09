@@ -17,9 +17,9 @@ import {
   computeBusinessCaseTotals,
   type BusinessCaseFields,
   type BusinessCaseTotals,
-} from "@/domain/business-case";
-import { parseTimeline } from "@/domain/timeline";
-import { resolveCostStart, resolveGoLive } from "@/domain/epic-schedule";
+} from "@/modules/work/domain/business-case";
+import { parseTimeline } from "@/modules/work/domain/timeline";
+import { resolveCostStart, resolveGoLive } from "@/modules/work/domain/epic-schedule";
 import type { KpiMeasurement } from "@/modules/core/kpi/domain/kpi";
 import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
 import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";

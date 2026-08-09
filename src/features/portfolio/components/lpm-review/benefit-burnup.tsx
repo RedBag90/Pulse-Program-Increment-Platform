@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import type { LpmBurnupPoint } from "@/domain/lpm-review";
+import type { LpmBurnupPoint } from "@/modules/work/domain/lpm-review";
 import { formatMioEUR } from "@/lib/formatting";
 import { ACCENT, PLAN_GREY, TOOLTIP_STYLE } from "./chart-theme";
 

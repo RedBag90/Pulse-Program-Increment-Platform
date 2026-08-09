@@ -4,7 +4,7 @@ import { useActionState, useState, startTransition, Fragment } from "react";
 import { CheckCircle2, CircleDot, Circle, Lock, ChevronRight, ArrowDown } from "lucide-react";
 import { saveTimelineAction } from "@/features/portfolio/actions/timeline";
 import { advanceStageGateAction } from "@/features/portfolio/actions/stage-gate";
-import type { TimelineFields, TimelineEstimatePhase, TimelineManualPhase } from "@/domain/timeline";
+import type { TimelineFields, TimelineEstimatePhase, TimelineManualPhase } from "@/modules/work/domain/timeline";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import { SectionLabel } from "@/components/ui/section-label";
 import { reifegradGroups } from "@/features/portfolio/lib/reifegrad-groups";
@@ -15,7 +15,7 @@ import {
   type ApprovalRow,
 } from "./epic-approvals-tab";
 import type { TenantApprover } from "./approver-picker";
-import type { ApprovalPhase } from "@/domain/epic-approval";
+import type { ApprovalPhase } from "@/modules/work/domain/epic-approval";
 
 interface Props {
   epicId: string;

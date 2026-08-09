@@ -12,8 +12,8 @@ import {
   type ApprovalRecord,
   type ApprovalSection,
   type ApprovalStatus,
-} from "@/domain/epic-approval";
-import type { ApprovalParty } from "@/domain/business-case";
+} from "@/modules/work/domain/epic-approval";
+import type { ApprovalParty } from "@/modules/work/domain/business-case";
 
 const party = (p: ApprovalParty, status: ApprovalStatus): ApprovalRecord => ({
   kind: "party",

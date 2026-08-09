@@ -5,7 +5,7 @@ import { saveTimeline, assignEpicOwner } from "@/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
-import type { TimelineFields } from "@/domain/timeline";
+import type { TimelineFields } from "@/modules/work/domain/timeline";
 import type { ActionState } from "@/server/http/server-action";
 
 export type { ActionState as TimelineActionState };

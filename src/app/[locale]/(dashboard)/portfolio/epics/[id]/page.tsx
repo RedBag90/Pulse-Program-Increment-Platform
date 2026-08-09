@@ -25,7 +25,7 @@ import { EPIC_TABS } from "@/features/portfolio/components/epic-detail-shell";
 import { EpicOverviewTab } from "@/features/portfolio/components/epic-overview-tab";
 import { EpicReifegradActivityBar } from "@/features/portfolio/components/epic-reifegrad-activity-bar";
 import { EpicImpactConfirmDialog } from "@/features/portfolio/components/epic-impact-confirm-dialog";
-import { subStageFor } from "@/domain/stage-gate";
+import { subStageFor } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { EpicKpisTab, type KpiRow } from "@/features/portfolio/components/epic-kpis-tab";
 import {
@@ -42,28 +42,28 @@ import {
   benefitHypothesisDiffRows,
 } from "@/features/portfolio/components/revision-diff";
 import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-button";
-import { parseBenefitHypothesis, benefitHypothesisHasContent } from "@/domain/benefit-hypothesis";
+import { parseBenefitHypothesis, benefitHypothesisHasContent } from "@/modules/work/domain/benefit-hypothesis";
 import {
   parseBusinessCase,
   businessCaseHasContent,
   computeBusinessCaseTotals,
-} from "@/domain/business-case";
+} from "@/modules/work/domain/business-case";
 import { EpicHeroFacts } from "@/features/portfolio/components/epic-hero-facts";
-import { epicBenefitFromKpis } from "@/domain/epic-economics";
-import { epicNextStep } from "@/domain/epic-next-step";
+import { epicBenefitFromKpis } from "@/modules/work/domain/epic-economics";
+import { epicNextStep } from "@/modules/work/domain/epic-next-step";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
 import { parseKpiMeasurements, latestKpiValue } from "@/modules/core/kpi/domain/kpi";
-import { parseTimeline } from "@/domain/timeline";
+import { parseTimeline } from "@/modules/work/domain/timeline";
 import {
   sectionStatus,
   APPROVAL_PARTY_LABELS,
   APPROVAL_SECTION_LABELS,
   type ApprovalPhase,
   type ApprovalRecord,
-} from "@/domain/epic-approval";
-import type { ApprovalParty } from "@/domain/business-case";
-import type { ApprovalSection } from "@/domain/epic-approval";
+} from "@/modules/work/domain/epic-approval";
+import type { ApprovalParty } from "@/modules/work/domain/business-case";
+import type { ApprovalSection } from "@/modules/work/domain/epic-approval";
 import { redirect } from "next/navigation";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 

@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
-import { HORIZON_LABEL, type GuardrailTargets } from "@/domain/portfolio-guardrails";
+import { HORIZON_LABEL, type GuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
 
 interface Props {
   targets: GuardrailTargets;

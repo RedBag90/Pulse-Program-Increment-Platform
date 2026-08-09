@@ -3,7 +3,7 @@ import {
   buildPortfolioSeries,
   type EpicEconomicsDTO,
   type PortfolioEconomicsData,
-} from "@/domain/portfolio-economics";
+} from "@/modules/work/domain/portfolio-economics";
 
 const dto = (over: Partial<EpicEconomicsDTO> = {}): EpicEconomicsDTO => ({
   id: "e1",

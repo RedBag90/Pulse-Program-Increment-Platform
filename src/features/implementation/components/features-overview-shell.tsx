@@ -6,7 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { FEATURE_STATUSES, type FeatureStatus } from "@/server/views/features-list";
 import type { FeaturesOverviewModel, FeatureOverviewRow } from "@/server/views/features-overview";
 import type { WsjfTier } from "@/server/views/features-list";
-import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/domain/portfolio-guardrails";
+import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/modules/work/domain/portfolio-guardrails";
 import { Page, PageHeader } from "@/components/layout";
 
 interface Props {

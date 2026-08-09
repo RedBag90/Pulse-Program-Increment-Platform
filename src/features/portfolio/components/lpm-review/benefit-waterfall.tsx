@@ -10,7 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import type { LpmWaterfallStep } from "@/domain/lpm-review";
+import type { LpmWaterfallStep } from "@/modules/work/domain/lpm-review";
 import { formatMioEUR } from "@/lib/formatting";
 import { PLAN_GREY, tierHex, TOOLTIP_STYLE } from "./chart-theme";
 

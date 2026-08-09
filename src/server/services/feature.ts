@@ -12,10 +12,10 @@ import {
   findValidatedParent,
 } from "@/modules/core/kernel/server/initiative-write";
 import { paginate, type PageParams } from "@/server/db/paginate";
-import { rangeOverlapsPlannedWindow } from "@/domain/epic-schedule";
+import { rangeOverlapsPlannedWindow } from "@/modules/work/domain/epic-schedule";
 import { canDeliveryTransition } from "@/modules/core/kernel/domain/initiative-status";
 import { earliestStartFromBlockers, type BlockerWindow } from "@/domain/dependency-graph";
-import type { FeatureType } from "@/domain/portfolio-guardrails";
+import type { FeatureType } from "@/modules/work/domain/portfolio-guardrails";
 import { emitAuditEvent } from "@/server/audit/emit";
 
 /** Non-fatal advisories surfaced alongside a successful mutation (e.g. setFeaturePi). */

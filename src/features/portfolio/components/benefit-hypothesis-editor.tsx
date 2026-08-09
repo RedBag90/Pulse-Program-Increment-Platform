@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import type {
   BenefitHypothesisFields,
   BenefitHypothesisVersion,
-} from "@/domain/benefit-hypothesis";
+} from "@/modules/work/domain/benefit-hypothesis";
 
 interface BenefitHypothesisEditorProps {
   epicId: string;

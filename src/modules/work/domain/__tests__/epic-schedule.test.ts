@@ -7,8 +7,8 @@ import {
   resolveEpicWindow,
   plannedEpicWindow,
   rangeOverlapsPlannedWindow,
-} from "@/domain/epic-schedule";
-import { emptyTimeline, type TimelineFields } from "@/domain/timeline";
+} from "@/modules/work/domain/epic-schedule";
+import { emptyTimeline, type TimelineFields } from "@/modules/work/domain/timeline";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 

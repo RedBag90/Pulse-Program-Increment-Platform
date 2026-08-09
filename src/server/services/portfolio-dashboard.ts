@@ -13,17 +13,17 @@ import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok } from "@/modules/core/kernel/domain/errors";
 import { parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";
 import { isoDay, monthStart } from "@/modules/core/kernel/domain/calendar";
-import { deriveEpicEconomics } from "@/domain/epic-economics";
+import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
 import { parsePeriodAmountMap } from "@/domain/budgeting";
-import type { EpicEconomicsDTO, PortfolioEconomicsData } from "@/domain/portfolio-economics";
+import type { EpicEconomicsDTO, PortfolioEconomicsData } from "@/modules/work/domain/portfolio-economics";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import type { Prisma } from "@/generated/prisma";
 import {
   parseGuardrailTargetsDetailed,
   type GuardrailTargets,
-} from "@/domain/portfolio-guardrails";
-import { parseBusinessCase, computeBusinessCaseTotals } from "@/domain/business-case";
+} from "@/modules/work/domain/portfolio-guardrails";
+import { parseBusinessCase, computeBusinessCaseTotals } from "@/modules/work/domain/business-case";
 
 // The serialisable DTO contract lives with the economics maths it feeds; re-
 // exported so existing importers (the dashboard client) keep their path.
@@ -31,7 +31,7 @@ export type {
   BenefitKpiDTO,
   EpicEconomicsDTO,
   PortfolioEconomicsData,
-} from "@/domain/portfolio-economics";
+} from "@/modules/work/domain/portfolio-economics";
 
 /** Reads a JSON map of period-key → number, discarding malformed entries. */
 /**

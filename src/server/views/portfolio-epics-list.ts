@@ -3,17 +3,17 @@ import {
   businessCaseHasContent,
   computeBusinessCaseTotals,
   type BusinessCaseTotals,
-} from "@/domain/business-case";
-import { parseBenefitHypothesis, benefitHypothesisHasContent } from "@/domain/benefit-hypothesis";
-import { epicNextStep, type EpicNextStep } from "@/domain/epic-next-step";
-import { epicBenefitFromKpis } from "@/domain/epic-economics";
+} from "@/modules/work/domain/business-case";
+import { parseBenefitHypothesis, benefitHypothesisHasContent } from "@/modules/work/domain/benefit-hypothesis";
+import { epicNextStep, type EpicNextStep } from "@/modules/work/domain/epic-next-step";
+import { epicBenefitFromKpis } from "@/modules/work/domain/epic-economics";
 import {
   STAGE_GATES,
   SUB_STAGES,
   epicBucket,
   subStageFor,
   type SubStage,
-} from "@/domain/stage-gate";
+} from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { ragTier, type RagTier } from "@/domain/transformation-delta";
 import { extractUniqueFacet } from "@/server/views/lib/page-model-utils";

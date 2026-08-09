@@ -4,7 +4,7 @@ import {
   AMPEL_LABEL,
   ampelHex,
   DEFAULT_AMPEL_THRESHOLDS,
-} from "@/domain/portfolio-ampel";
+} from "@/modules/work/domain/portfolio-ampel";
 
 describe("thresholdTier — Ampel ≥90 grün / 70–89 gelb / <70 rot", () => {
   it("mappt die drei Bänder anhand der Default-Schwellen", () => {

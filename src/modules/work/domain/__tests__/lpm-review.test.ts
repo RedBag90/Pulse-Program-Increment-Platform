@@ -11,7 +11,7 @@ import {
   type LpmKpiInput,
   type LpmEpicInput,
   type LpmPi,
-} from "@/domain/lpm-review";
+} from "@/modules/work/domain/lpm-review";
 
 // 4 PIs, je ~90 Tage, ab 2026-01-01.
 const pis: LpmPi[] = [

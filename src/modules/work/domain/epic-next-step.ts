@@ -9,7 +9,7 @@
  */
 
 import type { StageGate } from "@/modules/core/kernel/domain/types";
-import type { SubStage } from "@/domain/stage-gate";
+import type { SubStage } from "@/modules/work/domain/stage-gate";
 
 export type EpicNextStepCta =
   | { kind: "link"; label: string; href: string }

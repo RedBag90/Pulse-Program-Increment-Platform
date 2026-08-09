@@ -4,8 +4,8 @@ import { listMyApprovals, type MyApprovalRow } from "@/server/services/my-approv
 import { ApprovalActions } from "@/features/my-approvals/components/approval-actions";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
-import type { ApprovalParty } from "@/domain/business-case";
-import type { ApprovalSection } from "@/domain/epic-approval";
+import type { ApprovalParty } from "@/modules/work/domain/business-case";
+import type { ApprovalSection } from "@/modules/work/domain/epic-approval";
 import { Page, PageHeader, PageSection } from "@/components/layout";
 
 /**

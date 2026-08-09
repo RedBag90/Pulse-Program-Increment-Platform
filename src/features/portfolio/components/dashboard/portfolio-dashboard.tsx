@@ -19,7 +19,7 @@ import {
   groupSeriesByValueStream,
   type PortfolioSeries,
   type PortfolioEconomicsData,
-} from "@/domain/portfolio-economics";
+} from "@/modules/work/domain/portfolio-economics";
 import { savePortfolioDashboardSettingsAction } from "@/features/portfolio/actions/dashboard-settings";
 import { epicColor, VALUE_COLOR, COST_COLOR, BREAKEVEN_COLOR } from "./epic-colors";
 import { Card } from "@/components/ui/card";

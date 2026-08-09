@@ -4,7 +4,7 @@ import {
   businessCaseHasContent,
   computeBusinessCaseTotals,
   costSliceLabel,
-} from "@/domain/business-case";
+} from "@/modules/work/domain/business-case";
 
 describe("parseBusinessCase", () => {
   it("returns an empty business case for null or non-objects", () => {
