@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, Calendar, Network, Users, Zap } from "lucide-react";
-import type { StructureRow, NodeKind } from "@/server/views/structure-page";
+import type { StructureRow, NodeKind } from "@/modules/core/org/server/views/structure-page";
 
 interface Props {
   row: StructureRow;

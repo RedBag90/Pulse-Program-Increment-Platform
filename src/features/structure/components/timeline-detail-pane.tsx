@@ -25,7 +25,7 @@ import {
   AddStandardPisControl,
   type PiStandardOption,
 } from "@/features/structure/components/add-standard-pis-control";
-import type { TimelineDetail, NodeKind } from "@/server/views/structure-page";
+import type { TimelineDetail, NodeKind } from "@/modules/core/org/server/views/structure-page";
 
 interface Props {
   timeline: TimelineDetail;

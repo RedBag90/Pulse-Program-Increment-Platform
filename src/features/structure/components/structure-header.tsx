@@ -5,7 +5,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CreateValueStreamDialog } from "@/features/portfolio/components/create-value-stream-dialog";
 import { CreateTimelineButton } from "@/features/structure/components/create-timeline-button";
-import type { NodeKind } from "@/server/views/structure-page";
+import type { NodeKind } from "@/modules/core/org/server/views/structure-page";
 
 interface Props {
   title: string;

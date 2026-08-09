@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getArt } from "@/server/services/art";
+import { getArt } from "@/modules/core/org/server/services/art";
 import { listTenantApprovers } from "@/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { userLabel } from "@/components/detail/initiative-labels";

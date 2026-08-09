@@ -1,8 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { updateArt, softDeleteArt } from "@/server/services/art";
-import { createArtOnTimeline } from "@/server/services/art-setup";
+import { updateArt, softDeleteArt } from "@/modules/core/org/server/services/art";
+import { createArtOnTimeline } from "@/modules/core/org/server/services/art-setup";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { ValueStreamId, ArtId, TimelineId } from "@/domain/types";

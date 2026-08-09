@@ -1,10 +1,10 @@
 "use server";
 
 import { z } from "zod";
-import { createTeam, updateTeam, deleteTeam } from "@/server/services/team";
+import { createTeam, updateTeam, deleteTeam } from "@/modules/core/org/server/services/team";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import { TEAM_TYPES } from "@/domain/team-type";
+import { TEAM_TYPES } from "@/modules/core/org/domain/team-type";
 import type { ArtId, TeamId } from "@/domain/types";
 
 export interface TeamActionState {

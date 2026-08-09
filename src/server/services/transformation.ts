@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
-import { getStructureTree } from "@/server/services/structure";
+import { getStructureTree } from "@/modules/core/org/server/services/structure";
 import { getActiveTargetModel } from "@/server/services/target-model";
 import { effectivePractices, PRACTICE_LABELS, type Practice } from "@/domain/operating-model";
 

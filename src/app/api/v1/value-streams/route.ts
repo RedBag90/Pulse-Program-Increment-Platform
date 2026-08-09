@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createValueStream, listValueStreams } from "@/server/services/value-stream";
+import { createValueStream, listValueStreams } from "@/modules/core/org/server/services/value-stream";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 

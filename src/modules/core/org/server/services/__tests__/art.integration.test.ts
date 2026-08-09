@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
 import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
-import { createArt, softDeleteArt, listArts, getArt } from "@/server/services/art";
+import { createArt, softDeleteArt, listArts, getArt } from "@/modules/core/org/server/services/art";
 import { isOk } from "@/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import type { ArtId, ValueStreamId } from "@/domain/types";

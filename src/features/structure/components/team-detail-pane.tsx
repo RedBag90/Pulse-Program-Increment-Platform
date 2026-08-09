@@ -1,7 +1,7 @@
 "use client";
 
-import { teamTypeLabel } from "@/domain/team-type";
-import type { TeamDetail, NodeKind } from "@/server/views/structure-page";
+import { teamTypeLabel } from "@/modules/core/org/domain/team-type";
+import type { TeamDetail, NodeKind } from "@/modules/core/org/server/views/structure-page";
 
 interface Props {
   team: TeamDetail;

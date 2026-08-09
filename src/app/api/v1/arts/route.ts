@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createArt, listArts } from "@/server/services/art";
+import { createArt, listArts } from "@/modules/core/org/server/services/art";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import type { ValueStreamId } from "@/domain/types";

@@ -6,7 +6,7 @@ import { CreateArtDialog } from "@/features/art/components/create-art-dialog";
 import { EditValueStreamDialog } from "@/features/portfolio/components/edit-value-stream-dialog";
 import { DeleteValueStreamButton } from "@/features/portfolio/components/delete-value-stream-button";
 import { formatEUR } from "@/lib/formatting";
-import type { VsDetail } from "@/server/views/structure-page";
+import type { VsDetail } from "@/modules/core/org/server/views/structure-page";
 
 interface Props {
   vs: VsDetail;

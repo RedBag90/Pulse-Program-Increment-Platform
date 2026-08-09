@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import { startArt } from "@/server/services/art-setup";
+import { startArt } from "@/modules/core/org/server/services/art-setup";
 import type { ValueStreamId, TimelineId } from "@/domain/types";
 
 const schema = z.object({

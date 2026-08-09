@@ -14,7 +14,7 @@ import {
   encodeSelection,
   type Selection,
 } from "@/features/structure/components/structure-selection";
-import type { StructurePageModel, NodeKind } from "@/server/views/structure-page";
+import type { StructurePageModel, NodeKind } from "@/modules/core/org/server/views/structure-page";
 
 interface Props {
   title: string;

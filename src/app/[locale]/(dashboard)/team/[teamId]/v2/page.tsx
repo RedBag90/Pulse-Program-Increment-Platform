@@ -1,7 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getTeam } from "@/server/services/team";
+import { getTeam } from "@/modules/core/org/server/services/team";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { listTenantApprovers } from "@/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";

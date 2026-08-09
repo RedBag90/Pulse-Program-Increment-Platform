@@ -1,6 +1,6 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getTeam } from "@/server/services/team";
+import { getTeam } from "@/modules/core/org/server/services/team";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { TeamSubNav } from "@/features/team/components/team-sub-nav";
 import { AuditTimeline } from "@/components/detail/audit-timeline";

@@ -1,4 +1,7 @@
-import type { StructureTree, StructureTimeline } from "@/server/services/structure";
+import type {
+  StructureTree,
+  StructureTimeline,
+} from "@/modules/core/org/server/services/structure";
 
 /**
  * Structure page-model — flattens the VS → ART → Team tree into a single list

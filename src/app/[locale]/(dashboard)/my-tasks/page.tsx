@@ -10,7 +10,7 @@ import {
   countEpicChildFeatures,
   countEpicCompletedChildFeatures,
 } from "@/server/services/epic";
-import { listValueStreams } from "@/server/services/value-stream";
+import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";
 import { buildEpicsListModel } from "@/server/views/portfolio-epics-list";

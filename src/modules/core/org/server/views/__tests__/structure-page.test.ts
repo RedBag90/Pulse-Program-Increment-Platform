@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildStructurePageModel } from "@/server/views/structure-page";
+import { buildStructurePageModel } from "@/modules/core/org/server/views/structure-page";
 
 const vsRow = (over: {
   id: string;

@@ -1,6 +1,6 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getArt } from "@/server/services/art";
+import { getArt } from "@/modules/core/org/server/services/art";
 import { listPis } from "@/server/services/pi";
 import { ArtSubNav } from "@/features/art/components/art-sub-nav";
 import { Page, PageHeader, PageSection } from "@/components/layout";

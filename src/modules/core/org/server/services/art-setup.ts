@@ -2,7 +2,7 @@ import type { ValueStreamId, ArtId, TimelineId } from "@/domain/types";
 import type { Result } from "@/domain/errors";
 import { ok, isErr } from "@/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { createArt, updateArt } from "@/server/services/art";
+import { createArt, updateArt } from "@/modules/core/org/server/services/art";
 import { joinArtToTimeline } from "@/server/services/timeline";
 
 export interface StartArtInput {

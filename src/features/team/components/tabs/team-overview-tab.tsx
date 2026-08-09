@@ -1,5 +1,5 @@
 import { Link } from "@/i18n/navigation";
-import { teamTypeLabel } from "@/domain/team-type";
+import { teamTypeLabel } from "@/modules/core/org/domain/team-type";
 import { userLabel } from "@/components/detail/initiative-labels";
 
 interface Team {

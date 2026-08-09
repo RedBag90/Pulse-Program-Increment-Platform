@@ -1,8 +1,8 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getArt } from "@/server/services/art";
-import { listTeams } from "@/server/services/team";
+import { getArt } from "@/modules/core/org/server/services/art";
+import { listTeams } from "@/modules/core/org/server/services/team";
 import { listPis } from "@/server/services/pi";
 import { listImpediments } from "@/server/services/impediment";
 import { listAuditHistory } from "@/server/services/audit-history";

@@ -6,7 +6,7 @@ import {
   softDeleteValueStream,
   listValueStreams,
   getValueStream,
-} from "@/server/services/value-stream";
+} from "@/modules/core/org/server/services/value-stream";
 import { isOk } from "@/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import type { ValueStreamId } from "@/domain/types";

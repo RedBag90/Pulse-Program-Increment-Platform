@@ -1,4 +1,4 @@
-import type { NodeKind } from "@/server/views/structure-page";
+import type { NodeKind } from "@/modules/core/org/server/views/structure-page";
 
 /**
  * URL-driven selection on the structure page. Each kind owns its prefix; the

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getValueStream } from "@/server/services/value-stream";
+import { getValueStream } from "@/modules/core/org/server/services/value-stream";
 import { getValueStreamBudgets, type ValueStreamBudget } from "@/server/services/budgeting";
 import { getArtBudgetBreakdown } from "@/server/services/art-budget";
 import { ArtBudgetBreakdown } from "@/features/capacity/components/art-budget-breakdown";

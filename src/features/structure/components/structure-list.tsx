@@ -2,7 +2,7 @@
 
 import { Network } from "lucide-react";
 import { StructureListRow } from "@/features/structure/components/structure-list-row";
-import type { StructureRow, NodeKind } from "@/server/views/structure-page";
+import type { StructureRow, NodeKind } from "@/modules/core/org/server/views/structure-page";
 import type { Selection } from "@/features/structure/components/structure-selection";
 
 interface Props {

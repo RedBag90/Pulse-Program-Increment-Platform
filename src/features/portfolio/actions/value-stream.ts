@@ -5,7 +5,7 @@ import {
   createValueStream,
   updateValueStream,
   softDeleteValueStream,
-} from "@/server/services/value-stream";
+} from "@/modules/core/org/server/services/value-stream";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { formatDomainError } from "@/server/http/domain-error-display";

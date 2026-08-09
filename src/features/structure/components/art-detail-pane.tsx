@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { CreateTeamDialog } from "@/features/team/components/create-team-dialog";
 import { EditArtDialog } from "@/features/art/components/edit-art-dialog";
 import { DeleteArtButton } from "@/features/art/components/delete-art-button";
-import type { ArtDetail, NodeKind } from "@/server/views/structure-page";
+import type { ArtDetail, NodeKind } from "@/modules/core/org/server/views/structure-page";
 
 interface Props {
   art: ArtDetail;

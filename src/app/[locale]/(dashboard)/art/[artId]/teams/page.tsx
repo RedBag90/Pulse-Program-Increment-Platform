@@ -1,8 +1,8 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getArt } from "@/server/services/art";
-import { listTeams } from "@/server/services/team";
+import { getArt } from "@/modules/core/org/server/services/art";
+import { listTeams } from "@/modules/core/org/server/services/team";
 import { CreateTeamDialog } from "@/features/team/components/create-team-dialog";
 import { EditTeamDialog } from "@/features/team/components/edit-team-dialog";
 import { DeleteTeamButton } from "@/features/team/components/delete-team-button";

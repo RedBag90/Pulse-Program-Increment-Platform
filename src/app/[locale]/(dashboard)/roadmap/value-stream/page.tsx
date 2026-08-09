@@ -1,6 +1,6 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { listValueStreams } from "@/server/services/value-stream";
+import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
 import { getValueStreamRoadmap } from "@/server/services/roadmap";
 import { RoadmapGantt } from "@/features/roadmap/components/roadmap-gantt";
 import { valueStreamRoadmapRows, roadmapAxis } from "@/domain/roadmap";
