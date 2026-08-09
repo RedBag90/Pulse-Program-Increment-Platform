@@ -144,7 +144,21 @@ export type AuditAction =
   | "goal.checkin"
   | "goal.progress.updated"
   | "goal.comment.added"
-  | "setup.check.toggled";
+  | "setup.check.toggled"
+  // Risks-Modul
+  | "risk.suggested"
+  | "risk.documented"
+  | "risk.reviewed"
+  | "risk.updated"
+  | "risk.owner.assigned"
+  | "risk.mitigation.added"
+  | "risk.mitigation.removed"
+  | "risk.reassessed"
+  | "risk.roamed"
+  | "risk.deleted"
+  | "risk.epic.linked"
+  | "risk.epic.unlinked"
+  | "risk.settings.updated";
 
 export type AuditResourceType =
   | "initiative"
@@ -183,7 +197,12 @@ export type AuditResourceType =
   | "goal_art_link"
   | "goal_custom_field_def"
   | "goal_custom_field_value"
-  | "setup_progress";
+  | "setup_progress"
+  | "risk"
+  | "risk_epic_link"
+  | "risk_mitigation"
+  | "risk_assessment"
+  | "risk_settings";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

@@ -51,6 +51,14 @@ export type Action =
   | "impediment.create"
   | "impediment.escalate"
   | "impediment.resolve"
+  | "risk.suggest"
+  | "risk.document"
+  | "risk.review"
+  | "risk.update"
+  | "risk.roam"
+  | "risk.delete"
+  | "risk.link"
+  | "risk.settings.manage"
   | "admin.audit-log.read"
   | "admin.users.read"
   | "target.manage"
@@ -72,8 +80,15 @@ export interface Grant {
   scope?: ScopeCheck;
 }
 
-const { PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, EPIC_OWNER, RTE, FEATURE_OWNER, TENANT_ADMIN } =
-  ROLES;
+const {
+  PORTFOLIO_MANAGER,
+  VALUE_STREAM_OWNER,
+  EPIC_OWNER,
+  RTE,
+  FEATURE_OWNER,
+  TENANT_ADMIN,
+  VIEWER,
+} = ROLES;
 
 /**
  * Policy registry: action → grants. A request is allowed if it satisfies ANY
@@ -236,6 +251,30 @@ export const POLICIES: Record<Action, Grant[]> = {
   "impediment.create": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
   "impediment.escalate": [{ roles: [PORTFOLIO_MANAGER, RTE] }],
   "impediment.resolve": [{ roles: [PORTFOLIO_MANAGER, RTE] }],
+  // ── Risks ─────────────────────────────────────────────────────────────────
+  // Everyone suggests; the Epic Owner (value-stream-scoped) documents/reviews.
+  "risk.suggest": [
+    { roles: [FEATURE_OWNER, RTE, VALUE_STREAM_OWNER, EPIC_OWNER, PORTFOLIO_MANAGER, VIEWER] },
+  ],
+  "risk.document": [
+    { roles: [PORTFOLIO_MANAGER, RTE] },
+    { roles: [EPIC_OWNER], scope: "value_stream" },
+  ],
+  "risk.review": [{ roles: [PORTFOLIO_MANAGER] }, { roles: [EPIC_OWNER], scope: "value_stream" }],
+  "risk.update": [
+    { roles: [PORTFOLIO_MANAGER, RTE] },
+    { roles: [EPIC_OWNER], scope: "value_stream" },
+  ],
+  "risk.roam": [
+    { roles: [PORTFOLIO_MANAGER, RTE] },
+    { roles: [EPIC_OWNER], scope: "value_stream" },
+  ],
+  "risk.link": [
+    { roles: [PORTFOLIO_MANAGER, RTE] },
+    { roles: [EPIC_OWNER], scope: "value_stream" },
+  ],
+  "risk.delete": [{ roles: [PORTFOLIO_MANAGER] }],
+  "risk.settings.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
 };
 
 /**

@@ -747,11 +747,11 @@ model Initiative {
 
   // Epic timeline (EPIC only): owner-set estimates + manual actuals (backlog,
   // implementation) as a flat JSON; auto actuals live in the columns below.
-  timeline               Json?     @map("timeline")
-  selectedForDetailingAt DateTime? @map("selected_for_detailing_at") // stamped when the Epic enters L1
-  hypothesisApprovedAt   DateTime? @map("hypothesis_approved_at")
-  selectedForAnalyzingAt DateTime? @map("selected_for_analyzing_at") // stamped when the Epic enters L2
-  businessCaseApprovedAt DateTime? @map("business_case_approved_at")
+  timeline                Json?     @map("timeline")
+  selectedForDetailingAt  DateTime? @map("selected_for_detailing_at") // stamped when the Epic enters L1
+  hypothesisApprovedAt    DateTime? @map("hypothesis_approved_at")
+  selectedForAnalyzingAt  DateTime? @map("selected_for_analyzing_at") // stamped when the Epic enters L2
+  businessCaseApprovedAt  DateTime? @map("business_case_approved_at")
   implementationStartedAt DateTime? @map("implementation_started_at") // stamped when the Epic enters L4
 
   // Geplantes Umsetzungsfenster (EPIC only): the owner-set "Soll" window for
@@ -829,6 +829,7 @@ model Initiative {
   themeLinks       ThemeEpicLink[]
   goalLinks        GoalEpicLink[]
   budgetAllocation BudgetAllocation?
+  riskLinks        RiskEpicLink[]
 
   @@index([tenantId])
   @@index([parentId])
@@ -1158,6 +1159,110 @@ model Impediment {
   @@index([artId, status])
   @@index([piId])
   @@map("impediments")
+}
+
+// ── Risk Management module (docs/concepts/risk-management-module.md) ───────────
+// Tenant-level Risk register with ROAM + probability×impact matrix, n:m Epic
+// links. Tenant-scoped by a plain column (like Impediment); no `tenant` relation.
+
+model Risk {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenantId             String    @map("tenant_id") @db.Uuid
+  // Per-tenant sequential handle — null until documented (suggestions have none).
+  riskNumber           Int?      @map("risk_number")
+  title                String
+  description          String?   @db.Text
+  // Inherent assessment (optional → unscored). Current = latest RiskAssessment
+  // else inherent. Levels: very_low | low | medium | high | very_high.
+  probability          String?
+  impact               String?
+  category             String? // technical | business | schedule | external
+  targetResolutionDate DateTime? @map("target_resolution_date")
+  // Authoring axis: suggested | documented | rejected.
+  reviewStatus         String    @default("suggested") @map("review_status")
+  // ROAM disposition: open | resolved | owned | accepted | mitigated.
+  roamStatus           String    @default("open") @map("roam_status")
+  roamRationale        String?   @map("roam_rationale") @db.Text
+  // The accountable Risk owner (assignable any time, independent of ROAM).
+  ownerId              String?   @map("owner_id") @db.Uuid
+  raisedBy             String    @map("raised_by") @db.Uuid
+  reviewedBy           String?   @map("reviewed_by") @db.Uuid
+  reviewedAt           DateTime? @map("reviewed_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  deletedAt            DateTime? @map("deleted_at")
+
+  epicLinks   RiskEpicLink[]
+  mitigations RiskMitigation[]
+  assessments RiskAssessment[]
+
+  @@unique([tenantId, riskNumber])
+  @@index([tenantId, reviewStatus])
+  @@index([tenantId, roamStatus])
+  @@index([tenantId, ownerId])
+  @@map("risks")
+}
+
+// n:m Risk↔Epic — purely referential (deep-link), hard FK to Initiative, no value.
+model RiskEpicLink {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  riskId    String   @map("risk_id") @db.Uuid
+  epicId    String   @map("epic_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+
+  risk Risk       @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  epic Initiative @relation(fields: [epicId], references: [id], onDelete: Cascade)
+
+  @@unique([riskId, epicId])
+  @@index([tenantId, riskId])
+  @@index([epicId])
+  @@map("risk_epic_links")
+}
+
+// Mitigation activity log (text-only; a risk has many).
+model RiskMitigation {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  riskId      String   @map("risk_id") @db.Uuid
+  description String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   String   @map("created_by") @db.Uuid
+
+  risk Risk @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, riskId])
+  @@map("risk_mitigations")
+}
+
+// Reassessment trail — every valuation over time (inherent is #0, on Risk).
+model RiskAssessment {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  riskId      String   @map("risk_id") @db.Uuid
+  probability String
+  impact      String
+  note        String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   String   @map("created_by") @db.Uuid
+
+  risk Risk @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, riskId])
+  @@map("risk_assessments")
+}
+
+// Per-tenant risks config + gapless number counter.
+model RiskSettings {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @unique @map("tenant_id") @db.Uuid
+  prefix     String   @default("R-")
+  lastNumber Int      @default(0) @map("last_number")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("risk_settings")
 }
 
 model JiraConfig {
