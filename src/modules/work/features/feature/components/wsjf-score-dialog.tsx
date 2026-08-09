@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   scoreFeatureAction,
   type FeatureActionState,
-} from "@/modules/core/org/features/art/actions/feature";
+} from "@/modules/work/features/feature/actions/feature";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

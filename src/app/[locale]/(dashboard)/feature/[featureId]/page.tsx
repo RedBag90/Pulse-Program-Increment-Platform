@@ -1,7 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getFeature } from "@/server/services/feature";
+import { getFeature } from "@/modules/work/server/services/feature";
 import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
 import {
   EntityDetailShell,
@@ -10,8 +10,8 @@ import {
 } from "@/components/detail/entity-detail-shell";
 import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
-import { FeatureOverviewTab } from "@/modules/core/org/features/art/components/feature-overview-tab";
-import { DeleteFeatureButton } from "@/modules/core/org/features/art/components/delete-feature-button";
+import { FeatureOverviewTab } from "@/modules/work/features/feature/components/feature-overview-tab";
+import { DeleteFeatureButton } from "@/modules/work/features/feature/components/delete-feature-button";
 import { FeatureDeliveryControls } from "@/features/feature/components/feature-delivery-controls";
 import { getBlockerWindowsForFeatures } from "@/server/services/dependency";
 import { earliestStartFromBlockers } from "@/modules/core/kernel/domain/dependency-graph";

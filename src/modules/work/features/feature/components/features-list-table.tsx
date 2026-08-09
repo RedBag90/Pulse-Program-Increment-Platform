@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { FEATURE_STATUSES, type FeatureStatus } from "@/server/views/features-list";
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
-import { FeatureListRowComponent } from "@/modules/core/org/features/art/components/feature-list-row";
+import { FeatureListRowComponent } from "@/modules/work/features/feature/components/feature-list-row";
 import type { FeatureListRow } from "@/server/views/features-list";
 
 interface Props {

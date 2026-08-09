@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createFeature, listFeatures } from "@/server/services/feature";
+import { createFeature, listFeatures } from "@/modules/work/server/services/feature";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import { parsePageParams } from "@/server/db/paginate";

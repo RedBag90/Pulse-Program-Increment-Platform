@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, startTransition } from "react";
-import { startFeatureAction, setFeatureDeliveryStatusAction } from "@/modules/core/org/features/art/actions/feature";
+import { startFeatureAction, setFeatureDeliveryStatusAction } from "@/modules/work/features/feature/actions/feature";
 
 /**
  * Delivery-lifecycle controls on the Feature detail header. Renders the

@@ -1,6 +1,6 @@
 "use client";
 
-import { FeaturesListTable } from "@/modules/core/org/features/art/components/features-list-table";
+import { FeaturesListTable } from "@/modules/work/features/feature/components/features-list-table";
 import type { FeatureListRow } from "@/server/views/features-list";
 
 interface Props {

@@ -1,7 +1,7 @@
 "use client";
 
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
-import { deleteFeatureAction } from "@/modules/core/org/features/art/actions/feature";
+import { deleteFeatureAction } from "@/modules/work/features/feature/actions/feature";
 
 interface DeleteFeatureButtonProps {
   id: string;

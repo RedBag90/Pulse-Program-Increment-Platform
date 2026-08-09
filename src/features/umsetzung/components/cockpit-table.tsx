@@ -6,7 +6,7 @@ import {
   setFeaturePiAction,
   setFeatureDeliveryStatusAction,
   bulkSetFeatureDeliveryStatusAction,
-} from "@/modules/core/org/features/art/actions/feature";
+} from "@/modules/work/features/feature/actions/feature";
 import type {
   CockpitFeature,
   CockpitPiSlot,

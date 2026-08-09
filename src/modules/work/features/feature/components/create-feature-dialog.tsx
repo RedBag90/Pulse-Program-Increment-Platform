@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Plus } from "lucide-react";
-import { createFeatureAction } from "@/modules/core/org/features/art/actions/feature";
+import { createFeatureAction } from "@/modules/work/features/feature/actions/feature";
 import { useCreateResult } from "@/features/create/use-create-result";
 import { useEntityOptions, optionsEndpoint } from "@/features/create/use-entity-options";
 import type { CreateContext } from "@/features/create/create-context";

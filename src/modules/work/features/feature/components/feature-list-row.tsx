@@ -7,10 +7,10 @@ import { STATUS_DOT, STATUS_LABELS } from "@/components/detail/initiative-labels
 import {
   deleteFeatureAction,
   setFeaturePiAction,
-} from "@/modules/core/org/features/art/actions/feature";
+} from "@/modules/work/features/feature/actions/feature";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { WsjfScoreDialog } from "@/modules/core/org/features/art/components/wsjf-score-dialog";
+import { WsjfScoreDialog } from "@/modules/work/features/feature/components/wsjf-score-dialog";
 import type { FeatureListRow, WsjfTier } from "@/server/views/features-list";
 
 interface Props {

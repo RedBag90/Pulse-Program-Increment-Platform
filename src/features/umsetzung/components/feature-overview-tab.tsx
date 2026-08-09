@@ -3,7 +3,7 @@
 import { useActionState, startTransition, useState } from "react";
 import { ArrowRight, Play, PauseOctagon, CheckCircle2, XCircle, RotateCw } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { setFeatureDeliveryStatusAction } from "@/modules/core/org/features/art/actions/feature";
+import { setFeatureDeliveryStatusAction } from "@/modules/work/features/feature/actions/feature";
 import { FeatureClassificationForm } from "./feature-classification-form";
 import { STATUS_DOT, STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { formatDate } from "@/lib/formatting";

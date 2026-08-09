@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getFeature, updateFeature } from "@/server/services/feature";
+import { getFeature, updateFeature } from "@/modules/work/server/services/feature";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import { fibonacci } from "@/domain/schemas/initiative";

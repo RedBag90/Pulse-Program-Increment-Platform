@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setFeaturePiAction } from "@/modules/core/org/features/art/actions/feature";
+import { setFeaturePiAction } from "@/modules/work/features/feature/actions/feature";
 
 interface Pi {
   id: string;

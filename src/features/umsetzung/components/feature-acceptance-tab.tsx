@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useEffect } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { updateFeatureAction } from "@/modules/core/org/features/art/actions/feature";
+import { updateFeatureAction } from "@/modules/work/features/feature/actions/feature";
 
 interface Props {
   featureId: string;

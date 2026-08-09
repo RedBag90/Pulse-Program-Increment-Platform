@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createFeatureWithDependency, insertFeatureBetween } from "@/server/services/feature";
+import { createFeatureWithDependency, insertFeatureBetween } from "@/modules/work/server/services/feature";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import type { ArtId, EpicId, FeatureId } from "@/modules/core/kernel/domain/types";

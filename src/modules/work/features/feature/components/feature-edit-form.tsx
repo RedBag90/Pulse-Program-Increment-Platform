@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { updateFeatureAction } from "@/modules/core/org/features/art/actions/feature";
+import { updateFeatureAction } from "@/modules/work/features/feature/actions/feature";
 
 interface FeatureEditFormProps {
   id: string;

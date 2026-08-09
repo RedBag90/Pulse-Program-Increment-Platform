@@ -40,16 +40,16 @@ import {
 import "@xyflow/react/dist/style.css";
 import { toast } from "sonner";
 import { detectCycle } from "@/modules/core/kernel/domain/dependency-graph";
-import { CreateFeatureDialog } from "@/modules/core/org/features/art/components/create-feature-dialog";
+import { CreateFeatureDialog } from "@/modules/work/features/feature/components/create-feature-dialog";
 import {
   linkDependencyAction,
   unlinkDependencyAction,
   changeDependencyTypeAction,
 } from "@/features/dependencies/actions/dependency";
-import { updateFeatureAction } from "@/modules/core/org/features/art/actions/feature";
+import { updateFeatureAction } from "@/modules/work/features/feature/actions/feature";
 import { saveBreakdownLayoutAction } from "@/modules/work/features/portfolio/actions/breakdown-layout";
 import { useBreakdownRealtime } from "@/modules/work/features/portfolio/hooks/use-breakdown-realtime";
-import { WsjfScoreDialog } from "@/modules/core/org/features/art/components/wsjf-score-dialog";
+import { WsjfScoreDialog } from "@/modules/work/features/feature/components/wsjf-score-dialog";
 import {
   quickAddFeatureWithDependencyAction,
   insertFeatureBetweenAction,
