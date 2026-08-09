@@ -5,7 +5,7 @@ import { Settings2, Trash2 } from "lucide-react";
 import {
   createPiStandardAction,
   deletePiStandardAction,
-} from "@/modules/core/org/features/structure/actions/pi-standard";
+} from "@/modules/drumbeat/features/cadence/actions/pi-standard";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";

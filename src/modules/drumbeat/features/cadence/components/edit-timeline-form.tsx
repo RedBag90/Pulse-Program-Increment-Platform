@@ -2,7 +2,7 @@
 
 import { useActionState, useState, startTransition } from "react";
 import { Pencil, X } from "lucide-react";
-import { updateTimelineAction } from "@/modules/core/org/features/structure/actions/timeline";
+import { updateTimelineAction } from "@/modules/drumbeat/features/cadence/actions/timeline";
 import type { ActionState } from "@/server/http/server-action";
 
 interface Props {

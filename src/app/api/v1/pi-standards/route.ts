@@ -1,4 +1,4 @@
-import { listPiStandards } from "@/modules/core/org/server/services/pi-standard";
+import { listPiStandards } from "@/modules/drumbeat/server/services/pi-standard";
 import { createQueryHandler } from "@/server/http/query-handler";
 
 export const GET = createQueryHandler({

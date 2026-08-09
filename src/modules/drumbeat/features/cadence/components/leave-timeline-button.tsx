@@ -1,7 +1,7 @@
 "use client";
 
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
-import { leaveArtFromTimelineAction } from "@/modules/core/org/features/structure/actions/timeline";
+import { leaveArtFromTimelineAction } from "@/modules/drumbeat/features/cadence/actions/timeline";
 
 export function LeaveTimelineButton({ artId, artName }: { artId: string; artName: string }) {
   return (

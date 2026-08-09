@@ -2,7 +2,7 @@
 
 import { Trash2 } from "lucide-react";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
-import { deleteTimelineAction } from "@/modules/core/org/features/structure/actions/timeline";
+import { deleteTimelineAction } from "@/modules/drumbeat/features/cadence/actions/timeline";
 
 /**
  * Inline delete trigger for a Timeline. The service refuses while ARTs are

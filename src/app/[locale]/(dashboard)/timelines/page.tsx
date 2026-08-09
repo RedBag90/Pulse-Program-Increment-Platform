@@ -9,11 +9,11 @@ import {
 } from "@/modules/core/org/server/services/structure";
 import { getValueStreamBudgets } from "@/modules/budgeting/server/services/budgeting";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { listPiStandards } from "@/modules/core/org/server/services/pi-standard";
+import { listPiStandards } from "@/modules/drumbeat/server/services/pi-standard";
 import { buildStructurePageModel } from "@/modules/core/org/server/views/structure-page";
 import { StructurePageShell } from "@/modules/core/org/features/structure/components/structure-page-shell";
-import { CreateTimelineButton } from "@/modules/core/org/features/structure/components/create-timeline-button";
-import { TimelineDetailPane } from "@/modules/core/org/features/structure/components/timeline-detail-pane";
+import { CreateTimelineButton } from "@/modules/drumbeat/features/cadence/components/create-timeline-button";
+import { TimelineDetailPane } from "@/modules/drumbeat/features/cadence/components/timeline-detail-pane";
 
 /**
  * Timelines-Page — Master-Detail-Layout fuer **Timelines** + ihre PIs +

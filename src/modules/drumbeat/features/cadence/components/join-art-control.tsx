@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, startTransition } from "react";
-import { joinArtToTimelineAction } from "@/modules/core/org/features/structure/actions/timeline";
+import { joinArtToTimelineAction } from "@/modules/drumbeat/features/cadence/actions/timeline";
 import { Button } from "@/components/ui/button";
 
 const SELECT_CLASS =

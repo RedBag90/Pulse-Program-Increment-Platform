@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   StandardPreviewDialog,
   type FullPiStandardOption,
-} from "@/modules/core/org/features/structure/components/standard-preview-dialog";
+} from "@/modules/drumbeat/features/cadence/components/standard-preview-dialog";
 
 export type PiStandardOption = FullPiStandardOption;
 

@@ -2,17 +2,17 @@
 
 import { useState } from "react";
 import { ArrowRight, Calendar, Pencil, Plus } from "lucide-react";
-import { JoinArtToTimelineControl } from "@/modules/core/org/features/structure/components/join-art-control";
-import { DeleteTimelineButton } from "@/modules/core/org/features/structure/components/delete-timeline-button";
-import { LeaveTimelineButton } from "@/modules/core/org/features/structure/components/leave-timeline-button";
-import { EditTimelineForm } from "@/modules/core/org/features/structure/components/edit-timeline-form";
-import { PiDialog } from "@/modules/core/org/features/structure/components/pi-dialog";
-import { DeletePiRowButton } from "@/modules/core/org/features/structure/components/delete-pi-row-button";
+import { JoinArtToTimelineControl } from "@/modules/drumbeat/features/cadence/components/join-art-control";
+import { DeleteTimelineButton } from "@/modules/drumbeat/features/cadence/components/delete-timeline-button";
+import { LeaveTimelineButton } from "@/modules/drumbeat/features/cadence/components/leave-timeline-button";
+import { EditTimelineForm } from "@/modules/drumbeat/features/cadence/components/edit-timeline-form";
+import { PiDialog } from "@/modules/drumbeat/features/cadence/components/pi-dialog";
+import { DeletePiRowButton } from "@/modules/drumbeat/features/cadence/components/delete-pi-row-button";
 import dynamic from "next/dynamic";
 
 const TimelineCalendar = dynamic(
   () =>
-    import("@/modules/core/org/features/structure/components/timeline-calendar").then(
+    import("@/modules/drumbeat/features/cadence/components/timeline-calendar").then(
       (m) => m.TimelineCalendar,
     ),
   {
@@ -27,7 +27,7 @@ const TimelineCalendar = dynamic(
 import {
   AddStandardPisControl,
   type PiStandardOption,
-} from "@/modules/core/org/features/structure/components/add-standard-pis-control";
+} from "@/modules/drumbeat/features/cadence/components/add-standard-pis-control";
 import type { TimelineDetail, NodeKind } from "@/modules/core/org/server/views/structure-page";
 
 interface Props {

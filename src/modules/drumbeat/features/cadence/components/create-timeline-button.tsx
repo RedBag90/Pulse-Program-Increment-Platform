@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Plus } from "lucide-react";
-import { createTimelineAction } from "@/modules/core/org/features/structure/actions/timeline";
+import { createTimelineAction } from "@/modules/drumbeat/features/cadence/actions/timeline";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

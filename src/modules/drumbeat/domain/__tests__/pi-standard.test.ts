@@ -3,7 +3,7 @@ import {
   standardPiSchedule,
   selectFreeStandardPis,
   type PiStandardSpec,
-} from "@/modules/core/org/domain/pi-standard";
+} from "@/modules/drumbeat/domain/pi-standard";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 const iso = (d: Date) => d.toISOString().slice(0, 10);

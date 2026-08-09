@@ -5,7 +5,7 @@ import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
-import { applyPiStandard } from "@/modules/core/org/server/services/pi-standard";
+import { applyPiStandard } from "@/modules/drumbeat/server/services/pi-standard";
 
 /**
  * Timelines — shared PI cadences that multiple ARTs can subscribe to.

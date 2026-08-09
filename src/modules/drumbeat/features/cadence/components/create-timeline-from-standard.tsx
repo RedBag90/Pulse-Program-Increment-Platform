@@ -2,9 +2,9 @@
 
 import { useActionState, useState, startTransition } from "react";
 import { Sparkles } from "lucide-react";
-import { createTimelineFromStandardAction } from "@/modules/core/org/features/structure/actions/timeline";
+import { createTimelineFromStandardAction } from "@/modules/drumbeat/features/cadence/actions/timeline";
 import { Button } from "@/components/ui/button";
-import type { PiStandard } from "@/modules/core/org/features/structure/components/pi-standards-manager";
+import type { PiStandard } from "@/modules/drumbeat/features/cadence/components/pi-standards-manager";
 
 const SELECT_CLASS =
   "h-8 rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
