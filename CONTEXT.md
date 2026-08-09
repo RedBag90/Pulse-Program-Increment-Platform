@@ -306,6 +306,9 @@ resource)` is the _authoritative, scope-aware_ check, run inside a service
 > layered four-module structure **Core+Goals ← Work ← {Drumbeat, Budgeting}** — see
 > [docs/concepts/module-architecture.md](docs/concepts/module-architecture.md),
 > ADR-0013/0014/0015, and [docs/concepts/module-migration-roadmap.md](docs/concepts/module-migration-roadmap.md).
+> A new **`risks`** module (tenant-level Risk register with ROAM + n:m Epic links) is specced in
+> [docs/concepts/risk-management-module.md](docs/concepts/risk-management-module.md) — sibling of
+> Drumbeat/Budgeting, prerequisite Work.
 
 - **Module** — a sellable feature block (`src/domain/modules.ts`): `ziele`,
   `portfolio`, `program`, `controlling`, `roadmap`, `reporting`, `structure`,
