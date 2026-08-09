@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
-import type { RagTier } from "@/domain/transformation-delta";
+import type { RagTier } from "@/modules/work/domain/transformation-delta";
 
 interface Props {
   row: EpicListRow;

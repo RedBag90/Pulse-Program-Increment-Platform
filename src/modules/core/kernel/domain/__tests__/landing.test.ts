@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { landingPathForRoles } from "@/domain/landing";
+import { landingPathForRoles } from "@/modules/core/kernel/domain/landing";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
 
 describe("landingPathForRoles", () => {

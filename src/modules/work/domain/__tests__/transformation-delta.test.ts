@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ragTier } from "@/domain/transformation-delta";
+import { ragTier } from "@/modules/work/domain/transformation-delta";
 
 describe("ragTier", () => {
   it("classifies values into red / amber / green bands", () => {
