@@ -289,6 +289,11 @@ resource)` is the _authoritative, scope-aware_ check, run inside a service
 
 ## Modules (Freemium-Entitlements)
 
+> Target module architecture (proposed): the 8 keys below are to be re-grouped into a
+> layered four-module structure **Core+Goals ← Work ← {Drumbeat, Budgeting}** — see
+> [docs/concepts/module-architecture.md](docs/concepts/module-architecture.md),
+> ADR-0013/0014/0015, and [docs/concepts/module-migration-roadmap.md](docs/concepts/module-migration-roadmap.md).
+
 - **Module** — a sellable feature block (`src/domain/modules.ts`): `ziele`,
   `portfolio`, `program`, `controlling`, `roadmap`, `reporting`, `structure`,
   `admin`, plus the always-on **core** segments (`start`, `my-tasks`,
