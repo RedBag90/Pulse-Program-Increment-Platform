@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { listImpediments } from "@/server/services/impediment";
+import { listImpediments } from "@/modules/drumbeat/server/services/impediment";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { buildImpedimentsListModel } from "@/server/views/impediments-list";
 import { ArtSubNav } from "@/modules/core/org/features/art/components/art-sub-nav";

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createImpediment, listImpediments } from "@/server/services/impediment";
+import { createImpediment, listImpediments } from "@/modules/drumbeat/server/services/impediment";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import { parsePageParams } from "@/server/db/paginate";

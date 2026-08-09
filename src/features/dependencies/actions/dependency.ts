@@ -6,7 +6,7 @@ import {
   unlinkDependency,
   unlinkDependencyById,
   changeDependencyType,
-} from "@/server/services/dependency";
+} from "@/modules/drumbeat/server/services/dependency";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import type { InitiativeId } from "@/modules/core/kernel/domain/types";

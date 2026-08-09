@@ -5,7 +5,7 @@ import {
   linkDependency,
   unlinkDependency,
   changeDependencyType,
-} from "@/server/services/dependency";
+} from "@/modules/drumbeat/server/services/dependency";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";

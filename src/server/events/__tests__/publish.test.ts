@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { publishDomainEvent } from "@/server/events/publish";
 import type { DomainEvent } from "@/server/events/types";
 import type { TenantId, ArtId, UserId } from "@/modules/core/kernel/domain/types";
-import type { ImpedimentId } from "@/server/services/impediment";
+import type { ImpedimentId } from "@/modules/drumbeat/server/services/impediment";
 import type { Role } from "@/modules/core/kernel/domain/roles";
 
 const tenantId = "tenant-1" as TenantId;

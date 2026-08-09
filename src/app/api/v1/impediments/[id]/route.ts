@@ -7,7 +7,7 @@ import {
   escalateImpediment,
   resolveImpediment,
   type ImpedimentId,
-} from "@/server/services/impediment";
+} from "@/modules/drumbeat/server/services/impediment";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { authorize } from "@/server/auth/authorize";
 import { forbidden, problemJson } from "@/server/http/problem";

@@ -1,7 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadPortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
-import { listImpedimentsForArts } from "@/server/services/impediment";
+import { listImpedimentsForArts } from "@/modules/drumbeat/server/services/impediment";
 import {
   getBudgetingBoard,
   getValueStreamBudgets,

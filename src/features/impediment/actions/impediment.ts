@@ -12,7 +12,7 @@ import {
   resolveImpediment,
   setImpedimentRoam,
   type ImpedimentId,
-} from "@/server/services/impediment";
+} from "@/modules/drumbeat/server/services/impediment";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import { revalidateFor } from "@/server/http/revalidation";
