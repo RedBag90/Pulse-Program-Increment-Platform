@@ -98,6 +98,7 @@ function makeInputs(over: Partial<EpicDetailInputs> = {}): EpicDetailInputs {
     pis: [],
     dependencies: [],
     budget: null,
+    breakdownPositions: new Map(),
     enabled: { drumbeat: true, budgeting: true },
     multiPartyApproval: true,
     principalId: PRINCIPAL_ID,

@@ -3,6 +3,7 @@ import type { EpicId, StageGate } from "@/modules/core/kernel/domain/types";
 import type { Principal } from "@/server/auth/principal";
 import { authorize, hasCapability } from "@/server/auth/authorize";
 import { getEpic } from "@/modules/work/server/services/epic";
+import { loadBreakdownLayout } from "@/modules/work/server/services/breakdown-layout";
 import { listEpicApprovals } from "@/modules/work/server/services/epic-approval";
 import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
 import { listKpis } from "@/modules/core/kpi/server/kpi";
@@ -126,6 +127,8 @@ export interface EpicDetailInputs {
   dependencies: BreakdownEdge[];
   /** Port result — null when `enabled.budgeting` is false. */
   budget: { allocatedSum: number } | null;
+  /** Persisted breakdown-network node positions (Work-owned, always loaded). */
+  breakdownPositions: Map<string, { x: number; y: number }>;
   enabled: { drumbeat: boolean; budgeting: boolean };
   /** `practices.multiPartyApproval` — gates the approval-phase-aware branches. */
   multiPartyApproval: boolean;
@@ -148,9 +151,19 @@ export interface EpicDetailInputs {
 // ---------------------------------------------------------------------------
 
 export interface EpicDetailModel {
+  // Raw aggregates the page's child components still consume directly (exposed so
+  // the route renders off the model alone and never re-queries what the loader
+  // already fetched).
+  epic: LoadedEpic;
+  kpis: EpicDetailInputs["kpis"];
+  approvals: EpicDetailInputs["approvals"];
+  multiPartyApproval: boolean;
+
   breakdownFeatures: BreakdownFeature[];
   artIds: string[];
   featureIds: string[];
+  /** Work-owned persisted network positions (always present). */
+  breakdownLayoutPositions: Record<string, { x: number; y: number }>;
 
   approvalPhase: ApprovalPhase;
 
@@ -265,6 +278,9 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
   }));
   const artIds = [...new Set(breakdownFeatures.map((f) => f.artId).filter(Boolean))];
   const featureIds = breakdownFeatures.map((f) => f.id);
+
+  const breakdownLayoutPositions: Record<string, { x: number; y: number }> = {};
+  for (const [k, v] of inputs.breakdownPositions) breakdownLayoutPositions[k] = v;
 
   const approvalPhase = (epic.approvalPhase as ApprovalPhase | null) ?? "draft";
 
@@ -457,9 +473,14 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
   });
 
   return {
+    epic,
+    kpis,
+    approvals,
+    multiPartyApproval,
     breakdownFeatures,
     artIds,
     featureIds,
+    breakdownLayoutPositions,
     approvalPhase,
     drumbeat: drumbeatSlice,
     budgeting: budgetingSlice,
@@ -558,15 +579,17 @@ export async function loadEpicDetailInputs(
     tenantId: principal.tenantId,
   });
 
-  const [historyEvents, kpis, approvals, practices, pis, dependencies, budget] = await Promise.all([
-    listInitiativeHistory(db, principal.tenantId, epic.id),
-    listKpis(db, principal.tenantId, epic.id as EpicId),
-    listEpicApprovals(db, principal.tenantId, epic.id as EpicId),
-    getTenantPractices(db, principal.tenantId),
-    enabled.drumbeat ? ports.pis(artIds) : Promise.resolve([] as EpicPi[]),
-    enabled.drumbeat ? ports.dependencies(featureIds) : Promise.resolve([] as BreakdownEdge[]),
-    enabled.budgeting ? ports.budget() : Promise.resolve(null),
-  ]);
+  const [historyEvents, kpis, approvals, practices, breakdownPositions, pis, dependencies, budget] =
+    await Promise.all([
+      listInitiativeHistory(db, principal.tenantId, epic.id),
+      listKpis(db, principal.tenantId, epic.id as EpicId),
+      listEpicApprovals(db, principal.tenantId, epic.id as EpicId),
+      getTenantPractices(db, principal.tenantId),
+      loadBreakdownLayout(db, principal.tenantId, epic.id as EpicId),
+      enabled.drumbeat ? ports.pis(artIds) : Promise.resolve([] as EpicPi[]),
+      enabled.drumbeat ? ports.dependencies(featureIds) : Promise.resolve([] as BreakdownEdge[]),
+      enabled.budgeting ? ports.budget() : Promise.resolve(null),
+    ]);
 
   return {
     epic,
@@ -576,6 +599,7 @@ export async function loadEpicDetailInputs(
     pis,
     dependencies,
     budget,
+    breakdownPositions,
     enabled,
     multiPartyApproval: practices.multiPartyApproval,
     principalId: principal.id,
