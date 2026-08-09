@@ -9,7 +9,7 @@ import {
   derivesCurrentFromKpis,
   aggregatesFromChildren,
   usesValueBasedCompletion,
-} from "@/domain/goal-progress-mode";
+} from "@/modules/core/goals/domain/goal-progress-mode";
 
 describe("progress mode basics", () => {
   it("exposes the four modes", () => {

@@ -13,14 +13,14 @@ import {
   nodeUnitValue,
   epicTopGoalBenefits,
   epicCascadeBreakdown,
-} from "@/domain/goals-rollup";
+} from "@/modules/core/goals/domain/goals-rollup";
 import type {
   KpiInput,
   RollupNode,
   RollupTrio,
   GoalNodeMeta,
   EpicGoalLinkInput,
-} from "@/domain/goals-rollup";
+} from "@/modules/core/goals/domain/goals-rollup";
 
 describe("kpiAchievement", () => {
   it("returns 0 when baseline/target/current are missing", () => {

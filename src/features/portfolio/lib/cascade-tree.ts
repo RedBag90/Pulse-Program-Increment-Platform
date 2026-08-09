@@ -1,4 +1,4 @@
-import type { EpicCascadeContribution } from "@/domain/goals-rollup";
+import type { EpicCascadeContribution } from "@/modules/core/goals/domain/goals-rollup";
 
 /**
  * Ein Knoten im zusammengeführten Nutzen-Kaskaden-Baum (Explorer-Sicht). Wurzeln

@@ -1,10 +1,10 @@
 import type { PrismaClient } from "@/generated/prisma";
-import { sumTrios, type KpiInput, type RollupTrio } from "@/domain/goals-rollup";
-import { parseOptions } from "@/domain/goal-custom-field";
-import { filterGoalBranches } from "@/domain/goal-tree-filter";
-import { goalTimeframe, timeframeMatchesPeriodKeys } from "@/domain/goal-period";
-import { type ProgressMode, type AutoKpiLink } from "@/domain/goal-progress-mode";
-import { type AutoKpiSeriesLink } from "@/domain/goal-progress-series";
+import { sumTrios, type KpiInput, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
+import { parseOptions } from "@/modules/core/goals/domain/goal-custom-field";
+import { filterGoalBranches } from "@/modules/core/goals/domain/goal-tree-filter";
+import { goalTimeframe, timeframeMatchesPeriodKeys } from "@/modules/core/goals/domain/goal-period";
+import { type ProgressMode, type AutoKpiLink } from "@/modules/core/goals/domain/goal-progress-mode";
+import { type AutoKpiSeriesLink } from "@/modules/core/goals/domain/goal-progress-series";
 import { parseMeasurements, latestMeasurement } from "@/domain/kpi-measurement";
 import {
   buildStrategyTree,

@@ -13,7 +13,7 @@ import {
   type BusinessCaseFields,
   type BusinessCaseVersion,
 } from "@/domain/business-case";
-import type { EpicCascadeContribution } from "@/domain/goals-rollup";
+import type { EpicCascadeContribution } from "@/modules/core/goals/domain/goals-rollup";
 import { buildCascadeTree, type CascadeTreeNode } from "@/features/portfolio/lib/cascade-tree";
 
 interface BusinessCaseEditorProps {

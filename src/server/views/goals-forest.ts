@@ -25,7 +25,7 @@ import {
   type KpiInput,
   type RollupTrio,
   type RollupNode,
-} from "@/domain/goals-rollup";
+} from "@/modules/core/goals/domain/goals-rollup";
 import { kpiDelta } from "@/domain/kpi-valuation";
 import {
   effectiveProgressMode,
@@ -36,14 +36,14 @@ import {
   usesValueBasedCompletion,
   type ProgressMode,
   type AutoKpiLink,
-} from "@/domain/goal-progress-mode";
+} from "@/modules/core/goals/domain/goal-progress-mode";
 import {
   buildAutoKpiSeries,
   buildNodeProgressSeries,
   type SeriesNode,
-} from "@/domain/goal-progress-series";
-import { isClosed } from "@/domain/goal-status";
-import { goalTimeframe } from "@/domain/goal-period";
+} from "@/modules/core/goals/domain/goal-progress-series";
+import { isClosed } from "@/modules/core/goals/domain/goal-status";
+import { goalTimeframe } from "@/modules/core/goals/domain/goal-period";
 import type {
   GoalNode,
   GoalLatestCheckin,

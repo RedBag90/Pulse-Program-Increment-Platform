@@ -1,8 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { buildAutoKpiSeries, buildNodeProgressSeries } from "@/domain/goal-progress-series";
-import type { SeriesNode } from "@/domain/goal-progress-series";
-import { nodeProgress, type RollupNode, type RollupTrio } from "@/domain/goals-rollup";
-import { goalStatusColor } from "@/domain/goal-status";
+import {
+  buildAutoKpiSeries,
+  buildNodeProgressSeries,
+} from "@/modules/core/goals/domain/goal-progress-series";
+import type { SeriesNode } from "@/modules/core/goals/domain/goal-progress-series";
+import {
+  nodeProgress,
+  type RollupNode,
+  type RollupTrio,
+} from "@/modules/core/goals/domain/goals-rollup";
+import { goalStatusColor } from "@/modules/core/goals/domain/goal-status";
 import { parseMeasurements, latestMeasurement } from "@/domain/kpi-measurement";
 
 const unit = { metricUnit: "Kunden", metricType: "number", currencyCode: null };

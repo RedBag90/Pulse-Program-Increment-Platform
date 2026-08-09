@@ -24,7 +24,7 @@ import {
   linkGoalArt,
   unlinkGoalArt,
 } from "@/server/services/goal-scope-link";
-import { isGoalPeriodKey } from "@/domain/goal-period";
+import { isGoalPeriodKey } from "@/modules/core/goals/domain/goal-period";
 
 /**
  * Ziele-Modul-Actions. Permission-Gate ueberall `target.manage`

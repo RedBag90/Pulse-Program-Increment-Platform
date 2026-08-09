@@ -8,7 +8,7 @@
  * Ampel-Pills, Chart-Bubbles und Fortschrittsbalken denselben Farbraum teilen.
  */
 
-import { type GoalStatusTier, GOAL_STATUS_TIER_HEX } from "@/domain/goal-status";
+import { type GoalStatusTier, GOAL_STATUS_TIER_HEX } from "@/modules/core/goals/domain/goal-status";
 
 /** Ampel-Tier — Teilmenge der Goal-Tiers (kein "neutral"; jede Kennzahl fällt in Grün/Gelb/Rot). */
 export type AmpelTier = Extract<GoalStatusTier, "green" | "amber" | "rose">;

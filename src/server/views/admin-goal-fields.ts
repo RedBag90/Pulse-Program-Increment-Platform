@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/domain/types";
 import { listCustomFieldDefs } from "@/server/services/goal-custom-field";
-import { parseOptions } from "@/domain/goal-custom-field";
+import { parseOptions } from "@/modules/core/goals/domain/goal-custom-field";
 
 export interface GoalFieldRow {
   id: string;

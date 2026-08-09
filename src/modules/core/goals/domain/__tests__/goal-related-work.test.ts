@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { isRelatedWorkKind, RELATED_WORK_KINDS } from "@/domain/goal-related-work";
+import {
+  isRelatedWorkKind,
+  RELATED_WORK_KINDS,
+} from "@/modules/core/goals/domain/goal-related-work";
 
 describe("isRelatedWorkKind", () => {
   it("accepts feature and pi", () => {

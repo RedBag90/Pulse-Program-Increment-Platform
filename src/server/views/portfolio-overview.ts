@@ -13,8 +13,8 @@ import {
 } from "@/server/services/transformation";
 import { halfYearKey } from "@/domain/calendar";
 import { epicBucket } from "@/domain/stage-gate";
-import { isAtRisk, type RollupTrio } from "@/domain/goals-rollup";
-import { isClosed } from "@/domain/goal-status";
+import { isAtRisk, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
+import { isClosed } from "@/modules/core/goals/domain/goal-status";
 import { loadStrategyTree } from "@/server/views/ziele-view";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;

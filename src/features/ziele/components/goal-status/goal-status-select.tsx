@@ -11,7 +11,7 @@ import {
   goalStatusLabel,
   type GoalStatus,
   type GoalStatusTier,
-} from "@/domain/goal-status";
+} from "@/modules/core/goals/domain/goal-status";
 
 const DOT_CLS: Record<GoalStatusTier, string> = {
   green: "bg-emerald-500",

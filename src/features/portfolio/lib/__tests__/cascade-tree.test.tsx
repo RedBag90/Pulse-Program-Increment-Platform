@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildCascadeTree } from "@/features/portfolio/lib/cascade-tree";
-import type { EpicCascadeContribution } from "@/domain/goals-rollup";
+import type { EpicCascadeContribution } from "@/modules/core/goals/domain/goals-rollup";
 
 // steps sind [verknüpftes Ziel … Top-Ziel]; buildCascadeTree dreht sie zur Wurzel.
 const step = (goalId: string, planned: number, unit = "€", brokenHere = false) => ({

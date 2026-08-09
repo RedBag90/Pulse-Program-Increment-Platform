@@ -15,7 +15,7 @@ import {
   rangesOverlap,
   timeframeMatchesPeriodKeys,
   type GoalPeriod,
-} from "@/domain/goal-period";
+} from "@/modules/core/goals/domain/goal-period";
 
 describe("goalTimeframe / rangesOverlap (individueller Zeitraum)", () => {
   it("Range gewinnt über Bucket, wenn start+end gesetzt", () => {

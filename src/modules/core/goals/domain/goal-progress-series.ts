@@ -10,13 +10,13 @@
  * die Aggregation), Wert-Serien tragen die Roh-Einheit.
  */
 
-import { keyResultProgress } from "@/domain/goals-rollup";
+import { keyResultProgress } from "@/modules/core/goals/domain/goals-rollup";
 import {
   unitsMatch,
   aggregatesFromChildren,
   derivesCurrentFromKpis,
   type ProgressMode,
-} from "@/domain/goal-progress-mode";
+} from "@/modules/core/goals/domain/goal-progress-mode";
 import { direction } from "@/domain/kpi-valuation";
 import type { Measurement } from "@/domain/kpi-measurement";
 

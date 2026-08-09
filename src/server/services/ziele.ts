@@ -8,15 +8,15 @@ import {
   OBJECTIVE_FIELD_KEYS,
   KEY_RESULT_FIELD_KEYS,
 } from "@/server/services/goal-node-fields";
-import { isClosed, isOpen, type GoalStatus } from "@/domain/goal-status";
-import { clampPrecision, type MetricType } from "@/domain/goal-metric";
-import { canReparent, planReparent, reorderSiblingIds } from "@/domain/goal-reparent";
+import { isClosed, isOpen, type GoalStatus } from "@/modules/core/goals/domain/goal-status";
+import { clampPrecision, type MetricType } from "@/modules/core/goals/domain/goal-metric";
+import { canReparent, planReparent, reorderSiblingIds } from "@/modules/core/goals/domain/goal-reparent";
 import {
   autoKpiCurrent,
   isProgressMode,
   effectiveProgressMode,
   type AutoKpiLink,
-} from "@/domain/goal-progress-mode";
+} from "@/modules/core/goals/domain/goal-progress-mode";
 import { latestMeasurement } from "@/domain/kpi-measurement";
 import { dayStart } from "@/domain/calendar";
 import { InitiativeLevel } from "@/domain/types";

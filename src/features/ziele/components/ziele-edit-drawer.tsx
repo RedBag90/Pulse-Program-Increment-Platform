@@ -51,7 +51,7 @@ import {
   RelatedWorkSearch,
   type RelatedWorkResult,
 } from "@/features/ziele/components/related-work-search";
-import { formatMetricValue } from "@/domain/goal-metric";
+import { formatMetricValue } from "@/modules/core/goals/domain/goal-metric";
 
 /**
  * Ziele-Edit-Drawer — flach 2-Ebenen (Refactor §Hierarchie-Vereinfachung).

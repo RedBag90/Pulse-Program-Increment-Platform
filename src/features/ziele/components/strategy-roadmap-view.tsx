@@ -6,12 +6,12 @@ import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { goalDetailHref } from "@/features/ziele/lib/goal-href";
 import { goalNodeProgress, goalNodeTimeframe } from "@/features/ziele/lib/goal-node-view";
-import { flattenGoalTree } from "@/domain/goal-tree-filter";
+import { flattenGoalTree } from "@/modules/core/goals/domain/goal-tree-filter";
 import type { GoalNode } from "@/server/views/ziele-view";
-import { goalTimeframeLabel, currentGoalPeriod } from "@/domain/goal-period";
-import type { GoalTimeframe } from "@/domain/goal-period";
-import { goalStatusTier, goalStatusColor, goalStatusLabel } from "@/domain/goal-status";
-import type { GoalStatusTier } from "@/domain/goal-status";
+import { goalTimeframeLabel, currentGoalPeriod } from "@/modules/core/goals/domain/goal-period";
+import type { GoalTimeframe } from "@/modules/core/goals/domain/goal-period";
+import { goalStatusTier, goalStatusColor, goalStatusLabel } from "@/modules/core/goals/domain/goal-status";
+import type { GoalStatusTier } from "@/modules/core/goals/domain/goal-status";
 
 /**
  * Roadmap / Zeitachse — Ziele als Balken über einer Quartals-Achse. Position &

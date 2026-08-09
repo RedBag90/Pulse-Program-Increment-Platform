@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { canReparent, planReparent, reorderSiblingIds } from "@/domain/goal-reparent";
+import {
+  canReparent,
+  planReparent,
+  reorderSiblingIds,
+} from "@/modules/core/goals/domain/goal-reparent";
 
 describe("reorderSiblingIds", () => {
   const base = ["a", "b", "c", "d"];

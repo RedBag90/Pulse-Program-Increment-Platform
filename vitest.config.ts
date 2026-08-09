@@ -35,6 +35,9 @@ export default defineConfig({
             "src/features/**/*.test.tsx",
             "src/app/**/*.test.tsx",
             "src/components/**/*.test.tsx",
+            // Module-Container: Domain-/Client-Tests laufen im jsdom-Projekt.
+            "src/modules/**/domain/**/*.test.ts",
+            "src/modules/**/*.test.tsx",
           ],
         },
         resolve: { alias },

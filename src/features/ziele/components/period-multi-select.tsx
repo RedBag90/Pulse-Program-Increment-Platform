@@ -8,7 +8,7 @@ import {
   formatGoalPeriodKey,
   currentGoalPeriod,
   type PeriodGranularity,
-} from "@/domain/goal-period";
+} from "@/modules/core/goals/domain/goal-period";
 
 /**
  * Mehrfach-Zeitraum-Filter in der strukturierten Optik des `PeriodPicker`

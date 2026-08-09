@@ -1,4 +1,4 @@
-import { GOAL_STATUS_TIER_HEX, type GoalStatusTier } from "@/domain/goal-status";
+import { GOAL_STATUS_TIER_HEX, type GoalStatusTier } from "@/modules/core/goals/domain/goal-status";
 
 /**
  * Fortschrittsbalken Ist-% vs. Soll-%: gefüllter Balken (Ampelfarbe) plus eine

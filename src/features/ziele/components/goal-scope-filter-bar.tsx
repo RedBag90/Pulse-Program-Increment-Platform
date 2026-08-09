@@ -9,7 +9,7 @@ import {
   CLOSED_STATUSES,
   goalStatusLabel,
   goalStatusColor,
-} from "@/domain/goal-status";
+} from "@/modules/core/goals/domain/goal-status";
 
 interface ScopeOption {
   id: string;

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import { fields } from "@/server/http/form-data";
-import { CUSTOM_FIELD_TYPES } from "@/domain/goal-custom-field";
+import { CUSTOM_FIELD_TYPES } from "@/modules/core/goals/domain/goal-custom-field";
 import {
   createCustomFieldDef,
   updateCustomFieldDef,

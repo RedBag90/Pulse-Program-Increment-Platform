@@ -10,7 +10,7 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
-import { goalStatusColor } from "@/domain/goal-status";
+import { goalStatusColor } from "@/modules/core/goals/domain/goal-status";
 import type { ProgressChartPoint, ProgressPace } from "@/server/views/ziele-view";
 
 /**

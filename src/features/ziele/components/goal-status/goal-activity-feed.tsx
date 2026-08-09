@@ -2,7 +2,7 @@
 
 import { useActionState, startTransition, useState } from "react";
 import { addGoalCommentAction } from "@/features/ziele/actions/ziele";
-import { goalStatusLabel } from "@/domain/goal-status";
+import { goalStatusLabel } from "@/modules/core/goals/domain/goal-status";
 import type { GoalActivityEntry, GoalTarget } from "@/server/views/ziele-view";
 
 const ACTION_LABELS: Record<string, string> = {

@@ -9,7 +9,7 @@ import {
   currentGoalPeriod,
   type GoalPeriod,
   type PeriodGranularity,
-} from "@/domain/goal-period";
+} from "@/modules/core/goals/domain/goal-period";
 
 interface Props {
   /** FormData-Feldname (Form-Modus); ein Hidden-Input trägt den kanonischen Key. */

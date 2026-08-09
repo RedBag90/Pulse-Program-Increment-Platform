@@ -8,7 +8,7 @@ import {
   isGoalDrifting,
   isGoalOffTrack,
 } from "@/features/ziele/lib/goal-node-view";
-import type { RollupTrio } from "@/domain/goals-rollup";
+import type { RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 
 const trio = (over: Partial<RollupTrio> = {}): RollupTrio =>
   ({ planned: 0, realized: 0, runRate: 0, ...over }) as RollupTrio;

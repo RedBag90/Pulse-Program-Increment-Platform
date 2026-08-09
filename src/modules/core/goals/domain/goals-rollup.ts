@@ -20,7 +20,10 @@
 
 import { fulfillmentFraction } from "@/domain/kpi-direction";
 import { kpiDelta } from "@/domain/kpi-valuation";
-import { aggregatesFromChildren, type ProgressMode } from "@/domain/goal-progress-mode";
+import {
+  aggregatesFromChildren,
+  type ProgressMode,
+} from "@/modules/core/goals/domain/goal-progress-mode";
 
 export interface KpiInput {
   id: string;

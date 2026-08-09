@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEntityOptions, optionsEndpoint } from "@/features/create/use-entity-options";
-import { filterGoalBranches } from "@/domain/goal-tree-filter";
+import { filterGoalBranches } from "@/modules/core/goals/domain/goal-tree-filter";
 import {
   buildGoalPickerTree,
   type GoalPickerRow,

@@ -9,8 +9,8 @@
  */
 
 import { recordedUpdate, type RecordedUpdate } from "@/server/services/recorded-update";
-import { clampPrecision, type MetricType } from "@/domain/goal-metric";
-import type { GoalStatus } from "@/domain/goal-status";
+import { clampPrecision, type MetricType } from "@/modules/core/goals/domain/goal-metric";
+import type { GoalStatus } from "@/modules/core/goals/domain/goal-status";
 
 /** Die normalisierte Snapshot-Form, über die der Changelog difft. */
 export interface GoalFieldValues {

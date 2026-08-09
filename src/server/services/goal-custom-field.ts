@@ -7,7 +7,7 @@ import {
   parseOptions,
   validateCustomFieldValue,
   type CustomFieldType,
-} from "@/domain/goal-custom-field";
+} from "@/modules/core/goals/domain/goal-custom-field";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,

@@ -1,5 +1,5 @@
-import type { DomainError, Result } from "./errors";
-import { ok, err } from "./errors";
+import type { DomainError, Result } from "@/domain/errors";
+import { ok, err } from "@/domain/errors";
 
 /**
  * Custom Fields an Ziel-Knoten (Epic 7). Feld-Typen + Wert-Validierung.

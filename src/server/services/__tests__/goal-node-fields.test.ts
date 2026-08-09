@@ -7,7 +7,7 @@ import {
   KEY_RESULT_FIELD_KEYS,
   type GoalFieldValues,
 } from "@/server/services/goal-node-fields";
-import { clampPrecision } from "@/domain/goal-metric";
+import { clampPrecision } from "@/modules/core/goals/domain/goal-metric";
 
 const row = (over: Partial<GoalFieldValues> = {}): GoalFieldValues => ({
   title: "Old",

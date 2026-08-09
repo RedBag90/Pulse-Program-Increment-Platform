@@ -9,7 +9,7 @@ import { GoalStatusSelect } from "@/features/ziele/components/goal-status/goal-s
 import { GoalActivityFeed } from "@/features/ziele/components/goal-status/goal-activity-feed";
 import { checkInGoalAction, updateGoalProgressAction } from "@/features/ziele/actions/ziele";
 import { getGoalDetailAction, type GoalDetailPayload } from "@/features/ziele/actions/goal-detail";
-import { suggestOpenStatus, type GoalStatus } from "@/domain/goal-status";
+import { suggestOpenStatus, type GoalStatus } from "@/modules/core/goals/domain/goal-status";
 
 // recharts (~150 kb gz) erst laden, wenn das Detail-Panel gerendert wird (Drawer
 // offen mit Verlauf) — nicht im Initial-Bundle des immer-gemounteten Drawers.
@@ -17,7 +17,7 @@ const GoalProgressChart = dynamic(
   () => import("./goal-progress-chart").then((m) => m.GoalProgressChart),
   { ssr: false, loading: () => <div className="h-48 w-full animate-pulse rounded-lg bg-muted" /> },
 );
-import { metricUnitSuffix } from "@/domain/goal-metric";
+import { metricUnitSuffix } from "@/modules/core/goals/domain/goal-metric";
 import type { GoalTarget } from "@/server/views/ziele-view";
 
 interface Props {

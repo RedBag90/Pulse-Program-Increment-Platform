@@ -3,7 +3,7 @@ import {
   filterGoalBranches,
   collectNodeIdsWithChildren,
   flattenGoalTree,
-} from "@/domain/goal-tree-filter";
+} from "@/modules/core/goals/domain/goal-tree-filter";
 
 interface N {
   id: string;

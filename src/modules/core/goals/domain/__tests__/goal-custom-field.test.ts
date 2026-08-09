@@ -3,7 +3,7 @@ import {
   isCustomFieldType,
   parseOptions,
   validateCustomFieldValue,
-} from "@/domain/goal-custom-field";
+} from "@/modules/core/goals/domain/goal-custom-field";
 import { isOk, isErr } from "@/domain/errors";
 
 describe("isCustomFieldType", () => {

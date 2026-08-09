@@ -1,7 +1,7 @@
 import type { GoalNode } from "@/server/views/ziele-view";
-import type { RollupTrio } from "@/domain/goals-rollup";
+import type { RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { Stat, StatStrip } from "@/components/ui/stat";
-import { goalStatusTier, type GoalStatusTier } from "@/domain/goal-status";
+import { goalStatusTier, type GoalStatusTier } from "@/modules/core/goals/domain/goal-status";
 import { formatEURPrefix } from "@/lib/formatting";
 
 const TIER_BAR: Record<GoalStatusTier, string> = {

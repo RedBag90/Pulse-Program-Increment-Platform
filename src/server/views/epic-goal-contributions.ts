@@ -5,7 +5,7 @@ import {
   type GoalNodeMeta,
   type EpicGoalLinkInput,
   type EpicCascadeContribution,
-} from "@/domain/goals-rollup";
+} from "@/modules/core/goals/domain/goals-rollup";
 
 // ── Einheiten-Kaskade: GoalEpicLink-Pfad (Epic → mehrere Ziele) ───────────────
 
