@@ -32,7 +32,6 @@ describe("revalidateFor", () => {
         "/art/[artId]/features",
         "/portfolio/epics/[id]",
         "/feature/[featureId]",
-        "/quality/features",
         "/pi/[piId]",
         "/pi-planning",
       ]),

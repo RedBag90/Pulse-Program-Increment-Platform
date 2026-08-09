@@ -50,7 +50,6 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/art/[artId]/features",
     "/portfolio/epics/[id]",
     "/feature/[featureId]",
-    "/quality/features",
     "/pi/[piId]",
     "/pi-planning",
   ],
