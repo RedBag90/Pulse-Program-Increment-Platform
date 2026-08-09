@@ -2,7 +2,6 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId } from "@/modules/core/kernel/domain/types";
 import { listEpics } from "@/modules/work/server/services/epic";
 import { getBudgetingBoard, getValueStreamBudgets } from "@/server/services/budgeting";
-import { listImpedimentsForArts } from "@/server/services/impediment";
 import {
   computeStructureGap,
   computePracticeAdoption,
@@ -390,9 +389,15 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
  * `buildPortfolioOverviewModel` (above) owns the reshape; this loader exists
  * separately so the builder is testable against in-memory fixtures.
  */
+/** Port: liefert die Anzahl offener Impediments für die ARTs. Der Composition-
+ *  Root (Portfolio-Route) reicht den Drumbeat-Adapter herein — Work importiert
+ *  den Impediment-Service (Drumbeat) nicht direkt (ADR-0013). */
+export type OpenImpedimentsCountPort = (artIds: ArtId[]) => Promise<number>;
+
 export async function loadPortfolioOverviewInputs(
   db: PrismaClient,
   tenantId: TenantId,
+  getOpenImpedimentsCount: OpenImpedimentsCountPort,
 ): Promise<PortfolioOverviewInputs> {
   const [epics, strategyTree, board, vsBudgets, arts, activePis, structureGap, practiceAdoption] =
     await Promise.all([
@@ -425,10 +430,7 @@ export async function loadPortfolioOverviewInputs(
   }));
 
   const artIds = arts.map((a) => a.id as ArtId);
-  const impedimentRows =
-    artIds.length === 0
-      ? []
-      : await listImpedimentsForArts(db, tenantId, artIds, { status: "open" });
+  const impedimentsOpen = artIds.length === 0 ? 0 : await getOpenImpedimentsCount(artIds);
 
   return {
     epics,
@@ -436,7 +438,7 @@ export async function loadPortfolioOverviewInputs(
     board,
     vsBudgets,
     activePis,
-    impedimentsOpen: impedimentRows.length,
+    impedimentsOpen,
     structureGap,
     practiceAdoption,
     now: new Date(),
@@ -450,6 +452,9 @@ export async function loadPortfolioOverviewInputs(
 export async function loadPortfolioOverview(
   db: PrismaClient,
   tenantId: TenantId,
+  getOpenImpedimentsCount: OpenImpedimentsCountPort,
 ): Promise<PortfolioOverview> {
-  return buildPortfolioOverviewModel(await loadPortfolioOverviewInputs(db, tenantId));
+  return buildPortfolioOverviewModel(
+    await loadPortfolioOverviewInputs(db, tenantId, getOpenImpedimentsCount),
+  );
 }

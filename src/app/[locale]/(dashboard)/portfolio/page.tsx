@@ -1,6 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadPortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
+import { listImpedimentsForArts } from "@/server/services/impediment";
 import { redirect } from "next/navigation";
 import { ViewSwitcher } from "@/modules/work/features/portfolio/overview/view-switcher";
 import { resolveOverviewView } from "@/modules/work/features/portfolio/overview/view-switcher-config";
@@ -27,7 +28,14 @@ export default async function PortfolioPage({ searchParams }: Props) {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const data = await loadPortfolioOverview(db, principal.tenantId);
+  // Composition-Root reicht den Drumbeat-Impediment-Adapter in das Work-View
+  // (Work importiert Drumbeat nicht direkt — ADR-0013).
+  const data = await loadPortfolioOverview(
+    db,
+    principal.tenantId,
+    async (artIds) =>
+      (await listImpedimentsForArts(db, principal.tenantId, artIds, { status: "open" })).length,
+  );
 
   return (
     <Page>

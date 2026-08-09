@@ -2,7 +2,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { authorize, hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getEpic } from "@/modules/work/server/services/epic";
-import { loadBreakdownLayout } from "@/server/services/breakdown-layout";
+import { loadBreakdownLayout } from "@/modules/work/server/services/breakdown-layout";
 import { EpicGoalsBadge } from "@/modules/work/features/portfolio/components/epic-goals-badge";
 import { EpicRealizedTile } from "@/modules/work/features/portfolio/components/epic-realized-tile";
 import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-contributions";
