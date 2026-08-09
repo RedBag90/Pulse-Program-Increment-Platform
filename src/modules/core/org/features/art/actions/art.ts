@@ -5,7 +5,7 @@ import { updateArt, softDeleteArt } from "@/modules/core/org/server/services/art
 import { createArtOnTimeline } from "@/modules/core/org/server/services/art-setup";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import type { ValueStreamId, ArtId, TimelineId } from "@/modules/core/kernel/domain/types";
+import type { ValueStreamId, ArtId } from "@/modules/core/kernel/domain/types";
 import { formatDomainError } from "@/server/http/domain-error-display";
 
 export interface ArtActionState {
@@ -18,7 +18,6 @@ export const createArtAction = createServerAction({
   schema: z.object({
     valueStreamId: z.string().uuid(),
     name: z.string().min(1).max(100),
-    timelineId: z.string().uuid(),
   }),
   action: "art.create",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -26,7 +25,6 @@ export const createArtAction = createServerAction({
     createArtOnTimeline(ctx, {
       valueStreamId: input.valueStreamId as ValueStreamId,
       name: input.name,
-      timelineId: input.timelineId as TimelineId,
     }),
   revalidate: "artCreated",
   mapError: (e) => formatDomainError(e, { fallback: "Failed to create ART" }),

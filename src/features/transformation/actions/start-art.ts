@@ -5,12 +5,11 @@ import { revalidatePath } from "next/cache";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { startArt } from "@/modules/core/org/server/services/art-setup";
-import type { ValueStreamId, TimelineId } from "@/modules/core/kernel/domain/types";
+import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 
 const schema = z.object({
   valueStreamId: z.string().uuid(),
   name: z.string().min(1).max(100),
-  timelineId: z.string().uuid(),
   rteId: z.string().uuid().nullable().optional(),
 });
 
@@ -36,7 +35,6 @@ export const startArtAction = createServerAction({
     startArt(ctx, {
       valueStreamId: input.valueStreamId as ValueStreamId,
       name: input.name,
-      timelineId: input.timelineId as TimelineId,
       rteId: input.rteId ?? null,
     }),
   onSuccess: () => {
