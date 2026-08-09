@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { z } from "zod";
 import { createQueryHandler } from "@/server/http/query-handler";
+import { MODULE_KEYS } from "@/domain/modules";
 import type { PrismaClient } from "@/generated/prisma";
 
 // ---------------------------------------------------------------------------
@@ -32,16 +33,7 @@ const fakePrincipal = {
   tenantKind: "organization",
   tenantStatus: "active",
   isPlatformAdmin: false,
-  enabledModules: [
-    "ziele",
-    "portfolio",
-    "program",
-    "controlling",
-    "roadmap",
-    "reporting",
-    "structure",
-    "admin",
-  ],
+  enabledModules: [...MODULE_KEYS],
   scopes: { artIds: [], teamIds: [], valueStreamIds: [] },
 };
 

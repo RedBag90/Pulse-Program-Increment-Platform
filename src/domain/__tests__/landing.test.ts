@@ -11,8 +11,8 @@ describe("landingPathForRoles", () => {
     expect(landingPathForRoles([])).toBe("/my-tasks");
   });
 
-  it("privater Bereich (personal) landet im ersten freigeschalteten Modul (ziele)", () => {
-    expect(landingPathForRoles([ROLES.TENANT_ADMIN], ["ziele"], "personal")).toBe("/ziele");
-    expect(landingPathForRoles([ROLES.RTE], ["ziele"], "personal")).toBe("/ziele");
+  it("privater Bereich (personal) landet im ersten freigeschalteten Modul (core → /ziele)", () => {
+    expect(landingPathForRoles([ROLES.TENANT_ADMIN], ["core"], "personal")).toBe("/ziele");
+    expect(landingPathForRoles([ROLES.RTE], ["core"], "personal")).toBe("/ziele");
   });
 });

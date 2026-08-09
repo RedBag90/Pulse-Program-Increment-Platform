@@ -72,9 +72,11 @@ export default async function ZielePage({ searchParams }: PageProps) {
     // Freemium: welche Premium-Quell-Module der Tenant freigeschaltet hat —
     // steuert 🔒-Upsell-Hinweise statt leerer Premium-Picker im Personal-Tenant.
     modules: {
-      portfolio: principal.enabledModules.includes("portfolio"),
-      program: principal.enabledModules.includes("program"),
-      controlling: principal.enabledModules.includes("controlling"),
+      // Neue 4-Modul-Taxonomie: work (Epics/Portfolio), drumbeat (ARTs/Programm),
+      // budgeting (Geld) — steuern die 🔒-Upsell-Hinweise im Ziele-Shell.
+      portfolio: principal.enabledModules.includes("work"),
+      program: principal.enabledModules.includes("drumbeat"),
+      controlling: principal.enabledModules.includes("budgeting"),
     },
   };
 
