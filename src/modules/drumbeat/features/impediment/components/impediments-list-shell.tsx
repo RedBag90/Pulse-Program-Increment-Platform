@@ -3,14 +3,14 @@
 import { useCallback, useMemo } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { useUrlSelection } from "@/lib/hooks/use-url-selection";
-import { CreateImpedimentDialog } from "@/features/impediment/components/create-impediment-dialog";
-import { ImpedimentsFunnelBar } from "@/features/impediment/components/impediments-funnel-bar";
+import { CreateImpedimentDialog } from "@/modules/drumbeat/features/impediment/components/create-impediment-dialog";
+import { ImpedimentsFunnelBar } from "@/modules/drumbeat/features/impediment/components/impediments-funnel-bar";
 import {
   ImpedimentsFilterBar,
   type SortKey,
-} from "@/features/impediment/components/impediments-filter-bar";
-import { ImpedimentsListTable } from "@/features/impediment/components/impediments-list-table";
-import { ImpedimentsBulkActionBar } from "@/features/impediment/components/impediments-bulk-action-bar";
+} from "@/modules/drumbeat/features/impediment/components/impediments-filter-bar";
+import { ImpedimentsListTable } from "@/modules/drumbeat/features/impediment/components/impediments-list-table";
+import { ImpedimentsBulkActionBar } from "@/modules/drumbeat/features/impediment/components/impediments-bulk-action-bar";
 import {
   IMPEDIMENT_STATUSES,
   IMPEDIMENT_SEVERITIES,

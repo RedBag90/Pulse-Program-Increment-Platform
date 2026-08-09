@@ -1,7 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getPortfolioRoadmap } from "@/modules/drumbeat/server/services/roadmap";
-import { RoadmapGantt } from "@/features/roadmap/components/roadmap-gantt";
+import { RoadmapGantt } from "@/modules/drumbeat/features/roadmap/components/roadmap-gantt";
 import { portfolioRoadmapRows, roadmapAxis } from "@/modules/drumbeat/domain/roadmap";
 import { redirect } from "next/navigation";
 import { Page, PageHeader } from "@/components/layout";

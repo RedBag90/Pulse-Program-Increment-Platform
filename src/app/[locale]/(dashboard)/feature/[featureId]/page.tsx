@@ -12,7 +12,7 @@ import { InitiativeActivitySidebar } from "@/components/detail/initiative-activi
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { FeatureOverviewTab } from "@/modules/work/features/feature/components/feature-overview-tab";
 import { DeleteFeatureButton } from "@/modules/work/features/feature/components/delete-feature-button";
-import { FeatureDeliveryControls } from "@/features/feature/components/feature-delivery-controls";
+import { FeatureDeliveryControls } from "@/modules/drumbeat/features/feature/components/feature-delivery-controls";
 import { getBlockerWindowsForFeatures } from "@/modules/drumbeat/server/services/dependency";
 import { earliestStartFromBlockers } from "@/modules/core/kernel/domain/dependency-graph";
 import { LinkDependencyDialog } from "@/features/dependencies/components/link-dependency-dialog";

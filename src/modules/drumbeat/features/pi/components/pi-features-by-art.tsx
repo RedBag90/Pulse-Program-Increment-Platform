@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   AssignFeaturesDialog,
   RemoveFromPiButton,
-} from "@/features/pi/components/assign-features-dialog";
+} from "@/modules/drumbeat/features/pi/components/assign-features-dialog";
 
 interface Feature {
   id: string;

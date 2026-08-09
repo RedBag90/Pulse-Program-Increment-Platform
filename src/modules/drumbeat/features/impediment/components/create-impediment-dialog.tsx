@@ -2,7 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
-import { createImpedimentAction } from "@/features/impediment/actions/impediment";
+import { createImpedimentAction } from "@/modules/drumbeat/features/impediment/actions/impediment";
 import { useCreateResult } from "@/features/create/use-create-result";
 import { useEntityOptions, optionsEndpoint } from "@/features/create/use-entity-options";
 import type { CreateContext } from "@/features/create/create-context";

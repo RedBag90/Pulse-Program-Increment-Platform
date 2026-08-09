@@ -1,6 +1,6 @@
 "use client";
 
-import { useCockpitRealtime } from "@/features/umsetzung/hooks/use-cockpit-realtime";
+import { useCockpitRealtime } from "@/modules/drumbeat/features/umsetzung/hooks/use-cockpit-realtime";
 
 /**
  * Mounts den Realtime-Hook ins Cockpit. Server-Component-Shell rendert

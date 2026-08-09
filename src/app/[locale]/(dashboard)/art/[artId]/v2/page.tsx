@@ -17,7 +17,7 @@ import { ArtOverviewTab } from "@/modules/core/org/features/art/components/tabs/
 import { ArtTeamsTab } from "@/modules/core/org/features/art/components/tabs/art-teams-tab";
 import { ArtPiTab } from "@/modules/core/org/features/art/components/tabs/art-pi-tab";
 import { Suspense } from "react";
-import { ImpedimentsListShell } from "@/features/impediment/components/impediments-list-shell";
+import { ImpedimentsListShell } from "@/modules/drumbeat/features/impediment/components/impediments-list-shell";
 import { ArtSettingsTab } from "@/modules/core/org/features/art/components/tabs/art-settings-tab";
 import { ArtHistoryTab } from "@/modules/core/org/features/art/components/tabs/art-history-tab";
 import { LayoutToggle } from "@/components/nav/layout-toggle";

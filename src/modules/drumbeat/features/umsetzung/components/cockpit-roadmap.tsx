@@ -7,7 +7,10 @@ import {
   type CockpitRoadmapFeature,
   type RoadmapRowAccent,
 } from "@/modules/drumbeat/domain/roadmap";
-import { RoadmapGantt, type GanttDependency } from "@/features/roadmap/components/roadmap-gantt";
+import {
+  RoadmapGantt,
+  type GanttDependency,
+} from "@/modules/drumbeat/features/roadmap/components/roadmap-gantt";
 import type {
   CockpitDependency,
   CockpitFeature,

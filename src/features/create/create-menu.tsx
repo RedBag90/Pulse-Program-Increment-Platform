@@ -18,7 +18,7 @@ import { CreateValueStreamDialog } from "@/modules/core/org/features/value-strea
 import { CreateEpicDialog } from "@/modules/work/features/portfolio/components/create-epic-dialog";
 import { CreateArtDialog } from "@/modules/core/org/features/art/components/create-art-dialog";
 import { CreateFeatureDialog } from "@/modules/work/features/feature/components/create-feature-dialog";
-import { CreateImpedimentDialog } from "@/features/impediment/components/create-impediment-dialog";
+import { CreateImpedimentDialog } from "@/modules/drumbeat/features/impediment/components/create-impediment-dialog";
 import { CreateDependencyDialog } from "@/features/dependencies/components/create-dependency-dialog";
 import { CreateGoalDialog } from "@/modules/core/goals/features/components/create-goal-dialog";
 

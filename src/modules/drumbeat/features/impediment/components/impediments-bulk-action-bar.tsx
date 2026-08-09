@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   escalateImpedimentBatchAction,
   resolveImpedimentBatchAction,
-} from "@/features/impediment/actions/impediment";
+} from "@/modules/drumbeat/features/impediment/actions/impediment";
 import type { ImpedimentListRow } from "@/server/views/impediments-list";
 
 interface Props {

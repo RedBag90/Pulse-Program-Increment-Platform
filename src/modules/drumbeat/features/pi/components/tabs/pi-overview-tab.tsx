@@ -1,10 +1,10 @@
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
-import { PiTransitionButton } from "@/features/pi/components/pi-transition-button";
-import { DeletePiButton } from "@/features/pi/components/delete-pi-button";
-import { PiOverviewSummary } from "@/features/pi/components/pi-overview-summary";
-import { PiFeaturesByArt } from "@/features/pi/components/pi-features-by-art";
-import { PiArtChips } from "@/features/pi/components/pi-art-chips";
+import { PiTransitionButton } from "@/modules/drumbeat/features/pi/components/pi-transition-button";
+import { DeletePiButton } from "@/modules/drumbeat/features/pi/components/delete-pi-button";
+import { PiOverviewSummary } from "@/modules/drumbeat/features/pi/components/pi-overview-summary";
+import { PiFeaturesByArt } from "@/modules/drumbeat/features/pi/components/pi-features-by-art";
+import { PiArtChips } from "@/modules/drumbeat/features/pi/components/pi-art-chips";
 
 interface ArtSummary {
   id: string;

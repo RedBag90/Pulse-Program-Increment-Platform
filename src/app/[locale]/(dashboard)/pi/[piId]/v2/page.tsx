@@ -6,9 +6,9 @@ import { listPiObjectives } from "@/modules/drumbeat/server/services/pi-objectiv
 import { listImpedimentsForArts } from "@/modules/drumbeat/server/services/impediment";
 import { buildPiDetailModel } from "@/server/views/pi-detail";
 import { buildDependenciesListModel } from "@/server/views/dependencies-list";
-import { PiDetailShell, resolvePiTab } from "@/features/pi/components/pi-detail-shell";
-import { PiOverviewTab } from "@/features/pi/components/tabs/pi-overview-tab";
-import { PiDependenciesTab } from "@/features/pi/components/tabs/pi-dependencies-tab";
+import { PiDetailShell, resolvePiTab } from "@/modules/drumbeat/features/pi/components/pi-detail-shell";
+import { PiOverviewTab } from "@/modules/drumbeat/features/pi/components/tabs/pi-overview-tab";
+import { PiDependenciesTab } from "@/modules/drumbeat/features/pi/components/tabs/pi-dependencies-tab";
 import { LayoutToggle } from "@/components/nav/layout-toggle";
 import { tabToOldHref } from "@/components/nav/layout-toggle-routes";
 import { redirect, notFound } from "next/navigation";

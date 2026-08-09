@@ -4,7 +4,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { buildImpedimentsOverviewModel } from "@/server/views/impediments-overview";
-import { ImpedimentsOverviewShell } from "@/features/risks/components/impediments-overview-shell";
+import { ImpedimentsOverviewShell } from "@/modules/drumbeat/features/risks/components/impediments-overview-shell";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { Page } from "@/components/layout";
 

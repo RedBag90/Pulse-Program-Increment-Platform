@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { IMPEDIMENT_STATUSES, type ImpedimentStatus } from "@/server/views/impediments-list";
-import { ImpedimentListRowComponent } from "@/features/impediment/components/impediment-list-row";
+import { ImpedimentListRowComponent } from "@/modules/drumbeat/features/impediment/components/impediment-list-row";
 import type { ImpedimentListRow } from "@/server/views/impediments-list";
 
 interface Props {

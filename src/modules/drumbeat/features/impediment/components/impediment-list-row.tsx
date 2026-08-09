@@ -5,7 +5,7 @@ import { AlertOctagon, Clock, Flame, MoreHorizontal } from "lucide-react";
 import {
   escalateImpedimentAction,
   resolveImpedimentAction,
-} from "@/features/impediment/actions/impediment";
+} from "@/modules/drumbeat/features/impediment/actions/impediment";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +15,7 @@ import {
   SEVERITY_LABEL,
   STATUS_DOT,
   STATUS_LABEL,
-} from "@/features/impediment/labels";
+} from "@/modules/drumbeat/features/impediment/labels";
 
 interface Props {
   row: ImpedimentListRow;

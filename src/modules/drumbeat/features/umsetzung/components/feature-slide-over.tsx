@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { FeatureDetailShell } from "@/features/umsetzung/components/feature-detail-shell";
+import { FeatureDetailShell } from "@/modules/drumbeat/features/umsetzung/components/feature-detail-shell";
 import type { CockpitFeatureDetail } from "@/server/views/cockpit-feature-detail";
 
 /**

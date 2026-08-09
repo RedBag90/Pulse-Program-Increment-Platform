@@ -1,7 +1,10 @@
 "use client";
 
 import { useOptimistic, useRef, useState, useTransition } from "react";
-import { setFeaturePiAction, setFeatureDeliveryStatusAction } from "@/modules/work/features/feature/actions/feature";
+import {
+  setFeaturePiAction,
+  setFeatureDeliveryStatusAction,
+} from "@/modules/work/features/feature/actions/feature";
 import type {
   CockpitFeature,
   CockpitPiSlot,

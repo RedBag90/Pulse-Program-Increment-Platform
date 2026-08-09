@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import type { ImpedimentSeverity, OwnerOption, PiOption } from "@/server/views/impediments-list";
-import { SEVERITY_LABEL } from "@/features/impediment/labels";
+import { SEVERITY_LABEL } from "@/modules/drumbeat/features/impediment/labels";
 
 export type SortKey = "daysOpen:desc" | "daysOpen:asc" | "severity:desc" | "createdAt:desc";
 

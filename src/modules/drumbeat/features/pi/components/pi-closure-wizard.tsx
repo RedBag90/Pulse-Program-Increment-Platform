@@ -10,8 +10,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { setPiClosureMetaAction, transitionPiAction } from "@/features/pi/actions/pi";
-import { setImpedimentRoamAction } from "@/features/impediment/actions/impediment";
+import {
+  setPiClosureMetaAction,
+  transitionPiAction,
+} from "@/modules/drumbeat/features/pi/actions/pi";
+import { setImpedimentRoamAction } from "@/modules/drumbeat/features/impediment/actions/impediment";
 
 interface OpenImpediment {
   id: string;

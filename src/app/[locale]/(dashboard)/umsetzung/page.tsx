@@ -4,7 +4,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadCockpitModel, type CockpitView } from "@/server/views/umsetzung-cockpit-view";
 import { loadCockpitFeatureDetail } from "@/server/views/cockpit-feature-detail";
-import { CockpitShell } from "@/features/umsetzung/components/cockpit-shell";
+import { CockpitShell } from "@/modules/drumbeat/features/umsetzung/components/cockpit-shell";
 
 /**
  * Delivery-Cockpit (Umsetzungs-Modul-Redesign, Phase 1 — Skelett).

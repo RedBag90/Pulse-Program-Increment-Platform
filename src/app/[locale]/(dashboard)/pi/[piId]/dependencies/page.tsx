@@ -7,8 +7,8 @@ import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { Breadcrumbs } from "@/components/nav/breadcrumbs";
 import { Page, PageHeader, PageSection } from "@/components/layout";
-import { PiSubNav } from "@/features/pi/components/pi-sub-nav";
-import { DependencyGraph } from "@/features/pi/components/dependency-graph";
+import { PiSubNav } from "@/modules/drumbeat/features/pi/components/pi-sub-nav";
+import { DependencyGraph } from "@/modules/drumbeat/features/pi/components/dependency-graph";
 import { buildDependenciesListModel } from "@/server/views/dependencies-list";
 import { DependenciesListShell } from "@/features/dependencies/components/dependencies-list-shell";
 

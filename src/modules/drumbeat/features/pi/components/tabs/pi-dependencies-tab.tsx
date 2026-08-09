@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { DependencyGraph } from "@/features/pi/components/dependency-graph";
+import { DependencyGraph } from "@/modules/drumbeat/features/pi/components/dependency-graph";
 import { DependenciesListShell } from "@/features/dependencies/components/dependencies-list-shell";
 
 interface Node {

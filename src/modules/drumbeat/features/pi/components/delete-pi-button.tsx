@@ -4,7 +4,7 @@ import { Trash2 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { useCallback } from "react";
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
-import { deletePiAction } from "@/features/pi/actions/pi";
+import { deletePiAction } from "@/modules/drumbeat/features/pi/actions/pi";
 
 interface Props {
   piId: string;

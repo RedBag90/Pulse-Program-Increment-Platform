@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { AlertOctagon, Flame, Clock, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { setImpedimentRoamBatchAction } from "@/features/impediment/actions/impediment";
+import { setImpedimentRoamBatchAction } from "@/modules/drumbeat/features/impediment/actions/impediment";
 import {
   ROAM_STATUSES,
   IMPEDIMENT_WORKFLOW_STATUSES,
@@ -15,7 +15,11 @@ import {
   type ImpedimentsOverviewModel,
   type ImpedimentOverviewRow,
 } from "@/server/views/impediments-overview";
-import { SEVERITY_BADGE, SEVERITY_LABEL, STATUS_LABEL } from "@/features/impediment/labels";
+import {
+  SEVERITY_BADGE,
+  SEVERITY_LABEL,
+  STATUS_LABEL,
+} from "@/modules/drumbeat/features/impediment/labels";
 import { Page, PageHeader } from "@/components/layout";
 
 interface Props {

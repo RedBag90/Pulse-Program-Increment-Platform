@@ -4,13 +4,13 @@ import {
   type DetailTab,
 } from "@/components/detail/entity-detail-shell";
 import type { ActivityItem } from "@/components/detail/initiative-activity-sidebar";
-import { FeatureOverviewTab } from "@/features/umsetzung/components/feature-overview-tab";
+import { FeatureOverviewTab } from "@/modules/drumbeat/features/umsetzung/components/feature-overview-tab";
 import {
   FeatureDependenciesTab,
   type DependencyEdge,
-} from "@/features/umsetzung/components/feature-dependencies-tab";
-import { FeatureAcceptanceTab } from "@/features/umsetzung/components/feature-acceptance-tab";
-import { FeatureHistoryTab } from "@/features/umsetzung/components/feature-history-tab";
+} from "@/modules/drumbeat/features/umsetzung/components/feature-dependencies-tab";
+import { FeatureAcceptanceTab } from "@/modules/drumbeat/features/umsetzung/components/feature-acceptance-tab";
+import { FeatureHistoryTab } from "@/modules/drumbeat/features/umsetzung/components/feature-history-tab";
 import type { FeatureDetailModel } from "@/server/views/feature-detail";
 
 const FEATURE_DETAIL_TABS: readonly DetailTab[] = [
