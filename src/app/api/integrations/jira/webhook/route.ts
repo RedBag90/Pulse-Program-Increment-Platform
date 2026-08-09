@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createPrismaClient } from "@/server/db/prisma";
 import { problemJson } from "@/server/http/problem";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 
 // Jira sends the HMAC-SHA256 signature in this header
 const SIGNATURE_HEADER = "x-hub-signature";

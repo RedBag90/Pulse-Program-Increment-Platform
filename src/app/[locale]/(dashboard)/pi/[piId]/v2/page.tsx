@@ -12,8 +12,8 @@ import { PiDependenciesTab } from "@/features/pi/components/tabs/pi-dependencies
 import { LayoutToggle } from "@/components/nav/layout-toggle";
 import { tabToOldHref } from "@/components/nav/layout-toggle-routes";
 import { redirect, notFound } from "next/navigation";
-import { InitiativeLevel } from "@/domain/types";
-import type { PiId, TenantId, ArtId } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import type { PiId, TenantId, ArtId } from "@/modules/core/kernel/domain/types";
 
 interface Props {
   params: Promise<{ piId: string }>;

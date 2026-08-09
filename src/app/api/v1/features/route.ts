@@ -4,7 +4,7 @@ import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import { parsePageParams } from "@/server/db/paginate";
 import { fibonacci } from "@/domain/schemas/initiative";
-import type { ArtId, EpicId, PiId } from "@/domain/types";
+import type { ArtId, EpicId, PiId } from "@/modules/core/kernel/domain/types";
 
 const createSchema = z.object({
   parentId: z.string().uuid(),

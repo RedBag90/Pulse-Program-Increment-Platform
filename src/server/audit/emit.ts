@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import * as Sentry from "@sentry/nextjs";
 import type { PrismaClient, Prisma } from "@/generated/prisma";
-import type { TenantId, UserId } from "@/domain/types";
+import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 import type { headers } from "next/headers";
 
 // ---------------------------------------------------------------------------

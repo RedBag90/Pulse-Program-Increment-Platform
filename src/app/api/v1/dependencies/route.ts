@@ -2,7 +2,7 @@ import { z } from "zod";
 import { linkDependency, unlinkDependency, listDependencies } from "@/server/services/dependency";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
-import type { InitiativeId } from "@/domain/types";
+import type { InitiativeId } from "@/modules/core/kernel/domain/types";
 
 const dependencyTypeSchema = z.enum(["blocks", "depends_on", "relates_to"]);
 

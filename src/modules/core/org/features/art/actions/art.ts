@@ -5,7 +5,7 @@ import { updateArt, softDeleteArt } from "@/modules/core/org/server/services/art
 import { createArtOnTimeline } from "@/modules/core/org/server/services/art-setup";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import type { ValueStreamId, ArtId, TimelineId } from "@/domain/types";
+import type { ValueStreamId, ArtId, TimelineId } from "@/modules/core/kernel/domain/types";
 import { formatDomainError } from "@/server/http/domain-error-display";
 
 export interface ArtActionState {

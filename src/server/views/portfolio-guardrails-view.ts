@@ -21,7 +21,7 @@ import {
 } from "@/domain/portfolio-guardrails";
 import { computeMixAxis, type MixRow } from "@/domain/guardrail-rules";
 import { STAGE_GATES } from "@/domain/stage-gate";
-import type { StageGate } from "@/domain/types";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 
 export type { MixRow };
 

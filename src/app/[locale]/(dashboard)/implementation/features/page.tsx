@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getTenantPractices } from "@/server/services/target-model";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { buildFeaturesOverviewModel } from "@/server/views/features-overview";
 import { FeaturesOverviewShell } from "@/features/implementation/components/features-overview-shell";
 import { Page } from "@/components/layout";

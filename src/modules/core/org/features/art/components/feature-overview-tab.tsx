@@ -4,7 +4,7 @@ import { FeatureEditForm } from "./feature-edit-form";
 import { WsjfScoreDialog } from "./wsjf-score-dialog";
 import { STAGE_GATE_LABELS, STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { buildInitiativeSummary } from "@/modules/core/kernel/domain/initiative-summary";
-import type { StageGate, InitiativeStatus } from "@/domain/types";
+import type { StageGate, InitiativeStatus } from "@/modules/core/kernel/domain/types";
 
 export interface FeatureOverviewTabProps {
   feature: {

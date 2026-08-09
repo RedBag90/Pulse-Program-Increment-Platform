@@ -19,7 +19,7 @@
 
 import { PrismaClient } from "@/generated/prisma";
 import type { Prisma } from "@/generated/prisma";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { DEFAULT_GUARDRAIL_TARGETS } from "@/domain/portfolio-guardrails";
 
 async function main() {

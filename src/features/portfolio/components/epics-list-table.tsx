@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { STAGE_GATES } from "@/domain/stage-gate";
-import type { StageGate } from "@/domain/types";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import { EpicListRowComponent } from "@/features/portfolio/components/epic-list-row";
 import type { EpicListRow } from "@/server/views/portfolio-epics-list";

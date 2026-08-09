@@ -19,8 +19,8 @@ import { LinkDependencyDialog } from "@/features/dependencies/components/link-de
 import { UnlinkDependencyButton } from "@/features/dependencies/components/unlink-dependency-button";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { redirect, notFound } from "next/navigation";
-import { InitiativeLevel } from "@/domain/types";
-import type { FeatureId, TenantId } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import type { FeatureId, TenantId } from "@/modules/core/kernel/domain/types";
 
 interface Props {
   params: Promise<{ featureId: string }>;

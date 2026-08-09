@@ -2,7 +2,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createPrismaClient } from "@/server/db/prisma";
-import type { TenantId, UserId } from "@/domain/types";
+import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 import type { Action, ScopeCheck } from "@/server/auth/policies";
 import { enabledModulesOrDefault, type ModuleKey } from "@/modules/core/kernel/domain/modules";
 import { isUserBanned } from "@/server/services/user-directory";

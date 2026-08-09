@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import { confirmEpicImpact } from "@/server/services/epic";
-import type { EpicId } from "@/domain/types";
+import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 /**
  * Confirm-Epic-Impact: Controlling-Hand. Schiebt das Epic von L4 auf L5

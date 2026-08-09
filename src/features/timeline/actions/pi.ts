@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createPi, updatePi, deletePi } from "@/server/services/pi";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import type { PiId, TimelineId } from "@/domain/types";
+import type { PiId, TimelineId } from "@/modules/core/kernel/domain/types";
 
 /**
  * PI-Mutationen aus der Timeline-Page heraus. Audience: LPM/Admin via

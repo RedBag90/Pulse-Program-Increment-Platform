@@ -1,8 +1,8 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { redirect } from "next/navigation";
-import { InitiativeLevel } from "@/domain/types";
-import type { TenantId } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusDistributionChart } from "@/components/charts/status-distribution-chart-lazy";
 import { getValueStreamBudgets } from "@/server/services/budgeting";

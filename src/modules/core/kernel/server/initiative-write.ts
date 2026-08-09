@@ -1,5 +1,5 @@
 import type { Prisma, Initiative } from "@/generated/prisma";
-import type { InitiativeLevel } from "@/domain/types";
+import type { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { ok, err, isErr, type Result } from "@/modules/core/kernel/domain/errors";
 import { validateParentLevel } from "@/modules/core/kernel/domain/hierarchy";
 import { notDeleted } from "@/server/db/soft-delete";

@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, ArtId, ValueStreamId } from "@/domain/types";
-import { InitiativeLevel } from "@/domain/types";
+import type { TenantId, ArtId, ValueStreamId } from "@/modules/core/kernel/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 
 /**
  * Read-only roadmap queries. Each returns the raw initiative rows with the data

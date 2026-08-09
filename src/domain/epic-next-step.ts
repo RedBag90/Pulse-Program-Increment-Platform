@@ -8,7 +8,7 @@
  * liegt im `EpicReifegradActivityBar`.
  */
 
-import type { StageGate } from "@/domain/types";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 import type { SubStage } from "@/domain/stage-gate";
 
 export type EpicNextStepCta =

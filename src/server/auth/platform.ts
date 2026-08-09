@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getPrincipal, type Principal } from "@/server/auth/principal";
-import type { UserId } from "@/domain/types";
+import type { UserId } from "@/modules/core/kernel/domain/types";
 
 /**
  * Plattform-Admin-Fundament (Roadmap P1). Der `platform_admin` verwaltet

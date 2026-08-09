@@ -4,7 +4,7 @@ import { z } from "zod";
 import { saveBenefitHypothesis } from "@/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import type { EpicId } from "@/domain/types";
+import type { EpicId } from "@/modules/core/kernel/domain/types";
 import type { ActionState } from "@/server/http/server-action";
 
 export type { ActionState as BenefitHypothesisActionState };

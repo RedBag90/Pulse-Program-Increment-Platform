@@ -2,7 +2,7 @@ import { z } from "zod";
 import { updateValueStream, softDeleteValueStream } from "@/modules/core/org/server/services/value-stream";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
-import type { ValueStreamId } from "@/domain/types";
+import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 
 // Budget derives from participatory-budgeting allocations — not set manually.
 const updateSchema = z.object({

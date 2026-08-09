@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { saveBudgetAllocation, saveBudgetPool } from "@/server/services/budgeting";
-import type { EpicId } from "@/domain/types";
+import type { EpicId } from "@/modules/core/kernel/domain/types";
 import { formatDomainError } from "@/server/http/domain-error-display";
 
 const periodMap = z.record(z.string(), z.number().nonnegative());

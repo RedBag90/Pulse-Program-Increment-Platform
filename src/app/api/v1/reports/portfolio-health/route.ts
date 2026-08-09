@@ -1,5 +1,5 @@
 import { createQueryHandler } from "@/server/http/query-handler";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 
 /** Portfolio health: epic counts by status and value-stream budget rollup. */
 export const GET = createQueryHandler({

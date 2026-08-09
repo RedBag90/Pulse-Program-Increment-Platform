@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**

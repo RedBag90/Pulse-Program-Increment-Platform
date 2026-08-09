@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createEpic, listEpics } from "@/server/services/epic";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
-import type { ValueStreamId } from "@/domain/types";
+import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 
 const createEpicSchema = z.object({
   title: z.string().min(1).max(200),

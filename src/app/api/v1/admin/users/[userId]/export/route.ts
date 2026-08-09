@@ -5,7 +5,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { exportUserData } from "@/server/services/gdpr";
 import { emitAuditEvent } from "@/server/audit/emit";
 import { unauthorized, forbidden } from "@/server/http/problem";
-import type { TenantId, UserId } from "@/domain/types";
+import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 
 /** GDPR data export — returns everything Pulse holds about a user as a JSON download. */
 export async function GET(

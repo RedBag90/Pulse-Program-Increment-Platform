@@ -1,7 +1,7 @@
 import type { Prisma } from "@/generated/prisma";
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, EpicId, ValueStreamId, StageGate } from "@/domain/types";
-import { InitiativeLevel } from "@/domain/types";
+import type { TenantId, EpicId, ValueStreamId, StageGate } from "@/modules/core/kernel/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";

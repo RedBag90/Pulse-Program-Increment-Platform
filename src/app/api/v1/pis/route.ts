@@ -2,7 +2,7 @@ import { z } from "zod";
 import { listPis } from "@/server/services/pi";
 import { createQueryHandler } from "@/server/http/query-handler";
 import { parsePageParams } from "@/server/db/paginate";
-import type { ArtId } from "@/domain/types";
+import type { ArtId } from "@/modules/core/kernel/domain/types";
 
 // PIs werden zentral über Timeline-Standards erzeugt (siehe
 // `applyPiStandard` / `addStandardPisAction`); ein REST-POST für einzelne

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import type { TenantId } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { buildIntegrationsPageModel } from "@/server/views/admin-integrations";
 import { IntegrationsPageShell } from "@/features/admin/components/integrations-page-shell";
 

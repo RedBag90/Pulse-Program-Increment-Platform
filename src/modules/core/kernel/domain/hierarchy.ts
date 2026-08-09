@@ -1,4 +1,4 @@
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 
 // ---------------------------------------------------------------------------

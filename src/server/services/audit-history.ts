@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 
 /**
  * Audit history for a single resource, newest first — backs the Verlauf tab of

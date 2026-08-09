@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, UserId } from "@/domain/types";
+import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok } from "@/modules/core/kernel/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";

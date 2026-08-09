@@ -19,7 +19,7 @@ import { revalidateFor } from "@/server/http/revalidation";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { isErr } from "@/modules/core/kernel/domain/errors";
 import { redirect } from "next/navigation";
-import type { ArtId } from "@/domain/types";
+import type { ArtId } from "@/modules/core/kernel/domain/types";
 
 export type ImpedimentActionState = { error?: string; success?: boolean };
 

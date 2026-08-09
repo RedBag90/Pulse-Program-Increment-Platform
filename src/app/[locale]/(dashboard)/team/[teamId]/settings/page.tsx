@@ -11,7 +11,7 @@ import { TeamSubNav } from "@/modules/core/org/features/team/components/team-sub
 import { TeamOverviewForm } from "@/features/capacity/components/team-overview-form";
 import { Page, PageHeader, PageSection } from "@/components/layout";
 import { redirect, notFound } from "next/navigation";
-import type { TeamId } from "@/domain/types";
+import type { TeamId } from "@/modules/core/kernel/domain/types";
 
 interface Props {
   params: Promise<{ teamId: string }>;

@@ -6,7 +6,7 @@ import { ArtSubNav } from "@/modules/core/org/features/art/components/art-sub-na
 import { AuditTimeline } from "@/components/detail/audit-timeline";
 import { Page, PageHeader, PageSection } from "@/components/layout";
 import { redirect, notFound } from "next/navigation";
-import type { ArtId } from "@/domain/types";
+import type { ArtId } from "@/modules/core/kernel/domain/types";
 
 interface Props {
   params: Promise<{ artId: string }>;

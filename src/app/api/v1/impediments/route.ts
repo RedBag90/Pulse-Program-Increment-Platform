@@ -3,7 +3,7 @@ import { createImpediment, listImpediments } from "@/server/services/impediment"
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import { parsePageParams } from "@/server/db/paginate";
-import type { TenantId, ArtId, PiId, SprintId } from "@/domain/types";
+import type { TenantId, ArtId, PiId, SprintId } from "@/modules/core/kernel/domain/types";
 
 const createSchema = z.object({
   artId: z.string().uuid(),

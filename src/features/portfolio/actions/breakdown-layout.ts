@@ -4,7 +4,7 @@ import { z } from "zod";
 import { saveBreakdownLayout } from "@/server/services/breakdown-layout";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
-import type { EpicId, InitiativeId } from "@/domain/types";
+import type { EpicId, InitiativeId } from "@/modules/core/kernel/domain/types";
 
 /**
  * Persistiert eine Liste von Netzplan-Node-Positionen fuer ein Epic

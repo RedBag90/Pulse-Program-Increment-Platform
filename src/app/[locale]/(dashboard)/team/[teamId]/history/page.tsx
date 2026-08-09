@@ -6,7 +6,7 @@ import { TeamSubNav } from "@/modules/core/org/features/team/components/team-sub
 import { AuditTimeline } from "@/components/detail/audit-timeline";
 import { Page, PageHeader, PageSection } from "@/components/layout";
 import { redirect, notFound } from "next/navigation";
-import type { TeamId } from "@/domain/types";
+import type { TeamId } from "@/modules/core/kernel/domain/types";
 
 interface Props {
   params: Promise<{ teamId: string }>;

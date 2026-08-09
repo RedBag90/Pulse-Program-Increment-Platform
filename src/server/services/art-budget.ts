@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma";
-import type { TenantId, ValueStreamId } from "@/domain/types";
-import { InitiativeLevel } from "@/domain/types";
+import type { TenantId, ValueStreamId } from "@/modules/core/kernel/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err } from "@/modules/core/kernel/domain/errors";
 import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";

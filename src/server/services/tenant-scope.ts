@@ -1,4 +1,4 @@
-import type { TenantId } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Principal } from "@/server/auth/principal";
 
 /**

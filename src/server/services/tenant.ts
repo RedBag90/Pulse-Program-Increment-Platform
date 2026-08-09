@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, UserId } from "@/domain/types";
+import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
 import { PERSONAL_DEFAULT_MODULES } from "@/modules/core/kernel/domain/modules";
 import { emitAuditEvent } from "@/server/audit/emit";

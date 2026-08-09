@@ -8,8 +8,8 @@ import {
 } from "@/server/services/dependency";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
-import { InitiativeLevel } from "@/domain/types";
-import type { EpicId } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;
 let epicA: EpicId;

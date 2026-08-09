@@ -1,4 +1,4 @@
-import type { StageGate, InitiativeStatus } from "@/domain/types";
+import type { StageGate, InitiativeStatus } from "@/modules/core/kernel/domain/types";
 
 // ---------------------------------------------------------------------------
 // Initiative summary — the one-line status band on the Overview tab.

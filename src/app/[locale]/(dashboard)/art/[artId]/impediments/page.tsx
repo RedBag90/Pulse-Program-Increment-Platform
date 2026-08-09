@@ -9,7 +9,7 @@ import { buildImpedimentsListModel } from "@/server/views/impediments-list";
 import { ArtSubNav } from "@/modules/core/org/features/art/components/art-sub-nav";
 import { Page } from "@/components/layout";
 import { ImpedimentsListShell } from "@/features/impediment/components/impediments-list-shell";
-import type { TenantId, ArtId } from "@/domain/types";
+import type { TenantId, ArtId } from "@/modules/core/kernel/domain/types";
 
 interface Props {
   params: Promise<{ artId: string }>;

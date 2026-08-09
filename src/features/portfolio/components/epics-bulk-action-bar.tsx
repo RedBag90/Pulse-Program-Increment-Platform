@@ -5,7 +5,7 @@ import { ChevronUp, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { advanceStageGateBatchAction } from "@/features/portfolio/actions/stage-gate";
 import { STAGE_GATES } from "@/domain/stage-gate";
-import type { StageGate } from "@/domain/types";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import type { EpicListRow } from "@/server/views/portfolio-epics-list";
 

@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, ArtId, ValueStreamId } from "@/domain/types";
+import type { TenantId, ArtId, ValueStreamId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err } from "@/modules/core/kernel/domain/errors";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";

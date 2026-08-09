@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 
 // ---------------------------------------------------------------------------
 // Cross-level Initiative reads — shared by Epics, Features, Stories and Tasks.

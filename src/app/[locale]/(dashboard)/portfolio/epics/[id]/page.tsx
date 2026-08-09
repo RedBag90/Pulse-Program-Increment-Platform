@@ -26,7 +26,7 @@ import { EpicOverviewTab } from "@/features/portfolio/components/epic-overview-t
 import { EpicReifegradActivityBar } from "@/features/portfolio/components/epic-reifegrad-activity-bar";
 import { EpicImpactConfirmDialog } from "@/features/portfolio/components/epic-impact-confirm-dialog";
 import { subStageFor } from "@/domain/stage-gate";
-import type { StageGate } from "@/domain/types";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { EpicKpisTab, type KpiRow } from "@/features/portfolio/components/epic-kpis-tab";
 import {
   EpicBreakdownTab,
@@ -65,7 +65,7 @@ import {
 import type { ApprovalParty } from "@/domain/business-case";
 import type { ApprovalSection } from "@/domain/epic-approval";
 import { redirect } from "next/navigation";
-import type { EpicId } from "@/domain/types";
+import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 interface Props {
   params: Promise<{ locale: string; id: string }>;

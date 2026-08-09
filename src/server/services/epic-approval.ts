@@ -1,6 +1,6 @@
 import type { PrismaClient, Prisma } from "@/generated/prisma";
-import { InitiativeLevel } from "@/domain/types";
-import type { EpicId, TenantId } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import type { EpicId, TenantId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err } from "@/modules/core/kernel/domain/errors";
 import type { ChangeMap } from "@/modules/core/kernel/domain/change-log";

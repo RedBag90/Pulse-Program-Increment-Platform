@@ -1,6 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 import { type SubStage } from "@/domain/stage-gate";
-import type { StageGate } from "@/domain/types";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { SectionLabel } from "@/components/ui/section-label";
 import type { EpicNextStep } from "@/domain/epic-next-step";
 import { StageGateLifecycleHelp } from "@/features/portfolio/components/stage-gate-lifecycle-help";

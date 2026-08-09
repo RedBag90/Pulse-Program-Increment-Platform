@@ -6,7 +6,7 @@ import { assignRole, removeRole } from "@/server/services/role-assignment";
 import { createServerAction } from "@/server/http/server-action";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
 import type { Role } from "@/modules/core/kernel/domain/roles";
-import type { UserId } from "@/domain/types";
+import type { UserId } from "@/modules/core/kernel/domain/types";
 import { formatDomainError } from "@/server/http/domain-error-display";
 
 export interface RoleAssignmentState {

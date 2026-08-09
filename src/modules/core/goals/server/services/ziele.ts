@@ -23,7 +23,7 @@ import {
 } from "@/modules/core/goals/domain/goal-progress-mode";
 import { latestMeasurement } from "@/modules/core/kpi/domain/kpi-measurement";
 import { dayStart } from "@/modules/core/kernel/domain/calendar";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 
 export type GoalTarget = "objective" | "kr";
 

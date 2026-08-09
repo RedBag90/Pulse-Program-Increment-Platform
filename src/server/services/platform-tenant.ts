@@ -1,7 +1,7 @@
 import type { Role } from "@/modules/core/kernel/domain/roles";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
 import type { Principal } from "@/server/auth/principal";
-import type { TenantId, UserId } from "@/domain/types";
+import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 import { platformDb } from "@/server/auth/platform";
 import { emitAuditEvent } from "@/server/audit/emit";
 import { publishDomainEvent } from "@/server/events/publish";

@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, ArtId, PiId, TimelineId } from "@/domain/types";
+import type { TenantId, ArtId, PiId, TimelineId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { validatePiDates } from "@/domain/pi-planning";

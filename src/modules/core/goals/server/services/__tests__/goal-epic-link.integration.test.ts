@@ -6,7 +6,7 @@ import {
   linkEpicToGoal,
   unlinkEpicFromGoal,
 } from "@/modules/core/goals/server/services/goal-epic-link";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";

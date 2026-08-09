@@ -5,7 +5,7 @@ import { createKpi, updateKpi, deleteKpi, recordKpiMeasurement } from "@/modules
 import type { KpiId } from "@/modules/core/kpi/server/kpi";
 import { createServerAction } from "@/server/http/server-action";
 import type { ActionState } from "@/server/http/server-action";
-import type { EpicId } from "@/domain/types";
+import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 export type { ActionState as KpiActionState };
 

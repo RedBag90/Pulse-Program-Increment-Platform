@@ -1,11 +1,11 @@
 import type { Principal } from "@/server/auth/principal";
-import type { TenantId } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { platformDb, assertPlatformAdmin } from "@/server/auth/platform";
 import { createPrismaClient } from "@/server/db/prisma";
 import { emitAuditEvent } from "@/server/audit/emit";
 import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 import { createOrgTenant, type ServiceOutcome } from "@/server/services/platform-tenant";
-import type { UserId } from "@/domain/types";
+import type { UserId } from "@/modules/core/kernel/domain/types";
 
 /**
  * Öffentliche Provisioning-Anträge für neue Organisationen (Roadmap P6). Ein

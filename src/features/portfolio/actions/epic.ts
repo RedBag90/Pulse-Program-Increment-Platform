@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createEpic, updateEpic, softDeleteEpic } from "@/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import type { ValueStreamId, EpicId } from "@/domain/types";
+import type { ValueStreamId, EpicId } from "@/modules/core/kernel/domain/types";
 import type { ActionState } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 

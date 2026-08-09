@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createArt, listArts } from "@/modules/core/org/server/services/art";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
-import type { ValueStreamId } from "@/domain/types";
+import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 
 const createSchema = z.object({
   valueStreamId: z.string().uuid(),

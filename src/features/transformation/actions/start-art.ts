@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { startArt } from "@/modules/core/org/server/services/art-setup";
-import type { ValueStreamId, TimelineId } from "@/domain/types";
+import type { ValueStreamId, TimelineId } from "@/modules/core/kernel/domain/types";
 
 const schema = z.object({
   valueStreamId: z.string().uuid(),

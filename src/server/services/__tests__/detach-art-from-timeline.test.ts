@@ -13,7 +13,7 @@ import { describe, it, expect, vi } from "vitest";
  */
 
 import { leaveArtFromTimeline } from "@/server/services/timeline";
-import type { ArtId } from "@/domain/types";
+import type { ArtId } from "@/modules/core/kernel/domain/types";
 
 type Captured = { table: string; where: unknown };
 

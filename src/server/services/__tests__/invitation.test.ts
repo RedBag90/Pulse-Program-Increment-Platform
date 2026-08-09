@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { signInviteToken, verifyInviteToken } from "@/server/services/invitation";
-import type { TenantId } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 
 const tenantId = "11111111-1111-1111-1111-111111111111" as TenantId;
 

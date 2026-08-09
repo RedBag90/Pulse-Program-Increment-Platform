@@ -13,7 +13,7 @@
  */
 
 import { PrismaClient } from "@/generated/prisma";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 
 const REASON = "stage_gate_l1_to_l2_backfill_2026_06_07";
 const SYSTEM_ACTOR = "00000000-0000-0000-0000-000000000000";

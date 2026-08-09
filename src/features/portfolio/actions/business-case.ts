@@ -4,7 +4,7 @@ import { z } from "zod";
 import { saveBusinessCase } from "@/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import { businessCaseSchema } from "@/domain/schemas/initiative";
-import type { EpicId } from "@/domain/types";
+import type { EpicId } from "@/modules/core/kernel/domain/types";
 import type { ActionState } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 

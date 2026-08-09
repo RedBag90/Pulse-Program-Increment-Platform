@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { advanceStageGate } from "@/server/services/epic";
 import { STAGE_GATES } from "@/domain/stage-gate";
-import type { EpicId } from "@/domain/types";
+import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 const transitionSchema = z.object({
   toGate: z.enum(STAGE_GATES),

@@ -10,8 +10,8 @@ import {
 } from "@/server/services/feature";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
-import { InitiativeLevel } from "@/domain/types";
-import type { EpicId, FeatureId, ArtId } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import type { EpicId, FeatureId, ArtId } from "@/modules/core/kernel/domain/types";
 import { randomUUID } from "crypto";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;

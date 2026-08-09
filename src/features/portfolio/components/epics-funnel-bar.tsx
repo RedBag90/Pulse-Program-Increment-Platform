@@ -1,7 +1,7 @@
 "use client";
 
 import { STAGE_GATES, SUB_STAGES_BY_GATE, type SubStage } from "@/domain/stage-gate";
-import type { StageGate } from "@/domain/types";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiative-labels";
 
 interface Props {

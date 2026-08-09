@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, UserId, ArtId, ValueStreamId, TimelineId } from "@/domain/types";
+import type { TenantId, UserId, ArtId, ValueStreamId, TimelineId } from "@/modules/core/kernel/domain/types";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { randomUUID } from "crypto";
 import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";

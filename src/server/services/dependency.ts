@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, InitiativeId } from "@/domain/types";
+import type { TenantId, InitiativeId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err } from "@/modules/core/kernel/domain/errors";
 import { detectCycle } from "@/domain/dependency-graph";

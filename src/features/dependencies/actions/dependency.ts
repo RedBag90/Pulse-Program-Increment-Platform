@@ -9,7 +9,7 @@ import {
 } from "@/server/services/dependency";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
-import type { InitiativeId } from "@/domain/types";
+import type { InitiativeId } from "@/modules/core/kernel/domain/types";
 
 const TYPE = z.enum(["blocks", "depends_on", "relates_to"]);
 

@@ -13,7 +13,7 @@
  */
 
 import { PrismaClient } from "@/generated/prisma";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 
 const REASON = "collapse_feature_status_qa_2026_06_13";
 const SYSTEM_ACTOR = "00000000-0000-0000-0000-000000000000";

@@ -5,7 +5,7 @@ import { createTeam, updateTeam, deleteTeam } from "@/modules/core/org/server/se
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { TEAM_TYPES } from "@/modules/core/org/domain/team-type";
-import type { ArtId, TeamId } from "@/domain/types";
+import type { ArtId, TeamId } from "@/modules/core/kernel/domain/types";
 
 export interface TeamActionState {
   error?: string;

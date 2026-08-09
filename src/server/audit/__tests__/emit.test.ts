@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { emitAuditEvent, extractRequestMeta } from "@/server/audit/emit";
 import type { AuditEventInput } from "@/server/audit/emit";
-import type { TenantId, UserId } from "@/domain/types";
+import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 
 // ---------------------------------------------------------------------------
 // Mock Prisma db

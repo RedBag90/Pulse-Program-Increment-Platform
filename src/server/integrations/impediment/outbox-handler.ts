@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import { sendImpedimentEscalationEmail } from "@/server/email/impediment";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { ArtId } from "@/domain/types";
+import type { ArtId } from "@/modules/core/kernel/domain/types";
 import type { DomainEvent } from "@/server/events/types";
 
 type ImpedimentEscalatedPayload = Extract<DomainEvent, { type: "impediment.escalated" }>;

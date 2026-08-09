@@ -19,8 +19,8 @@ import { ArtHistoryTab } from "@/modules/core/org/features/art/components/tabs/a
 import { LayoutToggle } from "@/components/nav/layout-toggle";
 import { tabToOldHref } from "@/components/nav/layout-toggle-routes";
 import { redirect, notFound } from "next/navigation";
-import { InitiativeLevel } from "@/domain/types";
-import type { ArtId, TenantId } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import type { ArtId, TenantId } from "@/modules/core/kernel/domain/types";
 
 interface Props {
   params: Promise<{ artId: string }>;

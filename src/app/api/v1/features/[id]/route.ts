@@ -3,7 +3,7 @@ import { getFeature, updateFeature } from "@/server/services/feature";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import { fibonacci } from "@/domain/schemas/initiative";
-import type { FeatureId, PiId } from "@/domain/types";
+import type { FeatureId, PiId } from "@/modules/core/kernel/domain/types";
 
 const updateSchema = z.object({
   title: z.string().min(1).max(200).optional(),

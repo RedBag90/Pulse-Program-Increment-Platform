@@ -6,8 +6,8 @@
  */
 
 import type { Prisma, PrismaClient } from "@/generated/prisma";
-import type { TenantId, EpicId } from "@/domain/types";
-import { InitiativeLevel } from "@/domain/types";
+import type { TenantId, EpicId } from "@/modules/core/kernel/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok } from "@/modules/core/kernel/domain/errors";
 import { parseTimeline } from "@/domain/timeline";

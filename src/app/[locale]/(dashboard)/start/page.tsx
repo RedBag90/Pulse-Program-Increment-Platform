@@ -5,7 +5,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { ensurePersonalTenant, ensurePlatformAdminBootstrap } from "@/server/services/tenant";
 import { landingPathForRoles } from "@/domain/landing";
 import { PERSONAL_DEFAULT_MODULES, firstEnabledHome } from "@/modules/core/kernel/domain/modules";
-import type { TenantId, UserId } from "@/domain/types";
+import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 
 /**
  * Post-login entry point — resolves the principal and forwards to the

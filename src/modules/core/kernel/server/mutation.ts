@@ -1,5 +1,5 @@
 import type { PrismaClient, Prisma } from "@/generated/prisma";
-import type { TenantId, UserId } from "@/domain/types";
+import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 import { ok, err, isErr, type Result } from "@/modules/core/kernel/domain/errors";
 import { emitAuditEvent, type AuditAction, type AuditResourceType } from "@/server/audit/emit";
 import type { ChangeMap } from "@/modules/core/kernel/domain/change-log";

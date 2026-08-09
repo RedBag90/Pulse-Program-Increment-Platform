@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 import { STAGE_GATES, type SubStage } from "@/domain/stage-gate";
-import type { StageGate } from "@/domain/types";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { STAGE_SHORT, STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 
 /**

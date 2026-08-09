@@ -12,7 +12,7 @@ import {
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { formatDomainError } from "@/server/http/domain-error-display";
-import type { ArtId, TimelineId } from "@/domain/types";
+import type { ArtId, TimelineId } from "@/modules/core/kernel/domain/types";
 
 export const createTimelineAction = createServerAction({
   schema: z.object({

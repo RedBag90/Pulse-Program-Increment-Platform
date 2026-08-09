@@ -14,7 +14,7 @@ import {
   subStageFor,
   type SubStage,
 } from "@/domain/stage-gate";
-import type { StageGate } from "@/domain/types";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { ragTier, type RagTier } from "@/domain/transformation-delta";
 import { extractUniqueFacet } from "@/server/views/lib/page-model-utils";
 

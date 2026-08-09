@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 
 /**
  * Delivery-Cockpit view-model (Umsetzungs-Modul-Redesign Phase 1).

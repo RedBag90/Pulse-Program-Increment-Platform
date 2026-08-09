@@ -2,7 +2,7 @@ import { z } from "zod";
 import { getPi, updatePi } from "@/server/services/pi";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
-import type { PiId } from "@/domain/types";
+import type { PiId } from "@/modules/core/kernel/domain/types";
 
 const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),

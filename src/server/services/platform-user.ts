@@ -1,6 +1,6 @@
 import { ROLES } from "@/modules/core/kernel/domain/roles";
 import type { Principal } from "@/server/auth/principal";
-import type { TenantId, UserId } from "@/domain/types";
+import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 import { platformDb, assertPlatformAdmin } from "@/server/auth/platform";
 import { emitAuditEvent } from "@/server/audit/emit";
 import { createAdminClient } from "@/lib/supabase/admin";

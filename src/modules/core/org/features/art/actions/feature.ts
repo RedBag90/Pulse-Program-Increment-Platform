@@ -15,7 +15,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import { fibonacci } from "@/domain/schemas/initiative";
-import type { EpicId, ArtId, FeatureId, PiId } from "@/domain/types";
+import type { EpicId, ArtId, FeatureId, PiId } from "@/modules/core/kernel/domain/types";
 
 export interface FeatureActionState {
   error?: string;

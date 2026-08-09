@@ -12,7 +12,7 @@ import { TeamHistoryTab } from "@/modules/core/org/features/team/components/tabs
 import { LayoutToggle } from "@/components/nav/layout-toggle";
 import { tabToOldHref } from "@/components/nav/layout-toggle-routes";
 import { redirect, notFound } from "next/navigation";
-import type { TeamId } from "@/domain/types";
+import type { TeamId } from "@/modules/core/kernel/domain/types";
 
 interface Props {
   params: Promise<{ teamId: string }>;

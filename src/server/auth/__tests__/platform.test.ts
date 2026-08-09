@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type * as PrincipalModule from "@/server/auth/principal";
 import type { Principal, PrincipalScopes } from "@/server/auth/principal";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
-import type { TenantId, UserId } from "@/domain/types";
+import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 
 // getPrincipal + next/navigation redirect werden für requirePlatformAdmin

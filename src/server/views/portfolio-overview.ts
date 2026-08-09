@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, ArtId } from "@/domain/types";
+import type { TenantId, ArtId } from "@/modules/core/kernel/domain/types";
 import { listEpics } from "@/server/services/epic";
 import { getBudgetingBoard, getValueStreamBudgets } from "@/server/services/budgeting";
 import { listImpedimentsForArts } from "@/server/services/impediment";

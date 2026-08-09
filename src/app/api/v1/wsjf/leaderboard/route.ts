@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createQueryHandler } from "@/server/http/query-handler";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 
 const listParamsSchema = z.object({ artId: z.string().uuid().optional() });
 

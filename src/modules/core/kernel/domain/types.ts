@@ -1,6 +1,3 @@
-import type { BenefitHypothesis } from "@/domain/benefit-hypothesis";
-import type { BusinessCase } from "@/domain/business-case";
-
 /**
  * Numeric ordering is load-bearing: parent.level + 1 === child.level.
  */
@@ -75,10 +72,13 @@ export interface Epic extends InitiativeBase {
   readonly id: EpicId;
   readonly parentId: null;
   readonly valueStreamId: ValueStreamId;
-  /** Benefit Hypothesis artefact — formulated during L1 Reviewing. */
-  benefitHypothesis?: BenefitHypothesis;
-  /** Business Case artefact — created during L2 Analyzing. */
-  businessCase?: BusinessCase;
+  /** Benefit Hypothesis artefact (JSON, am Use-Site via parseBenefitHypothesis
+   *  geparst) — als `unknown` gehalten, damit der Core-Substrat-Typ nicht auf
+   *  Work-Typen zeigt (ADR-0013). Die getypte Sicht lebt in Work. */
+  benefitHypothesis?: unknown;
+  /** Business Case artefact (JSON, am Use-Site via parseBusinessCase geparst) —
+   *  siehe oben. */
+  businessCase?: unknown;
 }
 
 export interface Feature extends InitiativeBase {

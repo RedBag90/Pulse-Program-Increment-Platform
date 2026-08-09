@@ -10,7 +10,7 @@
  */
 
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, PiId } from "@/domain/types";
+import type { TenantId, PiId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";

@@ -24,7 +24,7 @@
  */
 
 import { PrismaClient } from "@/generated/prisma";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 
 const REASON = "stage_gate_model_v2_migration_2026_06_07";
 

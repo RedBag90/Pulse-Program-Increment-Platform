@@ -6,7 +6,7 @@ import { RoadmapGantt } from "@/features/roadmap/components/roadmap-gantt";
 import { valueStreamRoadmapRows, roadmapAxis } from "@/domain/roadmap";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
-import type { ValueStreamId } from "@/domain/types";
+import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 import { Page, PageHeader } from "@/components/layout";
 
 interface Props {

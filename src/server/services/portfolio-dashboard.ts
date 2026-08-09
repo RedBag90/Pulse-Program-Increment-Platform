@@ -7,8 +7,8 @@
  */
 
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId } from "@/domain/types";
-import { InitiativeLevel } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok } from "@/modules/core/kernel/domain/errors";
 import { parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";

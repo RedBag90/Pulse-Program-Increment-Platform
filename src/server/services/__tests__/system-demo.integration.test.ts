@@ -12,7 +12,7 @@ import {
 } from "@/server/services/system-demo";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
-import type { PiId } from "@/domain/types";
+import type { PiId } from "@/modules/core/kernel/domain/types";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;
 let piId: PiId;

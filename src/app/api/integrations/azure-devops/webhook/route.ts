@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import type { TenantId } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 
 // ADO Service Hooks sign payloads with HMAC-SHA1 using the shared secret
 async function verifySignature(

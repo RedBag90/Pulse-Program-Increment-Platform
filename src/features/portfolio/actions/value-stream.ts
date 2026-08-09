@@ -9,7 +9,7 @@ import {
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { formatDomainError } from "@/server/http/domain-error-display";
-import type { ValueStreamId } from "@/domain/types";
+import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 import type { ActionState } from "@/server/http/server-action";
 
 export type { ActionState as ValueStreamActionState };

@@ -11,7 +11,7 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { isErr } from "@/modules/core/kernel/domain/errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { UserId } from "@/domain/types";
+import type { UserId } from "@/modules/core/kernel/domain/types";
 
 /**
  * GDPR erasure: revokes the user's access and audit-logs it, then removes the

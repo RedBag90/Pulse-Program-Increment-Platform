@@ -18,7 +18,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { revalidateFor } from "@/server/http/revalidation";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import type { PiId } from "@/domain/types";
+import type { PiId } from "@/modules/core/kernel/domain/types";
 
 export interface PiActionState {
   error?: string;

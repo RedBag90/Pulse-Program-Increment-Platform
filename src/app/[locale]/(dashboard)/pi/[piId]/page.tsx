@@ -15,8 +15,8 @@ import { Breadcrumbs } from "@/components/nav/breadcrumbs";
 import { Page, PageSection } from "@/components/layout";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
-import { InitiativeLevel } from "@/domain/types";
-import type { PiId, TenantId, ArtId } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import type { PiId, TenantId, ArtId } from "@/modules/core/kernel/domain/types";
 import { Card } from "@/components/ui/card";
 
 interface Props {

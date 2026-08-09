@@ -3,7 +3,7 @@ import { ShieldAlert } from "lucide-react";
 import { getPrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listUserTenants } from "@/server/services/tenant";
-import type { TenantId } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { SuspendedActions } from "@/features/platform/components/suspended-actions";
 
 /**

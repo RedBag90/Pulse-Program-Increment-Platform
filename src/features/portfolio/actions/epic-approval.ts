@@ -15,7 +15,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { APPROVAL_PARTIES } from "@/domain/business-case";
 import { APPROVAL_SECTIONS } from "@/domain/epic-approval";
-import type { EpicId } from "@/domain/types";
+import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 const DECISION = z.enum(["approve", "reject"]);
 const INTENT = z.enum(["decision", "clarification"]);

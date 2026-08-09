@@ -20,7 +20,7 @@ import { ValueStreamOverviewForm } from "@/features/capacity/components/value-st
 import { CreateArtDialog } from "@/modules/core/org/features/art/components/create-art-dialog";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
-import type { ValueStreamId } from "@/domain/types";
+import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 
 const TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },

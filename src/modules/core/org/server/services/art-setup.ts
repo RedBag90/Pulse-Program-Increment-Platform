@@ -1,4 +1,4 @@
-import type { ValueStreamId, ArtId, TimelineId } from "@/domain/types";
+import type { ValueStreamId, ArtId, TimelineId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, isErr } from "@/modules/core/kernel/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";

@@ -3,7 +3,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { exchangeCodeForTokens, getAccessibleResource } from "@/server/integrations/jira/oauth";
 import { createPrismaClient } from "@/server/db/prisma";
 import { problemJson } from "@/server/http/problem";
-import type { TenantId } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 
 export async function GET(req: NextRequest) {
   const principal = await requirePrincipal().catch(() => null);

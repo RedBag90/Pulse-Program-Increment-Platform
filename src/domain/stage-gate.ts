@@ -1,4 +1,4 @@
-import type { StageGate } from "@/domain/types";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 
 // ---------------------------------------------------------------------------
 // Stage-gate model — the canonical source for the L0–L5 lifecycle.

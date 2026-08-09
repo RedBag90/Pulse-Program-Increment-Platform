@@ -10,8 +10,8 @@ import { isErr } from "@/modules/core/kernel/domain/errors";
 import { headers, cookies } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { ACTIVE_TENANT_COOKIE } from "@/server/auth/principal";
-import type { UserId } from "@/domain/types";
-import type { TenantId } from "@/domain/types";
+import type { UserId } from "@/modules/core/kernel/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 
 const acceptSchema = z.object({
   token: z.string().min(1),

@@ -9,7 +9,7 @@ import {
 } from "@/modules/core/org/server/services/value-stream";
 import { isOk } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
-import type { ValueStreamId } from "@/domain/types";
+import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;
 

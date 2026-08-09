@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createPiStandard, deletePiStandard, applyPiStandard } from "@/server/services/pi-standard";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import type { TimelineId } from "@/domain/types";
+import type { TimelineId } from "@/modules/core/kernel/domain/types";
 import { formatDomainError } from "@/server/http/domain-error-display";
 
 export interface PiStandardActionState {

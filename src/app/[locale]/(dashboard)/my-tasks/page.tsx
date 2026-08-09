@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { listMyTasks } from "@/server/services/my-tasks";
 import {
   listEpicsForPortfolioList,

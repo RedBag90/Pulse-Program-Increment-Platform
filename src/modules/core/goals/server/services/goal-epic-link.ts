@@ -1,6 +1,6 @@
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { checkEpicLink } from "@/domain/epic-link-invariant";
-import { InitiativeLevel } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { authorizeResource } from "@/server/auth/authorize";
 import { notDeleted } from "@/server/db/soft-delete";

@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createPrismaClient } from "@/server/db/prisma";
 import { ACTIVE_TENANT_COOKIE } from "@/server/auth/principal";
-import type { TenantId, UserId } from "@/domain/types";
+import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
 
 // Justified exception: Tenant-Wechsel läuft nicht über createServerAction —
 // die Factory autorisiert gegen den AKTIVEN Tenant, hier wechseln wir ihn

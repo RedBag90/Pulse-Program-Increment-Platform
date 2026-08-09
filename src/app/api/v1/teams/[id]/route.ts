@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { updateTeam } from "@/modules/core/org/server/services/team";
-import type { TeamId } from "@/domain/types";
+import type { TeamId } from "@/modules/core/kernel/domain/types";
 
 const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),

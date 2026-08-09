@@ -5,7 +5,7 @@ import {
   exchangeCodeForTokens,
   getOrganizationProfile,
 } from "@/server/integrations/azure-devops/oauth";
-import type { TenantId } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const principal = await requirePrincipal().catch(() => null);

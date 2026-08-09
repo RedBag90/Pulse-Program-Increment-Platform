@@ -3,7 +3,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import type { TenantId } from "@/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 import type { Prisma } from "@/generated/prisma";
 import { revalidatePath } from "next/cache";
 

@@ -4,7 +4,7 @@ import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import { createArt, softDeleteArt, listArts, getArt } from "@/modules/core/org/server/services/art";
 import { isOk } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
-import type { ArtId, ValueStreamId } from "@/domain/types";
+import type { ArtId, ValueStreamId } from "@/modules/core/kernel/domain/types";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;
 

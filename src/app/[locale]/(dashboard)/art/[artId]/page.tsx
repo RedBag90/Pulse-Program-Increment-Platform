@@ -5,8 +5,8 @@ import { ArtSubNav } from "@/modules/core/org/features/art/components/art-sub-na
 import { Page, PageHeader, PageSection } from "@/components/layout";
 import { Link } from "@/i18n/navigation";
 import { redirect, notFound } from "next/navigation";
-import { InitiativeLevel } from "@/domain/types";
-import type { ArtId, TenantId } from "@/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import type { ArtId, TenantId } from "@/modules/core/kernel/domain/types";
 import { Card } from "@/components/ui/card";
 import { Target, Users, Zap, GitBranch } from "lucide-react";
 
