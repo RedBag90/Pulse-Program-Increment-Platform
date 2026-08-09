@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { CreateValueStreamDialog } from "@/features/portfolio/components/create-value-stream-dialog";
+import { CreateValueStreamDialog } from "@/modules/core/org/features/value-stream/components/create-value-stream-dialog";
 import { CreateTimelineButton } from "@/modules/core/org/features/structure/components/create-timeline-button";
 import type { NodeKind } from "@/modules/core/org/server/views/structure-page";
 

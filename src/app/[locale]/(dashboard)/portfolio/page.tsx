@@ -2,11 +2,11 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadPortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import { redirect } from "next/navigation";
-import { ViewSwitcher } from "@/features/portfolio/overview/view-switcher";
-import { resolveOverviewView } from "@/features/portfolio/overview/view-switcher-config";
-import { OverviewMissionControl } from "@/features/portfolio/overview/overview-mission-control";
-import { OverviewHero } from "@/features/portfolio/overview/overview-hero";
-import { OverviewExecutive } from "@/features/portfolio/overview/overview-executive";
+import { ViewSwitcher } from "@/modules/work/features/portfolio/overview/view-switcher";
+import { resolveOverviewView } from "@/modules/work/features/portfolio/overview/view-switcher-config";
+import { OverviewMissionControl } from "@/modules/work/features/portfolio/overview/overview-mission-control";
+import { OverviewHero } from "@/modules/work/features/portfolio/overview/overview-hero";
+import { OverviewExecutive } from "@/modules/work/features/portfolio/overview/overview-executive";
 import { Page, PageHeader } from "@/components/layout";
 
 interface Props {

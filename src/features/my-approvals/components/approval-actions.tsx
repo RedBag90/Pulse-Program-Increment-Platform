@@ -5,7 +5,7 @@ import {
   decideEpicHypothesisAction,
   decideEpicApprovalAction,
   signoffEpicSectionAction,
-} from "@/features/portfolio/actions/epic-approval";
+} from "@/modules/work/features/portfolio/actions/epic-approval";
 import type { ApprovalKind, MyApprovalRow } from "@/server/services/my-approvals";
 
 /**

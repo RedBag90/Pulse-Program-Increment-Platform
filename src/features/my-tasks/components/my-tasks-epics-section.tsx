@@ -1,6 +1,6 @@
 "use client";
 
-import { EpicsListTable } from "@/features/portfolio/components/epics-list-table";
+import { EpicsListTable } from "@/modules/work/features/portfolio/components/epics-list-table";
 import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 
 interface Props {

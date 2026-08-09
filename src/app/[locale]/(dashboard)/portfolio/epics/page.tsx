@@ -12,7 +12,7 @@ import { listValueStreams } from "@/modules/core/org/server/services/value-strea
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";
 import { buildEpicsListModel } from "@/modules/work/server/views/portfolio-epics-list";
-import { EpicsListShell } from "@/features/portfolio/components/epics-list-shell";
+import { EpicsListShell } from "@/modules/work/features/portfolio/components/epics-list-shell";
 
 /** A KPI measurement entry as stored in the `measurements` JSON column. */
 interface KpiMeasurement {

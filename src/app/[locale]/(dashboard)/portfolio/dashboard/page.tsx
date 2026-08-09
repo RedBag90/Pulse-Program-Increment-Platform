@@ -5,8 +5,8 @@ import {
   getPortfolioEconomics,
   getPortfolioGuardrailsInputs,
 } from "@/modules/work/server/services/portfolio-dashboard";
-import { PortfolioDashboard } from "@/features/portfolio/components/dashboard/portfolio-dashboard-lazy";
-import { PortfolioGuardrailsSection } from "@/features/portfolio/components/dashboard/portfolio-guardrails-section";
+import { PortfolioDashboard } from "@/modules/work/features/portfolio/components/dashboard/portfolio-dashboard-lazy";
+import { PortfolioGuardrailsSection } from "@/modules/work/features/portfolio/components/dashboard/portfolio-guardrails-section";
 import { computePortfolioGuardrails } from "@/modules/work/server/views/portfolio-guardrails-view";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";

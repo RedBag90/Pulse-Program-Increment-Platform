@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { updateValueStreamAction } from "@/features/portfolio/actions/value-stream";
+import { updateValueStreamAction } from "@/modules/core/org/features/value-stream/actions/value-stream";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";

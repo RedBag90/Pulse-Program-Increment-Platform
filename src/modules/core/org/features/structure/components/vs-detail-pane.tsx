@@ -3,8 +3,8 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { CreateArtDialog } from "@/modules/core/org/features/art/components/create-art-dialog";
-import { EditValueStreamDialog } from "@/features/portfolio/components/edit-value-stream-dialog";
-import { DeleteValueStreamButton } from "@/features/portfolio/components/delete-value-stream-button";
+import { EditValueStreamDialog } from "@/modules/core/org/features/value-stream/components/edit-value-stream-dialog";
+import { DeleteValueStreamButton } from "@/modules/core/org/features/value-stream/components/delete-value-stream-button";
 import { formatEUR } from "@/lib/formatting";
 import type { VsDetail } from "@/modules/core/org/server/views/structure-page";
 

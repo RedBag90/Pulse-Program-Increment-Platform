@@ -3,8 +3,8 @@ import { authorize, hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getEpic } from "@/modules/work/server/services/epic";
 import { loadBreakdownLayout } from "@/server/services/breakdown-layout";
-import { EpicGoalsBadge } from "@/features/portfolio/components/epic-goals-badge";
-import { EpicRealizedTile } from "@/features/portfolio/components/epic-realized-tile";
+import { EpicGoalsBadge } from "@/modules/work/features/portfolio/components/epic-goals-badge";
+import { EpicRealizedTile } from "@/modules/work/features/portfolio/components/epic-realized-tile";
 import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
 import { listKpis } from "@/modules/core/kpi/server/kpi";
@@ -20,35 +20,35 @@ import {
   type ActivityItem,
 } from "@/components/detail/initiative-activity-sidebar";
 import { PhaseBadge } from "@/components/detail/phase-badge";
-import { EpicHistoryTimeline } from "@/features/portfolio/components/epic-history-timeline";
-import { EPIC_TABS } from "@/features/portfolio/components/epic-detail-shell";
-import { EpicOverviewTab } from "@/features/portfolio/components/epic-overview-tab";
-import { EpicReifegradActivityBar } from "@/features/portfolio/components/epic-reifegrad-activity-bar";
-import { EpicImpactConfirmDialog } from "@/features/portfolio/components/epic-impact-confirm-dialog";
+import { EpicHistoryTimeline } from "@/modules/work/features/portfolio/components/epic-history-timeline";
+import { EPIC_TABS } from "@/modules/work/features/portfolio/components/epic-detail-shell";
+import { EpicOverviewTab } from "@/modules/work/features/portfolio/components/epic-overview-tab";
+import { EpicReifegradActivityBar } from "@/modules/work/features/portfolio/components/epic-reifegrad-activity-bar";
+import { EpicImpactConfirmDialog } from "@/modules/work/features/portfolio/components/epic-impact-confirm-dialog";
 import { subStageFor } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
-import { EpicKpisTab, type KpiRow } from "@/features/portfolio/components/epic-kpis-tab";
+import { EpicKpisTab, type KpiRow } from "@/modules/work/features/portfolio/components/epic-kpis-tab";
 import {
   EpicBreakdownTab,
   type BreakdownFeature,
-} from "@/features/portfolio/components/epic-breakdown-tab";
-import { BenefitHypothesisEditor } from "@/features/portfolio/components/benefit-hypothesis-editor";
-import { BusinessCaseEditor } from "@/features/portfolio/components/business-case-editor";
-import { EpicTimelineTab } from "@/features/portfolio/components/epic-timeline-tab";
+} from "@/modules/work/features/portfolio/components/epic-breakdown-tab";
+import { BenefitHypothesisEditor } from "@/modules/work/features/portfolio/components/benefit-hypothesis-editor";
+import { BusinessCaseEditor } from "@/modules/work/features/portfolio/components/business-case-editor";
+import { EpicTimelineTab } from "@/modules/work/features/portfolio/components/epic-timeline-tab";
 import {
   RevisionDiff,
   RevisionEditLayout,
   businessCaseDiffRows,
   benefitHypothesisDiffRows,
-} from "@/features/portfolio/components/revision-diff";
-import { DeleteEpicButton } from "@/features/portfolio/components/delete-epic-button";
+} from "@/modules/work/features/portfolio/components/revision-diff";
+import { DeleteEpicButton } from "@/modules/work/features/portfolio/components/delete-epic-button";
 import { parseBenefitHypothesis, benefitHypothesisHasContent } from "@/modules/work/domain/benefit-hypothesis";
 import {
   parseBusinessCase,
   businessCaseHasContent,
   computeBusinessCaseTotals,
 } from "@/modules/work/domain/business-case";
-import { EpicHeroFacts } from "@/features/portfolio/components/epic-hero-facts";
+import { EpicHeroFacts } from "@/modules/work/features/portfolio/components/epic-hero-facts";
 import { epicBenefitFromKpis } from "@/modules/work/domain/epic-economics";
 import { epicNextStep } from "@/modules/work/domain/epic-next-step";
 import { Link } from "@/i18n/navigation";

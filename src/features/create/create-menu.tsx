@@ -14,8 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CREATE_GROUPS, CREATE_REGISTRY } from "@/features/create/registry";
 import { useCreateContext } from "@/features/create/use-create-context";
-import { CreateValueStreamDialog } from "@/features/portfolio/components/create-value-stream-dialog";
-import { CreateEpicDialog } from "@/features/portfolio/components/create-epic-dialog";
+import { CreateValueStreamDialog } from "@/modules/core/org/features/value-stream/components/create-value-stream-dialog";
+import { CreateEpicDialog } from "@/modules/work/features/portfolio/components/create-epic-dialog";
 import { CreateArtDialog } from "@/modules/core/org/features/art/components/create-art-dialog";
 import { CreateFeatureDialog } from "@/modules/core/org/features/art/components/create-feature-dialog";
 import { CreateImpedimentDialog } from "@/features/impediment/components/create-impediment-dialog";
