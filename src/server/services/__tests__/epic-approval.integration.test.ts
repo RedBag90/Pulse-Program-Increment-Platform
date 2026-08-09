@@ -12,7 +12,7 @@ import {
   startRevision,
   listEpicApprovals,
 } from "@/server/services/epic-approval";
-import { isOk, isErr } from "@/domain/errors";
+import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { InitiativeLevel } from "@/domain/types";
 import type { EpicId } from "@/domain/types";

@@ -7,7 +7,7 @@ import {
   onUniqueConstraint,
   type MutationContext,
 } from "@/modules/core/kernel/server/mutation";
-import { ok, err, isOk, isErr } from "@/domain/errors";
+import { ok, err, isOk, isErr } from "@/modules/core/kernel/domain/errors";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;
 let mctx: MutationContext;

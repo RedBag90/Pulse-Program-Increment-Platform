@@ -11,8 +11,8 @@
 
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, PiId } from "@/domain/types";
-import type { Result } from "@/domain/errors";
-import { ok, err, isErr } from "@/domain/errors";
+import type { Result } from "@/modules/core/kernel/domain/errors";
+import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { findOr404 } from "@/server/services/tenant-scope";

@@ -1,8 +1,8 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
-import type { Result } from "@/domain/errors";
-import { ok } from "@/domain/errors";
+import type { Result } from "@/modules/core/kernel/domain/errors";
+import { ok } from "@/modules/core/kernel/domain/errors";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 import {
   buildBudgetPlanSnapshot,

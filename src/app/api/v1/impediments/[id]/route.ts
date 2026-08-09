@@ -12,7 +12,7 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { authorize } from "@/server/auth/authorize";
 import { forbidden, problemJson } from "@/server/http/problem";
 import { z } from "zod";
-import { isErr } from "@/domain/errors";
+import { isErr } from "@/modules/core/kernel/domain/errors";
 
 const patchSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("escalate") }),

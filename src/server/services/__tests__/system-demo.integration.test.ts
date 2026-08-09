@@ -11,7 +11,7 @@ import {
   type SystemDemoItemId,
 } from "@/server/services/system-demo";
 import { createTestPrismaClient } from "@/server/db/test-client";
-import { isOk, isErr } from "@/domain/errors";
+import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import type { PiId } from "@/domain/types";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;

@@ -1,4 +1,4 @@
-import { ok, err, type Result } from "@/domain/errors";
+import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 
 /** Existing PI for overlap-check. */
 export interface ExistingPi {

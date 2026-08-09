@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, TimelineId } from "@/domain/types";
-import type { Result } from "@/domain/errors";
-import { ok, isErr } from "@/domain/errors";
+import type { Result } from "@/modules/core/kernel/domain/errors";
+import { ok, isErr } from "@/modules/core/kernel/domain/errors";
 import {
   standardPiSchedule,
   selectFreeStandardPis,

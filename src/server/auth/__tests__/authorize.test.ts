@@ -10,7 +10,7 @@ import type { Principal, PrincipalScopes } from "@/server/auth/principal";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
 import { enumerateDefaultCapabilities } from "@/server/auth/policies";
 import type { TenantId, UserId } from "@/domain/types";
-import { isErr, isOk } from "@/domain/errors";
+import { isErr, isOk } from "@/modules/core/kernel/domain/errors";
 import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 
 /**

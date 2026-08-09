@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { ok, err, isOk, isErr } from "@/domain/errors";
-import type { DomainError } from "@/domain/errors";
+import { ok, err, isOk, isErr } from "@/modules/core/kernel/domain/errors";
+import type { DomainError } from "@/modules/core/kernel/domain/errors";
 
 describe("Result helpers", () => {
   it("ok() creates a successful result", () => {

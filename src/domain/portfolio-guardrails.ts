@@ -11,7 +11,7 @@
  * Domain-Schicht (Type-Guards + isEpicType etc.).
  */
 
-import { makeTypeGuard } from "@/domain/type-guards";
+import { makeTypeGuard } from "@/modules/core/kernel/domain/type-guards";
 
 export const EPIC_TYPES = ["solution", "epic", "enabler"] as const;
 export type EpicType = (typeof EPIC_TYPES)[number];

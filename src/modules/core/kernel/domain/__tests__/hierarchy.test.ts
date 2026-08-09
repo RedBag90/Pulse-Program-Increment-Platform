@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { validateParentLevel, PARENT_LEVEL } from "@/modules/core/kernel/domain/hierarchy";
 import { InitiativeLevel } from "@/domain/types";
-import { isOk, isErr } from "@/domain/errors";
+import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 
 describe("PARENT_LEVEL", () => {
   it("maps each level to its required parent (I1/I2)", () => {

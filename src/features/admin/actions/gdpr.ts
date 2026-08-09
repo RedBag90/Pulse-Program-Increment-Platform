@@ -8,7 +8,7 @@ import { extractRequestMeta } from "@/server/audit/emit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { eraseUserRecords } from "@/server/services/gdpr";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { isErr } from "@/domain/errors";
+import { isErr } from "@/modules/core/kernel/domain/errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { UserId } from "@/domain/types";

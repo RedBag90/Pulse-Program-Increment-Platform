@@ -1,5 +1,5 @@
-import type { DomainError, Result } from "./errors";
-import { ok, err } from "./errors";
+import type { DomainError, Result } from "@/modules/core/kernel/domain/errors";
+import { ok, err } from "@/modules/core/kernel/domain/errors";
 
 /**
  * **Count-once-Invariante** für Ziel ↔ Epic-Verknüpfungen (Einheiten-Kaskade).

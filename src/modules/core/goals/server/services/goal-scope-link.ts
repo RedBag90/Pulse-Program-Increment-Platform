@@ -1,4 +1,4 @@
-import { ok, err, type Result } from "@/domain/errors";
+import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,

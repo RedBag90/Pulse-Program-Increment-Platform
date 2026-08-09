@@ -1,5 +1,5 @@
 import { verifyInviteToken } from "@/server/services/invitation";
-import { isErr } from "@/domain/errors";
+import { isErr } from "@/modules/core/kernel/domain/errors";
 import { AcceptInviteForm } from "@/features/admin/components/accept-invite-form";
 
 interface Props {

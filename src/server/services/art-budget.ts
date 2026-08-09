@@ -1,8 +1,8 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma";
 import type { TenantId, ValueStreamId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
-import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
+import type { Result } from "@/modules/core/kernel/domain/errors";
+import { ok, err } from "@/modules/core/kernel/domain/errors";
 import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import { aggregateArtFeatureLoad, type ArtFeatureLoad } from "@/domain/art-budget";
 import { parsePeriodAmountMap } from "@/domain/budgeting";

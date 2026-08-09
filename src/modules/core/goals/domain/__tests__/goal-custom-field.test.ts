@@ -4,7 +4,7 @@ import {
   parseOptions,
   validateCustomFieldValue,
 } from "@/modules/core/goals/domain/goal-custom-field";
-import { isOk, isErr } from "@/domain/errors";
+import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 
 describe("isCustomFieldType", () => {
   it("accepts the three known types", () => {

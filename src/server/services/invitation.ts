@@ -2,8 +2,8 @@ import { SignJWT, jwtVerify } from "jose";
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, UserId } from "@/domain/types";
 import type { Role } from "@/modules/core/kernel/domain/roles";
-import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
+import type { Result } from "@/modules/core/kernel/domain/errors";
+import { ok, err } from "@/modules/core/kernel/domain/errors";
 import { publishDomainEvent } from "@/server/events/publish";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {

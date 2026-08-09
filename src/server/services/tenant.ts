@@ -3,8 +3,8 @@ import type { TenantId, UserId } from "@/domain/types";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
 import { PERSONAL_DEFAULT_MODULES } from "@/modules/core/kernel/domain/modules";
 import { emitAuditEvent } from "@/server/audit/emit";
-import type { Result } from "@/domain/errors";
-import { ok, err } from "@/domain/errors";
+import type { Result } from "@/modules/core/kernel/domain/errors";
+import { ok, err } from "@/modules/core/kernel/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   withAuditedTransaction,

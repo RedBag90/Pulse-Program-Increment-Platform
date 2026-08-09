@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { formatDomainError } from "@/server/http/domain-error-display";
-import type { DomainError } from "@/domain/errors";
+import type { DomainError } from "@/modules/core/kernel/domain/errors";
 
 const errs: Record<DomainError["kind"], DomainError> = {
   not_found: { kind: "not_found", resourceType: "Epic", id: "x" },

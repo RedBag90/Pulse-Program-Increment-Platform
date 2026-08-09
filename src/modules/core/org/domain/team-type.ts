@@ -1,6 +1,6 @@
 /** Agile team archetypes (Team Topologies, as used in SAFe). Pure, no I/O. */
 
-import { makeTypeGuard } from "@/domain/type-guards";
+import { makeTypeGuard } from "@/modules/core/kernel/domain/type-guards";
 
 export const TEAM_TYPES = [
   "stream_aligned",

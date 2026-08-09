@@ -9,8 +9,8 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
-import type { Result } from "@/domain/errors";
-import { ok } from "@/domain/errors";
+import type { Result } from "@/modules/core/kernel/domain/errors";
+import { ok } from "@/modules/core/kernel/domain/errors";
 import { parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";
 import { isoDay, monthStart } from "@/modules/core/kernel/domain/calendar";
 import { deriveEpicEconomics } from "@/domain/epic-economics";

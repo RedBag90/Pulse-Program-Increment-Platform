@@ -9,7 +9,7 @@ import {
 import { InitiativeLevel } from "@/domain/types";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { isOk, isErr } from "@/domain/errors";
+import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;

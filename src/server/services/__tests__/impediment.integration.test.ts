@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
 import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import { createImpediment, escalateImpediment } from "@/server/services/impediment";
-import { isOk, isErr } from "@/domain/errors";
+import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import type { ImpedimentId } from "@/server/services/impediment";
 

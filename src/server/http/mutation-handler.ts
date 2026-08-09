@@ -3,7 +3,7 @@ import { authorize, type AuthResource } from "@/server/auth/authorize";
 import { moduleForAction } from "@/modules/core/kernel/domain/modules";
 import type { Action } from "@/server/auth/policies";
 import type { Principal } from "@/server/auth/principal";
-import { isErr, type DomainError, type Result } from "@/domain/errors";
+import { isErr, type DomainError, type Result } from "@/modules/core/kernel/domain/errors";
 import { withIdempotency } from "@/server/http/idempotency";
 import { forbidden, problemJson, unauthorized, unprocessable } from "@/server/http/problem";
 import { buildRequestContext, type RequestContext } from "@/server/http/request-context";

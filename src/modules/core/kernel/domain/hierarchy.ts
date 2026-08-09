@@ -1,5 +1,5 @@
 import { InitiativeLevel } from "@/domain/types";
-import { ok, err, type Result } from "@/domain/errors";
+import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 
 // ---------------------------------------------------------------------------
 // Hierarchy invariants — the parent/child level rules for the two-tier

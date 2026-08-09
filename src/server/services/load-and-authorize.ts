@@ -1,5 +1,5 @@
-import type { Result } from "@/domain/errors";
-import { ok, err, isErr } from "@/domain/errors";
+import type { Result } from "@/modules/core/kernel/domain/errors";
+import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { authorizeResource, type AuthResource } from "@/server/auth/authorize";
 import type { Principal } from "@/server/auth/principal";
 import type { Action } from "@/server/auth/policies";

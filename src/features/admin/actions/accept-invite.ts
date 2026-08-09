@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { verifyInviteToken } from "@/server/services/invitation";
 import { acceptInvitation } from "@/server/services/invitation";
 import { createPrismaClient } from "@/server/db/prisma";
-import { isErr } from "@/domain/errors";
+import { isErr } from "@/modules/core/kernel/domain/errors";
 import { headers, cookies } from "next/headers";
 import { extractRequestMeta } from "@/server/audit/emit";
 import { ACTIVE_TENANT_COOKIE } from "@/server/auth/principal";

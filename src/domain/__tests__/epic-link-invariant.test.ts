@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { checkEpicLink, type CheckEpicLinkInput } from "@/domain/epic-link-invariant";
-import { isOk, isErr } from "@/domain/errors";
+import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 
 const base: CheckEpicLinkInput = {
   target: { objectiveId: "obj1", kpiId: null, conversionFactor: null },

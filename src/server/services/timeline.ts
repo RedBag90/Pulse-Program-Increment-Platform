@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma";
 import type { ArtId, TenantId, TimelineId } from "@/domain/types";
-import type { Result } from "@/domain/errors";
-import { ok, err, isErr } from "@/domain/errors";
+import type { Result } from "@/modules/core/kernel/domain/errors";
+import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";

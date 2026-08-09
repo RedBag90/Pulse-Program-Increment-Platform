@@ -1,4 +1,4 @@
-import { ok, err, type Result } from "@/domain/errors";
+import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { isRelatedWorkKind } from "@/modules/core/goals/domain/goal-related-work";
 import { InitiativeLevel } from "@/domain/types";
 import type { RequestContext } from "@/server/http/mutation-handler";

@@ -15,7 +15,7 @@
  */
 
 import { APPROVAL_PARTIES, type ApprovalParty } from "./business-case";
-import { ok, err, type Result } from "./errors";
+import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 
 export const APPROVAL_PHASES = [
   "draft",

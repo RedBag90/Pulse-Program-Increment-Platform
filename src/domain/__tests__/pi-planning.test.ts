@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { validateDateRange, validatePiDates } from "@/domain/pi-planning";
-import { isOk, isErr } from "@/domain/errors";
+import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 
 const NOW = new Date("2026-06-21T00:00:00Z");
 const day = (iso: string) => new Date(`${iso}T00:00:00Z`);

@@ -8,7 +8,7 @@ import {
   updateFeature,
   scoreFeature,
 } from "@/server/services/feature";
-import { isOk, isErr } from "@/domain/errors";
+import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { InitiativeLevel } from "@/domain/types";
 import type { EpicId, FeatureId, ArtId } from "@/domain/types";

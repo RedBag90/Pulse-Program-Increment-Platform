@@ -1,5 +1,5 @@
 import type { TenantId } from "@/domain/types";
-import { ok, err, type Result } from "@/domain/errors";
+import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 
 // ---------------------------------------------------------------------------
 // Tenant-scoped read primitive

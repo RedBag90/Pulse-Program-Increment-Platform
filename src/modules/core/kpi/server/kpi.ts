@@ -1,8 +1,8 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma";
 import type { TenantId, EpicId } from "@/domain/types";
 import { InitiativeLevel } from "@/domain/types";
-import type { Result } from "@/domain/errors";
-import { ok, err, isErr } from "@/domain/errors";
+import type { Result } from "@/modules/core/kernel/domain/errors";
+import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { parseKpiMeasurements, type KpiMeasurement } from "@/modules/core/kpi/domain/kpi";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";

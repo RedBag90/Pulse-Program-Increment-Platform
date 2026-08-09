@@ -17,7 +17,7 @@ import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import { revalidateFor } from "@/server/http/revalidation";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import { isErr } from "@/domain/errors";
+import { isErr } from "@/modules/core/kernel/domain/errors";
 import { redirect } from "next/navigation";
 import type { ArtId } from "@/domain/types";
 

@@ -1,4 +1,4 @@
-import type { DomainError } from "@/domain/errors";
+import type { DomainError } from "@/modules/core/kernel/domain/errors";
 
 /**
  * Per-action overrides for `formatDomainError`. Each field replaces the
