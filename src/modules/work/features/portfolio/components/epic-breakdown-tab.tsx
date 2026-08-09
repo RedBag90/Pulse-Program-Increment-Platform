@@ -18,7 +18,10 @@ import { STATUS_LABELS, STATUS_BADGE } from "@/components/detail/initiative-labe
 /** Lazy-import den Netzplan, damit der List-Modus die ~130 KB ReactFlow
  *  + dagre nicht ins Initial-Bundle zieht. */
 const BreakdownNetworkView = dynamic(
-  () => import("./breakdown-network-view").then((m) => m.BreakdownNetworkView),
+  () =>
+    import("@/modules/drumbeat/features/umsetzung/components/breakdown-network-view").then(
+      (m) => m.BreakdownNetworkView,
+    ),
   {
     ssr: false,
     loading: () => (
