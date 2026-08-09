@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { loadStrategyTree, type ZieleSubTab } from "@/server/views/ziele-view";
+import { loadStrategyTree, type ZieleSubTab } from "@/modules/core/goals/server/views/ziele-view";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { ZieleShell } from "@/features/ziele/components/ziele-shell";
 

@@ -15,7 +15,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import type { GoalNode } from "@/server/views/ziele-view";
+import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { keyResultProgress, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { goalTimeframeLabel } from "@/modules/core/goals/domain/goal-period";
 import { filterGoalBranches, collectNodeIdsWithChildren } from "@/modules/core/goals/domain/goal-tree-filter";

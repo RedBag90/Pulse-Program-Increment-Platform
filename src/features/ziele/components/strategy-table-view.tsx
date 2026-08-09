@@ -23,7 +23,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { GoalNode } from "@/server/views/ziele-view";
+import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { goalTimeframe, goalTimeframeStart } from "@/modules/core/goals/domain/goal-period";
 import { filterGoalBranches, collectNodeIdsWithChildren } from "@/modules/core/goals/domain/goal-tree-filter";

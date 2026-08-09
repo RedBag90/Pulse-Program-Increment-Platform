@@ -16,8 +16,8 @@ export default defineConfig({
         test: {
           name: "server",
           environment: "node",
-          include: ["src/server/**/*.test.ts"],
-          exclude: ["src/server/**/*.integration.test.ts"],
+          include: ["src/server/**/*.test.ts", "src/modules/**/server/**/*.test.ts"],
+          exclude: ["src/server/**/*.integration.test.ts", "src/modules/**/*.integration.test.ts"],
         },
         resolve: { alias },
       },

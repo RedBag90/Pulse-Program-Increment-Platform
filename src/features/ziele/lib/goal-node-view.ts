@@ -10,7 +10,7 @@
  * `goals-rollup`, `goal-status`) bleiben die Quelle, hier wird nur komponiert.
  */
 
-import type { GoalNode } from "@/server/views/ziele-view";
+import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { keyResultProgress, isAtRisk } from "@/modules/core/goals/domain/goals-rollup";
 import { goalTimeframe, goalTimeframeLabel, type GoalTimeframe } from "@/modules/core/goals/domain/goal-period";
 

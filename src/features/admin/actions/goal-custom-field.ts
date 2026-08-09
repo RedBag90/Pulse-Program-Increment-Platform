@@ -9,7 +9,7 @@ import {
   createCustomFieldDef,
   updateCustomFieldDef,
   deleteCustomFieldDef,
-} from "@/server/services/goal-custom-field";
+} from "@/modules/core/goals/server/services/goal-custom-field";
 
 /**
  * Admin-Actions für Goal-Custom-Field-Definitionen (Epic 7). Gate

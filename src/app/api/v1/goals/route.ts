@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { listGoalsForPicker } from "@/server/services/ziele";
+import { listGoalsForPicker } from "@/modules/core/goals/server/services/ziele";
 import { createQueryHandler } from "@/server/http/query-handler";
 
 /**

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { goalDetailHref } from "@/features/ziele/lib/goal-href";
 import { goalNodeProgress, goalNodeTimeframe } from "@/features/ziele/lib/goal-node-view";
 import { flattenGoalTree } from "@/modules/core/goals/domain/goal-tree-filter";
-import type { GoalNode } from "@/server/views/ziele-view";
+import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { goalTimeframeLabel, currentGoalPeriod } from "@/modules/core/goals/domain/goal-period";
 import type { GoalTimeframe } from "@/modules/core/goals/domain/goal-period";
 import { goalStatusTier, goalStatusColor, goalStatusLabel } from "@/modules/core/goals/domain/goal-status";

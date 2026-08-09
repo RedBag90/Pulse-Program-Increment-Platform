@@ -12,7 +12,7 @@ import {
   goalNodeOwner,
   goalInitials,
 } from "@/features/ziele/lib/goal-node-view";
-import type { GoalNode } from "@/server/views/ziele-view";
+import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { goalStatusColor } from "@/modules/core/goals/domain/goal-status";
 import { goalTimeframeLabel } from "@/modules/core/goals/domain/goal-period";
 import { GoalStatusPill } from "@/features/ziele/components/goal-status/goal-status-pill";

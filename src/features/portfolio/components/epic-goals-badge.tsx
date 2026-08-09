@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { EpicGoalLinkRow } from "@/server/views/epic-goal-contributions";
+import type { EpicGoalLinkRow } from "@/modules/core/goals/server/views/epic-goal-contributions";
 
 /**
  * Cross-Modul-Goal-Badge (read-only, gepflegt im KPI-Tab): die per `GoalEpicLink`

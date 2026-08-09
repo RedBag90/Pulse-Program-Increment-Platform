@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, startTransition, useState } from "react";
-import type { GoalFieldsPageModel } from "@/server/views/admin-goal-fields";
+import type { GoalFieldsPageModel } from "@/modules/core/goals/server/views/admin-goal-fields";
 import {
   createCustomFieldDefAction,
   deleteCustomFieldDefAction,

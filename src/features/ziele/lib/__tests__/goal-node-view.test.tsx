@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { GoalNode } from "@/server/views/ziele-view";
+import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import {
   goalNodeProgress,
   goalNodeTimeframeLabel,

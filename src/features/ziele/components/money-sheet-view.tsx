@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { GoalNode } from "@/server/views/ziele-view";
+import type { GoalNode } from "@/modules/core/goals/server/views/ziele-view";
 import { goalTimeframeLabel } from "@/modules/core/goals/domain/goal-period";
 import { goalNodeTimeframe, goalNodeTimeframeLabel } from "@/features/ziele/lib/goal-node-view";
 import { MoneyExportButton } from "./money-export-button";

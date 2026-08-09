@@ -18,7 +18,7 @@ const GoalProgressChart = dynamic(
   { ssr: false, loading: () => <div className="h-48 w-full animate-pulse rounded-lg bg-muted" /> },
 );
 import { metricUnitSuffix } from "@/modules/core/goals/domain/goal-metric";
-import type { GoalTarget } from "@/server/views/ziele-view";
+import type { GoalTarget } from "@/modules/core/goals/server/views/ziele-view";
 
 interface Props {
   target: GoalTarget;

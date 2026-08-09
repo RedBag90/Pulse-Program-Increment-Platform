@@ -15,7 +15,7 @@ import { halfYearKey } from "@/domain/calendar";
 import { epicBucket } from "@/domain/stage-gate";
 import { isAtRisk, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { isClosed } from "@/modules/core/goals/domain/goal-status";
-import { loadStrategyTree } from "@/server/views/ziele-view";
+import { loadStrategyTree } from "@/modules/core/goals/server/views/ziele-view";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;

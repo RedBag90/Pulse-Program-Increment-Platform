@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { buildGoalFieldsPageModel } from "@/server/views/admin-goal-fields";
+import { buildGoalFieldsPageModel } from "@/modules/core/goals/server/views/admin-goal-fields";
 import { GoalFieldsPageShell } from "@/features/admin/components/goal-fields-page-shell";
 
 /**

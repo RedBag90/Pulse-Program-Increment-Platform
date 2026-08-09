@@ -3,7 +3,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { loadGoalDetail, type GoalDetail, type GoalTarget } from "@/server/views/ziele-view";
+import { loadGoalDetail, type GoalDetail, type GoalTarget } from "@/modules/core/goals/server/views/ziele-view";
 
 export type GoalDetailPayload = GoalDetail & { userLabels: Record<string, string> };
 

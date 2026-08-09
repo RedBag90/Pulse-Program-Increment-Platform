@@ -17,7 +17,7 @@ import {
 } from "@/domain/kpi-recurring-interval";
 import { formatMetricValue } from "@/modules/core/goals/domain/goal-metric";
 import { formatCompactEUR } from "@/lib/formatting";
-import type { EpicGoalLinkRow } from "@/server/views/epic-goal-contributions";
+import type { EpicGoalLinkRow } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";

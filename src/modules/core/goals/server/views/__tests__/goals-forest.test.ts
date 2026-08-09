@@ -6,7 +6,7 @@ import {
   type ForestObjective,
   type ForestLookups,
   type ChartObjective,
-} from "@/server/views/goals-forest";
+} from "@/modules/core/goals/server/views/goals-forest";
 
 const emptyLookups = (): ForestLookups => ({
   latestCheckin: new Map(),

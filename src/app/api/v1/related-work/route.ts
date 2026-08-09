@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { searchRelatedWork } from "@/server/services/ziele";
+import { searchRelatedWork } from "@/modules/core/goals/server/services/ziele";
 import { createQueryHandler } from "@/server/http/query-handler";
 
 /**

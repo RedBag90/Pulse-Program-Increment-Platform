@@ -14,16 +14,16 @@ import {
   recordGoalCheckin,
   recordGoalProgress,
   addGoalComment,
-} from "@/server/services/ziele";
-import { linkEpicToGoal, unlinkEpicFromGoal } from "@/server/services/goal-epic-link";
-import { setGoalCustomFieldValue } from "@/server/services/goal-custom-field";
-import { addGoalRelatedWork, removeGoalRelatedWork } from "@/server/services/goal-related-work";
+} from "@/modules/core/goals/server/services/ziele";
+import { linkEpicToGoal, unlinkEpicFromGoal } from "@/modules/core/goals/server/services/goal-epic-link";
+import { setGoalCustomFieldValue } from "@/modules/core/goals/server/services/goal-custom-field";
+import { addGoalRelatedWork, removeGoalRelatedWork } from "@/modules/core/goals/server/services/goal-related-work";
 import {
   linkGoalValueStream,
   unlinkGoalValueStream,
   linkGoalArt,
   unlinkGoalArt,
-} from "@/server/services/goal-scope-link";
+} from "@/modules/core/goals/server/services/goal-scope-link";
 import { isGoalPeriodKey } from "@/modules/core/goals/domain/goal-period";
 
 /**

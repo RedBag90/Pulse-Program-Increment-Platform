@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { goalStatusColor } from "@/modules/core/goals/domain/goal-status";
-import type { ProgressChartPoint, ProgressPace } from "@/server/views/ziele-view";
+import type { ProgressChartPoint, ProgressPace } from "@/modules/core/goals/server/views/ziele-view";
 
 /**
  * Fortschritts-Verlaufsgraf des Ziel-Detail-Panels — die **einzige** Stelle, die

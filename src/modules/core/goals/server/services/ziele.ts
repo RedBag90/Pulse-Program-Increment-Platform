@@ -7,10 +7,14 @@ import {
   goalRecordedUpdate,
   OBJECTIVE_FIELD_KEYS,
   KEY_RESULT_FIELD_KEYS,
-} from "@/server/services/goal-node-fields";
+} from "@/modules/core/goals/server/services/goal-node-fields";
 import { isClosed, isOpen, type GoalStatus } from "@/modules/core/goals/domain/goal-status";
 import { clampPrecision, type MetricType } from "@/modules/core/goals/domain/goal-metric";
-import { canReparent, planReparent, reorderSiblingIds } from "@/modules/core/goals/domain/goal-reparent";
+import {
+  canReparent,
+  planReparent,
+  reorderSiblingIds,
+} from "@/modules/core/goals/domain/goal-reparent";
 import {
   autoKpiCurrent,
   isProgressMode,

@@ -26,7 +26,7 @@ import type {
   ScopeRef,
   GoalNode,
   GoalCustomFieldEntry,
-} from "@/server/views/ziele-view";
+} from "@/modules/core/goals/server/views/ziele-view";
 import {
   createGoalNodeAction,
   updateGoalNodeAction,

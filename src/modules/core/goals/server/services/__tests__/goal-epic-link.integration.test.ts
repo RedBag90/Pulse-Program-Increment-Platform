@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
 import { seedTenant } from "@/test/fixtures/seed";
 import { createTestPrismaClient } from "@/server/db/test-client";
-import { linkEpicToGoal, unlinkEpicFromGoal } from "@/server/services/goal-epic-link";
+import {
+  linkEpicToGoal,
+  unlinkEpicFromGoal,
+} from "@/modules/core/goals/server/services/goal-epic-link";
 import { InitiativeLevel } from "@/domain/types";
 import { ROLES } from "@/domain/roles";
 import type { RequestContext } from "@/server/http/mutation-handler";

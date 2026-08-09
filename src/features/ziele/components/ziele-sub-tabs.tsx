@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import type { ZieleSubTab } from "@/server/views/ziele-view";
+import type { ZieleSubTab } from "@/modules/core/goals/server/views/ziele-view";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 
 /**

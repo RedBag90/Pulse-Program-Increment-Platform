@@ -5,7 +5,7 @@ import { getEpic } from "@/server/services/epic";
 import { loadBreakdownLayout } from "@/server/services/breakdown-layout";
 import { EpicGoalsBadge } from "@/features/portfolio/components/epic-goals-badge";
 import { EpicRealizedTile } from "@/features/portfolio/components/epic-realized-tile";
-import { loadEpicGoalLinks } from "@/server/views/epic-goal-contributions";
+import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import { listInitiativeHistory } from "@/server/services/initiative";
 import { listKpis } from "@/server/services/kpi";
 import { listProgramIncrementsForArts } from "@/server/services/pi";

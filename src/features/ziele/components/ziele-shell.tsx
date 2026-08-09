@@ -1,4 +1,4 @@
-import type { ZieleModel } from "@/server/views/ziele-view";
+import type { ZieleModel } from "@/modules/core/goals/server/views/ziele-view";
 import { Page } from "@/components/layout/page";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageSection } from "@/components/layout/page-section";
