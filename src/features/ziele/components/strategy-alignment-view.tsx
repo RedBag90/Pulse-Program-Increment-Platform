@@ -124,11 +124,19 @@ function GoalCard({
       </div>
 
       {hasKids && isOpen && (
-        <div className="mt-2.5 ml-[22px] flex flex-col gap-2.5 border-l-2 border-border pl-5">
+        <div className="mt-2.5 ml-[22px] flex flex-col gap-2.5 pl-5">
           {kids.map((k) => (
             <div
               key={k.id}
-              className="relative before:absolute before:-left-5 before:top-[26px] before:h-0.5 before:w-4 before:bg-border"
+              className={cn(
+                "relative",
+                // Vertikaler Stamm (│): überbrückt den gap-2.5 nach oben; durchgehend
+                // an mittleren Kindern (├), beim letzten Kind gestoppt am Ellbogen (└).
+                "before:absolute before:-left-5 before:-top-2.5 before:w-px before:bg-border before:content-['']",
+                "before:h-[calc(100%_+_0.625rem)] last:before:h-[calc(26px_+_0.625rem)]",
+                // Horizontaler Ellbogen (─) zur Ring-/Kartenmitte.
+                "after:absolute after:-left-5 after:top-[26px] after:h-px after:w-5 after:bg-border after:content-['']",
+              )}
             >
               <GoalCard
                 node={k}
