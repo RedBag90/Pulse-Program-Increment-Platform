@@ -13,15 +13,9 @@ interface Option {
   label: string;
 }
 
-interface TimelineOption {
-  id: string;
-  name: string;
-}
-
 interface Props {
   valueStreams: Option[];
   rteUsers: Option[];
-  timelines: TimelineOption[];
   canManage: boolean;
 }
 
@@ -29,17 +23,15 @@ const SELECT =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 /**
- * Guided „ART starten"-Flow. Legt ART + Timeline-Subscription + (optional) RTE
- * in einem Formular an. Seit dem Timeline-Rollout entstehen PIs zentral aus
- * dem PI-Standard auf der Timeline — das Formular fragt keine PI-Felder mehr
- * ab und zeigt nach Erfolg den Weg zur Standard-Anwendung.
+ * Guided „ART starten"-Flow. Legt ART (+ optional RTE) unter einem Wertstrom an.
+ * **Kadenz-frei**: eine PI-Timeline/Kadenz wird bewusst NICHT hier gewählt —
+ * das ist Drumbeat und wird nachträglich pro ART zugewiesen (nur mit Drumbeat).
  */
-export function StartArtForm({ valueStreams, rteUsers, timelines, canManage }: Props) {
+export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
   const [state, formAction, isPending] = useActionState(startArtAction, {});
 
   const [valueStreamId, setValueStreamId] = useState(valueStreams[0]?.id ?? "");
   const [name, setName] = useState("");
-  const [timelineId, setTimelineId] = useState(timelines[0]?.id ?? "");
   const [rteId, setRteId] = useState("");
 
   function submit() {
@@ -49,7 +41,6 @@ export function StartArtForm({ valueStreams, rteUsers, timelines, canManage }: P
       JSON.stringify({
         valueStreamId,
         name,
-        timelineId,
         rteId: rteId || null,
       }),
     );
@@ -72,19 +63,6 @@ export function StartArtForm({ valueStreams, rteUsers, timelines, canManage }: P
     );
   }
 
-  if (timelines.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Lege zuerst eine Timeline an —{" "}
-        <Link href="/structure?tab=timeline" className="text-primary hover:underline">
-          Struktur › Timeline
-        </Link>
-        . ARTs übernehmen die Kadenz ihrer Timeline; PIs entstehen anschließend aus dem PI-Standard,
-        den du auf die Timeline anwendest.
-      </p>
-    );
-  }
-
   if (state.created) {
     return (
       <div className="space-y-2">
@@ -100,17 +78,13 @@ export function StartArtForm({ valueStreams, rteUsers, timelines, canManage }: P
           )}
         </p>
         <p className="text-xs text-muted-foreground">
-          PIs entstehen jetzt aus dem PI-Standard, der auf die Timeline angewendet wird —{" "}
-          <Link href="/structure?tab=timeline" className="text-primary hover:underline">
-            Struktur › Timeline → Standard anwenden
-          </Link>
-          .
+          Eine PI-Kadenz kann später (mit dem Drumbeat-Modul) pro ART zugewiesen werden.
         </p>
       </div>
     );
   }
 
-  const canSubmit = !isPending && valueStreamId && name.trim() && timelineId;
+  const canSubmit = !isPending && valueStreamId && name.trim();
 
   return (
     <div className="max-w-xl space-y-5">
@@ -135,47 +109,26 @@ export function StartArtForm({ valueStreams, rteUsers, timelines, canManage }: P
         <Input id="sa-name" value={name} onChange={(e) => setName(e.target.value)} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="sa-timeline">Timeline</Label>
-          <select
-            id="sa-timeline"
-            className={SELECT}
-            value={timelineId}
-            onChange={(e) => setTimelineId(e.target.value)}
-          >
-            {timelines.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="sa-rte">RTE (optional)</Label>
-          <select
-            id="sa-rte"
-            className={SELECT}
-            value={rteId}
-            onChange={(e) => setRteId(e.target.value)}
-          >
-            <option value="">— niemand —</option>
-            {rteUsers.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.label}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="sa-rte">RTE (optional)</Label>
+        <select
+          id="sa-rte"
+          className={SELECT}
+          value={rteId}
+          onChange={(e) => setRteId(e.target.value)}
+        >
+          <option value="">— niemand —</option>
+          {rteUsers.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <p className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
-        PIs werden nicht hier angelegt — sie entstehen aus dem PI-Standard, der auf die gewählte
-        Timeline angewendet wird.{" "}
-        <Link href="/structure?tab=timeline" className="text-primary hover:underline">
-          Mehr unter Struktur › Timeline
-        </Link>
-        .
+        Eine PI-Kadenz ist optional und gehört zum Drumbeat-Modul — sie wird nachträglich pro ART
+        zugewiesen, nicht beim Anlegen.
       </p>
 
       {state.error && (

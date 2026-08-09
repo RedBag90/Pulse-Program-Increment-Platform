@@ -16,19 +16,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CreateTimelineButton } from "@/modules/core/org/features/structure/components/create-timeline-button";
-import { CreateTimelineFromStandard } from "@/modules/core/org/features/structure/components/create-timeline-from-standard";
-import type { PiStandard } from "@/modules/core/org/features/structure/components/pi-standards-manager";
 
 const SELECT_CLASS =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 interface ValueStream {
-  id: string;
-  name: string;
-}
-
-interface TimelineOption {
   id: string;
   name: string;
 }
@@ -39,19 +31,15 @@ export interface CreateArtDialogProps {
   onOpenChange?: (open: boolean) => void;
   /** Page-supplied value streams; when omitted they are fetched lazily. */
   valueStreams?: ValueStream[];
-  /** Page-supplied PI standards — used by the inline "no Timeline yet" fallback
-   *  so the user can spawn one without leaving the dialog. */
-  standards?: PiStandard[];
 }
 
 const initialState: ActionState = {};
 
-export function CreateArtDialog({
-  open,
-  onOpenChange,
-  valueStreams,
-  standards,
-}: CreateArtDialogProps) {
+/**
+ * ART anlegen — **kadenz-frei**: nur Wertstrom + Name. Eine PI-Timeline/Kadenz
+ * ist Drumbeat und wird nachträglich pro ART zugewiesen, nicht hier.
+ */
+export function CreateArtDialog({ open, onOpenChange, valueStreams }: CreateArtDialogProps) {
   const isControlled = open !== undefined;
   const [selfOpen, setSelfOpen] = useState(false);
   const dialogOpen = open ?? selfOpen;
@@ -66,25 +54,6 @@ export function CreateArtDialog({
     needFetch && dialogOpen,
   );
   const options = valueStreams ?? fetched.data;
-
-  // Timelines are always fetched — the picker is required and we want it to
-  // reflect any in-dialog Timeline creation. `refetchKey` is bumped each time
-  // the parent revalidates after a timeline.* action.
-  const [refetchKey, setRefetchKey] = useState(0);
-  const timelines = useEntityOptions<TimelineOption>(
-    optionsEndpoint("timeline"),
-    dialogOpen,
-    refetchKey,
-  );
-  const noTimelinesYet = !timelines.loading && timelines.data.length === 0;
-
-  // Fetch PI Standards lazily — only relevant when the fallback panel is shown.
-  const needStandards = standards === undefined;
-  const fetchedStandards = useEntityOptions<PiStandard>(
-    needStandards ? optionsEndpoint("piStandard") : null,
-    needStandards && dialogOpen && noTimelinesYet,
-  );
-  const standardOptions = standards ?? fetchedStandards.data;
 
   return (
     <>
@@ -135,52 +104,9 @@ export function CreateArtDialog({
               />
             </div>
 
-            {noTimelinesYet ? (
-              <div className="space-y-2 rounded-md border border-dashed p-3">
-                <p className="text-sm font-medium">Noch keine Timeline vorhanden.</p>
-                <p className="text-xs text-muted-foreground">
-                  Lege erst eine Timeline an — dann wird sie hier automatisch wählbar.
-                </p>
-                <div
-                  className="flex flex-wrap items-center gap-2"
-                  onClick={() => setRefetchKey((k) => k + 1)}
-                  onKeyDown={() => setRefetchKey((k) => k + 1)}
-                  role="presentation"
-                >
-                  <CreateTimelineButton />
-                  {standardOptions.length > 0 && (
-                    <CreateTimelineFromStandard standards={standardOptions} />
-                  )}
-                </div>
-                {/* Required hidden input so the form still submits the field if
-                    the user somehow tries — Zod will then reject `""`. */}
-                <input type="hidden" name="timelineId" value="" />
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <Label htmlFor="art-timeline">
-                  Timeline <span className="text-destructive">*</span>
-                </Label>
-                <select
-                  id="art-timeline"
-                  name="timelineId"
-                  required
-                  disabled={timelines.loading}
-                  className={SELECT_CLASS}
-                >
-                  <option value="">{timelines.loading ? "Lädt…" : "Timeline wählen…"}</option>
-                  {timelines.data.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground">
-                  Die ART tritt der gewählten Timeline bei und übernimmt deren PI-Serie.
-                </p>
-                {timelines.error && <p className="text-xs text-destructive">{timelines.error}</p>}
-              </div>
-            )}
+            <p className="text-xs text-muted-foreground">
+              Die PI-Kadenz wird später (mit dem Drumbeat-Modul) pro ART zugewiesen.
+            </p>
 
             {state.error && (
               <p role="alert" className="text-sm text-destructive">
@@ -192,7 +118,7 @@ export function CreateArtDialog({
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending || noTimelinesYet}>
+              <Button type="submit" disabled={isPending}>
                 {isPending ? "Creating…" : "Create ART"}
               </Button>
             </DialogFooter>

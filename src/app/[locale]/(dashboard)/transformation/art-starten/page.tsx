@@ -5,7 +5,6 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { listTimelines } from "@/modules/core/org/server/services/timeline";
 import { StartArtForm } from "@/features/transformation/components/start-art-form";
 import { Page, PageHeader } from "@/components/layout";
 
@@ -21,11 +20,10 @@ export default async function StartArtPage() {
   const canManage = authorize("art.create", { tenantId: principal.tenantId }, principal).allow;
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [valueStreams, approvers, userLabels, timelines] = await Promise.all([
+  const [valueStreams, approvers, userLabels] = await Promise.all([
     listValueStreams(db, principal.tenantId),
     listTenantApprovers(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
-    listTimelines(db, principal.tenantId),
   ]);
 
   const rteUsers = approvers
@@ -36,17 +34,13 @@ export default async function StartArtPage() {
     <Page>
       <PageHeader
         title="ART starten"
-        subtitle="Richte einen Agile Release Train in einem Schritt ein — Timeline-Anschluss, RTE und erstes PI inklusive."
+        subtitle="Richte einen Agile Release Train unter einem Wertstrom ein. Die PI-Kadenz wird später (mit Drumbeat) zugewiesen."
       />
 
       <StartArtForm
         canManage={canManage}
         valueStreams={valueStreams.map((v) => ({ id: v.id, label: v.name }))}
         rteUsers={rteUsers}
-        timelines={timelines.map((t) => ({
-          id: t.id,
-          name: t.name,
-        }))}
       />
     </Page>
   );
