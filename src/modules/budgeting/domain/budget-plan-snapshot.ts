@@ -10,7 +10,7 @@
  */
 
 import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
-import type { BudgetEpicView } from "@/domain/budgeting";
+import type { BudgetEpicView } from "@/modules/budgeting/domain/budgeting";
 
 /** Marker for the synthetic Value-Stream bucket that catches Epics without a VS. */
 export const UNASSIGNED_VALUE_STREAM_ID = "__unassigned__";

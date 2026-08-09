@@ -6,12 +6,12 @@ import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calenda
 import {
   getLatestBudgetPlanRevision,
   listBudgetPlanRevisions,
-} from "@/server/services/budget-plan-revision";
+} from "@/modules/budgeting/server/services/budget-plan-revision";
 import { getPortfolioGuardrailsInputs } from "@/modules/work/server/services/portfolio-dashboard";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { CaptureRevisionButton } from "@/features/controlling/components/capture-revision-button";
-import { GuardrailTargetsForm } from "@/features/controlling/components/guardrail-targets-form";
-import { GuardrailTargetsReadOnly } from "@/features/controlling/components/guardrail-targets-readonly";
+import { CaptureRevisionButton } from "@/modules/budgeting/features/controlling/components/capture-revision-button";
+import { GuardrailTargetsForm } from "@/modules/budgeting/features/controlling/components/guardrail-targets-form";
+import { GuardrailTargetsReadOnly } from "@/modules/budgeting/features/controlling/components/guardrail-targets-readonly";
 import { SectionLabel } from "@/components/ui/section-label";
 import { Stat, StatStrip } from "@/components/ui/stat";
 import { fmtEur } from "@/components/format/eur";

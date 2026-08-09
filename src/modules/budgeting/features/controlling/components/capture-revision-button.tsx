@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { captureBudgetPlanRevisionAction } from "@/features/controlling/actions/budget-plan-revision";
+import { captureBudgetPlanRevisionAction } from "@/modules/budgeting/features/controlling/actions/budget-plan-revision";
 
 interface Props {
   /** Label of the cycle that will be captured (`H1 2026` etc.) — displayed on the button. */

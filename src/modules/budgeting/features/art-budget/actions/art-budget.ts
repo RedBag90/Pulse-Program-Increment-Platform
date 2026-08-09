@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
-import { saveArtBudget } from "@/server/services/art-budget";
+import { saveArtBudget } from "@/modules/budgeting/server/services/art-budget";
 
 const periodMap = z.record(z.string(), z.number().nonnegative());
 

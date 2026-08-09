@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useActionState, startTransition } from "react";
 import { saveArtBudgetAction } from "@/modules/budgeting/features/art-budget/actions/art-budget";
-import { artBudgetRemaining, type ArtFeatureLoad } from "@/domain/art-budget";
+import { artBudgetRemaining, type ArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
 import { Button } from "@/components/ui/button";
 import { formatEUR as fmtEur } from "@/lib/formatting";
 

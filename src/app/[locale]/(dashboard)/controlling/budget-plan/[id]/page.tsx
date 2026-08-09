@@ -6,10 +6,10 @@ import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calenda
 import {
   getBudgetPlanRevision,
   listBudgetPlanRevisions,
-} from "@/server/services/budget-plan-revision";
+} from "@/modules/budgeting/server/services/budget-plan-revision";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { BudgetPlanRevisionView } from "@/features/controlling/components/budget-plan-revision-view";
-import { CaptureRevisionButton } from "@/features/controlling/components/capture-revision-button";
+import { BudgetPlanRevisionView } from "@/modules/budgeting/features/controlling/components/budget-plan-revision-view";
+import { CaptureRevisionButton } from "@/modules/budgeting/features/controlling/components/capture-revision-button";
 import { Link } from "@/i18n/navigation";
 import { Page } from "@/components/layout";
 

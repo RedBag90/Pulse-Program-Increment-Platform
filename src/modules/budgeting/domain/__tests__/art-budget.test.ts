@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { aggregateArtFeatureLoad, artBudgetRemaining } from "@/domain/art-budget";
+import { aggregateArtFeatureLoad, artBudgetRemaining } from "@/modules/budgeting/domain/art-budget";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 

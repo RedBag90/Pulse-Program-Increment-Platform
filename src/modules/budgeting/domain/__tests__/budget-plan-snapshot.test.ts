@@ -4,8 +4,8 @@ import {
   UNASSIGNED_VALUE_STREAM_ID,
   type ArtSnapshotInput,
   type FeatureSnapshotInput,
-} from "@/domain/budget-plan-snapshot";
-import type { BudgetEpicView } from "@/domain/budgeting";
+} from "@/modules/budgeting/domain/budget-plan-snapshot";
+import type { BudgetEpicView } from "@/modules/budgeting/domain/budgeting";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 

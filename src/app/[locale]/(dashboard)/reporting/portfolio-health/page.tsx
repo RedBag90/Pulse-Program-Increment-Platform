@@ -5,7 +5,7 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusDistributionChart } from "@/components/charts/status-distribution-chart-lazy";
-import { getValueStreamBudgets } from "@/server/services/budgeting";
+import { getValueStreamBudgets } from "@/modules/budgeting/server/services/budgeting";
 import { BarChart2, GitBranch } from "lucide-react";
 import { Page, PageHeader } from "@/components/layout";
 

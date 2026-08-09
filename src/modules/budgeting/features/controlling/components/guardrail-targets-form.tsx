@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { savePortfolioDashboardSettingsAction } from "@/modules/work/features/portfolio/actions/dashboard-settings";
-import { validateGuardrailTargets, type GuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
+import {
+  validateGuardrailTargets,
+  type GuardrailTargets,
+} from "@/modules/work/domain/portfolio-guardrails";
 
 interface Props {
   targets: GuardrailTargets;

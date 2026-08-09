@@ -3,8 +3,8 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
 import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
-import { getLatestBudgetPlanRevision } from "@/server/services/budget-plan-revision";
-import { CaptureRevisionButton } from "@/features/controlling/components/capture-revision-button";
+import { getLatestBudgetPlanRevision } from "@/modules/budgeting/server/services/budget-plan-revision";
+import { CaptureRevisionButton } from "@/modules/budgeting/features/controlling/components/capture-revision-button";
 import { Page, PageHeader } from "@/components/layout";
 
 /**

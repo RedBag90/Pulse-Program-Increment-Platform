@@ -13,14 +13,19 @@ import { ok } from "@/modules/core/kernel/domain/errors";
 import { parseTimeline } from "@/modules/work/domain/timeline";
 import { fundedWindow, withScheduleEstimates } from "@/modules/work/domain/epic-schedule";
 import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
-import { halfYearKey, parseHalfYearKey, halfYearStart, addHalfYears } from "@/modules/core/kernel/domain/calendar";
+import {
+  halfYearKey,
+  parseHalfYearKey,
+  halfYearStart,
+  addHalfYears,
+} from "@/modules/core/kernel/domain/calendar";
 import {
   buildHalfYearAxis,
   parsePeriodAmountMap,
   rollupByValueStream,
   type BudgetEpicView,
   type HalfYearAxis,
-} from "@/domain/budgeting";
+} from "@/modules/budgeting/domain/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { autoAdvanceStageGate } from "@/modules/work/server/services/epic";

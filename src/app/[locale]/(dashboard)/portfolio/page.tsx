@@ -2,7 +2,10 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadPortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import { listImpedimentsForArts } from "@/server/services/impediment";
-import { getBudgetingBoard, getValueStreamBudgets } from "@/server/services/budgeting";
+import {
+  getBudgetingBoard,
+  getValueStreamBudgets,
+} from "@/modules/budgeting/server/services/budgeting";
 import { redirect } from "next/navigation";
 import { ViewSwitcher } from "@/modules/work/features/portfolio/overview/view-switcher";
 import { resolveOverviewView } from "@/modules/work/features/portfolio/overview/view-switcher-config";

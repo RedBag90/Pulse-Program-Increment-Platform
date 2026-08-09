@@ -4,9 +4,12 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err } from "@/modules/core/kernel/domain/errors";
 import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
-import { aggregateArtFeatureLoad, type ArtFeatureLoad } from "@/domain/art-budget";
-import { parsePeriodAmountMap } from "@/domain/budgeting";
-import { getValueStreamBudgets } from "@/server/services/budgeting";
+import {
+  aggregateArtFeatureLoad,
+  type ArtFeatureLoad,
+} from "@/modules/budgeting/domain/art-budget";
+import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
+import { getValueStreamBudgets } from "@/modules/budgeting/server/services/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 

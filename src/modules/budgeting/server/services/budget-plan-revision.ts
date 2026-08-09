@@ -9,11 +9,11 @@ import {
   type ArtSnapshotInput,
   type BudgetPlanSnapshot,
   type FeatureSnapshotInput,
-} from "@/domain/budget-plan-snapshot";
-import { parsePeriodAmountMap } from "@/domain/budgeting";
+} from "@/modules/budgeting/domain/budget-plan-snapshot";
+import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
-import { getBudgetingBoard } from "@/server/services/budgeting";
+import { getBudgetingBoard } from "@/modules/budgeting/server/services/budgeting";
 
 /**
  * Budget-Plan-Revisionen — manually-triggered, half-year-keyed snapshots of

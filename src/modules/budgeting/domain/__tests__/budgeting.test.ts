@@ -7,7 +7,7 @@ import {
   poolRemaining,
   totalAllocatedByPeriod,
   type BudgetEpicView,
-} from "@/domain/budgeting";
+} from "@/modules/budgeting/domain/budgeting";
 import { buildHalfYearAxis } from "@/modules/core/kernel/domain/calendar";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);

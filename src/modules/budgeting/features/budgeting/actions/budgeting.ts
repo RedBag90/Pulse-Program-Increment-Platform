@@ -2,7 +2,10 @@
 
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
-import { saveBudgetAllocation, saveBudgetPool } from "@/server/services/budgeting";
+import {
+  saveBudgetAllocation,
+  saveBudgetPool,
+} from "@/modules/budgeting/server/services/budgeting";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 import { formatDomainError } from "@/server/http/domain-error-display";
 

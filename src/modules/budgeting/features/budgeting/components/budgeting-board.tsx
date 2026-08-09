@@ -18,12 +18,12 @@ import {
   poolRemaining,
   type HalfYearAxis,
   type BudgetEpicView,
-} from "@/domain/budgeting";
-import type { BudgetingBoardData } from "@/server/services/budgeting";
+} from "@/modules/budgeting/domain/budgeting";
+import type { BudgetingBoardData } from "@/modules/budgeting/server/services/budgeting";
 import {
   saveBudgetAllocationAction,
   saveBudgetPoolAction,
-} from "@/features/budgeting/actions/budgeting";
+} from "@/modules/budgeting/features/budgeting/actions/budgeting";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatEUR as fmt } from "@/lib/formatting";

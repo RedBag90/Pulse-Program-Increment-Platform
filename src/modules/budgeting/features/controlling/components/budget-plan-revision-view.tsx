@@ -4,12 +4,17 @@ import { SectionLabel } from "@/components/ui/section-label";
 import { fmtEur } from "@/components/format/eur";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { cn } from "@/lib/utils";
-import { addHalfYears, halfYearKey, halfYearLabel, parseHalfYearKey } from "@/modules/core/kernel/domain/calendar";
+import {
+  addHalfYears,
+  halfYearKey,
+  halfYearLabel,
+  parseHalfYearKey,
+} from "@/modules/core/kernel/domain/calendar";
 import type {
   BudgetPlanSnapshot,
   BudgetPlanSnapshotArt,
   BudgetPlanSnapshotValueStream,
-} from "@/domain/budget-plan-snapshot";
+} from "@/modules/budgeting/domain/budget-plan-snapshot";
 
 /** A column the view chooses to render — current cycle is flagged for tint. */
 interface DisplayPeriod {

@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
-import { captureBudgetPlanRevision } from "@/server/services/budget-plan-revision";
+import { captureBudgetPlanRevision } from "@/modules/budgeting/server/services/budget-plan-revision";
 import { formatDomainError } from "@/server/http/domain-error-display";
 
 /**

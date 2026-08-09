@@ -4,7 +4,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getStructureTree, getStructureTimeline } from "@/modules/core/org/server/services/structure";
-import { getValueStreamBudgets } from "@/server/services/budgeting";
+import { getValueStreamBudgets } from "@/modules/budgeting/server/services/budgeting";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { listPiStandards } from "@/modules/core/org/server/services/pi-standard";
 import { buildStructurePageModel } from "@/modules/core/org/server/views/structure-page";

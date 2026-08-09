@@ -1,8 +1,8 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
-import { getBudgetingBoard } from "@/server/services/budgeting";
-import { BudgetingBoard } from "@/features/budgeting/components/budgeting-board-lazy";
+import { getBudgetingBoard } from "@/modules/budgeting/server/services/budgeting";
+import { BudgetingBoard } from "@/modules/budgeting/features/budgeting/components/budgeting-board-lazy";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import { Page, PageHeader } from "@/components/layout";
