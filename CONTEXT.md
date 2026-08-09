@@ -92,6 +92,19 @@ valuePerUnit`), summiert über die Messmonate auf den vollen KPI-Wert. Der
   Portfolio Series): a page-model is presentation glue, not business
   computation. Each page-model owns the queries for _its_ page only — a single
   god-loader is a smell.
+- **Composition read-model** — a page-model for a **cross-module** page composite.
+  Lives in the owning module's `server/views/` (e.g. `epic-detail.ts` /
+  `portfolio-overview.ts`, both Work), splits into an impure loader + a pure
+  builder like any page-model, but takes the **other** modules' data through
+  injected **ports** (structural types, so the owning module never imports the
+  upper modules — ADR-0013/P7). **Entitlement degradation is part of the model:**
+  the builder receives `enabled: { drumbeat, budgeting }` and emits discriminated
+  present/absent slices, so "module off" is distinct from "no data". The
+  composition is wired only at the `src/app` composition root. The **Epic Detail
+  model** (`epic-detail.ts`, `buildEpicDetailModel`) is the reference: Work
+  economics/approvals + Drumbeat PIs/dependencies + Budgeting funded-window + Core
+  goals/KPI, with the revision-diff visibility algebra + lock-reason maps tested at
+  the builder seam.
 - **Goal-Forest read-model** — `src/server/views/goals-forest.ts`, the **pure**
   derivation behind `loadStrategyTree`/`loadGoalDetail`: normalisierte Objective-
   Zeilen + Per-Knoten-Lookups → GoalNode-Baum (mit €-Trios/Fortschritt) via

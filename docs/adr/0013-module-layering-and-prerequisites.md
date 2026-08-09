@@ -59,3 +59,10 @@ Durchgesetzt via dependency-cruiser + ESLint `no-restricted-imports` (kein Nx/Pr
   Quer-Import.
 - Trade-off: Cross-Modul-Seiten (Epic-Seite, Dashboards, Reporting) müssen per Entitlement **degradieren**
   können; das ist gewollt und wird als Degradations-Test-Vorlage etabliert.
+- **Composition read-model** ist die benannte Heimat für ein Cross-Modul-Seiten-Komposit (CONTEXT.md): ein
+  Page-Model im besitzenden Modul (`server/views/`, z. B. `epic-detail.ts` = Work), das die Daten der oberen
+  Module über injizierte **strukturelle Ports** bezieht — der `src/app`-Composition-Root reicht die Adapter
+  herein. Die **Entitlement-Degradation ist Teil des Modells** (`enabled` → diskriminierte present/absent-
+  Slices); genau das gibt jedem oberen-Modul-Port seinen **echten zweiten Adapter** (Route-Adapter +
+  Disabled-Adapter) und macht aus der Single-Adapter-Indirektion einen echten Seam. Referenz:
+  `buildEpicDetailModel` (`docs/concepts/epic-detail-model-plan.md`).
