@@ -22,6 +22,26 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
 - **Team** — an execution unit within an ART.
 - **Dependency** — a directed link between work items (cycle-checked).
 - **Impediment** — a blocker that can be raised, escalated, resolved.
+- **Risk** — a first-class, tenant-level entity in the **`risks`** module
+  (`src/modules/risks/`, sibling of Drumbeat/Budgeting, prerequisite Work). Linked
+  n:m to Epics (`RiskEpicLink`, referential — no value rollup). Carries a **ROAM**
+  disposition (shared Core primitive `src/modules/core/kernel/domain/roam.ts`:
+  `open|resolved|owned|accepted|mitigated` + `ROAM_COLORS`/`ROAM_DOT` palette, also
+  consumed by the Drumbeat Impediment) and a probability × impact **exposure**
+  (5×5 matrix, `riskExposure` in `risk-matrix.ts`, the deep pure seam; `score = p·i`,
+  bands ≤4/5–9/10–15/16–25). Distinct from Impediment-ROAM (which stays in Drumbeat).
+  - **Review axis** (`reviewStatus`: `suggested → documented | rejected`) — the
+    authoring workflow: **everyone suggests** (`risk.suggest`), the **Epic Owner
+    documents** (`risk.document`, value-stream-scoped via the linked Epics) and
+    reviews suggestions (`risk.review`). Number-on-document only (per-tenant gapless
+    counter under an advisory lock; admin-set prefix via `RiskSettings`).
+  - **Reassessment trail** (`RiskAssessment` rows) — the inherent scoring plus each
+    reassessment; the matrix draws a multi-hop mitigation vector (current = last).
+    Text-only **mitigation** activities (`RiskMitigation`). Reads are scoped by
+    Epic/value-stream (`riskReadFilter`).
+  - Surfaced at `/risks` (ROAM board + matrix) and as an epic-scoped **Risks tab**
+    on the Epic detail page (a fourth gated slice on the Epic Detail composition
+    read-model). See `docs/concepts/risk-management-module.md`, ADR-0016.
 
 ## Time & periods
 

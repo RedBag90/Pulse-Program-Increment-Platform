@@ -151,6 +151,23 @@ Historie geloggt.
 | `impediment.escalate` | Impediment eskalieren |
 | `impediment.resolve`  | Impediment auflösen   |
 
+### Risks
+
+| Funktion               | Beschreibung                                        | Träger                                               |
+| ---------------------- | --------------------------------------------------- | ---------------------------------------------------- |
+| `risk.suggest`         | Risiko vorschlagen                                  | alle (inkl. `viewer`)                                |
+| `risk.document`        | Risiko dokumentieren (Register aufnehmen)           | `epic_owner` (VS-scoped), `portfolio_manager`, `rte` |
+| `risk.review`          | Vorschlag annehmen / ablehnen                       | `epic_owner` (VS-scoped), `portfolio_manager`        |
+| `risk.update`          | Risiko bearbeiten / Owner / Maßnahme / Neubewertung | `epic_owner` (VS-scoped), `portfolio_manager`, `rte` |
+| `risk.roam`            | ROAM-Status setzen                                  | `epic_owner` (VS-scoped), `portfolio_manager`, `rte` |
+| `risk.link`            | Risiko mit Epic verknüpfen                          | `epic_owner` (VS-scoped), `portfolio_manager`, `rte` |
+| `risk.delete`          | Risiko löschen (soft)                               | `portfolio_manager`                                  |
+| `risk.settings.manage` | Nummernpräfix verwalten                             | `tenant_admin`, `portfolio_manager`                  |
+
+Die VS-Scope-Prüfung für `risk.document`/`risk.review` läuft am Service-Seam
+(ADR-0002) über die value_streams der verknüpften Epics; unverknüpfte Risiken
+sind Manager-only.
+
 ---
 
 ## 2 — Rollen-Funktions-Matrix (kaskadiert nach Ebenen)
