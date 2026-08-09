@@ -23,7 +23,7 @@ import {
 } from "@/domain/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
-import { autoAdvanceStageGate } from "@/server/services/epic";
+import { autoAdvanceStageGate } from "@/modules/work/server/services/epic";
 
 export interface BudgetingBoardData {
   epics: BudgetEpicView[];

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getEpic, updateEpic } from "@/server/services/epic";
+import { getEpic, updateEpic } from "@/modules/work/server/services/epic";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
 import type { EpicId } from "@/modules/core/kernel/domain/types";

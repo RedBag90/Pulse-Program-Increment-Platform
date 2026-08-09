@@ -9,11 +9,11 @@ import {
   listEpicsForPortfolioList,
   countEpicChildFeatures,
   countEpicCompletedChildFeatures,
-} from "@/server/services/epic";
+} from "@/modules/work/server/services/epic";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";
-import { buildEpicsListModel } from "@/server/views/portfolio-epics-list";
+import { buildEpicsListModel } from "@/modules/work/server/views/portfolio-epics-list";
 import { buildFeaturesListModel } from "@/server/views/features-list";
 import { buildMyTasksListModel } from "@/server/views/my-tasks-list";
 import { MyTasksListShell } from "@/features/my-tasks/components/my-tasks-list-shell";

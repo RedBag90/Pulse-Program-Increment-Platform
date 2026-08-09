@@ -6,7 +6,7 @@ import type {
   OverviewBudget,
   OverviewFundingPeriod,
   PortfolioOverview,
-} from "@/server/views/portfolio-overview";
+} from "@/modules/work/server/views/portfolio-overview";
 
 function eur(n: number): string {
   if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M €`;

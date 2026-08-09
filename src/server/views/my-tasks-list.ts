@@ -13,7 +13,7 @@
  */
 
 import type { MyTaskRow, TaskLevel } from "@/server/services/my-tasks";
-import type { EpicListRow } from "@/server/views/portfolio-epics-list";
+import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 import type { FeatureListRow } from "@/server/views/features-list";
 
 export const BUCKETS = ["open", "ready", "done"] as const;

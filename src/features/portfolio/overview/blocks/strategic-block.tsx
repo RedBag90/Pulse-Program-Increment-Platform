@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { Target, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import type { PortfolioOverview } from "@/server/views/portfolio-overview";
+import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 
 function pct(n: number): string {
   return `${Math.round(n * 100)}%`;

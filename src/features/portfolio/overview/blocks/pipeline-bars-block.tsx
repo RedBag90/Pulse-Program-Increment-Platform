@@ -4,7 +4,7 @@ import {
   STAGE_GATES,
   STAGE_GATE_LABEL,
   type PortfolioOverview,
-} from "@/server/views/portfolio-overview";
+} from "@/modules/work/server/views/portfolio-overview";
 import { PORTFOLIO_WIP_LIMITS } from "@/features/portfolio/overview/wip-limits";
 
 /**

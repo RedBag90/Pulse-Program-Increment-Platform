@@ -7,7 +7,7 @@ import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiat
 import { setEpicFlagAction, deleteEpicAction } from "@/features/portfolio/actions/epic";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { EpicListRow } from "@/server/views/portfolio-epics-list";
+import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 import type { RagTier } from "@/domain/transformation-delta";
 
 interface Props {

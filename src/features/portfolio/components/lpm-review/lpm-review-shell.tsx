@@ -9,7 +9,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { formatMioEUR, formatPercent } from "@/lib/formatting";
 import { AMPEL_LABEL } from "@/modules/work/domain/portfolio-ampel";
 import type { LpmAmpel, LpmValueStreamRow, LpmEpicRow } from "@/modules/work/domain/lpm-review";
-import type { LpmReviewPageData } from "@/server/views/lpm-review-view";
+import type { LpmReviewPageData } from "@/modules/work/server/views/lpm-review-view";
 import { tierHex } from "./chart-theme";
 import { BenefitWaterfall } from "./benefit-waterfall";
 import { BenefitBurnup } from "./benefit-burnup";

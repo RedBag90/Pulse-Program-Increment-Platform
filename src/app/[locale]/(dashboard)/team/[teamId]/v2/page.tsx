@@ -3,7 +3,7 @@ import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getTeam } from "@/modules/core/org/server/services/team";
 import { listAuditHistory } from "@/server/services/audit-history";
-import { listTenantApprovers } from "@/server/services/epic-approval";
+import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { TeamDetailShell, resolveTeamTab } from "@/modules/core/org/features/team/components/team-detail-shell";
 import { TeamOverviewTab } from "@/modules/core/org/features/team/components/tabs/team-overview-tab";

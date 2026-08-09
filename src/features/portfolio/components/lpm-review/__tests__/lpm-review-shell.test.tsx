@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { LpmReviewShell } from "@/features/portfolio/components/lpm-review/lpm-review-shell";
-import type { LpmReviewPageData } from "@/server/views/lpm-review-view";
+import type { LpmReviewPageData } from "@/modules/work/server/views/lpm-review-view";
 
 // next/navigation braucht im Test einen Router-Kontext — minimal stubben,
 // damit useUrlState (usePathname/useRouter/useSearchParams) läuft.

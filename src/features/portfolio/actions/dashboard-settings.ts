@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
-import { savePortfolioDashboardSettings } from "@/server/services/portfolio-dashboard";
+import { savePortfolioDashboardSettings } from "@/modules/work/server/services/portfolio-dashboard";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import { validateGuardrailTargets, type GuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
 

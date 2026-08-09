@@ -11,7 +11,7 @@ import {
   signoffSection,
   startRevision,
   listEpicApprovals,
-} from "@/server/services/epic-approval";
+} from "@/modules/work/server/services/epic-approval";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";

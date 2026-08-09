@@ -7,7 +7,7 @@ import {
   getLatestBudgetPlanRevision,
   listBudgetPlanRevisions,
 } from "@/server/services/budget-plan-revision";
-import { getPortfolioGuardrailsInputs } from "@/server/services/portfolio-dashboard";
+import { getPortfolioGuardrailsInputs } from "@/modules/work/server/services/portfolio-dashboard";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { CaptureRevisionButton } from "@/features/controlling/components/capture-revision-button";
 import { GuardrailTargetsForm } from "@/features/controlling/components/guardrail-targets-form";

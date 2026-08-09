@@ -2,7 +2,7 @@ import { Link } from "@/i18n/navigation";
 import { Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
-import { STAGE_GATE_LABEL, type PortfolioOverview } from "@/server/views/portfolio-overview";
+import { STAGE_GATE_LABEL, type PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 
 /**
  * Top 3 "wins" for the executive briefing — most recent epic transitions out

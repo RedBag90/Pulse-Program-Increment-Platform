@@ -19,7 +19,7 @@ import {
   type MixRow,
   type StageTowerEpic,
   type HorizonColumn,
-} from "@/server/views/portfolio-guardrails-view";
+} from "@/modules/work/server/views/portfolio-guardrails-view";
 
 interface Props {
   model: PortfolioGuardrailsModel;

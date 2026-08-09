@@ -10,7 +10,7 @@ import {
   toMutationContext,
   type MutationContext,
 } from "@/modules/core/kernel/server/mutation";
-import { autoAdvanceStageGate } from "@/server/services/epic";
+import { autoAdvanceStageGate } from "@/modules/work/server/services/epic";
 import {
   parseBusinessCase,
   businessCaseHasContent,

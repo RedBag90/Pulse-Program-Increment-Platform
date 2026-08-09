@@ -1,7 +1,7 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize, hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { getEpic } from "@/server/services/epic";
+import { getEpic } from "@/modules/work/server/services/epic";
 import { loadBreakdownLayout } from "@/server/services/breakdown-layout";
 import { EpicGoalsBadge } from "@/features/portfolio/components/epic-goals-badge";
 import { EpicRealizedTile } from "@/features/portfolio/components/epic-realized-tile";
@@ -9,7 +9,7 @@ import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-c
 import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
 import { listKpis } from "@/modules/core/kpi/server/kpi";
 import { listProgramIncrementsForArts } from "@/server/services/pi";
-import { listEpicApprovals, listTenantApprovers } from "@/server/services/epic-approval";
+import { listEpicApprovals, listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";
 import { EntityDetailShell, resolveTab } from "@/components/detail/entity-detail-shell";

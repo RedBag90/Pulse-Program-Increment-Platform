@@ -783,7 +783,7 @@ export async function setFeatureDeliveryStatus(
     if (advanceParentToL4 && feature.parentId) {
       // Importiert lazy aus epic.ts, sonst gäbe es einen Zirkel beim
       // top-level `import` (feature.ts ↔ epic.ts).
-      const { autoAdvanceStageGate } = await import("@/server/services/epic");
+      const { autoAdvanceStageGate } = await import("@/modules/work/server/services/epic");
       await autoAdvanceStageGate(tx, mctx, feature.parentId, "L4");
     }
 

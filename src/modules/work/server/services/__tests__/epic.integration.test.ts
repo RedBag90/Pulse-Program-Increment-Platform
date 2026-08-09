@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
 import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
-import { advanceStageGate } from "@/server/services/epic";
+import { advanceStageGate } from "@/modules/work/server/services/epic";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";

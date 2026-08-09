@@ -7,7 +7,7 @@ import { advanceStageGateBatchAction } from "@/features/portfolio/actions/stage-
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
-import type { EpicListRow } from "@/server/views/portfolio-epics-list";
+import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 
 interface Props {
   /** Currently-selected rows — the bar shows only when ≥ 1. */

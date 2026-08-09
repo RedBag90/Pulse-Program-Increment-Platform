@@ -13,7 +13,7 @@ import {
 } from "@/features/portfolio/components/epics-filter-bar";
 import { EpicsListTable } from "@/features/portfolio/components/epics-list-table";
 import { EpicsBulkActionBar } from "@/features/portfolio/components/epics-bulk-action-bar";
-import type { EpicsListModel, EpicListRow } from "@/server/views/portfolio-epics-list";
+import type { EpicsListModel, EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { EPIC_TYPES, HORIZONS } from "@/modules/work/domain/portfolio-guardrails";

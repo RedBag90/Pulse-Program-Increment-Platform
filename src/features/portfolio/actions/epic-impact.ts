@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
-import { confirmEpicImpact } from "@/server/services/epic";
+import { confirmEpicImpact } from "@/modules/work/server/services/epic";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 /**

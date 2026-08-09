@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { saveTimeline, assignEpicOwner } from "@/server/services/epic";
+import { saveTimeline, assignEpicOwner } from "@/modules/work/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { EpicId } from "@/modules/core/kernel/domain/types";

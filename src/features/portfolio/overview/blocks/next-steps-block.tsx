@@ -2,7 +2,7 @@ import { Link } from "@/i18n/navigation";
 import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
-import type { PortfolioOverview } from "@/server/views/portfolio-overview";
+import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 
 /**
  * Renders the coaching layer from `deriveNextSteps` (structural shortfalls and

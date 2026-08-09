@@ -3,7 +3,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/modules/core/org/server/services/art";
-import { listTenantApprovers } from "@/server/services/epic-approval";
+import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { ArtSubNav } from "@/modules/core/org/features/art/components/art-sub-nav";

@@ -4,7 +4,10 @@ import {
   computeBusinessCaseTotals,
   type BusinessCaseTotals,
 } from "@/modules/work/domain/business-case";
-import { parseBenefitHypothesis, benefitHypothesisHasContent } from "@/modules/work/domain/benefit-hypothesis";
+import {
+  parseBenefitHypothesis,
+  benefitHypothesisHasContent,
+} from "@/modules/work/domain/benefit-hypothesis";
 import { epicNextStep, type EpicNextStep } from "@/modules/work/domain/epic-next-step";
 import { epicBenefitFromKpis } from "@/modules/work/domain/epic-economics";
 import {

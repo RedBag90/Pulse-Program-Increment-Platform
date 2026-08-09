@@ -10,7 +10,7 @@ import {
   decideApproval,
   signoffSection,
   startRevision,
-} from "@/server/services/epic-approval";
+} from "@/modules/work/server/services/epic-approval";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { APPROVAL_PARTIES } from "@/modules/work/domain/business-case";

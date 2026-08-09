@@ -7,7 +7,7 @@ import { getValueStreamBudgets, type ValueStreamBudget } from "@/server/services
 import { getArtBudgetBreakdown } from "@/server/services/art-budget";
 import { ArtBudgetBreakdown } from "@/features/capacity/components/art-budget-breakdown";
 import { listAuditHistory } from "@/server/services/audit-history";
-import { listTenantApprovers } from "@/server/services/epic-approval";
+import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { userLabel } from "@/components/detail/initiative-labels";
 import {

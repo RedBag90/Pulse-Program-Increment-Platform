@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { saveBusinessCase } from "@/server/services/epic";
+import { saveBusinessCase } from "@/modules/work/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import { businessCaseSchema } from "@/domain/schemas/initiative";
 import type { EpicId } from "@/modules/core/kernel/domain/types";

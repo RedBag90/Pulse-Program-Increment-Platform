@@ -1,6 +1,6 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { loadLpmReview } from "@/server/views/lpm-review-view";
+import { loadLpmReview } from "@/modules/work/server/views/lpm-review-view";
 import { LpmReviewShell } from "@/features/portfolio/components/lpm-review/lpm-review-shell";
 import { redirect } from "next/navigation";
 

@@ -7,11 +7,11 @@ import {
   listEpicsForPortfolioList,
   countEpicChildFeatures,
   countEpicCompletedChildFeatures,
-} from "@/server/services/epic";
+} from "@/modules/work/server/services/epic";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";
-import { buildEpicsListModel } from "@/server/views/portfolio-epics-list";
+import { buildEpicsListModel } from "@/modules/work/server/views/portfolio-epics-list";
 import { EpicsListShell } from "@/features/portfolio/components/epics-list-shell";
 
 /** A KPI measurement entry as stored in the `measurements` JSON column. */

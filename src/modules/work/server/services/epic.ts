@@ -1,12 +1,24 @@
 import type { Prisma } from "@/generated/prisma";
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, EpicId, ValueStreamId, StageGate } from "@/modules/core/kernel/domain/types";
+import type {
+  TenantId,
+  EpicId,
+  ValueStreamId,
+  StageGate,
+} from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
-import { isValidTransition, isApprovalTransition, autoAdvanceTarget } from "@/modules/work/domain/stage-gate";
-import { findBlockedManualTransition, manualForwardBlockReason } from "@/modules/work/domain/epic-lifecycle-doc";
+import {
+  isValidTransition,
+  isApprovalTransition,
+  autoAdvanceTarget,
+} from "@/modules/work/domain/stage-gate";
+import {
+  findBlockedManualTransition,
+  manualForwardBlockReason,
+} from "@/modules/work/domain/epic-lifecycle-doc";
 import type { EpicType, Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   computePortfolioGuardrails,
   type GuardrailsEpicInput,
-} from "@/server/views/portfolio-guardrails-view";
+} from "@/modules/work/server/views/portfolio-guardrails-view";
 import { DEFAULT_GUARDRAIL_TARGETS } from "@/modules/work/domain/portfolio-guardrails";
 
 const epic = (over: Partial<GuardrailsEpicInput> = {}): GuardrailsEpicInput => ({

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createMutationHandler } from "@/server/http/mutation-handler";
-import { advanceStageGate } from "@/server/services/epic";
+import { advanceStageGate } from "@/modules/work/server/services/epic";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 

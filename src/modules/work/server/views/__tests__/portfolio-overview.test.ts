@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildPortfolioOverviewModel,
   type PortfolioOverviewInputs,
-} from "@/server/views/portfolio-overview";
+} from "@/modules/work/server/views/portfolio-overview";
 
 /**
  * Builder tests at the page-model seam. Fixtures are in-memory; `now` is

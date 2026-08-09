@@ -1,5 +1,5 @@
 import { CalendarClock } from "lucide-react";
-import type { PortfolioOverview } from "@/server/views/portfolio-overview";
+import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 
 /**
  * Top-of-page time context — how many PIs are live, when the nearest one ends,

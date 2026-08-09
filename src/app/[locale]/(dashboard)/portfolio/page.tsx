@@ -1,6 +1,6 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { loadPortfolioOverview } from "@/server/views/portfolio-overview";
+import { loadPortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import { redirect } from "next/navigation";
 import { ViewSwitcher } from "@/features/portfolio/overview/view-switcher";
 import { resolveOverviewView } from "@/features/portfolio/overview/view-switcher-config";

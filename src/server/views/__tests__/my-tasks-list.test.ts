@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildMyTasksListModel } from "@/server/views/my-tasks-list";
 import type { MyTaskRow } from "@/server/services/my-tasks";
-import type { EpicListRow } from "@/server/views/portfolio-epics-list";
+import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 import type { FeatureListRow } from "@/server/views/features-list";
 
 const task = (over: Partial<MyTaskRow> = {}): MyTaskRow => ({

@@ -6,7 +6,7 @@ import { MyTasksFilterBar } from "@/features/my-tasks/components/my-tasks-filter
 import { MyTasksEpicsSection } from "@/features/my-tasks/components/my-tasks-epics-section";
 import { MyTasksFeaturesSection } from "@/features/my-tasks/components/my-tasks-features-section";
 import { BUCKETS, LEVELS, type Bucket, type MyTasksListModel } from "@/server/views/my-tasks-list";
-import type { EpicListRow } from "@/server/views/portfolio-epics-list";
+import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 import type { FeatureListRow } from "@/server/views/features-list";
 import type { TaskLevel } from "@/server/services/my-tasks";
 import { Page, PageHeader } from "@/components/layout";

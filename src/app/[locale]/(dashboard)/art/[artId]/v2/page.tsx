@@ -6,7 +6,7 @@ import { listTeams } from "@/modules/core/org/server/services/team";
 import { listPis } from "@/server/services/pi";
 import { listImpediments } from "@/server/services/impediment";
 import { listAuditHistory } from "@/server/services/audit-history";
-import { listTenantApprovers } from "@/server/services/epic-approval";
+import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { buildImpedimentsListModel } from "@/server/views/impediments-list";
 import { ArtDetailShell, resolveArtTab } from "@/modules/core/org/features/art/components/art-detail-shell";

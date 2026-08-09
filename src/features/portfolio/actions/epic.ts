@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createEpic, updateEpic, softDeleteEpic } from "@/server/services/epic";
+import { createEpic, updateEpic, softDeleteEpic } from "@/modules/work/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { ValueStreamId, EpicId } from "@/modules/core/kernel/domain/types";

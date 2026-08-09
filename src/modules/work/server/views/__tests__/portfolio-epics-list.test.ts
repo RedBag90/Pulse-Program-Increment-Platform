@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildEpicsListModel } from "@/server/views/portfolio-epics-list";
+import { buildEpicsListModel } from "@/modules/work/server/views/portfolio-epics-list";
 
 type KpiInput = Parameters<typeof buildEpicsListModel>[0]["epics"][number]["kpis"][number];
 const kpi = (over: Partial<KpiInput> = {}): KpiInput => ({
