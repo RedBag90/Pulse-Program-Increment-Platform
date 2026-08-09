@@ -57,8 +57,8 @@ describe("moduleForAction", () => {
     expect(moduleForAction("goal.custom_field.manage")).toBe("core");
     expect(moduleForAction("kpi.bind")).toBe("core");
     expect(moduleForAction("value_stream.create")).toBe("core");
-    expect(moduleForAction("timeline.manage")).toBe("core");
-    expect(moduleForAction("pi_standard.manage")).toBe("core");
+    expect(moduleForAction("timeline.manage")).toBe("drumbeat");
+    expect(moduleForAction("pi_standard.manage")).toBe("drumbeat");
     expect(moduleForAction("tenant.users.manage")).toBe("core");
     expect(moduleForAction("admin.audit-log.read")).toBe("core");
     expect(moduleForAction("epic.hypothesis.decide")).toBe("work");
@@ -70,12 +70,12 @@ describe("moduleForAction", () => {
     expect(moduleForAction("art_budget.manage")).toBe("budgeting");
   });
 
-  it("Präfix-Grenzen: art. (core) ≠ art_budget. (budgeting), pi. (drumbeat) ≠ pi_standard. (core)", () => {
+  it("Präfix-Grenzen: art. (core) ≠ art_budget. (budgeting), pi. ≠ pi_standard. (beide drumbeat)", () => {
     expect(moduleForAction("art.create")).toBe("core");
     expect(moduleForAction("art_budget.manage")).toBe("budgeting");
     expect(moduleForAction("pi.create")).toBe("drumbeat");
     expect(moduleForAction("pi_objective.update")).toBe("drumbeat");
-    expect(moduleForAction("pi_standard.manage")).toBe("core");
+    expect(moduleForAction("pi_standard.manage")).toBe("drumbeat");
   });
 
   it("tenant.create ist ungegated (Platform-API)", () => {

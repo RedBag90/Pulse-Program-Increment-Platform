@@ -56,7 +56,6 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
       "ziele",
       "structure",
       "setup",
-      "timelines",
       "transformation",
       "value-streams",
       "art",
@@ -70,8 +69,6 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
       "value_stream.",
       "art.",
       "team.",
-      "timeline.manage",
-      "pi_standard.manage",
       "tenant.users.manage",
       "integration.manage",
       "role.capability.manage",
@@ -88,7 +85,8 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
   },
   drumbeat: {
     label: "Drumbeat",
-    // Detailliertes Planen/Ausführen: Cockpit, PI-Planung, Dependencies, Roadmap.
+    // Detailliertes Planen/Ausführen: Cockpit, PI-Planung, Dependencies, Roadmap,
+    // PI-Kadenz (Timelines/PI-Standards — nachträglich pro ART, nur mit Drumbeat).
     segments: [
       "umsetzung",
       "implementation",
@@ -97,8 +95,16 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
       "dependencies",
       "impediments",
       "roadmap",
+      "timelines",
     ],
-    actions: ["pi.", "pi_objective.", "dependency.", "impediment."],
+    actions: [
+      "pi.",
+      "pi_objective.",
+      "dependency.",
+      "impediment.",
+      "timeline.manage",
+      "pi_standard.manage",
+    ],
     home: "/umsetzung",
   },
   budgeting: {
