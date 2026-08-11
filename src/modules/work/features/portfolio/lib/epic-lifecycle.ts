@@ -1,11 +1,13 @@
 import type { StageGate } from "@/modules/core/kernel/domain/types";
+import { STAGE_GATES, type SubStage } from "@/modules/work/domain/stage-gate";
 
 /**
  * The ordered lifecycle an Epic traverses — the 9 phases the "Nächster Schritt"
  * guidance drives it through (the fine-grained expansion of the L0–L5 gates). Each
  * step carries a static **Erklärung** so the whole process is explicit and readable
  * from the start; the per-Epic status (done/current/upcoming) is derived from the
- * milestone timestamps (see `epicLifecycleSteps`, mirroring `epic-timeline-tab`).
+ * **Stage Gate** (+ subStage / approvalPhase / child-features) — the same axis as
+ * `epic-next-step.ts`, so the highlighted tile always matches the "Nächster Schritt".
  */
 export interface LifecycleStepMeta {
   key: string;
@@ -72,40 +74,56 @@ export interface LifecycleStep extends LifecycleStepMeta {
   status: LifecycleStepStatus;
 }
 
-/** Milestone signals per step; each non-null/truthy value marks its step complete. */
+/**
+ * Stage-Gate view of an Epic — the exact inputs `epicNextStep` reads. Deriving the
+ * step status from these (not milestone timestamps) keeps the highlighted tile and
+ * the embedded "Nächster Schritt" coherent even when the gate was advanced without
+ * stamping every intermediate milestone.
+ */
 export interface EpicLifecycleInput {
-  selectedForDetailingAt: Date | null;
-  hypothesisApprovedAt: Date | null;
-  selectedForAnalyzingAt: Date | null;
-  businessCaseApprovedAt: Date | null;
-  /** timeline.actuals.backlog (owner-entered manual date). */
-  backlogActual: string | null | undefined;
-  implementationStartedAt: Date | null;
-  /** timeline.actuals.implementation (owner-entered manual date). */
-  implementationActual: string | null | undefined;
+  stageGate: StageGate;
+  approvalPhase: string | null;
+  /** subStageFor(): L2.2 = Business Case freigegeben, L4.2 = alle Features fertig. */
+  subStage: SubStage | null;
+  childFeatureStats: { total: number; completed: number };
   impactRecognizedAt: Date | null;
 }
 
 /**
- * Resolve each lifecycle step's status. `current` is the first step whose signal
- * is absent; earlier steps are `done`, later steps `upcoming`. Mirrors the
- * `actualPresent`/`statusAt` logic in `epic-timeline-tab.tsx`.
+ * Resolve each lifecycle step's status. A step is `reached` once the Stage Gate
+ * (+ subStage / approvalPhase / child-features) has passed it; `current` is the
+ * first not-reached step, earlier steps are `done`, later steps `upcoming`. The
+ * thresholds are chosen so `current` lands on exactly the step `epicNextStep`
+ * addresses — the two selection markers (Detailing, Analyse) fold into their gate
+ * and never hold the highlight (they carry no distinct next-action).
  */
 export function epicLifecycleSteps(input: EpicLifecycleInput): LifecycleStep[] {
-  const actualPresent = [
-    true, // funnel — createdAt is always set
-    Boolean(input.selectedForDetailingAt),
-    Boolean(input.hypothesisApprovedAt),
-    Boolean(input.selectedForAnalyzingAt),
-    Boolean(input.businessCaseApprovedAt),
-    Boolean(input.backlogActual),
-    Boolean(input.implementationStartedAt),
-    Boolean(input.implementationActual),
-    Boolean(input.impactRecognizedAt),
+  const { stageGate, approvalPhase, subStage, childFeatureStats, impactRecognizedAt } = input;
+  const gi = STAGE_GATES.indexOf(stageGate);
+
+  // Terminal (mirrors `epicNextStep`'s `impactRecognizedAt || L5` short-circuit):
+  // the Epic is done, every step greyed, no highlight.
+  if (impactRecognizedAt != null || gi >= 5) {
+    return LIFECYCLE_STEPS.map((step) => ({ ...step, status: "done" }));
+  }
+
+  const allFeaturesDone =
+    childFeatureStats.total > 0 && childFeatureStats.completed === childFeatureStats.total;
+
+  const reached = [
+    true, // funnel
+    true, // detailing — folded selection marker
+    gi >= 1, // hypothesis — approved ⇒ L1
+    gi >= 1, // analyzing — folded selection marker
+    gi >= 3 || subStage === "L2.2" || approvalPhase === "approved", // business_case — BC freigegeben
+    gi >= 4, // backlog — impl started ⇒ left backlog
+    gi >= 5 || subStage === "L4.2" || allFeaturesDone, // implementation_started
+    gi >= 5, // implementation — alle Features fertig
+    impactRecognizedAt != null || gi >= 5, // done
   ];
-  const firstOpen = actualPresent.indexOf(false);
+  const firstOpen = reached.indexOf(false);
   return LIFECYCLE_STEPS.map((step, i) => ({
     ...step,
-    status: actualPresent[i] ? "done" : i === firstOpen ? "current" : "upcoming",
+    status: firstOpen === -1 || i < firstOpen ? "done" : i === firstOpen ? "current" : "upcoming",
   }));
 }

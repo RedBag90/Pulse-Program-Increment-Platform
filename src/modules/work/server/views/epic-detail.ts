@@ -485,14 +485,13 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     childFeatureStats: childStats,
   });
 
+  // Same axis as `epicNextStep` above → the highlighted tile always matches the
+  // embedded "Nächster Schritt" (never diverges from milestone timestamps).
   const lifecycleSteps = epicLifecycleSteps({
-    selectedForDetailingAt: epic.selectedForDetailingAt,
-    hypothesisApprovedAt: epic.hypothesisApprovedAt,
-    selectedForAnalyzingAt: epic.selectedForAnalyzingAt,
-    businessCaseApprovedAt: epic.businessCaseApprovedAt,
-    backlogActual: timeline.actuals.backlog,
-    implementationStartedAt: epic.implementationStartedAt,
-    implementationActual: timeline.actuals.implementation,
+    stageGate: epic.stageGate as StageGate,
+    approvalPhase: multiPartyApproval ? approvalPhase : null,
+    subStage,
+    childFeatureStats: childStats,
     impactRecognizedAt: epic.impactRecognizedAt,
   });
 

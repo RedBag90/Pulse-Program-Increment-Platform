@@ -176,12 +176,20 @@ describe("buildEpicDetailModel — degradation matrix", () => {
     expect(on.nextStep?.hint.startsWith("Budget ist alloziert.")).toBe(true);
   });
 
-  it("exposes lifecycleSteps (fresh epic → Funnel done, Detailing current)", () => {
+  it("exposes lifecycleSteps derived from the stage gate (L0 → Hypothese current)", () => {
     const m = buildEpicDetailModel(makeInputs());
     expect(m.lifecycleSteps).toHaveLength(9);
     expect(m.lifecycleSteps[0]!.status).toBe("done"); // funnel
-    expect(m.lifecycleSteps[1]!.status).toBe("current"); // detailing
+    expect(m.lifecycleSteps[1]!.status).toBe("done"); // detailing (folded marker)
+    expect(m.lifecycleSteps[2]!.key).toBe("hypothesis");
+    expect(m.lifecycleSteps[2]!.status).toBe("current");
     expect(m.lifecycleSteps.every((s) => s.description.length > 0)).toBe(true);
+  });
+
+  it("lifecycleSteps stay coherent with the stage gate (L3 → Backlog current)", () => {
+    const m = buildEpicDetailModel(makeInputs({ epic: makeEpic({ stageGate: "L3" }) }));
+    const currentStep = m.lifecycleSteps.find((s) => s.status === "current");
+    expect(currentStep?.key).toBe("backlog");
   });
 
   it("risks slice is an entitlement gate (composed in the route)", () => {

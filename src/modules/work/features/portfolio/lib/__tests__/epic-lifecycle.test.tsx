@@ -7,16 +7,18 @@ import {
 
 function input(over: Partial<EpicLifecycleInput> = {}): EpicLifecycleInput {
   return {
-    selectedForDetailingAt: null,
-    hypothesisApprovedAt: null,
-    selectedForAnalyzingAt: null,
-    businessCaseApprovedAt: null,
-    backlogActual: null,
-    implementationStartedAt: null,
-    implementationActual: null,
+    stageGate: "L0",
+    approvalPhase: null,
+    subStage: null,
+    childFeatureStats: { total: 0, completed: 0 },
     impactRecognizedAt: null,
     ...over,
   };
+}
+
+/** key of the single `current` step, or null when all done. */
+function current(over: Partial<EpicLifecycleInput> = {}): string | null {
+  return epicLifecycleSteps(input(over)).find((s) => s.status === "current")?.key ?? null;
 }
 
 const D = new Date("2026-01-01");
@@ -29,55 +31,62 @@ describe("epicLifecycleSteps", () => {
     expect(LIFECYCLE_STEPS[8]!.key).toBe("done");
   });
 
-  it("new Epic: Funnel done, Detailing current, rest upcoming", () => {
-    const steps = epicLifecycleSteps(input());
+  it("L0: Funnel + Detailing done, Hypothese current (matches next-step)", () => {
+    const steps = epicLifecycleSteps(input({ stageGate: "L0" }));
     expect(steps[0]!.status).toBe("done"); // funnel
-    expect(steps[1]!.status).toBe("current"); // detailing
-    expect(steps.slice(2).every((s) => s.status === "upcoming")).toBe(true);
+    expect(steps[1]!.status).toBe("done"); // detailing (folded marker)
+    expect(steps[2]!.key).toBe("hypothesis");
+    expect(steps[2]!.status).toBe("current");
+    expect(steps.slice(3).every((s) => s.status === "upcoming")).toBe(true);
   });
 
-  it("through business-case approval: first five done, Backlog current", () => {
-    const steps = epicLifecycleSteps(
-      input({
-        selectedForDetailingAt: D,
-        hypothesisApprovedAt: D,
-        selectedForAnalyzingAt: D,
-        businessCaseApprovedAt: D,
-      }),
-    );
-    expect(steps.slice(0, 5).every((s) => s.status === "done")).toBe(true);
+  it("L1: Business Case current (hypothesis approved, BC pending)", () => {
+    expect(current({ stageGate: "L1" })).toBe("business_case");
+  });
+
+  it("L2 (BC in Arbeit): Business Case current", () => {
+    expect(current({ stageGate: "L2", subStage: "L2.1" })).toBe("business_case");
+  });
+
+  it("L2.2 (BC freigegeben): Backlog current", () => {
+    expect(current({ stageGate: "L2", subStage: "L2.2" })).toBe("backlog");
+  });
+
+  it("L1 approvalPhase=approved: Backlog current (defensive stale gate)", () => {
+    expect(current({ stageGate: "L1", approvalPhase: "approved" })).toBe("backlog");
+  });
+
+  it("regression — L3 with no milestone timestamps: Backlog current (was Detailing)", () => {
+    const steps = epicLifecycleSteps(input({ stageGate: "L3" }));
+    expect(steps.slice(0, 5).every((s) => s.status === "done")).toBe(true); // funnel..business_case
     expect(steps[5]!.key).toBe("backlog");
     expect(steps[5]!.status).toBe("current");
-    expect(steps[6]!.status).toBe("upcoming");
+    expect(steps.slice(6).every((s) => s.status === "upcoming")).toBe(true);
   });
 
-  it("all signals set: every step done, no current", () => {
-    const steps = epicLifecycleSteps(
-      input({
-        selectedForDetailingAt: D,
-        hypothesisApprovedAt: D,
-        selectedForAnalyzingAt: D,
-        businessCaseApprovedAt: D,
-        backlogActual: "2026-02-01",
-        implementationStartedAt: D,
-        implementationActual: "2026-03-01",
-        impactRecognizedAt: D,
-      }),
+  it("L4 (läuft): Umsetzung ▸ Start current", () => {
+    expect(current({ stageGate: "L4", subStage: "L4.1" })).toBe("implementation_started");
+    // features in progress also drives L4.1
+    expect(current({ stageGate: "L4", childFeatureStats: { total: 3, completed: 1 } })).toBe(
+      "implementation_started",
     );
+  });
+
+  it("L4.2 (alle Features fertig): Umsetzung ▸ Fertig current", () => {
+    expect(current({ stageGate: "L4", subStage: "L4.2" })).toBe("implementation");
+    expect(current({ stageGate: "L4", childFeatureStats: { total: 3, completed: 3 } })).toBe(
+      "implementation",
+    );
+  });
+
+  it("L5: every step done, no current", () => {
+    const steps = epicLifecycleSteps(input({ stageGate: "L5" }));
     expect(steps.every((s) => s.status === "done")).toBe(true);
     expect(steps.some((s) => s.status === "current")).toBe(false);
   });
 
-  it("manual backlog actual gates the L3 step (not a timestamp)", () => {
-    const withoutBacklog = epicLifecycleSteps(
-      input({
-        selectedForDetailingAt: D,
-        hypothesisApprovedAt: D,
-        selectedForAnalyzingAt: D,
-        businessCaseApprovedAt: D,
-        implementationStartedAt: D, // later signal set, but backlog gap → current is backlog
-      }),
-    );
-    expect(withoutBacklog.find((s) => s.key === "backlog")!.status).toBe("current");
+  it("impactRecognizedAt set (any gate): Impact done, no current", () => {
+    const steps = epicLifecycleSteps(input({ stageGate: "L4", impactRecognizedAt: D }));
+    expect(steps[8]!.status).toBe("done");
   });
 });
