@@ -5,6 +5,7 @@ import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadStrategyTree, type ZieleSubTab } from "@/modules/core/goals/server/views/ziele-view";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { isZieleSetupDismissed } from "@/modules/core/goals/server/services/ziele-setup";
 import { ZieleShell } from "@/modules/core/goals/features/components/ziele-shell";
 
 /**
@@ -42,7 +43,7 @@ export default async function ZielePage({ searchParams }: PageProps) {
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   // Baum-Load und User-Labels (inkl. blockierendem Supabase-listUsers) laufen
   // unabhängig → parallel, statt seriell auf dem kritischen Renderpfad.
-  const [tree, userLabels] = await Promise.all([
+  const [tree, userLabels, setupDismissed] = await Promise.all([
     loadStrategyTree(db, principal.tenantId, {
       ...(periods.length ? { periods } : {}),
       ...(valueStreamIds.length ? { valueStreamIds } : {}),
@@ -50,6 +51,7 @@ export default async function ZielePage({ searchParams }: PageProps) {
       ...(statuses.length ? { statuses } : {}),
     }),
     listTenantUserLabels(db, principal.tenantId),
+    isZieleSetupDismissed(db, principal.tenantId),
   ]);
 
   // Edit-Affordances sind Capability-gesteuert (nicht mehr route-hart):
@@ -82,7 +84,12 @@ export default async function ZielePage({ searchParams }: PageProps) {
 
   return (
     <Suspense fallback={null}>
-      <ZieleShell model={model} layout={layout} userLabels={userLabels} />
+      <ZieleShell
+        model={model}
+        layout={layout}
+        userLabels={userLabels}
+        setupDismissed={setupDismissed}
+      />
     </Suspense>
   );
 }

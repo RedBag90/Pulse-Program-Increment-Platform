@@ -12,6 +12,8 @@ import { StrategyLayoutToggle, type StrategyLayout } from "./strategy-layout-tog
 import { GoalScopeFilterBar } from "./goal-scope-filter-bar";
 import { ZieleEditDrawer } from "./ziele-edit-drawer";
 import { MoneySheetView } from "./money-sheet-view";
+import { GoalSetupStepper } from "./goal-setup-stepper";
+import { goalSetupSteps } from "@/modules/core/goals/domain/goal-setup";
 
 /**
  * Ziele-Shell — die **eine** Surface für Übersicht **und** Pflege (die frühere
@@ -28,13 +30,20 @@ interface Props {
   layout: StrategyLayout;
   /** Owner-Id → Anzeigename (für die Owner-Avatare in der Tabelle). */
   userLabels?: Record<string, string>;
+  /** Erst-Aufsetz-Anleitung tenant-weit weggeklickt? (aus `setup_progress`). */
+  setupDismissed?: boolean;
 }
 
-export function ZieleShell({ model, layout, userLabels = {} }: Props) {
+export function ZieleShell({ model, layout, userLabels = {}, setupDismissed = false }: Props) {
   const { tab, themes, tenantTrio, permissions, modules } = model;
   // Money existiert nur mit Portfolio-Modul — Deep-Link `?tab=money` ohne
   // Portfolio fällt still auf „Strategie" zurück (keine leere Fläche).
   const effectiveTab = tab === "money" && !modules.portfolio ? "strategie" : tab;
+
+  // Erst-Aufsetz-Anleitung: nur für Editoren, solange nicht abgeschlossen und
+  // nicht weggeklickt. Status wird live aus dem Ziel-Baum abgeleitet.
+  const setup = goalSetupSteps(themes);
+  const showSetupGuide = permissions.canEditStrategy && !setupDismissed && !setup.complete;
 
   return (
     <Page>
@@ -43,6 +52,8 @@ export function ZieleShell({ model, layout, userLabels = {} }: Props) {
         subtitle="Ziele und Unterziele — Übersicht und Pflege in einer Ansicht."
         actions={<ZieleSubTabs active={effectiveTab} showMoney={modules.portfolio} />}
       />
+
+      {showSetupGuide && <GoalSetupStepper steps={setup.steps} />}
 
       <div className="space-y-2">
         <GoalHealthStrip themes={themes} tenantTrio={tenantTrio} showMoney={modules.portfolio} />
