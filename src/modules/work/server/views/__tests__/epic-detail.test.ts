@@ -176,6 +176,14 @@ describe("buildEpicDetailModel — degradation matrix", () => {
     expect(on.nextStep?.hint.startsWith("Budget ist alloziert.")).toBe(true);
   });
 
+  it("exposes lifecycleSteps (fresh epic → Funnel done, Detailing current)", () => {
+    const m = buildEpicDetailModel(makeInputs());
+    expect(m.lifecycleSteps).toHaveLength(9);
+    expect(m.lifecycleSteps[0]!.status).toBe("done"); // funnel
+    expect(m.lifecycleSteps[1]!.status).toBe("current"); // detailing
+    expect(m.lifecycleSteps.every((s) => s.description.length > 0)).toBe(true);
+  });
+
   it("risks slice is an entitlement gate (composed in the route)", () => {
     const on = buildEpicDetailModel(
       makeInputs({ enabled: { drumbeat: true, budgeting: true, risks: true } }),

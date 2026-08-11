@@ -29,6 +29,10 @@ import { epicBenefitFromKpis, type EpicBenefit } from "@/modules/work/domain/epi
 import { subStageFor } from "@/modules/work/domain/stage-gate";
 import { epicNextStep, type EpicNextStep } from "@/modules/work/domain/epic-next-step";
 import {
+  epicLifecycleSteps,
+  type LifecycleStep,
+} from "@/modules/work/features/portfolio/lib/epic-lifecycle";
+import {
   sectionStatus,
   APPROVAL_PARTY_LABELS,
   APPROVAL_SECTION_LABELS,
@@ -211,6 +215,7 @@ export interface EpicDetailModel {
   childStats: { total: number; completed: number };
   subStage: ReturnType<typeof subStageFor>;
   nextStep: EpicNextStep | null;
+  lifecycleSteps: LifecycleStep[];
 
   // Capability booleans — the page JSX consumes these directly.
   canEdit: boolean;
@@ -480,6 +485,17 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     childFeatureStats: childStats,
   });
 
+  const lifecycleSteps = epicLifecycleSteps({
+    selectedForDetailingAt: epic.selectedForDetailingAt,
+    hypothesisApprovedAt: epic.hypothesisApprovedAt,
+    selectedForAnalyzingAt: epic.selectedForAnalyzingAt,
+    businessCaseApprovedAt: epic.businessCaseApprovedAt,
+    backlogActual: timeline.actuals.backlog,
+    implementationStartedAt: epic.implementationStartedAt,
+    implementationActual: timeline.actuals.implementation,
+    impactRecognizedAt: epic.impactRecognizedAt,
+  });
+
   return {
     epic,
     kpis,
@@ -521,6 +537,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     childStats,
     subStage,
     nextStep,
+    lifecycleSteps,
     canEdit,
     canDecideHypothesis,
     canSubmitHypothesis,

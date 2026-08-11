@@ -20,7 +20,7 @@ import { PhaseBadge } from "@/components/detail/phase-badge";
 import { EpicHistoryTimeline } from "@/modules/work/features/portfolio/components/epic-history-timeline";
 import { EPIC_TABS } from "@/modules/work/features/portfolio/components/epic-detail-shell";
 import { EpicOverviewTab } from "@/modules/work/features/portfolio/components/epic-overview-tab";
-import { EpicReifegradActivityBar } from "@/modules/work/features/portfolio/components/epic-reifegrad-activity-bar";
+import { EpicLifecycleStepper } from "@/modules/work/features/portfolio/components/epic-lifecycle-stepper";
 import { EpicImpactConfirmDialog } from "@/modules/work/features/portfolio/components/epic-impact-confirm-dialog";
 import { EpicKpisTab } from "@/modules/work/features/portfolio/components/epic-kpis-tab";
 import { EpicBreakdownTab } from "@/modules/work/features/portfolio/components/epic-breakdown-tab";
@@ -38,7 +38,7 @@ import { EpicHeroFacts } from "@/modules/work/features/portfolio/components/epic
 import { Link } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
 import { redirect } from "next/navigation";
-import type { EpicId, StageGate } from "@/modules/core/kernel/domain/types";
+import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 interface Props {
   params: Promise<{ locale: string; id: string }>;
@@ -148,6 +148,11 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           }
           return (
             <div className="space-y-4">
+              <EpicLifecycleStepper
+                steps={model.lifecycleSteps}
+                nextStep={model.nextStep}
+                actionSlot={actionSlot}
+              />
               <EpicHeroFacts
                 ownerId={epic.ownerId}
                 userLabels={userLabels}
@@ -170,12 +175,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                 implementationCost={model.heroTotals.implementationCost}
                 kpiCount={kpiRows.length}
                 kpiAvgPct={model.heroKpiAvgPct}
-              />
-              <EpicReifegradActivityBar
-                stageGate={epic.stageGate as StageGate}
-                subStage={model.subStage}
-                nextStep={model.nextStep}
-                actionSlot={actionSlot}
               />
             </div>
           );
