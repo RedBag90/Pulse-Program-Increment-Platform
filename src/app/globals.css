@@ -1,4 +1,11 @@
-@import "tailwindcss";
+/* `source("../../")` pinnt die automatische Tailwind-v4-Quellenerkennung fest
+   auf das Projekt-Root (relativ zu dieser Datei: src/app → Projektwurzel).
+   Ohne diese Angabe läuft der Scanner über die Git-Wurzel nach oben – und da
+   das Home-Verzeichnis selbst ein Git-Repo ist (~/.git, ~/package-lock.json),
+   durchsuchte er das gesamte Home und blockierte die CSS-Kompilierung
+   dauerhaft (PostCSS-Worker bei 0 % CPU, Requests liefen in den Timeout).
+   Gleiche Ursache wie das `outputFileTracingRoot`-Pinning in next.config.ts. */
+@import "tailwindcss" source("../../");
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 

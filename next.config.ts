@@ -28,12 +28,25 @@ const nextConfig: NextConfig = {
 const withIntl = withNextIntl(nextConfig);
 const withAnalyzer = withBundleAnalyzer({ enabled: process.env.ANALYZE === "1" });
 
-export default withSentryConfig(withAnalyzer(withIntl), {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT ?? "pulse",
-  silent: !process.env.CI,
-  widenClientFileUpload: true,
-  sourcemaps: { deleteSourcemapsAfterUpload: true },
-  disableLogger: true,
-  automaticVercelMonitors: true,
-});
+const composed = withAnalyzer(withIntl);
+
+// Der Sentry-Webpack-Plugin (Source-Map-Upload + Build-Instrumentierung) wird
+// NUR für Produktions-Builds gebraucht. In `next dev` blockiert er die
+// `/middleware`-Kompilierung dauerhaft (Compile hängt bei ~1% CPU, Requests
+// timen aus). Die Laufzeit-Fehlererfassung läuft ohnehin über
+// `instrumentation.ts` (Sentry.init) und ist davon unberührt. Daher: Wrapper
+// nur in Produktion anwenden. Mit `DISABLE_SENTRY=1` auch für Prod-Builds abschaltbar.
+const useSentry =
+  process.env.NODE_ENV === "production" && process.env.DISABLE_SENTRY !== "1";
+
+export default useSentry
+  ? withSentryConfig(composed, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT ?? "pulse",
+      silent: !process.env.CI,
+      widenClientFileUpload: true,
+      sourcemaps: { deleteSourcemapsAfterUpload: true },
+      disableLogger: true,
+      automaticVercelMonitors: true,
+    })
+  : composed;
