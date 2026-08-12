@@ -23,6 +23,8 @@ function epic(p: {
   updatedAt?: Date;
   vsName?: string | null;
   steering?: boolean;
+  /** Sets timeline.estimates.implementation (L4-Abschluss estimate), ISO yyyy-mm-dd. */
+  implEstimate?: string;
 }) {
   return {
     id: p.id,
@@ -34,13 +36,38 @@ function epic(p: {
     valueStream: p.vsName ? { id: `vs-${p.id}`, name: p.vsName } : null,
     updatedAt: p.updatedAt ?? daysAgo(1),
     needsSteeringAttention: p.steering ?? false,
+    timeline: p.implEstimate
+      ? { estimates: { implementation: p.implEstimate }, actuals: {} }
+      : null,
     // Extra Prisma fields the builder ignores — kept as `unknown` cast.
   } as unknown as PortfolioOverviewInputs["epics"][number];
+}
+
+/** A tenant-wide Feature row (as `listOverviewFeatures` returns it). */
+function feature(p: {
+  id: string;
+  title: string;
+  piEndDate: Date | null;
+  epic?: { id: string; title: string; vsName?: string | null } | null;
+}) {
+  return {
+    id: p.id,
+    title: p.title,
+    pi: p.piEndDate ? { endDate: p.piEndDate } : null,
+    parent: p.epic
+      ? {
+          id: p.epic.id,
+          title: p.epic.title,
+          valueStream: p.epic.vsName ? { name: p.epic.vsName } : null,
+        }
+      : null,
+  } as unknown as PortfolioOverviewInputs["features"][number];
 }
 
 function baseInputs(): PortfolioOverviewInputs {
   return {
     epics: [],
+    features: [],
     themes: [],
     board: { periods: [], pool: {} },
     vsBudgets: { valueStreams: [] },
@@ -254,5 +281,51 @@ describe("buildPortfolioOverviewModel", () => {
     const m = buildPortfolioOverviewModel(inputs);
     expect(m.staleEpics.map((c) => c.id)).toEqual(["stale"]);
     expect(m.blockedEpics.map((c) => c.id)).toEqual(["blocked"]);
+  });
+
+  // NOW = 2026-06-15.
+  it("l4DueSoon: only L4 epics with an implementation estimate ≤ 4 weeks (overdue first)", () => {
+    const inputs = baseInputs();
+    inputs.epics = [
+      epic({ id: "soon", title: "Soon", stageGate: "L4", implEstimate: "2026-06-25" }), // +10d
+      epic({ id: "over", title: "Over", stageGate: "L4", implEstimate: "2026-06-10" }), // -5d overdue
+      epic({ id: "far", title: "Far", stageGate: "L4", implEstimate: "2026-07-25" }), // +40d out
+      epic({ id: "notL4", title: "NotL4", stageGate: "L2", implEstimate: "2026-06-20" }), // wrong gate
+      epic({ id: "noEst", title: "NoEst", stageGate: "L4" }), // no estimate
+    ];
+    const m = buildPortfolioOverviewModel(inputs);
+    expect(m.l4DueSoon.map((x) => x.id)).toEqual(["over", "soon"]); // overdue (earlier date) first
+    const over = m.l4DueSoon[0]!;
+    expect(over.overdue).toBe(true);
+    expect(over.daysUntil).toBe(-5);
+    expect(m.l4DueSoon[1]!.overdue).toBe(false);
+    expect(m.l4DueSoon[1]!.daysUntil).toBe(10);
+  });
+
+  it("featuresDueSoon: PI-end ≤ 2 weeks, overdue first, parent Epic carried; null PI ignored", () => {
+    const inputs = baseInputs();
+    inputs.features = [
+      feature({
+        id: "f-soon",
+        title: "Soon",
+        piEndDate: new Date("2026-06-18T00:00:00.000Z"), // +3d
+        epic: { id: "e1", title: "Epic One", vsName: "Payments" },
+      }),
+      feature({
+        id: "f-over",
+        title: "Over",
+        piEndDate: new Date("2026-06-13T00:00:00.000Z"), // -2d overdue
+        epic: { id: "e2", title: "Epic Two", vsName: "CX" },
+      }),
+      feature({ id: "f-far", title: "Far", piEndDate: new Date("2026-07-05T00:00:00.000Z") }), // +20d out
+      feature({ id: "f-noPi", title: "NoPi", piEndDate: null }), // backlog → ignored
+    ];
+    const m = buildPortfolioOverviewModel(inputs);
+    expect(m.featuresDueSoon.map((x) => x.id)).toEqual(["f-over", "f-soon"]);
+    expect(m.featuresDueSoon[0]!.overdue).toBe(true);
+    expect(m.featuresDueSoon[0]!.daysUntil).toBe(-2);
+    // parent Epic + value stream carried through
+    expect(m.featuresDueSoon[1]!.epic).toEqual({ id: "e1", title: "Epic One" });
+    expect(m.featuresDueSoon[1]!.subtitle).toBe("Payments");
   });
 });

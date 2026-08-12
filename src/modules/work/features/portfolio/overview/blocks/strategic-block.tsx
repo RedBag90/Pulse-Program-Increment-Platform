@@ -1,6 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { Target, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { isClosed } from "@/modules/core/goals/domain/goal-status";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 
 function pct(n: number): string {
@@ -13,10 +14,10 @@ function pct(n: number): string {
  * its own progress bar so the picture is complete without a drill-down.
  */
 export function StrategicBlock({ data }: { data: PortfolioOverview }) {
-  // In-flight = draft + active. Done states (achieved/missed/cancelled/
-  // archived/stretched) verschwinden aus der Karte; sie sind keine offenen
-  // Ziele mehr.
-  const activeGoals = data.goals.filter((g) => g.status === "active" || g.status === "draft");
+  // In-flight = offen (on_track/at_risk/off_track) oder noch ohne Check-in
+  // (null). Geschlossene Ziele (achieved/partial/missed/dropped) verschwinden
+  // aus der Karte. Muss zum Builder-Prädikat `isInFlight = !isClosed` passen.
+  const activeGoals = data.goals.filter((g) => !isClosed(g.status));
   // Highest progress first; stable for ties.
   const ranked = [...activeGoals].sort((a, b) => b.progress - a.progress);
 

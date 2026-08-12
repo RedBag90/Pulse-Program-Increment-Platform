@@ -1,6 +1,8 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId } from "@/modules/core/kernel/domain/types";
 import { listEpics } from "@/modules/work/server/services/epic";
+import { listOverviewFeatures } from "@/modules/work/server/services/feature";
+import { parseTimeline } from "@/modules/work/domain/timeline";
 import {
   computeStructureGap,
   computePracticeAdoption,
@@ -9,7 +11,7 @@ import {
   type PracticeAdoption,
   type NextStep,
 } from "@/server/services/transformation";
-import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
+import { halfYearKey, dayStart, isoDay, MS_PER_DAY } from "@/modules/core/kernel/domain/calendar";
 import { epicBucket } from "@/modules/work/domain/stage-gate";
 import { isAtRisk, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { isClosed } from "@/modules/core/goals/domain/goal-status";
@@ -56,6 +58,24 @@ export interface OverviewGoal {
   status: string | null;
   progress: number;
   epicLinkCount: number;
+}
+
+/**
+ * One row of a "fällig"-Liste (Epic L4-Abschluss / Feature-Abschluss): what
+ * lands soon (or is overdue). `dateIso` = the planned/estimated completion day;
+ * `daysUntil` is signed (negative ⇒ overdue). `epic` set only for Feature rows.
+ */
+export interface DueSoonItem {
+  id: string;
+  title: string;
+  /** Value-Stream name (muted subtitle). */
+  subtitle: string | null;
+  /** Parent Epic — Feature rows only; null for Epic rows. */
+  epic: { id: string; title: string } | null;
+  /** Planned completion, ISO yyyy-mm-dd. */
+  dateIso: string;
+  daysUntil: number;
+  overdue: boolean;
 }
 
 export interface OverviewBudget {
@@ -117,6 +137,11 @@ export interface PortfolioOverview {
   goalAverageProgress: number;
   topGoal: OverviewGoal | null;
 
+  /** Epics in L4 whose estimated implementation-end is ≤ 4 weeks out (or overdue). */
+  l4DueSoon: DueSoonItem[];
+  /** Open Features whose PI ends ≤ 2 weeks out (or overdue). */
+  featuresDueSoon: DueSoonItem[];
+
   budgets: OverviewBudget[];
   poolTotal: number;
   poolAllocated: number;
@@ -154,6 +179,7 @@ export interface PortfolioOverviewTheme {
 
 export interface PortfolioOverviewInputs {
   epics: Awaited<ReturnType<typeof listEpics>>;
+  features: Awaited<ReturnType<typeof listOverviewFeatures>>;
   themes: PortfolioOverviewTheme[];
   board: PortfolioBudgetingBoard;
   vsBudgets: PortfolioVsBudgets;
@@ -181,6 +207,7 @@ export interface PortfolioOverviewInputs {
 export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): PortfolioOverview {
   const {
     epics,
+    features,
     themes,
     board,
     vsBudgets,
@@ -289,6 +316,51 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   const topGoal =
     activeGoals.length === 0 ? null : [...activeGoals].sort((a, b) => b.progress - a.progress)[0]!;
 
+  // "Fällig"-Listen — was in den nächsten N Wochen laut Plan/Estimate landet
+  // (oder schon überfällig ist). Kein unteres Datumsfenster ⇒ Überfällige sind
+  // dabei (`overdue`, sortieren durch die aufsteigende Datumssortierung nach oben).
+  const today = dayStart(now).getTime();
+  const signedDays = (ms: number) => Math.round((ms - today) / MS_PER_DAY);
+
+  // (A) Epics in L4: geschätzter Umsetzungs-Abschluss (`estimates.implementation`) ≤ 4 Wochen.
+  const l4Horizon = today + 28 * MS_PER_DAY;
+  const l4DueSoon: DueSoonItem[] = epics
+    .map((e) => ({ e, iso: parseTimeline(e.timeline).estimates.implementation ?? null }))
+    .filter(
+      (x): x is { e: (typeof epics)[number]; iso: string } =>
+        x.iso != null && x.e.stageGate === "L4" && Date.parse(x.iso) <= l4Horizon,
+    )
+    .map(({ e, iso }) => ({
+      id: e.id,
+      title: e.title,
+      subtitle: e.valueStream?.name ?? null,
+      epic: null,
+      dateIso: iso,
+      daysUntil: signedDays(Date.parse(iso)),
+      overdue: Date.parse(iso) < today,
+    }))
+    .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+
+  // (B) Offene Features: Plan-Abschluss = PI-Ende (`pi.endDate`) ≤ 2 Wochen.
+  // Der Loader filtert bereits completed/cancelled + Backlog (kein PI) heraus.
+  const featureHorizon = today + 14 * MS_PER_DAY;
+  const featuresDueSoon: DueSoonItem[] = features
+    .filter((f): f is typeof f & { pi: { endDate: Date } } => f.pi != null)
+    .filter((f) => f.pi.endDate.getTime() <= featureHorizon)
+    .map((f) => {
+      const ms = dayStart(f.pi.endDate).getTime();
+      return {
+        id: f.id,
+        title: f.title,
+        subtitle: f.parent?.valueStream?.name ?? null,
+        epic: f.parent ? { id: f.parent.id, title: f.parent.title } : null,
+        dateIso: isoDay(f.pi.endDate),
+        daysUntil: signedDays(ms),
+        overdue: ms < today,
+      };
+    })
+    .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+
   // Funding — derive pool vs allocated per half-year. Pool lives on the
   // tenant (`budgetPoolByPeriod`); allocations come from per-Epic budget rows
   // rolled up by Value Stream.
@@ -364,6 +436,8 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     goalsOnTrack,
     goalAverageProgress,
     topGoal,
+    l4DueSoon,
+    featuresDueSoon,
     budgets,
     poolTotal,
     poolAllocated,
@@ -419,23 +493,32 @@ export async function loadPortfolioOverviewInputs(
   getOpenImpedimentsCount: OpenImpedimentsCountPort,
   getBudgetingData: BudgetingDataPort,
 ): Promise<PortfolioOverviewInputs> {
-  const [epics, strategyTree, budgeting, arts, activePis, structureGap, practiceAdoption] =
-    await Promise.all([
-      listEpics(db, tenantId),
-      loadStrategyTree(db, tenantId),
-      getBudgetingData(),
-      db.art.findMany({
-        where: { tenantId, deletedAt: null },
-        select: { id: true },
-      }),
-      db.programIncrement.findMany({
-        where: { tenantId, status: "active" },
-        select: { id: true, name: true, endDate: true },
-        orderBy: { endDate: "asc" },
-      }),
-      computeStructureGap(db, tenantId),
-      computePracticeAdoption(db, tenantId),
-    ]);
+  const [
+    epics,
+    features,
+    strategyTree,
+    budgeting,
+    arts,
+    activePis,
+    structureGap,
+    practiceAdoption,
+  ] = await Promise.all([
+    listEpics(db, tenantId),
+    listOverviewFeatures(db, tenantId),
+    loadStrategyTree(db, tenantId),
+    getBudgetingData(),
+    db.art.findMany({
+      where: { tenantId, deletedAt: null },
+      select: { id: true },
+    }),
+    db.programIncrement.findMany({
+      where: { tenantId, status: "active" },
+      select: { id: true, name: true, endDate: true },
+      orderBy: { endDate: "asc" },
+    }),
+    computeStructureGap(db, tenantId),
+    computePracticeAdoption(db, tenantId),
+  ]);
 
   // ThemeEpicLink-Bridge ist V2-schema-ready, hat aber noch keine UI-Pflege —
   // bis dahin koennen Themes keine direkten Epic-Links zaehlen. Zeigt als 0.
@@ -454,6 +537,7 @@ export async function loadPortfolioOverviewInputs(
 
   return {
     epics,
+    features,
     themes,
     board,
     vsBudgets,
