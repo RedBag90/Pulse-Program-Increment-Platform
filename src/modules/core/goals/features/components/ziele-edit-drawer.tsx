@@ -97,9 +97,11 @@ function findPath(nodes: GoalNode[], id: string, trail: GoalNode[] = []): GoalNo
 interface Props {
   model: ZieleModel;
   canEdit: boolean;
+  /** Tenant-User (Id → Anzeigename) für den Owner-Picker. */
+  userLabels?: Record<string, string>;
 }
 
-export function ZieleEditDrawer({ model, canEdit }: Props) {
+export function ZieleEditDrawer({ model, canEdit, userLabels = {} }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -132,6 +134,7 @@ export function ZieleEditDrawer({ model, canEdit }: Props) {
               id={isNew ? null : id}
               parentId={parentId}
               canEdit={canEdit}
+              userLabels={userLabels}
               onClose={close}
             />
           )}
@@ -157,12 +160,14 @@ function GoalPane({
   id,
   parentId,
   canEdit,
+  userLabels,
   onClose,
 }: {
   model: ZieleModel;
   id: string | null;
   parentId: string | null;
   canEdit: boolean;
+  userLabels: Record<string, string>;
   onClose: () => void;
 }) {
   const found = useMemo(() => (id ? findNode(model.themes, id) : null), [model, id]);
@@ -423,6 +428,21 @@ function GoalPane({
           defaultEnd={node?.periodEnd ?? null}
           disabled={!canEdit}
         />
+      </Field>
+      <Field label="Owner" hint="Verantwortlich für dieses Ziel. Aus den Tenant-Nutzern.">
+        <select
+          name="ownerId"
+          defaultValue={node?.ownerId ?? ""}
+          className={INPUT}
+          disabled={!canEdit}
+        >
+          <option value="">— Kein Owner</option>
+          {Object.entries(userLabels).map(([uid, label]) => (
+            <option key={uid} value={uid}>
+              {label}
+            </option>
+          ))}
+        </select>
       </Field>
 
       <Field

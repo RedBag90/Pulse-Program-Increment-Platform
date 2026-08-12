@@ -89,7 +89,11 @@ export function ZieleShell({ model, layout, userLabels = {}, setupDismissed = fa
       )}
 
       {/* Detail-Drawer: read-only oder editierbar je nach `canEdit` (Capability). */}
-      <ZieleEditDrawer model={model} canEdit={permissions.canEditStrategy} />
+      <ZieleEditDrawer
+        model={model}
+        canEdit={permissions.canEditStrategy}
+        userLabels={userLabels}
+      />
     </Page>
   );
 }

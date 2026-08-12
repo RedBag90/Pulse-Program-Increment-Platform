@@ -126,7 +126,8 @@ export const createObjectiveAction = createServerAction({
     period: periodField,
     periodStart: optStr,
     periodEnd: optStr,
-    ownerId: z.string().uuid().optional(),
+    // Tolerant wie beim Update: "" (kein Owner) → null, uuid → gesetzt.
+    ownerId: ownerIdField,
     // Optionaler Metrik-Block (jeder Knoten kann messbar sein) + Fortschrittsquelle.
     metricName: optStr,
     metricUnit: optStr,
@@ -151,7 +152,7 @@ export const createObjectiveAction = createServerAction({
       period: input.period || null,
       periodStart: input.periodStart ? new Date(input.periodStart) : null,
       periodEnd: input.periodEnd ? new Date(input.periodEnd) : null,
-      ownerId: input.ownerId ?? null,
+      ownerId: input.ownerId || null,
       metricName: input.metricName ?? null,
       metricUnit: input.metricUnit ?? null,
       ...(input.metricType ? { metricType: input.metricType } : {}),
