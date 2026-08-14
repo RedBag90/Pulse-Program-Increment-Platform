@@ -41,11 +41,6 @@ export type Action =
   | "pi.complete"
   | "pi.delete"
   | "pi_standard.manage"
-  | "pi_objective.create"
-  | "pi_objective.update"
-  | "team.create"
-  | "team.update"
-  | "team.delete"
   | "dependency.link"
   | "dependency.unlink"
   | "impediment.create"
@@ -69,7 +64,8 @@ export type Action =
   | "kpi.bind"
   | "role.capability.manage"
   | "goal.custom_field.manage"
-  | "pi.demo.manage";
+  | "pi.demo.manage"
+  | "portfolio_filter.manage";
 
 /** A scope dimension a grant may additionally require the principal to match. */
 export type ScopeCheck = "value_stream" | "art" | "team" | "own";
@@ -216,16 +212,17 @@ export const POLICIES: Record<Action, Grant[]> = {
   // `pi.create` (the RTE), not this action.
   "pi_standard.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
 
-  "pi_objective.create": [{ roles: [RTE] }],
-  "pi_objective.update": [{ roles: [RTE] }],
   // System Demo (Roadmap-P4): RTE haelt die Agenda, Feature Owner
   // pflegen ihre eigenen Demo-Items. Scope ist heute global (pro
   // Tenant) — eine ART-Scope-Verschaerfung folgt, wenn noetig.
   "pi.demo.manage": [{ roles: [RTE, FEATURE_OWNER] }],
 
-  "team.create": [{ roles: [TENANT_ADMIN] }],
-  "team.update": [{ roles: [RTE, TENANT_ADMIN] }],
-  "team.delete": [{ roles: [TENANT_ADMIN] }],
+  // Persönliche, gespeicherte Portfolio-Filter — reine Nutzer-Präferenz
+  // (user-scoped). Jede Rolle mit Portfolio-Zugang darf ihre eigenen Filter
+  // anlegen/löschen; die Zeilen sind ohnehin per userId isoliert.
+  "portfolio_filter.manage": [
+    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, EPIC_OWNER, RTE, FEATURE_OWNER, VIEWER] },
+  ],
 
   "feature.delete": [{ roles: [PORTFOLIO_MANAGER, RTE, TENANT_ADMIN] }],
   "feature.review.decide": [{ roles: [RTE] }],

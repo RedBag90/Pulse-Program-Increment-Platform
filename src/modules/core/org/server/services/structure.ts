@@ -4,7 +4,7 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { notDeleted } from "@/server/db/soft-delete";
 
 /**
- * The full portfolio structure tree — Value Streams → ARTs → Teams — for the
+ * The full portfolio structure tree — Value Streams → ARTs — for the
  * Structure hub. Excludes soft-deleted value streams and ARTs. Read-only.
  */
 export async function getStructureTree(db: PrismaClient, tenantId: TenantId) {
@@ -27,18 +27,6 @@ export async function getStructureTree(db: PrismaClient, tenantId: TenantId) {
           piCadenceWeeks: true,
           rteId: true,
           _count: { select: { pis: true } },
-          teams: {
-            orderBy: { name: "asc" },
-            select: {
-              id: true,
-              name: true,
-              headcount: true,
-              targetVelocity: true,
-              teamType: true,
-              scrumMasterId: true,
-              productOwnerId: true,
-            },
-          },
         },
       },
     },

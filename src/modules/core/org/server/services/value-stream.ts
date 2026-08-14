@@ -147,7 +147,7 @@ export async function getValueStream(db: PrismaClient, tenantId: TenantId, id: V
     include: {
       arts: {
         where: { ...notDeleted },
-        select: { id: true, name: true, description: true, _count: { select: { teams: true } } },
+        select: { id: true, name: true, description: true },
         orderBy: { name: "asc" },
       },
     },

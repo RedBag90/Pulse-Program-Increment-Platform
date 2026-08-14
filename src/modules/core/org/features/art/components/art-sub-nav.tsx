@@ -17,7 +17,6 @@ export function ArtSubNav({ artId, artName }: Props) {
     { href: root, label: "Overview", segment: "" },
     { href: `${root}/features`, label: "Features", segment: "features" },
     { href: `${root}/pi`, label: "Program Increments", segment: "pi" },
-    { href: `${root}/teams`, label: "Teams", segment: "teams" },
     { href: `${root}/velocity`, label: "Velocity", segment: "velocity" },
     { href: `${root}/impediments`, label: "Impediments", segment: "impediments" },
     { href: `${root}/settings`, label: "Settings", segment: "settings" },

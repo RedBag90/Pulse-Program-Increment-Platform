@@ -1,6 +1,6 @@
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
-import { Target, Users, Zap } from "lucide-react";
+import { Target, Zap } from "lucide-react";
 
 interface PiSummary {
   id: string;
@@ -13,7 +13,6 @@ interface PiSummary {
 interface Props {
   artId: string;
   pis: PiSummary[];
-  teamCount: number;
   featureCount: number;
 }
 
@@ -27,7 +26,7 @@ function formatDate(d: Date) {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function ArtOverviewTab({ artId, pis, teamCount, featureCount }: Props) {
+export function ArtOverviewTab({ artId, pis, featureCount }: Props) {
   const stats = [
     {
       label: "Program Increments",
@@ -36,14 +35,6 @@ export function ArtOverviewTab({ artId, pis, teamCount, featureCount }: Props) {
       icon: Target,
       color: "text-violet-600 dark:text-violet-400",
       bg: "bg-violet-50 dark:bg-violet-950",
-    },
-    {
-      label: "Teams",
-      value: teamCount,
-      href: `/art/${artId}/v2?tab=teams` as const,
-      icon: Users,
-      color: "text-blue-600 dark:text-blue-400",
-      bg: "bg-blue-50 dark:bg-blue-950",
     },
     {
       label: "Features",
@@ -57,7 +48,7 @@ export function ArtOverviewTab({ artId, pis, teamCount, featureCount }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         {stats.map((s) => (
           <Link key={s.label} href={s.href}>
             <Card className="p-5 hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer">

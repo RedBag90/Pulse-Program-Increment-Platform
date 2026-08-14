@@ -28,20 +28,12 @@ function Tile({ label, href, children }: { label: string; href?: string; childre
 
 /** KPI tiles + feature-status chart for the PI detail page. */
 export function PiOverviewSummary({ summary, piId, artId }: Props) {
-  const { capacity, impediments, featureStatus } = summary;
+  const { impediments, featureStatus } = summary;
   void piId; // piId bleibt fuer kuenftige Tiles in der Signatur
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <Tile label="Kapazität">
-          <p className="text-2xl font-semibold">
-            {capacity.plannedCapacity}
-            <span className="text-base font-normal text-muted-foreground"> Pkt</span>
-          </p>
-          <p className="text-xs text-muted-foreground">geplant für das PI</p>
-        </Tile>
-
+      <div className="grid grid-cols-1 gap-3">
         <Tile label="Impediments" href={`/art/${artId}/impediments`}>
           <p className="text-2xl font-semibold">
             {impediments.open}

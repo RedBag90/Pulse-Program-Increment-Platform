@@ -16,6 +16,12 @@ import { epicBucket } from "@/modules/work/domain/stage-gate";
 import { isAtRisk, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { isClosed } from "@/modules/core/goals/domain/goal-status";
 import { loadStrategyTree } from "@/modules/core/goals/server/views/ziele-view";
+import {
+  loadEpicGoalContributions,
+  type EpicGoalContribution,
+} from "@/modules/core/goals/server/views/epic-goal-contributions";
+import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
@@ -31,6 +37,26 @@ export const STAGE_GATE_LABEL: Record<StageGate, string> = {
   L3: "Portfolio Backlog",
   L4: "Implementing",
   L5: "Done",
+};
+
+/**
+ * Portfolio-Filter (Mehrfachauswahl je Dimension; leere Arrays = keine
+ * Einschränkung). Wirkt „auf die gesamte Übersicht": der Loader reicht ihn an
+ * `listEpics`/`listOverviewFeatures`/`loadStrategyTree` weiter; die Risks- und
+ * Budgeting-Adapter (Composition-Root) filtern zusätzlich (Wertstrom/Owner).
+ */
+export interface PortfolioFilter {
+  valueStreamIds: string[];
+  stageGates: string[];
+  statuses: string[];
+  ownerIds: string[];
+}
+
+export const EMPTY_PORTFOLIO_FILTER: PortfolioFilter = {
+  valueStreamIds: [],
+  stageGates: [],
+  statuses: [],
+  ownerIds: [],
 };
 
 // ---------------------------------------------------------------------------
@@ -50,6 +76,41 @@ export interface OverviewEpicCard {
   updatedAt: Date;
   daysSinceUpdate: number;
   needsSteeringAttention: boolean;
+}
+
+/** Exposure-Band eines Risikos (score = probability·impact → Band). Lokale Union,
+ *  da `ExposureBand` im `risks`-Modul liegt, das `work` nicht importieren darf. */
+export type OverviewRiskBand = "low" | "medium" | "high" | "critical";
+
+/**
+ * Ein dokumentiertes, noch offenes Risiko für die Portfolio-Übersicht. Der
+ * Risks-Adapter (Composition-Root) formt es fertig; `work` berechnet nichts an
+ * `risks` (ADR-0013). `band`/`score` = aktuelle Exposure (null = ungescored).
+ */
+export interface OverviewRisk {
+  id: string;
+  riskNumber: number | null;
+  title: string;
+  band: OverviewRiskBand | null;
+  score: number | null;
+  roamStatus: RoamStatus;
+  /** Erstes verknüpftes Epic (Risiken können 0..n Epics verlinken). */
+  epic: { id: string; title: string } | null;
+}
+
+/**
+ * Eine Zeile der Steering-Tabelle — ein Epic mit `needsSteeringAttention`.
+ * `ownerName` aus `ownerLabels` aufgelöst; `daysSinceUpdate` treibt die Agenda-
+ * Sortierung (längste ohne Update zuerst).
+ */
+export interface SteeringEpicRow {
+  id: string;
+  title: string;
+  stageGate: StageGate;
+  status: string;
+  ownerName: string | null;
+  valueStreamName: string | null;
+  daysSinceUpdate: number;
 }
 
 export interface OverviewGoal {
@@ -130,6 +191,8 @@ export interface PortfolioOverview {
 
   staleEpics: OverviewEpicCard[];
   blockedEpics: OverviewEpicCard[];
+  /** Epics mit `needsSteeringAttention` — die Steering-Agenda-Tabelle. */
+  steeringEpics: SteeringEpicRow[];
   impedimentsOpen: number;
 
   goals: OverviewGoal[];
@@ -141,6 +204,12 @@ export interface PortfolioOverview {
   l4DueSoon: DueSoonItem[];
   /** Open Features whose PI ends ≤ 2 weeks out (or overdue). */
   featuresDueSoon: DueSoonItem[];
+
+  /** Dokumentierte, nicht-resolved Risiken, nach Kritikalität absteigend. */
+  risks: OverviewRisk[];
+
+  /** Epics mit Beitrag zu Kopf-Zielen, nach Gesamt-Plan-Beitrag absteigend. */
+  goalContributions: EpicGoalContribution[];
 
   budgets: OverviewBudget[];
   poolTotal: number;
@@ -180,6 +249,12 @@ export interface PortfolioOverviewTheme {
 export interface PortfolioOverviewInputs {
   epics: Awaited<ReturnType<typeof listEpics>>;
   features: Awaited<ReturnType<typeof listOverviewFeatures>>;
+  /** Dokumentierte, offene Risiken — vom Risks-Adapter fertig geformt (ADR-0013). */
+  risks: OverviewRisk[];
+  /** Epic→Kopf-Ziel-Beiträge (aus dem Goals-Modul; work↓core erlaubt). */
+  goalContributions: EpicGoalContribution[];
+  /** ownerId → Anzeigename, für die Owner-Spalte der Steering-Tabelle. */
+  ownerLabels: Record<string, string>;
   themes: PortfolioOverviewTheme[];
   board: PortfolioBudgetingBoard;
   vsBudgets: PortfolioVsBudgets;
@@ -208,6 +283,9 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   const {
     epics,
     features,
+    risks: risksRaw,
+    goalContributions: goalContributionsRaw,
+    ownerLabels,
     themes,
     board,
     vsBudgets,
@@ -291,6 +369,44 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
       c.status !== "cancelled",
   );
   const blockedEpics = cards.filter((c) => c.status === "blocked");
+
+  // Steering-Agenda: Epics, die fürs nächste Steering-Meeting markiert sind.
+  // Owner-Name aus `ownerLabels` (nur `ownerId` liegt auf der Card). Sortierung:
+  // längste ohne Update zuerst — das braucht am ehesten eine Entscheidung.
+  const steeringEpics: SteeringEpicRow[] = cards
+    .filter((c) => c.needsSteeringAttention)
+    .map((c) => ({
+      id: c.id,
+      title: c.title,
+      stageGate: (STAGE_GATES as readonly string[]).includes(c.stageGate)
+        ? (c.stageGate as StageGate)
+        : "L0",
+      status: c.status,
+      ownerName: c.ownerId ? (ownerLabels[c.ownerId] ?? null) : null,
+      valueStreamName: c.valueStream?.name ?? null,
+      daysSinceUpdate: c.daysSinceUpdate,
+    }))
+    .sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate);
+
+  // Risiken kommen fertig geformt vom Adapter (Exposure bereits berechnet).
+  // Hier nur die Präsentations-Sortierung: kritischste zuerst (score desc),
+  // ungescorte (score null) ans Ende, Tie-Break riskNumber aufsteigend.
+  const risks: OverviewRisk[] = [...risksRaw].sort((a, b) => {
+    const sa = a.score ?? -1;
+    const sb = b.score ?? -1;
+    if (sa !== sb) return sb - sa;
+    return (a.riskNumber ?? Infinity) - (b.riskNumber ?? Infinity);
+  });
+
+  // Epic-Beitrag zu Kopf-Zielen: nach Gesamt-Plan (Σ planned über alle Einheiten
+  // von wiederkehrend + einmalig) absteigend — die größten „Beiträge" oben.
+  // Einheiten-Mix ist beim Ranking bewusst heuristisch; die Anzeige bleibt je
+  // Einheit getrennt. Werte kommen fertig aggregiert.
+  const totalPlanned = (c: EpicGoalContribution): number =>
+    [...c.recurring, ...c.oneTime].reduce((s, v) => s + v.planned, 0);
+  const goalContributions: EpicGoalContribution[] = [...goalContributionsRaw].sort(
+    (a, b) => totalPlanned(b) - totalPlanned(a),
+  );
 
   // Strategy — Themes (Objectives in V2) statt legacy TransformationGoals.
   // Completion = normalisierter Ø der KR-Fortschritte (ADR-0008), konsistent
@@ -431,6 +547,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     funnelConversion,
     staleEpics,
     blockedEpics,
+    steeringEpics,
     impedimentsOpen,
     goals,
     goalsOnTrack,
@@ -438,6 +555,8 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     topGoal,
     l4DueSoon,
     featuresDueSoon,
+    risks,
+    goalContributions,
     budgets,
     poolTotal,
     poolAllocated,
@@ -487,15 +606,25 @@ export type BudgetingDataPort = () => Promise<{
   vsBudgets: PortfolioVsBudgets;
 }>;
 
+/** Port: liefert die render-fertigen, dokumentierten Risiken. Der Composition-
+ *  Root reicht den Risks-Adapter herein — Work importiert `@/modules/risks`
+ *  nicht direkt (ADR-0013). */
+export type RisksSummaryPort = () => Promise<OverviewRisk[]>;
+
 export async function loadPortfolioOverviewInputs(
   db: PrismaClient,
   tenantId: TenantId,
   getOpenImpedimentsCount: OpenImpedimentsCountPort,
   getBudgetingData: BudgetingDataPort,
+  getRisks: RisksSummaryPort,
+  filter: PortfolioFilter = EMPTY_PORTFOLIO_FILTER,
 ): Promise<PortfolioOverviewInputs> {
   const [
     epics,
     features,
+    risks,
+    goalContributions,
+    ownerLabels,
     strategyTree,
     budgeting,
     arts,
@@ -503,9 +632,22 @@ export async function loadPortfolioOverviewInputs(
     structureGap,
     practiceAdoption,
   ] = await Promise.all([
-    listEpics(db, tenantId),
-    listOverviewFeatures(db, tenantId),
-    loadStrategyTree(db, tenantId),
+    listEpics(db, tenantId, {
+      valueStreamIds: filter.valueStreamIds,
+      stageGates: filter.stageGates,
+      statuses: filter.statuses,
+      ownerIds: filter.ownerIds,
+    }),
+    listOverviewFeatures(db, tenantId, {
+      valueStreamIds: filter.valueStreamIds,
+      statuses: filter.statuses,
+      ownerIds: filter.ownerIds,
+    }),
+    getRisks(),
+    loadEpicGoalContributions(db, tenantId),
+    listTenantUserLabels(db, tenantId),
+    // Ziele: nur der Wertstrom-Filter greift (loadStrategyTree kennt nur diesen).
+    loadStrategyTree(db, tenantId, { valueStreamIds: filter.valueStreamIds }),
     getBudgetingData(),
     db.art.findMany({
       where: { tenantId, deletedAt: null },
@@ -538,6 +680,9 @@ export async function loadPortfolioOverviewInputs(
   return {
     epics,
     features,
+    risks,
+    goalContributions,
+    ownerLabels,
     themes,
     board,
     vsBudgets,
@@ -558,8 +703,17 @@ export async function loadPortfolioOverview(
   tenantId: TenantId,
   getOpenImpedimentsCount: OpenImpedimentsCountPort,
   getBudgetingData: BudgetingDataPort,
+  getRisks: RisksSummaryPort,
+  filter: PortfolioFilter = EMPTY_PORTFOLIO_FILTER,
 ): Promise<PortfolioOverview> {
   return buildPortfolioOverviewModel(
-    await loadPortfolioOverviewInputs(db, tenantId, getOpenImpedimentsCount, getBudgetingData),
+    await loadPortfolioOverviewInputs(
+      db,
+      tenantId,
+      getOpenImpedimentsCount,
+      getBudgetingData,
+      getRisks,
+      filter,
+    ),
   );
 }

@@ -68,6 +68,9 @@ function baseInputs(): PortfolioOverviewInputs {
   return {
     epics: [],
     features: [],
+    risks: [],
+    goalContributions: [],
+    ownerLabels: {},
     themes: [],
     board: { periods: [], pool: {} },
     vsBudgets: { valueStreams: [] },
@@ -327,5 +330,84 @@ describe("buildPortfolioOverviewModel", () => {
     // parent Epic + value stream carried through
     expect(m.featuresDueSoon[1]!.epic).toEqual({ id: "e1", title: "Epic One" });
     expect(m.featuresDueSoon[1]!.subtitle).toBe("Payments");
+  });
+
+  it("risks: sorted by score desc, unscored (null) last, riskNumber tie-break", () => {
+    const inputs = baseInputs();
+    inputs.risks = [
+      { id: "r1", riskNumber: 1, title: "Low", band: "low", score: 4, roamStatus: "open", epic: null },
+      {
+        id: "r2",
+        riskNumber: 2,
+        title: "Crit",
+        band: "critical",
+        score: 20,
+        roamStatus: "owned",
+        epic: { id: "e1", title: "Epic One" },
+      },
+      { id: "r3", riskNumber: 3, title: "Unscored", band: null, score: null, roamStatus: "open", epic: null },
+      { id: "r4", riskNumber: 4, title: "High", band: "high", score: 12, roamStatus: "mitigated", epic: null },
+    ];
+    const m = buildPortfolioOverviewModel(inputs);
+    expect(m.risks.map((x) => x.id)).toEqual(["r2", "r4", "r1", "r3"]);
+  });
+
+  it("goalContributions: sorted by total planned (Σ over units, recurring + one-time) desc", () => {
+    const inputs = baseInputs();
+    inputs.goalContributions = [
+      // total planned 150 (100 € recurring + 50 € one-time)
+      {
+        epicId: "a",
+        title: "A",
+        valueStreamName: "VS",
+        recurring: [{ unit: "€", planned: 100, realized: 0 }],
+        oneTime: [{ unit: "€", planned: 50, realized: 0 }],
+      },
+      // total planned 400 (300 € + 100 „%" — Ranking summiert Einheiten heuristisch)
+      {
+        epicId: "b",
+        title: "B",
+        valueStreamName: null,
+        recurring: [
+          { unit: "€", planned: 300, realized: 0 },
+          { unit: "%", planned: 100, realized: 0 },
+        ],
+        oneTime: [],
+      },
+      // total planned 220
+      {
+        epicId: "c",
+        title: "C",
+        valueStreamName: null,
+        recurring: [],
+        oneTime: [{ unit: "Stück", planned: 220, realized: 0 }],
+      },
+    ];
+    const m = buildPortfolioOverviewModel(inputs);
+    expect(m.goalContributions.map((x) => x.epicId)).toEqual(["b", "c", "a"]);
+  });
+
+  it("steeringEpics: only flagged epics, owner resolved from labels, sorted by daysSinceUpdate desc", () => {
+    const inputs = baseInputs();
+    inputs.ownerLabels = { "u-1": "alice@example.com" };
+    inputs.epics = [
+      epic({
+        id: "s-old",
+        title: "Old flagged",
+        steering: true,
+        ownerId: "u-1",
+        updatedAt: daysAgo(40),
+        vsName: "Payments",
+      }),
+      epic({ id: "s-new", title: "New flagged", steering: true, ownerId: "u-x", updatedAt: daysAgo(5) }),
+      epic({ id: "not", title: "Unflagged", steering: false, updatedAt: daysAgo(60) }),
+    ];
+    const m = buildPortfolioOverviewModel(inputs);
+    // only flagged, longest-without-update first
+    expect(m.steeringEpics.map((x) => x.id)).toEqual(["s-old", "s-new"]);
+    expect(m.steeringEpics[0]!.ownerName).toBe("alice@example.com");
+    expect(m.steeringEpics[0]!.valueStreamName).toBe("Payments");
+    // owner id without a label → null
+    expect(m.steeringEpics[1]!.ownerName).toBeNull();
   });
 });

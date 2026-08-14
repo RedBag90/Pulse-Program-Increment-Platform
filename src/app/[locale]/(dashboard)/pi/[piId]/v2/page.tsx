@@ -2,7 +2,6 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getPi } from "@/modules/drumbeat/server/services/pi";
-import { listPiObjectives } from "@/modules/drumbeat/server/services/pi-objective";
 import { listImpedimentsForArts } from "@/modules/drumbeat/server/services/impediment";
 import { buildPiDetailModel } from "@/modules/drumbeat/server/views/pi-detail";
 import { buildDependenciesListModel } from "@/server/views/dependencies-list";
@@ -180,13 +179,8 @@ export default async function PiV2Page({ params, searchParams }: Props) {
     );
   } else {
     // overview (default)
-    const [objectives, impediments, teams, candidates] = await Promise.all([
-      listPiObjectives(db, principal.tenantId, piId as PiId),
+    const [impediments, candidates] = await Promise.all([
       listImpedimentsForArts(db, principal.tenantId, artIds, { piId }),
-      db.team.findMany({
-        where: { tenantId: principal.tenantId as TenantId, artId: { in: artIds } },
-        orderBy: { name: "asc" },
-      }),
       db.initiative.findMany({
         where: {
           tenantId: principal.tenantId as TenantId,
@@ -208,8 +202,6 @@ export default async function PiV2Page({ params, searchParams }: Props) {
 
     const model = buildPiDetailModel({
       pi: piRow,
-      teams,
-      objectives,
       impediments,
       candidates,
     });

@@ -5,12 +5,11 @@
  * "overview = Root" Sonderbehandlung.
  */
 
-export type LayoutEntity = "art" | "pi" | "team";
+export type LayoutEntity = "art" | "pi";
 
 const ROOT_BY_ENTITY: Record<LayoutEntity, (id: string) => string> = {
   art: (id) => `/art/${id}`,
   pi: (id) => `/pi/${id}`,
-  team: (id) => `/team/${id}`,
 };
 
 /** New (`/X/[id]/v2?tab=Y`) → Old (`/X/[id]/Y` oder `/X/[id]` bei overview). */

@@ -153,40 +153,6 @@ async function main() {
     })),
   });
 
-  // Teams (2–3 pro ART), teamType-Rotation, Namen tenant-weit eindeutig
-  const TEAM_TYPES = ["stream_aligned", "complicated_subsystem", "platform", "enabling"];
-  const teams: {
-    id: string;
-    tenantId: string;
-    artId: string;
-    name: string;
-    teamType: string;
-    headcount: number;
-    targetVelocity: number;
-    scrumMasterId: string;
-    productOwnerId: string;
-  }[] = [];
-  let teamCounter = 0;
-  artNames.forEach((art, ai) => {
-    const perArt = ai % 2 === 0 ? 3 : 2;
-    for (let t = 0; t < perArt; t++) {
-      const suffix = ["Alpha", "Beta", "Gamma"][t]!;
-      teams.push({
-        id: uid(`team:${ai}:${t}`),
-        tenantId,
-        artId: artIds[ai]!,
-        name: `${art.replace(" ART", "")} ${suffix}`,
-        teamType: TEAM_TYPES[teamCounter % TEAM_TYPES.length]!,
-        headcount: 6 + ((teamCounter * 2) % 5),
-        targetVelocity: 28 + ((teamCounter * 3) % 15),
-        scrumMasterId: U.owner,
-        productOwnerId: U.fo,
-      });
-      teamCounter++;
-    }
-  });
-  await prisma.team.createMany({ data: teams });
-
   // PIs auf der Timeline (2 completed, 1 active, 1 planned)
   const piBase = addDays(now, -21);
   const piSpecs = [
@@ -465,39 +431,8 @@ async function main() {
     },
   });
 
-  // ── Phase 6: PI-Objectives, Dependencies, Impediments, System-Demos ───────
-  console.log("\n── Programm-Inhalt (PI-Objectives, Deps, Impediments, Demos)");
-  await prisma.piObjective.createMany({
-    data: teams.flatMap((t, ti) => [
-      {
-        id: uid(`piobj:${ti}:0`),
-        tenantId,
-        piId: activePi,
-        teamId: t.id,
-        title: `${t.name}: Committed Objective`,
-        description: "Committed für dieses PI.",
-        businessValue: 6 + (ti % 5),
-        confidence: 3 + (ti % 3),
-        committed: true,
-        createdBy: ADMIN,
-      },
-      ...(ti % 2 === 0
-        ? [
-            {
-              id: uid(`piobj:${ti}:1`),
-              tenantId,
-              piId: activePi,
-              teamId: t.id,
-              title: `${t.name}: Stretch Objective`,
-              businessValue: 4 + (ti % 4),
-              confidence: 2 + (ti % 3),
-              committed: false,
-              createdBy: ADMIN,
-            },
-          ]
-        : []),
-    ]),
-  });
+  // ── Phase 6: Dependencies, Impediments, System-Demos ───────
+  console.log("\n── Programm-Inhalt (Deps, Impediments, Demos)");
 
   // Dependencies zwischen Features (Typen rotieren, unique from/to/type)
   const allFeatureIds = featureRows.map((f) => f.id as string);

@@ -7,7 +7,6 @@ import {
 
 export const ART_TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },
-  { key: "teams", label: "Teams" },
   { key: "pi", label: "Program Increments" },
   { key: "impediments", label: "Impediments" },
   { key: "settings", label: "Settings" },

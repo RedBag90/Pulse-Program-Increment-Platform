@@ -177,14 +177,12 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
   await prisma.initiative.deleteMany({ where: { tenantId, level: 0 } });
 
   // PI-scoped
-  await prisma.piObjective.deleteMany(w);
   await prisma.impediment.deleteMany(w);
   await prisma.systemDemoItem.deleteMany(w);
   await prisma.systemDemo.deleteMany(w);
   await prisma.programIncrement.deleteMany(w);
 
   // Org-Struktur
-  await prisma.team.deleteMany(w);
   await prisma.art.deleteMany(w);
   await prisma.timeline.deleteMany(w);
   await prisma.valueStream.deleteMany(w);

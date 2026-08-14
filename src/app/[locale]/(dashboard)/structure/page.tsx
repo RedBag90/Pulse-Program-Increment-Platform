@@ -13,7 +13,7 @@ import { buildStructurePageModel } from "@/modules/core/org/server/views/structu
 import { StructurePageShell } from "@/modules/core/org/features/structure/components/structure-page-shell";
 
 /**
- * Struktur-Page — Master-Detail-Layout fuer **Value Streams + ARTs + Teams**.
+ * Struktur-Page — Master-Detail-Layout fuer **Value Streams + ARTs**.
  * Timelines leben unter `/timelines` als eigene Surface; der Struktur-Tree
  * laedt sie nur, damit das ART-Detail-Pane den Timeline-Namen zeigen kann.
  */
@@ -24,7 +24,7 @@ export default async function StructurePage() {
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
   // Pro Affordance gegen die zugehörige Capability prüfen — kein
-  // Sammel-`timeline.manage`-Flag mehr, das die Buttons für VS/ART/Team
+  // Sammel-`timeline.manage`-Flag mehr, das die Buttons für VS/ART
   // verschluckte. Platform-/Tenant-Admin passieren überall via Fast-Path
   // in `authorize()`.
   const canCreateVs = hasCapability(principal, "value_stream.create");
@@ -32,7 +32,6 @@ export default async function StructurePage() {
   const canCreateArt = hasCapability(principal, "art.create");
   const canUpdateArt = hasCapability(principal, "art.update");
   const canDeleteArt = hasCapability(principal, "art.delete");
-  const canCreateTeam = hasCapability(principal, "team.create");
 
   const [tree, timeline, userLabels, vsBudgets] = await Promise.all([
     getStructureTree(db, principal.tenantId),
@@ -58,15 +57,14 @@ export default async function StructurePage() {
     <Suspense fallback={null}>
       <StructurePageShell
         title="Struktur"
-        subtitle="Die Organisation hinter dem Portfolio — Wertströme, ARTs, Teams."
-        availableKinds={["vs", "art", "team"]}
+        subtitle="Die Organisation hinter dem Portfolio — Wertströme und ARTs."
+        availableKinds={["vs", "art"]}
         model={model}
         canCreateVs={canCreateVs}
         canUpdateVs={canUpdateVs}
         canCreateArt={canCreateArt}
         canUpdateArt={canUpdateArt}
         canDeleteArt={canDeleteArt}
-        canCreateTeam={canCreateTeam}
         canManageTimeline={false}
       />
     </Suspense>

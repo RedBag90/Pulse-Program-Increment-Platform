@@ -11,9 +11,6 @@ describe("optionsEndpoint", () => {
   it("returns a parameterised endpoint when the cascading id is present", () => {
     expect(optionsEndpoint("feature", { artId: "art-1" })).toBe("/api/v1/features?artId=art-1");
     expect(optionsEndpoint("pi", { artId: "art-1" })).toBe("/api/v1/pis?artId=art-1");
-    expect(optionsEndpoint("team", { artId: "art-1" })).toBe("/api/v1/teams?artId=art-1");
-    // Ohne artId liefert `team` die tenant-weite Liste (Accountable-Team-Picker).
-    expect(optionsEndpoint("team", {})).toBe("/api/v1/teams");
     expect(optionsEndpoint("story", { featureId: "f-1" })).toBe("/api/v1/stories?featureId=f-1");
   });
 

@@ -56,9 +56,6 @@ export type AuditAction =
   | "art.created"
   | "art.updated"
   | "art.deleted"
-  | "team.created"
-  | "team.updated"
-  | "team.deleted"
   | "pi.created"
   | "pi.updated"
   | "pi.capacity.updated"
@@ -67,9 +64,6 @@ export type AuditAction =
   | "pi.deleted"
   | "pi_standard.created"
   | "pi_standard.deleted"
-  | "pi_objective.created"
-  | "pi_objective.updated"
-  | "pi_objective.deleted"
   | "system_demo.created"
   | "system_demo.updated"
   | "system_demo.reordered"
@@ -158,7 +152,9 @@ export type AuditAction =
   | "risk.deleted"
   | "risk.epic.linked"
   | "risk.epic.unlinked"
-  | "risk.settings.updated";
+  | "risk.settings.updated"
+  | "portfolio_filter.saved"
+  | "portfolio_filter.deleted";
 
 export type AuditResourceType =
   | "initiative"
@@ -166,8 +162,6 @@ export type AuditResourceType =
   | "pi_standard"
   | "value_stream"
   | "art"
-  | "team"
-  | "pi_objective"
   | "impediment"
   | "dependency"
   | "kpi"
@@ -202,7 +196,8 @@ export type AuditResourceType =
   | "risk_epic_link"
   | "risk_mitigation"
   | "risk_assessment"
-  | "risk_settings";
+  | "risk_settings"
+  | "saved_portfolio_filter";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

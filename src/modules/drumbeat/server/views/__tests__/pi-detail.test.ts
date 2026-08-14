@@ -27,8 +27,6 @@ function baseInputs(): PiDetailInputs {
       },
       initiatives: [],
     },
-    teams: [],
-    objectives: [],
     impediments: [],
     candidates: [],
   };
@@ -84,18 +82,6 @@ describe("buildPiDetailModel", () => {
     expect(m.candidatesByArt.get("a1")?.[0]?.currentPiName).toBe("PI 2026.1");
     expect(m.candidatesByArt.get("a1")?.[1]?.currentPiName).toBeNull();
     expect(m.candidatesByArt.get("a2")?.[0]?.wsjfComputed).toBeNull();
-  });
-
-  it("teamVelocity maps each team's targetVelocity (null when missing)", () => {
-    const inputs = baseInputs();
-    inputs.teams = [
-      { id: "t1", name: "Team 1", artId: "a1", targetVelocity: 30 },
-      { id: "t2", name: "Team 2", artId: "a1", targetVelocity: null },
-    ];
-    const m = buildPiDetailModel(inputs)!;
-    expect(m.teamVelocity.get("t1")).toBe(30);
-    expect(m.teamVelocity.get("t2")).toBeNull();
-    expect(m.teamVelocity.get("ghost")).toBeUndefined();
   });
 
   it("summary delegates to summarizePiOverview (smoke check)", () => {

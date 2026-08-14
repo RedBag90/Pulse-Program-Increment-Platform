@@ -7,7 +7,6 @@ import { StructureHeader } from "@/modules/core/org/features/structure/component
 import { StructureList } from "@/modules/core/org/features/structure/components/structure-list";
 import { VsDetailPane } from "@/modules/core/org/features/structure/components/vs-detail-pane";
 import { ArtDetailPane } from "@/modules/core/org/features/structure/components/art-detail-pane";
-import { TeamDetailPane } from "@/modules/core/org/features/structure/components/team-detail-pane";
 import {
   parseSelection,
   encodeSelection,
@@ -27,7 +26,6 @@ interface Props {
   canCreateArt: boolean;
   canUpdateArt: boolean;
   canDeleteArt: boolean;
-  canCreateTeam: boolean;
   canManageTimeline: boolean;
   /** Kadenz-Slots (Drumbeat). Vom Composition-Root (`/timelines`) injiziert,
    *  damit dieser Core-Org-Shell die Kadenz-Komponenten (Drumbeat) nicht direkt
@@ -39,7 +37,7 @@ interface Props {
 type TimelineNode = NonNullable<ReturnType<StructurePageModel["timeline"]["get"]>>;
 type OnSelectNode = (kind: NodeKind, id: string) => void;
 
-const NODE_KIND_SET = new Set<NodeKind>(["vs", "art", "team", "timeline"]);
+const NODE_KIND_SET = new Set<NodeKind>(["vs", "art", "timeline"]);
 
 function parseKind(raw: string | null): NodeKind | null {
   if (raw && NODE_KIND_SET.has(raw as NodeKind)) return raw as NodeKind;
@@ -48,8 +46,8 @@ function parseKind(raw: string | null): NodeKind | null {
 
 /**
  * Structure page shell — owns URL state (`?kind`, `?q`, `?selected`) and the
- * two-column master-detail layout. Routes the right pane to one of four
- * detail panes (VS / ART / Team / Timeline) based on the selected entity.
+ * two-column master-detail layout. Routes the right pane to one of three
+ * detail panes (VS / ART / Timeline) based on the selected entity.
  * Mirrors `goals-page-shell.tsx`.
  */
 export function StructurePageShell({
@@ -62,7 +60,6 @@ export function StructurePageShell({
   canCreateArt,
   canUpdateArt,
   canDeleteArt,
-  canCreateTeam,
   canManageTimeline,
   createTimelineSlot,
   renderTimelineDetail,
@@ -143,13 +140,10 @@ export function StructurePageShell({
           ) : selection.kind === "art" && model.art.has(selection.id) ? (
             <ArtDetailPane
               art={model.art.get(selection.id)!}
-              canCreateTeam={canCreateTeam}
               canUpdateArt={canUpdateArt}
               canDeleteArt={canDeleteArt}
               onSelectNode={onSelectNode}
             />
-          ) : selection.kind === "team" && model.team.has(selection.id) ? (
-            <TeamDetailPane team={model.team.get(selection.id)!} onSelectNode={onSelectNode} />
           ) : selection.kind === "timeline" &&
             model.timeline.has(selection.id) &&
             renderTimelineDetail ? (

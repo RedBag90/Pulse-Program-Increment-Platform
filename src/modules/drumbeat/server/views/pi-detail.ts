@@ -1,18 +1,16 @@
 import { summarizePiOverview, type PiOverviewSummary } from "@/modules/drumbeat/domain/pi-overview";
 
 /**
- * PI Detail page-model — turns the loaded PI + objectives + impediments +
- * teams + candidate Features into the render-ready shape the multi-ART
- * detail page consumes. Pure; mirrors `buildPlanningModel` / Portfolio
- * Overview.
+ * PI Detail page-model — turns the loaded PI + impediments + candidate
+ * Features into the render-ready shape the multi-ART detail page consumes.
+ * Pure; mirrors `buildPlanningModel` / Portfolio Overview.
  *
  * Die Page beantwortet zwei Fragen:
  *   - "welche Features sind in diesem PI, gruppiert nach ART?"
  *   - "welche Features koennten in dieses PI landen, gruppiert nach ART?"
  *
- * Plus das `summary` (delegiert an `summarizePiOverview` aus `domain/`)
- * und eine `teamVelocity`-Map, die das Summary upstream braucht. Story-
- * und Sprint-Achsen sind nach dem Wegfall der Story-Ebene raus.
+ * Plus das `summary` (delegiert an `summarizePiOverview` aus `domain/`).
+ * Team-/Objective-/Kapazitäts-Achsen sind mit dem Team-Rückbau entfallen.
  */
 
 // ---------------------------------------------------------------------------
@@ -46,19 +44,6 @@ export interface PiDetailPi {
   endDate: Date;
   timeline: PiDetailTimeline | null;
   initiatives: PiDetailFeatureRow[];
-}
-
-export interface PiDetailTeam {
-  id: string;
-  name: string;
-  artId: string;
-  targetVelocity: number | null;
-}
-
-export interface PiDetailObjective {
-  id: string;
-  committed: boolean;
-  confidence: number | null;
 }
 
 export interface PiDetailImpediment {
@@ -99,7 +84,6 @@ export interface PiDetailModel {
   primaryArt: PiDetailArt;
   featuresByArt: Map<string, PiDetailFeatureCard[]>;
   candidatesByArt: Map<string, PiDetailCandidate[]>;
-  teamVelocity: Map<string, number | null>;
   summary: PiOverviewSummary;
 }
 
@@ -109,8 +93,6 @@ export interface PiDetailModel {
 
 export interface PiDetailInputs {
   pi: PiDetailPi;
-  teams: PiDetailTeam[];
-  objectives: PiDetailObjective[];
   impediments: PiDetailImpediment[];
   candidates: PiDetailCandidateRow[];
 }
@@ -131,7 +113,7 @@ function toNumber(v: number | string | { toNumber(): number } | null): number | 
  * "primaryArt is always defined" invariant for downstream consumers.
  */
 export function buildPiDetailModel(inputs: PiDetailInputs): PiDetailModel | null {
-  const { pi, teams, objectives, impediments, candidates } = inputs;
+  const { pi, impediments, candidates } = inputs;
   const timeline = pi.timeline;
   if (!timeline) return null;
   const arts = timeline.arts;
@@ -166,18 +148,8 @@ export function buildPiDetailModel(inputs: PiDetailInputs): PiDetailModel | null
     featuresByArt.set(f.artId, list);
   }
 
-  const teamVelocity = new Map(teams.map((t) => [t.id, t.targetVelocity]));
-
-  const piDurationDays = Math.max(
-    1,
-    Math.round((pi.endDate.getTime() - pi.startDate.getTime()) / (24 * 60 * 60 * 1000)),
-  );
-
   const summary = summarizePiOverview({
-    teams: teams.map((t) => ({ targetVelocity: t.targetVelocity })),
-    piDurationDays,
     features: pi.initiatives.map((f) => ({ status: f.status })),
-    objectives: objectives.map((o) => ({ committed: o.committed, confidence: o.confidence })),
     impediments: impediments.map((i) => ({ status: i.status })),
   });
 
@@ -194,7 +166,6 @@ export function buildPiDetailModel(inputs: PiDetailInputs): PiDetailModel | null
     primaryArt,
     featuresByArt,
     candidatesByArt,
-    teamVelocity,
     summary,
   };
 }

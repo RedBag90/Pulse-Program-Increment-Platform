@@ -699,14 +699,31 @@ export async function getFeature(db: PrismaClient, tenantId: TenantId, id: Featu
  * page-model only has to apply the date window. Value stream comes from the
  * parent Epic (Features have no own value stream).
  */
-export async function listOverviewFeatures(db: PrismaClient, tenantId: TenantId) {
+/** Optionale Portfolio-Filter für die Overview-Feature-Liste. Stage Gate greift
+ *  hier nicht (Features sind nicht gegatet); Wertstrom kommt über das Eltern-Epic. */
+export interface OverviewFeatureFilter {
+  valueStreamIds?: string[] | undefined;
+  statuses?: string[] | undefined;
+  ownerIds?: string[] | undefined;
+}
+
+export async function listOverviewFeatures(
+  db: PrismaClient,
+  tenantId: TenantId,
+  filter: OverviewFeatureFilter = {},
+) {
+  const vs = filter.valueStreamIds ?? [];
+  const statuses = filter.statuses ?? [];
+  const owners = filter.ownerIds ?? [];
   return db.initiative.findMany({
     where: {
       tenantId,
       level: InitiativeLevel.FEATURE,
       deletedAt: null,
-      status: { notIn: ["completed", "cancelled"] },
+      status: { notIn: ["completed", "cancelled"], ...(statuses.length ? { in: statuses } : {}) },
       piId: { not: null },
+      ...(vs.length ? { parent: { is: { valueStreamId: { in: vs } } } } : {}),
+      ...(owners.length ? { ownerId: { in: owners } } : {}),
     },
     include: {
       pi: { select: { endDate: true } },

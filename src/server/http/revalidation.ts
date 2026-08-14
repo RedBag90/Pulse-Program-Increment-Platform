@@ -18,7 +18,6 @@ import { revalidatePath } from "next/cache";
 export type RevalidationResource =
   | "art"
   | "artCreated"
-  | "team"
   | "feature"
   | "epic"
   | "valueStream"
@@ -32,7 +31,8 @@ export type RevalidationResource =
   | "ziele"
   | "goalCustomFields"
   | "setup"
-  | "risk";
+  | "risk"
+  | "portfolioFilter";
 
 const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   art: ["/structure", "/art/[artId]", "/art/[artId]/settings", "/value-streams/[id]"],
@@ -40,13 +40,6 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   // bei der Navigation frisch gerendert; nur die Aggregations-Listen
   // muessen den neuen Eintrag sehen.
   artCreated: ["/structure", "/value-streams/[id]"],
-  team: [
-    "/structure",
-    "/art/[artId]/teams",
-    "/art/[artId]/settings",
-    "/team/[teamId]",
-    "/team/[teamId]/settings",
-  ],
   feature: [
     "/art/[artId]/features",
     "/portfolio/epics/[id]",
@@ -62,7 +55,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/controlling/budgeting",
   ],
   valueStream: ["/structure", "/value-streams/[id]"],
-  pi: ["/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi/[piId]/objectives", "/pi-planning"],
+  pi: ["/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi-planning"],
   piStandard: ["/structure", "/value-streams/[id]"],
   budgetPlanRevision: ["/controlling", "/controlling/budget-plan", "/controlling/budget-plan/[id]"],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
@@ -71,11 +64,10 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/structure",
     "/pi-planning",
     "/pi/[piId]",
-    "/pi/[piId]/objectives",
     "/art/[artId]/pi",
     "/feature/[featureId]",
   ],
-  story: ["/feature/[featureId]", "/team/[teamId]"],
+  story: ["/feature/[featureId]"],
   impediment: ["/art/[artId]/impediments"],
   dependency: ["/feature/[featureId]", "/pi/[piId]/dependencies"],
   ziele: ["/ziele"],
@@ -83,6 +75,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   goalCustomFields: ["/admin/goal-fields", "/ziele"],
   setup: ["/setup"],
   risk: ["/risks", "/portfolio/epics/[id]"],
+  portfolioFilter: ["/portfolio"],
 };
 
 /** Revalidates every route registered for the given resource. */

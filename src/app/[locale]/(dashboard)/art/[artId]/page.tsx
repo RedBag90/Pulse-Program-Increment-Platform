@@ -8,7 +8,7 @@ import { redirect, notFound } from "next/navigation";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { ArtId, TenantId } from "@/modules/core/kernel/domain/types";
 import { Card } from "@/components/ui/card";
-import { Target, Users, Zap, GitBranch } from "lucide-react";
+import { Target, Zap, GitBranch } from "lucide-react";
 
 interface Props {
   params: Promise<{ artId: string }>;
@@ -31,9 +31,8 @@ export default async function ArtOverviewPage({ params }: Props) {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [art, teamCount, featureCount] = await Promise.all([
+  const [art, featureCount] = await Promise.all([
     getArt(db, principal.tenantId, artId as ArtId),
-    db.team.count({ where: { artId, tenantId: principal.tenantId as TenantId } }),
     db.initiative.count({
       where: {
         artId,
@@ -54,14 +53,6 @@ export default async function ArtOverviewPage({ params }: Props) {
       icon: Target,
       color: "text-violet-600 dark:text-violet-400",
       bg: "bg-violet-50 dark:bg-violet-950",
-    },
-    {
-      label: "Teams",
-      value: teamCount,
-      href: `/art/${artId}/teams` as const,
-      icon: Users,
-      color: "text-blue-600 dark:text-blue-400",
-      bg: "bg-blue-50 dark:bg-blue-950",
     },
     {
       label: "Features",
@@ -88,7 +79,7 @@ export default async function ArtOverviewPage({ params }: Props) {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         {stats.map((s) => (
           <Link key={s.label} href={s.href}>
             <Card className="p-5 hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer">

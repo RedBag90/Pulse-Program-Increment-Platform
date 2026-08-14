@@ -216,8 +216,7 @@ export async function setPiCapacity(
 }
 
 /**
- * Starts a PI: enforces that no other PI in the ART is active and that every
- * team in the ART has at least one committed PI Objective (concept PULSE-29).
+ * Starts a PI: enforces that no other PI in the same Timeline is already active.
  */
 export async function startPi(ctx: RequestContext, input: { id: PiId }): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
@@ -257,25 +256,6 @@ export async function startPi(ctx: RequestContext, input: { id: PiId }): Promise
         kind: "conflict" as const,
         reason: `PI "${otherActive.name}" ist bereits in dieser Timeline aktiv; bitte zuerst abschließen`,
       });
-    }
-
-    // Every team in every subscribed ART must have at least one committed objective.
-    const teams = await tx.team.findMany({
-      where: { tenantId: mctx.tenantId, art: { timelineId: existing.timelineId } },
-    });
-    if (teams.length > 0) {
-      const committed = await tx.piObjective.findMany({
-        where: { tenantId: mctx.tenantId, piId: id, committed: true },
-        select: { teamId: true },
-      });
-      const teamsWithObjectives = new Set(committed.map((o) => o.teamId));
-      const missing = teams.filter((t) => !teamsWithObjectives.has(t.id));
-      if (missing.length > 0) {
-        return err({
-          kind: "conflict" as const,
-          reason: `These teams have no committed PI objectives: ${missing.map((t) => t.name).join(", ")}`,
-        });
-      }
     }
 
     await tx.programIncrement.update({ where: { id }, data: { status: "active" } });
@@ -369,19 +349,11 @@ export async function evaluatePiClosure(
   });
   if (!pi) return { ready: false, issues: ["PI nicht gefunden"] };
 
-  const [uncommittedConfidence, openImpediments] = await Promise.all([
-    db.piObjective.count({
-      where: { tenantId, piId, committed: true, confidence: null },
-    }),
-    db.impediment.count({
-      where: { tenantId, piId, status: { in: ["open", "escalated"] }, roamStatus: "open" },
-    }),
-  ]);
+  const openImpediments = await db.impediment.count({
+    where: { tenantId, piId, status: { in: ["open", "escalated"] }, roamStatus: "open" },
+  });
 
   const issues: string[] = [];
-  if (uncommittedConfidence > 0) {
-    issues.push(`${uncommittedConfidence} committed Objective(s) ohne Confidence-Bewertung`);
-  }
   if (openImpediments > 0) {
     issues.push(`${openImpediments} offene Impediment(s) ohne ROAM-Status`);
   }
@@ -414,23 +386,15 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
     }
 
     // Belt & suspenders: dieselben Checks wie der Wizard, serverseitig.
-    const [uncommittedConfidence, openImpediments] = await Promise.all([
-      tx.piObjective.count({
-        where: { tenantId: mctx.tenantId, piId: id, committed: true, confidence: null },
-      }),
-      tx.impediment.count({
-        where: {
-          tenantId: mctx.tenantId,
-          piId: id,
-          status: { in: ["open", "escalated"] },
-          roamStatus: "open",
-        },
-      }),
-    ]);
+    const openImpediments = await tx.impediment.count({
+      where: {
+        tenantId: mctx.tenantId,
+        piId: id,
+        status: { in: ["open", "escalated"] },
+        roamStatus: "open",
+      },
+    });
     const issues: string[] = [];
-    if (uncommittedConfidence > 0) {
-      issues.push(`${uncommittedConfidence} committed Objective(s) ohne Confidence`);
-    }
     if (openImpediments > 0) {
       issues.push(`${openImpediments} offene Impediment(s) ohne ROAM`);
     }
@@ -495,7 +459,6 @@ export async function deletePi(ctx: RequestContext, input: { id: PiId }): Promis
       data: { piId: null },
     });
 
-    await tx.piObjective.deleteMany({ where: { tenantId: mctx.tenantId, piId: id } });
     await tx.programIncrement.delete({ where: { id } });
 
     return ok({

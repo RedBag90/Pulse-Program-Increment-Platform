@@ -296,12 +296,11 @@ export async function deleteTenant(actor: Principal, tenantId: string): Promise<
   const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
   if (!tenant) return { ok: false, error: "Tenant nicht gefunden" };
 
-  const [members, valueStreams, arts, teams, initiatives, objectives, themes, kpis, timelines] =
+  const [members, valueStreams, arts, initiatives, objectives, themes, kpis, timelines] =
     await Promise.all([
       db.userRoleAssignment.count({ where: { tenantId } }),
       db.valueStream.count({ where: { tenantId } }),
       db.art.count({ where: { tenantId } }),
-      db.team.count({ where: { tenantId } }),
       db.initiative.count({ where: { tenantId } }),
       db.objective.count({ where: { tenantId } }),
       db.strategicTheme.count({ where: { tenantId } }),
@@ -309,7 +308,7 @@ export async function deleteTenant(actor: Principal, tenantId: string): Promise<
       db.timeline.count({ where: { tenantId } }),
     ]);
   const total =
-    members + valueStreams + arts + teams + initiatives + objectives + themes + kpis + timelines;
+    members + valueStreams + arts + initiatives + objectives + themes + kpis + timelines;
   if (total > 0) {
     return { ok: false, error: "Tenant ist nicht leer — bitte archivieren statt löschen" };
   }

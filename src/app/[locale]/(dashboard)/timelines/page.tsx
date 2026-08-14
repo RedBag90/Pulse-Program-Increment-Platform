@@ -32,7 +32,6 @@ export default async function TimelinesPage() {
   const canCreateArt = hasCapability(principal, "art.create");
   const canUpdateArt = hasCapability(principal, "art.update");
   const canDeleteArt = hasCapability(principal, "art.delete");
-  const canCreateTeam = hasCapability(principal, "team.create");
   const canUpdateVs = hasCapability(principal, "value_stream.update");
 
   const [tree, timeline, userLabels, vsBudgets, piStandards] = await Promise.all([
@@ -67,7 +66,6 @@ export default async function TimelinesPage() {
         canCreateArt={canCreateArt}
         canUpdateArt={canUpdateArt}
         canDeleteArt={canDeleteArt}
-        canCreateTeam={canCreateTeam}
         canManageTimeline={canManageTimeline}
         createTimelineSlot={<CreateTimelineButton />}
         renderTimelineDetail={(timeline, onSelectNode) => (

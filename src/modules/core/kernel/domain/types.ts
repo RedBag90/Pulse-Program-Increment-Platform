@@ -16,7 +16,6 @@ export type FeatureId = string & { readonly __brand: "FeatureId" };
 export type InitiativeId = EpicId | FeatureId;
 export type UserId = string & { readonly __brand: "UserId" };
 export type ArtId = string & { readonly __brand: "ArtId" };
-export type TeamId = string & { readonly __brand: "TeamId" };
 export type ValueStreamId = string & { readonly __brand: "ValueStreamId" };
 export type PiId = string & { readonly __brand: "PiId" };
 export type TimelineId = string & { readonly __brand: "TimelineId" };

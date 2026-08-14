@@ -27,11 +27,10 @@ interface Props {
 const KIND_LABELS: Record<NodeKind, string> = {
   vs: "Wertströme",
   art: "ARTs",
-  team: "Teams",
   timeline: "Timelines",
 };
 
-const KIND_ORDER: NodeKind[] = ["vs", "art", "team", "timeline"];
+const KIND_ORDER: NodeKind[] = ["vs", "art", "timeline"];
 
 /**
  * Title + primary CTAs (Wertstrom anlegen · Timeline anlegen) + node-kind

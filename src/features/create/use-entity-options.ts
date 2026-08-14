@@ -9,7 +9,6 @@ export type ParentKind =
   | "epic"
   | "feature"
   | "pi"
-  | "team"
   | "story"
   | "piStandard"
   | "timeline"
@@ -35,9 +34,6 @@ export function optionsEndpoint(
       return params?.artId ? `/api/v1/features?artId=${params.artId}` : null;
     case "pi":
       return params?.artId ? `/api/v1/pis?artId=${params.artId}` : null;
-    case "team":
-      // Ohne artId: alle Tenant-Teams (Goal-„Accountable team"-Picker).
-      return params?.artId ? `/api/v1/teams?artId=${params.artId}` : "/api/v1/teams";
     case "story":
       return params?.featureId ? `/api/v1/stories?featureId=${params.featureId}` : null;
     case "piStandard":

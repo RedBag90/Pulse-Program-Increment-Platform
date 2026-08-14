@@ -203,9 +203,6 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
                     className="flex items-center gap-3 rounded border p-3 text-sm transition-colors hover:bg-muted/50"
                   >
                     <span className="font-medium">{art.name}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {art._count.teams} Team{art._count.teams !== 1 ? "s" : ""}
-                    </span>
                   </Link>
                 </li>
               ))}

@@ -46,12 +46,10 @@ export async function computeStructureGap(
 
   const tree = await getStructureTree(db, tenantId);
   const arts = tree.flatMap((vs) => vs.arts);
-  const teams = arts.flatMap((a) => a.teams);
 
   const dimensions = [
     dimension("valueStreams", "Wertströme", tree.length, model.targetValueStreams),
     dimension("arts", "ARTs", arts.length, model.targetArtsTotal),
-    dimension("teams", "Teams", teams.length, model.targetTeamsTotal),
   ];
 
   const withTarget = dimensions.filter((d) => d.soll != null);
@@ -96,12 +94,6 @@ export async function computePracticeAdoption(
   const feature = { tenantId, level: InitiativeLevel.FEATURE, deletedAt: null } as const;
   const epic = { tenantId, level: InitiativeLevel.EPIC, deletedAt: null } as const;
 
-  const activePis = await db.programIncrement.findMany({
-    where: { tenantId, status: "active" },
-    select: { id: true },
-  });
-  const activePiIds = activePis.map((p) => p.id);
-
   const [
     totalFeatures,
     featuresWsjf,
@@ -110,8 +102,6 @@ export async function computePracticeAdoption(
     epicsBeyondFunnel,
     epicsInApproval,
     dependencyCount,
-    totalTeams,
-    teamsWithObjectives,
   ] = await Promise.all([
     db.initiative.count({ where: feature }),
     db.initiative.count({ where: { ...feature, wsjfComputed: { not: null } } }),
@@ -120,14 +110,6 @@ export async function computePracticeAdoption(
     db.initiative.count({ where: { ...epic, stageGate: { not: "L0" } } }),
     db.initiative.count({ where: { ...epic, approvalPhase: { not: "draft" } } }),
     db.dependency.count({ where: { tenantId } }),
-    db.team.count({ where: { tenantId } }),
-    activePiIds.length === 0
-      ? Promise.resolve([] as { teamId: string }[])
-      : db.piObjective.findMany({
-          where: { tenantId, piId: { in: activePiIds } },
-          select: { teamId: true },
-          distinct: ["teamId"],
-        }),
   ]);
 
   const candidates: Record<
@@ -141,13 +123,6 @@ export async function computePracticeAdoption(
     featureQs: {
       value: rate(featuresApproved, totalFeatures),
       detail: `${featuresApproved}/${totalFeatures} Features freigegeben`,
-    },
-    piObjectives: {
-      value: rate(teamsWithObjectives.length, totalTeams),
-      detail:
-        activePiIds.length === 0
-          ? "kein aktives PI"
-          : `${teamsWithObjectives.length}/${totalTeams} Teams mit Zielen`,
     },
     dependencies: {
       value: dependencyCount > 0 ? 1 : 0,
@@ -183,13 +158,11 @@ const LOW_ADOPTION = 0.5;
 const STRUCTURE_HREF: Record<string, string> = {
   valueStreams: "/structure",
   arts: "/transformation/art-starten", // guided ART launch wizard
-  teams: "/structure?tab=arts",
 };
 
 const PRACTICE_HREF: Partial<Record<Practice, string>> = {
   wsjf: "/structure?tab=arts",
   featureQs: "/my-approvals",
-  piObjectives: "/pi-planning",
   dependencies: "/pi-planning",
   stageGates: "/portfolio/epics",
   multiPartyApproval: "/portfolio/epics",

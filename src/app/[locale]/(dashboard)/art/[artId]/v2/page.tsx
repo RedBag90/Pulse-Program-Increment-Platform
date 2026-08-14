@@ -2,7 +2,6 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/modules/core/org/server/services/art";
-import { listTeams } from "@/modules/core/org/server/services/team";
 import { listPis } from "@/modules/drumbeat/server/services/pi";
 import { listImpediments } from "@/modules/drumbeat/server/services/impediment";
 import { listAuditHistory } from "@/server/services/audit-history";
@@ -14,7 +13,6 @@ import {
   resolveArtTab,
 } from "@/modules/core/org/features/art/components/art-detail-shell";
 import { ArtOverviewTab } from "@/modules/core/org/features/art/components/tabs/art-overview-tab";
-import { ArtTeamsTab } from "@/modules/core/org/features/art/components/tabs/art-teams-tab";
 import { ArtPiTab } from "@/modules/core/org/features/art/components/tabs/art-pi-tab";
 import { Suspense } from "react";
 import { ImpedimentsListShell } from "@/modules/drumbeat/features/impediment/components/impediments-list-shell";
@@ -49,14 +47,7 @@ export default async function ArtV2Page({ params, searchParams }: Props) {
 
   let tabContent: React.ReactNode = null;
 
-  if (tab === "teams") {
-    const teams = await listTeams(db, principal.tenantId, artId as ArtId);
-    const canEdit = hasCapability(principal, "team.create", {
-      tenantId: principal.tenantId,
-      artId,
-    });
-    tabContent = <ArtTeamsTab artId={artId} teams={teams} canEdit={canEdit} />;
-  } else if (tab === "pi") {
+  if (tab === "pi") {
     const { items: pis } = await listPis(db, principal.tenantId, artId as ArtId);
     tabContent = <ArtPiTab pis={pis} piCadenceWeeks={art.piCadenceWeeks} />;
   } else if (tab === "impediments") {
@@ -131,25 +122,15 @@ export default async function ArtV2Page({ params, searchParams }: Props) {
     tabContent = <ArtHistoryTab events={events} />;
   } else {
     // overview (default)
-    const [teamCount, featureCount] = await Promise.all([
-      db.team.count({ where: { artId, tenantId: principal.tenantId as TenantId } }),
-      db.initiative.count({
-        where: {
-          artId,
-          tenantId: principal.tenantId as TenantId,
-          level: InitiativeLevel.FEATURE,
-          deletedAt: null,
-        },
-      }),
-    ]);
-    tabContent = (
-      <ArtOverviewTab
-        artId={artId}
-        pis={art.pis}
-        teamCount={teamCount}
-        featureCount={featureCount}
-      />
-    );
+    const featureCount = await db.initiative.count({
+      where: {
+        artId,
+        tenantId: principal.tenantId as TenantId,
+        level: InitiativeLevel.FEATURE,
+        deletedAt: null,
+      },
+    });
+    tabContent = <ArtOverviewTab artId={artId} pis={art.pis} featureCount={featureCount} />;
   }
 
   return (

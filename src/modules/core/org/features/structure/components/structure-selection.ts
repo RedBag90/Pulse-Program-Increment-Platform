@@ -7,7 +7,7 @@ import type { NodeKind } from "@/modules/core/org/server/views/structure-page";
  * per the rework plan, not abstracted.
  *
  * Encoding (`?selected=`):
- * - `vs_<id>` · `art_<id>` · `team_<id>` · `timeline_<id>` → the entity
+ * - `vs_<id>` · `art_<id>` · `timeline_<id>` → the entity
  * - missing → nothing selected
  */
 export type Selection = { kind: NodeKind; id: string } | { kind: "none" };
@@ -15,7 +15,6 @@ export type Selection = { kind: NodeKind; id: string } | { kind: "none" };
 const PREFIXES: Record<NodeKind, string> = {
   vs: "vs_",
   art: "art_",
-  team: "team_",
   timeline: "timeline_",
 };
 

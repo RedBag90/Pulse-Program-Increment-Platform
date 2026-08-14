@@ -51,10 +51,8 @@ export function VsDetailPane({ vs, canCreateArt, canUpdateVs, onSelectArt }: Pro
           <dd>{vs.vmoLabel ?? <GapHint>Nicht zugewiesen</GapHint>}</dd>
           <dt className="text-muted-foreground">Finance-Approver</dt>
           <dd>{vs.financeApproverLabel ?? <GapHint>Nicht zugewiesen</GapHint>}</dd>
-          <dt className="text-muted-foreground">ARTs / Teams</dt>
-          <dd className="tabular-nums">
-            {vs.artCount} / {vs.teamCount}
-          </dd>
+          <dt className="text-muted-foreground">ARTs</dt>
+          <dd className="tabular-nums">{vs.artCount}</dd>
         </dl>
       </section>
 

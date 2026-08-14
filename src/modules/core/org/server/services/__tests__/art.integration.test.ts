@@ -60,13 +60,6 @@ describe("softDeleteArt — deletion test", () => {
     expect(row?.deletedAt).toBeNull();
   });
 
-  it("blocks deletion when the ART still has teams", async () => {
-    const id = await create("ART With Team");
-    await db.team.create({ data: { tenantId: seed.tenantId, artId: id, name: "Team X" } });
-
-    const del = await softDeleteArt(testRequestContext(db, seed), { id });
-    expect(isOk(del)).toBe(false);
-  });
 });
 
 describe("partial unique index — ART name reuse after delete", () => {

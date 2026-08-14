@@ -1,10 +1,13 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 import {
   epicCascadeBreakdown,
+  epicTopGoalBenefits,
   type GoalNodeMeta,
   type EpicGoalLinkInput,
   type EpicCascadeContribution,
+  type TopGoalBenefit,
 } from "@/modules/core/goals/domain/goals-rollup";
 
 // ── Einheiten-Kaskade: GoalEpicLink-Pfad (Epic → mehrere Ziele) ───────────────
@@ -155,6 +158,147 @@ export async function loadEpicGoalLinks(
     links: linkRows,
     cascade: epicCascadeBreakdown(benefitInputs, nodesById),
   };
+}
+
+// ── Tenant-weit: Epic-Beitrag zu den Kopf-Zielen (Portfolio-Übersicht) ────────
+
+/**
+ * Ein Beitragswert in der Einheit *eines* Top-Ziels. Top-Ziele können
+ * unterschiedliche Einheiten haben (€, %, Stück, …) — daher wird pro Einheit
+ * getrennt ausgewiesen, nicht über Einheiten hinweg summiert. `unit` = das
+ * Freitext-Label des Top-Ziels (null = ohne Einheit).
+ */
+export interface UnitValue {
+  unit: string | null;
+  planned: number;
+  realized: number;
+}
+
+/**
+ * Der aggregierte Beitrag eines Epics zu den Kopf-Zielen, getrennt nach
+ * wiederkehrendem und einmaligem Effekt. Je Effekt eine Liste von Werten **pro
+ * Einheit** (Plan `planned` / Ist `realized`) — so bleiben gemischte Einheiten
+ * korrekt getrennt.
+ */
+export interface EpicGoalContribution {
+  epicId: string;
+  title: string;
+  valueStreamName: string | null;
+  recurring: UnitValue[];
+  oneTime: UnitValue[];
+}
+
+/**
+ * Reine Aggregation der `epicTopGoalBenefits`-Zeilen (je Top-Ziel × impactKind)
+ * eines Epics auf zwei Effekt-Kübel, **je Einheit gruppiert** (gleiche Einheit
+ * wird summiert, unterschiedliche bleiben getrennt). `impactKind === "recurring"`
+ * → wiederkehrend, sonst einmalig. Ausgelagert für den Unit-Test.
+ */
+export function aggregateEpicContribution(benefits: readonly TopGoalBenefit[]): {
+  recurring: UnitValue[];
+  oneTime: UnitValue[];
+} {
+  const rec = new Map<string, UnitValue>();
+  const one = new Map<string, UnitValue>();
+  for (const b of benefits) {
+    const bucket = b.impactKind === "recurring" ? rec : one;
+    const key = b.unit ?? "";
+    const prev = bucket.get(key);
+    if (prev) {
+      prev.planned += b.planned;
+      prev.realized += b.realized;
+    } else {
+      bucket.set(key, { unit: b.unit, planned: b.planned, realized: b.realized });
+    }
+  }
+  return { recurring: [...rec.values()], oneTime: [...one.values()] };
+}
+
+/**
+ * Tenant-weit: für jedes Epic den Beitrag zu seinen Kopf-Zielen (via
+ * `epicTopGoalBenefits` — KPI × `conversionFactor` die Ziel-Kette hoch bis zum
+ * Top-Ziel), aggregiert nach Effektart. Nur Epics mit einem Beitrag ≠ 0 werden
+ * zurückgegeben (Alt-€-Links ohne Conversion tragen 0 bei). Speist die
+ * „Epic-Beitrag zu Kopf-Zielen"-Tabelle der Portfolio-Übersicht.
+ */
+export async function loadEpicGoalContributions(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<EpicGoalContribution[]> {
+  const links = await db.goalEpicLink.findMany({
+    where: { tenantId },
+    include: {
+      kpi: { select: { id: true, baseline: true, target: true, measurements: true, name: true } },
+      epic: {
+        select: { id: true, title: true, valueStream: { select: { name: true } } },
+      },
+    },
+  });
+  if (links.length === 0) return [];
+
+  const nodes = await db.objective.findMany({
+    where: { tenantId },
+    select: {
+      id: true,
+      parentObjectiveId: true,
+      title: true,
+      metricUnit: true,
+      parentUnitPerChildUnit: true,
+    },
+  });
+  const nodesById = new Map<string, GoalNodeMeta>(
+    nodes.map((n) => [
+      n.id,
+      {
+        id: n.id,
+        parentId: n.parentObjectiveId,
+        name: n.title,
+        unit: n.metricUnit,
+        parentUnitPerChildUnit: toFloat(n.parentUnitPerChildUnit),
+      },
+    ]),
+  );
+
+  // Links je Epic sammeln (nur KPI-getriebene tragen zur Kaskade bei).
+  const byEpic = new Map<
+    string,
+    { title: string; valueStreamName: string | null; inputs: EpicGoalLinkInput[] }
+  >();
+  for (const l of links) {
+    let entry = byEpic.get(l.epicId);
+    if (!entry) {
+      entry = { title: l.epic.title, valueStreamName: l.epic.valueStream?.name ?? null, inputs: [] };
+      byEpic.set(l.epicId, entry);
+    }
+    if (l.kpi && l.conversionFactor != null) {
+      entry.inputs.push({
+        objectiveId: l.objectiveId,
+        kpi: {
+          id: l.kpi.id,
+          baseline: toFloat(l.kpi.baseline),
+          target: toFloat(l.kpi.target),
+          current: latestMeasurement(l.kpi.measurements),
+          valuePerUnit: null,
+        },
+        conversionFactor: toFloat(l.conversionFactor),
+        impactKind: l.impactKind,
+        recurringInterval: l.recurringInterval,
+        kpiName: l.kpi.name,
+      });
+    }
+  }
+
+  const nonZero = (v: UnitValue) => v.planned !== 0 || v.realized !== 0;
+  const out: EpicGoalContribution[] = [];
+  for (const [epicId, entry] of byEpic) {
+    const agg = aggregateEpicContribution(epicTopGoalBenefits(entry.inputs, nodesById));
+    const recurring = agg.recurring.filter(nonZero);
+    const oneTime = agg.oneTime.filter(nonZero);
+    if (recurring.length || oneTime.length) {
+      out.push({ epicId, title: entry.title, valueStreamName: entry.valueStreamName, recurring, oneTime });
+    }
+  }
+  return out;
 }
 
 function toFloat(d: unknown): number | null {

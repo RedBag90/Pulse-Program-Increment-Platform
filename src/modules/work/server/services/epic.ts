@@ -834,9 +834,34 @@ export async function softDeleteEpic(
 // Reads
 // ---------------------------------------------------------------------------
 
-export async function listEpics(db: PrismaClient, tenantId: TenantId) {
+/** Optionale Portfolio-Filter für die Epic-Liste (Mehrfachauswahl je Dimension;
+ *  leere Arrays = keine Einschränkung). Wird vom Portfolio-Overview-Loader gefüllt. */
+export interface EpicListFilter {
+  valueStreamIds?: string[] | undefined;
+  stageGates?: string[] | undefined;
+  statuses?: string[] | undefined;
+  ownerIds?: string[] | undefined;
+}
+
+export async function listEpics(
+  db: PrismaClient,
+  tenantId: TenantId,
+  filter: EpicListFilter = {},
+) {
+  const vs = filter.valueStreamIds ?? [];
+  const gates = filter.stageGates ?? [];
+  const statuses = filter.statuses ?? [];
+  const owners = filter.ownerIds ?? [];
   return db.initiative.findMany({
-    where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    where: {
+      tenantId,
+      level: InitiativeLevel.EPIC,
+      deletedAt: null,
+      ...(vs.length ? { valueStreamId: { in: vs } } : {}),
+      ...(gates.length ? { stageGate: { in: gates } } : {}),
+      ...(statuses.length ? { status: { in: statuses } } : {}),
+      ...(owners.length ? { ownerId: { in: owners } } : {}),
+    },
     include: { valueStream: { select: { id: true, name: true } } },
     orderBy: [{ stageGate: "asc" }, { createdAt: "desc" }],
   });

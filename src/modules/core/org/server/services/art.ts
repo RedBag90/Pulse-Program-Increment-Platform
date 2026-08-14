@@ -102,7 +102,7 @@ export async function softDeleteArt(
   return withAuditedTransaction(mctx, async (tx) => {
     const existing = await tx.art.findFirst({
       where: { id, tenantId: mctx.tenantId, ...notDeleted },
-      include: { _count: { select: { pis: true, teams: true } } },
+      include: { _count: { select: { pis: true } } },
     });
     if (!existing) return err({ kind: "not_found" as const, resourceType: "Art", id });
 
@@ -111,10 +111,6 @@ export async function softDeleteArt(
         kind: "conflict" as const,
         reason: "ART has Program Increments and cannot be deleted",
       });
-    }
-
-    if (existing._count.teams > 0) {
-      return err({ kind: "conflict" as const, reason: "ART has teams — delete all teams first" });
     }
 
     await tx.art.update({

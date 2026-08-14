@@ -15,7 +15,6 @@ export const PRACTICES = [
   "multiPartyApproval",
   "featureQs",
   "dependencies",
-  "piObjectives",
 ] as const;
 
 export type Practice = (typeof PRACTICES)[number];
@@ -40,7 +39,6 @@ export const DEFAULT_PRACTICES: PracticeFlags = {
   multiPartyApproval: true,
   featureQs: true,
   dependencies: true,
-  piObjectives: true,
 };
 
 /** Short German labels for the configurator + glossary. */
@@ -52,7 +50,6 @@ export const PRACTICE_LABELS: Record<Practice, string> = {
   multiPartyApproval: "Mehrparteien-Freigabe für Epics",
   featureQs: "Feature-QS",
   dependencies: "Abhängigkeiten",
-  piObjectives: "PI-Ziele",
 };
 
 export type OperatingModelTemplate = "team_level" | "essential_safe" | "portfolio_safe" | "custom";
@@ -77,7 +74,6 @@ const off: PracticeFlags = {
   multiPartyApproval: false,
   featureQs: false,
   dependencies: false,
-  piObjectives: false,
 };
 
 /** Practice + structure defaults each template pre-fills. `custom` = all on. */
@@ -103,7 +99,6 @@ export const OPERATING_MODEL_TEMPLATE_DEFS: Record<
       wsjf: true,
       featureQs: true,
       dependencies: true,
-      piObjectives: true,
     },
     structure: {
       targetValueStreams: null,
@@ -147,6 +142,5 @@ export function effectivePractices(
     multiPartyApproval: model.multiPartyApproval ?? true,
     featureQs: model.featureQs ?? true,
     dependencies: model.dependencies ?? true,
-    piObjectives: model.piObjectives ?? true,
   };
 }

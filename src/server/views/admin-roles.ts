@@ -72,11 +72,8 @@ export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly
       "pi.complete",
       "pi.delete",
       "pi_standard.manage",
-      "pi_objective.create",
-      "pi_objective.update",
     ],
   },
-  { key: "team", label: "Team", actions: ["team.create", "team.update", "team.delete"] },
   {
     key: "feature",
     label: "Feature",

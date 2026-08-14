@@ -56,13 +56,13 @@ describe("deriveNextSteps", () => {
   it("orders structure shortfalls before practice gaps (sanity)", () => {
     const gap: StructureGap = {
       ...emptyGap,
-      dimensions: [{ key: "teams", label: "Teams", ist: 0, soll: 2, progress: 0 }],
+      dimensions: [{ key: "arts", label: "ARTs", ist: 0, soll: 2, progress: 0 }],
     };
     const adoption: PracticeAdoption = {
       hasTarget: true,
-      signals: [{ key: "piObjectives", label: "PI-Ziele", value: 0, detail: "0/2" }],
+      signals: [{ key: "wsjf", label: "WSJF", value: 0, detail: "0/2" }],
     };
     const keys = deriveNextSteps(gap, adoption).map((s) => s.key);
-    expect(keys).toEqual(["struct-teams", "prac-piObjectives"]);
+    expect(keys).toEqual(["struct-arts", "prac-wsjf"]);
   });
 });

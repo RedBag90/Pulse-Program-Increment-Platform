@@ -1,37 +1,27 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import { CreateTeamDialog } from "@/modules/core/org/features/team/components/create-team-dialog";
 import { EditArtDialog } from "@/modules/core/org/features/art/components/edit-art-dialog";
 import { DeleteArtButton } from "@/modules/core/org/features/art/components/delete-art-button";
 import type { ArtDetail, NodeKind } from "@/modules/core/org/server/views/structure-page";
 
 interface Props {
   art: ArtDetail;
-  canCreateTeam: boolean;
   canUpdateArt: boolean;
   canDeleteArt: boolean;
   onSelectNode: (kind: NodeKind, id: string) => void;
 }
 
 /**
- * Right pane for a selected ART. Three cards:
+ * Right pane for a selected ART. Two cards:
  *
- * - **Header** — name + parent VS + RTE + Timeline + cadence + counts.
+ * - **Header** — name + parent VS + RTE + Timeline + cadence + PI count.
  *   Missing RTE shows as an amber chip.
- * - **Teams** — child Team rows; click to re-select. "+ Team hinzufügen"
- *   opens the existing `<CreateTeamDialog>` pre-bound to this ART.
  * - **Timeline** — current Timeline name (clickable to navigate the
  *   selection to the Timeline detail), or a hint if the ART hasn't joined
  *   one yet.
  */
-export function ArtDetailPane({
-  art,
-  canCreateTeam,
-  canUpdateArt,
-  canDeleteArt,
-  onSelectNode,
-}: Props) {
+export function ArtDetailPane({ art, canUpdateArt, canDeleteArt, onSelectNode }: Props) {
   return (
     <div className="space-y-6">
       <section className="space-y-3 rounded-lg border bg-card p-4">
@@ -75,38 +65,9 @@ export function ArtDetailPane({
           </dd>
           <dt className="text-muted-foreground">PI-Cadence</dt>
           <dd className="tabular-nums">{art.piCadenceWeeks} Wochen</dd>
-          <dt className="text-muted-foreground">PIs / Teams</dt>
-          <dd className="tabular-nums">
-            {art.piCount} / {art.teamCount}
-          </dd>
+          <dt className="text-muted-foreground">PIs</dt>
+          <dd className="tabular-nums">{art.piCount}</dd>
         </dl>
-      </section>
-
-      <section className="space-y-3 rounded-lg border bg-card p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-heading text-sm font-medium">Teams</h2>
-          {canCreateTeam && <CreateTeamDialog artId={art.id} />}
-        </div>
-        {art.teamIds.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Noch keine Teams — mit „Team anlegen“ das erste erstellen.
-          </p>
-        ) : (
-          <ul className="space-y-1.5">
-            {art.teamIds.map((tid) => (
-              <li key={tid}>
-                <button
-                  type="button"
-                  onClick={() => onSelectNode("team", tid)}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted/50"
-                >
-                  <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span>Team {tid.slice(0, 8)}…</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
 
       <section className="space-y-3 rounded-lg border bg-card p-4">

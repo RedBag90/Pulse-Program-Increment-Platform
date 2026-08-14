@@ -45,7 +45,6 @@ model Tenant {
 
   valueStreams          ValueStream[]
   arts                  Art[]
-  teams                 Team[]
   initiatives           Initiative[]
   kpis                  Kpi[]
   epicApprovals         EpicApproval[]
@@ -89,6 +88,25 @@ model SetupProgress {
 
   @@unique([tenantId, checkId])
   @@map("setup_progress")
+}
+
+/// Per-User gespeicherter Portfolio-Übersicht-Filter: benannte Filter-Sets, die
+/// der Nutzer anlegt/anwendet. `criteria` = { vs, gate, status, owner } als JSON.
+/// Genau ein `isDefault` je Nutzer wird beim bloßen Öffnen von /portfolio
+/// automatisch angewandt. Tenant+User-scoped (plain columns, wie Risk/Impediment).
+model SavedPortfolioFilter {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String
+  criteria  Json     @default("{}")
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, userId, name])
+  @@index([tenantId, userId])
+  @@map("saved_portfolio_filters")
 }
 
 /// A reusable, named PI calendar: a uniform cadence × count anchored at a
@@ -261,7 +279,6 @@ model Objective {
   theme             StrategicTheme         @relation(fields: [themeId], references: [id], onDelete: Cascade)
   parent            Objective?             @relation("GoalHierarchy", fields: [parentObjectiveId], references: [id])
   children          Objective[]            @relation("GoalHierarchy")
-  accountableTeam   Team?                  @relation("GoalAccountableTeam", fields: [accountableTeamId], references: [id])
   checkins          GoalCheckin[]
   comments          GoalComment[]
   epicLinks         GoalEpicLink[]
@@ -559,7 +576,6 @@ model Art {
   timeline    Timeline?          @relation(fields: [timelineId], references: [id], onDelete: SetNull)
   pis         ProgramIncrement[]
   features    Initiative[]       @relation("FeatureArt")
-  teams       Team[]
   impediments Impediment[]
   budget      ArtBudget?
   goalLinks   GoalArtLink[]
@@ -567,28 +583,6 @@ model Art {
   // Active-row uniqueness via a partial unique index (see prisma/manual-indexes.sql).
   @@index([timelineId])
   @@map("arts")
-}
-
-model Team {
-  id             String  @id @default(uuid()) @db.Uuid
-  tenantId       String  @map("tenant_id") @db.Uuid
-  artId          String  @map("art_id") @db.Uuid
-  name           String
-  description    String?
-  headcount      Int?
-  targetVelocity Int?    @map("target_velocity")
-  scrumMasterId  String? @map("scrum_master_id") @db.Uuid
-  productOwnerId String? @map("product_owner_id") @db.Uuid
-  teamType       String? @map("team_type") // stream_aligned | complicated_subsystem | platform | enabling
-
-  tenant           Tenant        @relation(fields: [tenantId], references: [id])
-  art              Art           @relation(fields: [artId], references: [id])
-  objectives       PiObjective[]
-  accountableGoals Objective[]   @relation("GoalAccountableTeam")
-
-  @@unique([tenantId, name])
-  @@index([artId])
-  @@map("teams")
 }
 
 model ProgramIncrement {
@@ -619,10 +613,9 @@ model ProgramIncrement {
   retrospectiveNotes String?   @map("retrospective_notes") @db.Text
   retrospectiveAt    DateTime? @map("retrospective_at")
 
-  art         Art?          @relation(fields: [artId], references: [id])
-  timeline    Timeline?     @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  art         Art?         @relation(fields: [artId], references: [id])
+  timeline    Timeline?    @relation(fields: [timelineId], references: [id], onDelete: Cascade)
   initiatives Initiative[]
-  objectives  PiObjective[]
   impediments Impediment[]
   systemDemo  SystemDemo?
 
@@ -649,26 +642,6 @@ model Timeline {
   @@map("timelines")
 }
 
-model PiObjective {
-  id            String   @id @default(uuid()) @db.Uuid
-  tenantId      String   @map("tenant_id") @db.Uuid
-  piId          String   @map("pi_id") @db.Uuid
-  teamId        String   @map("team_id") @db.Uuid
-  title         String
-  description   String?  @db.Text
-  businessValue Int?     @map("business_value") // 1-10
-  committed     Boolean  @default(true)
-  confidence    Int?     @map("confidence") // SAFe fist-of-five vote, 1-5
-  createdAt     DateTime @default(now()) @map("created_at")
-  createdBy     String   @map("created_by") @db.Uuid
-
-  pi   ProgramIncrement @relation(fields: [piId], references: [id])
-  team Team             @relation(fields: [teamId], references: [id])
-
-  @@index([piId])
-  @@index([teamId])
-  @@map("pi_objectives")
-}
 
 /// System Demo pro PI. Wird beim PI-Closure-Wizard mit Inhalten gefuellt,
 /// vom RTE und Feature Ownern gepflegt. Ein PI hat genau einen SystemDemo
