@@ -101,7 +101,8 @@ interface PiInput {
   status: string;
 }
 
-function tierFor(wsjfComputed: number | null): WsjfTier {
+/** Auch vom Deliverables-Reiter genutzt, damit beide Listen dieselben Schwellen verwenden. */
+export function tierFor(wsjfComputed: number | null): WsjfTier {
   if (wsjfComputed == null) return "none";
   if (wsjfComputed >= 5) return "high";
   if (wsjfComputed >= 2) return "medium";

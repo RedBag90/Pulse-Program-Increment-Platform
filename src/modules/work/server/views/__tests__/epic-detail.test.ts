@@ -110,6 +110,8 @@ function makeInputs(over: Partial<EpicDetailInputs> = {}): EpicDetailInputs {
     canAssignOwner: false,
     canAdvance: false,
     canLinkDependency: false,
+    showWsjf: true,
+    canSetDelivery: false,
     ...over,
   };
 }

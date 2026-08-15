@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, User, ChevronUp, Shield } from "lucide-react";
+import { LogOut, User, ChevronUp, Shield, Compass } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Link } from "@/i18n/navigation";
 import { clearTenantCookieAction } from "@/features/auth/actions/switch-tenant";
@@ -86,6 +86,12 @@ export function UserNav({ email, placement = "sidebar", isPlatformAdmin = false 
           <DropdownMenuItem disabled>
             <User className="size-4 mr-2" />
             Profile
+          </DropdownMenuItem>
+          {/* Einstieg ins Rollen-Playbook. Bewusst hier und nicht in NAV_GROUPS:
+              der Nav-Filter blendet Core-Segmente im persönlichen Tenant aus. */}
+          <DropdownMenuItem render={<Link href="/meine-rolle" />}>
+            <Compass className="size-4 mr-2" />
+            Meine Rolle & Tour
           </DropdownMenuItem>
         </DropdownMenuGroup>
         {isPlatformAdmin && (

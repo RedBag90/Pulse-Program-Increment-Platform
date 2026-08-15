@@ -17,6 +17,21 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts", "@xyflow/react", "@dagrejs/dagre"],
   },
+  // Sentry und seine OpenTelemetry-Kette dürfen NICHT gebündelt werden: sie
+  // klinken sich per `require-in-the-middle` in das Laden anderer Module ein,
+  // was ein Bundle zerreißt. Normalerweise trägt `withSentryConfig` diese
+  // Ausnahmen selbst ein — der Wrapper läuft hier aber (siehe unten) nur in
+  // Produktion. Im Dev fehlte die Konfiguration deshalb komplett, und der
+  // Sentry-Vendor-Chunk verschwand beim Neu-Kompilieren: Seiten fielen mit
+  // `Cannot find module './vendor-chunks/@sentry+core…'` aus, inklusive
+  // fehlendem CSS. Hier explizit, damit es in beiden Umgebungen gilt.
+  serverExternalPackages: [
+    "@sentry/nextjs",
+    "@sentry/node",
+    "@opentelemetry/instrumentation",
+    "require-in-the-middle",
+    "import-in-the-middle",
+  ],
   // typedRoutes (experimental) wurde in Next 15.5 strenger und lehnt dynamische
   // Template-Literal-Routen mit `?query` ab (z. B. `redirect(`/admin/users?
   // selected=…`)`), was den Vercel-Build blockierte. Da es eine reine DX-Feature

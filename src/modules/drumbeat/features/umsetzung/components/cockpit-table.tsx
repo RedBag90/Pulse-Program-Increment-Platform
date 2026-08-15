@@ -131,7 +131,7 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-lg border" data-tour="cockpit-table">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>

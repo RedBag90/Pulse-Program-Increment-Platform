@@ -19,6 +19,7 @@ const base = (over: Partial<FeatureDetailInput> = {}): FeatureDetailInput => ({
   valueStreamName: null,
   piId: null,
   piName: null,
+  ownerId: null,
   ownerLabel: null,
   wsjfBusinessValue: null,
   wsjfTimeCriticality: null,

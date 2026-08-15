@@ -21,7 +21,6 @@ const artRow = (over: {
   name: string;
   rteId?: string | null;
   piCadenceWeeks?: number;
-  teams?: ReturnType<typeof teamRow>[];
   piCount?: number;
 }) => ({
   id: over.id,
@@ -30,28 +29,12 @@ const artRow = (over: {
   piCadenceWeeks: over.piCadenceWeeks ?? 10,
   rteId: over.rteId ?? null,
   _count: { pis: over.piCount ?? 0 },
-  teams: over.teams ?? [],
-});
-
-const teamRow = (over: {
-  id: string;
-  name: string;
-  scrumMasterId?: string | null;
-  productOwnerId?: string | null;
-  sprintCount?: number;
-}) => ({
-  id: over.id,
-  name: over.name,
-  headcount: 5,
-  targetVelocity: 20,
-  teamType: "stream_aligned",
-  scrumMasterId: over.scrumMasterId ?? null,
-  productOwnerId: over.productOwnerId ?? null,
-  _count: { sprints: over.sprintCount ?? 0 },
 });
 
 describe("buildStructurePageModel", () => {
-  it("flattens the VS -> ART -> Team tree into depth-indented rows", () => {
+  // Der Baum endet seit dem Team-Rückbau (fd8164a) bei der ART — die Plattform
+  // bleibt auf Wertstrom + ART.
+  it("flattens the VS -> ART tree into depth-indented rows", () => {
     const m = buildStructurePageModel({
       mode: "structure",
       tree: [
@@ -59,33 +42,22 @@ describe("buildStructurePageModel", () => {
           id: "vs1",
           name: "Retail",
           vmoId: "u-vmo",
-          arts: [
-            artRow({
-              id: "art1",
-              name: "Mobile ART",
-              rteId: "u-rte",
-              teams: [
-                teamRow({ id: "t1", name: "Atlas", scrumMasterId: "u-sm", productOwnerId: "u-po" }),
-              ],
-            }),
-          ],
+          arts: [artRow({ id: "art1", name: "Mobile ART", rteId: "u-rte" })],
         }),
       ],
       timeline: { timelines: [], unassignedArts: [] },
-      userLabels: { "u-vmo": "VMO", "u-rte": "RTE", "u-sm": "SM", "u-po": "PO" },
+      userLabels: { "u-vmo": "VMO", "u-rte": "RTE" },
       budgetTotals: {},
     });
     const rows = m.rows;
     expect(rows.map((r) => [r.kind, r.depth, r.label])).toEqual([
       ["vs", 0, "Retail"],
       ["art", 1, "Mobile ART"],
-      ["team", 2, "Atlas"],
     ]);
     expect(rows[1]!.parentId).toBe("vs1");
-    expect(rows[2]!.parentId).toBe("art1");
   });
 
-  it("emits gap signals for missing Portfolio Manager / RTE / Scrum Master", () => {
+  it("emits gap signals for missing Portfolio Manager / Finance-Approver / RTE", () => {
     const m = buildStructurePageModel({
       mode: "structure",
       tree: [
@@ -97,7 +69,6 @@ describe("buildStructurePageModel", () => {
               id: "art1",
               name: "Mobile",
               // no rteId
-              teams: [teamRow({ id: "t1", name: "Atlas" })], // no SM, no PO
             }),
           ],
         }),
@@ -109,8 +80,6 @@ describe("buildStructurePageModel", () => {
     expect(m.rows[0]!.gaps).toContain("Kein:e Portfolio Manager");
     expect(m.rows[0]!.gaps).toContain("Kein:e Finance-Approver:in");
     expect(m.rows[1]!.gaps).toContain("Kein:e RTE");
-    expect(m.rows[2]!.gaps).toContain("Kein:e Scrum Master:in");
-    expect(m.rows[2]!.gaps).toContain("Kein:e PO");
   });
 
   it("resolves person labels via the userLabels map", () => {
@@ -148,7 +117,7 @@ describe("buildStructurePageModel", () => {
     expect(m.kindCounts.timeline).toBe(0);
   });
 
-  it("timelines-mode: timeline-rows in der liste, KEINE vs/art/team-rows", () => {
+  it("timelines-mode: timeline-rows in der liste, KEINE vs/art-rows", () => {
     const m = buildStructurePageModel({
       mode: "timelines",
       tree: [vsRow({ id: "vs1", name: "Retail", arts: [artRow({ id: "art1", name: "Mobile" })] })],
@@ -204,7 +173,7 @@ describe("buildStructurePageModel", () => {
           id: "vs1",
           name: "Retail",
           arts: [
-            artRow({ id: "art1", name: "Mobile", teams: [teamRow({ id: "t1", name: "Atlas" })] }),
+            artRow({ id: "art1", name: "Mobile" }),
             artRow({ id: "art2", name: "Web" }),
           ],
         }),
@@ -217,7 +186,7 @@ describe("buildStructurePageModel", () => {
       userLabels: {},
       budgetTotals: {},
     });
-    // structure-mode zaehlt nur vs/art/team; timeline-count = 0
-    expect(m.kindCounts).toEqual({ vs: 2, art: 2, team: 1, timeline: 0 });
+    // structure-mode zaehlt nur vs/art; timeline-count = 0
+    expect(m.kindCounts).toEqual({ vs: 2, art: 2, timeline: 0 });
   });
 });

@@ -140,6 +140,8 @@ export interface EpicDetailInputs {
   enabled: { drumbeat: boolean; budgeting: boolean; risks: boolean };
   /** `practices.multiPartyApproval` — gates the approval-phase-aware branches. */
   multiPartyApproval: boolean;
+  /** `practices.wsjf` — blendet die WSJF-Spalte der Deliverables-Tabelle aus. */
+  showWsjf: boolean;
   /** The viewing principal's id — drives the sign-off / open-approval checks. */
   principalId: string;
   // Capability booleans (resolved in the loader; the builder never authorizes).
@@ -151,6 +153,13 @@ export interface EpicDetailInputs {
   canAssignOwner: boolean;
   canAdvance: boolean;
   canLinkDependency: boolean;
+  /**
+   * `feature.delivery.set` — steuert nur, ob die Status-Zelle der
+   * Deliverables-Tabelle ein Dropdown zeigt. Die Server-Action autorisiert
+   * ohnehin erneut; `canEdit` (= `epic.update`) reicht dafür nicht, weil der
+   * Lieferstatus ART-scoped am Feature hängt.
+   */
+  canSetDelivery: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +175,10 @@ export interface EpicDetailModel {
   kpis: EpicDetailInputs["kpis"];
   approvals: EpicDetailInputs["approvals"];
   multiPartyApproval: boolean;
+  /** `practices.wsjf` — Sichtbarkeit der WSJF-Spalte. */
+  showWsjf: boolean;
+  /** `feature.delivery.set` — Status-Dropdown in der Deliverables-Tabelle. */
+  canSetDelivery: boolean;
 
   breakdownFeatures: BreakdownFeature[];
   artIds: string[];
@@ -257,6 +270,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     budget,
     enabled,
     multiPartyApproval,
+    showWsjf,
     principalId,
     canEdit,
     canDecideHypothesis,
@@ -266,6 +280,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     canAssignOwner,
     canAdvance,
     canLinkDependency,
+    canSetDelivery,
   } = inputs;
 
   const breakdownFeatures: BreakdownFeature[] = epic.children.map((c) => ({
@@ -276,6 +291,8 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     artId: c.artId ?? "",
     artName: c.art?.name ?? "—",
     piId: c.piId,
+    piName: c.pi?.name ?? null,
+    createdAtMs: c.createdAt.getTime(),
     acceptanceCriteria: c.acceptanceCriteria,
     wsjf: {
       bv: c.wsjfBusinessValue ?? 0,
@@ -497,6 +514,8 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
 
   return {
     epic,
+    showWsjf,
+    canSetDelivery,
     kpis,
     approvals,
     multiPartyApproval,
@@ -627,6 +646,12 @@ export async function loadEpicDetailInputs(
     breakdownPositions,
     enabled,
     multiPartyApproval: practices.multiPartyApproval,
+    showWsjf: practices.wsjf,
+    // Der Lieferstatus haengt ART-scoped am Feature, nicht am Epic — deshalb
+    // ein eigenes Flag statt `canEdit` mitzubenutzen.
+    canSetDelivery: hasCapability(principal, "feature.delivery.set", {
+      tenantId: principal.tenantId,
+    }),
     principalId: principal.id,
     canEdit,
     canDecideHypothesis,

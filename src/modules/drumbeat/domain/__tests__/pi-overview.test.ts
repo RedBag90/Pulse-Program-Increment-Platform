@@ -3,27 +3,19 @@ import { summarizePiOverview, type PiOverviewInput } from "@/modules/drumbeat/do
 
 const EMPTY: PiOverviewInput = {
   features: [],
-  impediments: [],
+  openIssues: 0,
 };
 
 describe("summarizePiOverview", () => {
   it("returns zeroed metrics for empty input", () => {
     const s = summarizePiOverview(EMPTY);
-    expect(s.impediments).toEqual({ open: 0, escalated: 0 });
+    expect(s.openIssues).toBe(0);
     expect(s.featureStatus).toEqual([]);
   });
 
-  it("counts open and escalated impediments separately, ignoring resolved", () => {
-    const s = summarizePiOverview({
-      ...EMPTY,
-      impediments: [
-        { status: "open" },
-        { status: "open" },
-        { status: "escalated" },
-        { status: "resolved" },
-      ],
-    });
-    expect(s.impediments).toEqual({ open: 2, escalated: 1 });
+  it("passes the pre-counted open issues through", () => {
+    const s = summarizePiOverview({ ...EMPTY, openIssues: 3 });
+    expect(s.openIssues).toBe(3);
   });
 
   it("groups features by status", () => {

@@ -400,7 +400,11 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
           ⇧ Hierher ziehen = auf oberste Ebene verschieben
         </div>
       )}
-      <div ref={containerRef} className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+      <div
+        ref={containerRef}
+        data-tour="goals-table"
+        className="overflow-x-auto rounded-xl border bg-card shadow-sm"
+      >
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-20 border-b bg-muted/95 text-xs uppercase tracking-wide text-muted-foreground shadow-sm backdrop-blur">
             <tr>

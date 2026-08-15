@@ -130,12 +130,12 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    // Risks & Dependencies als horizontale Domänen (IA-Rework). Single-Item-
+    // Issues (Risks + Impediments vereint) als horizontale Domäne. Single-Item-
     // Gruppe → rendert als eigenständiger Top-Level-Link (wie „Ziele"); via
     // moduleAllowed automatisch ausgeblendet, wenn das Risks-Modul aus ist.
-    labelKey: "risks",
-    defaultHref: "/risks",
-    items: [{ href: "/risks", labelKey: "risks", icon: ShieldAlert, exact: true }],
+    labelKey: "issues",
+    defaultHref: "/issues",
+    items: [{ href: "/issues", labelKey: "issues", icon: ShieldAlert, exact: true }],
   },
   {
     labelKey: "setupControlling",

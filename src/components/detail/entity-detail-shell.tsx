@@ -86,7 +86,11 @@ export function EntityDetailShell({
       {subHeader && <div className="border-b bg-surface-frame px-6 py-4">{subHeader}</div>}
 
       <div className="flex min-h-[70vh]">
-        <nav aria-label="Bereiche" className="w-48 shrink-0 border-r bg-surface-frame p-3">
+        <nav
+          aria-label="Bereiche"
+          data-tour="entity-tab-rail"
+          className="w-48 shrink-0 border-r bg-surface-frame p-3"
+        >
           <ul className="space-y-0.5">
             {tabs.map((tab) => {
               const active = tab.key === activeTab;

@@ -26,7 +26,6 @@ export function OverviewHero({ data }: { data: PortfolioOverview }) {
         />
         <Stat label="Ø Ziele erreicht" value={pct(data.goalAverageProgress)} />
         <Stat label="PIs aktiv" value={data.activePis.length} />
-        <Stat label="Impediments" value={data.impedimentsOpen} />
       </StatStrip>
 
       <CompactKanban data={data} />

@@ -48,7 +48,7 @@ export function EpicsFunnelBar({ counts, subStageCounts, activeGate, onGateChang
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-tour="epics-funnel-bar">
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>Reifegrad-Funnel</span>
         <button

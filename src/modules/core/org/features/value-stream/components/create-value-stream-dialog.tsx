@@ -37,7 +37,7 @@ export function CreateValueStreamDialog({ open, onOpenChange }: CreateValueStrea
   return (
     <>
       {!isControlled && (
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button onClick={() => setDialogOpen(true)} data-tour="value-stream-create-button">
           <Plus className="size-4 mr-1.5" />
           New Value Stream
         </Button>

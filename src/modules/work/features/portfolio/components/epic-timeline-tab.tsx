@@ -413,7 +413,7 @@ export function EpicTimelineTab({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour="epic-timeline-tab">
       {/* Column headers (desktop) — pl offset = Reifegrad-Gutter (2.5rem) + gap (0.75rem). */}
       <div className="hidden gap-x-3 pl-[3.25rem] sm:grid sm:grid-cols-[1.25rem_minmax(0,1fr)_11rem_11rem]">
         <span />

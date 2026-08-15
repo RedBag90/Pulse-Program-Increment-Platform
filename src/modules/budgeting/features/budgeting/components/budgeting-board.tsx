@@ -201,7 +201,7 @@ function PoolRow({
   }
 
   return (
-    <Card className="overflow-x-auto p-4">
+    <Card className="overflow-x-auto p-4" data-tour="budget-pool">
       <div className="mb-2 flex items-center justify-between gap-3">
         <h2 className="font-heading text-sm font-medium">Budget-Topf je Halbjahr</h2>
         {canManage && (

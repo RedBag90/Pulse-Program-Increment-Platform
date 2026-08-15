@@ -22,6 +22,7 @@ export function CockpitPiStrip({ pis }: Props) {
   return (
     <nav
       aria-label="PI-Strip"
+      data-tour="cockpit-pi-strip"
       className="flex items-center gap-2 overflow-x-auto border-b bg-surface-frame px-6 py-3"
     >
       {pis.map((p) => {

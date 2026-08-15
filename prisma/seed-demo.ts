@@ -460,29 +460,29 @@ async function main() {
   }
   await prisma.dependency.createMany({ data: depRows, skipDuplicates: true });
 
-  // Impediments (Severity/Status/ROAM-Spread)
-  const SEV = ["low", "medium", "high", "critical"];
-  const IMP_STATUS = ["open", "escalated", "resolved"];
+  // Issues (single type = risk model; some bundled under a head-issue to show the tree)
+  const LEVELS = ["very_low", "low", "medium", "high", "very_high"];
+  const CAT = ["technical", "business", "schedule", "external"];
   const ROAM = ["open", "owned", "accepted", "mitigated", "resolved"];
-  await prisma.impediment.createMany({
-    data: Array.from({ length: 14 }, (_, i) => {
-      const status = IMP_STATUS[i % IMP_STATUS.length]!;
-      return {
-        id: uid(`imp:${i}`),
-        tenantId,
-        artId: artIds[i % artIds.length]!,
-        piId: i % 2 === 0 ? activePi : null,
-        title: `Impediment ${i + 1}: ${["Abhängigkeit blockiert", "Umgebung instabil", "Wissenslücke", "Externe Freigabe fehlt"][i % 4]}`,
-        description: "Details zum Hindernis.",
-        severity: SEV[i % SEV.length]!,
-        status,
-        roamStatus: ROAM[i % ROAM.length]!,
-        raisedBy: U.rte,
-        ...(status === "resolved"
-          ? { resolvedAt: addDays(now, -3), resolvedBy: U.rte, resolution: "Behoben." }
-          : {}),
-      };
-    }),
+  const headIssueId = uid("issue:0");
+  await prisma.issue.createMany({
+    data: Array.from({ length: 14 }, (_, i) => ({
+      id: uid(`issue:${i}`),
+      tenantId,
+      issueNumber: i + 1,
+      title: `Issue ${i + 1}: ${["Abhängigkeit blockiert", "Umgebung instabil", "Wissenslücke", "Externe Freigabe fehlt"][i % 4]}`,
+      description: "Details zum Issue.",
+      probability: LEVELS[i % LEVELS.length]!,
+      impact: LEVELS[(i * 2) % LEVELS.length]!,
+      category: CAT[i % CAT.length]!,
+      reviewStatus: "documented",
+      roamStatus: ROAM[i % ROAM.length]!,
+      raisedBy: U.rte,
+      artId: artIds[i % artIds.length]!,
+      ...(i % 2 === 0 ? { piId: activePi } : {}),
+      // Bundle issues 1..4 under issue 0 (a head-issue) to demonstrate nesting.
+      ...(i >= 1 && i <= 4 ? { parentId: headIssueId } : {}),
+    })),
   });
 
   // System-Demos (aktiv + vorher)

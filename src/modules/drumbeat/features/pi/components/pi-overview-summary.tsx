@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { StatusDistributionChart } from "@/components/charts/status-distribution-chart-lazy";
 import type { PiOverviewSummary as Summary } from "@/modules/drumbeat/domain/pi-overview";
@@ -10,36 +9,29 @@ interface Props {
   artId: string;
 }
 
-function Tile({ label, href, children }: { label: string; href?: string; children: ReactNode }) {
-  const card = (
-    <Card className={`h-full space-y-1 p-4 ${href ? "transition-colors hover:bg-muted/40" : ""}`}>
+function Tile({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Card className="h-full space-y-1 p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       {children}
     </Card>
-  );
-  return href ? (
-    <Link href={href} className="block">
-      {card}
-    </Link>
-  ) : (
-    card
   );
 }
 
 /** KPI tiles + feature-status chart for the PI detail page. */
 export function PiOverviewSummary({ summary, piId, artId }: Props) {
-  const { impediments, featureStatus } = summary;
+  const { openIssues, featureStatus } = summary;
   void piId; // piId bleibt fuer kuenftige Tiles in der Signatur
+  void artId; // artId bleibt fuer kuenftige Tiles in der Signatur
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3">
-        <Tile label="Impediments" href={`/art/${artId}/impediments`}>
+        <Tile label="Offene Issues">
           <p className="text-2xl font-semibold">
-            {impediments.open}
+            {openIssues}
             <span className="text-base font-normal text-muted-foreground"> offen</span>
           </p>
-          <p className="text-xs text-muted-foreground">{impediments.escalated} eskaliert</p>
         </Tile>
       </div>
 

@@ -34,6 +34,7 @@ export interface FeatureDetailInput {
   valueStreamName: string | null;
   piId: string | null;
   piName: string | null;
+  ownerId: string | null;
   ownerLabel: string | null;
   wsjfBusinessValue: number | null;
   wsjfTimeCriticality: number | null;
@@ -56,6 +57,8 @@ export interface FeatureDetailModel {
   art: { id: string; name: string } | null;
   valueStream: { id: string; name: string } | null;
   pi: { id: string; name: string } | null;
+  /** Rohe Id — der Picker braucht sie als Auswahlwert, das Label nur zur Anzeige. */
+  ownerId: string | null;
   ownerLabel: string | null;
   wsjf: {
     businessValue: number | null;
@@ -95,6 +98,8 @@ export function buildFeatureDetailModel(input: FeatureDetailInput): FeatureDetai
         ? { id: input.valueStreamId, name: input.valueStreamName }
         : null,
     pi: input.piId && input.piName != null ? { id: input.piId, name: input.piName } : null,
+    // Für den vorausgewählten Owner-Picker; `ownerLabel` allein reicht nicht.
+    ownerId: input.ownerId,
     ownerLabel: input.ownerLabel,
     wsjf: {
       businessValue: input.wsjfBusinessValue,

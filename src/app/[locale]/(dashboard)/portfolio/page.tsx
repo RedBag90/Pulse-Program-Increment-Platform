@@ -3,14 +3,12 @@ import { createPrismaClient } from "@/server/db/prisma";
 import {
   loadPortfolioOverview,
   type PortfolioFilter,
+  type OverviewRiskBand,
 } from "@/modules/work/server/views/portfolio-overview";
-import { listImpedimentsForArts } from "@/modules/drumbeat/server/services/impediment";
 import {
   getBudgetingBoard,
   getValueStreamBudgets,
 } from "@/modules/budgeting/server/services/budgeting";
-import { listRisks } from "@/modules/risks/server/services/risk";
-import { riskPositions, type RiskLevel } from "@/modules/risks/domain/risk-matrix";
 import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
@@ -39,6 +37,23 @@ interface Props {
 
 const splitCsv = (v: string | undefined): string[] =>
   typeof v === "string" && v ? v.split(",").filter(Boolean) : [];
+
+// Exposure inline (dupliziert aus `risks/domain/risk-matrix`, weil `work`/dieser
+// Composition-Root das `risks`-Modul nicht importieren darf — ADR-0013): score =
+// LEVEL_VALUE[probability]·LEVEL_VALUE[impact], Band per Schwellen ≤4/≤9/≤15/else.
+const LEVEL_VALUE: Record<string, number> = {
+  very_low: 1,
+  low: 2,
+  medium: 3,
+  high: 4,
+  very_high: 5,
+};
+function exposureBand(score: number): OverviewRiskBand {
+  if (score <= 4) return "low";
+  if (score <= 9) return "medium";
+  if (score <= 15) return "high";
+  return "critical";
+}
 
 /**
  * Portfolio Übersicht — three parallel variants behind a `?view=` switcher so
@@ -91,14 +106,13 @@ export default async function PortfolioPage({ searchParams }: Props) {
   const valueStreams = valueStreamRows.map((v) => ({ id: v.id, name: v.name }));
   const owners = Object.entries(ownerLabels).map(([id, label]) => ({ id, label }));
 
-  // Composition-Root reicht die Adapter für Drumbeat (Impediment), Budgeting und
-  // Risks in das Work-View — Work importiert diese oberen Layer nicht direkt
-  // (ADR-0013). Wertstrom-/Owner-Filter greifen zusätzlich in Risks/Budgeting.
+  // Composition-Root reicht die Adapter für Budgeting und Risks in das
+  // Work-View — Work importiert diese oberen Layer nicht direkt (ADR-0013).
+  // Wertstrom-/Owner-Filter greifen zusätzlich in Risks/Budgeting. Risiken
+  // kommen aus dem vereinten `Issue`-Register (db.issue), inline geformt.
   const data = await loadPortfolioOverview(
     db,
     principal.tenantId,
-    async (artIds) =>
-      (await listImpedimentsForArts(db, principal.tenantId, artIds, { status: "open" })).length,
     async () => {
       const [board, vsBudgets] = await Promise.all([
         getBudgetingBoard(db, principal.tenantId),
@@ -115,8 +129,13 @@ export default async function PortfolioPage({ searchParams }: Props) {
       return { board, vsBudgets: filteredVs };
     },
     async () => {
-      const { items } = await listRisks(db, principal, { page: 1, pageSize: 500 });
-      // Wertstrom-Filter für Risiken: Menge der Epic-IDs in den gewählten VS.
+      const issues = await db.issue.findMany({
+        where: { tenantId: principal.tenantId, deletedAt: null, reviewStatus: "documented" },
+        include: {
+          initiative: { select: { id: true, title: true, level: true, parentId: true } },
+        },
+      });
+      // Wertstrom-Filter für Issues: Menge der Epic-IDs in den gewählten VS.
       let vsEpicIds: Set<string> | null = null;
       if (filter.valueStreamIds.length) {
         const eps = await db.initiative.findMany({
@@ -131,29 +150,35 @@ export default async function PortfolioPage({ searchParams }: Props) {
         vsEpicIds = new Set(eps.map((e) => e.id));
       }
       const epicIdSet = vsEpicIds;
-      return items
-        .filter((r) => r.reviewStatus === "documented" && r.roamStatus !== "resolved")
+      // Das „Epic" eines Issues: die verknüpfte Initiative selbst, wenn Epic
+      // (level 0), sonst deren Parent (Feature → Epic). Titel nur bei direkt
+      // verknüpftem Epic bekannt (der Parent-Titel liegt nicht im Include).
+      const epicIdOf = (init: { id: string; level: number; parentId: string | null } | null) =>
+        init ? (init.level === 0 ? init.id : init.parentId) : null;
+      return issues
+        .filter((r) => r.roamStatus !== "resolved")
         .filter(
           (r) => !filter.ownerIds.length || (r.ownerId != null && filter.ownerIds.includes(r.ownerId)),
         )
-        .filter((r) => !epicIdSet || r.epicLinks.some((l) => epicIdSet.has(l.epicId)))
+        .filter((r) => !epicIdSet || (() => {
+          const eid = epicIdOf(r.initiative);
+          return eid != null && epicIdSet.has(eid);
+        })())
+        .filter((r) => r.probability != null && r.impact != null)
         .map((r) => {
-          const current = riskPositions(
-            { probability: r.probability, impact: r.impact },
-            r.assessments.map((a) => ({
-              probability: a.probability as RiskLevel,
-              impact: a.impact as RiskLevel,
-            })),
-          ).current;
-          const epic = r.epicLinks[0]?.epic ?? null;
+          const score = LEVEL_VALUE[r.probability!]! * LEVEL_VALUE[r.impact!]!;
+          const epic =
+            r.initiative && r.initiative.level === 0
+              ? { id: r.initiative.id, title: r.initiative.title }
+              : null;
           return {
             id: r.id,
-            riskNumber: r.riskNumber,
+            riskNumber: r.issueNumber,
             title: r.title,
-            band: current?.band ?? null,
-            score: current?.score ?? null,
+            band: exposureBand(score),
+            score,
             roamStatus: r.roamStatus as RoamStatus,
-            epic: epic ? { id: epic.id, title: epic.title } : null,
+            epic,
           };
         });
     },

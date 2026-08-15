@@ -11,15 +11,15 @@ import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel
  * fetched separately by the caller.
  */
 export async function exportUserData(db: PrismaClient, tenantId: TenantId, userId: UserId) {
-  const [roleAssignments, ownedInitiatives, raisedImpediments, auditEvents] = await Promise.all([
+  const [roleAssignments, ownedInitiatives, raisedIssues, auditEvents] = await Promise.all([
     db.userRoleAssignment.findMany({ where: { tenantId, userId } }),
     db.initiative.findMany({
       where: { tenantId, ownerId: userId },
       select: { id: true, level: true, title: true, status: true, createdAt: true },
     }),
-    db.impediment.findMany({
+    db.issue.findMany({
       where: { tenantId, raisedBy: userId },
-      select: { id: true, title: true, status: true, createdAt: true },
+      select: { id: true, title: true, reviewStatus: true, roamStatus: true, createdAt: true },
     }),
     db.auditEvent.findMany({
       where: { tenantId, actorId: userId },
@@ -33,7 +33,7 @@ export async function exportUserData(db: PrismaClient, tenantId: TenantId, userI
     exportedAt: new Date().toISOString(),
     roleAssignments,
     ownedInitiatives,
-    raisedImpediments,
+    raisedIssues,
     auditEvents,
   };
 }

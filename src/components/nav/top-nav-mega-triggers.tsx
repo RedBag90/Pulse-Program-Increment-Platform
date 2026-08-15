@@ -54,6 +54,10 @@ export function TopNavMegaTriggers({ visibleHrefs, menu }: Props) {
               key={group.labelKey}
               href={item.href}
               onClick={menu.close}
+              // Anker der Rollen-Tour. Bewusst am immer sichtbaren Gruppen-
+              // Trigger und nicht an den Einträgen im Mega-Panel — die sind
+              // nur bei geöffnetem Menü im DOM.
+              data-tour={`group:${group.labelKey}`}
               className={cn(
                 triggerBase,
                 groupActive
@@ -78,6 +82,7 @@ export function TopNavMegaTriggers({ visibleHrefs, menu }: Props) {
             <button
               type="button"
               {...menu.triggerProps(group.labelKey)}
+              data-tour={`group:${group.labelKey}`}
               onClick={() => {
                 menu.openPanel(group.labelKey);
                 router.push(targetHref);

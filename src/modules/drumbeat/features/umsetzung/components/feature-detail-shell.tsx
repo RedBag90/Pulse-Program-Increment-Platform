@@ -24,6 +24,8 @@ interface Props {
   model: FeatureDetailModel;
   canEdit: boolean;
   canTransition: boolean;
+  canAssignOwner: boolean;
+  approvers: ReadonlyArray<{ userId: string; roles: string[] }>;
   canLinkDependency: boolean;
   outgoing: DependencyEdge[];
   incoming: DependencyEdge[];
@@ -49,6 +51,8 @@ export function FeatureDetailShell({
   model,
   canEdit,
   canTransition,
+  canAssignOwner,
+  approvers,
   canLinkDependency,
   outgoing,
   incoming,
@@ -71,7 +75,14 @@ export function FeatureDetailShell({
       {...(onTabChange ? { onTabChange } : {})}
     >
       {active === "overview" && (
-        <FeatureOverviewTab model={model} canEdit={canEdit} canTransition={canTransition} />
+        <FeatureOverviewTab
+          model={model}
+          canEdit={canEdit}
+          canTransition={canTransition}
+          canAssignOwner={canAssignOwner}
+          approvers={approvers}
+          userLabels={userLabels}
+        />
       )}
       {active === "dependencies" && (
         <FeatureDependenciesTab

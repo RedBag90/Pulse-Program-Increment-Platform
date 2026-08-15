@@ -85,6 +85,7 @@ export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly
       "feature.review.submit",
       "feature.review.decide",
       "feature.delivery.set",
+      "feature.owner.assign",
     ],
   },
   { key: "dependencies", label: "Dependencies", actions: ["dependency.link", "dependency.unlink"] },

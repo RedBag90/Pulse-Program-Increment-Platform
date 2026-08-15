@@ -33,7 +33,10 @@ function StatusIcon({ status }: { status: LifecycleStep["status"] }) {
  */
 export function EpicLifecycleStepper({ steps, nextStep, actionSlot }: Props) {
   return (
-    <div className="space-y-3 rounded-lg border bg-card p-3.5 shadow-xs">
+    <div
+      className="space-y-3 rounded-lg border bg-card p-3.5 shadow-xs"
+      data-tour="epic-lifecycle-stepper"
+    >
       <SectionLabel>Fortschritt</SectionLabel>
       <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {steps.map((step) => {

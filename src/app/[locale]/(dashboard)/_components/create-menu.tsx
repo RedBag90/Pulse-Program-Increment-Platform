@@ -18,10 +18,9 @@ import { CreateValueStreamDialog } from "@/modules/core/org/features/value-strea
 import { CreateEpicDialog } from "@/modules/work/features/portfolio/components/create-epic-dialog";
 import { CreateArtDialog } from "@/modules/core/org/features/art/components/create-art-dialog";
 import { CreateFeatureDialog } from "@/modules/work/features/feature/components/create-feature-dialog";
-import { CreateImpedimentDialog } from "@/modules/drumbeat/features/impediment/components/create-impediment-dialog";
 import { CreateDependencyDialog } from "@/modules/drumbeat/features/dependencies/components/create-dependency-dialog";
 import { CreateGoalDialog } from "@/modules/core/goals/features/components/create-goal-dialog";
-import { CreateRiskDialog } from "@/modules/risks/features/risk/components/create-risk-dialog";
+import { CreateIssueDialog } from "@/modules/risks/features/issue/components/create-issue-dialog";
 
 /** Left padding per hierarchy level — reproduces the screenshot's indentation. */
 const INDENT = ["pl-2", "pl-6", "pl-10", "pl-14"] as const;
@@ -79,11 +78,8 @@ export function CreateMenu() {
       {openKey === "epic" && <CreateEpicDialog open onOpenChange={close} />}
       {openKey === "art" && <CreateArtDialog open onOpenChange={close} />}
       {openKey === "feature" && <CreateFeatureDialog open onOpenChange={close} context={ctx} />}
-      {openKey === "impediment" && (
-        <CreateImpedimentDialog open onOpenChange={close} context={ctx} />
-      )}
       {openKey === "dependency" && <CreateDependencyDialog open onOpenChange={close} />}
-      {openKey === "risk" && <CreateRiskDialog open onOpenChange={close} />}
+      {openKey === "risk" && <CreateIssueDialog open onOpenChange={close} />}
     </>
   );
 }

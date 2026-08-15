@@ -10,8 +10,7 @@ import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-ov
  * them.
  */
 export function HealthAlertsBlock({ data }: { data: PortfolioOverview }) {
-  const empty =
-    data.blockedEpics.length === 0 && data.staleEpics.length === 0 && data.impedimentsOpen === 0;
+  const empty = data.blockedEpics.length === 0 && data.staleEpics.length === 0;
 
   return (
     <Card className="space-y-3 p-4">
@@ -39,14 +38,6 @@ export function HealthAlertsBlock({ data }: { data: PortfolioOverview }) {
                 {data.staleEpics.length} Epic{data.staleEpics.length === 1 ? "" : "s"} &gt; 30 Tage
                 still
               </Link>
-            </li>
-          )}
-          {data.impedimentsOpen > 0 && (
-            <li className="flex items-center gap-2">
-              <AlertTriangle className="size-4 shrink-0 text-amber-500" />
-              <span>
-                {data.impedimentsOpen} offene Impediment{data.impedimentsOpen === 1 ? "" : "s"}
-              </span>
             </li>
           )}
         </ul>

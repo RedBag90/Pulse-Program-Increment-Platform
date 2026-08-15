@@ -36,6 +36,7 @@ export function CockpitViewTabs({ view }: Props) {
     <div
       role="tablist"
       aria-label="Cockpit-Sicht"
+      data-tour="cockpit-view-tabs"
       className="inline-flex overflow-hidden rounded-md border bg-card text-sm"
     >
       {TABS.map((t) => {

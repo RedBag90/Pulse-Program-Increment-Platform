@@ -19,7 +19,7 @@ import { KanbanBucketHelp } from "@/modules/work/features/portfolio/components/k
  */
 export function CompactKanban({ data }: { data: PortfolioOverview }) {
   return (
-    <section className="space-y-2">
+    <section className="space-y-2" data-tour="portfolio-kanban">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <SectionLabel>Epic Portfolio-Kanban</SectionLabel>

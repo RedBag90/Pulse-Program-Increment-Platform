@@ -1,19 +1,21 @@
 "use client";
 
-import { useActionState, startTransition, useState } from "react";
-import { ArrowRight, Play, PauseOctagon, CheckCircle2, XCircle, RotateCw } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { setFeatureDeliveryStatusAction } from "@/modules/work/features/feature/actions/feature";
+import { FeatureStatusSelect } from "@/modules/work/features/feature/components/feature-status-select";
+import { FeatureOwnerAssign } from "@/modules/work/features/feature/components/feature-owner-assign";
 import { FeatureClassificationForm } from "./feature-classification-form";
 import { STATUS_DOT, STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { formatDate } from "@/lib/formatting";
 import type { FeatureDetailModel } from "@/modules/drumbeat/server/views/feature-detail";
-import type { DeliveryStatus } from "@/modules/core/kernel/domain/initiative-status";
 
 interface Props {
   model: FeatureDetailModel;
   canEdit: boolean;
   canTransition: boolean;
+  canAssignOwner: boolean;
+  approvers: ReadonlyArray<{ userId: string; roles: string[] }>;
+  userLabels: Record<string, string>;
 }
 
 const TIER_LABEL: Record<FeatureDetailModel["wsjf"]["tier"], string> = {
@@ -29,27 +31,20 @@ const TIER_CLASS: Record<FeatureDetailModel["wsjf"]["tier"], string> = {
   unscored: "bg-muted text-muted-foreground",
 };
 
-const TRANSITION_LABEL: Record<DeliveryStatus, string> = {
-  approved: "Auf Bereit zuruecksetzen",
-  in_progress: "Starten",
-  blocked: "Blockiert",
-  completed: "Abschliessen",
-  cancelled: "Abbrechen",
-};
-const TRANSITION_ICON: Record<DeliveryStatus, typeof Play> = {
-  approved: RotateCw,
-  in_progress: Play,
-  blocked: PauseOctagon,
-  completed: CheckCircle2,
-  cancelled: XCircle,
-};
 
 /**
  * Overview-Tab der Feature-Detail-Seite. Felds-Grid + Status-Aktionen.
  * Aktions-Buttons sind capability-gated und reflektieren die FSM aus
  * `canDeliveryTransition` (Pre-Filter passierte das Page-Model).
  */
-export function FeatureOverviewTab({ model, canEdit, canTransition }: Props) {
+export function FeatureOverviewTab({
+  model,
+  canEdit,
+  canTransition,
+  canAssignOwner,
+  approvers,
+  userLabels,
+}: Props) {
   return (
     <div className="space-y-6">
       <SummaryHeader model={model} />
@@ -96,7 +91,16 @@ export function FeatureOverviewTab({ model, canEdit, canTransition }: Props) {
             <span className="text-muted-foreground">Backlog</span>
           )}
         </Field>
-        <Field label="Owner">{model.ownerLabel ?? "—"}</Field>
+        <Field label="Owner">
+          <FeatureOwnerAssign
+            featureId={model.id}
+            artId={model.art?.id ?? ""}
+            ownerId={model.ownerId}
+            canAssignOwner={canAssignOwner}
+            approvers={approvers}
+            userLabels={userLabels}
+          />
+        </Field>
         <div>
           <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Feature-Typ
@@ -138,10 +142,13 @@ export function FeatureOverviewTab({ model, canEdit, canTransition }: Props) {
 
       <AcceptanceList items={model.acceptanceCriteria} />
 
+      {/* `allowedTransitions` ist leer, solange das Feature noch in der QS haengt —
+          dann gibt es nichts zu schalten und der Abschnitt entfaellt ganz. */}
       {canTransition && model.allowedTransitions.length > 0 && (
         <DeliveryActions
           featureId={model.id}
-          allowed={model.allowedTransitions}
+          status={model.status}
+          title={model.title}
           disabled={!canEdit}
         />
       )}
@@ -258,56 +265,27 @@ function AcceptanceList({ items }: { items: string[] }) {
 
 function DeliveryActions({
   featureId,
-  allowed,
+  status,
+  title,
   disabled,
 }: {
   featureId: string;
-  allowed: DeliveryStatus[];
+  status: string;
+  title: string;
   disabled: boolean;
 }) {
-  const [state, dispatch, pending] = useActionState(setFeatureDeliveryStatusAction, {});
-  const [activeTarget, setActiveTarget] = useState<DeliveryStatus | null>(null);
-
-  function trigger(to: DeliveryStatus) {
-    setActiveTarget(to);
-    const fd = new FormData();
-    fd.set("id", featureId);
-    fd.set("to", to);
-    startTransition(() => dispatch(fd));
-  }
-
   return (
     <section className="rounded-lg border bg-card p-4">
       <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        Status-Aktionen
+        Status
       </p>
-      <div className="flex flex-wrap gap-2">
-        {allowed.map((to) => {
-          const Icon = TRANSITION_ICON[to];
-          return (
-            <button
-              key={to}
-              type="button"
-              disabled={disabled || pending}
-              onClick={() => trigger(to)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-input bg-card px-3 py-1.5 text-sm font-medium shadow-xs transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Icon className="size-3.5" />
-              {TRANSITION_LABEL[to]}
-            </button>
-          );
-        })}
-      </div>
-      {state.error && (
-        <p role="alert" className="mt-2 text-sm text-destructive">
-          {state.error}
-        </p>
-      )}
-      {state.success && activeTarget && (
-        <p role="status" className="mt-2 text-sm text-emerald-700">
-          Status zu „{TRANSITION_LABEL[activeTarget]}" gesetzt.
-        </p>
-      )}
+      <FeatureStatusSelect
+        featureId={featureId}
+        status={status}
+        label={title}
+        size="md"
+        disabled={disabled}
+      />
     </section>
   );
 }

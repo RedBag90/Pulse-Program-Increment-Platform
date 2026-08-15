@@ -18,6 +18,7 @@ import {
   createInitiativeWithDerivedPath,
   findValidatedParent,
 } from "@/modules/core/kernel/server/initiative-write";
+import { loadAndAuthorize } from "@/server/services/load-and-authorize";
 import { paginate, type PageParams } from "@/server/db/paginate";
 import { rangeOverlapsPlannedWindow } from "@/modules/work/domain/epic-schedule";
 import { canDeliveryTransition } from "@/modules/core/kernel/domain/initiative-status";
@@ -381,6 +382,77 @@ export async function insertFeatureBetween(
     return ok({
       result: { id: feature.id as FeatureId, addedDependencyIds: [depA.id, depB.id] },
       audit: { action: "initiative.created", resourceType: "initiative", resourceId: feature.id },
+    });
+  });
+}
+
+/**
+ * Weist einem Feature eine verantwortliche Person zu — oder nimmt sie mit
+ * `ownerId: null` wieder weg.
+ *
+ * Eigene Action statt `feature.update`, weil sich die Rollenmenge unterscheidet:
+ * Epic Owner und Wertstrom-Verantwortliche dürfen ein Feature inhaltlich nicht
+ * ändern, sollen die Verantwortung aber vergeben können.
+ *
+ * **Der Wertstrom kommt vom Eltern-Epic.** Ein Feature trägt selbst keinen
+ * `valueStreamId`; würde man ihn direkt aus der Zeile lesen, wäre er `null` und
+ * der Scope-Check des Wertstrom-Verantwortlichen ginge vakuum-wahr durch
+ * (`memberOrVacuous` in `authorize.ts`) — er dürfte dann überall zuweisen. Der
+ * Finder lädt den Wertstrom deshalb über `parent` mit.
+ *
+ * Nebenwirkung, die so gewollt ist: `listMyTasks` filtert nach `ownerId`. Das
+ * Feature wandert damit sofort aus der Inbox des bisherigen Owners in die des
+ * neuen.
+ */
+export async function assignFeatureOwner(
+  ctx: RequestContext,
+  input: { id: string; ownerId: string | null },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  const { id, ownerId } = input;
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const loaded = await loadAndAuthorize({
+      principal: ctx.principal,
+      action: "feature.owner.assign",
+      resourceType: "Feature",
+      id,
+      finder: () =>
+        tx.initiative.findFirst({
+          where: {
+            id,
+            tenantId: mctx.tenantId,
+            level: InitiativeLevel.FEATURE,
+            deletedAt: null,
+          },
+          include: { parent: { select: { valueStreamId: true } } },
+        }),
+      toResource: (row) => ({
+        tenantId: mctx.tenantId,
+        valueStreamId: row.parent?.valueStreamId ?? row.valueStreamId,
+        artId: row.artId,
+      }),
+    });
+    if (isErr(loaded)) return loaded;
+
+    const { changes, data } = recordedUpdate({
+      existing: loaded.value,
+      updates: { ownerId },
+      fields: ["ownerId"] as const,
+    });
+    await tx.initiative.update({
+      where: { id },
+      data: { ...data, updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "feature.owner.assigned",
+        resourceType: "initiative",
+        resourceId: id,
+        changes,
+      },
     });
   });
 }

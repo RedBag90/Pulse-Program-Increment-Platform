@@ -5,8 +5,8 @@ import { loadEpicDetail } from "@/modules/work/server/views/epic-detail";
 import { listProgramIncrementsForArts } from "@/modules/drumbeat/server/services/pi";
 import { listBreakdownDependencies } from "@/modules/drumbeat/server/services/dependency";
 import { getEpicBudgetAllocation } from "@/modules/budgeting/server/services/epic-allocation";
-import { loadEpicRisksModel } from "@/modules/risks/server/views/epic-risk-matrix";
-import { RisksManager } from "@/modules/risks/features/risk/components/risks-manager";
+import { loadEpicIssuesModel } from "@/modules/risks/server/views/epic-issues";
+import { IssuesListShell } from "@/modules/risks/features/issue/components/issues-list-shell";
 import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
@@ -89,22 +89,23 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   ]);
   if (!model) redirect("/portfolio/epics");
 
-  // Risks tab content (composition root may import the risks module).
-  const epicRisks = enabled.risks ? await loadEpicRisksModel(db, principal, epicId) : null;
-  const riskScope = { tenantId };
-  const riskCaps = {
-    canDocument: hasCapability(principal, "risk.document", riskScope),
-    canUpdate: hasCapability(principal, "risk.update", riskScope),
-    canRoam: hasCapability(principal, "risk.roam", riskScope),
-    canLink: hasCapability(principal, "risk.link", riskScope),
-    canDelete: hasCapability(principal, "risk.delete", riskScope),
-    canReview: hasCapability(principal, "risk.review", riskScope),
-    canManageSettings: hasCapability(principal, "risk.settings.manage", riskScope),
+  // Issues tab content — risks + impediments rolled up over the Epic's feature
+  // subtree (composition root may import the risks module; ADR-0013).
+  const epicIssues = enabled.risks ? await loadEpicIssuesModel(db, principal, epicId) : null;
+  const issueScope = { tenantId };
+  const issueCaps = {
+    canDocument: hasCapability(principal, "risk.document", issueScope),
+    canUpdate: hasCapability(principal, "risk.update", issueScope),
+    canRoam: hasCapability(principal, "risk.roam", issueScope),
+    canLink: hasCapability(principal, "risk.link", issueScope),
+    canDelete: hasCapability(principal, "risk.delete", issueScope),
+    canReview: hasCapability(principal, "risk.review", issueScope),
+    canManageSettings: hasCapability(principal, "risk.settings.manage", issueScope),
   };
 
   const { epic, timeline, benefitHypothesis, businessCase, kpiRows } = model;
-  // Risks tab only when the module is entitled (slice present).
-  const tabs = model.risks.disabled ? EPIC_TABS : [...EPIC_TABS, { key: "risks", label: "Risks" }];
+  // Issues tab only when the module is entitled (slice present).
+  const tabs = model.risks.disabled ? EPIC_TABS : [...EPIC_TABS, { key: "issues", label: "Issues" }];
   const activeTab = resolveTab(tabs, tab);
 
   // Slide-Over-Detail nur laden wenn ?featureId= im URL — gleiche Sicht wie im
@@ -317,6 +318,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             features={model.breakdownFeatures}
             pisByArt={model.drumbeat.disabled ? {} : model.drumbeat.pisByArt}
             signoff={model.breakdownSignoff}
+            showWsjf={model.showWsjf}
+            canSetDelivery={model.canSetDelivery}
             dependencies={model.drumbeat.disabled ? [] : model.drumbeat.dependencies}
             canLinkDependency={model.canLinkDependency}
             breakdownLayoutPositions={model.breakdownLayoutPositions}
@@ -341,13 +344,14 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           </section>
         )}
 
-        {activeTab === "risks" && epicRisks && (
-          <RisksManager
-            model={epicRisks.model}
-            prefix={epicRisks.prefix}
-            userLabels={epicRisks.userLabels}
-            caps={riskCaps}
-            epicId={epic.id}
+        {activeTab === "issues" && epicIssues && (
+          <IssuesListShell
+            model={epicIssues.model}
+            userLabels={epicIssues.userLabels}
+            caps={issueCaps}
+            initiativeId={epic.id}
+            featureOptions={epic.children.map((c) => ({ id: c.id, title: c.title }))}
+            embedded
           />
         )}
       </EntityDetailShell>

@@ -1,10 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { RISK_LEVELS, type RiskLevel } from "@/modules/risks/domain/risk-matrix";
+import { RISK_LEVELS, type RiskLevel, type ExposureBand } from "@/modules/risks/domain/risk-matrix";
 import { ROAM_HEX, ROAM_LABELS, ROAM_STATUSES } from "@/modules/core/kernel/domain/roam";
-import type { MatrixCellCount, MatrixPlot } from "@/modules/risks/server/views/risks-list";
 import { BAND_FILL, LEVEL_LABELS } from "@/modules/risks/features/risk/components/labels";
+
+/** Matrix-Render-Typen — lokal gehalten, damit die (weiterverwendete) Matrix
+ *  nicht am gelöschten `risks-list`-View hängt. Die Issue-/Risk-Views formen
+ *  ihre Plots strukturell auf diese Shape (Feld `riskId`). */
+export interface MatrixPlot {
+  riskId: string;
+  displayNumber: string | null;
+  roamStatus: string;
+  /** inherent → each reassessment → current (empty when unscored). */
+  trail: { probability: RiskLevel; impact: RiskLevel }[];
+}
+export interface MatrixCellCount {
+  probability: RiskLevel;
+  impact: RiskLevel;
+  key: string;
+  band: ExposureBand;
+  count: number;
+}
 
 /** SVG geometry (viewBox units). */
 const CELL = 64;
@@ -51,7 +68,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
   const gridBottom = PAD_TOP + N * CELL;
 
   return (
-    <div className="space-y-3 rounded-lg border bg-card p-4">
+    <div className="space-y-3 rounded-lg border bg-card p-4" data-tour="risk-matrix">
       <div className="overflow-x-auto">
         <svg
           viewBox={`0 0 ${width} ${height}`}
@@ -200,6 +217,7 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
               );
             }),
           )}
+
         </svg>
       </div>
 

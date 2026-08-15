@@ -26,13 +26,13 @@ export type RevalidationResource =
   | "budgetPlanRevision"
   | "timeline"
   | "story"
-  | "impediment"
   | "dependency"
   | "ziele"
   | "goalCustomFields"
   | "setup"
   | "risk"
-  | "portfolioFilter";
+  | "portfolioFilter"
+  | "roleOnboarding";
 
 const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   art: ["/structure", "/art/[artId]", "/art/[artId]/settings", "/value-streams/[id]"],
@@ -46,6 +46,10 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/feature/[featureId]",
     "/pi/[piId]",
     "/pi-planning",
+    // Die Cockpit-Vollroute und die persönliche Inbox fehlten hier: ein
+    // Owner-Wechsel blieb dort sichtbar veraltet, obwohl er gespeichert war.
+    "/umsetzung/feature/[id]",
+    "/my-tasks",
   ],
   epic: [
     "/portfolio",
@@ -68,14 +72,19 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/feature/[featureId]",
   ],
   story: ["/feature/[featureId]"],
-  impediment: ["/art/[artId]/impediments"],
   dependency: ["/feature/[featureId]", "/pi/[piId]/dependencies"],
   ziele: ["/ziele"],
   // Feld-Defs wirken auf die Admin-Seite UND auf jeden Ziel-Drawer.
   goalCustomFields: ["/admin/goal-fields", "/ziele"],
   setup: ["/setup"],
-  risk: ["/risks", "/portfolio/epics/[id]"],
+  // `risk`-Actions decken das Issue-Register, den Epic-Issues-Tab und die
+  // Portfolio-Übersicht (Risiken-Kachel).
+  risk: ["/issues", "/portfolio/epics/[id]", "/portfolio"],
   portfolioFilter: ["/portfolio"],
+  // Nur die Nachschlage-Seite. Das Willkommensfenster selbst hängt am
+  // Dashboard-Layout und wird nach dem Annehmen clientseitig geschlossen —
+  // ein globales Layout-Revalidate für jede Quittung wäre unverhältnismäßig.
+  roleOnboarding: ["/meine-rolle"],
 };
 
 /** Revalidates every route registered for the given resource. */

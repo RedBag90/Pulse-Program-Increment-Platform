@@ -35,6 +35,7 @@ export type Action =
   | "feature.review.submit"
   | "feature.review.decide"
   | "feature.delivery.set"
+  | "feature.owner.assign"
   | "pi.create"
   | "pi.update"
   | "pi.start"
@@ -65,7 +66,8 @@ export type Action =
   | "role.capability.manage"
   | "goal.custom_field.manage"
   | "pi.demo.manage"
-  | "portfolio_filter.manage";
+  | "portfolio_filter.manage"
+  | "role.onboarding.manage";
 
 /** A scope dimension a grant may additionally require the principal to match. */
 export type ScopeCheck = "value_stream" | "art" | "team" | "own";
@@ -224,6 +226,15 @@ export const POLICIES: Record<Action, Grant[]> = {
     { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, EPIC_OWNER, RTE, FEATURE_OWNER, VIEWER] },
   ],
 
+  // Eigenes Rollen-Onboarding quittieren und den Tour-Fortschritt fortschreiben
+  // (Modul `onboarding`, ADR-0017) — reine Selbstbedienung wie
+  // `portfolio_filter.manage`: JEDE Rolle inklusive `viewer`, weil gerade der
+  // Nur-Leser eine Einführung braucht. Der Service schreibt ausschließlich
+  // `userId = principal.id`, die Zeilen sind zusätzlich per RLS user-isoliert.
+  "role.onboarding.manage": [
+    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, EPIC_OWNER, RTE, FEATURE_OWNER, VIEWER] },
+  ],
+
   "feature.delete": [{ roles: [PORTFOLIO_MANAGER, RTE, TENANT_ADMIN] }],
   "feature.review.decide": [{ roles: [RTE] }],
 
@@ -237,6 +248,17 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Delivery-lifecycle transitions on Features (approved → in_progress, pause,
   // resume, complete, cancel). Same audience as "feature.update".
   "feature.delivery.set": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
+
+  // Wer ein Feature an eine Person übergibt. Bewusst eine eigene Action statt
+  // `feature.update` mitzubenutzen: Epic Owner und Wertstrom-Verantwortliche
+  // dürfen den Inhalt eines Features NICHT ändern, sollen aber die
+  // Verantwortung zuweisen können. Das Rollenmodell kennt keine Vererbung —
+  // „ab Epic Owner aufwärts" steht deshalb hier ausgeschrieben.
+  // Der Wertstrom-Scope beim VS Owner spiegelt `epic.owner.assign`.
+  "feature.owner.assign": [
+    { roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER, EPIC_OWNER] },
+    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
+  ],
 
   // ── Dependencies ────────────────────────────────────────────────────────
   "dependency.link": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],

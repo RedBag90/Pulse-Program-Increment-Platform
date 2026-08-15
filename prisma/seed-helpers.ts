@@ -176,8 +176,12 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
   await prisma.initiative.deleteMany({ where: { tenantId, level: 1 } });
   await prisma.initiative.deleteMany({ where: { tenantId, level: 0 } });
 
+  // Issues (single type) — satellites first, then rows (self-nesting drops together)
+  await prisma.issueMitigation.deleteMany(w);
+  await prisma.issueAssessment.deleteMany(w);
+  await prisma.issue.deleteMany(w);
+
   // PI-scoped
-  await prisma.impediment.deleteMany(w);
   await prisma.systemDemoItem.deleteMany(w);
   await prisma.systemDemo.deleteMany(w);
   await prisma.programIncrement.deleteMany(w);

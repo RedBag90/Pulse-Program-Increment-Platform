@@ -956,6 +956,9 @@ export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) 
           level: true,
           status: true,
           description: true,
+          // Grundlage der Sortierung „Neueste/Älteste zuerst" in der
+          // Deliverables-Tabelle — ohne das Feld fehlt ihr der Bezugspunkt.
+          createdAt: true,
           artId: true,
           piId: true,
           acceptanceCriteria: true,

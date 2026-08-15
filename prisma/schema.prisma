@@ -109,6 +109,33 @@ model SavedPortfolioFilter {
   @@map("saved_portfolio_filters")
 }
 
+/// Per-User-Quittung + gesehene Tour-Schritte je zugewiesener Rolle
+/// (Modul `onboarding`, ADR-0017). Der Key ist die **Rolle**, nicht die
+/// Assignment-Row: ein Scope-Edit im Admin ist heute remove + re-add, würde also
+/// sonst jedes Mal ein neues Pop-up auslösen.
+///
+/// `seenStepKeys` ist bewusst eine Menge statt eines Fortschritts-Zeigers: wird
+/// ein Modul nachträglich freigeschaltet, sind dessen Tour-Schritte automatisch
+/// „offen" und der Nutzer bekommt genau die neuen Aufgaben gezeigt. „Tour
+/// abgeschlossen" ist daraus abgeleitet (keine offenen Schritte mehr) und wird
+/// nicht gespeichert. Schritt-Keys leben im Code
+/// (`src/modules/onboarding/domain/role-playbook.ts`).
+/// Tenant+User-scoped (plain columns, wie SavedPortfolioFilter).
+model RoleOnboarding {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  role           String
+  acknowledgedAt DateTime? @map("acknowledged_at")
+  seenStepKeys   String[]  @map("seen_step_keys")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([tenantId, userId, role])
+  @@index([tenantId, userId])
+  @@map("role_onboarding")
+}
+
 /// A reusable, named PI calendar: a uniform cadence × count anchored at a
 /// day/month. Applying it to an ART for a given year generates contiguous PIs
 /// named "PI 1" … "PI n" (see [pi-standard.ts](src/domain/pi-standard.ts)),
@@ -576,7 +603,7 @@ model Art {
   timeline    Timeline?          @relation(fields: [timelineId], references: [id], onDelete: SetNull)
   pis         ProgramIncrement[]
   features    Initiative[]       @relation("FeatureArt")
-  impediments Impediment[]
+  issues      Issue[]
   budget      ArtBudget?
   goalLinks   GoalArtLink[]
 
@@ -616,7 +643,7 @@ model ProgramIncrement {
   art         Art?         @relation(fields: [artId], references: [id])
   timeline    Timeline?    @relation(fields: [timelineId], references: [id], onDelete: Cascade)
   initiatives Initiative[]
-  impediments Impediment[]
+  issues      Issue[]
   systemDemo  SystemDemo?
 
   @@unique([timelineId, name])
@@ -802,7 +829,7 @@ model Initiative {
   themeLinks       ThemeEpicLink[]
   goalLinks        GoalEpicLink[]
   budgetAllocation BudgetAllocation?
-  riskLinks        RiskEpicLink[]
+  issues           Issue[]
 
   @@index([tenantId])
   @@index([parentId])
@@ -1104,130 +1131,91 @@ model RoleCapability {
   @@map("role_capabilities")
 }
 
-model Impediment {
-  id          String    @id @default(uuid()) @db.Uuid
-  tenantId    String    @map("tenant_id") @db.Uuid
-  artId       String    @map("art_id") @db.Uuid
-  piId        String?   @map("pi_id") @db.Uuid
-  title       String
-  description String?   @db.Text
-  severity    String    @default("medium") // low | medium | high | critical
-  status      String    @default("open") // open | escalated | resolved
-  // ROAM-Status für die PI-Closure: open | resolved | owned | accepted |
-  // mitigated. Ergänzt — nicht ersetzt — den Workflow-Status; nur für die
-  // Closure-Sicht relevant.
-  roamStatus  String    @default("open") @map("roam_status")
-  roamedAt    DateTime? @map("roamed_at")
-  roamedBy    String?   @map("roamed_by") @db.Uuid
-  raisedBy    String    @map("raised_by") @db.Uuid
-  resolvedAt  DateTime? @map("resolved_at")
-  resolvedBy  String?   @map("resolved_by") @db.Uuid
-  resolution  String?   @db.Text
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+// ── Issue module (single type = risk model) ──────────────────────────────────
+// One tenant-wide register: probability×impact → exposure/matrix + ROAM + review
+// + Feature/Epic linkage (`initiativeId`) + head-issue nesting (`parentId`).
+// Replaced the old separate Risk + Impediment tables (dropped at cutover).
 
-  art Art               @relation(fields: [artId], references: [id])
-  pi  ProgramIncrement? @relation(fields: [piId], references: [id])
-
-  @@index([artId, status])
-  @@index([piId])
-  @@map("impediments")
-}
-
-// ── Risk Management module (docs/concepts/risk-management-module.md) ───────────
-// Tenant-level Risk register with ROAM + probability×impact matrix, n:m Epic
-// links. Tenant-scoped by a plain column (like Impediment); no `tenant` relation.
-
-model Risk {
+model Issue {
   id                   String    @id @default(uuid()) @db.Uuid
   tenantId             String    @map("tenant_id") @db.Uuid
-  // Per-tenant sequential handle — null until documented (suggestions have none).
-  riskNumber           Int?      @map("risk_number")
+  issueNumber          Int?      @map("issue_number") // per-tenant sequential handle
   title                String
   description          String?   @db.Text
-  // Inherent assessment (optional → unscored). Current = latest RiskAssessment
-  // else inherent. Levels: very_low | low | medium | high | very_high.
-  probability          String?
+  // Single assessment axis: probability×impact → exposure band.
+  probability          String? // very_low | low | medium | high | very_high
   impact               String?
   category             String? // technical | business | schedule | external
-  targetResolutionDate DateTime? @map("target_resolution_date")
-  // Authoring axis: suggested | documented | rejected.
-  reviewStatus         String    @default("suggested") @map("review_status")
-  // ROAM disposition: open | resolved | owned | accepted | mitigated.
+  reviewStatus         String    @default("documented") @map("review_status") // suggested | documented | rejected
+  // Shared ROAM disposition (covers the lifecycle).
   roamStatus           String    @default("open") @map("roam_status")
   roamRationale        String?   @map("roam_rationale") @db.Text
-  // The accountable Risk owner (assignable any time, independent of ROAM).
+  roamedAt             DateTime? @map("roamed_at")
+  roamedBy             String?   @map("roamed_by") @db.Uuid
+  // Ownership / provenance.
   ownerId              String?   @map("owner_id") @db.Uuid
   raisedBy             String    @map("raised_by") @db.Uuid
   reviewedBy           String?   @map("reviewed_by") @db.Uuid
   reviewedAt           DateTime? @map("reviewed_at")
+  targetResolutionDate DateTime? @map("target_resolution_date")
+  // Head-issue nesting (self-referential, like Objective) — bundle issues under a head.
+  parentId             String?   @map("parent_id") @db.Uuid
+  // Scoping: the work item (Feature or Epic) + optional ART/PI context.
+  initiativeId         String?   @map("initiative_id") @db.Uuid
+  artId                String?   @map("art_id") @db.Uuid
+  piId                 String?   @map("pi_id") @db.Uuid
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
   deletedAt            DateTime? @map("deleted_at")
 
-  epicLinks   RiskEpicLink[]
-  mitigations RiskMitigation[]
-  assessments RiskAssessment[]
+  parent      Issue?            @relation("IssueHierarchy", fields: [parentId], references: [id])
+  children    Issue[]           @relation("IssueHierarchy")
+  initiative  Initiative?       @relation(fields: [initiativeId], references: [id])
+  art         Art?              @relation(fields: [artId], references: [id])
+  pi          ProgramIncrement? @relation(fields: [piId], references: [id])
+  mitigations IssueMitigation[]
+  assessments IssueAssessment[]
 
-  @@unique([tenantId, riskNumber])
-  @@index([tenantId, reviewStatus])
+  @@unique([tenantId, issueNumber])
   @@index([tenantId, roamStatus])
   @@index([tenantId, ownerId])
-  @@map("risks")
+  @@index([initiativeId])
+  @@index([artId])
+  @@index([parentId])
+  @@map("issues")
 }
 
-// n:m Risk↔Epic — purely referential (deep-link), hard FK to Initiative, no value.
-model RiskEpicLink {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
-  riskId    String   @map("risk_id") @db.Uuid
-  epicId    String   @map("epic_id") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at")
-  createdBy String   @map("created_by") @db.Uuid
-
-  risk Risk       @relation(fields: [riskId], references: [id], onDelete: Cascade)
-  epic Initiative @relation(fields: [epicId], references: [id], onDelete: Cascade)
-
-  @@unique([riskId, epicId])
-  @@index([tenantId, riskId])
-  @@index([epicId])
-  @@map("risk_epic_links")
-}
-
-// Mitigation activity log (text-only; a risk has many).
-model RiskMitigation {
+model IssueMitigation {
   id          String   @id @default(uuid()) @db.Uuid
   tenantId    String   @map("tenant_id") @db.Uuid
-  riskId      String   @map("risk_id") @db.Uuid
+  issueId     String   @map("issue_id") @db.Uuid
   description String   @db.Text
   createdAt   DateTime @default(now()) @map("created_at")
   createdBy   String   @map("created_by") @db.Uuid
 
-  risk Risk @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId, riskId])
-  @@map("risk_mitigations")
+  @@index([tenantId, issueId])
+  @@map("issue_mitigations")
 }
 
-// Reassessment trail — every valuation over time (inherent is #0, on Risk).
-model RiskAssessment {
+model IssueAssessment {
   id          String   @id @default(uuid()) @db.Uuid
   tenantId    String   @map("tenant_id") @db.Uuid
-  riskId      String   @map("risk_id") @db.Uuid
+  issueId     String   @map("issue_id") @db.Uuid
   probability String
   impact      String
   note        String?  @db.Text
   createdAt   DateTime @default(now()) @map("created_at")
   createdBy   String   @map("created_by") @db.Uuid
 
-  risk Risk @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId, riskId])
-  @@map("risk_assessments")
+  @@index([tenantId, issueId])
+  @@map("issue_assessments")
 }
 
-// Per-tenant risks config + gapless number counter.
-model RiskSettings {
+model IssueSettings {
   id         String   @id @default(uuid()) @db.Uuid
   tenantId   String   @unique @map("tenant_id") @db.Uuid
   prefix     String   @default("R-")
@@ -1235,9 +1223,11 @@ model RiskSettings {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  @@map("risk_settings")
+  @@map("issue_settings")
 }
 
+/// A named cluster grouping multiple Issues; nestable via `parentClusterId`
+/// (Epic-level cluster → Portfolio-level cluster). Membership = `Issue.clusterId`.
 model JiraConfig {
   id             String   @id @default(uuid()) @db.Uuid
   tenantId       String   @unique @map("tenant_id") @db.Uuid
