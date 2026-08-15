@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId, ArtId } from "@/modules/core/kernel/domain/types";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { listEpics } from "@/modules/work/server/services/epic";
 import { listOverviewFeatures } from "@/modules/work/server/services/feature";
 import { parseTimeline } from "@/modules/work/domain/timeline";
@@ -193,7 +193,6 @@ export interface PortfolioOverview {
   blockedEpics: OverviewEpicCard[];
   /** Epics mit `needsSteeringAttention` — die Steering-Agenda-Tabelle. */
   steeringEpics: SteeringEpicRow[];
-  impedimentsOpen: number;
 
   goals: OverviewGoal[];
   goalsOnTrack: number;
@@ -259,7 +258,6 @@ export interface PortfolioOverviewInputs {
   board: PortfolioBudgetingBoard;
   vsBudgets: PortfolioVsBudgets;
   activePis: Array<{ id: string; name: string; endDate: Date }>;
-  impedimentsOpen: number;
   structureGap: StructureGap;
   practiceAdoption: PracticeAdoption;
   /** Pinned "today" — server passes `new Date()`, tests pass a fixed instant. */
@@ -290,7 +288,6 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     board,
     vsBudgets,
     activePis: activePisRaw,
-    impedimentsOpen,
     structureGap,
     practiceAdoption,
     now,
@@ -548,7 +545,6 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     staleEpics,
     blockedEpics,
     steeringEpics,
-    impedimentsOpen,
     goals,
     goalsOnTrack,
     goalAverageProgress,
@@ -581,11 +577,6 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
  * `buildPortfolioOverviewModel` (above) owns the reshape; this loader exists
  * separately so the builder is testable against in-memory fixtures.
  */
-/** Port: liefert die Anzahl offener Impediments für die ARTs. Der Composition-
- *  Root (Portfolio-Route) reicht den Drumbeat-Adapter herein — Work importiert
- *  den Impediment-Service (Drumbeat) nicht direkt (ADR-0013). */
-export type OpenImpedimentsCountPort = (artIds: ArtId[]) => Promise<number>;
-
 /** Budgeting-Daten, die die Portfolio-Übersicht anzeigt — als Struktur-Vertrag,
  *  damit das Work-View den Budgeting-Service (oberer Layer) nicht importiert
  *  (ADR-0013). Der Composition-Root (Route) reicht den Budgeting-Adapter herein. */
@@ -614,7 +605,6 @@ export type RisksSummaryPort = () => Promise<OverviewRisk[]>;
 export async function loadPortfolioOverviewInputs(
   db: PrismaClient,
   tenantId: TenantId,
-  getOpenImpedimentsCount: OpenImpedimentsCountPort,
   getBudgetingData: BudgetingDataPort,
   getRisks: RisksSummaryPort,
   filter: PortfolioFilter = EMPTY_PORTFOLIO_FILTER,
@@ -627,7 +617,6 @@ export async function loadPortfolioOverviewInputs(
     ownerLabels,
     strategyTree,
     budgeting,
-    arts,
     activePis,
     structureGap,
     practiceAdoption,
@@ -649,10 +638,6 @@ export async function loadPortfolioOverviewInputs(
     // Ziele: nur der Wertstrom-Filter greift (loadStrategyTree kennt nur diesen).
     loadStrategyTree(db, tenantId, { valueStreamIds: filter.valueStreamIds }),
     getBudgetingData(),
-    db.art.findMany({
-      where: { tenantId, deletedAt: null },
-      select: { id: true },
-    }),
     db.programIncrement.findMany({
       where: { tenantId, status: "active" },
       select: { id: true, name: true, endDate: true },
@@ -673,8 +658,6 @@ export async function loadPortfolioOverviewInputs(
     epicLinkCount: 0,
   }));
 
-  const artIds = arts.map((a) => a.id as ArtId);
-  const impedimentsOpen = artIds.length === 0 ? 0 : await getOpenImpedimentsCount(artIds);
   const { board, vsBudgets } = budgeting;
 
   return {
@@ -687,7 +670,6 @@ export async function loadPortfolioOverviewInputs(
     board,
     vsBudgets,
     activePis,
-    impedimentsOpen,
     structureGap,
     practiceAdoption,
     now: new Date(),
@@ -701,19 +683,11 @@ export async function loadPortfolioOverviewInputs(
 export async function loadPortfolioOverview(
   db: PrismaClient,
   tenantId: TenantId,
-  getOpenImpedimentsCount: OpenImpedimentsCountPort,
   getBudgetingData: BudgetingDataPort,
   getRisks: RisksSummaryPort,
   filter: PortfolioFilter = EMPTY_PORTFOLIO_FILTER,
 ): Promise<PortfolioOverview> {
   return buildPortfolioOverviewModel(
-    await loadPortfolioOverviewInputs(
-      db,
-      tenantId,
-      getOpenImpedimentsCount,
-      getBudgetingData,
-      getRisks,
-      filter,
-    ),
+    await loadPortfolioOverviewInputs(db, tenantId, getBudgetingData, getRisks, filter),
   );
 }

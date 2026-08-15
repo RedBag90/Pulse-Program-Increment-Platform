@@ -164,3 +164,41 @@ describe("hasCapability", () => {
     expect(hasCapability(p, "epic.update")).toBe(true);
   });
 });
+
+/**
+ * Der Feature-Owner soll „ab Epic Owner aufwärts" zuweisbar sein. Das
+ * Rollenmodell kennt bewusst **keine Vererbung** — es gibt also nichts, was
+ * „aufwärts" von selbst garantiert. Diese Tests sind die einzige Stelle, an der
+ * die vereinbarte Rollenmenge festgehalten wird.
+ */
+describe("feature.owner.assign", () => {
+  const ALLOWED = [
+    ROLES.PORTFOLIO_MANAGER,
+    ROLES.RTE,
+    ROLES.FEATURE_OWNER,
+    ROLES.EPIC_OWNER,
+  ] as const;
+
+  it.each(ALLOWED)("%s darf tenant-weit zuweisen", (role) => {
+    expect(hasCapability(principal({ roles: [role] }), "feature.owner.assign")).toBe(true);
+  });
+
+  it("viewer darf nicht", () => {
+    expect(hasCapability(principal({ roles: [ROLES.VIEWER] }), "feature.owner.assign")).toBe(false);
+  });
+
+  it("die Admins kommen über den Bypass durch, nicht über einen Grant", () => {
+    for (const role of [ROLES.TENANT_ADMIN, ROLES.PLATFORM_ADMIN]) {
+      expect(hasCapability(principal({ roles: [role] }), "feature.owner.assign")).toBe(true);
+    }
+  });
+
+  it("der Wertstrom-Verantwortliche darf nur im eigenen Wertstrom", () => {
+    const p = principal({
+      roles: [ROLES.VALUE_STREAM_OWNER],
+      scopes: { valueStreamIds: ["vs-1"], artIds: [], teamIds: [] } as PrincipalScopes,
+    });
+    expect(hasCapability(p, "feature.owner.assign", { valueStreamId: "vs-1" })).toBe(true);
+    expect(hasCapability(p, "feature.owner.assign", { valueStreamId: "vs-2" })).toBe(false);
+  });
+});

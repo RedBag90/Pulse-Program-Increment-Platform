@@ -15,6 +15,8 @@ import {
 import { NAV_GROUPS } from "@/components/nav/nav-config";
 import { Topbar } from "@/components/nav/topbar";
 import { CreateMenu } from "@/app/[locale]/(dashboard)/_components/create-menu";
+import { buildRoleOnboardingModel } from "@/modules/onboarding/server/views/role-onboarding";
+import { RoleOnboardingMount } from "@/modules/onboarding/features/onboarding/components/role-onboarding-mount";
 
 /** Ob ein Pfad/Item mit dem Entitlement-Set des Tenants nutzbar ist (fail-closed). */
 function moduleAllowed(path: string, enabled: readonly ModuleKey[]): boolean {
@@ -55,6 +57,21 @@ export default async function DashboardLayout({
   ]);
   const practices = effectivePractices(targetModel);
 
+  // Rollen-Onboarding (ADR-0017): hängt hier, weil das Layout über die
+  // Client-Navigation montiert bleibt — nur so überlebt eine Tour den
+  // Seitenwechsel. Braucht `practices`, filtert also nach dem Target-Model.
+  //
+  // Bewusst mit Fallback: das Onboarding ist eine Beigabe und darf das gesamte
+  // Dashboard nie mitreißen. Ohne diesen Catch legt ein Defekt darin (Schema-
+  // Drift nach `prisma generate` im Dev, DB-Hiccup) jede Seite unter diesem
+  // Layout lahm — genau das ist einmal passiert.
+  const { notices } = await buildRoleOnboardingModel(db, principal, practices).catch(
+    (e: unknown) => {
+      console.error("[onboarding] Modell konnte nicht geladen werden:", e);
+      return { notices: [] };
+    },
+  );
+
   // Drei Achsen (alle blenden aus): practice/capability wie bisher; das Modul-
   // Entitlement blendet nicht freigeschaltete Module komplett aus — kein
   // Upsell-Schloss mehr, gesperrte Module tauchen gar nicht in der Nav auf.
@@ -87,6 +104,7 @@ export default async function DashboardLayout({
         createSlot={<CreateMenu />}
       />
       <main className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</main>
+      <RoleOnboardingMount notices={notices} />
     </div>
   );
 }

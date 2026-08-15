@@ -12,6 +12,9 @@ import {
   firstEnabledHome,
   PERSONAL_DEFAULT_MODULES,
 } from "@/modules/core/kernel/domain/modules";
+// Laufzeit-Quelle aller Actions: die `Action`-Union ist ein Typ, `POLICIES` ist
+// ihr `Record` — die Keys sind damit die vollständige Liste zur Laufzeit.
+import { POLICIES, type Action } from "@/server/auth/policies";
 
 describe("moduleForPath", () => {
   it("mappt Segmente auf die 4 Module (mit und ohne Locale-Präfix)", () => {
@@ -23,7 +26,7 @@ describe("moduleForPath", () => {
     expect(moduleForPath("/de/umsetzung")).toBe("drumbeat");
     expect(moduleForPath("/roadmap/portfolio")).toBe("drumbeat");
     expect(moduleForPath("/controlling/budget-plan")).toBe("budgeting");
-    expect(moduleForPath("/de/risks")).toBe("risks");
+    expect(moduleForPath("/de/issues")).toBe("risks");
   });
 
   it("core-Segmente + Root sind immer verfügbar", () => {
@@ -53,6 +56,24 @@ describe("moduleForPath", () => {
     const unregistered = segments.filter((s) => moduleForPath(`/de/${s}`) === null);
     expect(unregistered).toEqual([]);
   });
+
+  it("GEGENRICHTUNG: jedes registrierte Segment hat auch ein Verzeichnis", () => {
+    // Die Vorwärts-Richtung oben fängt neue Routen ohne Registrierung. Diese
+    // hier fängt das Gegenteil: ein Rückbau, der die Route löscht und den
+    // Registry-Eintrag stehen lässt (so überlebte `core.segments: "team"` den
+    // Team-Rückbau). Ein solcher Eintrag behauptet Fachlichkeit, die es nicht
+    // mehr gibt — und lässt einen Deep-Link ins Leere durch den Route-Guard.
+    const dir = join(process.cwd(), "src/app/[locale]/(dashboard)");
+    const registered = [...CORE_SEGMENTS, ...MODULE_KEYS.flatMap((k) => MODULES[k].segments)];
+    const orphaned = registered.filter((s) => {
+      try {
+        return !statSync(join(dir, s)).isDirectory();
+      } catch {
+        return true;
+      }
+    });
+    expect(orphaned).toEqual([]);
+  });
 });
 
 describe("moduleForAction", () => {
@@ -80,12 +101,38 @@ describe("moduleForAction", () => {
     expect(moduleForAction("art.create")).toBe("core");
     expect(moduleForAction("art_budget.manage")).toBe("budgeting");
     expect(moduleForAction("pi.create")).toBe("drumbeat");
-    expect(moduleForAction("pi_objective.update")).toBe("drumbeat");
     expect(moduleForAction("pi_standard.manage")).toBe("drumbeat");
   });
 
   it("tenant.create ist ungegated (Platform-API)", () => {
     expect(moduleForAction("tenant.create")).toBeNull();
+  });
+
+  it("VOLLSTÄNDIGKEIT: jede Action der Registry hat ein Modul (nur Platform ist ungegated)", () => {
+    // Der Header von modules.ts hält fest, dass ausschließlich `tenant.create`
+    // und die Platform-API ohne Modul-Zuordnung bleiben. Ohne diesen Test bleibt
+    // eine vergessene Zuordnung stumm — `moduleForAction` liefert dann `null`,
+    // und das Action-Gate lässt die Aktion in JEDEM Tenant durch.
+    const UNGATED = new Set(["tenant.create", "platform.tenants.manage", "platform.users.manage"]);
+    const unmapped = (Object.keys(POLICIES) as Action[])
+      .filter((a) => !UNGATED.has(a))
+      .filter((a) => moduleForAction(a) === null);
+    expect(unmapped).toEqual([]);
+  });
+
+  it("KEINE LEICHEN: jeder Action-Matcher trifft mindestens eine echte Action", () => {
+    // Gegenrichtung: bleibt beim Rückbau eines Features ein Matcher stehen
+    // (wie `team.` / `pi_objective.` nach dem Team-Rückbau), zeigt die Registry
+    // eine Fachlichkeit an, die es nicht mehr gibt.
+    const actions = Object.keys(POLICIES) as Action[];
+    const dead = MODULE_KEYS.flatMap((k) =>
+      MODULES[k].actions
+        .filter((m) =>
+          actions.every((a) => (m.endsWith(".") ? !a.startsWith(m) : a !== m)),
+        )
+        .map((m) => `${k}: ${m}`),
+    );
+    expect(dead).toEqual([]);
   });
 });
 

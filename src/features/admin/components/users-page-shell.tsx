@@ -113,7 +113,10 @@ export function UsersPageShell({ model, canManage }: Props) {
       )}
 
       <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
-        <div className="lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto lg:pr-1">
+        <div
+          data-tour="admin-user-list"
+          className="lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto lg:pr-1"
+        >
           <UserList users={filteredUsers} selection={selection} onSelectUser={onSelectUser} />
         </div>
 

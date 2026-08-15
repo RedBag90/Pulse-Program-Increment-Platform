@@ -357,6 +357,38 @@ resource)` is the _authoritative, scope-aware_ check, run inside a service
   actions via `moduleForAction`. Unregistered route segments are locked — the
   module-registry completeness test forces new segments to be registered.
 
+## Rollen-Onboarding (Modul `onboarding`)
+
+Erklärt einem Nutzer, was seine zugewiesene Rolle verantwortet und wo die
+zugehörigen Aufgaben liegen. **Code-Modul ohne Entitlement-Key** — siehe
+[ADR-0017](docs/adr/0017-onboarding-module-without-entitlement.md).
+
+- **Playbook** — was eine Rolle tut, als pure Daten (`ROLE_PLAYBOOKS` in
+  `src/modules/onboarding/domain/role-playbook.ts`): **Mission** (ein
+  modulneutraler Satz, wird immer gezeigt), **Verantwortung** und **Übergaben**
+  (je ein `PlaybookClaim` mit optionalem Gate) sowie die **Tour-Schritte**.
+  Genau ein Playbook je Rolle — bei Mehrfachrollen wird nichts gemerged.
+- **Tour-Schritt** — eine Fläche plus ein Satz Verantwortung: `route` (statisch,
+  locale-los), optionaler `data-tour`-**Anker**, optionale `capability`/`practice`.
+  Sein `key` ist der Persistenz-Schlüssel und wird nie umbenannt.
+- **Auflösung** (`resolveTour`) — filtert Schritte **und** Prosa gegen
+  Entitlement ∧ Practice ∧ Capability, wobei das Modul einer Capability über
+  `moduleForAction` mitgeprüft wird (eine Rolle *hat* `pi.create` auch ohne
+  Drumbeat — nutzbar ist sie erst mit). Gesperrtes wird weder gezeigt noch
+  erwähnt; `steps` darf leer sein.
+- **Quittung & Fortschritt** — `RoleOnboarding` je `(Tenant, Nutzer, Rolle)`.
+  Schlüssel ist die **Rolle**, nicht die Assignment-Row (ein Scope-Edit ist
+  remove + re-add). Fortschritt ist die **Menge** gesehener Schritte
+  (`seenStepKeys`), kein Zeiger — „Tour fertig" ist daraus abgeleitet.
+- **Notice** (`onboardingNotices`) — die einzige Stelle, die entscheidet, was
+  erscheint: `new_role` (noch nicht quittiert; blockierender Dialog, auch bei
+  leerer Tour) oder `new_scope` (Schritte sind durch ein nachgeschaltetes Modul
+  / eine Practice / ein Recht dazugekommen; schließbarer Hinweis). Damit fallen
+  Erstkontakt und Nachrüstung aus derselben Rechnung.
+- **Verweise nach oben sind Strings** — Route, Anker, Capability-Name. Das
+  Modul ist ein Blatt über Core und importiert kein Fach-Modul; die Konsistenz
+  sichern die Tests in `domain/__tests__/role-playbook.test.ts`.
+
 ## Platform-Admin (cross-tenant governance)
 
 - **`platform_admin` is GLOBAL** — unlike every other role it is not scoped to the

@@ -1,7 +1,7 @@
 import { summarizePiOverview, type PiOverviewSummary } from "@/modules/drumbeat/domain/pi-overview";
 
 /**
- * PI Detail page-model — turns the loaded PI + impediments + candidate
+ * PI Detail page-model — turns the loaded PI + open-issue count + candidate
  * Features into the render-ready shape the multi-ART detail page consumes.
  * Pure; mirrors `buildPlanningModel` / Portfolio Overview.
  *
@@ -44,10 +44,6 @@ export interface PiDetailPi {
   endDate: Date;
   timeline: PiDetailTimeline | null;
   initiatives: PiDetailFeatureRow[];
-}
-
-export interface PiDetailImpediment {
-  status: string;
 }
 
 export interface PiDetailCandidateRow {
@@ -93,7 +89,8 @@ export interface PiDetailModel {
 
 export interface PiDetailInputs {
   pi: PiDetailPi;
-  impediments: PiDetailImpediment[];
+  /** Offene Issues (roamStatus "open") in den ARTs dieses PI — vorab gezählt. */
+  openIssues: number;
   candidates: PiDetailCandidateRow[];
 }
 
@@ -113,7 +110,7 @@ function toNumber(v: number | string | { toNumber(): number } | null): number | 
  * "primaryArt is always defined" invariant for downstream consumers.
  */
 export function buildPiDetailModel(inputs: PiDetailInputs): PiDetailModel | null {
-  const { pi, impediments, candidates } = inputs;
+  const { pi, openIssues, candidates } = inputs;
   const timeline = pi.timeline;
   if (!timeline) return null;
   const arts = timeline.arts;
@@ -150,7 +147,7 @@ export function buildPiDetailModel(inputs: PiDetailInputs): PiDetailModel | null
 
   const summary = summarizePiOverview({
     features: pi.initiatives.map((f) => ({ status: f.status })),
-    impediments: impediments.map((i) => ({ status: i.status })),
+    openIssues,
   });
 
   return {

@@ -72,6 +72,8 @@
     "dependencies": "Dependencies",
     "dependenciesGroup": "Dependencies",
     "risks": "Risks",
+    "issues": "Issues",
+    "riskReview": "Risk-Review",
     "setupControlling": "Setup & Controlling",
     "others": "Other",
     "targetState": "Target State",

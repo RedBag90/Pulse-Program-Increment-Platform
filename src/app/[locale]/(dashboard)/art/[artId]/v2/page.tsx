@@ -3,19 +3,15 @@ import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/modules/core/org/server/services/art";
 import { listPis } from "@/modules/drumbeat/server/services/pi";
-import { listImpediments } from "@/modules/drumbeat/server/services/impediment";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { buildImpedimentsListModel } from "@/server/views/impediments-list";
 import {
   ArtDetailShell,
   resolveArtTab,
 } from "@/modules/core/org/features/art/components/art-detail-shell";
 import { ArtOverviewTab } from "@/modules/core/org/features/art/components/tabs/art-overview-tab";
 import { ArtPiTab } from "@/modules/core/org/features/art/components/tabs/art-pi-tab";
-import { Suspense } from "react";
-import { ImpedimentsListShell } from "@/modules/drumbeat/features/impediment/components/impediments-list-shell";
 import { ArtSettingsTab } from "@/modules/core/org/features/art/components/tabs/art-settings-tab";
 import { ArtHistoryTab } from "@/modules/core/org/features/art/components/tabs/art-history-tab";
 import { LayoutToggle } from "@/components/nav/layout-toggle";
@@ -50,56 +46,6 @@ export default async function ArtV2Page({ params, searchParams }: Props) {
   if (tab === "pi") {
     const { items: pis } = await listPis(db, principal.tenantId, artId as ArtId);
     tabContent = <ArtPiTab pis={pis} piCadenceWeeks={art.piCadenceWeeks} />;
-  } else if (tab === "impediments") {
-    const [{ items: impediments }, pis, userLabels] = await Promise.all([
-      listImpediments(db, principal.tenantId as TenantId, artId as ArtId, {}),
-      db.programIncrement.findMany({
-        where: { tenantId: principal.tenantId, artId },
-        orderBy: { startDate: "desc" },
-        select: { id: true, name: true },
-      }),
-      listTenantUserLabels(db, principal.tenantId),
-    ]);
-    const canCreate = hasCapability(principal, "impediment.create", {
-      tenantId: principal.tenantId,
-      artId,
-    });
-    const canEscalate = hasCapability(principal, "impediment.escalate", {
-      tenantId: principal.tenantId,
-      artId,
-    });
-    const canResolve = hasCapability(principal, "impediment.resolve", {
-      tenantId: principal.tenantId,
-      artId,
-    });
-    const model = buildImpedimentsListModel({
-      impediments: impediments.map((i) => ({
-        id: i.id,
-        title: i.title,
-        description: i.description,
-        status: i.status,
-        severity: i.severity,
-        raisedBy: i.raisedBy,
-        piId: i.piId,
-        sprintId: null,
-        createdAt: i.createdAt,
-        resolution: i.resolution,
-        resolvedAt: i.resolvedAt,
-      })),
-      pis,
-      userLabels,
-    });
-    tabContent = (
-      <Suspense fallback={null}>
-        <ImpedimentsListShell
-          model={model}
-          artId={artId}
-          canCreate={canCreate}
-          canEscalate={canEscalate}
-          canResolve={canResolve}
-        />
-      </Suspense>
-    );
   } else if (tab === "settings") {
     const [approvers, userLabels] = await Promise.all([
       listTenantApprovers(db, principal.tenantId),

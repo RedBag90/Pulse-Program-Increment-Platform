@@ -65,6 +65,8 @@ const config = [
                 "@/modules/budgeting/**",
                 "@/modules/risks",
                 "@/modules/risks/**",
+                "@/modules/onboarding",
+                "@/modules/onboarding/**",
               ],
               message: "core darf nicht aufwärts importieren (ADR-0013).",
             },
@@ -88,6 +90,8 @@ const config = [
                 "@/modules/budgeting/**",
                 "@/modules/risks",
                 "@/modules/risks/**",
+                "@/modules/onboarding",
+                "@/modules/onboarding/**",
               ],
               message: "work darf nicht aufwärts importieren (ADR-0013).",
             },
@@ -109,8 +113,10 @@ const config = [
                 "@/modules/budgeting/**",
                 "@/modules/risks",
                 "@/modules/risks/**",
+                "@/modules/onboarding",
+                "@/modules/onboarding/**",
               ],
-              message: "drumbeat ↮ budgeting/risks (ADR-0013).",
+              message: "drumbeat ↮ budgeting/risks; onboarding ist ein Blatt (ADR-0013/0017).",
             },
           ],
         },
@@ -130,8 +136,10 @@ const config = [
                 "@/modules/drumbeat/**",
                 "@/modules/risks",
                 "@/modules/risks/**",
+                "@/modules/onboarding",
+                "@/modules/onboarding/**",
               ],
-              message: "budgeting ↮ drumbeat/risks (ADR-0013).",
+              message: "budgeting ↮ drumbeat/risks; onboarding ist ein Blatt (ADR-0013/0017).",
             },
           ],
         },
@@ -151,8 +159,40 @@ const config = [
                 "@/modules/drumbeat/**",
                 "@/modules/budgeting",
                 "@/modules/budgeting/**",
+                "@/modules/onboarding",
+                "@/modules/onboarding/**",
               ],
               message: "risks ↮ drumbeat/budgeting; darf nur work+core importieren (ADR-0013).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // ── Onboarding (ADR-0017): ein Blatt über Core. Es erklärt die Funktionen der
+  //    oberen Module, verweist darauf aber ausschließlich per String (Route,
+  //    data-tour-Anker, Capability-Name) — nie per Import. Die Konsistenz dieser
+  //    Strings sichern die Tests in domain/__tests__/role-playbook.test.ts.
+  {
+    files: ["src/modules/onboarding/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/modules/work",
+                "@/modules/work/**",
+                "@/modules/drumbeat",
+                "@/modules/drumbeat/**",
+                "@/modules/budgeting",
+                "@/modules/budgeting/**",
+                "@/modules/risks",
+                "@/modules/risks/**",
+              ],
+              message:
+                "onboarding liest nur core und verweist auf obere Module per String (ADR-0017).",
             },
           ],
         },
@@ -189,6 +229,8 @@ const config = [
                 "@/modules/budgeting/**",
                 "@/modules/risks",
                 "@/modules/risks/**",
+                "@/modules/onboarding",
+                "@/modules/onboarding/**",
               ],
               message:
                 "Core-Tier-Infra darf keine Feature-Module importieren; nur src/app komponiert Module (P7 / ADR-0013).",

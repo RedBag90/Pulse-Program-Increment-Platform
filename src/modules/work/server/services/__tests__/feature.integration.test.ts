@@ -7,12 +7,14 @@ import {
   insertFeatureBetween,
   updateFeature,
   scoreFeature,
+  assignFeatureOwner,
 } from "@/modules/work/server/services/feature";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { EpicId, FeatureId, ArtId } from "@/modules/core/kernel/domain/types";
 import { randomUUID } from "crypto";
+import type { RequestContext } from "@/server/http/mutation-handler";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;
 let epicId: EpicId;
@@ -456,5 +458,105 @@ describe("insertFeatureBetween (Netzplan Edge-Insertion)", () => {
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
     expect(result.error.kind).toBe("not_found");
+  });
+});
+
+describe("assignFeatureOwner", () => {
+  /**
+   * Eigenes Epic **mit** Wertstrom: das Epic aus `beforeEach` hat keinen, und ein
+   * Feature trägt selbst keine `valueStreamId`. Der Scope-Test unten liefe damit
+   * ins Leere — `memberOrVacuous` lässt ein leeres Feld durch, die Prüfung wäre
+   * grün, ohne je etwas geprüft zu haben.
+   */
+  async function makeFeatureInValueStream(): Promise<string> {
+    const testDb = createTestPrismaClient();
+    const epic = await testDb.initiative.create({
+      data: {
+        tenantId: seed.tenantId,
+        level: InitiativeLevel.EPIC,
+        title: "Epic im Wertstrom",
+        path: "",
+        valueStreamId: seed.valueStreamId,
+        ownerId: seed.actorId,
+        assigneeIds: [],
+        createdBy: seed.actorId,
+        updatedBy: seed.actorId,
+      },
+    });
+    await testDb.initiative.update({ where: { id: epic.id }, data: { path: epic.id } });
+    await testDb.$disconnect();
+
+    const feature = await createFeature(testRequestContext(db, seed), {
+      parentId: epic.id as EpicId,
+      artId: seed.artId,
+      title: "Antragsstrecke",
+      wsjfBusinessValue: 8,
+      wsjfTimeCriticality: 5,
+      wsjfRiskReduction: 3,
+      wsjfJobSize: 5,
+    });
+    if (!isOk(feature)) throw new Error("Failed to seed feature");
+    return feature.value.id;
+  }
+
+  it("setzt den Owner", async () => {
+    const id = await makeFeatureInValueStream();
+    const newOwner = randomUUID();
+
+    const res = await assignFeatureOwner(testRequestContext(db, seed), { id, ownerId: newOwner });
+    expect(isOk(res)).toBe(true);
+
+    const row = await db.initiative.findFirst({ where: { id } });
+    expect(row?.ownerId).toBe(newOwner);
+  });
+
+  it("entfernt den Owner mit `null`", async () => {
+    const id = await makeFeatureInValueStream();
+    await assignFeatureOwner(testRequestContext(db, seed), { id, ownerId: randomUUID() });
+
+    const res = await assignFeatureOwner(testRequestContext(db, seed), { id, ownerId: null });
+    expect(isOk(res)).toBe(true);
+
+    const row = await db.initiative.findFirst({ where: { id } });
+    expect(row?.ownerId).toBeNull();
+  });
+
+  it("schreibt Vorher/Nachher ins Audit", async () => {
+    const id = await makeFeatureInValueStream();
+    const first = randomUUID();
+    const second = randomUUID();
+    await assignFeatureOwner(testRequestContext(db, seed), { id, ownerId: first });
+    await assignFeatureOwner(testRequestContext(db, seed), { id, ownerId: second });
+
+    const event = await db.auditEvent.findFirst({
+      where: { tenantId: seed.tenantId, action: "feature.owner.assigned", resourceId: id },
+      orderBy: { occurredAt: "desc" },
+    });
+    expect(event).not.toBeNull();
+    expect(event?.changes).toMatchObject({ ownerId: { before: first, after: second } });
+  });
+
+  it("weist einen Value Stream Owner ausserhalb seines Wertstroms ab", async () => {
+    const id = await makeFeatureInValueStream();
+    const base = testRequestContext(db, seed);
+    const outsider: RequestContext = {
+      ...base,
+      principal: {
+        ...base.principal,
+        roles: ["value_stream_owner"],
+        scopes: {
+          valueStreamIds: ["00000000-0000-0000-0000-000000000000"],
+          artIds: [],
+          teamIds: [],
+        },
+        capabilities: [{ action: "feature.owner.assign", scope: "value_stream" }],
+      },
+    };
+
+    const res = await assignFeatureOwner(outsider, { id, ownerId: randomUUID() });
+    expect(isErr(res)).toBe(true);
+
+    const row = await db.initiative.findFirst({ where: { id } });
+    expect(row?.ownerId).toBeNull();
   });
 });

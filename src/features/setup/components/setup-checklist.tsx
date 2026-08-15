@@ -116,6 +116,7 @@ function MilestoneCard({
 
   return (
     <Card
+      data-tour={`setup-milestone-${milestone.id}`}
       className={`flex flex-col gap-3 p-4 ${allDone ? "border-emerald-300 bg-emerald-50/40 dark:bg-emerald-950/20" : ""}`}
     >
       <div className="flex items-baseline justify-between gap-2">

@@ -48,6 +48,8 @@ export function FeatureSlideOver({ detail }: Props) {
             model={detail.model}
             canEdit={detail.canEdit}
             canTransition={detail.canTransition}
+            canAssignOwner={detail.canAssignOwner}
+            approvers={detail.approvers}
             canLinkDependency={detail.canLinkDependency}
             outgoing={detail.outgoing}
             incoming={detail.incoming}

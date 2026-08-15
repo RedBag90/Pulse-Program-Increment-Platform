@@ -75,7 +75,6 @@ function baseInputs(): PortfolioOverviewInputs {
     board: { periods: [], pool: {} },
     vsBudgets: { valueStreams: [] },
     activePis: [],
-    impedimentsOpen: 0,
     structureGap: { hasTarget: false, targetDate: null, dimensions: [], overallProgress: 0 },
     practiceAdoption: { hasTarget: false, signals: [] },
     now: NOW,

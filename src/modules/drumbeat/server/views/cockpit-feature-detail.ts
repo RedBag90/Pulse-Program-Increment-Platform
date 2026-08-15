@@ -3,6 +3,7 @@ import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
 import {
   buildFeatureDetailModel,
@@ -22,6 +23,10 @@ export interface CockpitFeatureDetail {
   model: FeatureDetailModel;
   canEdit: boolean;
   canTransition: boolean;
+  /** `feature.owner.assign` — wertstrom-genau, nicht nur ART-weit. */
+  canAssignOwner: boolean;
+  /** Auswählbare Personen für den Owner-Picker. */
+  approvers: { userId: string; roles: string[] }[];
   canLinkDependency: boolean;
   outgoing: DependencyEdge[];
   incoming: DependencyEdge[];
@@ -68,8 +73,15 @@ export async function loadCockpitFeatureDetail(
 
   const valueStreamId = feature.parent?.valueStreamId ?? feature.art?.valueStreamId ?? null;
 
-  const [valueStream, userLabels, dependenciesOut, dependenciesIn, history, artFeatures] =
-    await Promise.all([
+  const [
+    valueStream,
+    userLabels,
+    approvers,
+    dependenciesOut,
+    dependenciesIn,
+    history,
+    artFeatures,
+  ] = await Promise.all([
       valueStreamId
         ? db.valueStream.findFirst({
             where: { id: valueStreamId, tenantId: principal.tenantId, deletedAt: null },
@@ -77,6 +89,8 @@ export async function loadCockpitFeatureDetail(
           })
         : Promise.resolve(null),
       listTenantUserLabels(db, principal.tenantId),
+      // Auswahlkandidaten für den Owner-Picker — dieselbe Quelle wie beim Epic.
+      listTenantApprovers(db, principal.tenantId),
       db.dependency.findMany({
         where: { tenantId: principal.tenantId, fromId: feature.id },
         select: { id: true, type: true, to: { select: { id: true, title: true } } },
@@ -115,6 +129,7 @@ export async function loadCockpitFeatureDetail(
     valueStreamName: valueStream?.name ?? null,
     piId: feature.pi?.id ?? null,
     piName: feature.pi?.name ?? null,
+    ownerId: feature.ownerId,
     ownerLabel: feature.ownerId ? (userLabels[feature.ownerId] ?? null) : null,
     wsjfBusinessValue: feature.wsjfBusinessValue,
     wsjfTimeCriticality: feature.wsjfTimeCriticality,
@@ -131,6 +146,13 @@ export async function loadCockpitFeatureDetail(
   const canEdit = hasCapability(principal, "feature.update", resource);
   const canTransition = hasCapability(principal, "feature.delivery.set", resource);
   const canLinkDependency = hasCapability(principal, "dependency.link", resource);
+  // Eigene Ressource: der Wertstrom entscheidet, ob ein Wertstrom-Verantwortlicher
+  // zuweisen darf — `resource` oben trägt nur den ART.
+  const canAssignOwner = hasCapability(principal, "feature.owner.assign", {
+    tenantId: principal.tenantId,
+    artId: feature.artId,
+    ...(valueStream?.id ? { valueStreamId: valueStream.id } : {}),
+  });
 
   const outgoing: DependencyEdge[] = dependenciesOut.map((d) => ({
     id: d.id,
@@ -157,6 +179,8 @@ export async function loadCockpitFeatureDetail(
     model,
     canEdit,
     canTransition,
+    canAssignOwner,
+    approvers,
     canLinkDependency,
     outgoing,
     incoming,

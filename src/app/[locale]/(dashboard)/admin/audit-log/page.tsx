@@ -59,7 +59,7 @@ export default async function AuditLogPage({ searchParams }: Props) {
       <PageHeader title="Audit Log" />
 
       {/* Filters */}
-      <form method="get" className="flex flex-wrap gap-3 text-sm">
+      <form method="get" data-tour="audit-log-filter" className="flex flex-wrap gap-3 text-sm">
         <input
           name="actor"
           defaultValue={params.actor}

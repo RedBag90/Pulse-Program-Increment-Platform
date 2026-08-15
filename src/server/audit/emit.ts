@@ -48,6 +48,7 @@ export type AuditAction =
   | "epic.approved"
   | "epic.revision.started"
   | "epic.owner.assigned"
+  | "feature.owner.assigned"
   | "feature.delivery.transitioned"
   | "wsjf.scored"
   | "value_stream.created"
@@ -70,10 +71,6 @@ export type AuditAction =
   | "system_demo_item.added"
   | "system_demo_item.updated"
   | "system_demo_item.deleted"
-  | "impediment.raised"
-  | "impediment.escalated"
-  | "impediment.resolved"
-  | "impediment.updated"
   | "kpi.created"
   | "kpi.updated"
   | "kpi.deleted"
@@ -153,8 +150,21 @@ export type AuditAction =
   | "risk.epic.linked"
   | "risk.epic.unlinked"
   | "risk.settings.updated"
+  // Issue-Cluster (verschachtelbar) — Epic- und Portfolio-Ebene.
+  | "issue.cluster.created"
+  | "issue.cluster.renamed"
+  | "issue.cluster.assigned"
+  | "issue.cluster.unassigned"
+  | "issue.cluster.nested"
+  | "issue.cluster.deleted"
+  | "issue.cluster.scored"
+  | "issue.reparented"
   | "portfolio_filter.saved"
-  | "portfolio_filter.deleted";
+  | "portfolio_filter.deleted"
+  // Rollen-Onboarding: bewusst NUR die Quittung. Das Fortschreiben gesehener
+  // Tour-Schritte feuert bei jedem Schrittwechsel und hat keinen
+  // Compliance-Wert — das Audit-Log soll nicht mit Tour-Klicks volllaufen.
+  | "role.onboarding.acknowledged";
 
 export type AuditResourceType =
   | "initiative"
@@ -162,7 +172,6 @@ export type AuditResourceType =
   | "pi_standard"
   | "value_stream"
   | "art"
-  | "impediment"
   | "dependency"
   | "kpi"
   | "user_role_assignment"
@@ -197,7 +206,10 @@ export type AuditResourceType =
   | "risk_mitigation"
   | "risk_assessment"
   | "risk_settings"
-  | "saved_portfolio_filter";
+  | "issue"
+  | "issue_cluster"
+  | "saved_portfolio_filter"
+  | "role_onboarding";
 
 // ---------------------------------------------------------------------------
 // Emit helpers

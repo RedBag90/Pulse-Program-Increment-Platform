@@ -19,6 +19,7 @@ ALTER TABLE dependencies          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_events          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_role_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE outbox_events         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE role_onboarding       ENABLE ROW LEVEL SECURITY;
 
 -- ---------------------------------------------------------------------------
 -- Helper: extract tenant_id from the JWT set by the Prisma client
@@ -85,6 +86,20 @@ CREATE POLICY tenant_isolation_outbox ON outbox_events
   FOR ALL
   USING (
     tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid
+  );
+
+-- ---------------------------------------------------------------------------
+-- Rollen-Onboarding: tenant- UND user-isoliert. Anders als die übrigen Tabellen
+-- ist diese rein persönlich (Quittung + gesehene Tour-Schritte) — niemand darf
+-- die Zeilen anderer Nutzer lesen oder schreiben, auch nicht der Tenant-Admin.
+-- Beides in einer Policy, weil `sub` ohnehin in denselben Claims steht.
+-- ---------------------------------------------------------------------------
+
+CREATE POLICY tenant_user_isolation_role_onboarding ON role_onboarding
+  FOR ALL
+  USING (
+    tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid
+    AND user_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'sub')::uuid
   );
 
 -- ---------------------------------------------------------------------------

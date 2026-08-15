@@ -142,7 +142,7 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
       />
 
       {/* Type-Funnel */}
-      <div className="mb-3 flex flex-wrap gap-1.5">
+      <div className="mb-3 flex flex-wrap gap-1.5" data-tour="dependencies-funnel">
         {DEPENDENCY_TYPES.map((t) => (
           <button
             key={t}

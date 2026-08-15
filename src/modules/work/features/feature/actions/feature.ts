@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import {
+  assignFeatureOwner,
   createFeature,
   updateFeature,
   scoreFeature,
@@ -259,4 +260,24 @@ export const setFeaturePiAction = createServerAction({
       notFound: "Feature or PI not found",
       fallback: "Failed to assign feature",
     }),
+});
+
+/**
+ * Owner eines Features setzen oder entfernen. Leerer String = „kein Owner" —
+ * das Formular kann keinen echten `null`-Wert senden.
+ */
+export const assignFeatureOwnerAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    artId: z.string().uuid(),
+    ownerId: z.union([z.string().uuid(), z.literal("")]),
+  }),
+  action: "feature.owner.assign",
+  // Grober Vorfilter; der wertstrom-genaue Check läuft am Service-Seam, weil
+  // erst dort das geladene Feature seinen Wertstrom kennt (ADR-0002).
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  service: (ctx, input) =>
+    assignFeatureOwner(ctx, { id: input.id, ownerId: input.ownerId === "" ? null : input.ownerId }),
+  revalidate: "feature",
+  mapError: (e) => (e.kind === "forbidden" ? e.reason : "Owner konnte nicht gesetzt werden"),
 });

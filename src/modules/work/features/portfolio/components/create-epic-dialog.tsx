@@ -92,7 +92,7 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
   return (
     <>
       {!isControlled && (
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button onClick={() => setDialogOpen(true)} data-tour="epic-create-button">
           <Plus className="mr-1.5 size-4" />
           Neues Epic
         </Button>

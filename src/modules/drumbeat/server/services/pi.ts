@@ -345,17 +345,23 @@ export async function evaluatePiClosure(
       systemDemoAt: true,
       inspectAdaptAt: true,
       retrospectiveNotes: true,
+      timeline: { select: { arts: { select: { id: true } } } },
     },
   });
   if (!pi) return { ready: false, issues: ["PI nicht gefunden"] };
 
-  const openImpediments = await db.impediment.count({
-    where: { tenantId, piId, status: { in: ["open", "escalated"] }, roamStatus: "open" },
-  });
+  // Offene, un-ge-ROAM-te Issues in den ARTs dieses PI (vereintes Register).
+  const artIds = pi.timeline?.arts.map((a) => a.id) ?? [];
+  const openIssues =
+    artIds.length === 0
+      ? 0
+      : await db.issue.count({
+          where: { tenantId, deletedAt: null, roamStatus: "open", artId: { in: artIds } },
+        });
 
   const issues: string[] = [];
-  if (openImpediments > 0) {
-    issues.push(`${openImpediments} offene Impediment(s) ohne ROAM-Status`);
+  if (openIssues > 0) {
+    issues.push(`${openIssues} offene Issue(s) ohne ROAM-Status`);
   }
   if (!pi.systemDemoAt) issues.push("System-Demo-Termin fehlt");
   if (!pi.inspectAdaptAt) issues.push("Inspect & Adapt-Termin fehlt");
@@ -386,17 +392,27 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
     }
 
     // Belt & suspenders: dieselben Checks wie der Wizard, serverseitig.
-    const openImpediments = await tx.impediment.count({
-      where: {
-        tenantId: mctx.tenantId,
-        piId: id,
-        status: { in: ["open", "escalated"] },
-        roamStatus: "open",
-      },
-    });
+    const arts = existing.timelineId
+      ? await tx.art.findMany({
+          where: { tenantId: mctx.tenantId, timelineId: existing.timelineId },
+          select: { id: true },
+        })
+      : [];
+    const artIds = arts.map((a) => a.id);
+    const openIssues =
+      artIds.length === 0
+        ? 0
+        : await tx.issue.count({
+            where: {
+              tenantId: mctx.tenantId,
+              deletedAt: null,
+              roamStatus: "open",
+              artId: { in: artIds },
+            },
+          });
     const issues: string[] = [];
-    if (openImpediments > 0) {
-      issues.push(`${openImpediments} offene Impediment(s) ohne ROAM`);
+    if (openIssues > 0) {
+      issues.push(`${openIssues} offene Issue(s) ohne ROAM`);
     }
     if (!existing.systemDemoAt) issues.push("System-Demo-Termin fehlt");
     if (!existing.inspectAdaptAt) issues.push("Inspect & Adapt-Termin fehlt");
@@ -426,7 +442,7 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
 
 /**
  * Delete a planned PI and cascade: assigned features return to the backlog
- * (piId → null), objectives are removed, and impediments are detached but
+ * (piId → null), objectives are removed, and issues are detached but
  * kept in the ART log.
  *
  * Sibling: `detachArtFromTimeline` ([timeline.ts](./timeline.ts)) handles a
@@ -453,8 +469,8 @@ export async function deletePi(ctx: RequestContext, input: { id: PiId }): Promis
       data: { piId: null },
     });
 
-    // Impediments are kept (ART-scoped) but detached from the PI.
-    await tx.impediment.updateMany({
+    // Issues are kept (ART-scoped) but detached from the PI.
+    await tx.issue.updateMany({
       where: { tenantId: mctx.tenantId, piId: id },
       data: { piId: null },
     });

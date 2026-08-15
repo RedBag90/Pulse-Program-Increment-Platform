@@ -27,7 +27,7 @@ function baseInputs(): PiDetailInputs {
       },
       initiatives: [],
     },
-    impediments: [],
+    openIssues: 0,
     candidates: [],
   };
 }

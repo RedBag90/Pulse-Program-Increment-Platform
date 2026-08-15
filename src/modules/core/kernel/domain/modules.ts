@@ -33,8 +33,19 @@ export interface ModuleDef {
   home: string;
 }
 
-/** Immer verfügbare Segmente (kein Entitlement): Einstieg + persönliche Inbox. */
-export const CORE_SEGMENTS: readonly string[] = ["start", "my-tasks", "my-approvals"];
+/**
+ * Immer verfügbare Segmente (kein Entitlement): Einstieg + persönliche Inbox +
+ * das eigene Rollen-Playbook. `meine-rolle` gehört bewusst hierher und nicht in
+ * ein eigenes Modul: die Erklärung der Anwendung darf nie fail-closed weggeleitet
+ * werden, und im persönlichen Free-Tenant wäre ein Entitlement-Key per Default
+ * aus — siehe ADR-0017.
+ */
+export const CORE_SEGMENTS: readonly string[] = [
+  "start",
+  "my-tasks",
+  "my-approvals",
+  "meine-rolle",
+];
 
 /**
  * Modul-Prerequisites (= erlaubte Aktivierungs-/Import-Richtung, ADR-0013):
@@ -52,27 +63,24 @@ export const MODULE_PREREQUISITES: Record<ModuleKey, readonly ModuleKey[]> = {
 export const MODULES: Record<ModuleKey, ModuleDef> = {
   core: {
     label: "Core & Ziele",
-    // Kernel + Ziele/OKR + Org-Struktur (VS/ART/Team) + Setup/Struktur + Admin.
-    segments: [
-      "ziele",
-      "structure",
-      "setup",
-      "transformation",
-      "value-streams",
-      "art",
-      "team",
-      "admin",
-    ],
+    // Kernel + Ziele/OKR + Org-Struktur (VS/ART) + Setup/Struktur + Admin.
+    // `team` ist mit dem Team-Rückbau (fd8164a) entfallen — Plattform bleibt auf
+    // Wertstrom + ART.
+    segments: ["ziele", "structure", "setup", "transformation", "value-streams", "art", "admin"],
     actions: [
       "target.manage",
       "goal.",
       "kpi.bind",
       "value_stream.",
       "art.",
-      "team.",
       "tenant.users.manage",
       "integration.manage",
       "role.capability.manage",
+      // Selbstbedienung auf der eigenen Onboarding-Zeile. Liegt bei `core`, weil
+      // das Onboarding kein Entitlement-Modul ist und in jedem Tenant laufen
+      // muss (ADR-0017) — die Invariante „jede Action hat ein Modul" bleibt so
+      // trotzdem erfüllt.
+      "role.onboarding.manage",
       "admin.",
     ],
     home: "/ziele",
@@ -81,7 +89,9 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
     label: "Work",
     // Epic-Definition/Doku/Freigabe + Feature-Breakdown + Portfolio + Reporting.
     segments: ["portfolio", "feature", "reporting"],
-    actions: ["epic.", "feature."],
+    // `portfolio_filter.manage` sind die persönlich gespeicherten Filter der
+    // Portfolio-Übersicht — ohne Work gibt es die Fläche nicht.
+    actions: ["epic.", "feature.", "portfolio_filter.manage"],
     home: "/portfolio",
   },
   drumbeat: {
@@ -94,13 +104,11 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
       "pi",
       "pi-planning",
       "dependencies",
-      "impediments",
       "roadmap",
       "timelines",
     ],
     actions: [
       "pi.",
-      "pi_objective.",
       "dependency.",
       "impediment.",
       "timeline.manage",
@@ -116,11 +124,12 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
   },
   risks: {
     label: "Risks",
-    // Tenant-weites Risk-Register mit ROAM + n:m-Epic-Verknüpfung (Sibling von
-    // Drumbeat/Budgeting, benötigt Work). Siehe docs/concepts/risk-management-module.md.
-    segments: ["risks"],
+    // Tenant-weites Issue-Register (Risks + Impediments vereint) mit ROAM +
+    // Feature/Epic-Verknüpfung (Sibling von Drumbeat/Budgeting, benötigt Work).
+    // Siehe docs/concepts/risk-management-module.md.
+    segments: ["issues"],
     actions: ["risk."],
-    home: "/risks",
+    home: "/issues",
   },
 };
 
