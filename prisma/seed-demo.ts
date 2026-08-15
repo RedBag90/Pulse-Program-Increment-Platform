@@ -1,11 +1,15 @@
 /* eslint-disable no-console */
 /**
- * Pulse Demo-Seed — großer, deterministischer Datensatz, der JEDE Funktion
- * durchklickbar macht (Portfolio, Programm, Controlling, Reporting, Roadmap,
- * Ziele inkl. aller 4 Fortschrittsquellen, Admin, my-approvals/my-tasks).
+ * Pulse Demo-Seed — großer, dichter, story-getriebener Datensatz für den Demo-
+ * Tenant „Pulse Demo Corp" (eine europäische Digitalbank mitten in der SAFe-
+ * Transformation). Macht JEDE Funktion durchklickbar: Portfolio, Programm,
+ * Controlling, Reporting, Roadmap, Ziele (alle 4 Fortschrittsquellen), Issues
+ * (5×5-Matrix + ROAM + Baum), Admin/my-approvals/my-tasks.
  *
  * Wischt die Domain-Daten von „Pulse Demo Corp" und baut alles frisch auf.
- * Ids sind deterministisch (`uid(key)`), Datumswerte relativ zu heute.
+ * Ids sind deterministisch (`uid(key)`), Datumswerte relativ zu heute
+ * (`addDays(now, n)`), Streuung deterministisch (`Math.sin`). Reset-then-insert:
+ * `wipeDomainData(tenantId)` läuft zuerst, ein Rerun reproduziert dieselben Rows.
  *
  * Run: `pnpm db:seed:demo`  (lädt `.env.local` selbst; braucht DIRECT_URL)
  */
@@ -28,9 +32,10 @@ const YEAR = now.getFullYear();
 const addDays = (base: Date, d: number): Date => new Date(base.getTime() + d * DAY);
 const H1 = `${YEAR}-H1`;
 const H2 = `${YEAR}-H2`;
+const PREV_H2 = `${YEAR - 1}-H2`; // ältere, abgelöste Budget-Revision (Historie)
 
 async function main() {
-  console.log("\n🌱  Pulse DEMO-Seed startet (großer Datensatz)\n");
+  console.log("\n🌱  Pulse DEMO-Seed startet (dichter Story-Datensatz)\n");
 
   // ── Phase 1: Auth-User ────────────────────────────────────────────────────
   console.log("── Auth-User");
@@ -65,15 +70,14 @@ async function main() {
 
   // ── Phase 2: RBAC-Scopes + RoleCapability ─────────────────────────────────
   console.log("\n── Rollen + Capabilities");
-  // Struktur-IDs vorab (für Scopes referenzierbar)
   const vsIds = [uid("vs:digital-banking"), uid("vs:payments"), uid("vs:cx")];
   const artIds = [
-    uid("art:onlinebanking"),
-    uid("art:mobile"),
-    uid("art:cards"),
-    uid("art:sepa"),
-    uid("art:web-cx"),
-    uid("art:contact-center"),
+    uid("art:accounts-onboarding"),
+    uid("art:lending-credit"),
+    uid("art:realtime-payments"),
+    uid("art:cards-wallets"),
+    uid("art:web-mobile"),
+    uid("art:service-contact"),
   ];
 
   await assignRole(U.admin, tenantId, "tenant_admin");
@@ -100,8 +104,8 @@ async function main() {
   });
   console.log(`  ✓ ${caps.length} Default-Capabilities gespiegelt`);
 
-  // ── Phase 3: Struktur-Spine ───────────────────────────────────────────────
-  console.log("\n── Struktur (VS → ART → Team, Timeline, PIs)");
+  // ── Phase 3: Struktur-Spine (VS → ART, Timeline, PIs) ─────────────────────
+  console.log("\n── Struktur (Value Streams, ARTs, Timeline, PIs)");
   const timelineId = uid("timeline:konzern");
   await prisma.timeline.create({
     data: { id: timelineId, tenantId, name: "Konzern-Kadenz" },
@@ -114,32 +118,38 @@ async function main() {
       anchorMonth: 1,
       anchorDay: 6,
       cadenceWeeks: 10,
-      piCount: 4,
+      piCount: 6,
       createdBy: ADMIN,
     },
   });
 
   const vsNames = ["Digital Banking", "Payments Platform", "Customer Experience"];
+  const vsDesc = [
+    "Konten, Onboarding und Kreditprodukte — der digitale Kern der Bank.",
+    "Echtzeit-Zahlungen, Karten und Wallet-Erlebnisse über alle Rails.",
+    "Web-, Mobile- und Service-Erlebnis über alle Kundenkontaktpunkte.",
+  ];
   await prisma.valueStream.createMany({
     data: vsNames.map((name, i) => ({
       id: vsIds[i]!,
       tenantId,
       name,
-      description: `Wertstrom ${name}`,
+      description: vsDesc[i]!,
       budgetAmount: [3_000_000, 2_400_000, 1_600_000][i]!,
       budgetCurrency: "EUR",
-      financeApproverId: U.portfolio,
+      financeApproverId: U.fo,
       vmoId: U.vmo,
     })),
   });
 
+  // 6 ARTs, 2 pro Value Stream.
   const artNames = [
-    "Onlinebanking ART",
-    "Mobile ART",
-    "Card Payments ART",
-    "SEPA ART",
-    "Web CX ART",
-    "Contact-Center ART",
+    "Accounts & Onboarding", // vs0
+    "Lending & Credit", // vs0
+    "Real-time Payments", // vs1
+    "Cards & Wallets", // vs1
+    "Web & Mobile", // vs2
+    "Service & Contact Center", // vs2
   ];
   await prisma.art.createMany({
     data: artNames.map((name, i) => ({
@@ -147,34 +157,36 @@ async function main() {
       tenantId,
       valueStreamId: vsIds[Math.floor(i / 2)]!,
       name,
-      description: `${name} — Release Train`,
+      description: `${name} — Agile Release Train`,
       rteId: U.rte,
       timelineId,
     })),
   });
 
-  // PIs auf der Timeline (2 completed, 1 active, 1 planned)
-  const piBase = addDays(now, -21);
+  // 6 PIs auf der Timeline (2 completed, 1 active, 3 planned). timelineId ist
+  // kanonisch; artId bleibt leer (Timeline-Modell — geteilte PI-Grid über ARTs).
+  const piBase = addDays(now, -21); // aktives PI läuft seit 3 Wochen
   const piSpecs = [
     { key: "pi1", name: "PI 1", start: addDays(piBase, -140), status: "completed" },
     { key: "pi2", name: "PI 2", start: addDays(piBase, -70), status: "completed" },
     { key: "pi3", name: "PI 3", start: piBase, status: "active" },
     { key: "pi4", name: "PI 4", start: addDays(piBase, 70), status: "planned" },
+    { key: "pi5", name: "PI 5", start: addDays(piBase, 140), status: "planned" },
+    { key: "pi6", name: "PI 6", start: addDays(piBase, 210), status: "planned" },
   ];
   const piIds: Record<string, string> = {};
   for (const p of piSpecs) piIds[p.key] = uid(`pi:${p.key}`);
   await prisma.programIncrement.createMany({
-    data: piSpecs.map((p) => ({
+    data: piSpecs.map((p, i) => ({
       id: piIds[p.key]!,
       tenantId,
       timelineId,
-      artId: artIds[0]!,
       name: p.name,
       startDate: p.start,
       endDate: addDays(p.start, 69),
       status: p.status,
-      capacityJobSize: 120,
-      capacityAmount: 900_000,
+      capacityJobSize: 110 + i * 5,
+      capacityAmount: 880_000 + i * 20_000,
       ...(p.status === "completed"
         ? { systemDemoAt: addDays(p.start, 68), inspectAdaptAt: addDays(p.start, 69) }
         : {}),
@@ -183,84 +195,284 @@ async function main() {
   const activePi = piIds["pi3"]!;
   const prevPi = piIds["pi2"]!;
 
-  // ── Phase 4: Initiatives (Epics + Features) ───────────────────────────────
+  // ── Phase 4: Delivery (Epics + Features) ──────────────────────────────────
   console.log("\n── Delivery (Epics + Features)");
-  const STAGE_GATES = ["L0", "L1", "L2", "L3", "L4", "L5"];
-  const EPIC_STATUS = ["draft", "active", "active", "active", "done"];
-  const EPIC_TYPES = ["epic", "enabler", "solution"];
-  const HORIZONS = ["H1", "H2", "H3"];
 
-  const epicTitles = [
-    "Optimieren der vorhandenen Netzpläne", // idx 0 = TAT-Epic (kpi_tree)
-    "Instant-Payments Rollout",
-    "Mobile Onboarding Redesign",
-    "SEPA-Request-to-Pay",
-    "Self-Service Portal 2.0",
-    "Betrugserkennung ML",
-    "Open-Banking APIs",
-    "Karten-Tokenization",
-    "Contact-Center KI-Assist",
-    "Datenplattform Konsolidierung",
-    "Cloud-Migration Kernbanken",
-    "Nachhaltigkeits-Reporting",
-    "Kredit-Entscheidung Automatisierung",
-    "Omnichannel Notifications",
-    "Identity & KYC Modernisierung",
-    "Zahlungsverkehr Observability",
-    "Wealth-Management Cockpit",
-    "Regulatorik-Automatisierung",
+  // Explizite Epic-Definitionen — echte Bank-Vorhaben, kein „Epic 1/2/…".
+  // Epic 0 ist das TAT-KPI-Tree-Showcase (Digital-Onboarding-Durchlaufzeit).
+  type EpicDef = {
+    title: string;
+    desc: string;
+    vs: number; // 0..2
+    epicType: string; // epic | enabler | solution
+    horizon: string; // H1 | H2 | H3
+    gate: string; // L0..L5
+    steering: boolean;
+    approvalPhase?: string;
+  };
+  const EPIC_DEFS: EpicDef[] = [
+    {
+      title: "Instant Onboarding & KYC",
+      desc: "Volldigitale Kontoeröffnung mit sofortiger Identifikation — Durchlaufzeit von Tagen auf Minuten.",
+      vs: 0,
+      epicType: "epic",
+      horizon: "H2",
+      gate: "L4",
+      steering: false,
+    },
+    {
+      title: "Open-Banking & PSD2 APIs",
+      desc: "PSD2-konforme Account-Information- und Payment-Initiation-Schnittstellen für Drittanbieter.",
+      vs: 0,
+      epicType: "enabler",
+      horizon: "H2",
+      gate: "L3",
+      steering: false,
+    },
+    {
+      title: "AI Fraud Detection",
+      desc: "Echtzeit-Betrugserkennung auf Transaktionsströmen mit ML-Scoring und Fallmanagement.",
+      vs: 1,
+      epicType: "epic",
+      horizon: "H3",
+      gate: "L2",
+      steering: true,
+      approvalPhase: "business_case",
+    },
+    {
+      title: "Mobile App Relaunch",
+      desc: "Neubau der Mobile-App mit neuer Navigation, Performance und Barrierefreiheit.",
+      vs: 2,
+      epicType: "epic",
+      horizon: "H1",
+      gate: "L4",
+      steering: false,
+    },
+    {
+      title: "Instant SEPA",
+      desc: "SEPA-Instant-Credit-Transfer rund um die Uhr mit Sub-10-Sekunden-Gutschrift.",
+      vs: 1,
+      epicType: "epic",
+      horizon: "H1",
+      gate: "L5",
+      steering: false,
+    },
+    {
+      title: "Card Tokenization",
+      desc: "Tokenisierung von Kartendaten für Apple/Google Pay und sichere Händler-Zahlungen.",
+      vs: 1,
+      epicType: "epic",
+      horizon: "H2",
+      gate: "L3",
+      steering: false,
+    },
+    {
+      title: "Self-Service Contact Center",
+      desc: "KI-gestützte Self-Service-Flows und Agenten-Assist zur Senkung der Kontaktquote.",
+      vs: 2,
+      epicType: "epic",
+      horizon: "H2",
+      gate: "L2",
+      steering: false,
+      approvalPhase: "hypothesis_review",
+    },
+    {
+      title: "Cloud Migration",
+      desc: "Migration der Kernplattformen in die Cloud — Architectural Runway für Skalierung.",
+      vs: 0,
+      epicType: "enabler",
+      horizon: "H1",
+      gate: "L4",
+      steering: true,
+    },
+    {
+      title: "Data Platform",
+      desc: "Zentrale Daten- und Streaming-Plattform als Grundlage für Analytics und ML.",
+      vs: 0,
+      epicType: "enabler",
+      horizon: "H2",
+      gate: "L3",
+      steering: false,
+    },
+    {
+      title: "Core Banking Modernization",
+      desc: "Ablösung des Legacy-Kernbankensystems — großer Cross-ART-Solution-Brocken.",
+      vs: 0,
+      epicType: "solution",
+      horizon: "H2",
+      gate: "L2",
+      steering: true,
+      approvalPhase: "stakeholder_review",
+    },
+    {
+      title: "SME Lending",
+      desc: "Automatisierte Kreditentscheidung und -vergabe für kleine und mittlere Unternehmen.",
+      vs: 0,
+      epicType: "epic",
+      horizon: "H2",
+      gate: "L1",
+      steering: false,
+      approvalPhase: "hypothesis_review",
+    },
+    {
+      title: "Loyalty & Rewards",
+      desc: "Punkte-, Cashback- und Partner-Rewards-Programm für aktivere Kundenbindung.",
+      vs: 2,
+      epicType: "epic",
+      horizon: "H3",
+      gate: "L1",
+      steering: false,
+    },
+    {
+      title: "Biometric Auth",
+      desc: "Biometrische Anmeldung (Face/Fingerprint) und Passkey-Support — Sicherheits-Enabler.",
+      vs: 2,
+      epicType: "enabler",
+      horizon: "H2",
+      gate: "L3",
+      steering: false,
+    },
+    {
+      title: "Regulatory Reporting",
+      desc: "Automatisiertes aufsichtsrechtliches Meldewesen (DORA, BaFin) mit Prüf-Trails.",
+      vs: 0,
+      epicType: "epic",
+      horizon: "H1",
+      gate: "L4",
+      steering: false,
+    },
+    {
+      title: "PFM Insights",
+      desc: "Personal-Finance-Management: Kategorisierung, Budgets und Spar-Insights.",
+      vs: 2,
+      epicType: "epic",
+      horizon: "H3",
+      gate: "L1",
+      steering: false,
+    },
+    {
+      title: "Green Banking",
+      desc: "CO₂-Fußabdruck je Transaktion und nachhaltige Anlageprodukte.",
+      vs: 2,
+      epicType: "epic",
+      horizon: "H3",
+      gate: "L0",
+      steering: false,
+    },
+    {
+      title: "Developer Platform",
+      desc: "Interne Developer-Experience-Plattform (CI/CD, Templates, Self-Service) — Enabler.",
+      vs: 1,
+      epicType: "enabler",
+      horizon: "H3",
+      gate: "L2",
+      steering: true,
+    },
+    {
+      title: "Wealth Management Cockpit",
+      desc: "Beratungs- und Portfolio-Cockpit für vermögende Privatkunden.",
+      vs: 2,
+      epicType: "epic",
+      horizon: "H3",
+      gate: "L0",
+      steering: false,
+    },
+    {
+      title: "Omnichannel Notifications",
+      desc: "Einheitliche Benachrichtigungen über Push, E-Mail und In-App mit Präferenzcenter.",
+      vs: 2,
+      epicType: "epic",
+      horizon: "H1",
+      gate: "L5",
+      steering: false,
+    },
+    {
+      title: "Payments Observability",
+      desc: "Ende-zu-Ende-Monitoring und Tracing der Zahlungsstrecken — Betriebs-Enabler.",
+      vs: 1,
+      epicType: "enabler",
+      horizon: "H1",
+      gate: "L4",
+      steering: false,
+    },
   ];
 
-  const epicIds = epicTitles.map((_, i) => uid(`epic:${i}`));
-  const epicRows: Prisma.InitiativeCreateManyInput[] = epicTitles.map((title, i) => {
-    const start = addDays(now, -120 + i * 20);
+  // Epic-Status aus dem Stage Gate ableiten (gültige InitiativeStatus-Werte).
+  const gateStatus: Record<string, string> = {
+    L0: "draft",
+    L1: "draft",
+    L2: "approved",
+    L3: "approved",
+    L4: "in_progress",
+    L5: "completed",
+  };
+
+  const epicIds = EPIC_DEFS.map((_, i) => uid(`epic:${i}`));
+  const epicRows: Prisma.InitiativeCreateManyInput[] = EPIC_DEFS.map((def, i) => {
+    const start = addDays(now, -160 + i * 12);
+    const status = gateStatus[def.gate]!;
     return {
       id: epicIds[i]!,
       tenantId,
       level: 0,
       path: epicIds[i]!,
-      title,
-      description: `Epic: ${title}`,
-      ownerId: i % 3 === 0 ? U.owner : i % 3 === 1 ? U.portfolio : null,
+      title: def.title,
+      description: def.desc,
+      ownerId: i % 4 === 3 ? null : i % 3 === 0 ? U.owner : i % 3 === 1 ? U.portfolio : U.vso,
       assigneeIds: i % 2 === 0 ? [U.owner] : [],
-      valueStreamId: vsIds[i % 3]!,
-      stageGate: STAGE_GATES[i % STAGE_GATES.length]!,
-      status: EPIC_STATUS[i % EPIC_STATUS.length]!,
-      epicType: EPIC_TYPES[i % EPIC_TYPES.length]!,
-      investmentHorizon: HORIZONS[i % HORIZONS.length]!,
-      needsSteeringAttention: i % 5 === 0,
-      stagedForBudgeting: i % 4 === 0,
+      valueStreamId: vsIds[def.vs]!,
+      stageGate: def.gate,
+      status,
+      epicType: def.epicType,
+      investmentHorizon: def.horizon,
+      needsSteeringAttention: def.steering,
+      stagedForBudgeting: def.gate === "L2" || def.gate === "L3",
       plannedStartAt: start,
-      plannedEndAt: addDays(start, 120),
+      plannedEndAt: addDays(start, 150),
+      ...(status === "completed" ? { completedAt: addDays(now, -18 + i) } : {}),
       benefitHypothesis: {
-        measuresHypothesis: `Durch „${title}" verbessern wir das Ergebnis messbar.`,
-        changeFromBaseline: "Signifikante Verbesserung ggü. Startpunkt.",
-        businessOutcomes: ["Höhere Effizienz", "Bessere Kundenerfahrung"],
-        leadingIndicators: ["Adoption-Rate", "Durchlaufzeit"],
-        risks: ["Abhängigkeit von Legacy-System"],
+        measuresHypothesis: `Mit „${def.title}" verbessern wir das messbare Ergebnis für ${vsNames[def.vs]}.`,
+        changeFromBaseline: "Signifikante Verbesserung gegenüber dem heutigen Startpunkt.",
+        businessOutcomes: ["Höhere Effizienz", "Bessere Kundenerfahrung", "Geringeres Risiko"],
+        leadingIndicators: ["Adoption-Rate", "Durchlaufzeit", "Fehlerquote"],
+        risks: ["Abhängigkeit von Legacy-Systemen", "Regulatorische Freigaben"],
       },
-      ...(i % 3 === 0
+      ...(def.gate === "L2" || def.gate === "L3" || def.gate === "L4" || def.gate === "L5"
         ? {
             businessCase: {
-              costSlices: [{ period: H1, amount: 120_000 + i * 5_000 }],
-              assumptions: "Standard-Annahmen für das Business Case.",
+              costSlices: [
+                { period: H1, amount: 120_000 + i * 6_000 },
+                { period: H2, amount: 90_000 + i * 4_000 },
+              ],
+              assumptions: "Kalkulation auf Basis der aktuellen Team-Kapazität und Lauf-Kosten.",
             },
           }
         : {}),
-      ...(i % 4 === 0 ? { approvalPhase: "hypothesis_review" } : {}),
+      ...(def.approvalPhase ? { approvalPhase: def.approvalPhase } : {}),
       createdBy: ADMIN,
       updatedBy: ADMIN,
     };
   });
   await prisma.initiative.createMany({ data: epicRows });
 
-  // Features (2–3 pro Epic), WSJF-Spread, Owner/Assignees = echte User
-  const FEATURE_STATUS = ["draft", "in_progress", "in_progress", "completed"];
+  // Features (~44): 3 für Epics an Index %5==0, sonst 2. artId rotiert über ALLE
+  // 6 ARTs (globaler Zähler), piId über aktives/vorheriges/geplantes PI.
+  const FEATURE_STATUS = ["in_progress", "approved", "blocked", "completed"];
   const FEATURE_TYPES = ["feature", "enabler"];
+  // kurze, sprechende Feature-Bausteine je Epic-Kontext.
+  const FEATURE_PARTS = [
+    "MVP-Strecke",
+    "API-Anbindung",
+    "Frontend-Flows",
+    "Datenmigration",
+    "Monitoring & Alerting",
+    "Rollout & Enablement",
+  ];
   const featureRows: Prisma.InitiativeCreateManyInput[] = [];
   const featureIdsByEpic: Record<number, string[]> = {};
+  let gf = 0; // globaler Feature-Index für gleichmäßige ART-Verteilung
   epicIds.forEach((epicId, ei) => {
-    const count = 2 + (ei % 2); // 2 oder 3
+    const count = ei % 5 === 0 ? 3 : 2;
     featureIdsByEpic[ei] = [];
     for (let f = 0; f < count; f++) {
       const fid = uid(`feat:${ei}:${f}`);
@@ -270,82 +482,103 @@ async function main() {
       const rr = 1 + ((ei + f * 2) % 6);
       const js = 2 + ((ei + f) % 9);
       const wsjf = Number((((bv + tc + rr) / js) as number).toFixed(2));
-      const status = FEATURE_STATUS[(ei + f) % FEATURE_STATUS.length]!;
-      const pi = f === 0 ? activePi : (ei + f) % 3 === 0 ? piIds["pi4"]! : activePi;
-      const start = addDays(now, -30 + f * 15);
+      const status = FEATURE_STATUS[gf % FEATURE_STATUS.length]!;
+      const artId = artIds[gf % artIds.length]!; // ALLE 6 ARTs füllen
+      const piId =
+        status === "completed"
+          ? gf % 3 === 0
+            ? piIds["pi1"]!
+            : prevPi
+          : gf % 7 === 0
+            ? piIds["pi4"]!
+            : activePi;
+      const start = addDays(now, -40 + f * 15);
       featureRows.push({
         id: fid,
         tenantId,
         level: 1,
         parentId: epicId,
         path: `${epicId}/${fid}`,
-        title: `${epicTitles[ei]} — Feature ${f + 1}`,
-        description: "Feature-Beschreibung.",
-        ownerId: (ei + f) % 2 === 0 ? U.owner : U.fo,
-        assigneeIds: [U.owner, U.fo].slice(0, ((ei + f) % 2) + 1),
-        artId: artIds[ei % artIds.length]!,
-        piId: status === "completed" ? prevPi : pi,
+        title: `${EPIC_DEFS[ei]!.title} — ${FEATURE_PARTS[f % FEATURE_PARTS.length]}`,
+        description: `Feature-Baustein „${FEATURE_PARTS[f % FEATURE_PARTS.length]}" für ${EPIC_DEFS[ei]!.title}.`,
+        ownerId: gf % 2 === 0 ? U.owner : U.fo,
+        assigneeIds: [U.owner, U.fo].slice(0, (gf % 2) + 1),
+        artId,
+        piId,
         wsjfBusinessValue: bv,
         wsjfTimeCriticality: tc,
         wsjfRiskReduction: rr,
         wsjfJobSize: js,
         wsjfComputed: wsjf,
-        featureType: FEATURE_TYPES[(ei + f) % FEATURE_TYPES.length]!,
+        featureType:
+          EPIC_DEFS[ei]!.epicType === "enabler"
+            ? "enabler"
+            : FEATURE_TYPES[gf % FEATURE_TYPES.length]!,
         stageGate: "L3",
         status,
-        completedAt: status === "completed" ? addDays(now, -10) : null,
+        completedAt: status === "completed" ? addDays(now, -12 + (gf % 6)) : null,
         plannedStartAt: start,
-        plannedEndAt: addDays(start, 40),
-        acceptanceCriteria: ["Kriterium A erfüllt", "Kriterium B erfüllt"],
+        plannedEndAt: addDays(start, 45),
+        acceptanceCriteria: [
+          "Akzeptanzkriterium A erfüllt und getestet",
+          "Akzeptanzkriterium B erfüllt und abgenommen",
+        ],
         createdBy: ADMIN,
         updatedBy: ADMIN,
       });
+      gf++;
     }
   });
   await prisma.initiative.createMany({ data: featureRows });
   console.log(`  ✓ ${epicIds.length} Epics + ${featureRows.length} Features`);
 
-  // Netzplan-Positionen für das erste Epic
-  await prisma.initiativeGraphPosition.createMany({
-    data: (featureIdsByEpic[0] ?? []).map((fid, k) => ({
-      id: uid(`pos:${fid}`),
-      tenantId,
-      epicId: epicIds[0]!,
-      initiativeId: fid,
-      x: 120 + k * 220,
-      y: 80,
-      updatedBy: ADMIN,
-    })),
+  // Netzplan-Positionen für JEDES Epic (deterministisches Grid) — nicht nur Epic 0.
+  const graphPositions: Prisma.InitiativeGraphPositionCreateManyInput[] = [];
+  epicIds.forEach((epicId, ei) => {
+    (featureIdsByEpic[ei] ?? []).forEach((fid, k) => {
+      graphPositions.push({
+        id: uid(`pos:${fid}`),
+        tenantId,
+        epicId,
+        initiativeId: fid,
+        x: 160 + k * 240,
+        y: 120 + (k % 2) * 140,
+        updatedBy: ADMIN,
+      });
+    });
   });
+  await prisma.initiativeGraphPosition.createMany({ data: graphPositions });
 
-  // ── Phase 5: KPIs (mit Zeitreihen-Simulation) + Budgets ───────────────────
+  // ── Phase 5: KPIs (Zeitreihen) + Budgets ──────────────────────────────────
   console.log("\n── KPIs + Budgets");
-  const kpiNetzplaeneId = uid("kpi:netzplaene");
+  const kpiOnboardingId = uid("kpi:onboarding-tat");
   const kpiRows: Prisma.KpiCreateManyInput[] = [];
-  // Primär-KPI je Epic (treibt später die Ziel-Bindung) — Index = Epic-Index.
+  // Primär-KPI je Epic (treibt die Ziel-Bindung) — Index = Epic-Index.
   const epicPrimaryKpi: { id: string; valuePerUnit: number; baseline: number; target: number }[] =
     [];
 
-  // Epic 0: TAT-KPI fest verdrahtet — Verlauf 0→50 über Monate, letzter Wert exakt 50.
+  // Epic 0: TAT-Showcase (kpi_tree) — Verlauf 0→100, letzter Wert exakt 50.
   kpiRows.push({
-    id: kpiNetzplaeneId,
+    id: kpiOnboardingId,
     tenantId,
     initiativeId: epicIds[0]!,
-    name: "Überarbeitete Netzpläne",
-    unit: "Netzpläne",
+    name: "Digitalisierte Onboarding-Strecken",
+    unit: "Strecken",
     baseline: 0,
     target: 100,
     measurements: simulateSeries(0, 100, { monthsBack: 9, fraction: 0.5, seed: 1, endExact: 50 }),
     valuePerUnit: 8_000,
     benefitKind: "recurring",
     recurringInterval: "yearly",
-    calculationNote: "Jeder überarbeitete Netzplan reduziert die TAT um 0,5 Tage.",
+    calculationNote: "Jede digitalisierte Onboarding-Strecke senkt die Durchlaufzeit um 0,5 Tage.",
     createdBy: ADMIN,
     updatedBy: ADMIN,
   });
-  epicPrimaryKpi[0] = { id: kpiNetzplaeneId, valuePerUnit: 8_000, baseline: 0, target: 100 };
+  epicPrimaryKpi[0] = { id: kpiOnboardingId, valuePerUnit: 8_000, baseline: 0, target: 100 };
 
   // Weitere KPIs je Epic (1–2), jeweils mit simulierter Monats-Zeitreihe.
+  const KPI_NAMES = ["Durchlaufzeit", "NPS", "Automatisierungsgrad", "Fehlerquote", "Adoption"];
+  const KPI_UNITS = ["Tage", "Punkte", "%", "ppm", "%"];
   epicIds.forEach((epicId, ei) => {
     const k = 1 + (ei % 2);
     for (let j = 0; j < k; j++) {
@@ -354,12 +587,14 @@ async function main() {
       const tgt = base + 50 + j * 20;
       const valuePerUnit = 1_500 + ei * 100;
       const fraction = 0.35 + ((ei * 3 + j) % 5) * 0.1; // 0.35 … 0.75
+      const nameIdx = (ei + j) % KPI_NAMES.length;
+      const kpiId = uid(`kpi:${ei}:${j}`);
       kpiRows.push({
-        id: uid(`kpi:${ei}:${j}`),
+        id: kpiId,
         tenantId,
         initiativeId: epicId,
-        name: ["Durchlaufzeit", "NPS", "Automatisierungsgrad", "Fehlerquote"][(ei + j) % 4]!,
-        unit: ["Tage", "Punkte", "%", "ppm"][(ei + j) % 4]!,
+        name: KPI_NAMES[nameIdx]!,
+        unit: KPI_UNITS[nameIdx]!,
         baseline: base,
         target: tgt,
         measurements: simulateSeries(base, tgt, { monthsBack: 9, fraction, seed: ei * 7 + j }),
@@ -369,13 +604,7 @@ async function main() {
         createdBy: ADMIN,
         updatedBy: ADMIN,
       });
-      if (j === 0)
-        epicPrimaryKpi[ei] = {
-          id: uid(`kpi:${ei}:${j}`),
-          valuePerUnit,
-          baseline: base,
-          target: tgt,
-        };
+      if (j === 0) epicPrimaryKpi[ei] = { id: kpiId, valuePerUnit, baseline: base, target: tgt };
     }
   });
   await prisma.kpi.createMany({ data: kpiRows });
@@ -404,20 +633,47 @@ async function main() {
       updatedBy: ADMIN,
     })),
   });
-  // BudgetPlanRevision-Snapshot (gültiges Payload)
+  // BudgetPlanRevision ×2: aktuelle H1 + ältere, abgelöste Revision (Historie).
+  await prisma.budgetPlanRevision.create({
+    data: {
+      id: uid(`bprev:${PREV_H2}`),
+      tenantId,
+      cycleKey: PREV_H2,
+      capturedAt: addDays(now, -120),
+      capturedBy: ADMIN,
+      payload: buildSnapshotPayload({
+        cycleKey: PREV_H2,
+        epics: epicIds.slice(0, 6).map((epicId, i) => ({
+          epicId,
+          title: EPIC_DEFS[i]!.title,
+          valueStreamId: vsIds[EPIC_DEFS[i]!.vs]!,
+          valueStreamName: vsNames[EPIC_DEFS[i]!.vs]!,
+          priority: i,
+          alloc: 60_000 + i * 5_000,
+        })),
+        valueStreams: vsIds.map((id, i) => ({
+          id,
+          name: vsNames[i]!,
+          amount: 200_000 + i * 30_000,
+        })),
+        arts: artIds.map((id, i) => ({ id, name: artNames[i]!, amount: 340_000 + i * 25_000 })),
+      }),
+    },
+  });
   await prisma.budgetPlanRevision.create({
     data: {
       id: uid(`bprev:${H1}`),
       tenantId,
       cycleKey: H1,
+      capturedAt: addDays(now, -20),
       capturedBy: ADMIN,
       payload: buildSnapshotPayload({
         cycleKey: H1,
-        epics: epicIds.slice(0, 6).map((epicId, i) => ({
+        epics: epicIds.slice(0, 8).map((epicId, i) => ({
           epicId,
-          title: epicTitles[i]!,
-          valueStreamId: vsIds[i % 3]!,
-          valueStreamName: vsNames[i % 3]!,
+          title: EPIC_DEFS[i]!.title,
+          valueStreamId: vsIds[EPIC_DEFS[i]!.vs]!,
+          valueStreamName: vsNames[EPIC_DEFS[i]!.vs]!,
           priority: i,
           alloc: 80_000 + i * 6_000,
         })),
@@ -431,24 +687,20 @@ async function main() {
     },
   });
 
-  // ── Phase 6: Dependencies, Impediments, System-Demos ───────
-  console.log("\n── Programm-Inhalt (Deps, Impediments, Demos)");
+  // ── Phase 6: Dependencies, Issues, System-Demos ───────────────────────────
+  console.log("\n── Programm-Inhalt (Deps, Issues, Demos)");
 
-  // Dependencies zwischen Features (Typen rotieren, unique from/to/type)
+  // Cross-ART Feature-Dependencies (Typen rotieren, unique from/to/type).
   const allFeatureIds = featureRows.map((f) => f.id as string);
+  const featureArtById = new Map(featureRows.map((f) => [f.id as string, f.artId as string]));
   const DEP_TYPES = ["blocks", "depends_on", "relates_to"];
-  const depRows: {
-    id: string;
-    tenantId: string;
-    fromId: string;
-    toId: string;
-    type: string;
-    createdBy: string;
-  }[] = [];
-  for (let i = 0; i < 24 && i + 3 < allFeatureIds.length; i++) {
+  const depRows: Prisma.DependencyCreateManyInput[] = [];
+  for (let i = 0; i < 26 && i < allFeatureIds.length; i++) {
     const fromId = allFeatureIds[i]!;
     const toId = allFeatureIds[(i * 3 + 5) % allFeatureIds.length]!;
     if (fromId === toId) continue;
+    // Cross-ART bevorzugen: nur verknüpfen, wenn die ARTs sich unterscheiden.
+    if (featureArtById.get(fromId) === featureArtById.get(toId)) continue;
     depRows.push({
       id: uid(`dep:${i}`),
       tenantId,
@@ -459,54 +711,170 @@ async function main() {
     });
   }
   await prisma.dependency.createMany({ data: depRows, skipDuplicates: true });
+  console.log(`  ✓ ${depRows.length} Cross-ART Dependencies`);
 
-  // Issues (single type = risk model; some bundled under a head-issue to show the tree)
+  // Issues — voll gestaffelt: 4 Head-Issues mit Kindern (2–3 Ebenen tief),
+  // volle 5×5-Matrix, alle 5 ROAM-Buckets, Kategorien gestreut, viele an
+  // Features/Epics verlinkt (initiativeId) + teils artId/piId.
   const LEVELS = ["very_low", "low", "medium", "high", "very_high"];
   const CAT = ["technical", "business", "schedule", "external"];
-  const ROAM = ["open", "owned", "accepted", "mitigated", "resolved"];
-  const headIssueId = uid("issue:0");
-  await prisma.issue.createMany({
-    data: Array.from({ length: 14 }, (_, i) => ({
-      id: uid(`issue:${i}`),
+  const ROAM = ["open", "resolved", "owned", "accepted", "mitigated"];
+  type IssueDef = { key: string; title: string; parent?: string };
+  const issueDefs: IssueDef[] = [
+    { key: "reg", title: "Regulatorische Bereitschaft" }, // 0 head
+    { key: "reg-dora", title: "DORA-Compliance noch offen", parent: "reg" }, // 1
+    { key: "reg-sca", title: "PSD2-SCA Nachweise fehlen", parent: "reg" }, // 2
+    { key: "reg-mw", title: "Meldewesen-Fristen sehr eng", parent: "reg" }, // 3
+    { key: "reg-mw-data", title: "Testdaten für Meldung fehlen", parent: "reg-mw" }, // 4 grandchild
+    { key: "reg-mw-bafin", title: "BaFin-Rückfragen unbeantwortet", parent: "reg-mw" }, // 5 grandchild
+    { key: "debt", title: "Technische Schulden Core" }, // 6 head
+    { key: "debt-batch", title: "Core-Banking Batch-Fenster zu kurz", parent: "debt" }, // 7
+    { key: "debt-cobol", title: "Legacy-COBOL-Know-how konzentriert", parent: "debt" }, // 8
+    { key: "debt-mig", title: "Datenmigration Kernbank riskant", parent: "debt" }, // 9
+    { key: "debt-mig-map", title: "Feldmapping unklar", parent: "debt-mig" }, // 10 grandchild
+    { key: "supp", title: "Lieferanten-Risiken" }, // 11 head
+    { key: "supp-kyc", title: "KYC-Anbieter reißt SLA", parent: "supp" }, // 12
+    { key: "supp-cloud", title: "Cloud-Provider Lock-in", parent: "supp" }, // 13
+    { key: "supp-card", title: "Kartenprozessor-Zertifizierung offen", parent: "supp" }, // 14
+    { key: "supp-card-pci", title: "PCI-DSS-Audit noch offen", parent: "supp-card" }, // 15 grandchild
+    { key: "sec", title: "Sicherheit & Fraud" }, // 16 head
+    { key: "sec-fp", title: "Fraud-Modell zu viele False Positives", parent: "sec" }, // 17
+    { key: "sec-bio", title: "Biometrie-Spoofing möglich", parent: "sec" }, // 18
+    { key: "sec-ddos", title: "API-Rate-Limits gegen DDoS fehlen", parent: "sec" }, // 19
+    { key: "sec-fp-bias", title: "Trainingsdaten-Bias im Fraud-Modell", parent: "sec-fp" }, // 20 grandchild
+    { key: "cap", title: "PI-Planning Kapazitätsengpass" }, // 21 standalone
+    { key: "dep-core", title: "Abhängigkeit vom Zahlungskern" }, // 22
+    { key: "conv", title: "Onboarding-Konversion zu niedrig" }, // 23
+    { key: "store", title: "App-Store-Freigabe verzögert" }, // 24
+    { key: "pfm-dq", title: "Datenqualität PFM unzureichend" }, // 25
+    { key: "fx", title: "Wechselkurs-Volatilität" }, // 26
+    { key: "churn", title: "Personalfluktuation im RTE-Kreis" }, // 27
+  ];
+  const issueIdByKey: Record<string, string> = {};
+  issueDefs.forEach((d, i) => (issueIdByKey[d.key] = uid(`issue:${i}`)));
+  const issueOwners = [U.rte, U.owner, U.portfolio, U.vmo, U.fo];
+  const issueRows: Prisma.IssueCreateManyInput[] = issueDefs.map((d, i) => {
+    // Volle 5×5-Matrix: i=0..24 deckt alle Kombinationen ab.
+    const probability = LEVELS[Math.floor(i / 5) % 5]!;
+    const impact = LEVELS[i % 5]!;
+    const roamStatus = ROAM[i % ROAM.length]!;
+    const category = CAT[i % CAT.length]!;
+    // Viele Issues an Epics/Features hängen; einige mit ART/PI-Kontext.
+    const linkToFeature = i % 3 === 1;
+    const initiativeId = linkToFeature
+      ? allFeatureIds[(i * 5) % allFeatureIds.length]!
+      : i % 3 === 0
+        ? epicIds[i % epicIds.length]!
+        : undefined;
+    return {
+      id: issueIdByKey[d.key]!,
       tenantId,
       issueNumber: i + 1,
-      title: `Issue ${i + 1}: ${["Abhängigkeit blockiert", "Umgebung instabil", "Wissenslücke", "Externe Freigabe fehlt"][i % 4]}`,
-      description: "Details zum Issue.",
-      probability: LEVELS[i % LEVELS.length]!,
-      impact: LEVELS[(i * 2) % LEVELS.length]!,
-      category: CAT[i % CAT.length]!,
+      title: d.title,
+      description: `Details und Kontext zu: ${d.title}.`,
+      probability,
+      impact,
+      category,
       reviewStatus: "documented",
-      roamStatus: ROAM[i % ROAM.length]!,
+      roamStatus,
+      ...(roamStatus !== "open"
+        ? { roamRationale: "ROAM-Entscheidung im letzten Risk-Review festgehalten." }
+        : {}),
+      ownerId: issueOwners[i % issueOwners.length]!,
       raisedBy: U.rte,
-      artId: artIds[i % artIds.length]!,
-      ...(i % 2 === 0 ? { piId: activePi } : {}),
-      // Bundle issues 1..4 under issue 0 (a head-issue) to demonstrate nesting.
-      ...(i >= 1 && i <= 4 ? { parentId: headIssueId } : {}),
-    })),
+      targetResolutionDate: addDays(now, 20 + (i % 5) * 10),
+      ...(d.parent ? { parentId: issueIdByKey[d.parent]! } : {}),
+      ...(initiativeId ? { initiativeId } : {}),
+      ...(i % 4 === 0 ? { artId: artIds[i % artIds.length]! } : {}),
+      ...(i % 6 === 0 ? { piId: activePi } : {}),
+    };
   });
+  await prisma.issue.createMany({ data: issueRows });
 
-  // System-Demos (aktiv + vorher)
-  for (const [demoKey, piId] of [
-    ["active", activePi],
-    ["prev", prevPi],
-  ] as const) {
-    const demoId = uid(`demo:${demoKey}`);
+  // IssueMitigation (1–3 auf mehreren Issues).
+  const mitigationRows: Prisma.IssueMitigationCreateManyInput[] = [];
+  issueDefs.forEach((d, i) => {
+    if (i % 3 !== 0) return;
+    const n = 1 + (Math.floor(i / 3) % 3); // 1–3 Maßnahmen (variiert deterministisch)
+    for (let m = 0; m < n; m++) {
+      mitigationRows.push({
+        id: uid(`imit:${i}:${m}`),
+        tenantId,
+        issueId: issueIdByKey[d.key]!,
+        description: `Maßnahme ${m + 1}: Gegensteuern bei „${d.title}".`,
+        createdBy: issueOwners[i % issueOwners.length]!,
+      });
+    }
+  });
+  await prisma.issueMitigation.createMany({ data: mitigationRows });
+
+  // IssueAssessment: Neubewertungs-Trail auf einigen Issues (verschiebt Exposure).
+  const assessmentRows: Prisma.IssueAssessmentCreateManyInput[] = [];
+  issueDefs.forEach((d, i) => {
+    if (i % 5 !== 0) return;
+    // Erst-Bewertung + spätere Re-Assessment mit verschobenem Prob/Impact.
+    assessmentRows.push(
+      {
+        id: uid(`iass:${i}:0`),
+        tenantId,
+        issueId: issueIdByKey[d.key]!,
+        probability: LEVELS[Math.floor(i / 5) % 5]!,
+        impact: LEVELS[i % 5]!,
+        note: "Erst-Einschätzung beim Aufnehmen.",
+        createdBy: U.rte,
+      },
+      {
+        id: uid(`iass:${i}:1`),
+        tenantId,
+        issueId: issueIdByKey[d.key]!,
+        probability: LEVELS[(Math.floor(i / 5) + 1) % 5]!,
+        impact: LEVELS[(i + 1) % 5]!,
+        note: "Neubewertung nach Gegenmaßnahmen — Exposure verschoben.",
+        createdBy: U.owner,
+      },
+    );
+  });
+  await prisma.issueAssessment.createMany({ data: assessmentRows });
+
+  // IssueSettings: Prefix + lastNumber = max issueNumber.
+  await prisma.issueSettings.create({
+    data: {
+      id: uid("issuesettings:1"),
+      tenantId,
+      prefix: "R-",
+      lastNumber: issueDefs.length,
+    },
+  });
+  console.log(
+    `  ✓ ${issueRows.length} Issues, ${mitigationRows.length} Mitigations, ${assessmentRows.length} Assessments`,
+  );
+
+  // System-Demos je abgeschlossenem PI (pi1, pi2) + Items über MEHRERE Epics.
+  const demoEpicSets: Record<string, number[]> = {
+    pi1: [3, 4, 7, 13, 18],
+    pi2: [0, 5, 8, 16, 19],
+  };
+  for (const demoKey of ["pi1", "pi2"] as const) {
+    const piId = piIds[demoKey]!;
+    const featureSet = demoEpicSets[demoKey]!.flatMap((ei) =>
+      (featureIdsByEpic[ei] ?? []).slice(0, 1).map((fid) => ({ ei, fid })),
+    );
     await prisma.systemDemo.create({
       data: {
-        id: demoId,
+        id: uid(`demo:${demoKey}`),
         tenantId,
         piId,
-        scheduledAt: addDays(now, demoKey === "active" ? 45 : -12),
-        notes: "System Demo Agenda.",
+        scheduledAt: addDays(now, demoKey === "pi2" ? -12 : -82),
+        notes: "System-Demo-Agenda: End-to-End-Durchstiche der abgeschlossenen Features.",
         createdBy: ADMIN,
         items: {
-          create: (featureIdsByEpic[0] ?? []).slice(0, 3).map((fid, k) => ({
+          create: featureSet.map(({ ei, fid }, k) => ({
             id: uid(`demoitem:${demoKey}:${k}`),
             tenantId,
             featureId: fid,
-            title: `Demo-Item ${k + 1}`,
+            title: `Demo: ${EPIC_DEFS[ei]!.title}`,
             ownerId: U.owner,
-            presented: demoKey === "prev",
+            presented: true,
             position: k,
             createdBy: ADMIN,
           })),
@@ -519,16 +887,19 @@ async function main() {
   console.log("\n── Ziele (manual · rollup · auto_kpi · kpi_tree)");
   const themeBiz = uid("theme:wachstum");
   const themeEnabler = uid("theme:exzellenz");
+  const themeTrust = uid("theme:kundenvertrauen");
   await prisma.strategicTheme.createMany({
     data: [
       {
         id: themeBiz,
         tenantId,
-        title: "Wachstum & Effizienz",
+        title: "Wachstum",
+        narrative: "Neukundengewinnung und Cross-Sell über digitale Kanäle beschleunigen.",
         kind: "business",
         color: "#6366f1",
         budgetPlanned: 6_000_000,
         ownerId: U.portfolio,
+        sortOrder: 0,
         createdBy: ADMIN,
         updatedBy: ADMIN,
       },
@@ -536,18 +907,51 @@ async function main() {
         id: themeEnabler,
         tenantId,
         title: "Technische Exzellenz",
+        narrative: "Architektur-Runway, Cloud und Developer-Experience als Fundament.",
         kind: "enabler",
         color: "#0ea5e9",
-        budgetPlanned: 2_000_000,
+        budgetPlanned: 2_500_000,
         ownerId: U.vmo,
+        sortOrder: 1,
+        createdBy: ADMIN,
+        updatedBy: ADMIN,
+      },
+      {
+        id: themeTrust,
+        tenantId,
+        title: "Kundenvertrauen",
+        narrative: "Sicherheit, Regulatorik und Servicequalität als Vertrauensanker.",
+        kind: "business",
+        color: "#10b981",
+        budgetPlanned: 1_800_000,
+        ownerId: U.portfolio,
+        sortOrder: 2,
         createdBy: ADMIN,
         updatedBy: ADMIN,
       },
     ],
   });
 
-  // Custom Fields
+  // ThemeEpicLink: jedes Epic an ein Theme (Enabler→Exzellenz, Solution→Wachstum,
+  // Business-Epics alternierend Wachstum/Kundenvertrauen).
+  await prisma.themeEpicLink.createMany({
+    data: epicIds.map((epicId, i) => {
+      const t = EPIC_DEFS[i]!;
+      const themeId =
+        t.epicType === "enabler"
+          ? themeEnabler
+          : t.epicType === "solution"
+            ? themeBiz
+            : i % 2 === 0
+              ? themeBiz
+              : themeTrust;
+      return { id: uid(`tel:${i}`), tenantId, themeId, epicId, createdBy: ADMIN };
+    }),
+  });
+
+  // Custom Fields (×3)
   const cfSelect = uid("cf:prio");
+  const cfNumber = uid("cf:konfidenz");
   await prisma.goalCustomFieldDef.createMany({
     data: [
       {
@@ -560,7 +964,7 @@ async function main() {
         updatedBy: ADMIN,
       },
       {
-        id: uid("cf:zielwert"),
+        id: cfNumber,
         tenantId,
         name: "Konfidenz",
         type: "number",
@@ -584,7 +988,6 @@ async function main() {
   // Objective-Bausteine
   const roots: Prisma.ObjectiveCreateManyInput[] = [];
   const children: Prisma.ObjectiveCreateManyInput[] = [];
-  const grandchildren: Prisma.ObjectiveCreateManyInput[] = [];
   const objBase = (
     id: string,
     themeId: string,
@@ -601,10 +1004,10 @@ async function main() {
     ...extra,
   });
 
-  // (a) manual-Blatt (mit Check-in-Historie)
+  // (a) manual-Blatt (mit dichter Check-in-Historie)
   const gManual = uid("goal:manual-nps");
   roots.push(
-    objBase(gManual, themeBiz, "NPS auf 60 steigern", {
+    objBase(gManual, themeTrust, "NPS auf 60", {
       progressMode: "manual",
       metricType: "number",
       metricUnit: "Punkte",
@@ -612,7 +1015,37 @@ async function main() {
       target: 60,
       current: 52,
       status: "on_track",
-      period: `${YEAR}-H1`,
+      period: H1,
+      ownerId: U.portfolio,
+    }),
+  );
+
+  // weitere manual-Ziele (benannt) mit Check-ins
+  const gCIR = uid("goal:cir");
+  roots.push(
+    objBase(gCIR, themeBiz, "Cost-Income-Ratio senken", {
+      progressMode: "manual",
+      metricType: "number",
+      metricUnit: "%",
+      baseline: 68,
+      target: 58,
+      current: 63,
+      status: "at_risk",
+      period: `${YEAR}`,
+      ownerId: U.vmo,
+    }),
+  );
+  const gDigital = uid("goal:digital-adoption");
+  roots.push(
+    objBase(gDigital, themeBiz, "Digital-Adoption 80 %", {
+      progressMode: "manual",
+      metricType: "number",
+      metricUnit: "%",
+      baseline: 55,
+      target: 80,
+      current: 68,
+      status: "on_track",
+      period: `${YEAR}`,
       ownerId: U.portfolio,
     }),
   );
@@ -620,15 +1053,17 @@ async function main() {
   // (b) rollup-Ast mit 2 manual-Kindern
   const gRollup = uid("goal:rollup-kundenzufriedenheit");
   roots.push(
-    objBase(gRollup, themeBiz, "Kundenzufriedenheit erhöhen", {
+    objBase(gRollup, themeTrust, "Kundenzufriedenheit erhöhen", {
       progressMode: "rollup",
       status: "at_risk",
       period: `${YEAR}`,
       ownerId: U.portfolio,
     }),
   );
+  const gRollupK1 = uid("goal:rollup-k1");
+  const gRollupK2 = uid("goal:rollup-k2");
   children.push(
-    objBase(uid("goal:rollup-k1"), themeBiz, "Beschwerdequote senken", {
+    objBase(gRollupK1, themeTrust, "Beschwerdequote senken", {
       parentObjectiveId: gRollup,
       level: 1,
       progressMode: "manual",
@@ -640,7 +1075,7 @@ async function main() {
       status: "on_track",
       rollupWeight: 2,
     }),
-    objBase(uid("goal:rollup-k2"), themeBiz, "Erstlösungsquote steigern", {
+    objBase(gRollupK2, themeTrust, "Erstlösungsquote steigern", {
       parentObjectiveId: gRollup,
       level: 1,
       progressMode: "manual",
@@ -654,19 +1089,17 @@ async function main() {
     }),
   );
 
-  // (c) Portfolio-Outcome-Baum: JEDES Epic realisiert genau eines dieser Ziele
-  //     (werttreibend über seine Primär-KPI). gVS0 = auto_kpi (Demo), gVS1/2 =
-  //     kpi_tree; alle drei sind €-Blätter unter dem kpi_tree-Ast gPortfolio.
+  // (c) Portfolio-Outcome-Baum (kpi_tree): jedes Epic (außer 0) realisiert genau
+  //     eines dieser VS-Ziele über seine Primär-KPI. gVS0 = auto_kpi (Demo),
+  //     gVS1/2 = kpi_tree; alle drei €-Blätter unter gPortfolio (kpi_tree).
   const gPortfolio = uid("goal:portfolio-value");
   const gVs = [uid("goal:vs0-value"), uid("goal:vs1-value"), uid("goal:vs2-value")];
-  // Ziel-Target je VS = Σ realisierbarer € (|kpiΔ| × €/Einheit) der zugeordneten
-  // Epics (Epic 0 zählt zu TAT, nicht zu gVS0).
   const vsTarget = [0, 0, 0];
   epicIds.forEach((_, ei) => {
-    if (ei === 0) return; // TAT
+    if (ei === 0) return; // TAT zählt separat
     const k = epicPrimaryKpi[ei];
     if (!k) return;
-    vsTarget[ei % 3]! += Math.abs(k.target - k.baseline) * k.valuePerUnit;
+    vsTarget[EPIC_DEFS[ei]!.vs]! += Math.abs(k.target - k.baseline) * k.valuePerUnit;
   });
   const portfolioTarget = vsTarget[0]! + vsTarget[1]! + vsTarget[2]!;
   roots.push(
@@ -700,11 +1133,11 @@ async function main() {
     ),
   );
 
-  // (d) kpi_tree — das TAT-Beispiel (€-Parent → Days-Kind → KPI Netzpläne)
+  // (d) kpi_tree — das TAT-Beispiel (€-Parent → Days-Kind → KPI Onboarding)
   const gTatParent = uid("goal:tat-parent");
   const gTatChild = uid("goal:tat-child");
   roots.push(
-    objBase(gTatParent, themeBiz, "TAT-Optimierung Wertbeitrag", {
+    objBase(gTatParent, themeBiz, "Onboarding-TAT Wertbeitrag", {
       progressMode: "kpi_tree",
       metricType: "currency",
       metricUnit: "€",
@@ -717,7 +1150,7 @@ async function main() {
     }),
   );
   children.push(
-    objBase(gTatChild, themeBiz, "TAT durch Netzplan-Optimierung senken", {
+    objBase(gTatChild, themeBiz, "TAT durch Digital-Onboarding senken", {
       parentObjectiveId: gTatParent,
       level: 1,
       progressMode: "kpi_tree",
@@ -731,16 +1164,20 @@ async function main() {
     }),
   );
 
-  // (e) geschlossene Ziele (Status-Abdeckung)
+  // (e) geschlossene Ziele (Status-Abdeckung achieved/partial/missed/dropped)
   const CLOSED = [
     ["achieved", "Zahlungsausfälle halbiert"],
     ["partial", "Onboarding-Zeit reduziert"],
     ["missed", "App-Store-Rating 4.8"],
     ["dropped", "Filial-Kiosk-Pilot"],
   ] as const;
+  const closedIds: string[] = [];
+  const closedThemes = [themeTrust, themeBiz, themeTrust, themeEnabler];
   CLOSED.forEach(([status, title], i) => {
+    const id = uid(`goal:closed:${i}`);
+    closedIds.push(id);
     roots.push(
-      objBase(uid(`goal:closed:${i}`), i % 2 === 0 ? themeBiz : themeEnabler, title, {
+      objBase(id, closedThemes[i]!, title, {
         progressMode: "manual",
         metricType: "number",
         metricUnit: "%",
@@ -749,19 +1186,18 @@ async function main() {
         current: status === "achieved" ? 100 : status === "partial" ? 60 : 30,
         status,
         closedAt: addDays(now, -20 + i),
-        closingNote: "Quartals-Retrospektive abgeschlossen.",
-        period: `${YEAR}-H1`,
+        closingNote: "Quartals-Retrospektive abgeschlossen — Lessons Learned dokumentiert.",
+        period: H1,
       }),
     );
   });
 
   await prisma.objective.createMany({ data: roots });
   await prisma.objective.createMany({ data: children });
-  if (grandchildren.length) await prisma.objective.createMany({ data: grandchildren });
 
-  // GoalEpicLink: JEDES Epic realisiert genau EIN Ziel, werttreibend über seine
-  // Primär-KPI. Epic 0 → TAT-Kind (Faktor 0,5); Epics 1–17 → VS-Outcome-Ziel
-  // (conversionFactor = valuePerUnit ⇒ Beitrag = kpiΔ × €/Einheit = realisierter €).
+  // GoalEpicLink: JEDES Epic realisiert genau EIN Ziel über seine Primär-KPI.
+  // Epic 0 → TAT-Kind (Faktor 0,5); Epics 1–19 → VS-Outcome-Ziel des eigenen VS
+  // (conversionFactor = valuePerUnit ⇒ Beitrag = kpiΔ × €/Einheit).
   const goalLinkRows: Prisma.GoalEpicLinkCreateManyInput[] = epicIds.map((epicId, ei) => {
     if (ei === 0) {
       return {
@@ -769,7 +1205,7 @@ async function main() {
         tenantId,
         objectiveId: gTatChild,
         epicId,
-        kpiId: kpiNetzplaeneId,
+        kpiId: kpiOnboardingId,
         conversionFactor: 0.5,
         impactKind: "recurring",
         recurringInterval: "yearly",
@@ -780,10 +1216,10 @@ async function main() {
     return {
       id: uid(`gel:${ei}`),
       tenantId,
-      objectiveId: gVs[ei % 3]!,
+      objectiveId: gVs[EPIC_DEFS[ei]!.vs]!,
       epicId,
       kpiId: k.id,
-      conversionFactor: k.valuePerUnit, // € je 1 KPI-Einheit
+      conversionFactor: k.valuePerUnit,
       impactKind: "recurring",
       recurringInterval: "yearly",
       createdBy: ADMIN,
@@ -791,52 +1227,40 @@ async function main() {
   });
   await prisma.goalEpicLink.createMany({ data: goalLinkRows });
 
-  // Check-in-Historie (manual-Ziel → Verlaufschart)
-  await prisma.goalCheckin.createMany({
-    data: [
-      {
-        id: uid("ci:1"),
+  // Dichte Check-in-Historie für MEHRERE Ziele.
+  const checkinRows: Prisma.GoalCheckinCreateManyInput[] = [];
+  const checkinPlan: { obj: string; series: number[]; statuses: string[] }[] = [
+    { obj: gManual, series: [42, 44, 47, 49, 52], statuses: ["on_track", "on_track", "at_risk", "on_track", "on_track"] },
+    { obj: gCIR, series: [68, 66, 65, 64, 63], statuses: ["at_risk", "at_risk", "on_track", "at_risk", "at_risk"] },
+    { obj: gDigital, series: [55, 59, 62, 65, 68], statuses: ["on_track", "on_track", "on_track", "on_track", "on_track"] },
+    { obj: gRollupK2, series: [60, 63, 66, 68, 70], statuses: ["at_risk", "at_risk", "on_track", "at_risk", "at_risk"] },
+  ];
+  checkinPlan.forEach((p, pi) => {
+    const span = 4;
+    p.series.forEach((value, i) => {
+      checkinRows.push({
+        id: uid(`ci:${pi}:${i}`),
         tenantId,
-        objectiveId: gManual,
-        status: "on_track",
-        value: 44,
-        progress: 0.2,
-        note: "Guter Start",
-        createdAt: addDays(now, -60),
+        objectiveId: p.obj,
+        status: p.statuses[i]!,
+        value,
+        progress: Number((i / (p.series.length - 1)).toFixed(2)),
+        ...(i % 2 === 0 ? { note: `Fortschritts-Update #${i + 1}` } : {}),
+        createdAt: addDays(now, -span * 15 * (p.series.length - 1 - i) - 3),
         createdBy: U.portfolio,
-      },
-      {
-        id: uid("ci:2"),
-        tenantId,
-        objectiveId: gManual,
-        status: "on_track",
-        value: 48,
-        progress: 0.4,
-        createdAt: addDays(now, -30),
-        createdBy: U.portfolio,
-      },
-      {
-        id: uid("ci:3"),
-        tenantId,
-        objectiveId: gManual,
-        status: "on_track",
-        value: 52,
-        progress: 0.6,
-        note: "Auf Kurs",
-        createdAt: addDays(now, -5),
-        createdBy: U.portfolio,
-      },
-    ],
+      });
+    });
   });
+  await prisma.goalCheckin.createMany({ data: checkinRows });
 
-  // Kommentare, Related Work, VS/ART-Links, Custom-Field-Werte
+  // Kommentare (Aktivitäts-Feed)
   await prisma.goalComment.createMany({
     data: [
       {
         id: uid("gc:1"),
         tenantId,
         objectiveId: gTatParent,
-        body: "Sieht gut aus für Q-Ende.",
+        body: "Sieht gut aus für das Quartalsende — TAT-Kurve zieht an.",
         createdAt: addDays(now, -4),
         createdBy: U.owner,
       },
@@ -844,12 +1268,22 @@ async function main() {
         id: uid("gc:2"),
         tenantId,
         objectiveId: gRollup,
-        body: "Kind 2 braucht Unterstützung.",
+        body: "Erstlösungsquote braucht Unterstützung vom Contact-Center-ART.",
         createdAt: addDays(now, -2),
         createdBy: U.portfolio,
       },
+      {
+        id: uid("gc:3"),
+        tenantId,
+        objectiveId: gCIR,
+        body: "Kostenseite hängt an der Cloud-Migration — abhängig von Enabler-Epic.",
+        createdAt: addDays(now, -1),
+        createdBy: U.vmo,
+      },
     ],
   });
+
+  // Related Work (Feature/PI-Referenzen)
   await prisma.goalRelatedWork.createMany({
     data: [
       {
@@ -868,89 +1302,121 @@ async function main() {
         refId: activePi,
         createdBy: ADMIN,
       },
-    ],
-  });
-  await prisma.goalValueStreamLink.createMany({
-    data: [
       {
-        id: uid("gvsl:1"),
+        id: uid("grw:3"),
         tenantId,
-        objectiveId: gTatParent,
-        valueStreamId: vsIds[0]!,
+        objectiveId: gDigital,
+        kind: "feature",
+        refId: featureIdsByEpic[3]![0]!,
         createdBy: ADMIN,
       },
+    ],
+  });
+
+  // VS-/ART-Verantwortungs-Links
+  await prisma.goalValueStreamLink.createMany({
+    data: [
+      { id: uid("gvsl:1"), tenantId, objectiveId: gTatParent, valueStreamId: vsIds[0]!, createdBy: ADMIN },
+      { id: uid("gvsl:2"), tenantId, objectiveId: gVs[1]!, valueStreamId: vsIds[1]!, createdBy: ADMIN },
+      { id: uid("gvsl:3"), tenantId, objectiveId: gRollup, valueStreamId: vsIds[2]!, createdBy: ADMIN },
     ],
   });
   await prisma.goalArtLink.createMany({
     data: [
       { id: uid("gal:1"), tenantId, objectiveId: gTatChild, artId: artIds[0]!, createdBy: ADMIN },
-    ],
-  });
-  await prisma.goalCustomFieldValue.createMany({
-    data: [
-      {
-        id: uid("cfv:1"),
-        tenantId,
-        defId: cfSelect,
-        objectiveId: gTatParent,
-        value: "Hoch",
-        createdBy: ADMIN,
-        updatedBy: ADMIN,
-      },
-      {
-        id: uid("cfv:2"),
-        tenantId,
-        defId: uid("cf:zielwert"),
-        objectiveId: gManual,
-        value: "80",
-        createdBy: ADMIN,
-        updatedBy: ADMIN,
-      },
+      { id: uid("gal:2"), tenantId, objectiveId: gRollupK2, artId: artIds[5]!, createdBy: ADMIN },
     ],
   });
 
+  // Custom-Field-Werte für die MEISTEN Ziele.
+  const prioObjectives = [
+    gManual,
+    gCIR,
+    gDigital,
+    gRollup,
+    gRollupK1,
+    gRollupK2,
+    gPortfolio,
+    gVs[0]!,
+    gVs[1]!,
+    gVs[2]!,
+    gTatParent,
+    gTatChild,
+    ...closedIds,
+  ];
+  const prioValues = ["Hoch", "Mittel", "Niedrig"];
+  const cfvRows: Prisma.GoalCustomFieldValueCreateManyInput[] = [];
+  prioObjectives.forEach((objId, i) => {
+    cfvRows.push({
+      id: uid(`cfv:prio:${i}`),
+      tenantId,
+      defId: cfSelect,
+      objectiveId: objId,
+      value: prioValues[i % prioValues.length]!,
+      createdBy: ADMIN,
+      updatedBy: ADMIN,
+    });
+    if (i % 3 === 0) {
+      cfvRows.push({
+        id: uid(`cfv:konf:${i}`),
+        tenantId,
+        defId: cfNumber,
+        objectiveId: objId,
+        value: String(60 + (i % 4) * 10),
+        createdBy: ADMIN,
+        updatedBy: ADMIN,
+      });
+    }
+  });
+  await prisma.goalCustomFieldValue.createMany({ data: cfvRows });
+
   // ── Phase 8: Approvals, Audit, Anfragen, Setup, Transformation ────────────
   console.log("\n── Workflow + Admin-Inbox");
-  // EpicApprovals: einige pending & dem eingeloggten User zugewiesen (my-approvals)
-  const approvalRows: {
-    id: string;
-    tenantId: string;
-    initiativeId: string;
-    kind: string;
-    party?: string;
-    section?: string;
-    approverUserId: string;
-    status: string;
-    createdBy: string;
-    decidedAt?: Date;
-    comment?: string;
-  }[] = [];
+  // EpicApprovals über VIELE Epics; Parteien auf die richtigen Seed-User mappen,
+  // damit /my-approvals für portfolio/vmo/finance/owner/rte füllt.
+  const partyApprover: Record<string, string> = {
+    mgmt: U.portfolio,
+    business_owner: U.owner,
+    finance: U.fo,
+    irt_owner: U.rte,
+    lace_vmo: U.vmo,
+  };
   const PARTIES = ["mgmt", "business_owner", "finance", "irt_owner", "lace_vmo"];
-  epicIds.slice(0, 6).forEach((epicId, i) => {
+  const approvalRows: Prisma.EpicApprovalCreateManyInput[] = [];
+  epicIds.slice(0, 12).forEach((epicId, i) => {
+    const party = PARTIES[i % PARTIES.length]!;
+    // Mehrheit pending (Inbox füllt), einige entschieden.
+    const status = i % 4 === 3 ? "approved" : i % 4 === 2 ? "rejected" : "pending";
     approvalRows.push({
       id: uid(`appr:party:${i}`),
       tenantId,
       initiativeId: epicId,
       kind: "party",
-      party: PARTIES[i % PARTIES.length]!,
-      approverUserId: i % 2 === 0 ? U.admin : U.owner,
-      status: i < 3 ? "pending" : i === 3 ? "approved" : "rejected",
-      ...(i >= 3
-        ? { decidedAt: addDays(now, -2), comment: i === 3 ? "OK" : "Bitte nachbessern" }
+      party,
+      approverUserId: partyApprover[party]!,
+      status,
+      ...(status !== "pending"
+        ? {
+            decidedAt: addDays(now, -2 - (i % 3)),
+            comment: status === "approved" ? "Freigegeben." : "Bitte Business Case nachschärfen.",
+          }
         : {}),
       createdBy: ADMIN,
     });
-    approvalRows.push({
-      id: uid(`appr:section:${i}`),
-      tenantId,
-      initiativeId: epicId,
-      kind: "section",
-      section: i % 2 === 0 ? "breakdown" : "kpis",
-      approverUserId: U.owner,
-      status: i < 2 ? "pending" : "approved",
-      ...(i >= 2 ? { decidedAt: addDays(now, -1) } : {}),
-      createdBy: ADMIN,
-    });
+    // Zusätzlich Section-Reviews auf einigen Epics (breakdown/kpis).
+    if (i % 2 === 0) {
+      approvalRows.push({
+        id: uid(`appr:section:${i}`),
+        tenantId,
+        initiativeId: epicId,
+        kind: "section",
+        section: i % 4 === 0 ? "breakdown" : "kpis",
+        approverUserId: U.owner,
+        status: i % 3 === 0 ? "pending" : "approved",
+        ...(i % 3 !== 0 ? { decidedAt: addDays(now, -1) } : {}),
+        createdBy: ADMIN,
+      });
+    }
   });
   await prisma.epicApproval.createMany({ data: approvalRows });
 
@@ -982,12 +1448,12 @@ async function main() {
         email: "gast@example.com",
         via: "code",
         status: "pending",
-        createdAt: now,
+        createdAt: addDays(now, -3),
       },
     ],
   });
 
-  // Audit-Log (~30 Events, echte Actor-/Resource-Ids)
+  // Audit-Log (~48 Events, rotierend, echte Actor-/Resource-Ids).
   const AUDIT_ACTIONS = [
     ["initiative.create", "initiative"],
     ["initiative.update", "initiative"],
@@ -995,13 +1461,23 @@ async function main() {
     ["goal.checkin", "objective"],
     ["goal.update", "objective"],
     ["budget.allocate", "budget_allocation"],
-    ["impediment.raise", "impediment"],
+    ["issue.raise", "issue"],
+    ["issue.roam", "issue"],
     ["pi.plan", "program_increment"],
+    ["kpi.update", "kpi"],
   ] as const;
-  const actors = [U.admin, U.portfolio, U.owner, U.rte, U.vmo];
-  const auditTargets = [...epicIds, gTatParent, gManual, activePi];
+  const actors = [U.admin, U.portfolio, U.owner, U.rte, U.vmo, U.fo];
+  const auditTargets = [
+    ...epicIds,
+    gTatParent,
+    gManual,
+    gCIR,
+    activePi,
+    issueIdByKey["reg"]!,
+    issueIdByKey["sec"]!,
+  ];
   await prisma.auditEvent.createMany({
-    data: Array.from({ length: 30 }, (_, i) => {
+    data: Array.from({ length: 48 }, (_, i) => {
       const [action, resourceType] = AUDIT_ACTIONS[i % AUDIT_ACTIONS.length]!;
       return {
         id: uid(`audit:${i}`),
@@ -1011,19 +1487,29 @@ async function main() {
         action,
         resourceType,
         resourceId: auditTargets[i % auditTargets.length]!,
-        changes: { note: `Automatisch geseedetes Event #${i}` },
+        changes: { note: `Geseedetes Audit-Event #${i}`, field: resourceType },
       };
     }),
   });
 
-  // Setup-Progress (Mix erledigt)
+  // Setup-Progress (ALLE Checks erledigt).
+  const SETUP_CHECKS = [
+    "m1-1", "m1-2", "m1-3",
+    "m2-1", "m2-2", "m2-3",
+    "m3-1", "m3-2", "m3-3",
+    "m4-1", "m4-2", "m4-3",
+    "m5-legacy-1", "m5-legacy-2", "m5-legacy-3",
+    "m6-1", "m6-2", "m6-3",
+    "m7-1", "m7-2", "m7-3",
+    "m8-1", "m8-2", "m8-3",
+  ];
   await prisma.setupProgress.createMany({
-    data: ["value-streams", "arts", "teams", "first-pi"].map((checkId, i) => ({
+    data: SETUP_CHECKS.map((checkId, i) => ({
       id: uid(`setup:${checkId}`),
       tenantId,
       checkId,
       updatedBy: ADMIN,
-      updatedAt: addDays(now, -10 + i),
+      updatedAt: addDays(now, -30 + i),
     })),
     skipDuplicates: true,
   });
@@ -1037,7 +1523,7 @@ async function main() {
       template: "portfolio_safe",
       targetValueStreams: 3,
       targetArtsTotal: 6,
-      targetTeamsTotal: 15,
+      targetTeamsTotal: 18,
       targetPiCadenceWeeks: 10,
       createdBy: ADMIN,
       updatedBy: ADMIN,
@@ -1048,7 +1534,7 @@ async function main() {
       {
         id: uid("ta:1"),
         tenantId,
-        title: "PI-Planning-Kadenz vereinheitlichen",
+        title: "PI-Planning-Kadenz konzernweit vereinheitlichen",
         status: "in_progress",
         ownerId: U.transformation,
         dueDate: addDays(now, 30),
@@ -1058,9 +1544,10 @@ async function main() {
       {
         id: uid("ta:2"),
         tenantId,
-        title: "WSJF-Schulung für Feature Owner",
+        title: "WSJF-Schulung für alle Feature Owner",
         status: "open",
         ownerId: U.rte,
+        dueDate: addDays(now, 60),
         createdBy: ADMIN,
         updatedBy: ADMIN,
       },
@@ -1072,6 +1559,48 @@ async function main() {
         ownerId: U.portfolio,
         createdBy: ADMIN,
         updatedBy: ADMIN,
+      },
+      {
+        id: uid("ta:4"),
+        tenantId,
+        title: "Lean-Budget-Guardrails etablieren",
+        status: "in_progress",
+        ownerId: U.vmo,
+        dueDate: addDays(now, 45),
+        createdBy: ADMIN,
+        updatedBy: ADMIN,
+      },
+      {
+        id: uid("ta:5"),
+        tenantId,
+        title: "Cloud-Migrations-Runway priorisieren",
+        status: "open",
+        ownerId: U.transformation,
+        dueDate: addDays(now, 90),
+        createdBy: ADMIN,
+        updatedBy: ADMIN,
+      },
+    ],
+  });
+
+  // SavedPortfolioFilter ×2 (benannte Views, user-scoped → admin).
+  await prisma.savedPortfolioFilter.createMany({
+    data: [
+      {
+        id: uid("spf:1"),
+        tenantId,
+        userId: U.admin,
+        name: "Steuerungs-Kandidaten",
+        criteria: { status: ["approved"], gate: ["L2", "L3"], vs: [vsIds[0]!], owner: [] },
+        isDefault: true,
+      },
+      {
+        id: uid("spf:2"),
+        tenantId,
+        userId: U.admin,
+        name: "In Umsetzung (L4)",
+        criteria: { status: ["in_progress"], gate: ["L4"], vs: [], owner: [U.owner] },
+        isDefault: false,
       },
     ],
   });

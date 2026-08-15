@@ -180,6 +180,7 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
   await prisma.issueMitigation.deleteMany(w);
   await prisma.issueAssessment.deleteMany(w);
   await prisma.issue.deleteMany(w);
+  await prisma.issueSettings.deleteMany(w);
 
   // PI-scoped
   await prisma.systemDemoItem.deleteMany(w);
@@ -198,6 +199,8 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
   await prisma.auditEvent.deleteMany(w);
   await prisma.tenantInvite.deleteMany(w);
   await prisma.tenantJoinRequest.deleteMany(w);
+  // Per-User Portfolio-Filter (tenant+user-scoped plain columns → per tenant löschen).
+  await prisma.savedPortfolioFilter.deleteMany(w);
 
   console.log("  ✓ Domain-Daten gelöscht");
 }
