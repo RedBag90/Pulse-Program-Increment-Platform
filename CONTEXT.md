@@ -20,7 +20,12 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
 - **PI** (Program Increment) — a planning cadence; has Objectives and Sprints.
 - **Story / Task** — team-level work under a Feature.
 - **Team** — an execution unit within an ART.
-- **Dependency** — a directed link between work items (cycle-checked).
+- **Dependency** — a directed link between work items (cycle-checked). Das
+  **Kanten-Primitiv** (`createEdge`/`deleteEdge`/`splitEdge` + Cycle-Check via
+  Core `dependency-graph.ts` + Audit) lebt in **Work** (`dependency-edge`),
+  weil eine Dependency eine Beziehung zwischen Initiatives ist, die Work besitzt;
+  Drumbeats `dependency.ts` und `feature.ts` (Feature-Einfügen/Splitten)
+  importieren beide *nach unten* darauf — kein Modul schreibt Kanten inline.
 - **Impediment** — a blocker that can be raised, escalated, resolved.
 - **Risk** — a first-class, tenant-level entity in the **`risks`** module
   (`src/modules/risks/`, sibling of Drumbeat/Budgeting, prerequisite Work). Linked
@@ -140,6 +145,17 @@ valuePerUnit`), summiert über die Messmonate auf den vollen KPI-Wert. Der
 - **Stage Gate** (`stageGate`, L0–L5) — the investment funnel. Governed by
   `src/domain/stage-gate.ts`; advanced via the `epic.approve` capability.
   Reaching L3 is the portfolio approval decision.
+- **Stage-Gate-Vorschlag** (`proposedStageGate`/`proposedBy`/`proposedAt`) —
+  das Suggest-Confirm-Modell des Funnels: ein **inhaltlicher Trigger schlägt**
+  den nächsten Gate-Wechsel **vor** (persistiert), der **Epic-Owner bestätigt**
+  ihn. Ausnahme L0→L1: die Hypothese-Freigabe durch den Portfolio Manager *ist*
+  die Bestätigung (direkter Advance). Die Entscheidung ist eine **reine**
+  `decideGate(state, move, now)`-Funktion (Stage-Gate-Engine) über eine benannte
+  Prädikat-Sprache (`allChildrenCompleted` u. a.); der impure `stage-gate-engine`-
+  Service (Blatt) lädt den `EpicGateState`, persistiert Gate + Stamps + Vorschlag
+  und ist die geteilte Heimat, in die alle Gate-Schreiber *nach unten* importieren
+  (kein `epic.ts`↔`feature.ts`-Zirkel mehr). Siehe
+  `docs/concepts/work-module-deepening.md` (#1).
 - **Review status** (`status`: `draft → in_review → approved`) — the **QS
   gate**, a.k.a. quality assurance. Governed by
   `src/domain/initiative-status.ts`. Orthogonal to the Stage Gate: an Initiative
@@ -154,6 +170,13 @@ valuePerUnit`), summiert über die Messmonate auf den vollen KPI-Wert. Der
   any Initiative kind, distinct from the pure state machine in
   `initiative-status.ts`. Epic review is decided by the **VMO**; Feature review
   by the **RTE**.
+- **Epic-Revision-Sichtbarkeit** — `domain/epic-revision-visibility.ts`, die *eine*
+  reine Ableitung „wer sieht welches Artefakt (Hypothese/Business Case) in welchem
+  Edit-/Diff-/Lock-Modus", gegeben `approvalPhase` + Baseline-vorhanden + Viewer-Rechte
+  (`canEdit`/`canDecideHypothesis`/`viewerHasOpenApproval`) → die Sichtbarkeits-Booleans
+  + Lock-Gründe. Von `buildEpicDetailModel` konsumiert (nicht mehr als lose Locals im
+  Gott-Builder). Der Lifecycle-Status im Timeline-Tab folgt derselben Achse wie der
+  Stepper (`epicLifecycleSteps`, Stage-Gate-basiert) — keine Timestamp-Zweitrechnung.
 
 ## Strategy & KPI bindings
 
