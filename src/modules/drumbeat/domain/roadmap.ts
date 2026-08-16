@@ -11,6 +11,7 @@
  */
 
 import { monthStart, addMonths, MONTH_LABELS } from "@/modules/core/kernel/domain/calendar";
+import type { PiWindow as CadencePiWindow } from "@/modules/drumbeat/domain/timeline-grid";
 
 export interface DateRange {
   start: Date;
@@ -138,11 +139,12 @@ export interface RoadmapRow {
   accent?: RoadmapRowAccent | undefined;
 }
 
-/** The PI window a Feature is scheduled into (structural; extra fields ignored). */
-export interface PiWindow {
-  startDate: Date;
-  endDate: Date;
-}
+/**
+ * The PI window a Feature is scheduled into — just the date range, narrowed
+ * from the canonical `PiWindow` in the cadence/timeline domain (extra fields
+ * like id/name are ignored here).
+ */
+export type PiWindow = Pick<CadencePiWindow, "startDate" | "endDate">;
 
 const piRange = (pi: PiWindow | null): DateRange | null =>
   pi ? { start: pi.startDate, end: pi.endDate } : null;
@@ -222,6 +224,49 @@ export function artRoadmapRows(features: readonly ArtRoadmapFeature[]): RoadmapR
   }));
 }
 
+// --- shared grouping ---------------------------------------------------------
+
+/**
+ * Group-into-Map + emit-header-then-children — the loop that both the Cockpit
+ * (Features by parent-Epic) and the by-ART Value-Stream view repeated. Items
+ * are bucketed by `keyOf` (insertion order preserved); each bucket emits a
+ * header row followed by its child rows. Items whose `keyOf` is `null` collect
+ * in an optional orphan bucket rendered last (only when `opts.orphanRow` is
+ * given and at least one orphan exists). The per-view `RoadmapRow` shaping stays
+ * with the caller via the `makeHeaderRow` / `makeChildRow` callbacks.
+ */
+export function groupIntoHeaderRows<T, K>(
+  items: readonly T[],
+  keyOf: (item: T) => K | null,
+  makeHeaderRow: (key: K, groupItems: readonly T[]) => RoadmapRow,
+  makeChildRow: (item: T) => RoadmapRow,
+  opts?: { orphanRow?: () => RoadmapRow },
+): RoadmapRow[] {
+  const groups = new Map<K, T[]>();
+  const orphans: T[] = [];
+  for (const item of items) {
+    const key = keyOf(item);
+    if (key === null) {
+      orphans.push(item);
+      continue;
+    }
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(item);
+    else groups.set(key, [item]);
+  }
+
+  const rows: RoadmapRow[] = [];
+  for (const [key, groupItems] of groups) {
+    rows.push(makeHeaderRow(key, groupItems));
+    for (const item of groupItems) rows.push(makeChildRow(item));
+  }
+  if (opts?.orphanRow && orphans.length > 0) {
+    rows.push(opts.orphanRow());
+    for (const item of orphans) rows.push(makeChildRow(item));
+  }
+  return rows;
+}
+
 // --- Cockpit: Features grouped by parent-Epic ------------------------------
 
 export interface CockpitRoadmapFeature {
@@ -239,69 +284,32 @@ export interface CockpitRoadmapFeature {
  * Feature-PIs), darunter alle Features 1-Level indented. Features ohne
  * Parent landen in einer „Ohne Epic"-Sammelgruppe am Ende.
  */
+const cockpitFeatureRow = (f: CockpitRoadmapFeature): RoadmapRow => ({
+  id: f.id,
+  label: f.title,
+  href: `/feature/${f.id}`,
+  range: piRange(f.pi),
+  depth: 1,
+  kind: "feature",
+  accent: f.accent,
+});
+
 export function cockpitRoadmapRows(features: readonly CockpitRoadmapFeature[]): RoadmapRow[] {
-  const byParent = new Map<string, { title: string; items: CockpitRoadmapFeature[] }>();
-  const orphans: CockpitRoadmapFeature[] = [];
-
-  for (const f of features) {
-    if (f.parentId === null || f.parentTitle === null) {
-      orphans.push(f);
-      continue;
-    }
-    if (!byParent.has(f.parentId)) {
-      byParent.set(f.parentId, { title: f.parentTitle, items: [] });
-    }
-    byParent.get(f.parentId)!.items.push(f);
-  }
-
-  const rows: RoadmapRow[] = [];
-
-  for (const [parentId, group] of byParent) {
-    const range = deriveTimeframe(group.items.map((f) => piRange(f.pi)));
-    rows.push({
+  return groupIntoHeaderRows(
+    features,
+    (f) => (f.parentId === null || f.parentTitle === null ? null : f.parentId),
+    (parentId, items) => ({
       id: parentId,
-      label: group.title,
+      label: items[0]!.parentTitle!,
       href: `/portfolio/epics/${parentId}`,
-      range,
+      range: deriveTimeframe(items.map((f) => piRange(f.pi))),
       depth: 0,
       kind: "epic",
       accent: "epic",
-    });
-    for (const f of group.items) {
-      rows.push({
-        id: f.id,
-        label: f.title,
-        href: `/feature/${f.id}`,
-        range: piRange(f.pi),
-        depth: 1,
-        kind: "feature",
-        accent: f.accent,
-      });
-    }
-  }
-
-  if (orphans.length > 0) {
-    rows.push({
-      id: "__orphans__",
-      label: "Ohne Epic",
-      range: null,
-      depth: 0,
-      kind: "group",
-    });
-    for (const f of orphans) {
-      rows.push({
-        id: f.id,
-        label: f.title,
-        href: `/feature/${f.id}`,
-        range: piRange(f.pi),
-        depth: 1,
-        kind: "feature",
-        accent: f.accent,
-      });
-    }
-  }
-
-  return rows;
+    }),
+    cockpitFeatureRow,
+    { orphanRow: () => ({ id: "__orphans__", label: "Ohne Epic", range: null, depth: 0, kind: "group" }) },
+  );
 }
 
 // --- Value Stream: Epics + their Features, hierarchical or grouped by ART ----
@@ -373,26 +381,26 @@ function vsArtGroupedRows(epics: readonly ValueStreamRoadmapEpic[]): RoadmapRow[
     });
   }
 
-  const byArt = new Map<string, { name: string; features: ValueStreamRoadmapFeature[] }>();
-  for (const f of epics.flatMap((e) => e.children)) {
-    const key = f.artId ?? "__none__";
-    if (!byArt.has(key)) byArt.set(key, { name: f.art?.name ?? "Ohne ART", features: [] });
-    byArt.get(key)!.features.push(f);
-  }
-  for (const [key, group] of byArt) {
-    rows.push({ id: `art-${key}`, label: group.name, range: null, depth: 0, kind: "group" });
-    for (const f of group.features) {
-      rows.push({
-        id: f.id,
-        label: f.title,
-        href: `/feature/${f.id}`,
-        range: piRange(f.pi),
-        depth: 1,
-        kind: "feature",
-      });
-    }
-  }
-  return rows;
+  const artRows = groupIntoHeaderRows(
+    epics.flatMap((e) => e.children),
+    (f) => f.artId ?? "__none__",
+    (key, items) => ({
+      id: `art-${key}`,
+      label: items[0]!.art?.name ?? "Ohne ART",
+      range: null,
+      depth: 0,
+      kind: "group",
+    }),
+    (f) => ({
+      id: f.id,
+      label: f.title,
+      href: `/feature/${f.id}`,
+      range: piRange(f.pi),
+      depth: 1,
+      kind: "feature",
+    }),
+  );
+  return [...rows, ...artRows];
 }
 
 export function valueStreamRoadmapRows(

@@ -12,6 +12,7 @@
 
 import type { Initiative } from "@/generated/prisma";
 import { wsjfTier } from "@/modules/drumbeat/domain/wsjf";
+import { classifyScopedEdges } from "@/modules/drumbeat/domain/graph-scope";
 
 export type DependencyEdgeType = "blocks" | "depends_on" | "relates_to";
 
@@ -95,10 +96,6 @@ interface DependencyInput {
   to?: { id: string; title: string; parent: { id: string; title: string } | null } | null;
 }
 
-function isValidEdgeType(t: string): t is DependencyEdgeType {
-  return t === "blocks" || t === "depends_on" || t === "relates_to";
-}
-
 export function buildBreakdownGraph(input: {
   features: readonly BreakdownFeatureInput[];
   dependencies: readonly DependencyInput[];
@@ -124,22 +121,15 @@ export function buildBreakdownGraph(input: {
     piId: f.piId,
   }));
 
-  let dropped = 0;
+  // Scope-Klassifikation zentral (graph-scope): verwirft ungueltige Types +
+  // Edges mit beiden Endpunkten off-scope. `dropped` = wieviele so wegfielen.
+  const scoped = classifyScopedEdges(dependencies, featureIds);
+  const dropped = dependencies.length - scoped.length;
   const edges: BreakdownGraphEdge[] = [];
   const ghostMap = new Map<string, BreakdownGhostNode>();
-  for (const d of dependencies) {
-    if (!isValidEdgeType(d.type)) {
-      dropped += 1;
-      continue;
-    }
-    const sourceInScope = featureIds.has(d.fromId);
-    const targetInScope = featureIds.has(d.toId);
-    if (!sourceInScope && !targetInScope) {
-      // Sollte durch die OR-Query gar nicht ankommen, defensiv:
-      dropped += 1;
-      continue;
-    }
-    if (!sourceInScope) {
+  for (const s of scoped) {
+    const d = s.edge;
+    if (s.offScopeEndpoint?.side === "from") {
       // Source ist extern → Ghost-Predecessor
       const key = `${d.fromId}:predecessor`;
       if (!ghostMap.has(key)) {
@@ -151,8 +141,7 @@ export function buildBreakdownGraph(input: {
           role: "predecessor",
         });
       }
-    }
-    if (!targetInScope) {
+    } else if (s.offScopeEndpoint?.side === "to") {
       const key = `${d.toId}:successor`;
       if (!ghostMap.has(key)) {
         ghostMap.set(key, {
@@ -164,7 +153,12 @@ export function buildBreakdownGraph(input: {
         });
       }
     }
-    edges.push({ id: d.id, source: d.fromId, target: d.toId, type: d.type });
+    edges.push({
+      id: d.id,
+      source: d.fromId,
+      target: d.toId,
+      type: d.type as DependencyEdgeType,
+    });
   }
 
   return {

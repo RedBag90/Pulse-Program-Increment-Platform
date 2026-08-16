@@ -32,6 +32,27 @@ export function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Parses an ISO `yyyy-mm-dd` day key to its UTC midnight instant. */
+export function parseIsoDay(iso: string): Date {
+  return new Date(`${iso}T00:00:00Z`);
+}
+
+/** Adds `n` whole days to a UTC instant (negative to subtract). */
+export function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setUTCDate(r.getUTCDate() + n);
+  return r;
+}
+
+/**
+ * Signed whole-days from `a` to `b` (b − a), rounded — a plain difference,
+ * unlike `diffInDays` which floors and clamps at 0. On UTC midnights the two
+ * agree; this variant keeps sign and is used for timeline/axis pixel maths.
+ */
+export function daysBetween(a: Date, b: Date): number {
+  return Math.round((b.getTime() - a.getTime()) / MS_PER_DAY);
+}
+
 /** UTC midnight of the given instant — the canonical key for `@db.Date` columns. */
 export function dayStart(now: Date = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));

@@ -1,4 +1,5 @@
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
+import { piWindowsOverlap } from "@/modules/drumbeat/domain/timeline-grid";
 
 /** Existing PI for overlap-check. */
 export interface ExistingPi {
@@ -42,7 +43,7 @@ export function validatePiDates(input: PiDateValidationInput): Result<void> {
 
   for (const other of otherPis) {
     if (other.id === id) continue;
-    const overlaps = start < other.endDate && end > other.startDate;
+    const overlaps = piWindowsOverlap({ startDate: start, endDate: end }, other);
     if (overlaps) {
       return err({
         kind: "conflict" as const,

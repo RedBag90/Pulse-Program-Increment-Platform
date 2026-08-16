@@ -114,6 +114,7 @@ import {
   artRoadmapRows,
   valueStreamRoadmapRows,
   roadmapAxis,
+  groupIntoHeaderRows,
   type RoadmapRow,
 } from "@/modules/drumbeat/domain/roadmap";
 
@@ -260,6 +261,69 @@ describe("roadmapAxis — Soll + Ist", () => {
     const axis = roadmapAxis(rows);
     expect(axis.months[0]!.key).toBe("2026-01");
     expect(axis.months.at(-1)!.key).toBe("2026-08");
+  });
+});
+
+describe("groupIntoHeaderRows", () => {
+  interface Item {
+    id: string;
+    group: string | null;
+  }
+  const header = (key: string, items: readonly Item[]): RoadmapRow => ({
+    id: `h-${key}`,
+    label: `${key} (${items.length})`,
+    range: null,
+    depth: 0,
+    kind: "group",
+  });
+  const child = (i: Item): RoadmapRow => ({
+    id: i.id,
+    label: i.id,
+    range: null,
+    depth: 1,
+    kind: "feature",
+  });
+
+  it("emits a header then its children per bucket, keeping input order", () => {
+    const rows = groupIntoHeaderRows<Item, string>(
+      [
+        { id: "a1", group: "A" },
+        { id: "b1", group: "B" },
+        { id: "a2", group: "A" },
+      ],
+      (i) => i.group,
+      header,
+      child,
+    );
+    // Buckets emitted in first-seen order (A before B), children in order.
+    expect(rows.map((r) => r.id)).toEqual(["h-A", "a1", "a2", "h-B", "b1"]);
+    expect(rows[0]!.label).toBe("A (2)");
+  });
+
+  it("collects null-keyed items into an orphan bucket rendered last", () => {
+    const rows = groupIntoHeaderRows<Item, string>(
+      [
+        { id: "a1", group: "A" },
+        { id: "o1", group: null },
+        { id: "a2", group: "A" },
+      ],
+      (i) => i.group,
+      header,
+      child,
+      { orphanRow: () => ({ id: "__orphans__", label: "Orphans", range: null, depth: 0, kind: "group" }) },
+    );
+    expect(rows.map((r) => r.id)).toEqual(["h-A", "a1", "a2", "__orphans__", "o1"]);
+  });
+
+  it("omits the orphan bucket when no item is orphaned", () => {
+    const rows = groupIntoHeaderRows<Item, string>(
+      [{ id: "a1", group: "A" }],
+      (i) => i.group,
+      header,
+      child,
+      { orphanRow: () => ({ id: "__orphans__", label: "Orphans", range: null, depth: 0, kind: "group" }) },
+    );
+    expect(rows.map((r) => r.id)).toEqual(["h-A", "a1"]);
   });
 });
 
