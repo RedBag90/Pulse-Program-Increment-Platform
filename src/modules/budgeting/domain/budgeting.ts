@@ -111,6 +111,37 @@ export function rollupByValueStream(
   return [...byVs.values()];
 }
 
+/**
+ * The canonical display label/series key for allocations whose Epic has no
+ * value stream. Single owner: the pivot below and the chart's `<Bar>` dataKey
+ * both reference this, so the fallback string is written down exactly once.
+ */
+export const UNASSIGNED_VALUE_STREAM_LABEL = "Ohne Wertstrom";
+
+/** The display label/series key a rollup row contributes to the chart. */
+export function valueStreamSeriesKey(row: Pick<ValueStreamRollup, "valueStream">): string {
+  return row.valueStream ?? UNASSIGNED_VALUE_STREAM_LABEL;
+}
+
+/** One chart row per period: `{ label, [valueStreamKey]: amount, … }`. */
+export type ChartRow = Record<string, number | string> & { label: string };
+
+/**
+ * Pivot a value-stream rollup into per-period chart rows keyed by VS display
+ * name (unassigned → the one canonical {@link UNASSIGNED_VALUE_STREAM_LABEL}).
+ * Pure; the board calls this instead of pivoting inline.
+ */
+export function buildValueStreamSeries(
+  rollup: ValueStreamRollup[],
+  periods: { key: string; label: string }[],
+): ChartRow[] {
+  return periods.map((p) => {
+    const row: ChartRow = { label: p.label };
+    for (const r of rollup) row[valueStreamSeriesKey(r)] = r.byPeriod[p.key] ?? 0;
+    return row;
+  });
+}
+
 /** Total allocated across all Epics per half-year key. */
 export function totalAllocatedByPeriod(
   epics: BudgetEpicView[],

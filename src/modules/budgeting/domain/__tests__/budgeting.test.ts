@@ -6,7 +6,10 @@ import {
   rollupByValueStream,
   poolRemaining,
   totalAllocatedByPeriod,
+  buildValueStreamSeries,
+  UNASSIGNED_VALUE_STREAM_LABEL,
   type BudgetEpicView,
+  type ValueStreamRollup,
 } from "@/modules/budgeting/domain/budgeting";
 import { buildHalfYearAxis } from "@/modules/core/kernel/domain/calendar";
 
@@ -110,5 +113,50 @@ describe("rollup + remaining", () => {
     expect(remaining["2026-H1"]).toBe(20); // 200 - 180
     expect(remaining["2026-H2"]).toBe(-30); // 10 - 40
     expect(remaining["2027-H1"]).toBe(0); // no pool, no allocation
+  });
+});
+
+describe("buildValueStreamSeries — pivot rollup → per-period chart rows", () => {
+  const periods = [
+    { key: "2026-H1", label: "H1'26" },
+    { key: "2026-H2", label: "H2'26" },
+  ];
+  const rollup: ValueStreamRollup[] = [
+    {
+      valueStreamId: "vs1",
+      valueStream: "Stream 1",
+      byPeriod: { "2026-H1": 150, "2026-H2": 40 },
+      total: 190,
+    },
+    {
+      valueStreamId: null,
+      valueStream: null,
+      byPeriod: { "2026-H1": 30 },
+      total: 30,
+    },
+  ];
+
+  it("emits one row per period keyed by VS label, missing period → 0", () => {
+    expect(buildValueStreamSeries(rollup, periods)).toEqual([
+      { label: "H1'26", "Stream 1": 150, [UNASSIGNED_VALUE_STREAM_LABEL]: 30 },
+      { label: "H2'26", "Stream 1": 40, [UNASSIGNED_VALUE_STREAM_LABEL]: 0 },
+    ]);
+  });
+
+  it("labels the unassigned value stream once via the canonical key", () => {
+    expect(UNASSIGNED_VALUE_STREAM_LABEL).toBe("Ohne Wertstrom");
+    const rows = buildValueStreamSeries(rollup, periods);
+    const keysWithUnassigned = Object.keys(rows[0]!).filter((k) =>
+      k.includes("Ohne Wertstrom"),
+    );
+    expect(keysWithUnassigned).toEqual([UNASSIGNED_VALUE_STREAM_LABEL]);
+  });
+
+  it("empty input → still one row per period, only the label", () => {
+    expect(buildValueStreamSeries([], periods)).toEqual([
+      { label: "H1'26" },
+      { label: "H2'26" },
+    ]);
+    expect(buildValueStreamSeries(rollup, [])).toEqual([]);
   });
 });

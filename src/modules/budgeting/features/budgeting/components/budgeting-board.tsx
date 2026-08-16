@@ -12,10 +12,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import {
-  parseHalfYearKey,
   requestedByPeriod,
   rollupByValueStream,
   poolRemaining,
+  buildValueStreamSeries,
+  valueStreamSeriesKey,
   type HalfYearAxis,
   type BudgetEpicView,
 } from "@/modules/budgeting/domain/budgeting";
@@ -24,6 +25,11 @@ import {
   saveBudgetAllocationAction,
   saveBudgetPoolAction,
 } from "@/modules/budgeting/features/budgeting/actions/budgeting";
+import {
+  numOr0,
+  encodeSaveBudgetAllocationPayload,
+  encodeSaveBudgetPoolPayload,
+} from "@/modules/budgeting/features/lib/allocation-payload";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatEUR as fmt } from "@/lib/formatting";
@@ -34,20 +40,12 @@ interface Props {
 }
 
 const VS_COLORS = ["#2563eb", "#0ea5e9", "#14b8a6", "#eab308", "#a78bfa", "#f59e0b", "#6366f1"];
-const numOr0 = (s: string) => {
-  const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
-};
 const cell = "h-8 w-24 rounded-md border border-input bg-transparent px-2 text-right text-xs";
 
 export function BudgetingBoard({ data, canManage }: Props) {
   const axis: HalfYearAxis = useMemo(
-    () => ({
-      start: parseHalfYearKey(data.periods[0]?.key ?? "") ?? new Date(),
-      count: data.periods.length,
-      periods: data.periods,
-    }),
-    [data.periods],
+    () => ({ start: data.axis.start, count: data.axis.count, periods: data.periods }),
+    [data.axis, data.periods],
   );
 
   // Live pool (period key → string) and per-Epic state.
@@ -74,13 +72,8 @@ export function BudgetingBoard({ data, canManage }: Props) {
   const rollup = useMemo(() => rollupByValueStream(epics, axis), [epics, axis]);
 
   const chartRows = useMemo(
-    () =>
-      data.periods.map((p) => {
-        const row: Record<string, number | string> = { label: p.label };
-        for (const r of rollup) row[r.valueStream ?? "Ohne Wertstrom"] = r.byPeriod[p.key] ?? 0;
-        return row;
-      }),
-    [data.periods, rollup],
+    () => buildValueStreamSeries(rollup, data.periods),
+    [rollup, data.periods],
   );
 
   return (
@@ -160,7 +153,7 @@ export function BudgetingBoard({ data, canManage }: Props) {
               {rollup.map((r, i) => (
                 <Bar
                   key={r.valueStreamId ?? "none"}
-                  dataKey={r.valueStream ?? "Ohne Wertstrom"}
+                  dataKey={valueStreamSeriesKey(r)}
                   stackId="vs"
                   fill={VS_COLORS[i % VS_COLORS.length]}
                   maxBarSize={48}
@@ -195,9 +188,7 @@ function PoolRow({
       const n = numOr0(pool[p.key] ?? "");
       if (n > 0) byPeriod[p.key] = n;
     }
-    const fd = new FormData();
-    fd.set("payload", JSON.stringify({ byPeriod }));
-    startTransition(() => save(fd));
+    startTransition(() => save(encodeSaveBudgetPoolPayload({ byPeriod })));
   }
 
   return (
@@ -269,17 +260,16 @@ function EpicRow({
   }
 
   function submit() {
-    const fd = new FormData();
-    fd.set(
-      "payload",
-      JSON.stringify({
-        epicId: epic.id,
-        priority: epic.priority,
-        hypothesisBudget: epic.isHypothesisOnly ? epic.hypothesisBudget : null,
-        allocations: epic.allocations,
-      }),
+    startTransition(() =>
+      save(
+        encodeSaveBudgetAllocationPayload({
+          epicId: epic.id,
+          priority: epic.priority,
+          hypothesisBudget: epic.isHypothesisOnly ? epic.hypothesisBudget : null,
+          allocations: epic.allocations,
+        }),
+      ),
     );
-    startTransition(() => save(fd));
   }
 
   return (

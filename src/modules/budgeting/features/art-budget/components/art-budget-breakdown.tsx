@@ -3,15 +3,15 @@
 import { useMemo, useState, useActionState, startTransition } from "react";
 import { saveArtBudgetAction } from "@/modules/budgeting/features/art-budget/actions/art-budget";
 import { artBudgetRemaining, type ArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
+import {
+  numOr0,
+  encodeSaveArtBudgetPayload,
+} from "@/modules/budgeting/features/lib/allocation-payload";
 import { Button } from "@/components/ui/button";
 import { formatEUR as fmtEur } from "@/lib/formatting";
 
 const cellInput =
   "h-8 w-24 rounded-md border border-input bg-transparent px-2 text-right text-sm disabled:opacity-60";
-const numOr0 = (s: string): number => {
-  const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
-};
 
 interface Period {
   key: string;
@@ -218,9 +218,7 @@ function ArtBudgetRow({
       const n = numOr0(values[p.key] ?? "");
       if (n > 0) byPeriod[p.key] = n;
     }
-    const fd = new FormData();
-    fd.set("payload", JSON.stringify({ artId, byPeriod }));
-    startTransition(() => save(fd));
+    startTransition(() => save(encodeSaveArtBudgetPayload({ artId, byPeriod })));
   }
 
   return (
