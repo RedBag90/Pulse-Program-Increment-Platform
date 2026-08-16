@@ -6,6 +6,7 @@ import { ok } from "@/modules/core/kernel/domain/errors";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 import {
   buildBudgetPlanSnapshot,
+  summarizeSnapshot,
   type ArtSnapshotInput,
   type BudgetPlanSnapshot,
   type FeatureSnapshotInput,
@@ -92,10 +93,7 @@ export async function captureBudgetPlanRevision(
         changes: {
           cycleKey: { before: null, after: cycleKey },
           epicCount: { before: null, after: snapshot.epics.length },
-          cycleBudgetSum: {
-            before: null,
-            after: snapshot.epics.reduce((s, e) => s + e.cycleBudget, 0),
-          },
+          cycleBudgetSum: { before: null, after: snapshot.cycleBudgetSum },
         },
       },
     });
@@ -131,16 +129,15 @@ export async function listBudgetPlanRevisions(
     orderBy: { capturedAt: "desc" },
   });
   return rows.map((r) => {
-    const snapshot = readSnapshotPayload(r.payload);
-    const cycleBudgetSum = snapshot?.epics.reduce((s, e) => s + e.cycleBudget, 0) ?? 0;
-    const followBudgetSum = snapshot?.epics.reduce((s, e) => s + (e.total - e.cycleBudget), 0) ?? 0;
+    const snapshot = requireSnapshot(r.payload, r.id);
+    const { cycleBudgetSum, followBudgetSum } = summarizeSnapshot(snapshot);
     return {
       id: r.id,
       cycleKey: r.cycleKey,
-      cycleLabel: snapshot?.cycleLabel ?? r.cycleKey,
+      cycleLabel: snapshot.cycleLabel ?? r.cycleKey,
       capturedAt: r.capturedAt,
       capturedBy: r.capturedBy,
-      epicCount: snapshot?.epics.length ?? 0,
+      epicCount: snapshot.epics.length,
       cycleBudgetSum,
       followBudgetSum,
     };
@@ -158,10 +155,8 @@ export async function getBudgetPlanRevision(
     select: { id: true, cycleKey: true, capturedAt: true, capturedBy: true, payload: true },
   });
   if (!row) return null;
-  const snapshot = readSnapshotPayload(row.payload);
-  if (!snapshot) return null;
-  const cycleBudgetSum = snapshot.epics.reduce((s, e) => s + e.cycleBudget, 0);
-  const followBudgetSum = snapshot.epics.reduce((s, e) => s + (e.total - e.cycleBudget), 0);
+  const snapshot = requireSnapshot(row.payload, row.id);
+  const { cycleBudgetSum, followBudgetSum } = summarizeSnapshot(snapshot);
   return {
     id: row.id,
     cycleKey: row.cycleKey,
@@ -257,20 +252,57 @@ async function loadFeatureSnapshotInputs(
   return out;
 }
 
+/** Parsed outcome of the `payload` Json column — success or an explicit reason. */
+type SnapshotEnvelopeResult =
+  | { ok: true; snapshot: BudgetPlanSnapshot }
+  | { ok: false; reason: string };
+
+/** Structural check for a bare (un-enveloped) snapshot object. */
+function isBareSnapshot(v: unknown): v is BudgetPlanSnapshot {
+  return (
+    v != null &&
+    typeof v === "object" &&
+    "cycleKey" in v &&
+    "epics" in v &&
+    Array.isArray((v as { epics: unknown }).epics)
+  );
+}
+
 /**
- * Reads the typed snapshot out of the Json payload column. Tolerant of legacy
- * rows that may have been written without the `{ version, snapshot }` envelope
- * (treat the row as the snapshot itself).
+ * The single owner of snapshot version dispatch for the `payload` column:
+ *  - `version === SNAPSHOT_VERSION` → unwrap the `{ version, snapshot }` envelope;
+ *  - a recognizable legacy bare snapshot (written before the envelope existed)
+ *    → accept it as-is;
+ *  - anything else → an EXPLICIT typed failure, never a silent `null` that would
+ *    render zeros over a malformed capture.
  */
-function readSnapshotPayload(raw: unknown): BudgetPlanSnapshot | null {
-  if (raw == null || typeof raw !== "object") return null;
+function parseSnapshotEnvelope(raw: unknown): SnapshotEnvelopeResult {
+  if (raw == null || typeof raw !== "object") {
+    return { ok: false, reason: "payload is not an object" };
+  }
   const obj = raw as Record<string, unknown>;
-  if ("snapshot" in obj && obj.snapshot && typeof obj.snapshot === "object") {
-    return obj.snapshot as BudgetPlanSnapshot;
+
+  if ("version" in obj) {
+    if (obj.version !== SNAPSHOT_VERSION) {
+      return { ok: false, reason: `unsupported snapshot version ${String(obj.version)}` };
+    }
+    if (!isBareSnapshot(obj.snapshot)) {
+      return { ok: false, reason: `version ${SNAPSHOT_VERSION} envelope has no valid snapshot` };
+    }
+    return { ok: true, snapshot: obj.snapshot };
   }
-  // Fallback: someone wrote the snapshot directly into payload.
-  if ("cycleKey" in obj && "epics" in obj) {
-    return obj as unknown as BudgetPlanSnapshot;
+
+  // Legacy: the snapshot was written straight into `payload`, pre-envelope.
+  if (isBareSnapshot(obj)) return { ok: true, snapshot: obj };
+
+  return { ok: false, reason: "unrecognized payload (no version, not a bare snapshot)" };
+}
+
+/** Unwraps the envelope or throws — read sites must not degrade to zeros. */
+function requireSnapshot(raw: unknown, revisionId: string): BudgetPlanSnapshot {
+  const res = parseSnapshotEnvelope(raw);
+  if (!res.ok) {
+    throw new Error(`BudgetPlanRevision ${revisionId}: malformed snapshot payload — ${res.reason}`);
   }
-  return null;
+  return res.snapshot;
 }

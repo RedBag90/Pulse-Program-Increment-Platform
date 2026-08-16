@@ -9,11 +9,24 @@
  * `buildBudgetPlanSnapshot`, and upserts the result onto `BudgetPlanRevision`.
  */
 
-import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
-import type { BudgetEpicView } from "@/modules/budgeting/domain/budgeting";
+import {
+  halfYearKey,
+  halfYearLabel,
+  parseHalfYearKey,
+  addHalfYears,
+  buildHalfYearAxis,
+} from "@/modules/core/kernel/domain/calendar";
+import { rollupByValueStream, type BudgetEpicView } from "@/modules/budgeting/domain/budgeting";
+import { aggregateArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
 
-/** Marker for the synthetic Value-Stream bucket that catches Epics without a VS. */
-export const UNASSIGNED_VALUE_STREAM_ID = "__unassigned__";
+/**
+ * Canonical key for the synthetic Value-Stream bucket that catches Epics without
+ * a VS. Unified with the deep-domain primitive (`rollupByValueStream`), which
+ * buckets unassigned Epics under `"__none__"` — so the live board and the
+ * captured snapshot use one id. The "Ohne Wertstrom" display name stays a
+ * presentation concern (applied by the builder when projecting the rollup).
+ */
+export const UNASSIGNED_VALUE_STREAM_ID = "__none__";
 
 export interface BudgetPlanSnapshotFeature {
   featureId: string;
@@ -70,6 +83,11 @@ export interface BudgetPlanSnapshotArt {
   budgetByPeriod: Record<string, number>;
   /** Σ Job Size + count of Features whose PI start falls into the given period. */
   loadByPeriod: Record<string, { featureCount: number; jobSizeSum: number }>;
+  /**
+   * Features on this ART without a scheduled PI (the primitive's Backlog bucket).
+   * Always present on NEW snapshots — zeroed when every Feature is scheduled.
+   */
+  loadBacklog: { featureCount: number; jobSizeSum: number };
 }
 
 export interface BudgetPlanSnapshot {
@@ -86,6 +104,10 @@ export interface BudgetPlanSnapshot {
   /** Real Value Streams + one synthetic "Ohne Wertstrom" bucket when needed. */
   valueStreams: BudgetPlanSnapshotValueStream[];
   arts: BudgetPlanSnapshotArt[];
+  /** Σ epic.cycleBudget — the commitment landing in the captured cycle. */
+  cycleBudgetSum: number;
+  /** Σ (epic.total − epic.cycleBudget) — follow-on budget in later half-years. */
+  followBudgetSum: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -202,51 +224,61 @@ export function buildBudgetPlanSnapshot(inputs: BuildBudgetPlanSnapshotInputs): 
     .map((k) => ({ key: k, label: halfYearLabel(k), total: periodTotals[k]! }));
 
   // --- Value Stream roll-up ----------------------------------------------
-  // Real VS get rolled up under their id; Epics without a VS are bucketed
-  // under a synthetic "Ohne Wertstrom" entry so they remain visible.
-  const vsBuckets = new Map<
-    string,
-    { name: string; byPeriod: Record<string, number>; total: number }
-  >();
-  for (const e of snapshotEpics) {
-    const vsId = e.valueStreamId ?? UNASSIGNED_VALUE_STREAM_ID;
-    const vsName = e.valueStreamName ?? "Ohne Wertstrom";
-    const bucket = vsBuckets.get(vsId) ?? { name: vsName, byPeriod: {}, total: 0 };
-    for (const [k, v] of Object.entries(e.allocations)) {
-      addCell(bucket.byPeriod, k, v);
-      bucket.total += v;
-    }
-    vsBuckets.set(vsId, bucket);
-  }
-  const valueStreams: BudgetPlanSnapshotValueStream[] = [...vsBuckets.entries()]
-    .map(([valueStreamId, v]) => ({
-      valueStreamId,
-      name: v.name,
-      byPeriod: v.byPeriod,
-      total: v.total,
+  // Reuse the canonical deep-domain primitive so the captured roll-up matches
+  // what the live board shows, then PROJECT into the snapshot's presentation
+  // shape (unassigned Epics under `UNASSIGNED_VALUE_STREAM_ID` with the "Ohne
+  // Wertstrom" label, largest-total-first). The axis spans every half-year that
+  // carries data, so the primitive's axis-filter drops nothing the grid shows.
+  const dataDates = Object.keys(periodTotals)
+    .map((k) => parseHalfYearKey(k))
+    .filter((d): d is Date => d != null);
+  const from = dataDates.length ? dataDates.reduce((m, d) => (d < m ? d : m)) : capturedAt;
+  const to = dataDates.length ? dataDates.reduce((m, d) => (d > m ? d : m)) : capturedAt;
+  const axis = buildHalfYearAxis(from, to);
+
+  const valueStreams: BudgetPlanSnapshotValueStream[] = rollupByValueStream([...epics], axis)
+    .map((r) => ({
+      valueStreamId: r.valueStreamId ?? UNASSIGNED_VALUE_STREAM_ID,
+      name: r.valueStream ?? "Ohne Wertstrom",
+      byPeriod: r.byPeriod,
+      total: r.total,
     }))
     .sort((a, b) => b.total - a.total); // largest first
 
   // --- ART roll-up --------------------------------------------------------
+  // Reuse `aggregateArtFeatureLoad` (guarantees one entry per ART + a Backlog
+  // bucket for unscheduled Features), then project its {count, jobSize} cells
+  // into the snapshot's {featureCount, jobSizeSum} presentation shape.
+  const artLoads = new Map(
+    aggregateArtFeatureLoad(
+      artRows.map((a) => a.artId),
+      features.map((f) => ({
+        artId: f.artId,
+        piStart: f.piStartDate,
+        jobSize: f.wsjfJobSize ?? 0,
+      })),
+    ).map((l) => [l.artId, l] as const),
+  );
+
   const arts: BudgetPlanSnapshotArt[] = artRows
     .map((a) => {
+      const load = artLoads.get(a.artId);
       const loadByPeriod: Record<string, { featureCount: number; jobSizeSum: number }> = {};
-      for (const f of features) {
-        if (f.artId !== a.artId) continue;
-        const key = halfYearKey(f.piStartDate);
-        const cell = loadByPeriod[key] ?? { featureCount: 0, jobSizeSum: 0 };
-        cell.featureCount += 1;
-        cell.jobSizeSum += f.wsjfJobSize ?? 0;
-        loadByPeriod[key] = cell;
+      for (const [key, cell] of Object.entries(load?.byPeriod ?? {})) {
+        loadByPeriod[key] = { featureCount: cell.count, jobSizeSum: cell.jobSize };
       }
+      const backlog = load?.backlog ?? { count: 0, jobSize: 0 };
       return {
         artId: a.artId,
         name: a.name,
         budgetByPeriod: { ...a.budgetByPeriod },
         loadByPeriod,
+        loadBacklog: { featureCount: backlog.count, jobSizeSum: backlog.jobSize },
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name, "de"));
+
+  const { cycleBudgetSum, followBudgetSum } = sumEpicTotals(snapshotEpics);
 
   return {
     cycleKey,
@@ -257,5 +289,76 @@ export function buildBudgetPlanSnapshot(inputs: BuildBudgetPlanSnapshotInputs): 
     epics: snapshotEpics,
     valueStreams,
     arts,
+    cycleBudgetSum,
+    followBudgetSum,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Derived read-models (pure) — one home for the numbers every reader needs.
+// ---------------------------------------------------------------------------
+
+function sumEpicTotals(
+  epics: ReadonlyArray<{ cycleBudget: number; total: number }>,
+): { cycleBudgetSum: number; followBudgetSum: number } {
+  let cycleBudgetSum = 0;
+  let followBudgetSum = 0;
+  for (const e of epics) {
+    cycleBudgetSum += e.cycleBudget;
+    followBudgetSum += e.total - e.cycleBudget;
+  }
+  return { cycleBudgetSum, followBudgetSum };
+}
+
+/**
+ * Cycle- and follow-budget sums for a snapshot. Prefers the values the builder
+ * froze onto the snapshot; falls back to reducing the Epic list for OLD
+ * (pre-totals) captured snapshots that never stored them. The single source of
+ * truth so the header list, detail read and view all report identical numbers.
+ */
+export function summarizeSnapshot(
+  snapshot: BudgetPlanSnapshot,
+): { cycleBudgetSum: number; followBudgetSum: number } {
+  if (
+    typeof snapshot.cycleBudgetSum === "number" &&
+    typeof snapshot.followBudgetSum === "number"
+  ) {
+    return {
+      cycleBudgetSum: snapshot.cycleBudgetSum,
+      followBudgetSum: snapshot.followBudgetSum,
+    };
+  }
+  return sumEpicTotals(snapshot.epics);
+}
+
+/** A visible half-year column for the revision view (current cycle flagged). */
+export interface SnapshotDisplayPeriod {
+  key: string;
+  label: string;
+  isCurrent: boolean;
+}
+
+/**
+ * The visible columns for a revision: the half-year *immediately before* the
+ * captured cycle (anchor), the captured cycle itself, and every later half-year
+ * that carries data. Earlier history is hidden so the table stays anchored on
+ * "next steps". Pure — lifted out of the view so it is unit-testable.
+ */
+export function computeDisplayPeriods(
+  snapshot: Pick<BudgetPlanSnapshot, "cycleKey" | "periods">,
+): SnapshotDisplayPeriod[] {
+  const cycleStart = parseHalfYearKey(snapshot.cycleKey);
+  const previousKey = cycleStart ? halfYearKey(addHalfYears(cycleStart, -1)) : null;
+
+  const keys = new Set<string>();
+  if (previousKey) keys.add(previousKey);
+  keys.add(snapshot.cycleKey);
+  for (const p of snapshot.periods) {
+    if (p.key >= snapshot.cycleKey) keys.add(p.key);
+  }
+  return [...keys].sort().map((key) => ({
+    key,
+    label: halfYearLabel(key),
+    isCurrent: key === snapshot.cycleKey,
+  }));
 }

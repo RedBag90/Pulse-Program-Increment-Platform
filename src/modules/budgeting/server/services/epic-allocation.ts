@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, EpicId } from "@/modules/core/kernel/domain/types";
+import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
 
 /**
  * The Epic's budget-allocation summary. Budgeting owns the `budgetAllocation`
@@ -19,8 +20,11 @@ export async function getEpicBudgetAllocation(
   // Tenant-scope defensively — findUnique is by epicId (globally unique), so a
   // cross-tenant epicId must not leak an allocation.
   if (!row || row.tenantId !== tenantId) return null;
-  const allocatedSum = Object.values(
-    (row.allocations ?? {}) as Record<string, unknown>,
-  ).reduce<number>((s, v) => s + (typeof v === "number" ? v : 0), 0);
+  // Sum via the module's shared period-map parser (used everywhere else) so
+  // malformed cells are dropped consistently rather than hand-checked here.
+  const allocatedSum = Object.values(parsePeriodAmountMap(row.allocations)).reduce(
+    (s, v) => s + v,
+    0,
+  );
   return { allocatedSum };
 }

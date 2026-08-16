@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   buildBudgetPlanSnapshot,
+  summarizeSnapshot,
+  computeDisplayPeriods,
   UNASSIGNED_VALUE_STREAM_ID,
   type ArtSnapshotInput,
+  type BudgetPlanSnapshot,
   type FeatureSnapshotInput,
 } from "@/modules/budgeting/domain/budget-plan-snapshot";
 import type { BudgetEpicView } from "@/modules/budgeting/domain/budgeting";
@@ -160,6 +163,85 @@ describe("buildBudgetPlanSnapshot — order, cells, roll-ups", () => {
       "2026-H1": { featureCount: 1, jobSizeSum: 8 },
       "2026-H2": { featureCount: 1, jobSizeSum: 13 },
     });
+  });
+
+  it("buckets Epics without a Value Stream under the canonical __none__ key", () => {
+    expect(UNASSIGNED_VALUE_STREAM_ID).toBe("__none__");
+    const s = buildBudgetPlanSnapshot({
+      ...baseInputs,
+      epics: [
+        epic({
+          id: "e1",
+          valueStreamId: null,
+          valueStream: null,
+          allocations: { "2026-H1": 10_000 },
+        }),
+      ],
+    });
+    const unassigned = s.valueStreams.find((v) => v.valueStreamId === "__none__");
+    expect(unassigned).toBeDefined();
+    expect(unassigned!.name).toBe("Ohne Wertstrom");
+    expect(unassigned!.total).toBe(10_000);
+  });
+
+  it("reuses aggregateArtFeatureLoad and emits a (zeroed) Backlog bucket per ART", () => {
+    const s = buildBudgetPlanSnapshot({
+      ...baseInputs,
+      epics: [epic({ id: "e1", allocations: { "2026-H1": 100_000 } })],
+      artRows: [{ artId: "a1", name: "ART 1", budgetByPeriod: {} }],
+      features: [
+        feature({ featureId: "f1", artId: "a1", piStartDate: utc("2026-02-01"), wsjfJobSize: 8 }),
+      ],
+    });
+    const art = s.arts.find((a) => a.artId === "a1")!;
+    // Snapshot Features always carry a PI, so the Backlog bucket is present-but-zero.
+    expect(art.loadBacklog).toEqual({ featureCount: 0, jobSizeSum: 0 });
+    expect(art.loadByPeriod["2026-H1"]).toEqual({ featureCount: 1, jobSizeSum: 8 });
+  });
+
+  it("emits cycleBudgetSum + followBudgetSum; summarizeSnapshot reads the frozen values", () => {
+    const s = buildBudgetPlanSnapshot({
+      ...baseInputs,
+      epics: [
+        epic({ id: "e1", allocations: { "2026-H1": 120_000, "2026-H2": 150_000 } }),
+        epic({ id: "e2", allocations: { "2026-H1": 30_000, "2027-H1": 80_000 } }),
+      ],
+    });
+    expect(s.cycleBudgetSum).toBe(150_000); // 120k + 30k in the 2026-H1 cycle
+    expect(s.followBudgetSum).toBe(230_000); // 150k + 80k in later half-years
+    expect(summarizeSnapshot(s)).toEqual({ cycleBudgetSum: 150_000, followBudgetSum: 230_000 });
+  });
+
+  it("summarizeSnapshot falls back to reducing Epics for pre-totals (legacy) snapshots", () => {
+    const s = buildBudgetPlanSnapshot({
+      ...baseInputs,
+      epics: [epic({ id: "e1", allocations: { "2026-H1": 100_000, "2026-H2": 40_000 } })],
+    });
+    const legacy = { ...s } as Record<string, unknown>;
+    delete legacy.cycleBudgetSum;
+    delete legacy.followBudgetSum;
+    expect(summarizeSnapshot(legacy as unknown as BudgetPlanSnapshot)).toEqual({
+      cycleBudgetSum: 100_000,
+      followBudgetSum: 40_000,
+    });
+  });
+
+  it("computeDisplayPeriods anchors on the half-year before the cycle and hides earlier history", () => {
+    const s = buildBudgetPlanSnapshot({
+      ...baseInputs,
+      cycleKey: "2026-H2",
+      capturedAt: utc("2026-07-01"),
+      pool: {},
+      epics: [
+        epic({ id: "old", allocations: { "2025-H1": 10_000 } }), // earlier — hidden
+        epic({ id: "cur", allocations: { "2026-H2": 50_000 } }),
+        epic({ id: "later", allocations: { "2027-H1": 20_000 } }),
+      ],
+    });
+    const dp = computeDisplayPeriods(s);
+    expect(dp.map((p) => p.key)).toEqual(["2026-H1", "2026-H2", "2027-H1"]);
+    expect(dp.find((p) => p.key === "2026-H2")!.isCurrent).toBe(true);
+    expect(dp.find((p) => p.key === "2026-H1")!.isCurrent).toBe(false);
   });
 
   it("stamps the cycle label via halfYearLabel and serialises capturedAt to ISO", () => {
