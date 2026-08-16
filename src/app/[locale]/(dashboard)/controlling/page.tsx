@@ -2,13 +2,7 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
-import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
-import {
-  getLatestBudgetPlanRevision,
-  listBudgetPlanRevisions,
-} from "@/modules/budgeting/server/services/budget-plan-revision";
-import { getPortfolioGuardrailsInputs } from "@/modules/work/server/services/portfolio-dashboard";
-import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { loadControllingModel } from "@/modules/budgeting/server/views/controlling-overview";
 import { CaptureRevisionButton } from "@/modules/budgeting/features/controlling/components/capture-revision-button";
 import { GuardrailTargetsForm } from "@/modules/budgeting/features/controlling/components/guardrail-targets-form";
 import { GuardrailTargetsReadOnly } from "@/modules/budgeting/features/controlling/components/guardrail-targets-readonly";
@@ -31,17 +25,6 @@ export default async function ControllingOverviewPage() {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [latest, history, userLabels, guardrailsInputs, tenantCostSettings] = await Promise.all([
-    getLatestBudgetPlanRevision(db, principal.tenantId),
-    listBudgetPlanRevisions(db, principal.tenantId),
-    listTenantUserLabels(db, principal.tenantId),
-    getPortfolioGuardrailsInputs(db, principal.tenantId),
-    db.tenant.findUnique({
-      where: { id: principal.tenantId },
-      select: { costNeutralTarget: true, costPerJobSizePoint: true },
-    }),
-  ]);
-
   const canCapture = authorize(
     "budget_plan.revision.capture",
     { tenantId: principal.tenantId },
@@ -53,10 +36,14 @@ export default async function ControllingOverviewPage() {
     principal,
   ).allow;
 
-  const cycleKey = halfYearKey(new Date());
-  const cycleLabel = halfYearLabel(cycleKey);
-
-  const latestIsCurrentCycle = latest?.cycleKey === cycleKey;
+  const {
+    cycleLabel,
+    latest,
+    latestIsCurrentCycle,
+    history,
+    userLabels,
+    guardrailTargets,
+  } = await loadControllingModel(db, principal.tenantId, { canCapture, canManageTargets });
 
   return (
     <Page>
@@ -178,21 +165,9 @@ export default async function ControllingOverviewPage() {
       <section className="space-y-3">
         <SectionLabel>Portfolio-Guardrails</SectionLabel>
         {canManageTargets ? (
-          <GuardrailTargetsForm
-            targets={guardrailsInputs.targets}
-            costNeutralTarget={
-              tenantCostSettings?.costNeutralTarget != null
-                ? Number(tenantCostSettings.costNeutralTarget)
-                : null
-            }
-            costPerJobSizePoint={
-              tenantCostSettings?.costPerJobSizePoint != null
-                ? Number(tenantCostSettings.costPerJobSizePoint)
-                : null
-            }
-          />
+          <GuardrailTargetsForm targets={guardrailTargets} />
         ) : (
-          <GuardrailTargetsReadOnly targets={guardrailsInputs.targets} />
+          <GuardrailTargetsReadOnly targets={guardrailTargets} />
         )}
       </section>
 

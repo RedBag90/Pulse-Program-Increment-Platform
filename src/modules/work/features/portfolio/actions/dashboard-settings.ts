@@ -39,16 +39,28 @@ const guardrailTargetsSchema = z
 
 export const savePortfolioDashboardSettingsAction = createServerAction({
   schema: z.object({
-    costNeutralTarget: z.number().nonnegative().nullable(),
-    costPerJobSizePoint: z.number().nonnegative().nullable(),
+    costNeutralTarget: z.number().nonnegative().nullable().optional(),
+    costPerJobSizePoint: z.number().nonnegative().nullable().optional(),
     guardrailTargets: guardrailTargetsSchema.optional(),
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => {
-    const targetStr = String(fd.get("costNeutralTarget") ?? "").trim();
-    const cpjStr = String(fd.get("costPerJobSizePoint") ?? "").trim();
     const num = (key: string) => Number(String(fd.get(key) ?? "").trim());
+    // Partial update: only the fields a given form actually submits are sent on
+    // to the service. The cost-settings editor submits `costNeutralTarget`; the
+    // guardrail-targets editor submits `guardrail_*`. Each save owns its own
+    // fields — the other side stays `undefined` (untouched by the service).
+    const numberOrNull = (key: string): number | null => {
+      const raw = String(fd.get(key) ?? "").trim();
+      return raw === "" ? null : Number(raw);
+    };
+    const costFields = fd.has("costNeutralTarget")
+      ? {
+          costNeutralTarget: numberOrNull("costNeutralTarget"),
+          costPerJobSizePoint: numberOrNull("costPerJobSizePoint"),
+        }
+      : {};
     const hasGuardrailFields = fd.has("guardrail_h1");
     const guardrailTargets: GuardrailTargets | undefined = hasGuardrailFields
       ? {
@@ -60,8 +72,7 @@ export const savePortfolioDashboardSettingsAction = createServerAction({
         }
       : undefined;
     return {
-      costNeutralTarget: targetStr === "" ? null : Number(targetStr),
-      costPerJobSizePoint: cpjStr === "" ? null : Number(cpjStr),
+      ...costFields,
       ...(guardrailTargets !== undefined && { guardrailTargets }),
     };
   },

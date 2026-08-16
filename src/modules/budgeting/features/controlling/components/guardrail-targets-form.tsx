@@ -13,21 +13,17 @@ import {
 
 interface Props {
   targets: GuardrailTargets;
-  /** Hidden-Inputs — der Save-Action haengt der Cost-Neutral-Wert mit dran,
-   *  damit das Dashboard-Cost-Setting beim Targets-Save nicht versehentlich
-   *  gecleart wird. */
-  costNeutralTarget: number | null;
-  costPerJobSizePoint: number | null;
 }
 
 /**
  * Targets-Editor fuer die SAFe Portfolio-Guardrails (Roadmap-G4). Wohnt
  * unter „Setup & Controlling" — Konfiguration, nicht Sichtebene. Validiert
  * Sum=100 je Achse client-seitig, bevor der Speichern-Button freigegeben
- * wird. Auf Erfolg persistiert `savePortfolioDashboardSettingsAction` in
- * `Tenant.guardrailTargets`.
+ * wird. Auf Erfolg persistiert `savePortfolioDashboardSettingsAction` nur die
+ * `Tenant.guardrailTargets` (Partial-Update — die Cost-Settings bleiben
+ * unangetastet, daher keine Hidden-Input-Kruecke mehr).
  */
-export function GuardrailTargetsForm({ targets, costNeutralTarget, costPerJobSizePoint }: Props) {
+export function GuardrailTargetsForm({ targets }: Props) {
   const [state, formAction, pending] = useActionState(savePortfolioDashboardSettingsAction, {});
   const [draft, setDraft] = useState(targets);
 
@@ -52,8 +48,6 @@ export function GuardrailTargetsForm({ targets, costNeutralTarget, costPerJobSiz
         </p>
       </header>
       <form action={formAction} className="space-y-3">
-        <input type="hidden" name="costNeutralTarget" value={costNeutralTarget ?? ""} />
-        <input type="hidden" name="costPerJobSizePoint" value={costPerJobSizePoint ?? ""} />
         <div className="grid gap-3 md:grid-cols-2">
           <fieldset className="space-y-2 rounded-md border p-3">
             <legend className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">

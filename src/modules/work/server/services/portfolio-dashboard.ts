@@ -200,15 +200,24 @@ async function reportGuardrailTargetsFallback(
 }
 
 export interface SaveDashboardSettingsInput {
-  /** Self-funding threshold per month; null clears it. */
-  costNeutralTarget: number | null;
-  /** €/WSJF-Job-Size point for the PI-Planning capacity overlay; null hides the €-axis. */
-  costPerJobSizePoint: number | null;
-  /** SAFe Guardrails (Roadmap-G4). undefined = nicht anpacken. */
+  /** Self-funding threshold per month; `null` clears it, `undefined` leaves it. */
+  costNeutralTarget?: number | null | undefined;
+  /** €/WSJF-Job-Size point for the PI-Planning capacity overlay; `null` hides the
+   *  €-axis, `undefined` leaves it. */
+  costPerJobSizePoint?: number | null | undefined;
+  /** SAFe Guardrails (Roadmap-G4). `undefined` = nicht anpacken. */
   guardrailTargets?: GuardrailTargets | undefined;
 }
 
-/** Persists the configurable Portfolio Dashboard settings on the tenant. */
+/**
+ * Persists the configurable Portfolio Dashboard settings on the tenant.
+ *
+ * Partial update: each save owns only the fields it actually provides. A
+ * guardrail-targets save (guardrailTargets set, cost fields undefined) must not
+ * clear `costNeutralTarget`/`costPerJobSizePoint`, and a cost-settings save
+ * (cost fields set, guardrailTargets undefined) must not clear the guardrails.
+ * `undefined` ⇒ column untouched; an explicit `null` ⇒ column cleared.
+ */
 export async function savePortfolioDashboardSettings(
   ctx: RequestContext,
   input: SaveDashboardSettingsInput,
@@ -218,8 +227,12 @@ export async function savePortfolioDashboardSettings(
     await tx.tenant.update({
       where: { id: mctx.tenantId },
       data: {
-        costNeutralTarget: input.costNeutralTarget,
-        costPerJobSizePoint: input.costPerJobSizePoint,
+        ...(input.costNeutralTarget !== undefined && {
+          costNeutralTarget: input.costNeutralTarget,
+        }),
+        ...(input.costPerJobSizePoint !== undefined && {
+          costPerJobSizePoint: input.costPerJobSizePoint,
+        }),
         ...(input.guardrailTargets !== undefined && {
           guardrailTargets: input.guardrailTargets as unknown as Prisma.InputJsonValue,
         }),

@@ -5,46 +5,18 @@ import { fmtEur } from "@/components/format/eur";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { cn } from "@/lib/utils";
 import {
-  addHalfYears,
-  halfYearKey,
-  halfYearLabel,
-  parseHalfYearKey,
-} from "@/modules/core/kernel/domain/calendar";
-import type {
-  BudgetPlanSnapshot,
-  BudgetPlanSnapshotArt,
-  BudgetPlanSnapshotValueStream,
+  computeDisplayPeriods,
+  summarizeSnapshot,
+  type SnapshotDisplayPeriod,
+  type BudgetPlanSnapshot,
+  type BudgetPlanSnapshotArt,
+  type BudgetPlanSnapshotValueStream,
 } from "@/modules/budgeting/domain/budget-plan-snapshot";
 
-/** A column the view chooses to render — current cycle is flagged for tint. */
-interface DisplayPeriod {
-  key: string;
-  label: string;
-  isCurrent: boolean;
-}
-
-/**
- * The visible columns for a revision: the half-year *immediately before* the
- * captured cycle (anchor), the captured cycle itself (highlighted as "now"),
- * and every later half-year that carries data in the snapshot. Earlier
- * history is hidden so the table stays anchored on "next steps".
- */
-function computeDisplayPeriods(snapshot: BudgetPlanSnapshot): DisplayPeriod[] {
-  const cycleStart = parseHalfYearKey(snapshot.cycleKey);
-  const previousKey = cycleStart ? halfYearKey(addHalfYears(cycleStart, -1)) : null;
-
-  const keys = new Set<string>();
-  if (previousKey) keys.add(previousKey);
-  keys.add(snapshot.cycleKey);
-  for (const p of snapshot.periods) {
-    if (p.key >= snapshot.cycleKey) keys.add(p.key);
-  }
-  return [...keys].sort().map((key) => ({
-    key,
-    label: halfYearLabel(key),
-    isCurrent: key === snapshot.cycleKey,
-  }));
-}
+/** A column the view renders — current cycle is flagged for tint. Re-uses the
+ *  domain's `SnapshotDisplayPeriod` so the view and `computeDisplayPeriods`
+ *  share one shape. */
+type DisplayPeriod = SnapshotDisplayPeriod;
 
 interface Props {
   snapshot: BudgetPlanSnapshot;
@@ -68,9 +40,11 @@ function fmtDateTime(iso: string): string {
  * component: the snapshot is fully frozen and nothing here needs `useState`.
  */
 export function BudgetPlanRevisionView({ snapshot, capturedBy, userLabels }: Props) {
+  // Cycle-/Folgebudget kommen aus der EINEN Quelle (`summarizeSnapshot`), damit
+  // die Übersichts-Card und diese Detail-Sicht identische Zahlen zeigen — nicht
+  // mehr lokal aus `snapshot.epics` nachgerechnet.
+  const { cycleBudgetSum, followBudgetSum } = summarizeSnapshot(snapshot);
   const poolSum = Object.values(snapshot.budgetPoolByPeriod).reduce((s, v) => s + v, 0);
-  const cycleBudgetSum = snapshot.epics.reduce((s, e) => s + e.cycleBudget, 0);
-  const followBudgetSum = snapshot.epics.reduce((s, e) => s + (e.total - e.cycleBudget), 0);
   const cycleFeatureCount = snapshot.epics.reduce((s, e) => s + e.cycleFeatures.length, 0);
   const displayPeriods = computeDisplayPeriods(snapshot);
 

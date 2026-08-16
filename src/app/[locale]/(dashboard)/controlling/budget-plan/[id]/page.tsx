@@ -3,6 +3,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
 import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
+import { isCurrentCycle } from "@/modules/budgeting/server/views/controlling-overview";
 import {
   getBudgetPlanRevision,
   listBudgetPlanRevisions,
@@ -40,9 +41,9 @@ export default async function BudgetPlanRevisionDetailPage({ params }: Props) {
     { tenantId: principal.tenantId },
     principal,
   ).allow;
-  const currentCycleKey = halfYearKey(new Date());
-  const currentCycleLabel = halfYearLabel(currentCycleKey);
-  const showRecapture = canCapture && revision.cycleKey === currentCycleKey;
+  const now = new Date();
+  const currentCycleLabel = halfYearLabel(halfYearKey(now));
+  const showRecapture = canCapture && isCurrentCycle(revision.cycleKey, now);
 
   return (
     <Page>
