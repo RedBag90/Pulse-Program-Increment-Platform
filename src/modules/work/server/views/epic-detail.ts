@@ -26,7 +26,13 @@ import {
 } from "@/modules/work/domain/business-case";
 import { parseTimeline, type TimelineFields } from "@/modules/work/domain/timeline";
 import { epicBenefitFromKpis, type EpicBenefit } from "@/modules/work/domain/epic-economics";
+import {
+  kpiAttainment,
+  kpiFulfillmentMean,
+  kpiPlannedAtTarget,
+} from "@/modules/core/kpi/domain/kpi-valuation";
 import { subStageFor } from "@/modules/work/domain/stage-gate";
+import { computeEpicRevisionVisibility } from "@/modules/work/domain/epic-revision-visibility";
 import { epicNextStep, type EpicNextStep } from "@/modules/work/domain/epic-next-step";
 import {
   epicLifecycleSteps,
@@ -34,11 +40,12 @@ import {
 } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import {
   sectionStatus,
+  buildApprovalView,
   APPROVAL_PARTY_LABELS,
   APPROVAL_SECTION_LABELS,
   type ApprovalPhase,
-  type ApprovalRecord,
   type ApprovalSection,
+  type ApprovalViewModel,
 } from "@/modules/work/domain/epic-approval";
 import type { ActivityItem } from "@/components/detail/initiative-activity-sidebar";
 import type { KpiRow } from "@/modules/work/features/portfolio/components/epic-kpis-tab";
@@ -195,7 +202,8 @@ export interface EpicDetailModel {
   activityEvents: ActivityItem[];
 
   activeRevision: number;
-  sectionRecords: ApprovalRecord[];
+  /** Active-revision approvals derivation — the Business-Case tab renders this. */
+  approvalView: ApprovalViewModel;
   signoffActive: boolean;
   breakdownSignoff: SectionSignoffState;
   kpisSignoff: SectionSignoffState;
@@ -230,6 +238,9 @@ export interface EpicDetailModel {
   nextStep: EpicNextStep | null;
   lifecycleSteps: LifecycleStep[];
 
+  /** The persisted suggest-confirm gate proposal, or null when none is open. */
+  proposedStageGate: StageGate | null;
+
   // Capability booleans — the page JSX consumes these directly.
   canEdit: boolean;
   canDecideHypothesis: boolean;
@@ -238,6 +249,8 @@ export interface EpicDetailModel {
   canConfirmImpact: boolean;
   canAssignOwner: boolean;
   canAdvance: boolean;
+  /** May confirm an open gate proposal — same `epic.approve` gate as `canAdvance`. */
+  canConfirmProposedAdvance: boolean;
   canLinkDependency: boolean;
 }
 
@@ -377,16 +390,15 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     x.occurredAt < y.occurredAt ? 1 : -1,
   );
 
-  // Active-revision section sign-off state (page lines 311-335).
+  // Active-revision approvals derivation — the single owner of the records +
+  // owner maps + counts the Business-Case tab used to rebuild client-side.
   const activeRevision = epic.approvalRevision ?? 1;
-  const sectionRecords: ApprovalRecord[] = approvals
-    .filter((a) => a.revision === activeRevision)
-    .map((a) => ({
-      kind: a.kind === "section" ? "section" : "party",
-      party: a.party as ApprovalParty | null,
-      section: a.section as ApprovalSection | null,
-      status: a.status as ApprovalRecord["status"],
-    }));
+  const approvalView = buildApprovalView({
+    rows: approvals.filter((a) => a.revision === activeRevision),
+    defaultFinanceApproverId: epic.valueStream?.financeApproverId ?? null,
+    defaultVmoId: epic.valueStream?.vmoId ?? null,
+  });
+  const sectionRecords = approvalView.records;
   const signoffActive = approvalPhase === "stakeholder_review";
   const sectionOwner = (section: ApprovalSection) =>
     approvals.find(
@@ -403,20 +415,30 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     canSignoff: sectionOwner("kpis") === principalId,
   };
 
-  const kpiRows: KpiRow[] = kpis.map((k) => ({
-    id: k.id,
-    name: k.name,
-    unit: k.unit,
-    baseline: k.baseline === null ? null : Number(k.baseline),
-    target: k.target === null ? null : Number(k.target),
-    latest: latestKpiValue(parseKpiMeasurements(k.measurements)),
-    weight: k.benefitWeight === null ? null : Number(k.benefitWeight),
-    valuePerUnit: k.valuePerUnit === null ? null : Number(k.valuePerUnit),
-    benefitKind: k.benefitKind,
-    recurringInterval: k.recurringInterval,
-    calculationNote: k.calculationNote,
-    measurements: parseKpiMeasurements(k.measurements),
-  }));
+  const kpiRows: KpiRow[] = kpis.map((k) => {
+    const baseline = k.baseline === null ? null : Number(k.baseline);
+    const target = k.target === null ? null : Number(k.target);
+    const latest = latestKpiValue(parseKpiMeasurements(k.measurements));
+    const valuePerUnit = k.valuePerUnit === null ? null : Number(k.valuePerUnit);
+    return {
+      id: k.id,
+      name: k.name,
+      unit: k.unit,
+      baseline,
+      target,
+      latest,
+      weight: k.benefitWeight === null ? null : Number(k.benefitWeight),
+      valuePerUnit,
+      benefitKind: k.benefitKind,
+      recurringInterval: k.recurringInterval,
+      calculationNote: k.calculationNote,
+      measurements: parseKpiMeasurements(k.measurements),
+      // Precomputed in the read-model so the KPIs tab renders instead of
+      // recomputing the attainment / €-total math client-side.
+      attainment: kpiAttainment({ baseline, target, current: latest }),
+      plannedTotal: kpiPlannedAtTarget({ baseline, target, valuePerUnit }),
+    };
+  });
 
   const kpiBenefit = epicBenefitFromKpis(kpiRows);
 
@@ -425,17 +447,10 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
   const timeline = parseTimeline(epic.timeline);
 
   const heroTotals = computeBusinessCaseTotals(businessCase.current, kpiBenefit);
-  const heroKpiRatios = kpiRows
-    .map((k) => {
-      if (k.baseline == null || k.target == null || k.latest == null) return null;
-      const denom = k.target - k.baseline;
-      if (denom === 0) return 1;
-      return Math.min(1, Math.max(0, (k.latest - k.baseline) / denom));
-    })
-    .filter((r): r is number => r != null);
-  const heroKpiAvgPct = heroKpiRatios.length
-    ? Math.round((heroKpiRatios.reduce((a, b) => a + b, 0) / heroKpiRatios.length) * 100)
-    : null;
+  const heroKpiMean = kpiFulfillmentMean(
+    kpiRows.map((k) => ({ baseline: k.baseline, target: k.target, current: k.latest })),
+  );
+  const heroKpiAvgPct = heroKpiMean == null ? null : Math.round(heroKpiMean * 100);
 
   const bcBaseline =
     epic.baselineBusinessCase != null ? parseBusinessCase(epic.baselineBusinessCase).current : null;
@@ -443,42 +458,31 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     epic.baselineBenefitHypothesis != null
       ? parseBenefitHypothesis(epic.baselineBenefitHypothesis).current
       : null;
-  const bcEditable = canEdit && approvalPhase === "business_case";
-  const hypoEditable = canEdit && approvalPhase === "draft";
-
-  const HYPO_LOCK: Partial<Record<ApprovalPhase, string>> = {
-    hypothesis_review:
-      "Die Benefit-Hypothese ist zur QS beim Portfolio Manager eingereicht und währenddessen gesperrt.",
-    business_case:
-      "Die Hypothese ist freigegeben. Sie ist nun gesperrt — für Änderungen eine neue Revision starten.",
-    stakeholder_review:
-      "Die Hypothese ist freigegeben und während der Stakeholder-Freigaben gesperrt.",
-    approved:
-      "Das Epic ist freigegeben. Für Änderungen an der Hypothese eine neue Revision starten.",
-  };
-  const BC_LOCK: Partial<Record<ApprovalPhase, string>> = {
-    draft: "Der Business Case wird erst bearbeitbar, sobald die Benefit-Hypothese freigegeben ist.",
-    hypothesis_review:
-      "Der Business Case wird bearbeitbar, sobald der Portfolio Manager die Hypothese freigibt.",
-    stakeholder_review:
-      "Der Business Case ist während der laufenden Stakeholder-Freigaben gesperrt.",
-    approved:
-      "Das Epic ist freigegeben. Für Änderungen am Business Case eine neue Revision starten.",
-  };
-  const hypoLockReason = canEdit ? HYPO_LOCK[approvalPhase] : undefined;
-  const bcLockReason = canEdit ? BC_LOCK[approvalPhase] : undefined;
-
   const viewerHasOpenApproval = approvals.some(
     (a) =>
       a.revision === activeRevision && a.status === "pending" && a.approverUserId === principalId,
   );
-  const showHypoReviewDiff =
-    hypoBaseline != null && approvalPhase === "hypothesis_review" && canDecideHypothesis;
-  const showBcReviewDiff =
-    bcBaseline != null && approvalPhase === "stakeholder_review" && viewerHasOpenApproval;
-  const ownerRevisionActive = canEdit && approvalPhase !== "approved";
-  const showHypoOwnerEdit = hypoBaseline != null && ownerRevisionActive && !showHypoReviewDiff;
-  const showBcOwnerEdit = bcBaseline != null && ownerRevisionActive && !showBcReviewDiff;
+
+  // Revision-diff / lock visibility algebra — the single owner of the editable /
+  // review-diff / owner-edit / lock-reason derivation (Part 4a).
+  const {
+    bcEditable,
+    hypoEditable,
+    hypoLockReason,
+    bcLockReason,
+    showHypoReviewDiff,
+    showBcReviewDiff,
+    ownerRevisionActive,
+    showHypoOwnerEdit,
+    showBcOwnerEdit,
+  } = computeEpicRevisionVisibility({
+    approvalPhase,
+    hasHypoBaseline: hypoBaseline != null,
+    hasBcBaseline: bcBaseline != null,
+    canEdit,
+    canDecideHypothesis,
+    viewerHasOpenApproval,
+  });
 
   const childStats = {
     total: epic.children.length,
@@ -529,7 +533,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     risks: risksSlice,
     activityEvents,
     activeRevision,
-    sectionRecords,
+    approvalView,
     signoffActive,
     breakdownSignoff,
     kpisSignoff,
@@ -556,6 +560,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     subStage,
     nextStep,
     lifecycleSteps,
+    proposedStageGate: (epic.proposedStageGate as StageGate | null) ?? null,
     canEdit,
     canDecideHypothesis,
     canSubmitHypothesis,
@@ -563,6 +568,9 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     canConfirmImpact,
     canAssignOwner,
     canAdvance,
+    // The confirm action authorizes `epic.approve` (same as the manual advance),
+    // so the UI affordance is gated on the same computed capability.
+    canConfirmProposedAdvance: canAdvance,
     canLinkDependency,
   };
 }

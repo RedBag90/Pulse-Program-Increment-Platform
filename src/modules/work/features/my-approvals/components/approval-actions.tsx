@@ -60,11 +60,11 @@ function buildEntries(row: MyApprovalRow, mode: Mode, comment: string): Record<s
 
   switch (row.kind) {
     case "epic_hypothesis":
-      return { ...base, epicId: row.target.epicId! };
+      return { ...base, epicId: row.target.epicId };
     case "epic_party":
-      return { ...base, approvalId: row.target.approvalId! };
+      return { ...base, approvalId: row.target.approvalId };
     case "epic_section":
-      return { ...base, epicId: row.target.epicId!, section: row.target.section! };
+      return { ...base, epicId: row.target.epicId, section: row.target.section };
   }
 }
 

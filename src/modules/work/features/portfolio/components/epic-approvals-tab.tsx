@@ -5,11 +5,9 @@ import {
   APPROVAL_SECTIONS,
   partyStatus,
   sectionStatus,
-  configuredParties,
-  hasRejection,
   type ApprovalPhase,
-  type ApprovalRecord,
   type ApprovalSection,
+  type ApprovalViewModel,
 } from "@/modules/work/domain/epic-approval";
 import {
   SubmitHypothesisButton,
@@ -123,14 +121,13 @@ interface BusinessCaseApprovalProps {
   /** The Epic's active approval revision. */
   revision: number;
   approvals: ApprovalRow[];
+  /** Server-derived active-revision view (records, owner maps, counts). */
+  approvalView: ApprovalViewModel;
   approvers: TenantApprover[];
   /** Resolved user-id → display label (email) map. */
   userLabels: Record<string, string>;
   currentUserId: string;
   canManage: boolean;
-  /** Value-stream defaults that pre-fill an as-yet-unconfigured Epic. */
-  defaultFinanceApproverId?: string | null;
-  defaultVmoId?: string | null;
 }
 
 /**
@@ -143,49 +140,26 @@ export function EpicBusinessCaseApproval({
   phase,
   revision,
   approvals,
+  approvalView,
   approvers,
   userLabels,
   currentUserId,
   canManage,
-  defaultFinanceApproverId,
-  defaultVmoId,
 }: BusinessCaseApprovalProps) {
-  // Live overview reflects the active revision; older rows are history.
+  // Live overview reflects the active revision; older rows are history. The
+  // active-revision derivation (records, owner maps, counts) is owned by the
+  // server view (`buildApprovalView`); the raw rows stay only for per-row
+  // rendering (dates/comments/ids) and the archived past revisions.
   const currentApprovals = approvals.filter((a) => a.revision === revision);
   const pastApprovals = approvals.filter((a) => a.revision < revision);
   const pastRevisions = [...new Set(pastApprovals.map((a) => a.revision))].sort((x, y) => y - x);
 
-  const records: ApprovalRecord[] = currentApprovals.map((a) => ({
-    kind: a.kind === "section" ? "section" : "party",
-    party: a.party as ApprovalParty | null,
-    section: a.section as ApprovalSection | null,
-    status: a.status as ApprovalRecord["status"],
-  }));
-
-  const current: Record<ApprovalParty, string[]> = {} as Record<ApprovalParty, string[]>;
-  for (const p of APPROVAL_PARTIES) {
-    current[p] = currentApprovals
-      .filter((a) => a.kind === "party" && a.party === p && a.approverUserId)
-      .map((a) => a.approverUserId as string);
-  }
-  // Pre-fill the Finance party from the value stream when not yet configured.
-  if (current.finance.length === 0 && defaultFinanceApproverId) {
-    current.finance = [defaultFinanceApproverId];
-  }
-
-  const currentSections: Record<ApprovalSection, string> = {} as Record<ApprovalSection, string>;
-  for (const s of APPROVAL_SECTIONS) {
-    const row = currentApprovals.find((a) => a.kind === "section" && a.section === s);
-    // Pre-fill the section owner with the value stream's Portfolio Manager when unset.
-    currentSections[s] = row?.approverUserId ?? defaultVmoId ?? "";
-  }
-
-  const parties = configuredParties(records);
-  const stakeholderRows = parties.length + APPROVAL_SECTIONS.length;
-  const granted =
-    parties.filter((p) => partyStatus(records, p) === "approved").length +
-    APPROVAL_SECTIONS.filter((s) => sectionStatus(records, s) === "approved").length;
-  const blocked = hasRejection(records);
+  const {
+    records,
+    partyOwners: current,
+    sectionOwners: currentSections,
+    counts: { stakeholderRows, granted, blocked },
+  } = approvalView;
 
   // Beim Konfigurieren zeigt der Picker bereits alle Parteien/Sektionen editierbar —
   // dann die read-only Übersicht ausblenden (sonst dieselbe Liste doppelt).

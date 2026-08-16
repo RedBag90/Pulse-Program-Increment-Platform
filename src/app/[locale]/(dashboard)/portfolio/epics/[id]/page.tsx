@@ -21,6 +21,7 @@ import { EpicHistoryTimeline } from "@/modules/work/features/portfolio/component
 import { EPIC_TABS } from "@/modules/work/features/portfolio/components/epic-detail-shell";
 import { EpicOverviewTab } from "@/modules/work/features/portfolio/components/epic-overview-tab";
 import { EpicLifecycleStepper } from "@/modules/work/features/portfolio/components/epic-lifecycle-stepper";
+import { EpicProposedGateBanner } from "@/modules/work/features/portfolio/components/epic-proposed-gate-banner";
 import { EpicImpactConfirmDialog } from "@/modules/work/features/portfolio/components/epic-impact-confirm-dialog";
 import { EpicKpisTab } from "@/modules/work/features/portfolio/components/epic-kpis-tab";
 import { EpicBreakdownTab } from "@/modules/work/features/portfolio/components/epic-breakdown-tab";
@@ -149,6 +150,12 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           }
           return (
             <div className="space-y-4">
+              {model.proposedStageGate && model.canConfirmProposedAdvance && (
+                <EpicProposedGateBanner
+                  epicId={epic.id}
+                  proposedStageGate={model.proposedStageGate}
+                />
+              )}
               <EpicLifecycleStepper
                 steps={model.lifecycleSteps}
                 nextStep={model.nextStep}
@@ -219,9 +226,9 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               approvalPhase={model.approvalPhase}
               approvalRevision={model.activeRevision}
               approvals={model.approvals}
+              approvalView={model.approvalView}
               currentUserId={principal.id}
-              defaultFinanceApproverId={epic.valueStream?.financeApproverId ?? null}
-              defaultVmoId={epic.valueStream?.vmoId ?? null}
+              lifecycleSteps={model.lifecycleSteps}
             />
           </section>
         )}

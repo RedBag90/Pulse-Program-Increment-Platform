@@ -13,10 +13,10 @@ import type { ApprovalSection } from "@/modules/work/domain/epic-approval";
 
 export type ApprovalKind = "epic_hypothesis" | "epic_party" | "epic_section";
 
-export interface MyApprovalRow {
-  /** Stable row id — `EpicApproval.id` for kinds 3/4, `<kind>:<entityId>` for kinds 1/2. */
+/** The fields every approval row carries, regardless of kind. */
+interface MyApprovalRowBase {
+  /** Stable row id — `EpicApproval.id` for party/section, `<kind>:<entityId>` for hypothesis. */
   id: string;
-  kind: ApprovalKind;
   title: string;
   href: string;
   context: {
@@ -26,10 +26,20 @@ export interface MyApprovalRow {
     party?: ApprovalParty | undefined;
     section?: ApprovalSection | undefined;
   };
-  /** The id needed to dispatch the decide-action (feature.id / epic.id / approval.id). */
-  target: { featureId?: string; epicId?: string; approvalId?: string; section?: ApprovalSection };
   requestedAt: Date;
 }
+
+/**
+ * A pending approval in the personal inbox, discriminated on `kind`: each kind
+ * carries exactly the `target` ids its decide-action needs — so consumers narrow
+ * on `kind` instead of asserting optional fields non-null.
+ */
+export type MyApprovalRow = MyApprovalRowBase &
+  (
+    | { kind: "epic_hypothesis"; target: { epicId: string } }
+    | { kind: "epic_party"; target: { approvalId: string } }
+    | { kind: "epic_section"; target: { epicId: string; section: ApprovalSection } }
+  );
 
 /**
  * Every pending approval assigned to the principal — across all four sources —

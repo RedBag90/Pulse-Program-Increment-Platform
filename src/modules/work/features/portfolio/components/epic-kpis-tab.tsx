@@ -56,6 +56,10 @@ export interface KpiRow {
   calculationNote: string | null;
   /** Full measurement history (the KPI's timeline), any order. */
   measurements: { date: string; value: number }[];
+  /** Zielerreichung 0..1 (Core `kpiAttainment`), im Read-Model vorberechnet; null = nicht messbar. */
+  attainment: number | null;
+  /** |Ziel−Baseline|×€/Einheit (Core `kpiPlannedAtTarget`), vorberechnet; null = unbewertet. */
+  plannedTotal: number | null;
 }
 
 interface Props {
@@ -80,22 +84,6 @@ function fmtEur(n: number | null): string {
   return n === null
     ? "—"
     : n.toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
-}
-
-/** |Ziel − Baseline| × €/Einheit — der kalkulatorische Gesamt-€-Wert der KPI. */
-function derivedTotal(kpi: Pick<KpiRow, "baseline" | "target" | "valuePerUnit">): number | null {
-  if (kpi.valuePerUnit == null || kpi.baseline == null || kpi.target == null) return null;
-  return Math.abs(kpi.target - kpi.baseline) * kpi.valuePerUnit;
-}
-
-/** Zielerreichung 0..1 (Aktuell relativ zu Baseline→Ziel); null wenn nicht messbar. */
-function kpiRatio(kpi: Pick<KpiRow, "baseline" | "target" | "latest">): number | null {
-  const { baseline, target, latest } = kpi;
-  if (baseline == null || target == null) return null;
-  const denom = target - baseline;
-  if (denom === 0) return latest != null ? 1 : 0;
-  if (latest == null) return null;
-  return Math.min(1, Math.max(0, (latest - baseline) / denom));
 }
 
 /** Schlanker Fortschrittsbalken im „Realisierter Mehrwert"-Stil. */
@@ -171,8 +159,8 @@ function KpiItem({
   const [detState, detAction, detPending] = useActionState(updateKpiDetailsAction, {});
 
   const kind = benefitKindOrDefault(kpi.benefitKind);
-  const total = derivedTotal(kpi);
-  const ratio = kpiRatio(kpi);
+  const total = kpi.plannedTotal;
+  const ratio = kpi.attainment;
   const [editing, setEditing] = useState(false);
 
   const err = delState?.error ?? measState?.error ?? weightState?.error ?? detState?.error;

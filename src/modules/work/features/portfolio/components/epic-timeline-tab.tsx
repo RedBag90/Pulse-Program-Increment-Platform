@@ -12,6 +12,7 @@ import type {
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import { SectionLabel } from "@/components/ui/section-label";
 import { reifegradGroups } from "@/modules/work/features/portfolio/lib/reifegrad-groups";
+import type { LifecycleStep } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import { EpicOwnerAssign } from "./epic-owner-assign";
 import {
   EpicHypothesisApproval,
@@ -19,7 +20,7 @@ import {
   type ApprovalRow,
 } from "./epic-approvals-tab";
 import type { TenantApprover } from "./approver-picker";
-import type { ApprovalPhase } from "@/modules/work/domain/epic-approval";
+import type { ApprovalPhase, ApprovalViewModel } from "@/modules/work/domain/epic-approval";
 
 interface Props {
   epicId: string;
@@ -51,9 +52,17 @@ interface Props {
   approvalPhase: ApprovalPhase;
   approvalRevision: number;
   approvals: ApprovalRow[];
+  /** Server-derived active-revision approvals view for the Business-Case expander. */
+  approvalView: ApprovalViewModel;
   currentUserId: string;
-  defaultFinanceApproverId?: string | null;
-  defaultVmoId?: string | null;
+  /**
+   * Gate-based lifecycle status — the SAME 9-phase derivation the lifecycle
+   * stepper above the screen renders (from the Stage Gate, not milestone
+   * timestamps). The timeline's status column reads its done/current/upcoming
+   * coloring from here so the two never diverge. The 9 rows map 1:1 to these
+   * steps by `key`.
+   */
+  lifecycleSteps: LifecycleStep[];
 }
 
 const INPUT =
@@ -132,9 +141,9 @@ export function EpicTimelineTab({
   approvalPhase,
   approvalRevision,
   approvals,
+  approvalView,
   currentUserId,
-  defaultFinanceApproverId,
-  defaultVmoId,
+  lifecycleSteps,
 }: Props) {
   const [saveState, saveAction, saving] = useActionState(saveTimelineAction, {});
   const [analyzeState, analyzeAction, analyzing] = useActionState(advanceStageGateAction, {});
@@ -195,22 +204,13 @@ export function EpicTimelineTab({
     startTransition(() => saveAction(fd));
   }
 
-  // Per-phase actual presence, in lifecycle order, drives the status column.
-  const implementationActual = actuals.implementation;
-  const actualPresent = [
-    true, // funnel — createdAt is always set
-    Boolean(selectedForDetailingAt), // selected for detailing (owner nominated → L1)
-    Boolean(hypothesisApprovedAt), // business hypothesis done
-    Boolean(selectedForAnalyzingAt), // selected for analyzing (→ L2)
-    Boolean(businessCaseApprovedAt), // business case approved
-    Boolean(actuals.backlog), // backlog
-    Boolean(implementationStartedAt), // implementation started (→ L4)
-    Boolean(implementationActual), // implementation done (owner-set actual)
-    Boolean(impactRecognizedAt), // impact realized (L5 — set by Controlling)
-  ];
-  const firstOpen = actualPresent.indexOf(false);
-  const statusAt = (i: number): RowStatus =>
-    actualPresent[i] ? "done" : i === firstOpen ? "current" : "upcoming";
+  // The status column reads the SHARED gate-based lifecycle status (same source
+  // as the stepper above the screen) — no second derivation off milestone
+  // timestamps. The 9 timeline rows map 1:1 to the 9 lifecycle steps by `key`.
+  const statusByKey = new Map<string, RowStatus>(
+    lifecycleSteps.map((s) => [s.key, s.status]),
+  );
+  const statusFor = (key: string): RowStatus => statusByKey.get(key) ?? "upcoming";
 
   function EstimateCell({ phase }: { phase: TimelineEstimatePhase }) {
     return canEdit ? (
@@ -399,12 +399,11 @@ export function EpicTimelineTab({
             phase={approvalPhase}
             revision={approvalRevision}
             approvals={approvals}
+            approvalView={approvalView}
             approvers={approvers}
             userLabels={userLabels}
             currentUserId={currentUserId}
             canManage={canEdit}
-            defaultFinanceApproverId={defaultFinanceApproverId ?? null}
-            defaultVmoId={defaultVmoId ?? null}
           />
         </div>
       );
@@ -439,15 +438,14 @@ export function EpicTimelineTab({
               </div>
 
               <ol className="flex-1 space-y-4">
-                {phases.slice(g.start, g.start + g.span).map((phase, j) => {
-                  const index = g.start + j;
+                {phases.slice(g.start, g.start + g.span).map((phase) => {
                   return (
                     <li
                       key={phase.key}
                       className="grid grid-cols-[1.25rem_1fr] gap-x-3 gap-y-2 sm:grid-cols-[1.25rem_minmax(0,1fr)_11rem_11rem]"
                     >
                       <div className="flex justify-center sm:pt-0.5">
-                        <StatusIcon status={statusAt(index)} />
+                        <StatusIcon status={statusFor(phase.key)} />
                       </div>
                       <div className="min-w-0 space-y-1.5">
                         {phase.expandable ? (
