@@ -13,7 +13,7 @@ import type {
   CockpitFeature,
   CockpitPiSlot,
   FeatureStatus,
-} from "@/server/views/umsetzung-cockpit-view";
+} from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import {
   buildBoardMatrix,
   normalizePiKey,

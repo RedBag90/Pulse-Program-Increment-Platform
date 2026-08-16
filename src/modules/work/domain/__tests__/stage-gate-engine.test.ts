@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
-import {
-  decideGate,
-  type EpicGateState,
-  type GateMove,
-} from "@/modules/work/domain/stage-gate-engine";
+import { decideGate, type EpicGateState } from "@/modules/work/domain/stage-gate-engine";
 
 const NOW = new Date("2026-01-01T00:00:00.000Z");
 const ACTOR = "actor-1";

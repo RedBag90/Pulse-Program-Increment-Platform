@@ -16,7 +16,7 @@ import type {
   CockpitFeature,
   CockpitPiWindow,
   FeatureStatus,
-} from "@/server/views/umsetzung-cockpit-view";
+} from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
 import { useDependencyEdgeEditing } from "@/modules/drumbeat/features/dependencies/hooks/use-dependency-edge-editing";
 import { EdgeTypeMenu } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";

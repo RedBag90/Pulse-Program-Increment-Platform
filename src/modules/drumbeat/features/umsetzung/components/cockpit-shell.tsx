@@ -1,4 +1,4 @@
-import type { CockpitModel } from "@/server/views/umsetzung-cockpit-view";
+import type { CockpitModel } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import type { CockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 import { CockpitTopBar } from "./cockpit-top-bar";
 import { CockpitPiStrip } from "./cockpit-pi-strip";

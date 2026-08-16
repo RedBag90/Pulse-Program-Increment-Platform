@@ -9,7 +9,7 @@ import type {
   CockpitFeature,
   CockpitPiSlot,
   FeatureStatus,
-} from "@/server/views/umsetzung-cockpit-view";
+} from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 
 const LANES: readonly BoardLane[] = [
   { value: "approved", label: "Bereit", color: "" },

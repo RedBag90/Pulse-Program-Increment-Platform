@@ -16,7 +16,7 @@ import type {
   CockpitFeature,
   CockpitPiSlot,
   FeatureStatus,
-} from "@/server/views/umsetzung-cockpit-view";
+} from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { normalizePiKey, BACKLOG_COLUMN_ID } from "@/modules/drumbeat/domain/board-matrix";
 import { formatWsjf } from "@/domain/schemas/initiative";
 import { CockpitBulkBar } from "./cockpit-bulk-bar";

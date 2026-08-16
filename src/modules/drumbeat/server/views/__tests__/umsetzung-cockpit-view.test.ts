@@ -5,7 +5,7 @@ import {
   buildCockpitModel,
   type CockpitRows,
   type CockpitFeatureRow,
-} from "@/server/views/umsetzung-cockpit-view";
+} from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 
 const D = (s: string) => new Date(s);
 

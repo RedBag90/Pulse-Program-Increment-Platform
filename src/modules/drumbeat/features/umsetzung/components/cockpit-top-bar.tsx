@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import type { CockpitArtRef } from "@/server/views/umsetzung-cockpit-view";
+import type { CockpitArtRef } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 
 /**
  * Cockpit-Top-Bar — Scope-Krumelpfad + Filter + Quick-Add. Aktuell zeigt

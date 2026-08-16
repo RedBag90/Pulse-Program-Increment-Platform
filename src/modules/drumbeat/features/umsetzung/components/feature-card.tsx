@@ -2,7 +2,7 @@
 
 import { memo, type RefObject } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import type { CockpitFeature } from "@/server/views/umsetzung-cockpit-view";
+import type { CockpitFeature } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { formatWsjf } from "@/domain/schemas/initiative";
 
 /**

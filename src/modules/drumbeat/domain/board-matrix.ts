@@ -15,7 +15,7 @@
  * never rendered as a real timeline window.
  */
 
-import type { CockpitFeature, CockpitPiSlot, FeatureStatus } from "@/server/views/umsetzung-cockpit-view";
+import type { CockpitFeature, CockpitPiSlot, FeatureStatus } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 
 /** Column id of the synthetic Backlog column — also the empty PI-key. */
 export const BACKLOG_COLUMN_ID = "";

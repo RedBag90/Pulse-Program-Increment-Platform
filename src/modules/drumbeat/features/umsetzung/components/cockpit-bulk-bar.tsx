@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { CockpitPiSlot, FeatureStatus } from "@/server/views/umsetzung-cockpit-view";
+import type { CockpitPiSlot, FeatureStatus } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 
 /**
  * Sticky-Bar am unteren Page-Rand — erscheint, sobald ≥1 Zeile in der

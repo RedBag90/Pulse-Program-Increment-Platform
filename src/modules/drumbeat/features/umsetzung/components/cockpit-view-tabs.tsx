@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import type { CockpitView } from "@/server/views/umsetzung-cockpit-view";
+import type { CockpitView } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 
 /**
  * Sicht-Toggle Board / Tabelle / Roadmap. URL-Param `?view=<sicht>`,

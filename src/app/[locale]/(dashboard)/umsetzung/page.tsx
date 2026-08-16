@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { loadCockpitModel, type CockpitView } from "@/server/views/umsetzung-cockpit-view";
+import { loadCockpitModel, type CockpitView } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { loadCockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 import { CockpitShell } from "@/modules/drumbeat/features/umsetzung/components/cockpit-shell";
 

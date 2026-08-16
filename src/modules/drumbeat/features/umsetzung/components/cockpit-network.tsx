@@ -20,7 +20,7 @@ import type {
   CockpitDependency,
   CockpitFeature,
   FeatureStatus,
-} from "@/server/views/umsetzung-cockpit-view";
+} from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { useDependencyEdgeEditing } from "@/modules/drumbeat/features/dependencies/hooks/use-dependency-edge-editing";
 import { formatWsjf } from "@/domain/schemas/initiative";
 import { EdgeTypeMenu } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";

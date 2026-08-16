@@ -1,4 +1,4 @@
-import type { CockpitPiSlot } from "@/server/views/umsetzung-cockpit-view";
+import type { CockpitPiSlot } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 
 /**
  * Cockpit-PI-Strip — horizontaler Streifen mit 5 PIs (aktuell + 1 vor + 3
