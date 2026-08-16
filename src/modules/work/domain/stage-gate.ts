@@ -98,6 +98,15 @@ export interface SubStageInput {
 }
 
 /**
+ * The single "all child features completed" rule (L4.2 / the `features_completed`
+ * gate trigger). One definition, shared by {@link subStageFor} and the
+ * stage-gate engine — previously duplicated across three call sites.
+ */
+export function allChildrenCompleted(stats: { total: number; completed: number }): boolean {
+  return stats.total > 0 && stats.completed === stats.total;
+}
+
+/**
  * Pure derivation: returns the sub-stage label inside L2 or L4, or `null`
  * for the other major gates (no split there).
  */
@@ -108,9 +117,7 @@ export function subStageFor(input: SubStageInput): SubStage | null {
     return null;
   }
   if (input.stageGate === "L4") {
-    const { total, completed } = input.childFeatureStats;
-    if (total > 0 && completed === total) return "L4.2";
-    return "L4.1";
+    return allChildrenCompleted(input.childFeatureStats) ? "L4.2" : "L4.1";
   }
   return null;
 }

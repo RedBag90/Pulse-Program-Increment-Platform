@@ -2,11 +2,34 @@
 
 import { z } from "zod";
 import { createServerAction, type ActionState } from "@/server/http/server-action";
-import { advanceStageGate } from "@/modules/work/server/services/epic";
+import { advanceStageGate, confirmProposedStageGate } from "@/modules/work/server/services/epic";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 export type { ActionState as StageGateActionState };
+
+/**
+ * Owner confirms the persisted gate proposal (`proposedStageGate`) — the
+ * suggest-confirm counterpart to the manual {@link advanceStageGateAction}.
+ * Reuses the same portfolio-scoped `epic.approve` capability.
+ */
+export const confirmProposedStageGateAction = createServerAction({
+  schema: z.object({ epicId: z.string().uuid() }),
+  action: "epic.approve",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) => confirmProposedStageGate(ctx, { epicId: input.epicId as EpicId }),
+  revalidate: "epic",
+  mapError: (e) =>
+    e.kind === "not_found"
+      ? "Epic nicht gefunden"
+      : e.kind === "hierarchy_violation"
+        ? e.detail
+        : e.kind === "forbidden"
+          ? e.reason
+          : e.kind === "conflict"
+            ? e.reason
+            : "Gate-Bestätigung fehlgeschlagen",
+});
 
 export const advanceStageGateAction = createServerAction({
   schema: z.object({

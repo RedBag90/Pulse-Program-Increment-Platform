@@ -83,3 +83,32 @@ export function computeWsjf(input: WsjfInput): number {
   const costOfDelay = input.businessValue + input.timeCriticality + input.riskReduction;
   return Math.round((costOfDelay / input.jobSize) * 100) / 100;
 }
+
+/** The persisted WSJF columns — the 4 raw inputs plus the derived score. */
+export interface WsjfWriteFields {
+  wsjfBusinessValue: number;
+  wsjfTimeCriticality: number;
+  wsjfRiskReduction: number;
+  wsjfJobSize: number;
+  wsjfComputed: number;
+}
+
+/**
+ * Assembles the WSJF write payload (the 4 raw inputs + the computed score) that
+ * every Feature write path spreads into its Prisma `data`. Pure — recomputes the
+ * score via `computeWsjf` so the derived column can never drift from its inputs.
+ */
+export function wsjfWriteFields(input: {
+  businessValue: number;
+  timeCriticality: number;
+  riskReduction: number;
+  jobSize: number;
+}): WsjfWriteFields {
+  return {
+    wsjfBusinessValue: input.businessValue,
+    wsjfTimeCriticality: input.timeCriticality,
+    wsjfRiskReduction: input.riskReduction,
+    wsjfJobSize: input.jobSize,
+    wsjfComputed: computeWsjf(input as WsjfInput),
+  };
+}

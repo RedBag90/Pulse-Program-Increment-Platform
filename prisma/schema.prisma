@@ -769,6 +769,13 @@ model Initiative {
   externalSystem String? @map("external_system") // "jira" | "ado"
 
   stageGate   String    @default("L0") @map("stage_gate")
+  // Suggest-confirm funnel (EPIC only): a content trigger persists the next gate
+  // here as a *proposal*; the Epic owner confirms it to actually advance stageGate
+  // (then these clear). Null = no pending proposal. See stage-gate-engine + ADR /
+  // docs/concepts/work-module-deepening.md #1.
+  proposedStageGate String?   @map("proposed_stage_gate")
+  proposedBy        String?   @map("proposed_by") @db.Uuid
+  proposedAt        DateTime? @map("proposed_at")
   status      String    @default("draft")
   /// Ist-Lieferdatum (FEATURE only): gestempelt beim Delivery-Übergang nach
   /// "completed", geleert bei Rücknahme. Basis für Plantreue/Terminabweichung

@@ -11,7 +11,7 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
-import { computeWsjf } from "@/domain/schemas/initiative";
+import { wsjfWriteFields } from "@/domain/schemas/initiative";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import {
@@ -27,7 +27,8 @@ import {
   type BlockerWindow,
 } from "@/modules/core/kernel/domain/dependency-graph";
 import type { FeatureType } from "@/modules/work/domain/portfolio-guardrails";
-import { emitAuditEvent } from "@/server/audit/emit";
+import { createEdge, splitEdge } from "@/modules/work/server/services/dependency-edge";
+import { signalGateTrigger } from "@/modules/work/server/services/stage-gate-engine";
 
 /** Non-fatal advisories surfaced alongside a successful mutation (e.g. setFeaturePi). */
 export interface MutationWarnings {
@@ -82,13 +83,6 @@ export async function createFeature(
     featureType,
   } = input;
 
-  const wsjfComputed = computeWsjf({
-    businessValue: wsjfBusinessValue,
-    timeCriticality: wsjfTimeCriticality,
-    riskReduction: wsjfRiskReduction,
-    jobSize: wsjfJobSize,
-  });
-
   return withAuditedTransaction(mctx, async (tx) => {
     const parentResult = await findValidatedParent(tx, mctx, InitiativeLevel.FEATURE, parentId);
     if (isErr(parentResult)) return parentResult;
@@ -113,11 +107,12 @@ export async function createFeature(
         assigneeIds: [],
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
-        wsjfBusinessValue,
-        wsjfTimeCriticality,
-        wsjfRiskReduction,
-        wsjfJobSize,
-        wsjfComputed,
+        ...wsjfWriteFields({
+          businessValue: wsjfBusinessValue,
+          timeCriticality: wsjfTimeCriticality,
+          riskReduction: wsjfRiskReduction,
+          jobSize: wsjfJobSize,
+        }),
         acceptanceCriteria: acceptanceCriteria ?? [],
         ...(description !== undefined && { description }),
         ...(piId !== undefined && { piId }),
@@ -156,12 +151,6 @@ export async function createFeatureWithDependency(
 ): Promise<Result<{ id: FeatureId; dependencyId: string }>> {
   const mctx = toMutationContext(ctx);
   const { parentId, artId, predecessorId, title, featureType, edgeType = "depends_on" } = input;
-  const wsjfComputed = computeWsjf({
-    businessValue: QUICK_ADD_WSJF,
-    timeCriticality: QUICK_ADD_WSJF,
-    riskReduction: QUICK_ADD_WSJF,
-    jobSize: QUICK_ADD_WSJF,
-  });
 
   return withAuditedTransaction(mctx, async (tx) => {
     const parentResult = await findValidatedParent(tx, mctx, InitiativeLevel.FEATURE, parentId);
@@ -201,41 +190,28 @@ export async function createFeatureWithDependency(
         assigneeIds: [],
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
-        wsjfBusinessValue: QUICK_ADD_WSJF,
-        wsjfTimeCriticality: QUICK_ADD_WSJF,
-        wsjfRiskReduction: QUICK_ADD_WSJF,
-        wsjfJobSize: QUICK_ADD_WSJF,
-        wsjfComputed,
+        ...wsjfWriteFields({
+          businessValue: QUICK_ADD_WSJF,
+          timeCriticality: QUICK_ADD_WSJF,
+          riskReduction: QUICK_ADD_WSJF,
+          jobSize: QUICK_ADD_WSJF,
+        }),
         acceptanceCriteria: [],
         ...(featureType != null && { featureType }),
       },
       parentPath: epic.path,
     });
 
-    const dep = await tx.dependency.create({
-      data: {
-        tenantId: mctx.tenantId,
-        fromId: predecessorId,
-        toId: feature.id,
-        type: edgeType,
-        createdBy: mctx.actorId,
-      },
+    // Edge creation is owned by the `dependency-edge` primitive (same Work
+    // layer). The predecessor → brand-new-feature link can never cycle (the new
+    // node has no other edges), so the primitive's cycle-check is a no-op here.
+    const created = await createEdge(tx, mctx, {
+      fromId: predecessorId,
+      toId: feature.id,
+      type: edgeType,
     });
-
-    await emitAuditEvent(tx, {
-      tenantId: mctx.tenantId,
-      actorId: mctx.actorId,
-      action: "initiative.dependency.linked",
-      resourceType: "dependency",
-      resourceId: dep.id,
-      changes: {
-        type: { before: null, after: edgeType },
-        fromId: { before: null, after: predecessorId },
-        toId: { before: null, after: feature.id },
-      },
-      ipAddress: mctx.ipAddress,
-      userAgent: mctx.userAgent,
-    });
+    if (isErr(created)) return created;
+    const dep = created.value;
 
     return ok({
       result: { id: feature.id as FeatureId, dependencyId: dep.id },
@@ -265,12 +241,6 @@ export async function insertFeatureBetween(
 ): Promise<Result<{ id: FeatureId; addedDependencyIds: [string, string] }>> {
   const mctx = toMutationContext(ctx);
   const { parentId, artId, fromId, toId, edgeType, title, featureType } = input;
-  const wsjfComputed = computeWsjf({
-    businessValue: QUICK_ADD_WSJF,
-    timeCriticality: QUICK_ADD_WSJF,
-    riskReduction: QUICK_ADD_WSJF,
-    jobSize: QUICK_ADD_WSJF,
-  });
 
   return withAuditedTransaction(mctx, async (tx) => {
     const parentResult = await findValidatedParent(tx, mctx, InitiativeLevel.FEATURE, parentId);
@@ -305,79 +275,28 @@ export async function insertFeatureBetween(
         assigneeIds: [],
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
-        wsjfBusinessValue: QUICK_ADD_WSJF,
-        wsjfTimeCriticality: QUICK_ADD_WSJF,
-        wsjfRiskReduction: QUICK_ADD_WSJF,
-        wsjfJobSize: QUICK_ADD_WSJF,
-        wsjfComputed,
+        ...wsjfWriteFields({
+          businessValue: QUICK_ADD_WSJF,
+          timeCriticality: QUICK_ADD_WSJF,
+          riskReduction: QUICK_ADD_WSJF,
+          jobSize: QUICK_ADD_WSJF,
+        }),
         acceptanceCriteria: [],
         ...(featureType != null && { featureType }),
       },
       parentPath: epic.path,
     });
 
-    await tx.dependency.delete({ where: { id: existingEdge.id } });
-    const depA = await tx.dependency.create({
-      data: {
-        tenantId: mctx.tenantId,
-        fromId,
-        toId: feature.id,
-        type: edgeType,
-        createdBy: mctx.actorId,
-      },
+    // The edge SPLIT (`from → to` becomes `from → new → to`) is owned by the
+    // `dependency-edge` primitive. A split of an already-acyclic edge cannot
+    // create a cycle, so the primitive runs no cycle-check.
+    const split = await splitEdge(tx, mctx, {
+      existing: existingEdge,
+      newNodeId: feature.id,
+      type: edgeType,
     });
-    const depB = await tx.dependency.create({
-      data: {
-        tenantId: mctx.tenantId,
-        fromId: feature.id,
-        toId,
-        type: edgeType,
-        createdBy: mctx.actorId,
-      },
-    });
-
-    await emitAuditEvent(tx, {
-      tenantId: mctx.tenantId,
-      actorId: mctx.actorId,
-      action: "initiative.dependency.unlinked",
-      resourceType: "dependency",
-      resourceId: existingEdge.id,
-      changes: {
-        type: { before: edgeType, after: null },
-        fromId: { before: fromId, after: null },
-        toId: { before: toId, after: null },
-      },
-      ipAddress: mctx.ipAddress,
-      userAgent: mctx.userAgent,
-    });
-    await emitAuditEvent(tx, {
-      tenantId: mctx.tenantId,
-      actorId: mctx.actorId,
-      action: "initiative.dependency.linked",
-      resourceType: "dependency",
-      resourceId: depA.id,
-      changes: {
-        type: { before: null, after: edgeType },
-        fromId: { before: null, after: fromId },
-        toId: { before: null, after: feature.id },
-      },
-      ipAddress: mctx.ipAddress,
-      userAgent: mctx.userAgent,
-    });
-    await emitAuditEvent(tx, {
-      tenantId: mctx.tenantId,
-      actorId: mctx.actorId,
-      action: "initiative.dependency.linked",
-      resourceType: "dependency",
-      resourceId: depB.id,
-      changes: {
-        type: { before: null, after: edgeType },
-        fromId: { before: null, after: feature.id },
-        toId: { before: null, after: toId },
-      },
-      ipAddress: mctx.ipAddress,
-      userAgent: mctx.userAgent,
-    });
+    if (isErr(split)) return split;
+    const [depA, depB] = split.value;
 
     return ok({
       result: { id: feature.id as FeatureId, addedDependencyIds: [depA.id, depB.id] },
@@ -494,15 +413,6 @@ export async function updateFeature(
       wsjfRiskReduction !== undefined ||
       wsjfJobSize !== undefined;
 
-    const newComputed = wsjfChanged
-      ? computeWsjf({
-          businessValue: newBv,
-          timeCriticality: newTc,
-          riskReduction: newRr,
-          jobSize: newJs,
-        })
-      : undefined;
-
     // Scalar fields diff via the shared changelog helper; WSJF is a compound
     // field, so its before/after is built explicitly. Description / WSJF
     // components / acceptance / piId are written but not audited as scalars —
@@ -530,11 +440,13 @@ export async function updateFeature(
         ...data,
         updatedBy: mctx.actorId,
         ...(description !== undefined && { description }),
-        ...(wsjfBusinessValue !== undefined && { wsjfBusinessValue }),
-        ...(wsjfTimeCriticality !== undefined && { wsjfTimeCriticality }),
-        ...(wsjfRiskReduction !== undefined && { wsjfRiskReduction }),
-        ...(wsjfJobSize !== undefined && { wsjfJobSize }),
-        ...(newComputed !== undefined && { wsjfComputed: newComputed }),
+        ...(wsjfChanged &&
+          wsjfWriteFields({
+            businessValue: newBv,
+            timeCriticality: newTc,
+            riskReduction: newRr,
+            jobSize: newJs,
+          })),
         ...(acceptanceCriteria !== undefined && { acceptanceCriteria }),
         ...(piId !== undefined && { piId }),
       },
@@ -700,7 +612,7 @@ export async function scoreFeature(
     });
     if (!existing) return err({ kind: "not_found" as const, resourceType: "Feature", id });
 
-    const wsjfComputed = computeWsjf({
+    const fields = wsjfWriteFields({
       businessValue: wsjfBusinessValue,
       timeCriticality: wsjfTimeCriticality,
       riskReduction: wsjfRiskReduction,
@@ -710,11 +622,7 @@ export async function scoreFeature(
     await tx.initiative.update({
       where: { id },
       data: {
-        wsjfBusinessValue,
-        wsjfTimeCriticality,
-        wsjfRiskReduction,
-        wsjfJobSize,
-        wsjfComputed,
+        ...fields,
         updatedBy: mctx.actorId,
       },
     });
@@ -725,7 +633,7 @@ export async function scoreFeature(
         action: "wsjf.scored",
         resourceType: "initiative",
         resourceId: id,
-        changes: { wsjfComputed: { before: existing.wsjfComputed, after: wsjfComputed } },
+        changes: { wsjfComputed: { before: existing.wsjfComputed, after: fields.wsjfComputed } },
       },
     });
   });
@@ -859,10 +767,10 @@ export async function setFeatureDeliveryStatus(
 
     // Starting preconditions: PI assigned + parent Epic mindestens in „Budget
     // alloziert" (L3). Reifegrad-Modell v2 (Plan vom 2026-06-07): Start eines
-    // Features schiebt das Epic von L3 auf L4 (Implementation läuft). So
+    // Features schiebt das Epic von L3 auf L4 (Implementation läuft) — der
+    // Advance selbst läuft jetzt über die Stage-Gate-Engine (Trigger unten). So
     // entfällt der manuelle „Implementing"-Klick durch den RTE und L3→L4 ist
     // der natürliche Übergang.
-    let advanceParentToL4 = false;
     if (to === "in_progress") {
       if (feature.piId === null) {
         return err({
@@ -883,9 +791,6 @@ export async function setFeatureDeliveryStatus(
               "Epic noch nicht in Implementation (mind. L3 Budget alloziert nötig) — Feature kann noch nicht gestartet werden",
           });
         }
-        if (gate === "L3") {
-          advanceParentToL4 = true;
-        }
       }
     }
 
@@ -904,11 +809,17 @@ export async function setFeatureDeliveryStatus(
       data: { status: to, updatedBy: mctx.actorId, ...completedAtPatch },
     });
 
-    if (advanceParentToL4 && feature.parentId) {
-      // Importiert lazy aus epic.ts, sonst gäbe es einen Zirkel beim
-      // top-level `import` (feature.ts ↔ epic.ts).
-      const { autoAdvanceStageGate } = await import("@/modules/work/server/services/epic");
-      await autoAdvanceStageGate(tx, mctx, feature.parentId, "L4");
+    // Report the delivery-status fact to the stage-gate engine. Starting the
+    // first Feature proposes L3→L4; completing the last one proposes L4→L5.
+    // Both are owner-confirmed (suggest-confirm), so the trigger only persists a
+    // proposal — the Epic owner confirms it. The engine owns the gate ordering +
+    // practices no-op, so no epic import (dissolves the old cycle).
+    if (feature.parentId) {
+      if (to === "in_progress") {
+        await signalGateTrigger(tx, mctx, feature.parentId, "feature_started");
+      } else if (to === "completed") {
+        await signalGateTrigger(tx, mctx, feature.parentId, "features_completed");
+      }
     }
 
     return ok({

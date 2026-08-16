@@ -17,6 +17,7 @@ import type { EpicsListModel, EpicListRow } from "@/modules/work/server/views/po
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { EPIC_TYPES, HORIZONS } from "@/modules/work/domain/portfolio-guardrails";
+import { matchesQuery } from "@/modules/work/lib/row-filter";
 
 interface Props {
   model: EpicsListModel;
@@ -130,7 +131,7 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
 
   // Filtered + sorted rows.
   const filteredRows: EpicListRow[] = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     const filtered = model.rows.filter((r) => {
       if (gate != null && r.stageGate !== gate) return false;
       if (vsFilter && r.valueStream?.id !== vsFilter) return false;
@@ -139,13 +140,7 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
       if (flag === "budgeting" && !r.stagedForBudgeting) return false;
       if (horizon != null && r.investmentHorizon !== horizon) return false;
       if (epicType != null && r.epicType !== epicType) return false;
-      if (q !== "") {
-        if (r.title.toLowerCase().includes(q)) return true;
-        if (r.ownerLabel?.toLowerCase().includes(q)) return true;
-        if (r.valueStream?.name.toLowerCase().includes(q)) return true;
-        return false;
-      }
-      return true;
+      return matchesQuery([r.title, r.ownerLabel, r.valueStream?.name], q);
     });
 
     const sorted = filtered.slice();

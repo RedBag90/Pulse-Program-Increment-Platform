@@ -14,6 +14,7 @@ import {
 import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-list";
 import type { FeatureListRow } from "@/server/views/features-list";
 import type { TaskLevel } from "@/server/services/my-tasks";
+import { matchesQuery } from "@/modules/work/lib/row-filter";
 import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
@@ -66,24 +67,21 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
   // ── Epic-Filter: bucket (via bucketById) + level + vs + epic-search.
   const filteredEpics = useMemo<EpicListRow[]>(() => {
     if (level === "feature") return [];
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     return model.epicRows.filter((r) => {
       if (bucket && model.bucketById.get(r.id) !== bucket) return false;
       if (valueStreamId && r.valueStream?.id !== valueStreamId) return false;
       // Epic-Rows kennen keinen ART / PI / Parent-Epic — diese Facetten
       // schließen die Epic-Sektion still aus, wenn aktiv.
       if (artId || piId || epicId) return false;
-      if (q === "") return true;
-      if (r.title.toLowerCase().includes(q)) return true;
-      if (r.valueStream?.name.toLowerCase().includes(q)) return true;
-      return false;
+      return matchesQuery([r.title, r.valueStream?.name], q);
     });
   }, [model.epicRows, model.bucketById, level, bucket, valueStreamId, artId, piId, epicId, query]);
 
   // ── Feature-Filter: bucket + level + art + parent-epic + pi + q.
   const filteredFeatures = useMemo<FeatureListRow[]>(() => {
     if (level === "epic") return [];
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     return model.featureRows.filter((r) => {
       if (bucket && model.bucketById.get(r.id) !== bucket) return false;
       if (artId && r.artId !== artId) return false;
@@ -97,10 +95,7 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
         const artStillOk = model.artOptions.some((a) => a.id === r.artId);
         if (!artStillOk) return false;
       }
-      if (q === "") return true;
-      if (r.title.toLowerCase().includes(q)) return true;
-      if (r.epic?.title.toLowerCase().includes(q)) return true;
-      return false;
+      return matchesQuery([r.title, r.epic?.title], q);
     });
   }, [
     model.featureRows,

@@ -1,16 +1,19 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, InitiativeId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
-import { ok, err } from "@/modules/core/kernel/domain/errors";
-import { detectCycle } from "@/modules/core/kernel/domain/dependency-graph";
+import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
+import { toMutationContext, onUniqueConstraint } from "@/modules/core/kernel/server/mutation";
 import {
-  withAuditedTransaction,
-  toMutationContext,
-  onUniqueConstraint,
-} from "@/modules/core/kernel/server/mutation";
+  createEdge,
+  deleteEdge,
+  type DependencyType,
+} from "@/modules/work/server/services/dependency-edge";
 
-export type DependencyType = "blocks" | "depends_on" | "relates_to";
+// `DependencyType` now lives with the edge primitive in Work (Drumbeat imports
+// DOWN, ADR-0013). Re-exported here so existing `@/modules/drumbeat/.../dependency`
+// importers keep working unchanged.
+export type { DependencyType };
 
 export interface LinkDependencyInput {
   fromId: InitiativeId;
@@ -35,9 +38,13 @@ export async function linkDependency(
     return err({ kind: "conflict" as const, reason: "An initiative cannot depend on itself" });
   }
 
-  return withAuditedTransaction(
-    mctx,
-    async (tx) => {
+  // Validates the endpoints, then delegates the cycle-check + edge write + audit
+  // to Work's `createEdge` primitive (the single owner of edge mutations). The
+  // audit commits inside this transaction, so we no longer route through
+  // `withAuditedTransaction`; the unique-constraint → conflict mapping stays
+  // here at the transaction boundary, unchanged.
+  try {
+    return await mctx.db.$transaction(async (tx) => {
       const [from, to] = await Promise.all([
         tx.initiative.findFirst({
           where: { id: fromId, tenantId: mctx.tenantId, deletedAt: null },
@@ -52,39 +59,15 @@ export async function linkDependency(
         return err({ kind: "not_found" as const, resourceType: "Initiative", id: toId });
       }
 
-      if (type !== "relates_to") {
-        const allEdges = await tx.dependency.findMany({
-          where: { tenantId: mctx.tenantId, type: { not: "relates_to" } },
-          select: { fromId: true, toId: true },
-        });
-        if (detectCycle(fromId, toId, allEdges)) {
-          return err({
-            kind: "conflict" as const,
-            reason: "This dependency would create a circular dependency chain",
-          });
-        }
-      }
-
-      const dep = await tx.dependency.create({
-        data: { tenantId: mctx.tenantId, fromId, toId, type, createdBy: mctx.actorId },
-      });
-
-      return ok({
-        result: { id: dep.id },
-        audit: {
-          action: "initiative.dependency.linked",
-          resourceType: "dependency",
-          resourceId: dep.id,
-          changes: {
-            type: { before: null, after: type },
-            fromId: { before: null, after: fromId },
-            toId: { before: null, after: toId },
-          },
-        },
-      });
-    },
-    { onPrismaError: onUniqueConstraint("This dependency already exists") },
-  );
+      const created = await createEdge(tx, mctx, { fromId, toId, type });
+      if (isErr(created)) return created;
+      return ok({ id: created.value.id });
+    });
+  } catch (e) {
+    const mapped = onUniqueConstraint("This dependency already exists")(e);
+    if (mapped) return mapped;
+    throw e;
+  }
 }
 
 export async function unlinkDependency(
@@ -94,7 +77,7 @@ export async function unlinkDependency(
   const mctx = toMutationContext(ctx);
   const { fromId, toId, type } = input;
 
-  return withAuditedTransaction(mctx, async (tx) => {
+  return mctx.db.$transaction(async (tx) => {
     const dep = await tx.dependency.findFirst({
       where: { fromId, toId, type, tenantId: mctx.tenantId },
     });
@@ -107,21 +90,8 @@ export async function unlinkDependency(
       });
     }
 
-    await tx.dependency.delete({ where: { id: dep.id } });
-
-    return ok({
-      result: undefined,
-      audit: {
-        action: "initiative.dependency.unlinked",
-        resourceType: "dependency",
-        resourceId: dep.id,
-        changes: {
-          type: { before: type, after: null },
-          fromId: { before: fromId, after: null },
-          toId: { before: toId, after: null },
-        },
-      },
-    });
+    await deleteEdge(tx, mctx, dep);
+    return ok(undefined);
   });
 }
 
@@ -150,9 +120,14 @@ export async function changeDependencyType(
     return err({ kind: "conflict" as const, reason: "Type already matches" });
   }
 
-  return withAuditedTransaction(
-    mctx,
-    async (tx) => {
+  // Delegates to the edge primitive so the cycle-check lives in ONE place.
+  // Deleting the old edge FIRST (silently — no `unlinked` audit) means
+  // `createEdge`'s tenant-wide check naturally excludes the edge being retyped,
+  // reproducing the old `NOT: { id: existing.id }` exclusion. `createEdge`'s
+  // `auditBefore` collapses the swap into the SAME single `linked` before/after
+  // event this function has always emitted.
+  try {
+    return await mctx.db.$transaction(async (tx) => {
       const existing = await tx.dependency.findFirst({
         where: { tenantId: mctx.tenantId, fromId, toId, type: fromType },
       });
@@ -164,50 +139,25 @@ export async function changeDependencyType(
         });
       }
 
-      if (toType !== "relates_to") {
-        const otherEdges = await tx.dependency.findMany({
-          where: {
-            tenantId: mctx.tenantId,
-            type: { not: "relates_to" },
-            NOT: { id: existing.id },
-          },
-          select: { fromId: true, toId: true },
-        });
-        if (detectCycle(fromId, toId, otherEdges)) {
-          return err({
-            kind: "conflict" as const,
-            reason: "This dependency type change would create a circular dependency chain",
-          });
-        }
-      }
+      await deleteEdge(tx, mctx, existing, { emitAudit: false });
 
-      await tx.dependency.delete({ where: { id: existing.id } });
-      const next = await tx.dependency.create({
-        data: {
-          tenantId: mctx.tenantId,
-          fromId,
-          toId,
-          type: toType,
-          createdBy: mctx.actorId,
+      const created = await createEdge(
+        tx,
+        mctx,
+        { fromId, toId, type: toType },
+        {
+          auditBefore: { type: fromType, fromId, toId },
+          cycleReason: "This dependency type change would create a circular dependency chain",
         },
-      });
-
-      return ok({
-        result: { id: next.id },
-        audit: {
-          action: "initiative.dependency.linked",
-          resourceType: "dependency",
-          resourceId: next.id,
-          changes: {
-            type: { before: fromType, after: toType },
-            fromId: { before: fromId, after: fromId },
-            toId: { before: toId, after: toId },
-          },
-        },
-      });
-    },
-    { onPrismaError: onUniqueConstraint("This dependency already exists") },
-  );
+      );
+      if (isErr(created)) return created;
+      return ok({ id: created.value.id });
+    });
+  } catch (e) {
+    const mapped = onUniqueConstraint("This dependency already exists")(e);
+    if (mapped) return mapped;
+    throw e;
+  }
 }
 
 /**
@@ -220,7 +170,7 @@ export async function unlinkDependencyById(
   input: { id: string },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  return withAuditedTransaction(mctx, async (tx) => {
+  return mctx.db.$transaction(async (tx) => {
     const dep = await tx.dependency.findFirst({
       where: { id: input.id, tenantId: mctx.tenantId },
     });
@@ -231,20 +181,8 @@ export async function unlinkDependencyById(
         id: input.id,
       });
     }
-    await tx.dependency.delete({ where: { id: dep.id } });
-    return ok({
-      result: undefined,
-      audit: {
-        action: "initiative.dependency.unlinked",
-        resourceType: "dependency",
-        resourceId: dep.id,
-        changes: {
-          type: { before: dep.type, after: null },
-          fromId: { before: dep.fromId, after: null },
-          toId: { before: dep.toId, after: null },
-        },
-      },
-    });
+    await deleteEdge(tx, mctx, dep);
+    return ok(undefined);
   });
 }
 

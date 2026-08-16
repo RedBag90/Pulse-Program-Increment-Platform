@@ -2,7 +2,7 @@ import type { PrismaClient, Prisma } from "@/generated/prisma";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { EpicId, TenantId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
-import { ok, err } from "@/modules/core/kernel/domain/errors";
+import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import type { ChangeMap } from "@/modules/core/kernel/domain/change-log";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
@@ -10,7 +10,8 @@ import {
   toMutationContext,
   type MutationContext,
 } from "@/modules/core/kernel/server/mutation";
-import { autoAdvanceStageGate } from "@/modules/work/server/services/epic";
+import { signalGateTrigger } from "@/modules/work/server/services/stage-gate-engine";
+import { loadAuthorizedEpic } from "@/modules/work/server/services/epic-access";
 import {
   parseBusinessCase,
   businessCaseHasContent,
@@ -20,6 +21,8 @@ import {
   nextPhaseFor,
   decisionStatus,
   isFullyApproved,
+  isValidApproverSet,
+  assertAssignedApprover,
   APPROVAL_SECTIONS,
   type ApprovalDecision,
   type ApprovalSection,
@@ -80,8 +83,13 @@ export async function submitHypothesis(
   const { epicId } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
-    if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
+      id: epicId,
+      action: "epic.hypothesis.submit",
+      select: { approvalPhase: true },
+    });
+    if (isErr(loaded)) return loaded;
+    const epic = loaded.value;
     const phase = phaseOf(epic);
     const target = nextPhaseFor(phase, { kind: "submit_hypothesis" });
     if (!target.ok) return target;
@@ -123,8 +131,13 @@ export async function decideHypothesis(
   const { epicId, decision, comment, intent } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
-    if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
+      id: epicId,
+      action: "epic.hypothesis.decide",
+      select: { approvalPhase: true },
+    });
+    if (isErr(loaded)) return loaded;
+    const epic = loaded.value;
     const phase = phaseOf(epic);
     const next = nextPhaseFor(phase, { kind: "decide_hypothesis", decision });
     if (!next.ok) return next;
@@ -144,10 +157,11 @@ export async function decideHypothesis(
     });
 
     // Reifegrad-Modell v2 (Plan vom 2026-06-07): „Hypothese akzeptiert" ist die
-    // Definition von L1. Der Auto-Advance hängt deshalb hier am Approval — die
-    // alte Variante (L0→L1 beim Owner-Assignment) ist entfallen.
+    // Definition von L1. Der Trigger hängt deshalb hier am Approval — die alte
+    // Variante (L0→L1 beim Owner-Assignment) ist entfallen. `hypothesis_approved`
+    // ist die eine Ausnahme, die direkt advanced (kein Owner-Confirm nötig).
     if (decision === "approve") {
-      await autoAdvanceStageGate(tx, mctx, epicId, "L1");
+      await signalGateTrigger(tx, mctx, epicId, "hypothesis_approved");
     }
 
     return ok({
@@ -183,8 +197,13 @@ export async function configureApprovers(
   const { epicId, assignments, sections } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
-    if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
+      id: epicId,
+      action: "epic.approval.configure",
+      select: { approvalPhase: true, approvalRevision: true },
+    });
+    if (isErr(loaded)) return loaded;
+    const epic = loaded.value;
     const phase = phaseOf(epic);
     const guard = nextPhaseFor(phase, { kind: "configure_approvers" });
     if (!guard.ok) return guard;
@@ -248,8 +267,13 @@ export async function submitBusinessCase(
   const { epicId } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
-    if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
+      id: epicId,
+      action: "epic.businesscase.submit",
+      select: { approvalPhase: true, approvalRevision: true, businessCase: true },
+    });
+    if (isErr(loaded)) return loaded;
+    const epic = loaded.value;
     const phase = phaseOf(epic);
     const next = nextPhaseFor(phase, { kind: "submit_business_case" });
     if (!next.ok) return next;
@@ -257,28 +281,21 @@ export async function submitBusinessCase(
       return err({ kind: "conflict" as const, reason: "Business Case hat noch keinen Inhalt" });
     }
     const rev = revisionOf(epic);
-    const partyCount = await tx.epicApproval.count({
-      where: { initiativeId: epicId, tenantId: mctx.tenantId, kind: "party", revision: rev },
+    // A valid approver set = ≥1 configured party AND both review sections
+    // (Deliverables, KPIs) have an assigned owner. Read the revision's rows back
+    // and re-verify through the same predicate the config write is bound by.
+    const configuredRows = await tx.epicApproval.findMany({
+      where: {
+        initiativeId: epicId,
+        tenantId: mctx.tenantId,
+        kind: { in: ["party", "section"] },
+        revision: rev,
+      },
+      select: { kind: true, party: true, section: true, status: true },
     });
-    if (partyCount === 0) {
-      return err({
-        kind: "conflict" as const,
-        reason: "Mindestens ein Approver muss konfiguriert sein",
-      });
-    }
-
-    // Both review sections (Breakdown, KPIs) need an assigned owner before the
-    // Business Case goes out — the sign-offs are configured, not auto-created.
-    const existingSections = await tx.epicApproval.findMany({
-      where: { initiativeId: epicId, tenantId: mctx.tenantId, kind: "section", revision: rev },
-      select: { section: true },
-    });
-    const have = new Set(existingSections.map((s) => s.section));
-    if (!APPROVAL_SECTIONS.every((s) => have.has(s))) {
-      return err({
-        kind: "conflict" as const,
-        reason: "Für Deliverables und KPIs muss je ein Verantwortlicher zugewiesen sein",
-      });
+    const valid = isValidApproverSet(configuredRows.map(toRecord));
+    if (!valid.ok) {
+      return err({ kind: "conflict" as const, reason: valid.reason ?? "Ungültige Approver-Konfiguration" });
     }
 
     // Each submission opens a fresh review round: reset every decision on this
@@ -298,12 +315,12 @@ export async function submitBusinessCase(
       data: { approvalPhase: "stakeholder_review", updatedBy: mctx.actorId },
     });
 
-    // Reifegrad-Modell v2: Backstop fuer L1->L2. Normalerweise rueckt das
-    // Epic schon beim saveBusinessCase auf L2 (sobald Inhalt da ist).
+    // Reifegrad-Modell v2: Backstop fuer L1->L2. Normalerweise schlaegt das
+    // Epic schon beim saveBusinessCase L2 vor (sobald Inhalt da ist).
     // Bestands-Epics, die vor der Trigger-Aenderung Inhalt bekommen haben,
-    // werden spaetestens hier mit eingesammelt. autoAdvanceStageGate ist
-    // no-op, wenn das Epic bereits auf L2 oder weiter ist.
-    await autoAdvanceStageGate(tx, mctx, epicId, "L2");
+    // werden spaetestens hier mit eingesammelt. Der Trigger ist no-op, wenn das
+    // Epic bereits auf L2 oder weiter ist (bzw. der Vorschlag schon steht).
+    await signalGateTrigger(tx, mctx, epicId, "business_case_saved");
 
     return ok({
       result: undefined,
@@ -331,8 +348,13 @@ export async function reviseBusinessCase(
   const { epicId } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
-    if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
+      id: epicId,
+      action: "epic.businesscase.submit",
+      select: { approvalPhase: true },
+    });
+    if (isErr(loaded)) return loaded;
+    const epic = loaded.value;
     const phase = phaseOf(epic);
     if (phase !== "stakeholder_review") {
       return err({
@@ -424,12 +446,8 @@ export async function decideApproval(
     if (!row)
       return err({ kind: "not_found" as const, resourceType: "EpicApproval", id: approvalId });
     // Service-layer scope: only the assigned approver may decide their row.
-    if (row.approverUserId !== mctx.actorId) {
-      return err({
-        kind: "conflict" as const,
-        reason: "Nur der zugewiesene Approver darf diese Freigabe entscheiden",
-      });
-    }
+    const assigned = assertAssignedApprover(row, mctx.actorId);
+    if (isErr(assigned)) return assigned;
     const epic = await tx.initiative.findFirst({
       where: EPIC_WHERE(row.initiativeId, mctx.tenantId),
     });
@@ -511,12 +529,8 @@ export async function signoffSection(
     if (!row)
       return err({ kind: "not_found" as const, resourceType: "EpicApprovalSection", id: section });
     // Service-layer scope: only the assigned reviewer may sign off their section.
-    if (row.approverUserId !== mctx.actorId) {
-      return err({
-        kind: "conflict" as const,
-        reason: "Nur der zugewiesene Reviewer darf diesen Abschnitt abnehmen",
-      });
-    }
+    const assigned = assertAssignedApprover(row, mctx.actorId);
+    if (isErr(assigned)) return assigned;
 
     const status = decisionStatus(decision);
     await tx.epicApproval.update({
@@ -561,8 +575,13 @@ export async function startRevision(
   const { epicId, mode } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
-    if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
+      id: epicId,
+      action: "epic.revision.start",
+      select: { approvalPhase: true, approvalRevision: true, businessCase: true, benefitHypothesis: true },
+    });
+    if (isErr(loaded)) return loaded;
+    const epic = loaded.value;
     const phase = phaseOf(epic);
     const next = nextPhaseFor(phase, { kind: "start_revision", mode });
     if (!next.ok) return next;

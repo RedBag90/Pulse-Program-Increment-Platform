@@ -28,7 +28,7 @@ import {
 } from "@/modules/budgeting/domain/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
-import { autoAdvanceStageGate } from "@/modules/work/server/services/epic";
+import { signalGateTrigger } from "@/modules/work/server/services/stage-gate-engine";
 
 export interface BudgetingBoardData {
   epics: BudgetEpicView[];
@@ -206,7 +206,7 @@ export async function saveBudgetAllocation(
     const fw = fundedWindow(allocations);
     const epic = await tx.initiative.findFirst({
       where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
-      select: { timeline: true, businessCaseApprovedAt: true },
+      select: { timeline: true },
     });
     const timeline = parseTimeline(epic?.timeline);
     await tx.initiative.update({
@@ -228,13 +228,10 @@ export async function saveBudgetAllocation(
 
     // Reifegrad-Modell v2 (Plan vom 2026-06-07): L3 = „Budget alloziert"
     // verlangt zwei Bedingungen — (a) Business Case freigegeben und (b)
-    // mindestens eine Period-Allokation > 0. Erst dann rückt das Epic
-    // automatisch auf L3. `autoAdvanceStageGate` ist no-op, wenn das
-    // Epic bereits weiter ist.
-    const allocationSum = Object.values(allocations).reduce((s, v) => s + (v ?? 0), 0);
-    if (epic?.businessCaseApprovedAt != null && allocationSum > 0) {
-      await autoAdvanceStageGate(tx, mctx, epicId, "L3");
-    }
+    // mindestens eine Period-Allokation > 0. Beide Vorbedingungen besitzt jetzt
+    // die Stage-Gate-Engine; der Trigger schlaegt L2→L3 vor (owner-confirm) und
+    // ist no-op, wenn die Bedingungen fehlen oder das Epic bereits weiter ist.
+    await signalGateTrigger(tx, mctx, epicId, "budget_allocated");
 
     return ok({
       result: { id: row.id },

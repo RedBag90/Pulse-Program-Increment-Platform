@@ -10,26 +10,17 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
-import {
-  isValidTransition,
-  isApprovalTransition,
-  autoAdvanceTarget,
-} from "@/modules/work/domain/stage-gate";
-import {
-  findBlockedManualTransition,
-  manualForwardBlockReason,
-} from "@/modules/work/domain/epic-lifecycle-doc";
 import type { EpicType, Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import type { RequestContext } from "@/server/http/mutation-handler";
-import {
-  withAuditedTransaction,
-  toMutationContext,
-  type MutationContext,
-} from "@/modules/core/kernel/server/mutation";
+import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { createInitiativeWithDerivedPath } from "@/modules/core/kernel/server/initiative-write";
-import { loadAndAuthorize } from "@/server/services/load-and-authorize";
+import {
+  signalGateTrigger,
+  confirmProposedAdvance,
+  advanceGateManually,
+} from "@/modules/work/server/services/stage-gate-engine";
+import { loadAuthorizedEpic } from "@/modules/work/server/services/epic-access";
 import { appendVersion } from "@/modules/work/domain/versioned-document";
-import { emitAuditEvent } from "@/server/audit/emit";
 import { effectivePractices } from "@/modules/core/kernel/domain/operating-model";
 import {
   parseBenefitHypothesis,
@@ -131,22 +122,19 @@ export async function updateEpic(
   } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const loaded = await loadAndAuthorize({
-      principal: ctx.principal,
-      action: "epic.update",
-      resourceType: "Epic",
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
       id,
-      finder: () =>
-        tx.initiative.findFirst({
-          where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
-        }),
-      // Scope check uses the loaded Epic's real value stream + owner — a
-      // value_stream owner may only edit Epics in their own stream.
-      toResource: (row) => ({
-        tenantId: mctx.tenantId,
-        valueStreamId: row.valueStreamId,
-        ownerId: row.ownerId,
-      }),
+      action: "epic.update",
+      select: {
+        title: true,
+        description: true,
+        needsSteeringAttention: true,
+        stagedForBudgeting: true,
+        plannedStartAt: true,
+        plannedEndAt: true,
+        epicType: true,
+        investmentHorizon: true,
+      },
     });
     if (isErr(loaded)) return loaded;
     const existing = loaded.value;
@@ -236,92 +224,32 @@ export async function advanceStageGate(
       });
     }
 
-    const epic = await tx.initiative.findFirst({
-      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    // Scope-aware seam check (ADR-0002): authorize against the loaded Epic
+    // before the engine mutates it, so no `epic.approve` grant is satisfied
+    // vacuously by an attacker-controlled id.
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
+      id: epicId,
+      action: "epic.approve",
+      select: { id: true },
     });
-    if (!epic) {
-      return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
-    }
+    if (isErr(loaded)) return loaded;
 
-    const from = epic.stageGate as StageGate;
-    if (!isValidTransition(from, toGate)) {
-      return err({
-        kind: "hierarchy_violation" as const,
-        violatedConstraint: "stage_gate_transition",
-        detail: `Cannot transition from ${from} to ${toGate}`,
-      });
-    }
-
-    // Manuelle Auto-Advance-Pfade sperren — die `reason` kommt aus der
-    // Single-Source `domain/epic-lifecycle-doc.ts` (selbe Liste, die der
-    // Help-Popover rendert). Neue blockierte Pairs einfach dort eintragen.
-    // `autoAdvanceStageGate` umgeht diese Pruefung — die Workflow-Trigger
-    // (saveBudgetAllocation, confirmEpicImpact) setzen ihre eigenen
-    // Vorbedingungen.
-    const blocked = findBlockedManualTransition(from, toGate);
-    if (blocked) {
-      return err({ kind: "forbidden" as const, reason: blocked.reason });
-    }
-
-    // Vorbedingungs-Guard: ein manueller Vorwärts-Wechsel darf die nötige
-    // Vorleistung nicht überspringen (L1 = Hypothese freigegeben/ausgearbeitet,
-    // L2 = Business-Case-Inhalt, L4 = gestartetes Feature). Der Zustand kommt aus
-    // dem geladenen Epic; die gestarteten Child-Features nur bei L3→L4 zählen.
-    const startedChildFeatureCount =
-      from === "L3" && toGate === "L4"
-        ? await tx.initiative.count({
-            where: {
-              parentId: epicId,
-              tenantId: mctx.tenantId,
-              level: InitiativeLevel.FEATURE,
-              deletedAt: null,
-              status: { in: ["in_progress", "completed"] },
-            },
-          })
-        : 0;
-    const blockReason = manualForwardBlockReason(from, toGate, {
-      multiPartyApproval: practices.multiPartyApproval,
-      hypothesisApprovedAt: epic.hypothesisApprovedAt,
-      hasHypothesisContent: benefitHypothesisHasContent(
-        parseBenefitHypothesis(epic.benefitHypothesis).current,
-      ),
-      hasBusinessCaseContent: businessCaseHasContent(parseBusinessCase(epic.businessCase).current),
-      startedChildFeatureCount,
-    });
-    if (blockReason) {
-      return err({ kind: "forbidden" as const, reason: blockReason });
-    }
-
-    const isApproval = isApprovalTransition(from, toGate);
-
-    await tx.initiative.update({
-      where: { id: epicId },
-      data: {
-        stageGate: toGate,
-        updatedBy: mctx.actorId,
-        ...(isApproval && {
-          approvedBy: mctx.actorId,
-          approvedAt: new Date(),
-          approvalComment: comment ?? null,
-        }),
-        // Stamp the per-gate-entry milestone the first time the Epic reaches it.
-        ...(toGate === "L1" &&
-          !epic.selectedForDetailingAt && { selectedForDetailingAt: new Date() }),
-        ...(toGate === "L2" &&
-          !epic.selectedForAnalyzingAt && { selectedForAnalyzingAt: new Date() }),
-        ...(toGate === "L4" &&
-          !epic.implementationStartedAt && { implementationStartedAt: new Date() }),
-      },
-    });
+    // The manual move — transition validity, the blocked-auto-advance list and
+    // the forward-precondition guards, plus the stamps + `stage_gate.advanced`
+    // audit — all live in the pure engine + its adapter now.
+    const moved = await advanceGateManually(tx, mctx, epicId, toGate, comment);
+    if (isErr(moved)) return moved;
 
     return ok({
-      result: { from, to: toGate },
+      result: moved.value,
+      // `advanceGateManually` runs the engine with `emitAudit: false`, so this
+      // withAuditedTransaction owns the single `stage_gate.advanced` row.
       audit: {
         action: "initiative.stage_gate.advanced" as const,
         resourceType: "initiative" as const,
         resourceId: epicId,
         changes: {
-          stageGate: { before: from, after: toGate },
+          stageGate: { before: moved.value.from, after: moved.value.to },
           ...(comment !== undefined && { comment: { before: null, after: comment } }),
         },
       },
@@ -330,64 +258,40 @@ export async function advanceStageGate(
 }
 
 /**
- * Auto-advances an Epic's stage gate forward to `target` from *within* an
- * existing audited transaction — the workflow-driven counterpart to the manual,
- * single-step {@link advanceStageGate}. Jumps are allowed (a workflow event may
- * skip gates) but it never regresses ({@link autoAdvanceTarget}), is a no-op when
- * stage gates are disabled in the target operating model, and emits its own
- * `stage_gate.advanced` audit so the move shows up in history. Entering L3 stamps
- * the approver/timestamp like a manual L3 entry.
+ * Owner confirms a persisted gate proposal (`proposedStageGate`), advancing the
+ * Epic one gate. Reuses the same portfolio-scoped `epic.approve` capability as
+ * the manual {@link advanceStageGate}; the engine re-validates the proposal
+ * against the current state and emits the `stage_gate.advanced` audit.
  */
-export async function autoAdvanceStageGate(
-  tx: Prisma.TransactionClient,
-  mctx: MutationContext,
-  epicId: string,
-  target: StageGate,
-): Promise<void> {
-  const targetModel = await tx.targetOperatingModel.findFirst({
-    where: { tenantId: mctx.tenantId, status: "active" },
-    orderBy: { updatedAt: "desc" },
-  });
-  if (!effectivePractices(targetModel).stageGates) return;
+export async function confirmProposedStageGate(
+  ctx: RequestContext,
+  input: { epicId: EpicId },
+): Promise<Result<{ from: StageGate; to: StageGate }>> {
+  const mctx = toMutationContext(ctx);
+  const { epicId } = input;
 
-  const epic = await tx.initiative.findFirst({
-    where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
-    select: {
-      stageGate: true,
-      selectedForDetailingAt: true,
-      selectedForAnalyzingAt: true,
-      implementationStartedAt: true,
-    },
-  });
-  if (!epic) return;
+  return withAuditedTransaction(mctx, async (tx) => {
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
+      id: epicId,
+      action: "epic.approve",
+      select: { id: true },
+    });
+    if (isErr(loaded)) return loaded;
 
-  const from = epic.stageGate as StageGate;
-  const to = autoAdvanceTarget(from, target);
-  if (!to) return; // already at or beyond the target — never regress
+    const confirmed = await confirmProposedAdvance(tx, mctx, epicId);
+    if (isErr(confirmed)) return confirmed;
 
-  const isApproval = isApprovalTransition(from, to);
-  await tx.initiative.update({
-    where: { id: epicId },
-    data: {
-      stageGate: to,
-      updatedBy: mctx.actorId,
-      ...(isApproval && { approvedBy: mctx.actorId, approvedAt: new Date() }),
-      // Stamp the per-gate-entry milestone the first time the Epic reaches it.
-      ...(to === "L1" && !epic.selectedForDetailingAt && { selectedForDetailingAt: new Date() }),
-      ...(to === "L2" && !epic.selectedForAnalyzingAt && { selectedForAnalyzingAt: new Date() }),
-      ...(to === "L4" && !epic.implementationStartedAt && { implementationStartedAt: new Date() }),
-    },
-  });
-
-  await emitAuditEvent(tx, {
-    tenantId: mctx.tenantId,
-    actorId: mctx.actorId,
-    action: "initiative.stage_gate.advanced",
-    resourceType: "initiative",
-    resourceId: epicId,
-    changes: { stageGate: { before: from, after: to } },
-    ipAddress: mctx.ipAddress,
-    userAgent: mctx.userAgent,
+    return ok({
+      result: confirmed.value,
+      // `confirmProposedAdvance` runs the engine with `emitAudit: false`, so this
+      // withAuditedTransaction owns the single `stage_gate.advanced` row.
+      audit: {
+        action: "initiative.stage_gate.advanced" as const,
+        resourceType: "initiative" as const,
+        resourceId: epicId,
+        changes: { stageGate: { before: confirmed.value.from, after: confirmed.value.to } },
+      },
+    });
   });
 }
 
@@ -415,25 +319,10 @@ export async function saveBenefitHypothesis(
   const { epicId, fields } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const loaded = await loadAndAuthorize({
-      principal: ctx.principal,
-      action: "epic.update",
-      resourceType: "Epic",
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
       id: epicId,
-      finder: () =>
-        tx.initiative.findFirst({
-          where: {
-            id: epicId,
-            tenantId: mctx.tenantId,
-            level: InitiativeLevel.EPIC,
-            deletedAt: null,
-          },
-        }),
-      toResource: (row) => ({
-        tenantId: mctx.tenantId,
-        valueStreamId: row.valueStreamId,
-        ownerId: row.ownerId,
-      }),
+      action: "epic.update",
+      select: { benefitHypothesis: true },
     });
     if (isErr(loaded)) return loaded;
     const existing = loaded.value;
@@ -479,25 +368,10 @@ export async function saveBusinessCase(
   const { epicId, fields } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const loaded = await loadAndAuthorize({
-      principal: ctx.principal,
-      action: "epic.update",
-      resourceType: "Epic",
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
       id: epicId,
-      finder: () =>
-        tx.initiative.findFirst({
-          where: {
-            id: epicId,
-            tenantId: mctx.tenantId,
-            level: InitiativeLevel.EPIC,
-            deletedAt: null,
-          },
-        }),
-      toResource: (row) => ({
-        tenantId: mctx.tenantId,
-        valueStreamId: row.valueStreamId,
-        ownerId: row.ownerId,
-      }),
+      action: "epic.update",
+      select: { businessCase: true },
     });
     if (isErr(loaded)) return loaded;
     const existing = loaded.value;
@@ -519,13 +393,13 @@ export async function saveBusinessCase(
       },
     });
 
-    // Reifegrad-Modell v2: L2.1 = „BC in Arbeit". Sobald Inhalt im
-    // Business Case existiert, rueckt das Epic von L1 auf L2 — die
-    // Sub-Step-Derivation (subStageFor) macht daraus dann L2.1 bzw.
-    // L2.2 nach BC-Approval. autoAdvanceStageGate ist no-op, wenn das
-    // Epic schon auf L2 oder weiter ist.
+    // Reifegrad-Modell v2: L2.1 = „BC in Arbeit". Sobald Inhalt im Business Case
+    // existiert, schlaegt der Trigger L1→L2 vor (owner-confirm) — die
+    // Sub-Step-Derivation (subStageFor) macht daraus dann L2.1 bzw. L2.2 nach
+    // BC-Approval. Der Trigger ist no-op, wenn kein Inhalt da ist bzw. das Epic
+    // schon auf L2 oder weiter ist.
     if (businessCaseHasContent(fields)) {
-      await autoAdvanceStageGate(tx, mctx, epicId, "L2");
+      await signalGateTrigger(tx, mctx, epicId, "business_case_saved");
     }
 
     return ok({
@@ -557,25 +431,10 @@ export async function saveTimeline(
   const { epicId, fields } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const loaded = await loadAndAuthorize({
-      principal: ctx.principal,
-      action: "epic.update",
-      resourceType: "Epic",
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
       id: epicId,
-      finder: () =>
-        tx.initiative.findFirst({
-          where: {
-            id: epicId,
-            tenantId: mctx.tenantId,
-            level: InitiativeLevel.EPIC,
-            deletedAt: null,
-          },
-        }),
-      toResource: (row) => ({
-        tenantId: mctx.tenantId,
-        valueStreamId: row.valueStreamId,
-        ownerId: row.ownerId,
-      }),
+      action: "epic.update",
+      select: { id: true },
     });
     if (isErr(loaded)) return loaded;
 
@@ -614,21 +473,10 @@ export async function assignEpicOwner(
     // Scope-aware seam check (ADR-0002): a value_stream_owner may only assign
     // owners within their own stream; portfolio_manager / admins are
     // unscoped.
-    const loaded = await loadAndAuthorize({
-      principal: ctx.principal,
-      action: "epic.owner.assign",
-      resourceType: "Epic",
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
       id: epicId,
-      finder: () =>
-        tx.initiative.findFirst({
-          where: {
-            id: epicId,
-            tenantId: mctx.tenantId,
-            level: InitiativeLevel.EPIC,
-            deletedAt: null,
-          },
-        }),
-      toResource: (row) => ({ tenantId: mctx.tenantId, valueStreamId: row.valueStreamId }),
+      action: "epic.owner.assign",
+      select: { ownerId: true, selectedForDetailingAt: true },
     });
     if (isErr(loaded)) return loaded;
     const existing = loaded.value;
@@ -690,91 +538,30 @@ export async function confirmEpicImpact(
   const { epicId, comment } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const loaded = await loadAndAuthorize({
-      principal: ctx.principal,
-      action: "epic.impact.confirm",
-      resourceType: "Epic",
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
       id: epicId,
-      finder: () =>
-        tx.initiative.findFirst({
-          where: {
-            id: epicId,
-            tenantId: mctx.tenantId,
-            level: InitiativeLevel.EPIC,
-            deletedAt: null,
-          },
-          select: {
-            id: true,
-            stageGate: true,
-            valueStreamId: true,
-            impactRecognizedAt: true,
-          },
-        }),
-      toResource: (row) => ({ tenantId: mctx.tenantId, valueStreamId: row.valueStreamId }),
+      action: "epic.impact.confirm",
+      select: { id: true },
     });
     if (isErr(loaded)) return loaded;
-    const existing = loaded.value;
 
-    if (existing.impactRecognizedAt != null) {
-      return err({
-        kind: "conflict" as const,
-        reason: "Impact wurde bereits bestätigt",
-      });
-    }
-    if (existing.stageGate !== "L4") {
-      return err({
-        kind: "conflict" as const,
-        reason: `Impact-Bestätigung verlangt L4 — Epic ist auf ${existing.stageGate}`,
-      });
-    }
-
-    // L4.2-Derivation: alle Child-Features completed?
-    const [total, completed] = await Promise.all([
-      tx.initiative.count({
-        where: {
-          parentId: epicId,
-          tenantId: mctx.tenantId,
-          level: InitiativeLevel.FEATURE,
-          deletedAt: null,
-        },
-      }),
-      tx.initiative.count({
-        where: {
-          parentId: epicId,
-          tenantId: mctx.tenantId,
-          level: InitiativeLevel.FEATURE,
-          deletedAt: null,
-          status: "completed",
-        },
-      }),
-    ]);
-    if (total === 0 || completed < total) {
-      return err({
-        kind: "conflict" as const,
-        reason: `Impact-Bestätigung verlangt alle Child-Features abgeschlossen (${completed}/${total})`,
-      });
-    }
-
-    const now = new Date();
-    await tx.initiative.update({
-      where: { id: epicId },
-      data: {
-        impactRecognizedAt: now,
-        impactRecognizedBy: mctx.actorId,
-        impactComment: comment ?? null,
-        stageGate: "L5",
-        updatedBy: mctx.actorId,
-      },
-    });
+    // L5 = „Impact realisiert". The L4-gate + all-children-completed checks and
+    // the impactRecognized* stamps + audit now live in the engine: signal the
+    // completion fact (creates the L5 proposal iff ready), then confirm it.
+    await signalGateTrigger(tx, mctx, epicId, "features_completed");
+    const confirmed = await confirmProposedAdvance(tx, mctx, epicId, { comment });
+    if (isErr(confirmed)) return confirmed;
 
     return ok({
       result: undefined,
+      // `confirmProposedAdvance` runs the engine with `emitAudit: false`, so this
+      // withAuditedTransaction owns the single `stage_gate.advanced` row.
       audit: {
         action: "initiative.stage_gate.advanced",
         resourceType: "initiative",
         resourceId: epicId,
         changes: {
-          stageGate: { before: "L4", after: "L5" },
+          stageGate: { before: confirmed.value.from, after: confirmed.value.to },
           ...(comment ? { impactComment: { before: null, after: comment } } : {}),
         },
       },
@@ -794,10 +581,14 @@ export async function softDeleteEpic(
   const { id } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.initiative.findFirst({
-      where: { id, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+    // Scope-aware seam check (ADR-0002): authorize against the loaded Epic
+    // before the soft-delete cascades, closing the previous bare-find gap.
+    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
+      id,
+      action: "epic.delete",
+      select: { id: true },
     });
-    if (!existing) return err({ kind: "not_found" as const, resourceType: "Epic", id });
+    if (isErr(loaded)) return loaded;
 
     // Cascade soft-delete to all child features.
     const features = await tx.initiative.findMany({
