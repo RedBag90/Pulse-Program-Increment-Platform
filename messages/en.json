@@ -74,7 +74,8 @@
     "risks": "Risks",
     "issues": "Issues",
     "riskReview": "Risk-Review",
-    "setupControlling": "Setup & Controlling",
+    "budgeting": "Budgeting",
+    "setupControlling": "Setup",
     "others": "Other",
     "targetState": "Target State",
     "openMenu": "Open menu"

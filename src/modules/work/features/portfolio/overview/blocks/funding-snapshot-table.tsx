@@ -21,7 +21,7 @@ export function FundingSnapshotTable({ data }: { data: PortfolioOverview }) {
         <SectionLabel>Funding-Snapshot</SectionLabel>
         <p className="text-sm text-muted-foreground">
           Noch keine Budgets verteilt.{" "}
-          <Link href="/controlling/budgeting" className="text-primary hover:underline">
+          <Link href="/budgeting/board" className="text-primary hover:underline">
             Budgeting öffnen →
           </Link>
         </p>

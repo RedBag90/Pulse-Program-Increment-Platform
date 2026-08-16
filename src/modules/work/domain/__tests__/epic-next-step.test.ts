@@ -116,12 +116,12 @@ describe("epicNextStep", () => {
     expect(step?.title).toBe("Auf Stakeholder-Freigabe warten");
   });
 
-  it("L2 / L2.2 → Budget allozieren mit Link auf /controlling", () => {
+  it("L2 / L2.2 → Budget allozieren mit Link auf /budgeting", () => {
     const step = epicNextStep(
       base({ stageGate: "L2", subStage: "L2.2", approvalPhase: "approved" }),
     );
     expect(step?.title).toBe("Budget allozieren");
-    expect(step?.cta).toEqual({ kind: "link", label: "Zum Controlling", href: "/controlling" });
+    expect(step?.cta).toEqual({ kind: "link", label: "Zum Controlling", href: "/budgeting" });
   });
 
   it("L3 → Erstes Feature starten", () => {

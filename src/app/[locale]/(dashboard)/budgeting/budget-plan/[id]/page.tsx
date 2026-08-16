@@ -48,7 +48,7 @@ export default async function BudgetPlanRevisionDetailPage({ params }: Props) {
   return (
     <Page>
       <div className="flex items-baseline justify-between gap-3">
-        <Link href="/controlling" className="text-xs font-medium text-primary hover:underline">
+        <Link href="/budgeting" className="text-xs font-medium text-primary hover:underline">
           ← Controlling-Übersicht
         </Link>
         {showRecapture && (
@@ -61,7 +61,7 @@ export default async function BudgetPlanRevisionDetailPage({ params }: Props) {
           {history.map((h) => (
             <Link
               key={h.id}
-              href={`/controlling/budget-plan/${h.id}`}
+              href={`/budgeting/budget-plan/${h.id}`}
               className={`rounded-full border px-2.5 py-1 ${
                 h.id === revision.id
                   ? "border-primary bg-primary/10 font-medium text-primary"

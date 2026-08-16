@@ -12,7 +12,7 @@ import { ZieleShell } from "@/modules/core/goals/features/components/ziele-shell
  * Ziele-Modul — **eine** Surface für Übersicht **und** Pflege (die frühere
  * Trennung /ziele read-only vs. /strategy edit ist zusammengelegt). Wer
  * `target.manage` hält, sieht die Edit-Affordances; alle anderen dieselbe
- * Seite read-only. KPI-Coverage + Bindungen leben weiter unter `/controlling`.
+ * Seite read-only. KPI-Coverage + Bindungen leben weiter unter `/budgeting`.
  */
 function parseTab(raw: string | undefined): ZieleSubTab {
   return raw === "money" ? raw : "strategie";

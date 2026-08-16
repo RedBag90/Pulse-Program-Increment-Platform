@@ -138,24 +138,33 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [{ href: "/issues", labelKey: "issues", icon: ShieldAlert, exact: true }],
   },
   {
+    // Budgeting als eigenständiges Top-Level-Modul (Overview, teilnehmende
+    // Budgetierung, Budget-Plan). Via moduleAllowed ausgeblendet, wenn das
+    // Budgeting-Modul aus ist; das Board zusätzlich Capability-gegated.
+    labelKey: "budgeting",
+    defaultHref: "/budgeting",
+    items: [
+      { href: "/budgeting", labelKey: "controllingOverview", icon: Gauge, exact: true },
+      {
+        href: "/budgeting/board",
+        labelKey: "participatoryBudgeting",
+        icon: Wallet,
+        capability: "budget.manage",
+      },
+      {
+        href: "/budgeting/budget-plan",
+        labelKey: "budgetPlan",
+        icon: ClipboardList,
+      },
+    ],
+  },
+  {
     labelKey: "setupControlling",
     defaultHref: "/setup",
     items: [
       { href: "/setup", labelKey: "setupGuide", icon: ClipboardCheck, exact: true },
       { href: "/structure", labelKey: "structure", icon: Network },
       { href: "/timelines", labelKey: "timelines", icon: CalendarDays },
-      { href: "/controlling", labelKey: "controllingOverview", icon: Gauge, exact: true },
-      {
-        href: "/controlling/budgeting",
-        labelKey: "participatoryBudgeting",
-        icon: Wallet,
-        capability: "budget.manage",
-      },
-      {
-        href: "/controlling/budget-plan",
-        labelKey: "budgetPlan",
-        icon: ClipboardList,
-      },
     ],
   },
   {

@@ -18,7 +18,7 @@ export default async function BudgetPlanIndexPage() {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const latest = await getLatestBudgetPlanRevision(db, principal.tenantId);
-  if (latest) redirect(`/controlling/budget-plan/${latest.id}`);
+  if (latest) redirect(`/budgeting/budget-plan/${latest.id}`);
 
   const canCapture = authorize(
     "budget_plan.revision.capture",

@@ -22,6 +22,26 @@ function isAuthOnly(pathname: string): boolean {
   return AUTH_ONLY_PATTERNS.some((p) => p.test(pathname));
 }
 
+/**
+ * Legacy-Redirect: das Budgeting-Modul besaß früher das `/controlling`-Segment.
+ * Alte Deep-Links bleiben erreichbar — `/controlling` → `/budgeting`,
+ * `/controlling/budgeting` → `/budgeting/board`, `/controlling/budget-plan(/…)`
+ * → `/budgeting/budget-plan(/…)`. Locale-Präfix und Rest-Pfad bleiben erhalten.
+ * Als Redirect (nicht als Route-Dir) gelöst, damit der Registry-
+ * Vollständigkeitstest kein verwaistes `controlling`-Segment sieht.
+ */
+function legacyControllingRedirect(pathname: string): string | null {
+  const m = pathname.match(/^(\/[a-z]{2})?\/controlling(\/.*)?$/);
+  if (!m) return null;
+  const localePrefix = m[1] ?? "";
+  const rest = m[2] ?? "";
+  if (rest === "/budgeting" || rest.startsWith("/budgeting/")) {
+    return `${localePrefix}/budgeting/board${rest.slice("/budgeting".length)}`;
+  }
+  // /controlling und /controlling/budget-plan(/…) → /budgeting(+ Rest)
+  return `${localePrefix}/budgeting${rest}`;
+}
+
 export async function middleware(request: NextRequest) {
   const { supabaseResponse, user, authCheckFailed } = await updateSession(request);
   const pathname = request.nextUrl.pathname;
@@ -29,6 +49,15 @@ export async function middleware(request: NextRequest) {
   // Detect the locale prefix (e.g. /en, /de)
   const localeMatch = pathname.match(/^\/([a-z]{2})(\/|$)/);
   const locale = localeMatch ? localeMatch[1] : routing.defaultLocale;
+
+  // Legacy `/controlling/*`-Deep-Links auf die neuen `/budgeting/*`-Routen
+  // umleiten (Query + Locale bleiben erhalten).
+  const legacyTarget = legacyControllingRedirect(pathname);
+  if (legacyTarget) {
+    const url = request.nextUrl.clone();
+    url.pathname = legacyTarget;
+    return NextResponse.redirect(url);
+  }
 
   // Bei transientem Auth-Netzwerkfehler (Edge-Runtime-`ENOTFOUND`) NICHT
   // umleiten — sonst würde ein eingeloggter Nutzer bei jedem Supabase-Blip auf

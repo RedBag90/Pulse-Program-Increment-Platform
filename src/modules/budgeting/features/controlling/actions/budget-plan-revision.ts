@@ -20,7 +20,7 @@ export const captureBudgetPlanRevisionAction = createServerAction({
   describeCreated: (v: { id: string; cycleKey: string }) => ({
     id: v.id,
     label: "Budget-Plan-Revision",
-    href: `/controlling/budget-plan/${v.id}`,
+    href: `/budgeting/budget-plan/${v.id}`,
   }),
   mapError: (e) => formatDomainError(e, { fallback: "Snapshot konnte nicht erstellt werden" }),
 });

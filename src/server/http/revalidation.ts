@@ -56,12 +56,12 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/portfolio/epics",
     "/portfolio/epics/[id]",
     "/portfolio/dashboard",
-    "/controlling/budgeting",
+    "/budgeting/board",
   ],
   valueStream: ["/structure", "/value-streams/[id]"],
   pi: ["/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi-planning"],
   piStandard: ["/structure", "/value-streams/[id]"],
-  budgetPlanRevision: ["/controlling", "/controlling/budget-plan", "/controlling/budget-plan/[id]"],
+  budgetPlanRevision: ["/budgeting", "/budgeting/budget-plan", "/budgeting/budget-plan/[id]"],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
   // the structure tab that hosts the management UI.
   timeline: [

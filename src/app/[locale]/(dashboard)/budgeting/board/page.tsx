@@ -15,15 +15,15 @@ import { Page, PageHeader } from "@/components/layout";
  * Modul-Verantwortlichkeit: Budgeting ist eine zentral-strukturierte
  * Controlling-Aufgabe (User-Prinzip „alles ausser Epic-Bedarf + KPI-
  * Definition lebt im Controlling"); deshalb sitzt die Route unter
- * `/controlling/budgeting`. Die alte `/portfolio/budgeting`-URL
- * redirected hierhin.
+ * `/budgeting/board`. Die alten `/portfolio/budgeting`- und
+ * `/controlling/budgeting`-URLs redirecten hierhin.
  */
 export default async function BudgetingPage() {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   if (!authorize("budget.manage", { tenantId: principal.tenantId }, principal).allow) {
-    redirect("/controlling");
+    redirect("/budgeting");
   }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
@@ -36,7 +36,7 @@ export default async function BudgetingPage() {
         subtitle="Budget je Halbjahr auf vorgemerkte Epics verteilen — priorisieren, terminieren, Wertstrom-Verteilung"
         actions={
           <Link
-            href="/controlling"
+            href="/budgeting"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Controlling

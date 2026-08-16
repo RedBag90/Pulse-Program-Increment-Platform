@@ -25,7 +25,7 @@ describe("moduleForPath", () => {
     expect(moduleForPath("/de/reporting/portfolio-health")).toBe("work");
     expect(moduleForPath("/de/umsetzung")).toBe("drumbeat");
     expect(moduleForPath("/roadmap/portfolio")).toBe("drumbeat");
-    expect(moduleForPath("/controlling/budget-plan")).toBe("budgeting");
+    expect(moduleForPath("/budgeting/budget-plan")).toBe("budgeting");
     expect(moduleForPath("/de/issues")).toBe("risks");
   });
 

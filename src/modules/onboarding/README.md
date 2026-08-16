@@ -16,7 +16,7 @@ als Pop-up bei Zuweisung plus interaktive Spotlight-Tour.
 Begründung in [ADR-0017](../../../docs/adr/0017-onboarding-module-without-entitlement.md).
 
 **Wie das Blatt-Sein funktioniert:** Ein Playbook verweist auf Funktionen der oberen
-Module nur über **Strings** — Route (`"/controlling/budgeting"`), Anker
+Module nur über **Strings** — Route (`"/budgeting/board"`), Anker
 (`"budget-slider"`), Capability (`"budget.manage"`). Kein Import zeigt nach oben.
 Was der Compiler bei Strings nicht prüfen kann, prüfen die Konsistenz-Tests in
 `domain/__tests__/role-playbook.test.ts`: jede Route muss auf ein registriertes,

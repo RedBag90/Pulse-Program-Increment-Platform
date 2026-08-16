@@ -100,7 +100,7 @@ export default async function ControllingOverviewPage() {
                 {userLabel(latest.capturedBy, userLabels)}
               </p>
               <Link
-                href={`/controlling/budget-plan/${latest.id}`}
+                href={`/budgeting/budget-plan/${latest.id}`}
                 className="text-sm font-medium text-primary hover:underline"
               >
                 Volle Revision öffnen →
@@ -192,7 +192,7 @@ export default async function ControllingOverviewPage() {
                   <tr key={h.id} className="border-b last:border-b-0 hover:bg-muted/30">
                     <td className="px-3 py-2">
                       <Link
-                        href={`/controlling/budget-plan/${h.id}`}
+                        href={`/budgeting/budget-plan/${h.id}`}
                         className="font-medium text-primary hover:underline"
                       >
                         {h.cycleLabel}

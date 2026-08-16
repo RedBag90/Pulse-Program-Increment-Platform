@@ -28,7 +28,7 @@ interface Props {
  *   same shell (no navigation). "+ ART hinzufügen" opens the existing
  *   `<CreateArtDialog>`.
  * - **Budget** — total allocated participatory budget (read-only; the full
- *   budget editor lives on `/controlling`).
+ *   budget editor lives on `/budgeting`).
  */
 export function VsDetailPane({ vs, canCreateArt, canUpdateVs, onSelectArt }: Props) {
   return (
@@ -94,7 +94,7 @@ export function VsDetailPane({ vs, canCreateArt, canUpdateVs, onSelectArt }: Pro
         </p>
         <p className="text-xs text-muted-foreground">
           Die volle Budget-Allokation wird unter{" "}
-          <Link href="/controlling" className="text-primary hover:underline">
+          <Link href="/budgeting" className="text-primary hover:underline">
             Controlling
           </Link>{" "}
           verwaltet.

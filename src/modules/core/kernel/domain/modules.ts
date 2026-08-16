@@ -118,9 +118,9 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
   },
   budgeting: {
     label: "Budgeting",
-    segments: ["controlling"],
+    segments: ["budgeting"],
     actions: ["budget.", "budget_plan.", "art_budget."],
-    home: "/controlling",
+    home: "/budgeting",
   },
   risks: {
     label: "Risks",

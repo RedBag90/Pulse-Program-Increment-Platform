@@ -29,8 +29,8 @@ export default async function PortfolioDashboardPage() {
 
   const canEdit = authorize("target.manage", { tenantId: principal.tenantId }, principal).allow;
 
-  // Targets-Pflege fuer die Guardrails lebt unter Setup & Controlling
-  // (`/controlling`). Hier wird nur der Ist-vs-Soll-Mix gerendert.
+  // Targets-Pflege fuer die Guardrails lebt in der Budgeting-Uebersicht
+  // (`/budgeting`). Hier wird nur der Ist-vs-Soll-Mix gerendert.
   const guardrailsModel = computePortfolioGuardrails({
     epics: guardrailsInputs.epics,
     targets: guardrailsInputs.targets,

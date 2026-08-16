@@ -100,7 +100,7 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
       return {
         title: "Budget allozieren",
         hint: "Business Case ist freigegeben. Plane jetzt im Controlling Budget fuer dieses Epic ein, damit es auf L3 weiterzieht.",
-        cta: { kind: "link", label: "Zum Controlling", href: "/controlling" },
+        cta: { kind: "link", label: "Zum Controlling", href: "/budgeting" },
       };
     }
     if (hasBusinessCase) {
@@ -123,7 +123,7 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
       return {
         title: "Budget allozieren",
         hint: "Business Case ist freigegeben. Plane jetzt im Controlling Budget für dieses Epic ein, damit es auf L3 weiterzieht.",
-        cta: { kind: "link", label: "Zum Controlling", href: "/controlling" },
+        cta: { kind: "link", label: "Zum Controlling", href: "/budgeting" },
       };
     }
     // L2.1 = BC in Arbeit

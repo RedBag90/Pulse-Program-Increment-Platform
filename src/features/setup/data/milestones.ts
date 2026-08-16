@@ -122,8 +122,8 @@ export const MILESTONES: readonly Milestone[] = [
       "Top-Prio-Epics sind finanziert und wandern automatisch auf Stage Gate L3 'Budget alloziert'.",
     who: "Controller, Portfolio Manager",
     where: [
-      { href: "/controlling/budget-plan", label: "Budget-Plan (Pool + Perioden)" },
-      { href: "/portfolio/budgeting", label: "Participatory Budgeting" },
+      { href: "/budgeting/budget-plan", label: "Budget-Plan (Pool + Perioden)" },
+      { href: "/budgeting/board", label: "Participatory Budgeting" },
     ],
     checks: [
       { id: "m7-1", label: "Budget-Pool + Perioden konfiguriert" },
