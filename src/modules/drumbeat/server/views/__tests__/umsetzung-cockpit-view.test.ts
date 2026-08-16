@@ -32,6 +32,7 @@ function rows(partial: Partial<CockpitRows>): CockpitRows {
     permissions: NO_PERMS,
     view: "board",
     filters: EMPTY_FILTERS,
+    userLabels: {},
     now: D("2026-05-15").getTime(),
     ...partial,
   };
@@ -217,6 +218,37 @@ describe("buildCockpitModel — blocker detection", () => {
     );
     expect(model.features[0]!.hasBlocker).toBe(false);
     expect(model.features[0]!.blockerHint).toBeNull();
+  });
+});
+
+describe("buildCockpitModel — owner label resolution", () => {
+  const withOwner = (partial: Parameters<typeof rows>[0]) =>
+    rows({
+      selectedArtId: "art-1",
+      arts: [{ id: "art-1", name: "ART 1", timelineId: null, valueStream: null }],
+      ...partial,
+    });
+
+  it("resolves the feature owner's label from userLabels", () => {
+    const model = buildCockpitModel(
+      withOwner({
+        featureRows: [featureRow({ id: "f1", ownerId: "u1" })],
+        userLabels: { u1: "anna.k@x.dev" },
+      }),
+    );
+    expect(model.features[0]!.ownerName).toBe("anna.k@x.dev");
+  });
+
+  it("is null for an unowned feature or an unknown owner id", () => {
+    const noOwner = buildCockpitModel(
+      withOwner({ featureRows: [featureRow({ id: "f1", ownerId: null })], userLabels: {} }),
+    );
+    expect(noOwner.features[0]!.ownerName).toBeNull();
+
+    const unknown = buildCockpitModel(
+      withOwner({ featureRows: [featureRow({ id: "f1", ownerId: "ghost" })], userLabels: {} }),
+    );
+    expect(unknown.features[0]!.ownerName).toBeNull();
   });
 });
 

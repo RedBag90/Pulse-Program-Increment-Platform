@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { classifyScopedEdges } from "@/modules/drumbeat/domain/graph-scope";
 import type { PiWindow } from "@/modules/drumbeat/domain/timeline-grid";
@@ -268,6 +269,9 @@ export interface CockpitRows {
   permissions: CockpitPermissions;
   view: CockpitView;
   filters: CockpitFilters;
+  /** userId → display label; the builder resolves each feature's owner label
+   *  from it (loaded in the loader so the builder stays pure). */
+  userLabels: Record<string, string>;
   /** Injected so the builder stays pure (no wall-clock read). */
   now: number;
 }
@@ -309,6 +313,7 @@ export function resolveSelectedArtId(
 function buildScopeFeatures(
   rows: ReadonlyArray<CockpitFeatureRow>,
   hasBlockerFilter: boolean,
+  userLabels: Record<string, string>,
 ): CockpitFeature[] {
   return rows
     .map((r) => {
@@ -325,9 +330,7 @@ function buildScopeFeatures(
         parentId: r.parentId ?? null,
         parentTitle: r.parent?.title ?? null,
         ownerId: r.ownerId,
-        // Owner-Namen-Aufloesung kommt mit Phase 5 (Slide-Over) ueber
-        // den Auth-Provider; fuer das Skelett ist die ID ausreichend.
-        ownerName: null,
+        ownerName: r.ownerId ? (userLabels[r.ownerId] ?? null) : null,
         wsjfComputed: r.wsjfComputed ? Number(r.wsjfComputed) : null,
         hasBlocker: !!openBlocker,
         blockerHint: openBlocker?.from?.title ?? null,
@@ -387,6 +390,7 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     permissions,
     view,
     filters,
+    userLabels,
     now,
   } = rows;
 
@@ -444,7 +448,7 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     }));
   }
 
-  const features = buildScopeFeatures(featureRows, filters.hasBlocker);
+  const features = buildScopeFeatures(featureRows, filters.hasBlocker, userLabels);
   const dependencies = buildScopeDependencies(depRows, features);
 
   return {
@@ -478,7 +482,7 @@ export async function loadCockpitModel(
   //   2) Aktive PIs des Tenants — der Timeline-vs-Direct-ART-Fallback (jetzt im
   //      Builder) leitet daraus den aktiven PI je ART ab. (tenant + status)
   // Keiner konsumiert das Ergebnis des anderen -> ein Round-Trip statt zwei.
-  const [arts, activePis] = await Promise.all([
+  const [arts, activePis, userLabels] = await Promise.all([
     db.art.findMany({
       where: {
         tenantId,
@@ -497,6 +501,9 @@ export async function loadCockpitModel(
       where: { tenantId, status: "active" },
       select: { id: true, artId: true, timelineId: true },
     }),
+    // Owner-Labels (userId → Anzeigename) — für die Owner-Avatare auf den
+    // Feature-Karten; im Loader geladen, damit der Builder rein bleibt.
+    listTenantUserLabels(db, tenantId),
   ]);
 
   // Selected ART aufloesen — scoped Queries 4–6. (Reine Routing-Entscheidung;
@@ -651,6 +658,7 @@ export async function loadCockpitModel(
     permissions,
     view: input.view ?? "board",
     filters,
+    userLabels,
     now: Date.now(),
   });
 }

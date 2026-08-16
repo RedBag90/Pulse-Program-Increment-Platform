@@ -4,6 +4,7 @@ import { memo, type RefObject } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { CockpitFeature } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { formatWsjf } from "@/domain/schemas/initiative";
+import { initials } from "@/components/detail/initiative-labels";
 
 /**
  * Feature-Karte fuer das Board (und spaeter den Slide-Over). Memoisiert
@@ -59,7 +60,18 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
     >
       <p className="line-clamp-2 text-xs font-medium leading-snug">{feature.title}</p>
       <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-        <span className="truncate">{feature.artName}</span>
+        <div className="flex min-w-0 items-center gap-1.5">
+          {feature.ownerName && (
+            <span
+              title={feature.ownerName}
+              aria-label={`Owner: ${feature.ownerName}`}
+              className="flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-foreground/70"
+            >
+              {initials(feature.ownerName)}
+            </span>
+          )}
+          <span className="truncate">{feature.parentTitle ?? "ohne Epic"}</span>
+        </div>
         {feature.wsjfComputed != null && (
           <span className="shrink-0 font-medium">WSJF {formatWsjf(feature.wsjfComputed)}</span>
         )}
