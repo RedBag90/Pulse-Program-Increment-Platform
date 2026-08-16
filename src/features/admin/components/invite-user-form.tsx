@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useLocale } from "next-intl";
 import { inviteUserAction } from "@/features/admin/actions/invite-user";
 import { ROLES, ROLE_LABELS } from "@/modules/core/kernel/domain/roles";
 import type { Role } from "@/modules/core/kernel/domain/roles";
@@ -12,9 +13,13 @@ import type { Role } from "@/modules/core/kernel/domain/roles";
  */
 export function InviteUserForm() {
   const [state, action, isPending] = useActionState(inviteUserAction, {});
+  const locale = useLocale();
 
   return (
     <form action={action} className="space-y-4">
+      {/* Locale des aktiven URL-Segments mitsenden — das Action-Schema verlangt
+          `locale: z.enum(["en","de"])` (bestimmt die Sprache der Einladungs-Mail). */}
+      <input type="hidden" name="locale" value={locale} />
       <div>
         <label htmlFor="email" className="block text-sm font-medium mb-1">
           E-Mail-Adresse

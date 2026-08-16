@@ -99,9 +99,13 @@ export async function inviteUser(
     return ok({
       result: { token },
       audit: {
+        // Der Eingeladene hat vor dem Annehmen noch keine UUID (kein User /
+        // Role-Assignment), `resourceId` ist aber eine `@db.Uuid`-Spalte. Die
+        // Einladung als tenant-scoped Event verankern (Repo-Konvention) und die
+        // Einladungsdaten im Änderungs-Trail führen — E-Mail steht in `changes`.
         action: "user.invited",
-        resourceType: "user_role_assignment",
-        resourceId: input.inviteeEmail,
+        resourceType: "tenant",
+        resourceId: mctx.tenantId,
         changes: {
           email: { before: null, after: input.inviteeEmail },
           role: { before: null, after: input.role },
