@@ -56,11 +56,25 @@ function getBaseClient(): PrismaClient {
 }
 
 // ---------------------------------------------------------------------------
-// Per-request RLS-aware client
+// Per-request client
 //
-// Sets `request.jwt.claims` as a transaction-local PostgreSQL setting so that
-// Supabase RLS policies can read `auth.jwt() ->> 'tenant_id'` and `auth.uid()`.
-// Each operation wraps its query in a SET + query sequence within a transaction.
+// Returns the shared base client. Tenant isolation is enforced at the
+// APPLICATION layer — every service scopes its queries by `tenantId` in the
+// `where` clause, plus the platform-admin gate — NOT by Postgres RLS: the
+// policies in `prisma/sql/rls.sql` read `request.jwt.claims`, but RLS is only
+// ENABLE'd (not FORCE'd) and the app connects as the table owner, so it bypasses
+// non-forced RLS and the policies never actually gate this connection.
+//
+// This function used to wrap EVERY operation in `$transaction([SET set_config(
+// 'request.jwt.claims'), query])` to publish the JWT claim. That claim is inert
+// given owner-bypass, but the wrapper turned each read into a multi-statement
+// transaction (2-4 network round-trips) and defeated pgBouncer statement pooling
+// — a large TTFB cost against the cross-region pooler. Removed for performance;
+// the `ctx` is now only a (kept) signature for callers.
+//
+// ⚠ If Postgres RLS is ever hardened (FORCE ROW LEVEL SECURITY + a non-owner app
+// role), the per-request `request.jwt.claims` mechanism MUST be restored (e.g. an
+// interactive transaction spanning the whole request) or every read returns empty.
 // ---------------------------------------------------------------------------
 
 export interface PrismaContext {
@@ -68,19 +82,6 @@ export interface PrismaContext {
   tenantId: string;
 }
 
-export function createPrismaClient(ctx: PrismaContext): PrismaClient {
-  const base = getBaseClient();
-  const claims = JSON.stringify({ sub: ctx.userId, tenant_id: ctx.tenantId });
-
-  return base.$extends({
-    query: {
-      async $allOperations({ args, query }) {
-        const [, result] = await base.$transaction([
-          base.$executeRaw`SELECT set_config('request.jwt.claims', ${claims}, true)`,
-          query(args) as ReturnType<typeof query>,
-        ]);
-        return result;
-      },
-    },
-  }) as unknown as PrismaClient;
+export function createPrismaClient(_ctx: PrismaContext): PrismaClient {
+  return getBaseClient();
 }

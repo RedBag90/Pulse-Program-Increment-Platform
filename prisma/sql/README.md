@@ -19,6 +19,16 @@ These files contain SQL that cannot be expressed in the Prisma schema and must b
 
 ## How RLS works in this project
 
-The Prisma client in `src/server/db/prisma.ts` calls `set_config('request.jwt.claims', …, true)` before every query. This makes the JWT claims available to PostgreSQL's `current_setting()` function inside RLS policies, replicating what Supabase's GoTrue does when the request goes through PostgREST.
+These RLS policies are **currently inert** for the application connection: RLS is
+`ENABLE`d but **not `FORCE`d**, and the app connects as the table **owner**, which
+bypasses non-forced RLS. Tenant isolation is therefore enforced at the **application
+layer** — every service scopes its queries by `tenantId` in the `where` clause, plus
+the platform-admin gate (see `src/server/db/prisma.ts`).
 
-The `true` parameter makes the setting local to the current transaction, so it is automatically reset when the transaction ends.
+Historically the Prisma client wrapped every query in `set_config('request.jwt.claims',
+…, true)` so these policies *could* read the claim via `current_setting()`. That was
+removed for performance (it turned every read into a multi-statement transaction). **If
+RLS is ever hardened** — `FORCE ROW LEVEL SECURITY` + a dedicated non-owner app role —
+the per-request `request.jwt.claims` mechanism must be restored, or all reads return
+empty. Until then these policies are defense-in-depth that does not gate the owner
+connection.
