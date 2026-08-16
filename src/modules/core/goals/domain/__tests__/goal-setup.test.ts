@@ -83,3 +83,57 @@ describe("goalSetupSteps", () => {
     expect(res.complete).toBe(true);
   });
 });
+
+/**
+ * Der Guide beschreibt den Tenant, nicht den sichtbaren Ausschnitt: die Filter
+ * der Ziele-Seite (Zeitraum/Status/VS/ART) dürfen keinen erledigten Schritt
+ * zurück auf „offen" kippen. Erster Parameter = ungefilterter Baum, zweiter =
+ * das, was der Filter übrig lässt.
+ */
+describe("goalSetupSteps mit gefilterter Sicht", () => {
+  const withOwner = node({ id: "g1", period: "2026-Q1", ownerId: "u1" });
+  const bare = node({ id: "g2" });
+
+  it("weggefiltertes Owner-Ziel lässt den Owner-Schritt erledigt", () => {
+    const all = [withOwner, bare];
+    // Status-Filter blendet g1 (das einzige Ziel mit Owner) aus.
+    const res = goalSetupSteps(all, [bare]);
+    expect(res.steps[2]!.key).toBe("owner");
+    expect(res.steps[2]!.status).toBe("done");
+    // …und identisch zur ungefilterten Ableitung.
+    expect(res.steps.map((s) => s.status)).toEqual(goalSetupSteps(all).steps.map((s) => s.status));
+  });
+
+  it("leere Filter-Treffermenge wirft den Guide nicht auf Schritt 1 zurück", () => {
+    const res = goalSetupSteps([withOwner, bare], []);
+    expect(res.steps[0]!.status).toBe("done"); // create bleibt erledigt
+    expect(res.steps.find((s) => s.status === "current")?.key).toBe("metric");
+    expect(current([withOwner, bare])).toBe("metric"); // identisch zur ungefilterten Sicht
+  });
+
+  it("vollständig aufgesetzter Tenant bleibt trotz Filter complete", () => {
+    const done = node({
+      id: "g1",
+      period: "2026-Q1",
+      ownerId: "u1",
+      target: 100,
+      latestCheckin: { status: "on_track" },
+    });
+    expect(goalSetupSteps([done], []).complete).toBe(true);
+  });
+
+  it("actionGoalHidden: true wenn das CTA-Ziel weggefiltert ist, sonst false", () => {
+    const all = [withOwner, bare];
+    // Aktueller Schritt ist „metric"; erstes fehlschlagendes Ziel ist g1.
+    const hidden = goalSetupSteps(all, [bare]);
+    expect(hidden.steps.find((s) => s.status === "current")?.actionGoalId).toBe("g1");
+    expect(hidden.actionGoalHidden).toBe(true);
+
+    expect(goalSetupSteps(all, all).actionGoalHidden).toBe(false);
+  });
+
+  it("ohne zweiten Parameter unverändert — actionGoalHidden nie true", () => {
+    expect(goalSetupSteps([bare]).actionGoalHidden).toBe(false);
+    expect(goalSetupSteps([]).actionGoalHidden).toBe(false); // kein CTA-Ziel bei „create"
+  });
+});

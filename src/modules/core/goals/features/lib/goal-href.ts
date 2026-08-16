@@ -24,6 +24,25 @@ export function goalDetailHref(sp: ReadonlyURLSearchParams, id: string): string 
   return goalHref(sp, { entity: "goal", id, new: null, parent: null });
 }
 
+/**
+ * Wie {@link goalDetailHref}, wirft aber zusätzlich die Scope-Filter weg. Nötig,
+ * wenn das Ziel unter den aktiven Filtern gar nicht geladen wird — der Drawer
+ * löst den Knoten aus dem gefilterten Baum auf und stünde sonst leer da.
+ * Layout/Tab bleiben erhalten.
+ */
+export function goalDetailHrefClearingScope(sp: ReadonlyURLSearchParams, id: string): string {
+  return goalHref(sp, {
+    entity: "goal",
+    id,
+    new: null,
+    parent: null,
+    period: null,
+    vs: null,
+    art: null,
+    status: null,
+  });
+}
+
 /** Deep-Link „neues Ziel anlegen" (optional unter `parentId`), Params erhalten. */
 export function goalCreateHref(sp: ReadonlyURLSearchParams, parentId?: string): string {
   return goalHref(sp, {

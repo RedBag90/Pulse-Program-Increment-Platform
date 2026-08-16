@@ -5,7 +5,11 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Check, CircleDot, Circle, X, Plus, ArrowRight } from "lucide-react";
 import { SectionLabel } from "@/components/ui/section-label";
-import { goalCreateHref, goalDetailHref } from "@/modules/core/goals/features/lib/goal-href";
+import {
+  goalCreateHref,
+  goalDetailHref,
+  goalDetailHrefClearingScope,
+} from "@/modules/core/goals/features/lib/goal-href";
 import type { GoalSetupStep } from "@/modules/core/goals/domain/goal-setup";
 import { dismissZieleSetupAction } from "@/modules/core/goals/features/actions/ziele-setup";
 
@@ -29,8 +33,18 @@ function StatusIcon({ status }: { status: GoalSetupStep["status"] }) {
  * look. Client component: builds the deep-links from live search-params and hosts
  * the dismiss (×) control. The shell only renders it while incomplete + not
  * dismissed + for editors.
+ *
+ * `clearScope` (= `GoalSetupResult.actionGoalHidden`): das CTA-Ziel liegt außerhalb
+ * der aktiven Filter — der Link räumt sie dann ab, sonst öffnet der Drawer ein
+ * leeres Formular. Ohne aktiven Filter bleibt die Query unverändert.
  */
-export function GoalSetupStepper({ steps }: { steps: GoalSetupStep[] }) {
+export function GoalSetupStepper({
+  steps,
+  clearScope = false,
+}: {
+  steps: GoalSetupStep[];
+  clearScope?: boolean;
+}) {
   const sp = useSearchParams();
   const [pending, startTransition] = useTransition();
 
@@ -61,7 +75,9 @@ export function GoalSetupStepper({ steps }: { steps: GoalSetupStep[] }) {
             step.ctaKind === "create"
               ? goalCreateHref(sp)
               : step.actionGoalId
-                ? goalDetailHref(sp, step.actionGoalId)
+                ? clearScope
+                  ? goalDetailHrefClearingScope(sp, step.actionGoalId)
+                  : goalDetailHref(sp, step.actionGoalId)
                 : null;
           return (
             <li

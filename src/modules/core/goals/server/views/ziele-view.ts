@@ -2,6 +2,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import { sumTrios, type KpiInput, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { parseOptions } from "@/modules/core/goals/domain/goal-custom-field";
 import { filterGoalBranches } from "@/modules/core/goals/domain/goal-tree-filter";
+import { goalSetupSteps, type GoalSetupResult } from "@/modules/core/goals/domain/goal-setup";
 import { goalTimeframe, timeframeMatchesPeriodKeys } from "@/modules/core/goals/domain/goal-period";
 import {
   type ProgressMode,
@@ -176,6 +177,12 @@ export interface StrategyTree {
   themes: GoalNode[];
   /** Tenant-Gesamt-Rollup (Summe ueber alle Top-Level-Knoten). */
   tenantTrio: RollupTrio;
+  /**
+   * Erst-Aufsetz-Anleitung — bewusst aus dem **ungefilterten** Baum abgeleitet:
+   * der Guide beschreibt den Tenant-Zustand, kein Filter darf einen erledigten
+   * Schritt zurück auf „offen" kippen.
+   */
+  setup: GoalSetupResult;
   /** Aktive Filter (Mehrfachauswahl, CSV in der URL) — Echo für Deep-Links/Badges. */
   periods: string[];
   valueStreamIds: string[];
@@ -496,12 +503,12 @@ export async function loadStrategyTree(
     customFieldValues: valueByNode,
   };
 
-  const { themes } = buildStrategyTree({ rows: forestRows, lookups });
+  const { themes: allThemes } = buildStrategyTree({ rows: forestRows, lookups });
 
   // Filter (Mehrfachauswahl): strikt (filterGoalBranches — nur Treffer + Eltern-Pfad), UND zwischen den
   // Gruppen (Komposition), ODER innerhalb (`includes`/`some`). tenantTrio wird
   // danach über die sichtbaren Roots neu summiert.
-  let topLevel = themes;
+  let topLevel = allThemes;
   if (periods.length) {
     // Range-Ziel → Überlappung mit einem gewählten Bucket, Bucket-Ziel → exakter Key;
     // die Diskriminierung kennt allein `timeframeMatchesPeriodKeys` (goal-period).
@@ -530,6 +537,11 @@ export async function loadStrategyTree(
   return {
     themes: topLevel,
     tenantTrio: sumTrios(topLevel.map((t) => t.trio)),
+    // Erst-Aufsetz-Anleitung beschreibt den Tenant, nicht den Filter-Ausschnitt:
+    // Ableitung auf dem ungefilterten Baum, `topLevel` nur für die Sichtbarkeit
+    // des CTA-Ziels. Wandert als fertiges Ergebnis (5 kleine Steps) ins Model,
+    // statt den zweiten kompletten Baum in die RSC-Payload zu schieben.
+    setup: goalSetupSteps(allThemes, topLevel),
     periods,
     valueStreamIds,
     artIds,

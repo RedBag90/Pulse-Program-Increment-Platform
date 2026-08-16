@@ -5,6 +5,12 @@
  * upcoming) is derived **live** from the already-loaded goal tree (no persistence).
  * Mirrors the Epic `epicLifecycleSteps` shape (reached[] → firstOpen → status).
  *
+ * Der Guide beschreibt den **Tenant**, nicht den gerade sichtbaren Ausschnitt:
+ * abgeleitet wird immer auf dem **ungefilterten** Baum. Sonst kippt ein Schritt
+ * zurück auf `current`, sobald der Zeitraum-/Status-Filter das eine Ziel
+ * ausblendet, das ihn erfüllt. Der zweite (optionale) Parameter liefert nur die
+ * unter den Filtern sichtbaren Knoten — daraus entsteht `actionGoalHidden`.
+ *
  * Pure / DB-free: the input is a structural subset of the loaded `GoalNode`, so
  * this module stays independent of the server views.
  */
@@ -87,6 +93,12 @@ export interface GoalSetupStep extends GoalSetupStepMeta {
 export interface GoalSetupResult {
   steps: GoalSetupStep[];
   complete: boolean;
+  /**
+   * Das CTA-Ziel des aktuellen Schritts existiert, ist unter den aktiven Filtern
+   * aber nicht geladen ⇒ der Deep-Link muss die Filter abräumen, sonst öffnet
+   * der Drawer ein leeres Formular.
+   */
+  actionGoalHidden: boolean;
 }
 
 function flatten(nodes: readonly GoalSetupNode[]): GoalSetupNode[] {
@@ -110,9 +122,17 @@ const NODE_SATISFIES: readonly ((n: GoalSetupNode) => boolean)[] = [
 /**
  * Derive the setup steps from the loaded goal tree. `current` is the first
  * not-done step; earlier = done, later = upcoming; `complete` = all five done.
+ *
+ * `allThemes` ist der **ungefilterte** Baum (die Wahrheit über den Tenant);
+ * `visibleThemes` der unter den aktiven Filtern geladene Ausschnitt — nur für
+ * `actionGoalHidden`. Ohne zweiten Parameter (= kein Filter) verhält sich die
+ * Funktion exakt wie zuvor.
  */
-export function goalSetupSteps(themes: readonly GoalSetupNode[]): GoalSetupResult {
-  const nodes = flatten(themes);
+export function goalSetupSteps(
+  allThemes: readonly GoalSetupNode[],
+  visibleThemes: readonly GoalSetupNode[] = allThemes,
+): GoalSetupResult {
+  const nodes = flatten(allThemes);
   const hasGoal = nodes.length > 0;
 
   // done + first goal that still fails the step (for the "open-goal" CTA).
@@ -131,5 +151,12 @@ export function goalSetupSteps(themes: readonly GoalSetupNode[]): GoalSetupResul
     actionGoalId: i === firstOpen && i > 0 ? perStep[i - 1]!.firstFailId : null,
   }));
 
-  return { steps, complete: firstOpen === -1 };
+  // Zeigt der CTA auf ein Ziel, das der aktive Filter ausblendet? Dann muss der
+  // Deep-Link die Filter abräumen. Ohne Filter stammt die Id aus demselben Baum
+  // und der Treffer ist garantiert ⇒ false.
+  const actionGoalId = steps.find((s) => s.status === "current")?.actionGoalId ?? null;
+  const actionGoalHidden =
+    actionGoalId != null && !flatten(visibleThemes).some((n) => n.id === actionGoalId);
+
+  return { steps, complete: firstOpen === -1, actionGoalHidden };
 }

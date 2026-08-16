@@ -13,7 +13,6 @@ import { GoalScopeFilterBar } from "./goal-scope-filter-bar";
 import { ZieleEditDrawer } from "./ziele-edit-drawer";
 import { MoneySheetView } from "./money-sheet-view";
 import { GoalSetupStepper } from "./goal-setup-stepper";
-import { goalSetupSteps } from "@/modules/core/goals/domain/goal-setup";
 
 /**
  * Ziele-Shell — die **eine** Surface für Übersicht **und** Pflege (die frühere
@@ -35,14 +34,14 @@ interface Props {
 }
 
 export function ZieleShell({ model, layout, userLabels = {}, setupDismissed = false }: Props) {
-  const { tab, themes, tenantTrio, permissions, modules } = model;
+  const { tab, themes, tenantTrio, permissions, modules, setup } = model;
   // Money existiert nur mit Portfolio-Modul — Deep-Link `?tab=money` ohne
   // Portfolio fällt still auf „Strategie" zurück (keine leere Fläche).
   const effectiveTab = tab === "money" && !modules.portfolio ? "strategie" : tab;
 
   // Erst-Aufsetz-Anleitung: nur für Editoren, solange nicht abgeschlossen und
-  // nicht weggeklickt. Status wird live aus dem Ziel-Baum abgeleitet.
-  const setup = goalSetupSteps(themes);
+  // nicht weggeklickt. `setup` kommt aus dem Loader und ist bewusst aus dem
+  // UNgefilterten Baum abgeleitet — nicht aus `themes` (siehe ziele-view.ts).
   const showSetupGuide = permissions.canEditStrategy && !setupDismissed && !setup.complete;
 
   return (
@@ -53,7 +52,9 @@ export function ZieleShell({ model, layout, userLabels = {}, setupDismissed = fa
         actions={<ZieleSubTabs active={effectiveTab} showMoney={modules.portfolio} />}
       />
 
-      {showSetupGuide && <GoalSetupStepper steps={setup.steps} />}
+      {showSetupGuide && (
+        <GoalSetupStepper steps={setup.steps} clearScope={setup.actionGoalHidden} />
+      )}
 
       <div className="space-y-2">
         <GoalHealthStrip themes={themes} tenantTrio={tenantTrio} showMoney={modules.portfolio} />
