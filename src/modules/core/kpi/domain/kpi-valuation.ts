@@ -14,6 +14,8 @@
  */
 
 import { fulfillmentFraction } from "@/modules/core/kpi/domain/kpi-direction";
+import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
+import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";
 
 export interface KpiPoint {
   baseline: number | null;
@@ -62,6 +64,67 @@ export function kpiValueContribution(input: KpiValuationInput): number | null {
  */
 export function percentOfTargetGap({ baseline, target, current }: KpiPoint): number | null {
   return fulfillmentFraction(baseline, target, current);
+}
+
+/**
+ * Single-KPI **attainment** fraction, CLAMPED to [0, 1]. Sign-aware via
+ * baseline→target (see `percentOfTargetGap`). Returns `null` when a field is
+ * missing, the current reading is null, or the band has no width — "no data"
+ * is deliberately *not* folded into "0 %".
+ */
+export function kpiAttainment(kpi: KpiPoint): number | null {
+  const f = percentOfTargetGap(kpi);
+  return f == null ? null : Math.min(1, Math.max(0, f));
+}
+
+/**
+ * Mean single-KPI attainment across the KPIs that actually have a reading —
+ * KPIs whose {@link kpiAttainment} is `null` (missing field / null current /
+ * zero-width band) are **excluded** from both numerator and denominator
+ * (product policy: "no data" ≠ "0 %"). Returns `null` when none qualify.
+ */
+export function kpiFulfillmentMean(kpis: KpiPoint[]): number | null {
+  const vals: number[] = [];
+  for (const k of kpis) {
+    const a = kpiAttainment(k);
+    if (a != null) vals.push(a);
+  }
+  if (vals.length === 0) return null;
+  return vals.reduce((s, v) => s + v, 0) / vals.length;
+}
+
+/**
+ * Raw calculatoric € total of a KPI at 100 % target: `|target − baseline| ×
+ * valuePerUnit`. Returns `null` when any field is missing. This is the display
+ * "≈ € Nutzen" figure — no one-time/recurring annualisation (see {@link kpiPlanned}).
+ */
+export function kpiPlannedAtTarget(kpi: {
+  baseline: number | null;
+  target: number | null;
+  valuePerUnit: number | null;
+}): number | null {
+  if (kpi.valuePerUnit == null || kpi.baseline == null || kpi.target == null) return null;
+  return Math.abs(kpi.target - kpi.baseline) * kpi.valuePerUnit;
+}
+
+/**
+ * Planned € of a KPI at 100 % target, one-time vs. recurring-annualised — the
+ * single source of the formula previously duplicated in `epic-economics.ts`
+ * and `lpm-review.ts`. One-time → the raw base; recurring → base (yearly) or
+ * base × 12 (monthly). Any missing field or a zero-width base → 0.
+ */
+export function kpiPlanned(kpi: {
+  baseline: number | null;
+  target: number | null;
+  valuePerUnit: number | null;
+  benefitKind: string;
+  recurringInterval: string;
+}): number {
+  if (kpi.valuePerUnit == null || kpi.baseline == null || kpi.target == null) return 0;
+  const base = Math.abs(kpi.target - kpi.baseline) * kpi.valuePerUnit;
+  if (base === 0) return 0;
+  if (benefitKindOrDefault(kpi.benefitKind) === "one_time") return base;
+  return recurringIntervalOrDefault(kpi.recurringInterval) === "monthly" ? base * 12 : base;
 }
 
 /**

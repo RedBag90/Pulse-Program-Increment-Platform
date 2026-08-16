@@ -10,6 +10,7 @@ import {
 } from "@/modules/work/domain/benefit-hypothesis";
 import { epicNextStep, type EpicNextStep } from "@/modules/work/domain/epic-next-step";
 import { epicBenefitFromKpis } from "@/modules/work/domain/epic-economics";
+import { kpiFulfillmentMean } from "@/modules/core/kpi/domain/kpi-valuation";
 import {
   STAGE_GATES,
   SUB_STAGES,
@@ -139,16 +140,14 @@ interface EpicRow {
 
 const isoDay = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
 
-/** Mean KPI progress on [0..1]. */
+/**
+ * Mean KPI attainment on [0..1] via Core `kpiFulfillmentMean` — KPIs without a
+ * current reading (or a zero-width band) are excluded, not counted as 0 %.
+ */
 function meanKpiProgress(kpis: KpiRow[]): number | null {
-  if (kpis.length === 0) return null;
-  const sum = kpis.reduce((acc, k) => {
-    const start = k.baseline ?? 0;
-    const denom = k.target - start;
-    if (denom === 0) return acc + (k.current != null ? 1 : 0);
-    return acc + Math.min(1, Math.max(0, ((k.current ?? start) - start) / denom));
-  }, 0);
-  return sum / kpis.length;
+  return kpiFulfillmentMean(
+    kpis.map((k) => ({ baseline: k.baseline, target: k.target, current: k.current })),
+  );
 }
 
 /**

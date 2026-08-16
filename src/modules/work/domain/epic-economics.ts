@@ -22,7 +22,7 @@ import { parseTimeline } from "@/modules/work/domain/timeline";
 import { resolveCostStart, resolveGoLive } from "@/modules/work/domain/epic-schedule";
 import type { KpiMeasurement } from "@/modules/core/kpi/domain/kpi";
 import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
-import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";
+import { kpiPlanned } from "@/modules/core/kpi/domain/kpi-valuation";
 
 /** A KPI as the read-model needs it — Prisma `Decimal`s already converted. */
 export interface EpicEconomicsKpiInput {
@@ -113,14 +113,14 @@ export function epicBenefitFromKpis(kpis: BenefitKpiFacts[]): EpicBenefit {
   let oneTimeBenefit = 0;
   let recurringBenefit = 0;
   for (const k of kpis) {
-    if (k.valuePerUnit == null || k.baseline == null || k.target == null) continue;
-    const planned = Math.abs(k.target - k.baseline) * k.valuePerUnit;
+    // `kpiPlanned` (Core) owns the |Ziel−Baseline|×€/Einheit-Formel inkl.
+    // Annualisierung; hier bleibt nur das Bucketing nach Benefit-Art.
+    const planned = kpiPlanned(k);
     if (planned === 0) continue;
     if (benefitKindOrDefault(k.benefitKind) === "one_time") {
       oneTimeBenefit += planned;
     } else {
-      recurringBenefit +=
-        recurringIntervalOrDefault(k.recurringInterval) === "monthly" ? planned * 12 : planned;
+      recurringBenefit += planned;
     }
   }
   return { oneTimeBenefit, recurringBenefit };

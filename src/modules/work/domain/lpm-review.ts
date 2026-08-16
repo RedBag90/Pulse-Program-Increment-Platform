@@ -18,8 +18,7 @@
  */
 
 import { fulfillmentFraction } from "@/modules/core/kpi/domain/kpi-direction";
-import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
-import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";
+import { kpiPlanned } from "@/modules/core/kpi/domain/kpi-valuation";
 import {
   thresholdTier,
   type AmpelTier,
@@ -164,14 +163,12 @@ export interface LpmReviewModel {
 
 // ── KPI-€ ───────────────────────────────────────────────────────────────────
 
-/** Planned-€ eines KPIs bei 100 % Zielerreichung (recurring annualisiert). */
-export function kpiPlanned(k: LpmKpiInput): number {
-  if (k.valuePerUnit == null || k.baseline == null || k.target == null) return 0;
-  const base = Math.abs(k.target - k.baseline) * k.valuePerUnit;
-  if (base === 0) return 0;
-  if (benefitKindOrDefault(k.benefitKind) === "one_time") return base;
-  return recurringIntervalOrDefault(k.recurringInterval) === "monthly" ? base * 12 : base;
-}
+/**
+ * Planned-€ eines KPIs bei 100 % Zielerreichung (recurring annualisiert) — die
+ * Formel lebt jetzt in Core (`kpi-valuation.ts`); `LpmKpiInput` erfüllt sie
+ * strukturell. Re-exportiert, weil Consumer/Tests sie hier erwarten.
+ */
+export { kpiPlanned };
 
 /** Messwert zum Stichtag: letzter Messpunkt ≤ `cutoffMs`, sonst `baseline`. */
 export function measurementValueAt(
