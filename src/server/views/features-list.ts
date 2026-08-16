@@ -7,6 +7,7 @@
  */
 
 import { buildFunnelCounts } from "@/server/views/lib/page-model-utils";
+import { wsjfBand } from "@/domain/schemas/initiative";
 
 /** Funnel category — the four feature lifecycle stages. */
 export const FEATURE_STATUSES = ["draft", "approved", "in_progress", "completed"] as const;
@@ -91,19 +92,16 @@ interface PiRow {
 }
 
 /**
- * WSJF tier thresholds (per the rework plan). Decoupled from the column
- * sort so the chip filter stays stable when the user resorts.
+ * WSJF tier thresholds for the ART feature list (≥ 5 → high, ≥ 2 → medium;
+ * `"none"` for a missing score). Decoupled from the column sort so the chip
+ * filter stays stable when the user resorts.
  *
- * NOTE: these thresholds (≥ 5 → high, ≥ 2 → medium) and the `"none"` label
- * diverge from the canonical `wsjfTier` in `src/domain/wsjf.ts` (≥ 8 / ≥ 4,
- * `"unscored"`). The detail page and breakdown-network use the canonical
- * version. Unifying needs a product decision — flagged for follow-up.
+ * Bucketing lives in the shared LOW primitive `wsjfBand`
+ * (`@/domain/schemas/initiative`). Drumbeat's `wsjfTier` calls the same
+ * primitive with ≥ 8 / ≥ 4 / `"unscored"`; the difference is DATA, not a fork.
  */
 function tierFor(wsjfComputed: number | null): WsjfTier {
-  if (wsjfComputed == null) return "none";
-  if (wsjfComputed >= 5) return "high";
-  if (wsjfComputed >= 2) return "medium";
-  return "low";
+  return wsjfBand(wsjfComputed, { high: 5, medium: 2, missingLabel: "none" });
 }
 
 export function buildFeaturesListModel(input: {

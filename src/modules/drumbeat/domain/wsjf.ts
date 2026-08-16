@@ -1,25 +1,18 @@
 /**
- * WSJF tier — the canonical tiering rule for a Feature's `wsjfComputed`.
+ * WSJF tier — the Drumbeat tiering rule for a Feature's `wsjfComputed`
+ * (≥ 8 → high, ≥ 4 → medium, else → low; `null` → `"unscored"`). Consumed by
+ * the feature-detail and breakdown-network page-models.
  *
- * Two consumers used to redefine the function inline (feature-detail page-
- * model and breakdown-network-view page-model). The duplicated thresholds
- * (≥ 8 → high, ≥ 4 → medium, else → low; `null` → unscored) are the
- * agreed-upon contract; the feature-detail file's "Detail-Pille und
- * Listen-Pille deckungsgleich" comment named that intent.
- *
- * A *third* derivation lives in `src/server/views/features-list.ts` with
- * different thresholds (≥ 5 → high, ≥ 2 → medium) and uses `"none"` instead
- * of `"unscored"` for the missing-score label. That divergence is intentional
- * for the ART feature list today — it is **not** consumed by this module.
- * Aligning the two is a product decision; if you do unify, point both at
- * this file.
+ * The bucketing itself lives in the shared LOW primitive `wsjfBand`
+ * (`@/domain/schemas/initiative`); this is a thin call that pins the Drumbeat
+ * thresholds + label. The ART feature lists (`server/views/features-list.ts`,
+ * `features-overview.ts`) call the same primitive with ≥ 5 / ≥ 2 / `"none"` —
+ * that divergence is now a DATA difference, not a forked implementation.
  */
+import { wsjfBand } from "@/domain/schemas/initiative";
 
 export type WsjfTier = "high" | "medium" | "low" | "unscored";
 
 export function wsjfTier(computed: number | null): WsjfTier {
-  if (computed == null) return "unscored";
-  if (computed >= 8) return "high";
-  if (computed >= 4) return "medium";
-  return "low";
+  return wsjfBand(computed, { high: 8, medium: 4, missingLabel: "unscored" });
 }

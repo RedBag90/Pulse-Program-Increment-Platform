@@ -12,6 +12,7 @@
  */
 
 import { FEATURE_STATUSES, type FeatureStatus, type WsjfTier } from "@/server/views/features-list";
+import { wsjfBand } from "@/domain/schemas/initiative";
 
 export interface FeatureOverviewRow {
   id: string;
@@ -101,12 +102,11 @@ interface PiInput {
   status: string;
 }
 
-/** Auch vom Deliverables-Reiter genutzt, damit beide Listen dieselben Schwellen verwenden. */
+/** Auch vom Deliverables-Reiter genutzt, damit beide Listen dieselben Schwellen
+ *  verwenden. Teilt die ≥ 5 / ≥ 2 / `"none"`-Konfiguration mit `features-list`
+ *  über das gemeinsame LOW-Primitiv `wsjfBand` (`@/domain/schemas/initiative`). */
 export function tierFor(wsjfComputed: number | null): WsjfTier {
-  if (wsjfComputed == null) return "none";
-  if (wsjfComputed >= 5) return "high";
-  if (wsjfComputed >= 2) return "medium";
-  return "low";
+  return wsjfBand(wsjfComputed, { high: 5, medium: 2, missingLabel: "none" });
 }
 
 export function buildFeaturesOverviewModel(input: {
