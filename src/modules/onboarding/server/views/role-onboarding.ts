@@ -67,26 +67,30 @@ function probeFor(db: PrismaClient, tenantId: string, what: DataRequirement) {
 }
 
 /**
- * Prüft **nur die tatsächlich benötigten** Bestandsarten, und zwar
- * **nacheinander**.
+ * Prüft **nur die tatsächlich benötigten** Bestandsarten, und zwar **parallel**.
  *
- * Beides ist Absicht und teuer erkauft: `createPrismaClient` verpackt jede
- * einzelne Operation in eine eigene Transaktion (um die RLS-Claims zu setzen).
- * Ein `Promise.all` über sieben Prüfungen belegt damit sieben Verbindungen
- * gleichzeitig — auf jeder Navigation, weil das Modell im Dashboard-Layout
- * hängt. Bei einem Pool-Limit von 25 reicht das, um den Pool leerlaufen zu
- * lassen. Sequenziell belegt es genau eine, und typischerweise sind nur zwei
- * bis vier Arten überhaupt gefragt.
+ * Die Prüfungen sind gegenseitig unabhängig (je ein `findFirst` je Bestandsart),
+ * darum eine einzige Round-Trip-Welle statt einer seriellen Kette — auf einer
+ * Cross-Region-DB spart das je Navigation mehrere ~80–160ms-Hops. Die Menge ist
+ * ≤7 (typischerweise 2–4), das Onboarding-Modell hängt zudem hinter Suspense und
+ * blockiert das Shell-Rendering nicht mehr.
+ *
+ * Hinweis: `createPrismaClient` verpackt jede Operation in eine eigene
+ * Transaktion (RLS-Claims); ein `Promise.all` belegt entsprechend bis zu sieben
+ * Pool-Verbindungen gleichzeitig. Die Pool-/Txn-Frage wird separat adressiert;
+ * bei ≤7 Prüfungen ist die Parallelisierung der sichere Gewinn.
  */
 async function loadAvailableData(
   db: PrismaClient,
   tenantId: string,
   needed: ReadonlySet<DataRequirement>,
 ): Promise<ReadonlySet<DataRequirement>> {
+  const wanted = [...needed];
+  const results = await Promise.all(wanted.map((what) => probeFor(db, tenantId, what)));
   const found = new Set<DataRequirement>();
-  for (const what of needed) {
-    if (await probeFor(db, tenantId, what)) found.add(what);
-  }
+  wanted.forEach((what, i) => {
+    if (results[i]) found.add(what);
+  });
   return found;
 }
 

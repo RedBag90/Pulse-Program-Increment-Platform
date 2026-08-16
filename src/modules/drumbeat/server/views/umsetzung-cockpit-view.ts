@@ -473,148 +473,161 @@ export async function loadCockpitModel(
   const { tenantId, scopes } = principal;
   const scopedArtIds = scopes.artIds;
 
-  // 1) Welche ARTs darf der User sehen?
-  const arts = await db.art.findMany({
-    where: {
-      tenantId,
-      deletedAt: null,
-      ...(scopedArtIds.length > 0 ? { id: { in: scopedArtIds } } : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      timelineId: true,
-      valueStream: { select: { name: true } },
-    },
-    orderBy: { name: "asc" },
-  });
-
-  // 2) Aktive PIs des Tenants — der Timeline-vs-Direct-ART-Fallback (jetzt im
-  //    Builder) leitet daraus den aktiven PI je ART ab.
-  const activePis = await db.programIncrement.findMany({
-    where: { tenantId, status: "active" },
-    select: { id: true, artId: true, timelineId: true },
-  });
-
-  // 3) Feature-Count je ART × aktivem PI. Ueber-fetch (alle ARTs × alle aktiven
-  //    PIs) statt den Fallback vorwegzunehmen — der Builder engt auf die
-  //    gemappten Paare ein.
-  let activeFeatureCounts: CockpitActiveFeatureCountRow[] = [];
-  if (arts.length > 0 && activePis.length > 0) {
-    const grouped = await db.initiative.groupBy({
-      by: ["artId", "piId"],
+  // Wave A — zwei voneinander unabhaengige Reads parallel:
+  //   1) Welche ARTs darf der User sehen? (tenant + scope)
+  //   2) Aktive PIs des Tenants — der Timeline-vs-Direct-ART-Fallback (jetzt im
+  //      Builder) leitet daraus den aktiven PI je ART ab. (tenant + status)
+  // Keiner konsumiert das Ergebnis des anderen -> ein Round-Trip statt zwei.
+  const [arts, activePis] = await Promise.all([
+    db.art.findMany({
       where: {
         tenantId,
-        level: InitiativeLevel.FEATURE,
         deletedAt: null,
-        artId: { in: arts.map((a) => a.id) },
-        piId: { in: activePis.map((p) => p.id) },
+        ...(scopedArtIds.length > 0 ? { id: { in: scopedArtIds } } : {}),
       },
-      _count: { _all: true },
-    });
-    activeFeatureCounts = grouped.map((g) => ({
-      artId: g.artId,
-      piId: g.piId,
-      count: g._count._all,
-    }));
-  }
+      select: {
+        id: true,
+        name: true,
+        timelineId: true,
+        valueStream: { select: { name: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+    db.programIncrement.findMany({
+      where: { tenantId, status: "active" },
+      select: { id: true, artId: true, timelineId: true },
+    }),
+  ]);
 
   // Selected ART aufloesen — scoped Queries 4–6. (Reine Routing-Entscheidung;
-  // der Builder baut die `selectedArt`-Ref daraus neu.)
+  // der Builder baut die `selectedArt`-Ref daraus neu.) Rein aus `arts`
+  // abgeleitet, also ohne Round-Trip; danach kann Wave B fahren.
   const selectedArtId = resolveSelectedArtId(arts, input.artId);
   const selectedArtRow = arts.find((a) => a.id === selectedArtId) ?? null;
+  const filters: CockpitFilters = { ...DEFAULT_FILTERS, ...(input.filters ?? {}) };
 
-  // 4) PIs der Timeline (oder direkt der ART), chronologisch.
-  let allPis: CockpitAllPiRow[] = [];
-  // 5) Feature-Count je PI im ART-Scope — ueber ALLE Strip-PIs, der Builder
-  //    fenstert. So braucht der Loader den `currentIdx` nicht.
-  let windowCounts: CockpitWindowCountRow[] = [];
-  if (selectedArtRow) {
-    allPis = await db.programIncrement.findMany({
-      where: {
-        tenantId,
-        ...(selectedArtRow.timelineId
-          ? { timelineId: selectedArtRow.timelineId }
-          : { artId: selectedArtRow.id }),
-      },
-      select: { id: true, name: true, startDate: true, endDate: true, status: true },
-      orderBy: { startDate: "asc" },
-    });
-    if (allPis.length > 0) {
-      const counts = await db.initiative.groupBy({
-        by: ["piId"],
+  // Wave B — drei unabhaengige Zweige parallel. (3) haengt nur an Wave A
+  //   (arts × activePis); (4→5) und (6→7) haengen nur an `selectedArtRow`
+  //   bzw. dem jeweils vorigen Schritt ihrer eigenen Kette. Zwischen den drei
+  //   Zweigen gibt es keine Abhaengigkeit -> parallel; die Ketten-Ordnung
+  //   innerhalb (5 braucht `allPis`, 7 braucht `featureRows`) bleibt erhalten.
+  const [activeFeatureCounts, pisResult, featuresResult] = await Promise.all([
+    // 3) Feature-Count je ART × aktivem PI. Ueber-fetch (alle ARTs × alle
+    //    aktiven PIs) statt den Fallback vorwegzunehmen — der Builder engt auf
+    //    die gemappten Paare ein.
+    (async (): Promise<CockpitActiveFeatureCountRow[]> => {
+      if (arts.length === 0 || activePis.length === 0) return [];
+      const grouped = await db.initiative.groupBy({
+        by: ["artId", "piId"],
+        where: {
+          tenantId,
+          level: InitiativeLevel.FEATURE,
+          deletedAt: null,
+          artId: { in: arts.map((a) => a.id) },
+          piId: { in: activePis.map((p) => p.id) },
+        },
+        _count: { _all: true },
+      });
+      return grouped.map((g) => ({
+        artId: g.artId,
+        piId: g.piId,
+        count: g._count._all,
+      }));
+    })(),
+    // 4) PIs der Timeline (oder direkt der ART), chronologisch.
+    // 5) Feature-Count je PI im ART-Scope — ueber ALLE Strip-PIs, der Builder
+    //    fenstert. So braucht der Loader den `currentIdx` nicht.
+    (async (): Promise<{ allPis: CockpitAllPiRow[]; windowCounts: CockpitWindowCountRow[] }> => {
+      if (!selectedArtRow) return { allPis: [], windowCounts: [] };
+      const allPis = await db.programIncrement.findMany({
+        where: {
+          tenantId,
+          ...(selectedArtRow.timelineId
+            ? { timelineId: selectedArtRow.timelineId }
+            : { artId: selectedArtRow.id }),
+        },
+        select: { id: true, name: true, startDate: true, endDate: true, status: true },
+        orderBy: { startDate: "asc" },
+      });
+      let windowCounts: CockpitWindowCountRow[] = [];
+      if (allPis.length > 0) {
+        const counts = await db.initiative.groupBy({
+          by: ["piId"],
+          where: {
+            tenantId,
+            level: InitiativeLevel.FEATURE,
+            deletedAt: null,
+            artId: selectedArtRow.id,
+            piId: { in: allPis.map((p) => p.id) },
+          },
+          _count: { _all: true },
+        });
+        windowCounts = counts.map((c) => ({ piId: c.piId, count: c._count._all }));
+      }
+      return { allPis, windowCounts };
+    })(),
+    // 6) Features im Scope (SQL-Filter fuer status/owner/epic; der `hasBlocker`-
+    //    Filter + Blocker-Erkennung sitzt im Builder).
+    // 7) Dependencies mit mind. einem Endpunkt im (ungefilterten) Feature-Scope.
+    //    Der Builder klassifiziert gegen den finalen (hasBlocker-gefilterten)
+    //    Scope — Off-Scope-Ergebnis bleibt identisch.
+    (async (): Promise<{ featureRows: CockpitFeatureRow[]; depRows: CockpitDepRow[] }> => {
+      if (!selectedArtRow) return { featureRows: [], depRows: [] };
+      const featureRows = await db.initiative.findMany({
         where: {
           tenantId,
           level: InitiativeLevel.FEATURE,
           deletedAt: null,
           artId: selectedArtRow.id,
-          piId: { in: allPis.map((p) => p.id) },
+          ...(filters.status.length > 0 ? { status: { in: filters.status } } : {}),
+          ...(filters.ownerIds.length > 0 ? { ownerId: { in: filters.ownerIds } } : {}),
+          ...(filters.epicIds.length > 0 ? { parentId: { in: filters.epicIds } } : {}),
         },
-        _count: { _all: true },
-      });
-      windowCounts = counts.map((c) => ({ piId: c.piId, count: c._count._all }));
-    }
-  }
-
-  // 6) Features im Scope (SQL-Filter fuer status/owner/epic; der `hasBlocker`-
-  //    Filter + Blocker-Erkennung sitzt im Builder).
-  const filters: CockpitFilters = { ...DEFAULT_FILTERS, ...(input.filters ?? {}) };
-  let featureRows: CockpitFeatureRow[] = [];
-  if (selectedArtRow) {
-    featureRows = await db.initiative.findMany({
-      where: {
-        tenantId,
-        level: InitiativeLevel.FEATURE,
-        deletedAt: null,
-        artId: selectedArtRow.id,
-        ...(filters.status.length > 0 ? { status: { in: filters.status } } : {}),
-        ...(filters.ownerIds.length > 0 ? { ownerId: { in: filters.ownerIds } } : {}),
-        ...(filters.epicIds.length > 0 ? { parentId: { in: filters.epicIds } } : {}),
-      },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        piId: true,
-        artId: true,
-        parentId: true,
-        ownerId: true,
-        wsjfComputed: true,
-        art: { select: { id: true, name: true } },
-        parent: { select: { id: true, title: true } },
-        dependenciesIn: {
-          where: { type: "blocks" },
-          select: {
-            id: true,
-            from: { select: { id: true, title: true, status: true } },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          piId: true,
+          artId: true,
+          parentId: true,
+          ownerId: true,
+          wsjfComputed: true,
+          art: { select: { id: true, name: true } },
+          parent: { select: { id: true, title: true } },
+          dependenciesIn: {
+            where: { type: "blocks" },
+            select: {
+              id: true,
+              from: { select: { id: true, title: true, status: true } },
+            },
           },
         },
-      },
-      orderBy: [{ wsjfComputed: "desc" }, { title: "asc" }],
-    });
-  }
+        orderBy: [{ wsjfComputed: "desc" }, { title: "asc" }],
+      });
+      let depRows: CockpitDepRow[] = [];
+      if (featureRows.length > 0) {
+        const scopeIds = featureRows.map((f) => f.id);
+        depRows = await db.dependency.findMany({
+          where: {
+            tenantId,
+            OR: [{ fromId: { in: scopeIds } }, { toId: { in: scopeIds } }],
+          },
+          select: {
+            id: true,
+            fromId: true,
+            toId: true,
+            type: true,
+            from: { select: { id: true, title: true } },
+            to: { select: { id: true, title: true } },
+          },
+        });
+      }
+      return { featureRows, depRows };
+    })(),
+  ]);
 
-  // 7) Dependencies mit mind. einem Endpunkt im (ungefilterten) Feature-Scope.
-  //    Der Builder klassifiziert gegen den finalen (hasBlocker-gefilterten)
-  //    Scope — Off-Scope-Ergebnis bleibt identisch.
-  let depRows: CockpitDepRow[] = [];
-  if (featureRows.length > 0) {
-    const scopeIds = featureRows.map((f) => f.id);
-    depRows = await db.dependency.findMany({
-      where: {
-        tenantId,
-        OR: [{ fromId: { in: scopeIds } }, { toId: { in: scopeIds } }],
-      },
-      select: {
-        id: true,
-        fromId: true,
-        toId: true,
-        type: true,
-        from: { select: { id: true, title: true } },
-        to: { select: { id: true, title: true } },
-      },
-    });
-  }
+  const { allPis, windowCounts } = pisResult;
+  const { featureRows, depRows } = featuresResult;
 
   // Permissions — aus dem zentralen Policies-Registry (ADR-0002). UI nutzt die
   // Flags nur fuer Affordances; der echte Gate sitzt serverseitig.

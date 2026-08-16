@@ -232,33 +232,73 @@ export async function loadStrategyTree(
   const objectiveRows = await db.objective.findMany({
     where: { tenantId },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    // Nur die Spalten, die `nodeIds` + der `forestRows`-Mapper unten
+    // konsumieren — kein Voll-Row-Scan ueber den ganzen Tenant.
+    select: {
+      id: true,
+      parentObjectiveId: true,
+      nodeKind: true,
+      title: true,
+      narrative: true,
+      period: true,
+      periodStart: true,
+      periodEnd: true,
+      status: true,
+      dueDate: true,
+      ownerId: true,
+      metricUnit: true,
+      metricType: true,
+      precision: true,
+      currencyCode: true,
+      rollupWeight: true,
+      parentUnitPerChildUnit: true,
+      includeInParentRollup: true,
+      baseline: true,
+      target: true,
+      current: true,
+      progressMode: true,
+    },
   });
 
   const nodeIds = objectiveRows.map((o) => o.id);
 
-  // Letzter Status-Check-in je Knoten (eine Query; alle Knoten sind Objectives).
+  // Die folgenden Link-Tabellen-Reads sind, sobald die Objectives (und damit
+  // `nodeIds`) stehen, GEGENSEITIG UNABHAENGIG: jeder ist genau eine
+  // `IN (nodeIds)`- bzw. tenant-gescopte Query und schreibt in seine eigene
+  // Map — keiner konsumiert das Ergebnis eines anderen. Darum laufen sie in
+  // EINER Promise.all-Welle statt seriell (spart ~5 Cross-Region-Round-Trips).
+  // Einzige innere Ordnung: die Custom-Field-Werte brauchen die Defs vorab —
+  // diese Kette bleibt in ihrem eigenen Zweig erhalten.
   const latestByNode = new Map<string, GoalLatestCheckin>();
-  if (nodeIds.length > 0) {
-    const checkins = await db.goalCheckin.findMany({
-      where: { tenantId, status: { not: null }, objectiveId: { in: nodeIds } },
-      orderBy: { createdAt: "desc" },
-      select: { objectiveId: true, status: true, createdAt: true },
-    });
-    for (const c of checkins) {
-      if (c.status == null || !c.objectiveId) continue;
-      if (!latestByNode.has(c.objectiveId)) {
-        latestByNode.set(c.objectiveId, { status: c.status, at: c.createdAt.toISOString() });
-      }
-    }
-  }
-
-  // "Related work": verknüpfte Epics je Knoten — EINE Query (kein N+1),
-  // soft-gelöschte Epics ausgeblendet. €-Beitrag aus den Epic-KPIs. `unit` wird
-  // zusätzlich geladen für die einheitengleiche Fortschritts-Ableitung (auto_kpi).
   const relatedByNode = new Map<string, ForestRelatedEpic[]>();
   const autoKpiLinksByNode = new Map<string, AutoKpiLink[]>();
-  if (nodeIds.length > 0) {
-    const epicLinks = await db.goalEpicLink.findMany({
+  const relatedWorkByNode = new Map<string, RelatedWorkItem[]>();
+  const valueStreamsByNode = new Map<string, ScopeRef[]>();
+  const artsByNode = new Map<string, ScopeRef[]>();
+  const valueByNode = new Map<string, Map<string, string>>();
+
+  const [, , , , customFieldDefs] = await Promise.all([
+    // Letzter Status-Check-in je Knoten (eine Query; alle Knoten sind Objectives).
+    (async (): Promise<void> => {
+      if (nodeIds.length === 0) return;
+      const checkins = await db.goalCheckin.findMany({
+        where: { tenantId, status: { not: null }, objectiveId: { in: nodeIds } },
+        orderBy: { createdAt: "desc" },
+        select: { objectiveId: true, status: true, createdAt: true },
+      });
+      for (const c of checkins) {
+        if (c.status == null || !c.objectiveId) continue;
+        if (!latestByNode.has(c.objectiveId)) {
+          latestByNode.set(c.objectiveId, { status: c.status, at: c.createdAt.toISOString() });
+        }
+      }
+    })(),
+    // "Related work": verknüpfte Epics je Knoten — EINE Query (kein N+1),
+    // soft-gelöschte Epics ausgeblendet. €-Beitrag aus den Epic-KPIs. `unit` wird
+    // zusätzlich geladen für die einheitengleiche Fortschritts-Ableitung (auto_kpi).
+    (async (): Promise<void> => {
+      if (nodeIds.length === 0) return;
+      const epicLinks = await db.goalEpicLink.findMany({
       where: { tenantId, epic: { deletedAt: null }, objectiveId: { in: nodeIds } },
       include: {
         kpi: {
@@ -349,14 +389,13 @@ export async function loadStrategyTree(
               })),
             },
       );
-    }
-  }
-
-  // Related work (referenziell): Feature/PI je Knoten. EINE Link-Query, dann
-  // je Kind EINE Titel-Auflösung (Initiative/ProgramIncrement) — kein N+1.
-  const relatedWorkByNode = new Map<string, RelatedWorkItem[]>();
-  if (nodeIds.length > 0) {
-    const links = await db.goalRelatedWork.findMany({
+      }
+    })(),
+    // Related work (referenziell): Feature/PI je Knoten. EINE Link-Query, dann
+    // je Kind EINE Titel-Auflösung (Initiative/ProgramIncrement) — kein N+1.
+    (async (): Promise<void> => {
+      if (nodeIds.length === 0) return;
+      const links = await db.goalRelatedWork.findMany({
       where: { tenantId, objectiveId: { in: nodeIds } },
       select: { objectiveId: true, kind: true, refId: true, createdAt: true },
       orderBy: { createdAt: "asc" },
@@ -404,14 +443,12 @@ export async function loadStrategyTree(
           });
         }
       }
-    }
-  }
-
-  // VS/ART-Verantwortung (Epic 6a): je zwei Batch-Queries mit Namen (kein N+1).
-  const valueStreamsByNode = new Map<string, ScopeRef[]>();
-  const artsByNode = new Map<string, ScopeRef[]>();
-  if (nodeIds.length > 0) {
-    const [vsLinks, artLinks] = await Promise.all([
+      }
+    })(),
+    // VS/ART-Verantwortung (Epic 6a): je zwei Batch-Queries mit Namen (kein N+1).
+    (async (): Promise<void> => {
+      if (nodeIds.length === 0) return;
+      const [vsLinks, artLinks] = await Promise.all([
       db.goalValueStreamLink.findMany({
         where: { tenantId, objectiveId: { in: nodeIds } },
         select: { objectiveId: true, valueStream: { select: { id: true, name: true } } },
@@ -429,36 +466,40 @@ export async function loadStrategyTree(
         name: l.valueStream.name,
       });
     }
-    for (const l of artLinks) {
-      (artsByNode.get(l.objectiveId) ?? setAndGet(artsByNode, l.objectiveId)).push({
-        id: l.art.id,
-        name: l.art.name,
-      });
-    }
-  }
-
-  // Custom Fields: Tenant-Defs einmal + alle Werte über die Knoten-IDs in je
-  // einer Query (kein N+1). Je Knoten werden ALLE Defs mit ihrem Wert gezeigt.
-  const customFieldDefs = await db.goalCustomFieldDef.findMany({
-    where: { tenantId },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    select: { id: true, name: true, type: true, options: true },
-  });
-  const valueByNode = new Map<string, Map<string, string>>();
-  if (customFieldDefs.length > 0 && nodeIds.length > 0) {
-    const values = await db.goalCustomFieldValue.findMany({
-      where: { tenantId, objectiveId: { in: nodeIds } },
-      select: { objectiveId: true, defId: true, value: true },
-    });
-    for (const v of values) {
-      let m = valueByNode.get(v.objectiveId);
-      if (!m) {
-        m = new Map();
-        valueByNode.set(v.objectiveId, m);
+      for (const l of artLinks) {
+        (artsByNode.get(l.objectiveId) ?? setAndGet(artsByNode, l.objectiveId)).push({
+          id: l.art.id,
+          name: l.art.name,
+        });
       }
-      m.set(v.defId, v.value);
-    }
-  }
+    })(),
+    // Custom Fields: Tenant-Defs einmal + alle Werte über die Knoten-IDs in je
+    // einer Query (kein N+1). Je Knoten werden ALLE Defs mit ihrem Wert gezeigt.
+    // Eigener Zweig mit interner Ordnung: die Werte-Query braucht die Defs vorab
+    // (Gate auf `defs.length`); der Rest der Welle laeuft davon unabhaengig.
+    (async () => {
+      const defs = await db.goalCustomFieldDef.findMany({
+        where: { tenantId },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        select: { id: true, name: true, type: true, options: true },
+      });
+      if (defs.length > 0 && nodeIds.length > 0) {
+        const values = await db.goalCustomFieldValue.findMany({
+          where: { tenantId, objectiveId: { in: nodeIds } },
+          select: { objectiveId: true, defId: true, value: true },
+        });
+        for (const v of values) {
+          let m = valueByNode.get(v.objectiveId);
+          if (!m) {
+            m = new Map();
+            valueByNode.set(v.objectiveId, m);
+          }
+          m.set(v.defId, v.value);
+        }
+      }
+      return defs;
+    })(),
+  ]);
   const parsedDefs = customFieldDefs.map((d) => ({
     defId: d.id,
     name: d.name,

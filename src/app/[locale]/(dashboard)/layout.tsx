@@ -1,12 +1,16 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import type { ReactNode } from "react";
-import { requirePrincipal } from "@/server/auth/principal";
+import { Suspense, type ReactNode } from "react";
+import { requirePrincipal, type Principal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getActiveTargetModel } from "@/server/services/target-model";
 import { listUserTenants } from "@/server/services/tenant";
-import { effectivePractices } from "@/modules/core/kernel/domain/operating-model";
+import {
+  effectivePractices,
+  type PracticeFlags,
+} from "@/modules/core/kernel/domain/operating-model";
+import type { PrismaClient } from "@/generated/prisma";
 import {
   moduleForPath,
   firstEnabledHome,
@@ -57,21 +61,6 @@ export default async function DashboardLayout({
   ]);
   const practices = effectivePractices(targetModel);
 
-  // Rollen-Onboarding (ADR-0017): hängt hier, weil das Layout über die
-  // Client-Navigation montiert bleibt — nur so überlebt eine Tour den
-  // Seitenwechsel. Braucht `practices`, filtert also nach dem Target-Model.
-  //
-  // Bewusst mit Fallback: das Onboarding ist eine Beigabe und darf das gesamte
-  // Dashboard nie mitreißen. Ohne diesen Catch legt ein Defekt darin (Schema-
-  // Drift nach `prisma generate` im Dev, DB-Hiccup) jede Seite unter diesem
-  // Layout lahm — genau das ist einmal passiert.
-  const { notices } = await buildRoleOnboardingModel(db, principal, practices).catch(
-    (e: unknown) => {
-      console.error("[onboarding] Modell konnte nicht geladen werden:", e);
-      return { notices: [] };
-    },
-  );
-
   // Drei Achsen (alle blenden aus): practice/capability wie bisher; das Modul-
   // Entitlement blendet nicht freigeschaltete Module komplett aus — kein
   // Upsell-Schloss mehr, gesperrte Module tauchen gar nicht in der Nav auf.
@@ -104,7 +93,42 @@ export default async function DashboardLayout({
         createSlot={<CreateMenu />}
       />
       <main className="min-h-0 flex-1 overflow-y-auto print:overflow-visible">{children}</main>
-      <RoleOnboardingMount notices={notices} />
+      {/* Rollen-Onboarding (ADR-0017): hängt im Layout, weil das über die
+          Client-Navigation montiert bleibt — nur so überlebt eine Tour den
+          Seitenwechsel. Sein Datenmodell (bis zu 7 Existenz-Probes) sitzt jetzt
+          hinter Suspense: das Shell (Topbar + Inhalt) rendert SOFORT, das
+          Onboarding streamt nach und blockiert die TTFB nicht mehr. */}
+      <Suspense fallback={null}>
+        <OnboardingSlot db={db} principal={principal} practices={practices} />
+      </Suspense>
     </div>
   );
+}
+
+/**
+ * Lädt das Rollen-Onboarding-Modell und montiert die Tour — als eigene
+ * async-Server-Komponente, damit der `await` hinter dem `<Suspense>` des
+ * Layouts liegt und nicht die kritische Render-Kette der Shell aufhält.
+ *
+ * Bewusst mit Fallback: das Onboarding ist eine Beigabe und darf das gesamte
+ * Dashboard nie mitreißen. Ohne diesen Catch legt ein Defekt darin (Schema-
+ * Drift nach `prisma generate` im Dev, DB-Hiccup) jede Seite unter diesem
+ * Layout lahm — genau das ist einmal passiert.
+ */
+async function OnboardingSlot({
+  db,
+  principal,
+  practices,
+}: {
+  db: PrismaClient;
+  principal: Principal;
+  practices: PracticeFlags;
+}) {
+  const { notices } = await buildRoleOnboardingModel(db, principal, practices).catch(
+    (e: unknown) => {
+      console.error("[onboarding] Modell konnte nicht geladen werden:", e);
+      return { notices: [] };
+    },
+  );
+  return <RoleOnboardingMount notices={notices} />;
 }
