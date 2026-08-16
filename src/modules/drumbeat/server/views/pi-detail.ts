@@ -1,17 +1,26 @@
-import { summarizePiOverview, type PiOverviewSummary } from "@/modules/drumbeat/domain/pi-overview";
-
 /**
  * PI Detail page-model — turns the loaded PI + open-issue count + candidate
  * Features into the render-ready shape the multi-ART detail page consumes.
- * Pure; mirrors `buildPlanningModel` / Portfolio Overview.
+ * Pure; mirrors the Portfolio Overview builder.
  *
  * Die Page beantwortet zwei Fragen:
  *   - "welche Features sind in diesem PI, gruppiert nach ART?"
  *   - "welche Features koennten in dieses PI landen, gruppiert nach ART?"
  *
- * Plus das `summary` (delegiert an `summarizePiOverview` aus `domain/`).
- * Team-/Objective-/Kapazitäts-Achsen sind mit dem Team-Rückbau entfallen.
+ * Plus das `summary` (offene Issues + Feature-Status-Verteilung), das inline
+ * aus `pi.initiatives` mitgezählt wird. Team-/Objective-/Kapazitäts-Achsen
+ * sind mit dem Team-Rückbau entfallen.
  */
+
+/**
+ * Headline metrics for the PI detail page: open (roamStatus "open") Issues in
+ * the PI's ARTs, plus the Feature-status distribution. Consumed by the
+ * `PiOverviewSummary` component.
+ */
+export interface PiOverviewSummary {
+  openIssues: number;
+  featureStatus: { status: string; count: number }[];
+}
 
 // ---------------------------------------------------------------------------
 // Structural input row types — minimal shape the builder reads.
@@ -131,9 +140,13 @@ export function buildPiDetailModel(inputs: PiDetailInputs): PiDetailModel | null
     candidatesByArt.set(c.artId, list);
   }
 
-  // Features in this PI grouped by their owning ART.
+  // Features in this PI grouped by their owning ART. The status distribution
+  // for the overview summary is folded into the same pass — counted across all
+  // initiatives (orphans without an ART included), before the ART grouping.
   const featuresByArt = new Map<string, PiDetailFeatureCard[]>();
+  const statusCounts = new Map<string, number>();
   for (const f of pi.initiatives) {
+    statusCounts.set(f.status, (statusCounts.get(f.status) ?? 0) + 1);
     if (!f.artId) continue;
     const list = featuresByArt.get(f.artId) ?? [];
     list.push({
@@ -145,10 +158,10 @@ export function buildPiDetailModel(inputs: PiDetailInputs): PiDetailModel | null
     featuresByArt.set(f.artId, list);
   }
 
-  const summary = summarizePiOverview({
-    features: pi.initiatives.map((f) => ({ status: f.status })),
+  const summary: PiOverviewSummary = {
     openIssues,
-  });
+    featureStatus: [...statusCounts.entries()].map(([status, count]) => ({ status, count })),
+  };
 
   return {
     pi: {

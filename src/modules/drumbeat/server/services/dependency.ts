@@ -9,6 +9,7 @@ import {
   deleteEdge,
   type DependencyType,
 } from "@/modules/work/server/services/dependency-edge";
+import { blockerWindowsFromEdges } from "@/modules/work/domain/blocker-window";
 
 // `DependencyType` now lives with the edge primitive in Work (Drumbeat imports
 // DOWN, ADR-0013). Re-exported here so existing `@/modules/drumbeat/.../dependency`
@@ -214,6 +215,10 @@ export async function listDependencies(
  * `relates_to` edges are purely informational and ignored. Returns one entry
  * per direct upstream constraint with the blocker's PI window (null when the
  * blocker is itself unscheduled).
+ *
+ * The one-hop query lives here; the edge → window mapping is the shared pure
+ * projection in Work (`blockerWindowsFromEdges`), which Work's `setFeaturePi`
+ * uses too. Drumbeat imports it DOWN (ADR-0013).
  */
 export async function getBlockerWindowsForFeatures(
   db: PrismaClient,
@@ -222,11 +227,7 @@ export async function getBlockerWindowsForFeatures(
 ): Promise<
   Map<string, { blockerId: string; blockerTitle: string; blockerEndDate: Date | null }[]>
 > {
-  const out = new Map<
-    string,
-    { blockerId: string; blockerTitle: string; blockerEndDate: Date | null }[]
-  >();
-  if (featureIds.length === 0) return out;
+  if (featureIds.length === 0) return new Map();
 
   const rows = await db.dependency.findMany({
     where: {
@@ -242,20 +243,7 @@ export async function getBlockerWindowsForFeatures(
     },
   });
 
-  for (const r of rows) {
-    // For 'blocks' the *from* side is the blocker; for 'depends_on' the *to* side is.
-    const isBlocks = r.type === "blocks";
-    const featureSide = isBlocks ? r.toId : r.fromId;
-    const blocker = isBlocks ? r.from : r.to;
-    const list = out.get(featureSide) ?? [];
-    list.push({
-      blockerId: blocker.id,
-      blockerTitle: blocker.title,
-      blockerEndDate: blocker.pi?.endDate ?? null,
-    });
-    out.set(featureSide, list);
-  }
-  return out;
+  return blockerWindowsFromEdges(rows, new Set(featureIds));
 }
 
 /** One breakdown-network edge that has at least one endpoint among the Epic's

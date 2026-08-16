@@ -6,14 +6,15 @@ import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { applyPiStandard } from "@/modules/drumbeat/server/services/pi-standard";
+import { featurePiConsistent } from "@/modules/work/domain/feature-pi";
 
 /**
  * Timelines — shared PI cadences that multiple ARTs can subscribe to.
  *
  * Each Timeline owns a list of `ProgramIncrement`s. ARTs join via
- * `Art.timelineId`; their teams get one Sprint per Timeline-PI during the
- * join. Leaving cleans those sprints up. The Feature → PI invariant moves
- * from "same ART" to "same Timeline" — see `setFeaturePi`.
+ * `Art.timelineId`. Leaving detaches the ART's Features from that Timeline's
+ * PIs (they fall back to the backlog). The Feature → PI invariant moves from
+ * "same ART" to "same Timeline" — see `setFeaturePi`.
  *
  * Backfill: `migrateAllArtsToOwnTimelines` creates one Timeline per existing
  * ART, preserving today's behaviour, so the rollout is functionally a no-op
@@ -148,7 +149,7 @@ export interface JoinArtToTimelineInput {
 export async function joinArtToTimeline(
   ctx: RequestContext,
   input: JoinArtToTimelineInput,
-): Promise<Result<{ sprintsCreated: number }>> {
+): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
     const [art, timeline] = await Promise.all([
@@ -166,7 +167,7 @@ export async function joinArtToTimeline(
     }
     if (art.timelineId === input.timelineId) {
       return ok({
-        result: { sprintsCreated: 0 },
+        result: undefined,
         audit: {
           action: "timeline.art.joined",
           resourceType: "timeline",
@@ -180,7 +181,7 @@ export async function joinArtToTimeline(
     }
 
     const previousTimelineId = art.timelineId;
-    let detachedFromPrevious = { sprintsRemoved: 0, featuresUnassigned: 0 };
+    let detachedFromPrevious = { featuresUnassigned: 0 };
     if (previousTimelineId) {
       detachedFromPrevious = await detachArtFromTimeline(
         tx,
@@ -193,7 +194,7 @@ export async function joinArtToTimeline(
     await tx.art.update({ where: { id: input.artId }, data: { timelineId: input.timelineId } });
 
     return ok({
-      result: { sprintsCreated: 0 },
+      result: undefined,
       audit: {
         action: "timeline.art.joined",
         resourceType: "timeline",
@@ -218,7 +219,7 @@ export async function joinArtToTimeline(
 export async function leaveArtFromTimeline(
   ctx: RequestContext,
   input: { artId: ArtId },
-): Promise<Result<{ sprintsRemoved: number; featuresUnassigned: number }>> {
+): Promise<Result<{ featuresUnassigned: number }>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
     const art = await tx.art.findFirst({
@@ -227,7 +228,7 @@ export async function leaveArtFromTimeline(
     if (!art) return err({ kind: "not_found" as const, resourceType: "Art", id: input.artId });
     if (!art.timelineId) {
       return ok({
-        result: { sprintsRemoved: 0, featuresUnassigned: 0 },
+        result: { featuresUnassigned: 0 },
         audit: {
           action: "timeline.art.left",
           resourceType: "art",
@@ -237,7 +238,7 @@ export async function leaveArtFromTimeline(
       });
     }
 
-    const { sprintsRemoved, featuresUnassigned } = await detachArtFromTimeline(
+    const { featuresUnassigned } = await detachArtFromTimeline(
       tx,
       mctx.tenantId,
       input.artId,
@@ -246,14 +247,13 @@ export async function leaveArtFromTimeline(
     await tx.art.update({ where: { id: input.artId }, data: { timelineId: null } });
 
     return ok({
-      result: { sprintsRemoved, featuresUnassigned },
+      result: { featuresUnassigned },
       audit: {
         action: "timeline.art.left",
         resourceType: "art",
         resourceId: input.artId,
         changes: {
           timelineId: { before: art.timelineId, after: null },
-          sprintsRemoved: { before: null, after: sprintsRemoved },
           featuresUnassigned: { before: null, after: featuresUnassigned },
         },
       },
@@ -265,22 +265,28 @@ export async function leaveArtFromTimeline(
  * Cleans up an ART's footprint inside one Timeline: Features of this ART that
  * pointed at one of that Timeline's PIs have their `piId` cleared (they fall
  * back to the backlog). Returns the count so the caller can fold it into the
- * audit changeset. `sprintsRemoved` is retained as a always-0 field for the
- * audit shape (no Sprint/Team level any more).
+ * audit changeset. There is no Sprint/Team level any more.
  */
 async function detachArtFromTimeline(
   tx: Prisma.TransactionClient,
   tenantId: string,
   artId: string,
   timelineId: string,
-): Promise<{ sprintsRemoved: number; featuresUnassigned: number }> {
+): Promise<{ featuresUnassigned: number }> {
   const pis = await tx.programIncrement.findMany({
     where: { tenantId, timelineId },
-    select: { id: true },
+    select: { id: true, timelineId: true },
   });
-  const piIds = pis.map((p) => p.id);
+  // Backward half of the same invariant `setFeaturePi` enforces forward: once
+  // the ART leaves `timelineId`, its ART-Timeline no longer equals these PIs'
+  // Timeline, so every Feature on them is inconsistent and must fall back to the
+  // backlog. `null` stands in for "the ART is no longer on this Timeline" — the
+  // predicate is false for every PI on the left Timeline, so all qualify.
+  const piIds = pis
+    .filter((p) => !featurePiConsistent({ artTimelineId: null, piTimelineId: p.timelineId }))
+    .map((p) => p.id);
   if (piIds.length === 0) {
-    return { sprintsRemoved: 0, featuresUnassigned: 0 };
+    return { featuresUnassigned: 0 };
   }
 
   // Features of this ART that were assigned to one of these Timeline PIs lose
@@ -290,7 +296,7 @@ async function detachArtFromTimeline(
     data: { piId: null },
   });
 
-  return { sprintsRemoved: 0, featuresUnassigned: featuresUnassigned.count };
+  return { featuresUnassigned: featuresUnassigned.count };
 }
 
 // ---------------------------------------------------------------------------

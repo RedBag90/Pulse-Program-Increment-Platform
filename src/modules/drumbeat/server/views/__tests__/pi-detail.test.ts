@@ -84,9 +84,10 @@ describe("buildPiDetailModel", () => {
     expect(m.candidatesByArt.get("a2")?.[0]?.wsjfComputed).toBeNull();
   });
 
-  it("summary delegates to summarizePiOverview (smoke check)", () => {
+  it("builds an inline overview summary (smoke check)", () => {
     const m = buildPiDetailModel(baseInputs())!;
     expect(m.summary).toBeDefined();
-    // No assertion on values — that contract lives in the domain read-model.
+    expect(m.summary.openIssues).toBe(0);
+    expect(m.summary.featureStatus).toEqual([]);
   });
 });

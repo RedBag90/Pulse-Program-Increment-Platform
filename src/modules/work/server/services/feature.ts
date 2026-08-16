@@ -22,10 +22,9 @@ import { loadAndAuthorize } from "@/server/services/load-and-authorize";
 import { paginate, type PageParams } from "@/server/db/paginate";
 import { rangeOverlapsPlannedWindow } from "@/modules/work/domain/epic-schedule";
 import { canDeliveryTransition } from "@/modules/core/kernel/domain/initiative-status";
-import {
-  earliestStartFromBlockers,
-  type BlockerWindow,
-} from "@/modules/core/kernel/domain/dependency-graph";
+import { earliestStartFromBlockers } from "@/modules/core/kernel/domain/dependency-graph";
+import { blockerWindowsFromEdges } from "@/modules/work/domain/blocker-window";
+import { featurePiConsistent } from "@/modules/work/domain/feature-pi";
 import type { FeatureType } from "@/modules/work/domain/portfolio-guardrails";
 import { createEdge, splitEdge } from "@/modules/work/server/services/dependency-edge";
 import { signalGateTrigger } from "@/modules/work/server/services/stage-gate-engine";
@@ -504,8 +503,15 @@ export async function setFeaturePi(
       }
       // Hard invariant: Feature's ART must subscribe to the same Timeline as
       // the PI's Timeline. Replaces the old per-ART check now that PIs are
-      // shared across ARTs of a Timeline.
-      if (!feature.art?.timelineId || feature.art.timelineId !== pi.timelineId) {
+      // shared across ARTs of a Timeline. The predicate is the single, shared
+      // definition (Drumbeat's `detachArtFromTimeline` repairs the same rule
+      // backward).
+      if (
+        !featurePiConsistent({
+          artTimelineId: feature.art?.timelineId ?? null,
+          piTimelineId: pi.timelineId,
+        })
+      ) {
         return err({
           kind: "conflict" as const,
           reason: "Feature gehört zu einer ART, die diese Timeline nicht abonniert hat",
@@ -549,15 +555,8 @@ export async function setFeaturePi(
           to: { select: { id: true, title: true, pi: { select: { endDate: true } } } },
         },
       });
-      const blockerWindows: BlockerWindow[] = blockerEdges.map((e) => {
-        const isBlocks = e.type === "blocks";
-        const blocker = isBlocks ? e.from : e.to;
-        return {
-          blockerId: blocker.id,
-          blockerTitle: blocker.title,
-          blockerEndDate: blocker.pi?.endDate ?? null,
-        };
-      });
+      const blockerWindows =
+        blockerWindowsFromEdges(blockerEdges, new Set([featureId])).get(featureId) ?? [];
       const { earliest, unscheduledBlockers } = earliestStartFromBlockers(blockerWindows);
       if (earliest && pi.startDate < earliest) {
         const blockerNote =

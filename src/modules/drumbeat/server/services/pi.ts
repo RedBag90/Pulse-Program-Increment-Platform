@@ -3,6 +3,11 @@ import type { TenantId, ArtId, PiId, TimelineId } from "@/modules/core/kernel/do
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { validatePiDates } from "@/modules/drumbeat/domain/pi-planning";
+import {
+  evaluateClosure,
+  canTransition,
+  type PiStatus,
+} from "@/modules/drumbeat/domain/pi-lifecycle";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
@@ -28,7 +33,7 @@ export interface UpdatePiInput {
   status?: string | undefined;
 }
 
-export type PiStatus = "planned" | "active" | "completed";
+export type { PiStatus };
 
 export async function createPi(
   ctx: RequestContext,
@@ -230,7 +235,9 @@ export async function startPi(ctx: RequestContext, input: { id: PiId }): Promise
       return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
     }
 
-    if (existing.status !== "planned") {
+    // Pure transition-validity: only planned → active is a legal start.
+    // The one-active-PI-per-Timeline guard below is DB-dependent and stays here.
+    if (!canTransition(existing.status as PiStatus, "active")) {
       return err({
         kind: "conflict" as const,
         reason: `Only a planned PI can be started (current status: ${existing.status})`,
@@ -359,15 +366,13 @@ export async function evaluatePiClosure(
           where: { tenantId, deletedAt: null, roamStatus: "open", artId: { in: artIds } },
         });
 
-  const issues: string[] = [];
-  if (openIssues > 0) {
-    issues.push(`${openIssues} offene Issue(s) ohne ROAM-Status`);
-  }
-  if (!pi.systemDemoAt) issues.push("System-Demo-Termin fehlt");
-  if (!pi.inspectAdaptAt) issues.push("Inspect & Adapt-Termin fehlt");
-  if (!pi.retrospectiveNotes || pi.retrospectiveNotes.trim() === "") {
-    issues.push("Retrospektive-Notizen fehlen");
-  }
+  // Read projection of the snapshot; the rule itself lives in the domain.
+  const issues = evaluateClosure({
+    openUnroamedIssues: openIssues,
+    systemDemoAt: pi.systemDemoAt,
+    inspectAdaptAt: pi.inspectAdaptAt,
+    retrospectiveNotes: pi.retrospectiveNotes,
+  });
   return { ready: issues.length === 0, issues };
 }
 
@@ -384,14 +389,16 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
       return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
     }
 
-    if (existing.status !== "active") {
+    // Pure transition-validity: only active → completed is a legal completion.
+    if (!canTransition(existing.status as PiStatus, "completed")) {
       return err({
         kind: "conflict" as const,
         reason: `Only an active PI can be completed (current status: ${existing.status})`,
       });
     }
 
-    // Belt & suspenders: dieselben Checks wie der Wizard, serverseitig.
+    // Belt & suspenders: dieselben Checks wie der Wizard, serverseitig — die
+    // Regel lebt in der Domain (evaluateClosure), hier nur die tx-Projektion.
     const arts = existing.timelineId
       ? await tx.art.findMany({
           where: { tenantId: mctx.tenantId, timelineId: existing.timelineId },
@@ -410,15 +417,12 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
               artId: { in: artIds },
             },
           });
-    const issues: string[] = [];
-    if (openIssues > 0) {
-      issues.push(`${openIssues} offene Issue(s) ohne ROAM`);
-    }
-    if (!existing.systemDemoAt) issues.push("System-Demo-Termin fehlt");
-    if (!existing.inspectAdaptAt) issues.push("Inspect & Adapt-Termin fehlt");
-    if (!existing.retrospectiveNotes || existing.retrospectiveNotes.trim() === "") {
-      issues.push("Retrospektive-Notizen fehlen");
-    }
+    const issues = evaluateClosure({
+      openUnroamedIssues: openIssues,
+      systemDemoAt: existing.systemDemoAt,
+      inspectAdaptAt: existing.inspectAdaptAt,
+      retrospectiveNotes: existing.retrospectiveNotes,
+    });
     if (issues.length > 0) {
       return err({
         kind: "conflict" as const,
@@ -485,6 +489,47 @@ export async function deletePi(ctx: RequestContext, input: { id: PiId }): Promis
 }
 
 /**
+ * The shared "an ART's PIs live on its Timeline" join, in one place. Resolves a
+ * set of ARTs to their Timeline ids in a single query; ARTs without a Timeline
+ * are simply absent from the returned map. `includeDeleted: true` (the single-
+ * ART reads) matches their historical "by id + tenant only" lookup; the multi-
+ * ART planning picker passes `false` to drop soft-deleted ARTs. Drumbeat-
+ * internal — no layering concern.
+ */
+async function resolveArtTimelines(
+  db: PrismaClient,
+  tenantId: TenantId,
+  artIds: readonly string[],
+  { includeDeleted = false }: { includeDeleted?: boolean } = {},
+): Promise<Map<string, string>> {
+  if (artIds.length === 0) return new Map();
+  const arts = await db.art.findMany({
+    where: {
+      id: { in: artIds as string[] },
+      tenantId,
+      timelineId: { not: null },
+      ...(includeDeleted ? {} : { deletedAt: null }),
+    },
+    select: { id: true, timelineId: true },
+  });
+  return new Map(arts.map((a) => [a.id, a.timelineId as string]));
+}
+
+/**
+ * Single-ART convenience over `resolveArtTimelines`: the ART's Timeline id, or
+ * `null` when it has none. Backs `listPis`/`listArtPlanningPis`; keeps the
+ * legacy "find by id + tenant, deleted or not" behavior (`includeDeleted`).
+ */
+async function resolveTimelineForArt(
+  db: PrismaClient,
+  tenantId: TenantId,
+  artId: ArtId,
+): Promise<string | null> {
+  const map = await resolveArtTimelines(db, tenantId, [artId], { includeDeleted: true });
+  return map.get(artId) ?? null;
+}
+
+/**
  * PIs of one ART — routes through the ART's Timeline. Returns [] when the ART
  * has no Timeline yet (the page surfaces an empty-state CTA in that case).
  */
@@ -494,14 +539,11 @@ export async function listPis(
   artId: ArtId,
   pageParams: PageParams = { page: 1, pageSize: 200 },
 ) {
-  const art = await db.art.findFirst({
-    where: { id: artId, tenantId },
-    select: { timelineId: true },
-  });
-  if (!art?.timelineId) {
+  const timelineId = await resolveTimelineForArt(db, tenantId, artId);
+  if (!timelineId) {
     return { items: [], total: 0, page: 1, pageSize: pageParams.pageSize ?? 200 };
   }
-  const where = { tenantId, timelineId: art.timelineId };
+  const where = { tenantId, timelineId };
   const include = { _count: { select: { initiatives: true } } };
   const orderBy = { startDate: "desc" as const };
 
@@ -525,11 +567,9 @@ export async function listProgramIncrementsForArts(
   artIds: string[],
 ) {
   if (artIds.length === 0) return [];
-  const arts = await db.art.findMany({
-    where: { id: { in: artIds }, tenantId, deletedAt: null, timelineId: { not: null } },
-    select: { id: true, timelineId: true },
-  });
-  const timelineIds = [...new Set(arts.map((a) => a.timelineId!))];
+  // Multi-ART variant of the same ART→Timeline join; drops soft-deleted ARTs.
+  const artTimelines = await resolveArtTimelines(db, tenantId, artIds, { includeDeleted: false });
+  const timelineIds = [...new Set(artTimelines.values())];
   if (timelineIds.length === 0) return [];
   const rows = await db.programIncrement.findMany({
     where: { tenantId, timelineId: { in: timelineIds } },
@@ -538,9 +578,9 @@ export async function listProgramIncrementsForArts(
   });
   // Stamp each PI with one representative artId from the input list.
   const firstArtByTimeline = new Map<string, string>();
-  for (const a of arts) {
-    if (a.timelineId && !firstArtByTimeline.has(a.timelineId)) {
-      firstArtByTimeline.set(a.timelineId, a.id);
+  for (const [id, timelineId] of artTimelines) {
+    if (!firstArtByTimeline.has(timelineId)) {
+      firstArtByTimeline.set(timelineId, id);
     }
   }
   return rows.map((r) => ({
@@ -553,13 +593,10 @@ export async function listProgramIncrementsForArts(
 
 /** PIs of one ART (via its Timeline) with sprint counts — backs PI-Planning. */
 export async function listArtPlanningPis(db: PrismaClient, tenantId: TenantId, artId: ArtId) {
-  const art = await db.art.findFirst({
-    where: { id: artId, tenantId },
-    select: { timelineId: true },
-  });
-  if (!art?.timelineId) return [];
+  const timelineId = await resolveTimelineForArt(db, tenantId, artId);
+  if (!timelineId) return [];
   return db.programIncrement.findMany({
-    where: { tenantId, timelineId: art.timelineId },
+    where: { tenantId, timelineId },
     select: {
       id: true,
       name: true,

@@ -73,7 +73,7 @@ describe("detachArtFromTimeline — feature unassignment", () => {
     const result = await leaveArtFromTimeline(ctx, { artId: "A1" as ArtId });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value).toEqual({ sprintsRemoved: 0, featuresUnassigned: 0 });
+      expect(result.value).toEqual({ featuresUnassigned: 0 });
     }
     expect(writes).toHaveLength(0);
   });
