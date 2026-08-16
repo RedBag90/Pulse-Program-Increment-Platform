@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dagre from "@dagrejs/dagre";
 import {
@@ -168,23 +168,30 @@ export function CockpitNetwork({ features, dependencies, artId, canLinkDependenc
     dependencies,
   );
 
-  function openSlideOver(id: string) {
-    const next = new URLSearchParams(searchParams.toString());
-    next.set("featureId", id);
-    router.replace(`${pathname}?${next.toString()}` as never, { scroll: false });
-  }
+  // openSlideOver via useCallback stabil gehalten: sonst wird die Referenz pro
+  // Render neu erzeugt und triggert das teure `dagre.layout` im useMemo unten
+  // (INP-Hotspot). Die Identitaet aendert sich nur, wenn sich router/pathname/
+  // searchParams tatsaechlich aendern — dann rebuildet der Layout-Memo bewusst,
+  // damit der Klick den aktuellen searchParams-Stand mitnimmt.
+  const openSlideOver = useCallback(
+    (id: string) => {
+      const next = new URLSearchParams(searchParams.toString());
+      next.set("featureId", id);
+      router.replace(`${pathname}?${next.toString()}` as never, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
 
   function depById(depId: string): CockpitDependency | undefined {
     return dependencies.find((d) => d.id === depId);
   }
 
-  // openSlideOver wird pro Render neu erzeugt — das ist beabsichtigt,
-  // damit der Klick immer den aktuellen searchParams-Stand mitnimmt.
-  // dagre.layout ist der Hotspot, das Closure-Refresh ist billig.
-  const searchParamsKey = searchParams.toString();
+  // dagre.layout ist der Hotspot — nur re-layouten, wenn sich Features,
+  // Dependencies, der (stabile) openSlideOver-Handler oder die Link-Berechtigung
+  // aendern.
   const { nodes, edges } = useMemo(
     () => buildLayoutedGraph(features, dependencies, openSlideOver, canLinkDependency),
-    [features, dependencies, searchParamsKey, openSlideOver, canLinkDependency],
+    [features, dependencies, openSlideOver, canLinkDependency],
   );
 
   if (features.length === 0) {

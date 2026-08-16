@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
-import { listEpics } from "@/modules/work/server/services/epic";
+import { listEpicsForOverview } from "@/modules/work/server/services/epic";
 import { listOverviewFeatures } from "@/modules/work/server/services/feature";
 import { parseTimeline } from "@/modules/work/domain/timeline";
 import {
@@ -246,7 +246,7 @@ export interface PortfolioOverviewTheme {
 }
 
 export interface PortfolioOverviewInputs {
-  epics: Awaited<ReturnType<typeof listEpics>>;
+  epics: Awaited<ReturnType<typeof listEpicsForOverview>>;
   features: Awaited<ReturnType<typeof listOverviewFeatures>>;
   /** Dokumentierte, offene Risiken — vom Risks-Adapter fertig geformt (ADR-0013). */
   risks: OverviewRisk[];
@@ -621,7 +621,7 @@ export async function loadPortfolioOverviewInputs(
     structureGap,
     practiceAdoption,
   ] = await Promise.all([
-    listEpics(db, tenantId, {
+    listEpicsForOverview(db, tenantId, {
       valueStreamIds: filter.valueStreamIds,
       stageGates: filter.stageGates,
       statuses: filter.statuses,

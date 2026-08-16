@@ -5,6 +5,7 @@
  * maths live in the pure `@/domain/budgeting` module.
  */
 
+import { cache } from "react";
 import type { Prisma, PrismaClient } from "@/generated/prisma";
 import type { TenantId, EpicId, ValueStreamId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
@@ -63,7 +64,7 @@ export interface ValueStreamBudgetData {
  * half-year axis, and the tenant pool. Backs both the budgeting board and the
  * derived Value-Stream budgets, so both use the identical horizon + population.
  */
-async function loadBudgetingModel(
+const loadBudgetingModel = cache(async function loadBudgetingModel(
   db: PrismaClient,
   tenantId: TenantId,
 ): Promise<{ epics: BudgetEpicView[]; axis: HalfYearAxis; pool: Record<string, number> }> {
@@ -138,7 +139,7 @@ async function loadBudgetingModel(
 
   const axis = buildHalfYearAxis(from, to);
   return { epics, axis, pool };
-}
+});
 
 /** Loads the budgeting board: eligible Epics + their need/allocation + the pool. */
 export async function getBudgetingBoard(

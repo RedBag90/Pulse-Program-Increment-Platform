@@ -659,6 +659,50 @@ export async function listEpics(
 }
 
 /**
+ * Portfolio-Overview-Variante von {@link listEpics}: identische Filter +
+ * Sortierung, aber ein expliziter `select` auf exakt die Felder, die der
+ * Overview-Builder (`buildPortfolioOverviewModel`) liest. Spart die grossen
+ * JSON-Spalten (`benefitHypothesis`/`businessCase`/`baseline*`), die die
+ * Landing-Page nie anfasst — `timeline` bleibt, weil `l4DueSoon` es via
+ * `parseTimeline` auswertet. `listEpics` bleibt unangetastet (die v1-API
+ * liefert die vollen Rows als JSON weiter).
+ */
+export async function listEpicsForOverview(
+  db: PrismaClient,
+  tenantId: TenantId,
+  filter: EpicListFilter = {},
+) {
+  const vs = filter.valueStreamIds ?? [];
+  const gates = filter.stageGates ?? [];
+  const statuses = filter.statuses ?? [];
+  const owners = filter.ownerIds ?? [];
+  return db.initiative.findMany({
+    where: {
+      tenantId,
+      level: InitiativeLevel.EPIC,
+      deletedAt: null,
+      ...(vs.length ? { valueStreamId: { in: vs } } : {}),
+      ...(gates.length ? { stageGate: { in: gates } } : {}),
+      ...(statuses.length ? { status: { in: statuses } } : {}),
+      ...(owners.length ? { ownerId: { in: owners } } : {}),
+    },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      stageGate: true,
+      ownerId: true,
+      businessCaseApprovedAt: true,
+      updatedAt: true,
+      needsSteeringAttention: true,
+      timeline: true,
+      valueStream: { select: { id: true, name: true } },
+    },
+    orderBy: [{ stageGate: "asc" }, { createdAt: "desc" }],
+  });
+}
+
+/**
  * Epics with everything the portfolio epics-list page-model needs in one
  * query: KPI rows (`baseline`, `target`, `measurements` — the page-model
  * picks the latest measurement as the current value) and `EpicApproval`

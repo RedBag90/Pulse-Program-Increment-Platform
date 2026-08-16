@@ -193,6 +193,7 @@ model TargetOperatingModel {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
+  @@index([tenantId, status])
   @@map("target_operating_models")
 }
 
@@ -648,6 +649,7 @@ model ProgramIncrement {
 
   @@unique([timelineId, name])
   @@index([timelineId])
+  @@index([tenantId, status])
   @@map("program_increments")
 }
 
@@ -996,6 +998,8 @@ model Dependency {
   to   Initiative @relation("To", fields: [toId], references: [id])
 
   @@unique([fromId, toId, type])
+  @@index([tenantId, toId])
+  @@index([tenantId, fromId])
   @@map("dependencies")
 }
 
