@@ -5,11 +5,20 @@ import {
   setFeaturePiAction,
   setFeatureDeliveryStatusAction,
 } from "@/modules/work/features/feature/actions/feature";
+import {
+  setFeaturePi,
+  setFeatureDeliveryStatus,
+} from "@/modules/work/features/feature/lib/feature-actions-client";
 import type {
   CockpitFeature,
   CockpitPiSlot,
   FeatureStatus,
 } from "@/server/views/umsetzung-cockpit-view";
+import {
+  buildBoardMatrix,
+  normalizePiKey,
+  type BoardMatrix,
+} from "@/modules/drumbeat/domain/board-matrix";
 import { FeatureCard } from "./feature-card";
 
 interface OptimisticPatch {
@@ -77,20 +86,11 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
       ),
   );
 
-  // Backlog-Spalte (synthetisch) als erste Spalte vor den PI-Spalten.
-  // Features mit `piId === null` landen hier; Drag in diese Spalte ruft
-  // `setFeaturePiAction` mit leerem `piId` und entkoppelt das Feature vom PI.
-  const backlogCount = view.filter((f) => f.piId == null).length;
-  const backlogSlot: CockpitPiSlot = {
-    id: "",
-    name: "Backlog",
-    startDate: new Date(0),
-    endDate: new Date(0),
-    status: "backlog",
-    featureCount: backlogCount,
-    isCurrent: false,
-  };
-  const columns: CockpitPiSlot[] = [backlogSlot, ...pis];
+  // PI × Status-Lane-Matrix — synthetische Backlog-Spalte, `null ↔ ""`-
+  // Normalisierung und Zell-Bucketing gehoeren dem reinen `buildBoardMatrix`.
+  // Muss clientseitig neu gerechnet werden, weil `view` optimistisch mutiert.
+  const matrix = buildBoardMatrix(view, pis, LANES);
+  const columns = matrix.columns;
 
   function dropOnCell(targetPiId: string, targetStatus: FeatureStatus) {
     const id = draggingId.current;
@@ -100,7 +100,7 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
     if (!feature) return;
 
     // Normalisiere `null` ↔ "" damit Backlog-Spalte als Drop-Ziel erkannt wird.
-    const currentPiKey = feature.piId ?? "";
+    const currentPiKey = normalizePiKey(feature.piId);
     const movePi = currentPiKey !== targetPiId;
     const moveStatus = feature.status !== targetStatus;
     if (!movePi && !moveStatus) return;
@@ -121,18 +121,18 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
 
       try {
         if (movePi) {
-          const fd = new FormData();
-          fd.append("featureIds", id);
-          fd.set("piId", targetPiId);
-          fd.set("artId", artId);
-          const res = await setFeaturePiAction({}, fd);
+          const res = await setFeaturePi(setFeaturePiAction, {
+            featureIds: [id],
+            piId: targetPiId,
+            artId,
+          });
           if (res.error) throw new Error(res.error);
         }
         if (moveStatus) {
-          const fd = new FormData();
-          fd.set("id", id);
-          fd.set("to", targetStatus);
-          const res = await setFeatureDeliveryStatusAction({}, fd);
+          const res = await setFeatureDeliveryStatus(setFeatureDeliveryStatusAction, {
+            id,
+            to: targetStatus,
+          });
           if (res.error) throw new Error(res.error);
         }
         setError(null);
@@ -187,7 +187,7 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
             key={lane.value}
             lane={lane}
             pis={columns}
-            view={view}
+            matrix={matrix}
             canDrag={canUpdate || canSetDelivery}
             onDrop={dropOnCell}
             draggingId={draggingId}
@@ -201,14 +201,14 @@ export function CockpitBoard({ pis, features, artId, canUpdate, canSetDelivery }
 function LaneRow({
   lane,
   pis,
-  view,
+  matrix,
   canDrag,
   onDrop,
   draggingId,
 }: {
   lane: LaneDef;
   pis: CockpitPiSlot[];
-  view: CockpitFeature[];
+  matrix: BoardMatrix;
   canDrag: boolean;
   onDrop: (piId: string, status: FeatureStatus) => void;
   draggingId: React.RefObject<string | null>;
@@ -219,7 +219,7 @@ function LaneRow({
         {lane.label}
       </div>
       {pis.map((p) => {
-        const cell = view.filter((f) => (f.piId ?? "") === p.id && f.status === lane.value);
+        const cell = matrix.cell(p.id, lane.value);
         return (
           <div
             key={`${p.id}:${lane.value}`}

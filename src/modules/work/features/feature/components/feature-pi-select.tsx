@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { setFeaturePiAction } from "@/modules/work/features/feature/actions/feature";
+import { setFeaturePi } from "@/modules/work/features/feature/lib/feature-actions-client";
 
 interface Pi {
   id: string;
@@ -25,11 +26,11 @@ export function FeaturePiSelect({ featureId, artId, currentPiId, pis }: Props) {
     setValue(next);
     setError(null);
     startTransition(async () => {
-      const fd = new FormData();
-      fd.append("featureIds", featureId);
-      fd.set("piId", next);
-      fd.set("artId", artId);
-      const result = await setFeaturePiAction({}, fd);
+      const result = await setFeaturePi(setFeaturePiAction, {
+        featureIds: [featureId],
+        piId: next,
+        artId,
+      });
       if (result.error) {
         setError(result.error);
         setValue(currentPiId ?? "");

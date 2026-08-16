@@ -3,6 +3,7 @@
 import { memo, type RefObject } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { CockpitFeature } from "@/server/views/umsetzung-cockpit-view";
+import { formatWsjf } from "@/domain/schemas/initiative";
 
 /**
  * Feature-Karte fuer das Board (und spaeter den Slide-Over). Memoisiert
@@ -60,7 +61,7 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
       <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
         <span className="truncate">{feature.artName}</span>
         {feature.wsjfComputed != null && (
-          <span className="shrink-0 font-medium">WSJF {Math.round(feature.wsjfComputed)}</span>
+          <span className="shrink-0 font-medium">WSJF {formatWsjf(feature.wsjfComputed)}</span>
         )}
       </div>
       {feature.hasBlocker && feature.blockerHint && (

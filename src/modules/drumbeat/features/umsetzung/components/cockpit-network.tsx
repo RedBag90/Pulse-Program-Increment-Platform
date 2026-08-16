@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useState, useTransition } from "react";
+import { memo, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import dagre from "@dagrejs/dagre";
 import {
@@ -21,14 +21,16 @@ import type {
   CockpitFeature,
   FeatureStatus,
 } from "@/server/views/umsetzung-cockpit-view";
-import {
-  linkDependencyAction,
-  unlinkDependencyAction,
-  changeDependencyTypeAction,
-} from "@/modules/drumbeat/features/dependencies/actions/dependency";
+import { useDependencyEdgeEditing } from "@/modules/drumbeat/features/dependencies/hooks/use-dependency-edge-editing";
+import { formatWsjf } from "@/domain/schemas/initiative";
 import { EdgeTypeMenu } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import { FeaturePickerPopover } from "@/modules/drumbeat/features/dependencies/components/feature-picker-popover";
 import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
+import {
+  EDGE_COLOR,
+  NODE_W_COCKPIT,
+  STATUS_DOT_COCKPIT as STATUS_DOT,
+} from "@/modules/drumbeat/domain/graph-constants";
 
 /**
  * Netzplan-Sicht des Cockpits — flacher Network-Graph aller Features
@@ -48,22 +50,8 @@ interface Props {
   canLinkDependency: boolean;
 }
 
-const NODE_W = 200;
+const NODE_W = NODE_W_COCKPIT;
 const NODE_H = 64;
-
-const EDGE_COLOR: Record<CockpitDependency["type"], string> = {
-  blocks: "#ef4444",
-  depends_on: "#d97706",
-  relates_to: "#94a3b8",
-};
-
-const STATUS_DOT: Record<FeatureStatus, string> = {
-  approved: "bg-sky-500",
-  in_progress: "bg-indigo-500",
-  blocked: "bg-amber-500",
-  completed: "bg-emerald-500",
-  cancelled: "bg-slate-400",
-};
 
 const STATUS_LABEL: Record<FeatureStatus, string> = {
   approved: "Bereit",
@@ -119,7 +107,7 @@ const FeatureNode = memo(function FeatureNode({ data }: { data: FeatureNodeData 
         <div className="mt-auto flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
           <span className="truncate">{STATUS_LABEL[f.status]}</span>
           {f.wsjfComputed != null && (
-            <span className="shrink-0 font-medium">WSJF {Math.round(f.wsjfComputed)}</span>
+            <span className="shrink-0 font-medium">WSJF {formatWsjf(f.wsjfComputed)}</span>
           )}
         </div>
       </button>
@@ -173,10 +161,12 @@ export function CockpitNetwork({ features, dependencies, artId, canLinkDependenc
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [, startTransition] = useTransition();
   const [edgeAnchor, setEdgeAnchor] = useState<EdgeAnchor | null>(null);
   const [addState, setAddState] = useState<AddState | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { error, callLink, callUnlink, callChangeType } = useDependencyEdgeEditing(
+    artId,
+    dependencies,
+  );
 
   function openSlideOver(id: string) {
     const next = new URLSearchParams(searchParams.toString());
@@ -186,48 +176,6 @@ export function CockpitNetwork({ features, dependencies, artId, canLinkDependenc
 
   function depById(depId: string): CockpitDependency | undefined {
     return dependencies.find((d) => d.id === depId);
-  }
-
-  function callLink(sourceId: string, targetId: string, type: DependencyEdgeType = "depends_on") {
-    if (sourceId === targetId) return;
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.set("fromId", sourceId);
-      fd.set("toId", targetId);
-      fd.set("type", type);
-      fd.set("artId", artId);
-      const res = await linkDependencyAction({}, fd);
-      setError(res.error ?? null);
-    });
-  }
-
-  function callUnlink(depId: string) {
-    const d = depById(depId);
-    if (!d) return;
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.set("fromId", d.fromId);
-      fd.set("toId", d.toId);
-      fd.set("type", d.type);
-      fd.set("artId", artId);
-      const res = await unlinkDependencyAction({}, fd);
-      setError(res.error ?? null);
-    });
-  }
-
-  function callChangeType(depId: string, next: DependencyEdgeType) {
-    const d = depById(depId);
-    if (!d || d.type === next) return;
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.set("fromId", d.fromId);
-      fd.set("toId", d.toId);
-      fd.set("fromType", d.type);
-      fd.set("toType", next);
-      fd.set("artId", artId);
-      const res = await changeDependencyTypeAction({}, fd);
-      setError(res.error ?? null);
-    });
   }
 
   // openSlideOver wird pro Render neu erzeugt — das ist beabsichtigt,

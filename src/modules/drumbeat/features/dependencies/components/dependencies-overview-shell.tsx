@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Link2, ShieldAlert, Split, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { unlinkDependencyBatchAction } from "@/modules/drumbeat/features/dependencies/actions/dependency";
+import { unlinkDependencyBatch } from "@/modules/drumbeat/features/dependencies/lib/dependency-actions-client";
 import {
   DEPENDENCY_TYPES,
   type DependencyType,
@@ -123,12 +124,12 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
   function runBulk() {
     if (!bulkArtId) return;
     if (!window.confirm(`${selected.size} Abhängigkeit(en) entfernen?`)) return;
-    const fd = new FormData();
-    for (const r of selectedRows) fd.append("dependencyIds", r.id);
-    fd.set("artId", bulkArtId);
     startTransition(async () => {
       setBulkError(null);
-      const res = await unlinkDependencyBatchAction({}, fd);
+      const res = await unlinkDependencyBatch(unlinkDependencyBatchAction, {
+        dependencyIds: selectedRows.map((r) => r.id),
+        artId: bulkArtId,
+      });
       if (res.error) setBulkError(res.error);
       else setSelected(new Set());
     });

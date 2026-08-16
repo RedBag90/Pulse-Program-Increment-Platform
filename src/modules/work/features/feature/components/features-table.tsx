@@ -4,6 +4,7 @@ import { useCallback, useMemo, type ReactNode } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { FEATURE_STATUSES, type FeatureStatus, type WsjfTier } from "@/server/views/features-list";
+import { formatWsjf } from "@/domain/schemas/initiative";
 import type { FeatureOverviewRow, FeaturesOverviewModel } from "@/server/views/features-overview";
 import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/modules/work/domain/portfolio-guardrails";
 
@@ -532,7 +533,7 @@ function FeatureTableRow({
 
         {showWsjf && (
           <td className="py-2 pr-4 text-right text-xs tabular-nums text-muted-foreground">
-            {row.wsjfComputed != null ? row.wsjfComputed.toFixed(1) : "—"}
+            {formatWsjf(row.wsjfComputed)}
           </td>
         )}
 

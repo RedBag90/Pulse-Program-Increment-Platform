@@ -8,6 +8,7 @@ import {
   deleteFeatureAction,
   setFeaturePiAction,
 } from "@/modules/work/features/feature/actions/feature";
+import { setFeaturePiFormData } from "@/modules/work/features/feature/lib/feature-actions-client";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { WsjfScoreDialog } from "@/modules/work/features/feature/components/wsjf-score-dialog";
@@ -79,11 +80,7 @@ export function FeatureListRowComponent({
   }
 
   function moveToBacklog() {
-    const fd = new FormData();
-    fd.append("featureIds", row.id);
-    fd.set("piId", "");
-    fd.set("artId", row.artId);
-    startTransition(() => move(fd));
+    startTransition(() => move(setFeaturePiFormData({ featureIds: [row.id], piId: "", artId: row.artId })));
   }
 
   const lastError = deleteState.error ?? moveState.error;

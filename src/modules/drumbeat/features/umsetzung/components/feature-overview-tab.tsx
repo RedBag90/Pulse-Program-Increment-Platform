@@ -7,6 +7,7 @@ import { FeatureOwnerAssign } from "@/modules/work/features/feature/components/f
 import { FeatureClassificationForm } from "./feature-classification-form";
 import { STATUS_DOT, STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { formatDate } from "@/lib/formatting";
+import { formatWsjf } from "@/domain/schemas/initiative";
 import type { FeatureDetailModel } from "@/modules/drumbeat/server/views/feature-detail";
 
 interface Props {
@@ -163,7 +164,7 @@ function SummaryHeader({ model }: { model: FeatureDetailModel }) {
       <span className={`rounded-full px-2 py-0.5 text-[11px] ${TIER_CLASS[model.wsjf.tier]}`}>
         {TIER_LABEL[model.wsjf.tier]}
         {model.wsjf.computed != null && (
-          <span className="ml-1 tabular-nums">· {model.wsjf.computed.toFixed(2)}</span>
+          <span className="ml-1 tabular-nums">· {formatWsjf(model.wsjf.computed)}</span>
         )}
       </span>
       {model.pi && (
@@ -225,7 +226,7 @@ function WsjfBlock({ model }: { model: FeatureDetailModel }) {
         <div className="space-y-0.5">
           <p className="text-[11px] text-muted-foreground">Computed</p>
           <p className="text-base font-semibold tabular-nums">
-            {model.wsjf.computed != null ? model.wsjf.computed.toFixed(2) : "—"}
+            {formatWsjf(model.wsjf.computed)}
           </p>
         </div>
       </div>

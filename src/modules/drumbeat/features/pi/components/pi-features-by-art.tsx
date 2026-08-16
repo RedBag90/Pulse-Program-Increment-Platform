@@ -1,4 +1,5 @@
 import { Link } from "@/i18n/navigation";
+import { formatWsjf } from "@/domain/schemas/initiative";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -76,7 +77,7 @@ export function PiFeaturesByArt({
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 {feature.wsjfComputed !== null && (
                   <Badge className="border-primary/20 bg-primary/10 font-medium text-primary">
-                    WSJF {Number(feature.wsjfComputed).toFixed(2)}
+                    WSJF {formatWsjf(feature.wsjfComputed)}
                   </Badge>
                 )}
                 <span

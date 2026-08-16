@@ -40,12 +40,18 @@ import {
 import "@xyflow/react/dist/style.css";
 import { toast } from "sonner";
 import { detectCycle } from "@/modules/core/kernel/domain/dependency-graph";
+import { formatWsjf } from "@/domain/schemas/initiative";
 import { CreateFeatureDialog } from "@/modules/work/features/feature/components/create-feature-dialog";
 import {
   linkDependencyAction,
   unlinkDependencyAction,
   changeDependencyTypeAction,
 } from "@/modules/drumbeat/features/dependencies/actions/dependency";
+import {
+  linkDependency,
+  unlinkDependency,
+  changeDependencyType,
+} from "@/modules/drumbeat/features/dependencies/lib/dependency-actions-client";
 import { updateFeatureAction } from "@/modules/work/features/feature/actions/feature";
 import { saveBreakdownLayoutAction } from "@/modules/work/features/portfolio/actions/breakdown-layout";
 import { useBreakdownRealtime } from "@/modules/work/features/portfolio/hooks/use-breakdown-realtime";
@@ -60,7 +66,6 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   EdgeTypePopover,
-  EDGE_COLOR as SHARED_EDGE_COLOR,
   EDGE_LABEL as SHARED_EDGE_LABEL,
 } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import {
@@ -70,6 +75,12 @@ import {
   type BreakdownGraphNode,
   type DependencyEdgeType,
 } from "@/modules/drumbeat/server/views/breakdown-network-view";
+import {
+  EDGE_COLOR,
+  NODE_W_BREAKDOWN,
+  STATUS_DOT_BREAKDOWN as STATUS_DOT,
+} from "@/modules/drumbeat/domain/graph-constants";
+import { swimlaneLayout } from "@/modules/drumbeat/domain/graph-layout";
 
 interface Props {
   epicId: string;
@@ -111,19 +122,10 @@ interface Props {
   savedPositions?: Record<string, { x: number; y: number }>;
 }
 
-const NODE_WIDTH = 220;
+const NODE_WIDTH = NODE_W_BREAKDOWN;
 const NODE_HEIGHT = 96;
 
-const EDGE_COLOR = SHARED_EDGE_COLOR;
 const EDGE_LABEL = SHARED_EDGE_LABEL;
-const STATUS_DOT: Record<string, string> = {
-  draft: "bg-muted-foreground/40",
-  in_review: "bg-amber-400",
-  approved: "bg-emerald-400",
-  in_progress: "bg-primary",
-  blocked: "bg-red-500",
-  completed: "bg-emerald-500",
-};
 const TIER_BADGE: Record<BreakdownGraphNode["wsjfTier"], string> = {
   high: "bg-emerald-100 text-emerald-700",
   medium: "bg-amber-100 text-amber-700",
@@ -433,7 +435,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
             {isEnabler ? "Enabler" : "Feature"}
           </span>
           <span className={`rounded-full px-1.5 py-0.5 ${TIER_BADGE[node.wsjfTier]}`}>
-            WSJF {node.wsjfComputed != null ? node.wsjfComputed.toFixed(1) : "—"}
+            WSJF {formatWsjf(node.wsjfComputed)}
           </span>
           <span className="ml-auto truncate text-muted-foreground">{node.artName}</span>
         </div>
@@ -851,76 +853,57 @@ function layoutByPi(
   artById: Map<string, string>,
   ctx: LayoutCtx,
 ): { nodes: Node[]; edges: Edge[] } {
-  const COL_WIDTH = NODE_WIDTH + 160;
-  const HEADER_HEIGHT = 40;
-  const ROW_GAP = 60;
-  const FIRST_ROW_Y = HEADER_HEIGHT + 16;
-
-  // Spalten-Index: 0 = Backlog, 1..n = PIs in startDate-Reihenfolge, n+1 = Extern.
-  const colByPi = new Map<string, number>();
-  pis.forEach((p, i) => colByPi.set(p.id, i + 1));
-  const externCol = pis.length + 1;
-
-  // Buckets per Spalten-Index.
-  const buckets = new Map<number, { feature?: BreakdownGraphNode; ghost?: BreakdownGhostNode }[]>();
-  for (let i = 0; i <= externCol; i++) buckets.set(i, []);
-
-  for (const n of nodes) {
-    const col = n.piId == null ? 0 : (colByPi.get(n.piId) ?? 0);
-    buckets.get(col)!.push({ feature: n });
-  }
-  for (const gn of ghostNodes) {
-    buckets.get(externCol)!.push({ ghost: gn });
-  }
+  // Reine Swimlane-Positionierung (graph-layout); dieses Component mappt die
+  // Positionen nur noch in ReactFlow-Nodes.
+  const { headers, features, ghosts } = swimlaneLayout(nodes, ghostNodes, pis);
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const ghostById = new Map(ghostNodes.map((g) => [g.id, g]));
 
   const rfNodes: Node[] = [];
 
   // Header-Nodes pro Spalte.
-  const headerLabels: Record<number, string> = { 0: "Backlog", [externCol]: "Cross-Epic" };
-  for (const p of pis) headerLabels[colByPi.get(p.id)!] = p.name;
-  for (let col = 0; col <= externCol; col++) {
-    const label = headerLabels[col] ?? "—";
+  for (const h of headers) {
     rfNodes.push({
-      id: `pi-header-${col}`,
+      id: `pi-header-${h.col}`,
       type: "pi-header",
-      data: { label } as unknown as Record<string, unknown>,
-      position: { x: col * COL_WIDTH, y: 0 },
+      data: { label: h.label } as unknown as Record<string, unknown>,
+      position: { x: h.x, y: h.y },
       draggable: false,
       selectable: false,
     });
   }
 
-  // Feature-Knoten + Ghost-Knoten in ihrer Spalte stapeln.
-  for (const [col, items] of buckets) {
-    items.forEach((item, idx) => {
-      const x = col * COL_WIDTH;
-      const y = FIRST_ROW_Y + idx * (NODE_HEIGHT + ROW_GAP);
-      if (item.feature) {
-        const n = item.feature;
-        const artId = artById.get(n.id) ?? "";
-        const data: FeatureNodeData = {
-          ...n,
-          artId,
-          connectable: ctx.canLinkDependency,
-          showPlus: ctx.canCreateFeature && artId !== "",
-          showEdit: ctx.canEditFeature && artId !== "",
-        };
-        rfNodes.push({
-          id: n.id,
-          type: "feature",
-          data: data as unknown as Record<string, unknown>,
-          position: { x, y },
-        });
-      } else if (item.ghost) {
-        rfNodes.push({
-          id: item.ghost.id,
-          type: "ghost",
-          data: item.ghost as unknown as Record<string, unknown>,
-          position: { x, y },
-          draggable: false,
-          selectable: true,
-        });
-      }
+  // Feature-Knoten in ihrer Spalte.
+  for (const pos of features) {
+    const n = nodeById.get(pos.id);
+    if (!n) continue;
+    const artId = artById.get(n.id) ?? "";
+    const data: FeatureNodeData = {
+      ...n,
+      artId,
+      connectable: ctx.canLinkDependency,
+      showPlus: ctx.canCreateFeature && artId !== "",
+      showEdit: ctx.canEditFeature && artId !== "",
+    };
+    rfNodes.push({
+      id: n.id,
+      type: "feature",
+      data: data as unknown as Record<string, unknown>,
+      position: { x: pos.x, y: pos.y },
+    });
+  }
+
+  // Ghost-Knoten in der Extern-Spalte.
+  for (const pos of ghosts) {
+    const gn = ghostById.get(pos.id);
+    if (!gn) continue;
+    rfNodes.push({
+      id: gn.id,
+      type: "ghost",
+      data: gn as unknown as Record<string, unknown>,
+      position: { x: pos.x, y: pos.y },
+      draggable: false,
+      selectable: true,
     });
   }
 
@@ -1147,14 +1130,14 @@ export function BreakdownNetworkView({
             };
           }),
         );
-        const fd = new FormData();
-        fd.set("fromId", fromId);
-        fd.set("toId", toId);
-        fd.set("fromType", currentType);
-        fd.set("toType", next);
-        fd.set("artId", sourceArtId);
         startTransition(async () => {
-          const result = await changeDependencyTypeAction({}, fd);
+          const result = await changeDependencyType(changeDependencyTypeAction, {
+            fromId,
+            toId,
+            fromType: currentType,
+            toType: next,
+            artId: sourceArtId,
+          });
           if (result?.error) {
             toast.error(result.error);
             // Rollback: einfach refresh — der Server-Stand ist die Wahrheit.
@@ -1173,13 +1156,13 @@ export function BreakdownNetworkView({
     (fromId: string, toId: string, edgeType: DependencyEdgeType, sourceArtId: string) => () => {
       // Optimistic: edge sofort aus local state filtern.
       setEdges((current) => current.filter((e) => !(e.source === fromId && e.target === toId)));
-      const fd = new FormData();
-      fd.set("fromId", fromId);
-      fd.set("toId", toId);
-      fd.set("type", edgeType);
-      fd.set("artId", sourceArtId);
       startTransition(async () => {
-        const result = await unlinkDependencyAction({}, fd);
+        const result = await unlinkDependency(unlinkDependencyAction, {
+          fromId,
+          toId,
+          type: edgeType,
+          artId: sourceArtId,
+        });
         if (result?.error) {
           toast.error(result.error);
           // Rollback: refresh holt den server-stand zurueck.
@@ -1334,14 +1317,13 @@ export function BreakdownNetworkView({
       };
       setEdges((current) => addEdge(tmpEdge, current));
 
-      const fd = new FormData();
-      fd.set("fromId", conn.source);
-      fd.set("toId", conn.target);
-      fd.set("type", connectType);
-      fd.set("artId", sourceArtId);
-
       startTransition(async () => {
-        const result = await linkDependencyAction({}, fd);
+        const result = await linkDependency(linkDependencyAction, {
+          fromId: conn.source,
+          toId: conn.target,
+          type: connectType,
+          artId: sourceArtId,
+        });
         if (result?.error) {
           setEdges((current) => current.filter((e) => e.id !== tmpId));
           toast.error(result.error);
@@ -1368,13 +1350,13 @@ export function BreakdownNetworkView({
         }
         const data = edge.data as InsertableEdgeData | undefined;
         const type = data?.type ?? "depends_on";
-        const fd = new FormData();
-        fd.set("fromId", edge.source);
-        fd.set("toId", edge.target);
-        fd.set("type", type);
-        fd.set("artId", sourceArtId);
         startTransition(async () => {
-          const result = await unlinkDependencyAction({}, fd);
+          const result = await unlinkDependency(unlinkDependencyAction, {
+            fromId: edge.source,
+            toId: edge.target,
+            type,
+            artId: sourceArtId,
+          });
           if (result?.error) {
             setEdges((current) => addEdge(edge, current));
             toast.error(result.error);

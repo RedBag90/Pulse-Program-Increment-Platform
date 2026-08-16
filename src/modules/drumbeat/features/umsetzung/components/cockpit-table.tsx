@@ -7,11 +7,18 @@ import {
   setFeatureDeliveryStatusAction,
   bulkSetFeatureDeliveryStatusAction,
 } from "@/modules/work/features/feature/actions/feature";
+import {
+  setFeaturePi,
+  setFeatureDeliveryStatus,
+  bulkSetFeatureDeliveryStatus,
+} from "@/modules/work/features/feature/lib/feature-actions-client";
 import type {
   CockpitFeature,
   CockpitPiSlot,
   FeatureStatus,
 } from "@/server/views/umsetzung-cockpit-view";
+import { normalizePiKey, BACKLOG_COLUMN_ID } from "@/modules/drumbeat/domain/board-matrix";
+import { formatWsjf } from "@/domain/schemas/initiative";
 import { CockpitBulkBar } from "./cockpit-bulk-bar";
 
 /**
@@ -53,7 +60,10 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
   }
 
   const piOptions = useMemo(
-    () => [{ id: "", name: "— Backlog —" }, ...pis.map((p) => ({ id: p.id, name: p.name }))],
+    () => [
+      { id: BACKLOG_COLUMN_ID, name: "— Backlog —" },
+      ...pis.map((p) => ({ id: p.id, name: p.name })),
+    ],
     [pis],
   );
 
@@ -72,21 +82,21 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
 
   function setPi(id: string, piId: string) {
     startTransition(async () => {
-      const fd = new FormData();
-      fd.append("featureIds", id);
-      fd.set("piId", piId);
-      fd.set("artId", artId);
-      const res = await setFeaturePiAction({}, fd);
+      const res = await setFeaturePi(setFeaturePiAction, {
+        featureIds: [id],
+        piId,
+        artId,
+      });
       setError(res.error ?? null);
     });
   }
 
   function setStatus(id: string, status: FeatureStatus) {
     startTransition(async () => {
-      const fd = new FormData();
-      fd.set("id", id);
-      fd.set("to", status);
-      const res = await setFeatureDeliveryStatusAction({}, fd);
+      const res = await setFeatureDeliveryStatus(setFeatureDeliveryStatusAction, {
+        id,
+        to: status,
+      });
       setError(res.error ?? null);
     });
   }
@@ -97,18 +107,18 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
     startTransition(async () => {
       try {
         if (patch.piId !== undefined) {
-          const fd = new FormData();
-          for (const id of ids) fd.append("featureIds", id);
-          fd.set("piId", patch.piId);
-          fd.set("artId", artId);
-          const res = await setFeaturePiAction({}, fd);
+          const res = await setFeaturePi(setFeaturePiAction, {
+            featureIds: ids,
+            piId: patch.piId,
+            artId,
+          });
           if (res.error) throw new Error(res.error);
         }
         if (patch.status !== undefined) {
-          const fd = new FormData();
-          for (const id of ids) fd.append("featureIds", id);
-          fd.set("to", patch.status);
-          const res = await bulkSetFeatureDeliveryStatusAction({}, fd);
+          const res = await bulkSetFeatureDeliveryStatus(bulkSetFeatureDeliveryStatusAction, {
+            featureIds: ids,
+            to: patch.status,
+          });
           if (res.error) throw new Error(res.error);
         }
         setError(null);
@@ -184,7 +194,7 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
                     <select
                       aria-label={`PI fuer ${f.title}`}
                       disabled={!canUpdate}
-                      value={f.piId ?? ""}
+                      value={normalizePiKey(f.piId)}
                       onChange={(e) => setPi(f.id, e.target.value)}
                       className="rounded border bg-background px-1.5 py-0.5 text-xs disabled:opacity-50"
                     >
@@ -211,7 +221,7 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
                     </select>
                   </td>
                   <td className="px-2 py-1.5 text-right tabular-nums text-xs">
-                    {f.wsjfComputed != null ? Math.round(f.wsjfComputed) : "—"}
+                    {formatWsjf(f.wsjfComputed)}
                   </td>
                   <td className="px-2 py-1.5 text-xs">
                     {f.hasBlocker && f.blockerHint ? (

@@ -3,6 +3,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import { formatWsjf } from "@/domain/schemas/initiative";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WsjfBarChart } from "@/components/charts/wsjf-bar-chart-lazy";
@@ -103,7 +104,7 @@ export default async function WsjfLeaderboardPage() {
                       {f.pi?.name ?? "Backlog"}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                      {f.wsjfComputed !== null ? Number(f.wsjfComputed).toFixed(2) : "—"}
+                      {formatWsjf(f.wsjfComputed)}
                     </td>
                   </tr>
                 ))}

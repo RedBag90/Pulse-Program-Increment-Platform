@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import { EDGE_COLOR, NODE_W_COMPACT } from "@/modules/drumbeat/domain/graph-constants";
+import { rankLayout } from "@/modules/drumbeat/domain/graph-layout";
+import type { DependencyType } from "@/modules/drumbeat/domain/graph-scope";
 
 interface Node {
   id: string;
@@ -21,77 +24,11 @@ interface Props {
   edges: Edge[];
 }
 
-const EDGE_COLOR: Record<string, string> = {
-  blocks: "#ef4444",
-  depends_on: "#d97706",
-  relates_to: "#9ca3af",
-};
-
-const NODE_W = 160;
+const NODE_W = NODE_W_COMPACT;
 const NODE_H = 44;
-const COL_GAP = 80;
-const ROW_GAP = 20;
-
-function computeLayout(nodes: Node[], edges: Edge[]) {
-  if (nodes.length === 0)
-    return { positions: new Map<string, { x: number; y: number }>(), width: 0, height: 0 };
-
-  // BFS rank: sources (no incoming directed edges) get rank 0
-  const directionalEdges = edges.filter((e) => e.type !== "relates_to");
-  const inDegree = new Map<string, number>(nodes.map((n) => [n.id, 0]));
-  for (const e of directionalEdges) {
-    inDegree.set(e.toId, (inDegree.get(e.toId) ?? 0) + 1);
-  }
-
-  const rank = new Map<string, number>();
-  const queue = nodes.filter((n) => (inDegree.get(n.id) ?? 0) === 0).map((n) => n.id);
-  for (const id of queue) rank.set(id, 0);
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    const r = rank.get(current) ?? 0;
-    for (const e of directionalEdges.filter((e) => e.fromId === current)) {
-      const existing = rank.get(e.toId) ?? 0;
-      rank.set(e.toId, Math.max(existing, r + 1));
-      if (!queue.includes(e.toId)) queue.push(e.toId);
-    }
-  }
-
-  // Assign remaining nodes (relates_to only) to rank 0
-  for (const n of nodes) {
-    if (!rank.has(n.id)) rank.set(n.id, 0);
-  }
-
-  // Group by rank
-  const byRank = new Map<number, Node[]>();
-  for (const n of nodes) {
-    const r = rank.get(n.id) ?? 0;
-    if (!byRank.has(r)) byRank.set(r, []);
-    byRank.get(r)!.push(n);
-  }
-
-  const positions = new Map<string, { x: number; y: number }>();
-  const maxCol = Math.max(...byRank.keys());
-
-  let totalHeight = 0;
-  for (const [col, colNodes] of byRank) {
-    const colHeight = colNodes.length * (NODE_H + ROW_GAP) - ROW_GAP;
-    totalHeight = Math.max(totalHeight, colHeight);
-    const x = col * (NODE_W + COL_GAP) + 20;
-    colNodes.forEach((n, row) => {
-      positions.set(n.id, { x, y: row * (NODE_H + ROW_GAP) + 20 });
-    });
-  }
-
-  return {
-    positions,
-    width: (maxCol + 1) * (NODE_W + COL_GAP) + 20,
-    height: totalHeight + 40,
-  };
-}
 
 export function DependencyGraph({ nodes, edges }: Props) {
-  const { positions, width, height } = useMemo(() => computeLayout(nodes, edges), [nodes, edges]);
+  const { positions, width, height } = useMemo(() => rankLayout(nodes, edges), [nodes, edges]);
 
   if (nodes.length === 0 || edges.length === 0) return null;
 
@@ -99,7 +36,7 @@ export function DependencyGraph({ nodes, edges }: Props) {
     <div className="overflow-x-auto rounded-xl border bg-muted/50 p-2">
       <svg width={width} height={Math.max(height, 100)} className="block">
         <defs>
-          {["blocks", "depends_on", "relates_to"].map((type) => (
+          {(["blocks", "depends_on", "relates_to"] as const).map((type) => (
             <marker
               key={type}
               id={`arrow-${type}`}
@@ -126,7 +63,7 @@ export function DependencyGraph({ nodes, edges }: Props) {
           const x2 = to.x;
           const y2 = to.y + NODE_H / 2;
           const cx = (x1 + x2) / 2;
-          const color = EDGE_COLOR[edge.type] ?? "#9ca3af";
+          const color = EDGE_COLOR[edge.type as DependencyType] ?? "#9ca3af";
           const isDirectional = edge.type !== "relates_to";
 
           return (
@@ -188,11 +125,13 @@ export function DependencyGraph({ nodes, edges }: Props) {
 
       {/* Legend */}
       <div className="flex items-center gap-4 px-2 pb-1 mt-1">
-        {[
-          { type: "blocks", label: "blocks" },
-          { type: "depends_on", label: "depends on" },
-          { type: "relates_to", label: "relates to" },
-        ].map(({ type, label }) => (
+        {(
+          [
+            { type: "blocks", label: "blocks" },
+            { type: "depends_on", label: "depends on" },
+            { type: "relates_to", label: "relates to" },
+          ] as const
+        ).map(({ type, label }) => (
           <div key={type} className="flex items-center gap-1.5">
             <svg width={24} height={10}>
               <line

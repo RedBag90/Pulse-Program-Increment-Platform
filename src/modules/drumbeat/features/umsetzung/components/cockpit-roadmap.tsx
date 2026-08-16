@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import {
   roadmapAxis,
   cockpitRoadmapRows,
@@ -18,11 +18,7 @@ import type {
   FeatureStatus,
 } from "@/server/views/umsetzung-cockpit-view";
 import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
-import {
-  linkDependencyAction,
-  unlinkDependencyAction,
-  changeDependencyTypeAction,
-} from "@/modules/drumbeat/features/dependencies/actions/dependency";
+import { useDependencyEdgeEditing } from "@/modules/drumbeat/features/dependencies/hooks/use-dependency-edge-editing";
 import { EdgeTypeMenu } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import { FeaturePickerPopover } from "@/modules/drumbeat/features/dependencies/components/feature-picker-popover";
 
@@ -58,10 +54,12 @@ export function CockpitRoadmap({
   artId,
   canLinkDependency,
 }: Props) {
-  const [, startTransition] = useTransition();
   const [edgeAnchor, setEdgeAnchor] = useState<EdgeAnchor | null>(null);
   const [addAnchor, setAddAnchor] = useState<AddAnchor | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { error, callLink, callUnlink, callChangeType } = useDependencyEdgeEditing(
+    artId,
+    dependencies,
+  );
 
   const piById = new Map(allPiWindows.map((p) => [p.id, p]));
 
@@ -110,52 +108,6 @@ export function CockpitRoadmap({
       offScopeRole: d.offScopeRole,
       offScopeLabel: d.offScopeLabel,
     }));
-
-  function depById(depId: string): CockpitDependency | undefined {
-    return dependencies.find((d) => d.id === depId);
-  }
-
-  function callLink(sourceId: string, targetId: string, type: DependencyEdgeType = "depends_on") {
-    if (sourceId === targetId) return;
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.set("fromId", sourceId);
-      fd.set("toId", targetId);
-      fd.set("type", type);
-      fd.set("artId", artId);
-      const res = await linkDependencyAction({}, fd);
-      setError(res.error ?? null);
-    });
-  }
-
-  function callUnlink(depId: string) {
-    const d = depById(depId);
-    if (!d) return;
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.set("fromId", d.fromId);
-      fd.set("toId", d.toId);
-      fd.set("type", d.type);
-      fd.set("artId", artId);
-      const res = await unlinkDependencyAction({}, fd);
-      setError(res.error ?? null);
-    });
-  }
-
-  function callChangeType(depId: string, next: DependencyEdgeType) {
-    const d = depById(depId);
-    if (!d || d.type === next) return;
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.set("fromId", d.fromId);
-      fd.set("toId", d.toId);
-      fd.set("fromType", d.type);
-      fd.set("toType", next);
-      fd.set("artId", artId);
-      const res = await changeDependencyTypeAction({}, fd);
-      setError(res.error ?? null);
-    });
-  }
 
   return (
     <div className="relative">

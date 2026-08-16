@@ -4,6 +4,7 @@ import { useActionState, useEffect, startTransition } from "react";
 import { Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { unlinkDependencyBatchAction } from "@/modules/drumbeat/features/dependencies/actions/dependency";
+import { unlinkDependencyBatchFormData } from "@/modules/drumbeat/features/dependencies/lib/dependency-actions-client";
 import type { DependencyListRow } from "@/server/views/dependencies-list";
 
 interface Props {
@@ -28,9 +29,10 @@ export function DependenciesBulkActionBar({ selectedRows, artId, onClear }: Prop
 
   function unlink() {
     if (!window.confirm(`${selectedRows.length} Abhängigkeit(en) entfernen?`)) return;
-    const fd = new FormData();
-    for (const r of selectedRows) fd.append("dependencyIds", r.id);
-    fd.set("artId", artId);
+    const fd = unlinkDependencyBatchFormData({
+      dependencyIds: selectedRows.map((r) => r.id),
+      artId,
+    });
     startTransition(() => dispatch(fd));
   }
 

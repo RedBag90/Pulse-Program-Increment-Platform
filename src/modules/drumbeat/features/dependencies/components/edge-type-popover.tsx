@@ -3,6 +3,9 @@
 import { useState, type ReactNode } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
+// Single source of truth für die Edge-Farben (graph-constants). Re-Export
+// erhaelt die bestehende `EDGE_COLOR`-API dieses Moduls.
+import { EDGE_COLOR } from "@/modules/drumbeat/domain/graph-constants";
 
 /**
  * Shared Edge-Type-Popover — wird vom Epic-Breakdown-Netzplan UND vom
@@ -18,11 +21,7 @@ import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdo
 
 export type EdgeTypeChange = (next: DependencyEdgeType) => void;
 
-export const EDGE_COLOR: Record<DependencyEdgeType, string> = {
-  blocks: "#ef4444",
-  depends_on: "#d97706",
-  relates_to: "#94a3b8",
-};
+export { EDGE_COLOR };
 
 export const EDGE_LABEL: Record<DependencyEdgeType, string> = {
   blocks: "blocks",

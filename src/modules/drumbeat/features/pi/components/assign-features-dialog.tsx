@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { setFeaturePiAction } from "@/modules/work/features/feature/actions/feature";
+import { setFeaturePi } from "@/modules/work/features/feature/lib/feature-actions-client";
+import { formatWsjf } from "@/domain/schemas/initiative";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,11 +48,11 @@ export function AssignFeaturesDialog({ piId, artId, candidates }: Props) {
     if (selected.size === 0) return;
     setError(null);
     startTransition(async () => {
-      const fd = new FormData();
-      for (const id of selected) fd.append("featureIds", id);
-      fd.set("piId", piId);
-      fd.set("artId", artId);
-      const result = await setFeaturePiAction({}, fd);
+      const result = await setFeaturePi(setFeaturePiAction, {
+        featureIds: [...selected],
+        piId,
+        artId,
+      });
       if (result.error) {
         setError(result.error);
       } else {
@@ -94,7 +96,7 @@ export function AssignFeaturesDialog({ piId, artId, candidates }: Props) {
                   <span className="flex-1 min-w-0 truncate">{f.title}</span>
                   {f.wsjfComputed !== null && (
                     <Badge variant="secondary" className="shrink-0">
-                      WSJF {f.wsjfComputed.toFixed(2)}
+                      WSJF {formatWsjf(f.wsjfComputed)}
                     </Badge>
                   )}
                   {f.currentPiName && (
@@ -138,11 +140,11 @@ export function RemoveFromPiButton({ featureId, artId }: { featureId: string; ar
   function handleClick() {
     setError(null);
     startTransition(async () => {
-      const fd = new FormData();
-      fd.append("featureIds", featureId);
-      fd.set("piId", "");
-      fd.set("artId", artId);
-      const result = await setFeaturePiAction({}, fd);
+      const result = await setFeaturePi(setFeaturePiAction, {
+        featureIds: [featureId],
+        piId: "",
+        artId,
+      });
       if (result.error) setError(result.error);
       else toast.success("Feature removed from PI");
     });

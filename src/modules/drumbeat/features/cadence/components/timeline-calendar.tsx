@@ -3,6 +3,12 @@
 import { useMemo, useRef, useState, useEffect, startTransition, useActionState } from "react";
 import { updatePiOnTimelineAction } from "@/modules/drumbeat/features/timeline/actions/pi";
 import type { ActionState } from "@/server/http/server-action";
+import { isoDay, parseIsoDay, addDays, daysBetween } from "@/modules/core/kernel/domain/calendar";
+import {
+  buildTimelineAxis,
+  findTimelineConflicts,
+  timelineBarMetrics,
+} from "@/modules/drumbeat/domain/timeline-grid";
 
 interface CalendarPi {
   id: string;
@@ -23,8 +29,6 @@ interface Props {
   onPiClick: (piId: string) => void;
 }
 
-const PX_PER_DAY = 6;
-const MONTHS_TO_SHOW = 12;
 const ROW_HEIGHT = 36;
 
 const STATUS_COLOR: Record<string, string> = {
@@ -37,43 +41,6 @@ const STATUS_DOT: Record<string, string> = {
   active: "bg-blue-600",
   completed: "bg-emerald-600",
 };
-
-function isoDay(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function parseISO(iso: string): Date {
-  return new Date(`${iso}T00:00:00Z`);
-}
-
-function daysBetween(a: Date, b: Date): number {
-  return Math.round((b.getTime() - a.getTime()) / 86400000);
-}
-
-function addDays(d: Date, days: number): Date {
-  const r = new Date(d);
-  r.setUTCDate(r.getUTCDate() + days);
-  return r;
-}
-
-function startOfMonth(d: Date): Date {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
-}
-
-const MONTH_LABELS_DE = [
-  "Jan",
-  "Feb",
-  "Mär",
-  "Apr",
-  "Mai",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Okt",
-  "Nov",
-  "Dez",
-];
 
 interface DragState {
   piId: string;
@@ -105,64 +72,27 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
   // wenn der User mehrere Drags schnell hintereinander macht.
   const pendingByPi = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  const anchor = useMemo(() => {
-    if (pis.length === 0) return startOfMonth(new Date());
-    const earliest = pis.reduce<Date>((min, p) => {
-      const d = parseISO(p.startDate);
-      return d < min ? d : min;
-    }, parseISO(pis[0]!.startDate));
-    return startOfMonth(earliest);
-  }, [pis]);
+  // Fixed 12-month axis + pixel metrics from the domain grid. Anchor follows
+  // the original PIs, so a drag never shifts the whole axis mid-move.
+  const axis = useMemo(
+    () =>
+      buildTimelineAxis(
+        pis.map((p) => ({ startDate: parseIsoDay(p.startDate), endDate: parseIsoDay(p.endDate) })),
+        new Date(),
+      ),
+    [pis],
+  );
+  const { anchor, pxPerDay, totalWidthPx, months: monthHeaders } = axis;
 
-  // Total days = MONTHS_TO_SHOW months from anchor.
-  const totalDays = useMemo(() => {
-    const end = new Date(
-      Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + MONTHS_TO_SHOW, 1),
-    );
-    return daysBetween(anchor, end);
-  }, [anchor]);
-
-  // Month labels positioned at their month-start.
-  const monthHeaders = useMemo(() => {
-    return Array.from({ length: MONTHS_TO_SHOW }, (_, i) => {
-      const d = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + i, 1));
-      const widthDays = daysBetween(
-        d,
-        new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)),
-      );
-      return {
-        key: `${d.getUTCFullYear()}-${d.getUTCMonth()}`,
-        label: `${MONTH_LABELS_DE[d.getUTCMonth()]} ${d.getUTCFullYear()}`,
-        leftPx: daysBetween(anchor, d) * PX_PER_DAY,
-        widthPx: widthDays * PX_PER_DAY,
-      };
-    });
-  }, [anchor]);
-
-  // Overlap-Detection (excluding the actively dragged PI).
+  // Overlap-Detection über die effektiven Fenster (das aktiv gezogene PI wird
+  // mit seiner optimistischen Position eingerechnet).
   const conflictIds = useMemo(() => {
-    const out = new Set<string>();
-    const effectivePis = pis.map((p) => {
-      if (drag && drag.piId === p.id) {
-        return { ...p, startDate: isoDay(drag.curStart), endDate: isoDay(drag.curEnd) };
-      }
-      return p;
-    });
-    for (let i = 0; i < effectivePis.length; i++) {
-      const a = effectivePis[i]!;
-      const aStart = parseISO(a.startDate);
-      const aEnd = parseISO(a.endDate);
-      for (let j = i + 1; j < effectivePis.length; j++) {
-        const b = effectivePis[j]!;
-        const bStart = parseISO(b.startDate);
-        const bEnd = parseISO(b.endDate);
-        if (aStart < bEnd && aEnd > bStart) {
-          out.add(a.id);
-          out.add(b.id);
-        }
-      }
-    }
-    return out;
+    const windows = pis.map((p) =>
+      drag && drag.piId === p.id
+        ? { id: p.id, startDate: drag.curStart, endDate: drag.curEnd }
+        : { id: p.id, startDate: parseIsoDay(p.startDate), endDate: parseIsoDay(p.endDate) },
+    );
+    return findTimelineConflicts(windows);
   }, [pis, drag]);
 
   // Pointer handlers.
@@ -171,7 +101,7 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
     const rect = trackRef.current.getBoundingClientRect();
     const xInTrack = e.clientX - rect.left + (containerRef.current?.scrollLeft ?? 0);
     if (drag.mode === "move") {
-      const newStartDay = Math.max(0, Math.round((xInTrack - drag.grabOffsetPx) / PX_PER_DAY));
+      const newStartDay = Math.max(0, Math.round((xInTrack - drag.grabOffsetPx) / pxPerDay));
       const durationDays = daysBetween(drag.origStart, drag.origEnd);
       const newStart = addDays(anchor, newStartDay);
       const newEnd = addDays(newStart, durationDays);
@@ -180,7 +110,7 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
       // resize-end
       const newEndDay = Math.max(
         daysBetween(anchor, drag.curStart) + 1,
-        Math.round(xInTrack / PX_PER_DAY),
+        Math.round(xInTrack / pxPerDay),
       );
       const newEnd = addDays(anchor, newEndDay);
       setDrag({ ...drag, curEnd: newEnd });
@@ -233,7 +163,7 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
     if (target.closest("[data-pi-bar]")) return;
     const rect = trackRef.current.getBoundingClientRect();
     const xInTrack = e.clientX - rect.left + (containerRef.current?.scrollLeft ?? 0);
-    const dayOffset = Math.max(0, Math.floor(xInTrack / PX_PER_DAY));
+    const dayOffset = Math.max(0, Math.floor(xInTrack / pxPerDay));
     onEmptyDayClick(isoDay(addDays(anchor, dayOffset)));
   };
 
@@ -246,13 +176,13 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
       <div
         ref={trackRef}
         className="relative select-none"
-        style={{ width: totalDays * PX_PER_DAY, height: ROW_HEIGHT * (pis.length + 1) + 28 }}
+        style={{ width: totalWidthPx, height: ROW_HEIGHT * (pis.length + 1) + 28 }}
         onClick={onTrackClick}
       >
         {/* Month headers */}
         <div
           className="sticky top-0 z-10 flex h-7 border-b bg-muted/40 text-xs"
-          style={{ width: totalDays * PX_PER_DAY }}
+          style={{ width: totalWidthPx }}
         >
           {monthHeaders.map((m) => (
             <div
@@ -271,10 +201,9 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
           .sort((a, b) => a.startDate.localeCompare(b.startDate))
           .map((pi, idx) => {
             const isDragging = drag?.piId === pi.id;
-            const start = isDragging ? drag.curStart : parseISO(pi.startDate);
-            const end = isDragging ? drag.curEnd : parseISO(pi.endDate);
-            const leftPx = daysBetween(anchor, start) * PX_PER_DAY;
-            const widthPx = Math.max(PX_PER_DAY * 2, daysBetween(start, end) * PX_PER_DAY);
+            const start = isDragging ? drag.curStart : parseIsoDay(pi.startDate);
+            const end = isDragging ? drag.curEnd : parseIsoDay(pi.endDate);
+            const { leftPx, widthPx } = timelineBarMetrics({ startDate: start, endDate: end }, axis);
             const top = 28 + idx * ROW_HEIGHT + 4;
             const conflict = conflictIds.has(pi.id);
             const lockable = pi.status === "planned" && canEdit;
@@ -300,10 +229,10 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
                     piId: pi.id,
                     mode: "move",
                     grabOffsetPx: xInTrack - leftPx,
-                    origStart: parseISO(pi.startDate),
-                    origEnd: parseISO(pi.endDate),
-                    curStart: parseISO(pi.startDate),
-                    curEnd: parseISO(pi.endDate),
+                    origStart: parseIsoDay(pi.startDate),
+                    origEnd: parseIsoDay(pi.endDate),
+                    curStart: parseIsoDay(pi.startDate),
+                    curEnd: parseIsoDay(pi.endDate),
                   });
                 }}
                 className={`absolute flex items-center gap-1.5 rounded-md border px-2 text-xs font-medium shadow-sm ${STATUS_COLOR[pi.status] ?? "bg-muted text-foreground"} ${conflict ? "ring-2 ring-destructive" : ""} ${lockable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
@@ -328,10 +257,10 @@ export function TimelineCalendar({ pis, canEdit, onEmptyDayClick, onPiClick }: P
                         piId: pi.id,
                         mode: "resize-end",
                         grabOffsetPx: 0,
-                        origStart: parseISO(pi.startDate),
-                        origEnd: parseISO(pi.endDate),
-                        curStart: parseISO(pi.startDate),
-                        curEnd: parseISO(pi.endDate),
+                        origStart: parseIsoDay(pi.startDate),
+                        origEnd: parseIsoDay(pi.endDate),
+                        curStart: parseIsoDay(pi.startDate),
+                        curEnd: parseIsoDay(pi.endDate),
                       });
                     }}
                     className="ml-auto h-full w-1.5 cursor-ew-resize rounded-r border-l border-current/30"

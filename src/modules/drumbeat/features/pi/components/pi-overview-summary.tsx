@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
 import { StatusDistributionChart } from "@/components/charts/status-distribution-chart-lazy";
-import type { PiOverviewSummary as Summary } from "@/modules/drumbeat/domain/pi-overview";
+import type { PiOverviewSummary as Summary } from "@/modules/drumbeat/server/views/pi-detail";
 
 interface Props {
   summary: Summary;
