@@ -6,12 +6,11 @@
  */
 
 import type { Prisma, PrismaClient } from "@/generated/prisma";
-import type { TenantId, EpicId } from "@/modules/core/kernel/domain/types";
+import type { TenantId, EpicId, ValueStreamId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok } from "@/modules/core/kernel/domain/errors";
-import { parseTimeline } from "@/modules/work/domain/timeline";
-import { fundedWindow, withScheduleEstimates } from "@/modules/work/domain/epic-schedule";
+import { computeAllocationScheduleUpdate } from "@/modules/budgeting/domain/allocation-schedule";
 import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
 import {
   halfYearKey,
@@ -35,6 +34,11 @@ export interface BudgetingBoardData {
   periods: { key: string; label: string }[];
   /** Total budget pool per half-year key. */
   pool: Record<string, number>;
+  /**
+   * The forecast axis identity, so the client need not re-parse `periods[0]`
+   * to recover the horizon start. `periods.length === count`.
+   */
+  axis: { start: Date; count: number };
 }
 
 /** A Value Stream's budget derived from its Epics' allocations, per half-year. */
@@ -142,7 +146,7 @@ export async function getBudgetingBoard(
   tenantId: TenantId,
 ): Promise<BudgetingBoardData> {
   const { epics, axis, pool } = await loadBudgetingModel(db, tenantId);
-  return { epics, periods: axis.periods, pool };
+  return { epics, periods: axis.periods, pool, axis: { start: axis.start, count: axis.count } };
 }
 
 /**
@@ -165,6 +169,29 @@ export async function getValueStreamBudgets(
       total: r.total,
     }));
   return { periods: axis.periods, valueStreams };
+}
+
+/**
+ * One Value Stream's budget (+ the forecast periods), for consumers that need a
+ * single VS and would otherwise pull the whole board and discard the rest.
+ *
+ * Scoped `.find` inside the seam, not a narrower Prisma query: the forecast axis
+ * (and thus the `periods` columns) is derived tenant-wide from every staged
+ * Epic's start + the pool, so scoping the query to one VS's Epics would shift
+ * the horizon and change the output. The seam owns the "pick one VS" logic; the
+ * output stays identical to `getValueStreamBudgets(...).valueStreams.find(...)`.
+ */
+export async function getValueStreamBudget(
+  db: PrismaClient,
+  tenantId: TenantId,
+  valueStreamId: ValueStreamId,
+): Promise<{ periods: { key: string; label: string }[]; budget: ValueStreamBudget | null }> {
+  const { epics, axis } = await loadBudgetingModel(db, tenantId);
+  const row = rollupByValueStream(epics, axis).find((r) => r.valueStreamId === valueStreamId);
+  const budget: ValueStreamBudget | null = row
+    ? { valueStreamId, name: row.valueStream ?? "", byPeriod: row.byPeriod, total: row.total }
+    : null;
+  return { periods: axis.periods, budget };
 }
 
 export interface SaveBudgetAllocationInput {
@@ -199,29 +226,22 @@ export async function saveBudgetAllocation(
       },
     });
 
-    // Derive the Epic schedule from where the money actually lands.
-    //  - `timeline.estimates` keeps its actuals-preserving merge (unchanged).
-    //  - `plannedStartAt`/`plannedEndAt` always mirror the funded window —
-    //    empty allocations clear both, so the Soll-Fenster never lags behind.
-    const fw = fundedWindow(allocations);
+    // Derive the Epic schedule from where the money actually lands — the
+    // funded-window → planned-dates + timeline-estimate mirroring (incl. the
+    // clear-on-empty invariant) lives in the pure domain seam.
     const epic = await tx.initiative.findFirst({
       where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
       select: { timeline: true },
     });
-    const timeline = parseTimeline(epic?.timeline);
+    const schedule = computeAllocationScheduleUpdate(allocations, epic?.timeline);
     await tx.initiative.update({
       where: { id: epicId },
       data: {
         updatedBy: mctx.actorId,
-        plannedStartAt: fw?.start ?? null,
-        plannedEndAt: fw?.end ?? null,
-        ...(fw
-          ? {
-              timeline: withScheduleEstimates(
-                timeline,
-                fw.estimates,
-              ) as unknown as Prisma.InputJsonValue,
-            }
+        plannedStartAt: schedule.plannedStartAt,
+        plannedEndAt: schedule.plannedEndAt,
+        ...(schedule.timeline
+          ? { timeline: schedule.timeline as unknown as Prisma.InputJsonValue }
           : {}),
       },
     });

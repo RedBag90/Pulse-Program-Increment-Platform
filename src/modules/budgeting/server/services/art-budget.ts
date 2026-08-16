@@ -9,7 +9,7 @@ import {
   type ArtFeatureLoad,
 } from "@/modules/budgeting/domain/art-budget";
 import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
-import { getValueStreamBudgets } from "@/modules/budgeting/server/services/budgeting";
+import { getValueStreamBudget } from "@/modules/budgeting/server/services/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 
@@ -40,8 +40,8 @@ export async function getArtBudgetBreakdown(
   tenantId: TenantId,
   valueStreamId: ValueStreamId,
 ): Promise<ArtBudgetBreakdown> {
-  const [vsBudgets, arts] = await Promise.all([
-    getValueStreamBudgets(db, tenantId),
+  const [vsBudget, arts] = await Promise.all([
+    getValueStreamBudget(db, tenantId, valueStreamId),
     db.art.findMany({
       where: { tenantId, valueStreamId, deletedAt: null },
       select: { id: true, name: true, budget: { select: { byPeriod: true } } },
@@ -49,8 +49,7 @@ export async function getArtBudgetBreakdown(
     }),
   ]);
 
-  const vs = vsBudgets.valueStreams.find((b) => b.valueStreamId === valueStreamId);
-  const vsByPeriod = vs?.byPeriod ?? {};
+  const vsByPeriod = vsBudget.budget?.byPeriod ?? {};
   const artIds = arts.map((a) => a.id);
 
   const features = await db.initiative.findMany({
@@ -75,7 +74,7 @@ export async function getArtBudgetBreakdown(
   );
 
   // Columns: the budget-plan periods plus any half-year a feature's PI sits in.
-  const keys = new Set<string>(vsBudgets.periods.map((p) => p.key));
+  const keys = new Set<string>(vsBudget.periods.map((p) => p.key));
   for (const f of features) if (f.pi) keys.add(halfYearKey(f.pi.startDate));
   const periods = [...keys].sort().map((key) => ({ key, label: halfYearLabel(key) }));
 
@@ -83,12 +82,9 @@ export async function getArtBudgetBreakdown(
     artId: a.id,
     name: a.name,
     budgetByPeriod: parsePeriodAmountMap(a.budget?.byPeriod),
-    load: loads.get(a.id) ?? {
-      artId: a.id,
-      byPeriod: {},
-      backlog: { count: 0, jobSize: 0 },
-      total: { count: 0, jobSize: 0 },
-    },
+    // `aggregateArtFeatureLoad(artIds, …)` guarantees exactly one entry per id
+    // in `artIds` (= `arts.map(a => a.id)`), so this lookup is always present.
+    load: loads.get(a.id)!,
   }));
 
   return { periods, vsByPeriod, arts: rows };
