@@ -11,9 +11,7 @@ import { getValueStreamBudgets } from "@/modules/budgeting/server/services/budge
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { listPiStandards } from "@/modules/drumbeat/server/services/pi-standard";
 import { buildStructurePageModel } from "@/modules/core/org/server/views/structure-page";
-import { StructurePageShell } from "@/modules/core/org/features/structure/components/structure-page-shell";
-import { CreateTimelineButton } from "@/modules/drumbeat/features/cadence/components/create-timeline-button";
-import { TimelineDetailPane } from "@/modules/drumbeat/features/cadence/components/timeline-detail-pane";
+import { TimelinesPageShell } from "@/modules/drumbeat/features/cadence/components/timelines-page-shell";
 
 /**
  * Timelines-Page — Master-Detail-Layout fuer **Timelines** + ihre PIs +
@@ -21,6 +19,11 @@ import { TimelineDetailPane } from "@/modules/drumbeat/features/cadence/componen
  * Click-Throughs aus dem Timeline-Detail (z. B. „ART joinen") die
  * zugehoerigen ART-Details zeigen koennen — die Liste selbst zeigt aber
  * nur Timelines.
+ *
+ * Gerendert wird über den Client-Adapter `TimelinesPageShell` statt direkt über
+ * die `StructurePageShell`: das Detail-Pane wird per Render-Funktion injiziert,
+ * und eine Funktion überlebt die RSC-Grenze nicht. Von hier gehen deshalb nur
+ * serialisierbare Daten raus.
  */
 export default async function TimelinesPage() {
   const principal = await requirePrincipal().catch(() => null);
@@ -56,26 +59,14 @@ export default async function TimelinesPage() {
 
   return (
     <Suspense fallback={null}>
-      <StructurePageShell
-        title="Timelines"
-        subtitle="Geteilte PI-Kadenzen — Timelines, ihre PIs und subscribierte ARTs."
-        availableKinds={["timeline"]}
+      <TimelinesPageShell
         model={model}
-        canCreateVs={false}
+        piStandards={piStandards}
         canUpdateVs={canUpdateVs}
         canCreateArt={canCreateArt}
         canUpdateArt={canUpdateArt}
         canDeleteArt={canDeleteArt}
         canManageTimeline={canManageTimeline}
-        createTimelineSlot={<CreateTimelineButton />}
-        renderTimelineDetail={(timeline, onSelectNode) => (
-          <TimelineDetailPane
-            timeline={timeline}
-            canManage={canManageTimeline}
-            piStandards={piStandards}
-            onSelectNode={onSelectNode}
-          />
-        )}
       />
     </Suspense>
   );
