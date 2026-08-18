@@ -79,6 +79,15 @@ function unwrap(type: ZodTypeAny): UnwrappedFlags {
       cursor = cursorInner(cursor);
       continue;
     }
+    if (name === "ZodDefault") {
+      // `z.array(...).default([])` ⇒ ZodDefault<ZodArray>. Ohne Abschälen bricht
+      // die Schleife hier ab, das Array bleibt unerkannt und wird als Skalar
+      // (fields.string) gelesen — leer = `null` statt `[]`, was `z.array().default`
+      // NICHT auffängt (Default greift nur bei `undefined`). Der innere Typ liegt
+      // wie bei Optional/Nullable in `_def.innerType`.
+      cursor = cursorInner(cursor);
+      continue;
+    }
     if (name === "ZodEffects") {
       // Zod's `.refine()` / `.transform()` wrap the type in ZodEffects; the
       // inner shape is what we want to inspect.

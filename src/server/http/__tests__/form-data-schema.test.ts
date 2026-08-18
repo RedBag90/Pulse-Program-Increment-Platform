@@ -84,6 +84,33 @@ describe("parseFromSchema — picks the right fields() reader per Zod shape", ()
     expect(parseFromSchema(makeFd([]), schema)).toEqual({ tags: [] });
   });
 
+  // Regression: `z.array(...).default([])` is ZodDefault<ZodArray>. Before the
+  // ZodDefault-peel in unwrap(), an empty field was read as the scalar `null`
+  // (fields.string) and `.default([])` did NOT catch it (default only fires on
+  // `undefined`) → the action failed with "Expected array, received null".
+  it("z.array(...).default([]) → list reader (empty → [], not null)", () => {
+    const schema = z.object({ ids: z.array(z.string().uuid()).max(10).default([]) });
+    // Absent → [] (the exact "no named people selected" case).
+    const emptyRaw = parseFromSchema(makeFd([]), schema);
+    expect(emptyRaw).toEqual({ ids: [] });
+    expect(schema.safeParse(emptyRaw).success).toBe(true);
+    // Present values are collected via getAll.
+    const fd = makeFd([
+      ["ids", "550e8400-e29b-41d4-a716-446655440000"],
+      ["ids", "00000000-0000-0000-0000-000000000000"],
+    ]);
+    expect(parseFromSchema(fd, schema)).toEqual({
+      ids: ["550e8400-e29b-41d4-a716-446655440000", "00000000-0000-0000-0000-000000000000"],
+    });
+  });
+
+  it("z.string().default('x') stays a scalar reader (ZodDefault peel doesn't force arrays)", () => {
+    const schema = z.object({ mode: z.string().default("x") });
+    // Absent → null (scalar), and the schema's default then applies on parse.
+    expect(parseFromSchema(makeFd([]), schema)).toEqual({ mode: null });
+    expect(parseFromSchema(makeFd([["mode", "y"]]), schema)).toEqual({ mode: "y" });
+  });
+
   it("non-object schema returns an empty object (caller hands to safeParse anyway)", () => {
     const schema = z.string();
     expect(parseFromSchema(makeFd([["x", "y"]]), schema)).toEqual({});
