@@ -28,6 +28,7 @@ import {
   type BusinessCase,
 } from "@/modules/work/domain/business-case";
 import type { TimelineFields } from "@/modules/work/domain/timeline";
+import { timelinePlannedWindow } from "@/modules/work/domain/epic-schedule";
 
 // ---------------------------------------------------------------------------
 // Create Epic (level 0)
@@ -333,11 +334,18 @@ export async function saveTimeline(
     // done" — der Stempel entsteht bei der L4→L5-Abnahme durch das Controlling
     // (ADR-0018). Implementation-Actuals lösen deshalb keinen Wechsel aus.
 
+    // Das geplante Zeitfenster folgt dem Reifegrad-Plan: L4.1 (implementation_
+    // started) → L4.2 (implementation). `saveTimeline` ist damit die alleinige
+    // Quelle der plannedStartAt/plannedEndAt-Spalten (Budget setzt sie nicht mehr).
+    const { plannedStartAt, plannedEndAt } = timelinePlannedWindow(fields);
+
     await tx.initiative.update({
       where: { id: epicId },
       data: {
         updatedBy: mctx.actorId,
         timeline: fields as unknown as Prisma.InputJsonValue,
+        plannedStartAt,
+        plannedEndAt,
       },
     });
 

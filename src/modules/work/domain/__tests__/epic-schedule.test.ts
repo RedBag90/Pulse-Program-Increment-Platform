@@ -2,8 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   resolveCostStart,
   resolveGoLive,
-  fundedWindow,
-  withScheduleEstimates,
+  timelinePlannedWindow,
   resolveEpicWindow,
   plannedEpicWindow,
   rangeOverlapsPlannedWindow,
@@ -73,68 +72,41 @@ describe("resolveGoLive — anchored on the Implementation milestone", () => {
   });
 });
 
-describe("fundedWindow().estimates — budgeting decision → schedule estimates", () => {
-  it("backlog = start of first funded half-year, implementation = end of last", () => {
-    expect(fundedWindow({ "2026-H2": 50000, "2027-H1": 70000 })?.estimates).toEqual({
-      backlog: "2026-07-01",
-      implementation: "2027-06-30",
+describe("timelinePlannedWindow — Plan-Fenster aus L4.1 → L4.2", () => {
+  it("maps implementation_started → plannedStartAt, implementation → plannedEndAt", () => {
+    const w = timelinePlannedWindow({
+      estimates: { implementation_started: "2026-07-01", implementation: "2027-06-30" },
+      actuals: {},
     });
+    expect(w.plannedStartAt?.toISOString()).toBe("2026-07-01T00:00:00.000Z");
+    expect(w.plannedEndAt?.toISOString()).toBe("2027-06-30T00:00:00.000Z");
   });
 
-  it("ignores zero allocations when bounding the window", () => {
-    expect(fundedWindow({ "2026-H1": 0, "2026-H2": 40, "2027-H2": 0 })?.estimates).toEqual({
-      backlog: "2026-07-01",
-      implementation: "2026-12-31",
-    });
-  });
-
-  it("returns null when nothing is funded (timeline left untouched)", () => {
-    expect(fundedWindow({})).toBeNull();
-    expect(fundedWindow({ "2026-H1": 0 })).toBeNull();
-  });
-});
-
-describe("fundedWindow — single source of truth for the funded window", () => {
-  it("returns first/last keys, Date pair, and ISO estimates in one shot", () => {
-    const fw = fundedWindow({ "2026-H2": 50000, "2027-H1": 70000 });
-    expect(fw).not.toBeNull();
-    expect(fw!.firstKey).toBe("2026-H2");
-    expect(fw!.lastKey).toBe("2027-H1");
-    expect(fw!.start.toISOString().slice(0, 10)).toBe("2026-07-01");
-    expect(fw!.end.toISOString().slice(0, 10)).toBe("2027-06-30");
-    expect(fw!.estimates).toEqual({ backlog: "2026-07-01", implementation: "2027-06-30" });
-  });
-
-  it("ignores zero allocations when bounding the window", () => {
-    const fw = fundedWindow({ "2026-H1": 0, "2026-H2": 40, "2027-H2": 0 });
-    expect(fw!.firstKey).toBe("2026-H2");
-    expect(fw!.lastKey).toBe("2026-H2");
-    expect(fw!.estimates).toEqual({ backlog: "2026-07-01", implementation: "2026-12-31" });
-  });
-
-  it("returns null when nothing is funded", () => {
-    expect(fundedWindow({})).toBeNull();
-    expect(fundedWindow({ "2026-H1": 0 })).toBeNull();
-  });
-
-  it("Date and ISO views describe the same window — projections never drift", () => {
-    const fw = fundedWindow({ "2026-H1": 100, "2026-H2": 200 });
-    expect(fw!.start.toISOString().slice(0, 10)).toBe(fw!.estimates.backlog);
-    expect(fw!.end.toISOString().slice(0, 10)).toBe(fw!.estimates.implementation);
-  });
-});
-
-describe("withScheduleEstimates — actuals-preserving merge", () => {
-  it("sets backlog/implementation estimates, keeps actuals and other estimates", () => {
-    const timeline: TimelineFields = {
-      estimates: { detailing: "2025-01-01", backlog: "2025-06-01", implementation: "2025-12-01" },
-      actuals: { backlog: "2025-05-15" },
-    };
+  it("leaves an endpoint null when its estimate is unset (other estimates ignored)", () => {
     expect(
-      withScheduleEstimates(timeline, { backlog: "2026-07-01", implementation: "2027-06-30" }),
-    ).toEqual({
-      estimates: { detailing: "2025-01-01", backlog: "2026-07-01", implementation: "2027-06-30" },
-      actuals: { backlog: "2025-05-15" }, // owner's manual actual survives
+      timelinePlannedWindow({ estimates: { implementation_started: "2026-07-01" }, actuals: {} }),
+    ).toEqual({ plannedStartAt: utc("2026-07-01"), plannedEndAt: null });
+    expect(
+      timelinePlannedWindow({
+        estimates: { backlog: "2026-01-01", implementation: "2027-06-30" },
+        actuals: {},
+      }),
+    ).toEqual({ plannedStartAt: null, plannedEndAt: utc("2027-06-30") });
+  });
+
+  it("returns BOTH null for an inverted pair (start > end)", () => {
+    expect(
+      timelinePlannedWindow({
+        estimates: { implementation_started: "2027-06-30", implementation: "2026-07-01" },
+        actuals: {},
+      }),
+    ).toEqual({ plannedStartAt: null, plannedEndAt: null });
+  });
+
+  it("returns both null for an empty timeline", () => {
+    expect(timelinePlannedWindow(emptyTimeline())).toEqual({
+      plannedStartAt: null,
+      plannedEndAt: null,
     });
   });
 });

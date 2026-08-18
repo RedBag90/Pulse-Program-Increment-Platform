@@ -5,17 +5,11 @@
  * - **costStart** = the Backlog milestone — when delivery (and cost) begins.
  * - **goLive** = the Implementation milestone — completion, when benefit lands.
  *
- * It also owns the rule that turns a participatory-budgeting decision into
- * timeline estimates (via `fundedWindow(allocations)?.estimates`) and the
- * merge that applies those estimates without clobbering owner-entered actuals
- * or other estimate fields (`withScheduleEstimates`). The two timeline
- * writers — the Epic owner's `saveTimeline` and budgeting's
- * `saveBudgetAllocation` — both lean on these rules, so they stay consistent.
- *
- * Conflict policy (owner vs. budgeting): **last writer wins** — the schedule
- * has a single `timeline` JSON and each writer overwrites it. Budgeting only
- * touches the backlog/implementation *estimates* and preserves actuals, so an
- * owner's manual actuals always survive a re-allocation. No I/O.
+ * The Epic owner's `saveTimeline` is the single writer of the `timeline` JSON.
+ * The planned delivery window (`Initiative.plannedStartAt/plannedEndAt`) is
+ * derived from the owner's Implementation phase estimates (L4.1 → L4.2) via
+ * `timelinePlannedWindow` — budgeting no longer projects a window onto the
+ * schedule. No I/O.
  */
 
 import type { TimelineFields } from "@/modules/work/domain/timeline";
@@ -23,11 +17,8 @@ import {
   parseIsoMonth,
   monthStart,
   addMonths,
-  isoDay,
-  halfYearStart,
-  parseHalfYearKey,
+  parseIsoDay,
 } from "@/modules/core/kernel/domain/calendar";
-import { fundedPeriodRange, fundedEndDate } from "@/modules/core/kernel/domain/budget-period";
 
 /** The dated facts a cost-start resolution falls back through, newest-first. */
 export interface EpicScheduleAnchors {
@@ -73,73 +64,29 @@ export function resolveGoLive(
   );
 }
 
-/** Estimate anchors derived from a budgeting decision (ISO `yyyy-mm-dd`). */
-export interface ScheduleEstimates {
-  /** Start of the first funded half-year. */
-  backlog: string;
-  /** Last day of the last funded half-year. */
-  implementation: string;
-}
-
 /**
- * The funded window of an Epic — derived from the first/last allocation
- * period. Single source of truth for both representations a caller might want:
- * Date pair (for Prisma columns like `Initiative.plannedStartAt/EndAt`) and
- * ISO strings (for the JSON `timeline.estimates` payload). Both views describe
- * the same window — start = first day of first funded half-year, end = last
- * day of last funded half-year. `start <= end` by construction.
+ * The Epic's planned delivery window, derived from the owner's Implementation
+ * phase estimates in the timeline: start = L4.1 (`implementation_started`,
+ * „Umsetzung gestartet"), end = L4.2 (`implementation`, „Umsetzung fertig").
+ *
+ * This is the single source for `Initiative.plannedStartAt/plannedEndAt` — the
+ * owner sets it in the "Reifegrad-Phasen und Timeline" tab. Endpoints are `null`
+ * when the respective estimate is unset. An inverted pair (start > end) yields
+ * BOTH `null`, so downstream consumers that assume `start <= end` never see a
+ * corrupt window.
  */
-export interface FundedWindow {
-  /** Funded period boundaries by half-year key, e.g. "2026-H1". */
-  firstKey: string;
-  lastKey: string;
-  /** Start of the first funded half-year (UTC). */
-  start: Date;
-  /** Last day of the last funded half-year (UTC). */
-  end: Date;
-  /** ISO-string projection for `timeline.estimates`. */
-  estimates: ScheduleEstimates;
-}
-
-/**
- * Returns the funded window of an Epic, or `null` when nothing is funded. The
- * one place that pins "what does this allocations map describe?" — every
- * downstream representation (Date pair, ISO estimates) is derived from this.
- */
-export function fundedWindow(allocations: Record<string, number>): FundedWindow | null {
-  const range = fundedPeriodRange(allocations);
-  if (!range) return null;
-  const first = parseHalfYearKey(range.firstKey);
-  const last = parseHalfYearKey(range.lastKey);
-  if (!first || !last) return null;
-  const start = halfYearStart(first);
-  const end = fundedEndDate(last, 1);
-  return {
-    firstKey: range.firstKey,
-    lastKey: range.lastKey,
-    start,
-    end,
-    estimates: { backlog: isoDay(start), implementation: isoDay(end) },
-  };
-}
-
-/**
- * Merges schedule estimate anchors into a timeline, preserving the owner's
- * actuals and any other estimate fields (detailing, business_case). The basis
- * of budgeting's "last writer wins, but never clobber actuals" guarantee.
- */
-export function withScheduleEstimates(
-  timeline: TimelineFields,
-  estimates: ScheduleEstimates,
-): TimelineFields {
-  return {
-    estimates: {
-      ...timeline.estimates,
-      backlog: estimates.backlog,
-      implementation: estimates.implementation,
-    },
-    actuals: timeline.actuals,
-  };
+export function timelinePlannedWindow(timeline: TimelineFields): {
+  plannedStartAt: Date | null;
+  plannedEndAt: Date | null;
+} {
+  const start = timeline.estimates.implementation_started
+    ? parseIsoDay(timeline.estimates.implementation_started)
+    : null;
+  const end = timeline.estimates.implementation
+    ? parseIsoDay(timeline.estimates.implementation)
+    : null;
+  if (start && end && start > end) return { plannedStartAt: null, plannedEndAt: null };
+  return { plannedStartAt: start, plannedEndAt: end };
 }
 
 // ---------------------------------------------------------------------------

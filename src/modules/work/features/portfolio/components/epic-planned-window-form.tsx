@@ -7,7 +7,7 @@ function toIsoDate(d: Date | null): string {
 }
 
 interface Props {
-  /** Kept on the prop interface for callers; unused now that the form is read-only. */
+  /** Links to the Epic's timeline tab, where the window is planned. */
   epicId: string;
   plannedStartAt: Date | null;
   plannedEndAt: Date | null;
@@ -18,19 +18,19 @@ interface Props {
 }
 
 /**
- * "Geplantes Zeitfenster" on the Epic Overview tab — now **read-only**.
+ * "Geplantes Zeitfenster" on the Epic Overview tab — **read-only**.
  *
- * The Soll-Fenster is derived from where the participatory-budget money lands
- * (first funded half-year → last funded half-year). It's written by
- * `saveBudgetAllocation` in the same transaction as the allocations, so it
- * stays in lock-step. To change it, the user adjusts the budget allocation.
+ * The Soll-Fenster is derived from the owner's Reifegrad-Plan: the Implementation
+ * phase estimates L4.1 (Umsetzung gestartet) → L4.2 (Umsetzung fertig). It's
+ * written by `saveTimeline` from the "Reifegrad-Phasen und Timeline" tab, so it
+ * stays in lock-step with the plan. To change it, the owner edits those dates.
  */
-export function EpicPlannedWindowForm({ plannedStartAt, plannedEndAt, derived }: Props) {
+export function EpicPlannedWindowForm({ epicId, plannedStartAt, plannedEndAt, derived }: Props) {
   const startStr = toIsoDate(plannedStartAt);
   const endStr = toIsoDate(plannedEndAt);
   const hasPlanned = startStr !== "" && endStr !== "";
 
-  // Divergenz > 30 Tage zwischen Soll (= Budget-Fenster) und Ist (Features) → kleiner Hinweis.
+  // Divergenz > 30 Tage zwischen Plan-Fenster (L4.1/L4.2) und Ist (Features) → kleiner Hinweis.
   const diverged =
     hasPlanned &&
     derived &&
@@ -46,15 +46,25 @@ export function EpicPlannedWindowForm({ plannedStartAt, plannedEndAt, derived }:
         </p>
       ) : (
         <p className="text-muted-foreground">
-          Noch keine Budget-Zuteilung — Zeitfenster wird gesetzt, sobald Geld verteilt ist.
+          Noch kein Umsetzungstermin geplant — setze L4.1/L4.2 im{" "}
+          <Link
+            href={`/portfolio/epics/${epicId}?tab=timeline`}
+            className="text-primary hover:underline"
+          >
+            Reifegrad-Plan
+          </Link>
+          .
         </p>
       )}
       <p className="text-xs text-muted-foreground">
-        Automatisch aus der{" "}
-        <Link href="/budgeting/board" className="text-primary hover:underline">
-          Budget-Zuteilung
+        Aus dem{" "}
+        <Link
+          href={`/portfolio/epics/${epicId}?tab=timeline`}
+          className="text-primary hover:underline"
+        >
+          Reifegrad-Plan
         </Link>{" "}
-        abgeleitet — erste finanzierte Periode bis letzte finanzierte Periode.
+        abgeleitet — geplanter Umsetzungsstart (L4.1) bis Umsetzungsende (L4.2).
       </p>
       {derived && (
         <p className="text-xs text-muted-foreground">
@@ -63,8 +73,8 @@ export function EpicPlannedWindowForm({ plannedStartAt, plannedEndAt, derived }:
       )}
       {diverged && (
         <p className="text-xs text-amber-700">
-          Ist-Fenster (Feature-PIs) weicht vom Budget-Fenster ab — Feature-PIs ggf. umplanen oder
-          Budget-Zuteilung anpassen.
+          Ist-Fenster (Feature-PIs) weicht vom Plan-Fenster ab — Feature-PIs ggf. umplanen oder den
+          Reifegrad-Plan (L4.1/L4.2) anpassen.
         </p>
       )}
     </div>

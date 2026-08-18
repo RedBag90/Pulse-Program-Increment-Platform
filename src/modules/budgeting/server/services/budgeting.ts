@@ -11,7 +11,6 @@ import type { TenantId, EpicId, ValueStreamId } from "@/modules/core/kernel/doma
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok } from "@/modules/core/kernel/domain/errors";
-import { computeAllocationScheduleUpdate } from "@/modules/budgeting/domain/allocation-schedule";
 import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
 import {
   halfYearKey,
@@ -226,30 +225,11 @@ export async function saveBudgetAllocation(
       },
     });
 
-    // Derive the Epic schedule from where the money actually lands — the
-    // funded-window → planned-dates + timeline-estimate mirroring (incl. the
-    // clear-on-empty invariant) lives in the pure domain seam.
-    const epic = await tx.initiative.findFirst({
-      where: { id: epicId, tenantId: mctx.tenantId, level: InitiativeLevel.EPIC },
-      select: { timeline: true },
-    });
-    const schedule = computeAllocationScheduleUpdate(allocations, epic?.timeline);
-    await tx.initiative.update({
-      where: { id: epicId },
-      data: {
-        updatedBy: mctx.actorId,
-        plannedStartAt: schedule.plannedStartAt,
-        plannedEndAt: schedule.plannedEndAt,
-        ...(schedule.timeline
-          ? { timeline: schedule.timeline as unknown as Prisma.InputJsonValue }
-          : {}),
-      },
-    });
-
-    // Budgeting schreibt nicht mehr in die Reifegrad-Spalten von Work. Die
-    // Budget-Summe ist ein L3-Readiness-Kriterium, das beim Lesen aus der
-    // Allokation abgeleitet wird — eine Cross-Modul-Schreibkopplung weniger
-    // (ADR-0015), ohne sie durch ein Event ersetzen zu müssen.
+    // Budgeting schreibt NICHT mehr in Work's Reifegrad-Spalten: das geplante
+    // Zeitfenster (plannedStartAt/plannedEndAt) und die Timeline-Estimates folgen
+    // jetzt allein dem Reifegrad-Plan des Owners (`saveTimeline` → L4.1/L4.2).
+    // Die Budget-Summe bleibt ein L3-Readiness-Kriterium, das beim Lesen aus der
+    // Allokation abgeleitet wird — eine Cross-Modul-Schreibkopplung weniger (ADR-0015).
 
     return ok({
       result: { id: row.id },

@@ -429,6 +429,15 @@ async function main() {
       stagedForBudgeting: def.gate === "L2" || def.gate === "L3",
       plannedStartAt: start,
       plannedEndAt: addDays(start, 150),
+      // Reifegrad-Plan: Umsetzungsfenster L4.1→L4.2 = das geplante Zeitfenster
+      // (plannedStartAt/EndAt werden jetzt daraus abgeleitet — deckungsgleich).
+      timeline: {
+        estimates: {
+          implementation_started: start.toISOString().slice(0, 10),
+          implementation: addDays(start, 150).toISOString().slice(0, 10),
+        },
+        actuals: {},
+      },
       ...(status === "completed" ? { completedAt: addDays(now, -18 + i) } : {}),
       benefitHypothesis: {
         measuresHypothesis: `Mit „${def.title}" verbessern wir das messbare Ergebnis für ${vsNames[def.vs]}.`,

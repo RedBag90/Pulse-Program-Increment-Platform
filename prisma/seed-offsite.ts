@@ -456,6 +456,15 @@ async function main() {
     needsSteeringAttention: false,
     plannedStartAt: PI_START,
     plannedEndAt: OFFSITE_AT,
+    // Reifegrad-Plan: das Umsetzungsfenster L4.1→L4.2 IST das geplante
+    // Zeitfenster; plannedStartAt/EndAt werden jetzt genau daraus abgeleitet.
+    timeline: {
+      estimates: {
+        implementation_started: PI_START.toISOString().slice(0, 10),
+        implementation: OFFSITE_AT.toISOString().slice(0, 10),
+      },
+      actuals: {},
+    },
     selectedForDetailingAt: addDays(now, -40),
     hypothesisApprovedAt: addDays(now, -28),
     selectedForAnalyzingAt: addDays(now, -26),
