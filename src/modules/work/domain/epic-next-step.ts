@@ -13,7 +13,12 @@ import type { SubStage } from "@/modules/work/domain/stage-gate";
 
 export type EpicNextStepCta =
   | { kind: "link"; label: string; href: string }
-  | { kind: "impact-confirm" };
+  /**
+   * Der Reifegrad-Wechsel wird beantragt, nicht direkt vollzogen — die Seite
+   * rendert dafür die Gate-Karte. Früher stand hier `impact-confirm` für einen
+   * eigenen L4→L5-Dialog; dieser Sonderweg ist im Antragsmodell aufgegangen.
+   */
+  | { kind: "gate-request"; to: StageGate };
 
 export interface EpicNextStep {
   title: string;
@@ -162,9 +167,9 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
     const { total, completed } = childFeatureStats;
     if (subStage === "L4.2" || (total > 0 && completed === total)) {
       return {
-        title: "Impact bestätigen",
-        hint: "Alle Features sind abgeschlossen. Das Controlling bestätigt jetzt, dass der prognostizierte Nutzen auf der Balance-Sheet bzw. an den KPIs angekommen ist — das Epic rückt damit auf L5.",
-        cta: { kind: "impact-confirm" },
+        title: "Impact bestätigen lassen",
+        hint: "Alle Features sind abgeschlossen. Beantrage den Wechsel auf L5 — das Controlling nimmt ab, dass der prognostizierte Nutzen auf der Balance-Sheet bzw. an den KPIs angekommen ist.",
+        cta: { kind: "gate-request", to: "L5" },
       };
     }
     return {

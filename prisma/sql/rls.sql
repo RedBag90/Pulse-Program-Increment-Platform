@@ -21,6 +21,11 @@ ALTER TABLE user_role_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE outbox_events         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE role_onboarding       ENABLE ROW LEVEL SECURITY;
 
+-- Reifegrad-Wechsel (Stage Gate): Antrag, namentliche Abnahme, Abnehmer-Regeln.
+ALTER TABLE stage_gate_transitions    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stage_gate_approvals      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stage_gate_approver_rules ENABLE ROW LEVEL SECURITY;
+
 -- ---------------------------------------------------------------------------
 -- Helper: extract tenant_id from the JWT set by the Prisma client
 -- (mirrors what Supabase Auth does when using GoTrue directly)
@@ -124,6 +129,27 @@ CREATE POLICY audit_no_update ON audit_events
 
 CREATE POLICY audit_no_delete ON audit_events
   FOR DELETE USING (false);
+
+-- stage_gate_transitions
+CREATE POLICY tenant_isolation_stage_gate_transitions ON stage_gate_transitions
+  FOR ALL
+  USING (
+    tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid
+  );
+
+-- stage_gate_approvals
+CREATE POLICY tenant_isolation_stage_gate_approvals ON stage_gate_approvals
+  FOR ALL
+  USING (
+    tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid
+  );
+
+-- stage_gate_approver_rules
+CREATE POLICY tenant_isolation_stage_gate_approver_rules ON stage_gate_approver_rules
+  FOR ALL
+  USING (
+    tenant_id = (current_setting('request.jwt.claims', true)::jsonb ->> 'tenant_id')::uuid
+  );
 
 -- ---------------------------------------------------------------------------
 -- Task-owner scoped UPDATE: task owners can only update initiatives

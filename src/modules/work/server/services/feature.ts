@@ -27,7 +27,6 @@ import { blockerWindowsFromEdges } from "@/modules/work/domain/blocker-window";
 import { featurePiConsistent } from "@/modules/work/domain/feature-pi";
 import type { FeatureType } from "@/modules/work/domain/portfolio-guardrails";
 import { createEdge, splitEdge } from "@/modules/work/server/services/dependency-edge";
-import { signalGateTrigger } from "@/modules/work/server/services/stage-gate-engine";
 
 /** Non-fatal advisories surfaced alongside a successful mutation (e.g. setFeaturePi). */
 export interface MutationWarnings {
@@ -808,18 +807,11 @@ export async function setFeatureDeliveryStatus(
       data: { status: to, updatedBy: mctx.actorId, ...completedAtPatch },
     });
 
-    // Report the delivery-status fact to the stage-gate engine. Starting the
-    // first Feature proposes L3→L4; completing the last one proposes L4→L5.
-    // Both are owner-confirmed (suggest-confirm), so the trigger only persists a
-    // proposal — the Epic owner confirms it. The engine owns the gate ordering +
-    // practices no-op, so no epic import (dissolves the old cycle).
-    if (feature.parentId) {
-      if (to === "in_progress") {
-        await signalGateTrigger(tx, mctx, feature.parentId, "feature_started");
-      } else if (to === "completed") {
-        await signalGateTrigger(tx, mctx, feature.parentId, "features_completed");
-      }
-    }
+    // Der Lieferstatus schreibt nichts mehr in die Gate-Spalten des Eltern-Epics.
+    // Ob ein Feature gestartet bzw. alle abgeschlossen sind, liest
+    // `gate-readiness.ts` beim Lesen aus den Child-Zählungen. Damit hat dieses
+    // Modul keine Schreibkopplung mehr auf die Reifegrad-Achse (ADR-0015); der
+    // synchrone *Lesezugriff* auf `epic.stageGate` oben bleibt erlaubt.
 
     return ok({
       result: undefined,

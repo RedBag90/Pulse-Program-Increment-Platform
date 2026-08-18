@@ -1,18 +1,16 @@
 "use client";
 
-import { Info, Lock, ArrowRight } from "lucide-react";
+import { Info, ArrowRight } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  LIFECYCLE_TRIGGERS,
-  SUB_STAGE_RULES,
-  BLOCKED_MANUAL_TRANSITIONS,
-} from "@/modules/work/domain/epic-lifecycle-doc";
+import { GATE_CRITERIA_DOC, SUB_STAGE_RULES } from "@/modules/work/domain/epic-lifecycle-doc";
 
 /**
- * In-App-Hilfe fuer den Stage-Gate-Lebenszyklus auf der Epic-Detail-Page.
- * Drei Sektionen — Trigger, Sub-Stages, gesperrte Transitionen. Die
- * Bucket-Mapping-Sicht lebt separat in `KanbanBucketHelp` und ist nur am
- * Portfolio-Kanban zu finden.
+ * In-App-Hilfe für den Reifegrad-Lebenszyklus auf der Epic-Detail-Page.
+ *
+ * Zwei Sektionen: was ein Wechsel voraussetzt, und wie die Sub-Stages abgeleitet
+ * werden. Die frühere dritte Sektion („manuell gesperrte Transitionen") ist
+ * entfallen — es gibt keine gesperrten Übergänge mehr, weil kein Übergang mehr
+ * automatisch passiert: jeder wird beantragt und abgenommen.
  */
 export function StageGateLifecycleHelp({ className }: { className?: string }) {
   return (
@@ -25,35 +23,44 @@ export function StageGateLifecycleHelp({ className }: { className?: string }) {
       </PopoverTrigger>
       <PopoverContent className="w-[640px] max-w-[92vw] space-y-4 p-4 text-xs">
         <header>
-          <p className="text-sm font-medium">Stage-Gate-Lebenszyklus</p>
+          <p className="text-sm font-medium">Reifegrad-Lebenszyklus</p>
           <p className="mt-0.5 text-muted-foreground">
-            Welches Event verschiebt das Gate, welche Sub-Stages folgen aus den Quell- Feldern, und
-            welche Transitionen sind manuell gesperrt.
+            Jeder Wechsel wird beantragt und von benannten Personen abgenommen — nichts rückt von
+            selbst vor. Hier steht, was ein Wechsel voraussetzt und wie die Sub-Stages entstehen.
           </p>
         </header>
 
-        {/* A · Auto-Advance-Trigger */}
+        {/* A · Voraussetzungen je Wechsel */}
         <section className="space-y-1.5">
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Stage-Gate-Trigger (automatisch)
+            Voraussetzungen je Wechsel
           </h4>
+          <p className="text-muted-foreground">
+            Fett = blockierend (der Antrag ist ohne das nicht möglich). Der Rest ist beratend.
+          </p>
           <ul className="space-y-1">
-            {LIFECYCLE_TRIGGERS.map((t) => (
+            {GATE_CRITERIA_DOC.map((g) => (
               <li
-                key={`${t.stageFrom}-${t.stageTo}`}
+                key={`${g.stageFrom}-${g.stageTo}`}
                 className="flex items-start gap-2 rounded border bg-muted/20 px-2 py-1.5"
               >
                 <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5 rounded bg-background px-1.5 py-0.5 font-mono text-[10px] font-medium">
-                  {t.stageFrom}
+                  {g.stageFrom}
                   <ArrowRight className="size-2.5" />
-                  {t.stageTo}
+                  {g.stageTo}
                 </span>
                 <span className="flex-1">
-                  <span className="block">{t.event}</span>
-                  {t.subStageAfter && (
-                    <span className="text-muted-foreground">
-                      Sub-Stage danach: {t.subStageAfter}
-                    </span>
+                  {g.criteria.length === 0 ? (
+                    <span className="text-muted-foreground">Keine inhaltliche Voraussetzung.</span>
+                  ) : (
+                    g.criteria.map((c) => (
+                      <span
+                        key={c.label}
+                        className={`block ${c.blocking ? "font-medium" : "text-muted-foreground"}`}
+                      >
+                        {c.label}
+                      </span>
+                    ))
                   )}
                 </span>
               </li>
@@ -93,30 +100,6 @@ export function StageGateLifecycleHelp({ className }: { className?: string }) {
           </table>
         </section>
 
-        {/* D · Manuell gesperrt */}
-        <section className="space-y-1.5">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Manuell gesperrte Transitionen
-          </h4>
-          <ul className="space-y-1">
-            {BLOCKED_MANUAL_TRANSITIONS.map((b) => (
-              <li
-                key={`${b.from}-${b.to}`}
-                className="flex items-start gap-2 rounded border border-amber-200 bg-amber-50/60 px-2 py-1.5 dark:border-amber-900/50 dark:bg-amber-950/30"
-              >
-                <Lock className="mt-0.5 size-3 shrink-0 text-amber-700 dark:text-amber-400" />
-                <span className="flex-1">
-                  <span className="inline-flex items-center gap-0.5 font-mono text-[10px] font-medium">
-                    {b.from}
-                    <ArrowRight className="size-2.5" />
-                    {b.to}
-                  </span>
-                  <span className="ml-2">{b.reason}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
       </PopoverContent>
     </Popover>
   );

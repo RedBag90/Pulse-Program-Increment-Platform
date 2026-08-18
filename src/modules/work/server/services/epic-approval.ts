@@ -10,7 +10,6 @@ import {
   toMutationContext,
   type MutationContext,
 } from "@/modules/core/kernel/server/mutation";
-import { signalGateTrigger } from "@/modules/work/server/services/stage-gate-engine";
 import { loadAuthorizedEpic } from "@/modules/work/server/services/epic-access";
 import {
   parseBusinessCase,
@@ -156,13 +155,10 @@ export async function decideHypothesis(
       },
     });
 
-    // Reifegrad-Modell v2 (Plan vom 2026-06-07): „Hypothese akzeptiert" ist die
-    // Definition von L1. Der Trigger hängt deshalb hier am Approval — die alte
-    // Variante (L0→L1 beim Owner-Assignment) ist entfallen. `hypothesis_approved`
-    // ist die eine Ausnahme, die direkt advanced (kein Owner-Confirm nötig).
-    if (decision === "approve") {
-      await signalGateTrigger(tx, mctx, epicId, "hypothesis_approved");
-    }
+    // Kein Auto-Advance mehr. `hypothesisApprovedAt` wird oben weiter gestempelt
+    // und ist damit das Readiness-Kriterium für L1 — aber der Wechsel selbst
+    // wird beantragt und abgenommen. Das war die letzte Stelle, an der ein Gate
+    // sich als Nebenwirkung eines anderen Vorgangs bewegte.
 
     return ok({
       result: undefined,
@@ -315,12 +311,9 @@ export async function submitBusinessCase(
       data: { approvalPhase: "stakeholder_review", updatedBy: mctx.actorId },
     });
 
-    // Reifegrad-Modell v2: Backstop fuer L1->L2. Normalerweise schlaegt das
-    // Epic schon beim saveBusinessCase L2 vor (sobald Inhalt da ist).
-    // Bestands-Epics, die vor der Trigger-Aenderung Inhalt bekommen haben,
-    // werden spaetestens hier mit eingesammelt. Der Trigger ist no-op, wenn das
-    // Epic bereits auf L2 oder weiter ist (bzw. der Vorschlag schon steht).
-    await signalGateTrigger(tx, mctx, epicId, "business_case_saved");
+    // Der frühere L1→L2-Backstop ist entfallen. Backstops braucht nur, wer
+    // Zustand in einem Slot hält, der hinter der Wirklichkeit zurückfallen kann;
+    // Readiness wird beim Lesen abgeleitet und kann nicht veralten.
 
     return ok({
       result: undefined,

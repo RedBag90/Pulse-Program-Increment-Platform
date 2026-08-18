@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
 import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
-import { advanceStageGate } from "@/modules/work/server/services/epic";
+import { revertStageGate } from "@/modules/work/server/services/stage-gate-transition";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
@@ -44,45 +44,85 @@ const APPROVED_HYPOTHESIS = {
   benefitHypothesis: { current: { problem: "Testproblem" }, history: [] },
 };
 
-describe("advanceStageGate", () => {
-  it("advances an Epic one gate forward and emits an AuditEvent", async () => {
-    const epicId = await makeEpic("L0", APPROVED_HYPOTHESIS);
+describe("revertStageGate — die Rückwärts-Korrektur, die advanceStageGate ersetzt", () => {
+  it("stuft ein Epic um einen Reifegrad zurück und schreibt genau eine Audit-Zeile", async () => {
+    const epicId = await makeEpic("L2", { selectedForAnalyzingAt: new Date() });
     const before = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 
-    const result = await advanceStageGate(testRequestContext(db, seed), {
+    const result = await revertStageGate(testRequestContext(db, seed), {
       epicId,
       toGate: "L1",
+      reason: "Analyse war verfrüht",
     });
 
     expect(isOk(result)).toBe(true);
     const epic = await db.initiative.findFirst({ where: { id: epicId } });
     expect(epic!.stageGate).toBe("L1");
+    // Der Kern des Refactorings: die Stempel des verlassenen Gates werden
+    // abgeräumt, damit ein erneutes Vorrücken wieder stempelt.
+    expect(epic!.selectedForAnalyzingAt).toBeNull();
 
     const after = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
     expect(after).toBe(before + 1);
   });
 
-  it("blocks L0→L1 without an approved/ausgearbeitete Hypothese (Reifegrad-Guard)", async () => {
-    const epicId = await makeEpic("L0"); // keine Hypothese, kein Approval
+  it("räumt bei L3→L2 die vollständige Freigabe-Signatur ab", async () => {
+    const epicId = await makeEpic("L3", {
+      approvedBy: seed.actorId,
+      approvedAt: new Date(),
+      approvalComment: "Freigegeben",
+    });
 
-    const result = await advanceStageGate(testRequestContext(db, seed), {
+    const result = await revertStageGate(testRequestContext(db, seed), {
+      epicId,
+      toGate: "L2",
+      reason: "Investitionsentscheidung zurückgenommen",
+    });
+
+    expect(isOk(result)).toBe(true);
+    const epic = await db.initiative.findFirst({ where: { id: epicId } });
+    expect(epic!.approvedBy).toBeNull();
+    expect(epic!.approvedAt).toBeNull();
+    expect(epic!.approvalComment).toBeNull();
+  });
+
+  it("verlangt eine Begründung", async () => {
+    const epicId = await makeEpic("L2");
+
+    const result = await revertStageGate(testRequestContext(db, seed), {
       epicId,
       toGate: "L1",
+      reason: "   ",
     });
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
-    expect(result.error.kind).toBe("forbidden");
+    expect(result.error.kind).toBe("conflict");
     const epic = await db.initiative.findFirst({ where: { id: epicId } });
-    expect(epic!.stageGate).toBe("L0");
+    expect(epic!.stageGate).toBe("L2");
   });
 
-  it("rejects an invalid gate-skipping transition", async () => {
-    const epicId = await makeEpic("L0");
+  it("geht nicht vorwärts — dafür gibt es den Antrag", async () => {
+    const epicId = await makeEpic("L1", APPROVED_HYPOTHESIS);
 
-    const result = await advanceStageGate(testRequestContext(db, seed), {
+    const result = await revertStageGate(testRequestContext(db, seed), {
       epicId,
-      toGate: "L3",
+      toGate: "L2",
+      reason: "Versuch",
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.kind).toBe("conflict");
+  });
+
+  it("überspringt keinen Reifegrad", async () => {
+    const epicId = await makeEpic("L3");
+
+    const result = await revertStageGate(testRequestContext(db, seed), {
+      epicId,
+      toGate: "L1",
+      reason: "zu weit",
     });
 
     expect(isErr(result)).toBe(true);
@@ -90,27 +130,11 @@ describe("advanceStageGate", () => {
     expect(result.error.kind).toBe("hierarchy_violation");
   });
 
-  it("persists approval metadata when an Epic reaches L3", async () => {
-    const epicId = await makeEpic("L2");
-
-    const result = await advanceStageGate(testRequestContext(db, seed), {
-      epicId,
-      toGate: "L3",
-      comment: "Approved by LPM",
-    });
-
-    expect(isOk(result)).toBe(true);
-    const epic = await db.initiative.findFirst({ where: { id: epicId } });
-    expect(epic!.stageGate).toBe("L3");
-    expect(epic!.approvedBy).toBe(seed.actorId);
-    expect(epic!.approvedAt).not.toBeNull();
-    expect(epic!.approvalComment).toBe("Approved by LPM");
-  });
-
   it("returns not_found for an unknown Epic", async () => {
-    const result = await advanceStageGate(testRequestContext(db, seed), {
+    const result = await revertStageGate(testRequestContext(db, seed), {
       epicId: randomUUID() as EpicId,
-      toGate: "L1",
+      toGate: "L0",
+      reason: "x",
     });
 
     expect(isErr(result)).toBe(true);
@@ -119,7 +143,7 @@ describe("advanceStageGate", () => {
   });
 
   it("is forbidden when the target operating model disables stage gates", async () => {
-    const epicId = await makeEpic("L0");
+    const epicId = await makeEpic("L2");
     await db.targetOperatingModel.create({
       data: {
         tenantId: seed.tenantId,
@@ -130,9 +154,10 @@ describe("advanceStageGate", () => {
       },
     });
 
-    const result = await advanceStageGate(testRequestContext(db, seed), {
+    const result = await revertStageGate(testRequestContext(db, seed), {
       epicId,
       toGate: "L1",
+      reason: "x",
     });
 
     expect(isErr(result)).toBe(true);
@@ -140,6 +165,6 @@ describe("advanceStageGate", () => {
     expect(result.error.kind).toBe("forbidden");
 
     const epic = await db.initiative.findFirst({ where: { id: epicId } });
-    expect(epic!.stageGate).toBe("L0");
+    expect(epic!.stageGate).toBe("L2");
   });
 });

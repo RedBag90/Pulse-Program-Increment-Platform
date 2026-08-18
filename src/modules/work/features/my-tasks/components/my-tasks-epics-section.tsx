@@ -6,7 +6,6 @@ import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-li
 interface Props {
   rows: EpicListRow[];
   canEdit: boolean;
-  canAdvance: boolean;
   stageGatesEnabled: boolean;
   compact: boolean;
 }
@@ -21,7 +20,6 @@ interface Props {
 export function MyTasksEpicsSection({
   rows,
   canEdit,
-  canAdvance,
   stageGatesEnabled,
   compact,
 }: Props) {
@@ -37,7 +35,6 @@ export function MyTasksEpicsSection({
       <EpicsListTable
         rows={rows}
         canEdit={canEdit}
-        canAdvance={canAdvance}
         stageGatesEnabled={stageGatesEnabled}
         group="flat"
         compact={compact}

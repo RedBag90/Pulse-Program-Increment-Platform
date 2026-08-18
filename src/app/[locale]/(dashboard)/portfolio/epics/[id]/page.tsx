@@ -21,8 +21,7 @@ import { EpicHistoryTimeline } from "@/modules/work/features/portfolio/component
 import { EPIC_TABS } from "@/modules/work/features/portfolio/components/epic-detail-shell";
 import { EpicOverviewTab } from "@/modules/work/features/portfolio/components/epic-overview-tab";
 import { EpicLifecycleStepper } from "@/modules/work/features/portfolio/components/epic-lifecycle-stepper";
-import { EpicProposedGateBanner } from "@/modules/work/features/portfolio/components/epic-proposed-gate-banner";
-import { EpicImpactConfirmDialog } from "@/modules/work/features/portfolio/components/epic-impact-confirm-dialog";
+import { EpicGateCard } from "@/modules/work/features/portfolio/components/gate/epic-gate-card";
 import { EpicKpisTab } from "@/modules/work/features/portfolio/components/epic-kpis-tab";
 import { EpicBreakdownTab } from "@/modules/work/features/portfolio/components/epic-breakdown-tab";
 import { BenefitHypothesisEditor } from "@/modules/work/features/portfolio/components/benefit-hypothesis-editor";
@@ -131,31 +130,21 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           model.canEdit ? <DeleteEpicButton id={epic.id} title={epic.title} /> : undefined
         }
         subHeader={(() => {
-          let actionSlot: React.ReactNode = undefined;
-          if (model.nextStep?.cta?.kind === "link") {
-            actionSlot = (
+          // Ein `gate-request`-CTA bekommt keinen eigenen Button mehr: der
+          // Wechsel wird über die Gate-Karte darunter beantragt, damit es genau
+          // eine Stelle für den Vorgang gibt.
+          const actionSlot: React.ReactNode =
+            model.nextStep?.cta?.kind === "link" ? (
               <Link
                 href={model.nextStep.cta.href as never}
                 className="inline-flex items-center gap-1.5 rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium shadow-xs transition-colors hover:bg-muted/50"
               >
                 {model.nextStep.cta.label} <ArrowRight className="size-3.5" />
               </Link>
-            );
-          } else if (
-            model.nextStep?.cta?.kind === "impact-confirm" &&
-            model.canConfirmImpact &&
-            epic.impactRecognizedAt == null
-          ) {
-            actionSlot = <EpicImpactConfirmDialog epicId={epic.id} epicTitle={epic.title} />;
-          }
+            ) : undefined;
           return (
             <div className="space-y-4">
-              {model.proposedStageGate && model.canConfirmProposedAdvance && (
-                <EpicProposedGateBanner
-                  epicId={epic.id}
-                  proposedStageGate={model.proposedStageGate}
-                />
-              )}
+              <EpicGateCard epicId={epic.id} gate={model.gate} userLabels={userLabels} />
               <EpicLifecycleStepper
                 steps={model.lifecycleSteps}
                 nextStep={model.nextStep}
@@ -196,7 +185,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             <EpicOverviewTab
               epic={epic}
               canEdit={model.canEdit}
-              canConfirmImpact={model.canConfirmImpact}
               kpiBenefit={model.kpiBenefit}
             />
           </div>
@@ -207,7 +195,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             <h2 className="mb-4 font-heading text-lg font-medium">Reifegrad-Phasen und Timeline</h2>
             <EpicTimelineTab
               epicId={epic.id}
-              stageGate={epic.stageGate}
               createdAt={epic.createdAt.toISOString()}
               selectedForDetailingAt={epic.selectedForDetailingAt?.toISOString() ?? null}
               hypothesisApprovedAt={epic.hypothesisApprovedAt?.toISOString() ?? null}
@@ -217,7 +204,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               impactRecognizedAt={epic.impactRecognizedAt?.toISOString() ?? null}
               timeline={timeline}
               canEdit={model.canEdit}
-              canAdvance={model.canAdvance}
+              gateHistory={model.gate.disabled ? [] : model.gate.history}
               ownerId={epic.ownerId}
               canAssignOwner={model.canAssignOwner}
               approvers={approvers}

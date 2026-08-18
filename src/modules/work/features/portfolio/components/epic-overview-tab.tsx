@@ -54,8 +54,6 @@ export interface EpicOverviewTabProps {
     investmentHorizon: string | null;
   };
   canEdit: boolean;
-  /** Reifegrad v2 Controlling-Capability für Impact-Confirm. */
-  canConfirmImpact: boolean;
   /** Nutzen bei 100 % KPI-Zielerreichung — direkt aus den KPIs berechnet. */
   kpiBenefit: { oneTimeBenefit: number; recurringBenefit: number };
 }
@@ -93,19 +91,8 @@ function StatTile({
  * from data the Epic already carries; financials are derived from the
  * businessCase JSON.
  */
-export function EpicOverviewTab({
-  epic,
-  canEdit,
-  canConfirmImpact,
-  kpiBenefit,
-}: EpicOverviewTabProps) {
+export function EpicOverviewTab({ epic, canEdit, kpiBenefit }: EpicOverviewTabProps) {
   const completedChildren = epic.children.filter((c) => c.status === "completed").length;
-  const totalChildren = epic.children.length;
-  // L4.2-Derivation (siehe `subStageFor` in @/domain/stage-gate): alle Child-
-  // Features completed → L4.2 erreicht → Impact-Bestätigung freigeschaltet.
-  const reachedL42 =
-    epic.stageGate === "L4" && totalChildren > 0 && completedChildren === totalChildren;
-  const showImpactConfirm = reachedL42 && canConfirmImpact && epic.impactRecognizedAt == null;
 
   const summary = buildInitiativeSummary({
     stageGate: epic.stageGate as StageGate,
@@ -120,11 +107,6 @@ export function EpicOverviewTab({
     parseBusinessCase(epic.businessCase).current,
     kpiBenefit,
   );
-
-  // Der Confirm-Dialog und die L5-Bestätigungs-Anzeige leben jetzt im
-  // Sub-Header (`EpicReifegradActivityBar` auf der Seite). `showImpactConfirm`
-  // bleibt vorerst als no-op, damit die Hook-Reihenfolge stabil ist.
-  void showImpactConfirm;
 
   return (
     <div className="space-y-8">

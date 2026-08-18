@@ -3,15 +3,20 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Principal } from "@/server/auth/principal";
 import type { ApprovalParty } from "@/modules/work/domain/business-case";
 import type { ApprovalSection } from "@/modules/work/domain/epic-approval";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 /**
  * "Meine Freigaben" — the personal approval inbox. Aggregates every pending
  * Epic approval assigned to the current principal (Hypothesis, Party,
- * Section) into a single normalised row shape. Feature-QS war hier 2026-06
- * mit der Abschaffung des Feature-QA-Gates entfernt; Features brauchen
- * keine Freigabe mehr.
+ * Section, Reifegrad-Wechsel) into a single normalised row shape. Feature-QS
+ * war hier 2026-06 mit der Abschaffung des Feature-QA-Gates entfernt;
+ * Features brauchen keine Freigabe mehr.
+ *
+ * Der vierte Arm `epic_gate` ist die Reifegrad-Abnahme. Er läuft über denselben
+ * `(approver_user_id, status)`-Index wie die Business-Case-Zeilen — die Achsen
+ * bleiben getrennt (ADR-0003), teilen sich aber den Posteingang.
  */
 
-export type ApprovalKind = "epic_hypothesis" | "epic_party" | "epic_section";
+export type ApprovalKind = "epic_hypothesis" | "epic_party" | "epic_section" | "epic_gate";
 
 /** The fields every approval row carries, regardless of kind. */
 interface MyApprovalRowBase {
@@ -25,6 +30,9 @@ interface MyApprovalRowBase {
     valueStreamName?: string | null;
     party?: ApprovalParty | undefined;
     section?: ApprovalSection | undefined;
+    /** Nur bei `epic_gate`: welcher Reifegrad-Wechsel abgenommen werden soll. */
+    fromGate?: StageGate | undefined;
+    toGate?: StageGate | undefined;
   };
   requestedAt: Date;
 }
@@ -39,6 +47,7 @@ export type MyApprovalRow = MyApprovalRowBase &
     | { kind: "epic_hypothesis"; target: { epicId: string } }
     | { kind: "epic_party"; target: { approvalId: string } }
     | { kind: "epic_section"; target: { epicId: string; section: ApprovalSection } }
+    | { kind: "epic_gate"; target: { transitionId: string } }
   );
 
 /**
@@ -69,7 +78,7 @@ export async function listMyApprovals(
         }
       : null;
 
-  const [hypothesis, partyAndSection] = await Promise.all([
+  const [hypothesis, partyAndSection, gateApprovals] = await Promise.all([
     // 1) Epic hypothesis — Portfolio Manager of the value stream, or admin.
     hypothesisWhere
       ? db.initiative.findMany({
@@ -114,6 +123,34 @@ export async function listMyApprovals(
             approvalRevision: true,
             approvalPhase: true,
             valueStream: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: { requestedAt: "desc" },
+    }),
+
+    // 4) Reifegrad-Abnahmen — mir namentlich zugewiesen, Antrag noch offen.
+    db.stageGateApproval.findMany({
+      where: {
+        tenantId,
+        approverUserId: userId,
+        status: "pending",
+        transition: {
+          status: "pending",
+          initiative: { deletedAt: null, level: InitiativeLevel.EPIC },
+        },
+      },
+      select: {
+        id: true,
+        requestedAt: true,
+        transition: {
+          select: {
+            id: true,
+            fromGate: true,
+            toGate: true,
+            initiative: {
+              select: { id: true, title: true, valueStream: { select: { name: true } } },
+            },
           },
         },
       },
@@ -173,6 +210,23 @@ export async function listMyApprovals(
         requestedAt: a.requestedAt,
       });
     }
+  }
+
+  for (const g of gateApprovals) {
+    const epic = g.transition.initiative;
+    rows.push({
+      id: g.id,
+      kind: "epic_gate",
+      title: epic.title,
+      href: `/portfolio/epics/${epic.id}?tab=timeline`,
+      context: {
+        valueStreamName: epic.valueStream?.name ?? null,
+        fromGate: g.transition.fromGate as StageGate,
+        toGate: g.transition.toGate as StageGate,
+      },
+      target: { transitionId: g.transition.id },
+      requestedAt: g.requestedAt,
+    });
   }
 
   rows.sort((a, b) => b.requestedAt.getTime() - a.requestedAt.getTime());

@@ -48,6 +48,9 @@ model Tenant {
   initiatives           Initiative[]
   kpis                  Kpi[]
   epicApprovals         EpicApproval[]
+  gateTransitions       StageGateTransition[]
+  gateApprovals         StageGateApproval[]
+  gateApproverRules     StageGateApproverRule[]
   userRoleAssignments   UserRoleAssignment[]
   jiraConfig            JiraConfig?
   azureDevOpsConfig     AzureDevOpsConfig?
@@ -569,10 +572,11 @@ model ValueStream {
   createdAt         DateTime  @default(now()) @map("created_at")
   deletedAt         DateTime? @map("deleted_at")
 
-  tenant    Tenant                @relation(fields: [tenantId], references: [id])
-  arts      Art[]
-  epics     Initiative[]          @relation("EpicValueStream")
-  goalLinks GoalValueStreamLink[]
+  tenant            Tenant                  @relation(fields: [tenantId], references: [id])
+  arts              Art[]
+  epics             Initiative[]            @relation("EpicValueStream")
+  goalLinks         GoalValueStreamLink[]
+  gateApproverRules StageGateApproverRule[]
 
   // Uniqueness among *active* (non-deleted) rows is enforced by a partial unique
   // index created out-of-band (see prisma/manual-indexes.sql) — Prisma can't
@@ -670,7 +674,6 @@ model Timeline {
   @@index([tenantId])
   @@map("timelines")
 }
-
 
 /// System Demo pro PI. Wird beim PI-Closure-Wizard mit Inhalten gefuellt,
 /// vom RTE und Feature Ownern gepflegt. Ein PI hat genau einen SystemDemo
@@ -770,14 +773,12 @@ model Initiative {
   externalId     String? @map("external_id")
   externalSystem String? @map("external_system") // "jira" | "ado"
 
+  /// Reifegrad L0–L5 (EPIC only). Bewegt sich ausschliesslich über einen
+  /// abgenommenen `StageGateTransition` — nie als Nebenwirkung eines anderen
+  /// Vorgangs. Die früheren `proposed_*`-Vorschlagsspalten sind mit ADR-0018
+  /// entfallen: ein Vorschlag ist jetzt ein Antrag mit eigener Zeile, Historie
+  /// und namentlichen Abnahmen.
   stageGate   String    @default("L0") @map("stage_gate")
-  // Suggest-confirm funnel (EPIC only): a content trigger persists the next gate
-  // here as a *proposal*; the Epic owner confirms it to actually advance stageGate
-  // (then these clear). Null = no pending proposal. See stage-gate-engine + ADR /
-  // docs/concepts/work-module-deepening.md #1.
-  proposedStageGate String?   @map("proposed_stage_gate")
-  proposedBy        String?   @map("proposed_by") @db.Uuid
-  proposedAt        DateTime? @map("proposed_at")
   status      String    @default("draft")
   /// Ist-Lieferdatum (FEATURE only): gestempelt beim Delivery-Übergang nach
   /// "completed", geleert bei Rücknahme. Basis für Plantreue/Terminabweichung
@@ -831,10 +832,11 @@ model Initiative {
   art         Art?              @relation("FeatureArt", fields: [artId], references: [id])
   pi          ProgramIncrement? @relation(fields: [piId], references: [id])
 
-  dependenciesOut  Dependency[]      @relation("From")
-  dependenciesIn   Dependency[]      @relation("To")
+  dependenciesOut  Dependency[]          @relation("From")
+  dependenciesIn   Dependency[]          @relation("To")
   kpis             Kpi[]
   epicApprovals    EpicApproval[]
+  gateTransitions  StageGateTransition[]
   themeLinks       ThemeEpicLink[]
   goalLinks        GoalEpicLink[]
   budgetAllocation BudgetAllocation?
@@ -875,6 +877,110 @@ model EpicApproval {
   @@index([tenantId, initiativeId, revision])
   @@index([approverUserId, status])
   @@map("epic_approvals")
+}
+
+/// Ein **beantragter** Reifegrad-Wechsel (Stage Gate) an einem Epic — die
+/// Kopfzeile: wer hat wann welchen Push beantragt, mit welchem Ergebnis. Die
+/// namentlichen Abnahmen hängen als `StageGateApproval` daran.
+///
+/// Bewusst NICHT über `EpicApproval` mitgeführt: `applyDecisionOutcome` liest
+/// dort revisionsweise OHNE `kind`-Filter und würde Gate-Zeilen in
+/// `isFullyApproved` mitzählen. Getrennte Tabellen halten außerdem die beiden
+/// Achsen orthogonal (ADR-0003) — siehe ADR-0018.
+model StageGateTransition {
+  id           String @id @default(uuid()) @db.Uuid
+  tenantId     String @map("tenant_id") @db.Uuid
+  initiativeId String @map("initiative_id") @db.Uuid
+
+  fromGate String @map("from_gate") // StageGate L0..L5
+  toGate   String @map("to_gate") // StageGate L0..L5
+  kind     String @default("forward") // "forward" (Antrag mit Abnahmen) | "revert" (Korrektur)
+
+  status      String    @default("pending") // pending | approved | rejected | withdrawn
+  quorum      String    @default("all") // beim Antrag EINGEFROREN: "all" | "any"
+  requestedBy String    @map("requested_by") @db.Uuid
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  /// Begründung des Antragstellers; bei kind="revert" Pflicht (Service-Guard).
+  reason      String?   @db.Text
+  /// Kriterien-Snapshot (GateCriterion[]) zum Antragszeitpunkt — so bleibt
+  /// nachvollziehbar, worauf hin freigegeben wurde.
+  readiness   Json?
+  resolvedAt  DateTime? @map("resolved_at")
+  resolvedBy  String?   @map("resolved_by") @db.Uuid
+
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+  initiative Initiative          @relation(fields: [initiativeId], references: [id])
+  approvals  StageGateApproval[]
+
+  // „Höchstens ein offener Antrag pro Epic" ist ein partieller Unique-Index
+  // (WHERE status = 'pending') — Prisma kann das nicht ausdrücken, siehe
+  // prisma/manual-indexes.sql.
+  @@index([tenantId, initiativeId, requestedAt(sort: Desc)])
+  @@index([tenantId, status])
+  @@map("stage_gate_transitions")
+}
+
+/// Eine namentliche Abnahme an einem Gate-Antrag. Der Approver wird beim Antrag
+/// aufgelöst und hier EINGEFROREN — dasselbe Snapshot-Muster wie
+/// `EpicApproval.approverUserId`, damit spätere Konfig-Änderungen laufende
+/// Anträge nicht umdeuten.
+model StageGateApproval {
+  id             String  @id @default(uuid()) @db.Uuid
+  tenantId       String  @map("tenant_id") @db.Uuid
+  transitionId   String  @map("transition_id") @db.Uuid
+  approverUserId String  @map("approver_user_id") @db.Uuid
+  /// Herkunft: "value_stream" | "tenant" | "epic_owner" | "manual"
+  source         String  @default("value_stream")
+  /// Anzeige-Rolle im Gate-Kontext: "finance" | "vmo" | "epic_owner" | null
+  role           String?
+
+  status      String    @default("pending") // pending | approved | rejected
+  decidedAt   DateTime? @map("decided_at")
+  comment     String?   @db.Text
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  createdBy   String    @map("created_by") @db.Uuid
+
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+  transition StageGateTransition @relation(fields: [transitionId], references: [id], onDelete: Cascade)
+
+  @@unique([transitionId, approverUserId])
+  // Trägt „Meine Freigaben" — derselbe Zugriffspfad wie EpicApproval.
+  @@index([approverUserId, status])
+  @@index([tenantId, transitionId])
+  @@map("stage_gate_approvals")
+}
+
+/// Konfiguration: WER muss welchen Reifegrad-Wechsel abnehmen.
+/// `valueStreamId = null` ist der Tenant-Default; eine Wertstrom-Zeile gewinnt.
+/// `required = false` ⇒ dieses Gate braucht keine Abnahme (der Antrag rückt
+/// sofort vor — weiterhin ein manueller, auditierter Akt).
+///
+/// Eigene Tabelle statt Spalten auf `ValueStream`, weil `ValueStream` Core/org
+/// gehört und die Gate-Policy Work. `ValueStream.financeApproverId`/`vmoId`
+/// werden über die `approverRoles`-Platzhalter weiterhin geehrt.
+model StageGateApproverRule {
+  id            String  @id @default(uuid()) @db.Uuid
+  tenantId      String  @map("tenant_id") @db.Uuid
+  valueStreamId String? @map("value_stream_id") @db.Uuid
+  toGate        String  @map("to_gate")
+
+  required        Boolean  @default(true)
+  quorum          String   @default("all") // "all" | "any"
+  approverUserIds String[] @map("approver_user_ids") @db.Uuid
+  /// Rollen-Platzhalter, beim Antrag aufgelöst:
+  /// "value_stream.finance_approver" | "value_stream.vmo" | "epic.owner"
+  approverRoles   String[] @map("approver_roles")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  valueStream ValueStream? @relation(fields: [valueStreamId], references: [id])
+
+  @@unique([tenantId, valueStreamId, toGate])
+  @@index([tenantId])
+  @@map("stage_gate_approver_rules")
 }
 
 model Kpi {

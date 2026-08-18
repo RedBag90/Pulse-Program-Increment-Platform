@@ -20,3 +20,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS value_streams_tenant_name_active
 CREATE UNIQUE INDEX IF NOT EXISTS arts_tenant_name_active
   ON arts (tenant_id, name)
   WHERE deleted_at IS NULL;
+
+-- ---------------------------------------------------------------------------
+-- Reifegrad-Wechsel: höchstens EIN offener Gate-Antrag je Epic.
+--
+-- Der Service prüft das ebenfalls (`planGateRequest` bekommt `hasOpenRequest`),
+-- aber zwei parallele Anträge könnten sich zwischen Read und Write überholen.
+-- Der partielle Unique-Index macht daraus eine DB-Invariante; der Service
+-- übersetzt die Unique-Verletzung über `onUniqueConstraint` in `conflict`.
+-- Prisma kann `WHERE status = 'pending'` nicht ausdrücken — daher hier.
+-- ---------------------------------------------------------------------------
+
+CREATE UNIQUE INDEX IF NOT EXISTS stage_gate_transitions_one_open
+  ON stage_gate_transitions (initiative_id)
+  WHERE status = 'pending';

@@ -11,7 +11,6 @@ import type { EpicListRow } from "@/modules/work/server/views/portfolio-epics-li
 interface Props {
   rows: EpicListRow[];
   canEdit: boolean;
-  canAdvance: boolean;
   stageGatesEnabled: boolean;
   /** "flat" = one body, sorted; "stage" = six collapsible sections per gate. */
   group: "flat" | "stage";
@@ -41,7 +40,6 @@ interface Props {
 export function EpicsListTable({
   rows,
   canEdit,
-  canAdvance,
   stageGatesEnabled,
   group,
   compact,
@@ -93,7 +91,6 @@ export function EpicsListTable({
                 key={r.id}
                 row={r}
                 canEdit={canEdit}
-                canAdvance={canAdvance}
                 stageGatesEnabled={stageGatesEnabled}
                 selected={showSelection ? selectedIds!.has(r.id) : null}
                 {...(onToggleSelect ? { onToggleSelect } : {})}
@@ -105,7 +102,6 @@ export function EpicsListTable({
           <StageGroupedBody
             rows={rows}
             canEdit={canEdit}
-            canAdvance={canAdvance}
             stageGatesEnabled={stageGatesEnabled}
             selectedIds={selectedIds}
             {...(onToggleSelect ? { onToggleSelect } : {})}
@@ -120,7 +116,6 @@ export function EpicsListTable({
 interface StageGroupProps {
   rows: EpicListRow[];
   canEdit: boolean;
-  canAdvance: boolean;
   stageGatesEnabled: boolean;
   selectedIds: Set<string> | null;
   onToggleSelect?: (id: string) => void;
@@ -130,7 +125,6 @@ interface StageGroupProps {
 function StageGroupedBody({
   rows,
   canEdit,
-  canAdvance,
   stageGatesEnabled,
   selectedIds,
   onToggleSelect,
@@ -189,8 +183,7 @@ function StageGroupedBody({
                   key={r.id}
                   row={r}
                   canEdit={canEdit}
-                  canAdvance={canAdvance}
-                  stageGatesEnabled={stageGatesEnabled}
+                    stageGatesEnabled={stageGatesEnabled}
                   selected={selectedIds ? selectedIds.has(r.id) : null}
                   {...(onToggleSelect ? { onToggleSelect } : {})}
                   compact={compact}

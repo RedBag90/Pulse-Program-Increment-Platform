@@ -16,6 +16,22 @@
 
 import { APPROVAL_PARTIES, type ApprovalParty } from "./business-case";
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
+import {
+  type ApprovalDecision,
+  type ApprovalStatus,
+  type RollupStatus,
+  decisionStatus,
+  assertAssignedApprover,
+  rollup,
+} from "./approval-primitives";
+
+// Das Freigabe-Vokabular lebt jetzt in `approval-primitives.ts`, damit die
+// Reifegrad-Achse (`gate-transition.ts`) es nutzen kann, ohne die
+// BC-Phasenmaschine mitzuimportieren. Hier re-exportiert, damit die
+// bestehenden Aufrufstellen unverändert weiterlaufen (ADR-0003: die Achsen
+// teilen Vokabular, nicht Zustand).
+export type { ApprovalDecision, ApprovalStatus };
+export { decisionStatus, assertAssignedApprover };
 
 export const APPROVAL_PHASES = [
   "draft",
@@ -45,10 +61,6 @@ export const APPROVAL_SECTION_LABELS: Record<ApprovalSection, string> = {
   breakdown: "Deliverables",
   kpis: "KPIs",
 };
-
-/** A reviewer's decision on a single approval/sign-off row. */
-export type ApprovalDecision = "approve" | "reject";
-export type ApprovalStatus = "pending" | "approved" | "rejected";
 
 /**
  * Allowed phase transitions. Rejections rebound: a returned hypothesis goes
@@ -154,31 +166,6 @@ export function nextPhaseFor(
   }
 }
 
-/** The status a reviewer decision produces on its row. */
-export function decisionStatus(decision: ApprovalDecision): ApprovalStatus {
-  return decision === "approve" ? "approved" : "rejected";
-}
-
-/**
- * Row-ownership guard for the approval axis: an `EpicApproval`/section row may
- * only be decided by the approver it is assigned to. This is a *different* authz
- * axis from the value-stream/owner scope check `loadAuthorizedEpic` runs — the
- * policy can't see the approval row, so the service enforces it. Named + pure so
- * both the party decision and the section sign-off share one definition.
- */
-export function assertAssignedApprover(
-  row: { approverUserId: string | null },
-  actorId: string,
-): Result<void> {
-  if (row.approverUserId !== actorId) {
-    return err({
-      kind: "conflict" as const,
-      reason: "Nur der zugewiesene Approver darf diese Freigabe entscheiden",
-    });
-  }
-  return ok(undefined);
-}
-
 /**
  * A single approval/sign-off row — the minimal shape this module reasons over
  * (mirrors the `EpicApproval` persistence model without depending on it).
@@ -188,15 +175,6 @@ export interface ApprovalRecord {
   party?: ApprovalParty | null;
   section?: ApprovalSection | null;
   status: ApprovalStatus;
-}
-
-type RollupStatus = "unassigned" | "pending" | "approved" | "rejected";
-
-function rollup(rows: ApprovalRecord[]): RollupStatus {
-  if (rows.length === 0) return "unassigned";
-  if (rows.some((r) => r.status === "rejected")) return "rejected";
-  if (rows.every((r) => r.status === "approved")) return "approved";
-  return "pending";
 }
 
 /**

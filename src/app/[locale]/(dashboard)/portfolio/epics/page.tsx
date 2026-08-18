@@ -12,6 +12,7 @@ import { listValueStreams } from "@/modules/core/org/server/services/value-strea
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { getTenantPractices } from "@/server/services/target-model";
 import { buildEpicsListModel } from "@/modules/work/server/views/portfolio-epics-list";
+import { countPendingGateRequests } from "@/modules/work/server/services/stage-gate-transition";
 import { EpicsListShell } from "@/modules/work/features/portfolio/components/epics-list-shell";
 
 /** A KPI measurement entry as stored in the `measurements` JSON column. */
@@ -45,7 +46,7 @@ function latestMeasurement(raw: unknown): number | null {
  * and epic owners use to scan and steer the investment funnel. Loads
  * epics + KPIs + approvals in one query, child-feature counts in a tiny
  * groupBy, then hands everything to the URL-state shell. Permission gates
- * for inline mutations (`epic.update`, `epic.approve`) pass straight
+ * for inline mutations (`epic.update`, `epic.gate.request`) pass straight
  * through.
  */
 export default async function EpicsPage() {
@@ -63,9 +64,18 @@ export default async function EpicsPage() {
       getTenantPractices(db, principal.tenantId),
     ]);
 
+  // Offene Reifegrad-Anträge — eine Query über alle gelisteten Epics
+  // (Muster: countEpicChildFeatures).
+  const pendingGateRequests = await countPendingGateRequests(
+    db,
+    principal.tenantId,
+    epics.map((e) => e.id),
+  );
+
   const canEdit = hasCapability(principal, "epic.update");
-  // Advancing a stage gate (single + batch) mirrors the `epic.approve` policy.
-  const canAdvance = hasCapability(principal, "epic.approve");
+  // Wer einen Push beantragen darf, arbeitet auch mit der Mehrfachauswahl —
+  // die Leiste selbst schiebt keine Gates mehr.
+  const canSelect = hasCapability(principal, "epic.gate.request");
 
   const model = buildEpicsListModel({
     epics: epics.map((e) => ({
@@ -82,6 +92,7 @@ export default async function EpicsPage() {
       businessCase: e.businessCase,
       benefitHypothesis: e.benefitHypothesis,
       businessCaseApprovedAt: e.businessCaseApprovedAt,
+      pendingGateRequest: pendingGateRequests.get(e.id) ?? null,
       plannedStartAt: e.plannedStartAt,
       plannedEndAt: e.plannedEndAt,
       createdAt: e.createdAt,
@@ -113,7 +124,7 @@ export default async function EpicsPage() {
       <EpicsListShell
         model={model}
         canEdit={canEdit}
-        canAdvance={canAdvance}
+        canSelect={canSelect}
         tenantId={principal.tenantId}
       />
     </Suspense>

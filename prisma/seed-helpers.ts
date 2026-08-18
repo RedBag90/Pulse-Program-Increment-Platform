@@ -116,6 +116,27 @@ export async function ensureTenant(): Promise<string> {
   return tenant.id;
 }
 
+/**
+ * Findet einen bestehenden Mandanten per Name — **ohne Anlegen**.
+ *
+ * Bewusst nicht find-or-create wie `ensureTenant`: Seeds, die auf einen schon
+ * vorhandenen Mandanten zielen, wischen dessen Daten. Ein Tippfehler im Namen
+ * würde bei find-or-create still einen Doppelgänger anlegen und den dann leeren
+ * — der Fehler fiele erst auf, wenn die erwarteten Daten fehlen. Also lieber
+ * hier abbrechen.
+ */
+export async function requireTenantByName(name: string): Promise<string> {
+  const tenant = await prisma.tenant.findFirst({ where: { name } });
+  if (!tenant) {
+    const all = await prisma.tenant.findMany({ select: { name: true }, orderBy: { name: "asc" } });
+    throw new Error(
+      `Mandant „${name}" existiert nicht. Vorhanden: ${all.map((t) => `„${t.name}"`).join(", ") || "(keiner)"}`,
+    );
+  }
+  console.log(`  ↳ ${name} gefunden`);
+  return tenant.id;
+}
+
 /** Rollen-Zuweisung (idempotent) mit optionalen Scopes. */
 export function assignRole(
   userId: string,
@@ -168,6 +189,10 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
 
   // Initiative-Nebentabellen
   await prisma.epicApproval.deleteMany(w);
+  // Reifegrad-Abnahme (ADR-0018): Approvals hängen an der Transition (Cascade),
+  // Transition an der Initiative → beide vor den Initiatives löschen.
+  await prisma.stageGateApproval.deleteMany(w);
+  await prisma.stageGateTransition.deleteMany(w);
   await prisma.kpi.deleteMany(w);
   await prisma.dependency.deleteMany(w);
   await prisma.initiativeGraphPosition.deleteMany(w);
@@ -190,6 +215,8 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
   // Org-Struktur
   await prisma.art.deleteMany(w);
   await prisma.timeline.deleteMany(w);
+  // Gate-Freigabe-Regeln referenzieren den Wertstrom → vor ihm löschen.
+  await prisma.stageGateApproverRule.deleteMany(w);
   await prisma.valueStream.deleteMany(w);
 
   // Standalone (tenantId-Scalar)

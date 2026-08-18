@@ -97,51 +97,32 @@ describe("buildPortfolioOverviewModel", () => {
     expect(m.oldestPerGate.L4).toBeNull();
   });
 
-  it("L2 + BC-approved faellt in die L3-Bucket (Kanban 'Portfolio Backlog')", () => {
+  it("Karten stehen in der Spalte ihres echten Reifegrads — keine Bucket-Abweichung mehr", () => {
+    // Früher wich das Board in zwei Fällen bewusst vom persistierten Gate ab
+    // (L0+Owner → L1-Spalte, L2+BC-freigegeben → L3-Spalte), weil das Gate der
+    // Wirklichkeit hinterherlief. Mit dem beantragten, abgenommenen Wechsel
+    // steht das Gate da, wo jemand es hingeschoben hat — die Abweichung ist
+    // ersatzlos entfallen.
     const inputs = baseInputs();
     inputs.epics = [
-      // L2 ohne BC-Approval → Analyzing
-      epic({
-        id: "drafting-bc",
-        title: "Drafting BC",
-        stageGate: "L2",
-        businessCaseApprovedAt: null,
-      }),
-      // L2 + BC-approved → visuell L3
+      epic({ id: "idea", title: "Idea", stageGate: "L0", ownerId: null }),
+      epic({ id: "drafting", title: "Drafting", stageGate: "L0", ownerId: "user-1" }),
+      epic({ id: "approved", title: "Approved", stageGate: "L1", ownerId: "user-2" }),
+      epic({ id: "drafting-bc", title: "Drafting BC", stageGate: "L2", businessCaseApprovedAt: null }),
       epic({
         id: "ready-for-budget",
         title: "Ready",
         stageGate: "L2",
         businessCaseApprovedAt: daysAgo(2),
       }),
-      // echtes L3 → L3
       epic({ id: "funded", title: "Funded", stageGate: "L3" }),
     ];
     const m = buildPortfolioOverviewModel(inputs);
-    expect(m.epicsByGate.L2.map((c) => c.id)).toEqual(["drafting-bc"]);
-    expect(m.epicsByGate.L3.map((c) => c.id).sort()).toEqual(["funded", "ready-for-budget"]);
-    // Daten-Modell-stageGate bleibt L2 fuer das L2+BC-approved-Epic.
-    const promoted = m.epicsByGate.L3.find((c) => c.id === "ready-for-budget");
-    expect(promoted?.stageGate).toBe("L2");
-  });
 
-  it("L0 + owner faellt in die L1-Bucket (Kanban 'Hypothese erstellen')", () => {
-    const inputs = baseInputs();
-    inputs.epics = [
-      // L0 ohne Owner → Funnel
-      epic({ id: "idea", title: "Idea", stageGate: "L0", ownerId: null }),
-      // L0 mit Owner → visuell L1
-      epic({ id: "drafting", title: "Drafting", stageGate: "L0", ownerId: "user-1" }),
-      // echtes L1 → L1
-      epic({ id: "approved", title: "Approved", stageGate: "L1", ownerId: "user-2" }),
-    ];
-    const m = buildPortfolioOverviewModel(inputs);
-    expect(m.epicsByGate.L0.map((c) => c.id)).toEqual(["idea"]);
-    expect(m.epicsByGate.L1.map((c) => c.id).sort()).toEqual(["approved", "drafting"]);
-    // Daten-Modell-stageGate bleibt L0 fuer den drafting-Epic, nur der Bucket
-    // ist L1. Konsumenten der Karte sehen den echten Stage-Gate-Wert.
-    const drafting = m.epicsByGate.L1.find((c) => c.id === "drafting");
-    expect(drafting?.stageGate).toBe("L0");
+    expect(m.epicsByGate.L0.map((c) => c.id).sort()).toEqual(["drafting", "idea"]);
+    expect(m.epicsByGate.L1.map((c) => c.id)).toEqual(["approved"]);
+    expect(m.epicsByGate.L2.map((c) => c.id).sort()).toEqual(["drafting-bc", "ready-for-budget"]);
+    expect(m.epicsByGate.L3.map((c) => c.id)).toEqual(["funded"]);
   });
 
   it("sorts steering-flagged epics to the top of each gate, oldest-first within each group", () => {

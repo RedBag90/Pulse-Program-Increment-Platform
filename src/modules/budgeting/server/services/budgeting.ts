@@ -28,7 +28,6 @@ import {
 } from "@/modules/budgeting/domain/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
-import { signalGateTrigger } from "@/modules/work/server/services/stage-gate-engine";
 
 export interface BudgetingBoardData {
   epics: BudgetEpicView[];
@@ -247,12 +246,10 @@ export async function saveBudgetAllocation(
       },
     });
 
-    // Reifegrad-Modell v2 (Plan vom 2026-06-07): L3 = „Budget alloziert"
-    // verlangt zwei Bedingungen — (a) Business Case freigegeben und (b)
-    // mindestens eine Period-Allokation > 0. Beide Vorbedingungen besitzt jetzt
-    // die Stage-Gate-Engine; der Trigger schlaegt L2→L3 vor (owner-confirm) und
-    // ist no-op, wenn die Bedingungen fehlen oder das Epic bereits weiter ist.
-    await signalGateTrigger(tx, mctx, epicId, "budget_allocated");
+    // Budgeting schreibt nicht mehr in die Reifegrad-Spalten von Work. Die
+    // Budget-Summe ist ein L3-Readiness-Kriterium, das beim Lesen aus der
+    // Allokation abgeleitet wird — eine Cross-Modul-Schreibkopplung weniger
+    // (ADR-0015), ohne sie durch ein Event ersetzen zu müssen.
 
     return ok({
       result: { id: row.id },

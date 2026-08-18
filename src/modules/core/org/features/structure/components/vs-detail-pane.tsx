@@ -37,7 +37,13 @@ export function VsDetailPane({ vs, canCreateArt, canUpdateVs, onSelectArt }: Pro
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Wertstrom</p>
-            <h2 className="font-heading text-lg font-medium">{vs.name}</h2>
+            <Link
+              href={`/value-streams/${vs.id}`}
+              className="group inline-flex items-center gap-1.5"
+            >
+              <h2 className="font-heading text-lg font-medium group-hover:underline">{vs.name}</h2>
+              <ArrowRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </Link>
           </div>
           {canUpdateVs && (
             <div className="flex items-center gap-1">
@@ -54,6 +60,13 @@ export function VsDetailPane({ vs, canCreateArt, canUpdateVs, onSelectArt }: Pro
           <dt className="text-muted-foreground">ARTs</dt>
           <dd className="tabular-nums">{vs.artCount}</dd>
         </dl>
+        <Link
+          href={`/value-streams/${vs.id}`}
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        >
+          Reifegrad-Freigaben &amp; Details öffnen
+          <ArrowRight className="size-3.5" />
+        </Link>
       </section>
 
       <section className="space-y-3 rounded-lg border bg-card p-4">

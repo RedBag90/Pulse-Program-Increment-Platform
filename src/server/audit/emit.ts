@@ -32,7 +32,17 @@ export type AuditAction =
   | "initiative.created"
   | "initiative.updated"
   | "initiative.deleted"
+  // Reifegrad (Stage Gate): Antrag → namentliche Abnahme → Wechsel.
+  // `advanced` bleibt der vollzogene Wechsel und behält seinen Namen, damit
+  // bestehende Audit-Zeilen und die Activity-Feed-Auswertung weiterlaufen.
+  | "initiative.stage_gate.requested"
+  | "initiative.stage_gate.approval.granted"
+  | "initiative.stage_gate.approval.rejected"
   | "initiative.stage_gate.advanced"
+  | "initiative.stage_gate.request.rejected"
+  | "initiative.stage_gate.request.withdrawn"
+  | "initiative.stage_gate.reverted"
+  | "stage_gate.approvers.configured"
   | "initiative.dependency.linked"
   | "initiative.dependency.unlinked"
   // Epic multi-party approval workflow
@@ -168,6 +178,11 @@ export type AuditAction =
 
 export type AuditResourceType =
   | "initiative"
+  // Nur für `stage_gate.approvers.configured`. Alle *Wechsel*-Ereignisse
+  // bleiben auf `initiative` + der Epic-ID, weil `listInitiativeHistory` genau
+  // auf dieses Paar filtert — so nimmt die Epic-Activity-Sidebar sie ohne
+  // Zusatzarbeit auf.
+  | "stage_gate_approver_rule"
   | "program_increment"
   | "pi_standard"
   | "value_stream"

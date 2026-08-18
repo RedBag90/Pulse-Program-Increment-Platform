@@ -57,9 +57,10 @@ interface Props {
 /**
  * A compact dropdown that allows selecting multiple tenant users — the trigger
  * shows the chosen names (or a placeholder), the popover holds a checkbox list.
- * Used per stakeholder party, mirroring the single-select section dropdowns.
+ * Used per stakeholder party, mirroring the single-select section dropdowns —
+ * and reused by the value-stream gate-approver editor.
  */
-function MultiUserSelect({
+export function MultiUserSelect({
   options,
   selected,
   onToggle,

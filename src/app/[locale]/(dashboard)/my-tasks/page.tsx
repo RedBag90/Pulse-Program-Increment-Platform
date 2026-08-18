@@ -205,7 +205,6 @@ export default async function MyTasksPage() {
   //    auf den ersten betroffenen ART (Feature). Pro-Row enforcen die
   //    Server-Actions ohnehin noch einmal selbst.
   const canEditEpic = hasCapability(principal, "epic.update", { tenantId });
-  const canAdvanceEpic = hasCapability(principal, "epic.approve", { tenantId });
   const sampleArtId = involvedArtIds[0];
   const canEditFeature = sampleArtId
     ? hasCapability(principal, "feature.update", { tenantId, artId: sampleArtId })
@@ -217,7 +216,6 @@ export default async function MyTasksPage() {
     featureRows: featuresModel.rows,
     stageGatesEnabled: practices.stageGates,
     canEditEpic,
-    canAdvanceEpic,
     canEditFeature,
   });
 

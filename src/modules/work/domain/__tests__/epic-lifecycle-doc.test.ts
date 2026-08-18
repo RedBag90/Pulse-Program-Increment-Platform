@@ -1,31 +1,66 @@
 import { describe, it, expect } from "vitest";
-import {
-  LIFECYCLE_TRIGGERS,
-  SUB_STAGE_RULES,
-  BUCKET_RULES,
-  BLOCKED_MANUAL_TRANSITIONS,
-  manualForwardBlockReason,
-  type ManualAdvanceState,
-} from "@/modules/work/domain/epic-lifecycle-doc";
+import { GATE_CRITERIA_DOC, SUB_STAGE_RULES } from "@/modules/work/domain/epic-lifecycle-doc";
 import { SUB_STAGES } from "@/modules/work/domain/stage-gate";
+import { GATE_CRITERIA, gateReadiness, type EpicGateFacts } from "@/modules/work/domain/gate-readiness";
 
 /**
- * Sanity-Checks der Lebenszyklus-Dokumentations-Konstanten. Falls ein
- * Auto-Advance-Trigger im Code ergaenzt/entfernt wird, soll auch hier
- * der Eintrag mitgepflegt werden — diese Tests sind die Drift-Bremse.
+ * Der Doku-Katalog war früher eine Parallelliste, die veralten konnte — und es
+ * auch tat. Jetzt wird er aus `GATE_CRITERIA` abgeleitet; diese Tests halten
+ * fest, dass die Ableitung vollständig und mit der Auswertung deckungsgleich
+ * bleibt.
  */
 
-describe("LIFECYCLE_TRIGGERS", () => {
-  it("deckt alle 5 Auto-Advance-Trigger des Reifegrad-Modells ab", () => {
-    const transitions = LIFECYCLE_TRIGGERS.map((t) => `${t.stageFrom}->${t.stageTo}`).sort();
-    expect(transitions).toEqual(["L0->L1", "L1->L2", "L2->L3", "L3->L4", "L4->L5"]);
+describe("GATE_CRITERIA_DOC", () => {
+  it("deckt genau die fünf Vorwärts-Wechsel ab", () => {
+    expect(GATE_CRITERIA_DOC.map((g) => `${g.stageFrom}->${g.stageTo}`)).toEqual([
+      "L0->L1",
+      "L1->L2",
+      "L2->L3",
+      "L3->L4",
+      "L4->L5",
+    ]);
   });
 
-  it("annotiert die Sub-Stages, die direkt aus dem Stage-Advance entstehen", () => {
-    const l2Advance = LIFECYCLE_TRIGGERS.find((t) => t.stageTo === "L2");
-    const l4Advance = LIFECYCLE_TRIGGERS.find((t) => t.stageTo === "L4");
-    expect(l2Advance?.subStageAfter).toBe("L2.1");
-    expect(l4Advance?.subStageAfter).toBe("L4.1");
+  it("hat für L5 keinen Eintrag — dort endet der Funnel", () => {
+    expect(GATE_CRITERIA_DOC.some((g) => g.stageFrom === "L5")).toBe(false);
+  });
+
+  it("zeigt je Wechsel genauso viele Kriterien wie die Auswertung", () => {
+    // Der Punkt der Ableitung: Doku und Regel können nicht auseinanderlaufen.
+    for (const g of GATE_CRITERIA_DOC) {
+      expect(g.criteria).toHaveLength((GATE_CRITERIA[g.stageTo] ?? []).length);
+    }
+  });
+
+  it("stimmt in Beschriftung und Blocking-Flag mit der Auswertung überein", () => {
+    const facts: EpicGateFacts = {
+      stageGate: "L2",
+      ownerId: null,
+      hypothesisApprovedAt: null,
+      hasHypothesisContent: false,
+      hasBusinessCaseContent: false,
+      businessCaseApprovedAt: null,
+      budgetAllocationSum: 0,
+      childFeatureStats: { total: 0, started: 0, completed: 0 },
+      selectedForDetailingAt: null,
+      selectedForAnalyzingAt: null,
+      implementationStartedAt: null,
+      approvedAt: null,
+      impactRecognizedAt: null,
+      multiPartyApproval: true,
+    };
+    const doc = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L3");
+    const evaluated = gateReadiness(facts, "L3");
+    expect(doc?.criteria.map((c) => [c.label, c.blocking])).toEqual(
+      evaluated.criteria.map((c) => [c.label, c.blocking]),
+    );
+  });
+
+  it("markiert bei L3 beide Kriterien als blockierend, bei L4 keines", () => {
+    const l3 = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L3");
+    const l4 = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L4");
+    expect(l3?.criteria.every((c) => c.blocking)).toBe(true);
+    expect(l4?.criteria.some((c) => c.blocking)).toBe(false);
   });
 });
 
@@ -40,104 +75,5 @@ describe("SUB_STAGE_RULES", () => {
       if (r.key.startsWith("L2")) expect(r.gate).toBe("L2");
       if (r.key.startsWith("L4")) expect(r.gate).toBe("L4");
     }
-  });
-});
-
-describe("BUCKET_RULES", () => {
-  it("definiert die zwei Bucket-Override-Regeln (L0+owner, L2+bcApproved)", () => {
-    const overrides = BUCKET_RULES.filter((r) => r.stageGate !== r.bucket);
-    expect(overrides.length).toBe(2);
-    expect(overrides).toContainEqual(expect.objectContaining({ stageGate: "L0", bucket: "L1" }));
-    expect(overrides).toContainEqual(expect.objectContaining({ stageGate: "L2", bucket: "L3" }));
-  });
-
-  it("liefert fuer jedes Stage-Gate mindestens eine Default-Regel (Bucket == Stage)", () => {
-    const stageGates = ["L0", "L1", "L2", "L3", "L4", "L5"] as const;
-    for (const g of stageGates) {
-      const defaultRule = BUCKET_RULES.find((r) => r.stageGate === g && r.bucket === g);
-      expect(defaultRule, `Default-Regel fuer ${g} fehlt`).toBeTruthy();
-    }
-  });
-});
-
-describe("BLOCKED_MANUAL_TRANSITIONS", () => {
-  it("sperrt genau L2->L3 und L4->L5", () => {
-    const transitions = BLOCKED_MANUAL_TRANSITIONS.map((b) => `${b.from}->${b.to}`).sort();
-    expect(transitions).toEqual(["L2->L3", "L4->L5"]);
-  });
-
-  it("erklaert je den automatischen Pfad in der reason", () => {
-    const l2 = BLOCKED_MANUAL_TRANSITIONS.find((b) => b.from === "L2");
-    const l4 = BLOCKED_MANUAL_TRANSITIONS.find((b) => b.from === "L4");
-    expect(l2?.reason).toMatch(/budget/i);
-    expect(l4?.reason).toMatch(/impact/i);
-  });
-});
-
-describe("manualForwardBlockReason", () => {
-  const base: ManualAdvanceState = {
-    multiPartyApproval: true,
-    hypothesisApprovedAt: null,
-    hasHypothesisContent: false,
-    hasBusinessCaseContent: false,
-    startedChildFeatureCount: 0,
-  };
-
-  it("L0→L1 (Approval an): blockt ohne freigegebene Hypothese, erlaubt mit", () => {
-    expect(manualForwardBlockReason("L0", "L1", base)).toMatch(/Hypothese/i);
-    expect(
-      manualForwardBlockReason("L0", "L1", { ...base, hypothesisApprovedAt: new Date() }),
-    ).toBeNull();
-  });
-
-  it("L0→L1 (Approval aus): blockt ohne Hypothese-Inhalt, erlaubt mit", () => {
-    expect(manualForwardBlockReason("L0", "L1", { ...base, multiPartyApproval: false })).toMatch(
-      /Hypothese/i,
-    );
-    expect(
-      manualForwardBlockReason("L0", "L1", {
-        ...base,
-        multiPartyApproval: false,
-        hasHypothesisContent: true,
-      }),
-    ).toBeNull();
-  });
-
-  it("L1→L2 (Approval an): blockt ohne freigegebene Hypothese, erlaubt mit", () => {
-    // Analyse steht vor „Business Case done" — Voraussetzung ist die Hypothese, kein BC.
-    expect(manualForwardBlockReason("L1", "L2", base)).toMatch(/Hypothese/i);
-    expect(
-      manualForwardBlockReason("L1", "L2", { ...base, hypothesisApprovedAt: new Date() }),
-    ).toBeNull();
-    // Business-Case-Inhalt allein reicht NICHT (die Hypothese fehlt noch).
-    expect(manualForwardBlockReason("L1", "L2", { ...base, hasBusinessCaseContent: true })).toMatch(
-      /Hypothese/i,
-    );
-  });
-
-  it("L1→L2 (Approval aus): blockt ohne Hypothese-Inhalt, erlaubt mit", () => {
-    expect(manualForwardBlockReason("L1", "L2", { ...base, multiPartyApproval: false })).toMatch(
-      /Hypothese/i,
-    );
-    expect(
-      manualForwardBlockReason("L1", "L2", {
-        ...base,
-        multiPartyApproval: false,
-        hasHypothesisContent: true,
-      }),
-    ).toBeNull();
-  });
-
-  it("L3→L4: kein Guard mehr — immer erlaubt (entkoppelt vom Feature-Start)", () => {
-    expect(manualForwardBlockReason("L3", "L4", base)).toBeNull();
-    expect(
-      manualForwardBlockReason("L3", "L4", { ...base, startedChildFeatureCount: 1 }),
-    ).toBeNull();
-  });
-
-  it("Rückwärts-Wechsel sind erlaubt (kein Guard)", () => {
-    expect(manualForwardBlockReason("L1", "L0", base)).toBeNull();
-    expect(manualForwardBlockReason("L2", "L1", base)).toBeNull();
-    expect(manualForwardBlockReason("L4", "L3", base)).toBeNull();
   });
 });

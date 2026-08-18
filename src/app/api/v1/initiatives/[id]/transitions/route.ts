@@ -1,12 +1,24 @@
 import { z } from "zod";
 import { createMutationHandler } from "@/server/http/mutation-handler";
-import { advanceStageGate } from "@/modules/work/server/services/epic";
+import { requestGateTransition } from "@/modules/work/server/services/stage-gate-transition";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
-import type { EpicId } from "@/modules/core/kernel/domain/types";
 
+/**
+ * `POST /api/v1/initiatives/:id/transitions` — **beantragt** einen
+ * Reifegrad-Wechsel.
+ *
+ * Vorher vollzog dieser Endpunkt den Wechsel direkt. Das geht nicht mehr: ein
+ * Wechsel wird von namentlich benannten Personen abgenommen, also legt der
+ * Aufruf einen Antrag an (201) und liefert dessen Id zurück. Die Abnahme läuft
+ * über `POST /api/v1/initiatives/:id/transitions/:transitionId/decisions`.
+ *
+ * Ist für das Ziel-Gate keine Abnahme konfiguriert (`required: false`), rückt
+ * der Antrag in derselben Transaktion vor — der Response unterscheidet das über
+ * `status: "approved"` statt `"pending"`.
+ */
 const transitionSchema = z.object({
   toGate: z.enum(STAGE_GATES),
-  comment: z.string().optional(),
+  reason: z.string().max(1000).optional(),
 });
 
 interface Ctx {
@@ -17,14 +29,14 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   const { id } = await params;
   return createMutationHandler({
     schema: transitionSchema,
-    action: "epic.approve",
+    action: "epic.gate.request",
     resource: (_input, p) => ({ tenantId: p.tenantId }),
     service: (ctx, input) =>
-      advanceStageGate(ctx, {
-        epicId: id as EpicId,
+      requestGateTransition(ctx, {
+        epicId: id,
         toGate: input.toGate,
-        comment: input.comment,
+        reason: input.reason,
       }),
-    successStatus: 200,
+    successStatus: 201,
   })(request);
 }

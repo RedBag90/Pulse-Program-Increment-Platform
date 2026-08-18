@@ -8,8 +8,10 @@ import { getArtBudgetBreakdown } from "@/modules/budgeting/server/services/art-b
 import { ArtBudgetBreakdown } from "@/modules/budgeting/features/art-budget/components/art-budget-breakdown";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
+import { listGateApproverRules } from "@/modules/work/server/services/stage-gate-transition";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { userLabel } from "@/components/detail/initiative-labels";
+import { GateApproverRulesSection } from "@/modules/work/features/portfolio/components/gate-approver-rules-section";
 import {
   EntityDetailShell,
   resolveTab,
@@ -109,12 +111,18 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
     valueStreamId: vs.id,
   });
 
-  const [history, approvers, userLabels, vsBudgets, artBreakdown] = await Promise.all([
+  const canConfigureGates = hasCapability(principal, "epic.gate.approvers.configure", {
+    tenantId: principal.tenantId,
+    valueStreamId: vs.id,
+  });
+
+  const [history, approvers, userLabels, vsBudgets, artBreakdown, gateRules] = await Promise.all([
     listAuditHistory(db, principal.tenantId, "value_stream", vs.id),
     listTenantApprovers(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
     getValueStreamBudgets(db, principal.tenantId),
     getArtBudgetBreakdown(db, principal.tenantId, vs.id as ValueStreamId),
+    listGateApproverRules(db, principal.tenantId, vs.id),
   ]);
   const budgetPlan = vsBudgets.valueStreams.find((b) => b.valueStreamId === vs.id);
 
@@ -176,6 +184,15 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
               <Field label="VMO">{vs.vmoId ? userLabel(vs.vmoId, userLabels) : "—"}</Field>
             </dl>
           )}
+          <GateApproverRulesSection
+            valueStreamId={vs.id}
+            rules={gateRules}
+            vmoId={vs.vmoId ?? null}
+            financeApproverId={vs.financeApproverId ?? null}
+            approvers={approvers}
+            userLabels={userLabels}
+            canConfigure={canConfigureGates}
+          />
           <BudgetPlan periods={vsBudgets.periods} plan={budgetPlan} />
           <ArtBudgetBreakdown
             periods={artBreakdown.periods}

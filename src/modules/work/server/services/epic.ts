@@ -4,7 +4,6 @@ import type {
   TenantId,
   EpicId,
   ValueStreamId,
-  StageGate,
 } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
@@ -14,14 +13,8 @@ import type { EpicType, Horizon } from "@/modules/work/domain/portfolio-guardrai
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { createInitiativeWithDerivedPath } from "@/modules/core/kernel/server/initiative-write";
-import {
-  signalGateTrigger,
-  confirmProposedAdvance,
-  advanceGateManually,
-} from "@/modules/work/server/services/stage-gate-engine";
 import { loadAuthorizedEpic } from "@/modules/work/server/services/epic-access";
 import { appendVersion } from "@/modules/work/domain/versioned-document";
-import { effectivePractices } from "@/modules/core/kernel/domain/operating-model";
 import {
   parseBenefitHypothesis,
   benefitHypothesisHasContent,
@@ -187,113 +180,15 @@ export async function updateEpic(
 }
 
 // ---------------------------------------------------------------------------
-// Advance stage gate
+// Reifegrad-Wechsel leben nicht mehr hier.
+//
+// `advanceStageGate` (manueller Sprung) und `confirmProposedStageGate`
+// (Bestätigung eines Vorschlags) sind entfallen. Ein Wechsel wird beantragt und
+// von namentlich benannten Personen abgenommen — siehe
+// `server/services/stage-gate-transition.ts`. Die Rückwärts-Korrektur heisst
+// dort `revertStageGate` und räumt anders als früher die Stempel des
+// verlassenen Gates ab.
 // ---------------------------------------------------------------------------
-
-export interface AdvanceStageGateInput {
-  epicId: EpicId;
-  toGate: StageGate;
-  comment?: string | undefined;
-}
-
-/**
- * Advances (or steps back) an Epic's stage gate. Reaching L3 is the approval
- * decision — the approver, timestamp, and comment are persisted on the Epic so
- * they are visible without reading the audit log.
- */
-export async function advanceStageGate(
-  ctx: RequestContext,
-  input: AdvanceStageGateInput,
-): Promise<Result<{ from: StageGate; to: StageGate }>> {
-  const mctx = toMutationContext(ctx);
-  const { epicId, toGate, comment } = input;
-
-  return withAuditedTransaction(mctx, async (tx) => {
-    // Stage gates only exist when the target operating model enables them. With
-    // them switched off the portfolio shows a flat epic list and exposes no
-    // "advance" affordance — reject any request that reaches the action anyway.
-    const targetModel = await tx.targetOperatingModel.findFirst({
-      where: { tenantId: mctx.tenantId, status: "active" },
-      orderBy: { updatedAt: "desc" },
-    });
-    const practices = effectivePractices(targetModel);
-    if (!practices.stageGates) {
-      return err({
-        kind: "forbidden" as const,
-        reason: "Stage gates are not part of this tenant's target operating model",
-      });
-    }
-
-    // Scope-aware seam check (ADR-0002): authorize against the loaded Epic
-    // before the engine mutates it, so no `epic.approve` grant is satisfied
-    // vacuously by an attacker-controlled id.
-    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
-      id: epicId,
-      action: "epic.approve",
-      select: { id: true },
-    });
-    if (isErr(loaded)) return loaded;
-
-    // The manual move — transition validity, the blocked-auto-advance list and
-    // the forward-precondition guards, plus the stamps + `stage_gate.advanced`
-    // audit — all live in the pure engine + its adapter now.
-    const moved = await advanceGateManually(tx, mctx, epicId, toGate, comment);
-    if (isErr(moved)) return moved;
-
-    return ok({
-      result: moved.value,
-      // `advanceGateManually` runs the engine with `emitAudit: false`, so this
-      // withAuditedTransaction owns the single `stage_gate.advanced` row.
-      audit: {
-        action: "initiative.stage_gate.advanced" as const,
-        resourceType: "initiative" as const,
-        resourceId: epicId,
-        changes: {
-          stageGate: { before: moved.value.from, after: moved.value.to },
-          ...(comment !== undefined && { comment: { before: null, after: comment } }),
-        },
-      },
-    });
-  });
-}
-
-/**
- * Owner confirms a persisted gate proposal (`proposedStageGate`), advancing the
- * Epic one gate. Reuses the same portfolio-scoped `epic.approve` capability as
- * the manual {@link advanceStageGate}; the engine re-validates the proposal
- * against the current state and emits the `stage_gate.advanced` audit.
- */
-export async function confirmProposedStageGate(
-  ctx: RequestContext,
-  input: { epicId: EpicId },
-): Promise<Result<{ from: StageGate; to: StageGate }>> {
-  const mctx = toMutationContext(ctx);
-  const { epicId } = input;
-
-  return withAuditedTransaction(mctx, async (tx) => {
-    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
-      id: epicId,
-      action: "epic.approve",
-      select: { id: true },
-    });
-    if (isErr(loaded)) return loaded;
-
-    const confirmed = await confirmProposedAdvance(tx, mctx, epicId);
-    if (isErr(confirmed)) return confirmed;
-
-    return ok({
-      result: confirmed.value,
-      // `confirmProposedAdvance` runs the engine with `emitAudit: false`, so this
-      // withAuditedTransaction owns the single `stage_gate.advanced` row.
-      audit: {
-        action: "initiative.stage_gate.advanced" as const,
-        resourceType: "initiative" as const,
-        resourceId: epicId,
-        changes: { stageGate: { before: confirmed.value.from, after: confirmed.value.to } },
-      },
-    });
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Save Epic artefacts — Benefit Hypothesis & Business Case (both versioned)
@@ -393,14 +288,10 @@ export async function saveBusinessCase(
       },
     });
 
-    // Reifegrad-Modell v2: L2.1 = „BC in Arbeit". Sobald Inhalt im Business Case
-    // existiert, schlaegt der Trigger L1→L2 vor (owner-confirm) — die
-    // Sub-Step-Derivation (subStageFor) macht daraus dann L2.1 bzw. L2.2 nach
-    // BC-Approval. Der Trigger ist no-op, wenn kein Inhalt da ist bzw. das Epic
-    // schon auf L2 oder weiter ist.
-    if (businessCaseHasContent(fields)) {
-      await signalGateTrigger(tx, mctx, epicId, "business_case_saved");
-    }
+    // Kein Gate-Trigger mehr: dass der Business Case Inhalt hat, ist ein
+    // Readiness-Kriterium, das beim Lesen abgeleitet wird (`gate-readiness.ts`).
+    // Speichern verschiebt keinen Reifegrad — der Push ist ein eigener,
+    // abgenommener Akt.
 
     return ok({
       result: undefined,
@@ -438,10 +329,9 @@ export async function saveTimeline(
     });
     if (isErr(loaded)) return loaded;
 
-    // Reifegrad-Modell v2: L5 ist im neuen Modell nicht mehr „Implementation
-    // done", sondern „Impact recognized on Balance Sheet" — gesetzt vom
-    // Controlling über `confirmEpicImpact`. Das Setzen der Implementation-
-    // Actuals löst deshalb kein Stage-Advance mehr aus.
+    // L5 heisst „Impact recognized on Balance Sheet", nicht „Implementation
+    // done" — der Stempel entsteht bei der L4→L5-Abnahme durch das Controlling
+    // (ADR-0018). Implementation-Actuals lösen deshalb keinen Wechsel aus.
 
     await tx.initiative.update({
       where: { id: epicId },
@@ -481,12 +371,11 @@ export async function assignEpicOwner(
     if (isErr(loaded)) return loaded;
     const existing = loaded.value;
 
-    // L0→L1 (stage-gate) bleibt beim Hypothesis-Approval. Aber das Kanban
-    // verschiebt das Epic visuell sofort nach „Hypothese erstellen", sobald
-    // ein Owner zugewiesen ist (siehe `bucketFor` in portfolio-overview.ts).
-    // Passend dazu stempeln wir die Timeline-Phase „Selected for Detailing"
-    // beim ersten Owner-Set — der advanceStageGate-Pfad bleibt idempotentes
-    // Safety-Net fuer manuelle Spruenge ohne Owner.
+    // Die Timeline-Phase „Selected for Detailing" wird beim ersten Owner-Set
+    // gestempelt. Das Gate selbst bewegt sich dadurch NICHT — dafür braucht es
+    // einen abgenommenen Antrag (ADR-0018). Der Stempel ist set-once; rückt das
+    // Epic später regulär auf L1, sieht `stampsForAdvance` ihn und stempelt
+    // nicht doppelt.
     const stampSelectedForDetailing =
       existing.ownerId == null && existing.selectedForDetailingAt == null;
     const detailingAtNow = stampSelectedForDetailing ? new Date() : null;
@@ -517,57 +406,14 @@ export async function assignEpicOwner(
 }
 
 // ---------------------------------------------------------------------------
-// Confirm Epic Impact (Reifegrad v2: L5 = "Impact realisiert")
+// `confirmEpicImpact` ist entfallen.
+//
+// L5 („Impact realisiert") war der einzige Reifegrad mit eigenem Dialog und
+// eigener Capability. Jetzt ist es der Wechsel L4→L5 wie jeder andere: das
+// Controlling steht als Abnehmer auf der L5-Regel, und `impactRecognizedBy` /
+// `impactComment` tragen die Person und den Kommentar der tatsächlichen
+// Abnahme statt desjenigen, der den Dialog geöffnet hat.
 // ---------------------------------------------------------------------------
-
-/**
- * Controlling bestätigt, dass der prognostizierte Nutzen des Epics auf der
- * Balance-Sheet bzw. den KPIs angekommen ist. Setzt `impactRecognizedAt`,
- * `impactRecognizedBy`, `impactComment` und schiebt das Epic auf L5.
- *
- * Vorbedingungen:
- *  - Epic ist auf `L4` (L5-Sprung sonst falsch);
- *  - alle Child-Features sind `completed` (= L4.2 derived);
- *  - `impactRecognizedAt === null` (idempotent — kein doppeltes Stempeln).
- */
-export async function confirmEpicImpact(
-  ctx: RequestContext,
-  input: { epicId: EpicId; comment?: string | undefined },
-): Promise<Result<void>> {
-  const mctx = toMutationContext(ctx);
-  const { epicId, comment } = input;
-
-  return withAuditedTransaction(mctx, async (tx) => {
-    const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
-      id: epicId,
-      action: "epic.impact.confirm",
-      select: { id: true },
-    });
-    if (isErr(loaded)) return loaded;
-
-    // L5 = „Impact realisiert". The L4-gate + all-children-completed checks and
-    // the impactRecognized* stamps + audit now live in the engine: signal the
-    // completion fact (creates the L5 proposal iff ready), then confirm it.
-    await signalGateTrigger(tx, mctx, epicId, "features_completed");
-    const confirmed = await confirmProposedAdvance(tx, mctx, epicId, { comment });
-    if (isErr(confirmed)) return confirmed;
-
-    return ok({
-      result: undefined,
-      // `confirmProposedAdvance` runs the engine with `emitAudit: false`, so this
-      // withAuditedTransaction owns the single `stage_gate.advanced` row.
-      audit: {
-        action: "initiative.stage_gate.advanced",
-        resourceType: "initiative",
-        resourceId: epicId,
-        changes: {
-          stageGate: { before: confirmed.value.from, after: confirmed.value.to },
-          ...(comment ? { impactComment: { before: null, after: comment } } : {}),
-        },
-      },
-    });
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Delete Epic (soft)

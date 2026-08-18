@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, startTransition } from "react";
-import { AlertTriangle, Coins, MoreHorizontal, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowUp, Coins, MoreHorizontal, ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiative-labels";
 import {
@@ -16,12 +16,7 @@ import type { RagTier } from "@/modules/work/domain/transformation-delta";
 interface Props {
   row: EpicListRow;
   canEdit: boolean;
-  /**
-   * Wird von Tabelle/Shell durchgereicht (Bulk-Leiste nutzt es noch). Die Zeile
-   * selbst steuert den Reifegrad nicht mehr manuell — sie zeigt stattdessen den
-   * Nächster-Schritt-Hinweis; daher hier akzeptiert, aber ungenutzt.
-   */
-  canAdvance?: boolean;
+  /** Practice-Schalter: ohne Stage Gates entfällt der Nächster-Schritt-Hinweis. */
   stageGatesEnabled: boolean;
   /** Selection checkbox is wired by the parent — null hides the column. */
   selected: boolean | null;
@@ -65,9 +60,10 @@ function money(n: number | null): string {
  * dot, title link, owner, value stream, approval-phase pill, QS status pill,
  * economics (implementation cost + recurring benefit / year), KPI mini-bar
  * with progress %, governance badges, child-feature + pending-approval
- * counts. The "⋯" menu houses the per-row mutations (stage-gate advance /
- * retreat / steering toggle / budgeting toggle / delete) so the row stays
- * scannable and the actions stay one click away.
+ * counts. Das "⋯"-Menü trägt die Zeilen-Mutationen (Steering-/Budget-Flag,
+ * Löschen). Reifegrad-Wechsel stehen bewusst NICHT darin: sie werden am Epic
+ * beantragt und abgenommen — ein Ein-Klick-Push aus der Liste heraus würde die
+ * Abnahme umgehen.
  */
 export function EpicListRowComponent({
   row,
@@ -312,9 +308,24 @@ function GovernanceBadges({ row }: { row: EpicListRow }) {
   const showSteering = row.needsSteeringAttention;
   const showBudget = row.stagedForBudgeting;
   const showApprovals = row.pendingApprovalsCount > 0;
-  if (!showSteering && !showBudget && !showApprovals) return null;
+  const gateRequest = row.pendingGateRequest;
+  if (!showSteering && !showBudget && !showApprovals && !gateRequest) return null;
   return (
     <span className="flex shrink-0 items-center gap-1">
+      {/* Ersetzt die früheren Bucket-Abweichungen: die Karte bleibt in ihrer
+          echten Spalte und zeigt, dass ein Wechsel auf Abnahme wartet. */}
+      {gateRequest && (
+        <span
+          className="inline-flex h-5 items-center gap-0.5 rounded bg-primary/10 px-1.5 text-[10px] font-medium tabular-nums text-primary"
+          title={`Wechsel nach ${gateRequest.toGate} beantragt — ${gateRequest.pendingCount} von ${gateRequest.totalCount} Abnahmen offen`}
+        >
+          <ArrowUp className="size-3" />
+          {gateRequest.toGate}
+          <span className="text-primary/70">
+            {gateRequest.totalCount - gateRequest.pendingCount}/{gateRequest.totalCount}
+          </span>
+        </span>
+      )}
       {showSteering && (
         <span
           className="inline-flex size-5 items-center justify-center rounded bg-amber-100 text-amber-700"

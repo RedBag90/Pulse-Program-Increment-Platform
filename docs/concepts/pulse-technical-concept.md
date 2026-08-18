@@ -494,7 +494,8 @@ export type Role = (typeof ROLES)[keyof typeof ROLES];
 | --------------------- | ------------ | ---------------- | --------------- | -------------- | ----------- | ----------- | ---------- | ---------------- |
 | `tenant.users.manage` | ✓            | —                | —               | —              | —           | —           | —          | —                |
 | `epic.create`         | —            | ✓                | —               | —              | —           | —           | —          | —                |
-| `epic.approve`        | —            | ✓                | —               | —              | —           | —           | —          | —                |
+| `epic.gate.request`   | —            | ✓                | ✓               | —              | —           | —           | —          | —                |
+| `epic.gate.decide`    | —            | ✓                | ✓               | ✓              | ✓           | —           | —          | —                |
 | `feature.create`      | —            | ✓                | ✓               | ✓              | —           | —           | —          | —                |
 | `feature.approve`     | —            | ✓                | ✓               | scoped         | —           | —           | —          | —                |
 | `feature.wsjf.set`    | —            | ✓                | ✓               | ✓              | —           | —           | —          | —                |

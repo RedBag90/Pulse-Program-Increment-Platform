@@ -14,7 +14,6 @@ import { kpiFulfillmentMean } from "@/modules/core/kpi/domain/kpi-valuation";
 import {
   STAGE_GATES,
   SUB_STAGES,
-  epicBucket,
   subStageFor,
   type SubStage,
 } from "@/modules/work/domain/stage-gate";
@@ -63,6 +62,12 @@ export interface EpicListRow {
   kpiCount: number;
   /** Approvals on the active revision that haven't decided yet. */
   pendingApprovalsCount: number;
+  /**
+   * Offener Reifegrad-Antrag, falls einer läuft — ersetzt die früheren zwei
+   * Bucket-Abweichungen: statt die Karte still in eine andere Spalte zu
+   * schieben, steht das Epic da, wo es steht, und trägt daneben „⇧ L3 · 1/2".
+   */
+  pendingGateRequest: { toGate: StageGate; pendingCount: number; totalCount: number } | null;
   childFeatureCount: number;
   /** ISO-day strings (or null). */
   plannedStartAt: string | null;
@@ -129,6 +134,8 @@ interface EpicRow {
   kpis: KpiRow[];
   /** All `EpicApproval` rows for the Epic, across revisions. */
   epicApprovals: ApprovalRow[];
+  /** Offener Gate-Antrag des Epics, vom Loader aufgelöst. */
+  pendingGateRequest?: { toGate: StageGate; pendingCount: number; totalCount: number } | null;
   /** Count of child Features (direct only). */
   childFeatureCount: number;
   /** Count of child Features mit status === "completed". Treibt L4.2. */
@@ -237,6 +244,7 @@ export function buildEpicsListModel(input: {
       kpiTier: kpiProgress != null ? ragTier(kpiProgress) : null,
       kpiCount: e.kpis.length,
       pendingApprovalsCount: countPendingApprovals(e.epicApprovals, e.approvalRevision),
+      pendingGateRequest: e.pendingGateRequest ?? null,
       childFeatureCount: e.childFeatureCount,
       plannedStartAt: isoDay(e.plannedStartAt),
       plannedEndAt: isoDay(e.plannedEndAt),
@@ -256,17 +264,10 @@ export function buildEpicsListModel(input: {
     SubStage,
     number
   >;
-  // Kanban-Bucket-Regel lebt in `domain/stage-gate.ts` (`epicBucket`) — wir
-  // brauchen hier nur die Raw-Epic-Felder, kein lokales Override-Tableau.
-  const epicById = new Map(epics.map((e) => [e.id, e]));
+  // Gezählt wird direkt nach `stageGate`. Die frühere Bucket-Abweichung ist mit
+  // dem manuellen Wechsel entfallen (siehe `domain/stage-gate.ts`).
   for (const r of rows) {
-    const e = epicById.get(r.id)!;
-    const bucket = epicBucket({
-      stageGate: r.stageGate,
-      ownerId: r.ownerId,
-      businessCaseApprovedAt: e.businessCaseApprovedAt,
-    });
-    if (funnelCounts[bucket] != null) funnelCounts[bucket] += 1;
+    if (funnelCounts[r.stageGate] != null) funnelCounts[r.stageGate] += 1;
     if (r.subStage) subStageCounts[r.subStage] += 1;
   }
 

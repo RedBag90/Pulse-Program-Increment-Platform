@@ -144,7 +144,6 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
       <MyTasksEpicsSection
         rows={filteredEpics}
         canEdit={model.canEditEpic}
-        canAdvance={model.canAdvanceEpic}
         stageGatesEnabled={model.stageGatesEnabled}
         compact={compact}
       />

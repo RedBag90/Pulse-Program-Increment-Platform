@@ -24,6 +24,7 @@
     "prisma": "prisma",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:demo": "tsx prisma/seed-demo.ts",
+    "db:seed:offsite": "tsx prisma/seed-offsite.ts",
     "prepare": "husky"
   },
   "dependencies": {

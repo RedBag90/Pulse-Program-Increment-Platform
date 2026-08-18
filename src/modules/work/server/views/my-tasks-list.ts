@@ -57,7 +57,6 @@ export interface MyTasksListModel {
   /** Zeigt der EpicSection den Stage-Chevron + Action-Menü? */
   stageGatesEnabled: boolean;
   canEditEpic: boolean;
-  canAdvanceEpic: boolean;
   canEditFeature: boolean;
 }
 
@@ -67,7 +66,6 @@ export function buildMyTasksListModel(input: {
   featureRows: readonly FeatureListRow[];
   stageGatesEnabled: boolean;
   canEditEpic: boolean;
-  canAdvanceEpic: boolean;
   canEditFeature: boolean;
 }): MyTasksListModel {
   const {
@@ -76,7 +74,6 @@ export function buildMyTasksListModel(input: {
     featureRows,
     stageGatesEnabled,
     canEditEpic,
-    canAdvanceEpic,
     canEditFeature,
   } = input;
 
@@ -128,7 +125,6 @@ export function buildMyTasksListModel(input: {
     piOptions,
     stageGatesEnabled,
     canEditEpic,
-    canAdvanceEpic,
     canEditFeature,
   };
 }

@@ -44,16 +44,6 @@ export function isApprovalTransition(from: StageGate, to: StageGate): boolean {
   return to === "L3" && from !== "L3";
 }
 
-/**
- * Target gate for an *automatic* (workflow-driven) advance: `to` iff it is
- * strictly forward of `from` in the canonical order, else `null`. Unlike
- * {@link isValidTransition}, jumps are allowed (workflow events may skip gates),
- * but an auto-advance never regresses — a no-op when the Epic is already at or
- * beyond `to`.
- */
-export function autoAdvanceTarget(from: StageGate, to: StageGate): StageGate | null {
-  return STAGE_GATES.indexOf(to) > STAGE_GATES.indexOf(from) ? to : null;
-}
 
 // ---------------------------------------------------------------------------
 // Sub-stages — derived UI affordances within the major gates.
@@ -123,37 +113,17 @@ export function subStageFor(input: SubStageInput): SubStage | null {
 }
 
 // ---------------------------------------------------------------------------
-// Kanban bucket — the lifecycle's column-placement rule.
+// Kein Kanban-Bucket mehr.
 //
-// The Stage Gate is the persisted investment level (L0–L5). The Kanban
-// bucket is where the Epic *appears on the board*. They diverge in exactly
-// two cases (Single-Source: `src/domain/epic-lifecycle-doc.ts`):
+// `epicBucket()` wich in zwei Fällen bewusst vom persistierten `stageGate` ab
+// (L0 + Owner → L1-Spalte, L2 + BC freigegeben → L3-Spalte). Diese Abweichung
+// existierte, weil das Gate hinter der Wirklichkeit *herlief*: der Reifegrad
+// bewegte sich erst, wenn irgendwann ein Trigger feuerte, also zeigte das Board
+// lieber, wo das Epic „eigentlich" schon stand.
 //
-//   - L0 + ownerId        → L1 bucket ("Hypothese erstellen"). Stage stays L0.
-//   - L2 + bcApprovedAt   → L3 bucket ("Portfolio Backlog").  Stage stays L2;
-//                            flips to L3 only when `saveBudgetAllocation` puts
-//                            Σ > 0 on the Epic.
-//
-// Both portfolio-epics-list (Kanban) and portfolio-overview (compact-kanban)
-// asked this question; the rule now lives here so a new consumer (Reporting,
-// API export, Cockpit roll-up) doesn't reinvent it.
+// Mit dem manuellen, abgenommenen Wechsel gibt es dieses Auseinanderlaufen
+// nicht mehr: das Gate ist genau da, wo jemand es hingeschoben hat. Das Board
+// zeigt deshalb `stageGate` direkt — und daneben, ob ein Wechsel beantragt ist.
+// Damit fällt die zweite von drei parallelen Ableitungen von „wo steht dieses
+// Epic" weg.
 // ---------------------------------------------------------------------------
-
-export interface EpicBucketInput {
-  stageGate: StageGate;
-  /** Persisted owner. `null` while the Epic sits in the Funnel. */
-  ownerId: string | null;
-  /** Stamp set when the BC clears its full approval flow. */
-  businessCaseApprovedAt: Date | null;
-}
-
-/**
- * The Kanban column an Epic belongs in, given its current state. Returns one
- * of the major gates (L0–L5) — sub-stages within L2 and L4 do not change the
- * bucket.
- */
-export function epicBucket(input: EpicBucketInput): StageGate {
-  if (input.stageGate === "L0" && input.ownerId) return "L1";
-  if (input.stageGate === "L2" && input.businessCaseApprovedAt != null) return "L3";
-  return input.stageGate;
-}

@@ -141,7 +141,7 @@ describe("epicNextStep", () => {
     expect(step?.title).toBe("Features abschließen (2/5)");
   });
 
-  it("L4 / L4.2 → Impact bestätigen (Inline-Dialog)", () => {
+  it("L4 / L4.2 → Impact bestätigen lassen (Gate-Antrag nach L5)", () => {
     const step = epicNextStep(
       base({
         stageGate: "L4",
@@ -149,8 +149,10 @@ describe("epicNextStep", () => {
         childFeatureStats: { total: 3, completed: 3 },
       }),
     );
-    expect(step?.title).toBe("Impact bestätigen");
-    expect(step?.cta).toEqual({ kind: "impact-confirm" });
+    expect(step?.title).toBe("Impact bestätigen lassen");
+    // Kein eigener Impact-Dialog mehr: der Wechsel auf L5 wird beantragt und
+    // vom Controlling abgenommen wie jeder andere Reifegrad-Wechsel.
+    expect(step?.cta).toEqual({ kind: "gate-request", to: "L5" });
   });
 
   it("L5 → null (Endstand)", () => {

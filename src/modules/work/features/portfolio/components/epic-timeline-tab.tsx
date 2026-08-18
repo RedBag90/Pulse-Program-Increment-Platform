@@ -1,9 +1,8 @@
 "use client";
 
 import { useActionState, useState, startTransition, Fragment } from "react";
-import { CheckCircle2, CircleDot, Circle, Lock, ChevronRight, ArrowDown } from "lucide-react";
+import { CheckCircle2, CircleDot, Circle, Lock, ChevronRight } from "lucide-react";
 import { saveTimelineAction } from "@/modules/work/features/portfolio/actions/timeline";
-import { advanceStageGateAction } from "@/modules/work/features/portfolio/actions/stage-gate";
 import type {
   TimelineFields,
   TimelineEstimatePhase,
@@ -12,7 +11,9 @@ import type {
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import { SectionLabel } from "@/components/ui/section-label";
 import { reifegradGroups } from "@/modules/work/features/portfolio/lib/reifegrad-groups";
+import { GateHistoryList } from "./gate/gate-history-list";
 import type { LifecycleStep } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
+import type { EpicGateHistoryView } from "@/modules/work/server/views/epic-detail";
 import { EpicOwnerAssign } from "./epic-owner-assign";
 import {
   EpicHypothesisApproval,
@@ -24,7 +25,6 @@ import type { ApprovalPhase, ApprovalViewModel } from "@/modules/work/domain/epi
 
 interface Props {
   epicId: string;
-  stageGate: string;
   /** ISO timestamps for the automatic actuals. */
   createdAt: string;
   selectedForDetailingAt: string | null;
@@ -37,8 +37,8 @@ interface Props {
   impactRecognizedAt: string | null;
   timeline: TimelineFields;
   canEdit: boolean;
-  /** May advance the stage gate (`epic.approve`) — gates the "Für Analyse auswählen" action. */
-  canAdvance: boolean;
+  /** Antragshistorie der Reifegrad-Wechsel — wer wann was beantragt/abgenommen hat. */
+  gateHistory: EpicGateHistoryView[];
   /** Current Epic owner — nominated in the "Selected for Detailing" phase expander. */
   ownerId: string | null;
   /** May nominate/replace the Epic owner (`epic.owner.assign`). */
@@ -117,12 +117,11 @@ function StatusIcon({ status }: { status: RowStatus }) {
  * Estimate (owner forecast) and an Actual per phase. Funnel/Detailing/Business
  * Case/Implementation-started actuals come from workflow events (read-only);
  * Backlog/Implementation-done actuals are entered by the Owner. Impact Realized
- * (L5) is stamped by Controlling via confirmEpicImpact. The Owner is nominated by
- * the Portfolio Manager on the Detailing phase.
+ * (L5) wird gestempelt, wenn das Controlling die L4→L5-Abnahme erteilt (ADR-0018).
+ * The Owner is nominated by the Portfolio Manager on the Detailing phase.
  */
 export function EpicTimelineTab({
   epicId,
-  stageGate,
   createdAt,
   selectedForDetailingAt,
   hypothesisApprovedAt,
@@ -132,7 +131,6 @@ export function EpicTimelineTab({
   impactRecognizedAt,
   timeline,
   canEdit,
-  canAdvance,
   ownerId,
   canAssignOwner,
   approvers,
@@ -144,9 +142,9 @@ export function EpicTimelineTab({
   approvalView,
   currentUserId,
   lifecycleSteps,
+  gateHistory,
 }: Props) {
   const [saveState, saveAction, saving] = useActionState(saveTimelineAction, {});
-  const [analyzeState, analyzeAction, analyzing] = useActionState(advanceStageGateAction, {});
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const toggle = (key: string) =>
     setExpanded((prev) => {
@@ -156,27 +154,10 @@ export function EpicTimelineTab({
       return next;
     });
 
-  // "Selected for analyzing" is a deliberate manual step: once the hypothesis is
-  // done and the Epic still sits at L1, an authorised user moves it into L2.
-  const canSelectForAnalyzing =
-    canAdvance && stageGate === "L1" && Boolean(hypothesisApprovedAt) && !selectedForAnalyzingAt;
-
-  function selectForAnalyzing() {
-    const fd = new FormData();
-    fd.set("epicId", epicId);
-    fd.set("toGate", "L2");
-    startTransition(() => analyzeAction(fd));
-  }
-
-  // Manueller L3→L4-Übergang („Implementation started"), entkoppelt vom Feature-Start.
-  const canStartImplementation = canAdvance && stageGate === "L3";
-
-  function startImplementation() {
-    const fd = new FormData();
-    fd.set("epicId", epicId);
-    fd.set("toGate", "L4");
-    startTransition(() => analyzeAction(fd));
-  }
+  // Früher standen hier zwei fest verdrahtete Advance-Buttons (L1→L2 und
+  // L3→L4) mit eigenen Sichtbarkeitsregeln — zwei von vier Stellen, an denen
+  // sich ein Gate schieben liess. Beide sind in der Gate-Karte aufgegangen, die
+  // jeden Wechsel gleich behandelt: beantragen, abnehmen lassen, vollziehen.
 
   const [estimates, setEstimates] = useState<Record<TimelineEstimatePhase, string>>(() => ({
     detailing: timeline.estimates.detailing ?? "",
@@ -413,6 +394,11 @@ export function EpicTimelineTab({
 
   return (
     <div className="space-y-6" data-tour="epic-timeline-tab">
+      <section className="space-y-2 rounded-lg border bg-card p-3.5">
+        <SectionLabel>Reifegrad-Wechsel</SectionLabel>
+        <GateHistoryList history={gateHistory} userLabels={userLabels} />
+      </section>
+
       {/* Column headers (desktop) — pl offset = Reifegrad-Gutter (2.5rem) + gap (0.75rem). */}
       <div className="hidden gap-x-3 pl-[3.25rem] sm:grid sm:grid-cols-[1.25rem_minmax(0,1fr)_11rem_11rem]">
         <span />
@@ -480,42 +466,6 @@ export function EpicTimelineTab({
               </ol>
             </div>
 
-            {/* Advance-Button im Übergang L1→L2: zwischen „Business hypothesis done"
-              und „Selected for analyzing". */}
-            {g.level === "L1" && canSelectForAnalyzing && (
-              <div className="flex flex-wrap items-center gap-2 pl-[3.25rem]">
-                <button
-                  type="button"
-                  onClick={selectForAnalyzing}
-                  disabled={analyzing}
-                  className="inline-flex items-center gap-1 rounded-md bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
-                >
-                  <ArrowDown className="size-3.5" />
-                  {analyzing ? "…" : "Für Analyse auswählen"}
-                </button>
-                {analyzeState.error && (
-                  <span className="text-xs text-destructive">{analyzeState.error}</span>
-                )}
-              </div>
-            )}
-
-            {/* Advance-Button im Übergang L3→L4: zwischen „Backlog" und „Implementation started". */}
-            {g.level === "L3" && canStartImplementation && (
-              <div className="flex flex-wrap items-center gap-2 pl-[3.25rem]">
-                <button
-                  type="button"
-                  onClick={startImplementation}
-                  disabled={analyzing}
-                  className="inline-flex items-center gap-1 rounded-md bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/80 disabled:opacity-50"
-                >
-                  <ArrowDown className="size-3.5" />
-                  {analyzing ? "…" : "Implementation starten"}
-                </button>
-                {analyzeState.error && (
-                  <span className="text-xs text-destructive">{analyzeState.error}</span>
-                )}
-              </div>
-            )}
           </Fragment>
         ))}
       </div>

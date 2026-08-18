@@ -14,9 +14,12 @@ export type Action =
   | "value_stream.update"
   | "epic.create"
   | "epic.update"
-  | "epic.approve"
   | "epic.delete"
-  | "epic.impact.confirm"
+  | "epic.gate.request"
+  | "epic.gate.decide"
+  | "epic.gate.withdraw"
+  | "epic.gate.revert"
+  | "epic.gate.approvers.configure"
   | "epic.hypothesis.submit"
   | "epic.hypothesis.decide"
   | "epic.approval.configure"
@@ -145,15 +148,42 @@ export const POLICIES: Record<Action, Grant[]> = {
 
   // ── Portfolio ───────────────────────────────────────────────────────────
   // The portfolio manager funds value streams and owns the Epic backlog.
-  // `epic.approve` gates the L0–L5 stage gates — a separate axis from the
-  // multi-party approval workflow (epic.hypothesis.*/approval.*).
+  // Die Reifegrad-Achse hängt nicht mehr an einer pauschalen `epic.approve`-
+  // Capability, sondern an `epic.gate.*` plus den namentlich benannten
+  // Abnehmern (siehe unten, ADR-0018). `epic.impact.confirm` ist mit dem
+  // eigenen L4→L5-Dialog entfallen — die Controlling-Hand steht jetzt als
+  // Person auf der L5-Abnehmer-Regel.
   "value_stream.create": [{ roles: [PORTFOLIO_MANAGER] }],
   "epic.delete": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
-  "epic.approve": [{ roles: [PORTFOLIO_MANAGER] }],
-  // Reifegrad-Modell v2: Impact-Bestätigung schiebt das Epic auf L5.
-  // Controlling-Hand — heute beim Portfolio Manager; eine eigene
-  // Controlling-Rolle könnte später dazukommen.
-  "epic.impact.confirm": [{ roles: [PORTFOLIO_MANAGER] }],
+
+  // ── Reifegrad-Wechsel (Stage Gate) ──────────────────────────────────────
+  // Der Push ist ein **manueller Akt**: jemand beantragt ihn, namentlich
+  // benannte Personen nehmen ihn ab. Beantragen darf, wer das Epic
+  // verantwortet.
+  //
+  // `epic.gate.decide` ist bewusst breit: der eingefrorene Abnehmer kann ein
+  // Finance-Controller ohne Portfolio-Rolle sein. Die Policy sieht die
+  // Abnahme-Zeile nicht, also verengt der Service zeilenweise über
+  // `assertAssignedApprover` — dieselbe Aufteilung wie bei
+  // `epic.approval.decide` (grober Vorfilter hier, maßgebliche Prüfung dort).
+  "epic.gate.request": [
+    { roles: [PORTFOLIO_MANAGER, EPIC_OWNER] },
+    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
+  ],
+  "epic.gate.decide": [
+    { roles: [PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, EPIC_OWNER, RTE, FEATURE_OWNER] },
+  ],
+  "epic.gate.withdraw": [
+    { roles: [PORTFOLIO_MANAGER, EPIC_OWNER] },
+    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
+  ],
+  // Eine Rückstufung greift in die Historie ein (sie räumt Freigabe-Stempel
+  // ab) und verlangt eine Begründung — deshalb eng.
+  "epic.gate.revert": [{ roles: [PORTFOLIO_MANAGER] }],
+  "epic.gate.approvers.configure": [
+    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] },
+    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
+  ],
 
   // ── Value Stream ────────────────────────────────────────────────────────
   // The value stream owner manages their own value stream and the Epics

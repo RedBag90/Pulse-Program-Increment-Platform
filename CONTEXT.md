@@ -142,20 +142,30 @@ valuePerUnit`), summiert über die Messmonate auf den vollen KPI-Wert. Der
 
 ## State axes on an Initiative (independent — do not conflate)
 
-- **Stage Gate** (`stageGate`, L0–L5) — the investment funnel. Governed by
-  `src/domain/stage-gate.ts`; advanced via the `epic.approve` capability.
-  Reaching L3 is the portfolio approval decision.
-- **Stage-Gate-Vorschlag** (`proposedStageGate`/`proposedBy`/`proposedAt`) —
-  das Suggest-Confirm-Modell des Funnels: ein **inhaltlicher Trigger schlägt**
-  den nächsten Gate-Wechsel **vor** (persistiert), der **Epic-Owner bestätigt**
-  ihn. Ausnahme L0→L1: die Hypothese-Freigabe durch den Portfolio Manager *ist*
-  die Bestätigung (direkter Advance). Die Entscheidung ist eine **reine**
-  `decideGate(state, move, now)`-Funktion (Stage-Gate-Engine) über eine benannte
-  Prädikat-Sprache (`allChildrenCompleted` u. a.); der impure `stage-gate-engine`-
-  Service (Blatt) lädt den `EpicGateState`, persistiert Gate + Stamps + Vorschlag
-  und ist die geteilte Heimat, in die alle Gate-Schreiber *nach unten* importieren
-  (kein `epic.ts`↔`feature.ts`-Zirkel mehr). Siehe
-  `docs/concepts/work-module-deepening.md` (#1).
+- **Reifegrad / Stage Gate** (`stageGate`, L0–L5) — der Investment-Funnel.
+  Bewegt sich **ausschliesslich** über einen abgenommenen
+  **Gate-Transition-Antrag** — nie als Nebenwirkung eines anderen Vorgangs.
+  Reaching L3 is the portfolio approval decision. Siehe ADR-0018.
+- **Gate-Transition-Antrag** (`StageGateTransition` + `StageGateApproval`) —
+  der Push ist ein **manueller Akt**: jemand beantragt den Wechsel auf das
+  nächste Gate, **namentlich benannte Personen** nehmen ihn ab (einstimmig,
+  konfigurierbar), erst dann rückt das Gate vor. Wer abnimmt, steht je Gate in
+  `StageGateApproverRule` (Wertstrom-Zeile schlägt Tenant-Default schlägt
+  Code-Default) und wird beim Antrag zu konkreten Personen aufgelöst und
+  **eingefroren**. Vokabular:
+  - **Readiness** (`gate-readiness.ts`) — die inhaltliche Vorleistung als
+    Kriterien-Checkliste, **beim Lesen abgeleitet**, nie geschrieben. Ersetzt
+    die früheren Trigger, die aus fünf Services in `proposedStageGate`
+    schrieben. Readiness ist nicht die Erlaubnis, nur die Reife.
+  - **Antrag / Abnahme / Rückzug** (`gate-transition.ts` + der Service
+    `stage-gate-transition.ts`) — `planGateRequest`, 
+    `decideGateTransitionOutcome`, `planGateRevert`: drei Verben, je eine
+    Ergebnisform, statt einer Funktion für drei Bewegungen.
+  - **Korrektur** (`revertStageGate`) — genau ein Schritt rückwärts, mit
+    Pflicht-Begründung, und sie **räumt die Stempel des verlassenen Gates ab**
+    (sonst stempelt ein erneutes Vorrücken nie wieder).
+  Kein Auto-Advance, keine gesperrten Übergänge, keine Bucket-Abweichung im
+  Board: das Gate steht da, wo jemand es hingeschoben hat.
 - **Review status** (`status`: `draft → in_review → approved`) — the **QS
   gate**, a.k.a. quality assurance. Governed by
   `src/domain/initiative-status.ts`. Orthogonal to the Stage Gate: an Initiative

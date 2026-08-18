@@ -10,8 +10,8 @@ import { Page, PageHeader, PageSection } from "@/components/layout";
 
 /**
  * "Meine Freigaben" — the personal approval inbox. One page lists every pending
- * Epic approval assigned to the principal (Hypothesis, Party, Section),
- * grouped by kind. Feature-QS war hier 2026-06 entfernt — Features brauchen
+ * Epic approval assigned to the principal (Hypothesis, Party, Section,
+ * Reifegrad-Wechsel), grouped by kind. Feature-QS war hier 2026-06 entfernt — Features brauchen
  * keine Freigabe mehr.
  */
 
@@ -19,9 +19,17 @@ const KIND_LABELS: Record<MyApprovalRow["kind"], string> = {
   epic_hypothesis: "Epic-Hypothesen",
   epic_party: "Epic-Stakeholder-Freigaben",
   epic_section: "Epic-Abschnitte (Deliverables / KPIs)",
+  epic_gate: "Reifegrad-Wechsel",
 };
 
-const KIND_ORDER: MyApprovalRow["kind"][] = ["epic_hypothesis", "epic_party", "epic_section"];
+const KIND_ORDER: MyApprovalRow["kind"][] = [
+  // Reifegrad-Wechsel zuerst: sie blockieren den Fortschritt eines ganzen Epics,
+  // nicht nur eines Dokuments.
+  "epic_gate",
+  "epic_hypothesis",
+  "epic_party",
+  "epic_section",
+];
 
 const PARTY_LABELS: Record<ApprovalParty, string> = {
   mgmt: "MGMT",
@@ -39,6 +47,9 @@ const SECTION_LABELS: Record<ApprovalSection, string> = {
 /** Renders the per-row context column — what makes this approval distinct. */
 function ContextCell({ row }: { row: MyApprovalRow }) {
   const bits: string[] = [];
+  if (row.context.fromGate && row.context.toGate) {
+    bits.push(`${row.context.fromGate} → ${row.context.toGate}`);
+  }
   if (row.context.party) bits.push(PARTY_LABELS[row.context.party]);
   if (row.context.section) bits.push(SECTION_LABELS[row.context.section]);
   if (row.context.valueStreamName) bits.push(row.context.valueStreamName);

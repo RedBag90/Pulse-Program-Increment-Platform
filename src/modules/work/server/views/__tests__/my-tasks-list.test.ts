@@ -77,7 +77,6 @@ const baseInput = {
   featureRows: [featureRow()],
   stageGatesEnabled: true,
   canEditEpic: true,
-  canAdvanceEpic: true,
   canEditFeature: true,
 };
 
@@ -163,12 +162,10 @@ describe("buildMyTasksListModel", () => {
       ...baseInput,
       stageGatesEnabled: false,
       canEditEpic: false,
-      canAdvanceEpic: false,
       canEditFeature: false,
     });
     expect(m.stageGatesEnabled).toBe(false);
     expect(m.canEditEpic).toBe(false);
-    expect(m.canAdvanceEpic).toBe(false);
     expect(m.canEditFeature).toBe(false);
   });
 });

@@ -12,7 +12,6 @@ import {
   type NextStep,
 } from "@/server/services/transformation";
 import { halfYearKey, dayStart, isoDay, MS_PER_DAY } from "@/modules/core/kernel/domain/calendar";
-import { epicBucket } from "@/modules/work/domain/stage-gate";
 import { isAtRisk, type RollupTrio } from "@/modules/core/goals/domain/goals-rollup";
 import { isClosed } from "@/modules/core/goals/domain/goal-status";
 import { loadStrategyTree } from "@/modules/core/goals/server/views/ziele-view";
@@ -307,10 +306,10 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     needsSteeringAttention: e.needsSteeringAttention,
   }));
 
-  // Group epics by Kanban-Bucket. Wichtig: Bucket != Stage-Gate.
-  // Bucket-Regel lebt in `domain/stage-gate.ts` (`epicBucket`). Konsumenten
-  // (compact-kanban, period-banner) sehen die Karte in der jeweiligen Spalte;
-  // STAGE_GATE_LABEL und das `stageGate`-Feld am Card sind unangetastet.
+  // Gruppierung direkt nach `stageGate`. Die frühere Bucket-Abweichung
+  // (Bucket != Stage-Gate) ist mit ADR-0018 entfallen: seit der Wechsel ein
+  // beantragter, abgenommener Akt ist, läuft das Gate der Wirklichkeit nicht
+  // mehr hinterher, und das Board muss nichts mehr geradebiegen.
   const epicsByGate = Object.fromEntries(
     STAGE_GATES.map((g) => [g, [] as OverviewEpicCard[]]),
   ) as Record<StageGate, OverviewEpicCard[]>;
@@ -319,12 +318,8 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
       ? (c.stageGate as StageGate)
       : null;
     if (!gate) continue;
-    const bucket = epicBucket({
-      stageGate: gate,
-      ownerId: c.ownerId,
-      businessCaseApprovedAt: c.businessCaseApprovedAt,
-    });
-    epicsByGate[bucket].push(c);
+    // Direkt nach `stageGate` — die frühere Bucket-Abweichung ist entfallen.
+    epicsByGate[gate].push(c);
   }
   for (const gate of STAGE_GATES) {
     // Sortierung im Kanban: zuerst die fürs nächste Steering markierten

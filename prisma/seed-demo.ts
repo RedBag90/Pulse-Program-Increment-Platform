@@ -455,6 +455,61 @@ async function main() {
   });
   await prisma.initiative.createMany({ data: epicRows });
 
+  // Abnehmer je Reifegrad-Wechsel (ADR-0018). Ohne diese Regeln ist ein Wechsel
+  // nicht beantragbar — ein frischer Demo-Tenant wäre sonst am ersten Gate
+  // blockiert. Die Platzhalter lösen auf die Wertstrom-Governance-Spalten auf
+  // (`vmoId` / `financeApproverId`), die oben schon gesetzt sind.
+  await prisma.stageGateApproverRule.createMany({
+    data: (
+      [
+        ["L1", ["value_stream.vmo"]],
+        ["L2", ["value_stream.vmo"]],
+        ["L3", ["value_stream.vmo", "value_stream.finance_approver"]],
+        ["L4", ["value_stream.vmo"]],
+        ["L5", ["value_stream.finance_approver"]],
+      ] as const
+    ).map(([toGate, approverRoles]) => ({
+      tenantId,
+      valueStreamId: null,
+      toGate,
+      required: true,
+      quorum: "all",
+      approverUserIds: [],
+      approverRoles: [...approverRoles],
+      updatedBy: U.admin,
+    })),
+  });
+
+  // Ein offener Antrag, damit die Gate-Karte und „Meine Freigaben" im Demo-
+  // Tenant ohne Vorarbeit etwas zeigen: das erste L3-Epic will nach L4.
+  const pendingGateEpicId = epicIds[EPIC_DEFS.findIndex((d) => d.gate === "L3")];
+  if (pendingGateEpicId) {
+    await prisma.stageGateTransition.create({
+      data: {
+        tenantId,
+        initiativeId: pendingGateEpicId,
+        fromGate: "L3",
+        toGate: "L4",
+        kind: "forward",
+        status: "pending",
+        quorum: "all",
+        requestedBy: U.owner,
+        reason: "Team steht bereit, Umsetzung kann starten.",
+        approvals: {
+          create: [
+            {
+              tenantId,
+              approverUserId: U.vmo,
+              role: "value_stream.vmo",
+              source: "value_stream",
+              createdBy: U.owner,
+            },
+          ],
+        },
+      },
+    });
+  }
+
   // Features (~44): 3 für Epics an Index %5==0, sonst 2. artId rotiert über ALLE
   // 6 ARTs (globaler Zähler), piId über aktives/vorheriges/geplantes PI.
   const FEATURE_STATUS = ["in_progress", "approved", "blocked", "completed"];

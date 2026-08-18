@@ -116,7 +116,8 @@ grant** — it is a pure read-only role, scoped by Row-Level Security.
   Hypothesis (read-only / side-by-side diff) on the Epic detail page.
 - **Permissions & scope:** `epic.hypothesis.decide`
   (approves/returns the Benefit Hypothesis), `epic.section.signoff` (Breakdown/KPIs),
-  and `epic.approve` (stage gates L0–L5, together with `portfolio_manager`).
+  and `epic.gate.request`/`epic.gate.decide` (Reifegrad-Wechsel beantragen bzw. als
+  benannte Person abnehmen, together with `portfolio_manager`).
   **Scope: portfolio-wide.**
 
 ## Anna — Release Train Engineer

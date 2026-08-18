@@ -22,7 +22,7 @@ import { matchesQuery } from "@/modules/work/lib/row-filter";
 interface Props {
   model: EpicsListModel;
   canEdit: boolean;
-  canAdvance: boolean;
+  canSelect: boolean;
   tenantId: string;
 }
 
@@ -71,7 +71,7 @@ function parseDensity(raw: string | null): "comfortable" | "compact" {
  * existing `useKanbanRealtime` subscription so concurrent moves on the
  * `/portfolio` board surface here too.
  */
-export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) {
+export function EpicsListShell({ model, canEdit, canSelect, tenantId }: Props) {
   useKanbanRealtime(tenantId);
   const { params, push: pushParam } = useUrlState();
   const { selectedIds, toggleSelect, toggleSelectAll, clearSelected } = useUrlSelection();
@@ -202,21 +202,16 @@ export function EpicsListShell({ model, canEdit, canAdvance, tenantId }: Props) 
       <EpicsListTable
         rows={filteredRows}
         canEdit={canEdit}
-        canAdvance={canAdvance}
         stageGatesEnabled={model.stageGatesEnabled}
         group={group}
         compact={density === "compact"}
-        selectedIds={canAdvance ? selectedIds : null}
-        onToggleSelect={canAdvance ? toggleSelect : null}
-        onToggleSelectAll={canAdvance ? toggleSelectAll : null}
+        selectedIds={canSelect ? selectedIds : null}
+        onToggleSelect={canSelect ? toggleSelect : null}
+        onToggleSelectAll={canSelect ? toggleSelectAll : null}
       />
 
-      {canAdvance && (
-        <EpicsBulkActionBar
-          selectedRows={selectedRows}
-          canAdvance={canAdvance}
-          onClear={clearSelected}
-        />
+      {canSelect && (
+        <EpicsBulkActionBar selectedRows={selectedRows} onClear={clearSelected} />
       )}
     </div>
   );

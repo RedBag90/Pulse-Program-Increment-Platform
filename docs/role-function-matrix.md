@@ -28,7 +28,8 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 - **Keine Vererbung:** Die Kaskade ist die _Gliederung_ — jede Rolle hat gezielt
   zugeschnittene Rechte, übergeordnete Rollen erben nicht automatisch.
 - **Zwei getrennte Achsen für Epics:**
-  - **Stage Gates L0–L5** (`epic.approve`) — der Investment-Funnel.
+  - **Stage Gates L0–L5** (`epic.gate.request` / `epic.gate.decide`) — der Investment-Funnel.
+    Ein Wechsel wird beantragt und von den je Gate hinterlegten Personen abgenommen (ADR-0018).
   - **Freigabe-Workflow** (`approvalPhase`, `epic.hypothesis.*` / `epic.approval.*`
     / `epic.section.signoff`) — die mehrstufige Mehrparteien-Freigabe (siehe unten).
     Beide sind unabhängig. Die alte Ein-Schritt-Epic-QS (`epic.review.*`) wurde
@@ -73,7 +74,10 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 | --------------------- | -------------------------------- |
 | `value_stream.create` | Wertstrom anlegen                |
 | `epic.delete`         | Epic löschen                     |
-| `epic.approve`        | Epic-Stage-Gate (L0–L5) schalten |
+| `epic.gate.request`   | Reifegrad-Wechsel beantragen     |
+| `epic.gate.decide`    | Als benannte Person abnehmen     |
+| `epic.gate.withdraw`  | Eigenen Antrag zurückziehen      |
+| `epic.gate.revert`    | Epic zurückstufen (mit Grund)    |
 
 ### Wertstrom
 
@@ -196,7 +200,8 @@ einen Scope.
 #### `portfolio_manager` — Portfolio-Lead / LPM
 
 - **Portfolio:** `value_stream.create`, `value_stream.update`, `epic.create`,
-  `epic.update`, `epic.delete`, `epic.approve` (Stage Gates), `epic.hypothesis.submit`.
+  `epic.update`, `epic.delete`, `epic.gate.request`/`epic.gate.decide` (Reifegrad),
+  `epic.hypothesis.submit`.
 - **Feature:** `feature.create`, `feature.update`, `feature.wsjf.set`,
   `feature.delete`, `feature.review.submit`.
 - **Ausführung:** `story.create/update/delete` (art), `task.create/edit` (art),
@@ -230,7 +235,7 @@ einen Scope.
 - `epic.hypothesis.decide` — gibt die Benefit Hypothese frei oder zurück.
 - `epic.section.signoff` — Breakdown-/KPI-Abnahme (mit `value_stream_owner`,
   `portfolio_manager`).
-- `epic.approve` — schaltet die Epic-Stage-Gates L0–L5 mit (zusammen mit
+- `epic.gate.request`/`epic.gate.decide` — beantragt bzw. nimmt Reifegrad-Wechsel ab (zusammen mit
   `portfolio_manager`).
 
 #### Stakeholder-Approver (Querschnitt)
@@ -308,7 +313,8 @@ Stand des letzten Abgleichs gegen die Portfolio-Verantwortlichkeiten:
   `epic.hypothesis.submit`, value_stream-skopiert) — vorher trug die Rolle nur eine
   einzige Funktion.
 - `epic.approve` (Stage Gates) wurde um `vmo` erweitert — das VMO co-governt den
-  Epic-Investment-Funnel.
+  Epic-Investment-Funnel. *(Historisch: `epic.approve` ist seit ADR-0018 zurückgezogen; der
+  Investment-Funnel läuft über `epic.gate.*` plus namentlich benannte Abnehmer.)*
 - `impediment.create` wurde um `feature_owner` erweitert — die Feature-Ebene
   konnte zuvor keine Impediments melden.
 - Offene Folge-Aufgabe: strikte `value_stream`-Scope-Durchsetzung für

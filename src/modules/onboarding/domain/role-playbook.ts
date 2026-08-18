@@ -238,8 +238,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
     responsibilities: [
       { text: "Den Zielzustand und die Kopf-Ziele der Organisation setzen.", capability: "target.manage" },
       {
-        text: "Epics durch den Investment-Funnel führen und die Stage Gates schalten.",
-        capability: "epic.approve",
+        text: "Epics durch den Investment-Funnel führen und Reifegrad-Wechsel beantragen bzw. abnehmen.",
+        capability: "epic.gate.request",
         practice: "stageGates",
       },
       {
@@ -282,10 +282,10 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "portfolio_manager.funnel",
         title: "Der Investment-Funnel",
-        body: "In der Epic-Liste schaltest du die Stage Gates. Zwei Übergänge passieren allerdings von selbst: L2→L3 sobald Budget vergeben ist, L3→L4 sobald das erste Feature startet.",
+        body: "In der Epic-Liste siehst du, wo jedes Epic im Investment-Funnel steht. Ein Reifegrad-Wechsel passiert nie von selbst: er wird am Epic beantragt und von den dafür benannten Personen abgenommen.",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
-        capability: "epic.approve",
+        capability: "epic.gate.request",
         practice: "stageGates",
       },
       {

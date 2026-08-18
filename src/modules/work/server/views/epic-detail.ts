@@ -32,6 +32,21 @@ import {
   kpiPlannedAtTarget,
 } from "@/modules/core/kpi/domain/kpi-valuation";
 import { subStageFor } from "@/modules/work/domain/stage-gate";
+import { type GateReadiness, nextGate, previousGate } from "@/modules/work/domain/gate-readiness";
+import {
+  type ApprovalStatus,
+  type Quorum,
+} from "@/modules/work/domain/approval-primitives";
+import {
+  GATE_APPROVER_ROLE_LABELS,
+  isGateApproverRole,
+} from "@/modules/work/domain/gate-policy";
+import type { GateTransitionStatus } from "@/modules/work/domain/gate-transition";
+import {
+  getOpenGateTransition,
+  listGateTransitions,
+  loadGateReadiness,
+} from "@/modules/work/server/services/stage-gate-transition";
 import { computeEpicRevisionVisibility } from "@/modules/work/domain/epic-revision-visibility";
 import { epicNextStep, type EpicNextStep } from "@/modules/work/domain/epic-next-step";
 import {
@@ -156,10 +171,10 @@ export interface EpicDetailInputs {
   canDecideHypothesis: boolean;
   canSubmitHypothesis: boolean;
   canSubmitBusinessCase: boolean;
-  canConfirmImpact: boolean;
   canAssignOwner: boolean;
-  canAdvance: boolean;
   canLinkDependency: boolean;
+  /** Alles zum Reifegrad-Wechsel, vom Loader aufgelöst (siehe {@link EpicGateSlice}). */
+  gate: EpicGateSlice;
   /**
    * `feature.delivery.set` — steuert nur, ob die Status-Zelle der
    * Deliverables-Tabelle ein Dropdown zeigt. Die Server-Action autorisiert
@@ -238,21 +253,85 @@ export interface EpicDetailModel {
   nextStep: EpicNextStep | null;
   lifecycleSteps: LifecycleStep[];
 
-  /** The persisted suggest-confirm gate proposal, or null when none is open. */
-  proposedStageGate: StageGate | null;
+  /**
+   * Der Reifegrad-Wechsel als eine Slice — Antrag, Abnehmer, Reife, Rechte.
+   * Ersetzt die früheren Einzelfelder `proposedStageGate`,
+   * `canConfirmProposedAdvance`, `canConfirmImpact` und `canAdvance`, die vier
+   * Aspekte desselben Vorgangs an vier Stellen verstreut hatten.
+   */
+  gate: EpicGateSlice;
 
   // Capability booleans — the page JSX consumes these directly.
   canEdit: boolean;
   canDecideHypothesis: boolean;
   canSubmitHypothesis: boolean;
   canSubmitBusinessCase: boolean;
-  canConfirmImpact: boolean;
   canAssignOwner: boolean;
-  canAdvance: boolean;
-  /** May confirm an open gate proposal — same `epic.approve` gate as `canAdvance`. */
-  canConfirmProposedAdvance: boolean;
   canLinkDependency: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Reifegrad-Slice
+// ---------------------------------------------------------------------------
+
+/** Eine namentliche Abnahme, render-fertig. */
+export interface EpicGateApproverView {
+  id: string;
+  userId: string;
+  /** Anzeige-Rolle ("Finance", "VMO", …) oder null bei direkt benannten Personen. */
+  roleLabel: string | null;
+  status: ApprovalStatus;
+  decidedAt: string | null;
+  comment: string | null;
+}
+
+export interface EpicGateRequestView {
+  id: string;
+  fromGate: StageGate;
+  toGate: StageGate;
+  quorum: Quorum;
+  requestedBy: string;
+  requestedAt: string;
+  reason: string | null;
+  approvers: EpicGateApproverView[];
+  /** Wer noch nicht entschieden hat. */
+  pendingUserIds: string[];
+}
+
+export interface EpicGateHistoryView {
+  id: string;
+  fromGate: StageGate;
+  toGate: StageGate;
+  kind: "forward" | "revert";
+  status: GateTransitionStatus;
+  requestedBy: string;
+  requestedAt: string;
+  resolvedAt: string | null;
+  reason: string | null;
+}
+
+/**
+ * Die Reifegrad-Achse eines Epics. Discriminated auf `disabled`, wie die
+ * Modul-Slices: ist die Stage-Gate-Practice im Zielbild aus, gibt es die Achse
+ * nicht, und die UI rendert gar nichts statt leerer Zustände.
+ */
+export type EpicGateSlice =
+  | { disabled: true }
+  | {
+      disabled: false;
+      current: StageGate;
+      /** Das nächste Gate, oder null am Endgate L5. */
+      next: StageGate | null;
+      /** Kriterien-Checkliste für `current → next`; null am Endgate. */
+      readiness: GateReadiness | null;
+      openRequest: EpicGateRequestView | null;
+      history: EpicGateHistoryView[];
+      canRequest: boolean;
+      canWithdraw: boolean;
+      canRevert: boolean;
+      /** Der Betrachter ist selbst ein noch offener Abnehmer. */
+      viewerMustDecide: boolean;
+    };
 
 /** Pull the free-text comment out of an audit event's `changes` diff, if any.
  *  Hypothesis approve/reject and the legacy stage-gate write it as
@@ -289,11 +368,10 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     canDecideHypothesis,
     canSubmitHypothesis,
     canSubmitBusinessCase,
-    canConfirmImpact,
     canAssignOwner,
-    canAdvance,
     canLinkDependency,
     canSetDelivery,
+    gate,
   } = inputs;
 
   const breakdownFeatures: BreakdownFeature[] = epic.children.map((c) => ({
@@ -560,17 +638,12 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     subStage,
     nextStep,
     lifecycleSteps,
-    proposedStageGate: (epic.proposedStageGate as StageGate | null) ?? null,
+    gate,
     canEdit,
     canDecideHypothesis,
     canSubmitHypothesis,
     canSubmitBusinessCase,
-    canConfirmImpact,
     canAssignOwner,
-    canAdvance,
-    // The confirm action authorizes `epic.approve` (same as the manual advance),
-    // so the UI affordance is gated on the same computed capability.
-    canConfirmProposedAdvance: canAdvance,
     canLinkDependency,
   };
 }
@@ -616,32 +689,60 @@ export async function loadEpicDetailInputs(
       tenantId: principal.tenantId,
       valueStreamId: epic.valueStreamId,
     });
-  const canConfirmImpact = authorize(
-    "epic.impact.confirm",
-    { tenantId: principal.tenantId, valueStreamId: epic.valueStreamId },
-    principal,
-  ).allow;
   const canAssignOwner = authorize(
     "epic.owner.assign",
     { tenantId: principal.tenantId, valueStreamId: epic.valueStreamId },
     principal,
   ).allow;
-  const canAdvance = authorize("epic.approve", { tenantId: principal.tenantId }, principal).allow;
   const canLinkDependency = hasCapability(principal, "dependency.link", {
     tenantId: principal.tenantId,
   });
 
-  const [historyEvents, kpis, approvals, practices, breakdownPositions, pis, dependencies, budget] =
-    await Promise.all([
-      listInitiativeHistory(db, principal.tenantId, epic.id),
-      listKpis(db, principal.tenantId, epic.id as EpicId),
-      listEpicApprovals(db, principal.tenantId, epic.id as EpicId),
-      getTenantPractices(db, principal.tenantId),
-      loadBreakdownLayout(db, principal.tenantId, epic.id as EpicId),
-      enabled.drumbeat ? ports.pis(artIds) : Promise.resolve([] as EpicPi[]),
-      enabled.drumbeat ? ports.dependencies(featureIds) : Promise.resolve([] as BreakdownEdge[]),
-      enabled.budgeting ? ports.budget() : Promise.resolve(null),
-    ]);
+  const gateScope = { tenantId: principal.tenantId, valueStreamId: epic.valueStreamId };
+  const gateCaps = {
+    request: authorize("epic.gate.request", gateScope, principal).allow,
+    withdraw: authorize("epic.gate.withdraw", gateScope, principal).allow,
+    revert: authorize("epic.gate.revert", gateScope, principal).allow,
+  };
+  const current = epic.stageGate as StageGate;
+  const to = nextGate(current);
+
+  const [
+    historyEvents,
+    kpis,
+    approvals,
+    practices,
+    breakdownPositions,
+    pis,
+    dependencies,
+    budget,
+    openRequest,
+    gateHistory,
+    readiness,
+  ] = await Promise.all([
+    listInitiativeHistory(db, principal.tenantId, epic.id),
+    listKpis(db, principal.tenantId, epic.id as EpicId),
+    listEpicApprovals(db, principal.tenantId, epic.id as EpicId),
+    getTenantPractices(db, principal.tenantId),
+    loadBreakdownLayout(db, principal.tenantId, epic.id as EpicId),
+    enabled.drumbeat ? ports.pis(artIds) : Promise.resolve([] as EpicPi[]),
+    enabled.drumbeat ? ports.dependencies(featureIds) : Promise.resolve([] as BreakdownEdge[]),
+    enabled.budgeting ? ports.budget() : Promise.resolve(null),
+    getOpenGateTransition(db, principal.tenantId, epic.id),
+    listGateTransitions(db, principal.tenantId, epic.id),
+    to ? loadGateReadiness(db, principal.tenantId, epic.id, to) : Promise.resolve(null),
+  ]);
+
+  const gate = buildGateSlice({
+    stageGatesEnabled: practices.stageGates,
+    current,
+    next: to,
+    readiness,
+    openRequest,
+    history: gateHistory,
+    caps: gateCaps,
+    principalId: principal.id,
+  });
 
   return {
     epic,
@@ -665,10 +766,76 @@ export async function loadEpicDetailInputs(
     canDecideHypothesis,
     canSubmitHypothesis,
     canSubmitBusinessCase,
-    canConfirmImpact,
     canAssignOwner,
-    canAdvance,
     canLinkDependency,
+    gate,
+  };
+}
+
+/**
+ * Pure: setzt die Reifegrad-Slice aus den geladenen Teilen zusammen.
+ *
+ * Die drei „darf ich"-Flags sind Capability **und** Vorgangszustand: ein
+ * Antrag lässt sich nur stellen, wenn keiner offen ist und es ein nächstes Gate
+ * gibt; zurückziehen nur, wenn einer offen ist. Diese Kopplung gehört hierher
+ * und nicht in fünf JSX-Bedingungen.
+ */
+function buildGateSlice(input: {
+  stageGatesEnabled: boolean;
+  current: StageGate;
+  next: StageGate | null;
+  readiness: GateReadiness | null;
+  openRequest: Awaited<ReturnType<typeof getOpenGateTransition>>;
+  history: Awaited<ReturnType<typeof listGateTransitions>>;
+  caps: { request: boolean; withdraw: boolean; revert: boolean };
+  principalId: string;
+}): EpicGateSlice {
+  if (!input.stageGatesEnabled) return { disabled: true };
+
+  const openRequest: EpicGateRequestView | null = input.openRequest
+    ? {
+        id: input.openRequest.id,
+        fromGate: input.openRequest.fromGate,
+        toGate: input.openRequest.toGate,
+        quorum: input.openRequest.quorum,
+        requestedBy: input.openRequest.requestedBy,
+        requestedAt: input.openRequest.requestedAt.toISOString(),
+        reason: input.openRequest.reason,
+        approvers: input.openRequest.approvers.map((a) => ({
+          id: a.id,
+          userId: a.userId,
+          roleLabel: a.role && isGateApproverRole(a.role) ? GATE_APPROVER_ROLE_LABELS[a.role] : null,
+          status: a.status,
+          decidedAt: a.decidedAt?.toISOString() ?? null,
+          comment: a.comment,
+        })),
+        pendingUserIds: input.openRequest.approvers
+          .filter((a) => a.status === "pending")
+          .map((a) => a.userId),
+      }
+    : null;
+
+  return {
+    disabled: false,
+    current: input.current,
+    next: input.next,
+    readiness: input.readiness,
+    openRequest,
+    history: input.history.map((h) => ({
+      id: h.id,
+      fromGate: h.fromGate,
+      toGate: h.toGate,
+      kind: h.kind,
+      status: h.status,
+      requestedBy: h.requestedBy,
+      requestedAt: h.requestedAt.toISOString(),
+      resolvedAt: h.resolvedAt?.toISOString() ?? null,
+      reason: h.reason,
+    })),
+    canRequest: input.caps.request && openRequest == null && input.next != null,
+    canWithdraw: input.caps.withdraw && openRequest != null,
+    canRevert: input.caps.revert && previousGate(input.current) != null,
+    viewerMustDecide: openRequest?.pendingUserIds.includes(input.principalId) ?? false,
   };
 }
 

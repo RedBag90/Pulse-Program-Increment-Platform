@@ -11,7 +11,14 @@ Implementierung; *Seam* = Ort des Interfaces; *Lokalität* = Änderung an einer 
 
 ---
 
-## #1 Stage-Gate-Engine (der Funnel L0–L5)
+## #1 Stage-Gate-Engine (der Funnel L0–L5) — ABGELÖST durch ADR-0018
+
+> **Status: überholt (2026-08-16).** Die hier beschriebene Suggest-Confirm-Engine wurde gebaut und
+> anschliessend ersetzt: `proposedStageGate` samt Trigger, Auto-Advance und den beiden gesperrten
+> Übergängen ist entfallen. Reifegrad-Wechsel werden jetzt **beantragt und von namentlich benannten
+> Personen abgenommen** — siehe [ADR-0018](../adr/0018-stage-gate-transitions-are-requested-and-approved.md).
+> Der Abschnitt bleibt als Entwurfsprotokoll stehen; die Problembeschreibung darin ist weiterhin
+> zutreffend, die Lösung nicht mehr.
 
 **Problem.** „Epic durch den Funnel bewegen" feuert heute aus **5 Services in 3 Modulen**
 (`epic.ts` `advanceStageGate`/`autoAdvanceStageGate`/`confirmEpicImpact`, `feature.ts`
