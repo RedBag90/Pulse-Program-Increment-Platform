@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import { EditArtDialog } from "@/modules/core/org/features/art/components/edit-art-dialog";
 import { DeleteArtButton } from "@/modules/core/org/features/art/components/delete-art-button";
 import type { ArtDetail, NodeKind } from "@/modules/core/org/server/views/structure-page";
@@ -28,7 +29,10 @@ export function ArtDetailPane({ art, canUpdateArt, canDeleteArt, onSelectNode }:
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">ART</p>
-            <h2 className="font-heading text-lg font-medium">{art.name}</h2>
+            <Link href={`/art/${art.id}`} className="group inline-flex items-center gap-1.5">
+              <h2 className="font-heading text-lg font-medium group-hover:underline">{art.name}</h2>
+              <ArrowRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </Link>
           </div>
           {(canUpdateArt || canDeleteArt) && (
             <div className="flex items-center gap-1">
@@ -68,6 +72,13 @@ export function ArtDetailPane({ art, canUpdateArt, canDeleteArt, onSelectNode }:
           <dt className="text-muted-foreground">PIs</dt>
           <dd className="tabular-nums">{art.piCount}</dd>
         </dl>
+        <Link
+          href={`/art/${art.id}/settings`}
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        >
+          RTE &amp; Einstellungen öffnen
+          <ArrowRight className="size-3.5" />
+        </Link>
       </section>
 
       <section className="space-y-3 rounded-lg border bg-card p-4">
