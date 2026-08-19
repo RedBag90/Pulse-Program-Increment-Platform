@@ -64,14 +64,14 @@ Core  (Kernel + Goals + Org-Struktur VS→ART→Team)      ← Fundament, immer 
 
 ### Work (Epic-Definition/Doku/Freigabe + Feature-Breakdown + Ökonomie)
 
-| Bereich                      | Inhalt                                                                                                                                                            |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Epic-Definition/Doku         | `features/portfolio`, Domain `benefit-hypothesis`, `business-case`, `epic-lifecycle-doc`, `epic-next-step`, `versioned-document`                                  |
-| Freigabe/Reifegrad           | `epic-approval`, `stage-gate`, `services/epic-approval`, `services/epic`                                                                                          |
-| Epic-Timeline                | `domain/timeline` (Epic-Reifegrad-Timeline, **nicht** PI/Roadmap), `epic-schedule`                                                                                |
-| Feature-Breakdown-Facette    | Feature-Doku-Spalten (Titel/Beschr., `acceptanceCriteria`, `wsjf`, `featureType`, **ART-Zuordnung**)                                                              |
-| Ökonomie                     | `epic-economics`, `portfolio-economics`, `portfolio-ampel`, `portfolio-guardrails`, `lpm-review`, `services/portfolio-dashboard`, `services/value-stream`-Funding |
-| Bereitgestellte Ports/Events | Read-Ports `EpicSchedule`, `EpicEconomics`, `FeatureBreakdown`; Event-Handler für `FeatureStarted`, `FundedWindowDecided`                                         |
+| Bereich                      | Inhalt                                                                                                                                                                              |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Epic-Definition/Doku         | `features/portfolio`, Domain `benefit-hypothesis`, `business-case`, `epic-lifecycle-doc`, `epic-next-step`, `versioned-document`                                                    |
+| Freigabe/Reifegrad           | `epic-approval`, `stage-gate`, `services/epic-approval`, `services/epic`                                                                                                            |
+| Epic-Timeline                | `domain/timeline` (Epic-Reifegrad-Timeline, **nicht** PI/Roadmap), `epic-schedule`                                                                                                  |
+| Feature-Breakdown-Facette    | Feature-Doku-Spalten (Titel/Beschr., `acceptanceCriteria`, `wsjf`, `featureType`, **ART-Zuordnung**)                                                                                |
+| Ökonomie                     | `epic-economics`, `portfolio-economics`, `portfolio-ampel`, `portfolio-guardrails`, `lpm-review`, `services/portfolio-dashboard`, `services/value-stream`-Funding                   |
+| Bereitgestellte Ports/Events | Read-Ports `EpicSchedule`, `EpicEconomics`, `FeatureBreakdown`; **keine** Event-Handler — `FeatureStarted` (ADR-0018) und `FundedWindowDecided` (ADR-0019) sind ersatzlos entfallen |
 
 ### Drumbeat (detailliertes Planen/Ausführen)
 
@@ -86,12 +86,12 @@ Core  (Kernel + Goals + Org-Struktur VS→ART→Team)      ← Fundament, immer 
 
 ### Budgeting (Budgetvergabe)
 
-| Bereich                 | Inhalt                                                                                                                        |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Participatory Budgeting | `features/budgeting`, Domain `budgeting`, `services/budgeting`                                                                |
-| Budget-Pläne            | `features/controlling` (budget-plan, budgeting, kpi-coverage), Domain `budget-plan-snapshot`, `services/budget-plan-revision` |
-| ART-Budget              | Domain `art-budget`, `services/art-budget`, `capacity/art-budget-breakdown`                                                   |
-| Schreibpfad             | schreibt Epic-Fenster **nur** via Event `FundedWindowDecided`, besitzt `BudgetAllocation`                                     |
+| Bereich                 | Inhalt                                                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Participatory Budgeting | `features/budgeting`, Domain `budgeting`, `services/budgeting`                                                                                   |
+| Budget-Pläne            | `features/controlling` (budget-plan, budgeting, kpi-coverage), Domain `budget-plan-snapshot`, `services/budget-plan-revision`                    |
+| ART-Budget              | Domain `art-budget`, `services/art-budget`, `capacity/art-budget-breakdown`                                                                      |
+| Schreibpfad             | schreibt **nicht** in Work (ADR-0019 — das Epic-Fenster folgt dem Reifegrad-Plan); besitzt `BudgetAllocation`, `ArtBudget`, `BudgetPlanRevision` |
 
 ## 5. Feature-Facetten-Modell
 
@@ -111,12 +111,12 @@ anderen; Zugriff über Ports/Events (siehe §6).
 Grundregel: **Lesen = Read-Port (Interface)**, **Schreiben/Seiteneffekt = Domain-Event** (Outbox,
 [ADR-0015](../adr/0015-cross-module-write-through-via-events.md)).
 
-| Seam                  | Richtung                   | Lesen (Port)                                     | Schreiben (Event)                                                                                                | Ersetzt heute                                                            |
-| --------------------- | -------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Core-Kernel           | —                          | —                                                | —                                                                                                                | reine Fan-in-Extraktion                                                  |
-| Goals ↔ Work/Drumbeat | Work/Drumbeat → Core-Goals | `Goals.ScopeResolver`                            | `GoalContributionRegistered` (Work/Drumbeat melden Epic-/Feature-Beitrag nach unten)                             | direkter `initiative`-Zugriff aus `goal-*`-Services                      |
-| Work ↔ Drumbeat       | Drumbeat → Work            | `EpicSchedule.plannedWindow`, `FeatureBreakdown` | `FeatureStarted` → Work-Handler `autoAdvance(L4)`                                                                | dynamischer `await import("@/server/services/epic")` in `feature.ts:786` |
-| Work ↔ Budgeting      | Budgeting → Work           | `EpicEconomics`                                  | `FundedWindowDecided` → Work-Handler wendet Schedule-Estimates an (last-writer-wins, nur Backlog/Implementation) | `saveBudgetAllocation` schreibt `Initiative.timeline`+`stageGate` direkt |
+| Seam                  | Richtung                   | Lesen (Port)                                     | Schreiben (Event)                                                                    | Ersetzt heute                                                                         |
+| --------------------- | -------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| Core-Kernel           | —                          | —                                                | —                                                                                    | reine Fan-in-Extraktion                                                               |
+| Goals ↔ Work/Drumbeat | Work/Drumbeat → Core-Goals | `Goals.ScopeResolver`                            | `GoalContributionRegistered` (Work/Drumbeat melden Epic-/Feature-Beitrag nach unten) | direkter `initiative`-Zugriff aus `goal-*`-Services                                   |
+| Work ↔ Drumbeat       | Drumbeat → Work            | `EpicSchedule.plannedWindow`, `FeatureBreakdown` | `FeatureStarted` → Work-Handler `autoAdvance(L4)`                                    | dynamischer `await import("@/server/services/epic")` in `feature.ts:786`              |
+| Work ↔ Budgeting      | Budgeting → Work           | `EpicEconomics`                                  | **keiner** — Budgeting ist gegenüber Work read-only (ADR-0018 + ADR-0019)            | ~~`saveBudgetAllocation` schrieb `Initiative.timeline`+`stageGate` direkt~~ (behoben) |
 
 ## 7. Composition-Root
 

@@ -50,12 +50,19 @@ beider oben beschriebenen Kopplungen ersatzlos gestrichen, statt sie auf Events 
 - **Drumbeat → Work (Feature-Start → L4):** entfallen. `feature.ts` schreibt keine Gate-Spalten mehr;
   „mindestens ein Feature gestartet" ist ein Readiness-Kriterium, das beim Lesen aus den
   Child-Zählungen abgeleitet wird. Das geplante `FeatureStarted`-Event samt Work-Handler wird für
-  diesen Zweck **nicht** gebraucht. Der synchrone *Lesezugriff* auf `epic.stageGate` (Parent-Epic
+  diesen Zweck **nicht** gebraucht. Der synchrone _Lesezugriff_ auf `epic.stageGate` (Parent-Epic
   muss ≥ L3 sein, um ein Feature zu starten) bleibt — Lesen nach unten ist weiterhin erlaubt.
 - **Budgeting → Work (Budget Σ > 0 → L3):** entfallen. `budgeting.ts` importiert keinen
   Work-Gate-Service mehr; die Budget-Summe ist ein L3-Readiness-Kriterium.
 
 Ein Seiteneffekt, den es nicht gibt, braucht weder einen synchronen Aufruf noch ein Event. Die
-Richtung dieser ADR bleibt für **echte** Cross-Modul-Schreibwirkungen gültig — offen ist davon noch
-die `Initiative.timeline` / `plannedStartAt`-Schreibkopplung in `saveBudgetAllocation`
-(`FundedWindowDecided`), die ADR-0018 bewusst nicht angefasst hat.
+Richtung dieser ADR bleibt für **echte** Cross-Modul-Schreibwirkungen gültig.
+
+## Nachtrag 2026-08-19 — auch der letzte Rest ist entfallen
+
+Die oben noch als offen vermerkte `Initiative.timeline` / `plannedStartAt`-Schreibkopplung in
+`saveBudgetAllocation` ist ebenfalls gestrichen statt event-ifiziert: das Epic-Soll-Fenster folgt
+jetzt dem Reifegrad-Plan des Owners, nicht dem finanzierten Fenster — siehe
+[ADR-0019](./0019-epic-window-follows-the-maturity-plan.md). Damit wird `FundedWindowDecided`
+**nicht** gebaut, und Budgeting ist gegenüber Work vollständig read-only. Das in dieser ADR
+skizzierte Event-Inventar (`FeatureStarted`, `FundedWindowDecided`) ist vollständig abgeräumt.

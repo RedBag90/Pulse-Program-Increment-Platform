@@ -25,7 +25,7 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   Core `dependency-graph.ts` + Audit) lebt in **Work** (`dependency-edge`),
   weil eine Dependency eine Beziehung zwischen Initiatives ist, die Work besitzt;
   Drumbeats `dependency.ts` und `feature.ts` (Feature-Einfügen/Splitten)
-  importieren beide *nach unten* darauf — kein Modul schreibt Kanten inline.
+  importieren beide _nach unten_ darauf — kein Modul schreibt Kanten inline.
 - **Impediment** — a blocker that can be raised, escalated, resolved.
 - **Risk** — a first-class, tenant-level entity in the **`risks`** module
   (`src/modules/risks/`, sibling of Drumbeat/Budgeting, prerequisite Work). Linked
@@ -70,12 +70,13 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   model of an Epic's delivery timeline. Resolves the two anchors —
   **costStart** (the Backlog milestone, where cost begins) and **goLive** (the
   Implementation milestone, completion) — from the timeline's
-  actual → estimate → approval → createdAt fallback chain, and owns the rule
-  that turns a budgeting decision into timeline estimates
-  (`scheduleFromFundedWindow`) plus the actuals-preserving merge
-  (`withScheduleEstimates`). Conflict policy between the owner's `saveTimeline`
-  and budgeting's `saveBudgetAllocation` is **last writer wins**; budgeting only
-  touches the backlog/implementation estimates, so owner actuals always survive.
+  actual → estimate → approval → createdAt fallback chain, and derives the Epic's
+  planned delivery window from the owner's Implementation phase estimates
+  (`timelinePlannedWindow`: L4.1 → L4.2). There is **one writer**: the owner's
+  `saveTimeline` writes both the timeline JSON and `plannedStartAt`/`plannedEndAt`.
+  Budgeting does **not** project a window onto the schedule — see
+  [ADR-0019](docs/adr/0019-epic-window-follows-the-maturity-plan.md); an inverted
+  estimate pair yields both endpoints `null` rather than a corrupt window.
 - **Epic Economics read-model** — `src/domain/epic-economics.ts`,
   `deriveEpicEconomics(source)`: given one Epic's raw artefacts it derives the
   single economic view both the Portfolio Dashboard and Participatory Budgeting
@@ -158,14 +159,14 @@ valuePerUnit`), summiert über die Messmonate auf den vollen KPI-Wert. Der
     die früheren Trigger, die aus fünf Services in `proposedStageGate`
     schrieben. Readiness ist nicht die Erlaubnis, nur die Reife.
   - **Antrag / Abnahme / Rückzug** (`gate-transition.ts` + der Service
-    `stage-gate-transition.ts`) — `planGateRequest`, 
+    `stage-gate-transition.ts`) — `planGateRequest`,
     `decideGateTransitionOutcome`, `planGateRevert`: drei Verben, je eine
     Ergebnisform, statt einer Funktion für drei Bewegungen.
   - **Korrektur** (`revertStageGate`) — genau ein Schritt rückwärts, mit
     Pflicht-Begründung, und sie **räumt die Stempel des verlassenen Gates ab**
     (sonst stempelt ein erneutes Vorrücken nie wieder).
-  Kein Auto-Advance, keine gesperrten Übergänge, keine Bucket-Abweichung im
-  Board: das Gate steht da, wo jemand es hingeschoben hat.
+    Kein Auto-Advance, keine gesperrten Übergänge, keine Bucket-Abweichung im
+    Board: das Gate steht da, wo jemand es hingeschoben hat.
 - **Review status** (`status`: `draft → in_review → approved`) — the **QS
   gate**, a.k.a. quality assurance. Governed by
   `src/domain/initiative-status.ts`. Orthogonal to the Stage Gate: an Initiative
@@ -180,13 +181,13 @@ valuePerUnit`), summiert über die Messmonate auf den vollen KPI-Wert. Der
   any Initiative kind, distinct from the pure state machine in
   `initiative-status.ts`. Epic review is decided by the **VMO**; Feature review
   by the **RTE**.
-- **Epic-Revision-Sichtbarkeit** — `domain/epic-revision-visibility.ts`, die *eine*
+- **Epic-Revision-Sichtbarkeit** — `domain/epic-revision-visibility.ts`, die _eine_
   reine Ableitung „wer sieht welches Artefakt (Hypothese/Business Case) in welchem
   Edit-/Diff-/Lock-Modus", gegeben `approvalPhase` + Baseline-vorhanden + Viewer-Rechte
   (`canEdit`/`canDecideHypothesis`/`viewerHasOpenApproval`) → die Sichtbarkeits-Booleans
-  + Lock-Gründe. Von `buildEpicDetailModel` konsumiert (nicht mehr als lose Locals im
-  Gott-Builder). Der Lifecycle-Status im Timeline-Tab folgt derselben Achse wie der
-  Stepper (`epicLifecycleSteps`, Stage-Gate-basiert) — keine Timestamp-Zweitrechnung.
+  - Lock-Gründe. Von `buildEpicDetailModel` konsumiert (nicht mehr als lose Locals im
+    Gott-Builder). Der Lifecycle-Status im Timeline-Tab folgt derselben Achse wie der
+    Stepper (`epicLifecycleSteps`, Stage-Gate-basiert) — keine Timestamp-Zweitrechnung.
 
 ## Strategy & KPI bindings
 
@@ -406,7 +407,7 @@ zugehörigen Aufgaben liegen. **Code-Modul ohne Entitlement-Key** — siehe
   Sein `key` ist der Persistenz-Schlüssel und wird nie umbenannt.
 - **Auflösung** (`resolveTour`) — filtert Schritte **und** Prosa gegen
   Entitlement ∧ Practice ∧ Capability, wobei das Modul einer Capability über
-  `moduleForAction` mitgeprüft wird (eine Rolle *hat* `pi.create` auch ohne
+  `moduleForAction` mitgeprüft wird (eine Rolle _hat_ `pi.create` auch ohne
   Drumbeat — nutzbar ist sie erst mit). Gesperrtes wird weder gezeigt noch
   erwähnt; `steps` darf leer sein.
 - **Quittung & Fortschritt** — `RoleOnboarding` je `(Tenant, Nutzer, Rolle)`.

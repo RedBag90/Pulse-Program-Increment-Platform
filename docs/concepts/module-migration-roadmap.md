@@ -87,7 +87,7 @@ Planungs-Spalten — kein Überlapp); dep-cruiser `drumbeat → {work, core}`, `
 
 **Ziel**: Budgetvergabe isoliert.
 **Änderungen**: budgeting/controlling/art-budget → `modules/budgeting`; Epic-Fenster nur via
-`FundedWindowDecided`; `BudgetAllocation`-Ownership.
+kein Schreibpfad nach Work mehr (ADR-0019 — `FundedWindowDecided` entfaellt); `BudgetAllocation`-Ownership.
 **Tests**: Budgeting-Interface-Tests; **„Budgeting schreibt Initiative-Spalten nie direkt"** (dep-cruiser +
 Laufzeit-Contract); „Budgeting ohne Drumbeat funktioniert"; dep-cruiser `budgeting → {work, core}`,
 `↮ drumbeat`.
