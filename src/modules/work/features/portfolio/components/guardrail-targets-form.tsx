@@ -16,8 +16,11 @@ interface Props {
 }
 
 /**
- * Targets-Editor fuer die SAFe Portfolio-Guardrails (Roadmap-G4). Wohnt
- * unter „Setup & Controlling" — Konfiguration, nicht Sichtebene. Validiert
+ * Targets-Editor fuer die SAFe Portfolio-Guardrails (Roadmap-G4). Lebt bei
+ * seinem Besitzer (Work: Domain, Validierung, Action und `Tenant.guardrailTargets`
+ * sind alle hier), wird aber auf der Controlling-Uebersicht gerendert —
+ * Konfiguration, nicht Sichtebene. Der `src/app`-Composition-Root komponiert das,
+ * Budgeting hostet die Komponente nicht mehr selbst (ADR-0013). Validiert
  * Sum=100 je Achse client-seitig, bevor der Speichern-Button freigegeben
  * wird. Auf Erfolg persistiert `savePortfolioDashboardSettingsAction` nur die
  * `Tenant.guardrailTargets` (Partial-Update — die Cost-Settings bleiben

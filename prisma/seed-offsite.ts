@@ -31,6 +31,7 @@
 import type { Prisma } from "@/generated/prisma";
 import { enumerateDefaultCapabilities } from "@/server/auth/policies";
 import { MODULE_KEYS } from "@/modules/core/kernel/domain/modules";
+import { buildBudgetPlanSnapshot } from "@/modules/budgeting/domain/budget-plan-snapshot";
 import {
   prisma,
   requireTenantByName,
@@ -811,40 +812,32 @@ async function main() {
       cycleKey: PERIOD_NOW,
       capturedAt: addDays(now, -12),
       capturedBy: admin,
+      // Payload über den ECHTEN Domain-Builder statt inline — so bleibt der Seed
+      // an denselben Snapshot-Vertrag gebunden wie ein produktiver Capture.
       payload: {
-        cycleKey: PERIOD_NOW,
-        cycleLabel: PERIOD_NOW.replace("-", " "),
-        capturedAt: addDays(now, -12).toISOString(),
-        periods: [{ key: PERIOD_NOW, label: PERIOD_NOW.replace("-", " "), total: BUDGET_TOTAL }],
-        budgetPoolByPeriod: { [PERIOD_NOW]: BUDGET_TOTAL },
-        epics: EPICS.map((e, i) => ({
-          epicId: epicIds[e.slug]!,
-          title: e.title,
-          valueStreamId: vsId,
-          valueStreamName: "Firmen-Offsite",
-          priority: i,
-          allocations: { [PERIOD_NOW]: e.budget },
-          total: e.budget,
-          cycleBudget: e.budget,
-          cycleFeatures: [],
-        })),
-        valueStreams: [
-          {
+        version: 1,
+        snapshot: buildBudgetPlanSnapshot({
+          cycleKey: PERIOD_NOW,
+          capturedAt: addDays(now, -12),
+          pool: { [PERIOD_NOW]: BUDGET_TOTAL },
+          epics: EPICS.map((e, i) => ({
+            id: epicIds[e.slug]!,
+            title: e.title,
             valueStreamId: vsId,
-            name: "Firmen-Offsite",
-            byPeriod: { [PERIOD_NOW]: BUDGET_TOTAL },
-            total: BUDGET_TOTAL,
-          },
-        ],
-        arts: [
-          {
-            artId,
-            name: "Offsite-Planung",
-            budgetByPeriod: { [PERIOD_NOW]: BUDGET_TOTAL },
-            loadByPeriod: { [PERIOD_NOW]: { featureCount: featureRows.length, jobSizeSum: 34 } },
-          },
-        ],
-      },
+            valueStream: "Firmen-Offsite",
+            isHypothesisOnly: false,
+            costSlices: [e.budget],
+            hypothesisBudget: 0,
+            startKey: PERIOD_NOW,
+            allocations: { [PERIOD_NOW]: e.budget },
+            priority: i,
+          })),
+          artRows: [
+            { artId, name: "Offsite-Planung", budgetByPeriod: { [PERIOD_NOW]: BUDGET_TOTAL } },
+          ],
+          features: [],
+        }),
+      } as unknown as Prisma.InputJsonValue,
     },
   });
   console.log(`  ✓ ${BUDGET_TOTAL.toLocaleString("de-DE")} € auf 3 Epics verteilt`);

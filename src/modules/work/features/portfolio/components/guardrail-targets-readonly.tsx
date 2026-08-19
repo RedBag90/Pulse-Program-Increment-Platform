@@ -8,7 +8,8 @@ interface Props {
 }
 
 /**
- * Read-only Sicht der Targets fuer User ohne `target.manage`. Zeigt die
+ * Read-only Sicht der Targets fuer User ohne `target.manage`. Gehoert zu Work
+ * (wie `GuardrailTargetsForm`), gerendert auf der Controlling-Uebersicht. Zeigt die
  * aktuell wirksamen Anteile + Deep-Link aufs Dashboard, wo der Ist-vs-Soll
  * Mix gerendert wird.
  */

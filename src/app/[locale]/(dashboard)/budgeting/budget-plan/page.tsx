@@ -4,7 +4,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
 import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import { getLatestBudgetPlanRevision } from "@/modules/budgeting/server/services/budget-plan-revision";
-import { CaptureRevisionButton } from "@/modules/budgeting/features/controlling/components/capture-revision-button";
+import { CaptureRevisionButton } from "@/modules/budgeting/features/components/revision/capture-revision-button";
 import { Page, PageHeader } from "@/components/layout";
 
 /**

@@ -3,7 +3,7 @@ import type { TenantId, ValueStreamId } from "@/modules/core/kernel/domain/types
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err } from "@/modules/core/kernel/domain/errors";
-import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
+import { budgetPlusLoadPeriods } from "@/modules/budgeting/domain/period-window";
 import {
   aggregateArtFeatureLoad,
   type ArtFeatureLoad,
@@ -12,6 +12,7 @@ import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
 import { getValueStreamBudget } from "@/modules/budgeting/server/services/budgeting";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
+import { authorizeResource } from "@/server/auth/authorize";
 
 export interface ArtBudgetRow {
   artId: string;
@@ -73,10 +74,12 @@ export async function getArtBudgetBreakdown(
     ).map((l) => [l.artId, l]),
   );
 
-  // Columns: the budget-plan periods plus any half-year a feature's PI sits in.
-  const keys = new Set<string>(vsBudget.periods.map((p) => p.key));
-  for (const f of features) if (f.pi) keys.add(halfYearKey(f.pi.startDate));
-  const periods = [...keys].sort().map((key) => ({ key, label: halfYearLabel(key) }));
+  // Columns: the budget-plan periods ∪ any half-year a feature's PI sits in —
+  // the named rule lives in the pure `period-window` seam.
+  const periods = budgetPlusLoadPeriods(
+    vsBudget.periods.map((p) => p.key),
+    features.flatMap((f) => (f.pi ? [f.pi.startDate] : [])),
+  );
 
   const rows: ArtBudgetRow[] = arts.map((a) => ({
     artId: a.id,
@@ -91,10 +94,17 @@ export async function getArtBudgetBreakdown(
 }
 
 /**
- * Upserts an ART's budget breakdown (per-half-year amounts). Authoritative
- * permission is enforced here: the Value Stream's finance approver, or a
- * portfolio manager / admin (mirrors the approver service-seam check in
- * `epic-approval.decideApproval`).
+ * Upserts an ART's budget breakdown (per-half-year amounts).
+ *
+ * Autorisierung nach ADR-0002 **hier** am Service-Seam, gegen die GELADENE Zeile:
+ * erst wird der ART samt Wertstrom geholt, dann entscheidet `authorizeResource`
+ * mit dem echten `valueStreamId`/`artId` — der `value_stream`-Scope der Policy
+ * greift also wirklich. Zusätzlich zugelassen ist die Finance-Partei des
+ * Wertstroms (`ValueStream.financeApproverId`), die keine Rolle dafür braucht.
+ *
+ * Vorher stand hier eine handgeschriebene Rollenliste, die enger war als die
+ * Policy: ein Wertstrom-Owner passierte den Action-Guard, bekam ein editierbares
+ * Grid und lief dann in ein `forbidden` (Befund F-01).
  */
 export async function saveArtBudget(
   ctx: RequestContext,
@@ -106,22 +116,28 @@ export async function saveArtBudget(
   return withAuditedTransaction(mctx, async (tx) => {
     const art = await tx.art.findFirst({
       where: { id: artId, tenantId: mctx.tenantId, deletedAt: null },
-      select: { id: true, valueStream: { select: { financeApproverId: true } } },
+      select: {
+        id: true,
+        valueStreamId: true,
+        valueStream: { select: { financeApproverId: true } },
+      },
     });
     if (!art) return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
 
-    const roles = ctx.principal.roles;
-    const isManager =
-      roles.includes("portfolio_manager") ||
-      roles.includes("tenant_admin") ||
-      roles.includes("platform_admin");
     const isFinance = art.valueStream?.financeApproverId === mctx.actorId;
-    if (!isManager && !isFinance) {
-      return err({
-        kind: "forbidden" as const,
-        reason:
-          "Nur die Finance-Partei des Wertstroms (oder Portfolio-Manager/Admin) darf ART-Budgets verteilen",
+    if (!isFinance) {
+      const decision = authorizeResource(ctx.principal, "art_budget.manage", {
+        tenantId: mctx.tenantId,
+        valueStreamId: art.valueStreamId,
+        artId: art.id,
       });
+      if (!decision.ok) {
+        return err({
+          kind: "forbidden" as const,
+          reason:
+            "Nur die Finance-Partei des Wertstroms (oder Portfolio-Manager/Wertstrom-Owner/Admin) darf ART-Budgets verteilen",
+        });
+      }
     }
 
     const row = await tx.artBudget.upsert({

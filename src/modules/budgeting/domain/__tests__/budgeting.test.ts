@@ -1,7 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  fundedEndDate,
-  fundedPeriodRange,
   requestedByPeriod,
   rollupByValueStream,
   poolRemaining,
@@ -14,30 +12,6 @@ import {
 import { buildHalfYearAxis } from "@/modules/core/kernel/domain/calendar";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
-
-describe("funded window", () => {
-  it("fundedEndDate is the last day of the last funded period", () => {
-    expect(fundedEndDate(utc("2026-07-01"), 3).toISOString().slice(0, 10)).toBe("2027-12-31");
-    expect(fundedEndDate(utc("2026-01-01"), 1).toISOString().slice(0, 10)).toBe("2026-06-30");
-    expect(fundedEndDate(utc("2026-07-01"), 1).toISOString().slice(0, 10)).toBe("2026-12-31");
-    expect(fundedEndDate(utc("2026-03-15"), 2).toISOString().slice(0, 10)).toBe("2026-12-31"); // H1'26 start, 2 periods
-    expect(fundedEndDate(utc("2026-01-01"), 0).toISOString().slice(0, 10)).toBe("2026-06-30"); // min 1
-  });
-
-  it("fundedPeriodRange returns the first/last funded half-year", () => {
-    expect(fundedPeriodRange({ "2026-H2": 50000, "2027-H1": 70000, "2027-H2": 85000 })).toEqual({
-      firstKey: "2026-H2",
-      lastKey: "2027-H2",
-    });
-    // zero entries are ignored; input order does not matter
-    expect(fundedPeriodRange({ "2027-H1": 40, "2026-H1": 0, "2026-H2": 10 })).toEqual({
-      firstKey: "2026-H2",
-      lastKey: "2027-H1",
-    });
-    expect(fundedPeriodRange({})).toBeNull();
-    expect(fundedPeriodRange({ "2026-H1": 0 })).toBeNull();
-  });
-});
 
 const axis = buildHalfYearAxis(utc("2026-01-01"), utc("2027-12-01")); // H1'26..H2'27 (4)
 
@@ -146,17 +120,12 @@ describe("buildValueStreamSeries — pivot rollup → per-period chart rows", ()
   it("labels the unassigned value stream once via the canonical key", () => {
     expect(UNASSIGNED_VALUE_STREAM_LABEL).toBe("Ohne Wertstrom");
     const rows = buildValueStreamSeries(rollup, periods);
-    const keysWithUnassigned = Object.keys(rows[0]!).filter((k) =>
-      k.includes("Ohne Wertstrom"),
-    );
+    const keysWithUnassigned = Object.keys(rows[0]!).filter((k) => k.includes("Ohne Wertstrom"));
     expect(keysWithUnassigned).toEqual([UNASSIGNED_VALUE_STREAM_LABEL]);
   });
 
   it("empty input → still one row per period, only the label", () => {
-    expect(buildValueStreamSeries([], periods)).toEqual([
-      { label: "H1'26" },
-      { label: "H2'26" },
-    ]);
+    expect(buildValueStreamSeries([], periods)).toEqual([{ label: "H1'26" }, { label: "H2'26" }]);
     expect(buildValueStreamSeries(rollup, [])).toEqual([]);
   });
 });

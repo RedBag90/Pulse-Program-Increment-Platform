@@ -11,15 +11,12 @@ import {
   halfYearsBetween,
   type HalfYearAxis,
 } from "@/modules/core/kernel/domain/calendar";
+import { addPeriod, remainingByPeriod } from "@/modules/budgeting/domain/period-map";
 
 // Geteilte Budget-Perioden-Primitive leben im Core-Kernel (Work + Budgeting
 // konsumieren sie); hier re-exportiert, damit Budgeting-interne Caller (Service/
 // Board/Revision) weiter aus `@/domain/budgeting` importieren.
-export {
-  parsePeriodAmountMap,
-  fundedEndDate,
-  fundedPeriodRange,
-} from "@/modules/core/kernel/domain/budget-period";
+export { parsePeriodAmountMap } from "@/modules/core/kernel/domain/budget-period";
 
 // Half-year period maths lives in the calendar module; re-exported so existing
 // callers (budgeting service/board, tests) keep importing them from here.
@@ -103,8 +100,8 @@ export function rollupByValueStream(
       byVs.set(vsKey, row);
     }
     for (const [key, amount] of Object.entries(epic.allocations)) {
-      if (!keys.has(key) || !amount) continue;
-      row.byPeriod[key] = (row.byPeriod[key] ?? 0) + amount;
+      if (!keys.has(key)) continue;
+      addPeriod(row.byPeriod, key, amount);
       row.total += amount;
     }
   }
@@ -151,22 +148,25 @@ export function totalAllocatedByPeriod(
   const out: Record<string, number> = {};
   for (const epic of epics) {
     for (const [key, amount] of Object.entries(epic.allocations)) {
-      if (keys.has(key) && amount) out[key] = (out[key] ?? 0) + amount;
+      if (keys.has(key)) addPeriod(out, key, amount);
     }
   }
   return out;
 }
 
-/** Pool − Σ allocated per half-year key (negative = over-allocated). */
+/**
+ * Pool − Σ allocated per half-year key (negative = over-allocated). The fachliche
+ * Name stays here; the arithmetic is the shared `remainingByPeriod` primitive —
+ * the same shape `artBudgetRemaining` uses one level down.
+ */
 export function poolRemaining(
   pool: Record<string, number>,
   epics: BudgetEpicView[],
   axis: HalfYearAxis,
 ): Record<string, number> {
-  const allocated = totalAllocatedByPeriod(epics, axis);
-  const out: Record<string, number> = {};
-  for (const { key } of axis.periods) {
-    out[key] = (pool[key] ?? 0) - (allocated[key] ?? 0);
-  }
-  return out;
+  return remainingByPeriod(
+    pool,
+    epics.map((e) => e.allocations),
+    axis.periods.map((p) => p.key),
+  );
 }

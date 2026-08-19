@@ -3,9 +3,13 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getValueStream } from "@/modules/core/org/server/services/value-stream";
-import { getValueStreamBudgets, type ValueStreamBudget } from "@/modules/budgeting/server/services/budgeting";
-import { getArtBudgetBreakdown } from "@/modules/budgeting/server/services/art-budget";
-import { ArtBudgetBreakdown } from "@/modules/budgeting/features/art-budget/components/art-budget-breakdown";
+import {
+  getValueStreamBudget,
+  type ValueStreamBudget,
+} from "@/modules/budgeting/server/services/budgeting";
+import { loadArtBudgetModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
+import { ArtBudgetBreakdown } from "@/modules/budgeting/features/components/art-budget/art-budget-breakdown";
+import { formatEUR } from "@/lib/formatting";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listGateApproverRules } from "@/modules/work/server/services/stage-gate-transition";
@@ -29,13 +33,6 @@ const TABS: readonly DetailTab[] = [
   { key: "arts", label: "ARTs" },
   { key: "history", label: "Verlauf" },
 ];
-
-const eur = new Intl.NumberFormat("de-DE", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
-const fmtEur = (v: number) => eur.format(Math.round(v));
 
 /**
  * Read-only budget plan derived from the Value Stream's Epics' participatory-
@@ -74,11 +71,11 @@ function BudgetPlan({
               <tr>
                 {periods.map((p) => (
                   <td key={p.key} className="p-2 text-right tabular-nums">
-                    {fmtEur(plan?.byPeriod[p.key] ?? 0)}
+                    {formatEUR(plan?.byPeriod[p.key] ?? 0)}
                   </td>
                 ))}
                 <td className="p-2 text-right font-medium tabular-nums">
-                  {fmtEur(plan?.total ?? 0)}
+                  {formatEUR(plan?.total ?? 0)}
                 </td>
               </tr>
             </tbody>
@@ -116,15 +113,24 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
     valueStreamId: vs.id,
   });
 
-  const [history, approvers, userLabels, vsBudgets, artBreakdown, gateRules] = await Promise.all([
+  // Budgeting ist ein oberes Modul: ohne Entitlement laedt die Seite seine Daten
+  // gar nicht erst und blendet beide Abschnitte aus (Degradation, ADR-0013).
+  // Der schmale `getValueStreamBudget`-Seam ersetzt das frueher tenant-weite
+  // `getValueStreamBudgets(...).find(...)`.
+  const budgetingEnabled = principal.enabledModules.includes("budgeting");
+
+  const [history, approvers, userLabels, budgeting, gateRules] = await Promise.all([
     listAuditHistory(db, principal.tenantId, "value_stream", vs.id),
     listTenantApprovers(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
-    getValueStreamBudgets(db, principal.tenantId),
-    getArtBudgetBreakdown(db, principal.tenantId, vs.id as ValueStreamId),
+    budgetingEnabled
+      ? Promise.all([
+          getValueStreamBudget(db, principal.tenantId, vs.id as ValueStreamId),
+          loadArtBudgetModel(db, principal.tenantId, vs.id as ValueStreamId),
+        ]).then(([plan, artModel]) => ({ plan, artModel }))
+      : Promise.resolve(null),
     listGateApproverRules(db, principal.tenantId, vs.id),
   ]);
-  const budgetPlan = vsBudgets.valueStreams.find((b) => b.valueStreamId === vs.id);
 
   // ART budgets are distributed by the VS Finance approver (or anyone the
   // `art_budget.manage` policy grants). Migration note: the previous inline
@@ -193,13 +199,15 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
             userLabels={userLabels}
             canConfigure={canConfigureGates}
           />
-          <BudgetPlan periods={vsBudgets.periods} plan={budgetPlan} />
-          <ArtBudgetBreakdown
-            periods={artBreakdown.periods}
-            vsByPeriod={artBreakdown.vsByPeriod}
-            arts={artBreakdown.arts}
-            canEdit={canEditArtBudget}
-          />
+          {budgeting && (
+            <>
+              <BudgetPlan
+                periods={budgeting.plan.periods}
+                plan={budgeting.plan.budget ?? undefined}
+              />
+              <ArtBudgetBreakdown model={budgeting.artModel} canEdit={canEditArtBudget} />
+            </>
+          )}
         </div>
       )}
 

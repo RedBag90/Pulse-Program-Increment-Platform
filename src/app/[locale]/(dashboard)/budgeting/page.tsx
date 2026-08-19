@@ -3,12 +3,12 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
 import { loadControllingModel } from "@/modules/budgeting/server/views/controlling-overview";
-import { CaptureRevisionButton } from "@/modules/budgeting/features/controlling/components/capture-revision-button";
-import { GuardrailTargetsForm } from "@/modules/budgeting/features/controlling/components/guardrail-targets-form";
-import { GuardrailTargetsReadOnly } from "@/modules/budgeting/features/controlling/components/guardrail-targets-readonly";
+import { CaptureRevisionButton } from "@/modules/budgeting/features/components/revision/capture-revision-button";
+import { GuardrailTargetsForm } from "@/modules/work/features/portfolio/components/guardrail-targets-form";
+import { GuardrailTargetsReadOnly } from "@/modules/work/features/portfolio/components/guardrail-targets-readonly";
 import { SectionLabel } from "@/components/ui/section-label";
 import { Stat, StatStrip } from "@/components/ui/stat";
-import { fmtEur } from "@/components/format/eur";
+import { formatEUR } from "@/lib/formatting";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { Link } from "@/i18n/navigation";
 import { Page, PageHeader } from "@/components/layout";
@@ -36,14 +36,8 @@ export default async function ControllingOverviewPage() {
     principal,
   ).allow;
 
-  const {
-    cycleLabel,
-    latest,
-    latestIsCurrentCycle,
-    history,
-    userLabels,
-    guardrailTargets,
-  } = await loadControllingModel(db, principal.tenantId, { canCapture, canManageTargets });
+  const { cycleLabel, latest, latestIsCurrentCycle, history, userLabels, guardrailTargets } =
+    await loadControllingModel(db, principal.tenantId, { canCapture, canManageTargets });
 
   return (
     <Page>
@@ -69,14 +63,16 @@ export default async function ControllingOverviewPage() {
         />
         <Stat
           label="Σ Zyklus-Budget"
-          value={<span className="text-xl">{latest ? fmtEur(latest.cycleBudgetSum) : "—"}</span>}
+          value={<span className="text-xl">{latest ? formatEUR(latest.cycleBudgetSum) : "—"}</span>}
           {...(latest && {
             delta: { tone: "flat" as const, text: `${latest.epicCount} Epics priorisiert` },
           })}
         />
         <Stat
           label="Σ Folgebudgets"
-          value={<span className="text-xl">{latest ? fmtEur(latest.followBudgetSum) : "—"}</span>}
+          value={
+            <span className="text-xl">{latest ? formatEUR(latest.followBudgetSum) : "—"}</span>
+          }
         />
       </StatStrip>
 
@@ -115,7 +111,7 @@ export default async function ControllingOverviewPage() {
                       <span className="truncate">
                         <span className="text-muted-foreground">{i + 1}.</span> {e.title}
                       </span>
-                      <span className="shrink-0 tabular-nums">{fmtEur(e.total)}</span>
+                      <span className="shrink-0 tabular-nums">{formatEUR(e.total)}</span>
                     </li>
                   ))}
                 </ul>
@@ -126,7 +122,7 @@ export default async function ControllingOverviewPage() {
                   {latest.snapshot.valueStreams.slice(0, 5).map((vs) => (
                     <li key={vs.valueStreamId} className="flex justify-between gap-2">
                       <span className="truncate">{vs.name}</span>
-                      <span className="shrink-0 tabular-nums">{fmtEur(vs.total)}</span>
+                      <span className="shrink-0 tabular-nums">{formatEUR(vs.total)}</span>
                     </li>
                   ))}
                 </ul>
@@ -138,7 +134,7 @@ export default async function ControllingOverviewPage() {
                     <li key={p.key} className="flex justify-between gap-2">
                       <span>{p.label}</span>
                       <span className="shrink-0 tabular-nums">
-                        {fmtEur(latest.snapshot.budgetPoolByPeriod[p.key] ?? 0)}
+                        {formatEUR(latest.snapshot.budgetPoolByPeriod[p.key] ?? 0)}
                       </span>
                     </li>
                   ))}
@@ -212,10 +208,10 @@ export default async function ControllingOverviewPage() {
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">{h.epicCount}</td>
                     <td className="px-3 py-2 text-right tabular-nums">
-                      {fmtEur(h.cycleBudgetSum)}
+                      {formatEUR(h.cycleBudgetSum)}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                      {fmtEur(h.followBudgetSum)}
+                      {formatEUR(h.followBudgetSum)}
                     </td>
                   </tr>
                 ))}

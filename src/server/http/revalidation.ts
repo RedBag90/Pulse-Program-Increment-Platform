@@ -21,6 +21,7 @@ export type RevalidationResource =
   | "feature"
   | "epic"
   | "valueStream"
+  | "budgetAllocation"
   | "pi"
   | "piStandard"
   | "budgetPlanRevision"
@@ -59,18 +60,26 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/budgeting/board",
   ],
   valueStream: ["/structure", "/value-streams/[id]"],
+  // Eine Epic-Zuteilung (oder der Topf) aendert das ABGELEITETE Wertstrom-Budget
+  // — und das zeigen weit mehr Seiten als das Board selbst. Vorher deklarierten
+  // beide Aktionen `epic`, wodurch Struktur-, Timeline- und Reporting-Sichten
+  // nach dem Speichern veraltete Summen zeigten.
+  budgetAllocation: [
+    "/budgeting",
+    "/budgeting/board",
+    "/portfolio",
+    "/portfolio/epics/[id]",
+    "/structure",
+    "/timelines",
+    "/value-streams/[id]",
+    "/reporting/portfolio-health",
+  ],
   pi: ["/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi-planning"],
   piStandard: ["/structure", "/value-streams/[id]"],
   budgetPlanRevision: ["/budgeting", "/budgeting/budget-plan", "/budgeting/budget-plan/[id]"],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
   // the structure tab that hosts the management UI.
-  timeline: [
-    "/structure",
-    "/pi-planning",
-    "/pi/[piId]",
-    "/art/[artId]/pi",
-    "/feature/[featureId]",
-  ],
+  timeline: ["/structure", "/pi-planning", "/pi/[piId]", "/art/[artId]/pi", "/feature/[featureId]"],
   story: ["/feature/[featureId]"],
   dependency: ["/feature/[featureId]", "/pi/[piId]/dependencies"],
   ziele: ["/ziele"],

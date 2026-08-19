@@ -16,6 +16,7 @@
 
 import type { Prisma } from "@/generated/prisma";
 import { enumerateDefaultCapabilities } from "@/server/auth/policies";
+import { buildBudgetPlanSnapshot } from "@/modules/budgeting/domain/budget-plan-snapshot";
 import {
   prisma,
   ensureTenant,
@@ -707,6 +708,7 @@ async function main() {
       capturedBy: ADMIN,
       payload: buildSnapshotPayload({
         cycleKey: PREV_H2,
+        capturedAt: addDays(now, -120),
         epics: epicIds.slice(0, 6).map((epicId, i) => ({
           epicId,
           title: EPIC_DEFS[i]!.title,
@@ -714,11 +716,6 @@ async function main() {
           valueStreamName: vsNames[EPIC_DEFS[i]!.vs]!,
           priority: i,
           alloc: 60_000 + i * 5_000,
-        })),
-        valueStreams: vsIds.map((id, i) => ({
-          id,
-          name: vsNames[i]!,
-          amount: 200_000 + i * 30_000,
         })),
         arts: artIds.map((id, i) => ({ id, name: artNames[i]!, amount: 340_000 + i * 25_000 })),
       }),
@@ -733,6 +730,7 @@ async function main() {
       capturedBy: ADMIN,
       payload: buildSnapshotPayload({
         cycleKey: H1,
+        capturedAt: addDays(now, -20),
         epics: epicIds.slice(0, 8).map((epicId, i) => ({
           epicId,
           title: EPIC_DEFS[i]!.title,
@@ -740,11 +738,6 @@ async function main() {
           valueStreamName: vsNames[EPIC_DEFS[i]!.vs]!,
           priority: i,
           alloc: 80_000 + i * 6_000,
-        })),
-        valueStreams: vsIds.map((id, i) => ({
-          id,
-          name: vsNames[i]!,
-          amount: 240_000 + i * 40_000,
         })),
         arts: artIds.map((id, i) => ({ id, name: artNames[i]!, amount: 400_000 + i * 30_000 })),
       }),
@@ -1294,10 +1287,26 @@ async function main() {
   // Dichte Check-in-Historie für MEHRERE Ziele.
   const checkinRows: Prisma.GoalCheckinCreateManyInput[] = [];
   const checkinPlan: { obj: string; series: number[]; statuses: string[] }[] = [
-    { obj: gManual, series: [42, 44, 47, 49, 52], statuses: ["on_track", "on_track", "at_risk", "on_track", "on_track"] },
-    { obj: gCIR, series: [68, 66, 65, 64, 63], statuses: ["at_risk", "at_risk", "on_track", "at_risk", "at_risk"] },
-    { obj: gDigital, series: [55, 59, 62, 65, 68], statuses: ["on_track", "on_track", "on_track", "on_track", "on_track"] },
-    { obj: gRollupK2, series: [60, 63, 66, 68, 70], statuses: ["at_risk", "at_risk", "on_track", "at_risk", "at_risk"] },
+    {
+      obj: gManual,
+      series: [42, 44, 47, 49, 52],
+      statuses: ["on_track", "on_track", "at_risk", "on_track", "on_track"],
+    },
+    {
+      obj: gCIR,
+      series: [68, 66, 65, 64, 63],
+      statuses: ["at_risk", "at_risk", "on_track", "at_risk", "at_risk"],
+    },
+    {
+      obj: gDigital,
+      series: [55, 59, 62, 65, 68],
+      statuses: ["on_track", "on_track", "on_track", "on_track", "on_track"],
+    },
+    {
+      obj: gRollupK2,
+      series: [60, 63, 66, 68, 70],
+      statuses: ["at_risk", "at_risk", "on_track", "at_risk", "at_risk"],
+    },
   ];
   checkinPlan.forEach((p, pi) => {
     const span = 4;
@@ -1380,9 +1389,27 @@ async function main() {
   // VS-/ART-Verantwortungs-Links
   await prisma.goalValueStreamLink.createMany({
     data: [
-      { id: uid("gvsl:1"), tenantId, objectiveId: gTatParent, valueStreamId: vsIds[0]!, createdBy: ADMIN },
-      { id: uid("gvsl:2"), tenantId, objectiveId: gVs[1]!, valueStreamId: vsIds[1]!, createdBy: ADMIN },
-      { id: uid("gvsl:3"), tenantId, objectiveId: gRollup, valueStreamId: vsIds[2]!, createdBy: ADMIN },
+      {
+        id: uid("gvsl:1"),
+        tenantId,
+        objectiveId: gTatParent,
+        valueStreamId: vsIds[0]!,
+        createdBy: ADMIN,
+      },
+      {
+        id: uid("gvsl:2"),
+        tenantId,
+        objectiveId: gVs[1]!,
+        valueStreamId: vsIds[1]!,
+        createdBy: ADMIN,
+      },
+      {
+        id: uid("gvsl:3"),
+        tenantId,
+        objectiveId: gRollup,
+        valueStreamId: vsIds[2]!,
+        createdBy: ADMIN,
+      },
     ],
   });
   await prisma.goalArtLink.createMany({
@@ -1558,14 +1585,30 @@ async function main() {
 
   // Setup-Progress (ALLE Checks erledigt).
   const SETUP_CHECKS = [
-    "m1-1", "m1-2", "m1-3",
-    "m2-1", "m2-2", "m2-3",
-    "m3-1", "m3-2", "m3-3",
-    "m4-1", "m4-2", "m4-3",
-    "m5-legacy-1", "m5-legacy-2", "m5-legacy-3",
-    "m6-1", "m6-2", "m6-3",
-    "m7-1", "m7-2", "m7-3",
-    "m8-1", "m8-2", "m8-3",
+    "m1-1",
+    "m1-2",
+    "m1-3",
+    "m2-1",
+    "m2-2",
+    "m2-3",
+    "m3-1",
+    "m3-2",
+    "m3-3",
+    "m4-1",
+    "m4-2",
+    "m4-3",
+    "m5-legacy-1",
+    "m5-legacy-2",
+    "m5-legacy-3",
+    "m6-1",
+    "m6-2",
+    "m6-3",
+    "m7-1",
+    "m7-2",
+    "m7-3",
+    "m8-1",
+    "m8-2",
+    "m8-3",
   ];
   await prisma.setupProgress.createMany({
     data: SETUP_CHECKS.map((checkId, i) => ({
@@ -1709,9 +1752,16 @@ function simulateSeries(
   return out;
 }
 
-/** Baut ein gültiges BudgetPlanSnapshot-Payload (deterministisch, minimal). */
+/**
+ * Baut ein Revisions-Payload über den ECHTEN Domain-Builder statt von Hand.
+ * Vorher stand hier eine handgeschriebene Kopie der Snapshot-Form — ohne
+ * `cycleBudgetSum`/`followBudgetSum`/`loadBacklog` und mit einem abweichenden
+ * `cycleLabel`. Sie konnte von `BudgetPlanSnapshot` wegdriften, ohne dass etwas
+ * auffiel; jetzt ist der Seed an denselben Vertrag gebunden wie der Capture.
+ */
 function buildSnapshotPayload(input: {
   cycleKey: string;
+  capturedAt: Date;
   epics: {
     epicId: string;
     title: string;
@@ -1720,41 +1770,32 @@ function buildSnapshotPayload(input: {
     priority: number;
     alloc: number;
   }[];
-  valueStreams: { id: string; name: string; amount: number }[];
   arts: { id: string; name: string; amount: number }[];
 }): Prisma.InputJsonValue {
-  const periodTotal =
-    input.epics.reduce((s, e) => s + e.alloc, 0) + input.arts.reduce((s, a) => s + a.amount, 0);
-  return {
+  const snapshot = buildBudgetPlanSnapshot({
     cycleKey: input.cycleKey,
-    cycleLabel: input.cycleKey.replace("-", " "),
-    capturedAt: new Date().toISOString(),
-    periods: [{ key: input.cycleKey, label: input.cycleKey.replace("-", " "), total: periodTotal }],
-    budgetPoolByPeriod: { [input.cycleKey]: 2_000_000 },
+    capturedAt: input.capturedAt,
+    pool: { [input.cycleKey]: 2_000_000 },
     epics: input.epics.map((e) => ({
-      epicId: e.epicId,
+      id: e.epicId,
       title: e.title,
       valueStreamId: e.valueStreamId,
-      valueStreamName: e.valueStreamName,
-      priority: e.priority,
+      valueStream: e.valueStreamName,
+      isHypothesisOnly: false,
+      costSlices: [e.alloc],
+      hypothesisBudget: 0,
+      startKey: input.cycleKey,
       allocations: { [input.cycleKey]: e.alloc },
-      total: e.alloc,
-      cycleBudget: e.alloc,
-      cycleFeatures: [],
+      priority: e.priority,
     })),
-    valueStreams: input.valueStreams.map((v) => ({
-      valueStreamId: v.id,
-      name: v.name,
-      byPeriod: { [input.cycleKey]: v.amount },
-      total: v.amount,
-    })),
-    arts: input.arts.map((a) => ({
+    artRows: input.arts.map((a) => ({
       artId: a.id,
       name: a.name,
       budgetByPeriod: { [input.cycleKey]: a.amount },
-      loadByPeriod: { [input.cycleKey]: { featureCount: 3, jobSizeSum: 18 } },
     })),
-  };
+    features: [],
+  });
+  return { version: 1, snapshot } as unknown as Prisma.InputJsonValue;
 }
 
 main()

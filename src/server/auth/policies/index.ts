@@ -134,9 +134,15 @@ export const POLICIES: Record<Action, Grant[]> = {
   // catalogue (create / rename / delete / join / leave) sits with the same
   // audience that already shapes the portfolio plan.
   "timeline.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
-  // Distribute a Value Stream's budget down to its ARTs. Coarse pre-filter; the
-  // service-seam check authoritatively allows the VS's finance approver too.
-  "art_budget.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER] }],
+  // Distribute a Value Stream's budget down to its ARTs. `value_stream`-scoped:
+  // ein Wertstrom-Owner darf SEINEN Wertstrom verteilen, nicht jeden — ohne den
+  // Scope war der Grant vakuant und der Editor erschien auf fremden Wertstroemen.
+  // Der Service-Seam laesst zusaetzlich die Finance-Partei des Wertstroms zu
+  // (`ValueStream.financeApproverId`), die keine Rolle hierfuer braucht.
+  "art_budget.manage": [
+    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] },
+    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
+  ],
   // Eine Epic-KPI an einen Key Result binden (oder loesen / re-binden).
   // Eigener Capability statt `target.manage`, weil Strategie-Pflege
   // (Themes/KRs anlegen) und KPI-Bindungs-Pflege (Bewertungs-Brücke
@@ -253,7 +259,17 @@ export const POLICIES: Record<Action, Grant[]> = {
   // (user-scoped). Jede Rolle mit Portfolio-Zugang darf ihre eigenen Filter
   // anlegen/löschen; die Zeilen sind ohnehin per userId isoliert.
   "portfolio_filter.manage": [
-    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, EPIC_OWNER, RTE, FEATURE_OWNER, VIEWER] },
+    {
+      roles: [
+        TENANT_ADMIN,
+        PORTFOLIO_MANAGER,
+        VALUE_STREAM_OWNER,
+        EPIC_OWNER,
+        RTE,
+        FEATURE_OWNER,
+        VIEWER,
+      ],
+    },
   ],
 
   // Eigenes Rollen-Onboarding quittieren und den Tour-Fortschritt fortschreiben
@@ -262,7 +278,17 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Nur-Leser eine Einführung braucht. Der Service schreibt ausschließlich
   // `userId = principal.id`, die Zeilen sind zusätzlich per RLS user-isoliert.
   "role.onboarding.manage": [
-    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, EPIC_OWNER, RTE, FEATURE_OWNER, VIEWER] },
+    {
+      roles: [
+        TENANT_ADMIN,
+        PORTFOLIO_MANAGER,
+        VALUE_STREAM_OWNER,
+        EPIC_OWNER,
+        RTE,
+        FEATURE_OWNER,
+        VIEWER,
+      ],
+    },
   ],
 
   "feature.delete": [{ roles: [PORTFOLIO_MANAGER, RTE, TENANT_ADMIN] }],

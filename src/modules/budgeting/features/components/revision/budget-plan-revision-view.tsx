@@ -1,17 +1,17 @@
 import { Link } from "@/i18n/navigation";
 import { Stat, StatStrip } from "@/components/ui/stat";
 import { SectionLabel } from "@/components/ui/section-label";
-import { fmtEur } from "@/components/format/eur";
+import { formatEUR } from "@/lib/formatting";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { cn } from "@/lib/utils";
-import {
-  computeDisplayPeriods,
-  summarizeSnapshot,
-  type SnapshotDisplayPeriod,
-  type BudgetPlanSnapshot,
-  type BudgetPlanSnapshotArt,
-  type BudgetPlanSnapshotValueStream,
+import type {
+  BudgetPlanSnapshot,
+  BudgetPlanSnapshotArt,
+  BudgetPlanSnapshotValueStream,
 } from "@/modules/budgeting/domain/budget-plan-snapshot";
+import type { SnapshotDisplayPeriod } from "@/modules/budgeting/domain/period-window";
+import { sumPeriods } from "@/modules/budgeting/domain/period-map";
+import type { BudgetPlanRevisionModel } from "@/modules/budgeting/server/views/budget-plan-revision";
 
 /** A column the view renders — current cycle is flagged for tint. Re-uses the
  *  domain's `SnapshotDisplayPeriod` so the view and `computeDisplayPeriods`
@@ -19,7 +19,8 @@ import {
 type DisplayPeriod = SnapshotDisplayPeriod;
 
 interface Props {
-  snapshot: BudgetPlanSnapshot;
+  /** Vorberechnetes Page-Model — Kennzahlen und Spalten kommen fertig herein. */
+  model: BudgetPlanRevisionModel;
   capturedBy: string;
   userLabels: Record<string, string>;
 }
@@ -39,14 +40,19 @@ function fmtDateTime(iso: string): string {
  * (Epic ranking, Wertstrom roll-up, ART roll-up, Features im Zyklus). Server
  * component: the snapshot is fully frozen and nothing here needs `useState`.
  */
-export function BudgetPlanRevisionView({ snapshot, capturedBy, userLabels }: Props) {
-  // Cycle-/Folgebudget kommen aus der EINEN Quelle (`summarizeSnapshot`), damit
-  // die Übersichts-Card und diese Detail-Sicht identische Zahlen zeigen — nicht
-  // mehr lokal aus `snapshot.epics` nachgerechnet.
-  const { cycleBudgetSum, followBudgetSum } = summarizeSnapshot(snapshot);
-  const poolSum = Object.values(snapshot.budgetPoolByPeriod).reduce((s, v) => s + v, 0);
-  const cycleFeatureCount = snapshot.epics.reduce((s, e) => s + e.cycleFeatures.length, 0);
-  const displayPeriods = computeDisplayPeriods(snapshot);
+export function BudgetPlanRevisionView({ model, capturedBy, userLabels }: Props) {
+  // Jede Zahl und jede Spalte kommt aus dem Page-Model — die Komponente rendert
+  // nur noch. Zyklus-/Folgebudget stammen dort aus `summarizeSnapshot`, damit
+  // Übersichtsliste und Detailsicht identische Zahlen zeigen.
+  const {
+    snapshot,
+    displayPeriods,
+    cycleBudgetSum,
+    followBudgetSum,
+    poolSum,
+    cycleFeatureCount,
+    followPeriodCount,
+  } = model;
 
   return (
     <div className="space-y-8">
@@ -64,20 +70,20 @@ export function BudgetPlanRevisionView({ snapshot, capturedBy, userLabels }: Pro
       <StatStrip>
         <Stat
           label={`Zyklus-Budget · ${snapshot.cycleLabel}`}
-          value={<span className="text-xl">{fmtEur(cycleBudgetSum)}</span>}
+          value={<span className="text-xl">{formatEUR(cycleBudgetSum)}</span>}
           delta={{ tone: "flat", text: `${snapshot.epics.length} Epics priorisiert` }}
         />
         <Stat
           label="Σ Folgebudgets"
-          value={<span className="text-xl">{fmtEur(followBudgetSum)}</span>}
+          value={<span className="text-xl">{formatEUR(followBudgetSum)}</span>}
           delta={{
             tone: "flat",
-            text: `${Math.max(snapshot.periods.length - 1, 0)} weitere Halbjahre belegt`,
+            text: `${followPeriodCount} weitere Halbjahre belegt`,
           }}
         />
         <Stat
           label="Pool gesamt"
-          value={<span className="text-xl">{fmtEur(poolSum)}</span>}
+          value={<span className="text-xl">{formatEUR(poolSum)}</span>}
           delta={{ tone: "flat", text: `${snapshot.periods.length} Halbjahre` }}
         />
         <Stat
@@ -140,10 +146,10 @@ function PeriodGrid({
           key={p.key}
           className={cn("px-3 py-2 text-right tabular-nums", p.isCurrent && "bg-primary/5")}
         >
-          {fmtEur(byPeriod[p.key] ?? 0)}
+          {formatEUR(byPeriod[p.key] ?? 0)}
         </td>
       ))}
-      <td className="px-3 py-2 text-right font-medium tabular-nums">{fmtEur(total)}</td>
+      <td className="px-3 py-2 text-right font-medium tabular-nums">{formatEUR(total)}</td>
     </>
   );
 }
@@ -319,7 +325,7 @@ function ArtSection({
             </tbody>
           ) : (
             arts.map((a) => {
-              const budgetTotal = Object.values(a.budgetByPeriod).reduce((s, v) => s + v, 0);
+              const budgetTotal = sumPeriods(a.budgetByPeriod);
               const loadJobSizeTotal = Object.values(a.loadByPeriod).reduce(
                 (s, v) => s + v.jobSizeSum,
                 0,

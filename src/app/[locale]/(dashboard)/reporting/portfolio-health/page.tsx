@@ -5,7 +5,7 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusDistributionChart } from "@/components/charts/status-distribution-chart-lazy";
-import { getValueStreamBudgets } from "@/modules/budgeting/server/services/budgeting";
+import { getValueStreamBudgetTotals } from "@/modules/budgeting/server/services/budgeting";
 import { BarChart2, GitBranch } from "lucide-react";
 import { Page, PageHeader } from "@/components/layout";
 
@@ -32,7 +32,11 @@ export default async function PortfolioHealthPage() {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const [epicGroups, valueStreams, vsBudgets] = await Promise.all([
+  // Ohne Budgeting-Entitlement bleibt die Map leer; die VS-Zeile zeigt dann nur
+  // den Namen statt einer Budget-Spalte (Degradation, ADR-0013).
+  const budgetingEnabled = principal.enabledModules.includes("budgeting");
+
+  const [epicGroups, valueStreams, budgetTotals] = await Promise.all([
     db.initiative.groupBy({
       by: ["status"],
       where: {
@@ -47,13 +51,10 @@ export default async function PortfolioHealthPage() {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    getValueStreamBudgets(db, principal.tenantId),
+    budgetingEnabled
+      ? getValueStreamBudgetTotals(db, principal.tenantId)
+      : Promise.resolve({} as Record<string, number>),
   ]);
-
-  // Derived allocated budget per Value Stream (participatory budgeting).
-  const budgetTotals: Record<string, number> = Object.fromEntries(
-    vsBudgets.valueStreams.map((b) => [b.valueStreamId, b.total]),
-  );
 
   const totalEpics = epicGroups.reduce((sum, g) => sum + g._count._all, 0);
 
@@ -113,9 +114,11 @@ export default async function PortfolioHealthPage() {
               {valueStreams.map((vs) => (
                 <div key={vs.id} className="px-6 py-3 flex items-center justify-between text-sm">
                   <span className="font-medium">{vs.name}</span>
-                  <span className="text-muted-foreground text-xs">
-                    {budgetTotals[vs.id] ? fmtEur(budgetTotals[vs.id]!) : "No budget set"}
-                  </span>
+                  {budgetingEnabled && (
+                    <span className="text-muted-foreground text-xs">
+                      {budgetTotals[vs.id] ? fmtEur(budgetTotals[vs.id]!) : "No budget set"}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

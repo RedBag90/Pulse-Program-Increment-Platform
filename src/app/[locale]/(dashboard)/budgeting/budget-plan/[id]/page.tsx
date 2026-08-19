@@ -6,11 +6,12 @@ import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calenda
 import { isCurrentCycle } from "@/modules/budgeting/server/views/controlling-overview";
 import {
   getBudgetPlanRevision,
-  listBudgetPlanRevisions,
+  listBudgetPlanRevisionCycles,
 } from "@/modules/budgeting/server/services/budget-plan-revision";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { BudgetPlanRevisionView } from "@/modules/budgeting/features/controlling/components/budget-plan-revision-view";
-import { CaptureRevisionButton } from "@/modules/budgeting/features/controlling/components/capture-revision-button";
+import { BudgetPlanRevisionView } from "@/modules/budgeting/features/components/revision/budget-plan-revision-view";
+import { buildBudgetPlanRevisionModel } from "@/modules/budgeting/server/views/budget-plan-revision";
+import { CaptureRevisionButton } from "@/modules/budgeting/features/components/revision/capture-revision-button";
 import { Link } from "@/i18n/navigation";
 import { Page } from "@/components/layout";
 
@@ -29,9 +30,12 @@ export default async function BudgetPlanRevisionDetailPage({ params }: Props) {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+  // Die Zyklus-Navigation braucht nur Ids + Labels; `listBudgetPlanRevisionCycles`
+  // liest dafuer keinen Payload. Vorher zog die Seite die volle Header-Liste und
+  // deserialisierte damit jeden Snapshot — den dieser Revision sogar zweimal.
   const [revision, history, userLabels] = await Promise.all([
     getBudgetPlanRevision(db, principal.tenantId, id),
-    listBudgetPlanRevisions(db, principal.tenantId),
+    listBudgetPlanRevisionCycles(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
   ]);
   if (!revision) notFound();
@@ -75,7 +79,7 @@ export default async function BudgetPlanRevisionDetailPage({ params }: Props) {
       )}
 
       <BudgetPlanRevisionView
-        snapshot={revision.snapshot}
+        model={buildBudgetPlanRevisionModel(revision.snapshot)}
         capturedBy={revision.capturedBy}
         userLabels={userLabels}
       />

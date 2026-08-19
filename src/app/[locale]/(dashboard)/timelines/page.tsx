@@ -7,7 +7,7 @@ import {
   getStructureTree,
   getStructureTimeline,
 } from "@/modules/core/org/server/services/structure";
-import { getValueStreamBudgets } from "@/modules/budgeting/server/services/budgeting";
+import { getValueStreamBudgetTotals } from "@/modules/budgeting/server/services/budgeting";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { listPiStandards } from "@/modules/drumbeat/server/services/pi-standard";
 import { buildStructurePageModel } from "@/modules/core/org/server/views/structure-page";
@@ -37,17 +37,17 @@ export default async function TimelinesPage() {
   const canDeleteArt = hasCapability(principal, "art.delete");
   const canUpdateVs = hasCapability(principal, "value_stream.update");
 
-  const [tree, timeline, userLabels, vsBudgets, piStandards] = await Promise.all([
+  const [tree, timeline, userLabels, budgetTotals, piStandards] = await Promise.all([
     getStructureTree(db, principal.tenantId),
     getStructureTimeline(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
-    getValueStreamBudgets(db, principal.tenantId),
+    // Budgeting ist ein oberes Modul: ohne Entitlement bleibt die Map leer und
+    // der Struktur-Baum rendert die Budget-Spalte gar nicht (Degradation, ADR-0013).
+    principal.enabledModules.includes("budgeting")
+      ? getValueStreamBudgetTotals(db, principal.tenantId)
+      : Promise.resolve({}),
     listPiStandards(db, principal.tenantId),
   ]);
-
-  const budgetTotals = Object.fromEntries(
-    vsBudgets.valueStreams.map((b) => [b.valueStreamId, b.total]),
-  );
 
   const model = buildStructurePageModel({
     mode: "timelines",

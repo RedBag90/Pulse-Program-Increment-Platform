@@ -110,10 +110,18 @@ export default async function PortfolioPage({ searchParams }: Props) {
   // Work-View — Work importiert diese oberen Layer nicht direkt (ADR-0013).
   // Wertstrom-/Owner-Filter greifen zusätzlich in Risks/Budgeting. Risiken
   // kommen aus dem vereinten `Issue`-Register (db.issue), inline geformt.
+  // Budgeting-Adapter mit seinem ECHTEN zweiten Adapter: ohne Entitlement liefert
+  // der Port leere Daten, statt den oberen Layer zu laden — genau die
+  // Degradation, die ADR-0013 fuer Cross-Modul-Komposite verlangt.
+  const budgetingEnabled = principal.enabledModules.includes("budgeting");
+
   const data = await loadPortfolioOverview(
     db,
     principal.tenantId,
     async () => {
+      if (!budgetingEnabled) {
+        return { board: { periods: [], pool: {} }, vsBudgets: { valueStreams: [] } };
+      }
       const [board, vsBudgets] = await Promise.all([
         getBudgetingBoard(db, principal.tenantId),
         getValueStreamBudgets(db, principal.tenantId),
@@ -158,12 +166,17 @@ export default async function PortfolioPage({ searchParams }: Props) {
       return issues
         .filter((r) => r.roamStatus !== "resolved")
         .filter(
-          (r) => !filter.ownerIds.length || (r.ownerId != null && filter.ownerIds.includes(r.ownerId)),
+          (r) =>
+            !filter.ownerIds.length || (r.ownerId != null && filter.ownerIds.includes(r.ownerId)),
         )
-        .filter((r) => !epicIdSet || (() => {
-          const eid = epicIdOf(r.initiative);
-          return eid != null && epicIdSet.has(eid);
-        })())
+        .filter(
+          (r) =>
+            !epicIdSet ||
+            (() => {
+              const eid = epicIdOf(r.initiative);
+              return eid != null && epicIdSet.has(eid);
+            })(),
+        )
         .filter((r) => r.probability != null && r.impact != null)
         .map((r) => {
           const score = LEVEL_VALUE[r.probability!]! * LEVEL_VALUE[r.impact!]!;

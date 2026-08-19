@@ -13,6 +13,7 @@
  */
 
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
+import { remainingByPeriod } from "@/modules/budgeting/domain/period-map";
 
 /** A Feature as the load aggregation needs it (Prisma rows normalised by the caller). */
 export interface ArtFeatureInput {
@@ -80,10 +81,5 @@ export function artBudgetRemaining(
   artBudgets: readonly Record<string, number>[],
   periodKeys: readonly string[],
 ): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const key of periodKeys) {
-    const allocated = artBudgets.reduce((sum, b) => sum + (b[key] ?? 0), 0);
-    out[key] = (vsByPeriod[key] ?? 0) - allocated;
-  }
-  return out;
+  return remainingByPeriod(vsByPeriod, artBudgets, periodKeys);
 }

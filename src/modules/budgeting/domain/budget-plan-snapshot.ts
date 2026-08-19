@@ -9,15 +9,11 @@
  * `buildBudgetPlanSnapshot`, and upserts the result onto `BudgetPlanRevision`.
  */
 
-import {
-  halfYearKey,
-  halfYearLabel,
-  parseHalfYearKey,
-  addHalfYears,
-  buildHalfYearAxis,
-} from "@/modules/core/kernel/domain/calendar";
+import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
+import { occupiedWindow } from "@/modules/budgeting/domain/period-window";
 import { rollupByValueStream, type BudgetEpicView } from "@/modules/budgeting/domain/budgeting";
 import { aggregateArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
+import { addPeriod, sumPeriods } from "@/modules/budgeting/domain/period-map";
 
 /**
  * Canonical key for the synthetic Value-Stream bucket that catches Epics without
@@ -59,12 +55,15 @@ export interface BudgetPlanSnapshotEpic {
   cycleFeatures: BudgetPlanSnapshotFeature[];
 }
 
+/**
+ * A period column of a captured snapshot: half-year key, human label, and the Σ
+ * of every Epic allocation + ART budget + pool cell in it. Structurally the
+ * `OccupiedPeriod` the period-window rule emits — named here because the frozen
+ * payload shape is part of the persisted contract (REQ-R6).
+ */
 export interface BudgetPlanSnapshotPeriod {
-  /** Half-year key, e.g. "2026-H1". */
   key: string;
-  /** Human label via `halfYearLabel`, e.g. "H1 2026". */
   label: string;
-  /** Σ across all Epic allocations + ART budgets in this period. */
   total: number;
 }
 
@@ -150,12 +149,6 @@ export interface BuildBudgetPlanSnapshotInputs {
 // Folder
 // ---------------------------------------------------------------------------
 
-/** Sums non-zero halv-year cells; mutates a target Record in place. */
-function addCell(target: Record<string, number>, key: string, amount: number): void {
-  if (amount === 0) return;
-  target[key] = (target[key] ?? 0) + amount;
-}
-
 /** Stable order — preserves input ordering for equal priorities. */
 function byPriority(a: BudgetEpicView, b: BudgetEpicView): number {
   return a.priority - b.priority;
@@ -175,7 +168,7 @@ export function buildBudgetPlanSnapshot(inputs: BuildBudgetPlanSnapshotInputs): 
   // --- Epics --------------------------------------------------------------
   const sortedEpics = [...epics].sort(byPriority);
   const snapshotEpics: BudgetPlanSnapshotEpic[] = sortedEpics.map((e) => {
-    const total = Object.values(e.allocations).reduce((s, v) => s + v, 0);
+    const total = sumPeriods(e.allocations);
     const cycleBudget = e.allocations[cycleKey] ?? 0;
 
     const epicFeatures = (featuresByEpic.get(e.id) ?? []).filter(
@@ -212,30 +205,23 @@ export function buildBudgetPlanSnapshot(inputs: BuildBudgetPlanSnapshotInputs): 
   // or pool) — keeps the snapshot self-contained without zero-padding.
   const periodTotals: Record<string, number> = {};
   for (const e of snapshotEpics) {
-    for (const [k, v] of Object.entries(e.allocations)) addCell(periodTotals, k, v);
+    for (const [k, v] of Object.entries(e.allocations)) addPeriod(periodTotals, k, v);
   }
   for (const a of artRows) {
-    for (const [k, v] of Object.entries(a.budgetByPeriod)) addCell(periodTotals, k, v);
+    for (const [k, v] of Object.entries(a.budgetByPeriod)) addPeriod(periodTotals, k, v);
   }
-  for (const [k, v] of Object.entries(pool)) addCell(periodTotals, k, v);
+  for (const [k, v] of Object.entries(pool)) addPeriod(periodTotals, k, v);
 
-  const periods: BudgetPlanSnapshotPeriod[] = Object.keys(periodTotals)
-    .sort()
-    .map((k) => ({ key: k, label: halfYearLabel(k), total: periodTotals[k]! }));
+  // The sparse grid AND the contiguous roll-up axis come from the SAME key set —
+  // one rule (`occupiedWindow`), so the axis filter can never drop a column the
+  // grid shows. Previously these were derived twice, independently.
+  const { periods, axis } = occupiedWindow(periodTotals, capturedAt);
 
   // --- Value Stream roll-up ----------------------------------------------
   // Reuse the canonical deep-domain primitive so the captured roll-up matches
   // what the live board shows, then PROJECT into the snapshot's presentation
   // shape (unassigned Epics under `UNASSIGNED_VALUE_STREAM_ID` with the "Ohne
-  // Wertstrom" label, largest-total-first). The axis spans every half-year that
-  // carries data, so the primitive's axis-filter drops nothing the grid shows.
-  const dataDates = Object.keys(periodTotals)
-    .map((k) => parseHalfYearKey(k))
-    .filter((d): d is Date => d != null);
-  const from = dataDates.length ? dataDates.reduce((m, d) => (d < m ? d : m)) : capturedAt;
-  const to = dataDates.length ? dataDates.reduce((m, d) => (d > m ? d : m)) : capturedAt;
-  const axis = buildHalfYearAxis(from, to);
-
+  // Wertstrom" label, largest-total-first).
   const valueStreams: BudgetPlanSnapshotValueStream[] = rollupByValueStream([...epics], axis)
     .map((r) => ({
       valueStreamId: r.valueStreamId ?? UNASSIGNED_VALUE_STREAM_ID,
@@ -298,9 +284,10 @@ export function buildBudgetPlanSnapshot(inputs: BuildBudgetPlanSnapshotInputs): 
 // Derived read-models (pure) — one home for the numbers every reader needs.
 // ---------------------------------------------------------------------------
 
-function sumEpicTotals(
-  epics: ReadonlyArray<{ cycleBudget: number; total: number }>,
-): { cycleBudgetSum: number; followBudgetSum: number } {
+function sumEpicTotals(epics: ReadonlyArray<{ cycleBudget: number; total: number }>): {
+  cycleBudgetSum: number;
+  followBudgetSum: number;
+} {
   let cycleBudgetSum = 0;
   let followBudgetSum = 0;
   for (const e of epics) {
@@ -316,13 +303,11 @@ function sumEpicTotals(
  * (pre-totals) captured snapshots that never stored them. The single source of
  * truth so the header list, detail read and view all report identical numbers.
  */
-export function summarizeSnapshot(
-  snapshot: BudgetPlanSnapshot,
-): { cycleBudgetSum: number; followBudgetSum: number } {
-  if (
-    typeof snapshot.cycleBudgetSum === "number" &&
-    typeof snapshot.followBudgetSum === "number"
-  ) {
+export function summarizeSnapshot(snapshot: BudgetPlanSnapshot): {
+  cycleBudgetSum: number;
+  followBudgetSum: number;
+} {
+  if (typeof snapshot.cycleBudgetSum === "number" && typeof snapshot.followBudgetSum === "number") {
     return {
       cycleBudgetSum: snapshot.cycleBudgetSum,
       followBudgetSum: snapshot.followBudgetSum,
@@ -331,34 +316,12 @@ export function summarizeSnapshot(
   return sumEpicTotals(snapshot.epics);
 }
 
-/** A visible half-year column for the revision view (current cycle flagged). */
-export interface SnapshotDisplayPeriod {
-  key: string;
-  label: string;
-  isCurrent: boolean;
-}
-
 /**
- * The visible columns for a revision: the half-year *immediately before* the
- * captured cycle (anchor), the captured cycle itself, and every later half-year
- * that carries data. Earlier history is hidden so the table stays anchored on
- * "next steps". Pure — lifted out of the view so it is unit-testable.
+ * The visible columns of a revision live with the other period-window rules;
+ * re-exported here so the view and its tests keep importing them alongside the
+ * snapshot shape they belong to.
  */
-export function computeDisplayPeriods(
-  snapshot: Pick<BudgetPlanSnapshot, "cycleKey" | "periods">,
-): SnapshotDisplayPeriod[] {
-  const cycleStart = parseHalfYearKey(snapshot.cycleKey);
-  const previousKey = cycleStart ? halfYearKey(addHalfYears(cycleStart, -1)) : null;
-
-  const keys = new Set<string>();
-  if (previousKey) keys.add(previousKey);
-  keys.add(snapshot.cycleKey);
-  for (const p of snapshot.periods) {
-    if (p.key >= snapshot.cycleKey) keys.add(p.key);
-  }
-  return [...keys].sort().map((key) => ({
-    key,
-    label: halfYearLabel(key),
-    isCurrent: key === snapshot.cycleKey,
-  }));
-}
+export {
+  computeDisplayPeriods,
+  type SnapshotDisplayPeriod,
+} from "@/modules/budgeting/domain/period-window";

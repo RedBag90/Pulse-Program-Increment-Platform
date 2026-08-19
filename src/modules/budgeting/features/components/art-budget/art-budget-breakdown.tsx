@@ -1,71 +1,71 @@
 "use client";
 
 import { useMemo, useState, useActionState, startTransition } from "react";
-import { saveArtBudgetAction } from "@/modules/budgeting/features/art-budget/actions/art-budget";
-import { artBudgetRemaining, type ArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
+import { saveArtBudgetAction } from "@/modules/budgeting/features/actions/budgeting";
 import {
   numOr0,
   encodeSaveArtBudgetPayload,
 } from "@/modules/budgeting/features/lib/allocation-payload";
+import type { ArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
+import type { Period } from "@/modules/budgeting/domain/period-window";
+import {
+  buildArtBudgetModel,
+  type ArtBudgetModel,
+} from "@/modules/budgeting/server/views/art-budget-breakdown";
 import { Button } from "@/components/ui/button";
-import { formatEUR as fmtEur } from "@/lib/formatting";
+import { formatEUR } from "@/lib/formatting";
 
 const cellInput =
   "h-8 w-24 rounded-md border border-input bg-transparent px-2 text-right text-sm disabled:opacity-60";
 
-interface Period {
-  key: string;
-  label: string;
-}
-interface ArtRow {
-  artId: string;
-  name: string;
-  budgetByPeriod: Record<string, number>;
-  load: ArtFeatureLoad;
-}
-
 interface Props {
-  periods: Period[];
-  vsByPeriod: Record<string, number>;
-  arts: ArtRow[];
+  /** Vorberechnetes Server-Modell — der Ausgangsstand des Grids. */
+  model: ArtBudgetModel;
   canEdit: boolean;
 }
 
 /**
- * ART budget breakdown — Finance distributes the Value Stream's per-half-year
- * budget to its ARTs (editable grid + "Verbleibend" against the VS budget), plus
- * a read-only Feature-load table (count + Job Size per ART per PI half-year,
- * un-PI'd → Backlog) to support the decision.
+ * ART-Budget-Breakdown — Finance verteilt das (abgeleitete) Wertstrom-Budget je
+ * Halbjahr auf die ARTs (editierbares Grid + „Verbleibend"), darunter die
+ * read-only Feature-Last als Entscheidungsgrundlage.
+ *
+ * Die Komponente hält nur den Editier-Stand; „Verbleibend" rechnet
+ * `buildArtBudgetModel` — dieselbe reine Funktion, die der Server benutzt.
  */
-export function ArtBudgetBreakdown({ periods, vsByPeriod, arts, canEdit }: Props) {
-  // Live edit state: artId → periodKey → input string.
+export function ArtBudgetBreakdown({ model: initial, canEdit }: Props) {
+  const { periods } = initial;
+
+  // Editier-Stand: artId → periodKey → Eingabe-String.
   const [budgets, setBudgets] = useState<Record<string, Record<string, string>>>(() =>
     Object.fromEntries(
-      arts.map((a) => [
-        a.artId,
+      initial.rows.map((r) => [
+        r.artId,
         Object.fromEntries(
           periods.map((p) => [
             p.key,
-            a.budgetByPeriod[p.key] ? String(a.budgetByPeriod[p.key]) : "",
+            r.budgetByPeriod[p.key] ? String(r.budgetByPeriod[p.key]) : "",
           ]),
         ),
       ]),
     ),
   );
 
-  const remaining = useMemo(
+  const model = useMemo(
     () =>
-      artBudgetRemaining(
-        vsByPeriod,
-        arts.map((a) =>
-          Object.fromEntries(periods.map((p) => [p.key, numOr0(budgets[a.artId]?.[p.key] ?? "")])),
-        ),
-        periods.map((p) => p.key),
-      ),
-    [budgets, vsByPeriod, arts, periods],
+      buildArtBudgetModel({
+        periods,
+        vsByPeriod: initial.vsByPeriod,
+        rows: initial.rows.map((r) => ({
+          ...r,
+          budgetByPeriod: Object.fromEntries(
+            periods.map((p) => [p.key, numOr0(budgets[r.artId]?.[p.key] ?? "")]),
+          ),
+        })),
+      }),
+    [budgets, periods, initial.vsByPeriod, initial.rows],
   );
 
-  if (arts.length === 0) {
+  if (model.isEmpty) {
     return (
       <section className="space-y-2">
         <h2 className="text-sm font-medium">ART-Budgets</h2>
@@ -76,7 +76,7 @@ export function ArtBudgetBreakdown({ periods, vsByPeriod, arts, canEdit }: Props
 
   return (
     <div className="space-y-8">
-      {/* (A) Budget breakdown editor */}
+      {/* (A) Budget-Verteilung */}
       <section className="space-y-2">
         <h2 className="text-sm font-medium">ART-Budgets</h2>
         <p className="text-xs text-muted-foreground">
@@ -100,12 +100,12 @@ export function ArtBudgetBreakdown({ periods, vsByPeriod, arts, canEdit }: Props
                 <td className="p-2">Wertstrom-Budget</td>
                 {periods.map((p) => (
                   <td key={p.key} className="p-2 text-right tabular-nums">
-                    {fmtEur(vsByPeriod[p.key] ?? 0)}
+                    {formatEUR(model.vsByPeriod[p.key] ?? 0)}
                   </td>
                 ))}
                 {canEdit && <td />}
               </tr>
-              {arts.map((a) => (
+              {initial.rows.map((a) => (
                 <ArtBudgetRow
                   key={a.artId}
                   artId={a.artId}
@@ -124,13 +124,13 @@ export function ArtBudgetBreakdown({ periods, vsByPeriod, arts, canEdit }: Props
               <tr className="border-t">
                 <td className="p-2 text-xs font-medium text-muted-foreground">Verbleibend</td>
                 {periods.map((p) => {
-                  const r = remaining[p.key] ?? 0;
+                  const r = model.remaining[p.key] ?? 0;
                   return (
                     <td
                       key={p.key}
                       className={`p-2 text-right tabular-nums ${r < 0 ? "text-destructive" : "text-muted-foreground"}`}
                     >
-                      {fmtEur(r)}
+                      {formatEUR(r)}
                     </td>
                   );
                 })}
@@ -141,7 +141,7 @@ export function ArtBudgetBreakdown({ periods, vsByPeriod, arts, canEdit }: Props
         </div>
       </section>
 
-      {/* (B) Feature load — decision support */}
+      {/* (B) Feature-Last — Entscheidungsgrundlage */}
       <section className="space-y-2">
         <h2 className="text-sm font-medium">Feature-Last je ART</h2>
         <p className="text-xs text-muted-foreground">
@@ -162,27 +162,41 @@ export function ArtBudgetBreakdown({ periods, vsByPeriod, arts, canEdit }: Props
               </tr>
             </thead>
             <tbody>
-              {arts.map((a) => (
-                <tr key={a.artId} className="border-b">
-                  <td className="p-2 font-medium">{a.name}</td>
-                  {periods.map((p) => (
-                    <td key={p.key} className="p-2 text-right tabular-nums">
-                      <LoadCellView cell={a.load.byPeriod[p.key]} />
-                    </td>
-                  ))}
-                  <td className="p-2 text-right tabular-nums">
-                    <LoadCellView cell={a.load.backlog} />
-                  </td>
-                  <td className="p-2 text-right font-medium tabular-nums">
-                    <LoadCellView cell={a.load.total} />
-                  </td>
-                </tr>
+              {initial.rows.map((a) => (
+                <ArtLoadRow key={a.artId} name={a.name} periods={periods} load={a.load} />
               ))}
             </tbody>
           </table>
         </div>
       </section>
     </div>
+  );
+}
+
+function ArtLoadRow({
+  name,
+  periods,
+  load,
+}: {
+  name: string;
+  periods: Period[];
+  load: ArtFeatureLoad;
+}) {
+  return (
+    <tr className="border-b">
+      <td className="p-2 font-medium">{name}</td>
+      {periods.map((p) => (
+        <td key={p.key} className="p-2 text-right tabular-nums">
+          <LoadCellView cell={load.byPeriod[p.key]} />
+        </td>
+      ))}
+      <td className="p-2 text-right tabular-nums">
+        <LoadCellView cell={load.backlog} />
+      </td>
+      <td className="p-2 text-right font-medium tabular-nums">
+        <LoadCellView cell={load.total} />
+      </td>
+    </tr>
   );
 }
 

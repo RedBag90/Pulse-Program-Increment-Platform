@@ -3,7 +3,7 @@ import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok } from "@/modules/core/kernel/domain/errors";
-import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
+import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import {
   buildBudgetPlanSnapshot,
   summarizeSnapshot,
@@ -128,20 +128,30 @@ export async function listBudgetPlanRevisions(
     select: { id: true, cycleKey: true, capturedAt: true, capturedBy: true, payload: true },
     orderBy: { capturedAt: "desc" },
   });
-  return rows.map((r) => {
-    const snapshot = requireSnapshot(r.payload, r.id);
-    const { cycleBudgetSum, followBudgetSum } = summarizeSnapshot(snapshot);
-    return {
-      id: r.id,
-      cycleKey: r.cycleKey,
-      cycleLabel: snapshot.cycleLabel ?? r.cycleKey,
-      capturedAt: r.capturedAt,
-      capturedBy: r.capturedBy,
-      epicCount: snapshot.epics.length,
-      cycleBudgetSum,
-      followBudgetSum,
-    };
-  });
+  return rows.map(toRevisionHeader);
+}
+
+/** Rohzeile → Header + Snapshot. Die eine Projektion für alle drei Lesewege. */
+function toRevisionHeader(row: {
+  id: string;
+  cycleKey: string;
+  capturedAt: Date;
+  capturedBy: string;
+  payload: unknown;
+}): BudgetPlanRevisionHeader & { snapshot: BudgetPlanSnapshot } {
+  const snapshot = requireSnapshot(row.payload, row.id);
+  const { cycleBudgetSum, followBudgetSum } = summarizeSnapshot(snapshot);
+  return {
+    id: row.id,
+    cycleKey: row.cycleKey,
+    cycleLabel: snapshot.cycleLabel ?? row.cycleKey,
+    capturedAt: row.capturedAt,
+    capturedBy: row.capturedBy,
+    epicCount: snapshot.epics.length,
+    cycleBudgetSum,
+    followBudgetSum,
+    snapshot,
+  };
 }
 
 /** A single revision with its full payload — feeds the detail page. */
@@ -154,34 +164,55 @@ export async function getBudgetPlanRevision(
     where: { id, tenantId },
     select: { id: true, cycleKey: true, capturedAt: true, capturedBy: true, payload: true },
   });
-  if (!row) return null;
-  const snapshot = requireSnapshot(row.payload, row.id);
-  const { cycleBudgetSum, followBudgetSum } = summarizeSnapshot(snapshot);
-  return {
-    id: row.id,
-    cycleKey: row.cycleKey,
-    cycleLabel: snapshot.cycleLabel,
-    capturedAt: row.capturedAt,
-    capturedBy: row.capturedBy,
-    epicCount: snapshot.epics.length,
-    cycleBudgetSum,
-    followBudgetSum,
-    snapshot,
-  };
+  return row ? toRevisionHeader(row) : null;
 }
 
-/** Convenience: the most-recently-captured revision (any cycle), or null. */
+/**
+ * Convenience: the most-recently-captured revision (any cycle), or null. Eine
+ * Query — vorher holte diese Funktion erst die Id und dann in einem zweiten
+ * Roundtrip dieselbe Zeile noch einmal.
+ */
 export async function getLatestBudgetPlanRevision(
   db: PrismaClient,
   tenantId: TenantId,
 ): Promise<(BudgetPlanRevisionHeader & { snapshot: BudgetPlanSnapshot }) | null> {
   const row = await db.budgetPlanRevision.findFirst({
     where: { tenantId },
-    select: { id: true },
+    select: { id: true, cycleKey: true, capturedAt: true, capturedBy: true, payload: true },
     orderBy: { capturedAt: "desc" },
   });
-  if (!row) return null;
-  return getBudgetPlanRevision(db, tenantId, row.id);
+  return row ? toRevisionHeader(row) : null;
+}
+
+/** Nur Zyklus + Id je Revision — OHNE den Payload zu lesen. */
+export interface BudgetPlanRevisionCycle {
+  id: string;
+  cycleKey: string;
+  cycleLabel: string;
+  capturedAt: Date;
+}
+
+/**
+ * Die Zyklus-Navigation der Detailseite, ohne einen einzigen Snapshot zu
+ * deserialisieren: das Label folgt aus `cycleKey`, alles andere braucht die
+ * Navigation nicht. Vorher zog die Detailseite dafuer `listBudgetPlanRevisions`
+ * und parste damit JEDEN Payload — den der angezeigten Revision ein zweites Mal.
+ */
+export async function listBudgetPlanRevisionCycles(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<BudgetPlanRevisionCycle[]> {
+  const rows = await db.budgetPlanRevision.findMany({
+    where: { tenantId },
+    select: { id: true, cycleKey: true, capturedAt: true },
+    orderBy: { capturedAt: "desc" },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    cycleKey: r.cycleKey,
+    cycleLabel: halfYearLabel(r.cycleKey),
+    capturedAt: r.capturedAt,
+  }));
 }
 
 // ---------------------------------------------------------------------------

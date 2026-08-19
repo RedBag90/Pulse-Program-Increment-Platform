@@ -1,8 +1,8 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
-import { getBudgetingBoard } from "@/modules/budgeting/server/services/budgeting";
-import { BudgetingBoard } from "@/modules/budgeting/features/budgeting/components/budgeting-board-lazy";
+import { loadBudgetingBoardModel } from "@/modules/budgeting/server/views/budgeting-board";
+import { BudgetingBoard } from "@/modules/budgeting/features/components/board/budgeting-board-lazy";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import { Page, PageHeader } from "@/components/layout";
@@ -27,7 +27,7 @@ export default async function BudgetingPage() {
   }
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const data = await getBudgetingBoard(db, principal.tenantId);
+  const model = await loadBudgetingBoardModel(db, principal.tenantId);
 
   return (
     <Page>
@@ -44,7 +44,7 @@ export default async function BudgetingPage() {
         }
       />
 
-      <BudgetingBoard data={data} canManage />
+      <BudgetingBoard model={model} canManage />
     </Page>
   );
 }

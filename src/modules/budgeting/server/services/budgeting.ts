@@ -11,20 +11,16 @@ import type { TenantId, EpicId, ValueStreamId } from "@/modules/core/kernel/doma
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok } from "@/modules/core/kernel/domain/errors";
+import { loadAuthorizedEpic } from "@/modules/work/server/services/epic-access";
 import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
+import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 import {
-  halfYearKey,
-  parseHalfYearKey,
-  halfYearStart,
-  addHalfYears,
-} from "@/modules/core/kernel/domain/calendar";
-import {
-  buildHalfYearAxis,
   parsePeriodAmountMap,
   rollupByValueStream,
   type BudgetEpicView,
   type HalfYearAxis,
 } from "@/modules/budgeting/domain/budgeting";
+import { forecastAxis } from "@/modules/budgeting/domain/period-window";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 
@@ -119,23 +115,17 @@ const loadBudgetingModel = cache(async function loadBudgetingModel(
 
   const pool = parsePeriodAmountMap(tenant?.budgetPoolByPeriod);
 
-  // Axis spans the earliest Epic start to the latest need/pool period.
-  const startDates = epics
-    .map((e) => parseHalfYearKey(e.startKey))
-    .filter((d): d is Date => d != null);
-  const poolDates = Object.keys(pool)
-    .map((k) => parseHalfYearKey(k))
-    .filter((d): d is Date => d != null);
-  const lows = [...startDates, ...poolDates];
-  const from = lows.length ? lows.reduce((m, d) => (d < m ? d : m)) : halfYearStart(new Date());
-  const ends = epics.map((e) => {
-    const start = parseHalfYearKey(e.startKey) ?? from;
-    const span = e.isHypothesisOnly ? 1 : Math.max(1, e.costSlices.length);
-    return addHalfYears(start, span - 1);
-  });
-  const to = [...ends, ...poolDates].reduce((m, d) => (d > m ? d : m), from);
-
-  const axis = buildHalfYearAxis(from, to);
+  // The horizon rule (earliest Epic start / pool period → latest need end) lives
+  // in the pure `period-window` seam; here we only project each Epic onto the
+  // span shape it consumes.
+  const axis = forecastAxis(
+    epics.map((e) => ({
+      startKey: e.startKey,
+      spanPeriods: e.isHypothesisOnly ? 1 : Math.max(1, e.costSlices.length),
+    })),
+    Object.keys(pool),
+    new Date(),
+  );
   return { epics, axis, pool };
 });
 
@@ -193,6 +183,21 @@ export async function getValueStreamBudget(
   return { periods: axis.periods, budget };
 }
 
+/**
+ * Nur die Σ-Budgets je Wertstrom, als `valueStreamId → total`. Genau die Form,
+ * die die Struktur-, Timeline- und Reporting-Sichten brauchen — vorher baute
+ * jede von ihnen diese Map selbst aus `getValueStreamBudgets(...).valueStreams`
+ * (dreimal dieselbe Zeile). Der Port bleibt damit schmal: die Aufrufer sehen
+ * keine Perioden-Struktur, die sie ohnehin verwerfen.
+ */
+export async function getValueStreamBudgetTotals(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<Record<string, number>> {
+  const { valueStreams } = await getValueStreamBudgets(db, tenantId);
+  return Object.fromEntries(valueStreams.map((b) => [b.valueStreamId, b.total]));
+}
+
 export interface SaveBudgetAllocationInput {
   epicId: EpicId;
   priority: number;
@@ -200,7 +205,16 @@ export interface SaveBudgetAllocationInput {
   allocations: Record<string, number>;
 }
 
-/** Upserts an Epic's budgeting allocation (priority, hypothesis budget, per-period grants). */
+/**
+ * Upserts an Epic's budgeting allocation (priority, hypothesis budget, per-period grants).
+ *
+ * Autorisierung nach ADR-0002 gegen die GELADENE Epic-Zeile: `loadAuthorizedEpic`
+ * (Work — Abwärts-Import, erlaubt) holt das Epic tenant-scoped und prüft
+ * `budget.manage` gegen dessen echten Wertstrom. Vorher upsertete der Service
+ * blind auf `epicId`; die Action deklarierte nur `{ tenantId }`, wodurch jeder
+ * `value_stream`-Scope vakuant erfüllt war und eine fremd-tenant-eigene `epicId`
+ * nicht auffiel (Befund F-04).
+ */
 export async function saveBudgetAllocation(
   ctx: RequestContext,
   input: SaveBudgetAllocationInput,
@@ -208,6 +222,13 @@ export async function saveBudgetAllocation(
   const mctx = toMutationContext(ctx);
   const { epicId, priority, hypothesisBudget, allocations } = input;
   return withAuditedTransaction(mctx, async (tx) => {
+    const epic = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
+      id: epicId,
+      action: "budget.manage",
+      select: { id: true },
+    });
+    if (!epic.ok) return epic;
+
     const data = {
       priority,
       hypothesisBudget,
