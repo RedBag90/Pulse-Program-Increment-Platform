@@ -244,9 +244,14 @@ export const POLICIES: Record<Action, Grant[]> = {
 
   "pi.create": [{ roles: [RTE] }],
   "pi.update": [{ roles: [RTE] }],
-  "pi.start": [{ roles: [RTE] }],
-  "pi.complete": [{ roles: [RTE] }],
-  "pi.advance": [{ roles: [RTE] }],
+  // PI-Lifecycle-Übergänge: RTE der ART **und** der Value-Stream-Owner. Der VS
+  // steuert die Kadenz seines Wertstroms mit (Start / Abschließen / Fortschreiben);
+  // Anlegen und Löschen von PIs bleibt beim RTE. Unscoped wie RTE — der Cockpit-/
+  // Service-Pfad führt keinen `valueStreamId`, ein `value_stream`-Scope wäre hier
+  // vakuum-wahr.
+  "pi.start": [{ roles: [RTE, VALUE_STREAM_OWNER] }],
+  "pi.complete": [{ roles: [RTE, VALUE_STREAM_OWNER] }],
+  "pi.advance": [{ roles: [RTE, VALUE_STREAM_OWNER] }],
   "pi.delete": [{ roles: [RTE] }],
 
   // Reusable named PI calendars are an org-structure concern — managed by the

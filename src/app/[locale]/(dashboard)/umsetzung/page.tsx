@@ -2,9 +2,38 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { loadCockpitModel, type CockpitView } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
+import {
+  loadCockpitModel,
+  type CockpitView,
+  type CockpitFilters,
+  type FeatureStatus,
+} from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { loadCockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 import { CockpitShell } from "@/modules/drumbeat/features/umsetzung/components/cockpit-shell";
+
+const FEATURE_STATUSES: readonly FeatureStatus[] = [
+  "approved",
+  "in_progress",
+  "blocked",
+  "completed",
+  "cancelled",
+];
+
+/** Liest die Filter aus den URL-Parametern (deep-linkbar). Der Loader honoriert
+ *  status/owner/epic/blocker bereits; hier werden sie nur geparst. */
+function parseFilters(params: Record<string, string | string[] | undefined>): Partial<CockpitFilters> {
+  const csv = (v: string | string[] | undefined): string[] =>
+    typeof v === "string" && v.length > 0 ? v.split(",").filter(Boolean) : [];
+  const status = csv(params.status).filter((s): s is FeatureStatus =>
+    (FEATURE_STATUSES as readonly string[]).includes(s),
+  );
+  return {
+    status,
+    ownerIds: csv(params.owner),
+    epicIds: csv(params.epic),
+    hasBlocker: params.blocker === "1" || params.blocker === "true",
+  };
+}
 
 /**
  * Delivery-Cockpit (Umsetzungs-Modul-Redesign, Phase 1 — Skelett).
@@ -34,6 +63,7 @@ export default async function UmsetzungCockpitPage({ searchParams }: PageProps) 
   const artParam = typeof params.art === "string" ? params.art : undefined;
   const viewParam = typeof params.view === "string" ? params.view : undefined;
   const featureIdParam = typeof params.featureId === "string" ? params.featureId : undefined;
+  const piParam = typeof params.pi === "string" ? params.pi : undefined;
   const piwParam = typeof params.piw === "string" ? Number.parseInt(params.piw, 10) : 0;
   const windowOffset = Number.isFinite(piwParam) ? piwParam : 0;
 
@@ -43,6 +73,8 @@ export default async function UmsetzungCockpitPage({ searchParams }: PageProps) 
       artId: artParam,
       view: parseView(viewParam),
       windowOffset,
+      piId: piParam,
+      filters: parseFilters(params),
     }),
     featureIdParam
       ? loadCockpitFeatureDetail(db, principal, featureIdParam)

@@ -6,22 +6,24 @@ import type {
   CockpitPiSlot,
   CockpitPiWindowNav,
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
-import { AdvanceCadenceButton } from "@/modules/drumbeat/features/pi/components/advance-cadence-button";
 
 /**
  * Cockpit-PI-Strip — horizontaler Streifen mit 5 PIs rund um den **Anker**
  * (aktives PI). Vor-/Zurück-Pfeile verschieben das Fenster über den `?piw`-
- * URL-Param, ohne den Anker zu ändern; „Zum aktiven PI" setzt zurück.
+ * URL-Param, ohne den Anker zu ändern.
+ *
+ * Eine Kachel ist ein **Selektor**: Klick setzt `?pi=<id>` und scoped damit die
+ * PI-Kontext-Leiste (Fakten + Start/Fortschreiben/Löschen) — kein Absprung mehr
+ * auf die (entfallende) PI-Detailseite. Das gewählte PI wird hervorgehoben.
  */
 interface Props {
   pis: CockpitPiSlot[];
   window: CockpitPiWindowNav;
-  canAdvance: boolean;
-  /** Aktives PI der Timeline (für „Fortschreiben"), oder null. */
-  activePiId: string | null;
+  /** Aktuell im Scope gewähltes PI (Default = aktives PI), oder null. */
+  selectedPiId: string | null;
 }
 
-export function CockpitPiStrip({ pis, window: nav, canAdvance, activePiId }: Props) {
+export function CockpitPiStrip({ pis, window: nav, selectedPiId }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -30,6 +32,12 @@ export function CockpitPiStrip({ pis, window: nav, canAdvance, activePiId }: Pro
     const next = new URLSearchParams(searchParams.toString());
     if (offset === 0) next.delete("piw");
     else next.set("piw", String(offset));
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }
+
+  function select(piId: string) {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("pi", piId);
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
   }
 
@@ -58,13 +66,19 @@ export function CockpitPiStrip({ pis, window: nav, canAdvance, activePiId }: Pro
       </button>
 
       {pis.map((p) => {
-        const cls = p.isCurrent
-          ? "border-primary bg-primary/10 text-foreground"
-          : "border-border bg-card text-muted-foreground hover:text-foreground";
+        const isSelected = p.id === selectedPiId;
+        const cls = isSelected
+          ? "border-primary ring-1 ring-primary bg-primary/10 text-foreground"
+          : p.isCurrent
+            ? "border-primary/60 bg-primary/5 text-foreground"
+            : "border-border bg-card text-muted-foreground hover:text-foreground";
         return (
-          <div
+          <button
             key={p.id}
-            className={`flex min-w-[120px] shrink-0 flex-col rounded-md border px-3 py-1.5 text-xs ${cls}`}
+            type="button"
+            aria-pressed={isSelected}
+            onClick={() => select(p.id)}
+            className={`flex min-w-[120px] shrink-0 flex-col rounded-md border px-3 py-1.5 text-left text-xs transition-colors ${cls}`}
           >
             <span className="flex items-center gap-1 font-medium">
               {p.name}
@@ -75,7 +89,7 @@ export function CockpitPiStrip({ pis, window: nav, canAdvance, activePiId }: Pro
               )}
             </span>
             <span className="text-[11px]">{p.featureCount} Features</span>
-          </div>
+          </button>
         );
       })}
 
@@ -97,12 +111,6 @@ export function CockpitPiStrip({ pis, window: nav, canAdvance, activePiId }: Pro
         >
           Zum aktiven PI
         </button>
-      )}
-
-      {canAdvance && activePiId && (
-        <div className="ml-auto shrink-0 pl-2">
-          <AdvanceCadenceButton piId={activePiId} />
-        </div>
       )}
     </nav>
   );

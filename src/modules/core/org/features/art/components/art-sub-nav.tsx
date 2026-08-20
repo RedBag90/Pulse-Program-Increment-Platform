@@ -1,9 +1,7 @@
 "use client";
 
-import { Link, usePathname } from "@/i18n/navigation";
+import { Link } from "@/i18n/navigation";
 import { SectionSubNav } from "@/components/nav/section-sub-nav";
-import { LayoutToggle } from "@/components/nav/layout-toggle";
-import { oldToNewHref, segmentToTab } from "@/components/nav/layout-toggle-routes";
 
 interface Props {
   artId: string;
@@ -11,7 +9,6 @@ interface Props {
 }
 
 export function ArtSubNav({ artId, artName }: Props) {
-  const pathname = usePathname();
   const root = `/art/${artId}`;
   const tabs = [
     { href: root, label: "Overview", segment: "" },
@@ -21,7 +18,6 @@ export function ArtSubNav({ artId, artName }: Props) {
     { href: `${root}/settings`, label: "Settings", segment: "settings" },
     { href: `${root}/history`, label: "History", segment: "history" },
   ];
-  const activeTab = segmentToTab(pathname, artId);
 
   return (
     <div className="space-y-4">
@@ -33,10 +29,7 @@ export function ArtSubNav({ artId, artName }: Props) {
         <span className="text-foreground font-medium">{artName}</span>
       </nav>
 
-      <div className="flex items-center justify-between gap-3">
-        <SectionSubNav ariaLabel="ART navigation" sectionRoot={root} tabs={tabs} />
-        <LayoutToggle current="old" otherHref={oldToNewHref("art", artId, activeTab)} />
-      </div>
+      <SectionSubNav ariaLabel="ART navigation" sectionRoot={root} tabs={tabs} />
     </div>
   );
 }

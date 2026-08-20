@@ -1,12 +1,8 @@
 import { LinkDependencyDialog } from "@/modules/drumbeat/features/dependencies/components/link-dependency-dialog";
 import { UnlinkDependencyButton } from "@/modules/drumbeat/features/dependencies/components/unlink-dependency-button";
+import type { DependencyEdge } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 
-export interface DependencyEdge {
-  id: string;
-  type: "blocks" | "depends_on" | "relates_to";
-  /** Das andere Ende der Kante (nicht das aktuelle Feature). */
-  other: { id: string; title: string };
-}
+export type { DependencyEdge };
 
 interface Props {
   featureId: string;

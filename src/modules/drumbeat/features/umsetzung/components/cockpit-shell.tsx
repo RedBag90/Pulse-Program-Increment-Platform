@@ -2,6 +2,7 @@ import type { CockpitModel } from "@/modules/drumbeat/server/views/umsetzung-coc
 import type { CockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 import { CockpitTopBar } from "./cockpit-top-bar";
 import { CockpitPiStrip } from "./cockpit-pi-strip";
+import { CockpitPiContext } from "./cockpit-pi-context";
 import { CockpitViewTabs } from "./cockpit-view-tabs";
 import { CockpitBoard } from "./cockpit-board";
 import { CockpitTable } from "./cockpit-table";
@@ -33,10 +34,12 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
     selectedArt,
     piStrip,
     piWindow,
-    activePiId,
+    selectedPi,
+    selectedPiId,
     allPiWindows,
     view,
     features,
+    filters,
     dependencies,
     permissions,
   } = model;
@@ -44,17 +47,19 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
   return (
     <div className="flex min-h-[calc(100vh-3rem)] flex-col bg-background">
       <CockpitRealtimeSubscriber tenantId={tenantId} />
-      <CockpitTopBar
-        availableArts={availableArts}
-        selectedArt={selectedArt}
-        canCreate={permissions.canCreate}
-      />
-      <CockpitPiStrip
-        pis={piStrip}
-        window={piWindow}
-        canAdvance={permissions.canAdvance}
-        activePiId={activePiId}
-      />
+      <CockpitTopBar availableArts={availableArts} selectedArt={selectedArt} filters={filters} />
+      <CockpitPiStrip pis={piStrip} window={piWindow} selectedPiId={selectedPiId} />
+      {selectedArt && selectedPi && (
+        <CockpitPiContext
+          pi={selectedPi}
+          artId={selectedArt.id}
+          artName={selectedArt.name}
+          valueStreamName={selectedArt.valueStreamName}
+          canStart={permissions.canStart}
+          canAdvance={permissions.canAdvance}
+          canDelete={permissions.canDelete}
+        />
+      )}
       <div className="flex items-center justify-between gap-3 border-b bg-surface-frame px-6 py-3">
         <CockpitViewTabs view={view} />
         <p className="text-xs text-muted-foreground">{features.length} Features im Scope</p>

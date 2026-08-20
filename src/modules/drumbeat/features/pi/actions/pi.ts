@@ -5,11 +5,9 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import {
   startPi,
-  completePi,
   advanceCadence,
   deletePi,
   setPiCapacity,
-  setPiClosureMeta,
 } from "@/modules/drumbeat/server/services/pi";
 import { authorize } from "@/server/auth/authorize";
 import { headers } from "next/headers";
@@ -33,15 +31,17 @@ export interface PiActionState {
 // Service `createPi(...)` bleibt intern und wird vom Standard-Pfad
 // verwendet.
 
-export async function transitionPiAction(
-  piId: string,
-  targetStatus: "active" | "completed",
-): Promise<PiActionState> {
+/**
+ * Startet ein geplantes PI (planned → active). Das Abschließen läuft
+ * ausschließlich über `advanceCadenceAction` („PI abschließen & nächstes
+ * öffnen") — der strenge Complete-PI-Weg ist aus dem UI entfallen (Spec WP2).
+ * Der programmatische `completePi`-Service bleibt für die v1-REST-API.
+ */
+export async function transitionPiAction(piId: string): Promise<PiActionState> {
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) return { error: "Not authenticated" };
 
-  const action = targetStatus === "active" ? "pi.start" : "pi.complete";
-  if (!authorize(action, { tenantId: principal.tenantId }, principal).allow) {
+  if (!authorize("pi.start", { tenantId: principal.tenantId }, principal).allow) {
     return { error: "Insufficient permissions" };
   }
 
@@ -54,14 +54,11 @@ export async function transitionPiAction(
     ...(userAgent !== undefined && { userAgent }),
   };
 
-  const result =
-    targetStatus === "active"
-      ? await startPi(ctx, { id: piId as PiId })
-      : await completePi(ctx, { id: piId as PiId });
+  const result = await startPi(ctx, { id: piId as PiId });
 
   if (isErr(result)) {
     return {
-      error: result.error.kind === "conflict" ? result.error.reason : "Failed to update PI status",
+      error: result.error.kind === "conflict" ? result.error.reason : "Failed to start PI",
     };
   }
 
@@ -142,54 +139,6 @@ export const setPiCapacityAction = createServerAction({
       : e.kind === "not_found"
         ? "PI nicht gefunden"
         : "Kapazität konnte nicht gespeichert werden",
-});
-
-/**
- * Schreibt die PI-Closure-Metadaten — System-Demo, Inspect & Adapt,
- * Retrospektive-Notizen. Wird vom Closure-Wizard pro Step aufgerufen;
- * leere Strings für Notes → null (löschen).
- */
-export const setPiClosureMetaAction = createServerAction({
-  schema: z.object({
-    id: z.string().uuid(),
-    systemDemoAt: z.string().date().nullable().optional(),
-    inspectAdaptAt: z.string().date().nullable().optional(),
-    retrospectiveNotes: z.string().max(10_000).nullable().optional(),
-  }),
-  action: "pi.update",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    const demo = f.nonEmptyString("systemDemoAt");
-    const ia = f.nonEmptyString("inspectAdaptAt");
-    const notes = fd.get("retrospectiveNotes");
-    return {
-      id: f.string("id"),
-      ...(demo !== undefined ? { systemDemoAt: demo } : {}),
-      ...(ia !== undefined ? { inspectAdaptAt: ia } : {}),
-      ...(notes !== null ? { retrospectiveNotes: String(notes) } : {}),
-    };
-  },
-  service: (ctx, input) =>
-    setPiClosureMeta(ctx, {
-      id: input.id as PiId,
-      ...(input.systemDemoAt !== undefined
-        ? { systemDemoAt: input.systemDemoAt ? new Date(input.systemDemoAt) : null }
-        : {}),
-      ...(input.inspectAdaptAt !== undefined
-        ? { inspectAdaptAt: input.inspectAdaptAt ? new Date(input.inspectAdaptAt) : null }
-        : {}),
-      ...(input.retrospectiveNotes !== undefined
-        ? { retrospectiveNotes: input.retrospectiveNotes || null }
-        : {}),
-    }),
-  revalidate: "pi",
-  mapError: (e) =>
-    e.kind === "not_found"
-      ? "PI nicht gefunden"
-      : e.kind === "conflict"
-        ? e.reason
-        : "Closure-Metadaten konnten nicht gespeichert werden",
 });
 
 export const deletePiAction = createServerAction({

@@ -98,7 +98,7 @@ export async function updatePi(ctx: RequestContext, input: UpdatePiInput): Promi
     }
 
     // Lifecycle transitions to active/completed go through startPi/completePi,
-    // which enforce the one-active-PI rule and objective commitment checks.
+    // which enforce the one-active-PI rule and the closure gate.
     if (status !== undefined && status !== existing.status && status !== "planned") {
       return err({
         kind: "conflict" as const,
@@ -281,103 +281,11 @@ export async function startPi(ctx: RequestContext, input: { id: PiId }): Promise
 }
 
 /**
- * Setzt Closure-Metadaten am PI: System-Demo-Datum, Inspect & Adapt-
- * Datum, Retrospektive-Notizen. Wird vom PI-Closure-Wizard pro Step
- * inkrementell aufgerufen — der Wizard speichert jede Eingabe sofort,
- * sodass ein Abbruch keinen Datenverlust bedeutet.
+ * Completes an active PI (programmatischer Weg, nur v1-REST-API
+ * `POST /api/v1/pis/[id]/complete`). Erzwingt vorher den Closure-Gate
+ * (`evaluateClosure`). Aus dem UI ist dieser Weg entfallen — dort schließt
+ * ausschließlich `advanceCadence` („PI abschließen & nächstes öffnen").
  */
-export async function setPiClosureMeta(
-  ctx: RequestContext,
-  input: {
-    id: PiId;
-    systemDemoAt?: Date | null | undefined;
-    inspectAdaptAt?: Date | null | undefined;
-    retrospectiveNotes?: string | null | undefined;
-  },
-): Promise<Result<void>> {
-  const mctx = toMutationContext(ctx);
-  const { id, systemDemoAt, inspectAdaptAt, retrospectiveNotes } = input;
-  return withAuditedTransaction(mctx, async (tx) => {
-    const existing = await tx.programIncrement.findFirst({
-      where: { id, tenantId: mctx.tenantId },
-    });
-    if (!existing) {
-      return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id });
-    }
-    const data: Record<string, unknown> = {};
-    if (systemDemoAt !== undefined) data.systemDemoAt = systemDemoAt;
-    if (inspectAdaptAt !== undefined) data.inspectAdaptAt = inspectAdaptAt;
-    if (retrospectiveNotes !== undefined) {
-      data.retrospectiveNotes = retrospectiveNotes;
-      data.retrospectiveAt = retrospectiveNotes ? new Date() : null;
-    }
-    if (Object.keys(data).length === 0) {
-      return ok({
-        result: undefined,
-        audit: {
-          action: "pi.updated",
-          resourceType: "program_increment",
-          resourceId: id,
-          changes: {},
-        },
-      });
-    }
-    await tx.programIncrement.update({ where: { id }, data });
-    return ok({
-      result: undefined,
-      audit: {
-        action: "pi.updated",
-        resourceType: "program_increment",
-        resourceId: id,
-        changes: data as Record<string, unknown>,
-      },
-    });
-  });
-}
-
-/**
- * Closure-Pre-Checks: jedes committed Objective hat eine Confidence
- * (1‒5), jedes offene/eskalierte Impediment ist ROAMed, System-Demo
- * + I&A sind terminiert, Retrospektive ist festgehalten. Liefert
- * eine Liste lesbarer Verstöße — leer = bereit für `completePi`.
- */
-export async function evaluatePiClosure(
-  db: PrismaClient,
-  tenantId: TenantId,
-  piId: PiId,
-): Promise<{ ready: boolean; issues: string[] }> {
-  const pi = await db.programIncrement.findFirst({
-    where: { id: piId, tenantId },
-    select: {
-      id: true,
-      systemDemoAt: true,
-      inspectAdaptAt: true,
-      retrospectiveNotes: true,
-      timeline: { select: { arts: { select: { id: true } } } },
-    },
-  });
-  if (!pi) return { ready: false, issues: ["PI nicht gefunden"] };
-
-  // Offene, un-ge-ROAM-te Issues in den ARTs dieses PI (vereintes Register).
-  const artIds = pi.timeline?.arts.map((a) => a.id) ?? [];
-  const openIssues =
-    artIds.length === 0
-      ? 0
-      : await db.issue.count({
-          where: { tenantId, deletedAt: null, roamStatus: "open", artId: { in: artIds } },
-        });
-
-  // Read projection of the snapshot; the rule itself lives in the domain.
-  const issues = evaluateClosure({
-    openUnroamedIssues: openIssues,
-    systemDemoAt: pi.systemDemoAt,
-    inspectAdaptAt: pi.inspectAdaptAt,
-    retrospectiveNotes: pi.retrospectiveNotes,
-  });
-  return { ready: issues.length === 0, issues };
-}
-
-/** Completes an active PI. Erzwingt vorher die Closure-Pre-Checks. */
 export async function completePi(ctx: RequestContext, input: { id: PiId }): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   const { id } = input;
@@ -549,8 +457,7 @@ export async function advanceCadence(
 
 /**
  * Delete a planned PI and cascade: assigned features return to the backlog
- * (piId → null), objectives are removed, and issues are detached but
- * kept in the ART log.
+ * (piId → null) and issues are detached but kept in the ART log.
  *
  * Sibling: `detachArtFromTimeline` ([timeline.ts](./timeline.ts)) handles a
  * different lifecycle event — an ART leaving a Timeline while the PI rows

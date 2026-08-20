@@ -9,8 +9,19 @@ import {
   buildFeatureDetailModel,
   type FeatureDetailModel,
 } from "@/modules/drumbeat/server/views/feature-detail";
-import type { DependencyEdge } from "@/modules/drumbeat/features/umsetzung/components/feature-dependencies-tab";
 import type { ActivityItem } from "@/components/detail/initiative-activity-sidebar";
+
+/**
+ * Eine Feature-Feature-Dependency-Kante aus Sicht *eines* Features. Der
+ * Read-Model-Owner des Typs — die Client-Komponenten (Dependencies-Tab,
+ * Detail-Shell) konsumieren ihn von hier (kein Server→Client-Typ-Import mehr).
+ */
+export interface DependencyEdge {
+  id: string;
+  type: "blocks" | "depends_on" | "relates_to";
+  /** Das andere Ende der Kante (nicht das aktuelle Feature). */
+  other: { id: string; title: string };
+}
 
 /**
  * Lade alle Felder, die der Feature-Slide-Over (oder die /umsetzung/feature/[id]

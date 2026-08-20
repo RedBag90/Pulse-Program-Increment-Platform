@@ -7,4 +7,5 @@ Detailliertes Planen/Ausführen: Cockpit, PI-Planung, Dependencies, Roadmap, Kap
 - **Wird importiert von:** `src/app`.
 - **Konsumiert:** Work-Read-Ports + Core-Org; Schreib-Seiteneffekte auf Work via Domain-Events.
 
-Status: **Skelett** (Phase P1). Inhalte wandern in P5 hierher.
+Delivery-Oberfläche ist das **Cockpit** (`/umsetzung`) — PI und ART sind Scopes darin.
+Konzept & Zielbild: [`docs/concepts/umsetzung-cockpit.md`](../../../docs/concepts/umsetzung-cockpit.md).

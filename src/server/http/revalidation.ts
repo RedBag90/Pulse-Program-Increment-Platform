@@ -74,14 +74,14 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/value-streams/[id]",
     "/reporting/portfolio-health",
   ],
-  pi: ["/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi-planning"],
+  pi: ["/umsetzung", "/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi-planning"],
   piStandard: ["/structure", "/value-streams/[id]"],
   budgetPlanRevision: ["/budgeting", "/budgeting/budget-plan", "/budgeting/budget-plan/[id]"],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
   // the structure tab that hosts the management UI.
-  timeline: ["/structure", "/pi-planning", "/pi/[piId]", "/art/[artId]/pi", "/feature/[featureId]"],
+  timeline: ["/umsetzung", "/structure", "/pi-planning", "/pi/[piId]", "/art/[artId]/pi", "/feature/[featureId]"],
   story: ["/feature/[featureId]"],
-  dependency: ["/feature/[featureId]", "/pi/[piId]/dependencies"],
+  dependency: ["/umsetzung", "/feature/[featureId]"],
   ziele: ["/ziele"],
   // Feld-Defs wirken auf die Admin-Seite UND auf jeden Ziel-Drawer.
   goalCustomFields: ["/admin/goal-fields", "/ziele"],

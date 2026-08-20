@@ -77,6 +77,10 @@ export interface CockpitPermissions {
   canLinkDependency: boolean;
   /** `pi.advance` — Kadenz fortschreiben (aktives PI abschließen + nächstes öffnen). */
   canAdvance: boolean;
+  /** `pi.start` — geplantes PI aktivieren (PI-Kontext-Leiste). */
+  canStart: boolean;
+  /** `pi.delete` — geplantes PI löschen (PI-Kontext-Leiste). */
+  canDelete: boolean;
 }
 
 export interface CockpitFilters {
@@ -116,6 +120,12 @@ export interface CockpitModel {
   /** Id des aktiven PI (Status `active`) der Timeline, oder `null`. Für „Kadenz
    *  fortschreiben". */
   activePiId: string | null;
+  /** Governance-Scope: das aktuell gewählte PI (aus `?pi=`, Default = aktives PI).
+   *  Speist die PI-Kontext-Leiste (Fakten + Start/Fortschreiben/Löschen) und die
+   *  Strip-Hervorhebung. `null` wenn die Timeline keine PIs hat. */
+  selectedPi: CockpitPiSlot | null;
+  /** Id des gewählten PI (für die Strip-Hervorhebung), oder `null`. */
+  selectedPiId: string | null;
   /** Alle PIs der Timeline (oder Direct-ART) — Datumsfenster fuer die
    *  Roadmap-Sicht. Board + Tabelle nutzen nur den piStrip. */
   allPiWindows: CockpitPiWindow[];
@@ -154,6 +164,9 @@ export interface LoadCockpitInput {
   filters?: Partial<CockpitFilters> | undefined;
   /** Verschiebung des PI-Fensters gegenüber dem Anker (aktives PI); 0 = am Anker. */
   windowOffset?: number | undefined;
+  /** Governance-Scope aus `?pi=`. Wählt das PI für die Kontext-Leiste; ungültige
+   *  oder fehlende Werte fallen im Builder auf das aktive PI zurück. */
+  piId?: string | undefined;
 }
 
 const DEFAULT_FILTERS: CockpitFilters = {
@@ -308,6 +321,9 @@ export interface CockpitRows {
   now: number;
   /** Verschiebung des PI-Fensters gegenüber dem Anker; 0 = am Anker. */
   windowOffset: number;
+  /** Roh-`?pi=` (unvalidiert); der Builder prüft gegen `allPis` und fällt sonst
+   *  auf das aktive PI zurück. `null` wenn nicht gesetzt. */
+  selectedPiId: string | null;
 }
 
 /**
@@ -427,6 +443,7 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     userLabels,
     now,
     windowOffset,
+    selectedPiId: rawSelectedPiId,
   } = rows;
 
   // availableArts — active-PI fallback + per-ART count (formerly two queries'
@@ -466,6 +483,8 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
   let piStrip: CockpitPiSlot[] = [];
   let piWindow: CockpitPiWindowNav = { offset: 0, canBack: false, canForward: false };
   let activePiId: string | null = null;
+  let selectedPi: CockpitPiSlot | null = null;
+  let selectedPiId: string | null = null;
   if (selectedArt) {
     activePiId = allPis.find((p) => p.status === "active")?.id ?? null;
     // Anker = aktives PI (Fallback: Uhr). Das Fenster darf per `windowOffset`
@@ -492,6 +511,27 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
       featureCount: countByPi.get(p.id) ?? 0,
       isCurrent: p.id === anchorPiId,
     }));
+
+    // Governance-Scope: `?pi=` wenn gültig (in dieser Timeline), sonst das aktive
+    // PI als Default — so zeigt die Kontext-Leiste beim Laden sofort den Abschluss
+    // des laufenden PI. `selectedPi` wird aus `allPis` aufgelöst, damit auch ein
+    // außerhalb des Strip-Fensters liegendes PI korrekt dargestellt wird.
+    selectedPiId =
+      rawSelectedPiId && allPis.some((p) => p.id === rawSelectedPiId)
+        ? rawSelectedPiId
+        : activePiId;
+    const selRow = selectedPiId ? allPis.find((p) => p.id === selectedPiId) : null;
+    selectedPi = selRow
+      ? {
+          id: selRow.id,
+          name: selRow.name,
+          startDate: selRow.startDate,
+          endDate: selRow.endDate,
+          status: selRow.status,
+          featureCount: countByPi.get(selRow.id) ?? 0,
+          isCurrent: selRow.id === anchorPiId,
+        }
+      : null;
   }
 
   const features = buildScopeFeatures(featureRows, filters.hasBlocker, userLabels);
@@ -503,6 +543,8 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     piStrip,
     piWindow,
     activePiId,
+    selectedPi,
+    selectedPiId,
     allPiWindows,
     view,
     features,
@@ -693,6 +735,8 @@ export async function loadCockpitModel(
     canCreate: hasCapability(principal, "feature.create", resource),
     canLinkDependency: hasCapability(principal, "dependency.link", resource),
     canAdvance: hasCapability(principal, "pi.advance", resource),
+    canStart: hasCapability(principal, "pi.start", resource),
+    canDelete: hasCapability(principal, "pi.delete", resource),
   };
 
   return buildCockpitModel({
@@ -710,5 +754,6 @@ export async function loadCockpitModel(
     userLabels,
     now: Date.now(),
     windowOffset: input.windowOffset ?? 0,
+    selectedPiId: input.piId ?? null,
   });
 }

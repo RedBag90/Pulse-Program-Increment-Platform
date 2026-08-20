@@ -41,6 +41,8 @@ const NO_PERMS = {
   canCreate: false,
   canLinkDependency: false,
   canAdvance: false,
+  canStart: false,
+  canDelete: false,
 };
 
 const EMPTY_FILTERS = { status: [], ownerIds: [], epicIds: [], hasBlocker: false };
@@ -62,6 +64,7 @@ function rows(partial: Partial<CockpitRows>): CockpitRows {
     userLabels: {},
     now: D("2026-05-15").getTime(),
     windowOffset: 0,
+    selectedPiId: null,
     ...partial,
   };
 }
@@ -206,6 +209,45 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
   it("emits an empty strip when there is no selected ART", () => {
     const model = buildCockpitModel(rows({ selectedArtId: null, allPis }));
     expect(model.piStrip).toEqual([]);
+  });
+});
+
+describe("buildCockpitModel — selected-PI governance scope", () => {
+  const allPis = [
+    { id: "q1", name: "26-Q1", startDate: D("2026-01-01"), endDate: D("2026-03-31"), status: "completed" },
+    { id: "q2", name: "26-Q2", startDate: D("2026-04-01"), endDate: D("2026-06-30"), status: "active" },
+    { id: "q3", name: "26-Q3", startDate: D("2026-07-01"), endDate: D("2026-09-30"), status: "planned" },
+  ];
+  const base = {
+    arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],
+    selectedArtId: "art-1",
+    allPis,
+    windowCounts: [{ piId: "q2", count: 5 }],
+    now: D("2026-05-15").getTime(),
+  };
+
+  it("defaults the selected PI to the active PI when ?pi is absent", () => {
+    const model = buildCockpitModel(rows({ ...base, selectedPiId: null }));
+    expect(model.selectedPiId).toBe("q2");
+    expect(model.selectedPi?.id).toBe("q2");
+    expect(model.selectedPi?.featureCount).toBe(5);
+  });
+
+  it("honors a valid ?pi over the active default", () => {
+    const model = buildCockpitModel(rows({ ...base, selectedPiId: "q3" }));
+    expect(model.selectedPiId).toBe("q3");
+    expect(model.selectedPi?.id).toBe("q3");
+  });
+
+  it("falls back to the active PI when ?pi is not in this timeline", () => {
+    const model = buildCockpitModel(rows({ ...base, selectedPiId: "does-not-exist" }));
+    expect(model.selectedPiId).toBe("q2");
+  });
+
+  it("has no selected PI without a selected ART", () => {
+    const model = buildCockpitModel(rows({ selectedArtId: null, allPis, selectedPiId: "q2" }));
+    expect(model.selectedPi).toBeNull();
+    expect(model.selectedPiId).toBeNull();
   });
 });
 
