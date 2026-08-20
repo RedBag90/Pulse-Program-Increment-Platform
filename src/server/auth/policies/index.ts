@@ -43,6 +43,7 @@ export type Action =
   | "pi.update"
   | "pi.start"
   | "pi.complete"
+  | "pi.advance"
   | "pi.delete"
   | "pi_standard.manage"
   | "dependency.link"
@@ -63,6 +64,7 @@ export type Action =
   | "target.manage"
   | "budget.manage"
   | "budget_plan.revision.capture"
+  | "budget.cycle.advance"
   | "timeline.manage"
   | "art_budget.manage"
   | "kpi.bind"
@@ -130,6 +132,7 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Same audience as `budget.manage` — whoever shapes the plan also owns the
   // revision record.
   "budget_plan.revision.capture": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
+  "budget.cycle.advance": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
   // Timelines are the shared PI cadences ARTs subscribe to. Managing the
   // catalogue (create / rename / delete / join / leave) sits with the same
   // audience that already shapes the portfolio plan.
@@ -243,6 +246,7 @@ export const POLICIES: Record<Action, Grant[]> = {
   "pi.update": [{ roles: [RTE] }],
   "pi.start": [{ roles: [RTE] }],
   "pi.complete": [{ roles: [RTE] }],
+  "pi.advance": [{ roles: [RTE] }],
   "pi.delete": [{ roles: [RTE] }],
 
   // Reusable named PI calendars are an org-structure concern — managed by the

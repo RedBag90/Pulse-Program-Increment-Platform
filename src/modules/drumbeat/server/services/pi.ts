@@ -6,6 +6,7 @@ import { validatePiDates } from "@/modules/drumbeat/domain/pi-planning";
 import {
   evaluateClosure,
   canTransition,
+  nextPiFromCadence,
   type PiStatus,
 } from "@/modules/drumbeat/domain/pi-lifecycle";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
@@ -439,6 +440,108 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
         resourceType: "program_increment",
         resourceId: id,
         changes: { status: { before: existing.status, after: "completed" } },
+      },
+    });
+  });
+}
+
+/**
+ * Kadenz fortschreiben (Rolling-Window): schließt das **aktive** PI ab und öffnet
+ * das nächste — ohne das harte Closure-Gate zu erzwingen (offene Punkte kommen als
+ * `warnings` zurück, blockieren aber nicht). Fehlt das nächste PI, wird es aus der
+ * Kadenz (`nextPiFromCadence`) erzeugt. Bewusst getrennt von `completePi`/`startPi`
+ * (die das Gate bzw. die eine-aktive-Invariante erzwingen) — hier ein leichtes
+ * Weiterrollen als eine Transaktion.
+ */
+export async function advanceCadence(
+  ctx: RequestContext,
+  input: { piId: PiId },
+): Promise<Result<{ from: string; to: string; warnings: string[] }>> {
+  const mctx = toMutationContext(ctx);
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const active = await tx.programIncrement.findFirst({
+      where: { id: input.piId, tenantId: mctx.tenantId },
+    });
+    if (!active) {
+      return err({ kind: "not_found" as const, resourceType: "ProgramIncrement", id: input.piId });
+    }
+    if (active.status !== "active") {
+      return err({
+        kind: "conflict" as const,
+        reason: `Nur ein aktives PI kann fortgeschrieben werden (Status: ${active.status}).`,
+      });
+    }
+    if (!active.timelineId) {
+      return err({ kind: "conflict" as const, reason: "PI ohne Timeline kann nicht fortgeschrieben werden." });
+    }
+
+    // Nicht-blockierende Warnung — bewusst NUR der handlungsrelevante Punkt:
+    // offene ROAM-Issues (dafür gibt es eine Oberfläche). Die Closure-Ceremonies
+    // (System-Demo/Inspect&Adapt/Retro) werden hier NICHT geprüft, weil es keine
+    // UI zum Setzen der Termine gibt; das volle Gate bleibt allein in `completePi`.
+    const arts = await tx.art.findMany({
+      where: { tenantId: mctx.tenantId, timelineId: active.timelineId },
+      select: { id: true },
+    });
+    const artIds = arts.map((a) => a.id);
+    const openIssues =
+      artIds.length === 0
+        ? 0
+        : await tx.issue.count({
+            where: { tenantId: mctx.tenantId, deletedAt: null, roamStatus: "open", artId: { in: artIds } },
+          });
+    const warnings: string[] = [];
+    if (openIssues > 0) warnings.push(`${openIssues} offene Issue(s) ohne ROAM`);
+
+    // Ablaufendes PI abschließen (leicht — ohne Gate-Blocker).
+    await tx.programIncrement.update({ where: { id: active.id }, data: { status: "completed" } });
+
+    // Nächstes PI: frühestes mit späterem Start; sonst aus der Kadenz erzeugen.
+    const siblings = await tx.programIncrement.findMany({
+      where: { tenantId: mctx.tenantId, timelineId: active.timelineId },
+      orderBy: { startDate: "asc" },
+      select: { id: true, name: true, startDate: true, endDate: true },
+    });
+    const existingNext = siblings.find(
+      (p) => p.id !== active.id && p.startDate.getTime() > active.startDate.getTime(),
+    );
+
+    let nextId: string;
+    let nextName: string;
+    if (existingNext) {
+      nextId = existingNext.id;
+      nextName = existingNext.name;
+    } else {
+      const spec = nextPiFromCadence(siblings);
+      if (!spec) {
+        return err({ kind: "conflict" as const, reason: "Kadenz nicht ableitbar." });
+      }
+      const created = await tx.programIncrement.create({
+        data: {
+          tenantId: mctx.tenantId,
+          timelineId: active.timelineId,
+          name: spec.name,
+          startDate: spec.startDate,
+          endDate: spec.endDate,
+          status: "planned",
+        },
+        select: { id: true, name: true },
+      });
+      nextId = created.id;
+      nextName = created.name;
+    }
+
+    // Nächstes PI aktivieren (die Invariante hält, da das alte gerade completed wurde).
+    await tx.programIncrement.update({ where: { id: nextId }, data: { status: "active" } });
+
+    return ok({
+      result: { from: active.name, to: nextName, warnings },
+      audit: {
+        action: "pi.cadence.advanced" as const,
+        resourceType: "program_increment" as const,
+        resourceId: nextId,
+        changes: { from: { before: active.name, after: null }, to: { before: null, after: nextName } },
       },
     });
   });

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   forecastAxis,
+  rollingWindow,
   budgetPlusLoadPeriods,
   occupiedWindow,
   computeDisplayPeriods,
@@ -107,5 +108,26 @@ describe("computeDisplayPeriods", () => {
       "2025-H2",
       "2026-H1",
     ]);
+  });
+});
+
+describe("rollingWindow", () => {
+  it("das editierbare Fenster sind `size` Halbjahre ab dem Anker", () => {
+    const w = rollingWindow("2026-H2", 4, []);
+    expect(w.windowKeys).toEqual(["2026-H2", "2027-H1", "2027-H2", "2028-H1"]);
+    expect(keys(w.periods)).toEqual(["2026-H2", "2027-H1", "2027-H2", "2028-H1"]);
+  });
+
+  it("vergangene Daten-Perioden bleiben sichtbar (read-only), zählen aber nicht zum Fenster", () => {
+    const w = rollingWindow("2026-H2", 2, ["2025-H1"]);
+    expect(w.windowKeys).toEqual(["2026-H2", "2027-H1"]);
+    // sichtbar: 2025-H1 (Kontext) + das Fenster, lückenlos über die Achse
+    expect(keys(w.periods)).toContain("2025-H1");
+    expect(keys(w.periods)).toContain("2027-H1");
+    expect(w.periods.every((p) => w.windowKeys.includes(p.key))).toBe(false);
+  });
+
+  it("mindestens ein Fenster-Halbjahr, auch bei size 0/negativ", () => {
+    expect(rollingWindow("2026-H1", 0, []).windowKeys).toEqual(["2026-H1"]);
   });
 });

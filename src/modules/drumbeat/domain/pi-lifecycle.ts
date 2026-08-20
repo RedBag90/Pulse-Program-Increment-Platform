@@ -60,3 +60,39 @@ export function evaluateClosure(snapshot: PiClosureSnapshot): string[] {
   }
   return reasons;
 }
+
+/** Eine PI-Zeile, wie die Kadenz-Ableitung sie braucht. */
+export interface PiCadenceRow {
+  name: string;
+  startDate: Date;
+  endDate: Date;
+}
+
+/** Das Spezifikat des nächsten PI (noch ohne Id). */
+export interface NextPiSpec {
+  name: string;
+  startDate: Date;
+  endDate: Date;
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Leitet das **nächste** PI aus der Kadenz ab: kontiguierlich nach dem spätesten
+ * PI (`+1 Tag`), gleiche Dauer wie dieses, Name „PI n+1" (n = höchste vorhandene
+ * PI-Nummer, sonst Anzahl). Rein; braucht keinen `PiStandard` — die Kadenz steckt
+ * in der Länge des letzten PI. `null` bei leerer Liste.
+ */
+export function nextPiFromCadence(pis: readonly PiCadenceRow[]): NextPiSpec | null {
+  if (pis.length === 0) return null;
+  const last = pis.reduce((m, p) => (p.endDate.getTime() > m.endDate.getTime() ? p : m), pis[0]!);
+  const durationMs = last.endDate.getTime() - last.startDate.getTime();
+  const startDate = new Date(last.endDate.getTime() + DAY_MS);
+  const endDate = new Date(startDate.getTime() + durationMs);
+  const maxNum = pis.reduce((m, p) => {
+    const n = Number.parseInt(p.name.replace(/^\D+/, ""), 10);
+    return Number.isFinite(n) && n > m ? n : m;
+  }, 0);
+  const num = maxNum > 0 ? maxNum + 1 : pis.length + 1;
+  return { name: `PI ${num}`, startDate, endDate };
+}

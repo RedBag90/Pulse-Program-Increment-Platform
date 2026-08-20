@@ -4,6 +4,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { getPi } from "@/modules/drumbeat/server/services/pi";
 import { buildPiDetailModel } from "@/modules/drumbeat/server/views/pi-detail";
 import { PiTransitionButton } from "@/modules/drumbeat/features/pi/components/pi-transition-button";
+import { AdvanceCadenceButton } from "@/modules/drumbeat/features/pi/components/advance-cadence-button";
 import { DeletePiButton } from "@/modules/drumbeat/features/pi/components/delete-pi-button";
 import { PiSubNav } from "@/modules/drumbeat/features/pi/components/pi-sub-nav";
 import { PiOverviewSummary } from "@/modules/drumbeat/features/pi/components/pi-overview-summary";
@@ -92,6 +93,10 @@ export default async function PiDetailPage({ params }: Props) {
     tenantId: principal.tenantId,
     artId: primaryArt.id,
   });
+  const canAdvance = hasCapability(principal, "pi.advance", {
+    tenantId: principal.tenantId,
+    artId: primaryArt.id,
+  });
 
   return (
     <Page>
@@ -135,6 +140,7 @@ export default async function PiDetailPage({ params }: Props) {
               {pi.status}
             </span>
             <PiTransitionButton piId={piId} currentStatus={pi.status} />
+            {canAdvance && pi.status === "active" && <AdvanceCadenceButton piId={piId} />}
             {canEdit && pi.status === "planned" && (
               <DeletePiButton piId={piId} artId={primaryArt.id} name={pi.name} />
             )}

@@ -1,6 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { PiTransitionButton } from "@/modules/drumbeat/features/pi/components/pi-transition-button";
+import { AdvanceCadenceButton } from "@/modules/drumbeat/features/pi/components/advance-cadence-button";
 import { DeletePiButton } from "@/modules/drumbeat/features/pi/components/delete-pi-button";
 import { PiOverviewSummary } from "@/modules/drumbeat/features/pi/components/pi-overview-summary";
 import { PiFeaturesByArt } from "@/modules/drumbeat/features/pi/components/pi-features-by-art";
@@ -30,6 +31,8 @@ interface Props {
   candidatesByArt: Map<string, Parameters<typeof PiFeaturesByArt>[0]["candidates"]>;
   featuresTotalCount: number;
   canEdit: boolean;
+  /** `pi.advance` — zeigt „PI abschließen & nächstes öffnen" bei aktivem PI. */
+  canAdvance: boolean;
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -57,6 +60,7 @@ export function PiOverviewTab({
   candidatesByArt,
   featuresTotalCount,
   canEdit,
+  canAdvance,
 }: Props) {
   const badgeClass = STATUS_BADGE[pi.status] ?? "bg-muted text-muted-foreground";
   const totalDays = Math.round(
@@ -90,6 +94,7 @@ export function PiOverviewTab({
               {pi.status}
             </span>
             <PiTransitionButton piId={piId} currentStatus={pi.status} />
+            {canAdvance && pi.status === "active" && <AdvanceCadenceButton piId={piId} />}
             {canEdit && pi.status === "planned" && (
               <DeletePiButton piId={piId} artId={primaryArt.id} name={pi.name} />
             )}

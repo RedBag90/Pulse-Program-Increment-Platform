@@ -85,6 +85,52 @@ export function forecastAxis(
 }
 
 // ---------------------------------------------------------------------------
+// 1b) Rolling-Window (fortschreibbarer Zyklus)
+// ---------------------------------------------------------------------------
+
+/** Das Rolling-Window: sichtbare Spalten + das editierbare Fenster + Achse. */
+export interface RollingWindow {
+  /** Alle sichtbaren Spalten: vergangene/außenliegende Daten (read-only) ∪ Fenster. */
+  periods: Period[];
+  /** Lückenlose Achse über dieselben Keys — für Rollup-Primitive. */
+  axis: HalfYearAxis;
+  /** Die editierbaren Halbjahre: das Fenster ab Anker (`size` Stück). */
+  windowKeys: string[];
+}
+
+/**
+ * Der Board-Horizont als **Rolling-Window**: das editierbare Fenster sind die
+ * `size` Halbjahre ab dem Anker (`activeCycle`). Sichtbar sind zusätzlich alle
+ * Perioden mit Daten außerhalb des Fensters (read-only Kontext) — so verschwindet
+ * nichts Gebuchtes, aber editiert wird nur im Fenster. Ersetzt `forecastAxis` als
+ * Board-Achse.
+ */
+export function rollingWindow(
+  activeCycle: string,
+  size: number,
+  dataKeys: readonly string[],
+): RollingWindow {
+  const anchor = parseHalfYearKey(activeCycle);
+  const windowKeys: string[] = [];
+  const n = Math.max(1, Math.trunc(size));
+  if (anchor) {
+    for (let i = 0; i < n; i++) windowKeys.push(halfYearKey(addHalfYears(anchor, i)));
+  } else {
+    windowKeys.push(activeCycle);
+  }
+
+  const keys = new Set<string>([...dataKeys, ...windowKeys]);
+  const periods = periodsFromKeys(keys);
+
+  const dates = [...keys].map((k) => parseHalfYearKey(k)).filter((d): d is Date => d != null);
+  const anchorDate = anchor ?? halfYearStart(new Date(0));
+  const from = dates.length ? dates.reduce((m, d) => (d < m ? d : m)) : anchorDate;
+  const to = dates.length ? dates.reduce((m, d) => (d > m ? d : m)) : anchorDate;
+
+  return { periods, axis: buildHalfYearAxis(from, to), windowKeys };
+}
+
+// ---------------------------------------------------------------------------
 // 2) ART-Breakdown-Spalten
 // ---------------------------------------------------------------------------
 

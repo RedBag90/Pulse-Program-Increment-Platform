@@ -32,6 +32,8 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
     availableArts,
     selectedArt,
     piStrip,
+    piWindow,
+    activePiId,
     allPiWindows,
     view,
     features,
@@ -47,7 +49,12 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
         selectedArt={selectedArt}
         canCreate={permissions.canCreate}
       />
-      <CockpitPiStrip pis={piStrip} />
+      <CockpitPiStrip
+        pis={piStrip}
+        window={piWindow}
+        canAdvance={permissions.canAdvance}
+        activePiId={activePiId}
+      />
       <div className="flex items-center justify-between gap-3 border-b bg-surface-frame px-6 py-3">
         <CockpitViewTabs view={view} />
         <p className="text-xs text-muted-foreground">{features.length} Features im Scope</p>

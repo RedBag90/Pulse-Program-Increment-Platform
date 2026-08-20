@@ -34,12 +34,15 @@ export default async function UmsetzungCockpitPage({ searchParams }: PageProps) 
   const artParam = typeof params.art === "string" ? params.art : undefined;
   const viewParam = typeof params.view === "string" ? params.view : undefined;
   const featureIdParam = typeof params.featureId === "string" ? params.featureId : undefined;
+  const piwParam = typeof params.piw === "string" ? Number.parseInt(params.piw, 10) : 0;
+  const windowOffset = Number.isFinite(piwParam) ? piwParam : 0;
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const [model, slideOverDetail] = await Promise.all([
     loadCockpitModel(db, principal, {
       artId: artParam,
       view: parseView(viewParam),
+      windowOffset,
     }),
     featureIdParam
       ? loadCockpitFeatureDetail(db, principal, featureIdParam)

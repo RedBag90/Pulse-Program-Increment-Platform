@@ -26,6 +26,7 @@ import {
 } from "@/modules/budgeting/domain/budgeting";
 import type { PeriodAmounts } from "@/modules/budgeting/domain/period-map";
 import type { Period } from "@/modules/budgeting/domain/period-window";
+import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import {
   getBudgetingBoard,
   type BudgetingBoardData,
@@ -50,12 +51,26 @@ export interface BudgetingBoardModel {
   chartRows: ChartRow[];
   /** Der Topf, wie er gespeichert ist — Ausgangswert der Eingabefelder. */
   pool: PeriodAmounts;
+  /** Editierbare Halbjahre (Rolling-Window ab Anker); Rest read-only. */
+  editableKeys: string[];
+  /** Der aktive Zyklus (Anker) als Halbjahres-Key. */
+  activeCycleKey: string;
+  /** „H2 2026 – H1 2028" — die Spanne des editierbaren Fensters. */
+  windowLabel: string;
+  /** Fenstergröße in Halbjahren. */
+  windowSize: number;
 }
 
 export interface BuildBudgetingBoardInputs {
   epics: readonly BudgetEpicView[];
   axis: HalfYearAxis;
   pool: PeriodAmounts;
+  /** Editierbares Fenster; Default = alle Achsen-Perioden (Verhalten vor dem Rolling-Window). */
+  editableKeys?: string[];
+  /** Der Anker; Default = leer (keine gesonderte Tönung). */
+  activeCycleKey?: string;
+  /** Fenstergröße; Default = Anzahl editierbarer Perioden. */
+  windowSize?: number;
 }
 
 /**
@@ -65,9 +80,21 @@ export interface BuildBudgetingBoardInputs {
  */
 export function buildBudgetingBoardModel(inputs: BuildBudgetingBoardInputs): BudgetingBoardModel {
   const { axis, pool } = inputs;
+  const editableKeys = inputs.editableKeys ?? axis.periods.map((p) => p.key);
+  const activeCycleKey = inputs.activeCycleKey ?? "";
+  const windowSize = inputs.windowSize ?? editableKeys.length;
   const epics = [...inputs.epics].sort((a, b) => a.priority - b.priority);
 
   const rollup = rollupByValueStream(epics, axis);
+  const sortedWindow = [...editableKeys].sort();
+  const first = sortedWindow[0];
+  const last = sortedWindow[sortedWindow.length - 1];
+  const windowLabel =
+    first && last
+      ? first === last
+        ? halfYearLabel(first)
+        : `${halfYearLabel(first)} – ${halfYearLabel(last)}`
+      : "";
 
   return {
     periods: axis.periods,
@@ -77,6 +104,10 @@ export function buildBudgetingBoardModel(inputs: BuildBudgetingBoardInputs): Bud
     rollup,
     chartRows: buildValueStreamSeries(rollup, axis.periods),
     pool,
+    editableKeys,
+    activeCycleKey,
+    windowLabel,
+    windowSize,
   };
 }
 
@@ -90,5 +121,8 @@ export async function loadBudgetingBoardModel(
     epics: data.epics,
     axis: { start: data.axis.start, count: data.axis.count, periods: data.periods },
     pool: data.pool,
+    editableKeys: data.editableKeys,
+    activeCycleKey: data.activeCycleKey,
+    windowSize: data.windowSize,
   });
 }

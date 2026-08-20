@@ -1,16 +1,10 @@
 "use client";
 
-import { useActionState, startTransition } from "react";
-import { saveBudgetAllocationAction } from "@/modules/budgeting/features/actions/budgeting";
-import {
-  numOr0,
-  encodeSaveBudgetAllocationPayload,
-} from "@/modules/budgeting/features/lib/allocation-payload";
+import { numOr0 } from "@/modules/budgeting/features/lib/allocation-payload";
 import type { BudgetEpicView } from "@/modules/budgeting/domain/budgeting";
 import type { Period } from "@/modules/budgeting/domain/period-window";
 import type { BoardRow } from "@/modules/budgeting/server/views/budgeting-board";
 import { CELL_INPUT } from "@/modules/budgeting/features/components/board/board-cell";
-import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import { formatEUR } from "@/lib/formatting";
@@ -20,33 +14,24 @@ interface Props {
   periods: Period[];
   canManage: boolean;
   onChange: (next: BudgetEpicView) => void;
+  /** Editierbare Halbjahre (Rolling-Window); Rest read-only. */
+  editableKeys: string[];
+  /** Der Anker (aktiver Zyklus) — für die Spalten-Tönung. */
+  activeCycleKey: string;
 }
 
 /**
  * Eine Epic-Zeile des Boards: Priorität, der (abgeleitete) Bedarfsbeginn, je
- * Periode Bedarf + Zuteilung, und ein eigener Speichern-Knopf (REQ-B7).
+ * Periode Bedarf + Zuteilung. Kontrolliert — der Editier-Stand lebt im Workspace,
+ * gespeichert wird zentral über die Save-Bar (kein Zeilen-Knopf mehr).
  *
  * „Bedarf ab" ist bewusst ein Label, kein Eingabefeld: der Wert stammt aus
  * `deriveEpicEconomics(...).costStart` und gehört dem Reifegrad-Plan des Epic-
- * Owners. Vorher stand hier ein `<select>`, das lokalen State änderte, aber nie
- * mitgesendet wurde — eine Bedienung ohne Wirkung.
+ * Owners.
  */
-export function EpicRow({ row, periods, canManage, onChange }: Props) {
+export function EpicRow({ row, periods, canManage, onChange, editableKeys, activeCycleKey }: Props) {
   const { epic, requested } = row;
-  const [state, save, pending] = useActionState(saveBudgetAllocationAction, {});
-
-  function submit() {
-    startTransition(() =>
-      save(
-        encodeSaveBudgetAllocationPayload({
-          epicId: epic.id,
-          priority: epic.priority,
-          hypothesisBudget: epic.isHypothesisOnly ? epic.hypothesisBudget : null,
-          allocations: epic.allocations,
-        }),
-      ),
-    );
-  }
+  const editable = new Set(editableKeys);
 
   return (
     <tr className="border-b align-top">
@@ -77,13 +62,16 @@ export function EpicRow({ row, periods, canManage, onChange }: Props) {
         </Link>
       </td>
       {periods.map((p) => (
-        <td key={p.key} className="p-2 text-right">
+        <td
+          key={p.key}
+          className={`p-2 text-right ${p.key === activeCycleKey ? "bg-primary/5" : ""}`}
+        >
           {epic.isHypothesisOnly && p.key === epic.startKey ? (
             <input
               className={CELL_INPUT}
               inputMode="numeric"
               value={epic.hypothesisBudget ? String(epic.hypothesisBudget) : ""}
-              disabled={!canManage}
+              disabled={!canManage || !editable.has(p.key)}
               placeholder="Festbudget"
               onChange={(e) => onChange({ ...epic, hypothesisBudget: numOr0(e.target.value) })}
               aria-label={`Festbudget ${p.label}`}
@@ -97,8 +85,8 @@ export function EpicRow({ row, periods, canManage, onChange }: Props) {
                 className={CELL_INPUT}
                 inputMode="numeric"
                 value={epic.allocations[p.key] ? String(epic.allocations[p.key]) : ""}
-                disabled={!canManage}
-                placeholder="0"
+                disabled={!canManage || !editable.has(p.key)}
+                placeholder={requested[p.key] ? String(requested[p.key]) : "0"}
                 onChange={(e) =>
                   onChange({
                     ...epic,
@@ -111,14 +99,6 @@ export function EpicRow({ row, periods, canManage, onChange }: Props) {
           )}
         </td>
       ))}
-      {canManage && (
-        <td className="p-3">
-          <Button type="button" size="sm" variant="outline" disabled={pending} onClick={submit}>
-            {pending ? "…" : "Speichern"}
-          </Button>
-          {state?.error && <p className="mt-1 text-xs text-destructive">{state.error}</p>}
-        </td>
-      )}
     </tr>
   );
 }

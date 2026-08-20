@@ -34,6 +34,12 @@ model Tenant {
   // Participatory Budgeting: total budget pool per half-year, e.g. { "2026-H1": 500000 }.
   budgetPoolByPeriod Json? @map("budget_pool_by_period")
 
+  // Rolling-Window: der manuell fortgeschriebene aktive Budget-Zyklus ("YYYY-H1")
+  // und die Fenstergröße in Halbjahren. `activeBudgetCycle = null` ⇒ Default =
+  // Halbjahr von `now` (Verhalten wie vor der Fortschreibung).
+  activeBudgetCycle String? @map("active_budget_cycle")
+  budgetWindowSize  Int     @default(4) @map("budget_window_size")
+
   // Conversion rate that turns WSJF Job-Size points into € for the PI-Planning
   // capacity overlay (Σ Job Size × this = €-Demand vs. ART budget). When null,
   // the €-axis of the capacity badge is hidden — Job Size alone is rendered.

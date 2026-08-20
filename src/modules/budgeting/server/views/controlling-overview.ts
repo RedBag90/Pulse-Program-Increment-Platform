@@ -12,6 +12,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
+import { resolveActiveCycle } from "@/modules/budgeting/domain/budget-cycle";
 import {
   getLatestBudgetPlanRevision,
   listBudgetPlanRevisions,
@@ -44,8 +45,10 @@ export interface ControllingModelInputs {
   userLabels: Record<string, string>;
   guardrailTargets: GuardrailTargets;
   capabilities: ControllingCapabilities;
-  /** Injected "today" — pins the active half-year cycle. */
+  /** Injected "today" — Fallback für den aktiven Zyklus, wenn kein Anker gesetzt ist. */
   now: Date;
+  /** Der gespeicherte Anker (Rolling-Window); überschreibt `now` als aktiver Zyklus. */
+  activeCycle?: string;
 }
 
 export interface ControllingModel {
@@ -77,11 +80,11 @@ export function isCurrentCycle(cycleKey: string, now: Date): boolean {
  * Pure: `now` is injected so the "active cycle" is deterministic in tests.
  */
 export function buildControllingModel(inputs: ControllingModelInputs): ControllingModel {
-  const { latest, history, userLabels, guardrailTargets, capabilities, now } = inputs;
+  const { latest, history, userLabels, guardrailTargets, capabilities, now, activeCycle } = inputs;
 
-  const cycleKey = halfYearKey(now);
+  const cycleKey = activeCycle ?? halfYearKey(now);
   const cycleLabel = halfYearLabel(cycleKey);
-  const latestIsCurrentCycle = latest != null && isCurrentCycle(latest.cycleKey, now);
+  const latestIsCurrentCycle = latest != null && latest.cycleKey === cycleKey;
 
   return {
     cycleKey,
@@ -107,11 +110,12 @@ export async function loadControllingModelInputs(
   tenantId: TenantId,
   capabilities: ControllingCapabilities,
 ): Promise<ControllingModelInputs> {
-  const [latest, history, userLabels, guardrailsInputs] = await Promise.all([
+  const [latest, history, userLabels, guardrailsInputs, tenant] = await Promise.all([
     getLatestBudgetPlanRevision(db, tenantId),
     listBudgetPlanRevisions(db, tenantId),
     listTenantUserLabels(db, tenantId),
     getPortfolioGuardrailsInputs(db, tenantId),
+    db.tenant.findUnique({ where: { id: tenantId }, select: { activeBudgetCycle: true } }),
   ]);
 
   return {
@@ -121,6 +125,10 @@ export async function loadControllingModelInputs(
     guardrailTargets: guardrailsInputs.targets,
     capabilities,
     now: new Date(),
+    activeCycle: resolveActiveCycle(
+      { activeBudgetCycle: tenant?.activeBudgetCycle ?? null },
+      new Date(),
+    ),
   };
 }
 

@@ -1,62 +1,51 @@
 "use client";
 
-import { useActionState, startTransition } from "react";
-import { saveBudgetPoolAction } from "@/modules/budgeting/features/actions/budgeting";
-import {
-  numOr0,
-  encodeSaveBudgetPoolPayload,
-} from "@/modules/budgeting/features/lib/allocation-payload";
 import type { PeriodAmounts } from "@/modules/budgeting/domain/period-map";
 import type { Period } from "@/modules/budgeting/domain/period-window";
 import { CELL_INPUT } from "@/modules/budgeting/features/components/board/board-cell";
+import { AllocationBar } from "@/modules/budgeting/features/components/round/allocation-bar";
+import { numOr0 } from "@/modules/budgeting/features/lib/allocation-payload";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { formatEUR } from "@/lib/formatting";
 
 interface Props {
   periods: Period[];
   /** Eingabe-Stand als Strings (leer = kein Betrag). */
   pool: Record<string, string>;
   setPool: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
-  /** Topf − Σ Allokationen; negativ wird als Ueberallokation markiert (REQ-B4). */
+  /** Topf − Σ Allokationen; negativ = Ueberallokation (REQ-B4). */
   remaining: PeriodAmounts;
   canManage: boolean;
+  /** Editierbare Halbjahre (Rolling-Window); Rest read-only. */
+  editableKeys: string[];
+  /** Der Anker (aktiver Zyklus) — für die Spalten-Tönung. */
+  activeCycleKey: string;
 }
 
-/** Der Budget-Topf je Halbjahr plus die Verbleibend-Zeile darunter. */
-export function PoolRow({ periods, pool, setPool, remaining, canManage }: Props) {
-  const [state, save, pending] = useActionState(saveBudgetPoolAction, {});
-
-  function submit() {
-    const byPeriod: Record<string, number> = {};
-    for (const p of periods) {
-      const n = numOr0(pool[p.key] ?? "");
-      if (n > 0) byPeriod[p.key] = n;
-    }
-    startTransition(() => save(encodeSaveBudgetPoolPayload({ byPeriod })));
-  }
+/**
+ * Der Budget-Topf je Halbjahr plus die Auslastung (verteilt vs. Topf) als Balken.
+ * Kontrolliert: der Editier-Stand lebt im Workspace, gespeichert wird zentral über
+ * die Save-Bar. Perioden außerhalb des Rolling-Window sind read-only.
+ */
+export function PoolRow({ periods, pool, setPool, remaining, canManage, editableKeys, activeCycleKey }: Props) {
+  const editable = new Set(editableKeys);
 
   return (
     <Card className="overflow-x-auto p-4" data-tour="budget-pool">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="font-heading text-sm font-medium">Budget-Topf je Halbjahr</h2>
-        {canManage && (
-          <Button type="button" size="sm" variant="outline" disabled={pending} onClick={submit}>
-            {pending ? "Speichert…" : "Topf speichern"}
-          </Button>
-        )}
-      </div>
+      <h2 className="mb-2 font-heading text-sm font-medium">Budget-Topf je Halbjahr</h2>
       <table className="w-full text-sm">
         <tbody>
           <tr>
-            <td className="w-40 py-1 pr-3 text-muted-foreground">Budget</td>
+            <td className="w-40 py-1 pr-3 align-bottom text-muted-foreground">Budget</td>
             {periods.map((p) => (
-              <td key={p.key} className="px-1 py-1 text-right">
+              <td
+                key={p.key}
+                className={`px-1 py-1 text-right align-bottom ${p.key === activeCycleKey ? "bg-primary/5" : ""}`}
+              >
                 <input
                   className={CELL_INPUT}
                   inputMode="numeric"
                   value={pool[p.key] ?? ""}
-                  disabled={!canManage}
+                  disabled={!canManage || !editable.has(p.key)}
                   onChange={(e) => setPool((prev) => ({ ...prev, [p.key]: e.target.value }))}
                   aria-label={`Budget ${p.label}`}
                 />
@@ -64,22 +53,22 @@ export function PoolRow({ periods, pool, setPool, remaining, canManage }: Props)
             ))}
           </tr>
           <tr>
-            <td className="py-1 pr-3 text-muted-foreground">Verbleibend</td>
+            <td className="py-2 pr-3 align-top text-muted-foreground">Auslastung</td>
             {periods.map((p) => {
-              const r = remaining[p.key] ?? 0;
+              const budget = numOr0(pool[p.key] ?? "");
+              const allocated = budget - (remaining[p.key] ?? 0);
               return (
                 <td
                   key={p.key}
-                  className={`px-2 py-1 text-right tabular-nums ${r < 0 ? "text-destructive" : "text-muted-foreground"}`}
+                  className={`px-2 py-2 align-top ${p.key === activeCycleKey ? "bg-primary/5" : ""}`}
                 >
-                  {formatEUR(r)}
+                  <AllocationBar allocated={allocated} budget={budget} />
                 </td>
               );
             })}
           </tr>
         </tbody>
       </table>
-      {state.error && <p className="mt-1 text-xs text-destructive">{state.error}</p>}
     </Card>
   );
 }

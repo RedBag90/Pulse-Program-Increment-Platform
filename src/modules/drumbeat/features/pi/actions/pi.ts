@@ -6,6 +6,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import {
   startPi,
   completePi,
+  advanceCadence,
   deletePi,
   setPiCapacity,
   setPiClosureMeta,
@@ -66,6 +67,41 @@ export async function transitionPiAction(
 
   revalidateFor("pi");
   return { success: true };
+}
+
+/**
+ * Schreibt die Kadenz fort: schließt das aktive PI ab und öffnet das nächste
+ * (leichtes Weiterrollen). Gibt die nicht-blockierenden Closure-Warnungen zurück,
+ * damit die UI „trotz offener Punkte fortgeschrieben" anzeigen kann.
+ */
+export async function advanceCadenceAction(
+  piId: string,
+): Promise<PiActionState & { warnings?: string[]; toName?: string }> {
+  const principal = await requirePrincipal().catch(() => null);
+  if (!principal) return { error: "Not authenticated" };
+
+  if (!authorize("pi.advance", { tenantId: principal.tenantId }, principal).allow) {
+    return { error: "Insufficient permissions" };
+  }
+
+  const { ipAddress, userAgent } = extractRequestMeta(await headers());
+  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+  const ctx: RequestContext = {
+    principal,
+    db,
+    ...(ipAddress !== undefined && { ipAddress }),
+    ...(userAgent !== undefined && { userAgent }),
+  };
+
+  const result = await advanceCadence(ctx, { piId: piId as PiId });
+  if (isErr(result)) {
+    return {
+      error: result.error.kind === "conflict" ? result.error.reason : "Fortschreiben fehlgeschlagen",
+    };
+  }
+
+  revalidateFor("pi");
+  return { success: true, warnings: result.value.warnings, toName: result.value.to };
 }
 
 /**

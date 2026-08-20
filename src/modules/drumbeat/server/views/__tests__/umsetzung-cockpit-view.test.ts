@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   pickCurrentPiIndex,
   takePiWindow,
+  resolveAnchorIndex,
   buildCockpitModel,
   type CockpitRows,
   type CockpitFeatureRow,
@@ -9,11 +10,37 @@ import {
 
 const D = (s: string) => new Date(s);
 
+describe("resolveAnchorIndex", () => {
+  const pi = (start: string, status: string) => ({
+    startDate: D(start),
+    endDate: D(start),
+    status,
+  });
+
+  it("returns the index of the active PI regardless of dates", () => {
+    const pis = [pi("2026-01-01", "completed"), pi("2026-04-01", "active"), pi("2026-07-01", "planned")];
+    expect(resolveAnchorIndex(pis, D("2027-01-01").getTime())).toBe(1);
+  });
+
+  it("falls back to the clock-derived current PI when none is active", () => {
+    const pis = [pi("2026-01-01", "completed"), pi("2026-07-01", "planned")];
+    // now inside the second PI's month → nearest future/containing = index 1
+    expect(resolveAnchorIndex(pis, D("2026-07-01").getTime())).toBe(
+      pickCurrentPiIndex(pis, D("2026-07-01").getTime()),
+    );
+  });
+
+  it("returns -1 for an empty list (via the fallback)", () => {
+    expect(resolveAnchorIndex([], D("2026-05-15").getTime())).toBe(-1);
+  });
+});
+
 const NO_PERMS = {
   canUpdate: false,
   canSetDelivery: false,
   canCreate: false,
   canLinkDependency: false,
+  canAdvance: false,
 };
 
 const EMPTY_FILTERS = { status: [], ownerIds: [], epicIds: [], hasBlocker: false };
@@ -34,6 +61,7 @@ function rows(partial: Partial<CockpitRows>): CockpitRows {
     filters: EMPTY_FILTERS,
     userLabels: {},
     now: D("2026-05-15").getTime(),
+    windowOffset: 0,
     ...partial,
   };
 }

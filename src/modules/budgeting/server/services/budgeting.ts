@@ -20,7 +20,8 @@ import {
   type BudgetEpicView,
   type HalfYearAxis,
 } from "@/modules/budgeting/domain/budgeting";
-import { forecastAxis } from "@/modules/budgeting/domain/period-window";
+import { rollingWindow } from "@/modules/budgeting/domain/period-window";
+import { resolveActiveCycle, resolveWindowSize } from "@/modules/budgeting/domain/budget-cycle";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 
@@ -34,6 +35,12 @@ export interface BudgetingBoardData {
    * to recover the horizon start. `periods.length === count`.
    */
   axis: { start: Date; count: number };
+  /** Editierbare Halbjahre (Rolling-Window ab Anker); Rest ist read-only. */
+  editableKeys: string[];
+  /** Der aktive Zyklus (Anker) als Halbjahres-Key. */
+  activeCycleKey: string;
+  /** Fenstergröße in Halbjahren. */
+  windowSize: number;
 }
 
 /** A Value Stream's budget derived from its Epics' allocations, per half-year. */
@@ -61,7 +68,16 @@ export interface ValueStreamBudgetData {
 const loadBudgetingModel = cache(async function loadBudgetingModel(
   db: PrismaClient,
   tenantId: TenantId,
-): Promise<{ epics: BudgetEpicView[]; axis: HalfYearAxis; pool: Record<string, number> }> {
+): Promise<{
+  epics: BudgetEpicView[];
+  axis: HalfYearAxis;
+  pool: Record<string, number>;
+  /** Editierbare Halbjahre (das Rolling-Window ab Anker). */
+  editableKeys: string[];
+  /** Der aktive Zyklus (Anker) als Halbjahres-Key. */
+  activeCycle: string;
+  windowSize: number;
+}> {
   const [rows, tenant] = await Promise.all([
     db.initiative.findMany({
       where: {
@@ -86,7 +102,10 @@ const loadBudgetingModel = cache(async function loadBudgetingModel(
       },
       orderBy: { createdAt: "asc" },
     }),
-    db.tenant.findUnique({ where: { id: tenantId }, select: { budgetPoolByPeriod: true } }),
+    db.tenant.findUnique({
+      where: { id: tenantId },
+      select: { budgetPoolByPeriod: true, activeBudgetCycle: true, budgetWindowSize: true },
+    }),
   ]);
 
   const epics: BudgetEpicView[] = rows.map((row) => {
@@ -115,27 +134,81 @@ const loadBudgetingModel = cache(async function loadBudgetingModel(
 
   const pool = parsePeriodAmountMap(tenant?.budgetPoolByPeriod);
 
-  // The horizon rule (earliest Epic start / pool period → latest need end) lives
-  // in the pure `period-window` seam; here we only project each Epic onto the
-  // span shape it consumes.
-  const axis = forecastAxis(
-    epics.map((e) => ({
-      startKey: e.startKey,
-      spanPeriods: e.isHypothesisOnly ? 1 : Math.max(1, e.costSlices.length),
-    })),
-    Object.keys(pool),
+  // Rolling-Window: der Board-Horizont sind die `windowSize` Halbjahre ab dem
+  // Anker (editierbar), plus alle Perioden mit Daten (Topf/Allokation) als
+  // read-only Kontext. Ersetzt die frühere datenabgeleitete `forecastAxis`.
+  const activeCycle = resolveActiveCycle(
+    { activeBudgetCycle: tenant?.activeBudgetCycle ?? null },
     new Date(),
   );
-  return { epics, axis, pool };
+  const windowSize = resolveWindowSize({ budgetWindowSize: tenant?.budgetWindowSize ?? null });
+  const dataKeys = [
+    ...new Set([...Object.keys(pool), ...epics.flatMap((e) => Object.keys(e.allocations))]),
+  ];
+  const win = rollingWindow(activeCycle, windowSize, dataKeys);
+
+  return { epics, axis: win.axis, pool, editableKeys: win.windowKeys, activeCycle, windowSize };
 });
+
+/** Ein Epic, das für die Runde in Frage kommt, aber noch nicht vorgemerkt ist. */
+export interface BudgetingCandidate {
+  id: string;
+  title: string;
+  valueStream: string | null;
+  isHypothesisOnly: boolean;
+}
+
+/**
+ * Die Kandidatenmenge fürs Inline-Vormerken: freigegebene Epics (Hypothese oder
+ * Business Case), die **noch nicht** `stagedForBudgeting` sind — das Readiness-Gate
+ * aus {@link loadBudgetingModel}, invertiert auf „noch nicht vorgemerkt".
+ */
+export async function listBudgetingCandidates(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<BudgetingCandidate[]> {
+  const rows = await db.initiative.findMany({
+    where: {
+      tenantId,
+      level: InitiativeLevel.EPIC,
+      deletedAt: null,
+      stagedForBudgeting: false,
+      OR: [{ hypothesisApprovedAt: { not: null } }, { businessCaseApprovedAt: { not: null } }],
+    },
+    select: {
+      id: true,
+      title: true,
+      businessCaseApprovedAt: true,
+      valueStream: { select: { name: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    valueStream: r.valueStream?.name ?? null,
+    isHypothesisOnly: r.businessCaseApprovedAt === null,
+  }));
+}
 
 /** Loads the budgeting board: eligible Epics + their need/allocation + the pool. */
 export async function getBudgetingBoard(
   db: PrismaClient,
   tenantId: TenantId,
 ): Promise<BudgetingBoardData> {
-  const { epics, axis, pool } = await loadBudgetingModel(db, tenantId);
-  return { epics, periods: axis.periods, pool, axis: { start: axis.start, count: axis.count } };
+  const { epics, axis, pool, editableKeys, activeCycle, windowSize } = await loadBudgetingModel(
+    db,
+    tenantId,
+  );
+  return {
+    epics,
+    periods: axis.periods,
+    pool,
+    axis: { start: axis.start, count: axis.count },
+    editableKeys,
+    activeCycleKey: activeCycle,
+    windowSize,
+  };
 }
 
 /**

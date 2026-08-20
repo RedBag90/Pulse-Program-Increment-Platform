@@ -21,7 +21,6 @@ export function PiSubNav({ piId }: Props) {
         sectionRoot={root}
         tabs={[
           { href: root, label: "Overview", segment: "" },
-          { href: `${root}/board`, label: "Program Board", segment: "board" },
           { href: `${root}/dependencies`, label: "Dependencies", segment: "dependencies" },
         ]}
       />

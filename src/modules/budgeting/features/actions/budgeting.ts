@@ -8,6 +8,10 @@ import {
 } from "@/modules/budgeting/server/services/budgeting";
 import { saveArtBudget } from "@/modules/budgeting/server/services/art-budget";
 import { captureBudgetPlanRevision } from "@/modules/budgeting/server/services/budget-plan-revision";
+import {
+  advanceBudgetCycle,
+  setBudgetWindowSize,
+} from "@/modules/budgeting/server/services/budget-cycle-service";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 import { formatDomainError } from "@/server/http/domain-error-display";
 
@@ -99,4 +103,31 @@ export const captureBudgetPlanRevisionAction = createServerAction({
     href: `/budgeting/budget-plan/${v.id}`,
   }),
   mapError: (e) => formatDomainError(e, { fallback: "Snapshot konnte nicht erstellt werden" }),
+});
+
+/**
+ * Schreibt die Budget-Zeitleiste fort: friert den ablaufenden Zyklus als Snapshot
+ * ein und rollt den Anker (und damit das Fenster) ein Halbjahr weiter.
+ */
+export const advanceBudgetCycleAction = createServerAction({
+  schema: z.object({}),
+  action: "budget.cycle.advance",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: () => ({}),
+  service: (ctx) => advanceBudgetCycle(ctx),
+  revalidate: "budgetPlanRevision",
+  mapError: (e) =>
+    formatDomainError(e, { fallback: "Zyklus konnte nicht fortgeschrieben werden" }),
+});
+
+/** Setzt die Rolling-Window-Größe (Halbjahre). */
+export const setBudgetWindowSizeAction = createServerAction({
+  schema: z.object({ size: z.coerce.number().int() }),
+  action: "budget.manage",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  parseFormData: payload,
+  service: (ctx, input) => setBudgetWindowSize(ctx, { size: input.size }),
+  revalidate: "budgetAllocation",
+  mapError: (e) =>
+    formatDomainError(e, { fallback: "Fenstergröße konnte nicht gesetzt werden" }),
 });

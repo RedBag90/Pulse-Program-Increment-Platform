@@ -3,6 +3,11 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
 import { loadControllingModel } from "@/modules/budgeting/server/views/controlling-overview";
+import {
+  buildProcessRail,
+  loadProcessRailInputs,
+} from "@/modules/budgeting/server/views/process-rail";
+import { ProcessRail } from "@/modules/budgeting/features/components/round/process-rail";
 import { CaptureRevisionButton } from "@/modules/budgeting/features/components/revision/capture-revision-button";
 import { GuardrailTargetsForm } from "@/modules/work/features/portfolio/components/guardrail-targets-form";
 import { GuardrailTargetsReadOnly } from "@/modules/work/features/portfolio/components/guardrail-targets-readonly";
@@ -36,8 +41,14 @@ export default async function ControllingOverviewPage() {
     principal,
   ).allow;
 
+  const [controlling, railBase] = await Promise.all([
+    loadControllingModel(db, principal.tenantId, { canCapture, canManageTargets }),
+    loadProcessRailInputs(db, principal.tenantId),
+  ]);
   const { cycleLabel, latest, latestIsCurrentCycle, history, userLabels, guardrailTargets } =
-    await loadControllingModel(db, principal.tenantId, { canCapture, canManageTargets });
+    controlling;
+  const railSteps = buildProcessRail({ ...railBase, latestIsCurrentCycle });
+  const poolRemaining = railBase.poolTotal - railBase.allocatedTotal;
 
   return (
     <Page>
@@ -45,6 +56,11 @@ export default async function ControllingOverviewPage() {
         title="Controlling-Übersicht"
         subtitle="Budget-Disziplin und Wertbeitrag in einer Sicht."
       />
+
+      <section className="space-y-2">
+        <SectionLabel>Budget-Runde {cycleLabel} — Fortschritt</SectionLabel>
+        <ProcessRail steps={railSteps} />
+      </section>
 
       <StatStrip>
         <Stat
@@ -73,6 +89,18 @@ export default async function ControllingOverviewPage() {
           value={
             <span className="text-xl">{latest ? formatEUR(latest.followBudgetSum) : "—"}</span>
           }
+        />
+        <Stat
+          label="Verbleibend im Topf"
+          value={
+            <span className={`text-xl ${poolRemaining < 0 ? "text-destructive" : ""}`}>
+              {formatEUR(poolRemaining)}
+            </span>
+          }
+          delta={{
+            tone: poolRemaining < 0 ? "down" : "flat",
+            text: poolRemaining < 0 ? "Überallokation" : "im aktiven Zyklus",
+          }}
         />
       </StatStrip>
 

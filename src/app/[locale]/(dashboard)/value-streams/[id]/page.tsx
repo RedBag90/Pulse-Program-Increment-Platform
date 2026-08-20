@@ -8,7 +8,7 @@ import {
   type ValueStreamBudget,
 } from "@/modules/budgeting/server/services/budgeting";
 import { loadArtBudgetModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
-import { ArtBudgetBreakdown } from "@/modules/budgeting/features/components/art-budget/art-budget-breakdown";
+import { ArtBudgetEditor } from "@/modules/budgeting/features/components/art-budget/art-budget-editor";
 import { formatEUR } from "@/lib/formatting";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
@@ -205,7 +205,13 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
                 periods={budgeting.plan.periods}
                 plan={budgeting.plan.budget ?? undefined}
               />
-              <ArtBudgetBreakdown model={budgeting.artModel} canEdit={canEditArtBudget} />
+              <ArtBudgetEditor model={budgeting.artModel} canEdit={canEditArtBudget} />
+              <Link
+                href={`/budgeting/round?level=art&vs=${vs.id}`}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                In der Budget-Runde verteilen →
+              </Link>
             </>
           )}
         </div>

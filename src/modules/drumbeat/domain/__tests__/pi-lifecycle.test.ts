@@ -2,9 +2,38 @@ import { describe, it, expect } from "vitest";
 import {
   evaluateClosure,
   canTransition,
+  nextPiFromCadence,
   PI_TRANSITIONS,
   type PiClosureSnapshot,
 } from "@/modules/drumbeat/domain/pi-lifecycle";
+
+const D = (s: string) => new Date(s);
+
+describe("nextPiFromCadence", () => {
+  it("erzeugt ein kontiguierliches PI gleicher Dauer mit Name PI n+1", () => {
+    const pis = [
+      { name: "PI 1", startDate: D("2026-01-05"), endDate: D("2026-03-01") },
+      { name: "PI 2", startDate: D("2026-03-02"), endDate: D("2026-04-26") },
+    ];
+    const next = nextPiFromCadence(pis);
+    expect(next).not.toBeNull();
+    expect(next!.name).toBe("PI 3");
+    // Start = letztes Ende + 1 Tag
+    expect(next!.startDate.toISOString().slice(0, 10)).toBe("2026-04-27");
+    // gleiche Dauer wie das letzte PI (55 Tage)
+    const dur = (a: Date, b: Date) => (b.getTime() - a.getTime()) / 86_400_000;
+    expect(dur(next!.startDate, next!.endDate)).toBe(dur(D("2026-03-02"), D("2026-04-26")));
+  });
+
+  it("nummeriert nach der höchsten vorhandenen PI-Nummer, nicht nach der Anzahl", () => {
+    const pis = [{ name: "PI 5", startDate: D("2026-01-01"), endDate: D("2026-02-01") }];
+    expect(nextPiFromCadence(pis)!.name).toBe("PI 6");
+  });
+
+  it("null bei leerer Liste", () => {
+    expect(nextPiFromCadence([])).toBeNull();
+  });
+});
 
 const READY: PiClosureSnapshot = {
   openUnroamedIssues: 0,

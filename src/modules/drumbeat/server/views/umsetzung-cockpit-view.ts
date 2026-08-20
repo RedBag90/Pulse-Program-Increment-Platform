@@ -75,6 +75,8 @@ export interface CockpitPermissions {
   /** ART-scoped `dependency.link` — Dep anlegen / loeschen / Typ wechseln
    *  via Cockpit-Roadmap + Cockpit-Netzplan. */
   canLinkDependency: boolean;
+  /** `pi.advance` — Kadenz fortschreiben (aktives PI abschließen + nächstes öffnen). */
+  canAdvance: boolean;
 }
 
 export interface CockpitFilters {
@@ -91,14 +93,29 @@ export interface CockpitFilters {
  */
 export type CockpitPiWindow = PiWindow;
 
+/** Zustand der PI-Fenster-Navigation (Vor/Zurück gegenüber dem Anker). */
+export interface CockpitPiWindowNav {
+  /** Aktuelle Verschiebung gegenüber dem Anker (aktives PI). */
+  offset: number;
+  /** Gibt es links vom Fenster noch frühere PIs? */
+  canBack: boolean;
+  /** Gibt es rechts vom Fenster noch spätere PIs? */
+  canForward: boolean;
+}
+
 export interface CockpitModel {
   /** Welche ARTs der User sehen darf, ggf. mit aktivem-PI-Feature-Count. */
   availableArts: CockpitArtRef[];
   /** Aktuell ausgewaehlte ART. `null` wenn der User keinen Scope hat. */
   selectedArt: CockpitArtRef | null;
-  /** 5 PIs: aktueller + 1 vor + 3 nach (Entscheidung #10). Leer wenn ART
-   *  keine Timeline hat oder die Timeline keine PIs. */
+  /** 5 PIs: Anker (aktives PI) + Umgebung, ggf. per `piWindow.offset` verschoben.
+   *  Leer wenn ART keine Timeline hat oder die Timeline keine PIs. */
   piStrip: CockpitPiSlot[];
+  /** Navigations-Zustand des PI-Fensters (Vor/Zurück). */
+  piWindow: CockpitPiWindowNav;
+  /** Id des aktiven PI (Status `active`) der Timeline, oder `null`. Für „Kadenz
+   *  fortschreiben". */
+  activePiId: string | null;
   /** Alle PIs der Timeline (oder Direct-ART) — Datumsfenster fuer die
    *  Roadmap-Sicht. Board + Tabelle nutzen nur den piStrip. */
   allPiWindows: CockpitPiWindow[];
@@ -135,6 +152,8 @@ export interface LoadCockpitInput {
   artId?: string | undefined;
   view?: CockpitView | undefined;
   filters?: Partial<CockpitFilters> | undefined;
+  /** Verschiebung des PI-Fensters gegenüber dem Anker (aktives PI); 0 = am Anker. */
+  windowOffset?: number | undefined;
 }
 
 const DEFAULT_FILTERS: CockpitFilters = {
@@ -170,6 +189,19 @@ export function takePiWindow<T>(pis: readonly T[], currentIdx: number): T[] {
   const start = Math.max(0, currentIdx - 1);
   const end = Math.min(pis.length, currentIdx + 4);
   return pis.slice(start, end);
+}
+
+/**
+ * Der Anker des Cockpit-Fensters: das **aktive** PI (Status `active`) — das ist
+ * die manuell fortgeschriebene „Jetzt"-Marke der Kadenz. Ohne aktives PI fällt
+ * es auf die uhrbasierte Auswahl zurück (Bestandsverhalten). Rein.
+ */
+export function resolveAnchorIndex(
+  pis: ReadonlyArray<{ startDate: Date; endDate: Date; status: string }>,
+  now: number = Date.now(),
+): number {
+  const activeIdx = pis.findIndex((p) => p.status === "active");
+  return activeIdx >= 0 ? activeIdx : pickCurrentPiIndex(pis, now);
 }
 
 // ---------------------------------------------------------------------------
@@ -274,6 +306,8 @@ export interface CockpitRows {
   userLabels: Record<string, string>;
   /** Injected so the builder stays pure (no wall-clock read). */
   now: number;
+  /** Verschiebung des PI-Fensters gegenüber dem Anker; 0 = am Anker. */
+  windowOffset: number;
 }
 
 /**
@@ -392,6 +426,7 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     filters,
     userLabels,
     now,
+    windowOffset,
   } = rows;
 
   // availableArts — active-PI fallback + per-ART count (formerly two queries'
@@ -429,13 +464,24 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     endDate: p.endDate,
   }));
   let piStrip: CockpitPiSlot[] = [];
+  let piWindow: CockpitPiWindowNav = { offset: 0, canBack: false, canForward: false };
+  let activePiId: string | null = null;
   if (selectedArt) {
-    const currentIdx = pickCurrentPiIndex(allPis, now);
-    // Expliziter Id-Vergleich statt `allPis.indexOf(p) === currentIdx`:
-    // die Array-Identitaets-Falle (funktionierte nur, weil `slice` die
-    // Referenzen erhaelt) faellt damit weg.
-    const currentPiId = currentIdx >= 0 ? (allPis[currentIdx]?.id ?? null) : null;
-    const windowPis = takePiWindow(allPis, currentIdx);
+    activePiId = allPis.find((p) => p.status === "active")?.id ?? null;
+    // Anker = aktives PI (Fallback: Uhr). Das Fenster darf per `windowOffset`
+    // gegen den Anker verschoben werden; `isCurrent` markiert weiterhin den Anker.
+    const anchorIdx = resolveAnchorIndex(allPis, now);
+    const anchorPiId = anchorIdx >= 0 ? (allPis[anchorIdx]?.id ?? null) : null;
+    const windowCenter =
+      anchorIdx < 0 ? -1 : Math.min(allPis.length - 1, Math.max(0, anchorIdx + windowOffset));
+    const windowPis = takePiWindow(allPis, windowCenter);
+    const winStart = windowCenter < 0 ? 0 : Math.max(0, windowCenter - 1);
+    const winEnd = windowCenter < 0 ? 0 : Math.min(allPis.length, windowCenter + 4);
+    piWindow = {
+      offset: windowOffset,
+      canBack: winStart > 0,
+      canForward: winEnd < allPis.length,
+    };
     const countByPi = new Map(windowCounts.map((c) => [c.piId, c.count]));
     piStrip = windowPis.map((p) => ({
       id: p.id,
@@ -444,7 +490,7 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
       endDate: p.endDate,
       status: p.status,
       featureCount: countByPi.get(p.id) ?? 0,
-      isCurrent: p.id === currentPiId,
+      isCurrent: p.id === anchorPiId,
     }));
   }
 
@@ -455,6 +501,8 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     availableArts,
     selectedArt,
     piStrip,
+    piWindow,
+    activePiId,
     allPiWindows,
     view,
     features,
@@ -644,6 +692,7 @@ export async function loadCockpitModel(
     canSetDelivery: hasCapability(principal, "feature.delivery.set", resource),
     canCreate: hasCapability(principal, "feature.create", resource),
     canLinkDependency: hasCapability(principal, "dependency.link", resource),
+    canAdvance: hasCapability(principal, "pi.advance", resource),
   };
 
   return buildCockpitModel({
@@ -660,5 +709,6 @@ export async function loadCockpitModel(
     filters,
     userLabels,
     now: Date.now(),
+    windowOffset: input.windowOffset ?? 0,
   });
 }

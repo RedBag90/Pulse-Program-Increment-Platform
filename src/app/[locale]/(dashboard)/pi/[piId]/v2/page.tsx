@@ -219,6 +219,10 @@ export default async function PiV2Page({ params, searchParams }: Props) {
       tenantId: principal.tenantId,
       artId: primaryArt.id,
     });
+    const canAdvance = hasCapability(principal, "pi.advance", {
+      tenantId: principal.tenantId,
+      artId: primaryArt.id,
+    });
 
     tabContent = (
       <PiOverviewTab
@@ -232,6 +236,7 @@ export default async function PiV2Page({ params, searchParams }: Props) {
         candidatesByArt={candidatesByArt}
         featuresTotalCount={piRow.initiatives.length}
         canEdit={canEdit}
+        canAdvance={canAdvance}
       />
     );
   }

@@ -146,7 +146,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/budgeting", labelKey: "controllingOverview", icon: Gauge, exact: true },
       {
-        href: "/budgeting/board",
+        href: "/budgeting/round",
         labelKey: "participatoryBudgeting",
         icon: Wallet,
         capability: "budget.manage",
