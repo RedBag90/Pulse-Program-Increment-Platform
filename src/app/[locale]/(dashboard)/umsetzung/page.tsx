@@ -9,7 +9,7 @@ import {
   type FeatureStatus,
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { loadCockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
-import { CockpitShell } from "@/modules/drumbeat/features/umsetzung/components/cockpit-shell";
+import { CockpitShell } from "@/modules/drumbeat/features/cockpit/components/cockpit-shell";
 
 const FEATURE_STATUSES: readonly FeatureStatus[] = [
   "approved",

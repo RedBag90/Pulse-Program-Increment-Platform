@@ -26,11 +26,11 @@ import { formatWsjf } from "@/domain/schemas/initiative";
 import { EdgeTypeMenu } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import { FeaturePickerPopover } from "@/modules/drumbeat/features/dependencies/components/feature-picker-popover";
 import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
+import { NODE_W_COCKPIT } from "@/modules/drumbeat/domain/graph-constants";
 import {
   EDGE_COLOR,
-  NODE_W_COCKPIT,
   STATUS_DOT_COCKPIT as STATUS_DOT,
-} from "@/modules/drumbeat/domain/graph-constants";
+} from "@/modules/drumbeat/features/cockpit/components/graph-palette";
 
 /**
  * Netzplan-Sicht des Cockpits — flacher Network-Graph aller Features

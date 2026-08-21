@@ -2,13 +2,13 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ArtId, PiId, TimelineId } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
-import { validatePiDates } from "@/modules/drumbeat/domain/pi-planning";
 import {
+  validatePiDates,
   evaluateClosure,
   canTransition,
   nextPiFromCadence,
   type PiStatus,
-} from "@/modules/drumbeat/domain/pi-lifecycle";
+} from "@/modules/drumbeat/domain/pi-rules";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
@@ -286,6 +286,26 @@ export async function startPi(ctx: RequestContext, input: { id: PiId }): Promise
  * (`evaluateClosure`). Aus dem UI ist dieser Weg entfallen — dort schließt
  * ausschließlich `advanceCadence` („PI abschließen & nächstes öffnen").
  */
+/**
+ * Offene, un-ge-ROAM-te Issues über die ARTs einer Timeline — die geteilte
+ * Projektion, die sowohl der Closure-Gate (`completePi`) als auch die nicht-
+ * blockierende Fortschreib-Warnung (`advanceCadence`) lesen. (Eigene Richtung
+ * als `resolveArtTimelines`: dort ART→Timeline, hier Timeline→ARTs.)
+ */
+async function countOpenRoamIssues(
+  tx: Pick<PrismaClient, "art" | "issue">,
+  tenantId: string,
+  timelineId: string | null,
+): Promise<number> {
+  if (!timelineId) return 0;
+  const arts = await tx.art.findMany({ where: { tenantId, timelineId }, select: { id: true } });
+  const artIds = arts.map((a) => a.id);
+  if (artIds.length === 0) return 0;
+  return tx.issue.count({
+    where: { tenantId, deletedAt: null, roamStatus: "open", artId: { in: artIds } },
+  });
+}
+
 export async function completePi(ctx: RequestContext, input: { id: PiId }): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   const { id } = input;
@@ -308,24 +328,7 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
 
     // Belt & suspenders: dieselben Checks wie der Wizard, serverseitig — die
     // Regel lebt in der Domain (evaluateClosure), hier nur die tx-Projektion.
-    const arts = existing.timelineId
-      ? await tx.art.findMany({
-          where: { tenantId: mctx.tenantId, timelineId: existing.timelineId },
-          select: { id: true },
-        })
-      : [];
-    const artIds = arts.map((a) => a.id);
-    const openIssues =
-      artIds.length === 0
-        ? 0
-        : await tx.issue.count({
-            where: {
-              tenantId: mctx.tenantId,
-              deletedAt: null,
-              roamStatus: "open",
-              artId: { in: artIds },
-            },
-          });
+    const openIssues = await countOpenRoamIssues(tx, mctx.tenantId, existing.timelineId);
     const issues = evaluateClosure({
       openUnroamedIssues: openIssues,
       systemDemoAt: existing.systemDemoAt,
@@ -388,17 +391,7 @@ export async function advanceCadence(
     // offene ROAM-Issues (dafür gibt es eine Oberfläche). Die Closure-Ceremonies
     // (System-Demo/Inspect&Adapt/Retro) werden hier NICHT geprüft, weil es keine
     // UI zum Setzen der Termine gibt; das volle Gate bleibt allein in `completePi`.
-    const arts = await tx.art.findMany({
-      where: { tenantId: mctx.tenantId, timelineId: active.timelineId },
-      select: { id: true },
-    });
-    const artIds = arts.map((a) => a.id);
-    const openIssues =
-      artIds.length === 0
-        ? 0
-        : await tx.issue.count({
-            where: { tenantId: mctx.tenantId, deletedAt: null, roamStatus: "open", artId: { in: artIds } },
-          });
+    const openIssues = await countOpenRoamIssues(tx, mctx.tenantId, active.timelineId);
     const warnings: string[] = [];
     if (openIssues > 0) warnings.push(`${openIssues} offene Issue(s) ohne ROAM`);
 
@@ -425,6 +418,11 @@ export async function advanceCadence(
       if (!spec) {
         return err({ kind: "conflict" as const, reason: "Kadenz nicht ableitbar." });
       }
+      // Bewusst NICHT über `createPi`: die Kadenz-Ableitung (`nextPiFromCadence`)
+      // ist kontiguierlich per Konstruktion — die Datums-/Überlappungs-Validierung
+      // von `createPi` wäre hier redundant, und dieser Insert muss in derselben
+      // Transaktion wie der Abschluss des aktiven PI laufen. `createPi` (mit
+      // Validierung) bleibt der Weg für manuell/aus-Standard angelegte PIs.
       const created = await tx.programIncrement.create({
         data: {
           tenantId: mctx.tenantId,

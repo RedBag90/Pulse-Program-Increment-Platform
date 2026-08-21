@@ -421,6 +421,10 @@ export async function createTimelineFromStandard(
  *
  * Designed to run once during the rollout, either via an admin button or a
  * test script. After this returns, the system can operate purely on Timelines.
+ *
+ * Mutations-Idiom: bewusst **nicht** `withAuditedTransaction` — dieser One-Shot-
+ * Backfill schreibt seine eigene, einzelne `auditEvent`-Zeile für den ganzen
+ * Lauf (statt pro Entität) und ist kein reguläres Nutzer-Mutations-Kommando.
  */
 export async function migrateAllArtsToOwnTimelines(
   db: PrismaClient,

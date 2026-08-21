@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useEffect, startTransition, useActionState } from "react";
-import { updatePiOnTimelineAction } from "@/modules/drumbeat/features/timeline/actions/pi";
+import { updatePiOnTimelineAction } from "@/modules/drumbeat/features/cadence/actions/pi";
 import type { ActionState } from "@/server/http/server-action";
 import { isoDay, parseIsoDay, addDays, daysBetween } from "@/modules/core/kernel/domain/calendar";
 import {

@@ -3,7 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadCockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
-import { FeatureDetailShell } from "@/modules/drumbeat/features/umsetzung/components/feature-detail-shell";
+import { FeatureDetailShell } from "@/modules/drumbeat/features/cockpit/components/feature-detail-shell";
 
 /**
  * Feature-Detail-Vollroute — der deeplinkbare Pfad fuer Bookmarks und

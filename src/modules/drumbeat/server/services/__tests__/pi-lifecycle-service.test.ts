@@ -9,7 +9,13 @@ import { describe, it, expect, vi } from "vitest";
  * create-or-activate branch, and the delete cascade.
  */
 
-import { startPi, deletePi, advanceCadence } from "@/modules/drumbeat/server/services/pi";
+import {
+  startPi,
+  deletePi,
+  advanceCadence,
+  completePi,
+  updatePi,
+} from "@/modules/drumbeat/server/services/pi";
 import type { PiId } from "@/modules/core/kernel/domain/types";
 
 type Tx = Record<string, Record<string, ReturnType<typeof vi.fn>>>;
@@ -175,6 +181,91 @@ describe("advanceCadence — complete active + open next", () => {
   it("refuses to advance a non-active PI", async () => {
     const t = tx({ id: "a", status: "planned", timelineId: "tl", name: "PI 1" }, []);
     const result = await advanceCadence(ctxWith(t), { piId: "a" as PiId });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe("conflict");
+    expect(t.programIncrement!.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("completePi — closure gate", () => {
+  function tx(existing: unknown, openIssues: number): Tx {
+    return {
+      programIncrement: {
+        findFirst: vi.fn(async () => existing),
+        update: vi.fn(async () => ({})),
+      },
+      art: { findMany: vi.fn(async () => (openIssues > 0 ? [{ id: "art1" }] : [])) },
+      issue: { count: vi.fn(async () => openIssues) },
+      auditEvent: { create: vi.fn(async () => ({})) },
+    };
+  }
+
+  const READY = {
+    id: "pi1",
+    status: "active",
+    timelineId: "tl",
+    systemDemoAt: new Date("2026-06-01"),
+    inspectAdaptAt: new Date("2026-06-02"),
+    retrospectiveNotes: "ok",
+  };
+
+  it("completes an active PI when the closure snapshot is ready", async () => {
+    const t = tx(READY, 0);
+    const result = await completePi(ctxWith(t), { id: "pi1" as PiId });
+    expect(result.ok).toBe(true);
+    expect(t.programIncrement!.update).toHaveBeenCalledWith({
+      where: { id: "pi1" },
+      data: { status: "completed" },
+    });
+  });
+
+  it("blocks completion when a closure ceremony is missing", async () => {
+    const t = tx({ ...READY, systemDemoAt: null }, 0);
+    const result = await completePi(ctxWith(t), { id: "pi1" as PiId });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe("conflict");
+    expect(t.programIncrement!.update).not.toHaveBeenCalled();
+  });
+
+  it("blocks completion when open un-ROAMed issues remain", async () => {
+    const t = tx(READY, 2);
+    const result = await completePi(ctxWith(t), { id: "pi1" as PiId });
+    expect(result.ok).toBe(false);
+    expect(t.programIncrement!.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses to complete a non-active PI", async () => {
+    const t = tx({ ...READY, status: "planned" }, 0);
+    const result = await completePi(ctxWith(t), { id: "pi1" as PiId });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe("conflict");
+    expect(t.programIncrement!.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("updatePi — status guards", () => {
+  function tx(existing: unknown): Tx {
+    return {
+      programIncrement: {
+        findFirst: vi.fn(async () => existing),
+        findMany: vi.fn(async () => []),
+        update: vi.fn(async () => ({})),
+      },
+      auditEvent: { create: vi.fn(async () => ({})) },
+    };
+  }
+
+  it("refuses to reopen a completed PI", async () => {
+    const t = tx({ id: "pi1", status: "completed" });
+    const result = await updatePi(ctxWith(t), { id: "pi1" as PiId, status: "active" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe("conflict");
+    expect(t.programIncrement!.update).not.toHaveBeenCalled();
+  });
+
+  it("routes lifecycle transitions to the start/complete actions", async () => {
+    const t = tx({ id: "pi1", status: "planned" });
+    const result = await updatePi(ctxWith(t), { id: "pi1" as PiId, status: "active" });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe("conflict");
     expect(t.programIncrement!.update).not.toHaveBeenCalled();

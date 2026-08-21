@@ -2,7 +2,7 @@
 
 import { useActionState, startTransition } from "react";
 import { Trash2 } from "lucide-react";
-import { deletePiOnTimelineAction } from "@/modules/drumbeat/features/timeline/actions/pi";
+import { deletePiOnTimelineAction } from "@/modules/drumbeat/features/cadence/actions/pi";
 import type { ActionState } from "@/server/http/server-action";
 
 const initialState: ActionState = {};

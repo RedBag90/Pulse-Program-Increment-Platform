@@ -3,7 +3,7 @@
 import { useTransition, useState } from "react";
 import { PlayCircle } from "lucide-react";
 import { toast } from "sonner";
-import { transitionPiAction } from "@/modules/drumbeat/features/pi/actions/pi";
+import { transitionPiAction } from "@/modules/drumbeat/features/cockpit/actions/pi";
 import { Button } from "@/components/ui/button";
 
 interface Props {

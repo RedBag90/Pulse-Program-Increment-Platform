@@ -21,11 +21,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
+// ADR-0013-Ausnahme (bewusst, dokumentiert): dies ist der EINZIGE Work→Drumbeat-
+// „Aufwärts"-Import und bewusst ein `next/dynamic`-CLIENT-Chunk — kein Server-/
+// Build-Zyklus, nur eine Bundle-Grenze. Die saubere Inversion (Render-Prop-Slot,
+// vom `src/app`-Client-Wrapper injiziert) ist bekannt, aber die Props werden hier
+// tab-intern abgeleitet (Feature-Mapping, Realtime-`savedPositions`), also ist der
+// Umbau ein eigener, UI-zu-verifizierender Schritt. Bis dahin bleibt dies die eine
+// sanktionierte Ausnahme.
 /** Lazy-import den Netzplan, damit der List-Modus die ~130 KB ReactFlow
  *  + dagre nicht ins Initial-Bundle zieht. */
 const BreakdownNetworkView = dynamic(
   () =>
-    import("@/modules/drumbeat/features/umsetzung/components/breakdown-network-view").then(
+    import("@/modules/drumbeat/features/cockpit/components/breakdown-network-view").then(
       (m) => m.BreakdownNetworkView,
     ),
   {

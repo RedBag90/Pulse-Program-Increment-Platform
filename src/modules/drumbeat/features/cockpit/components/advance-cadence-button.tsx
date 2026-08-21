@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { advanceCadenceAction } from "@/modules/drumbeat/features/pi/actions/pi";
+import { advanceCadenceAction } from "@/modules/drumbeat/features/cockpit/actions/pi";
 
 /**
  * „PI abschließen & nächstes öffnen" — schreibt die Kadenz fort (aktives PI →

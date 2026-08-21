@@ -20,7 +20,16 @@ import type { PiWindow } from "@/modules/drumbeat/domain/timeline-grid";
  */
 
 export type CockpitView = "board" | "table" | "roadmap" | "network";
-export type FeatureStatus = "approved" | "in_progress" | "blocked" | "completed" | "cancelled";
+
+// Board read-model shapes live in `domain/cockpit-types.ts` (so the pure board
+// matrix imports down, not up). Imported for local use here and re-exported so
+// existing consumers keep importing them from the view.
+import type {
+  FeatureStatus,
+  CockpitPiSlot,
+  CockpitFeature,
+} from "@/modules/drumbeat/domain/cockpit-types";
+export type { FeatureStatus, CockpitPiSlot, CockpitFeature };
 
 export interface CockpitArtRef {
   id: string;
@@ -28,41 +37,6 @@ export interface CockpitArtRef {
   valueStreamName: string | null;
   /** Anzahl Features im aktiven PI dieser ART — fuer den Multi-ART-Picker. */
   activeFeatureCount: number;
-}
-
-export interface CockpitPiSlot {
-  id: string;
-  name: string;
-  startDate: Date;
-  endDate: Date;
-  status: string;
-  /** Anzahl Features im aktuell ausgewaehlten Scope, die in diesem PI sitzen. */
-  featureCount: number;
-  /** True wenn dieser PI das aktuelle „jetzt"-PI ist (laut Datum). */
-  isCurrent: boolean;
-}
-
-export interface CockpitFeature {
-  id: string;
-  title: string;
-  status: FeatureStatus;
-  piId: string | null;
-  artId: string;
-  artName: string;
-  /** Parent-Epic-Bezug — Cockpit-Roadmap gruppiert die Features
-   *  darunter (Linear/Productboard-Pattern). Null = Orphan-Feature. */
-  parentId: string | null;
-  parentTitle: string | null;
-  ownerId: string | null;
-  /** UI loest Owner-Namen separat auf (Auth-Provider) — fuer Avatare /
-   *  Inline-Anzeige. Null wenn unbekannt. */
-  ownerName: string | null;
-  wsjfComputed: number | null;
-  /** True wenn das Feature mind. eine eingehende `blocks`-Dependency hat,
-   *  die noch nicht abgeschlossen ist — gibt Board-Card das ⚠-Signal. */
-  hasBlocker: boolean;
-  /** Erste blockierende Quelle, fuer den Karten-Hinweis „blockt durch X". */
-  blockerHint: string | null;
 }
 
 export interface CockpitPermissions {

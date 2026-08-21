@@ -4,7 +4,7 @@ import { useActionState, useState, startTransition, useEffect } from "react";
 import {
   createPiOnTimelineAction,
   updatePiOnTimelineAction,
-} from "@/modules/drumbeat/features/timeline/actions/pi";
+} from "@/modules/drumbeat/features/cadence/actions/pi";
 import type { ActionState } from "@/server/http/server-action";
 import {
   Dialog,

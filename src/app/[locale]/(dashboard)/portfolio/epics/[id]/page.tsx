@@ -14,7 +14,7 @@ import { EpicGoalsBadge } from "@/modules/work/features/portfolio/components/epi
 import { EpicRealizedTile } from "@/modules/work/features/portfolio/components/epic-realized-tile";
 import { EntityDetailShell, resolveTab } from "@/components/detail/entity-detail-shell";
 import { loadCockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
-import { FeatureSlideOver } from "@/modules/drumbeat/features/umsetzung/components/feature-slide-over";
+import { FeatureSlideOver } from "@/modules/drumbeat/features/cockpit/components/feature-slide-over";
 import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
 import { PhaseBadge } from "@/components/detail/phase-badge";
 import { EpicHistoryTimeline } from "@/modules/work/features/portfolio/components/epic-history-timeline";

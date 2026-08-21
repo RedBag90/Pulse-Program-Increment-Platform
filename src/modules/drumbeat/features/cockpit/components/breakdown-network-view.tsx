@@ -13,7 +13,6 @@ import {
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Download, Pencil, Plus } from "lucide-react";
-import dagre from "@dagrejs/dagre";
 import { toPng } from "html-to-image";
 import {
   ReactFlow,
@@ -21,7 +20,6 @@ import {
   Controls,
   EdgeLabelRenderer,
   Handle,
-  MarkerType,
   MiniMap,
   Panel,
   Position,
@@ -64,23 +62,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  EdgeTypePopover,
-  EDGE_LABEL as SHARED_EDGE_LABEL,
-} from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
+import { EdgeTypePopover } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import {
   buildBreakdownGraph,
   type BreakdownGhostNode,
-  type BreakdownGraphEdge,
   type BreakdownGraphNode,
   type DependencyEdgeType,
 } from "@/modules/drumbeat/server/views/breakdown-network-view";
 import {
   EDGE_COLOR,
-  NODE_W_BREAKDOWN,
   STATUS_DOT_BREAKDOWN as STATUS_DOT,
-} from "@/modules/drumbeat/domain/graph-constants";
-import { swimlaneLayout } from "@/modules/drumbeat/domain/graph-layout";
+} from "@/modules/drumbeat/features/cockpit/components/graph-palette";
+import {
+  NODE_WIDTH,
+  EDGE_LABEL,
+  edgeStyle,
+  layoutGraph,
+  layoutByPi,
+  type LayoutCtx,
+  type FeatureNodeData,
+  type InsertableEdgeData,
+} from "@/modules/drumbeat/features/cockpit/components/breakdown-layout";
 
 interface Props {
   epicId: string;
@@ -122,10 +124,6 @@ interface Props {
   savedPositions?: Record<string, { x: number; y: number }>;
 }
 
-const NODE_WIDTH = NODE_W_BREAKDOWN;
-const NODE_HEIGHT = 96;
-
-const EDGE_LABEL = SHARED_EDGE_LABEL;
 const TIER_BADGE: Record<BreakdownGraphNode["wsjfTier"], string> = {
   high: "bg-emerald-100 text-emerald-700",
   medium: "bg-amber-100 text-amber-700",
@@ -136,30 +134,7 @@ const TIER_BADGE: Record<BreakdownGraphNode["wsjfTier"], string> = {
 type QuickAddSubmit = (input: { title: string; featureType: "feature" | "enabler" }) => void;
 type QuickEditSubmit = (input: { title: string; featureType: "feature" | "enabler" | "" }) => void;
 
-/**
- * Reine, statische Node-Daten — keine callbacks. Callbacks leben im
- * `BreakdownInteractionContext`, damit `node.data` identitaetsstabil
- * zwischen renders bleibt und React.memo greift.
- */
-interface FeatureNodeData extends BreakdownGraphNode {
-  connectable: boolean;
-  showPlus: boolean;
-  showEdit: boolean;
-  artId: string;
-}
-
 type EdgeTypeChange = (next: DependencyEdgeType) => void;
-
-interface InsertableEdgeData {
-  type: DependencyEdgeType;
-  showPlus: boolean;
-  /** Source-ART — Lookup-Schluessel fuer Callbacks aus dem Context. */
-  sourceArtId: string;
-  /** Source-/Target-Initiative-IDs sind via `props.source` / `props.target` von
-   *  ReactFlow bereitgestellt — wir brauchen sie nicht nochmal im Data-Shape. */
-  canChangeType: boolean;
-  canInsert: boolean;
-}
 
 interface BreakdownInteractionCtx {
   onAddSuccessor: (predecessorId: string, predecessorArtId: string) => QuickAddSubmit;
@@ -723,216 +698,6 @@ function ExportButton({ epicTitle }: { epicTitle: string }) {
     </button>
   );
 }
-
-function edgeStyle(type: DependencyEdgeType): {
-  style: React.CSSProperties;
-  animated: boolean;
-  marker: { type: MarkerType; color: string };
-} {
-  return {
-    animated: type === "blocks",
-    style: {
-      stroke: EDGE_COLOR[type],
-      strokeWidth: 1.5,
-      strokeDasharray: type === "relates_to" ? "4 4" : undefined,
-    },
-    marker: { type: MarkerType.ArrowClosed, color: EDGE_COLOR[type] },
-  };
-}
-
-interface LayoutCtx {
-  canLinkDependency: boolean;
-  canCreateFeature: boolean;
-  canEditFeature: boolean;
-  /** Persistierte Positionen — Knoten ohne Eintrag bleiben dagre-gelayoutet. */
-  savedPositions?: Record<string, { x: number; y: number }> | undefined;
-}
-
-function layoutGraph(
-  nodes: BreakdownGraphNode[],
-  edges: BreakdownGraphEdge[],
-  ghostNodes: BreakdownGhostNode[],
-  artById: Map<string, string>,
-  ctx: LayoutCtx,
-): { nodes: Node[]; edges: Edge[] } {
-  const g = new dagre.graphlib.Graph();
-  g.setDefaultEdgeLabel(() => ({}));
-  // Mehr breathing room (nodesep 60, ranksep 160): dagre routet edges
-  // nicht knoten-bewusst, also helfen groessere abstaende, dass
-  // verbindungen seltener durch zwischennodes durchschlagen.
-  g.setGraph({ rankdir: "LR", nodesep: 60, ranksep: 160 });
-
-  for (const n of nodes) {
-    g.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
-  }
-  for (const gn of ghostNodes) {
-    g.setNode(gn.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
-  }
-  for (const e of edges) {
-    g.setEdge(e.source, e.target);
-  }
-  dagre.layout(g);
-
-  const rfNodes: Node[] = nodes.map((n) => {
-    const dagrePos = g.node(n.id);
-    const saved = ctx.savedPositions?.[n.id];
-    const position = saved
-      ? { x: saved.x, y: saved.y }
-      : { x: dagrePos.x - NODE_WIDTH / 2, y: dagrePos.y - NODE_HEIGHT / 2 };
-    const artId = artById.get(n.id) ?? "";
-    const data: FeatureNodeData = {
-      ...n,
-      artId,
-      connectable: ctx.canLinkDependency,
-      showPlus: ctx.canCreateFeature && artId !== "",
-      showEdit: ctx.canEditFeature && artId !== "",
-    };
-    return {
-      id: n.id,
-      type: "feature",
-      data: data as unknown as Record<string, unknown>,
-      position,
-    };
-  });
-
-  for (const gn of ghostNodes) {
-    const dagrePos = g.node(gn.id);
-    rfNodes.push({
-      id: gn.id,
-      type: "ghost",
-      data: gn as unknown as Record<string, unknown>,
-      position: {
-        x: (dagrePos?.x ?? 0) - NODE_WIDTH / 2,
-        y: (dagrePos?.y ?? 0) - NODE_HEIGHT / 2,
-      },
-      draggable: false,
-      selectable: true,
-    });
-  }
-
-  const rfEdges: Edge[] = edges.map((e) => {
-    const s = edgeStyle(e.type);
-    const sourceArtId = artById.get(e.source) ?? "";
-    const data: InsertableEdgeData = {
-      type: e.type,
-      showPlus: ctx.canCreateFeature && sourceArtId !== "",
-      sourceArtId,
-      canChangeType: ctx.canLinkDependency && sourceArtId !== "",
-      canInsert: sourceArtId !== "",
-    };
-    return {
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      type: "insertable",
-      label: EDGE_LABEL[e.type],
-      animated: s.animated,
-      style: s.style,
-      markerEnd: s.marker,
-      data: data as unknown as Record<string, unknown>,
-    };
-  });
-
-  return { nodes: rfNodes, edges: rfEdges };
-}
-
-/**
- * PI-Bahnen-Layout (Roadmap-P9). Spalten:
- *   [Backlog, PI_1, PI_2, …, PI_n, Extern]
- * Knoten stapeln innerhalb ihrer Spalte; Ghost-Knoten landen in
- * "Extern" rechts. Pro Spalte ein Header-Node mit dem PI-Namen oben.
- *
- * Edges sind unveraendert — ReactFlow zeichnet Verbindungen quer
- * ueber die Spalten ohne Zutun.
- */
-function layoutByPi(
-  nodes: BreakdownGraphNode[],
-  edges: BreakdownGraphEdge[],
-  ghostNodes: BreakdownGhostNode[],
-  pis: ReadonlyArray<{ id: string; name: string; startDate: string }>,
-  artById: Map<string, string>,
-  ctx: LayoutCtx,
-): { nodes: Node[]; edges: Edge[] } {
-  // Reine Swimlane-Positionierung (graph-layout); dieses Component mappt die
-  // Positionen nur noch in ReactFlow-Nodes.
-  const { headers, features, ghosts } = swimlaneLayout(nodes, ghostNodes, pis);
-  const nodeById = new Map(nodes.map((n) => [n.id, n]));
-  const ghostById = new Map(ghostNodes.map((g) => [g.id, g]));
-
-  const rfNodes: Node[] = [];
-
-  // Header-Nodes pro Spalte.
-  for (const h of headers) {
-    rfNodes.push({
-      id: `pi-header-${h.col}`,
-      type: "pi-header",
-      data: { label: h.label } as unknown as Record<string, unknown>,
-      position: { x: h.x, y: h.y },
-      draggable: false,
-      selectable: false,
-    });
-  }
-
-  // Feature-Knoten in ihrer Spalte.
-  for (const pos of features) {
-    const n = nodeById.get(pos.id);
-    if (!n) continue;
-    const artId = artById.get(n.id) ?? "";
-    const data: FeatureNodeData = {
-      ...n,
-      artId,
-      connectable: ctx.canLinkDependency,
-      showPlus: ctx.canCreateFeature && artId !== "",
-      showEdit: ctx.canEditFeature && artId !== "",
-    };
-    rfNodes.push({
-      id: n.id,
-      type: "feature",
-      data: data as unknown as Record<string, unknown>,
-      position: { x: pos.x, y: pos.y },
-    });
-  }
-
-  // Ghost-Knoten in der Extern-Spalte.
-  for (const pos of ghosts) {
-    const gn = ghostById.get(pos.id);
-    if (!gn) continue;
-    rfNodes.push({
-      id: gn.id,
-      type: "ghost",
-      data: gn as unknown as Record<string, unknown>,
-      position: { x: pos.x, y: pos.y },
-      draggable: false,
-      selectable: true,
-    });
-  }
-
-  const rfEdges: Edge[] = edges.map((e) => {
-    const s = edgeStyle(e.type);
-    const sourceArtId = artById.get(e.source) ?? "";
-    const data: InsertableEdgeData = {
-      type: e.type,
-      showPlus: ctx.canCreateFeature && sourceArtId !== "",
-      sourceArtId,
-      canChangeType: ctx.canLinkDependency && sourceArtId !== "",
-      canInsert: sourceArtId !== "",
-    };
-    return {
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      type: "insertable",
-      label: EDGE_LABEL[e.type],
-      animated: s.animated,
-      style: s.style,
-      markerEnd: s.marker,
-      data: data as unknown as Record<string, unknown>,
-    };
-  });
-
-  return { nodes: rfNodes, edges: rfEdges };
-}
-
 export function BreakdownNetworkView({
   epicId,
   tenantId,

@@ -1,6 +1,6 @@
-import { PiTransitionButton } from "@/modules/drumbeat/features/pi/components/pi-transition-button";
-import { AdvanceCadenceButton } from "@/modules/drumbeat/features/pi/components/advance-cadence-button";
-import { DeletePiButton } from "@/modules/drumbeat/features/pi/components/delete-pi-button";
+import { PiTransitionButton } from "@/modules/drumbeat/features/cockpit/components/pi-transition-button";
+import { AdvanceCadenceButton } from "@/modules/drumbeat/features/cockpit/components/advance-cadence-button";
+import { DeletePiButton } from "@/modules/drumbeat/features/cockpit/components/delete-pi-button";
 import type { CockpitPiSlot } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 
 /**
