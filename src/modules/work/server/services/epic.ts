@@ -29,6 +29,7 @@ import {
 } from "@/modules/work/domain/business-case";
 import type { TimelineFields } from "@/modules/work/domain/timeline";
 import { timelinePlannedWindow } from "@/modules/work/domain/epic-schedule";
+import { isSubmissionReady } from "@/modules/work/domain/submission";
 
 // ---------------------------------------------------------------------------
 // Create Epic (level 0)
@@ -96,6 +97,13 @@ export interface UpdateEpicInput {
   /** SAFe Portfolio Guardrails. `null` cleart, `undefined` belaesst. */
   epicType?: EpicType | null | undefined;
   investmentHorizon?: Horizon | null | undefined;
+  /** Participatory-Budgeting-Einreichungsfelder. `null` cleart, `undefined` belaesst. */
+  mandatory?: boolean | undefined;
+  costToMvp?: number | null | undefined;
+  riskRating?: string | null | undefined;
+  problemStatement?: string | null | undefined;
+  mvpCut?: string | null | undefined;
+  ifNotFunded?: string | null | undefined;
 }
 
 export async function updateEpic(
@@ -113,6 +121,12 @@ export async function updateEpic(
     plannedEndAt,
     epicType,
     investmentHorizon,
+    mandatory,
+    costToMvp,
+    riskRating,
+    problemStatement,
+    mvpCut,
+    ifNotFunded,
   } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
@@ -128,6 +142,12 @@ export async function updateEpic(
         plannedEndAt: true,
         epicType: true,
         investmentHorizon: true,
+        mandatory: true,
+        costToMvp: true,
+        riskRating: true,
+        problemStatement: true,
+        mvpCut: true,
+        ifNotFunded: true,
       },
     });
     if (isErr(loaded)) return loaded;
@@ -144,8 +164,36 @@ export async function updateEpic(
       });
     }
 
+    // `costToMvp` ist Decimal — für den Diff auf number normalisieren (Prisma
+    // akzeptiert number beim Update), damit existing/update typgleich sind.
+    const existingForDiff = {
+      ...existing,
+      costToMvp: existing.costToMvp != null ? Number(existing.costToMvp) : null,
+    };
+
+    // Vormerk-Gate (B/S1.2): ein Epic darf nur auf den PB-Ballot, wenn es
+    // einreichungsbereit ist. Prüfung gegen die *effektiven* Felder (existing +
+    // dieses Update), damit „Feld setzen + vormerken" in einem Zug funktioniert.
+    if (stagedForBudgeting === true) {
+      const eff = {
+        problemStatement:
+          problemStatement !== undefined ? problemStatement : existing.problemStatement,
+        mvpCut: mvpCut !== undefined ? mvpCut : existing.mvpCut,
+        costToMvp: costToMvp !== undefined ? costToMvp : existingForDiff.costToMvp,
+        riskRating: riskRating !== undefined ? riskRating : existing.riskRating,
+        ifNotFunded: ifNotFunded !== undefined ? ifNotFunded : existing.ifNotFunded,
+      };
+      if (!isSubmissionReady(eff)) {
+        return err({
+          kind: "conflict" as const,
+          reason:
+            "Epic ist nicht einreichungsbereit — Pflichtfelder fehlen: Problem, MVP-Schnitt, Kosten bis MVP, Risiko, Wenn-nicht-finanziert.",
+        });
+      }
+    }
+
     const { changes, data } = recordedUpdate({
-      existing,
+      existing: existingForDiff,
       updates: {
         title,
         description,
@@ -155,6 +203,12 @@ export async function updateEpic(
         plannedEndAt,
         epicType,
         investmentHorizon,
+        mandatory,
+        costToMvp,
+        riskRating,
+        problemStatement,
+        mvpCut,
+        ifNotFunded,
       },
       fields: [
         "title",
@@ -165,6 +219,12 @@ export async function updateEpic(
         "plannedEndAt",
         "epicType",
         "investmentHorizon",
+        "mandatory",
+        "costToMvp",
+        "riskRating",
+        "problemStatement",
+        "mvpCut",
+        "ifNotFunded",
       ] as const,
     });
 

@@ -22,6 +22,7 @@ export type RevalidationResource =
   | "epic"
   | "valueStream"
   | "budgetAllocation"
+  | "budgetRound"
   | "pi"
   | "piStandard"
   | "budgetPlanRevision"
@@ -77,6 +78,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   pi: ["/umsetzung", "/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi-planning"],
   piStandard: ["/structure", "/value-streams/[id]"],
   budgetPlanRevision: ["/budgeting", "/budgeting/budget-plan", "/budgeting/budget-plan/[id]"],
+  budgetRound: ["/budgeting", "/budgeting/rounds", "/budgeting/rounds/[id]"],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
   // the structure tab that hosts the management UI.
   timeline: ["/umsetzung", "/structure", "/pi-planning", "/pi/[piId]", "/art/[artId]/pi", "/feature/[featureId]"],

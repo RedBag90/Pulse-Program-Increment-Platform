@@ -74,6 +74,7 @@ model Tenant {
   budgetAllocations     BudgetAllocation[]
   artBudgets            ArtBudget[]
   budgetPlanRevisions   BudgetPlanRevision[]
+  budgetRounds          BudgetRound[]
   piStandards           PiStandard[]
   timelines             Timeline[]
   setupProgress         SetupProgress[]
@@ -825,6 +826,16 @@ model Initiative {
   needsSteeringAttention Boolean @default(false) @map("needs_steering_attention")
   stagedForBudgeting     Boolean @default(false) @map("staged_for_budgeting")
 
+  // Participatory-Budgeting-Einreichungsfelder (EPIC only). `mandatory` = vorab
+  // gesetztes Pflichtvorhaben (vom Topf abgezogen, nicht auf dem Ballot).
+  // `costToMvp` = kanonische Kosten-bis-MVP als eine Zahl (PB-Verteileinheit).
+  mandatory        Boolean  @default(false)
+  costToMvp        Decimal? @map("cost_to_mvp") @db.Decimal(14, 2)
+  riskRating       String?  @map("risk_rating") // hoch | mittel | gering
+  problemStatement String?  @map("problem_statement")
+  mvpCut           String?  @map("mvp_cut")
+  ifNotFunded      String?  @map("if_not_funded")
+
   createdAt DateTime  @default(now()) @map("created_at")
   createdBy String    @map("created_by") @db.Uuid
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -846,6 +857,8 @@ model Initiative {
   themeLinks       ThemeEpicLink[]
   goalLinks        GoalEpicLink[]
   budgetAllocation BudgetAllocation?
+  groupAllocations GroupAllocation[]
+  budgetDecisions  BudgetDecision[]
   issues           Issue[]
 
   @@index([tenantId])
@@ -1095,6 +1108,125 @@ model BudgetPlanRevision {
   @@unique([tenantId, cycleKey])
   @@index([tenantId, capturedAt(sort: Desc)])
   @@map("budget_plan_revisions")
+}
+
+/// Participatory-Budgeting-Runde je Halbjahres-Cycle: mehrere Gruppen verteilen
+/// denselben Topf unabhängig auf dieselben Epics; ausgewertet wird die
+/// Übereinstimmung (Drei-Zonen). Status: draft → running → decided → closed.
+model BudgetRound {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenantId             String    @map("tenant_id") @db.Uuid
+  cycleKey             String    @map("cycle_key") // "YYYY-H1" | "YYYY-H2"
+  poolTotal            Decimal   @default(0) @map("pool_total") @db.Decimal(14, 2)
+  status               String    @default("draft") // draft|running|decided|closed
+  scarcityFactor       Decimal?  @map("scarcity_factor") @db.Decimal(8, 4)
+  reserveAmount        Decimal?  @map("reserve_amount") @db.Decimal(14, 2)
+  decisionAuthorityIds String[]  @map("decision_authority_ids") @db.Uuid
+  plannedAt            DateTime? @map("planned_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  groups      BudgetGroup[]
+  allocations GroupAllocation[]
+  decisions   BudgetDecision[]
+
+  @@unique([tenantId, cycleKey])
+  @@index([tenantId])
+  @@map("budget_rounds")
+}
+
+/// Eine Teilnehmer-Gruppe einer Runde (≥3, heterogen geschnitten).
+model BudgetGroup {
+  id             String  @id @default(uuid()) @db.Uuid
+  roundId        String  @map("round_id") @db.Uuid
+  name           String
+  spokespersonId String? @map("spokesperson_id") @db.Uuid
+
+  round       BudgetRound         @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  members     BudgetGroupMember[]
+  allocations GroupAllocation[]
+  reportOut   GroupReportOut?
+
+  @@index([roundId])
+  @@map("budget_groups")
+}
+
+/// Mitglied einer Gruppe. `hasRead` = Pre-Read-Häkchen (C-05).
+model BudgetGroupMember {
+  id          String  @id @default(uuid()) @db.Uuid
+  groupId     String  @map("group_id") @db.Uuid
+  userId      String  @map("user_id") @db.Uuid
+  team        String?
+  isSubmitter Boolean @default(false) @map("is_submitter")
+  seniority   String?
+  hasRead     Boolean @default(false) @map("has_read")
+
+  group BudgetGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@map("budget_group_members")
+}
+
+/// Ergebnis einer Gruppe je Epic: Ja/Nein bis MVP (all-or-nothing, D-02).
+model GroupAllocation {
+  id      String  @id @default(uuid()) @db.Uuid
+  roundId String  @map("round_id") @db.Uuid
+  groupId String  @map("group_id") @db.Uuid
+  epicId  String  @map("epic_id") @db.Uuid
+  funded  Boolean @default(false)
+  note    String?
+
+  round      BudgetRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  group      BudgetGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  initiative Initiative  @relation(fields: [epicId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, epicId])
+  @@index([roundId])
+  @@map("group_allocations")
+}
+
+/// Entscheidung der Instanz je Streuzonen-Epic. Begründung Pflicht bei Abweichung
+/// von der Gruppenmehrheit (E-04).
+model BudgetDecision {
+  id                   String  @id @default(uuid()) @db.Uuid
+  roundId              String  @map("round_id") @db.Uuid
+  epicId               String  @map("epic_id") @db.Uuid
+  outcome              String // funded | rejected | deferred_with_review
+  justification        String?
+  deferredCheckTask    String? @map("deferred_check_task")
+  deviatesFromMajority Boolean @default(false) @map("deviates_from_majority")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+
+  round      BudgetRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  initiative Initiative  @relation(fields: [epicId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, epicId])
+  @@index([roundId])
+  @@map("budget_decisions")
+}
+
+/// Report-out einer Gruppe (E-01): teuerste Zusage / klarstes Nein / größter
+/// Streitpunkt, je mit Begründung. Epic-Referenzen als Id (keine FK).
+model GroupReportOut {
+  id                   String  @id @default(uuid()) @db.Uuid
+  groupId              String  @unique @map("group_id") @db.Uuid
+  costliestYesEpicId   String? @map("costliest_yes_epic_id") @db.Uuid
+  clearestNoEpicId     String? @map("clearest_no_epic_id") @db.Uuid
+  biggestDisputeEpicId String? @map("biggest_dispute_epic_id") @db.Uuid
+  costliestYesReason   String? @map("costliest_yes_reason")
+  clearestNoReason     String? @map("clearest_no_reason")
+  disputeReason        String? @map("dispute_reason")
+
+  group BudgetGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@map("group_report_outs")
 }
 
 model Dependency {

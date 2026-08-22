@@ -186,6 +186,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               epic={epic}
               canEdit={model.canEdit}
               kpiBenefit={model.kpiBenefit}
+              submission={model.submission}
             />
           </div>
         )}

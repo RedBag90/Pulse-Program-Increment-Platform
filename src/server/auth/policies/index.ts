@@ -65,6 +65,8 @@ export type Action =
   | "budget.manage"
   | "budget_plan.revision.capture"
   | "budget.cycle.advance"
+  | "budget.round.manage"
+  | "budget.round.decide"
   | "timeline.manage"
   | "art_budget.manage"
   | "kpi.bind"
@@ -133,6 +135,10 @@ export const POLICIES: Record<Action, Grant[]> = {
   // revision record.
   "budget_plan.revision.capture": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
   "budget.cycle.advance": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
+  // Participatory Budgeting: Moderator führt die Runde (Rahmen/Gruppen/Erfassung),
+  // die Entscheidungsinstanz entscheidet die Streuzone.
+  "budget.round.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
+  "budget.round.decide": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
   // Timelines are the shared PI cadences ARTs subscribe to. Managing the
   // catalogue (create / rename / delete / join / leave) sits with the same
   // audience that already shapes the portfolio plan.
