@@ -81,17 +81,27 @@ export async function setGroupAmount(
       return err({ kind: "not_found" as const, resourceType: "BudgetCandidate", id: input.candidateId });
     }
 
-    const row = await tx.groupAllocation.upsert({
-      where: { groupId_candidateId: { groupId: input.groupId, candidateId: input.candidateId } },
-      update: { amount: input.amount },
-      create: {
-        roundId: g.roundId,
-        groupId: input.groupId,
-        candidateId: input.candidateId,
-        amount: input.amount,
-      },
+    // Eindeutigkeit (groupId, candidateId) im Service: bestehende Zeile finden,
+    // sonst anlegen (kein Prisma-Unique auf der Tabelle).
+    const existing = await tx.groupAllocation.findFirst({
+      where: { groupId: input.groupId, candidateId: input.candidateId },
       select: { id: true },
     });
+    const row = existing
+      ? await tx.groupAllocation.update({
+          where: { id: existing.id },
+          data: { amount: input.amount },
+          select: { id: true },
+        })
+      : await tx.groupAllocation.create({
+          data: {
+            roundId: g.roundId,
+            groupId: input.groupId,
+            candidateId: input.candidateId,
+            amount: input.amount,
+          },
+          select: { id: true },
+        });
 
     return ok({
       result: { id: row.id },

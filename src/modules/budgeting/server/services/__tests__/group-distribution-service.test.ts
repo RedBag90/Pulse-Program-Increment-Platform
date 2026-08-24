@@ -43,7 +43,11 @@ function txWith(group: GroupRow, extra: Partial<Tx> = {}): Tx {
       update: vi.fn(async () => ({})),
     },
     budgetCandidate: { findFirst: vi.fn(async () => ({ id: "c1" })) },
-    groupAllocation: { upsert: vi.fn(async () => ({ id: "a1" })) },
+    groupAllocation: {
+      findFirst: vi.fn(async () => null),
+      create: vi.fn(async () => ({ id: "a1" })),
+      update: vi.fn(async () => ({ id: "a1" })),
+    },
     auditEvent: { create: vi.fn(async () => ({})) },
     ...extra,
   };
@@ -62,14 +66,14 @@ describe("setGroupAmount", () => {
     const t = txWith(runningGroup());
     const res = await setGroupAmount(ctxWith(t), { groupId: "g1", candidateId: "c1", amount: 1000 });
     expect(res.ok).toBe(true);
-    expect(t.groupAllocation!.upsert).toHaveBeenCalled();
+    expect(t.groupAllocation!.create).toHaveBeenCalled();
   });
 
   it("Nicht-Mitglied wird abgewiesen (forbidden)", async () => {
     const t = txWith(runningGroup({ members: [{ userId: "someone-else", isSubmitter: false }] }));
     const res = await setGroupAmount(ctxWith(t), { groupId: "g1", candidateId: "c1", amount: 1000 });
     expect(res.ok).toBe(false);
-    expect(t.groupAllocation!.upsert).not.toHaveBeenCalled();
+    expect(t.groupAllocation!.create).not.toHaveBeenCalled();
   });
 
   it("lehnt Schreiben ab, wenn bereits eingereicht", async () => {

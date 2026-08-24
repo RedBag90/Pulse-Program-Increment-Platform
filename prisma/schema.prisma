@@ -1205,9 +1205,11 @@ model GroupAllocation {
   candidate  BudgetCandidate? @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, epicId])
-  @@unique([groupId, candidateId])
+  // (groupId, candidateId)-Eindeutigkeit wird im Service erzwungen (kein
+  // Prisma-Unique auf der bestehenden Tabelle → additiver, warnungsfreier
+  // `prisma db push`).
   @@index([roundId])
-  @@index([candidateId])
+  @@index([groupId, candidateId])
   @@map("group_allocations")
 }
 
