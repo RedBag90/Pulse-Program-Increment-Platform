@@ -119,7 +119,7 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
   budgeting: {
     label: "Budgeting",
     segments: ["budgeting"],
-    actions: ["budget.", "budget_plan.", "art_budget."],
+    actions: ["budget.", "budget_plan.", "art_budget.", "rtb_item."],
     home: "/budgeting",
   },
   risks: {

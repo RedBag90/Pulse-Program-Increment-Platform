@@ -2,12 +2,13 @@ import { z } from "zod";
 import { createEpic, listEpics } from "@/modules/work/server/services/epic";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { createQueryHandler } from "@/server/http/query-handler";
-import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
+import type { ValueStreamId, ArtId } from "@/modules/core/kernel/domain/types";
 
 const createEpicSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().optional(),
   valueStreamId: z.string().uuid(),
+  artId: z.string().uuid(),
 });
 
 export const GET = createQueryHandler({
@@ -23,5 +24,6 @@ export const POST = createMutationHandler({
       title: input.title,
       description: input.description,
       valueStreamId: input.valueStreamId as ValueStreamId,
+      artId: input.artId as ArtId,
     }),
 });

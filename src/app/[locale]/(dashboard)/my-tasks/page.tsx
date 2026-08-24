@@ -17,6 +17,8 @@ import { buildEpicsListModel } from "@/modules/work/server/views/portfolio-epics
 import { buildFeaturesListModel } from "@/server/views/features-list";
 import { buildMyTasksListModel } from "@/modules/work/server/views/my-tasks-list";
 import { MyTasksListShell } from "@/modules/work/features/my-tasks/components/my-tasks-list-shell";
+import { listMyBudgetingTasks } from "@/modules/budgeting/server/services/my-budgeting-tasks";
+import { BudgetingTasksSection } from "@/modules/budgeting/features/components/my-tasks/budgeting-tasks-section";
 
 /** Pickt den jüngsten KPI-Messwert (gleicher Helper wie auf /portfolio/epics). */
 interface KpiMeasurement {
@@ -219,9 +221,18 @@ export default async function MyTasksPage() {
     canEditFeature,
   });
 
+  // Cross-Modul (ADR-0013): der Budgeting-Hinweis wird am Kompositionsroot
+  // geladen (Work importiert nicht Budgeting), hinter dem Modul-Gate.
+  const budgetingTasks = principal.enabledModules.includes("budgeting")
+    ? await listMyBudgetingTasks(db, { id: principal.id, tenantId })
+    : [];
+
   return (
-    <Suspense fallback={null}>
-      <MyTasksListShell model={model} tenantId={tenantId} showWsjf={practices.wsjf} />
-    </Suspense>
+    <>
+      <BudgetingTasksSection tasks={budgetingTasks} />
+      <Suspense fallback={null}>
+        <MyTasksListShell model={model} tenantId={tenantId} showWsjf={practices.wsjf} />
+      </Suspense>
+    </>
   );
 }

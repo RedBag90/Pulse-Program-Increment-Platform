@@ -75,6 +75,7 @@ model Tenant {
   artBudgets            ArtBudget[]
   budgetPlanRevisions   BudgetPlanRevision[]
   budgetRounds          BudgetRound[]
+  runTheBusinessItems   RunTheBusinessItem[]
   piStandards           PiStandard[]
   timelines             Timeline[]
   setupProgress         SetupProgress[]
@@ -584,6 +585,7 @@ model ValueStream {
   epics             Initiative[]            @relation("EpicValueStream")
   goalLinks         GoalValueStreamLink[]
   gateApproverRules StageGateApproverRule[]
+  rtbItems          RunTheBusinessItem[]
 
   // Uniqueness among *active* (non-deleted) rows is enforced by a partial unique
   // index created out-of-band (see prisma/manual-indexes.sql) — Prisma can't
@@ -1116,35 +1118,47 @@ model BudgetPlanRevision {
 model BudgetRound {
   id                   String    @id @default(uuid()) @db.Uuid
   tenantId             String    @map("tenant_id") @db.Uuid
-  cycleKey             String    @map("cycle_key") // "YYYY-H1" | "YYYY-H2"
+  cycleKey             String    @map("cycle_key") // "YYYY-H1" | "YYYY-H2" (abgeleitet aus startDate)
   poolTotal            Decimal   @default(0) @map("pool_total") @db.Decimal(14, 2)
   status               String    @default("draft") // draft|running|decided|closed
   scarcityFactor       Decimal?  @map("scarcity_factor") @db.Decimal(8, 4)
   reserveAmount        Decimal?  @map("reserve_amount") @db.Decimal(14, 2)
   decisionAuthorityIds String[]  @map("decision_authority_ids") @db.Uuid
   plannedAt            DateTime? @map("planned_at")
+  // Kachel-Modell: Start-Termin der Budgeting-Phase + Ende (Default Start+6 Mon.)
+  // + Verteil-Deadline der Gruppen. Nullbar für Alt-Runden (das Kachel-Anlegen
+  // setzt sie stets). Identität ist `id`, nicht mehr `(tenantId, cycleKey)` —
+  // mehrere/zukünftige Kacheln koexistieren.
+  startDate            DateTime? @map("start_date")
+  endDate              DateTime? @map("end_date")
+  submissionDeadline   DateTime? @map("submission_deadline")
 
   createdAt DateTime @default(now()) @map("created_at")
   createdBy String   @map("created_by") @db.Uuid
   updatedAt DateTime @updatedAt @map("updated_at")
   updatedBy String   @map("updated_by") @db.Uuid
 
-  tenant      Tenant            @relation(fields: [tenantId], references: [id])
-  groups      BudgetGroup[]
-  allocations GroupAllocation[]
-  decisions   BudgetDecision[]
+  tenant       Tenant              @relation(fields: [tenantId], references: [id])
+  groups       BudgetGroup[]
+  allocations  GroupAllocation[]
+  decisions    BudgetDecision[]
+  participants BudgetParticipant[]
+  candidates   BudgetCandidate[]
 
-  @@unique([tenantId, cycleKey])
   @@index([tenantId])
+  @@index([tenantId, cycleKey])
   @@map("budget_rounds")
 }
 
 /// Eine Teilnehmer-Gruppe einer Runde (≥3, heterogen geschnitten).
 model BudgetGroup {
-  id             String  @id @default(uuid()) @db.Uuid
-  roundId        String  @map("round_id") @db.Uuid
+  id             String    @id @default(uuid()) @db.Uuid
+  roundId        String    @map("round_id") @db.Uuid
   name           String
-  spokespersonId String? @map("spokesperson_id") @db.Uuid
+  spokespersonId String?   @map("spokesperson_id") @db.Uuid
+  // Abgabe-Status der Gruppen-Verteilung (Sprecher reicht ein).
+  submittedAt    DateTime? @map("submitted_at")
+  submittedBy    String?   @map("submitted_by") @db.Uuid
 
   round       BudgetRound         @relation(fields: [roundId], references: [id], onDelete: Cascade)
   members     BudgetGroupMember[]
@@ -1172,22 +1186,100 @@ model BudgetGroupMember {
   @@map("budget_group_members")
 }
 
-/// Ergebnis einer Gruppe je Epic: Ja/Nein bis MVP (all-or-nothing, D-02).
+/// €-Vorschlag einer Gruppe je Ballot-Kandidat (Kachel-Modell). Legacy: `epicId`
+/// + `funded` (Ja/Nein bis MVP) aus dem alten Drei-Zonen-Flow — nullbar während
+/// des Umbaus, fällt im Cutover (Phase 5) weg.
 model GroupAllocation {
-  id      String  @id @default(uuid()) @db.Uuid
-  roundId String  @map("round_id") @db.Uuid
-  groupId String  @map("group_id") @db.Uuid
-  epicId  String  @map("epic_id") @db.Uuid
-  funded  Boolean @default(false)
-  note    String?
+  id          String  @id @default(uuid()) @db.Uuid
+  roundId     String  @map("round_id") @db.Uuid
+  groupId     String  @map("group_id") @db.Uuid
+  epicId      String? @map("epic_id") @db.Uuid
+  candidateId String? @map("candidate_id") @db.Uuid
+  amount      Decimal @default(0) @db.Decimal(14, 2)
+  funded      Boolean @default(false)
+  note        String?
 
-  round      BudgetRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  group      BudgetGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  initiative Initiative  @relation(fields: [epicId], references: [id], onDelete: Cascade)
+  round      BudgetRound      @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  group      BudgetGroup      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  initiative Initiative?      @relation(fields: [epicId], references: [id], onDelete: Cascade)
+  candidate  BudgetCandidate? @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, epicId])
+  @@unique([groupId, candidateId])
   @@index([roundId])
+  @@index([candidateId])
   @@map("group_allocations")
+}
+
+/// Vereinheitlichter Ballot-Kandidat je Kachel: ein Epic ODER eine
+/// Run-the-Business-Position. Beim Start eingefroren. `valueStreamId`/`artId`
+/// sind denormalisiert (für die VS-/ART-Ableitung, keine FK). `finalAmount` =
+/// Finance-Endbetrag.
+model BudgetCandidate {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  roundId       String   @map("round_id") @db.Uuid
+  kind          String // "epic" | "rtb"
+  epicId        String?  @map("epic_id") @db.Uuid
+  rtbItemId     String?  @map("rtb_item_id") @db.Uuid
+  title         String
+  ask           Decimal  @default(0) @db.Decimal(14, 2)
+  valueStreamId String?  @map("value_stream_id") @db.Uuid
+  artId         String?  @map("art_id") @db.Uuid
+  finalAmount   Decimal? @map("final_amount") @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  round       BudgetRound       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  allocations GroupAllocation[]
+
+  @@unique([roundId, epicId])
+  @@unique([roundId, rtbItemId])
+  @@index([roundId])
+  @@index([tenantId])
+  @@map("budget_candidates")
+}
+
+/// Roster der Beteiligten einer Runde (Schritt 1 vor der Gruppenbildung).
+model BudgetParticipant {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  roundId  String @map("round_id") @db.Uuid
+  userId   String @map("user_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+
+  round BudgetRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, userId])
+  @@index([roundId])
+  @@map("budget_participants")
+}
+
+/// Stehende Run-the-Business-Position eines Value Streams (mehrere je VS), vom
+/// VS-Owner gepflegt. `plannedAmount` = Richtwert/Ask (analog Epic.costToMvp).
+model RunTheBusinessItem {
+  id            String  @id @default(uuid()) @db.Uuid
+  tenantId      String  @map("tenant_id") @db.Uuid
+  valueStreamId String  @map("value_stream_id") @db.Uuid
+  name          String
+  plannedAmount Decimal @default(0) @map("planned_amount") @db.Decimal(14, 2)
+  active        Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  valueStream ValueStream @relation(fields: [valueStreamId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, valueStreamId])
+  @@map("run_the_business_items")
 }
 
 /// Entscheidung der Instanz je Streuzonen-Epic. Begründung Pflicht bei Abweichung

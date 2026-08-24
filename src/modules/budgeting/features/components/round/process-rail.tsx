@@ -1,5 +1,5 @@
 import { Link } from "@/i18n/navigation";
-import type { ProcessStep } from "@/modules/budgeting/server/views/process-rail";
+import type { ProcessStep } from "@/modules/budgeting/server/views/budget-process-rail";
 
 const STATE_SUBLABEL = {
   done: "erledigt",
@@ -9,9 +9,9 @@ const STATE_SUBLABEL = {
 } as const;
 
 /**
- * Prozess-Leiste der Budget-Runde: fünf Schritte mit Zustand (erledigt / offen /
+ * Prozess-Leiste des Budget-Flusses: die Schritte mit Zustand (erledigt / offen /
  * blockiert) und Deep-Link. Rein präsentational; die Zustände kommen aus
- * `buildProcessRail`.
+ * `buildBudgetProcessRail`.
  */
 export function ProcessRail({ steps }: { steps: ProcessStep[] }) {
   const activeIdx = steps.findIndex((s) => !s.done && !s.blocked);

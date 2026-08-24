@@ -1,10 +1,11 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
-import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { resolveActiveCycle } from "@/modules/budgeting/domain/budget-cycle";
 import { checkGroupCut, type CutWarning } from "@/modules/budgeting/domain/group-cut";
 import { getRoundForCycle } from "@/modules/budgeting/server/services/round-service";
+import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
 
 export interface RoundGroupView {
   id: string;
@@ -30,7 +31,11 @@ export interface RoundSetupModel {
     decisionAuthorityIds: string[];
   } | null;
   groups: RoundGroupView[];
+  /** Tenant-Nutzer (Id → E-Mail) für Mitglieder-/Sprecher-Auswahl. */
+  users: { id: string; label: string }[];
   cutWarnings: CutWarning[];
+  /** Die tatsächlichen Ballot-Epics (vorgemerkt, nicht Pflicht) — gespiegelt. */
+  ballot: { id: string; title: string; cost: number }[];
   /** Vorgemerkte + einreichungsbereite Epics = Ballot-Kandidaten. */
   ballotCount: number;
   /** Pflichtvorhaben (vom Topf abzuziehen, nicht auf dem Ballot). */
@@ -56,6 +61,11 @@ export async function loadRoundSetup(
   );
   const canManage = hasCapability(principal, "budget.round.manage", { tenantId: principal.tenantId });
 
+  const userLabels = await listTenantUserLabels(db, principal.tenantId);
+  const users = Object.entries(userLabels)
+    .map(([id, label]) => ({ id, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
   const round = await getRoundForCycle(db, principal.tenantId, cycleKey);
 
   const groups: RoundGroupView[] = (round?.groups ?? []).map((g) => ({
@@ -78,28 +88,7 @@ export async function loadRoundSetup(
     ),
   );
 
-  const [ballotCount, mandatoryEpics] = await Promise.all([
-    db.initiative.count({
-      where: {
-        tenantId: principal.tenantId,
-        level: InitiativeLevel.EPIC,
-        deletedAt: null,
-        stagedForBudgeting: true,
-        mandatory: false,
-      },
-    }),
-    db.initiative.findMany({
-      where: {
-        tenantId: principal.tenantId,
-        level: InitiativeLevel.EPIC,
-        deletedAt: null,
-        mandatory: true,
-      },
-      select: { costToMvp: true },
-    }),
-  ]);
-
-  const mandatorySum = mandatoryEpics.reduce((s, e) => s + (e.costToMvp ? Number(e.costToMvp) : 0), 0);
+  const { ballot, mandatoryCount, mandatorySum } = await loadRoundBallot(db, principal.tenantId);
 
   return {
     cycleKey,
@@ -114,9 +103,11 @@ export async function loadRoundSetup(
         }
       : null,
     groups,
+    users,
     cutWarnings,
-    ballotCount,
-    mandatoryCount: mandatoryEpics.length,
+    ballot,
+    ballotCount: ballot.length,
+    mandatoryCount,
     mandatorySum,
   };
 }

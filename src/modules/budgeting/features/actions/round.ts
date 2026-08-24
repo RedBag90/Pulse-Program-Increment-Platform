@@ -7,8 +7,8 @@ import { formatDomainError } from "@/server/http/domain-error-display";
 import {
   createRound,
   updateRoundFrame,
-  transitionRound,
 } from "@/modules/budgeting/server/services/round-service";
+import { transitionRoundThenProtocol } from "@/modules/budgeting/server/services/budget-plan-revision";
 import {
   addGroup,
   updateGroup,
@@ -85,7 +85,7 @@ export const transitionRoundAction = createServerAction({
     const f = fields(fd);
     return { id: f.string("id"), to: f.string("to") as RoundStatus };
   },
-  service: (ctx, i) => transitionRound(ctx, { id: i.id, to: i.to }),
+  service: (ctx, i) => transitionRoundThenProtocol(ctx, { id: i.id, to: i.to }),
   revalidate: "budgetRound",
   mapError: err,
 });

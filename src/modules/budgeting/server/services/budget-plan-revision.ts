@@ -12,9 +12,18 @@ import {
   type FeatureSnapshotInput,
 } from "@/modules/budgeting/domain/budget-plan-snapshot";
 import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
+import {
+  buildPbRoundSnapshot,
+  type PbRoundSnapshot,
+} from "@/modules/budgeting/domain/pb-round-snapshot";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { getBudgetingBoard } from "@/modules/budgeting/server/services/budgeting";
+import { getRoundForCycle, transitionRound } from "@/modules/budgeting/server/services/round-service";
+import type { RoundStatus } from "@/modules/budgeting/domain/round-status";
+import { loadZonesModel } from "@/modules/budgeting/server/views/zones-view";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { hasCapability } from "@/server/auth/authorize";
 
 /**
  * Budget-Plan-Revisionen — manually-triggered, half-year-keyed snapshots of
@@ -61,9 +70,14 @@ export async function captureBudgetPlanRevision(
     features: featureRows,
   });
 
+  // Ein Protokoll (F-C3): die PB-Runde desselben Cycles wird — wenn vorhanden —
+  // als zweite Schicht in dieselbe Revision gefaltet.
+  const round = await loadPbRoundSnapshot(ctx.db, mctx.tenantId, cycleKey);
+
   const payload: Prisma.InputJsonValue = {
     version: SNAPSHOT_VERSION,
     snapshot,
+    ...(round ? { round } : {}),
   } as unknown as Prisma.InputJsonValue;
 
   return withAuditedTransaction(mctx, async (tx) => {
@@ -98,6 +112,103 @@ export async function captureBudgetPlanRevision(
       },
     });
   });
+}
+
+/**
+ * Lädt die PB-Runde des Cycles + Zonen/Entscheidungen/Report-outs und faltet sie
+ * in den Runden-Snapshot. `null`, wenn es für den Cycle keine Runde gibt.
+ */
+async function loadPbRoundSnapshot(
+  db: PrismaClient,
+  tenantId: TenantId,
+  cycleKey: string,
+): Promise<PbRoundSnapshot | null> {
+  const round = await getRoundForCycle(db, tenantId, cycleKey);
+  if (!round) return null;
+
+  const [zones, decisions, reportOuts, userLabels] = await Promise.all([
+    loadZonesModel(db, tenantId, round.id),
+    db.budgetDecision.findMany({
+      where: { roundId: round.id },
+      select: { epicId: true, outcome: true },
+    }),
+    db.groupReportOut.findMany({
+      where: { group: { roundId: round.id } },
+      select: {
+        groupId: true,
+        costliestYesEpicId: true,
+        clearestNoEpicId: true,
+        biggestDisputeEpicId: true,
+        costliestYesReason: true,
+        clearestNoReason: true,
+        disputeReason: true,
+      },
+    }),
+    listTenantUserLabels(db, tenantId),
+  ]);
+
+  const titleByEpic = new Map((zones?.epics ?? []).map((e) => [e.epicId, e.title]));
+  const reportByGroup = new Map(reportOuts.map((r) => [r.groupId, r]));
+  const labelOf = (id: string | null) => (id ? (userLabels[id] ?? id) : null);
+  const epicTitle = (id: string | null) => (id ? (titleByEpic.get(id) ?? null) : null);
+
+  const groups = round.groups.map((g) => {
+    const r = reportByGroup.get(g.id);
+    return {
+      name: g.name,
+      spokesperson: labelOf(g.spokespersonId),
+      reportOut: r
+        ? {
+            costliestYes: epicTitle(r.costliestYesEpicId),
+            costliestYesReason: r.costliestYesReason,
+            clearestNo: epicTitle(r.clearestNoEpicId),
+            clearestNoReason: r.clearestNoReason,
+            biggestDispute: epicTitle(r.biggestDisputeEpicId),
+            disputeReason: r.disputeReason,
+          }
+        : null,
+    };
+  });
+
+  return buildPbRoundSnapshot({
+    cycleKey,
+    status: round.status,
+    poolTotal: Number(round.poolTotal),
+    reserve: round.reserveAmount != null ? Number(round.reserveAmount) : null,
+    zoneEpics: (zones?.epics ?? []).map((e) => ({
+      epicId: e.epicId,
+      title: e.title,
+      cost: e.cost,
+      zone: e.zone,
+      yes: e.yes,
+      total: e.total,
+    })),
+    decisions,
+    groups,
+  });
+}
+
+/**
+ * Runden-Übergang + (beim Schließen) das Protokoll mit-einfrieren (F-C3). Der
+ * Übergang bleibt die maßgebliche Mutation; die Protokoll-Erfassung ist eine
+ * additive, idempotente Folge (Upsert je Cycle) und nur ausgelöst, wenn der
+ * Akteur das Erfassungs-Recht hat — sonst bleibt der Snapshot per Button (die
+ * Übergabe-CTA weist darauf hin). Ein Fehler beim Erfassen kippt den bereits
+ * committeten Übergang nicht.
+ */
+export async function transitionRoundThenProtocol(
+  ctx: RequestContext,
+  input: { id: string; to: RoundStatus },
+): Promise<Result<void>> {
+  const res = await transitionRound(ctx, input);
+  if (
+    res.ok &&
+    input.to === "closed" &&
+    hasCapability(ctx.principal, "budget_plan.revision.capture", { tenantId: ctx.principal.tenantId })
+  ) {
+    await captureBudgetPlanRevision(ctx).catch(() => undefined);
+  }
+  return res;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,17 +265,31 @@ function toRevisionHeader(row: {
   };
 }
 
+/**
+ * Liest die optionale PB-Runden-Schicht aus der `payload`. `null`, wenn die
+ * Revision vor der Vereinheitlichung erfasst wurde oder es keine Runde gab.
+ */
+function parsePbRound(raw: unknown): PbRoundSnapshot | null {
+  if (raw == null || typeof raw !== "object") return null;
+  const round = (raw as Record<string, unknown>).round;
+  if (round == null || typeof round !== "object") return null;
+  if (!Array.isArray((round as { epics?: unknown }).epics)) return null;
+  return round as PbRoundSnapshot;
+}
+
 /** A single revision with its full payload — feeds the detail page. */
 export async function getBudgetPlanRevision(
   db: PrismaClient,
   tenantId: TenantId,
   id: string,
-): Promise<(BudgetPlanRevisionHeader & { snapshot: BudgetPlanSnapshot }) | null> {
+): Promise<
+  (BudgetPlanRevisionHeader & { snapshot: BudgetPlanSnapshot; round: PbRoundSnapshot | null }) | null
+> {
   const row = await db.budgetPlanRevision.findFirst({
     where: { id, tenantId },
     select: { id: true, cycleKey: true, capturedAt: true, capturedBy: true, payload: true },
   });
-  return row ? toRevisionHeader(row) : null;
+  return row ? { ...toRevisionHeader(row), round: parsePbRound(row.payload) } : null;
 }
 
 /**

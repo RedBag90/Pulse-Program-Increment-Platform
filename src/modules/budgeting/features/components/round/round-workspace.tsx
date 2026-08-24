@@ -15,7 +15,7 @@ import { SaveBar } from "@/modules/budgeting/features/components/round/save-bar"
 import { CandidatesSection } from "@/modules/budgeting/features/components/round/candidates-section";
 import { ProcessRail } from "@/modules/budgeting/features/components/round/process-rail";
 import { CycleControls } from "@/modules/budgeting/features/components/round/cycle-controls";
-import type { ProcessStep } from "@/modules/budgeting/server/views/process-rail";
+import type { ProcessStep } from "@/modules/budgeting/server/views/budget-process-rail";
 import type { BudgetingCandidate } from "@/modules/budgeting/server/services/budgeting";
 import type { ReactNode } from "react";
 import {

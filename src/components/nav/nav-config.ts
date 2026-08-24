@@ -7,7 +7,7 @@ import {
   Gauge,
   Map,
   LineChart,
-  Wallet,
+  LayoutGrid,
   GitBranch,
   Route,
   BarChart2,
@@ -138,25 +138,20 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [{ href: "/issues", labelKey: "issues", icon: ShieldAlert, exact: true }],
   },
   {
-    // Budgeting als eigenständiges Top-Level-Modul (Overview, teilnehmende
-    // Budgetierung, Budget-Plan). Via moduleAllowed ausgeblendet, wenn das
-    // Budgeting-Modul aus ist; das Board zusätzlich Capability-gegated.
+    // Budgeting als eigenständiges Top-Level-Modul: Kachel-Zeiträume (der
+    // Participatory-Budgeting-Prozess), Controlling-Übersicht, Budget-Plan. Via
+    // moduleAllowed ausgeblendet, wenn das Budgeting-Modul aus ist.
     labelKey: "budgeting",
-    defaultHref: "/budgeting",
+    defaultHref: "/budgeting/periods",
     items: [
-      { href: "/budgeting", labelKey: "controllingOverview", icon: Gauge, exact: true },
       {
-        href: "/budgeting/rounds",
-        labelKey: "pbRound",
-        icon: Wallet,
+        // Kachel-Gallery der Budgeting-Zeiträume — die Arbeitsfläche.
+        href: "/budgeting/periods",
+        labelKey: "budgetPeriods",
+        icon: LayoutGrid,
         capability: "budget.round.manage",
       },
-      {
-        href: "/budgeting/round",
-        labelKey: "participatoryBudgeting",
-        icon: Wallet,
-        capability: "budget.manage",
-      },
+      { href: "/budgeting", labelKey: "controllingOverview", icon: Gauge, exact: true },
       {
         href: "/budgeting/budget-plan",
         labelKey: "budgetPlan",

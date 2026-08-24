@@ -1,4 +1,4 @@
-import { ROLES, type Role } from "@/modules/core/kernel/domain/roles";
+import { ROLES, ALL_ROLES, type Role } from "@/modules/core/kernel/domain/roles";
 
 /**
  * The set of authorizable actions. Read actions are not gated here — RLS
@@ -67,8 +67,10 @@ export type Action =
   | "budget.cycle.advance"
   | "budget.round.manage"
   | "budget.round.decide"
+  | "budget.group.contribute"
   | "timeline.manage"
   | "art_budget.manage"
+  | "rtb_item.manage"
   | "kpi.bind"
   | "role.capability.manage"
   | "goal.custom_field.manage"
@@ -139,6 +141,11 @@ export const POLICIES: Record<Action, Grant[]> = {
   // die Entscheidungsinstanz entscheidet die Streuzone.
   "budget.round.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
   "budget.round.decide": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
+  // Selbst-Verteilung durch Gruppenmitglieder (Kachel-Modell): grober Vorfilter
+  // über ALLE Rollen — die maßgebliche Prüfung ist die Gruppen-Zugehörigkeit im
+  // Service (`BudgetGroupMember`), nicht eine Portfolio-Rolle. Nur der Sprecher
+  // (bzw. `isSubmitter`) darf einreichen; auch das prüft der Service.
+  "budget.group.contribute": [{ roles: ALL_ROLES }],
   // Timelines are the shared PI cadences ARTs subscribe to. Managing the
   // catalogue (create / rename / delete / join / leave) sits with the same
   // audience that already shapes the portfolio plan.
@@ -149,6 +156,13 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Der Service-Seam laesst zusaetzlich die Finance-Partei des Wertstroms zu
   // (`ValueStream.financeApproverId`), die keine Rolle hierfuer braucht.
   "art_budget.manage": [
+    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] },
+    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
+  ],
+  // Run-the-Business-Positionen eines Value Streams pflegen (stehend am VS).
+  // Modelliert auf `art_budget.manage`: `value_stream`-scoped für den VS-Owner;
+  // der Service-Seam lässt zusätzlich die Finance-Partei (`financeApproverId`) zu.
+  "rtb_item.manage": [
     { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] },
     { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
   ],

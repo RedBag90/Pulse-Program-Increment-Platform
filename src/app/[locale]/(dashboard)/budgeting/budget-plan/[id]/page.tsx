@@ -12,6 +12,7 @@ import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { BudgetPlanRevisionView } from "@/modules/budgeting/features/components/revision/budget-plan-revision-view";
 import { buildBudgetPlanRevisionModel } from "@/modules/budgeting/server/views/budget-plan-revision";
 import { CaptureRevisionButton } from "@/modules/budgeting/features/components/revision/capture-revision-button";
+import { PbRoundProtocol } from "@/modules/budgeting/features/components/revision/pb-round-protocol";
 import { Link } from "@/i18n/navigation";
 import { Page } from "@/components/layout";
 
@@ -83,6 +84,8 @@ export default async function BudgetPlanRevisionDetailPage({ params }: Props) {
         capturedBy={revision.capturedBy}
         userLabels={userLabels}
       />
+
+      {revision.round && <PbRoundProtocol round={revision.round} />}
     </Page>
   );
 }

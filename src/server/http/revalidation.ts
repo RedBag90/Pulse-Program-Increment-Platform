@@ -23,6 +23,8 @@ export type RevalidationResource =
   | "valueStream"
   | "budgetAllocation"
   | "budgetRound"
+  | "budgetPeriod"
+  | "rtbItem"
   | "pi"
   | "piStandard"
   | "budgetPlanRevision"
@@ -58,7 +60,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/portfolio/epics",
     "/portfolio/epics/[id]",
     "/portfolio/dashboard",
-    "/budgeting/board",
+    "/budgeting/round",
   ],
   valueStream: ["/structure", "/value-streams/[id]"],
   // Eine Epic-Zuteilung (oder der Topf) aendert das ABGELEITETE Wertstrom-Budget
@@ -67,7 +69,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   // nach dem Speichern veraltete Summen zeigten.
   budgetAllocation: [
     "/budgeting",
-    "/budgeting/board",
+    "/budgeting/round",
     "/portfolio",
     "/portfolio/epics/[id]",
     "/structure",
@@ -78,7 +80,9 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   pi: ["/umsetzung", "/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi-planning"],
   piStandard: ["/structure", "/value-streams/[id]"],
   budgetPlanRevision: ["/budgeting", "/budgeting/budget-plan", "/budgeting/budget-plan/[id]"],
-  budgetRound: ["/budgeting", "/budgeting/rounds", "/budgeting/rounds/[id]"],
+  budgetRound: ["/budgeting", "/budgeting/rounds", "/budgeting/round", "/budgeting/periods/[id]"],
+  budgetPeriod: ["/budgeting", "/budgeting/periods", "/budgeting/periods/[id]", "/my-tasks"],
+  rtbItem: ["/value-streams/[id]", "/budgeting/periods/[id]"],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
   // the structure tab that hosts the management UI.
   timeline: ["/umsetzung", "/structure", "/pi-planning", "/pi/[piId]", "/art/[artId]/pi", "/feature/[featureId]"],

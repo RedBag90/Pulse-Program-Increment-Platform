@@ -9,6 +9,8 @@ import {
 } from "@/modules/budgeting/server/services/budgeting";
 import { loadArtBudgetModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
 import { ArtBudgetEditor } from "@/modules/budgeting/features/components/art-budget/art-budget-editor";
+import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
+import { RtbSection } from "@/modules/budgeting/features/components/rtb/rtb-section";
 import { formatEUR } from "@/lib/formatting";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
@@ -127,7 +129,8 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
       ? Promise.all([
           getValueStreamBudget(db, principal.tenantId, vs.id as ValueStreamId),
           loadArtBudgetModel(db, principal.tenantId, vs.id as ValueStreamId),
-        ]).then(([plan, artModel]) => ({ plan, artModel }))
+          listRtbItems(db, principal.tenantId, vs.id),
+        ]).then(([plan, artModel, rtbItems]) => ({ plan, artModel, rtbItems }))
       : Promise.resolve(null),
     listGateApproverRules(db, principal.tenantId, vs.id),
   ]);
@@ -206,12 +209,11 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
                 plan={budgeting.plan.budget ?? undefined}
               />
               <ArtBudgetEditor model={budgeting.artModel} canEdit={canEditArtBudget} />
-              <Link
-                href={`/budgeting/round?level=art&vs=${vs.id}`}
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-              >
-                In der Budget-Runde verteilen →
-              </Link>
+              <RtbSection
+                valueStreamId={vs.id}
+                items={budgeting.rtbItems}
+                canManage={canEditArtBudget}
+              />
             </>
           )}
         </div>

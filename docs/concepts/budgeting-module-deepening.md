@@ -1,5 +1,11 @@
 # Budgeting-Modul — Spec & Refactoring-Plan
 
+> **Alt-Schicht (Stand 2026-08).** Dieses Dokument beschreibt die **frühere** €/ART-Board-orientierte
+> Sicht des Budgeting-Moduls und ihren Deepening-Plan. Seit dem PB-Refactor ist die **Participatory-
+> Budgeting-Runde der Prozess** und die €/ART-Verteilung eine **Detailplanungs-Stufe** darin — siehe
+> [participatory-budgeting.md](./participatory-budgeting.md) (geführter Fluss, Seam, ein Protokoll) und
+> [budgeting-ui-refactor.md](./budgeting-ui-refactor.md). Hier als Referenz/Historie belassen.
+
 Ergebnis einer Modul-Analyse (Stand 2026-08-18). **Teil A** ist die aus dem Code abgeleitete
 fachliche Spec (Anforderungen `REQ-*` + Funktionsinventar `F1`–`F15`), **Teil B** die Befundliste
 (`F-01`–`F-19`), **Teil C** der daraus abgeleitete Refactoring-Plan in Arbeitspaketen `WP1`–`WP9`.

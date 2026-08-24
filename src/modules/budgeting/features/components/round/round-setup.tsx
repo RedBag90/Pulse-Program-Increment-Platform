@@ -11,6 +11,7 @@ import {
   updateGroupAction,
   addGroupMemberAction,
   removeGroupMemberAction,
+  setMemberReadAction,
 } from "@/modules/budgeting/features/actions/round";
 
 const input =
@@ -26,14 +27,56 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function RoundSetup({ model }: { model: RoundSetupModel }) {
-  if (!model.round) {
-    return <CreateRound cycleKey={model.cycleKey} canManage={model.canManage} />;
-  }
   return (
     <div className="space-y-6">
-      <RoundFrame model={model} />
-      {model.round.status === "draft" && <GroupsEditor model={model} />}
-      {model.round.status !== "draft" && <GroupsReadonly model={model} />}
+      <BallotMirror model={model} />
+      {!model.round ? (
+        <CreateRound cycleKey={model.cycleKey} canManage={model.canManage} />
+      ) : (
+        <>
+          <RoundFrame model={model} />
+          {model.round.status === "draft" ? (
+            <GroupsEditor model={model} />
+          ) : (
+            <GroupsReadonly model={model} />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Ballot-Spiegelung (F-B1): die **tatsächlichen** vorgemerkten Epics mit Kosten,
+ * plus die Pflichtvorhaben separat. Vormerken bleibt am Epic — die Runde spiegelt.
+ */
+function BallotMirror({ model }: { model: RoundSetupModel }) {
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold">Ballot · {model.ballot.length} Epics</h2>
+        <span className="text-xs text-muted-foreground">
+          Pflichtvorhaben: {model.mandatoryCount} · {model.mandatorySum.toLocaleString("de-DE")} €
+          (nicht auf dem Ballot, ziehen den Topf ab)
+        </span>
+      </div>
+      {model.ballot.length === 0 ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Noch keine Epics vorgemerkt. Vorgemerkt wird am Epic (einreichungsbereit) — dann erscheinen
+          sie hier auf dem Ballot.
+        </p>
+      ) : (
+        <ul className="mt-2 divide-y divide-border text-sm">
+          {model.ballot.map((e) => (
+            <li key={e.id} className="flex items-center justify-between gap-2 py-1.5">
+              <span className="truncate">{e.title}</span>
+              <span className="shrink-0 tabular-nums text-muted-foreground">
+                {e.cost.toLocaleString("de-DE")} €
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -115,8 +158,9 @@ function RoundFrame({ model }: { model: RoundSetupModel }) {
             {startPending ? "…" : "Runde starten (draft → läuft)"}
           </button>
           <p className="mt-1 text-xs text-muted-foreground">
-            Erfordert Topf &gt; 0 und ≥ 3 Gruppen. Verbindlichkeit: <strong>beratend</strong> — die
-            Gruppenverteilung berät die Entscheidungsinstanz.
+            Empfohlen: Topf &gt; 0 und ≥ 3 Gruppen (keine harte Voraussetzung — s. Warnungen).
+            Verbindlichkeit: <strong>beratend</strong> — die Gruppenverteilung berät die
+            Entscheidungsinstanz.
           </p>
         </form>
       )}
@@ -167,7 +211,7 @@ function GroupsEditor({ model }: { model: RoundSetupModel }) {
 
       <div className="mt-3 space-y-3">
         {model.groups.map((g) => (
-          <GroupCard key={g.id} group={g} />
+          <GroupCard key={g.id} group={g} users={model.users} />
         ))}
       </div>
 
@@ -188,17 +232,29 @@ function GroupsEditor({ model }: { model: RoundSetupModel }) {
   );
 }
 
-function GroupCard({ group }: { group: RoundSetupModel["groups"][number] }) {
+function GroupCard({
+  group,
+  users,
+}: {
+  group: RoundSetupModel["groups"][number];
+  users: RoundSetupModel["users"];
+}) {
   const [, renameAction] = useActionState(updateGroupAction, {});
+  const [, spokesAction] = useActionState(updateGroupAction, {});
   const [, delAction] = useActionState(removeGroupAction, {});
   const [memberState, addMemberAction, addMemberPending] = useActionState(addGroupMemberAction, {});
   const [, delMemberAction] = useActionState(removeGroupMemberAction, {});
+  const [, readAction] = useActionState(setMemberReadAction, {});
+  const emailOf = (id: string) => users.find((u) => u.id === id)?.label ?? id;
+  const memberIds = new Set(group.members.map((m) => m.userId));
 
   return (
     <div className="rounded-md border bg-muted/20 p-3">
       <div className="flex items-center justify-between gap-2">
         <form action={renameAction} className="flex items-center gap-1">
           <input type="hidden" name="id" value={group.id} />
+          {/* Sprecher beim Umbenennen bewahren (die Action nullt fehlende Felder). */}
+          <input type="hidden" name="spokespersonId" value={group.spokespersonId ?? ""} />
           <input name="name" defaultValue={group.name} className={`${input} w-40`} />
           <button type="submit" className={btnGhost}>umbenennen</button>
         </form>
@@ -208,18 +264,48 @@ function GroupCard({ group }: { group: RoundSetupModel["groups"][number] }) {
         </form>
       </div>
 
+      {/* Sprecher-Picker (F-B2) — aus den Gruppenmitgliedern. */}
+      <form action={spokesAction} className="mt-2 flex items-center gap-1.5">
+        <input type="hidden" name="id" value={group.id} />
+        <label className="text-xs text-muted-foreground">Sprecher</label>
+        <select name="spokespersonId" defaultValue={group.spokespersonId ?? ""} className={`${input} w-56`}>
+          <option value="">— kein Sprecher —</option>
+          {group.members.map((m) => (
+            <option key={m.id} value={m.userId}>
+              {emailOf(m.userId)}
+            </option>
+          ))}
+        </select>
+        <button type="submit" className={btnGhost}>setzen</button>
+      </form>
+
       <ul className="mt-2 space-y-1">
         {group.members.map((m) => (
           <li key={m.id} className="flex items-center justify-between gap-2 text-xs">
             <span>
-              {m.userId.slice(0, 8)}… {m.team && <span className="text-muted-foreground">· {m.team}</span>}
+              {emailOf(m.userId)} {m.team && <span className="text-muted-foreground">· {m.team}</span>}
+              {group.spokespersonId === m.userId && (
+                <span className="ml-1 rounded bg-violet-100 px-1 text-violet-700 dark:bg-violet-950 dark:text-violet-300">Sprecher</span>
+              )}
               {m.isSubmitter && <span className="ml-1 rounded bg-sky-100 px-1 text-sky-700">Einreicher</span>}
-              {m.hasRead && <span className="ml-1 text-emerald-600">✓ gelesen</span>}
             </span>
-            <form action={delMemberAction}>
-              <input type="hidden" name="id" value={m.id} />
-              <button type="submit" className={`${btnGhost} text-red-600`}>×</button>
-            </form>
+            <div className="flex items-center gap-1">
+              {/* Pre-Read-Toggle (F-B2, C-05) — auch in running setzbar. */}
+              <form action={readAction}>
+                <input type="hidden" name="id" value={m.id} />
+                {!m.hasRead && <input type="hidden" name="hasRead" value="1" />}
+                <button
+                  type="submit"
+                  className={m.hasRead ? `${btnGhost} text-emerald-600` : btnGhost}
+                >
+                  {m.hasRead ? "✓ gelesen" : "als gelesen markieren"}
+                </button>
+              </form>
+              <form action={delMemberAction}>
+                <input type="hidden" name="id" value={m.id} />
+                <button type="submit" className={`${btnGhost} text-red-600`}>×</button>
+              </form>
+            </div>
           </li>
         ))}
         {group.members.length === 0 && <li className="text-xs text-muted-foreground">Noch keine Mitglieder.</li>}
@@ -227,7 +313,18 @@ function GroupCard({ group }: { group: RoundSetupModel["groups"][number] }) {
 
       <form action={addMemberAction} className="mt-2 flex flex-wrap items-end gap-1.5">
         <input type="hidden" name="groupId" value={group.id} />
-        <input name="userId" required placeholder="User-Id (uuid)" className={`${input} w-56`} />
+        <select name="userId" required defaultValue="" className={`${input} w-56`}>
+          <option value="" disabled>
+            Person (E-Mail) wählen…
+          </option>
+          {users
+            .filter((u) => !memberIds.has(u.id))
+            .map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.label}
+              </option>
+            ))}
+        </select>
         <input name="team" placeholder="Team" className={`${input} w-28`} />
         <label className="flex items-center gap-1 text-xs">
           <input type="checkbox" name="isSubmitter" className="accent-primary" /> Einreicher
@@ -240,17 +337,62 @@ function GroupCard({ group }: { group: RoundSetupModel["groups"][number] }) {
 }
 
 function GroupsReadonly({ model }: { model: RoundSetupModel }) {
+  const [, readAction] = useActionState(setMemberReadAction, {});
+  const running = model.round?.status === "running";
+  const emailOf = (id: string) => model.users.find((u) => u.id === id)?.label ?? id;
+  const readyCount = model.groups.reduce(
+    (s, g) => s + g.members.filter((m) => m.hasRead).length,
+    0,
+  );
+  const memberCount = model.groups.reduce((s, g) => s + g.members.length, 0);
+
   return (
     <div className="rounded-lg border bg-card p-4">
-      <h2 className="text-sm font-semibold">Gruppen ({model.groups.length})</h2>
-      <ul className="mt-2 space-y-1 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold">Gruppen ({model.groups.length})</h2>
+        <span className="text-xs text-muted-foreground">
+          Pre-Read: {readyCount} / {memberCount} gelesen
+        </span>
+      </div>
+      <div className="mt-3 space-y-3">
         {model.groups.map((g) => (
-          <li key={g.id}>
-            <span className="font-medium">{g.name}</span>{" "}
-            <span className="text-xs text-muted-foreground">· {g.members.length} Mitglieder</span>
-          </li>
+          <div key={g.id} className="rounded-md border bg-muted/20 p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-medium">{g.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {g.spokespersonId ? `Sprecher: ${emailOf(g.spokespersonId)}` : "kein Sprecher"}
+              </span>
+            </div>
+            <ul className="mt-1.5 space-y-1">
+              {g.members.map((m) => (
+                <li key={m.id} className="flex items-center justify-between gap-2 text-xs">
+                  <span>
+                    {emailOf(m.userId)}
+                    {g.spokespersonId === m.userId && (
+                      <span className="ml-1 rounded bg-violet-100 px-1 text-violet-700 dark:bg-violet-950 dark:text-violet-300">Sprecher</span>
+                    )}
+                    {m.isSubmitter && <span className="ml-1 rounded bg-sky-100 px-1 text-sky-700">Einreicher</span>}
+                  </span>
+                  {running && model.canManage ? (
+                    <form action={readAction}>
+                      <input type="hidden" name="id" value={m.id} />
+                      {!m.hasRead && <input type="hidden" name="hasRead" value="1" />}
+                      <button type="submit" className={m.hasRead ? `${btnGhost} text-emerald-600` : btnGhost}>
+                        {m.hasRead ? "✓ gelesen" : "als gelesen markieren"}
+                      </button>
+                    </form>
+                  ) : (
+                    m.hasRead && <span className="text-emerald-600">✓ gelesen</span>
+                  )}
+                </li>
+              ))}
+              {g.members.length === 0 && (
+                <li className="text-xs text-muted-foreground">Keine Mitglieder.</li>
+              )}
+            </ul>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }

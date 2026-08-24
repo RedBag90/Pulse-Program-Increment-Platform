@@ -4,10 +4,12 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
 import { loadControllingModel } from "@/modules/budgeting/server/views/controlling-overview";
 import {
-  buildProcessRail,
-  loadProcessRailInputs,
-} from "@/modules/budgeting/server/views/process-rail";
+  buildBudgetProcessRail,
+  loadBudgetProcessInputs,
+} from "@/modules/budgeting/server/views/budget-process-rail";
 import { ProcessRail } from "@/modules/budgeting/features/components/round/process-rail";
+import { loadRoundWidget } from "@/modules/budgeting/server/views/round-widget";
+import { RoundWidgetCard } from "@/modules/budgeting/features/components/round/round-widget-card";
 import { CaptureRevisionButton } from "@/modules/budgeting/features/components/revision/capture-revision-button";
 import { GuardrailTargetsForm } from "@/modules/work/features/portfolio/components/guardrail-targets-form";
 import { GuardrailTargetsReadOnly } from "@/modules/work/features/portfolio/components/guardrail-targets-readonly";
@@ -41,13 +43,14 @@ export default async function ControllingOverviewPage() {
     principal,
   ).allow;
 
-  const [controlling, railBase] = await Promise.all([
+  const [controlling, railBase, roundWidget] = await Promise.all([
     loadControllingModel(db, principal.tenantId, { canCapture, canManageTargets }),
-    loadProcessRailInputs(db, principal.tenantId),
+    loadBudgetProcessInputs(db, principal.tenantId),
+    loadRoundWidget(db, principal.tenantId),
   ]);
   const { cycleLabel, latest, latestIsCurrentCycle, history, userLabels, guardrailTargets } =
     controlling;
-  const railSteps = buildProcessRail({ ...railBase, latestIsCurrentCycle });
+  const railSteps = buildBudgetProcessRail({ ...railBase, latestIsCurrentCycle });
   const poolRemaining = railBase.poolTotal - railBase.allocatedTotal;
 
   return (
@@ -61,6 +64,13 @@ export default async function ControllingOverviewPage() {
         <SectionLabel>Budget-Runde {cycleLabel} — Fortschritt</SectionLabel>
         <ProcessRail steps={railSteps} />
       </section>
+
+      {roundWidget && (
+        <section className="space-y-2">
+          <SectionLabel>Aktive PB-Runde</SectionLabel>
+          <RoundWidgetCard widget={roundWidget} />
+        </section>
+      )}
 
       <StatStrip>
         <Stat

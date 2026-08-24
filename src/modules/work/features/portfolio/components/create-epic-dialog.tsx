@@ -29,6 +29,12 @@ interface ValueStream {
   name: string;
 }
 
+interface Art {
+  id: string;
+  name: string;
+  valueStream?: { id: string } | null;
+}
+
 export interface CreateEpicDialogProps {
   /** Controlled mode (global "+" menu). Omit to render a self-triggering button. */
   open?: boolean;
@@ -89,6 +95,12 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
   );
   const options = valueStreams ?? fetched.data;
 
+  // ART-Zuordnung bei der Erstellung: der ART gehört fest zu einem Wertstrom,
+  // daher kaskadiert die Auswahl — nur ARTs des gewählten Wertstroms.
+  const [vsId, setVsId] = useState("");
+  const arts = useEntityOptions<Art>(optionsEndpoint("art"), dialogOpen);
+  const artOptions = arts.data.filter((a) => a.valueStream?.id === vsId);
+
   return (
     <>
       {!isControlled && (
@@ -119,6 +131,8 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
                 id="epic-vs"
                 name="valueStreamId"
                 required
+                value={vsId}
+                onChange={(e) => setVsId(e.target.value)}
                 disabled={fetched.loading}
                 className={SELECT_CLASS}
               >
@@ -130,6 +144,36 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
                 ))}
               </select>
               {fetched.error && <p className="text-xs text-destructive">{fetched.error}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="epic-art">
+                ART <span className="text-destructive">*</span>
+              </Label>
+              <select
+                key={vsId}
+                id="epic-art"
+                name="artId"
+                required
+                disabled={!vsId || arts.loading}
+                className={SELECT_CLASS}
+              >
+                <option value="">
+                  {!vsId
+                    ? "Zuerst Wertstrom wählen…"
+                    : arts.loading
+                      ? "Lade…"
+                      : artOptions.length === 0
+                        ? "Keine ARTs in diesem Wertstrom"
+                        : "ART wählen…"}
+                </option>
+                {artOptions.map((art) => (
+                  <option key={art.id} value={art.id}>
+                    {art.name}
+                  </option>
+                ))}
+              </select>
+              {arts.error && <p className="text-xs text-destructive">{arts.error}</p>}
             </div>
 
             <div className="space-y-1.5">

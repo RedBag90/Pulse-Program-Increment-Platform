@@ -4,6 +4,7 @@ import type {
   TenantId,
   EpicId,
   ValueStreamId,
+  ArtId,
 } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
@@ -39,6 +40,8 @@ export interface CreateEpicInput {
   title: string;
   description?: string | undefined;
   valueStreamId: ValueStreamId;
+  /** ART-Zuordnung des Epics (gehört fest zu `valueStreamId`). */
+  artId: ArtId;
 }
 
 export async function createEpic(
@@ -46,7 +49,7 @@ export async function createEpic(
   input: CreateEpicInput,
 ): Promise<Result<{ id: EpicId }>> {
   const mctx = toMutationContext(ctx);
-  const { title, description, valueStreamId } = input;
+  const { title, description, valueStreamId, artId } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     // Verify the value stream belongs to the same tenant (cross-tenant guard).
@@ -55,6 +58,15 @@ export async function createEpic(
     });
     if (!vs) {
       return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
+    }
+
+    // Der ART muss zum Tenant UND zum gewählten Wertstrom gehören (die UI
+    // kaskadiert bereits, der Service prüft am Seam final nach).
+    const art = await tx.art.findFirst({
+      where: { id: artId, tenantId: mctx.tenantId, valueStreamId },
+    });
+    if (!art) {
+      return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
     }
 
     const epic = await createInitiativeWithDerivedPath(tx, {
@@ -69,6 +81,7 @@ export async function createEpic(
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
         valueStreamId,
+        artId,
         approvalPhase: "draft",
         ...(description !== undefined && { description }),
       },

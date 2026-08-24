@@ -1,8 +1,8 @@
 import type { PrismaClient } from "@/generated/prisma";
-import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { classifyZones, type Zone, type Majority } from "@/modules/budgeting/domain/three-zone";
 import { scarcityFactor, passesScarcityGate } from "@/modules/budgeting/domain/scarcity";
 import { getRound } from "@/modules/budgeting/server/services/round-service";
+import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
 
 export interface BallotEpic {
   id: string;
@@ -87,36 +87,25 @@ export async function loadZonesModel(
   const round = await getRound(db, tenantId, roundId);
   if (!round) return null;
 
-  const [ballotEpics, votes, mandatoryEpics] = await Promise.all([
-    db.initiative.findMany({
-      where: {
-        tenantId,
-        level: InitiativeLevel.EPIC,
-        deletedAt: null,
-        stagedForBudgeting: true,
-        mandatory: false,
-      },
-      select: { id: true, title: true, costToMvp: true },
-      orderBy: { title: "asc" },
-    }),
+  const [ballot, votesRaw] = await Promise.all([
+    loadRoundBallot(db, tenantId),
     db.groupAllocation.findMany({
-      where: { roundId },
+      where: { roundId, epicId: { not: null } },
       select: { groupId: true, epicId: true, funded: true },
-    }),
-    db.initiative.findMany({
-      where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null, mandatory: true },
-      select: { costToMvp: true },
     }),
   ]);
 
-  const mandatorySum = mandatoryEpics.reduce((s, e) => s + (e.costToMvp ? Number(e.costToMvp) : 0), 0);
-  const distributable = Number(round.poolTotal) - mandatorySum;
+  // epicId ist im Kachel-Modell nullbar (Legacy-Spalte); der Alt-Zonen-Flow
+  // arbeitet nur mit den Epic-Zeilen.
+  const votes = votesRaw.map((v) => ({ groupId: v.groupId, epicId: v.epicId!, funded: v.funded }));
+
+  const distributable = Number(round.poolTotal) - ballot.mandatorySum;
 
   return buildZonesModel({
     roundId,
     status: round.status,
     groups: round.groups.map((g) => ({ id: g.id, name: g.name })),
-    ballot: ballotEpics.map((e) => ({ id: e.id, title: e.title, cost: e.costToMvp ? Number(e.costToMvp) : 0 })),
+    ballot: ballot.ballot,
     votes,
     distributable,
   });

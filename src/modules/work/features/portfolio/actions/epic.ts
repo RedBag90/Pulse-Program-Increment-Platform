@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createEpic, updateEpic, softDeleteEpic } from "@/modules/work/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import type { ValueStreamId, EpicId } from "@/modules/core/kernel/domain/types";
+import type { ValueStreamId, EpicId, ArtId } from "@/modules/core/kernel/domain/types";
 import type { ActionState } from "@/server/http/server-action";
 import { formatDomainError } from "@/server/http/domain-error-display";
 
@@ -20,6 +20,7 @@ export const createEpicAction = createServerAction({
     title: z.string().min(1).max(200),
     description: z.string().optional(),
     valueStreamId: z.string().uuid(),
+    artId: z.string().uuid(),
   }),
   action: "epic.create",
   // valueStreamId carries the scope so a value_stream_owner can only create
@@ -30,6 +31,7 @@ export const createEpicAction = createServerAction({
       title: input.title,
       description: input.description,
       valueStreamId: input.valueStreamId as ValueStreamId,
+      artId: input.artId as ArtId,
     }),
   revalidate: "epic",
   mapError: (e) =>
