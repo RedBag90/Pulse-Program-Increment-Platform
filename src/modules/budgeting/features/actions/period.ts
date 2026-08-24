@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { formatDomainError } from "@/server/http/domain-error-display";
-import { createPeriod } from "@/modules/budgeting/server/services/round-service";
+import { createPeriod, deletePeriod } from "@/modules/budgeting/server/services/round-service";
 import { goalTimeframe } from "@/modules/core/goals/domain/goal-period";
 
 const MANAGE = "budget.round.manage" as const;
@@ -30,6 +30,7 @@ export const createPeriodAction = createServerAction({
     endDate: isoDate,
     poolTotal: z.number().nonnegative(),
     submissionDeadline: isoDate.nullable(),
+    carryOver: z.boolean(),
   }),
   action: MANAGE,
   resource: tenantResource,
@@ -59,6 +60,7 @@ export const createPeriodAction = createServerAction({
       endDate,
       poolTotal: Number(f.string("poolTotal")),
       submissionDeadline: deadline ?? null,
+      carryOver: fd.get("carryOver") != null,
     };
   },
   service: (ctx, input) =>
@@ -69,7 +71,20 @@ export const createPeriodAction = createServerAction({
       submissionDeadline: input.submissionDeadline
         ? new Date(`${input.submissionDeadline}T00:00:00.000Z`)
         : null,
+      carryOver: input.carryOver,
     }),
   revalidate: "budgetPeriod",
   mapError: err,
+});
+
+export const deletePeriodAction = createServerAction({
+  schema: z.object({ id: z.string().uuid() }),
+  action: MANAGE,
+  resource: tenantResource,
+  parseFormData: (fd) => ({ id: fields(fd).string("id") }),
+  service: (ctx, i) => deletePeriod(ctx, { id: i.id }),
+  // Listen-Revalidation ohne die [id]-Detailseite (die es gleich nicht mehr gibt).
+  revalidate: "budgetPeriodList",
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Nicht gefunden", fallback: "Kachel konnte nicht gelöscht werden" }),
 });

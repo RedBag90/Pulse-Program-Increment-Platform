@@ -7,6 +7,7 @@ import { loadPeriodValueStreams } from "@/modules/budgeting/server/views/period-
 import { PeriodSetupTab } from "@/modules/budgeting/features/components/period/period-setup-tab";
 import { DistributionOverviewTab } from "@/modules/budgeting/features/components/period/distribution-overview-tab";
 import { PeriodValueStreamsTab } from "@/modules/budgeting/features/components/period/period-valuestreams-tab";
+import { DeletePeriodButton } from "@/modules/budgeting/features/components/period/delete-period-button";
 import { EntityDetailShell, resolveTab, type DetailTab } from "@/components/detail/entity-detail-shell";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 
@@ -58,6 +59,7 @@ export default async function BudgetingPeriodDetailPage({ params, searchParams }
       tabs={TABS}
       activeTab={activeTab}
       basePath={`/budgeting/periods/${id}`}
+      headerActions={model.canManage ? <DeletePeriodButton id={id} /> : undefined}
     >
       {activeTab === "setup" && <PeriodSetupTab model={model} />}
       {activeTab === "overview" && overview && <DistributionOverviewTab model={overview} />}

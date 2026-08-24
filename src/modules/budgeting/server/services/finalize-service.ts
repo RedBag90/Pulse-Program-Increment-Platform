@@ -16,7 +16,7 @@ import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
 import { computeReserve } from "@/modules/budgeting/domain/finalize";
 import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
-import { createRound } from "@/modules/budgeting/server/services/round-service";
+import { createRound, copyPeriodSetup } from "@/modules/budgeting/server/services/round-service";
 import { halfYearKey, addHalfYears } from "@/modules/core/kernel/domain/calendar";
 
 export async function closeDistribution(
@@ -125,56 +125,6 @@ export async function finalizePeriod(
   });
 }
 
-/** Kopiert Beteiligte + Gruppen (inkl. Sprecher/Mitglieder) in die neue Runde. */
-async function copySetup(
-  tx: Prisma.TransactionClient,
-  tenantId: string,
-  fromRoundId: string,
-  toRoundId: string,
-  actorId: string,
-): Promise<void> {
-  const [participants, groups] = await Promise.all([
-    tx.budgetParticipant.findMany({ where: { roundId: fromRoundId }, select: { userId: true } }),
-    tx.budgetGroup.findMany({
-      where: { roundId: fromRoundId },
-      select: {
-        name: true,
-        spokespersonId: true,
-        members: { select: { userId: true, team: true, isSubmitter: true, seniority: true } },
-      },
-    }),
-  ]);
-
-  if (participants.length > 0) {
-    await tx.budgetParticipant.createMany({
-      data: participants.map((p) => ({
-        tenantId,
-        roundId: toRoundId,
-        userId: p.userId,
-        createdBy: actorId,
-      })),
-    });
-  }
-
-  for (const g of groups) {
-    const created = await tx.budgetGroup.create({
-      data: { roundId: toRoundId, name: g.name, spokespersonId: g.spokespersonId },
-      select: { id: true },
-    });
-    if (g.members.length > 0) {
-      await tx.budgetGroupMember.createMany({
-        data: g.members.map((m) => ({
-          groupId: created.id,
-          userId: m.userId,
-          team: m.team,
-          isSubmitter: m.isSubmitter,
-          seniority: m.seniority,
-        })),
-      });
-    }
-  }
-}
-
 export async function startNextPeriod(
   ctx: RequestContext,
   input: { fromRoundId: string },
@@ -204,7 +154,7 @@ export async function startNextPeriod(
 
   // Setup übernehmen (eigene Transaktion).
   const copy = await withAuditedTransaction(mctx, async (tx) => {
-    await copySetup(tx, mctx.tenantId, input.fromRoundId, newId, mctx.actorId);
+    await copyPeriodSetup(tx, mctx.tenantId, input.fromRoundId, newId, mctx.actorId);
     return ok({
       result: { id: newId },
       audit: {

@@ -52,11 +52,8 @@ describe("closeDistribution", () => {
 
 describe("finalizePeriod", () => {
   function tx(): Tx {
-    const findMany = vi
-      .fn()
-      // loadRoundBallot: erst Ballot-Epics, dann Pflichtvorhaben
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+    // loadRoundBallot: budgeting-reife Ballot-Epics (hier leer)
+    const findMany = vi.fn().mockResolvedValue([]);
     return {
       budgetRound: {
         findFirst: vi.fn(async () => ({ status: "decided", cycleKey: "2026-H1", poolTotal: 1000 })),
@@ -74,6 +71,8 @@ describe("finalizePeriod", () => {
         upsert: vi.fn(async () => ({ id: "a1" })),
       },
       initiative: { findMany },
+      // loadRoundBallot löst den tenant-Default-Aufwand auf.
+      tenant: { findUnique: vi.fn(async () => null) },
       auditEvent: { create: vi.fn(async () => ({})) },
     };
   }

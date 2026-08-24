@@ -5,7 +5,14 @@ import { describe, it, expect, vi } from "vitest";
  * Muster `pi-lifecycle-service.test.ts`).
  */
 
-import { createRound, transitionRound, startPeriod } from "@/modules/budgeting/server/services/round-service";
+import {
+  createRound,
+  transitionRound,
+  startPeriod,
+  createPeriod,
+  copyPeriodSetup,
+  deletePeriod,
+} from "@/modules/budgeting/server/services/round-service";
 import { addGroup } from "@/modules/budgeting/server/services/round-group-service";
 
 type Tx = Record<string, Record<string, ReturnType<typeof vi.fn>>>;
@@ -107,22 +114,31 @@ describe("transitionRound — draft→running Guards", () => {
 
 describe("transitionRound — Schließen: Seam (Vorbefüllung + Topf-Vererbung)", () => {
   /**
-   * Reicher Fake-tx für den Close-Pfad. `initiative.findMany` liefert erst die
-   * Ballot-Kandidaten, dann die Pflichtvorhaben (Reihenfolge im loadRoundBallot-
-   * Promise.all).
+   * Ballot-Kandidat mit freigegebenem Lean Business Case, dessen costSlices sich
+   * zu `cost` summieren — der Close-Pfad leitet daraus den Allocation-Startwert ab.
+   */
+  const lbcBallotEpic = (id: string, title: string, cost: number) => ({
+    id,
+    title,
+    businessCase: { current: { costSlices: [{ amount: cost }] } },
+    benefitHypothesis: null,
+    businessCaseApprovedAt: new Date(),
+    hypothesisApprovedAt: new Date(),
+  });
+
+  /**
+   * Reicher Fake-tx für den Close-Pfad. `initiative.findMany` liefert die
+   * budgeting-reifen Ballot-Kandidaten; der Kosten-Richtwert wird aus deren
+   * LBC-Slices abgeleitet.
    */
   function closeTx(opts: {
-    ballot: { id: string; title: string; costToMvp: number }[];
-    mandatory: { costToMvp: number }[];
+    ballot: ReturnType<typeof lbcBallotEpic>[];
     fundedVotes: { epicId: string }[];
     decisions: { epicId: string; outcome: string }[];
     groupCount: number;
     existingPool: Record<string, number> | null;
   }): Tx {
-    const findMany = vi
-      .fn()
-      .mockResolvedValueOnce(opts.ballot)
-      .mockResolvedValueOnce(opts.mandatory);
+    const findMany = vi.fn().mockResolvedValue(opts.ballot);
     return {
       budgetRound: {
         findFirst: vi.fn(async () => ({
@@ -148,11 +164,7 @@ describe("transitionRound — Schließen: Seam (Vorbefüllung + Topf-Vererbung)"
 
   it("legt für finanzierte Epics eine Allocation an und un-staged nicht-finanzierte", async () => {
     const t = closeTx({
-      ballot: [
-        { id: "e1", title: "A", costToMvp: 100 },
-        { id: "e2", title: "B", costToMvp: 50 },
-      ],
-      mandatory: [],
+      ballot: [lbcBallotEpic("e1", "A", 100), lbcBallotEpic("e2", "B", 50)],
       fundedVotes: [{ epicId: "e1" }, { epicId: "e1" }], // Konsens (2/2 Gruppen)
       decisions: [],
       groupCount: 2,
@@ -182,8 +194,7 @@ describe("transitionRound — Schließen: Seam (Vorbefüllung + Topf-Vererbung)"
 
   it("erbt den Runden-Topf in budgetPoolByPeriod und lässt andere Perioden unberührt", async () => {
     const t = closeTx({
-      ballot: [{ id: "e1", title: "A", costToMvp: 100 }],
-      mandatory: [],
+      ballot: [lbcBallotEpic("e1", "A", 100)],
       fundedVotes: [{ epicId: "e1" }],
       decisions: [],
       groupCount: 1,
@@ -201,8 +212,7 @@ describe("transitionRound — Schließen: Seam (Vorbefüllung + Topf-Vererbung)"
 
   it("upsert nutzt update:{} — bestehende Allocation wird nicht überschrieben", async () => {
     const t = closeTx({
-      ballot: [{ id: "e1", title: "A", costToMvp: 100 }],
-      mandatory: [],
+      ballot: [lbcBallotEpic("e1", "A", 100)],
       fundedVotes: [{ epicId: "e1" }],
       decisions: [],
       groupCount: 1,
@@ -251,6 +261,134 @@ describe("startPeriod — draft→running + RtB-Materialisierung", () => {
     const res = await startPeriod(ctxWith(t), { id: "r1" });
     expect(res.ok).toBe(false);
     expect(t.budgetRound!.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("copyPeriodSetup — Übernahme in eine neue Kachel", () => {
+  function copyTx() {
+    return {
+      budgetParticipant: {
+        findMany: vi.fn(async () => [{ userId: "u1" }, { userId: "u2" }]),
+        createMany: vi.fn(async () => ({})),
+      },
+      budgetGroup: {
+        findMany: vi.fn(async () => [
+          {
+            name: "Gruppe A",
+            spokespersonId: "u1",
+            members: [{ userId: "u1", team: null, isSubmitter: true, seniority: null }],
+          },
+        ]),
+        create: vi.fn(async () => ({ id: "g-new" })),
+      },
+      budgetGroupMember: { createMany: vi.fn(async () => ({})) },
+      budgetCandidate: {
+        findMany: vi.fn(async () => [
+          { epicId: "e1", title: "Epic 1", ask: 100, valueStreamId: "vs1", artId: "a1" },
+        ]),
+        createMany: vi.fn(async (_arg: unknown) => ({})),
+      },
+    };
+  }
+
+  it("kopiert Beteiligte + Gruppen + Mitglieder + Epic-Kandidaten (keine rtb)", async () => {
+    const t = copyTx();
+    await copyPeriodSetup(t as never, "T", "from1", "to1", "actor");
+
+    expect(t.budgetParticipant.createMany).toHaveBeenCalled();
+    expect(t.budgetGroup.create).toHaveBeenCalledTimes(1);
+    expect(t.budgetGroupMember.createMany).toHaveBeenCalled();
+    // Kandidaten nur kind=epic laden + kopieren.
+    expect(t.budgetCandidate.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { roundId: "from1", kind: "epic" } }),
+    );
+    const candArg = t.budgetCandidate.createMany.mock.calls[0]![0]! as {
+      data: { kind: string; epicId: string; roundId: string; finalAmount: number | null }[];
+    };
+    expect(candArg.data[0]).toMatchObject({ kind: "epic", epicId: "e1", roundId: "to1", finalAmount: null });
+  });
+});
+
+describe("createPeriod — Übernahme beim Anlegen", () => {
+  function periodCtx(previous: { id: string } | null) {
+    const tx = {
+      budgetRound: {
+        findFirst: vi.fn(async () => null), // createRound: kein geschlossener Vorgänger (Reserve)
+        create: vi.fn(async () => ({ id: "new1" })),
+      },
+      budgetParticipant: { findMany: vi.fn(async () => []), createMany: vi.fn(async () => ({})) },
+      budgetGroup: { findMany: vi.fn(async () => []), create: vi.fn(async () => ({ id: "g" })) },
+      budgetGroupMember: { createMany: vi.fn(async () => ({})) },
+      budgetCandidate: { findMany: vi.fn(async () => []), createMany: vi.fn(async () => ({})) },
+      auditEvent: { create: vi.fn(async () => ({})) },
+    };
+    const ctx = {
+      principal: {
+        id: "actor",
+        tenantId: "T",
+        email: "x",
+        roles: [],
+        scopes: { artIds: [], teamIds: [], valueStreamIds: [] },
+      },
+      db: {
+        budgetRound: { findFirst: vi.fn(async () => previous) }, // jüngste-vorherige-Lookup
+        $transaction: async (cb: (tx: unknown) => Promise<unknown>) => cb(tx),
+        auditEvent: { create: vi.fn(async () => ({})) },
+      },
+    } as unknown as Parameters<typeof createPeriod>[0];
+    return { ctx, tx };
+  }
+
+  const input = {
+    poolTotal: 1000,
+    startDate: new Date("2026-01-01T00:00:00.000Z"),
+    endDate: new Date("2026-06-30T00:00:00.000Z"),
+  };
+
+  it("carryOver=true mit Vorgänger → Setup wird kopiert", async () => {
+    const { ctx, tx } = periodCtx({ id: "prev1" });
+    const res = await createPeriod(ctx, { ...input, carryOver: true });
+    expect(res.ok).toBe(true);
+    expect(tx.budgetCandidate.findMany).toHaveBeenCalled(); // Copy lief
+  });
+
+  it("carryOver=false → kein Copy", async () => {
+    const { ctx, tx } = periodCtx({ id: "prev1" });
+    const res = await createPeriod(ctx, { ...input, carryOver: false });
+    expect(res.ok).toBe(true);
+    expect(tx.budgetCandidate.findMany).not.toHaveBeenCalled();
+  });
+
+  it("carryOver=true ohne Vorgänger → kein Copy", async () => {
+    const { ctx, tx } = periodCtx(null);
+    const res = await createPeriod(ctx, { ...input, carryOver: true });
+    expect(res.ok).toBe(true);
+    expect(tx.budgetCandidate.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("deletePeriod — Kachel löschen", () => {
+  it("löscht die eigene Runde (Cascade räumt die Subtree)", async () => {
+    const t: Tx = {
+      budgetRound: {
+        findFirst: vi.fn(async () => ({ id: "r1" })),
+        delete: vi.fn(async () => ({})),
+      },
+      auditEvent: { create: vi.fn(async () => ({})) },
+    };
+    const res = await deletePeriod(ctxWith(t), { id: "r1" });
+    expect(res.ok).toBe(true);
+    expect(t.budgetRound!.delete).toHaveBeenCalledWith({ where: { id: "r1" } });
+  });
+
+  it("lehnt eine fremde/fehlende Runde ab (kein delete)", async () => {
+    const t: Tx = {
+      budgetRound: { findFirst: vi.fn(async () => null), delete: vi.fn() },
+      auditEvent: { create: vi.fn(async () => ({})) },
+    };
+    const res = await deletePeriod(ctxWith(t), { id: "r1" });
+    expect(res.ok).toBe(false);
+    expect(t.budgetRound!.delete).not.toHaveBeenCalled();
   });
 });
 

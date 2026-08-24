@@ -40,6 +40,7 @@ import {
   wipeDomainData,
   uid,
 } from "./seed-helpers.js";
+import { seedRunTheBusiness, seedBudgetPeriod, type GroupSpec } from "./seed-budgeting.js";
 
 const TENANT_NAME = "Test Demo";
 
@@ -221,6 +222,8 @@ async function main() {
       enabledModules: [...MODULE_KEYS],
       dashboardHorizonEnd: addDays(OFFSITE_AT, 30),
       budgetPoolByPeriod: { [PERIOD_NOW]: BUDGET_TOTAL * 0.7, [PERIOD_END]: BUDGET_TOTAL * 0.5 },
+      // PB-Default-Aufwand: Kosten-Richtwert im Ballot für nur-Hypothese-Epics.
+      defaultHypothesisEffort: 60_000,
       // Ein Job-Size-Punkt Planungsaufwand ≈ ein Personentag.
       costPerJobSizePoint: 600,
       costNeutralTarget: 0,
@@ -446,6 +449,10 @@ async function main() {
     ownerId: epicOwners[e.slug]!,
     assigneeIds: [featureOwners[e.slug]!],
     valueStreamId: vsId,
+    // ART-Zuordnung des Epics (der eine ART des Wertstroms). Der Kosten-Richtwert
+    // im Ballot wird aus dem freigegebenen Lean Business Case abgeleitet (Σ
+    // costSlices), die Budget-Info ebenfalls — kein manuelles Einreichungsfeld mehr.
+    artId,
     // L3 = Budget alloziert. Der nächste Schritt ist das PI-Planning, danach L4.
     stageGate: "L3",
     status: "approved",
@@ -841,6 +848,77 @@ async function main() {
     },
   });
   console.log(`  ✓ ${BUDGET_TOTAL.toLocaleString("de-DE")} € auf 3 Epics verteilt`);
+
+  // ── Budgeting-Kachel (Kachel-Modell, laufend) ─────────────────────────────
+  console.log("\n── Budgeting-Kachel (Periode)");
+  const owners = EPICS.map((e) => epicOwners[e.slug]!);
+  const fowners = EPICS.map((e) => featureOwners[e.slug]!);
+  const KPOOL = Math.round(BUDGET_TOTAL * 0.7);
+
+  const rtb = await seedRunTheBusiness(tenantId, admin, [
+    {
+      valueStreamId: vsId,
+      items: [
+        { name: "Betrieb & Support", plannedAmount: 80_000 },
+        { name: "Lizenzen & Tooling", plannedAmount: 40_000 },
+      ],
+    },
+  ]);
+  const rtbCands = rtb.map((r) => ({
+    rtbItemId: r.id,
+    title: r.name,
+    ask: r.plannedAmount,
+    valueStreamId: r.valueStreamId,
+  }));
+  const epicCands = EPICS.map((e, ei) => ({
+    epicId: epicIds[e.slug]!,
+    title: e.title,
+    ask: 180_000 + ei * 40_000,
+    valueStreamId: vsId,
+    artId,
+  }));
+
+  const allRefs = [
+    ...epicCands.map((c) => ({ ref: c.epicId, ask: c.ask })),
+    ...rtbCands.map((c) => ({ ref: c.rtbItemId, ask: c.ask })),
+  ];
+  const groupAmounts = (gi: number): Record<string, number> => {
+    const out: Record<string, number> = {};
+    allRefs.forEach((c, j) => {
+      if (j % 2 !== gi % 2) out[c.ref] = c.ask;
+    });
+    return out;
+  };
+  const groups: GroupSpec[] = [
+    {
+      name: "Gruppe A",
+      spokespersonUserId: owners[0]!,
+      submitted: true,
+      memberUserIds: [owners[0]!, fowners[0]!, portfolio],
+      amounts: groupAmounts(0),
+    },
+    {
+      name: "Gruppe B",
+      spokespersonUserId: owners[1]!,
+      submitted: false, // offen → My-Tasks-Hinweis für die Mitglieder
+      memberUserIds: [owners[1]!, fowners[1]!, vso],
+      amounts: groupAmounts(1),
+    },
+  ];
+
+  await seedBudgetPeriod(tenantId, admin, {
+    key: "offsite-running",
+    cycleKey: PERIOD_NOW,
+    status: "running",
+    poolTotal: KPOOL,
+    startDate: addDays(now, -20),
+    endDate: addDays(now, 160),
+    submissionDeadline: addDays(now, 25),
+    participantUserIds: [portfolio, rte, vso, ...owners, ...fowners],
+    epicCandidates: epicCands,
+    rtbCandidates: rtbCands,
+    groups,
+  });
 
   // ── Operating Model + Setup-Fortschritt ───────────────────────────────────
   console.log("\n── Einrichtung");

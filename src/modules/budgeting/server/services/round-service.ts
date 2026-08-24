@@ -132,6 +132,84 @@ export async function createRound(
   });
 }
 
+/**
+ * Kopiert das Setup einer Runde in eine neue Kachel: **Beteiligte** + **Gruppen**
+ * (inkl. Sprecher/Mitglieder) + die kuratierten **Epic-Kandidaten** (Ballot).
+ * RtB-Kandidaten werden NICHT kopiert (sie materialisieren beim Start).
+ * Genutzt von `createPeriod` (Übernahme beim Anlegen) und `startNextPeriod`.
+ */
+export async function copyPeriodSetup(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  fromRoundId: string,
+  toRoundId: string,
+  actorId: string,
+): Promise<void> {
+  const [participants, groups, epicCandidates] = await Promise.all([
+    tx.budgetParticipant.findMany({ where: { roundId: fromRoundId }, select: { userId: true } }),
+    tx.budgetGroup.findMany({
+      where: { roundId: fromRoundId },
+      select: {
+        name: true,
+        spokespersonId: true,
+        members: { select: { userId: true, team: true, isSubmitter: true, seniority: true } },
+      },
+    }),
+    tx.budgetCandidate.findMany({
+      where: { roundId: fromRoundId, kind: "epic" },
+      select: { epicId: true, title: true, ask: true, valueStreamId: true, artId: true },
+    }),
+  ]);
+
+  if (participants.length > 0) {
+    await tx.budgetParticipant.createMany({
+      data: participants.map((p) => ({
+        tenantId,
+        roundId: toRoundId,
+        userId: p.userId,
+        createdBy: actorId,
+      })),
+    });
+  }
+
+  for (const g of groups) {
+    const created = await tx.budgetGroup.create({
+      data: { roundId: toRoundId, name: g.name, spokespersonId: g.spokespersonId },
+      select: { id: true },
+    });
+    if (g.members.length > 0) {
+      await tx.budgetGroupMember.createMany({
+        data: g.members.map((m) => ({
+          groupId: created.id,
+          userId: m.userId,
+          team: m.team,
+          isSubmitter: m.isSubmitter,
+          seniority: m.seniority,
+        })),
+      });
+    }
+  }
+
+  if (epicCandidates.length > 0) {
+    await tx.budgetCandidate.createMany({
+      data: epicCandidates.map((c) => ({
+        tenantId,
+        roundId: toRoundId,
+        kind: "epic",
+        epicId: c.epicId,
+        title: c.title,
+        ask: c.ask,
+        valueStreamId: c.valueStreamId,
+        artId: c.artId,
+        finalAmount: null,
+        createdBy: actorId,
+        updatedBy: actorId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+}
+
 export interface CreatePeriodInput {
   poolTotal: number;
   /** Start-Termin der Budgeting-Phase (aus dem Ziele-Picker). */
@@ -140,6 +218,8 @@ export interface CreatePeriodInput {
   endDate: Date;
   /** Verteil-Deadline der Gruppen (Default = endDate). */
   submissionDeadline?: Date | null | undefined;
+  /** Beteiligte + Gruppen + Ballot von der jüngsten vorherigen Kachel übernehmen. */
+  carryOver?: boolean | undefined;
 }
 
 /**
@@ -148,11 +228,22 @@ export interface CreatePeriodInput {
  * fällt) und setzt Start/Ende/Deadline. Kein `decisionAuthority` mehr (Finance
  * entscheidet direkt). Zukunfts-Starts sind erlaubt.
  */
-export function createPeriod(
+export async function createPeriod(
   ctx: RequestContext,
   input: CreatePeriodInput,
 ): Promise<Result<{ id: string }>> {
-  return createRound(ctx, {
+  const mctx = toMutationContext(ctx);
+
+  // Jüngste vorherige Kachel (für die Übernahme) VOR dem Anlegen bestimmen.
+  const previous = input.carryOver
+    ? await ctx.db.budgetRound.findFirst({
+        where: { tenantId: mctx.tenantId },
+        orderBy: { startDate: "desc" },
+        select: { id: true },
+      })
+    : null;
+
+  const created = await createRound(ctx, {
     cycleKey: halfYearKey(input.startDate),
     poolTotal: input.poolTotal,
     decisionAuthorityIds: [],
@@ -160,6 +251,24 @@ export function createPeriod(
     endDate: input.endDate,
     submissionDeadline: input.submissionDeadline ?? input.endDate,
   });
+  if (!created.ok || !previous) return created;
+
+  const newId = created.value.id;
+  const copy = await withAuditedTransaction(mctx, async (tx) => {
+    await copyPeriodSetup(tx, mctx.tenantId, previous.id, newId, mctx.actorId);
+    return ok({
+      result: { id: newId },
+      audit: {
+        action: "budget.round.created" as const,
+        resourceType: "budget_round" as const,
+        resourceId: newId,
+        changes: { copiedFrom: { before: null, after: previous.id } },
+      },
+    });
+  });
+  if (!copy.ok) return copy;
+
+  return ok({ id: newId });
 }
 
 /**
@@ -357,6 +466,38 @@ export async function transitionRound(
 }
 
 // ── Reads ────────────────────────────────────────────────────────────────────
+
+/**
+ * Löscht eine Kachel (Runde) samt Subtree (Gruppen/Mitglieder/Allocations,
+ * Kandidaten, Beteiligte, Decisions, Report-outs — alle `onDelete: Cascade`).
+ * App-weite Epic-Budgets (`BudgetAllocation`) bleiben (epic-keyed, nicht an die
+ * Runde gekoppelt). Gate: `budget.round.manage` (Action-Layer).
+ */
+export async function deletePeriod(
+  ctx: RequestContext,
+  input: { id: string },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    const round = await tx.budgetRound.findFirst({
+      where: { id: input.id, tenantId: mctx.tenantId },
+      select: { id: true },
+    });
+    if (!round) return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.id });
+
+    await tx.budgetRound.delete({ where: { id: input.id } });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "budget.round.deleted" as const,
+        resourceType: "budget_round" as const,
+        resourceId: input.id,
+        changes: {},
+      },
+    });
+  });
+}
 
 export function getRound(db: PrismaClient, tenantId: string, id: string) {
   return db.budgetRound.findFirst({

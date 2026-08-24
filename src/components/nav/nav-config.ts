@@ -8,6 +8,7 @@ import {
   Map,
   LineChart,
   LayoutGrid,
+  RefreshCw,
   GitBranch,
   Route,
   BarChart2,
@@ -150,6 +151,12 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: "budgetPeriods",
         icon: LayoutGrid,
         capability: "budget.round.manage",
+      },
+      {
+        // Run-the-Business-Positionen je Value Stream (zentrale Pflege).
+        href: "/budgeting/run-the-business",
+        labelKey: "runTheBusiness",
+        icon: RefreshCw,
       },
       { href: "/budgeting", labelKey: "controllingOverview", icon: Gauge, exact: true },
       {

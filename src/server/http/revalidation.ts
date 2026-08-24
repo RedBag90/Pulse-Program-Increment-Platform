@@ -24,6 +24,7 @@ export type RevalidationResource =
   | "budgetAllocation"
   | "budgetRound"
   | "budgetPeriod"
+  | "budgetPeriodList"
   | "rtbItem"
   | "pi"
   | "piStandard"
@@ -82,7 +83,10 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   budgetPlanRevision: ["/budgeting", "/budgeting/budget-plan", "/budgeting/budget-plan/[id]"],
   budgetRound: ["/budgeting", "/budgeting/rounds", "/budgeting/round", "/budgeting/periods/[id]"],
   budgetPeriod: ["/budgeting", "/budgeting/periods", "/budgeting/periods/[id]", "/my-tasks"],
-  rtbItem: ["/value-streams/[id]", "/budgeting/periods/[id]"],
+  // Löschen: NUR die Listen-/Übersichts-Routen — NICHT die [id]-Detailseite, sonst
+  // rendert die gerade gelöschte Kachel als notFound (404), bevor der Redirect greift.
+  budgetPeriodList: ["/budgeting", "/budgeting/periods", "/my-tasks"],
+  rtbItem: ["/value-streams/[id]", "/budgeting/periods/[id]", "/budgeting/run-the-business"],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
   // the structure tab that hosts the management UI.
   timeline: ["/umsetzung", "/structure", "/pi-planning", "/pi/[piId]", "/art/[artId]/pi", "/feature/[featureId]"],

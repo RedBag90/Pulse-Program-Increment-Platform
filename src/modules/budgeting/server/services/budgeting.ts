@@ -336,6 +336,32 @@ export async function saveBudgetAllocation(
   });
 }
 
+/**
+ * Speichert den tenant-weiten Default-Aufwand (Kosten-Richtwert) für Epics, die
+ * erst eine Benefit-Hypothese (noch keinen Lean Business Case) haben. `null`
+ * setzt zurück auf den Code-Fallback (`DEFAULT_HYPOTHESIS_EFFORT`).
+ */
+export async function saveDefaultHypothesisEffort(
+  ctx: RequestContext,
+  input: { defaultHypothesisEffort: number | null },
+): Promise<Result<{ id: string }>> {
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    await tx.tenant.update({
+      where: { id: mctx.tenantId },
+      data: { defaultHypothesisEffort: input.defaultHypothesisEffort },
+    });
+    return ok({
+      result: { id: mctx.tenantId },
+      audit: {
+        action: "budget_defaults.saved",
+        resourceType: "budget_defaults",
+        resourceId: mctx.tenantId,
+      },
+    });
+  });
+}
+
 /** Saves the tenant's total budget pool per half-year. */
 export async function saveBudgetPool(
   ctx: RequestContext,

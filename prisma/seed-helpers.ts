@@ -182,7 +182,12 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
   await prisma.transformationAction.deleteMany(w);
   await prisma.targetOperatingModel.deleteMany(w);
 
-  // Budgeting
+  // Budgeting — Kachel-Modell (budgetRound cascadet Gruppen→Mitglieder/Allocations,
+  // Kandidaten, Beteiligte, Decisions, ReportOuts). runTheBusinessItem ist
+  // VS-scoped → vor valueStream.deleteMany (unten) löschen.
+  await prisma.budgetRound.deleteMany(w);
+  await prisma.runTheBusinessItem.deleteMany(w);
+  // Budgeting — Legacy (Snapshot/Board)
   await prisma.budgetPlanRevision.deleteMany(w);
   await prisma.artBudget.deleteMany(w);
   await prisma.budgetAllocation.deleteMany(w);

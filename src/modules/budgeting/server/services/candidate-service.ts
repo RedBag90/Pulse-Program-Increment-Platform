@@ -10,6 +10,8 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import { derivePbInfo, isPbEligible } from "@/modules/work/domain/pb-submission";
+import { loadDefaultHypothesisEffort } from "@/modules/budgeting/server/services/ballot";
 
 /**
  * Materialisiert die **RtB**-Kandidaten einer Kachel aus den **aktiven**
@@ -72,16 +74,34 @@ export async function addEpicCandidate(
         tenantId: mctx.tenantId,
         level: InitiativeLevel.EPIC,
         deletedAt: null,
-        mandatory: false,
       },
-      select: { id: true, title: true, costToMvp: true, valueStreamId: true, artId: true },
+      select: {
+        id: true,
+        title: true,
+        valueStreamId: true,
+        artId: true,
+        businessCase: true,
+        benefitHypothesis: true,
+        businessCaseApprovedAt: true,
+        hypothesisApprovedAt: true,
+      },
     });
     if (!epic) return err({ kind: "not_found" as const, resourceType: "Initiative", id: input.epicId });
+    if (!isPbEligible(epic)) {
+      return err({
+        kind: "conflict" as const,
+        reason:
+          "Epic ist noch nicht budgeting-reif — es braucht eine freigegebene Benefit-Hypothese oder einen freigegebenen Lean Business Case.",
+      });
+    }
 
+    // Kosten-Richtwert aus den Artefakten ableiten (LBC → Σ costSlices; sonst
+    // Hypothese → tenant-Default-Aufwand).
+    const defaultEffort = await loadDefaultHypothesisEffort(tx, mctx.tenantId);
     const data = {
       kind: "epic",
       title: epic.title,
-      ask: epic.costToMvp ?? 0,
+      ask: derivePbInfo(epic, defaultEffort).cost,
       valueStreamId: epic.valueStreamId,
       artId: epic.artId,
       updatedBy: mctx.actorId,

@@ -24,7 +24,15 @@ const initialState: ActionState = {};
  * die Ziele** (`GoalPeriodField`); das Ende füllt der Server auf Start + 6 Monate,
  * wenn im Individuell-Modus keins gesetzt ist.
  */
-export function CreatePeriodDialog() {
+export function CreatePeriodDialog({
+  defaultPool = 0,
+  hasPrevious = false,
+}: {
+  /** Topf-Vorgabe (Topf der jüngsten Kachel). */
+  defaultPool?: number;
+  /** Gibt es eine vorherige Kachel zum Übernehmen? */
+  hasPrevious?: boolean;
+} = {}) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(createPeriodAction, initialState);
   const router = useRouter();
@@ -61,13 +69,38 @@ export function CreatePeriodDialog() {
 
             <div className="space-y-1.5">
               <Label htmlFor="period-pool">Topf (€)</Label>
-              <Input id="period-pool" name="poolTotal" type="number" min={0} step={1000} defaultValue={0} />
+              <Input
+                id="period-pool"
+                name="poolTotal"
+                type="number"
+                min={0}
+                step={1000}
+                defaultValue={defaultPool}
+              />
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="period-deadline">Abgabe-Deadline (optional, Default = Ende)</Label>
               <Input id="period-deadline" name="submissionDeadline" type="date" />
             </div>
+
+            {hasPrevious && (
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="carryOver"
+                  defaultChecked
+                  className="mt-0.5 accent-primary"
+                />
+                <span>
+                  Vom vorherigen Zeitraum übernehmen
+                  <span className="block text-xs text-muted-foreground">
+                    Beteiligte, Gruppen (inkl. Sprecher) und den Ballot (Epics). Danach im Setup
+                    anpassbar.
+                  </span>
+                </span>
+              </label>
+            )}
 
             {state.error && (
               <p role="alert" className="text-sm text-destructive">

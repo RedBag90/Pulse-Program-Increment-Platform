@@ -68,61 +68,6 @@ export const updateEpicAction = createServerAction({
 });
 
 /**
- * Participatory-Budgeting-Einreichungsfelder (Problem / MVP-Schnitt / Kosten-bis-MVP /
- * Risiko-Ampel / „wenn nicht finanziert" / Pflichtvorhaben-Flag). Leerer String bzw.
- * `null` cleart; fehlend belaesst. Vollständigkeit gatet erst das Vormerken.
- */
-export const setEpicSubmissionAction = createServerAction({
-  schema: z.object({
-    id: z.string().uuid(),
-    mandatory: z.boolean(),
-    costToMvp: z.number().nonnegative().nullable(),
-    riskRating: z.enum(["hoch", "mittel", "gering", ""]),
-    problemStatement: z.string().max(2000),
-    mvpCut: z.string().max(2000),
-    ifNotFunded: z.string().max(2000),
-  }),
-  action: "epic.update",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    const cost = f.nonEmptyString("costToMvp");
-    const risk = f.nonEmptyString("riskRating");
-    return {
-      id: f.string("id"),
-      mandatory: fd.get("mandatory") != null,
-      costToMvp: cost !== undefined ? Number(cost) : null,
-      riskRating: (risk ?? "") as "hoch" | "mittel" | "gering" | "",
-      problemStatement: String(fd.get("problemStatement") ?? ""),
-      mvpCut: String(fd.get("mvpCut") ?? ""),
-      ifNotFunded: String(fd.get("ifNotFunded") ?? ""),
-    };
-  },
-  service: (ctx, input) =>
-    updateEpic(ctx, {
-      id: input.id as EpicId,
-      ...(input.mandatory !== undefined && { mandatory: input.mandatory }),
-      ...(input.costToMvp !== undefined && { costToMvp: input.costToMvp }),
-      ...(input.riskRating !== undefined && {
-        riskRating: input.riskRating === "" ? null : input.riskRating,
-      }),
-      ...(input.problemStatement !== undefined && {
-        problemStatement: input.problemStatement === "" ? null : input.problemStatement,
-      }),
-      ...(input.mvpCut !== undefined && { mvpCut: input.mvpCut === "" ? null : input.mvpCut }),
-      ...(input.ifNotFunded !== undefined && {
-        ifNotFunded: input.ifNotFunded === "" ? null : input.ifNotFunded,
-      }),
-    }),
-  revalidate: "epic",
-  mapError: (e) =>
-    formatDomainError(e, {
-      notFound: "Epic not found",
-      fallback: "Einreichung konnte nicht gespeichert werden",
-    }),
-});
-
-/**
  * Sets (or clears) the Epic's planned delivery window — the owner's "Soll".
  * Both endpoints are optional and round-trip as ISO `yyyy-mm-dd` strings. An
  * empty value clears that endpoint (sets it to null in the DB). The service

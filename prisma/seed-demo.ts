@@ -25,6 +25,7 @@ import {
   wipeDomainData,
   uid,
 } from "./seed-helpers.js";
+import { seedRunTheBusiness, seedBudgetPeriod, type GroupSpec } from "./seed-budgeting.js";
 
 // ── Zeit-Helfer (relativ zu heute) ──────────────────────────────────────────
 const DAY = 86_400_000;
@@ -64,6 +65,8 @@ async function main() {
       costNeutralTarget: 250_000,
       dashboardHorizonEnd: addDays(now, 540),
       budgetPoolByPeriod: { [H1]: 2_000_000, [H2]: 2_400_000 },
+      // PB-Default-Aufwand: Kosten-Richtwert im Ballot für nur-Hypothese-Epics.
+      defaultHypothesisEffort: 60_000,
       costPerJobSizePoint: 1_800,
       guardrailTargets: { horizon: { H1: 0.5, H2: 0.3, H3: 0.2 }, enablerRatio: 0.2 },
     },
@@ -422,6 +425,19 @@ async function main() {
       ownerId: i % 4 === 3 ? null : i % 3 === 0 ? U.owner : i % 3 === 1 ? U.portfolio : U.vso,
       assigneeIds: i % 2 === 0 ? [U.owner] : [],
       valueStreamId: vsIds[def.vs]!,
+      // ART-Zuordnung des Epics (eine der 2 ARTs seines Wertstroms).
+      artId: artIds[def.vs * 2 + (i % 2)]!,
+      // Approval-Stempel auf den vorgemerkten Epics — steuern PB-Eligibility +
+      // die Quelle der abgeleiteten Budget-Info: L2 = nur freigegebene Hypothese
+      // (→ Default-Aufwand als Richtwert), L3 = zusätzlich freigegebener Lean
+      // Business Case (→ Richtwert = Σ costSlices).
+      ...(def.gate === "L2" ? { hypothesisApprovedAt: addDays(now, -40 + i) } : {}),
+      ...(def.gate === "L3"
+        ? {
+            hypothesisApprovedAt: addDays(now, -60 + i),
+            businessCaseApprovedAt: addDays(now, -30 + i),
+          }
+        : {}),
       stageGate: def.gate,
       status,
       epicType: def.epicType,
@@ -742,6 +758,132 @@ async function main() {
         arts: artIds.map((id, i) => ({ id, name: artNames[i]!, amount: 400_000 + i * 30_000 })),
       }),
     },
+  });
+
+  // ── Phase 5b: Budgeting-Kacheln (Kachel-Modell) ───────────────────────────
+  console.log("\n── Budgeting-Kacheln (Perioden)");
+  const POOL = 2_000_000;
+  const parts = [U.portfolio, U.vmo, U.rte, U.owner, U.vso, U.fo, U.viewer];
+
+  const rtb = await seedRunTheBusiness(
+    tenantId,
+    ADMIN,
+    vsIds.map((vsId, k) => ({
+      valueStreamId: vsId,
+      items: [
+        { name: "Betrieb & Support", plannedAmount: 120_000 + k * 20_000 },
+        { name: "Lizenzen & Tooling", plannedAmount: 60_000 + k * 10_000 },
+      ],
+    })),
+  );
+  const rtbCands = rtb.map((r) => ({
+    rtbItemId: r.id,
+    title: r.name,
+    ask: r.plannedAmount,
+    valueStreamId: r.valueStreamId,
+  }));
+
+  // Vorgemerkte Epics (L2/L3) als Ballot-Kandidaten.
+  const epicCands = EPIC_DEFS.map((def, i) => ({ def, i }))
+    .filter(({ def }) => def.gate === "L2" || def.gate === "L3")
+    .map(({ def, i }) => ({
+      epicId: epicIds[i]!,
+      title: def.title,
+      ask: 150_000 + i * 10_000,
+      valueStreamId: vsIds[def.vs]!,
+      artId: artIds[def.vs * 2 + (i % 2)]!,
+    }));
+
+  // Alloc-Refs (epicId | rtbItemId) + ask, für Gruppen-Verteilung + Finals.
+  const allRefs = [
+    ...epicCands.map((c) => ({ ref: c.epicId, ask: c.ask })),
+    ...rtbCands.map((c) => ({ ref: c.rtbItemId, ask: c.ask })),
+  ];
+  const groupAmounts = (gi: number): Record<string, number> => {
+    const out: Record<string, number> = {};
+    allRefs.forEach((c, j) => {
+      if (j % 3 !== gi % 3) out[c.ref] = c.ask; // jede Gruppe finanziert eine andere Teilmenge
+    });
+    return out;
+  };
+  const buildGroups = (submitted: boolean[], withAmounts: boolean): GroupSpec[] => [
+    {
+      name: "Gruppe A",
+      spokespersonUserId: U.portfolio,
+      submitted: submitted[0]!,
+      memberUserIds: [U.portfolio, U.owner, U.rte],
+      amounts: withAmounts ? groupAmounts(0) : {},
+    },
+    {
+      name: "Gruppe B",
+      spokespersonUserId: U.vso,
+      submitted: submitted[1]!,
+      memberUserIds: [U.vso, U.fo, U.viewer],
+      amounts: withAmounts ? groupAmounts(1) : {},
+    },
+    {
+      name: "Gruppe C",
+      spokespersonUserId: U.vmo,
+      submitted: submitted[2]!,
+      memberUserIds: [U.vmo, U.owner, U.fo],
+      amounts: withAmounts ? groupAmounts(2) : {},
+    },
+  ];
+
+  // Finals (abgeschlossene Kachel): greedy bis der Topf erschöpft ist.
+  let acc = 0;
+  const finalByRef = new Map<string, number>();
+  for (const c of allRefs) {
+    const fund = acc + c.ask <= POOL;
+    finalByRef.set(c.ref, fund ? c.ask : 0);
+    if (fund) acc += c.ask;
+  }
+  const reserve = POOL - acc;
+
+  // 1) Abgeschlossen (Vergangenheit) — finalisiert, Reserve, alle Gruppen abgegeben.
+  await seedBudgetPeriod(tenantId, ADMIN, {
+    key: "demo-closed",
+    cycleKey: PREV_H2,
+    status: "closed",
+    poolTotal: POOL,
+    startDate: addDays(now, -220),
+    endDate: addDays(now, -40),
+    submissionDeadline: addDays(now, -50),
+    reserveAmount: reserve,
+    participantUserIds: parts,
+    epicCandidates: epicCands.map((c) => ({ ...c, finalAmount: finalByRef.get(c.epicId) ?? 0 })),
+    rtbCandidates: rtbCands.map((c) => ({ ...c, finalAmount: finalByRef.get(c.rtbItemId) ?? 0 })),
+    groups: buildGroups([true, true, true], true),
+  });
+
+  // 2) Läuft (aktuell) — Gruppe A abgegeben, B+C offen → My-Tasks-Hinweis.
+  await seedBudgetPeriod(tenantId, ADMIN, {
+    key: "demo-running",
+    cycleKey: H1,
+    status: "running",
+    poolTotal: POOL,
+    startDate: addDays(now, -30),
+    endDate: addDays(now, 150),
+    submissionDeadline: addDays(now, 20),
+    participantUserIds: parts,
+    epicCandidates: epicCands,
+    rtbCandidates: rtbCands,
+    groups: buildGroups([true, false, false], true),
+  });
+
+  // 3) Geplant/Entwurf (Zukunft) — Setup, kuratierte Epic-Kandidaten, keine RtB/Allocations.
+  await seedBudgetPeriod(tenantId, ADMIN, {
+    key: "demo-draft",
+    cycleKey: H2,
+    status: "draft",
+    poolTotal: POOL,
+    startDate: addDays(now, 160),
+    endDate: addDays(now, 340),
+    submissionDeadline: addDays(now, 300),
+    participantUserIds: parts,
+    epicCandidates: epicCands,
+    rtbCandidates: rtbCands,
+    groups: buildGroups([false, false, false], false),
   });
 
   // ── Phase 6: Dependencies, Issues, System-Demos ───────────────────────────

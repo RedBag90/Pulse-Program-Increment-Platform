@@ -10,12 +10,12 @@ import {
   setGroupAmountAction,
   submitGroupDistributionAction,
 } from "@/modules/budgeting/features/actions/distribution";
+import { pbSourceLabel } from "@/modules/work/domain/pb-submission";
 
 const EUR = (n: number) => `${n.toLocaleString("de-DE")} €`;
 const input =
   "w-32 rounded border border-gray-300 px-2 py-1 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60";
 const btn = "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
-const RISK: Record<string, string> = { hoch: "● hoch", mittel: "● mittel", gering: "● gering" };
 
 /**
  * Selbst-Verteilung einer Gruppe: freie €-Beträge über alle Ballot-Kandidaten
@@ -138,14 +138,16 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
                     className={input}
                   />
                 </div>
-                {c.info && (
+                {c.info && c.info.rows.length > 0 && (
                   <details className="mt-1 text-xs text-muted-foreground">
-                    <summary className="cursor-pointer select-none">Budget-Info</summary>
+                    <summary className="cursor-pointer select-none">
+                      Budget-Info
+                      <span className="ml-1 text-muted-foreground/70">· {pbSourceLabel(c.info.source)}</span>
+                    </summary>
                     <dl className="mt-1 space-y-0.5 pl-3">
-                      {c.info.problemStatement && <Info label="Problem" value={c.info.problemStatement} />}
-                      {c.info.mvpCut && <Info label="MVP-Schnitt" value={c.info.mvpCut} />}
-                      {c.info.riskRating && <Info label="Risiko" value={RISK[c.info.riskRating] ?? c.info.riskRating} />}
-                      {c.info.ifNotFunded && <Info label="Wenn nicht finanziert" value={c.info.ifNotFunded} />}
+                      {c.info.rows.map((r) => (
+                        <Info key={r.label} label={r.label} value={r.value} />
+                      ))}
                     </dl>
                   </details>
                 )}

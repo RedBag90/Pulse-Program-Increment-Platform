@@ -8,7 +8,8 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
-import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
+import { loadDefaultHypothesisEffort } from "@/modules/budgeting/server/services/ballot";
+import { derivePbInfo, type PbSourceKind, type PbInfoRow } from "@/modules/work/domain/pb-submission";
 
 export interface DistributionCandidate {
   id: string;
@@ -18,12 +19,8 @@ export interface DistributionCandidate {
   amount: number;
   valueStreamId: string | null;
   valueStreamName: string | null;
-  info: {
-    problemStatement: string | null;
-    mvpCut: string | null;
-    riskRating: string | null;
-    ifNotFunded: string | null;
-  } | null;
+  /** Abgeleitete Budget-Info (aus LBC bzw. Hypothese); null, wenn keine Inhalte. */
+  info: { source: PbSourceKind; rows: PbInfoRow[] } | null;
 }
 
 export interface GroupDistributionModel {
@@ -33,7 +30,6 @@ export interface GroupDistributionModel {
   groupName: string;
   submitted: boolean;
   distributable: number;
-  mandatorySum: number;
   candidates: DistributionCandidate[];
   totalAllocated: number;
   deadline: Date | null;
@@ -63,7 +59,7 @@ export async function loadGroupDistribution(
   });
   if (!group) return null;
 
-  const [candidates, allocations, ballot, valueStreams] = await Promise.all([
+  const [candidates, allocations, valueStreams, defaultEffort] = await Promise.all([
     db.budgetCandidate.findMany({
       where: { roundId },
       select: { id: true, kind: true, title: true, ask: true, epicId: true, valueStreamId: true },
@@ -73,22 +69,22 @@ export async function loadGroupDistribution(
       where: { groupId, candidateId: { not: null } },
       select: { candidateId: true, amount: true },
     }),
-    loadRoundBallot(db, principal.tenantId),
     db.valueStream.findMany({ where: { tenantId: principal.tenantId }, select: { id: true, name: true } }),
+    loadDefaultHypothesisEffort(db, principal.tenantId),
   ]);
 
-  // Budget-Info je Epic-Kandidat (die denormalisierten Candidate-Felder tragen
-  // nur Titel/ask — die qualitative Info kommt frisch vom Epic).
+  // Budget-Info je Epic-Kandidat: abgeleitet aus LBC bzw. Benefit-Hypothese
+  // (die denormalisierten Candidate-Felder tragen nur Titel/ask).
   const epicIds = candidates.map((c) => c.epicId).filter((x): x is string => x != null);
   const epics = epicIds.length
     ? await db.initiative.findMany({
         where: { id: { in: epicIds }, level: InitiativeLevel.EPIC },
         select: {
           id: true,
-          problemStatement: true,
-          mvpCut: true,
-          riskRating: true,
-          ifNotFunded: true,
+          businessCase: true,
+          benefitHypothesis: true,
+          businessCaseApprovedAt: true,
+          hypothesisApprovedAt: true,
         },
       })
     : [];
@@ -97,10 +93,11 @@ export async function loadGroupDistribution(
     allocations.map((a) => [a.candidateId as string, Number(a.amount)]),
   );
   const vsName = new Map(valueStreams.map((v) => [v.id, v.name]));
-  const infoByEpic = new Map(epics.map((e) => [e.id, e]));
+  const epicById = new Map(epics.map((e) => [e.id, e]));
 
   const candidateViews: DistributionCandidate[] = candidates.map((c) => {
-    const epicInfo = c.epicId ? infoByEpic.get(c.epicId) : undefined;
+    const epicRow = c.epicId ? epicById.get(c.epicId) : undefined;
+    const pb = epicRow ? derivePbInfo(epicRow, defaultEffort) : null;
     return {
       id: c.id,
       kind: c.kind,
@@ -109,14 +106,7 @@ export async function loadGroupDistribution(
       amount: amountByCandidate.get(c.id) ?? 0,
       valueStreamId: c.valueStreamId,
       valueStreamName: c.valueStreamId ? (vsName.get(c.valueStreamId) ?? null) : null,
-      info: epicInfo
-        ? {
-            problemStatement: epicInfo.problemStatement,
-            mvpCut: epicInfo.mvpCut,
-            riskRating: epicInfo.riskRating,
-            ifNotFunded: epicInfo.ifNotFunded,
-          }
-        : null,
+      info: pb && pb.rows.length > 0 ? { source: pb.source, rows: pb.rows } : null,
     };
   });
 
@@ -136,8 +126,7 @@ export async function loadGroupDistribution(
     groupId: group.id,
     groupName: group.name,
     submitted,
-    distributable: Number(group.round.poolTotal) - ballot.mandatorySum,
-    mandatorySum: ballot.mandatorySum,
+    distributable: Number(group.round.poolTotal),
     candidates: candidateViews,
     totalAllocated: candidateViews.reduce((s, c) => s + c.amount, 0),
     deadline,

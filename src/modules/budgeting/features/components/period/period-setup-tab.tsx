@@ -44,9 +44,8 @@ function Frame({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
   return (
     <section className="rounded-lg border bg-card p-4">
       <h2 className="text-sm font-semibold">Rahmen</h2>
-      <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs md:grid-cols-4">
+      <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs md:grid-cols-3">
         <Stat label="Topf" value={EUR(r.poolTotal)} />
-        <Stat label="Pflichtvorhaben" value={`${model.mandatoryCount} · ${EUR(model.mandatorySum)}`} />
         <Stat label="Verteilbar" value={EUR(model.distributable)} />
         <Stat label="Zeitraum" value={`${day(r.startDate) || "—"} – ${day(r.endDate) || "—"}`} />
       </dl>

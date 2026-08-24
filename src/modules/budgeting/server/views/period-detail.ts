@@ -37,10 +37,8 @@ export interface PeriodDetailModel {
     endDate: Date | null;
     submissionDeadline: Date | null;
   };
-  /** Verteilbarer Topf = poolTotal − mandatorySum. */
+  /** Verteilbarer Topf = poolTotal (Pflichtvorhaben-Abzug entfällt). */
   distributable: number;
-  mandatoryCount: number;
-  mandatorySum: number;
   participants: { id: string; userId: string; label: string }[];
   groups: PeriodGroupView[];
   /** Budgeting-reife Epics, die noch NICHT auf dem Ballot dieser Kachel sind. */
@@ -87,9 +85,7 @@ export async function loadPeriodDetail(
       endDate: round.endDate,
       submissionDeadline: round.submissionDeadline,
     },
-    distributable: Number(round.poolTotal) - ballot.mandatorySum,
-    mandatoryCount: ballot.mandatoryCount,
-    mandatorySum: ballot.mandatorySum,
+    distributable: Number(round.poolTotal),
     participants: participants.map((p) => ({ id: p.id, userId: p.userId, label: labelOf(p.userId) })),
     groups: round.groups.map((g) => ({
       id: g.id,

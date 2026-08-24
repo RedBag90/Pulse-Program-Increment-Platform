@@ -40,6 +40,12 @@ model Tenant {
   activeBudgetCycle String? @map("active_budget_cycle")
   budgetWindowSize  Int     @default(4) @map("budget_window_size")
 
+  // Participatory Budgeting: Default-Aufwand (Kosten-Richtwert) für Epics, die
+  // erst eine approved Benefit-Hypothese (noch keinen Lean Business Case) haben —
+  // grob der Aufwand, um den Business Case zu erarbeiten. `null` ⇒ Code-Fallback
+  // (DEFAULT_HYPOTHESIS_EFFORT). Für nur-Hypothese-Kandidaten der Ballot-Richtwert.
+  defaultHypothesisEffort Decimal? @map("default_hypothesis_effort") @db.Decimal(14, 2)
+
   // Conversion rate that turns WSJF Job-Size points into € for the PI-Planning
   // capacity overlay (Σ Job Size × this = €-Demand vs. ART budget). When null,
   // the €-axis of the capacity badge is hidden — Job Size alone is rendered.

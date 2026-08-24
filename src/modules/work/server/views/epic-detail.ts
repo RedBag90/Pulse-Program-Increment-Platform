@@ -24,7 +24,6 @@ import {
   type BusinessCaseFields,
   type BusinessCaseTotals,
 } from "@/modules/work/domain/business-case";
-import { isSubmissionReady } from "@/modules/work/domain/submission";
 import { parseTimeline, type TimelineFields } from "@/modules/work/domain/timeline";
 import { epicBenefitFromKpis, type EpicBenefit } from "@/modules/work/domain/epic-economics";
 import {
@@ -250,16 +249,6 @@ export interface EpicDetailModel {
   showBcOwnerEdit: boolean;
 
   childStats: { total: number; completed: number };
-  /** Participatory-Budgeting-Einreichung — Primitive + Vollständigkeits-Flag. */
-  submission: {
-    mandatory: boolean;
-    costToMvp: number | null;
-    riskRating: string | null;
-    problemStatement: string | null;
-    mvpCut: string | null;
-    ifNotFunded: string | null;
-    ready: boolean;
-  };
   subStage: ReturnType<typeof subStageFor>;
   nextStep: EpicNextStep | null;
   lifecycleSteps: LifecycleStep[];
@@ -605,25 +594,8 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     impactRecognizedAt: epic.impactRecognizedAt,
   });
 
-  const submission = {
-    mandatory: epic.mandatory,
-    costToMvp: epic.costToMvp != null ? Number(epic.costToMvp) : null,
-    riskRating: epic.riskRating,
-    problemStatement: epic.problemStatement,
-    mvpCut: epic.mvpCut,
-    ifNotFunded: epic.ifNotFunded,
-    ready: isSubmissionReady({
-      problemStatement: epic.problemStatement,
-      mvpCut: epic.mvpCut,
-      costToMvp: epic.costToMvp != null ? Number(epic.costToMvp) : null,
-      riskRating: epic.riskRating,
-      ifNotFunded: epic.ifNotFunded,
-    }),
-  };
-
   return {
     epic,
-    submission,
     showWsjf,
     canSetDelivery,
     kpis,

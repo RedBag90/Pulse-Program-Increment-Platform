@@ -1,18 +1,23 @@
 /**
- * Geteilter Ballot-/Pflicht-Loader (Spec F-C1).
+ * Geteilter Ballot-Loader (Spec F-C1).
  *
- * „Welche Epics stehen auf dem PB-Ballot (vorgemerkt, nicht Pflicht) und welche
- * Pflichtvorhaben ziehen den Topf ab" lag bisher 3–4× dupliziert (round-view,
- * zones-view, round-service-Close). Hier **einmal**. Der verteilbare Topf
- * (`poolTotal − mandatorySum`) bleibt beim Aufrufer, weil `poolTotal`
- * runden-spezifisch ist.
+ * „Welche Epics stehen auf dem PB-Ballot (vorgemerkt + budgeting-reif)" lag früher
+ * mehrfach dupliziert; hier **einmal**. Der Kosten-Richtwert je Epic wird aus den
+ * Artefakten abgeleitet (approved Lean Business Case → Σ costSlices; sonst approved
+ * Benefit-Hypothese → tenant-konfigurierter Default-Aufwand), nicht mehr aus einem
+ * manuellen Einreichungsfeld — s. `@/modules/work/domain/pb-submission`.
  *
- * `db` ist strukturell typisiert (`Pick<…, "initiative">`), damit sowohl der
- * PrismaClient als auch ein Transaktions-Client (im Close-Seam) ihn erfüllen.
+ * Das frühere Pflichtvorhaben-Konzept (`mandatory`, Off-the-top-Abzug) ist entfallen;
+ * `mandatoryCount`/`mandatorySum` bleiben als 0-Felder erhalten, solange Legacy-
+ * Konsumenten sie noch lesen.
+ *
+ * `db` ist strukturell typisiert (`Pick<…>`), damit sowohl der PrismaClient als auch
+ * ein Transaktions-Client (im Close-Seam) ihn erfüllen.
  */
 
 import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
+import { derivePbInfo, DEFAULT_HYPOTHESIS_EFFORT } from "@/modules/work/domain/pb-submission";
 
 export interface BallotEpic {
   id: string;
@@ -26,35 +31,57 @@ export interface RoundBallot {
   mandatorySum: number;
 }
 
+/**
+ * Löst den tenant-konfigurierten Default-Aufwand (Kosten-Richtwert für nur-Hypothese-
+ * Epics) auf; fällt ohne Konfiguration auf `DEFAULT_HYPOTHESIS_EFFORT` zurück.
+ */
+export async function loadDefaultHypothesisEffort(
+  db: Pick<PrismaClient, "tenant">,
+  tenantId: string,
+): Promise<number> {
+  const tenant = await db.tenant.findUnique({
+    where: { id: tenantId },
+    select: { defaultHypothesisEffort: true },
+  });
+  return tenant?.defaultHypothesisEffort != null
+    ? Number(tenant.defaultHypothesisEffort)
+    : DEFAULT_HYPOTHESIS_EFFORT;
+}
+
 export async function loadRoundBallot(
-  db: Pick<PrismaClient, "initiative">,
+  db: Pick<PrismaClient, "initiative" | "tenant">,
   tenantId: string,
 ): Promise<RoundBallot> {
-  const [ballotEpics, mandatoryEpics] = await Promise.all([
+  const [ballotEpics, defaultEffort] = await Promise.all([
     db.initiative.findMany({
       where: {
         tenantId,
         level: InitiativeLevel.EPIC,
         deletedAt: null,
         stagedForBudgeting: true,
-        mandatory: false,
+        OR: [{ hypothesisApprovedAt: { not: null } }, { businessCaseApprovedAt: { not: null } }],
       },
-      select: { id: true, title: true, costToMvp: true },
+      select: {
+        id: true,
+        title: true,
+        businessCase: true,
+        benefitHypothesis: true,
+        businessCaseApprovedAt: true,
+        hypothesisApprovedAt: true,
+      },
       orderBy: { title: "asc" },
     }),
-    db.initiative.findMany({
-      where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null, mandatory: true },
-      select: { costToMvp: true },
-    }),
+    loadDefaultHypothesisEffort(db, tenantId),
   ]);
 
   return {
     ballot: ballotEpics.map((e) => ({
       id: e.id,
       title: e.title,
-      cost: e.costToMvp ? Number(e.costToMvp) : 0,
+      cost: derivePbInfo(e, defaultEffort).cost,
     })),
-    mandatoryCount: mandatoryEpics.length,
-    mandatorySum: mandatoryEpics.reduce((s, e) => s + (e.costToMvp ? Number(e.costToMvp) : 0), 0),
+    // Pflichtvorhaben-Konzept entfällt — kein Off-the-top-Abzug mehr.
+    mandatoryCount: 0,
+    mandatorySum: 0,
   };
 }

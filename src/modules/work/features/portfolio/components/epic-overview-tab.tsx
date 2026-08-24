@@ -4,7 +4,6 @@ import { EpicClassificationForm } from "./epic-classification-form";
 import { EpicEditForm } from "./epic-edit-form";
 import { EpicGovernanceFlags } from "./epic-governance-flags";
 import { EpicPlannedWindowForm } from "./epic-planned-window-form";
-import { EpicSubmissionForm } from "./epic-submission-form";
 import { PhaseBadge } from "@/components/detail/phase-badge";
 import { SectionLabel } from "@/components/ui/section-label";
 import { formatCompactEUR } from "@/lib/formatting";
@@ -57,16 +56,6 @@ export interface EpicOverviewTabProps {
   canEdit: boolean;
   /** Nutzen bei 100 % KPI-Zielerreichung — direkt aus den KPIs berechnet. */
   kpiBenefit: { oneTimeBenefit: number; recurringBenefit: number };
-  /** Participatory-Budgeting-Einreichung (Primitive + Vollständigkeits-Flag). */
-  submission: {
-    mandatory: boolean;
-    costToMvp: number | null;
-    riskRating: string | null;
-    problemStatement: string | null;
-    mvpCut: string | null;
-    ifNotFunded: string | null;
-    ready: boolean;
-  };
 }
 
 /** Kennzahl-Kachel (Wirtschaftlichkeit) — großer € -Wert mit semantischem Akzent. */
@@ -102,7 +91,7 @@ function StatTile({
  * from data the Epic already carries; financials are derived from the
  * businessCase JSON.
  */
-export function EpicOverviewTab({ epic, canEdit, kpiBenefit, submission }: EpicOverviewTabProps) {
+export function EpicOverviewTab({ epic, canEdit, kpiBenefit }: EpicOverviewTabProps) {
   const completedChildren = epic.children.filter((c) => c.status === "completed").length;
 
   const summary = buildInitiativeSummary({
@@ -165,14 +154,6 @@ export function EpicOverviewTab({ epic, canEdit, kpiBenefit, submission }: EpicO
           Freigaben verwalten
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
-      </section>
-
-      <section>
-        <SectionLabel className="mb-2 flex items-center gap-1.5">
-          <Flag className="h-3.5 w-3.5" />
-          Einreichung (Participatory Budgeting)
-        </SectionLabel>
-        <EpicSubmissionForm epicId={epic.id} submission={submission} canEdit={canEdit} />
       </section>
 
       <section>

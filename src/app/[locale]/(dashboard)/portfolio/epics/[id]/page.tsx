@@ -182,12 +182,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           <div className="space-y-4">
             <EpicRealizedTile kpis={model.kpis} />
             <EpicGoalsBadge goalLinks={goalLinks.links} />
-            <EpicOverviewTab
-              epic={epic}
-              canEdit={model.canEdit}
-              kpiBenefit={model.kpiBenefit}
-              submission={model.submission}
-            />
+            <EpicOverviewTab epic={epic} canEdit={model.canEdit} kpiBenefit={model.kpiBenefit} />
           </div>
         )}
 
