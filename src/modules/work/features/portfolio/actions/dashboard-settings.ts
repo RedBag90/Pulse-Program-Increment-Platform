@@ -20,6 +20,7 @@ import {
 const guardrailTargetsSchema = z
   .object({
     horizon: z.object({
+      h0: z.number().min(0).max(100),
       h1: z.number().min(0).max(100),
       h2: z.number().min(0).max(100),
       h3: z.number().min(0).max(100),
@@ -64,7 +65,12 @@ export const savePortfolioDashboardSettingsAction = createServerAction({
     const hasGuardrailFields = fd.has("guardrail_h1");
     const guardrailTargets: GuardrailTargets | undefined = hasGuardrailFields
       ? {
-          horizon: { h1: num("guardrail_h1"), h2: num("guardrail_h2"), h3: num("guardrail_h3") },
+          horizon: {
+            h0: num("guardrail_h0"),
+            h1: num("guardrail_h1"),
+            h2: num("guardrail_h2"),
+            h3: num("guardrail_h3"),
+          },
           capacity: {
             business: num("guardrail_business"),
             enabler: num("guardrail_enabler"),

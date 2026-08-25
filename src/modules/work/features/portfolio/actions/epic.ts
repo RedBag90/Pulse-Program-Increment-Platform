@@ -21,17 +21,31 @@ export const createEpicAction = createServerAction({
     description: z.string().optional(),
     valueStreamId: z.string().uuid(),
     artId: z.string().uuid(),
+    primarySolutionId: z.string().uuid().nullable().optional(),
   }),
   action: "epic.create",
   // valueStreamId carries the scope so a value_stream_owner can only create
   // Epics within their own value stream.
   resource: (input, p) => ({ tenantId: p.tenantId, valueStreamId: input.valueStreamId }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    const sol = f.nonEmptyString("primarySolutionId");
+    return {
+      title: f.string("title"),
+      description: f.nonEmptyString("description"),
+      valueStreamId: f.string("valueStreamId"),
+      artId: f.string("artId"),
+      // Leeres Solution-Feld → weglassen (optional).
+      ...(sol !== undefined && { primarySolutionId: sol }),
+    };
+  },
   service: (ctx, input) =>
     createEpic(ctx, {
       title: input.title,
       description: input.description,
       valueStreamId: input.valueStreamId as ValueStreamId,
       artId: input.artId as ArtId,
+      ...(input.primarySolutionId !== undefined && { primarySolutionId: input.primarySolutionId }),
     }),
   revalidate: "epic",
   mapError: (e) =>
@@ -46,7 +60,6 @@ export const updateEpicAction = createServerAction({
     // SAFe Guardrails (Roadmap-G2). Leerer String = explizit clearen,
     // fehlend = nicht anpacken — die Form sendet beide Felder immer.
     epicType: z.enum(["solution", "epic", "enabler", ""]).optional(),
-    investmentHorizon: z.enum(["h1", "h2", "h3", ""]).optional(),
   }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -57,9 +70,6 @@ export const updateEpicAction = createServerAction({
       description: input.description,
       ...(input.epicType !== undefined && {
         epicType: input.epicType === "" ? null : input.epicType,
-      }),
-      ...(input.investmentHorizon !== undefined && {
-        investmentHorizon: input.investmentHorizon === "" ? null : input.investmentHorizon,
       }),
     }),
   revalidate: "epic",

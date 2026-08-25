@@ -148,7 +148,8 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
         id: true,
         title: true,
         epicType: true,
-        investmentHorizon: true,
+        // Horizont kommt aus der Primär-Solution (nicht mehr aus dem Epic-Feld).
+        primarySolution: { select: { horizon: true } },
         businessCase: true,
         stageGate: true,
         needsSteeringAttention: true,
@@ -167,7 +168,7 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
       id: e.id,
       title: e.title,
       epicType: e.epicType,
-      investmentHorizon: e.investmentHorizon,
+      investmentHorizon: e.primarySolution?.horizon ?? null,
       amount,
       stageGate: e.stageGate,
       needsSteeringAttention: e.needsSteeringAttention,

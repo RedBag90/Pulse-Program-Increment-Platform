@@ -203,8 +203,13 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
   await prisma.initiativeGraphPosition.deleteMany(w);
 
   // Initiatives leaf-first (Feature vor Epic)
+  // Solution-Zuordnungen vor den Epics lösen (EpicSolution cascadet zwar, aber
+  // explizit hält die Reihenfolge robust).
+  await prisma.epicSolution.deleteMany(w);
   await prisma.initiative.deleteMany({ where: { tenantId, level: 1 } });
   await prisma.initiative.deleteMany({ where: { tenantId, level: 0 } });
+  // Solutions vor valueStream (Solution.valueStreamId).
+  await prisma.solution.deleteMany(w);
 
   // Issues (single type) — satellites first, then rows (self-nesting drops together)
   await prisma.issueMitigation.deleteMany(w);

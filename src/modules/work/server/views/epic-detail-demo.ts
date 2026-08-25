@@ -130,6 +130,7 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
     impactComment: null,
     epicType: null,
     investmentHorizon: null,
+    primarySolutionId: null,
     featureType: null,
     needsSteeringAttention: false,
     stagedForBudgeting: false,
@@ -150,6 +151,8 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
       financeApproverId: null,
       vmoId: null,
     },
+    primarySolution: null,
+    solutionLinks: [],
     children: [
       demoFeature({ id: "f1", title: "Antragsstrecke neu", status: "in_progress", wsjf: 3.2 }),
       demoFeature({ id: "f2", title: "Statusabfrage", status: "approved", wsjf: 2.4 }),

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { savePortfolioDashboardSettingsAction } from "@/modules/work/features/portfolio/actions/dashboard-settings";
 import {
   validateGuardrailTargets,
+  HORIZON_LABEL,
   type GuardrailTargets,
 } from "@/modules/work/domain/portfolio-guardrails";
 
@@ -32,7 +33,7 @@ export function GuardrailTargetsForm({ targets }: Props) {
 
   const validation = validateGuardrailTargets(draft);
 
-  function update(path: "h1" | "h2" | "h3" | "business" | "enabler", value: number) {
+  function update(path: "h0" | "h1" | "h2" | "h3" | "business" | "enabler", value: number) {
     const v = Number.isFinite(value) ? value : 0;
     setDraft((prev) =>
       path === "business" || path === "enabler"
@@ -57,22 +58,28 @@ export function GuardrailTargetsForm({ targets }: Props) {
               Horizon
             </legend>
             <NumberRow
-              label="H1 · Sustain"
-              name="guardrail_h1"
-              value={draft.horizon.h1}
-              onChange={(v) => update("h1", v)}
+              label={HORIZON_LABEL.h3}
+              name="guardrail_h3"
+              value={draft.horizon.h3}
+              onChange={(v) => update("h3", v)}
             />
             <NumberRow
-              label="H2 · Grow"
+              label={HORIZON_LABEL.h2}
               name="guardrail_h2"
               value={draft.horizon.h2}
               onChange={(v) => update("h2", v)}
             />
             <NumberRow
-              label="H3 · Innovate"
-              name="guardrail_h3"
-              value={draft.horizon.h3}
-              onChange={(v) => update("h3", v)}
+              label={HORIZON_LABEL.h1}
+              name="guardrail_h1"
+              value={draft.horizon.h1}
+              onChange={(v) => update("h1", v)}
+            />
+            <NumberRow
+              label={HORIZON_LABEL.h0}
+              name="guardrail_h0"
+              value={draft.horizon.h0}
+              onChange={(v) => update("h0", v)}
             />
           </fieldset>
           <fieldset className="space-y-2 rounded-md border p-3">

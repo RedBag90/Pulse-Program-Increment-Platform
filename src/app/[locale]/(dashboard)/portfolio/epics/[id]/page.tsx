@@ -104,6 +104,15 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   };
 
   const { epic, timeline, benefitHypothesis, businessCase, kpiRows } = model;
+
+  // Zuordenbare Solutions = Solutions im Value Stream des Epics (für die Zuordnung).
+  const availableSolutions = epic.valueStreamId
+    ? await db.solution.findMany({
+        where: { tenantId, valueStreamId: epic.valueStreamId, deletedAt: null },
+        select: { id: true, name: true, horizon: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
   // Issues tab only when the module is entitled (slice present).
   const tabs = model.risks.disabled ? EPIC_TABS : [...EPIC_TABS, { key: "issues", label: "Issues" }];
   const activeTab = resolveTab(tabs, tab);
@@ -182,7 +191,12 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           <div className="space-y-4">
             <EpicRealizedTile kpis={model.kpis} />
             <EpicGoalsBadge goalLinks={goalLinks.links} />
-            <EpicOverviewTab epic={epic} canEdit={model.canEdit} kpiBenefit={model.kpiBenefit} />
+            <EpicOverviewTab
+              epic={epic}
+              canEdit={model.canEdit}
+              kpiBenefit={model.kpiBenefit}
+              solutions={availableSolutions}
+            />
           </div>
         )}
 

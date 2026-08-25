@@ -12,6 +12,10 @@ export type Action =
   | "integration.manage"
   | "value_stream.create"
   | "value_stream.update"
+  | "solution.create"
+  | "solution.update"
+  | "solution.delete"
+  | "solution.manage"
   | "epic.create"
   | "epic.update"
   | "epic.delete"
@@ -184,6 +188,15 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Person auf der L5-Abnehmer-Regel.
   "value_stream.create": [{ roles: [PORTFOLIO_MANAGER] }],
   "epic.delete": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
+
+  // ── Solution ────────────────────────────────────────────────────────────
+  // Solutions sind Portfolio-Katalog-Entitäten (Lean Portfolio Management):
+  // tenant-weit von LPM/Admin verwaltet, kein Value-Stream-Scope. `manage`
+  // deckt Lifecycle-Wechsel (Horizont/Transition-Gate) + Run/Grow ab.
+  "solution.create": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
+  "solution.update": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
+  "solution.delete": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
+  "solution.manage": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
 
   // ── Reifegrad-Wechsel (Stage Gate) ──────────────────────────────────────
   // Der Push ist ein **manueller Akt**: jemand beantragt ihn, namentlich

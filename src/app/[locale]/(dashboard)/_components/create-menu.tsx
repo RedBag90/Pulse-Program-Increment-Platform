@@ -17,6 +17,7 @@ import { useCreateContext } from "@/features/create/use-create-context";
 import { CreateValueStreamDialog } from "@/modules/core/org/features/value-stream/components/create-value-stream-dialog";
 import { CreateEpicDialog } from "@/modules/work/features/portfolio/components/create-epic-dialog";
 import { CreateArtDialog } from "@/modules/core/org/features/art/components/create-art-dialog";
+import { CreateSolutionDialog } from "@/modules/work/features/portfolio/components/solutions/create-solution-dialog";
 import { CreateFeatureDialog } from "@/modules/work/features/feature/components/create-feature-dialog";
 import { CreateDependencyDialog } from "@/modules/drumbeat/features/dependencies/components/create-dependency-dialog";
 import { CreateGoalDialog } from "@/modules/core/goals/features/components/create-goal-dialog";
@@ -77,6 +78,7 @@ export function CreateMenu() {
       {openKey === "value-stream" && <CreateValueStreamDialog open onOpenChange={close} />}
       {openKey === "epic" && <CreateEpicDialog open onOpenChange={close} />}
       {openKey === "art" && <CreateArtDialog open onOpenChange={close} />}
+      {openKey === "solution" && <CreateSolutionDialog open onOpenChange={close} />}
       {openKey === "feature" && <CreateFeatureDialog open onOpenChange={close} context={ctx} />}
       {openKey === "dependency" && <CreateDependencyDialog open onOpenChange={close} />}
       {openKey === "risk" && <CreateIssueDialog open onOpenChange={close} />}

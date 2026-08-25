@@ -37,9 +37,10 @@ export function GuardrailTargetsReadOnly({ targets }: Props) {
             Horizon
           </p>
           <ul className="space-y-1 text-sm">
-            <Row label={HORIZON_LABEL.h1} value={targets.horizon.h1} />
-            <Row label={HORIZON_LABEL.h2} value={targets.horizon.h2} />
             <Row label={HORIZON_LABEL.h3} value={targets.horizon.h3} />
+            <Row label={HORIZON_LABEL.h2} value={targets.horizon.h2} />
+            <Row label={HORIZON_LABEL.h1} value={targets.horizon.h1} />
+            <Row label={HORIZON_LABEL.h0} value={targets.horizon.h0} />
           </ul>
         </div>
         <div className="rounded-md border p-3">

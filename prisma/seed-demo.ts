@@ -68,7 +68,10 @@ async function main() {
       // PB-Default-Aufwand: Kosten-Richtwert im Ballot für nur-Hypothese-Epics.
       defaultHypothesisEffort: 60_000,
       costPerJobSizePoint: 1_800,
-      guardrailTargets: { horizon: { H1: 0.5, H2: 0.3, H3: 0.2 }, enablerRatio: 0.2 },
+      guardrailTargets: {
+        horizon: { h3: 10, h2: 20, h1: 60, h0: 10 },
+        capacity: { business: 80, enabler: 20 },
+      },
     },
   });
 
@@ -411,6 +414,41 @@ async function main() {
     L5: "completed",
   };
 
+  // ── Solutions (je Value Stream über die Horizonte) ───────────────────────
+  // Der Horizont eines Epics wird aus seiner Primär-Solution abgeleitet.
+  const solId = (vs: number, h: string) => uid(`sol:${vs}:${h.toLowerCase()}`);
+  const solNameSuffix: Record<string, string> = { h1: "Core", h2: "MVP", h3: "R&D" };
+  const solutionRows: Prisma.SolutionCreateManyInput[] = [];
+  for (let vs = 0; vs < vsIds.length; vs++) {
+    for (const h of ["h1", "h2", "h3"] as const) {
+      solutionRows.push({
+        id: solId(vs, h),
+        tenantId,
+        valueStreamId: vsIds[vs]!,
+        artId: h === "h1" ? artIds[vs * 2]! : null,
+        name: `${vsNames[vs]} ${solNameSuffix[h]}`,
+        horizon: h,
+        // Demo: der H1-Kern von VS 1 wird „gemolken" (Extracting) statt ausgebaut.
+        investmentMode: h === "h1" ? (vs === 1 ? "extracting" : "investing") : null,
+        runBaselineAmount: h === "h1" ? 200_000 + vs * 50_000 : null,
+        createdBy: ADMIN,
+        updatedBy: ADMIN,
+      });
+    }
+  }
+  // Eine stillzulegende Solution (H0) für die Decommissioning-Swimlane-Demo.
+  solutionRows.push({
+    id: solId(0, "h0"),
+    tenantId,
+    valueStreamId: vsIds[0]!,
+    name: `${vsNames[0]} Legacy`,
+    horizon: "h0",
+    runBaselineAmount: 120_000,
+    createdBy: ADMIN,
+    updatedBy: ADMIN,
+  });
+  await prisma.solution.createMany({ data: solutionRows });
+
   const epicIds = EPIC_DEFS.map((_, i) => uid(`epic:${i}`));
   const epicRows: Prisma.InitiativeCreateManyInput[] = EPIC_DEFS.map((def, i) => {
     const start = addDays(now, -160 + i * 12);
@@ -441,7 +479,8 @@ async function main() {
       stageGate: def.gate,
       status,
       epicType: def.epicType,
-      investmentHorizon: def.horizon,
+      // Horizont kommt aus der Primär-Solution (im selben Value Stream).
+      primarySolutionId: solId(def.vs, def.horizon),
       needsSteeringAttention: def.steering,
       stagedForBudgeting: def.gate === "L2" || def.gate === "L3",
       plannedStartAt: start,
@@ -480,6 +519,16 @@ async function main() {
     };
   });
   await prisma.initiative.createMany({ data: epicRows });
+
+  // Epic↔Solution-Links (voller Zuordnungssatz; Primär steht am Epic).
+  await prisma.epicSolution.createMany({
+    data: EPIC_DEFS.map((def, i) => ({
+      tenantId,
+      epicId: epicIds[i]!,
+      solutionId: solId(def.vs, def.horizon),
+      createdBy: ADMIN,
+    })),
+  });
 
   // Abnehmer je Reifegrad-Wechsel (ADR-0018). Ohne diese Regeln ist ein Wechsel
   // nicht beantragbar — ein frischer Demo-Tenant wäre sonst am ersten Gate

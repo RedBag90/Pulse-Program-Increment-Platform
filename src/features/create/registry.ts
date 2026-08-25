@@ -51,6 +51,14 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     resolveHref: () => "/capacity?create=art",
   },
   {
+    key: "solution",
+    label: "Solution",
+    group: "portfolio",
+    indentLevel: 1,
+    inPlace: true,
+    resolveHref: () => "/portfolio/solutions?create=solution",
+  },
+  {
     key: "epic",
     label: "Epic",
     group: "initiative",

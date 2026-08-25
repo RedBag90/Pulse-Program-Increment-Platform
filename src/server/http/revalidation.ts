@@ -21,6 +21,7 @@ export type RevalidationResource =
   | "feature"
   | "epic"
   | "valueStream"
+  | "solution"
   | "budgetAllocation"
   | "budgetRound"
   | "budgetPeriod"
@@ -64,6 +65,15 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/budgeting/round",
   ],
   valueStream: ["/structure", "/value-streams/[id]"],
+  // Solutions wirken auf die Verwaltungsseiten UND auf den abgeleiteten
+  // Epic-Horizont (Kanban-Swimlanes, Guardrail, Epic-Detail).
+  solution: [
+    "/portfolio/solutions",
+    "/portfolio/solutions/[id]",
+    "/portfolio",
+    "/portfolio/dashboard",
+    "/portfolio/epics/[id]",
+  ],
   // Eine Epic-Zuteilung (oder der Topf) aendert das ABGELEITETE Wertstrom-Budget
   // — und das zeigen weit mehr Seiten als das Board selbst. Vorher deklarierten
   // beide Aktionen `epic`, wodurch Struktur-, Timeline- und Reporting-Sichten

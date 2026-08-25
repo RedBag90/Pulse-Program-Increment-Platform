@@ -10,7 +10,7 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
-import type { EpicType, Horizon } from "@/modules/work/domain/portfolio-guardrails";
+import type { EpicType } from "@/modules/work/domain/portfolio-guardrails";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { createInitiativeWithDerivedPath } from "@/modules/core/kernel/server/initiative-write";
@@ -42,6 +42,8 @@ export interface CreateEpicInput {
   valueStreamId: ValueStreamId;
   /** ART-Zuordnung des Epics (gehört fest zu `valueStreamId`). */
   artId: ArtId;
+  /** Optionale Primär-Solution (muss zum `valueStreamId` gehören). Liefert den Horizont. */
+  primarySolutionId?: string | null | undefined;
 }
 
 export async function createEpic(
@@ -49,7 +51,7 @@ export async function createEpic(
   input: CreateEpicInput,
 ): Promise<Result<{ id: EpicId }>> {
   const mctx = toMutationContext(ctx);
-  const { title, description, valueStreamId, artId } = input;
+  const { title, description, valueStreamId, artId, primarySolutionId } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     // Verify the value stream belongs to the same tenant (cross-tenant guard).
@@ -69,6 +71,17 @@ export async function createEpic(
       return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
     }
 
+    // Optionale Primär-Solution: muss zum gewählten Value Stream gehören.
+    if (primarySolutionId != null) {
+      const sol = await tx.solution.findFirst({
+        where: { id: primarySolutionId, tenantId: mctx.tenantId, valueStreamId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!sol) {
+        return err({ kind: "conflict" as const, reason: "Die Primär-Solution gehört nicht zum gewählten Value Stream." });
+      }
+    }
+
     const epic = await createInitiativeWithDerivedPath(tx, {
       data: {
         tenantId: mctx.tenantId,
@@ -83,9 +96,17 @@ export async function createEpic(
         valueStreamId,
         artId,
         approvalPhase: "draft",
+        ...(primarySolutionId != null && { primarySolutionId }),
         ...(description !== undefined && { description }),
       },
     });
+
+    // Primär-Solution auch als EpicSolution-Link führen (voller Zuordnungssatz).
+    if (primarySolutionId != null) {
+      await tx.epicSolution.create({
+        data: { tenantId: mctx.tenantId, epicId: epic.id, solutionId: primarySolutionId, createdBy: mctx.actorId },
+      });
+    }
 
     return ok({
       result: { id: epic.id as EpicId },
@@ -107,9 +128,9 @@ export interface UpdateEpicInput {
   /** Planned delivery window ("Soll"). `null` clears, `undefined` leaves unchanged. */
   plannedStartAt?: Date | null | undefined;
   plannedEndAt?: Date | null | undefined;
-  /** SAFe Portfolio Guardrails. `null` cleart, `undefined` belaesst. */
+  /** SAFe Portfolio Guardrails (Capacity). `null` cleart, `undefined` belaesst.
+   *  Der Horizont wird NICHT mehr hier gesetzt — er kommt aus der Primär-Solution. */
   epicType?: EpicType | null | undefined;
-  investmentHorizon?: Horizon | null | undefined;
 }
 
 export async function updateEpic(
@@ -126,7 +147,6 @@ export async function updateEpic(
     plannedStartAt,
     plannedEndAt,
     epicType,
-    investmentHorizon,
   } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
@@ -141,7 +161,6 @@ export async function updateEpic(
         plannedStartAt: true,
         plannedEndAt: true,
         epicType: true,
-        investmentHorizon: true,
         businessCaseApprovedAt: true,
         hypothesisApprovedAt: true,
       },
@@ -182,7 +201,6 @@ export async function updateEpic(
         plannedStartAt,
         plannedEndAt,
         epicType,
-        investmentHorizon,
       },
       fields: [
         "title",
@@ -192,7 +210,6 @@ export async function updateEpic(
         "plannedStartAt",
         "plannedEndAt",
         "epicType",
-        "investmentHorizon",
       ] as const,
     });
 
@@ -579,6 +596,8 @@ export async function listEpicsForOverview(
       needsSteeringAttention: true,
       timeline: true,
       valueStream: { select: { id: true, name: true } },
+      // Abgeleiteter Horizont für die Kanban-Swimlanes.
+      primarySolution: { select: { horizon: true } },
     },
     orderBy: [{ stageGate: "asc" }, { createdAt: "desc" }],
   });
@@ -598,6 +617,8 @@ export async function listEpicsForPortfolioList(db: PrismaClient, tenantId: Tena
     where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
     include: {
       valueStream: { select: { id: true, name: true } },
+      // Abgeleiteter Horizont für Filter/Anzeige.
+      primarySolution: { select: { horizon: true } },
       kpis: {
         select: {
           baseline: true,
@@ -665,6 +686,11 @@ export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) 
     where: { id, tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
     include: {
       valueStream: { select: { id: true, name: true, financeApproverId: true, vmoId: true } },
+      // Primär-Solution → abgeleiteter Horizont; alle Links → Solutions-Abschnitt.
+      primarySolution: { select: { id: true, horizon: true } },
+      solutionLinks: {
+        select: { solution: { select: { id: true, name: true, horizon: true, deletedAt: true } } },
+      },
       children: {
         where: { deletedAt: null },
         select: {

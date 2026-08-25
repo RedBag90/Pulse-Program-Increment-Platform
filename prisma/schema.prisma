@@ -85,6 +85,8 @@ model Tenant {
   piStandards           PiStandard[]
   timelines             Timeline[]
   setupProgress         SetupProgress[]
+  solutions             Solution[]
+  epicSolutions         EpicSolution[]
 
   @@index([status])
   @@map("tenants")
@@ -592,6 +594,7 @@ model ValueStream {
   goalLinks         GoalValueStreamLink[]
   gateApproverRules StageGateApproverRule[]
   rtbItems          RunTheBusinessItem[]
+  solutions         Solution[]
 
   // Uniqueness among *active* (non-deleted) rows is enforced by a partial unique
   // index created out-of-band (see prisma/manual-indexes.sql) — Prisma can't
@@ -626,10 +629,64 @@ model Art {
   issues      Issue[]
   budget      ArtBudget?
   goalLinks   GoalArtLink[]
+  solutions   Solution[]
 
   // Active-row uniqueness via a partial unique index (see prisma/manual-indexes.sql).
   @@index([timelineId])
   @@map("arts")
+}
+
+/// SAFe Solution — das langlebige Produkt/System zwischen Value Stream und Epic.
+/// Trägt den Investitionshorizont (Lebenszyklus): h3 R&D → h2 Emerging → h1
+/// Investing/Extracting → h0 Decommissioning. Epics verändern Solutions; der
+/// Horizont eines Epics wird aus seiner Primär-Solution abgeleitet.
+model Solution {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  valueStreamId     String    @map("value_stream_id") @db.Uuid
+  artId             String?   @map("art_id") @db.Uuid
+  name              String
+  description       String?
+  /// h0 (Decommissioning) | h1 (Investing) | h2 (Emerging) | h3 (R&D).
+  horizon           String    @default("h1")
+  /// Nur in H1 relevant: "investing" | "extracting". Sonst null.
+  investmentMode    String?   @map("investment_mode")
+  /// Manuelle Run-Betriebskosten p.a. Grow wird aus den Primär-Epics abgeleitet.
+  runBaselineAmount Decimal?  @map("run_baseline_amount") @db.Decimal(14, 2)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  createdBy         String    @map("created_by") @db.Uuid
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  updatedBy         String    @map("updated_by") @db.Uuid
+  deletedAt         DateTime? @map("deleted_at")
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  valueStream    ValueStream    @relation(fields: [valueStreamId], references: [id])
+  art            Art?           @relation(fields: [artId], references: [id], onDelete: SetNull)
+  epicLinks      EpicSolution[]
+  primaryOfEpics Initiative[]   @relation("EpicPrimarySolution")
+
+  @@index([tenantId, valueStreamId])
+  @@index([tenantId, horizon])
+  @@map("solutions")
+}
+
+/// n:m-Zuordnung Epic ↔ Solution (voller Zuordnungssatz). Die Primär-Solution
+/// steht zusätzlich als `Initiative.primarySolutionId` und muss hier enthalten sein.
+model EpicSolution {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  epicId     String   @map("epic_id") @db.Uuid
+  solutionId String   @map("solution_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+  createdBy  String   @map("created_by") @db.Uuid
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id])
+  epic     Initiative @relation(fields: [epicId], references: [id], onDelete: Cascade)
+  solution Solution   @relation(fields: [solutionId], references: [id], onDelete: Cascade)
+
+  @@unique([epicId, solutionId])
+  @@index([tenantId, solutionId])
+  @@map("epic_solutions")
 }
 
 model ProgramIncrement {
@@ -825,7 +882,12 @@ model Initiative {
   // Compliance / NFR). investmentHorizon: H1 (Sustain), H2 (Grow),
   // H3 (Innovate) — McKinsey-3-Horizons-Modell.
   epicType          String? @map("epic_type")
+  // Vestigial: der Investitionshorizont kommt jetzt aus der Primär-Solution
+  // (primarySolutionId). Spalte bleibt nullbar, wird nicht mehr gelesen/geschrieben.
   investmentHorizon String? @map("investment_horizon")
+  // EPIC only: Primär-Solution → liefert den abgeleiteten Horizont. Weitere
+  // Zuordnungen in EpicSolution; die Primär-Solution muss dort enthalten sein.
+  primarySolutionId String? @map("primary_solution_id") @db.Uuid
   // FEATURE-only: feature vs enabler (Architectural Runway etc.).
   featureType       String? @map("feature_type")
 
@@ -856,6 +918,9 @@ model Initiative {
   valueStream ValueStream?      @relation("EpicValueStream", fields: [valueStreamId], references: [id])
   art         Art?              @relation("FeatureArt", fields: [artId], references: [id])
   pi          ProgramIncrement? @relation(fields: [piId], references: [id])
+
+  primarySolution Solution?      @relation("EpicPrimarySolution", fields: [primarySolutionId], references: [id], onDelete: SetNull)
+  solutionLinks   EpicSolution[]
 
   dependenciesOut  Dependency[]          @relation("From")
   dependenciesIn   Dependency[]          @relation("To")

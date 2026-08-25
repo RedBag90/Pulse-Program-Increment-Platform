@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 export type ParentKind =
   | "valueStream"
   | "art"
+  | "solution"
   | "epic"
   | "feature"
   | "pi"
@@ -28,6 +29,8 @@ export function optionsEndpoint(
       return "/api/v1/value-streams";
     case "art":
       return "/api/v1/arts";
+    case "solution":
+      return "/api/v1/solutions";
     case "epic":
       return "/api/v1/initiatives";
     case "feature":

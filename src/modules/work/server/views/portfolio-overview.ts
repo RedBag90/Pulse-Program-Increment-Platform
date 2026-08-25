@@ -3,6 +3,7 @@ import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { listEpicsForOverview } from "@/modules/work/server/services/epic";
 import { listOverviewFeatures } from "@/modules/work/server/services/feature";
 import { parseTimeline } from "@/modules/work/domain/timeline";
+import { HORIZONS, isHorizon, type Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import {
   computeStructureGap,
   computePracticeAdoption,
@@ -28,6 +29,10 @@ const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 /** Stage gate keys, in canonical Funnel→Done order. */
 export const STAGE_GATES = ["L0", "L1", "L2", "L3", "L4", "L5"] as const;
 export type StageGate = (typeof STAGE_GATES)[number];
+
+/** Swimlane-Achse des Overview-Kanbans: die vier Horizonte + „Ohne". */
+export const HORIZON_LANES = [...HORIZONS, "none"] as const;
+export type HorizonLane = Horizon | "none";
 
 export const STAGE_GATE_LABEL: Record<StageGate, string> = {
   L0: "Funnel",
@@ -75,6 +80,8 @@ export interface OverviewEpicCard {
   updatedAt: Date;
   daysSinceUpdate: number;
   needsSteeringAttention: boolean;
+  /** Abgeleiteter Horizont (Primär-Solution) — Swimlane-Achse im Kanban. */
+  horizon: string | null;
 }
 
 /** Exposure-Band eines Risikos (score = probability·impact → Band). Lokale Union,
@@ -182,6 +189,8 @@ export interface OverviewRecentEvent {
 export interface PortfolioOverview {
   epics: OverviewEpicCard[];
   epicsByGate: Record<StageGate, OverviewEpicCard[]>;
+  /** Horizont-Swimlanes × Stage-Gate für den Overview-Kanban. */
+  epicsByHorizonGate: Record<HorizonLane, Record<StageGate, OverviewEpicCard[]>>;
   epicsCount: number;
 
   oldestPerGate: Record<StageGate, OverviewEpicCard | null>;
@@ -304,6 +313,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     updatedAt: e.updatedAt,
     daysSinceUpdate: Math.floor((nowMs - new Date(e.updatedAt).getTime()) / (24 * 60 * 60 * 1000)),
     needsSteeringAttention: e.needsSteeringAttention,
+    horizon: e.primarySolution?.horizon ?? null,
   }));
 
   // Gruppierung direkt nach `stageGate`. Die frühere Bucket-Abweichung
@@ -331,6 +341,21 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
       }
       return b.daysSinceUpdate - a.daysSinceUpdate;
     });
+  }
+
+  // Horizont-Swimlanes: Matrix Horizont × Stage-Gate für den Overview-Kanban.
+  // Nutzt die bereits sortierten `epicsByGate`-Spalten (Reihenfolge bleibt).
+  const epicsByHorizonGate = Object.fromEntries(
+    HORIZON_LANES.map((h) => [
+      h,
+      Object.fromEntries(STAGE_GATES.map((g) => [g, [] as OverviewEpicCard[]])),
+    ]),
+  ) as Record<HorizonLane, Record<StageGate, OverviewEpicCard[]>>;
+  for (const gate of STAGE_GATES) {
+    for (const c of epicsByGate[gate]) {
+      const lane: HorizonLane = isHorizon(c.horizon) ? c.horizon : "none";
+      epicsByHorizonGate[lane][gate].push(c);
+    }
   }
 
   // `oldestPerGate` bewusst von der Display-Sortierung entkoppelt:
@@ -533,6 +558,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   return {
     epics: cards,
     epicsByGate,
+    epicsByHorizonGate,
     epicsCount: cards.length,
     oldestPerGate,
     doneInLast90Days,

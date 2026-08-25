@@ -60,7 +60,7 @@ export interface StageTowerEpic {
 /** Spaltenschluessel fuer den Horizon-by-Horizon-Tower. `none` sammelt
  *  alle Epics ohne Horizon-Klassifikation. Reihenfolge H3..H1 entspricht
  *  der strategischen Lese-Richtung („Innovate" links, „Sustain" rechts). */
-export const HORIZON_COLUMNS = ["h3", "h2", "h1", "none"] as const;
+export const HORIZON_COLUMNS = ["h3", "h2", "h1", "h0", "none"] as const;
 export type HorizonColumn = (typeof HORIZON_COLUMNS)[number];
 
 export interface HorizonGuardrailModel {
@@ -154,12 +154,12 @@ export function computePortfolioGuardrails(input: {
   // Sortiert jede Stage-Spalte nach Horizon-Rank — gleiche Farbe sammelt
   // sich zu einem visuellen Block. Stabil (Array.sort), gleiche Horizon-
   // Gruppe behaelt ihre DB-Reihenfolge.
-  const horizonRank: Record<string, number> = { h1: 0, h2: 1, h3: 2 };
+  const horizonRank: Record<string, number> = { h3: 0, h2: 1, h1: 2, h0: 3 };
   for (const g of STAGE_GATES) {
     epicsByStage[g].sort(
       (a, b) =>
-        (a.horizon != null ? horizonRank[a.horizon]! : 3) -
-        (b.horizon != null ? horizonRank[b.horizon]! : 3),
+        (a.horizon != null ? horizonRank[a.horizon]! : 4) -
+        (b.horizon != null ? horizonRank[b.horizon]! : 4),
     );
   }
 

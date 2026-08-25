@@ -43,15 +43,16 @@ describe("computePortfolioGuardrails", () => {
       targets: DEFAULT_GUARDRAIL_TARGETS,
     });
     expect(m.horizon.epicsByStage.L2).toHaveLength(2);
-    expect(m.horizon.epicsByStage.L2[0]?.horizon).toBe("h1");
-    expect(m.horizon.epicsByStage.L2[1]?.horizon).toBe("h3");
-    expect(m.horizon.epicsByStage.L2[1]?.needsSteeringAttention).toBe(true);
+    // Sortierung h3 → h1 (Anzeige-Reihenfolge R&D oben).
+    expect(m.horizon.epicsByStage.L2[0]?.horizon).toBe("h3");
+    expect(m.horizon.epicsByStage.L2[0]?.needsSteeringAttention).toBe(true);
+    expect(m.horizon.epicsByStage.L2[1]?.horizon).toBe("h1");
     expect(m.horizon.epicsByStage.L4).toHaveLength(1);
     expect(m.horizon.epicsByStage.L4[0]?.horizon).toBeNull();
     expect(m.horizon.epicsByStage.L0).toEqual([]);
   });
 
-  it("sortiert epics pro stage nach horizon (H1 -> H2 -> H3 -> null), stabil", () => {
+  it("sortiert epics pro stage nach horizon (H3 -> H2 -> H1 -> H0 -> null), stabil", () => {
     const m = computePortfolioGuardrails({
       epics: [
         epic({ id: "p", investmentHorizon: "h3", stageGate: "L3" }),
@@ -62,7 +63,7 @@ describe("computePortfolioGuardrails", () => {
       ],
       targets: DEFAULT_GUARDRAIL_TARGETS,
     });
-    expect(m.horizon.epicsByStage.L3.map((e) => e.id)).toEqual(["r", "t", "s", "p", "q"]);
+    expect(m.horizon.epicsByStage.L3.map((e) => e.id)).toEqual(["p", "s", "r", "t", "q"]);
   });
 
   it("baut epicsByHorizon (H1/H2/H3/none) und sortiert pro Spalte nach Stage-Index", () => {
@@ -130,10 +131,11 @@ describe("computePortfolioGuardrails", () => {
   it("ampel: gruen wenn alle deltas <=5pp", () => {
     const m = computePortfolioGuardrails({
       epics: [
-        // Target 70/20/10. Mix mit 7/2/1 = exakt 70/20/10.
-        ...new Array(7).fill(0).map((_, i) => epic({ id: `h1-${i}`, investmentHorizon: "h1" })),
+        // Target h3/h2/h1/h0 = 10/20/60/10. Mix mit 1/2/6/1 = exakt 10/20/60/10.
+        ...new Array(6).fill(0).map((_, i) => epic({ id: `h1-${i}`, investmentHorizon: "h1" })),
         ...new Array(2).fill(0).map((_, i) => epic({ id: `h2-${i}`, investmentHorizon: "h2" })),
         epic({ id: "h3-0", investmentHorizon: "h3" }),
+        epic({ id: "h0-0", investmentHorizon: "h0" }),
       ],
       targets: DEFAULT_GUARDRAIL_TARGETS,
     });
@@ -167,7 +169,7 @@ describe("computePortfolioGuardrails", () => {
   it("targets reagieren auf custom-Werte", () => {
     const m = computePortfolioGuardrails({
       epics: [epic({ id: "a", investmentHorizon: "h1" })],
-      targets: { horizon: { h1: 100, h2: 0, h3: 0 }, capacity: { business: 100, enabler: 0 } },
+      targets: { horizon: { h0: 0, h1: 100, h2: 0, h3: 0 }, capacity: { business: 100, enabler: 0 } },
     });
     expect(m.horizon.rows.h1.deltaCount).toBeCloseTo(0);
     expect(m.horizon.status).toBe("green");

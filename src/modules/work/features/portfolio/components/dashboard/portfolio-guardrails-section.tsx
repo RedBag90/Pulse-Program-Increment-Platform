@@ -42,9 +42,10 @@ const BUCKET_LABEL: Record<CapacityBucket, string> = {
   enabler: "Enabler",
 };
 const HORIZON_COLOR: Record<string, string> = {
-  h1: "bg-blue-600",
-  h2: "bg-violet-600",
   h3: "bg-fuchsia-600",
+  h2: "bg-violet-600",
+  h1: "bg-blue-600",
+  h0: "bg-slate-500",
 };
 const BUCKET_COLOR: Record<CapacityBucket, string> = {
   business: "bg-emerald-600",
@@ -173,7 +174,7 @@ function HorizonCard({
 }
 
 /**
- * Spiegel-Card: Spalten = Horizonte (H1/H2/H3/Ohne), Quadrate pro Spalte
+ * Spiegel-Card: Spalten = Horizonte (H3/H2/H1/H0/Ohne), Quadrate pro Spalte
  * unifarben in der Horizon-Farbe. Stage-Info wandert in den Tooltip; die
  * Sortierung pro Spalte folgt dem Stage-Index (L0 unten, L5 oben).
  */
@@ -203,15 +204,17 @@ function HorizonMixCard({
 }
 
 const HORIZON_COLUMN_LABEL: Record<HorizonColumn, string> = {
-  h1: HORIZON_LABEL.h1,
-  h2: HORIZON_LABEL.h2,
   h3: HORIZON_LABEL.h3,
+  h2: HORIZON_LABEL.h2,
+  h1: HORIZON_LABEL.h1,
+  h0: HORIZON_LABEL.h0,
   none: "Ohne",
 };
 const HORIZON_COLUMN_COLOR: Record<HorizonColumn, string> = {
-  h1: HORIZON_COLOR.h1 ?? "bg-muted-foreground/30",
-  h2: HORIZON_COLOR.h2 ?? "bg-muted-foreground/30",
   h3: HORIZON_COLOR.h3 ?? "bg-muted-foreground/30",
+  h2: HORIZON_COLOR.h2 ?? "bg-muted-foreground/30",
+  h1: HORIZON_COLOR.h1 ?? "bg-muted-foreground/30",
+  h0: HORIZON_COLOR.h0 ?? "bg-muted-foreground/30",
   none: "bg-muted-foreground/30",
 };
 

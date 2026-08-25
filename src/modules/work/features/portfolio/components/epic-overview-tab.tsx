@@ -1,6 +1,7 @@
 import { Info, ArrowRight, Flag } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { EpicClassificationForm } from "./epic-classification-form";
+import { EpicSolutionsSection } from "./solutions/epic-solutions-section";
 import { EpicEditForm } from "./epic-edit-form";
 import { EpicGovernanceFlags } from "./epic-governance-flags";
 import { EpicPlannedWindowForm } from "./epic-planned-window-form";
@@ -38,7 +39,11 @@ export interface EpicOverviewTabProps {
     approvedAt: Date | null;
     plannedStartAt: Date | null;
     plannedEndAt: Date | null;
-    valueStream: { name: string } | null;
+    valueStream: { id: string; name: string } | null;
+    /** Abgeleiteter Horizont aus der Primär-Solution. */
+    primarySolution: { id: string; horizon: string } | null;
+    /** Alle Solution-Zuordnungen (n:m). */
+    solutionLinks: { solution: { id: string; name: string; horizon: string; deletedAt: Date | null } }[];
     businessCase: unknown;
     children: {
       status: string;
@@ -48,14 +53,14 @@ export interface EpicOverviewTabProps {
     stagedForBudgeting: boolean;
     /** Reifegrad-Modell v2: Stempel für die L5-Bestätigung. */
     impactRecognizedAt: Date | null;
-    /** SAFe-Guardrails (Roadmap-G2): Solution/Epic/Enabler. */
+    /** SAFe-Guardrails (Capacity): Solution/Epic/Enabler. */
     epicType: string | null;
-    /** SAFe-Guardrails (Roadmap-G2): H1/H2/H3. */
-    investmentHorizon: string | null;
   };
   canEdit: boolean;
   /** Nutzen bei 100 % KPI-Zielerreichung — direkt aus den KPIs berechnet. */
   kpiBenefit: { oneTimeBenefit: number; recurringBenefit: number };
+  /** Zuordenbare Solutions (im Value Stream des Epics) für die Zuordnung. */
+  solutions: { id: string; name: string; horizon: string }[];
 }
 
 /** Kennzahl-Kachel (Wirtschaftlichkeit) — großer € -Wert mit semantischem Akzent. */
@@ -91,7 +96,7 @@ function StatTile({
  * from data the Epic already carries; financials are derived from the
  * businessCase JSON.
  */
-export function EpicOverviewTab({ epic, canEdit, kpiBenefit }: EpicOverviewTabProps) {
+export function EpicOverviewTab({ epic, canEdit, kpiBenefit, solutions }: EpicOverviewTabProps) {
   const completedChildren = epic.children.filter((c) => c.status === "completed").length;
 
   const summary = buildInitiativeSummary({
@@ -193,7 +198,23 @@ export function EpicOverviewTab({ epic, canEdit, kpiBenefit }: EpicOverviewTabPr
         <EpicClassificationForm
           epicId={epic.id}
           epicType={epic.epicType}
-          investmentHorizon={epic.investmentHorizon}
+          derivedHorizon={epic.primarySolution?.horizon ?? null}
+          canEdit={canEdit}
+        />
+      </section>
+
+      <section>
+        <SectionLabel className="mb-2 flex items-center gap-1.5">
+          <Flag className="h-3.5 w-3.5" />
+          Solutions
+        </SectionLabel>
+        <EpicSolutionsSection
+          epicId={epic.id}
+          solutions={solutions}
+          linkedIds={epic.solutionLinks
+            .filter((l) => l.solution.deletedAt == null)
+            .map((l) => l.solution.id)}
+          primaryId={epic.primarySolution?.id ?? null}
           canEdit={canEdit}
         />
       </section>

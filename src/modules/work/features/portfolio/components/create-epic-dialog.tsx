@@ -35,6 +35,12 @@ interface Art {
   valueStream?: { id: string } | null;
 }
 
+interface Solution {
+  id: string;
+  name: string;
+  valueStream?: { id: string } | null;
+}
+
 export interface CreateEpicDialogProps {
   /** Controlled mode (global "+" menu). Omit to render a self-triggering button. */
   open?: boolean;
@@ -100,6 +106,8 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
   const [vsId, setVsId] = useState("");
   const arts = useEntityOptions<Art>(optionsEndpoint("art"), dialogOpen);
   const artOptions = arts.data.filter((a) => a.valueStream?.id === vsId);
+  const solutions = useEntityOptions<Solution>(optionsEndpoint("solution"), dialogOpen);
+  const solutionOptions = solutions.data.filter((s) => s.valueStream?.id === vsId);
 
   return (
     <>
@@ -174,6 +182,27 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
                 ))}
               </select>
               {arts.error && <p className="text-xs text-destructive">{arts.error}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="epic-solution">Primär-Solution</Label>
+              <select
+                key={`sol-${vsId}`}
+                id="epic-solution"
+                name="primarySolutionId"
+                defaultValue=""
+                disabled={!vsId || solutions.loading}
+                className={SELECT_CLASS}
+              >
+                <option value="">
+                  {!vsId ? "Zuerst Wertstrom wählen…" : "— später zuordnen —"}
+                </option>
+                {solutionOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-1.5">

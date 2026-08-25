@@ -25,7 +25,8 @@ describe("Type-Guards", () => {
     expect(isFeatureType("solution")).toBe(false);
   });
 
-  it("akzeptiert nur die drei Horizons", () => {
+  it("akzeptiert die vier Horizonte", () => {
+    expect(isHorizon("h0")).toBe(true);
     expect(isHorizon("h1")).toBe(true);
     expect(isHorizon("h3")).toBe(true);
     expect(isHorizon("h4")).toBe(false);
@@ -73,7 +74,7 @@ describe("validateGuardrailTargets", () => {
   });
   it("verlangt Horizon-Summe = 100", () => {
     const r = validateGuardrailTargets({
-      horizon: { h1: 60, h2: 30, h3: 5 },
+      horizon: { h0: 0, h1: 60, h2: 30, h3: 5 },
       capacity: { business: 80, enabler: 20 },
     });
     expect(r.ok).toBe(false);
@@ -81,7 +82,7 @@ describe("validateGuardrailTargets", () => {
   });
   it("verlangt Capacity-Summe = 100", () => {
     const r = validateGuardrailTargets({
-      horizon: { h1: 70, h2: 20, h3: 10 },
+      horizon: { h0: 10, h1: 60, h2: 20, h3: 10 },
       capacity: { business: 70, enabler: 25 },
     });
     expect(r.ok).toBe(false);
@@ -89,7 +90,7 @@ describe("validateGuardrailTargets", () => {
   });
   it("verlangt nicht-negative Werte", () => {
     const r = validateGuardrailTargets({
-      horizon: { h1: 110, h2: -5, h3: -5 },
+      horizon: { h0: 0, h1: 110, h2: -5, h3: -5 },
       capacity: { business: 80, enabler: 20 },
     });
     expect(r.ok).toBe(false);

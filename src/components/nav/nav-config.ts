@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Layers,
+  Boxes,
   CalendarDays,
   Network,
   Goal,
@@ -89,6 +90,7 @@ export const NAV_GROUPS: NavGroup[] = [
         practice: "portfolioLevel",
       },
       { href: "/portfolio/epics", labelKey: "epics", icon: Layers, practice: "portfolioLevel" },
+      { href: "/portfolio/solutions", labelKey: "solutions", icon: Boxes, practice: "portfolioLevel" },
       {
         href: "/portfolio/dashboard",
         labelKey: "portfolioDashboard",
