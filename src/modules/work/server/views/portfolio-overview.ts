@@ -34,6 +34,16 @@ export type StageGate = (typeof STAGE_GATES)[number];
 export const HORIZON_LANES = [...HORIZONS, "none"] as const;
 export type HorizonLane = Horizon | "none";
 
+/** Budget-Kennzahlen einer Horizont-Zeile (laufender Zyklus). */
+export interface HorizonBudgetFigures {
+  /** Σ Zyklus-Allokation aller Epics des Horizonts. */
+  budgetiert: number;
+  /** davon Epics in Umsetzung (`stageGate === "L4"`). */
+  umsetzung: number;
+  /** davon Epics umgesetzt (`stageGate === "L5"`). */
+  umgesetzt: number;
+}
+
 export const STAGE_GATE_LABEL: Record<StageGate, string> = {
   L0: "Funnel",
   L1: "Hypothese erstellen",
@@ -225,6 +235,12 @@ export interface PortfolioOverview {
   valueStreamCount: number;
   funding: OverviewFunding;
 
+  /** Budget des laufenden Zyklus je Horizont-Swimlane (Kanban-Zeilenkopf):
+   *  budgetiert gesamt, davon in Umsetzung (L4) und umgesetzt (L5). */
+  horizonBudgets: Record<HorizonLane, HorizonBudgetFigures>;
+  /** Halbjahres-Key des laufenden Budget-Zyklus (Bezug der Horizont-Budgets). */
+  budgetCycleKey: string;
+
   activePis: OverviewActivePi[];
   nearestPiEnd: OverviewActivePi | null;
 
@@ -265,11 +281,40 @@ export interface PortfolioOverviewInputs {
   themes: PortfolioOverviewTheme[];
   board: PortfolioBudgetingBoard;
   vsBudgets: PortfolioVsBudgets;
+  /** Zyklus-Allokation je Epic (laufender Zyklus) — Budgeting-Adapter, ADR-0013. */
+  cycleAllocations: Record<string, number>;
+  /** Halbjahres-Key des laufenden Budget-Zyklus. */
+  budgetCycleKey: string;
   activePis: Array<{ id: string; name: string; endDate: Date }>;
   structureGap: StructureGap;
   practiceAdoption: PracticeAdoption;
   /** Pinned "today" — server passes `new Date()`, tests pass a fixed instant. */
   now: Date;
+}
+
+/**
+ * Reine Aggregation der Zyklus-Budgets je Horizont-Swimlane: je Karte fällt ihr
+ * `cycleAllocations[id]`-Betrag in die Lane ihres Horizonts (`"none"` ohne
+ * Primär-Solution) — voll auf `budgetiert`, zusätzlich auf `umsetzung` (L4) bzw.
+ * `umgesetzt` (L5). Fehlende Allokation zählt 0.
+ */
+export function aggregateHorizonBudgets(
+  cards: readonly Pick<OverviewEpicCard, "id" | "horizon" | "stageGate">[],
+  cycleAllocations: Record<string, number>,
+): Record<HorizonLane, HorizonBudgetFigures> {
+  const out = Object.fromEntries(
+    HORIZON_LANES.map((h) => [h, { budgetiert: 0, umsetzung: 0, umgesetzt: 0 }]),
+  ) as Record<HorizonLane, HorizonBudgetFigures>;
+  for (const c of cards) {
+    const amount = cycleAllocations[c.id] ?? 0;
+    if (amount === 0) continue;
+    const lane: HorizonLane = isHorizon(c.horizon) ? c.horizon : "none";
+    const fig = out[lane];
+    fig.budgetiert += amount;
+    if (c.stageGate === "L4") fig.umsetzung += amount;
+    else if (c.stageGate === "L5") fig.umgesetzt += amount;
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -295,6 +340,8 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     themes,
     board,
     vsBudgets,
+    cycleAllocations,
+    budgetCycleKey,
     activePis: activePisRaw,
     structureGap,
     practiceAdoption,
@@ -585,6 +632,8 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
       currentPeriod,
       upcomingPeriods,
     },
+    horizonBudgets: aggregateHorizonBudgets(cards, cycleAllocations),
+    budgetCycleKey,
     activePis,
     nearestPiEnd,
     recentActivity,
@@ -616,6 +665,9 @@ export interface PortfolioVsBudgets {
 export type BudgetingDataPort = () => Promise<{
   board: PortfolioBudgetingBoard;
   vsBudgets: PortfolioVsBudgets;
+  /** Zyklus-Allokation je Epic (laufender Zyklus) + dessen Halbjahres-Key. */
+  cycleAllocations: Record<string, number>;
+  budgetCycleKey: string;
 }>;
 
 /** Port: liefert die render-fertigen, dokumentierten Risiken. Der Composition-
@@ -679,7 +731,7 @@ export async function loadPortfolioOverviewInputs(
     epicLinkCount: 0,
   }));
 
-  const { board, vsBudgets } = budgeting;
+  const { board, vsBudgets, cycleAllocations, budgetCycleKey } = budgeting;
 
   return {
     epics,
@@ -690,6 +742,8 @@ export async function loadPortfolioOverviewInputs(
     themes,
     board,
     vsBudgets,
+    cycleAllocations,
+    budgetCycleKey,
     activePis,
     structureGap,
     practiceAdoption,

@@ -11,9 +11,17 @@ import {
   HORIZON_LANES,
   type PortfolioOverview,
   type OverviewEpicCard,
+  type HorizonBudgetFigures,
 } from "@/modules/work/server/views/portfolio-overview";
 import { wipCountLabel, isOverWip } from "@/modules/work/features/portfolio/overview/wip-limits";
 import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
+import { formatCompactEUR } from "@/lib/formatting";
+
+/** „2026-H1" → „H1 2026" für die kompakte Zyklus-Caption. */
+function cycleLabel(key: string): string {
+  const m = /^(\d{4})-(H[12])$/.exec(key);
+  return m ? `${m[2]} ${m[1]}` : key;
+}
 
 const CELL_LIMIT = 4;
 
@@ -36,9 +44,13 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
       </div>
 
       <div className="overflow-x-auto">
-        <div className="grid min-w-[900px] grid-cols-[120px_repeat(6,minmax(140px,1fr))] gap-2">
+        <div className="grid min-w-[960px] grid-cols-[180px_repeat(6,minmax(140px,1fr))] gap-2">
           {/* Kopfzeile: Stage-Gate-Spalten + WIP */}
-          <div />
+          <div className="flex items-end">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              Budget · {cycleLabel(data.budgetCycleKey)}
+            </span>
+          </div>
           {STAGE_GATES.map((gate) => {
             const over = isOverWip(gate, data.epicsByGate[gate].length);
             return (
@@ -55,7 +67,9 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
                 <span
                   className={cn(
                     "font-mono text-[10px] tabular-nums",
-                    over ? "font-semibold text-amber-900 dark:text-amber-300" : "text-muted-foreground",
+                    over
+                      ? "font-semibold text-amber-900 dark:text-amber-300"
+                      : "text-muted-foreground",
                   )}
                 >
                   {wipCountLabel(gate, data.epicsByGate[gate].length)}
@@ -76,15 +90,40 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
 
 function LaneRow({ lane, data }: { lane: string; data: PortfolioOverview }) {
   const row = data.epicsByHorizonGate[lane as keyof typeof data.epicsByHorizonGate];
+  const budget = data.horizonBudgets[lane as keyof typeof data.horizonBudgets];
   return (
     <>
-      <div className="flex items-center">
+      <div className="flex flex-col justify-center gap-1.5 py-1">
         <HorizonBadge horizon={lane === "none" ? null : lane} withHelp />
+        {budget && budget.budgetiert > 0 && <HorizonBudget budget={budget} />}
       </div>
       {STAGE_GATES.map((gate) => (
         <KanbanCell key={gate} lane={lane} epics={row[gate]} />
       ))}
     </>
+  );
+}
+
+/** Drei Budget-Werte des laufenden Zyklus unter dem Horizont-Badge. */
+function HorizonBudget({ budget }: { budget: HorizonBudgetFigures }) {
+  return (
+    <div className="leading-tight">
+      <p className="text-xs font-semibold tabular-nums" title="Budgetiert (laufender Zyklus)">
+        {formatCompactEUR(budget.budgetiert)}
+      </p>
+      <p
+        className="text-[10px] tabular-nums text-muted-foreground"
+        title="Davon in Umsetzung (Implementing / L4)"
+      >
+        ▸ Umsetzung {formatCompactEUR(budget.umsetzung)}
+      </p>
+      <p
+        className="text-[10px] tabular-nums text-muted-foreground"
+        title="Davon umgesetzt (Done / L5)"
+      >
+        ✓ umgesetzt {formatCompactEUR(budget.umgesetzt)}
+      </p>
+    </div>
   );
 }
 
@@ -130,7 +169,10 @@ function KanbanCard({ epic }: { epic: OverviewEpicCard }) {
     >
       <div className="flex items-center gap-1">
         {epic.needsSteeringAttention && (
-          <Flag className="size-3 shrink-0 text-amber-600 dark:text-amber-400" aria-label="Steering" />
+          <Flag
+            className="size-3 shrink-0 text-amber-600 dark:text-amber-400"
+            aria-label="Steering"
+          />
         )}
         <Link
           href={`/portfolio/epics/${epic.id}`}

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildPortfolioOverviewModel,
+  aggregateHorizonBudgets,
   type PortfolioOverviewInputs,
 } from "@/modules/work/server/views/portfolio-overview";
 
@@ -74,6 +75,8 @@ function baseInputs(): PortfolioOverviewInputs {
     themes: [],
     board: { periods: [], pool: {} },
     vsBudgets: { valueStreams: [] },
+    cycleAllocations: {},
+    budgetCycleKey: "2026-H1",
     activePis: [],
     structureGap: { hasTarget: false, targetDate: null, dimensions: [], overallProgress: 0 },
     practiceAdoption: { hasTarget: false, signals: [] },
@@ -108,7 +111,12 @@ describe("buildPortfolioOverviewModel", () => {
       epic({ id: "idea", title: "Idea", stageGate: "L0", ownerId: null }),
       epic({ id: "drafting", title: "Drafting", stageGate: "L0", ownerId: "user-1" }),
       epic({ id: "approved", title: "Approved", stageGate: "L1", ownerId: "user-2" }),
-      epic({ id: "drafting-bc", title: "Drafting BC", stageGate: "L2", businessCaseApprovedAt: null }),
+      epic({
+        id: "drafting-bc",
+        title: "Drafting BC",
+        stageGate: "L2",
+        businessCaseApprovedAt: null,
+      }),
       epic({
         id: "ready-for-budget",
         title: "Ready",
@@ -315,7 +323,15 @@ describe("buildPortfolioOverviewModel", () => {
   it("risks: sorted by score desc, unscored (null) last, riskNumber tie-break", () => {
     const inputs = baseInputs();
     inputs.risks = [
-      { id: "r1", riskNumber: 1, title: "Low", band: "low", score: 4, roamStatus: "open", epic: null },
+      {
+        id: "r1",
+        riskNumber: 1,
+        title: "Low",
+        band: "low",
+        score: 4,
+        roamStatus: "open",
+        epic: null,
+      },
       {
         id: "r2",
         riskNumber: 2,
@@ -325,8 +341,24 @@ describe("buildPortfolioOverviewModel", () => {
         roamStatus: "owned",
         epic: { id: "e1", title: "Epic One" },
       },
-      { id: "r3", riskNumber: 3, title: "Unscored", band: null, score: null, roamStatus: "open", epic: null },
-      { id: "r4", riskNumber: 4, title: "High", band: "high", score: 12, roamStatus: "mitigated", epic: null },
+      {
+        id: "r3",
+        riskNumber: 3,
+        title: "Unscored",
+        band: null,
+        score: null,
+        roamStatus: "open",
+        epic: null,
+      },
+      {
+        id: "r4",
+        riskNumber: 4,
+        title: "High",
+        band: "high",
+        score: 12,
+        roamStatus: "mitigated",
+        epic: null,
+      },
     ];
     const m = buildPortfolioOverviewModel(inputs);
     expect(m.risks.map((x) => x.id)).toEqual(["r2", "r4", "r1", "r3"]);
@@ -379,7 +411,13 @@ describe("buildPortfolioOverviewModel", () => {
         updatedAt: daysAgo(40),
         vsName: "Payments",
       }),
-      epic({ id: "s-new", title: "New flagged", steering: true, ownerId: "u-x", updatedAt: daysAgo(5) }),
+      epic({
+        id: "s-new",
+        title: "New flagged",
+        steering: true,
+        ownerId: "u-x",
+        updatedAt: daysAgo(5),
+      }),
       epic({ id: "not", title: "Unflagged", steering: false, updatedAt: daysAgo(60) }),
     ];
     const m = buildPortfolioOverviewModel(inputs);
@@ -389,5 +427,40 @@ describe("buildPortfolioOverviewModel", () => {
     expect(m.steeringEpics[0]!.valueStreamName).toBe("Payments");
     // owner id without a label → null
     expect(m.steeringEpics[1]!.ownerName).toBeNull();
+  });
+});
+
+describe("aggregateHorizonBudgets", () => {
+  const card = (id: string, horizon: string | null, stageGate: string) => ({
+    id,
+    horizon,
+    stageGate,
+  });
+
+  it("bucketet nach Horizont und splittet L4→Umsetzung, L5→umgesetzt", () => {
+    const cards = [
+      card("a", "h1", "L3"), // budgetiert only
+      card("b", "h1", "L4"), // + Umsetzung
+      card("c", "h1", "L5"), // + umgesetzt
+      card("d", "h2", "L4"),
+    ];
+    const alloc = { a: 100, b: 200, c: 50, d: 300 };
+    const out = aggregateHorizonBudgets(cards, alloc);
+    expect(out.h1).toEqual({ budgetiert: 350, umsetzung: 200, umgesetzt: 50 });
+    expect(out.h2).toEqual({ budgetiert: 300, umsetzung: 300, umgesetzt: 0 });
+    expect(out.h3).toEqual({ budgetiert: 0, umsetzung: 0, umgesetzt: 0 });
+  });
+
+  it("kippt Epics ohne (gültigen) Horizont in die none-Lane", () => {
+    const out = aggregateHorizonBudgets([card("a", null, "L4"), card("b", "bogus", "L2")], {
+      a: 40,
+      b: 10,
+    });
+    expect(out.none).toEqual({ budgetiert: 50, umsetzung: 40, umgesetzt: 0 });
+  });
+
+  it("zählt fehlende/0-Allokation als 0", () => {
+    const out = aggregateHorizonBudgets([card("a", "h1", "L4"), card("b", "h1", "L5")], { a: 0 });
+    expect(out.h1).toEqual({ budgetiert: 0, umsetzung: 0, umgesetzt: 0 });
   });
 });

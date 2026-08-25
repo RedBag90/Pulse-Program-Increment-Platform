@@ -9,6 +9,8 @@ import {
   getBudgetingBoard,
   getValueStreamBudgets,
 } from "@/modules/budgeting/server/services/budgeting";
+import { getEpicCycleAllocations } from "@/modules/budgeting/server/services/epic-allocation";
+import { resolveActiveCycle } from "@/modules/budgeting/domain/budget-cycle";
 import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
@@ -120,11 +122,17 @@ export default async function PortfolioPage({ searchParams }: Props) {
     principal.tenantId,
     async () => {
       if (!budgetingEnabled) {
-        return { board: { periods: [], pool: {} }, vsBudgets: { valueStreams: [] } };
+        return {
+          board: { periods: [], pool: {} },
+          vsBudgets: { valueStreams: [] },
+          cycleAllocations: {},
+          budgetCycleKey: resolveActiveCycle({ activeBudgetCycle: null }, new Date()),
+        };
       }
-      const [board, vsBudgets] = await Promise.all([
+      const [board, vsBudgets, cycle] = await Promise.all([
         getBudgetingBoard(db, principal.tenantId),
         getValueStreamBudgets(db, principal.tenantId),
+        getEpicCycleAllocations(db, principal.tenantId, new Date()),
       ]);
       // Wertstrom-Filter: nur die gewählten VS-Zeilen zeigen (Pool bleibt).
       const filteredVs = filter.valueStreamIds.length
@@ -134,7 +142,14 @@ export default async function PortfolioPage({ searchParams }: Props) {
             ),
           }
         : vsBudgets;
-      return { board, vsBudgets: filteredVs };
+      // Zyklus-Allokationen werden im Work-Modell nur über die (bereits
+      // gefilterten) Karten aggregiert — kein zusätzlicher VS-Filter nötig.
+      return {
+        board,
+        vsBudgets: filteredVs,
+        cycleAllocations: cycle.byEpic,
+        budgetCycleKey: cycle.cycleKey,
+      };
     },
     async () => {
       const issues = await db.issue.findMany({
