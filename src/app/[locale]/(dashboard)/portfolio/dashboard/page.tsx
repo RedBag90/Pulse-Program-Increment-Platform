@@ -5,6 +5,7 @@ import {
   getPortfolioEconomics,
   getPortfolioGuardrailsInputs,
 } from "@/modules/work/server/services/portfolio-dashboard";
+import { getGoalBenefitWaterfalls } from "@/modules/work/server/views/goal-benefit-waterfalls";
 import { PortfolioDashboard } from "@/modules/work/features/portfolio/components/dashboard/portfolio-dashboard-lazy";
 import { PortfolioGuardrailsSection } from "@/modules/work/features/portfolio/components/dashboard/portfolio-guardrails-section";
 import { computePortfolioGuardrails } from "@/modules/work/server/views/portfolio-guardrails-view";
@@ -22,9 +23,10 @@ export default async function PortfolioDashboardPage() {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const [data, guardrailsInputs] = await Promise.all([
+  const [data, guardrailsInputs, goalWaterfalls] = await Promise.all([
     getPortfolioEconomics(db, principal.tenantId),
     getPortfolioGuardrailsInputs(db, principal.tenantId),
+    getGoalBenefitWaterfalls(db, principal.tenantId),
   ]);
 
   const canEdit = authorize("target.manage", { tenantId: principal.tenantId }, principal).allow;
@@ -68,7 +70,7 @@ export default async function PortfolioDashboardPage() {
           eines Epics, damit das Dashboard rechnet.
         </div>
       ) : (
-        <PortfolioDashboard data={data} canEdit={canEdit} />
+        <PortfolioDashboard data={data} canEdit={canEdit} goalWaterfalls={goalWaterfalls} />
       )}
     </Page>
   );

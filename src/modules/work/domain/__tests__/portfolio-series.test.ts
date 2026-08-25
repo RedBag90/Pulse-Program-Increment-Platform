@@ -18,8 +18,12 @@ const dto = (over: Partial<EpicEconomicsDTO> = {}): EpicEconomicsDTO => ({
   benefitKpis: [],
   hasAllocation: false,
   allocatedByPeriod: {},
+  stageTimeline: [],
   ...over,
 });
+
+/** Fixed „heute" for deterministic series (todayIndex not asserted here). */
+const NOW = new Date("2026-06-01T00:00:00.000Z");
 
 const data = (epics: EpicEconomicsDTO[]): PortfolioEconomicsData => ({
   epics,
@@ -31,33 +35,45 @@ const data = (epics: EpicEconomicsDTO[]): PortfolioEconomicsData => ({
 describe("buildPortfolioSeries — DTO + slicer window → series", () => {
   it("includes only the selected Epics (Projekt-ID filter)", () => {
     const d = data([dto({ id: "a" }), dto({ id: "b" })]);
-    const series = buildPortfolioSeries(d, {
-      selectedEpicIds: new Set(["a"]),
-      fromIso: "2026-01-01",
-      toIso: "2026-06-01",
-    });
+    const series = buildPortfolioSeries(
+      d,
+      {
+        selectedEpicIds: new Set(["a"]),
+        fromIso: "2026-01-01",
+        toIso: "2026-06-01",
+      },
+      NOW,
+    );
     expect(series.perEpic.map((e) => e.id)).toEqual(["a"]);
     expect(series.costs[0]).toBeCloseTo(100); // one Epic @ 100/month
   });
 
   it("yields an empty series when nothing is selected", () => {
     const d = data([dto({ id: "a" })]);
-    const series = buildPortfolioSeries(d, {
-      selectedEpicIds: new Set(),
-      fromIso: "2026-01-01",
-      toIso: "2026-06-01",
-    });
+    const series = buildPortfolioSeries(
+      d,
+      {
+        selectedEpicIds: new Set(),
+        fromIso: "2026-01-01",
+        toIso: "2026-06-01",
+      },
+      NOW,
+    );
     expect(series.perEpic).toEqual([]);
     expect(series.costs.every((c) => c === 0)).toBe(true);
   });
 
   it("spans the Stichtag window as the axis", () => {
     const d = data([dto({ id: "a" })]);
-    const series = buildPortfolioSeries(d, {
-      selectedEpicIds: new Set(["a"]),
-      fromIso: "2026-03-10",
-      toIso: "2026-06-25",
-    });
+    const series = buildPortfolioSeries(
+      d,
+      {
+        selectedEpicIds: new Set(["a"]),
+        fromIso: "2026-03-10",
+        toIso: "2026-06-25",
+      },
+      NOW,
+    );
     expect(series.axis.monthCount).toBe(4); // Mar–Jun 2026 inclusive
     expect(series.axis.months[0]!.key).toBe("2026-03");
   });
@@ -65,11 +81,15 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
   it("drops the cost months that fall before the window (partial overlap nulls them)", () => {
     // Epic costs run Jan–Dec 2026; window starts in March, so Jan/Feb costs are lost.
     const d = data([dto({ id: "a" })]);
-    const series = buildPortfolioSeries(d, {
-      selectedEpicIds: new Set(["a"]),
-      fromIso: "2026-03-01",
-      toIso: "2026-12-01",
-    });
+    const series = buildPortfolioSeries(
+      d,
+      {
+        selectedEpicIds: new Set(["a"]),
+        fromIso: "2026-03-01",
+        toIso: "2026-12-01",
+      },
+      NOW,
+    );
     // 10 in-window months @ 100 (Mar–Dec); the two pre-window months are not recovered.
     expect(series.costs.reduce((a, b) => a + b, 0)).toBeCloseTo(1000);
     expect(series.costs[0]).toBeCloseTo(100); // March, not the cumulative pre-window cost
@@ -96,11 +116,15 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
         ],
       }),
     ]);
-    const series = buildPortfolioSeries(d, {
-      selectedEpicIds: new Set(["a"]),
-      fromIso: "2026-01-01",
-      toIso: "2026-06-01",
-    });
+    const series = buildPortfolioSeries(
+      d,
+      {
+        selectedEpicIds: new Set(["a"]),
+        fromIso: "2026-01-01",
+        toIso: "2026-06-01",
+      },
+      NOW,
+    );
     expect(series.velocity[0]).toBeCloseTo(1200); // voller KPI-Wert im ersten Monat
     expect(series.velocity[1]).toBeCloseTo(0); // kein weiterer Zuwachs
   });
@@ -125,11 +149,15 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
         ],
       }),
     ]);
-    const series = buildPortfolioSeries(d, {
-      selectedEpicIds: new Set(["a"]),
-      fromIso: "2026-01-01",
-      toIso: "2026-06-01",
-    });
+    const series = buildPortfolioSeries(
+      d,
+      {
+        selectedEpicIds: new Set(["a"]),
+        fromIso: "2026-01-01",
+        toIso: "2026-06-01",
+      },
+      NOW,
+    );
     expect(series.velocity[0]).toBeCloseTo(100); // Run-Rate, nicht einmalig
     expect(series.velocity[1]).toBeCloseTo(100); // fortlaufend jeden Monat
   });
@@ -154,11 +182,15 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
         ],
       }),
     ]);
-    const series = buildPortfolioSeries(d, {
-      selectedEpicIds: new Set(["a"]),
-      fromIso: "2026-01-01",
-      toIso: "2026-06-01",
-    });
+    const series = buildPortfolioSeries(
+      d,
+      {
+        selectedEpicIds: new Set(["a"]),
+        fromIso: "2026-01-01",
+        toIso: "2026-06-01",
+      },
+      NOW,
+    );
     expect(series.velocity[0]).toBeCloseTo(1200); // Monatswert direkt
     expect(series.velocity[1]).toBeCloseTo(1200); // fortlaufend
   });
@@ -168,11 +200,15 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
     const d = data([
       dto({ id: "a", hasAllocation: true, allocatedByPeriod: { "2026-H1": 60000 } }),
     ]);
-    const series = buildPortfolioSeries(d, {
-      selectedEpicIds: new Set(["a"]),
-      fromIso: "2026-01-01",
-      toIso: "2026-06-01",
-    });
+    const series = buildPortfolioSeries(
+      d,
+      {
+        selectedEpicIds: new Set(["a"]),
+        fromIso: "2026-01-01",
+        toIso: "2026-06-01",
+      },
+      NOW,
+    );
     expect(series.costs[0]).toBeCloseTo(10000); // allocation, not the 100/month forecast
   });
 });

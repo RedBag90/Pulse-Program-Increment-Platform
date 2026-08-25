@@ -28,6 +28,9 @@ import {
 import { saturatedFulfillment } from "@/modules/core/kpi/domain/kpi-direction";
 import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
 import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";
+import { stageAtMonth, type StageTransition } from "@/modules/work/domain/epic-stage-timeline";
+
+const STAGE_ORDER = ["L0", "L1", "L2", "L3", "L4", "L5"] as const;
 
 export interface EpicEconomicsInput {
   id: string;
@@ -58,11 +61,25 @@ export interface EpicEconomicsInput {
    * allocation. When present it replaces the cost-slice forecast entirely.
    */
   costByMonth?: number[];
+  /**
+   * Voller monatlicher Recurring-Run-Rate-Betrag bei 100 % Zielerreichung (Σ über
+   * bewertete recurring-KPIs). Treibt den **Forecast-„Rest zum Ziel"**: in
+   * Zukunftsmonaten (≥ go-live) das Delta `atFull − gemessene Run-Rate`. `undefined`
+   * ⇒ kein KPI-Rest (Business-Case-Fallback ist bereits der Plan).
+   */
+  kpiRecurringAtFull?: number;
 }
 
 export interface EpicMonthlyFlows {
   cost: number[];
+  /** Gemessener/realisierter Benefit je Monat (KPI-Messung bzw. BC-Fallback). */
   benefit: number[];
+  /**
+   * Forecast-„Rest zum Ziel": zusätzlicher Benefit in **Zukunftsmonaten** (> heute,
+   * ≥ go-live), der die gemessene Fortschreibung auf den geplanten KPI-Mehrwert @Ziel
+   * anhebt. Ist-Monate = 0. Gesamt-Benefit = `benefit + benefitUplift`.
+   */
+  benefitUplift: number[];
 }
 
 export interface EpicSeries extends EpicMonthlyFlows {
@@ -70,6 +87,7 @@ export interface EpicSeries extends EpicMonthlyFlows {
   title: string;
   net: number[];
   accCost: number[];
+  /** Kumulierter **Gesamt**-Benefit (benefit + benefitUplift). */
   accBenefit: number[];
   /** Cumulative net cash flow = accBenefit − accCost (per month, signed). */
   accNet: number[];
@@ -87,6 +105,9 @@ export interface PortfolioSeries {
   breakEven: number[];
   /** First month index where cumulative value covers cumulative cost, or null. */
   breakEvenIndex: number | null;
+  /** Achsen-Index des aktuellen Monats („heute"); Monate > todayIndex = Forecast.
+   *  −1, falls heute vor dem Achsenstart liegt. */
+  todayIndex: number;
 }
 
 /**
@@ -114,6 +135,7 @@ export function groupSeriesByValueStream(
         title: name ?? unassignedLabel,
         cost: [],
         benefit: [],
+        benefitUplift: [],
         net: [],
         accCost: [],
         accBenefit: [],
@@ -123,6 +145,7 @@ export function groupSeriesByValueStream(
     }
     addInto(g.cost, e.cost);
     addInto(g.benefit, e.benefit);
+    addInto(g.benefitUplift, e.benefitUplift);
     addInto(g.net, e.net);
     addInto(g.accCost, e.accCost);
     addInto(g.accBenefit, e.accBenefit);
@@ -134,6 +157,67 @@ export function groupSeriesByValueStream(
 /** Element-weise Summe: addiert `src` in `dst` (verlängert `dst` bei Bedarf). */
 function addInto(dst: number[], src: readonly number[]): void {
   for (let i = 0; i < src.length; i++) dst[i] = (dst[i] ?? 0) + (src[i] ?? 0);
+}
+
+/**
+ * Fasst die Epic-Serien **nach Reifegrad-Status (Stage-Gate L0–L5)** zusammen —
+ * **zeit-variabel**: je Monat zählt der Fluss eines Epics zu dem Status, in dem es
+ * in diesem Monat gerade ist (Actual rückwärts / Estimate vorwärts, s.
+ * `stageAtMonth`). Anschließend werden die Bucket-Kumulierten neu gerechnet (nicht
+ * die Epic-Kumulierten summiert). Der freigegeben/veranschlagt-Split (`confirmedById`)
+ * bleibt als eigene Sub-Serie (`status:<gate>:est`) erhalten.
+ */
+export function groupSeriesByEstimatedStage(
+  perEpic: readonly EpicSeries[],
+  stageTimelineById: ReadonlyMap<string, StageTransition[]>,
+  axis: MonthAxis,
+  confirmedById: ReadonlyMap<string, boolean>,
+): EpicSeries[] {
+  const n = axis.monthCount;
+  interface Bucket {
+    gate: string;
+    confirmed: boolean;
+    cost: number[];
+    benefit: number[];
+    benefitUplift: number[];
+  }
+  const buckets = new Map<string, Bucket>();
+  for (const e of perEpic) {
+    const tl = stageTimelineById.get(e.id) ?? [];
+    const confirmed = confirmedById.get(e.id) ?? false;
+    for (let m = 0; m < n; m++) {
+      const gate = stageAtMonth(tl, addMonths(axis.start, m));
+      const key = `${gate}|${confirmed ? "c" : "e"}`;
+      let b = buckets.get(key);
+      if (!b) {
+        b = { gate, confirmed, cost: zeros(n), benefit: zeros(n), benefitUplift: zeros(n) };
+        buckets.set(key, b);
+      }
+      b.cost[m] = (b.cost[m] ?? 0) + (e.cost[m] ?? 0);
+      b.benefit[m] = (b.benefit[m] ?? 0) + (e.benefit[m] ?? 0);
+      b.benefitUplift[m] = (b.benefitUplift[m] ?? 0) + (e.benefitUplift[m] ?? 0);
+    }
+  }
+  const rank = (b: Bucket): number =>
+    STAGE_ORDER.indexOf(b.gate as (typeof STAGE_ORDER)[number]) * 2 + (b.confirmed ? 0 : 1);
+  return [...buckets.values()]
+    .sort((a, b) => rank(a) - rank(b))
+    .map((b) => {
+      const total = b.benefit.map((x, i) => x + (b.benefitUplift[i] ?? 0));
+      const accCost = cumulative(b.cost);
+      const accBenefit = cumulative(total);
+      return {
+        id: b.confirmed ? `status:${b.gate}` : `status:${b.gate}:est`,
+        title: b.gate,
+        cost: b.cost,
+        benefit: b.benefit,
+        benefitUplift: b.benefitUplift,
+        net: b.cost.map((c, i) => (total[i] ?? 0) - c),
+        accCost,
+        accBenefit,
+        accNet: accBenefit.map((x, i) => x - (accCost[i] ?? 0)),
+      };
+    });
 }
 
 // The Backlog/Implementation anchor resolution (`resolveCostStart`,
@@ -286,6 +370,23 @@ export function kpiRecurringByMonth(kpis: BenefitKpiInput[], axis: MonthAxis): n
 }
 
 /**
+ * Σ des vollen monatlichen Run-Rate-Betrags über alle bewerteten recurring-KPIs
+ * (bei 100 % Zielerreichung). Basis des Forecast-„Rest zum Ziel".
+ */
+export function kpiRecurringAtFullTotal(kpis: BenefitKpiInput[]): number {
+  let sum = 0;
+  for (const k of valuedKpisOfKind(kpis, "recurring")) {
+    const periodValue = Math.abs((k.target ?? 0) - (k.baseline ?? 0)) * (k.valuePerUnit ?? 0);
+    if (periodValue === 0) continue;
+    sum +=
+      recurringIntervalOrDefault(k.recurringInterval) === "monthly"
+        ? periodValue
+        : periodValue / 12;
+  }
+  return sum;
+}
+
+/**
  * Per-month cost from a participatory-budgeting allocation map (half-year key
  * "YYYY-H1|H2" → amount). Each half-year's amount is spread evenly across its
  * six months, placed on the axis. Months outside the axis are dropped.
@@ -310,9 +411,14 @@ export function allocatedCostByMonth(
  * from `benefitStart` through `axis.monthCount - 1`, so it keeps flowing for
  * as long as the chart's window does.
  */
-export function epicMonthlyFlows(input: EpicEconomicsInput, axis: MonthAxis): EpicMonthlyFlows {
+export function epicMonthlyFlows(
+  input: EpicEconomicsInput,
+  axis: MonthAxis,
+  todayIndex: number,
+): EpicMonthlyFlows {
   const cost = zeros(axis.monthCount);
   const benefit = zeros(axis.monthCount);
+  const benefitUplift = zeros(axis.monthCount);
   const startIdx = monthDiff(axis.start, monthStart(input.costStart));
 
   // Costs: a per-month allocation override (participatory budgeting) wins over the
@@ -371,7 +477,20 @@ export function epicMonthlyFlows(input: EpicEconomicsInput, axis: MonthAxis): Ep
     }
   }
 
-  return { cost, benefit };
+  // Forecast-„Rest zum Ziel": nur für KPI-getriebene recurring-KPIs, in
+  // Zukunftsmonaten (> heute, ≥ go-live) das Delta zur vollen Run-Rate @Ziel =
+  // atFull − gemessene (fortgeschriebene) Run-Rate. Ohne KPI-Run-Rate kein Rest
+  // (der Business-Case-Fallback IST bereits der Plan).
+  const atFull = input.kpiRecurringAtFull;
+  if (recurring && atFull != null && atFull > 0) {
+    const from = Math.max(goLiveIdx, todayIndex + 1, 0);
+    for (let idx = from; idx < axis.monthCount; idx++) {
+      const gap = atFull - (recurring[idx] ?? 0);
+      benefitUplift[idx] = gap > 0 ? gap : 0;
+    }
+  }
+
+  return { cost, benefit, benefitUplift };
 }
 
 /**
@@ -379,25 +498,32 @@ export function epicMonthlyFlows(input: EpicEconomicsInput, axis: MonthAxis): Ep
  * has already applied the Projekt-ID slicer (which Epics) and chosen the axis
  * (the Stichtag window); this just sums and accumulates.
  */
-export function aggregatePortfolio(inputs: EpicEconomicsInput[], axis: MonthAxis): PortfolioSeries {
+export function aggregatePortfolio(
+  inputs: EpicEconomicsInput[],
+  axis: MonthAxis,
+  todayIndex: number,
+): PortfolioSeries {
   const n = axis.monthCount;
   const velocity = zeros(n);
   const costs = zeros(n);
 
   const perEpic: EpicSeries[] = inputs.map((input) => {
-    const { cost, benefit } = epicMonthlyFlows(input, axis);
-    const net = cost.map((c, i) => (benefit[i] ?? 0) - c);
+    const { cost, benefit, benefitUplift } = epicMonthlyFlows(input, axis, todayIndex);
+    // Gesamt-Benefit (gemessen + Forecast-Rest) treibt Netto/Kumulierte/Velocity.
+    const total = benefit.map((b, i) => b + (benefitUplift[i] ?? 0));
+    const net = cost.map((c, i) => (total[i] ?? 0) - c);
     for (let i = 0; i < n; i++) {
-      velocity[i] = (velocity[i] ?? 0) + (benefit[i] ?? 0);
+      velocity[i] = (velocity[i] ?? 0) + (total[i] ?? 0);
       costs[i] = (costs[i] ?? 0) + (cost[i] ?? 0);
     }
     const accCost = cumulative(cost);
-    const accBenefit = cumulative(benefit);
+    const accBenefit = cumulative(total);
     return {
       id: input.id,
       title: input.title,
       cost,
       benefit,
+      benefitUplift,
       net,
       accCost,
       accBenefit,
@@ -418,7 +544,18 @@ export function aggregatePortfolio(inputs: EpicEconomicsInput[], axis: MonthAxis
     }
   }
 
-  return { axis, perEpic, velocity, costs, net, accBV, accCost, breakEven, breakEvenIndex };
+  return {
+    axis,
+    perEpic,
+    velocity,
+    costs,
+    net,
+    accBV,
+    accCost,
+    breakEven,
+    breakEvenIndex,
+    todayIndex,
+  };
 }
 
 // --- dashboard DTO + series montage ----------------------------------------
@@ -468,6 +605,8 @@ export interface EpicEconomicsDTO {
   hasAllocation: boolean;
   /** Allocated budget per half-year key (the budgeting decision). */
   allocatedByPeriod: Record<string, number>;
+  /** Effektive Stage-Übergänge (Actual ?? Estimate) — treibt die „Nach Status"-Gruppierung. */
+  stageTimeline: { gate: string; iso: string }[];
 }
 
 export interface PortfolioEconomicsData {
@@ -498,6 +637,7 @@ function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
   // Ohne bewertete KPI der jeweiligen Art → Business-Case-Fallback (Spike bzw. flat).
   const realized = kpiRealizedValueByMonth(e.benefitKpis, axis);
   const recurring = kpiRecurringByMonth(e.benefitKpis, axis);
+  const recurringAtFull = kpiRecurringAtFullTotal(e.benefitKpis);
   // A participatory-budgeting allocation drives the cost over the forecast slices.
   const costByMonth = e.hasAllocation ? allocatedCostByMonth(e.allocatedByPeriod, axis) : null;
   return {
@@ -510,6 +650,7 @@ function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
     goLive: isoToDate(e.goLiveIso),
     ...(realized ? { kpiRealizedValueByMonth: realized } : {}),
     ...(recurring ? { kpiRecurringByMonth: recurring } : {}),
+    ...(recurringAtFull > 0 ? { kpiRecurringAtFull: recurringAtFull } : {}),
     ...(costByMonth ? { costByMonth } : {}),
   };
 }
@@ -523,10 +664,14 @@ function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
 export function buildPortfolioSeries(
   data: PortfolioEconomicsData,
   query: PortfolioSeriesQuery,
+  now: Date,
 ): PortfolioSeries {
   const axis = buildMonthAxis(isoToDate(query.fromIso), isoToDate(query.toIso));
+  // „heute"-Grenze: Monate ≤ todayIndex = Ist, danach = Forecast. −1, falls
+  // heute vor Achsenstart liegt (dann ist alles Forecast).
+  const todayIndex = monthDiff(axis.start, monthStart(now));
   const inputs = data.epics
     .filter((e) => query.selectedEpicIds.has(e.id))
     .map((e) => dtoToInput(e, axis));
-  return aggregatePortfolio(inputs, axis);
+  return aggregatePortfolio(inputs, axis, todayIndex);
 }

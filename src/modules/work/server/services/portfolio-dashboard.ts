@@ -14,6 +14,7 @@ import { ok } from "@/modules/core/kernel/domain/errors";
 import { parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";
 import { isoDay, monthStart } from "@/modules/core/kernel/domain/calendar";
 import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
+import { buildEpicStageTimeline } from "@/modules/work/domain/epic-stage-timeline";
 import { parsePeriodAmountMap } from "@/modules/core/kernel/domain/budget-period";
 import type {
   EpicEconomicsDTO,
@@ -58,6 +59,10 @@ export async function getPortfolioEconomics(
         timeline: true,
         businessCaseApprovedAt: true,
         hypothesisApprovedAt: true,
+        selectedForDetailingAt: true,
+        selectedForAnalyzingAt: true,
+        implementationStartedAt: true,
+        impactRecognizedAt: true,
         createdAt: true,
         valueStream: { select: { name: true } },
         kpis: {
@@ -103,6 +108,25 @@ export async function getPortfolioEconomics(
       })),
     });
 
+    const stageTimeline = buildEpicStageTimeline({
+      createdAt: isoDay(row.createdAt),
+      selectedForDetailingAt: row.selectedForDetailingAt
+        ? isoDay(row.selectedForDetailingAt)
+        : null,
+      hypothesisApprovedAt: row.hypothesisApprovedAt ? isoDay(row.hypothesisApprovedAt) : null,
+      selectedForAnalyzingAt: row.selectedForAnalyzingAt
+        ? isoDay(row.selectedForAnalyzingAt)
+        : null,
+      businessCaseApprovedAt: row.businessCaseApprovedAt
+        ? isoDay(row.businessCaseApprovedAt)
+        : null,
+      implementationStartedAt: row.implementationStartedAt
+        ? isoDay(row.implementationStartedAt)
+        : null,
+      impactRecognizedAt: row.impactRecognizedAt ? isoDay(row.impactRecognizedAt) : null,
+      timeline: row.timeline,
+    }).map((t) => ({ gate: t.gate, iso: isoDay(t.month) }));
+
     return {
       id: row.id,
       title: row.title,
@@ -116,6 +140,7 @@ export async function getPortfolioEconomics(
       benefitKpis: view.benefitKpis,
       hasAllocation: row.budgetAllocation != null,
       allocatedByPeriod: parsePeriodAmountMap(row.budgetAllocation?.allocations),
+      stageTimeline,
     };
   });
 

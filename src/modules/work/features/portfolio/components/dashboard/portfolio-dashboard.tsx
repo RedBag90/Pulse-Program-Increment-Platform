@@ -4,6 +4,7 @@ import { useMemo, useState, useActionState, type ReactNode } from "react";
 import {
   BarChart,
   Bar,
+  Cell,
   LineChart,
   Line,
   XAxis,
@@ -17,11 +18,16 @@ import {
 import {
   buildPortfolioSeries,
   groupSeriesByValueStream,
+  groupSeriesByEstimatedStage,
   type PortfolioSeries,
   type PortfolioEconomicsData,
 } from "@/modules/work/domain/portfolio-economics";
+import type { StageTransition } from "@/modules/work/domain/epic-stage-timeline";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { savePortfolioDashboardSettingsAction } from "@/modules/work/features/portfolio/actions/dashboard-settings";
 import { epicColor, VALUE_COLOR, COST_COLOR, BREAKEVEN_COLOR } from "./epic-colors";
+import { GoalBenefitWaterfallSection } from "./goal-benefit-waterfall";
+import type { GoalWaterfallData } from "@/modules/work/domain/goal-benefit-waterfall";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,12 +37,70 @@ import { formatEUR as fmtEur } from "@/lib/formatting";
 interface Props {
   data: PortfolioEconomicsData;
   canEdit: boolean;
+  goalWaterfalls: GoalWaterfallData;
+}
+
+type GroupMode = "valueStream" | "epic" | "status";
+
+/** Deckkraft der Forecast-Monate (Zukunft, > heute) — Zeit-Konfidenz-Achse. */
+const FORECAST_OPACITY = 0.4;
+
+/** Stage-Gate (L0–L5) → Anzeigename für die „Nach Status"-Gruppierung. */
+const STAGE_LABELS: Record<StageGate, string> = {
+  L0: "L0 · Funnel",
+  L1: "L1 · Detailing",
+  L2: "L2 · Analyse",
+  L3: "L3 · Backlog",
+  L4: "L4 · Umsetzung",
+  L5: "L5 · Impact",
+};
+
+/** Sequenzielle Farbrampe L0 (früh, grau) → L5 (Impact, grün). */
+const STAGE_COLORS: Record<StageGate, string> = {
+  L0: "#94a3b8",
+  L1: "#60a5fa",
+  L2: "#38bdf8",
+  L3: "#818cf8",
+  L4: "#f59e0b",
+  L5: "#22c55e",
+};
+
+/** Gate einer Status-Gruppen-Serie aus ihrem Titel (die Gruppe setzt title=gate). */
+function stageOf(title: string): StageGate {
+  return (["L0", "L1", "L2", "L3", "L4", "L5"] as const).includes(title as StageGate)
+    ? (title as StageGate)
+    : "L0";
 }
 
 /** Show an x-axis label only at quarter starts to keep the monthly axis legible. */
 function quarterTick(label: string): string {
   const [mon] = label.split(" ");
   return mon === "Jan" || mon === "Apr" || mon === "Jul" || mon === "Oct" ? label : "";
+}
+
+/**
+ * Vertikale „heute"-Linie am Monat des `todayIndex` (Ist/Forecast-Grenze). Nur
+ * gerendert, wenn heute im sichtbaren Fenster liegt.
+ */
+function TodayLine({
+  months,
+  todayIndex,
+}: {
+  months: PortfolioSeries["axis"]["months"];
+  todayIndex: number;
+}) {
+  if (todayIndex < 0 || todayIndex >= months.length) return null;
+  const label = months[todayIndex]?.label;
+  if (!label) return null;
+  return (
+    <ReferenceLine
+      x={label}
+      stroke="var(--muted-foreground)"
+      strokeDasharray="2 3"
+      strokeOpacity={0.7}
+      label={{ value: "heute", position: "top", fontSize: 10, fill: "var(--muted-foreground)" }}
+    />
+  );
 }
 
 type Row = Record<string, number | string>;
@@ -74,7 +138,7 @@ function defaultToIso(data: PortfolioEconomicsData): string {
   return future.toISOString().slice(0, 10);
 }
 
-export function PortfolioDashboard({ data, canEdit }: Props) {
+export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set(data.epics.map((e) => e.id)));
   const [fromIso, setFromIso] = useState(data.axisFromIso);
   // Default upper bound: latest go-live + 36 months so the recurring benefit
@@ -98,24 +162,50 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
     return map;
   }, [data.epics]);
 
+  // „heute" einmal je Mount fixieren (stabile Memo-Deps; Monatsauflösung genügt).
+  const now = useMemo(() => new Date(), []);
   const series = useMemo(
-    () => buildPortfolioSeries(data, { selectedEpicIds: selected, fromIso, toIso }),
-    [data, selected, fromIso, toIso],
+    () => buildPortfolioSeries(data, { selectedEpicIds: selected, fromIso, toIso }, now),
+    [data, selected, fromIso, toIso, now],
   );
+  const todayIndex = series.todayIndex;
 
-  // Darstellung: Standard nach Value Stream gebündelt, umschaltbar auf Epic-Sicht.
-  const [groupMode, setGroupMode] = useState<"valueStream" | "epic">("valueStream");
+  // Darstellung: Standard nach Value Stream gebündelt, umschaltbar auf Epic-/Status-Sicht.
+  const [groupMode, setGroupMode] = useState<GroupMode>("valueStream");
   const vsByEpicId = useMemo(
     () => new Map(data.epics.map((e) => [e.id, e.valueStream] as const)),
     [data.epics],
   );
-  const displaySeries = useMemo<PortfolioSeries>(
+  // Stage-Timeline je Epic (ISO → Date) für die zeit-variable „Nach Status"-Gruppierung.
+  const stageTimelineById = useMemo(
     () =>
-      groupMode === "valueStream"
-        ? { ...series, perEpic: groupSeriesByValueStream(series.perEpic, vsByEpicId) }
-        : series,
-    [series, groupMode, vsByEpicId],
+      new Map<string, StageTransition[]>(
+        data.epics.map((e) => [
+          e.id,
+          e.stageTimeline.map((t) => ({ gate: t.gate as StageGate, month: new Date(t.iso) })),
+        ]),
+      ),
+    [data.epics],
   );
+  const confirmedMap = useMemo(
+    () => new Map(data.epics.map((e) => [e.id, e.hasAllocation] as const)),
+    [data.epics],
+  );
+  const displaySeries = useMemo<PortfolioSeries>(() => {
+    if (groupMode === "valueStream")
+      return { ...series, perEpic: groupSeriesByValueStream(series.perEpic, vsByEpicId) };
+    if (groupMode === "status")
+      return {
+        ...series,
+        perEpic: groupSeriesByEstimatedStage(
+          series.perEpic,
+          stageTimelineById,
+          series.axis,
+          confirmedMap,
+        ),
+      };
+    return series;
+  }, [series, groupMode, vsByEpicId, stageTimelineById, confirmedMap]);
   // „confirmed" je Value-Stream-Gruppe: nur wenn ALLE Epics der Gruppe eine
   // Budget-Allocation haben, sonst schraffiert (wie im Epic-Modus je Epic).
   const confirmedByGroup = useMemo(() => {
@@ -132,8 +222,18 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
   const months = series.axis.months;
   const ticks = months.map((m) => m.label).filter((l) => quarterTick(l) !== "");
 
+  // Benefit-Velocity: pro Gruppe zwei Segmente — gemessen (`benefit`) + Forecast-
+  // Rest zum Plan (`benefitUplift`, Schlüssel `${id}#up`).
   const benefitRows = useMemo(
-    () => stackRows(displaySeries, (i, m) => displaySeries.perEpic[i]!.benefit[m] ?? 0),
+    () =>
+      displaySeries.axis.months.map((mo, m) => {
+        const row: Row = { label: mo.label };
+        displaySeries.perEpic.forEach((e) => {
+          row[e.id] = e.benefit[m] ?? 0;
+          row[`${e.id}#up`] = e.benefitUplift[m] ?? 0;
+        });
+        return row;
+      }),
     [displaySeries],
   );
   const costRows = useMemo(
@@ -157,15 +257,27 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
       })),
     [series, months],
   );
+  // Break-Even: Ist bis heute durchgezogen, Forecast (Zukunft) gestrichelt. Der
+  // „heute"-Monat liegt in beiden Segmenten, damit die Linien nahtlos anschließen.
   const breakEvenRows = useMemo(
     () =>
-      months.map((mo, m) => ({
-        label: mo.label,
-        accValue: series.accBV[m] ?? 0,
-        accCost: series.accCost[m] ?? 0,
-        net: series.breakEven[m] ?? 0,
-      })),
-    [series, months],
+      months.map((mo, m) => {
+        const inPast = m <= todayIndex;
+        const inFuture = m >= todayIndex;
+        const av = series.accBV[m] ?? 0;
+        const ac = series.accCost[m] ?? 0;
+        const net = series.breakEven[m] ?? 0;
+        return {
+          label: mo.label,
+          accValuePast: inPast ? av : null,
+          accValueFuture: inFuture ? av : null,
+          accCostPast: inPast ? ac : null,
+          accCostFuture: inFuture ? ac : null,
+          netPast: inPast ? net : null,
+          netFuture: inFuture ? net : null,
+        };
+      }),
+    [series, months, todayIndex],
   );
 
   const breakEvenLabel =
@@ -180,18 +292,31 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
     });
   }
 
-  // Stacks der aktiven Sicht: im VS-Modus je Gruppe (Farbe nach Position), im
-  // Epic-Modus je Epic (stabile Epic-Farbe/Allocation).
-  const displayStacks = displaySeries.perEpic.map((e, i) => ({
-    id: e.id,
-    title: e.title,
-    color: groupMode === "valueStream" ? epicColor(i) : colorById[e.id]!,
-    confirmed:
-      groupMode === "valueStream"
-        ? (confirmedByGroup.get(e.id) ?? false)
-        : (confirmedById[e.id] ?? false),
-  }));
-  const stackedBy = groupMode === "valueStream" ? "Value Stream" : "Epic";
+  // Stacks der aktiven Sicht: VS-Modus je Gruppe (Farbe nach Position), Epic-Modus
+  // je Epic (stabile Farbe/Allocation), Status-Modus je Stage-Gate (Rampe L0→L5,
+  // confirmed aus dem `:est`-Suffix der Serien-ID).
+  const displayStacks = displaySeries.perEpic.map((e, i) => {
+    if (groupMode === "status") {
+      const gate = stageOf(e.title);
+      return {
+        id: e.id,
+        title: STAGE_LABELS[gate],
+        color: STAGE_COLORS[gate],
+        confirmed: !e.id.endsWith(":est"),
+      };
+    }
+    return {
+      id: e.id,
+      title: e.title,
+      color: groupMode === "valueStream" ? epicColor(i) : colorById[e.id]!,
+      confirmed:
+        groupMode === "valueStream"
+          ? (confirmedByGroup.get(e.id) ?? false)
+          : (confirmedById[e.id] ?? false),
+    };
+  });
+  const stackedBy =
+    groupMode === "valueStream" ? "Value Stream" : groupMode === "status" ? "Status" : "Epic";
 
   return (
     <div className="space-y-6">
@@ -211,6 +336,14 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
         onGroupMode={setGroupMode}
       />
 
+      {/* Benefit-Wasserfall (Wert je Status vs. Zielwert) — erster Inhalts-Abschnitt.
+          Folgt dem Projekt-ID-Filter, sobald er eingegrenzt ist; „Alle" = null (alle
+          ziel-verknüpften Epics zählen, auch solche ohne Business-Case-Economics). */}
+      <GoalBenefitWaterfallSection
+        data={goalWaterfalls}
+        selectedEpicIds={selected.size === data.epics.length ? null : selected}
+      />
+
       {canEdit && (
         <SettingsEditor
           costNeutralTarget={data.costNeutralTarget}
@@ -223,7 +356,14 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
           title="Benefit Velocity"
           subtitle="Business Value je Monat — Linie = kostenneutraler Betrieb"
         >
-          <StackedChart rows={benefitRows} stacks={displayStacks} ticks={ticks}>
+          <StackedChart
+            rows={benefitRows}
+            stacks={displayStacks}
+            ticks={ticks}
+            months={months}
+            todayIndex={todayIndex}
+            uplift
+          >
             {data.costNeutralTarget != null && (
               <ReferenceLine
                 y={data.costNeutralTarget}
@@ -236,7 +376,14 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
         </Panel>
 
         <Panel title="Cost Distribution" subtitle={`Kosten je Monat, gestapelt nach ${stackedBy}`}>
-          <StackedChart rows={costRows} stacks={displayStacks} ticks={ticks} hatchUnconfirmed />
+          <StackedChart
+            rows={costRows}
+            stacks={displayStacks}
+            ticks={ticks}
+            months={months}
+            todayIndex={todayIndex}
+            hatchUnconfirmed
+          />
         </Panel>
 
         <Panel title="ROI" subtitle="Business Value (grün) vs. Kosten (rot) je Monat">
@@ -247,8 +394,25 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
               <YAxis {...yAxis} />
               <Tooltip {...tooltip} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="value" name="Business Value" fill={VALUE_COLOR} maxBarSize={10} />
-              <Bar dataKey="cost" name="Kosten" fill={COST_COLOR} maxBarSize={10} />
+              <TodayLine months={months} todayIndex={todayIndex} />
+              <Bar dataKey="value" name="Business Value" fill={VALUE_COLOR} maxBarSize={10}>
+                {roiRows.map((_, m) => (
+                  <Cell
+                    key={m}
+                    fill={VALUE_COLOR}
+                    fillOpacity={m > todayIndex ? FORECAST_OPACITY : 1}
+                  />
+                ))}
+              </Bar>
+              <Bar dataKey="cost" name="Kosten" fill={COST_COLOR} maxBarSize={10}>
+                {roiRows.map((_, m) => (
+                  <Cell
+                    key={m}
+                    fill={COST_COLOR}
+                    fillOpacity={m > todayIndex ? FORECAST_OPACITY : 1}
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </Panel>
@@ -267,41 +431,89 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
               <Tooltip {...tooltip} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <ReferenceLine y={0} stroke="var(--border)" />
+              <TodayLine months={months} todayIndex={todayIndex} />
               <Line
                 type="monotone"
-                dataKey="accValue"
+                dataKey="accValuePast"
                 name="Σ Business Value"
                 stroke={VALUE_COLOR}
                 strokeWidth={2}
                 dot={false}
+                connectNulls
               />
               <Line
                 type="monotone"
-                dataKey="accCost"
+                dataKey="accValueFuture"
+                stroke={VALUE_COLOR}
+                strokeWidth={2}
+                strokeDasharray="4 4"
+                dot={false}
+                connectNulls
+                legendType="none"
+              />
+              <Line
+                type="monotone"
+                dataKey="accCostPast"
                 name="Σ Kosten"
                 stroke={COST_COLOR}
                 strokeWidth={2}
                 dot={false}
+                connectNulls
               />
               <Line
                 type="monotone"
-                dataKey="net"
+                dataKey="accCostFuture"
+                stroke={COST_COLOR}
+                strokeWidth={2}
+                strokeDasharray="4 4"
+                dot={false}
+                connectNulls
+                legendType="none"
+              />
+              <Line
+                type="monotone"
+                dataKey="netPast"
                 name="Break Even"
                 stroke={BREAKEVEN_COLOR}
                 strokeWidth={2}
                 strokeDasharray="5 4"
                 dot={false}
+                connectNulls
+              />
+              <Line
+                type="monotone"
+                dataKey="netFuture"
+                stroke={BREAKEVEN_COLOR}
+                strokeWidth={2}
+                strokeDasharray="2 3"
+                strokeOpacity={0.7}
+                dot={false}
+                connectNulls
+                legendType="none"
               />
             </LineChart>
           </ResponsiveContainer>
         </Panel>
 
         <Panel title="Gained Value Analyse" subtitle="Kumulierter Business Value">
-          <StackedChart rows={accValueRows} stacks={displayStacks} ticks={ticks} />
+          <StackedChart
+            rows={accValueRows}
+            stacks={displayStacks}
+            ticks={ticks}
+            months={months}
+            todayIndex={todayIndex}
+          />
         </Panel>
 
         <Panel title="Cost Analysis" subtitle="Kumulierte Kosten">
-          <StackedChart rows={accCostRows} stacks={displayStacks} ticks={ticks} hatchUnconfirmed />
+          <StackedChart
+            rows={accCostRows}
+            stacks={displayStacks}
+            ticks={ticks}
+            months={months}
+            todayIndex={todayIndex}
+            hatchUnconfirmed
+          />
         </Panel>
 
         <Panel
@@ -309,7 +521,13 @@ export function PortfolioDashboard({ data, canEdit }: Props) {
           subtitle={`Laufender kumulierter Saldo je ${stackedBy} — negative unterhalb, positive oberhalb der 0-Linie`}
           className="xl:col-span-2"
         >
-          <CashFlowChart series={displaySeries} stacks={displayStacks} ticks={ticks} />
+          <CashFlowChart
+            series={displaySeries}
+            stacks={displayStacks}
+            ticks={ticks}
+            months={months}
+            todayIndex={todayIndex}
+          />
         </Panel>
       </div>
     </div>
@@ -385,27 +603,44 @@ function HatchDefs({ stacks }: { stacks: Stack[] }) {
   );
 }
 
-/** Legend explaining solid (allocated) vs hatched (estimated) cost bars. */
-function CostLegend() {
+/**
+ * Chart-Legende der beiden orthogonalen Konfidenz-Achsen: Funding (freigegeben
+ * vs. veranschlagt — nur `hatch`-Charts) und Zeit (Ist vs. Forecast/Zukunft —
+ * `forecast`, reduzierte Deckkraft rechts der „heute"-Linie).
+ */
+function ChartLegend({ hatch = false, forecast = false }: { hatch?: boolean; forecast?: boolean }) {
   return (
     <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-      <span className="flex items-center gap-1.5">
-        <span
-          className="inline-block h-3 w-3 rounded-sm"
-          style={{ background: "var(--muted-foreground)" }}
-        />
-        freigegebenes Budget
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span
-          className="inline-block h-3 w-3 rounded-sm border border-border"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(45deg, var(--muted-foreground) 0 1.5px, transparent 1.5px 4px)",
-          }}
-        />
-        veranschlagt (nicht freigegeben)
-      </span>
+      {hatch && (
+        <>
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-3 w-3 rounded-sm"
+              style={{ background: "var(--muted-foreground)" }}
+            />
+            freigegebenes Budget
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-3 w-3 rounded-sm border border-border"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(45deg, var(--muted-foreground) 0 1.5px, transparent 1.5px 4px)",
+              }}
+            />
+            veranschlagt (nicht freigegeben)
+          </span>
+        </>
+      )}
+      {forecast && (
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-3 w-3 rounded-sm"
+            style={{ background: "var(--muted-foreground)", opacity: FORECAST_OPACITY }}
+          />
+          Forecast (Zukunft, ab „heute")
+        </span>
+      )}
     </div>
   );
 }
@@ -414,16 +649,24 @@ function StackedChart({
   rows,
   stacks,
   ticks,
+  months,
+  todayIndex,
   height = 300,
   hatchUnconfirmed = false,
+  uplift = false,
   children,
 }: {
   rows: Row[];
   stacks: Stack[];
   ticks: string[];
+  months: PortfolioSeries["axis"]["months"];
+  /** Ist/Forecast-Grenze: Monate mit Index > todayIndex = Zukunft (transparent). */
+  todayIndex: number;
   height?: number;
   /** Draw Epics without a budgeting allocation with a hatched fill (cost charts). */
   hatchUnconfirmed?: boolean;
+  /** Benefit-Velocity: zusätzliches Forecast-Segment `${id}#up` (Rest zum Plan). */
+  uplift?: boolean;
   children?: ReactNode;
 }) {
   if (stacks.length === 0) {
@@ -439,23 +682,42 @@ function StackedChart({
           <XAxis {...xAxis(ticks)} />
           <YAxis {...yAxis} />
           <Tooltip {...tooltip} />
+          <TodayLine months={months} todayIndex={todayIndex} />
           {children}
           {stacks.map((s) => {
             const estimated = hatchUnconfirmed && !s.confirmed;
+            const fill = estimated ? `url(#hatch-${s.id})` : s.color;
             return (
               <Bar
                 key={s.id}
                 dataKey={s.id}
                 name={estimated ? `${s.title} (veranschlagt)` : s.title}
                 stackId="a"
-                fill={estimated ? `url(#hatch-${s.id})` : s.color}
+                fill={fill}
                 maxBarSize={14}
-              />
+              >
+                {rows.map((_, m) => (
+                  <Cell key={m} fill={fill} fillOpacity={m > todayIndex ? FORECAST_OPACITY : 1} />
+                ))}
+              </Bar>
             );
           })}
+          {uplift &&
+            stacks.map((s) => (
+              <Bar
+                key={`${s.id}#up`}
+                dataKey={`${s.id}#up`}
+                name={`${s.title} · Forecast`}
+                stackId="a"
+                fill={s.color}
+                fillOpacity={FORECAST_OPACITY}
+                maxBarSize={14}
+                legendType="none"
+              />
+            ))}
         </BarChart>
       </ResponsiveContainer>
-      {hatchUnconfirmed && <CostLegend />}
+      <ChartLegend hatch={hatchUnconfirmed} forecast />
     </>
   );
 }
@@ -474,10 +736,14 @@ function CashFlowChart({
   series,
   stacks,
   ticks,
+  months,
+  todayIndex,
 }: {
   series: PortfolioSeries;
   stacks: Stack[];
   ticks: string[];
+  months: PortfolioSeries["axis"]["months"];
+  todayIndex: number;
 }) {
   if (stacks.length === 0) {
     return (
@@ -517,8 +783,17 @@ function CashFlowChart({
             )}
           />
           <ReferenceLine y={0} stroke="var(--border)" />
+          <TodayLine months={months} todayIndex={todayIndex} />
           {stacks.flatMap((s) => {
             const fill = s.confirmed ? s.color : `url(#hatch-${s.id})`;
+            const cells = (suffix: string) =>
+              rows.map((_, m) => (
+                <Cell
+                  key={`${suffix}-${m}`}
+                  fill={fill}
+                  fillOpacity={m > todayIndex ? FORECAST_OPACITY : 1}
+                />
+              ));
             return [
               <Bar
                 key={`${s.id}#pos`}
@@ -526,19 +801,23 @@ function CashFlowChart({
                 stackId="cashflow"
                 fill={fill}
                 maxBarSize={14}
-              />,
+              >
+                {cells("pos")}
+              </Bar>,
               <Bar
                 key={`${s.id}#neg`}
                 dataKey={`${s.id}#neg`}
                 stackId="cashflow"
                 fill={fill}
                 maxBarSize={14}
-              />,
+              >
+                {cells("neg")}
+              </Bar>,
             ];
           })}
         </BarChart>
       </ResponsiveContainer>
-      <CostLegend />
+      <ChartLegend hatch forecast />
     </>
   );
 }
@@ -639,8 +918,8 @@ function Slicers({
   toIso: string;
   onFrom: (v: string) => void;
   onTo: (v: string) => void;
-  groupMode: "valueStream" | "epic";
-  onGroupMode: (m: "valueStream" | "epic") => void;
+  groupMode: GroupMode;
+  onGroupMode: (m: GroupMode) => void;
 }) {
   return (
     <Card className="flex flex-wrap items-start gap-x-8 gap-y-4 p-4">
@@ -703,6 +982,7 @@ function Slicers({
             [
               ["valueStream", "Nach Value Stream"],
               ["epic", "Nach Epic"],
+              ["status", "Nach Status"],
             ] as const
           ).map(([mode, label]) => (
             <button
