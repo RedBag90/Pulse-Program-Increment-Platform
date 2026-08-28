@@ -327,50 +327,8 @@ export async function listTimelines(
   }));
 }
 
-export interface TimelineDetail {
-  id: string;
-  name: string;
-  pis: Array<{ id: string; name: string; status: string; startDate: Date; endDate: Date }>;
-  arts: Array<{ id: string; name: string; valueStreamId: string; valueStreamName: string | null }>;
-}
-
-export async function getTimelineDetail(
-  db: PrismaClient,
-  tenantId: TenantId,
-  id: TimelineId,
-): Promise<TimelineDetail | null> {
-  const row = await db.timeline.findFirst({
-    where: { id, tenantId },
-    include: {
-      programIncrements: {
-        select: { id: true, name: true, status: true, startDate: true, endDate: true },
-        orderBy: { startDate: "asc" },
-      },
-      arts: {
-        where: { deletedAt: null },
-        select: {
-          id: true,
-          name: true,
-          valueStreamId: true,
-          valueStream: { select: { name: true } },
-        },
-        orderBy: { name: "asc" },
-      },
-    },
-  });
-  if (!row) return null;
-  return {
-    id: row.id,
-    name: row.name,
-    pis: row.programIncrements,
-    arts: row.arts.map((a) => ({
-      id: a.id,
-      name: a.name,
-      valueStreamId: a.valueStreamId,
-      valueStreamName: a.valueStream?.name ?? null,
-    })),
-  };
-}
+// `getTimelineDetail` wurde entfernt (0 Aufrufer, ADR-0013-Cleanup): die
+// Timelines-Seite rendert über core/org `getStructureTimeline`.
 
 // ---------------------------------------------------------------------------
 // Bootstrap: create a Timeline named after a PI standard and apply the

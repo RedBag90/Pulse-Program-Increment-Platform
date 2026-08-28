@@ -5,6 +5,7 @@ import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { classifyScopedEdges } from "@/modules/drumbeat/domain/graph-scope";
 import type { PiWindow } from "@/modules/drumbeat/domain/timeline-grid";
+import type { PiStatus } from "@/modules/drumbeat/domain/pi-rules";
 
 /**
  * Delivery-Cockpit view-model (Umsetzungs-Modul-Redesign Phase 1).
@@ -62,6 +63,8 @@ export interface CockpitFilters {
   ownerIds: string[];
   epicIds: string[];
   hasBlocker: boolean;
+  /** Freitext-Suche auf den Feature-Titel (`?q=`). Leer = keine Suche. */
+  q: string;
 }
 
 /**
@@ -109,6 +112,12 @@ export interface CockpitModel {
   features: CockpitFeature[];
   /** Aktive Filter, gespiegelt aus dem URL-State fuer Rendering der Chips. */
   filters: CockpitFilters;
+  /** Auswahl-Universum fuer die Owner-/Epic-Picker — ART-weit und ungefiltert,
+   *  damit die Optionen beim Filtern nicht verschwinden. */
+  filterOptions: {
+    owners: { value: string; label: string }[];
+    epics: { value: string; label: string }[];
+  };
   /** Alle Feature-Feature-Dependencies, die mindestens einen Endpunkt im
    *  aktuellen Scope haben — fuer Roadmap-Pfeile + Netzplan-Sicht.
    *  Edges mit beiden Endpunkten im Scope sind voll renderbar; Edges
@@ -148,6 +157,7 @@ const DEFAULT_FILTERS: CockpitFilters = {
   ownerIds: [],
   epicIds: [],
   hasBlocker: false,
+  q: "",
 };
 
 /**
@@ -298,6 +308,12 @@ export interface CockpitRows {
   /** Roh-`?pi=` (unvalidiert); der Builder prüft gegen `allPis` und fällt sonst
    *  auf das aktive PI zurück. `null` wenn nicht gesetzt. */
   selectedPiId: string | null;
+  /** Distinct Owner-Ids im ART (ungefiltert) — Universum fuer den Owner-Picker.
+   *  Optional; fehlt in Alt-Fixtures → leeres Picker-Universum. */
+  ownerIdsInArt?: string[];
+  /** Distinct Parent-Epics im ART (ungefiltert) — Universum fuer den Epic-Picker.
+   *  Optional; fehlt in Alt-Fixtures → leeres Picker-Universum. */
+  epicRows?: { id: string; title: string }[];
 }
 
 /**
@@ -418,7 +434,20 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     now,
     windowOffset,
     selectedPiId: rawSelectedPiId,
+    ownerIdsInArt,
+    epicRows,
   } = rows;
+
+  // Picker-Universum — ART-weit, ungefiltert. Aus dem Loader gereicht (optional,
+  // damit reine Builder-Fixtures ohne diese Rows weiter durchlaufen).
+  const filterOptions = {
+    owners: (ownerIdsInArt ?? [])
+      .map((id) => ({ value: id, label: userLabels[id] ?? id }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    epics: (epicRows ?? [])
+      .map((e) => ({ value: e.id, label: e.title }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+  };
 
   // availableArts — active-PI fallback + per-ART count (formerly two queries'
   // worth of derivation). Only ARTs that actually resolve an active PI get a
@@ -481,7 +510,7 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
       name: p.name,
       startDate: p.startDate,
       endDate: p.endDate,
-      status: p.status,
+      status: p.status as PiStatus,
       featureCount: countByPi.get(p.id) ?? 0,
       isCurrent: p.id === anchorPiId,
     }));
@@ -501,7 +530,7 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
           name: selRow.name,
           startDate: selRow.startDate,
           endDate: selRow.endDate,
-          status: selRow.status,
+          status: selRow.status as PiStatus,
           featureCount: countByPi.get(selRow.id) ?? 0,
           isCurrent: selRow.id === anchorPiId,
         }
@@ -523,6 +552,7 @@ export function buildCockpitModel(rows: CockpitRows): CockpitModel {
     view,
     features,
     filters,
+    filterOptions,
     dependencies,
     permissions,
   };
@@ -582,7 +612,7 @@ export async function loadCockpitModel(
   //   bzw. dem jeweils vorigen Schritt ihrer eigenen Kette. Zwischen den drei
   //   Zweigen gibt es keine Abhaengigkeit -> parallel; die Ketten-Ordnung
   //   innerhalb (5 braucht `allPis`, 7 braucht `featureRows`) bleibt erhalten.
-  const [activeFeatureCounts, pisResult, featuresResult] = await Promise.all([
+  const [activeFeatureCounts, pisResult, featuresResult, optionsResult] = await Promise.all([
     // 3) Feature-Count je ART × aktivem PI. Ueber-fetch (alle ARTs × alle
     //    aktiven PIs) statt den Fallback vorwegzunehmen — der Builder engt auf
     //    die gemappten Paare ein.
@@ -653,6 +683,9 @@ export async function loadCockpitModel(
           ...(filters.status.length > 0 ? { status: { in: filters.status } } : {}),
           ...(filters.ownerIds.length > 0 ? { ownerId: { in: filters.ownerIds } } : {}),
           ...(filters.epicIds.length > 0 ? { parentId: { in: filters.epicIds } } : {}),
+          ...(filters.q.trim() !== ""
+            ? { title: { contains: filters.q.trim(), mode: "insensitive" as const } }
+            : {}),
         },
         select: {
           id: true,
@@ -695,10 +728,35 @@ export async function loadCockpitModel(
       }
       return { featureRows, depRows };
     })(),
+    // Picker-Universum: distinct Owner + Parent-Epic ueber ALLE Features des ARTs
+    // (ungefiltert), damit die Filter-Optionen beim Filtern nicht kollabieren.
+    (async (): Promise<{ ownerIdsInArt: string[]; epicRows: { id: string; title: string }[] }> => {
+      if (!selectedArtRow) return { ownerIdsInArt: [], epicRows: [] };
+      const optionRows = await db.initiative.findMany({
+        where: {
+          tenantId,
+          level: InitiativeLevel.FEATURE,
+          deletedAt: null,
+          artId: selectedArtRow.id,
+        },
+        select: { ownerId: true, parent: { select: { id: true, title: true } } },
+      });
+      const owners = new Set<string>();
+      const epicMap = new Map<string, string>();
+      for (const r of optionRows) {
+        if (r.ownerId) owners.add(r.ownerId);
+        if (r.parent) epicMap.set(r.parent.id, r.parent.title);
+      }
+      return {
+        ownerIdsInArt: [...owners],
+        epicRows: [...epicMap].map(([id, title]) => ({ id, title })),
+      };
+    })(),
   ]);
 
   const { allPis, windowCounts } = pisResult;
   const { featureRows, depRows } = featuresResult;
+  const { ownerIdsInArt, epicRows } = optionsResult;
 
   // Permissions — aus dem zentralen Policies-Registry (ADR-0002). UI nutzt die
   // Flags nur fuer Affordances; der echte Gate sitzt serverseitig.
@@ -729,5 +787,7 @@ export async function loadCockpitModel(
     now: Date.now(),
     windowOffset: input.windowOffset ?? 0,
     selectedPiId: input.piId ?? null,
+    ownerIdsInArt,
+    epicRows,
   });
 }

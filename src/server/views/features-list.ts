@@ -7,7 +7,7 @@
  */
 
 import { buildFunnelCounts } from "@/server/views/lib/page-model-utils";
-import { wsjfBand } from "@/domain/schemas/initiative";
+import { wsjfBand } from "@/modules/core/kernel/domain/wsjf";
 
 /** Funnel category — the four feature lifecycle stages. */
 export const FEATURE_STATUSES = ["draft", "approved", "in_progress", "completed"] as const;

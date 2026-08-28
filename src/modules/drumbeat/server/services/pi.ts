@@ -329,16 +329,16 @@ export async function completePi(ctx: RequestContext, input: { id: PiId }): Prom
     // Belt & suspenders: dieselben Checks wie der Wizard, serverseitig — die
     // Regel lebt in der Domain (evaluateClosure), hier nur die tx-Projektion.
     const openIssues = await countOpenRoamIssues(tx, mctx.tenantId, existing.timelineId);
-    const issues = evaluateClosure({
+    const closure = evaluateClosure({
       openUnroamedIssues: openIssues,
       systemDemoAt: existing.systemDemoAt,
       inspectAdaptAt: existing.inspectAdaptAt,
       retrospectiveNotes: existing.retrospectiveNotes,
     });
-    if (issues.length > 0) {
+    if (!closure.ready) {
       return err({
         kind: "conflict" as const,
-        reason: `PI-Abschluss nicht möglich: ${issues.join(" · ")}`,
+        reason: `PI-Abschluss nicht möglich: ${closure.reasons.join(" · ")}`,
       });
     }
 
@@ -384,7 +384,10 @@ export async function advanceCadence(
       });
     }
     if (!active.timelineId) {
-      return err({ kind: "conflict" as const, reason: "PI ohne Timeline kann nicht fortgeschrieben werden." });
+      return err({
+        kind: "conflict" as const,
+        reason: "PI ohne Timeline kann nicht fortgeschrieben werden.",
+      });
     }
 
     // Nicht-blockierende Warnung — bewusst NUR der handlungsrelevante Punkt:
@@ -447,7 +450,10 @@ export async function advanceCadence(
         action: "pi.cadence.advanced" as const,
         resourceType: "program_increment" as const,
         resourceId: nextId,
-        changes: { from: { before: active.name, after: null }, to: { before: null, after: nextName } },
+        changes: {
+          from: { before: active.name, after: null },
+          to: { before: null, after: nextName },
+        },
       },
     });
   });
@@ -599,27 +605,17 @@ export async function listProgramIncrementsForArts(
   }));
 }
 
-/** PIs of one ART (via its Timeline) with sprint counts — backs PI-Planning. */
-export async function listArtPlanningPis(db: PrismaClient, tenantId: TenantId, artId: ArtId) {
-  const timelineId = await resolveTimelineForArt(db, tenantId, artId);
-  if (!timelineId) return [];
-  return db.programIncrement.findMany({
-    where: { tenantId, timelineId },
-    select: {
-      id: true,
-      name: true,
-      status: true,
-      startDate: true,
-      endDate: true,
-      capacityJobSize: true,
-      capacityAmount: true,
-    },
-    orderBy: { startDate: "asc" },
-  });
-}
+// `listArtPlanningPis` wurde entfernt (0 Aufrufer): die /pi-planning-Seite ist
+// ein Redirect-Stub; das Cockpit lädt PIs über `loadCockpitModel`.
 
+/**
+ * PI-Detail als **serialisierbares DTO** — kein rohes `Decimal` auf der REST-Wire
+ * (`getPi` speist `/api/v1/pis/[id]` + `/board`). Die beiden Decimal-Felder
+ * (`capacityAmount`, `initiatives[].wsjfComputed`) werden auf `number` gemappt;
+ * alle übrigen Felder bleiben unverändert (Date serialisiert als ISO).
+ */
 export async function getPi(db: PrismaClient, tenantId: TenantId, id: PiId) {
-  return db.programIncrement.findFirst({
+  const row = await db.programIncrement.findFirst({
     where: { id, tenantId },
     include: {
       // The Timeline + all ARTs subscribed — replaces the single-ART include.
@@ -642,4 +638,13 @@ export async function getPi(db: PrismaClient, tenantId: TenantId, id: PiId) {
       },
     },
   });
+  if (!row) return null;
+  return {
+    ...row,
+    capacityAmount: row.capacityAmount == null ? null : Number(row.capacityAmount),
+    initiatives: row.initiatives.map((i) => ({
+      ...i,
+      wsjfComputed: i.wsjfComputed == null ? null : Number(i.wsjfComputed),
+    })),
+  };
 }

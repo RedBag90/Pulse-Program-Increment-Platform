@@ -1,6 +1,6 @@
 "use client";
 
-import type { FeaturesOverviewModel } from "@/server/views/features-overview";
+import type { FeaturesOverviewModel } from "@/modules/work/server/views/features-overview";
 import { FeaturesListView } from "@/modules/work/features/feature/components/features-table";
 import { Page, PageHeader } from "@/components/layout";
 

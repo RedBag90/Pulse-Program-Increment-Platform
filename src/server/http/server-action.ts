@@ -63,6 +63,12 @@ interface BaseConfig<TInput, TOutput> {
   mapError?: (e: DomainError) => string;
   /** Builds the `CreatedRef` for the success toast from the service result. */
   describeCreated?: (value: TOutput, input: TInput) => CreatedRef;
+  /**
+   * Single-mode: project non-fatal advisories from the service result onto
+   * `state.warnings` (the single-call analogue of `batch.foldWarnings`). Lets an
+   * action surface warnings through the factory instead of a hand-rolled action.
+   */
+  foldWarnings?: (value: TOutput) => readonly string[] | null;
 }
 
 /**
@@ -159,11 +165,13 @@ export function createServerAction<TInput, TOutput = unknown>(
     if (config.revalidate) revalidateFor(config.revalidate);
     config.onSuccess?.(parsed.data);
     logActionTiming(config.action, performance.now() - startedAt, "ok");
+    const warnings = config.foldWarnings?.(result.value);
     return {
       success: true,
       ...(config.describeCreated && {
         created: config.describeCreated(result.value, parsed.data),
       }),
+      ...(warnings && warnings.length > 0 ? { warnings: [...warnings] } : {}),
     };
   };
 }

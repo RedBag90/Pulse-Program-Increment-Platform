@@ -12,7 +12,7 @@
  */
 
 import { FEATURE_STATUSES, type FeatureStatus, type WsjfTier } from "@/server/views/features-list";
-import { wsjfBand } from "@/domain/schemas/initiative";
+import { wsjfBand } from "@/modules/core/kernel/domain/wsjf";
 
 export interface FeatureOverviewRow {
   id: string;

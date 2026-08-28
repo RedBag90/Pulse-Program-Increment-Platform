@@ -20,7 +20,11 @@ import { piWindowsOverlap } from "@/modules/drumbeat/domain/timeline-grid";
 export type PiStatus = "planned" | "active" | "completed";
 
 /** All PI statuses, in lifecycle order. */
-export const PI_STATUSES = ["planned", "active", "completed"] as const satisfies readonly PiStatus[];
+export const PI_STATUSES = [
+  "planned",
+  "active",
+  "completed",
+] as const satisfies readonly PiStatus[];
 
 /**
  * Allowed PI status transitions. A PI moves strictly forward:
@@ -56,12 +60,21 @@ export interface PiClosureSnapshot {
 }
 
 /**
- * Closure readiness as a list of human-readable blocking reasons (German).
- * Empty list = ready for `completePi`. One rule; the read path (wizard
- * pre-check) and the write path (belt & suspenders in `completePi`) both build
- * a snapshot and call this.
+ * Strukturiertes Ergebnis der Closure-Prüfung: `ready` + die deutschen Blocker-
+ * Gründe (`reasons`, leer wenn ready). **Kein** bloßes `string[]`-Fehler-Idiom mehr
+ * — der Aufrufer liest `ready` und formt die Gründe in seinen Fehler/seine Anzeige.
  */
-export function evaluateClosure(snapshot: PiClosureSnapshot): string[] {
+export interface PiClosureResult {
+  ready: boolean;
+  /** Deutsche, menschenlesbare Blocker-Gründe; leer wenn `ready`. */
+  reasons: string[];
+}
+
+/**
+ * Closure readiness (eine Regel; belt & suspenders im `completePi`). Baut die
+ * deutschen Blocker-Gründe und meldet über `ready`, ob `completePi` erlaubt ist.
+ */
+export function evaluateClosure(snapshot: PiClosureSnapshot): PiClosureResult {
   const reasons: string[] = [];
   if (snapshot.openUnroamedIssues > 0) {
     reasons.push(`${snapshot.openUnroamedIssues} offene Issue(s) ohne ROAM`);
@@ -71,7 +84,7 @@ export function evaluateClosure(snapshot: PiClosureSnapshot): string[] {
   if (!snapshot.retrospectiveNotes || snapshot.retrospectiveNotes.trim() === "") {
     reasons.push("Retrospektive-Notizen fehlen");
   }
-  return reasons;
+  return { ready: reasons.length === 0, reasons };
 }
 
 // ---------------------------------------------------------------------------

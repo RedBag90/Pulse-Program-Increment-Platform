@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
-import {
-  deriveTimeframe,
-  buildGanttMonthSpan,
-  barMetrics,
-} from "@/modules/drumbeat/domain/roadmap";
-import type { DateRange } from "@/modules/drumbeat/domain/roadmap";
+import { deriveTimeframe, buildGanttMonthSpan, barMetrics } from "@/modules/work/domain/roadmap";
+import type { DateRange } from "@/modules/work/domain/roadmap";
 
 /** UTC date helper — `d(2026, 1, 5)` = 5 Jan 2026 (month is 1-based). */
 function d(year: number, month: number, day: number): Date {
@@ -116,7 +112,7 @@ import {
   roadmapAxis,
   groupIntoHeaderRows,
   type RoadmapRow,
-} from "@/modules/drumbeat/domain/roadmap";
+} from "@/modules/work/domain/roadmap";
 
 const pi = (s: Date, e: Date) => ({ startDate: s, endDate: e });
 
@@ -310,7 +306,15 @@ describe("groupIntoHeaderRows", () => {
       (i) => i.group,
       header,
       child,
-      { orphanRow: () => ({ id: "__orphans__", label: "Orphans", range: null, depth: 0, kind: "group" }) },
+      {
+        orphanRow: () => ({
+          id: "__orphans__",
+          label: "Orphans",
+          range: null,
+          depth: 0,
+          kind: "group",
+        }),
+      },
     );
     expect(rows.map((r) => r.id)).toEqual(["h-A", "a1", "a2", "__orphans__", "o1"]);
   });
@@ -321,7 +325,15 @@ describe("groupIntoHeaderRows", () => {
       (i) => i.group,
       header,
       child,
-      { orphanRow: () => ({ id: "__orphans__", label: "Orphans", range: null, depth: 0, kind: "group" }) },
+      {
+        orphanRow: () => ({
+          id: "__orphans__",
+          label: "Orphans",
+          range: null,
+          depth: 0,
+          kind: "group",
+        }),
+      },
     );
     expect(rows.map((r) => r.id)).toEqual(["h-A", "a1"]);
   });

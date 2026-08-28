@@ -7,11 +7,12 @@ import {
   type GanttMonthSpan,
   type RoadmapRow,
   type RoadmapRowAccent,
-} from "@/modules/drumbeat/domain/roadmap";
+} from "@/modules/work/domain/roadmap";
+import { DEPENDENCY_TYPE_LABELS } from "@/modules/drumbeat/domain/status";
 
 // RoadmapRow now lives in the domain roadmap view-model; re-exported so existing
 // importers of the component keep working.
-export type { RoadmapRow } from "@/modules/drumbeat/domain/roadmap";
+export type { RoadmapRow } from "@/modules/work/domain/roadmap";
 
 export type GanttDependencyType = "blocks" | "depends_on" | "relates_to";
 
@@ -68,11 +69,8 @@ const EDGE_DASH: Record<GanttDependencyType, string | undefined> = {
   relates_to: "4 4",
 };
 
-const EDGE_LABEL: Record<GanttDependencyType, string> = {
-  blocks: "blockiert",
-  depends_on: "haengt ab von",
-  relates_to: "bezieht sich auf",
-};
+// Ein Dependency-Vokabular (SSOT `domain/status`): kein „haengt ab" mehr.
+const EDGE_LABEL = DEPENDENCY_TYPE_LABELS;
 
 const HIGHLIGHT_OPACITY = 1;
 const DIM_OPACITY = 0.45;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildDependenciesOverviewModel } from "@/server/views/dependencies-overview";
+import { buildDependenciesOverviewModel } from "@/modules/drumbeat/server/views/dependencies-overview";
 
 const features = [
   { id: "fA", title: "A", status: "in_progress", artId: "art-1", piId: "pi-q1" },

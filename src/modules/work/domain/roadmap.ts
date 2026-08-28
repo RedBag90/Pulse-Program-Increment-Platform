@@ -11,7 +11,11 @@
  */
 
 import { monthStart, addMonths, MONTH_LABELS } from "@/modules/core/kernel/domain/calendar";
-import type { PiWindow as CadencePiWindow } from "@/modules/drumbeat/domain/timeline-grid";
+import type { FeatureDeliveryStatus as FeatureStatus } from "@/modules/work/domain/feature-status";
+
+/** Deterministischer Anker für den degenerierten (leeren) Gantt-Span — kein
+ *  Wall-Clock, hält das Modul rein (die months-Liste ist ohnehin leer). */
+const EMPTY_SPAN_ANCHOR = monthStart(new Date(0));
 
 export interface DateRange {
   start: Date;
@@ -50,8 +54,7 @@ export function deriveTimeframe(ranges: ReadonlyArray<DateRange | null>): DateRa
  */
 export function buildGanttMonthSpan(ranges: ReadonlyArray<DateRange>): GanttMonthSpan {
   if (ranges.length === 0) {
-    const now = monthStart(new Date());
-    return { start: now, end: now, months: [] };
+    return { start: EMPTY_SPAN_ANCHOR, end: EMPTY_SPAN_ANCHOR, months: [] };
   }
 
   let min = ranges[0]!.start;
@@ -115,14 +118,7 @@ export function barMetrics(
  * Caller mit reichhaltigerem Kontext (Cockpit-Roadmap: Feature-Status)
  * kippen den Akzent semantisch um.
  */
-export type RoadmapRowAccent =
-  | "approved"
-  | "in_progress"
-  | "blocked"
-  | "completed"
-  | "cancelled"
-  | "epic"
-  | "feature";
+export type RoadmapRowAccent = FeatureStatus | "epic" | "feature";
 
 export interface RoadmapRow {
   id: string;
@@ -140,11 +136,14 @@ export interface RoadmapRow {
 }
 
 /**
- * The PI window a Feature is scheduled into — just the date range, narrowed
- * from the canonical `PiWindow` in the cadence/timeline domain (extra fields
- * like id/name are ignored here).
+ * The PI window a Feature is scheduled into — just the (inklusive) Datums-Range.
+ * Eigenständig gehalten, damit dieses Work-View nicht ins Drumbeat-Modul greift
+ * (ADR-0013); strukturell kompatibel zum Cadence-`PiWindow`.
  */
-export type PiWindow = Pick<CadencePiWindow, "startDate" | "endDate">;
+export interface PiWindow {
+  startDate: Date;
+  endDate: Date;
+}
 
 const piRange = (pi: PiWindow | null): DateRange | null =>
   pi ? { start: pi.startDate, end: pi.endDate } : null;
@@ -308,7 +307,15 @@ export function cockpitRoadmapRows(features: readonly CockpitRoadmapFeature[]): 
       accent: "epic",
     }),
     cockpitFeatureRow,
-    { orphanRow: () => ({ id: "__orphans__", label: "Ohne Epic", range: null, depth: 0, kind: "group" }) },
+    {
+      orphanRow: () => ({
+        id: "__orphans__",
+        label: "Ohne Epic",
+        range: null,
+        depth: 0,
+        kind: "group",
+      }),
+    },
   );
 }
 

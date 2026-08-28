@@ -4,12 +4,12 @@
  * the feature-detail and breakdown-network page-models.
  *
  * The bucketing itself lives in the shared LOW primitive `wsjfBand`
- * (`@/domain/schemas/initiative`); this is a thin call that pins the Drumbeat
+ * (`@/modules/core/kernel/domain/wsjf`); this is a thin call that pins the Drumbeat
  * thresholds + label. The ART feature lists (`server/views/features-list.ts`,
  * `features-overview.ts`) call the same primitive with ≥ 5 / ≥ 2 / `"none"` —
  * that divergence is now a DATA difference, not a forked implementation.
  */
-import { wsjfBand } from "@/domain/schemas/initiative";
+import { wsjfBand } from "@/modules/core/kernel/domain/wsjf";
 
 export type WsjfTier = "high" | "medium" | "low" | "unscored";
 

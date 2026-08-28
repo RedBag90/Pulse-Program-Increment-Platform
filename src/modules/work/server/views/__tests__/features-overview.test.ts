@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildFeaturesOverviewModel } from "@/server/views/features-overview";
+import { buildFeaturesOverviewModel } from "@/modules/work/server/views/features-overview";
 
 const feature = (
   over: Partial<{

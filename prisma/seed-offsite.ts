@@ -13,6 +13,13 @@
  * ist einem PI zugeordnet** und nichts ist gestartet. Genau dieser Schritt ist
  * das, was man in der Simulation selbst geht.
  *
+ * Die drei Vorhaben gehören zu **einer neuen Außentagung** und liegen daher alle
+ * im Horizont **H3** (explorativ; frühere Offsites gab es schon) — über eine
+ * gemeinsame Primär-Solution. Für die Portfolio-Charts ist nur die **Struktur**
+ * hinterlegt (H3-Solution, €-Wertbeitrags-Ziel, aktiver Budget-Zyklus); die
+ * Ist-/Umsetzungs-Daten der Horizont-Budget-, Wasserfall- und Forecast-Ansichten
+ * entstehen, sobald man in der Simulation Epics startet und Impact erfasst.
+ *
  * Zwei Dinge, die das Szenario formen:
  * - **Es gibt kein Team-Modell mehr** (Teardown `fd8164a`); die Plattform endet
  *   bei Wertstrom + ART. Das „Planungsteam" sind deshalb sechs Rollenzuweisungen
@@ -184,6 +191,10 @@ const EPICS = [
 
 type EpicDef = (typeof EPICS)[number];
 
+/** €-Wert je 1 KPI-Einheit dieses Epics (Budgetanteil je Einheit). Einzige
+ *  Quelle für KPI-`valuePerUnit` und den €-Ziel-`conversionFactor`. */
+const valuePerUnit = (e: EpicDef): number => Math.round(e.budget / e.kpi.target);
+
 async function main() {
   console.log("\n🌱  Offsite-Simulation für „Test Demo“\n");
   console.log(
@@ -222,11 +233,15 @@ async function main() {
       enabledModules: [...MODULE_KEYS],
       dashboardHorizonEnd: addDays(OFFSITE_AT, 30),
       budgetPoolByPeriod: { [PERIOD_NOW]: BUDGET_TOTAL * 0.7, [PERIOD_END]: BUDGET_TOTAL * 0.5 },
+      // Der laufende Budget-Zyklus (aktives Halbjahr). Explizit gesetzt, damit die
+      // Horizont-Budget-Zeilen des Portfolio-Kanbans einen klaren Bezug haben.
+      activeBudgetCycle: PERIOD_NOW,
       // PB-Default-Aufwand: Kosten-Richtwert im Ballot für nur-Hypothese-Epics.
       defaultHypothesisEffort: 60_000,
       // Ein Job-Size-Punkt Planungsaufwand ≈ ein Personentag.
       costPerJobSizePoint: 600,
-      costNeutralTarget: 0,
+      // Kleiner, sichtbarer Richtwert, damit die Benefit-Velocity-Ziel-Linie rendert.
+      costNeutralTarget: 5_000,
       guardrailTargets: { horizon: { H1: 1, H2: 0, H3: 0 }, enablerRatio: 0 },
     },
   });
@@ -382,10 +397,8 @@ async function main() {
     },
   });
 
-  const subGoalIds: Record<string, string> = {};
   for (const [i, e] of EPICS.entries()) {
     const id = uid(`offsite:goal:${e.slug}`);
-    subGoalIds[e.slug] = id;
     await prisma.objective.create({
       data: {
         id,
@@ -434,10 +447,65 @@ async function main() {
   }
   console.log("  ✓ Kopf-Ziel + 3 Unterziele mit Check-ins");
 
+  // €-Wertbeitrags-Ziel (Wurzel, Währung): das messbare €-Ziel, auf das die Epics
+  // über ihre KPIs einzahlen (conversionFactor = €/Einheit). Treibt den Benefit-
+  // Wasserfall im Portfolio-Dashboard (Wert je Reifegrad-Status vs. Zielwert). Der
+  // Zielwert liegt bewusst über der Summe der geplanten Beiträge → sichtbare Lücke.
+  const valueGoalId = uid("offsite:goal:wertbeitrag");
+  const plannedContribSum = EPICS.reduce((s, e) => s + e.kpi.target * valuePerUnit(e), 0);
+  await prisma.objective.create({
+    data: {
+      id: valueGoalId,
+      tenantId,
+      themeId,
+      title: "Offsite-Wertbeitrag",
+      narrative:
+        "Geplanter €-Wertbeitrag der Außentagungs-Vorhaben — Summe der KPI-Nutzen gegen das gesetzte Zielbudget.",
+      path: valueGoalId,
+      level: 0,
+      nodeKind: "objective",
+      progressMode: "manual",
+      metricName: "Wertbeitrag",
+      metricUnit: "€",
+      metricType: "currency",
+      currencyCode: "EUR",
+      baseline: 0,
+      target: Math.round(plannedContribSum * 1.3),
+      current: 0,
+      status: "on_track",
+      periodStart: now,
+      periodEnd: OFFSITE_AT,
+      dueDate: OFFSITE_AT,
+      ownerId: portfolio,
+      createdBy: admin,
+      updatedBy: admin,
+    },
+  });
+
   // ── Portfolio: Epics ──────────────────────────────────────────────────────
   console.log("\n── Portfolio");
   const epicIds: Record<string, string> = {};
   for (const e of EPICS) epicIds[e.slug] = uid(`offsite:epic:${e.slug}`);
+
+  // Eine Solution im Horizont H3: es wird eine *neue* Außentagung geplant
+  // (explorativ/R&D) — frühere gab es schon. Der Horizont eines Epics kommt aus
+  // seiner Primär-Solution; hier ist das für alle dieselbe H3-Solution, damit die
+  // Horizont-Swimlane des Portfolio-Kanbans die drei Vorhaben in der H3-Zeile zeigt.
+  const solutionId = uid("offsite:sol:aussentagung");
+  await prisma.solution.create({
+    data: {
+      id: solutionId,
+      tenantId,
+      valueStreamId: vsId,
+      artId,
+      name: "Außentagung (Format)",
+      horizon: "h3",
+      investmentMode: null,
+      runBaselineAmount: null,
+      createdBy: admin,
+      updatedBy: admin,
+    },
+  });
 
   const epicRows: Prisma.InitiativeCreateManyInput[] = EPICS.map((e) => ({
     id: epicIds[e.slug]!,
@@ -459,7 +527,9 @@ async function main() {
     approvalPhase: "approved",
     approvalRevision: 1,
     epicType: "epic",
-    investmentHorizon: "h1",
+    // Horizont kommt aus der Primär-Solution (H3, neue Außentagung).
+    primarySolutionId: solutionId,
+    investmentHorizon: "h3",
     stagedForBudgeting: true,
     needsSteeringAttention: false,
     plannedStartAt: PI_START,
@@ -484,6 +554,17 @@ async function main() {
   }));
   await prisma.initiative.createMany({ data: epicRows });
 
+  // Voller Epic↔Solution-Zuordnungssatz (Primär steht am Epic). Alle drei zeigen
+  // auf die eine H3-Solution.
+  await prisma.epicSolution.createMany({
+    data: EPICS.map((e) => ({
+      tenantId,
+      epicId: epicIds[e.slug]!,
+      solutionId,
+      createdBy: admin,
+    })),
+  });
+
   // Je Epic eine KPI — sie ist zugleich der Träger des Ziel-Beitrags.
   const kpiIds: Record<string, string> = {};
   for (const e of EPICS) kpiIds[e.slug] = uid(`offsite:kpi:${e.slug}`);
@@ -497,7 +578,7 @@ async function main() {
       baseline: 0,
       target: e.kpi.target,
       measurements: [{ date: addDays(now, -2).toISOString(), value: e.goal.current }],
-      valuePerUnit: Math.round(e.budget / e.kpi.target),
+      valuePerUnit: valuePerUnit(e),
       benefitKind: "one_time",
       recurringInterval: "yearly",
       calculationNote: `Anteil am Offsite-Budget je ${e.kpi.unit.replace(/n$/, "")}.`,
@@ -506,17 +587,19 @@ async function main() {
     })),
   });
 
-  // Ziel-Beitrag: jedes Epic zahlt über seine KPI auf genau ein Unterziel ein.
-  // `conversionFactor: 1`, weil KPI-Einheit und Ziel-Einheit dieselbe sind
-  // (reservierte Zimmer → reservierte Zimmer).
+  // Ziel-Beitrag: jedes Epic zahlt über seine KPI auf das €-Wertbeitrags-Ziel ein.
+  // `conversionFactor = €/Einheit` (Budgetanteil je KPI-Einheit) rechnet die KPI-
+  // Bewegung in die €-Ziel-Einheit um. Ein Link je KPI (`@@unique([kpiId])`); die
+  // manuellen Zahlen-Unterziele bleiben ohne KPI-Link (sie sind `progressMode:
+  // manual` und tragen ihren Fortschritt selbst).
   await prisma.goalEpicLink.createMany({
     data: EPICS.map((e) => ({
       id: uid(`offsite:gel:${e.slug}`),
       tenantId,
-      objectiveId: subGoalIds[e.slug]!,
+      objectiveId: valueGoalId,
       epicId: epicIds[e.slug]!,
       kpiId: kpiIds[e.slug]!,
-      conversionFactor: 1,
+      conversionFactor: valuePerUnit(e),
       impactKind: "one_time",
       recurringInterval: "yearly",
       createdBy: admin,

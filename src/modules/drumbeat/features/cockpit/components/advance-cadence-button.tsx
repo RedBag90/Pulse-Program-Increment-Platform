@@ -13,14 +13,17 @@ import { advanceCadenceAction } from "@/modules/drumbeat/features/cockpit/action
  * Warn-Toast. Inline-Bestätigung, weil es die Zeitleiste bewegt. Genutzt im
  * Umsetzung-Cockpit-Strip und auf der PI-Detailseite.
  */
-export function AdvanceCadenceButton({ piId }: { piId: string }) {
+export function AdvanceCadenceButton({ piId, artId }: { piId: string; artId: string }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
 
   async function advance() {
     setPending(true);
-    const res = await advanceCadenceAction(piId);
+    const fd = new FormData();
+    fd.set("piId", piId);
+    fd.set("artId", artId);
+    const res = await advanceCadenceAction({}, fd);
     setPending(false);
     if (res.error) {
       toast.error(res.error);
@@ -30,7 +33,7 @@ export function AdvanceCadenceButton({ piId }: { piId: string }) {
     if (res.warnings && res.warnings.length > 0) {
       toast.warning(`Fortgeschrieben trotz offener Punkte: ${res.warnings.join(" · ")}`);
     } else {
-      toast.success(`Kadenz fortgeschrieben${res.toName ? ` → ${res.toName}` : ""}`);
+      toast.success("Kadenz fortgeschrieben");
     }
     router.refresh();
   }
@@ -38,7 +41,9 @@ export function AdvanceCadenceButton({ piId }: { piId: string }) {
   if (confirming) {
     return (
       <span className="flex shrink-0 items-center gap-1.5">
-        <span className="text-[11px] text-muted-foreground">Abschließen &amp; nächstes öffnen?</span>
+        <span className="text-[11px] text-muted-foreground">
+          Abschließen &amp; nächstes öffnen?
+        </span>
         <Button type="button" size="sm" disabled={pending} onClick={advance}>
           {pending ? "…" : "Fortschreiben"}
         </Button>

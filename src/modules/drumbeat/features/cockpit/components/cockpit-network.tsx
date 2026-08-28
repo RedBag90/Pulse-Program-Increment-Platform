@@ -19,10 +19,10 @@ import "@xyflow/react/dist/style.css";
 import type {
   CockpitDependency,
   CockpitFeature,
-  FeatureStatus,
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { useDependencyEdgeEditing } from "@/modules/drumbeat/features/dependencies/hooks/use-dependency-edge-editing";
-import { formatWsjf } from "@/domain/schemas/initiative";
+import { formatWsjf } from "@/modules/core/kernel/domain/wsjf";
+import { FEATURE_STATUS_LABELS as STATUS_LABEL } from "@/modules/drumbeat/domain/status";
 import { EdgeTypeMenu } from "@/modules/drumbeat/features/dependencies/components/edge-type-popover";
 import { FeaturePickerPopover } from "@/modules/drumbeat/features/dependencies/components/feature-picker-popover";
 import type { DependencyEdgeType } from "@/modules/drumbeat/server/views/breakdown-network-view";
@@ -52,14 +52,6 @@ interface Props {
 
 const NODE_W = NODE_W_COCKPIT;
 const NODE_H = 64;
-
-const STATUS_LABEL: Record<FeatureStatus, string> = {
-  approved: "Bereit",
-  in_progress: "In Umsetzung",
-  blocked: "Blockiert",
-  completed: "Fertig",
-  cancelled: "Abgebrochen",
-};
 
 type FeatureNodeData = {
   feature: CockpitFeature;

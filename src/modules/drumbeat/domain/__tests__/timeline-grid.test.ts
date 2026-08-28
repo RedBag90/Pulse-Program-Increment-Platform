@@ -35,7 +35,10 @@ describe("buildTimelineAxis", () => {
   });
 
   it("uses German month labels (identical to the previous calendar)", () => {
-    const axis = buildTimelineAxis([{ startDate: d(2026, 3, 1), endDate: d(2026, 3, 20) }], d(2026, 1, 1));
+    const axis = buildTimelineAxis(
+      [{ startDate: d(2026, 3, 1), endDate: d(2026, 3, 20) }],
+      d(2026, 1, 1),
+    );
     expect(axis.months[0]!.label).toBe("Mär 2026");
   });
 
@@ -47,8 +50,15 @@ describe("buildTimelineAxis", () => {
 });
 
 describe("piWindowsOverlap", () => {
-  it("touching windows do not overlap (half-open)", () => {
+  it("touching windows overlap (endDate ist inklusiv)", () => {
     const a = { startDate: d(2026, 1, 1), endDate: d(2026, 3, 1) };
+    const b = { startDate: d(2026, 3, 1), endDate: d(2026, 5, 1) };
+    expect(piWindowsOverlap(a, b)).toBe(true);
+    expect(piWindowsOverlap(b, a)).toBe(true);
+  });
+
+  it("adjazente Fenster mit 1-Tag-Lücke überlappen nicht (Standard-PI-Modell)", () => {
+    const a = { startDate: d(2026, 1, 1), endDate: d(2026, 2, 28) };
     const b = { startDate: d(2026, 3, 1), endDate: d(2026, 5, 1) };
     expect(piWindowsOverlap(a, b)).toBe(false);
     expect(piWindowsOverlap(b, a)).toBe(false);
@@ -78,11 +88,12 @@ describe("findTimelineConflicts", () => {
     expect(ids).toEqual(new Set(["a", "b"]));
   });
 
-  it("returns an empty set for a mutually disjoint set", () => {
+  it("returns an empty set for a mutually disjoint set (1-Tag-Lücken)", () => {
+    // Inklusive Semantik: Fenster brauchen eine echte Lücke (kein geteilter Tag).
     const ids = findTimelineConflicts([
-      win("a", d(2026, 1, 1), d(2026, 2, 1)),
-      win("b", d(2026, 2, 1), d(2026, 3, 1)),
-      win("c", d(2026, 3, 1), d(2026, 4, 1)),
+      win("a", d(2026, 1, 1), d(2026, 1, 31)),
+      win("b", d(2026, 2, 1), d(2026, 2, 28)),
+      win("c", d(2026, 3, 1), d(2026, 3, 31)),
     ]);
     expect(ids.size).toBe(0);
   });
@@ -90,7 +101,10 @@ describe("findTimelineConflicts", () => {
 
 describe("timelineBarMetrics", () => {
   it("positions a bar by its offset from the anchor", () => {
-    const axis = buildTimelineAxis([{ startDate: d(2026, 1, 1), endDate: d(2026, 6, 1) }], d(2026, 1, 1));
+    const axis = buildTimelineAxis(
+      [{ startDate: d(2026, 1, 1), endDate: d(2026, 6, 1) }],
+      d(2026, 1, 1),
+    );
     const { leftPx, widthPx } = timelineBarMetrics(
       { startDate: d(2026, 1, 11), endDate: d(2026, 1, 21) },
       axis,
@@ -101,7 +115,10 @@ describe("timelineBarMetrics", () => {
   });
 
   it("clamps a sub-two-day PI to a minimum grabbable width", () => {
-    const axis = buildTimelineAxis([{ startDate: d(2026, 1, 1), endDate: d(2026, 6, 1) }], d(2026, 1, 1));
+    const axis = buildTimelineAxis(
+      [{ startDate: d(2026, 1, 1), endDate: d(2026, 6, 1) }],
+      d(2026, 1, 1),
+    );
     const { widthPx } = timelineBarMetrics(
       { startDate: d(2026, 1, 1), endDate: d(2026, 1, 1) },
       axis,

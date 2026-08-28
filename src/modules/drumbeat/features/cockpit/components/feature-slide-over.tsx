@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FeatureDetailShell } from "@/modules/drumbeat/features/cockpit/components/feature-detail-shell";
 import type { CockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
@@ -19,9 +19,7 @@ interface Props {
 }
 
 export function FeatureSlideOver({ detail }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { searchParams, setParam } = useUrlState();
   const featureId = searchParams.get("featureId");
   // Lokaler Tab-State — Slide-Over swappt den Inhalt in-place, ohne
   // wie die Voll-Route auf eine andere URL zu navigieren. Reset auf
@@ -34,10 +32,7 @@ export function FeatureSlideOver({ detail }: Props) {
 
   function setOpen(open: boolean) {
     if (open) return;
-    const next = new URLSearchParams(searchParams.toString());
-    next.delete("featureId");
-    const qs = next.toString();
-    router.replace(`${pathname}${qs ? `?${qs}` : ""}` as never, { scroll: false });
+    setParam("featureId", null);
   }
 
   return (
@@ -56,6 +51,8 @@ export function FeatureSlideOver({ detail }: Props) {
             candidates={detail.candidates}
             historyEvents={detail.historyEvents}
             userLabels={detail.userLabels}
+            blockerWindows={detail.blockerWindows}
+            blockerSummary={detail.blockerSummary}
             activeTab={tab}
             onTabChange={setTab}
             embed

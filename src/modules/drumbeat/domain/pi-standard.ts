@@ -6,8 +6,12 @@
  *
  * No I/O. The service layer ([pi-standard.ts](src/server/services/pi-standard.ts))
  * builds on this; the overlap filter (`selectFreeStandardPis`) makes re-applying
- * a standard idempotent — each standard PI overlaps its own prior copy.
+ * a standard idempotent — each standard PI overlaps its own prior copy. Die
+ * Overlap-Semantik ist die **eine** kanonische aus `timeline-grid`
+ * (`piWindowsOverlap`, inklusiv).
  */
+
+import { piWindowsOverlap } from "@/modules/drumbeat/domain/timeline-grid";
 
 /** A reusable PI calendar: uniform cadence × count anchored at a day/month. */
 export interface PiStandardSpec {
@@ -51,16 +55,6 @@ export function standardPiSchedule(spec: PiStandardSpec, year: number): Standard
   return pis;
 }
 
-/** Inclusive interval overlap: `aStart ≤ bEnd && bStart ≤ aEnd`. */
-function overlaps(
-  a: { startDate: Date; endDate: Date },
-  b: { startDate: Date; endDate: Date },
-): boolean {
-  return (
-    a.startDate.getTime() <= b.endDate.getTime() && b.startDate.getTime() <= a.endDate.getTime()
-  );
-}
-
 /**
  * The schedule entries whose date range is free — i.e. does not overlap any
  * `existing` PI. Skipping overlapping PIs lets a standard be applied alongside
@@ -70,5 +64,5 @@ export function selectFreeStandardPis(
   schedule: StandardPi[],
   existing: { startDate: Date; endDate: Date }[],
 ): StandardPi[] {
-  return schedule.filter((pi) => !existing.some((e) => overlaps(pi, e)));
+  return schedule.filter((pi) => !existing.some((e) => piWindowsOverlap(pi, e)));
 }

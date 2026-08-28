@@ -93,37 +93,10 @@ export function computeWsjf(input: WsjfInput): number {
 // the ART feature lists) are now DATA (the `opts` object), not forked code.
 // ---------------------------------------------------------------------------
 
-/** The three scored bands. The missing-score label is caller-supplied
- *  (`"unscored"` for Drumbeat, `"none"` for the ART feature lists). */
-export type WsjfBandLabel = "high" | "medium" | "low";
-
-/**
- * Buckets a computed WSJF score into `high | medium | low`, or the caller's
- * `missingLabel` when the score is absent. Bucketing is `>=` on both
- * thresholds (matching every current caller); `0` is a real score → `"low"`.
- */
-export function wsjfBand<M extends string>(
-  computed: number | null,
-  opts: { high: number; medium: number; missingLabel: M },
-): WsjfBandLabel | M {
-  if (computed == null) return opts.missingLabel;
-  if (computed >= opts.high) return "high";
-  if (computed >= opts.medium) return "medium";
-  return "low";
-}
-
-/**
- * One display formatter for a `wsjfComputed` value. Canonical precision is
- * 2 decimals — it matches `computeWsjf`'s own rounding, so no stored precision
- * is dropped. `null`/non-finite → an em dash. Accepts a Prisma `Decimal` too
- * (coerced via `Number`).
- */
-export function formatWsjf(value: number | null | { toString(): string }, digits = 2): string {
-  if (value == null) return "—";
-  const n = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(n)) return "—";
-  return n.toFixed(digits);
-}
+// Die WSJF-Primitive `wsjfBand`/`formatWsjf`/`WsjfBandLabel` wohnen jetzt in
+// `@/modules/core/kernel/domain/wsjf` (ADR-0013 — kein Modul greift mehr ins Legacy-
+// `src/domain`). Re-Export für bestehende Legacy-Importe.
+export { wsjfBand, formatWsjf, type WsjfBandLabel } from "@/modules/core/kernel/domain/wsjf";
 
 /** The persisted WSJF columns — the 4 raw inputs plus the derived score. */
 export interface WsjfWriteFields {

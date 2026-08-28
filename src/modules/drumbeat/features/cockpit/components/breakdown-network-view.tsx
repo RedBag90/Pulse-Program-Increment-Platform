@@ -38,7 +38,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { toast } from "sonner";
 import { detectCycle } from "@/modules/core/kernel/domain/dependency-graph";
-import { formatWsjf } from "@/domain/schemas/initiative";
+import { formatWsjf } from "@/modules/core/kernel/domain/wsjf";
 import { CreateFeatureDialog } from "@/modules/work/features/feature/components/create-feature-dialog";
 import {
   linkDependencyAction,

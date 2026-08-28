@@ -7,6 +7,7 @@
  */
 
 import type { DependencyType } from "@/modules/drumbeat/domain/graph-scope";
+import { FEATURE_STATUS_DOT } from "@/modules/drumbeat/features/lib/status-badges";
 
 /** Edge stroke color by dependency type. Canonical map shared by all graphs. */
 export const EDGE_COLOR: Record<DependencyType, string> = {
@@ -16,16 +17,11 @@ export const EDGE_COLOR: Record<DependencyType, string> = {
 };
 
 /**
- * Status → dot color (Tailwind class) for the Delivery-Cockpit network, keyed
- * by `FeatureStatus`.
+ * Status → dot color (Tailwind class) für das Delivery-Cockpit-Netzwerk. Kommt
+ * aus dem geteilten `FEATURE_STATUS_DOT`-Token (SSOT), damit Board, Netzwerk und
+ * Gantt denselben Status-Hue nutzen (keine Farbdrift mehr).
  */
-export const STATUS_DOT_COCKPIT: Record<string, string> = {
-  approved: "bg-sky-500",
-  in_progress: "bg-indigo-500",
-  blocked: "bg-amber-500",
-  completed: "bg-emerald-500",
-  cancelled: "bg-slate-400",
-};
+export const STATUS_DOT_COCKPIT = FEATURE_STATUS_DOT;
 
 /**
  * Status → dot color (Tailwind class) for the Epic-Breakdown network, keyed by

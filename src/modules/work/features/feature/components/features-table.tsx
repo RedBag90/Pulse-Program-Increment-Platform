@@ -5,7 +5,10 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { FEATURE_STATUSES, type FeatureStatus, type WsjfTier } from "@/server/views/features-list";
 import { formatWsjf } from "@/domain/schemas/initiative";
-import type { FeatureOverviewRow, FeaturesOverviewModel } from "@/server/views/features-overview";
+import type {
+  FeatureOverviewRow,
+  FeaturesOverviewModel,
+} from "@/modules/work/server/views/features-overview";
 import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/modules/work/domain/portfolio-guardrails";
 
 /**
@@ -69,14 +72,7 @@ type SortKey = "wsjf:desc" | "createdAt:desc" | "createdAt:asc";
 const SORT_KEYS: SortKey[] = ["wsjf:desc", "createdAt:desc", "createdAt:asc"];
 
 export type FeatureColumn = "valueStream" | "epic" | "pi" | "status" | "wsjf" | "ak";
-const ALL_COLUMNS: readonly FeatureColumn[] = [
-  "valueStream",
-  "epic",
-  "pi",
-  "status",
-  "wsjf",
-  "ak",
-];
+const ALL_COLUMNS: readonly FeatureColumn[] = ["valueStream", "epic", "pi", "status", "wsjf", "ak"];
 
 // ---------------------------------------------------------------------------
 // URL-State + Filterung

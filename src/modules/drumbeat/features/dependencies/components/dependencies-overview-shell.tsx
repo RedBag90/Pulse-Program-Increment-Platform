@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
+import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import { Link2, ShieldAlert, Split, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { unlinkDependencyBatchAction } from "@/modules/drumbeat/features/dependencies/actions/dependency";
@@ -11,19 +11,20 @@ import {
   type DependencyType,
   type DependenciesOverviewModel,
   type DependencyOverviewRow,
-} from "@/server/views/dependencies-overview";
+} from "@/modules/drumbeat/server/views/dependencies-overview";
+import {
+  DEPENDENCY_TYPE_LABELS as TYPE_LABEL,
+  FEATURE_STATUSES,
+  type FeatureStatus,
+} from "@/modules/drumbeat/domain/status";
+import { DependencyBadge, StatusBadge } from "@/modules/drumbeat/features/lib/status-badges";
+import { STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { Page, PageHeader } from "@/components/layout";
 
 interface Props {
   model: DependenciesOverviewModel;
   canBulk: boolean;
 }
-
-const TYPE_LABEL: Record<DependencyType, string> = {
-  blocks: "Blockiert",
-  depends_on: "Hängt ab",
-  relates_to: "Bezieht sich",
-};
 const TYPE_DOT: Record<DependencyType, string> = {
   blocks: "bg-red-500",
   depends_on: "bg-amber-500",
@@ -54,9 +55,7 @@ function parseScope(raw: string | null): ScopeFilter {
  * From-ART teilen, sonst blockt die Bar mit einem Hinweis.
  */
 export function DependenciesOverviewShell({ model, canBulk }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { searchParams, setParams: pushParam } = useUrlState();
 
   const type = parseType(searchParams.get("type"));
   const fromArt = searchParams.get("fromArt");
@@ -69,19 +68,6 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [bulkError, setBulkError] = useState<string | null>(null);
-
-  const pushParam = useCallback(
-    (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      for (const [k, v] of Object.entries(updates)) {
-        if (v === null || v === "") params.delete(k);
-        else params.set(k, v);
-      }
-      const next = params.toString();
-      router.replace(`${pathname}${next ? `?${next}` : ""}` as never, { scroll: false });
-    },
-    [pathname, router, searchParams],
-  );
 
   const filtered = useMemo<DependencyOverviewRow[]>(() => {
     const q = query.trim().toLowerCase();
@@ -252,11 +238,11 @@ export function DependenciesOverviewShell({ model, canBulk }: Props) {
                   />
                 </th>
               )}
+              <th className="py-2 pr-3">Von-Feature</th>
               <th className="py-2 pr-3">Typ</th>
-              <th className="py-2 pr-3">From</th>
-              <th className="py-2 pr-3">To</th>
-              <th className="py-2 pr-3">Scope</th>
-              <th className="py-2 pr-4 text-right">Tage offen</th>
+              <th className="py-2 pr-3">Zu-Feature</th>
+              <th className="py-2 pr-3">Status</th>
+              <th className="py-2 pr-4">PI-Fenster</th>
             </tr>
           </thead>
           <tbody>
@@ -353,9 +339,11 @@ function DependencyRow({
         </td>
       )}
       <td className="py-2 pr-3">
+        <EndpointCell endpoint={row.from} />
+      </td>
+      <td className="py-2 pr-3">
         <span className="inline-flex items-center gap-1.5 text-xs">
-          <span className={`size-2 rounded-full ${TYPE_DOT[row.type]}`} />
-          <span className="text-muted-foreground">{TYPE_LABEL[row.type]}</span>
+          <DependencyBadge type={row.type} />
           {row.isCriticalPath && (
             <span
               title="Kritischer Pfad — Blocker mit Ziel in aktiver PI"
@@ -367,13 +355,20 @@ function DependencyRow({
         </span>
       </td>
       <td className="py-2 pr-3">
-        <EndpointCell endpoint={row.from} />
-      </td>
-      <td className="py-2 pr-3">
         <EndpointCell endpoint={row.to} />
       </td>
-      <td className="py-2 pr-3 text-xs text-muted-foreground">
+      <td className="py-2 pr-3">
+        <EndpointStatus status={row.to.status} />
+      </td>
+      <td className="py-2 pr-4 text-xs text-muted-foreground">
         <div className="flex flex-wrap items-center gap-1">
+          <span>{row.from.pi?.name ?? "Backlog"}</span>
+          {row.to.pi && row.to.pi.name !== row.from.pi?.name && (
+            <>
+              <span className="text-muted-foreground/60">→</span>
+              <span>{row.to.pi.name}</span>
+            </>
+          )}
           {row.isCrossArt && (
             <span className="inline-flex items-center gap-1 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] text-orange-700">
               <Split className="size-3" /> Cross-ART
@@ -384,13 +379,22 @@ function DependencyRow({
               <Link2 className="size-3" /> Cross-PI
             </span>
           )}
-          {!row.isCrossArt && !row.isCrossPi && <span>—</span>}
         </div>
       </td>
-      <td className="py-2 pr-4 text-right text-xs tabular-nums text-muted-foreground">
-        {row.daysOpen}d
-      </td>
     </tr>
+  );
+}
+
+/** Status-Badge des Endpunkts — Registry-Badge fuer Delivery-Status, sonst
+ *  generisches Label (z. B. QS-States). */
+function EndpointStatus({ status }: { status: string }) {
+  if ((FEATURE_STATUSES as readonly string[]).includes(status)) {
+    return <StatusBadge status={status as FeatureStatus} />;
+  }
+  return (
+    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+      {STATUS_LABELS[status] ?? status}
+    </span>
   );
 }
 

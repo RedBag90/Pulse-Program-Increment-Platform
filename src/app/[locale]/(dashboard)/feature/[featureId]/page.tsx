@@ -1,257 +1,62 @@
-import { requirePrincipal } from "@/server/auth/principal";
-import { hasCapability } from "@/server/auth/authorize";
-import { createPrismaClient } from "@/server/db/prisma";
-import { getFeature } from "@/modules/work/server/services/feature";
-import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
-import {
-  EntityDetailShell,
-  resolveTab,
-  type DetailTab,
-} from "@/components/detail/entity-detail-shell";
-import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
-import { STATUS_LABELS } from "@/components/detail/initiative-labels";
-import { FeatureOverviewTab } from "@/modules/work/features/feature/components/feature-overview-tab";
-import { DeleteFeatureButton } from "@/modules/work/features/feature/components/delete-feature-button";
-import { FeatureDeliveryControls } from "@/modules/drumbeat/features/feature/components/feature-delivery-controls";
-import { getBlockerWindowsForFeatures } from "@/modules/drumbeat/server/services/dependency";
-import { earliestStartFromBlockers } from "@/modules/core/kernel/domain/dependency-graph";
-import { LinkDependencyDialog } from "@/modules/drumbeat/features/dependencies/components/link-dependency-dialog";
-import { UnlinkDependencyButton } from "@/modules/drumbeat/features/dependencies/components/unlink-dependency-button";
-import { PermissionGate } from "@/components/auth/permission-gate";
 import { redirect, notFound } from "next/navigation";
-import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
-import type { FeatureId, TenantId } from "@/modules/core/kernel/domain/types";
+import { requirePrincipal } from "@/server/auth/principal";
+import { createPrismaClient } from "@/server/db/prisma";
+import { loadCockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
+import { FeatureDetailShell } from "@/modules/drumbeat/features/cockpit/components/feature-detail-shell";
+import { DeleteFeatureButton } from "@/modules/work/features/feature/components/delete-feature-button";
 
+/**
+ * Feature-Detail-Vollroute (ART-Kontext) — deeplinkbar aus WSJF-Leaderboard,
+ * Abhaengigkeiten-Uebersicht, Feature-Listen und Budget-Revisionen. Rendert
+ * dieselbe `FeatureDetailShell` ueber demselben Loader wie `/umsetzung/feature/[id]`
+ * und das Cockpit-Slide-Over; einziger Unterschied ist der ART-Rueck-Link und
+ * die `?tab=`-Basis. So gibt es nur noch **eine** Feature-Detail-Flaeche.
+ */
 interface Props {
   params: Promise<{ featureId: string }>;
   searchParams: Promise<{ tab?: string }>;
 }
 
-const FEATURE_TABS: readonly DetailTab[] = [
-  { key: "overview", label: "Overview" },
-  { key: "dependencies", label: "Dependencies" },
-  { key: "history", label: "History" },
-];
-
 export default async function FeatureDetailPage({ params, searchParams }: Props) {
   const { featureId } = await params;
   const { tab } = await searchParams;
-  const activeTab = resolveTab(FEATURE_TABS, tab);
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const feature = await getFeature(db, principal.tenantId, featureId as FeatureId);
-  if (!feature) notFound();
+  const detail = await loadCockpitFeatureDetail(db, principal, featureId);
+  if (!detail) notFound();
 
-  const artId = feature.art?.id ?? "";
-
-  const historyEvents = await listInitiativeHistory(db, principal.tenantId, featureId);
-
-  const canEdit = hasCapability(principal, "feature.update", {
-    tenantId: principal.tenantId,
-    artId: feature.artId,
-  });
-
-  const dependencies = await db.dependency.findMany({
-    where: {
-      tenantId: principal.tenantId,
-      OR: [{ fromId: featureId }, { toId: featureId }],
-    },
-    include: {
-      from: { select: { id: true, title: true, level: true } },
-      to: { select: { id: true, title: true, level: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
-  // Other features in the same ART — candidates to depend on.
-  const dependencyCandidates = await db.initiative.findMany({
-    where: {
-      tenantId: principal.tenantId as TenantId,
-      artId,
-      level: InitiativeLevel.FEATURE,
-      deletedAt: null,
-      id: { not: featureId },
-    },
-    select: { id: true, title: true },
-    orderBy: { title: "asc" },
-  });
-
-  // Earliest-start derivation from one-hop blockers — surfaced as a header on
-  // the Dependencies tab so the planner sees the calendar constraint in place.
-  const blockerMap = await getBlockerWindowsForFeatures(db, principal.tenantId, [featureId]);
-  const blockerWindows = blockerMap.get(featureId) ?? [];
-  const blockerSummary = earliestStartFromBlockers(blockerWindows);
-
-  const activityEvents = historyEvents.map((e) => ({
-    id: e.id,
-    action: e.action,
-    occurredAt: e.occurredAt.toISOString(),
-  }));
+  const artId = detail.model.art?.id ?? "";
+  const artName = detail.model.art?.name ?? "ART";
 
   return (
-    <EntityDetailShell
+    <FeatureDetailShell
+      model={detail.model}
+      canEdit={detail.canEdit}
+      canTransition={detail.canTransition}
+      canAssignOwner={detail.canAssignOwner}
+      approvers={detail.approvers}
+      canLinkDependency={detail.canLinkDependency}
+      outgoing={detail.outgoing}
+      incoming={detail.incoming}
+      candidates={detail.candidates}
+      historyEvents={detail.historyEvents}
+      userLabels={detail.userLabels}
+      blockerWindows={detail.blockerWindows}
+      blockerSummary={detail.blockerSummary}
       backHref={`/art/${artId}/features`}
-      backLabel={`Zurück zu ${feature.art?.name ?? "ART"}`}
-      title={feature.title}
-      badge={STATUS_LABELS[feature.status] ?? feature.status}
-      tabs={FEATURE_TABS}
-      activeTab={activeTab}
+      backLabel={`Zurück zu ${artName}`}
       basePath={`/feature/${featureId}`}
-      headerActions={
-        canEdit ? (
-          <div className="flex flex-wrap items-start gap-2">
-            <FeatureDeliveryControls
-              featureId={featureId}
-              status={feature.status}
-              piAssigned={feature.piId !== null}
-              parentEpicReady={
-                feature.parent?.stageGate === "L4" || feature.parent?.stageGate === "L5"
-              }
-            />
-            <DeleteFeatureButton id={featureId} artId={artId} title={feature.title} />
-          </div>
-        ) : undefined
-      }
-      aside={<InitiativeActivitySidebar events={activityEvents} />}
-    >
-      {activeTab === "overview" && (
-        <FeatureOverviewTab
-          feature={{
-            id: feature.id,
-            title: feature.title,
-            description: feature.description,
-            stageGate: feature.stageGate,
-            status: feature.status,
-            ownerId: feature.ownerId,
-            updatedAt: feature.updatedAt,
-            artId,
-            artName: feature.art?.name ?? "—",
-            parentEpic: feature.parent
-              ? { id: feature.parent.id, title: feature.parent.title }
-              : null,
-            pi: feature.pi
-              ? {
-                  name: feature.pi.name,
-                  startDate: feature.pi.startDate,
-                  endDate: feature.pi.endDate,
-                }
-              : null,
-            acceptanceCriteria: feature.acceptanceCriteria,
-            wsjf: {
-              bv: feature.wsjfBusinessValue,
-              tc: feature.wsjfTimeCriticality,
-              rr: feature.wsjfRiskReduction,
-              js: feature.wsjfJobSize,
-              computed: feature.wsjfComputed !== null ? Number(feature.wsjfComputed) : null,
-            },
-          }}
-          canEdit={canEdit}
-        />
-      )}
-
-      {activeTab === "dependencies" && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium">Dependencies</h2>
-            <PermissionGate action="dependency.link" resource={{ artId }}>
-              <LinkDependencyDialog
-                fromId={featureId}
-                artId={artId}
-                candidates={dependencyCandidates}
-              />
-            </PermissionGate>
-          </div>
-
-          {blockerWindows.length > 0 && (
-            <div className="rounded-lg border bg-muted/30 px-4 py-2 text-sm">
-              <p>
-                <span className="font-medium">Frühestmöglicher Start: </span>
-                {blockerSummary.earliest
-                  ? blockerSummary.earliest.toISOString().slice(0, 10)
-                  : "unbestimmt"}
-                {blockerSummary.unscheduledBlockers.length > 0 && (
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    ({blockerSummary.unscheduledBlockers.length} Blocker noch ungeplant
-                    {blockerSummary.unscheduledBlockers.length > 0 ? ": " : ""}
-                    {blockerSummary.unscheduledBlockers.slice(0, 3).join(", ")})
-                  </span>
-                )}
-              </p>
-            </div>
-          )}
-          {dependencies.length === 0 ? (
-            <p className="text-sm text-muted-foreground/60">No dependencies linked.</p>
-          ) : (
-            <div className="divide-y rounded-lg border">
-              {dependencies.map((dep) => {
-                const isOutgoing = dep.fromId === featureId;
-                const other = isOutgoing ? dep.to : dep.from;
-                const label = isOutgoing
-                  ? dep.type === "blocks"
-                    ? "blocks"
-                    : dep.type === "depends_on"
-                      ? "depends on"
-                      : "relates to"
-                  : dep.type === "blocks"
-                    ? "blocked by"
-                    : dep.type === "depends_on"
-                      ? "required by"
-                      : "relates to";
-
-                return (
-                  <div key={dep.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs ${
-                        label === "blocks" || label === "blocked by"
-                          ? "bg-red-100 text-red-700"
-                          : label === "relates to"
-                            ? "bg-muted text-muted-foreground"
-                            : "bg-yellow-100 text-yellow-700"
-                      }`}
-                    >
-                      {label}
-                    </span>
-                    <span>{other.title}</span>
-                    {canEdit && (
-                      <span className="ml-auto">
-                        <UnlinkDependencyButton
-                          fromId={dep.fromId}
-                          toId={dep.toId}
-                          type={dep.type as "blocks" | "depends_on" | "relates_to"}
-                          artId={artId}
-                        />
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      )}
-
-      {activeTab === "history" && (
-        <section>
-          <h2 className="mb-3 text-lg font-medium">History</h2>
-          {activityEvents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Keine Historie.</p>
-          ) : (
-            <ul className="divide-y rounded border">
-              {activityEvents.map((e) => (
-                <li key={e.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                  <span className="font-medium">{e.action}</span>
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    {new Date(e.occurredAt).toLocaleString("de-DE")}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-    </EntityDetailShell>
+      {...(tab !== undefined ? { activeTab: tab } : {})}
+      {...(detail.canEdit
+        ? {
+            headerActions: (
+              <DeleteFeatureButton id={featureId} artId={artId} title={detail.model.title} />
+            ),
+          }
+        : {})}
+    />
   );
 }

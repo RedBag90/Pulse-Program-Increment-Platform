@@ -25,6 +25,8 @@ export interface FeatureDetailInput {
   title: string;
   description: string | null;
   status: string;
+  /** Reifegrad des Features selbst (nicht des Parent-Epics). */
+  stageGate: string | null;
   parentId: string | null;
   parentTitle: string | null;
   parentStageGate: string | null;
@@ -34,6 +36,8 @@ export interface FeatureDetailInput {
   valueStreamName: string | null;
   piId: string | null;
   piName: string | null;
+  piStartDate: Date | null;
+  piEndDate: Date | null;
   ownerId: string | null;
   ownerLabel: string | null;
   wsjfBusinessValue: number | null;
@@ -53,10 +57,12 @@ export interface FeatureDetailModel {
   title: string;
   description: string | null;
   status: string;
+  /** Reifegrad des Features selbst — vom Overview als eigenes Feld gezeigt. */
+  stageGate: string | null;
   parent: { id: string; title: string; stageGate: string | null } | null;
   art: { id: string; name: string } | null;
   valueStream: { id: string; name: string } | null;
-  pi: { id: string; name: string } | null;
+  pi: { id: string; name: string; startDate: Date | null; endDate: Date | null } | null;
   /** Rohe Id — der Picker braucht sie als Auswahlwert, das Label nur zur Anzeige. */
   ownerId: string | null;
   ownerLabel: string | null;
@@ -88,6 +94,7 @@ export function buildFeatureDetailModel(input: FeatureDetailInput): FeatureDetai
     title: input.title,
     description: input.description,
     status: input.status,
+    stageGate: input.stageGate,
     parent:
       input.parentId && input.parentTitle != null
         ? { id: input.parentId, title: input.parentTitle, stageGate: input.parentStageGate }
@@ -97,7 +104,15 @@ export function buildFeatureDetailModel(input: FeatureDetailInput): FeatureDetai
       input.valueStreamId && input.valueStreamName != null
         ? { id: input.valueStreamId, name: input.valueStreamName }
         : null,
-    pi: input.piId && input.piName != null ? { id: input.piId, name: input.piName } : null,
+    pi:
+      input.piId && input.piName != null
+        ? {
+            id: input.piId,
+            name: input.piName,
+            startDate: input.piStartDate,
+            endDate: input.piEndDate,
+          }
+        : null,
     // Für den vorausgewählten Owner-Picker; `ownerLabel` allein reicht nicht.
     ownerId: input.ownerId,
     ownerLabel: input.ownerLabel,

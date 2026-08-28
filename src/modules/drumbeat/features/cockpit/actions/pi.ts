@@ -1,28 +1,15 @@
 "use server";
 
 import { z } from "zod";
-import { requirePrincipal } from "@/server/auth/principal";
-import { createPrismaClient } from "@/server/db/prisma";
 import {
   startPi,
   advanceCadence,
   deletePi,
   setPiCapacity,
 } from "@/modules/drumbeat/server/services/pi";
-import { authorize } from "@/server/auth/authorize";
-import { headers } from "next/headers";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { isErr } from "@/modules/core/kernel/domain/errors";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
-import { revalidateFor } from "@/server/http/revalidation";
-import type { RequestContext } from "@/server/http/mutation-handler";
 import type { PiId } from "@/modules/core/kernel/domain/types";
-
-export interface PiActionState {
-  error?: string;
-  success?: boolean;
-}
 
 // PI-Erstellung ist seit dem Timeline-Rollout zentralisiert: PIs entstehen
 // ausschließlich aus `applyPiStandard(timelineId, standardId, year)` —
@@ -30,76 +17,42 @@ export interface PiActionState {
 // Eine `createPiAction` gibt es bewusst nicht mehr; der zugrundeliegende
 // Service `createPi(...)` bleibt intern und wird vom Standard-Pfad
 // verwendet.
+//
+// Alle vier PI-Actions gehen über `createServerAction` (einheitlicher
+// `(prevState, FormData)`-Contract + Modul-Gate) und sind einheitlich
+// **ART-scoped** (`resource: { tenantId, artId }`) — start/advance/update/delete.
+// Der Timeline-Pfad (Cadence-Modul) nutzt bewusst `timeline.manage`.
 
 /**
  * Startet ein geplantes PI (planned → active). Das Abschließen läuft
  * ausschließlich über `advanceCadenceAction` („PI abschließen & nächstes
  * öffnen") — der strenge Complete-PI-Weg ist aus dem UI entfallen (Spec WP2).
- * Der programmatische `completePi`-Service bleibt für die v1-REST-API.
  */
-export async function transitionPiAction(piId: string): Promise<PiActionState> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return { error: "Not authenticated" };
-
-  if (!authorize("pi.start", { tenantId: principal.tenantId }, principal).allow) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const ctx: RequestContext = {
-    principal,
-    db,
-    ...(ipAddress !== undefined && { ipAddress }),
-    ...(userAgent !== undefined && { userAgent }),
-  };
-
-  const result = await startPi(ctx, { id: piId as PiId });
-
-  if (isErr(result)) {
-    return {
-      error: result.error.kind === "conflict" ? result.error.reason : "Failed to start PI",
-    };
-  }
-
-  revalidateFor("pi");
-  return { success: true };
-}
+export const transitionPiAction = createServerAction({
+  schema: z.object({ piId: z.string().uuid(), artId: z.string().uuid() }),
+  action: "pi.start",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  parseFormData: (fd) => ({ piId: fields(fd).string("piId"), artId: fields(fd).string("artId") }),
+  service: (ctx, input) => startPi(ctx, { id: input.piId as PiId }),
+  revalidate: "pi",
+  mapError: (e) => (e.kind === "conflict" ? e.reason : "PI konnte nicht gestartet werden"),
+});
 
 /**
  * Schreibt die Kadenz fort: schließt das aktive PI ab und öffnet das nächste
- * (leichtes Weiterrollen). Gibt die nicht-blockierenden Closure-Warnungen zurück,
- * damit die UI „trotz offener Punkte fortgeschrieben" anzeigen kann.
+ * (leichtes Weiterrollen). Nicht-blockierende Closure-Warnungen kommen über
+ * `state.warnings` zurück (Factory-`foldWarnings`).
  */
-export async function advanceCadenceAction(
-  piId: string,
-): Promise<PiActionState & { warnings?: string[]; toName?: string }> {
-  const principal = await requirePrincipal().catch(() => null);
-  if (!principal) return { error: "Not authenticated" };
-
-  if (!authorize("pi.advance", { tenantId: principal.tenantId }, principal).allow) {
-    return { error: "Insufficient permissions" };
-  }
-
-  const { ipAddress, userAgent } = extractRequestMeta(await headers());
-  const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const ctx: RequestContext = {
-    principal,
-    db,
-    ...(ipAddress !== undefined && { ipAddress }),
-    ...(userAgent !== undefined && { userAgent }),
-  };
-
-  const result = await advanceCadence(ctx, { piId: piId as PiId });
-  if (isErr(result)) {
-    return {
-      error: result.error.kind === "conflict" ? result.error.reason : "Fortschreiben fehlgeschlagen",
-    };
-  }
-
-  revalidateFor("pi");
-  return { success: true, warnings: result.value.warnings, toName: result.value.to };
-}
+export const advanceCadenceAction = createServerAction({
+  schema: z.object({ piId: z.string().uuid(), artId: z.string().uuid() }),
+  action: "pi.advance",
+  resource: (input, p) => ({ tenantId: p.tenantId, artId: input.artId }),
+  parseFormData: (fd) => ({ piId: fields(fd).string("piId"), artId: fields(fd).string("artId") }),
+  service: (ctx, input) => advanceCadence(ctx, { piId: input.piId as PiId }),
+  revalidate: "pi",
+  foldWarnings: (v) => v.warnings,
+  mapError: (e) => (e.kind === "conflict" ? e.reason : "Fortschreiben fehlgeschlagen"),
+});
 
 /**
  * Sets the per-PI capacity overrides used by the PI-Planning overlay

@@ -5,6 +5,11 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
 import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
+import { getBlockerWindowsForFeatures } from "@/modules/drumbeat/server/services/dependency";
+import {
+  earliestStartFromBlockers,
+  type BlockerWindow,
+} from "@/modules/core/kernel/domain/dependency-graph";
 import {
   buildFeatureDetailModel,
   type FeatureDetailModel,
@@ -44,6 +49,10 @@ export interface CockpitFeatureDetail {
   candidates: { id: string; title: string }[];
   historyEvents: ActivityItem[];
   userLabels: Record<string, string>;
+  /** Ein-Hop-Blocker-Fenster fuer den Fruehester-Start-Header im Deps-Tab. */
+  blockerWindows: BlockerWindow[];
+  /** Abgeleiteter fruehester Start + noch ungeplante Blocker. */
+  blockerSummary: { earliest: Date | null; unscheduledBlockers: string[] };
 }
 
 export async function loadCockpitFeatureDetail(
@@ -63,6 +72,7 @@ export async function loadCockpitFeatureDetail(
       title: true,
       description: true,
       status: true,
+      stageGate: true,
       parentId: true,
       artId: true,
       ownerId: true,
@@ -77,7 +87,7 @@ export async function loadCockpitFeatureDetail(
       updatedAt: true,
       parent: { select: { id: true, title: true, stageGate: true, valueStreamId: true } },
       art: { select: { id: true, name: true, valueStreamId: true } },
-      pi: { select: { id: true, name: true } },
+      pi: { select: { id: true, name: true, startDate: true, endDate: true } },
     },
   });
   if (!feature) return null;
@@ -92,45 +102,48 @@ export async function loadCockpitFeatureDetail(
     dependenciesIn,
     history,
     artFeatures,
+    blockerMap,
   ] = await Promise.all([
-      valueStreamId
-        ? db.valueStream.findFirst({
-            where: { id: valueStreamId, tenantId: principal.tenantId, deletedAt: null },
-            select: { id: true, name: true },
-          })
-        : Promise.resolve(null),
-      listTenantUserLabels(db, principal.tenantId),
-      // Auswahlkandidaten für den Owner-Picker — dieselbe Quelle wie beim Epic.
-      listTenantApprovers(db, principal.tenantId),
-      db.dependency.findMany({
-        where: { tenantId: principal.tenantId, fromId: feature.id },
-        select: { id: true, type: true, to: { select: { id: true, title: true } } },
-      }),
-      db.dependency.findMany({
-        where: { tenantId: principal.tenantId, toId: feature.id },
-        select: { id: true, type: true, from: { select: { id: true, title: true } } },
-      }),
-      listInitiativeHistory(db, principal.tenantId, feature.id),
-      feature.artId
-        ? db.initiative.findMany({
-            where: {
-              tenantId: principal.tenantId,
-              level: InitiativeLevel.FEATURE,
-              artId: feature.artId,
-              deletedAt: null,
-              NOT: { id: feature.id },
-            },
-            select: { id: true, title: true },
-            orderBy: { title: "asc" },
-          })
-        : Promise.resolve([]),
-    ]);
+    valueStreamId
+      ? db.valueStream.findFirst({
+          where: { id: valueStreamId, tenantId: principal.tenantId, deletedAt: null },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve(null),
+    listTenantUserLabels(db, principal.tenantId),
+    // Auswahlkandidaten für den Owner-Picker — dieselbe Quelle wie beim Epic.
+    listTenantApprovers(db, principal.tenantId),
+    db.dependency.findMany({
+      where: { tenantId: principal.tenantId, fromId: feature.id },
+      select: { id: true, type: true, to: { select: { id: true, title: true } } },
+    }),
+    db.dependency.findMany({
+      where: { tenantId: principal.tenantId, toId: feature.id },
+      select: { id: true, type: true, from: { select: { id: true, title: true } } },
+    }),
+    listInitiativeHistory(db, principal.tenantId, feature.id),
+    feature.artId
+      ? db.initiative.findMany({
+          where: {
+            tenantId: principal.tenantId,
+            level: InitiativeLevel.FEATURE,
+            artId: feature.artId,
+            deletedAt: null,
+            NOT: { id: feature.id },
+          },
+          select: { id: true, title: true },
+          orderBy: { title: "asc" },
+        })
+      : Promise.resolve([]),
+    getBlockerWindowsForFeatures(db, principal.tenantId, [feature.id]),
+  ]);
 
   const model = buildFeatureDetailModel({
     id: feature.id,
     title: feature.title,
     description: feature.description,
     status: feature.status,
+    stageGate: feature.stageGate,
     parentId: feature.parentId,
     parentTitle: feature.parent?.title ?? null,
     parentStageGate: feature.parent?.stageGate ?? null,
@@ -140,6 +153,8 @@ export async function loadCockpitFeatureDetail(
     valueStreamName: valueStream?.name ?? null,
     piId: feature.pi?.id ?? null,
     piName: feature.pi?.name ?? null,
+    piStartDate: feature.pi?.startDate ?? null,
+    piEndDate: feature.pi?.endDate ?? null,
     ownerId: feature.ownerId,
     ownerLabel: feature.ownerId ? (userLabels[feature.ownerId] ?? null) : null,
     wsjfBusinessValue: feature.wsjfBusinessValue,
@@ -186,6 +201,9 @@ export async function loadCockpitFeatureDetail(
     ...(h.actorId ? { actorId: h.actorId } : {}),
   }));
 
+  const blockerWindows = blockerMap.get(feature.id) ?? [];
+  const blockerSummary = earliestStartFromBlockers(blockerWindows);
+
   return {
     model,
     canEdit,
@@ -198,5 +216,7 @@ export async function loadCockpitFeatureDetail(
     candidates,
     historyEvents,
     userLabels,
+    blockerWindows,
+    blockerSummary,
   };
 }

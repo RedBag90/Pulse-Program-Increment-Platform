@@ -10,6 +10,7 @@ const base = (over: Partial<FeatureDetailInput> = {}): FeatureDetailInput => ({
   title: "Test Feature",
   description: null,
   status: "approved",
+  stageGate: null,
   parentId: null,
   parentTitle: null,
   parentStageGate: null,
@@ -19,6 +20,8 @@ const base = (over: Partial<FeatureDetailInput> = {}): FeatureDetailInput => ({
   valueStreamName: null,
   piId: null,
   piName: null,
+  piStartDate: null,
+  piEndDate: null,
   ownerId: null,
   ownerLabel: null,
   wsjfBusinessValue: null,
@@ -66,8 +69,11 @@ describe("buildFeatureDetailModel", () => {
   });
 
   it("schiebt Parent/ART/VS/PI nur durch, wenn beide Felder gefuellt sind", () => {
+    const start = new Date("2026-01-06");
+    const end = new Date("2026-03-27");
     const m = buildFeatureDetailModel(
       base({
+        stageGate: "L3",
         parentId: "e1",
         parentTitle: "Parent Epic",
         parentStageGate: "L2",
@@ -77,12 +83,20 @@ describe("buildFeatureDetailModel", () => {
         valueStreamName: "VS 1",
         piId: "p1",
         piName: "PI 2026-Q1",
+        piStartDate: start,
+        piEndDate: end,
       }),
     );
+    expect(m.stageGate).toBe("L3");
     expect(m.parent).toEqual({ id: "e1", title: "Parent Epic", stageGate: "L2" });
     expect(m.art).toEqual({ id: "a1", name: "ART 1" });
     expect(m.valueStream).toEqual({ id: "vs1", name: "VS 1" });
-    expect(m.pi).toEqual({ id: "p1", name: "PI 2026-Q1" });
+    expect(m.pi).toEqual({ id: "p1", name: "PI 2026-Q1", startDate: start, endDate: end });
+  });
+
+  it("traegt PI-Daten als null, wenn das PI keine Termine hat", () => {
+    const m = buildFeatureDetailModel(base({ piId: "p1", piName: "PI ohne Termine" }));
+    expect(m.pi).toEqual({ id: "p1", name: "PI ohne Termine", startDate: null, endDate: null });
   });
 
   it("setzt Parent auf null, wenn Title fehlt (Soft-Delete-Edge-Case)", () => {

@@ -2,18 +2,24 @@
 
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { FeatureStatusSelect } from "@/modules/work/features/feature/components/feature-status-select";
 import { FeatureOwnerAssign } from "@/modules/work/features/feature/components/feature-owner-assign";
+import { FeatureEditForm } from "@/modules/work/features/feature/components/feature-edit-form";
+import { WsjfScoreDialog } from "@/modules/work/features/feature/components/wsjf-score-dialog";
 import { FeatureClassificationForm } from "./feature-classification-form";
-import { STATUS_DOT, STATUS_LABELS } from "@/components/detail/initiative-labels";
+import {
+  STAGE_GATE_LABELS,
+  STATUS_DOT,
+  STATUS_LABELS,
+} from "@/components/detail/initiative-labels";
+import { buildInitiativeSummary } from "@/modules/core/kernel/domain/initiative-summary";
 import { formatDate } from "@/lib/formatting";
-import { formatWsjf } from "@/domain/schemas/initiative";
+import { formatWsjf } from "@/modules/core/kernel/domain/wsjf";
+import type { StageGate, InitiativeStatus } from "@/modules/core/kernel/domain/types";
 import type { FeatureDetailModel } from "@/modules/drumbeat/server/views/feature-detail";
 
 interface Props {
   model: FeatureDetailModel;
   canEdit: boolean;
-  canTransition: boolean;
   canAssignOwner: boolean;
   approvers: ReadonlyArray<{ userId: string; roles: string[] }>;
   userLabels: Record<string, string>;
@@ -32,7 +38,6 @@ const TIER_CLASS: Record<FeatureDetailModel["wsjf"]["tier"], string> = {
   unscored: "bg-muted text-muted-foreground",
 };
 
-
 /**
  * Overview-Tab der Feature-Detail-Seite. Felds-Grid + Status-Aktionen.
  * Aktions-Buttons sind capability-gated und reflektieren die FSM aus
@@ -41,7 +46,6 @@ const TIER_CLASS: Record<FeatureDetailModel["wsjf"]["tier"], string> = {
 export function FeatureOverviewTab({
   model,
   canEdit,
-  canTransition,
   canAssignOwner,
   approvers,
   userLabels,
@@ -50,9 +54,14 @@ export function FeatureOverviewTab({
     <div className="space-y-6">
       <SummaryHeader model={model} />
 
+      <SummaryBand model={model} />
+
       <section className="grid gap-4 md:grid-cols-2">
         <Field label="Status">
           <StatusPill status={model.status} />
+        </Field>
+        <Field label="Reifegrad">
+          {model.stageGate ? (STAGE_GATE_LABELS[model.stageGate] ?? model.stageGate) : "—"}
         </Field>
         <Field label="Parent-Epic">
           {model.parent ? (
@@ -128,31 +137,31 @@ export function FeatureOverviewTab({
         </Field>
       </section>
 
-      <WsjfBlock model={model} />
+      <WsjfBlock model={model} canEdit={canEdit} />
 
-      {model.description && (
-        <section>
-          <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Beschreibung
-          </p>
+      <section>
+        <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          Beschreibung
+        </p>
+        {canEdit && model.art ? (
+          <FeatureEditForm
+            id={model.id}
+            artId={model.art.id}
+            currentTitle={model.title}
+            currentDescription={model.description ?? ""}
+          />
+        ) : model.description ? (
           <p className="whitespace-pre-wrap rounded-lg border bg-card p-4 text-sm leading-relaxed">
             {model.description}
           </p>
-        </section>
-      )}
+        ) : (
+          <p className="rounded-lg border border-dashed bg-card px-4 py-3 text-sm text-muted-foreground">
+            Keine Beschreibung.
+          </p>
+        )}
+      </section>
 
       <AcceptanceList items={model.acceptanceCriteria} />
-
-      {/* `allowedTransitions` ist leer, solange das Feature noch in der QS haengt —
-          dann gibt es nichts zu schalten und der Abschnitt entfaellt ganz. */}
-      {canTransition && model.allowedTransitions.length > 0 && (
-        <DeliveryActions
-          featureId={model.id}
-          status={model.status}
-          title={model.title}
-          disabled={!canEdit}
-        />
-      )}
     </div>
   );
 }
@@ -204,29 +213,85 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-function WsjfBlock({ model }: { model: FeatureDetailModel }) {
-  const cells: { label: string; value: number | null }[] = [
-    { label: "Business Value", value: model.wsjf.businessValue },
-    { label: "Time Criticality", value: model.wsjf.timeCriticality },
-    { label: "Risk Reduction", value: model.wsjf.riskReduction },
-    { label: "Job Size", value: model.wsjf.jobSize },
-  ];
+/**
+ * Abgeleiteter Reifegrad-/Aktivitaets-Satz (wie Epic-Overview). Nur wenn ein
+ * Reifegrad gesetzt ist — sonst hat der Satz keine Aussage.
+ */
+function SummaryBand({ model }: { model: FeatureDetailModel }) {
+  if (!model.stageGate) return null;
+  const summary = buildInitiativeSummary({
+    stageGate: model.stageGate as StageGate,
+    status: model.status as InitiativeStatus,
+    childCount: 0,
+    completedChildCount: 0,
+    approvedAt: null,
+    updatedAt: model.updatedAt,
+  });
   return (
     <section>
       <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        WSJF
+        Zusammenfassung
       </p>
-      <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-4 md:grid-cols-5">
-        {cells.map((c) => (
-          <div key={c.label} className="space-y-0.5">
-            <p className="text-[11px] text-muted-foreground">{c.label}</p>
-            <p className="text-sm tabular-nums">{c.value ?? "—"}</p>
+      <p className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">{summary}</p>
+    </section>
+  );
+}
+
+/**
+ * WSJF-Block mit Detailzellen, Cost-of-Delay ÷ Job Size = Score-Visual und
+ * (fuer Berechtigte) dem Score-Bearbeiten-Dialog.
+ */
+function WsjfBlock({ model, canEdit }: { model: FeatureDetailModel; canEdit: boolean }) {
+  const w = model.wsjf;
+  const costOfDelay = (w.businessValue ?? 0) + (w.timeCriticality ?? 0) + (w.riskReduction ?? 0);
+  const cells: [string, number | null][] = [
+    ["Business Value", w.businessValue],
+    ["Time Criticality", w.timeCriticality],
+    ["Risk Reduction / OE", w.riskReduction],
+    ["Job Size", w.jobSize],
+  ];
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-3">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          WSJF
+        </p>
+        {canEdit && model.art && (
+          <WsjfScoreDialog
+            featureId={model.id}
+            artId={model.art.id}
+            current={{
+              bv: w.businessValue,
+              tc: w.timeCriticality,
+              rr: w.riskReduction,
+              js: w.jobSize,
+            }}
+          />
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {cells.map(([label, value]) => (
+          <div key={label} className="space-y-1 rounded-lg border p-3 text-center">
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="text-2xl font-bold text-foreground tabular-nums">{value ?? "—"}</p>
           </div>
         ))}
-        <div className="space-y-0.5">
-          <p className="text-[11px] text-muted-foreground">Computed</p>
-          <p className="text-base font-semibold tabular-nums">
-            {formatWsjf(model.wsjf.computed)}
+      </div>
+      <div className="flex flex-wrap items-center gap-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+        <div>
+          <p className="text-xs text-muted-foreground">Cost of Delay</p>
+          <p className="text-xl font-semibold text-foreground tabular-nums">{costOfDelay}</p>
+        </div>
+        <div className="text-xl text-muted-foreground/60">÷</div>
+        <div>
+          <p className="text-xs text-muted-foreground">Job Size</p>
+          <p className="text-xl font-semibold text-foreground tabular-nums">{w.jobSize ?? "—"}</p>
+        </div>
+        <div className="text-xl text-muted-foreground/60">=</div>
+        <div>
+          <p className="text-xs text-muted-foreground">WSJF Score</p>
+          <p className="text-3xl font-bold text-primary/80 tabular-nums">
+            {formatWsjf(w.computed)}
           </p>
         </div>
       </div>
@@ -260,33 +325,6 @@ function AcceptanceList({ items }: { items: string[] }) {
           </li>
         ))}
       </ul>
-    </section>
-  );
-}
-
-function DeliveryActions({
-  featureId,
-  status,
-  title,
-  disabled,
-}: {
-  featureId: string;
-  status: string;
-  title: string;
-  disabled: boolean;
-}) {
-  return (
-    <section className="rounded-lg border bg-card p-4">
-      <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        Status
-      </p>
-      <FeatureStatusSelect
-        featureId={featureId}
-        status={status}
-        label={title}
-        size="md"
-        disabled={disabled}
-      />
     </section>
   );
 }

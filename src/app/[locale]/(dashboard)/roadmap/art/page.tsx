@@ -3,7 +3,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { listArts } from "@/modules/core/org/server/services/art";
 import { getArtRoadmap } from "@/modules/drumbeat/server/services/roadmap";
 import { RoadmapGantt } from "@/modules/drumbeat/features/roadmap/components/roadmap-gantt";
-import { artRoadmapRows, roadmapAxis } from "@/modules/drumbeat/domain/roadmap";
+import { artRoadmapRows, roadmapAxis } from "@/modules/work/domain/roadmap";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { ArtId } from "@/modules/core/kernel/domain/types";

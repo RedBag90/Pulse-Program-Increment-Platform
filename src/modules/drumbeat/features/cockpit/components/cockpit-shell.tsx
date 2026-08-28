@@ -1,15 +1,17 @@
 import type { CockpitModel } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import type { CockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
-import { CockpitTopBar } from "./cockpit-top-bar";
+import { PageHeader } from "@/components/layout";
+import { CockpitToolbar } from "./cockpit-toolbar";
+import { CockpitCreateFeature } from "./cockpit-create-feature";
 import { CockpitPiStrip } from "./cockpit-pi-strip";
 import { CockpitPiContext } from "./cockpit-pi-context";
-import { CockpitViewTabs } from "./cockpit-view-tabs";
 import { CockpitBoard } from "./cockpit-board";
 import { CockpitTable } from "./cockpit-table";
 import { CockpitRoadmap } from "./cockpit-roadmap";
 import { CockpitNetworkLazy } from "./cockpit-network-lazy";
 import { FeatureSlideOver } from "./feature-slide-over";
 import { CockpitRealtimeSubscriber } from "./cockpit-realtime-subscriber";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /**
  * Delivery-Cockpit-Shell — Komposition der drei stabilen Bestandteile
@@ -40,6 +42,7 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
     view,
     features,
     filters,
+    filterOptions,
     dependencies,
     permissions,
   } = model;
@@ -47,7 +50,15 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
   return (
     <div className="flex min-h-[calc(100vh-3rem)] flex-col bg-background">
       <CockpitRealtimeSubscriber tenantId={tenantId} />
-      <CockpitTopBar availableArts={availableArts} selectedArt={selectedArt} filters={filters} />
+      <div className="border-b bg-surface-frame px-6 py-4">
+        <PageHeader
+          title="Umsetzung · Delivery-Cockpit"
+          subtitle="Board, Tabelle, Fahrplan und Netzwerk in einer Fläche."
+          {...(permissions.canCreate && selectedArt
+            ? { actions: <CockpitCreateFeature artId={selectedArt.id} /> }
+            : {})}
+        />
+      </div>
       <CockpitPiStrip pis={piStrip} window={piWindow} selectedPiId={selectedPiId} />
       {selectedArt && selectedPi && (
         <CockpitPiContext
@@ -60,16 +71,21 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
           canDelete={permissions.canDelete}
         />
       )}
-      <div className="flex items-center justify-between gap-3 border-b bg-surface-frame px-6 py-3">
-        <CockpitViewTabs view={view} />
-        <p className="text-xs text-muted-foreground">{features.length} Features im Scope</p>
-      </div>
+      <CockpitToolbar
+        availableArts={availableArts}
+        selectedArt={selectedArt}
+        view={view}
+        filters={filters}
+        filterOptions={filterOptions}
+        featureCount={features.length}
+      />
 
-      <main className="flex-1 px-6 pb-6">
+      <main className="flex-1 px-6 pb-6 pt-4">
         {!selectedArt ? (
           <EmptyState
             title="Kein ART im Scope"
             body="Dir ist noch kein ART zugeordnet. Bitte wende dich an deinen Tenant-Admin."
+            className="h-[420px]"
           />
         ) : view === "board" ? (
           <CockpitBoard
@@ -106,17 +122,6 @@ export function CockpitShell({ model, slideOverDetail, tenantId }: Props) {
       </main>
 
       {slideOverDetail && <FeatureSlideOver detail={slideOverDetail} />}
-    </div>
-  );
-}
-
-function EmptyState({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="grid h-[420px] place-items-center rounded-lg border bg-muted/20">
-      <div className="max-w-md text-center">
-        <p className="font-medium">{title}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{body}</p>
-      </div>
     </div>
   );
 }

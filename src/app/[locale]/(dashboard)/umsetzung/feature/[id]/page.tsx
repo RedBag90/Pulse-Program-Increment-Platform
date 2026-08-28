@@ -43,6 +43,8 @@ export default async function FeatureDetailPage({
         candidates={detail.candidates}
         historyEvents={detail.historyEvents}
         userLabels={detail.userLabels}
+        blockerWindows={detail.blockerWindows}
+        blockerSummary={detail.blockerSummary}
         {...(tab !== undefined ? { activeTab: tab } : {})}
       />
     </Suspense>

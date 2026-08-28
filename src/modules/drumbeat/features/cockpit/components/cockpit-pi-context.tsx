@@ -55,7 +55,9 @@ export function CockpitPiContext({
     >
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold">{pi.name}</span>
-        <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badgeClass}`}>
+        <span
+          className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badgeClass}`}
+        >
           {pi.status}
         </span>
       </div>
@@ -71,9 +73,11 @@ export function CockpitPiContext({
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
         {pi.status === "planned" && canStart && (
-          <PiTransitionButton piId={pi.id} currentStatus="planned" />
+          <PiTransitionButton piId={pi.id} artId={artId} currentStatus="planned" />
         )}
-        {pi.status === "active" && canAdvance && <AdvanceCadenceButton piId={pi.id} />}
+        {pi.status === "active" && canAdvance && (
+          <AdvanceCadenceButton piId={pi.id} artId={artId} />
+        )}
         {pi.status === "planned" && canDelete && (
           <DeletePiButton piId={pi.id} artId={artId} name={pi.name} />
         )}

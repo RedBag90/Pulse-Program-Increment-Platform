@@ -1,5 +1,6 @@
 import { LinkDependencyDialog } from "@/modules/drumbeat/features/dependencies/components/link-dependency-dialog";
 import { UnlinkDependencyButton } from "@/modules/drumbeat/features/dependencies/components/unlink-dependency-button";
+import { DEPENDENCY_TYPE_LABELS } from "@/modules/drumbeat/domain/status";
 import type { DependencyEdge } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 
 export type { DependencyEdge };
@@ -14,13 +15,13 @@ interface Props {
   /** Kandidaten fuer den Link-Dialog — Features im selben ART (ohne sich selbst). */
   candidates: { id: string; title: string }[];
   canEdit: boolean;
+  /** Ein-Hop-Blocker (fuer den Fruehester-Start-Header). Optional. */
+  blockerWindows?: { blockerId: string; blockerTitle: string; blockerEndDate: Date | null }[];
+  /** Abgeleiteter fruehester Start. Optional — nur gerendert, wenn Blocker existieren. */
+  blockerSummary?: { earliest: Date | null; unscheduledBlockers: string[] };
 }
 
-const TYPE_LABEL: Record<DependencyEdge["type"], string> = {
-  blocks: "blockiert",
-  depends_on: "haengt ab von",
-  relates_to: "bezieht sich auf",
-};
+// Typ-Labels aus dem Registry (SSOT) — kein zweites inline-Vokabular mehr.
 const TYPE_CLASS: Record<DependencyEdge["type"], string> = {
   blocks: "bg-red-100 text-red-700",
   depends_on: "bg-amber-100 text-amber-700",
@@ -39,9 +40,28 @@ export function FeatureDependenciesTab({
   incoming,
   candidates,
   canEdit,
+  blockerWindows,
+  blockerSummary,
 }: Props) {
   return (
     <div className="space-y-6">
+      {blockerWindows && blockerWindows.length > 0 && blockerSummary && (
+        <div className="rounded-lg border bg-muted/30 px-4 py-2 text-sm">
+          <p>
+            <span className="font-medium">Frühestmöglicher Start: </span>
+            {blockerSummary.earliest
+              ? blockerSummary.earliest.toISOString().slice(0, 10)
+              : "unbestimmt"}
+            {blockerSummary.unscheduledBlockers.length > 0 && (
+              <span className="ml-2 text-xs text-muted-foreground">
+                ({blockerSummary.unscheduledBlockers.length} Blocker noch ungeplant:{" "}
+                {blockerSummary.unscheduledBlockers.slice(0, 3).join(", ")})
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
       <section className="rounded-lg border bg-card p-6">
         <header className="mb-3 flex items-center justify-between gap-3">
           <div>
@@ -115,7 +135,7 @@ function EdgeList({
         >
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className={`rounded-full px-2 py-0.5 text-[11px] ${TYPE_CLASS[edge.type]}`}>
-              {TYPE_LABEL[edge.type]}
+              {DEPENDENCY_TYPE_LABELS[edge.type]}
             </span>
             <span>{edge.other.title}</span>
           </div>

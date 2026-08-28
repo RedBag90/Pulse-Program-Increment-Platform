@@ -18,7 +18,11 @@ describe("resolveAnchorIndex", () => {
   });
 
   it("returns the index of the active PI regardless of dates", () => {
-    const pis = [pi("2026-01-01", "completed"), pi("2026-04-01", "active"), pi("2026-07-01", "planned")];
+    const pis = [
+      pi("2026-01-01", "completed"),
+      pi("2026-04-01", "active"),
+      pi("2026-07-01", "planned"),
+    ];
     expect(resolveAnchorIndex(pis, D("2027-01-01").getTime())).toBe(1);
   });
 
@@ -45,7 +49,7 @@ const NO_PERMS = {
   canDelete: false,
 };
 
-const EMPTY_FILTERS = { status: [], ownerIds: [], epicIds: [], hasBlocker: false };
+const EMPTY_FILTERS = { status: [], ownerIds: [], epicIds: [], hasBlocker: false, q: "" };
 
 /** Minimal CockpitRows with everything empty; override per test. */
 function rows(partial: Partial<CockpitRows>): CockpitRows {
@@ -179,10 +183,34 @@ describe("buildCockpitModel — active-PI fallback (availableArts counts)", () =
 
 describe("buildCockpitModel — current-PI strip windowing", () => {
   const allPis = [
-    { id: "q1", name: "26-Q1", startDate: D("2026-01-01"), endDate: D("2026-03-31"), status: "completed" },
-    { id: "q2", name: "26-Q2", startDate: D("2026-04-01"), endDate: D("2026-06-30"), status: "active" },
-    { id: "q3", name: "26-Q3", startDate: D("2026-07-01"), endDate: D("2026-09-30"), status: "planning" },
-    { id: "q4", name: "26-Q4", startDate: D("2026-10-01"), endDate: D("2026-12-31"), status: "planning" },
+    {
+      id: "q1",
+      name: "26-Q1",
+      startDate: D("2026-01-01"),
+      endDate: D("2026-03-31"),
+      status: "completed",
+    },
+    {
+      id: "q2",
+      name: "26-Q2",
+      startDate: D("2026-04-01"),
+      endDate: D("2026-06-30"),
+      status: "active",
+    },
+    {
+      id: "q3",
+      name: "26-Q3",
+      startDate: D("2026-07-01"),
+      endDate: D("2026-09-30"),
+      status: "planning",
+    },
+    {
+      id: "q4",
+      name: "26-Q4",
+      startDate: D("2026-10-01"),
+      endDate: D("2026-12-31"),
+      status: "planning",
+    },
   ];
 
   it("windows around the current PI and flags isCurrent by id (not array identity)", () => {
@@ -214,9 +242,27 @@ describe("buildCockpitModel — current-PI strip windowing", () => {
 
 describe("buildCockpitModel — selected-PI governance scope", () => {
   const allPis = [
-    { id: "q1", name: "26-Q1", startDate: D("2026-01-01"), endDate: D("2026-03-31"), status: "completed" },
-    { id: "q2", name: "26-Q2", startDate: D("2026-04-01"), endDate: D("2026-06-30"), status: "active" },
-    { id: "q3", name: "26-Q3", startDate: D("2026-07-01"), endDate: D("2026-09-30"), status: "planned" },
+    {
+      id: "q1",
+      name: "26-Q1",
+      startDate: D("2026-01-01"),
+      endDate: D("2026-03-31"),
+      status: "completed",
+    },
+    {
+      id: "q2",
+      name: "26-Q2",
+      startDate: D("2026-04-01"),
+      endDate: D("2026-06-30"),
+      status: "active",
+    },
+    {
+      id: "q3",
+      name: "26-Q3",
+      startDate: D("2026-07-01"),
+      endDate: D("2026-09-30"),
+      status: "planned",
+    },
   ];
   const base = {
     arts: [{ id: "art-1", name: "ART 1", timelineId: "tl-1", valueStream: null }],

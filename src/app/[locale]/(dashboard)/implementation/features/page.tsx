@@ -4,7 +4,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getTenantPractices } from "@/server/services/target-model";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
-import { buildFeaturesOverviewModel } from "@/server/views/features-overview";
+import { buildFeaturesOverviewModel } from "@/modules/work/server/views/features-overview";
 import { FeaturesOverviewShell } from "@/modules/drumbeat/features/implementation/components/features-overview-shell";
 import { Page } from "@/components/layout";
 

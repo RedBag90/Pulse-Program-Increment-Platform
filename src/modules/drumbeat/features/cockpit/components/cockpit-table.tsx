@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import {
   setFeaturePiAction,
   setFeatureDeliveryStatusAction,
@@ -18,7 +18,9 @@ import type {
   FeatureStatus,
 } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
 import { normalizePiKey, BACKLOG_COLUMN_ID } from "@/modules/drumbeat/domain/board-matrix";
-import { formatWsjf } from "@/domain/schemas/initiative";
+import { FEATURE_STATUS_LABELS } from "@/modules/drumbeat/domain/status";
+import { StatusBadge, WsjfBadge } from "@/modules/drumbeat/features/lib/status-badges";
+import { SearchSelect, type SearchSelectOption } from "@/components/ui/search-select";
 import { CockpitBulkBar } from "./cockpit-bulk-bar";
 
 /**
@@ -38,31 +40,27 @@ interface Props {
 }
 
 const STATUS_OPTIONS: ReadonlyArray<{ value: FeatureStatus; label: string }> = [
-  { value: "approved", label: "Bereit" },
-  { value: "in_progress", label: "In Umsetzung" },
-  { value: "blocked", label: "Blockiert" },
-  { value: "completed", label: "Fertig" },
-  { value: "cancelled", label: "Abgebrochen" },
+  { value: "approved", label: FEATURE_STATUS_LABELS.approved },
+  { value: "in_progress", label: FEATURE_STATUS_LABELS.in_progress },
+  { value: "blocked", label: FEATURE_STATUS_LABELS.blocked },
+  { value: "completed", label: FEATURE_STATUS_LABELS.completed },
+  { value: "cancelled", label: FEATURE_STATUS_LABELS.cancelled },
 ];
 
 export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { setParam } = useUrlState();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   function openSlideOver(id: string) {
-    const next = new URLSearchParams(searchParams.toString());
-    next.set("featureId", id);
-    router.replace(`${pathname}?${next.toString()}` as never, { scroll: false });
+    setParam("featureId", id);
   }
 
-  const piOptions = useMemo(
+  const piOptions = useMemo<SearchSelectOption[]>(
     () => [
-      { id: BACKLOG_COLUMN_ID, name: "— Backlog —" },
-      ...pis.map((p) => ({ id: p.id, name: p.name })),
+      { value: BACKLOG_COLUMN_ID, label: "— Backlog —" },
+      ...pis.map((p) => ({ value: p.id, label: p.name })),
     ],
     [pis],
   );
@@ -191,37 +189,38 @@ export function CockpitTable({ pis, features, artId, canUpdate, canSetDelivery }
                   </td>
                   <td className="px-2 py-1.5 text-xs text-muted-foreground">{f.artName}</td>
                   <td className="px-2 py-1.5">
-                    <select
-                      aria-label={`PI fuer ${f.title}`}
-                      disabled={!canUpdate}
-                      value={normalizePiKey(f.piId)}
-                      onChange={(e) => setPi(f.id, e.target.value)}
-                      className="rounded border bg-background px-1.5 py-0.5 text-xs disabled:opacity-50"
-                    >
-                      {piOptions.map((o) => (
-                        <option key={o.id || "__backlog__"} value={o.id}>
-                          {o.name}
-                        </option>
-                      ))}
-                    </select>
+                    {canUpdate ? (
+                      <SearchSelect
+                        value={normalizePiKey(f.piId)}
+                        onChange={(v) => setPi(f.id, v)}
+                        options={piOptions}
+                        placeholder="PI wählen"
+                        ariaLabel={`PI für ${f.title}`}
+                        className="min-w-36"
+                      />
+                    ) : (
+                      <span className="text-xs">
+                        {piOptions.find((o) => o.value === normalizePiKey(f.piId))?.label ??
+                          "— Backlog —"}
+                      </span>
+                    )}
                   </td>
                   <td className="px-2 py-1.5">
-                    <select
-                      aria-label={`Status fuer ${f.title}`}
-                      disabled={!canSetDelivery}
-                      value={f.status}
-                      onChange={(e) => setStatus(f.id, e.target.value as FeatureStatus)}
-                      className="rounded border bg-background px-1.5 py-0.5 text-xs disabled:opacity-50"
-                    >
-                      {STATUS_OPTIONS.map((s) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
+                    {canSetDelivery ? (
+                      <SearchSelect
+                        value={f.status}
+                        onChange={(v) => setStatus(f.id, v as FeatureStatus)}
+                        options={STATUS_OPTIONS}
+                        placeholder="Status wählen"
+                        ariaLabel={`Status für ${f.title}`}
+                        className="min-w-36"
+                      />
+                    ) : (
+                      <StatusBadge status={f.status} />
+                    )}
                   </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums text-xs">
-                    {formatWsjf(f.wsjfComputed)}
+                  <td className="px-2 py-1.5 text-right">
+                    <WsjfBadge value={f.wsjfComputed} className="px-1.5 py-0" />
                   </td>
                   <td className="px-2 py-1.5 text-xs">
                     {f.hasBlocker && f.blockerHint ? (

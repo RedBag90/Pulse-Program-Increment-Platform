@@ -53,13 +53,18 @@ const MONTH_LABELS_DE = [
 // --- overlap (shared with the server PI guard) -----------------------------
 
 /**
- * Half-open interval overlap: two PI windows collide when each starts before
- * the other ends. Touching windows (a.end === b.start) do NOT overlap. This is
- * the one predicate behind both the client conflict highlight and the server
- * "no overlapping PIs on a Timeline" guard.
+ * **Inclusive** interval overlap: two PI windows collide when `aStart ≤ bEnd &&
+ * bStart ≤ aEnd`. `endDate` ist ein **inklusiver** Tages-Endpunkt, deshalb gilt
+ * ein gemeinsamer Tag (a.end === b.start) als Überlappung. Die **eine**
+ * kanonische Overlap-Definition im Modul — hinter Konflikt-Highlight, dem
+ * Server-Guard „keine überlappenden PIs" und der Standard-Freislot-Auswahl
+ * (`selectFreeStandardPis`). Adjazente PIs (1-Tag-Lücke, wie `standardPiSchedule`
+ * sie erzeugt) überlappen dadurch **nicht**.
  */
 export function piWindowsOverlap(a: PiDateRange, b: PiDateRange): boolean {
-  return a.startDate < b.endDate && a.endDate > b.startDate;
+  return (
+    a.startDate.getTime() <= b.endDate.getTime() && b.startDate.getTime() <= a.endDate.getTime()
+  );
 }
 
 /**
@@ -109,14 +114,13 @@ export interface TimelineAxis {
  * Fixed 12-month axis anchored at the earliest PI's month. With no PIs it
  * anchors at `now`'s month (injected — this module never reads the clock).
  */
-export function buildTimelineAxis(
-  pis: ReadonlyArray<PiDateRange>,
-  now: Date,
-): TimelineAxis {
+export function buildTimelineAxis(pis: ReadonlyArray<PiDateRange>, now: Date): TimelineAxis {
   const anchor =
     pis.length === 0
       ? monthStart(now)
-      : monthStart(pis.reduce((min, p) => (p.startDate < min ? p.startDate : min), pis[0]!.startDate));
+      : monthStart(
+          pis.reduce((min, p) => (p.startDate < min ? p.startDate : min), pis[0]!.startDate),
+        );
 
   const end = addMonths(anchor, MONTHS_TO_SHOW);
   const totalDays = daysBetween(anchor, end);
@@ -166,10 +170,7 @@ export interface TimelineGrid {
  * `findTimelineConflicts`, and `timelineBarMetrics` so the anchor stays pinned
  * to the original PIs while conflicts/bars follow the dragged window.
  */
-export function buildTimelineGrid(
-  pis: ReadonlyArray<PiWindow>,
-  now: Date,
-): TimelineGrid {
+export function buildTimelineGrid(pis: ReadonlyArray<PiWindow>, now: Date): TimelineGrid {
   const axis = buildTimelineAxis(pis, now);
   const bars = new Map<string, { leftPx: number; widthPx: number }>();
   for (const pi of pis) bars.set(pi.id, timelineBarMetrics(pi, axis));

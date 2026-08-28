@@ -1,18 +1,21 @@
 "use client";
 
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { CockpitView } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
+import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
+import { ToggleGroup, type ToggleGroupOption } from "@/components/ui/toggle-group";
 
 /**
- * Sicht-Toggle Board / Tabelle / Roadmap. URL-Param `?view=<sicht>`,
+ * Sicht-Toggle Board / Tabelle / Fahrplan / Netzwerk. URL-Param `?view=<sicht>`,
  * Default ist `board` (Entscheidung #1). Filter + Scope ueberleben den
- * Sicht-Wechsel automatisch, weil sie eigene Query-Params sind.
+ * Sicht-Wechsel automatisch, weil sie eigene Query-Params sind. Nutzt das
+ * geteilte `ToggleGroup`-Primitive (kein Eigenbau-Tablist mehr); Labels folgen
+ * dem Wireframe-Vokabular („Fahrplan"/„Netzwerk").
  */
-const TABS: ReadonlyArray<{ id: CockpitView; label: string }> = [
+const TABS: ReadonlyArray<ToggleGroupOption<CockpitView>> = [
   { id: "board", label: "Board" },
   { id: "table", label: "Tabelle" },
-  { id: "roadmap", label: "Roadmap" },
-  { id: "network", label: "Netzplan" },
+  { id: "roadmap", label: "Fahrplan" },
+  { id: "network", label: "Netzwerk" },
 ];
 
 interface Props {
@@ -20,43 +23,22 @@ interface Props {
 }
 
 export function CockpitViewTabs({ view }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { setParam } = useUrlState();
 
   function setView(next: CockpitView) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (next === "board") params.delete("view");
-    else params.set("view", next);
-    const qs = params.toString();
-    router.replace(`${pathname}${qs ? `?${qs}` : ""}` as never, { scroll: false });
+    // `board` ist Default → Param entfernen (leere URL); sonst setzen.
+    setParam("view", next === "board" ? null : next);
   }
 
   return (
-    <div
-      role="tablist"
-      aria-label="Cockpit-Sicht"
-      data-tour="cockpit-view-tabs"
-      className="inline-flex overflow-hidden rounded-md border bg-card text-sm"
-    >
-      {TABS.map((t) => {
-        const active = t.id === view;
-        const cls = active
-          ? "bg-primary text-primary-foreground"
-          : "text-muted-foreground hover:bg-muted/50";
-        return (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => setView(t.id)}
-            className={`px-3 py-1.5 transition-colors ${cls}`}
-          >
-            {t.label}
-          </button>
-        );
-      })}
+    <div data-tour="cockpit-view-tabs">
+      <ToggleGroup
+        value={view}
+        options={TABS}
+        onChange={setView}
+        ariaLabel="Cockpit-Sicht"
+        className="bg-card text-sm"
+      />
     </div>
   );
 }

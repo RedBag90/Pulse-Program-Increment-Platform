@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 
 interface Props {
   piId: string;
+  artId: string;
   currentStatus: string;
 }
 
@@ -17,7 +18,7 @@ interface Props {
  * Complete-PI-Weg ist entfallen (Spec WP2). Darum rendert dieser Button nur
  * für geplante PIs; für aktive/abgeschlossene ist er unsichtbar.
  */
-export function PiTransitionButton({ piId, currentStatus }: Props) {
+export function PiTransitionButton({ piId, artId, currentStatus }: Props) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -26,9 +27,12 @@ export function PiTransitionButton({ piId, currentStatus }: Props) {
   function handleClick() {
     setError(null);
     startTransition(async () => {
-      const result = await transitionPiAction(piId);
+      const fd = new FormData();
+      fd.set("piId", piId);
+      fd.set("artId", artId);
+      const result = await transitionPiAction({}, fd);
       if (result.error) setError(result.error);
-      else toast.success("PI started");
+      else toast.success("PI gestartet");
     });
   }
 

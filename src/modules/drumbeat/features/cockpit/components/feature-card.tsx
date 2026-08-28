@@ -1,9 +1,9 @@
 "use client";
 
 import { memo, type RefObject } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { CockpitFeature } from "@/modules/drumbeat/server/views/umsetzung-cockpit-view";
-import { formatWsjf } from "@/domain/schemas/initiative";
+import { WsjfBadge, FEATURE_STATUS_DOT } from "@/modules/drumbeat/features/lib/status-badges";
+import { useUrlState } from "@/modules/drumbeat/features/lib/use-url-state";
 import { initials } from "@/components/detail/initiative-labels";
 
 /**
@@ -22,14 +22,10 @@ interface Props {
 }
 
 function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { setParam } = useUrlState();
 
   function openSlideOver() {
-    const next = new URLSearchParams(searchParams.toString());
-    next.set("featureId", feature.id);
-    router.replace(`${pathname}?${next.toString()}` as never, { scroll: false });
+    setParam("featureId", feature.id);
   }
 
   return (
@@ -54,10 +50,15 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
         }
       }}
       title={canDrag ? "Drag fuer PI/Status-Wechsel" : "Lese-Modus"}
-      className={`group flex flex-col gap-1 rounded-md border bg-card p-2 text-left shadow-sm transition-shadow hover:shadow-md ${
+      className={`group relative flex flex-col gap-1 overflow-hidden rounded-md border bg-card p-2 pl-2.5 text-left shadow-sm transition-shadow hover:shadow-md ${
         feature.hasBlocker ? "border-amber-300" : "border-border"
       } ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
     >
+      {/* Status-Farbstreifen (Registry-Hue) — dasselbe Vokabular wie Lane/Badge/Graph. */}
+      <span
+        aria-hidden
+        className={`absolute inset-y-0 left-0 w-1 ${FEATURE_STATUS_DOT[feature.status]}`}
+      />
       <p className="line-clamp-2 text-xs font-medium leading-snug">{feature.title}</p>
       <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
         <div className="flex min-w-0 items-center gap-1.5">
@@ -73,7 +74,10 @@ function FeatureCardImpl({ feature, canDrag, draggingId }: Props) {
           <span className="truncate">{feature.parentTitle ?? "ohne Epic"}</span>
         </div>
         {feature.wsjfComputed != null && (
-          <span className="shrink-0 font-medium">WSJF {formatWsjf(feature.wsjfComputed)}</span>
+          <WsjfBadge
+            value={feature.wsjfComputed}
+            className="shrink-0 px-1 py-0 text-[10px] font-medium"
+          />
         )}
       </div>
       {feature.hasBlocker && feature.blockerHint && (

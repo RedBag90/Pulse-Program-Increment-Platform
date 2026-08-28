@@ -9,7 +9,11 @@ import {
   FeaturesListView,
   toFeatureStatus,
 } from "@/modules/work/features/feature/components/features-table";
-import { tierFor, type FeatureOverviewRow, type FeaturesOverviewModel } from "@/server/views/features-overview";
+import {
+  tierFor,
+  type FeatureOverviewRow,
+  type FeaturesOverviewModel,
+} from "@/modules/work/server/views/features-overview";
 import type { FeatureStatus } from "@/server/views/features-list";
 import { CreateFeatureDialog } from "@/modules/work/features/feature/components/create-feature-dialog";
 import { DeleteFeatureButton } from "@/modules/work/features/feature/components/delete-feature-button";
@@ -200,7 +204,6 @@ function FeatureEditForm({ feature }: { feature: BreakdownFeature }) {
   );
 }
 
-
 /**
  * Breakdown tab — manages the Features attached to an Epic in place: create,
  * inline-edit content + WSJF, assign a PI, and remove, without leaving the page.
@@ -252,9 +255,7 @@ export function EpicBreakdownTab({
    * PI-Picker bleibt dort leer) und kein Fehler.
    */
   const listModel: FeaturesOverviewModel = useMemo(() => {
-    const blocked = new Set(
-      dependencies.filter((d) => d.type === "blocks").map((d) => d.toId),
-    );
+    const blocked = new Set(dependencies.filter((d) => d.type === "blocks").map((d) => d.toId));
     const rows: FeatureOverviewRow[] = features.map((f) => {
       const wsjf = f.wsjf.computed > 0 ? f.wsjf.computed : null;
       return {

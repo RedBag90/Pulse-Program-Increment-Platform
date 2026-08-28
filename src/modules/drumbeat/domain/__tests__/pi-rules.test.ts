@@ -46,44 +46,46 @@ const READY: PiClosureSnapshot = {
 };
 
 describe("evaluateClosure", () => {
-  it("returns [] when everything is in place", () => {
-    expect(evaluateClosure(READY)).toEqual([]);
+  it("ready=true with no reasons when everything is in place", () => {
+    expect(evaluateClosure(READY)).toEqual({ ready: true, reasons: [] });
   });
 
   it("flags open un-ROAMed Issues with the count", () => {
-    expect(evaluateClosure({ ...READY, openUnroamedIssues: 3 })).toEqual([
-      "3 offene Issue(s) ohne ROAM",
-    ]);
+    const r = evaluateClosure({ ...READY, openUnroamedIssues: 3 });
+    expect(r.ready).toBe(false);
+    expect(r.reasons).toEqual(["3 offene Issue(s) ohne ROAM"]);
   });
 
   it("flags a missing System-Demo date", () => {
-    expect(evaluateClosure({ ...READY, systemDemoAt: null })).toEqual(["System-Demo-Termin fehlt"]);
+    expect(evaluateClosure({ ...READY, systemDemoAt: null }).reasons).toEqual([
+      "System-Demo-Termin fehlt",
+    ]);
   });
 
   it("flags a missing Inspect & Adapt date", () => {
-    expect(evaluateClosure({ ...READY, inspectAdaptAt: null })).toEqual([
+    expect(evaluateClosure({ ...READY, inspectAdaptAt: null }).reasons).toEqual([
       "Inspect & Adapt-Termin fehlt",
     ]);
   });
 
   it("flags missing retrospective notes (null and whitespace-only)", () => {
-    expect(evaluateClosure({ ...READY, retrospectiveNotes: null })).toEqual([
+    expect(evaluateClosure({ ...READY, retrospectiveNotes: null }).reasons).toEqual([
       "Retrospektive-Notizen fehlen",
     ]);
-    expect(evaluateClosure({ ...READY, retrospectiveNotes: "   " })).toEqual([
+    expect(evaluateClosure({ ...READY, retrospectiveNotes: "   " }).reasons).toEqual([
       "Retrospektive-Notizen fehlen",
     ]);
   });
 
   it("collects every reason at once, in order", () => {
-    expect(
-      evaluateClosure({
-        openUnroamedIssues: 2,
-        systemDemoAt: null,
-        inspectAdaptAt: null,
-        retrospectiveNotes: "",
-      }),
-    ).toEqual([
+    const r = evaluateClosure({
+      openUnroamedIssues: 2,
+      systemDemoAt: null,
+      inspectAdaptAt: null,
+      retrospectiveNotes: "",
+    });
+    expect(r.ready).toBe(false);
+    expect(r.reasons).toEqual([
       "2 offene Issue(s) ohne ROAM",
       "System-Demo-Termin fehlt",
       "Inspect & Adapt-Termin fehlt",

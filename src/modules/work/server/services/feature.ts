@@ -717,12 +717,10 @@ export async function listOverviewFeatures(
 // Picks up where the QS gate leaves off; the matrix lives in `initiative-status`.
 // ---------------------------------------------------------------------------
 
-export type FeatureDeliveryStatus =
-  | "approved"
-  | "in_progress"
-  | "blocked"
-  | "completed"
-  | "cancelled";
+// Kanonische Union lebt in `work/domain/feature-status` (SSOT); re-exportiert,
+// damit bestehende Importe aus dem Feature-Service unverändert bleiben.
+export type { FeatureDeliveryStatus } from "@/modules/work/domain/feature-status";
+import type { FeatureDeliveryStatus } from "@/modules/work/domain/feature-status";
 
 export interface SetFeatureDeliveryStatusInput {
   id: FeatureId;

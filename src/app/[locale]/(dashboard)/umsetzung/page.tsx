@@ -21,7 +21,9 @@ const FEATURE_STATUSES: readonly FeatureStatus[] = [
 
 /** Liest die Filter aus den URL-Parametern (deep-linkbar). Der Loader honoriert
  *  status/owner/epic/blocker bereits; hier werden sie nur geparst. */
-function parseFilters(params: Record<string, string | string[] | undefined>): Partial<CockpitFilters> {
+function parseFilters(
+  params: Record<string, string | string[] | undefined>,
+): Partial<CockpitFilters> {
   const csv = (v: string | string[] | undefined): string[] =>
     typeof v === "string" && v.length > 0 ? v.split(",").filter(Boolean) : [];
   const status = csv(params.status).filter((s): s is FeatureStatus =>
@@ -32,6 +34,7 @@ function parseFilters(params: Record<string, string | string[] | undefined>): Pa
     ownerIds: csv(params.owner),
     epicIds: csv(params.epic),
     hasBlocker: params.blocker === "1" || params.blocker === "true",
+    q: typeof params.q === "string" ? params.q : "",
   };
 }
 

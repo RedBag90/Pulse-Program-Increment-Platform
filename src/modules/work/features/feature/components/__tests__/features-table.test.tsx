@@ -2,7 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { FeaturesListView } from "@/modules/work/features/feature/components/features-table";
-import type { FeatureOverviewRow, FeaturesOverviewModel } from "@/server/views/features-overview";
+import type {
+  FeatureOverviewRow,
+  FeaturesOverviewModel,
+} from "@/modules/work/server/views/features-overview";
 
 /**
  * Die Tabelle wird von zwei Flächen benutzt: der Features-Übersicht (alle
