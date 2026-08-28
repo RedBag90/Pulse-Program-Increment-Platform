@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { updateArtAction } from "@/modules/core/org/features/art/actions/art";
 import { userLabel } from "@/components/detail/initiative-labels";
+import { UserPicker } from "@/components/detail/user-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,9 +24,6 @@ interface Props {
   rteUsers: UserOption[];
   userLabels: Record<string, string>;
 }
-
-const SELECT =
-  "flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 /** Inline editor for an ART's details — the Overview tab. */
 export function ArtOverviewForm({
@@ -66,16 +64,20 @@ export function ArtOverviewForm({
         />
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="art-rte">RTE (Release Train Engineer)</Label>
-        <select id="art-rte" name="rteId" defaultValue={rteId} className={SELECT}>
-          <option value="">— Niemand —</option>
-          {rteUsers.map((u) => (
-            <option key={u.userId} value={u.userId}>
-              {userLabel(u.userId, userLabels)}
-            </option>
-          ))}
-        </select>
+      <div className="space-y-1.5 max-w-xs">
+        <Label>RTE (Release Train Engineer)</Label>
+        <UserPicker
+          name="rteId"
+          defaultValue={rteId}
+          options={rteUsers.map((u) => ({
+            value: u.userId,
+            label: userLabel(u.userId, userLabels),
+            ...(u.roles.length ? { hint: u.roles.join(", ") } : {}),
+          }))}
+          ariaLabel="RTE (Release Train Engineer)"
+          placeholder="— Niemand —"
+          emptyLabel="— Niemand —"
+        />
         {rteUsers.length === 0 && (
           <p className="text-xs text-amber-700">Keine Nutzer mit RTE-Rolle im Mandanten.</p>
         )}

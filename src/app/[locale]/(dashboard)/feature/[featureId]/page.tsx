@@ -46,7 +46,7 @@ export default async function FeatureDetailPage({ params, searchParams }: Props)
       userLabels={detail.userLabels}
       blockerWindows={detail.blockerWindows}
       blockerSummary={detail.blockerSummary}
-      backHref={`/art/${artId}/features`}
+      backHref={`/umsetzung?art=${artId}&view=table`}
       backLabel={`Zurück zu ${artName}`}
       basePath={`/feature/${featureId}`}
       {...(tab !== undefined ? { activeTab: tab } : {})}

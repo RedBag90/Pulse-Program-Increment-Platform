@@ -14,7 +14,11 @@ import {
 import { formatRiskNumber } from "@/modules/risks/domain/risk-number";
 import { buildFunnelCounts, extractUniqueFacet } from "@/server/views/lib/page-model-utils";
 import { diffInDays } from "@/modules/core/kernel/domain/calendar";
-import { ROAM_STATUSES, type RoamStatus } from "@/modules/core/kernel/domain/roam";
+import {
+  ROAM_STATUSES,
+  normalizeRoamStatus,
+  type RoamStatus,
+} from "@/modules/core/kernel/domain/roam";
 import { rollupIssueSubtrees, type RollupNode } from "@/modules/risks/domain/issue-subtree-rollup";
 
 // ── Loose input rows (the loader maps Prisma rows into these) ──────────────────
@@ -54,6 +58,14 @@ export interface IssueRow {
   assessments: readonly IssueAssessmentRow[];
   mitigations: readonly IssueMitigationRow[];
   initiative: IssueInitiativeRef | null;
+  /** ART-Relation (für Wertstrom-/ART-Filter). Optional — Alt-Fixtures ohne `art`
+   *  bleiben gültig; der Loader lädt sie über `ISSUE_LIST_INCLUDE`. */
+  art?: {
+    id: string;
+    name: string;
+    valueStreamId: string | null;
+    valueStream: { name: string } | null;
+  } | null;
 }
 
 /** Subtree rollup surfaced on head rows (issues that have children). */
@@ -78,6 +90,11 @@ export interface IssueListRow {
   band: ExposureBand | null;
   ownerId: string | null;
   ownerLabel: string | null;
+  /** Wertstrom/ART (aus der ART-Relation) — für Filter + Anzeige. */
+  artId: string | null;
+  artName: string | null;
+  valueStreamId: string | null;
+  valueStreamName: string | null;
   targetResolutionDate: string | null;
   isOverdue: boolean;
   daysOpen: number;
@@ -95,6 +112,7 @@ export interface IssueListRow {
 export interface MatrixPlot {
   issueId: string;
   displayNumber: string | null;
+  title: string;
   roamStatus: string;
   /** inherent → each reassessment → current (empty when unscored). */
   trail: { probability: RiskLevel; impact: RiskLevel }[];
@@ -121,6 +139,8 @@ export interface IssuesListModel {
   facets: {
     categories: string[];
     owners: { id: string; label: string }[];
+    arts: { id: string; label: string }[];
+    valueStreams: { id: string; label: string }[];
   };
   counts: { total: number };
 }
@@ -198,6 +218,10 @@ export function buildIssuesListModel(input: {
       band: pos.current?.band ?? null,
       ownerId: r.ownerId,
       ownerLabel: labelFor(r.ownerId),
+      artId: r.art?.id ?? null,
+      artName: r.art?.name ?? null,
+      valueStreamId: r.art?.valueStreamId ?? null,
+      valueStreamName: r.art?.valueStream?.name ?? null,
       targetResolutionDate: r.targetResolutionDate?.toISOString() ?? null,
       isOverdue: overdue,
       daysOpen: diffInDays(nowMs, r.createdAt.getTime()),
@@ -220,23 +244,25 @@ export function buildIssuesListModel(input: {
   const unscored = documented.filter((r) => positionsOf(r).current == null).map(toListRow);
 
   const roamFunnel = buildFunnelCounts(documented, ROAM_STATUSES, (r) =>
-    (ROAM_STATUSES as readonly string[]).includes(r.roamStatus)
-      ? (r.roamStatus as RoamStatus)
-      : "open",
+    normalizeRoamStatus(r.roamStatus),
   );
 
-  // Matrix — only head/standalone issues (parentId==null) with a current position;
-  // children collapse into their head.
+  // Matrix — scope-effektive Wurzeln (wie `buildIssueTree` für die Tabelle): ein
+  // Issue plottet, wenn es keinen Parent IM GELADENEN SET hat. So erscheinen im
+  // Epic-Subtree auch Issues, deren Head außerhalb liegt (sonst fehlt die Matrix);
+  // Kinder eines sichtbaren Heads collapsen weiterhin in diesen.
+  const documentedIds = new Set(documented.map((r) => r.id));
   const currentCounts = new Map<string, number>();
   const plots: MatrixPlot[] = [];
   for (const r of documented) {
-    if (r.parentId) continue; // collapsed into head
+    if (r.parentId && documentedIds.has(r.parentId)) continue; // Kind eines sichtbaren Heads
     const pos = positionsOf(r);
     if (!pos.current) continue;
     currentCounts.set(pos.current.key, (currentCounts.get(pos.current.key) ?? 0) + 1);
     plots.push({
       issueId: r.id,
       displayNumber: toDisplayNumber(prefix, r.issueNumber),
+      title: r.title,
       roamStatus: r.roamStatus,
       trail: pos.trail.map((p) => ({ probability: p.probability, impact: p.impact })),
     });
@@ -259,6 +285,16 @@ export function buildIssuesListModel(input: {
     (r) => r.ownerId,
     (_r, id) => userLabels[id] ?? id,
   );
+  const arts = extractUniqueFacet(
+    issues,
+    (r) => r.art?.id ?? null,
+    (r, id) => r.art?.name ?? id,
+  );
+  const valueStreams = extractUniqueFacet(
+    issues,
+    (r) => r.art?.valueStreamId ?? null,
+    (r, id) => r.art?.valueStream?.name ?? id,
+  );
 
   return {
     rows,
@@ -266,7 +302,7 @@ export function buildIssuesListModel(input: {
     unscored,
     roamFunnel,
     matrix: { cells, plots },
-    facets: { categories, owners },
+    facets: { categories, owners, arts, valueStreams },
     counts: { total: documented.length },
   };
 }

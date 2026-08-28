@@ -33,14 +33,8 @@ import {
 } from "@/modules/core/kpi/domain/kpi-valuation";
 import { subStageFor } from "@/modules/work/domain/stage-gate";
 import { type GateReadiness, nextGate, previousGate } from "@/modules/work/domain/gate-readiness";
-import {
-  type ApprovalStatus,
-  type Quorum,
-} from "@/modules/work/domain/approval-primitives";
-import {
-  GATE_APPROVER_ROLE_LABELS,
-  isGateApproverRole,
-} from "@/modules/work/domain/gate-policy";
+import { type ApprovalStatus, type Quorum } from "@/modules/work/domain/approval-primitives";
+import { GATE_APPROVER_ROLE_LABELS, isGateApproverRole } from "@/modules/work/domain/gate-policy";
 import type { GateTransitionStatus } from "@/modules/work/domain/gate-transition";
 import {
   getOpenGateTransition,
@@ -331,6 +325,10 @@ export type EpicGateSlice =
       canRevert: boolean;
       /** Der Betrachter ist selbst ein noch offener Abnehmer. */
       viewerMustDecide: boolean;
+      /** „I need help" ist gesetzt (Owner bittet um Unterstützung). */
+      helpRequested: boolean;
+      /** Der Betrachter darf die Bitte setzen/zurücknehmen (= ist der Epic-Owner). */
+      canRequestHelp: boolean;
     };
 
 /** Pull the free-text comment out of an audit event's `changes` diff, if any.
@@ -742,6 +740,8 @@ export async function loadEpicDetailInputs(
     history: gateHistory,
     caps: gateCaps,
     principalId: principal.id,
+    ownerId: epic.ownerId,
+    helpRequestedAt: epic.helpRequestedAt,
   });
 
   return {
@@ -789,6 +789,10 @@ function buildGateSlice(input: {
   history: Awaited<ReturnType<typeof listGateTransitions>>;
   caps: { request: boolean; withdraw: boolean; revert: boolean };
   principalId: string;
+  /** Epic-Owner (für die Owner-only-Sichtbarkeit von „I need help"). */
+  ownerId: string | null;
+  /** `helpRequestedAt != null` — der Owner hat um Unterstützung gebeten. */
+  helpRequestedAt: Date | null;
 }): EpicGateSlice {
   if (!input.stageGatesEnabled) return { disabled: true };
 
@@ -804,7 +808,8 @@ function buildGateSlice(input: {
         approvers: input.openRequest.approvers.map((a) => ({
           id: a.id,
           userId: a.userId,
-          roleLabel: a.role && isGateApproverRole(a.role) ? GATE_APPROVER_ROLE_LABELS[a.role] : null,
+          roleLabel:
+            a.role && isGateApproverRole(a.role) ? GATE_APPROVER_ROLE_LABELS[a.role] : null,
           status: a.status,
           decidedAt: a.decidedAt?.toISOString() ?? null,
           comment: a.comment,
@@ -836,6 +841,8 @@ function buildGateSlice(input: {
     canWithdraw: input.caps.withdraw && openRequest != null,
     canRevert: input.caps.revert && previousGate(input.current) != null,
     viewerMustDecide: openRequest?.pendingUserIds.includes(input.principalId) ?? false,
+    helpRequested: input.helpRequestedAt != null,
+    canRequestHelp: input.ownerId != null && input.ownerId === input.principalId,
   };
 }
 

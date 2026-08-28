@@ -896,6 +896,12 @@ model Initiative {
   needsSteeringAttention Boolean @default(false) @map("needs_steering_attention")
   stagedForBudgeting     Boolean @default(false) @map("staged_for_budgeting")
 
+  // "I need help" (EPIC only): der Epic-Owner bittet um Unterstützung. Gesetzt =
+  // es entsteht in „Meine Tasks" ein Hinweis für den VMO des Wertstroms und alle
+  // Portfolio-Manager. `helpRequestedAt` null = keine offene Bitte.
+  helpRequestedAt DateTime? @map("help_requested_at")
+  helpRequestedBy String?   @map("help_requested_by") @db.Uuid
+
   // Participatory-Budgeting-Einreichungsfelder (EPIC only). `mandatory` = vorab
   // gesetztes Pflichtvorhaben (vom Topf abgezogen, nicht auf dem Ballot).
   // `costToMvp` = kanonische Kosten-bis-MVP als eine Zahl (PB-Verteileinheit).

@@ -30,14 +30,14 @@ describe("CREATE_REGISTRY resolveHref", () => {
     return e;
   }
 
-  it("deep-links a feature create when an ART context is present", () => {
+  it("deep-links a feature create into the ART's cockpit when an ART context is present", () => {
     expect(entry("feature").resolveHref({ artId: "art-1" })).toBe(
-      "/art/art-1/features?create=feature",
+      "/umsetzung?art=art-1&view=table",
     );
   });
 
-  it("falls back to the ART list when there is no ART context", () => {
-    expect(entry("feature").resolveHref({})).toBe("/art");
+  it("falls back to the cockpit when there is no ART context", () => {
+    expect(entry("feature").resolveHref({})).toBe("/umsetzung");
   });
 
   it("makes the Epic create reachable from anywhere", () => {

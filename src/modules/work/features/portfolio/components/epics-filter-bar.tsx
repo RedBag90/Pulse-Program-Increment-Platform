@@ -5,6 +5,7 @@ import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
+import { UserPicker } from "@/components/detail/user-picker";
 import {
   EPIC_TYPES,
   HORIZONS,
@@ -119,19 +120,16 @@ export function EpicsFilterBar({
         ))}
       </select>
 
-      <select
-        className={SELECT}
-        value={ownerId ?? ""}
-        onChange={(e) => onOwnerChange(e.target.value || null)}
-        aria-label="Owner"
-      >
-        <option value="">Alle Owner</option>
-        {ownerOptions.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <div className="w-44">
+        <UserPicker
+          value={ownerId ?? ""}
+          onChange={(v) => onOwnerChange(v || null)}
+          options={ownerOptions.map((o) => ({ value: o.id, label: o.label }))}
+          ariaLabel="Owner"
+          placeholder="Alle Owner"
+          emptyLabel="Alle Owner"
+        />
+      </div>
 
       <select
         className={SELECT}

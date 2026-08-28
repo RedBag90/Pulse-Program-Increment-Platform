@@ -6,6 +6,7 @@ import { configureApproversAction } from "@/modules/work/features/portfolio/acti
 import { APPROVAL_PARTIES, type ApprovalParty } from "@/modules/work/domain/business-case";
 import { APPROVAL_SECTIONS, type ApprovalSection } from "@/modules/work/domain/epic-approval";
 import { userLabel } from "@/components/detail/initiative-labels";
+import { UserPicker } from "@/components/detail/user-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SectionLabel } from "@/components/ui/section-label";
 
@@ -210,23 +211,19 @@ export function ApproverPicker({ epicId, approvers, current, currentSections, us
               <label htmlFor={`section-${section}`} className="w-28 shrink-0 text-xs font-medium">
                 {SECTION_LABELS[section]}
               </label>
-              <div className="relative min-w-0 flex-1">
-                <select
-                  id={`section-${section}`}
-                  value={sectionOwners[section]}
-                  onChange={(e) =>
-                    setSectionOwners((prev) => ({ ...prev, [section]: e.target.value }))
-                  }
-                  className={`w-full appearance-none pr-7 ${CONTROL}`}
-                >
-                  <option value="">— Verantwortlichen wählen —</option>
-                  {sectionEligible.map((u) => (
-                    <option key={u.userId} value={u.userId}>
-                      {userLabel(u.userId, userLabels)} ({u.roles.join(", ")})
-                    </option>
-                  ))}
-                </select>
-                <ChevronsUpDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <UserPicker
+                  value={sectionOwners[section] ?? ""}
+                  onChange={(v) => setSectionOwners((prev) => ({ ...prev, [section]: v }))}
+                  options={sectionEligible.map((u) => ({
+                    value: u.userId,
+                    label: userLabel(u.userId, userLabels),
+                    ...(u.roles.length ? { hint: u.roles.join(", ") } : {}),
+                  }))}
+                  ariaLabel={`${SECTION_LABELS[section]} — Verantwortliche/r`}
+                  placeholder="— Verantwortlichen wählen —"
+                  emptyLabel="— Verantwortlichen wählen —"
+                />
               </div>
             </div>
           ))}

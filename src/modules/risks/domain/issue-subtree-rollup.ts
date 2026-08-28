@@ -1,4 +1,8 @@
-import { ROAM_STATUSES, type RoamStatus } from "@/modules/core/kernel/domain/roam";
+import {
+  ROAM_STATUSES,
+  normalizeRoamStatus,
+  type RoamStatus,
+} from "@/modules/core/kernel/domain/roam";
 
 /**
  * Pure per-head rollup over the issue `parentId` tree. For each node it folds in
@@ -54,9 +58,7 @@ export function rollupIssueSubtrees(nodes: readonly RollupNode[]): Map<string, I
     const epicIds = new Set<string>();
     let descendantCount = 0;
 
-    const roam = (ROAM_STATUSES as readonly string[]).includes(node.roamStatus)
-      ? (node.roamStatus as RoamStatus)
-      : "open";
+    const roam = normalizeRoamStatus(node.roamStatus);
     roamCounts[roam] += 1;
     if (node.epicId) epicIds.add(node.epicId);
 

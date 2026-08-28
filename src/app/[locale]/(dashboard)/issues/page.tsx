@@ -3,9 +3,8 @@ import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { loadIssuesRegister } from "@/modules/risks/server/views/issues-register";
+import { loadIssues } from "@/modules/risks/server/views/issues";
 import { IssuesListShell } from "@/modules/risks/features/issue/components/issues-list-shell";
-import { Page } from "@/components/layout";
 
 /**
  * Issue register — the tenant-wide unified board of risks + impediments (ROAM
@@ -17,7 +16,7 @@ export default async function IssuesPage() {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const { model, userLabels } = await loadIssuesRegister(db, principal);
+  const { model, userLabels } = await loadIssues(db, principal, { kind: "tenant" });
 
   const scope = { tenantId: principal.tenantId };
   const caps = {
@@ -31,7 +30,7 @@ export default async function IssuesPage() {
   };
 
   return (
-    <Suspense fallback={<Page>Lädt…</Page>}>
+    <Suspense fallback={null}>
       <IssuesListShell model={model} userLabels={userLabels} caps={caps} />
     </Suspense>
   );

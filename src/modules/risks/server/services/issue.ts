@@ -6,7 +6,6 @@ import type { Principal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import type { Action } from "@/server/auth/policies";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
-import { paginate, type PageParams } from "@/server/db/paginate";
 import { isRiskLevel } from "@/modules/risks/domain/risk-matrix";
 import { isRiskCategory } from "@/modules/risks/domain/risk-category";
 import { canReview, reviewTarget, type ReviewDecision } from "@/modules/risks/domain/risk-review";
@@ -31,7 +30,10 @@ function validateScoring(
   const hasI = impact != null && impact !== "";
   if (!hasP && !hasI) return ok({ probability: null, impact: null });
   if (!hasP || !hasI) {
-    return err({ kind: "validation" as const, issues: ["Probability und Impact zusammen setzen."] });
+    return err({
+      kind: "validation" as const,
+      issues: ["Probability und Impact zusammen setzen."],
+    });
   }
   if (!isRiskLevel(probability) || !isRiskLevel(impact)) {
     return err({ kind: "validation" as const, issues: ["Ungültiges Probability/Impact-Level."] });
@@ -53,11 +55,7 @@ function dateOrNull(d: string | Date | null | undefined): Date | null {
 
 /** Scope gate for document/review: allow if authorized for the linked work item's
  *  VS (or the tenant when unlinked). */
-function assertIssueScope(
-  principal: Principal,
-  action: Action,
-  vsId: string | null,
-): Result<void> {
+function assertIssueScope(principal: Principal, action: Action, vsId: string | null): Result<void> {
   const allowed = vsId
     ? authorize(action, { tenantId: principal.tenantId, valueStreamId: vsId }, principal).allow
     : authorize(action, { tenantId: principal.tenantId }, principal).allow;
@@ -89,7 +87,8 @@ async function resolveInitiativeVs(
     where: { id: initiativeId, tenantId, deletedAt: null },
     select: { id: true, valueStreamId: true, parent: { select: { valueStreamId: true } } },
   });
-  if (!init) return err({ kind: "not_found" as const, resourceType: "Initiative", id: initiativeId });
+  if (!init)
+    return err({ kind: "not_found" as const, resourceType: "Initiative", id: initiativeId });
   return ok(init.valueStreamId ?? init.parent?.valueStreamId ?? null);
 }
 
@@ -249,7 +248,10 @@ export interface UpdateIssueInput {
   ownerId?: string | null | undefined;
 }
 
-export async function updateIssue(ctx: RequestContext, input: UpdateIssueInput): Promise<Result<void>> {
+export async function updateIssue(
+  ctx: RequestContext,
+  input: UpdateIssueInput,
+): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   const scoring = validateScoring(input.probability, input.impact);
   const category = validateCategory(input.category);
@@ -276,7 +278,11 @@ export async function updateIssue(ctx: RequestContext, input: UpdateIssueInput):
     await tx.issue.update({ where: { id: input.id }, data });
     return ok({
       result: undefined,
-      audit: { action: "risk.updated" as const, resourceType: "risk" as const, resourceId: input.id },
+      audit: {
+        action: "risk.updated" as const,
+        resourceType: "risk" as const,
+        resourceId: input.id,
+      },
     });
   });
 }
@@ -347,7 +353,8 @@ export async function addIssueMitigation(
       where: { id: input.issueId, tenantId: mctx.tenantId, deletedAt: null },
       select: { id: true },
     });
-    if (!issue) return err({ kind: "not_found" as const, resourceType: "Issue", id: input.issueId });
+    if (!issue)
+      return err({ kind: "not_found" as const, resourceType: "Issue", id: input.issueId });
     const row = await tx.issueMitigation.create({
       data: {
         tenantId: mctx.tenantId,
@@ -438,7 +445,10 @@ export async function reparentIssue(
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   if (input.newParentId === input.id) {
-    return err({ kind: "validation" as const, issues: ["Ein Issue kann nicht sein eigenes Head sein."] });
+    return err({
+      kind: "validation" as const,
+      issues: ["Ein Issue kann nicht sein eigenes Head sein."],
+    });
   }
   return withAuditedTransaction(mctx, async (tx) => {
     const issue = await tx.issue.findFirst({
@@ -452,7 +462,8 @@ export async function reparentIssue(
         where: { id: input.newParentId, tenantId: mctx.tenantId, deletedAt: null },
         select: { id: true },
       });
-      if (!target) return err({ kind: "not_found" as const, resourceType: "Issue", id: input.newParentId });
+      if (!target)
+        return err({ kind: "not_found" as const, resourceType: "Issue", id: input.newParentId });
       // Cycle guard: can't nest a node under itself or one of its descendants.
       const all = await tx.issue.findMany({
         where: { tenantId: mctx.tenantId, deletedAt: null },
@@ -460,7 +471,10 @@ export async function reparentIssue(
       });
       const parentOf = new Map(all.map((r) => [r.id, r.parentId]));
       if (wouldCreateCycle(input.id, input.newParentId, parentOf)) {
-        return err({ kind: "validation" as const, issues: ["Verschachtelung würde einen Zyklus bilden."] });
+        return err({
+          kind: "validation" as const,
+          issues: ["Verschachtelung würde einen Zyklus bilden."],
+        });
       }
     }
 
@@ -495,14 +509,20 @@ export async function linkIssueToInitiative(
         select: { id: true },
       });
       if (!init) {
-        return err({ kind: "not_found" as const, resourceType: "Initiative", id: input.initiativeId });
+        return err({
+          kind: "not_found" as const,
+          resourceType: "Initiative",
+          id: input.initiativeId,
+        });
       }
     }
     await tx.issue.update({ where: { id: input.id }, data: { initiativeId: input.initiativeId } });
     return ok({
       result: undefined,
       audit: {
-        action: input.initiativeId ? ("risk.epic.linked" as const) : ("risk.epic.unlinked" as const),
+        action: input.initiativeId
+          ? ("risk.epic.linked" as const)
+          : ("risk.epic.unlinked" as const),
         resourceType: "risk" as const,
         resourceId: input.id,
         changes: { initiativeId: { before: issue.initiativeId, after: input.initiativeId } },
@@ -511,7 +531,10 @@ export async function linkIssueToInitiative(
   });
 }
 
-export async function deleteIssue(ctx: RequestContext, input: { id: string }): Promise<Result<void>> {
+export async function deleteIssue(
+  ctx: RequestContext,
+  input: { id: string },
+): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
     const issue = await tx.issue.findFirst({
@@ -527,7 +550,11 @@ export async function deleteIssue(ctx: RequestContext, input: { id: string }): P
     await tx.issue.update({ where: { id: input.id }, data: { deletedAt: new Date() } });
     return ok({
       result: undefined,
-      audit: { action: "risk.deleted" as const, resourceType: "risk" as const, resourceId: input.id },
+      audit: {
+        action: "risk.deleted" as const,
+        resourceType: "risk" as const,
+        resourceId: input.id,
+      },
     });
   });
 }
@@ -539,25 +566,10 @@ export const ISSUE_LIST_INCLUDE = {
   assessments: { orderBy: { createdAt: "asc" } },
   mitigations: { select: { id: true, description: true, createdAt: true } },
   initiative: { select: { id: true, title: true, level: true, parentId: true } },
+  art: {
+    select: { id: true, name: true, valueStreamId: true, valueStream: { select: { name: true } } },
+  },
 } satisfies Prisma.IssueInclude;
-
-export async function listIssues(
-  db: PrismaClient,
-  principal: Principal,
-  pageParams: PageParams = { page: 1, pageSize: 500 },
-) {
-  const where: Prisma.IssueWhereInput = {
-    tenantId: principal.tenantId,
-    deletedAt: null,
-    AND: [issueReadFilter(principal)],
-  };
-  return paginate(
-    ({ take, skip }) =>
-      db.issue.findMany({ where, orderBy: [{ createdAt: "desc" }], take, skip, include: ISSUE_LIST_INCLUDE }),
-    () => db.issue.count({ where }),
-    pageParams,
-  );
-}
 
 export async function getIssue(db: PrismaClient, tenantId: TenantId, id: string) {
   return db.issue.findFirst({

@@ -1,11 +1,6 @@
 import type { Prisma } from "@/generated/prisma";
 import type { PrismaClient } from "@/generated/prisma";
-import type {
-  TenantId,
-  EpicId,
-  ValueStreamId,
-  ArtId,
-} from "@/modules/core/kernel/domain/types";
+import type { TenantId, EpicId, ValueStreamId, ArtId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
@@ -78,7 +73,10 @@ export async function createEpic(
         select: { id: true },
       });
       if (!sol) {
-        return err({ kind: "conflict" as const, reason: "Die Primär-Solution gehört nicht zum gewählten Value Stream." });
+        return err({
+          kind: "conflict" as const,
+          reason: "Die Primär-Solution gehört nicht zum gewählten Value Stream.",
+        });
       }
     }
 
@@ -104,7 +102,12 @@ export async function createEpic(
     // Primär-Solution auch als EpicSolution-Link führen (voller Zuordnungssatz).
     if (primarySolutionId != null) {
       await tx.epicSolution.create({
-        data: { tenantId: mctx.tenantId, epicId: epic.id, solutionId: primarySolutionId, createdBy: mctx.actorId },
+        data: {
+          tenantId: mctx.tenantId,
+          epicId: epic.id,
+          solutionId: primarySolutionId,
+          createdBy: mctx.actorId,
+        },
       });
     }
 
@@ -125,6 +128,9 @@ export interface UpdateEpicInput {
   description?: string | undefined;
   needsSteeringAttention?: boolean | undefined;
   stagedForBudgeting?: boolean | undefined;
+  /** „I need help": `true` stempelt `helpRequestedAt`/`helpRequestedBy` (set-once
+   *  bis zum Zurücknehmen), `false` räumt beide ab, `undefined` belässt. */
+  helpRequested?: boolean | undefined;
   /** Planned delivery window ("Soll"). `null` clears, `undefined` leaves unchanged. */
   plannedStartAt?: Date | null | undefined;
   plannedEndAt?: Date | null | undefined;
@@ -144,6 +150,7 @@ export async function updateEpic(
     description,
     needsSteeringAttention,
     stagedForBudgeting,
+    helpRequested,
     plannedStartAt,
     plannedEndAt,
     epicType,
@@ -158,6 +165,8 @@ export async function updateEpic(
         description: true,
         needsSteeringAttention: true,
         stagedForBudgeting: true,
+        helpRequestedAt: true,
+        helpRequestedBy: true,
         plannedStartAt: true,
         plannedEndAt: true,
         epicType: true,
@@ -167,6 +176,19 @@ export async function updateEpic(
     });
     if (isErr(loaded)) return loaded;
     const existing = loaded.value;
+
+    // „I need help" ist ein gepaartes Feld: setzen stempelt Zeit + Person
+    // (set-once, bis zurückgenommen), zurücknehmen räumt beide ab. `undefined`
+    // lässt beide unangetastet.
+    const helpFields =
+      helpRequested === undefined
+        ? {}
+        : helpRequested
+          ? {
+              helpRequestedAt: existing.helpRequestedAt ?? new Date(),
+              helpRequestedBy: existing.helpRequestedBy ?? ctx.principal.id,
+            }
+          : { helpRequestedAt: null, helpRequestedBy: null };
 
     // Effective post-update endpoints — used for the start ≤ end check so the
     // validation is correct when only one column is being touched.
@@ -198,6 +220,7 @@ export async function updateEpic(
         description,
         needsSteeringAttention,
         stagedForBudgeting,
+        ...helpFields,
         plannedStartAt,
         plannedEndAt,
         epicType,
@@ -207,6 +230,8 @@ export async function updateEpic(
         "description",
         "needsSteeringAttention",
         "stagedForBudgeting",
+        "helpRequestedAt",
+        "helpRequestedBy",
         "plannedStartAt",
         "plannedEndAt",
         "epicType",
@@ -533,11 +558,7 @@ export interface EpicListFilter {
   ownerIds?: string[] | undefined;
 }
 
-export async function listEpics(
-  db: PrismaClient,
-  tenantId: TenantId,
-  filter: EpicListFilter = {},
-) {
+export async function listEpics(db: PrismaClient, tenantId: TenantId, filter: EpicListFilter = {}) {
   const vs = filter.valueStreamIds ?? [];
   const gates = filter.stageGates ?? [];
   const statuses = filter.statuses ?? [];

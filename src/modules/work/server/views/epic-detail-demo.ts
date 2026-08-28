@@ -34,12 +34,7 @@ const T0 = new Date("2026-01-15T09:00:00.000Z");
 /** Ein Deliverable des Beispiel-Epics, exakt in der Form, die der Loader liefert. */
 type DemoChild = EpicDetailInputs["epic"]["children"][number];
 
-function demoFeature(over: {
-  id: string;
-  title: string;
-  status: string;
-  wsjf: number;
-}): DemoChild {
+function demoFeature(over: { id: string; title: string; status: string; wsjf: number }): DemoChild {
   return {
     id: over.id,
     title: over.title,
@@ -86,10 +81,7 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
     benefitHypothesis: {
       measuresHypothesis: "Anteil digital abgeschlossener Vorgänge",
       changeFromBaseline: "Kunden erledigen Standardanliegen selbst statt über die Hotline.",
-      businessOutcomes: [
-        "Weniger Anrufe im Kundenservice",
-        "Kürzere Bearbeitungszeit je Vorgang",
-      ],
+      businessOutcomes: ["Weniger Anrufe im Kundenservice", "Kürzere Bearbeitungszeit je Vorgang"],
       leadingIndicators: ["Self-Service-Quote", "Wiederanrufquote"],
       risks: ["Akzeptanz bei älteren Kundengruppen"],
     },
@@ -134,6 +126,8 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
     featureType: null,
     needsSteeringAttention: false,
     stagedForBudgeting: false,
+    helpRequestedAt: null,
+    helpRequestedBy: null,
     mandatory: false,
     costToMvp: null,
     riskRating: null,

@@ -46,6 +46,7 @@ import {
 import { GoalDetailPanel } from "@/modules/core/goals/features/components/goal-status/goal-detail-panel";
 import { EntitySelect } from "@/features/create/entity-select";
 import { GoalPeriodField } from "@/modules/core/goals/features/components/goal-period-field";
+import { UserPicker } from "@/components/detail/user-picker";
 import { LinkList, type LinkChip } from "@/modules/core/goals/features/components/link-list";
 import {
   RelatedWorkSearch,
@@ -430,19 +431,15 @@ function GoalPane({
         />
       </Field>
       <Field label="Owner" hint="Verantwortlich für dieses Ziel. Aus den Tenant-Nutzern.">
-        <select
+        <UserPicker
           name="ownerId"
           defaultValue={node?.ownerId ?? ""}
-          className={INPUT}
+          options={Object.entries(userLabels).map(([uid, label]) => ({ value: uid, label }))}
+          ariaLabel="Owner"
+          placeholder="— Kein Owner"
+          emptyLabel="— Kein Owner"
           disabled={!canEdit}
-        >
-          <option value="">— Kein Owner</option>
-          {Object.entries(userLabels).map(([uid, label]) => (
-            <option key={uid} value={uid}>
-              {label}
-            </option>
-          ))}
-        </select>
+        />
       </Field>
 
       <Field

@@ -9,7 +9,6 @@ import type { DomainEvent } from "./types";
  * requires every outbox type to have a registered handler in the cron route.
  */
 export const OUTBOX_ROUTES = {
-  "impediment.escalated": ["notification.impediment.escalated"],
   "user.invited": ["email.user.invited"],
 } satisfies Record<DomainEvent["type"], string[]>;
 
@@ -17,15 +16,11 @@ export const OUTBOX_ROUTES = {
 export type OutboxEventType = (typeof OUTBOX_ROUTES)[keyof typeof OUTBOX_ROUTES][number];
 
 function route(event: DomainEvent): Array<{ type: OutboxEventType; payload: unknown }> {
+  // Erschöpfend über `DomainEvent["type"]`: kommt ein neuer Event-Typ hinzu,
+  // fehlt hier ein `case` und TS meldet „not all code paths return".
   switch (event.type) {
-    case "impediment.escalated":
-      return [{ type: "notification.impediment.escalated", payload: event }];
     case "user.invited":
       return [{ type: "email.user.invited", payload: event }];
-    default: {
-      const _exhaustive: never = event;
-      throw new Error(`Unhandled domain event: ${JSON.stringify(_exhaustive)}`);
-    }
   }
 }
 

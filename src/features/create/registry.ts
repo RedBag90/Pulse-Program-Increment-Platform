@@ -72,7 +72,7 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     group: "initiative",
     indentLevel: 1,
     inPlace: true,
-    resolveHref: (c) => (c.artId ? `/art/${c.artId}/features?create=feature` : "/art"),
+    resolveHref: (c) => (c.artId ? `/umsetzung?art=${c.artId}&view=table` : "/umsetzung"),
   },
   {
     key: "dependency",

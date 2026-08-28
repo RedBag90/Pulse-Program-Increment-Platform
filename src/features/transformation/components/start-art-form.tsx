@@ -7,6 +7,7 @@ import { startArtAction } from "@/features/transformation/actions/start-art";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { UserPicker } from "@/components/detail/user-picker";
 
 interface Option {
   id: string;
@@ -110,20 +111,15 @@ export function StartArtForm({ valueStreams, rteUsers, canManage }: Props) {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="sa-rte">RTE (optional)</Label>
-        <select
-          id="sa-rte"
-          className={SELECT}
+        <Label>RTE (optional)</Label>
+        <UserPicker
           value={rteId}
-          onChange={(e) => setRteId(e.target.value)}
-        >
-          <option value="">— niemand —</option>
-          {rteUsers.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.label}
-            </option>
-          ))}
-        </select>
+          onChange={setRteId}
+          options={rteUsers.map((u) => ({ value: u.id, label: u.label }))}
+          ariaLabel="RTE"
+          placeholder="— niemand —"
+          emptyLabel="— niemand —"
+        />
       </div>
 
       <p className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">

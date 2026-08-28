@@ -73,7 +73,7 @@ export function ArtDetailPane({ art, canUpdateArt, canDeleteArt, onSelectNode }:
           <dd className="tabular-nums">{art.piCount}</dd>
         </dl>
         <Link
-          href={`/art/${art.id}/settings`}
+          href={`/art/${art.id}?tab=settings`}
           className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
           RTE &amp; Einstellungen öffnen

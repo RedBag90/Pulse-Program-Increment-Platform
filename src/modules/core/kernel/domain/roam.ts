@@ -20,6 +20,12 @@ export function isRoamStatus(s: string): s is RoamStatus {
   return (ROAM_STATUSES as readonly string[]).includes(s);
 }
 
+/** Normalisiert einen rohen Status auf ROAM; unbekannte Werte → "open"
+ *  (die pre-ROAM-Disposition). Ein Ort statt verstreuter Inline-Fallbacks. */
+export function normalizeRoamStatus(s: string): RoamStatus {
+  return isRoamStatus(s) ? s : "open";
+}
+
 /** Display labels (de/EN mix as used across the app). */
 export const ROAM_LABELS: Record<RoamStatus, string> = {
   open: "Offen",
@@ -35,18 +41,21 @@ export const ROAM_LABELS: Record<RoamStatus, string> = {
  * `ROAM_DOT` = Tailwind background class; `ROAM_HEX` = raw hex for SVG/Canvas
  * (the risk matrix draws dots + connectors on Canvas).
  */
+// Kühle/neutrale Palette — bewusst disjunkt von der warmen Exposure-Heat-Skala
+// (emerald · amber · orange · red), damit ROAM-Farbe und Kritikalität nie
+// kollidieren. Eine Farbe steht eindeutig für ROAM, die warme Skala für Exposure.
 export const ROAM_DOT: Record<RoamStatus, string> = {
-  open: "bg-amber-500",
-  resolved: "bg-emerald-500",
+  open: "bg-slate-500",
+  resolved: "bg-indigo-500",
   owned: "bg-blue-500",
-  accepted: "bg-slate-500",
-  mitigated: "bg-purple-500",
+  accepted: "bg-cyan-500",
+  mitigated: "bg-violet-500",
 };
 
 export const ROAM_HEX: Record<RoamStatus, string> = {
-  open: "#f59e0b",
-  resolved: "#10b981",
+  open: "#64748b",
+  resolved: "#6366f1",
   owned: "#3b82f6",
-  accepted: "#64748b",
-  mitigated: "#a855f7",
+  accepted: "#06b6d4",
+  mitigated: "#8b5cf6",
 };

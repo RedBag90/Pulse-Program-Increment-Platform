@@ -19,6 +19,11 @@ import { buildMyTasksListModel } from "@/modules/work/server/views/my-tasks-list
 import { MyTasksListShell } from "@/modules/work/features/my-tasks/components/my-tasks-list-shell";
 import { listMyBudgetingTasks } from "@/modules/budgeting/server/services/my-budgeting-tasks";
 import { BudgetingTasksSection } from "@/modules/budgeting/features/components/my-tasks/budgeting-tasks-section";
+import { listMyApprovals } from "@/modules/work/server/services/my-approvals";
+import { MyApprovalsList } from "@/modules/work/features/my-approvals/components/my-approvals-list";
+import { listMyHelpRequests } from "@/modules/work/server/services/my-help-requests";
+import { HelpRequestsSection } from "@/modules/work/features/my-tasks/components/help-requests-section";
+import { Page, PageHeader } from "@/components/layout";
 
 /** Pickt den jüngsten KPI-Messwert (gleicher Helper wie auf /portfolio/epics). */
 interface KpiMeasurement {
@@ -42,12 +47,15 @@ function latestMeasurement(raw: unknown): number | null {
 }
 
 /**
- * „Meine Tasks" — die Inbox aller Epics + Features, deren Owner oder
- * Assignee der Principal ist. Reuse vor Reimplement: Epic-Rows kommen
- * aus `buildEpicsListModel`, Feature-Rows aus `buildFeaturesListModel`
- * — dieselben Funktionen wie auf `/portfolio/epics` und
- * `/art/[artId]/features`. So sehen die Zeilen pixel-identisch aus,
- * und Bug-Fixes auf den Hauptseiten propagieren automatisch hierher.
+ * „Meine Tasks" — die persönliche Startseite: **Freigaben** (Entscheidungen, die
+ * auf mich warten) und **Tasks** (Epics + Features, deren Owner/Assignee ich bin)
+ * gestapelt auf einer Seite. „Meine Freigaben" ist hier aufgegangen; die alte
+ * Route /my-approvals leitet hierher um.
+ *
+ * Reuse vor Reimplement: Epic-Rows kommen aus `buildEpicsListModel`, Feature-Rows
+ * aus `buildFeaturesListModel` — dieselben Funktionen wie auf `/portfolio/epics`
+ * und `/art/[artId]/features`. Freigaben rendert `MyApprovalsList` (aus dem
+ * ehemaligen /my-approvals extrahiert).
  */
 export default async function MyTasksPage() {
   const principal = await requirePrincipal().catch(() => null);
@@ -227,12 +235,27 @@ export default async function MyTasksPage() {
     ? await listMyBudgetingTasks(db, { id: principal.id, tenantId })
     : [];
 
+  // Freigaben-Inbox — die zweite Sicht dieser Seite (früher /my-approvals).
+  const approvals = await listMyApprovals(db, principal);
+
+  // „I need help"-Hinweise für VMO / Portfolio-Management (fremde Owner-Bitten).
+  const helpRequests = await listMyHelpRequests(db, {
+    id: principal.id,
+    tenantId,
+    roles: principal.roles,
+  });
+
   return (
     <>
+      <HelpRequestsSection tasks={helpRequests} userLabels={userLabels} />
       <BudgetingTasksSection tasks={budgetingTasks} />
-      <Suspense fallback={null}>
-        <MyTasksListShell model={model} tenantId={tenantId} showWsjf={practices.wsjf} />
-      </Suspense>
+      <Page>
+        <PageHeader title="Meine Tasks" subtitle="Deine Freigaben und Aufgaben an einem Ort." />
+        <MyApprovalsList rows={approvals} />
+        <Suspense fallback={null}>
+          <MyTasksListShell embedded model={model} tenantId={tenantId} showWsjf={practices.wsjf} />
+        </Suspense>
+      </Page>
     </>
   );
 }

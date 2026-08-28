@@ -1,135 +1,130 @@
+import type { ReactNode } from "react";
 import { requirePrincipal } from "@/server/auth/principal";
+import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/modules/core/org/server/services/art";
-import { ArtSubNav } from "@/modules/core/org/features/art/components/art-sub-nav";
-import { Page, PageHeader, PageSection } from "@/components/layout";
-import { Link } from "@/i18n/navigation";
+import { listAuditHistory } from "@/server/services/audit-history";
+import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { userLabel } from "@/components/detail/initiative-labels";
+import {
+  EntityDetailShell,
+  resolveTab,
+  type DetailTab,
+} from "@/components/detail/entity-detail-shell";
+import { AuditTimeline } from "@/components/detail/audit-timeline";
+import { ArtOverviewForm } from "@/modules/core/org/features/capacity/components/art-overview-form";
 import { redirect, notFound } from "next/navigation";
-import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
-import type { ArtId, TenantId } from "@/modules/core/kernel/domain/types";
-import { Card } from "@/components/ui/card";
-import { Target, Zap, GitBranch } from "lucide-react";
+import type { ArtId } from "@/modules/core/kernel/domain/types";
+
+/**
+ * ART-Detailseite — auf dem geteilten `EntityDetailShell` (wie Value-Stream/Epic):
+ * eine Seite, Tabs via `?tab=`. Reduziert auf Overview · Settings · Verlauf; die
+ * früheren route-basierten Tabs Features (Redirect ins Cockpit), Program Increment
+ * (vom Umsetzungs-Cockpit abgelöst) und Velocity (Seite längst gelöscht) sind raus.
+ */
+const TABS: readonly DetailTab[] = [
+  { key: "overview", label: "Overview" },
+  { key: "settings", label: "Settings" },
+  { key: "history", label: "Verlauf" },
+];
 
 interface Props {
   params: Promise<{ artId: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }
 
-const STATUS_BADGE: Record<string, string> = {
-  planned: "bg-muted text-muted-foreground",
-  active: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  completed: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-};
-
-function formatDate(d: Date) {
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-export default async function ArtOverviewPage({ params }: Props) {
+export default async function ArtDetailPage({ params, searchParams }: Props) {
   const { artId } = await params;
+  const { tab } = await searchParams;
+  const activeTab = resolveTab(TABS, tab);
+
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-
-  const [art, featureCount] = await Promise.all([
-    getArt(db, principal.tenantId, artId as ArtId),
-    db.initiative.count({
-      where: {
-        artId,
-        tenantId: principal.tenantId as TenantId,
-        level: InitiativeLevel.FEATURE,
-        deletedAt: null,
-      },
-    }),
-  ]);
-
+  const art = await getArt(db, principal.tenantId, artId as ArtId);
   if (!art) notFound();
 
-  const stats = [
-    {
-      label: "Program Increments",
-      value: art.pis.length,
-      href: `/art/${artId}/pi` as const,
-      icon: Target,
-      color: "text-violet-600 dark:text-violet-400",
-      bg: "bg-violet-50 dark:bg-violet-950",
-    },
-    {
-      label: "Features",
-      value: featureCount,
-      href: `/art/${artId}/features` as const,
-      icon: Zap,
-      color: "text-emerald-600 dark:text-emerald-400",
-      bg: "bg-emerald-50 dark:bg-emerald-950",
-    },
-  ];
+  const canEdit = hasCapability(principal, "art.update", { tenantId: principal.tenantId, artId });
+
+  const [history, approvers, userLabels] = await Promise.all([
+    listAuditHistory(db, principal.tenantId, "art", art.id),
+    listTenantApprovers(db, principal.tenantId),
+    listTenantUserLabels(db, principal.tenantId),
+  ]);
+  const rteUsers = approvers.filter((u) => u.roles.includes("rte"));
+  const events = history.map((e) => ({
+    id: e.id,
+    action: e.action,
+    occurredAt: e.occurredAt.toISOString(),
+  }));
 
   return (
-    <Page>
-      <ArtSubNav artId={artId} artName={art.name} />
+    <EntityDetailShell
+      backHref="/structure"
+      backLabel="Zurück zur Struktur"
+      title={art.name}
+      badge={art.valueStream.name}
+      tabs={TABS}
+      activeTab={activeTab}
+      basePath={`/art/${art.id}`}
+    >
+      {activeTab === "overview" && (
+        <dl className="max-w-xl space-y-3 text-sm">
+          <Field label="Name">{art.name}</Field>
+          <Field label="Wertstrom">{art.valueStream.name}</Field>
+          <Field label="Beschreibung">{art.description ?? "—"}</Field>
+          <Field label="PI-Kadenz">{art.piCadenceWeeks} Wochen</Field>
+          <Field label="RTE">{art.rteId ? userLabel(art.rteId, userLabels) : "—"}</Field>
+        </dl>
+      )}
 
-      <PageHeader
-        title={art.name}
-        subtitle={
-          <span className="flex items-center gap-1.5">
-            <GitBranch className="size-3.5" />
-            {art.valueStream.name}
-            {art.piCadenceWeeks ? ` · PI cadence: ${art.piCadenceWeeks} weeks` : ""}
-          </span>
-        }
-      />
+      {activeTab === "settings" && (
+        <section>
+          {canEdit ? (
+            <ArtOverviewForm
+              key={[
+                art.id,
+                art.name,
+                art.description ?? "",
+                art.piCadenceWeeks,
+                art.rteId ?? "",
+              ].join("|")}
+              id={art.id}
+              name={art.name}
+              description={art.description ?? ""}
+              piCadenceWeeks={art.piCadenceWeeks}
+              rteId={art.rteId ?? ""}
+              rteUsers={rteUsers}
+              userLabels={userLabels}
+            />
+          ) : (
+            <dl className="max-w-xl space-y-3 text-sm">
+              <Field label="Name">{art.name}</Field>
+              <Field label="Beschreibung">{art.description ?? "—"}</Field>
+              <Field label="PI-Kadenz">{art.piCadenceWeeks} Wochen</Field>
+              <Field label="RTE">{art.rteId ? userLabel(art.rteId, userLabels) : "—"}</Field>
+            </dl>
+          )}
+        </section>
+      )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {stats.map((s) => (
-          <Link key={s.label} href={s.href}>
-            <Card className="p-5 hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${s.bg} shrink-0`}>
-                  <s.icon className={`size-4 ${s.color}`} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
-                </div>
-              </div>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      {activeTab === "history" && (
+        <section>
+          <h2 className="mb-3 text-lg font-medium">Verlauf</h2>
+          <AuditTimeline events={events} />
+        </section>
+      )}
+    </EntityDetailShell>
+  );
+}
 
-      <PageSection title="Program Increments">
-        {art.pis.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No PIs yet.</p>
-        ) : (
-          <Card className="overflow-hidden">
-            <div className="divide-y divide-border">
-              {art.pis.map((pi) => (
-                <Link
-                  key={pi.id}
-                  href={`/pi/${pi.id}`}
-                  className="px-4 py-3 flex items-center justify-between text-sm hover:bg-muted/30 transition-colors"
-                >
-                  <span className="font-medium hover:text-primary transition-colors">
-                    {pi.name}
-                  </span>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>
-                      {formatDate(pi.startDate)} – {formatDate(pi.endDate)}
-                    </span>
-                    <span
-                      className={`inline-block rounded-full px-2.5 py-0.5 font-medium ${
-                        STATUS_BADGE[pi.status] ?? "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {pi.status}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </Card>
-        )}
-      </PageSection>
-    </Page>
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5">{children}</dd>
+    </div>
   );
 }

@@ -5,7 +5,7 @@ import { loadEpicDetail } from "@/modules/work/server/views/epic-detail";
 import { listProgramIncrementsForArts } from "@/modules/drumbeat/server/services/pi";
 import { listBreakdownDependencies } from "@/modules/drumbeat/server/services/dependency";
 import { getEpicBudgetAllocation } from "@/modules/budgeting/server/services/epic-allocation";
-import { loadEpicIssuesModel } from "@/modules/risks/server/views/epic-issues";
+import { loadIssues } from "@/modules/risks/server/views/issues";
 import { IssuesListShell } from "@/modules/risks/features/issue/components/issues-list-shell";
 import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
@@ -91,7 +91,9 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
   // Issues tab content — risks + impediments rolled up over the Epic's feature
   // subtree (composition root may import the risks module; ADR-0013).
-  const epicIssues = enabled.risks ? await loadEpicIssuesModel(db, principal, epicId) : null;
+  const epicIssues = enabled.risks
+    ? await loadIssues(db, principal, { kind: "epic", epicId })
+    : null;
   const issueScope = { tenantId };
   const issueCaps = {
     canDocument: hasCapability(principal, "risk.document", issueScope),
@@ -113,8 +115,11 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         orderBy: { name: "asc" },
       })
     : [];
-  // Issues tab only when the module is entitled (slice present).
-  const tabs = model.risks.disabled ? EPIC_TABS : [...EPIC_TABS, { key: "issues", label: "Issues" }];
+  // Issues tab only when the module is entitled (slice present) — eingefügt VOR
+  // History, damit History der letzte Reiter bleibt.
+  const tabs = model.risks.disabled
+    ? EPIC_TABS
+    : [...EPIC_TABS.slice(0, -1), { key: "issues", label: "Issues" }, EPIC_TABS.at(-1)!];
   const activeTab = resolveTab(tabs, tab);
 
   // Slide-Over-Detail nur laden wenn ?featureId= im URL — gleiche Sicht wie im
@@ -315,6 +320,26 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
         {activeTab === "breakdown" && (
           <EpicBreakdownTab
+            view="list"
+            epicId={epic.id}
+            tenantId={tenantId}
+            epicTitle={epic.title}
+            canEdit={model.canEdit}
+            features={model.breakdownFeatures}
+            pisByArt={model.drumbeat.disabled ? {} : model.drumbeat.pisByArt}
+            signoff={model.breakdownSignoff}
+            showWsjf={model.showWsjf}
+            canSetDelivery={model.canSetDelivery}
+            dependencies={model.drumbeat.disabled ? [] : model.drumbeat.dependencies}
+            canLinkDependency={model.canLinkDependency}
+            breakdownLayoutPositions={model.breakdownLayoutPositions}
+            breakdownPis={model.drumbeat.disabled ? [] : model.drumbeat.breakdownPis}
+          />
+        )}
+
+        {activeTab === "dependencies" && (
+          <EpicBreakdownTab
+            view="graph"
             epicId={epic.id}
             tenantId={tenantId}
             epicTitle={epic.title}

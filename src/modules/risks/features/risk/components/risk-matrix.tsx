@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import { useUrlState } from "@/lib/hooks/use-url-state";
 import { RISK_LEVELS, type RiskLevel, type ExposureBand } from "@/modules/risks/domain/risk-matrix";
-import { ROAM_HEX, ROAM_LABELS, ROAM_STATUSES } from "@/modules/core/kernel/domain/roam";
-import { BAND_FILL, LEVEL_LABELS } from "@/modules/risks/features/risk/components/labels";
+import {
+  ROAM_HEX,
+  ROAM_LABELS,
+  ROAM_STATUSES,
+  normalizeRoamStatus,
+} from "@/modules/core/kernel/domain/roam";
+import { LEVEL_LABELS } from "@/modules/risks/features/risk/components/labels";
+import { EXPOSURE_CELL, EXPOSURE_LABEL } from "@/modules/risks/features/lib/issue-badges";
 
 /** Matrix-Render-Typen — lokal gehalten, damit die (weiterverwendete) Matrix
  *  nicht am gelöschten `risks-list`-View hängt. Die Issue-/Risk-Views formen
@@ -11,6 +18,7 @@ import { BAND_FILL, LEVEL_LABELS } from "@/modules/risks/features/risk/component
 export interface MatrixPlot {
   riskId: string;
   displayNumber: string | null;
+  title: string;
   roamStatus: string;
   /** inherent → each reassessment → current (empty when unscored). */
   trail: { probability: RiskLevel; impact: RiskLevel }[];
@@ -23,207 +31,208 @@ export interface MatrixCellCount {
   count: number;
 }
 
-/** SVG geometry (viewBox units). */
-const CELL = 64;
-const PAD_LEFT = 150; // room for the rotated Y-title + level ticks
-const PAD_BOTTOM = 90; // room for the X-ticks + X-title
-const PAD_TOP = 10;
-const PAD_RIGHT = 10;
-const N = RISK_LEVELS.length; // 5
-
-const xOf = (impact: RiskLevel) => PAD_LEFT + RISK_LEVELS.indexOf(impact) * CELL;
-// Higher probability sits at the top.
-const yOf = (probability: RiskLevel) => PAD_TOP + (N - 1 - RISK_LEVELS.indexOf(probability)) * CELL;
-
-/** Deterministic in-cell offset so multiple dots in a cell don't fully overlap. */
-function jitter(index: number): { dx: number; dy: number } {
-  const cols = 4;
-  const gx = index % cols;
-  const gy = Math.floor(index / cols) % cols;
-  const step = CELL / (cols + 1);
-  return { dx: step * (gx + 1), dy: step * (gy + 1) };
-}
-
 interface Props {
   cells: MatrixCellCount[];
   plots: MatrixPlot[];
   emptyLabel?: string;
 }
 
-export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risiken." }: Props) {
-  const [hovered, setHovered] = useState<string | null>(null);
-  const width = PAD_LEFT + N * CELL + PAD_RIGHT;
-  const height = PAD_TOP + N * CELL + PAD_BOTTOM;
+/** Hover-Overlay: Tooltip-Anker + optionale Verbindungslinie (Pixel, relativ zum Container). */
+type Overlay = {
+  anchor: { x: number; y: number };
+  line: { x1: number; y1: number; x2: number; y2: number } | null;
+  plot: MatrixPlot;
+};
 
-  const perCell = new Map<string, MatrixPlot[]>();
+const N = RISK_LEVELS.length; // 5
+const cellKey = (probability: RiskLevel, impact: RiskLevel) => `${probability}:${impact}`;
+
+function push<T>(map: Map<string, T[]>, key: string, value: T) {
+  const list = map.get(key);
+  if (list) list.push(value);
+  else map.set(key, [value]);
+}
+
+/**
+ * Risiko-Matrix (Eintritt × Auswirkung) als kompaktes Pastell-Raster: abgerundete
+ * Zellen in Exposure-Band-Tönung, Achsen als Monospace-Labels (X oben, Y links,
+ * hohe Wahrscheinlichkeit oben). Marker: hohler Ring = inherent, gefüllter Punkt
+ * (ROAM-Farbe) = aktuell. Reines CSS-Grid — kein SVG.
+ */
+export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risiken." }: Props) {
+  const { push: pushUrl } = useUrlState();
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [overlay, setOverlay] = useState<Overlay | null>(null);
+  // Marker-Elemente vermessen (nicht die Zelle): der aktuelle Punkt + die
+  // Ursprungs-Ghost je Issue liefern die exakten Kreis-Mitten für Linie/Tooltip.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const dotRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
+  const ghostRefs = useRef<Map<string, HTMLSpanElement | null>>(new Map());
+
+  const cellByKey = new Map(cells.map((c) => [cellKey(c.probability, c.impact), c]));
+  const currentByKey = new Map<string, MatrixPlot[]>();
+  const ghostByKey = new Map<string, { plot: MatrixPlot; index: number }[]>();
   for (const p of plots) {
-    const last = p.trail[p.trail.length - 1];
-    if (!last) continue;
-    const key = `${last.probability}:${last.impact}`;
-    const list = perCell.get(key);
-    if (list) list.push(p);
-    else perCell.set(key, [p]);
+    const cur = p.trail[p.trail.length - 1];
+    if (!cur) continue;
+    push(currentByKey, cellKey(cur.probability, cur.impact), p);
+    // Nur die Ausgangsposition (inherent) als EINEN Ghost — nicht jede
+    // Zwischenbewertung, sonst mehrere Ringe für ein einziges Issue.
+    if (p.trail.length > 1) {
+      const origin = p.trail[0]!;
+      push(ghostByKey, cellKey(origin.probability, origin.impact), { plot: p, index: 0 });
+    }
   }
 
-  const gridBottom = PAD_TOP + N * CELL;
+  // Overlay (Tooltip-Anker + Verbindungslinie) nach dem Hover-Commit vermessen —
+  // so sind auch die nur-bei-Hover gerenderten Ghost-Ringe erfasst, ohne Flackern.
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (hovered == null || !container) {
+      setOverlay(null);
+      return;
+    }
+    const plot = plots.find((p) => p.riskId === hovered);
+    const dot = dotRefs.current.get(hovered);
+    if (!plot || !dot) {
+      setOverlay(null);
+      return;
+    }
+    const cr = container.getBoundingClientRect();
+    const center = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2 - cr.left, y: r.top + r.height / 2 - cr.top };
+    };
+    const anchor = center(dot);
+    let line: Overlay["line"] = null;
+    if (plot.trail.length > 1) {
+      const origin = ghostRefs.current.get(`${hovered}:0`);
+      if (origin) {
+        const o = center(origin);
+        line = { x1: anchor.x, y1: anchor.y, x2: o.x, y2: o.y };
+      }
+    }
+    setOverlay({ anchor, line, plot });
+  }, [hovered]);
+
+  // Zeilen: hohe Wahrscheinlichkeit oben (RISK_LEVELS umgedreht).
+  const rows = [...RISK_LEVELS].reverse();
 
   return (
     <div className="space-y-3 rounded-lg border bg-card p-4" data-tour="risk-matrix">
       <div className="overflow-x-auto">
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className="mx-auto w-full max-w-2xl"
-          role="img"
-          aria-label="Risk-Matrix"
-        >
-          {/* cell backdrops — SVG needs `fill`, not `bg-*` */}
-          {cells.map((c) => (
-            <rect
-              key={c.key}
-              x={xOf(c.impact)}
-              y={yOf(c.probability)}
-              width={CELL}
-              height={CELL}
-              fill={BAND_FILL[c.band]}
-              className="stroke-white/70"
-              strokeWidth={1}
-            />
-          ))}
-
-          {/* per-cell count badge (top-left corner of populated cells) */}
-          {cells
-            .filter((c) => c.count > 0)
-            .map((c) => (
-              <text
-                key={`n-${c.key}`}
-                x={xOf(c.impact) + 6}
-                y={yOf(c.probability) + 14}
-                className="fill-black/60 text-[10px] font-semibold"
+        <div ref={containerRef} className="relative min-w-[22rem]">
+          <div
+            role="img"
+            aria-label="Risiko-Matrix (Eintritt × Auswirkung)"
+            className="grid gap-1.5"
+            style={{ gridTemplateColumns: `auto repeat(${N}, minmax(0, 1fr))` }}
+          >
+            {/* Kopfzeile: leeres Eck + X-Spaltenköpfe (Auswirkung) */}
+            <div />
+            {RISK_LEVELS.map((impact) => (
+              <div
+                key={`x-${impact}`}
+                className="pb-0.5 text-center font-mono text-[10px] leading-tight text-muted-foreground"
               >
-                {c.count}
-              </text>
+                {LEVEL_LABELS[impact]}
+              </div>
             ))}
 
-          {/* X ticks (Impact) */}
-          {RISK_LEVELS.map((lvl) => (
-            <text
-              key={`x-${lvl}`}
-              x={xOf(lvl) + CELL / 2}
-              y={gridBottom + 18}
-              textAnchor="middle"
-              className="fill-muted-foreground text-[10px]"
-            >
-              {LEVEL_LABELS[lvl]}
-            </text>
-          ))}
-          {/* Y ticks (Probability) */}
-          {RISK_LEVELS.map((lvl) => (
-            <text
-              key={`y-${lvl}`}
-              x={PAD_LEFT - 10}
-              y={yOf(lvl) + CELL / 2 + 3}
-              textAnchor="end"
-              className="fill-muted-foreground text-[10px]"
-            >
-              {LEVEL_LABELS[lvl]}
-            </text>
-          ))}
-
-          {/* X axis title */}
-          <text
-            x={PAD_LEFT + (N * CELL) / 2}
-            y={height - 8}
-            textAnchor="middle"
-            className="fill-foreground text-[12px] font-medium"
-          >
-            Impact →
-          </text>
-          {/* Y axis title (rotated) */}
-          <text
-            transform={`rotate(-90 16 ${PAD_TOP + (N * CELL) / 2})`}
-            x={16}
-            y={PAD_TOP + (N * CELL) / 2}
-            textAnchor="middle"
-            className="fill-foreground text-[12px] font-medium"
-          >
-            Wahrscheinlichkeit →
-          </text>
-
-          {/* hovered risk: reveal the full reassessment trail */}
-          {plots
-            .filter((p) => p.riskId === hovered && p.trail.length > 1)
-            .map((p) => (
-              <g key={`trail-${p.riskId}`}>
-                {p.trail.slice(0, -1).map((_pt, i) => {
-                  const a = p.trail[i]!;
-                  const b = p.trail[i + 1]!;
+            {rows.map((probability) => (
+              <Fragment key={`row-${probability}`}>
+                <div className="flex items-center justify-end pr-1.5 font-mono text-[10px] text-muted-foreground">
+                  {LEVEL_LABELS[probability]}
+                </div>
+                {RISK_LEVELS.map((impact) => {
+                  const key = cellKey(probability, impact);
+                  const cell = cellByKey.get(key);
+                  const currents = currentByKey.get(key) ?? [];
+                  const ghosts = (ghostByKey.get(key) ?? []).filter(
+                    (g) => g.plot.riskId === hovered,
+                  );
+                  const count = cell?.count ?? 0;
                   return (
-                    <line
-                      key={i}
-                      x1={xOf(a.impact) + CELL / 2}
-                      y1={yOf(a.probability) + CELL / 2}
-                      x2={xOf(b.impact) + CELL / 2}
-                      y2={yOf(b.probability) + CELL / 2}
-                      stroke="#111827"
-                      strokeWidth={1.5}
-                      strokeDasharray="4 3"
-                    />
+                    <div
+                      key={key}
+                      className={`relative flex flex-wrap content-center items-center justify-center gap-1 rounded-md p-1 ${
+                        cell ? EXPOSURE_CELL[cell.band] : "bg-muted"
+                      }`}
+                      style={{ aspectRatio: "1.7 / 1" }}
+                    >
+                      {count > 0 && (
+                        <span className="absolute left-1 top-0.5 text-[10px] font-semibold text-foreground/50">
+                          {count}
+                        </span>
+                      )}
+                      {/* vorige Position(en) — nur bei Hover: gestrichelter Ring */}
+                      {ghosts.map(({ plot: p, index }) => (
+                        <span
+                          key={`g-${p.riskId}-${index}`}
+                          ref={(el) => {
+                            ghostRefs.current.set(`${p.riskId}:${index}`, el);
+                          }}
+                          aria-hidden
+                          className="size-2.5 shrink-0 rounded-full border-2 border-dashed border-foreground/70 bg-transparent"
+                        />
+                      ))}
+                      {/* aktuell = gefüllter Punkt in ROAM-Farbe (Hover: Details + Trail-Linie) */}
+                      {currents.slice(0, 12).map((p) => {
+                        const isHover = hovered === p.riskId;
+                        return (
+                          <button
+                            key={`c-${p.riskId}`}
+                            ref={(el) => {
+                              dotRefs.current.set(p.riskId, el);
+                            }}
+                            type="button"
+                            aria-label={`${p.title} öffnen`}
+                            onClick={() => pushUrl({ issue: p.riskId })}
+                            onMouseEnter={() => setHovered(p.riskId)}
+                            onMouseLeave={() => setHovered(null)}
+                            onFocus={() => setHovered(p.riskId)}
+                            onBlur={() => setHovered(null)}
+                            className={`size-2.5 shrink-0 cursor-pointer rounded-full ring-1 ring-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/70 ${
+                              isHover ? "ring-2 ring-foreground/70" : ""
+                            }`}
+                            style={{ backgroundColor: ROAM_HEX[normalizeRoamStatus(p.roamStatus)] }}
+                          />
+                        );
+                      })}
+                    </div>
                   );
                 })}
-                {p.trail.slice(0, -1).map((pt, i) => (
-                  <circle
-                    key={`ghost-${i}`}
-                    cx={xOf(pt.impact) + CELL / 2}
-                    cy={yOf(pt.probability) + CELL / 2}
-                    r={6}
-                    fill="none"
-                    stroke="#111827"
-                    strokeWidth={1.5}
-                    strokeDasharray="3 2"
-                  />
-                ))}
-              </g>
+              </Fragment>
             ))}
-
-          {/* current-position dots, coloured by ROAM cluster */}
-          {[...perCell.entries()].map(([cellId, cellPlots]) =>
-            cellPlots.slice(0, 12).map((p, idx) => {
-              const last = p.trail[p.trail.length - 1]!;
-              const { dx, dy } = jitter(idx);
-              const cx = xOf(last.impact) + dx;
-              const cy = yOf(last.probability) + dy;
-              const key = (
-                p.roamStatus in ROAM_HEX ? p.roamStatus : "open"
-              ) as keyof typeof ROAM_HEX;
-              const hasTrail = p.trail.length > 1;
-              return (
-                <circle
-                  key={`${cellId}-${p.riskId}`}
-                  cx={cx}
-                  cy={cy}
-                  r={6}
-                  fill={ROAM_HEX[key]}
-                  stroke={hasTrail ? "#111827" : "white"}
-                  strokeWidth={hasTrail ? 1.5 : 1}
-                  className="cursor-pointer"
-                  onMouseEnter={() => setHovered(p.riskId)}
-                  onMouseLeave={() => setHovered(null)}
-                  tabIndex={0}
-                  onFocus={() => setHovered(p.riskId)}
-                  onBlur={() => setHovered(null)}
-                >
-                  <title>{p.displayNumber ?? "Risiko"}</title>
-                </circle>
-              );
-            }),
+          </div>
+          {overlay?.line && (
+            <svg
+              className="pointer-events-none absolute inset-0 h-full w-full text-foreground/70"
+              aria-hidden
+            >
+              <line
+                x1={overlay.line.x1}
+                y1={overlay.line.y1}
+                x2={overlay.line.x2}
+                y2={overlay.line.y2}
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+              />
+            </svg>
           )}
-
-        </svg>
+          {overlay && <MatrixTooltip overlay={overlay} cellByKey={cellByKey} />}
+        </div>
       </div>
 
       {plots.length === 0 && <p className="text-sm text-muted-foreground">{emptyLabel}</p>}
 
-      {/* ROAM legend */}
+      <p className="font-mono text-[11px] text-muted-foreground">
+        ● aktuell · Hover zeigt Details + gestrichelte Linie zur Ausgangsposition · Zelle =
+        Exposure-Band-Farbe
+      </p>
+
+      {/* ROAM-Legende (die aktuellen Punkte sind ROAM-farbig) */}
       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
         {ROAM_STATUSES.map((s) => (
           <span key={s} className="inline-flex items-center gap-1.5">
@@ -231,11 +240,47 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
             {ROAM_LABELS[s]}
           </span>
         ))}
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2.5 rounded-full border border-dashed border-foreground/60" />
-          gestrichelt = Ausgangsbewertung (hover)
-        </span>
       </div>
+    </div>
+  );
+}
+
+/** Hover-Detailkarte am aktuellen Punkt: Titel · Nummer · ROAM · Band · Eintritt×Auswirkung. */
+function MatrixTooltip({
+  overlay,
+  cellByKey,
+}: {
+  overlay: Overlay;
+  cellByKey: Map<string, MatrixCellCount>;
+}) {
+  const p = overlay.plot;
+  const cur = p.trail[p.trail.length - 1];
+  const band = cur ? cellByKey.get(cellKey(cur.probability, cur.impact))?.band : undefined;
+  const roam = normalizeRoamStatus(p.roamStatus);
+  return (
+    <div
+      className="pointer-events-none absolute z-20 w-max max-w-64 -translate-x-1/2 -translate-y-full rounded-md border bg-popover px-3 py-2 text-xs shadow-md ring-1 ring-foreground/10"
+      style={{ left: overlay.anchor.x, top: overlay.anchor.y - 10 }}
+    >
+      <p className="font-medium text-foreground">{p.title}</p>
+      {p.displayNumber && <p className="text-muted-foreground">{p.displayNumber}</p>}
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <span className="inline-flex items-center gap-1">
+          <span className="size-2 rounded-full" style={{ backgroundColor: ROAM_HEX[roam] }} />
+          {ROAM_LABELS[roam]}
+        </span>
+        {band && <span>· {EXPOSURE_LABEL[band]}</span>}
+      </div>
+      {cur && (
+        <p className="mt-0.5 text-muted-foreground">
+          {LEVEL_LABELS[cur.probability]} × {LEVEL_LABELS[cur.impact]}
+        </p>
+      )}
+      {p.trail.length > 1 && (
+        <p className="mt-0.5 text-muted-foreground">
+          {p.trail.length - 1} Neubewertung(en) · Linie → Ausgangsposition
+        </p>
+      )}
     </div>
   );
 }

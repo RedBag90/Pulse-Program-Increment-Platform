@@ -3,11 +3,12 @@
 import { useActionState, useMemo } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { Button } from "@/components/ui/button";
-import { PageSection } from "@/components/layout";
+import { Page, PageHeader, PageSection } from "@/components/layout";
 import type { IssuesListModel, IssueListRow } from "@/modules/risks/server/views/issues-list";
-import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { wouldCreateCycle } from "@/modules/risks/domain/issue-tree";
 import { RiskMatrix } from "@/modules/risks/features/risk/components/risk-matrix";
+import { exposureRank } from "@/modules/risks/features/lib/issue-badges";
+import type { ExposureBand } from "@/modules/risks/domain/risk-matrix";
 import { reviewIssueAction } from "@/modules/risks/features/issue/actions/issue";
 import type { ActionState } from "@/server/http/server-action";
 import {
@@ -39,11 +40,10 @@ interface Props {
   embedded?: boolean;
 }
 
-const RANK: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 };
 const DEFAULT_SORT: IssueSortKey = "created:desc";
 
 function rowRank(r: IssueListRow): number {
-  return r.band ? (RANK[r.band] ?? 0) : 0;
+  return exposureRank(r.band as ExposureBand | null);
 }
 
 function compareBy(sort: IssueSortKey): (a: IssueListRow, b: IssueListRow) => number {
@@ -63,31 +63,57 @@ function compareBy(sort: IssueSortKey): (a: IssueListRow, b: IssueListRow) => nu
 const isSort = (v: string | null): v is IssueSortKey =>
   v === "created:desc" || v === "daysOpen:desc" || v === "exposure:desc" || v === "title:asc";
 
-export function IssuesListShell({ model, userLabels, caps, initiativeId, featureOptions, embedded }: Props) {
+export function IssuesListShell({
+  model,
+  userLabels,
+  caps,
+  initiativeId,
+  featureOptions,
+  embedded,
+}: Props) {
   const { params, push } = useUrlState();
 
-  const roam = params.get("roam") as RoamStatus | null;
-  const category = params.get("category");
-  const ownerId = params.get("owner");
+  const roamParam = params.get("roam") ?? "";
+  const categoryParam = params.get("category") ?? "";
+  const ownerParam = params.get("owner") ?? "";
+  const bandParam = params.get("band") ?? "";
+  const vsParam = params.get("vs") ?? "";
+  const artParam = params.get("art") ?? "";
   const query = params.get("q") ?? "";
   const sort = isSort(params.get("sort")) ? (params.get("sort") as IssueSortKey) : DEFAULT_SORT;
   const density = (params.get("density") === "compact" ? "compact" : "comfortable") as IssueDensity;
 
+  const split = (s: string): string[] => (s ? s.split(",").filter(Boolean) : []);
+  const roams = split(roamParam);
+  const categories = split(categoryParam);
+  const owners = split(ownerParam);
+  const bands = split(bandParam);
+  const valueStreams = split(vsParam);
+  const arts = split(artParam);
+  const setParam = (key: string, arr: string[]) =>
+    push({ [key]: arr.length ? arr.join(",") : null });
+
   const canReparent = caps.canUpdate;
-  const parentOf = useMemo(
-    () => new Map(model.rows.map((r) => [r.id, r.parentId])),
-    [model.rows],
-  );
+  const parentOf = useMemo(() => new Map(model.rows.map((r) => [r.id, r.parentId])), [model.rows]);
   const dnd = useIssueTreeDnd({
     isDescendant: (ancestorId, maybeDescId) => wouldCreateCycle(ancestorId, maybeDescId, parentOf),
   });
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const roamSet = new Set(split(roamParam));
+    const catSet = new Set(split(categoryParam));
+    const ownerSet = new Set(split(ownerParam));
+    const bandSet = new Set(split(bandParam));
+    const vsSet = new Set(split(vsParam));
+    const artSet = new Set(split(artParam));
     const rows = model.rows.filter((r) => {
-      if (roam && r.roamStatus !== roam) return false;
-      if (category && r.category !== category) return false;
-      if (ownerId && r.ownerId !== ownerId) return false;
+      if (roamSet.size && !roamSet.has(r.roamStatus)) return false;
+      if (catSet.size && (!r.category || !catSet.has(r.category))) return false;
+      if (ownerSet.size && (!r.ownerId || !ownerSet.has(r.ownerId))) return false;
+      if (bandSet.size && (!r.band || !bandSet.has(r.band))) return false;
+      if (vsSet.size && (!r.valueStreamId || !vsSet.has(r.valueStreamId))) return false;
+      if (artSet.size && (!r.artId || !artSet.has(r.artId))) return false;
       if (q) {
         const hay = `${r.title} ${r.description ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -95,32 +121,38 @@ export function IssuesListShell({ model, userLabels, caps, initiativeId, feature
       return true;
     });
     return rows.slice().sort(compareBy(sort));
-  }, [model.rows, roam, category, ownerId, query, sort]);
+  }, [model.rows, roamParam, categoryParam, ownerParam, bandParam, vsParam, artParam, query, sort]);
+
+  // Matrix folgt denselben Filtern wie die Tabelle: Plots auf die gefilterten
+  // Issue-Ids einschränken und die Zell-Zähler daraus neu rechnen.
+  const filteredIssueIds = new Set(filteredRows.map((r) => r.id));
+  const filteredPlots = model.matrix.plots.filter((p) => filteredIssueIds.has(p.issueId));
+  const matrixCells = (() => {
+    const counts = new Map<string, number>();
+    for (const p of filteredPlots) {
+      const cur = p.trail[p.trail.length - 1];
+      if (cur) {
+        const k = `${cur.probability}:${cur.impact}`;
+        counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
+    }
+    return model.matrix.cells.map((c) => ({
+      ...c,
+      count: counts.get(`${c.probability}:${c.impact}`) ?? 0,
+    }));
+  })();
 
   const allRows = [...model.rows, ...model.suggestions];
   const createProps = initiativeId ? { initiativeId } : {};
   const featureProps = featureOptions ? { featureOptions } : {};
   const rootZone = dnd.dropProps({ kind: "root" });
 
-  return (
-    <div className={embedded ? "space-y-4" : "space-y-4 p-6"}>
-      {embedded ? (
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">{model.counts.total} Issues</p>
-          <CreateIssueDialog canDocument={caps.canDocument} {...createProps} {...featureProps} />
-        </div>
-      ) : (
-        <header className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="font-heading text-2xl font-semibold">Issues</h1>
-            <p className="text-sm text-muted-foreground">
-              {model.counts.total} Issues — verschachtelbar unter einem Head-Issue.
-            </p>
-          </div>
-          <CreateIssueDialog canDocument={caps.canDocument} {...createProps} {...featureProps} />
-        </header>
-      )}
+  const createAction = (
+    <CreateIssueDialog canDocument={caps.canDocument} {...createProps} {...featureProps} />
+  );
 
+  const content = (
+    <div className="space-y-4">
       {canReparent && dnd.dragging && (
         <div
           onDragOver={rootZone.onDragOver}
@@ -132,13 +164,14 @@ export function IssuesListShell({ model, userLabels, caps, initiativeId, feature
         </div>
       )}
 
-      {model.matrix.plots.length > 0 && (
+      {filteredPlots.length > 0 && (
         <PageSection title="Risk-Matrix">
           <RiskMatrix
-            cells={model.matrix.cells}
-            plots={model.matrix.plots.map((p) => ({
+            cells={matrixCells}
+            plots={filteredPlots.map((p) => ({
               riskId: p.issueId,
               displayNumber: p.displayNumber,
+              title: p.title,
               roamStatus: p.roamStatus,
               trail: p.trail,
             }))}
@@ -167,34 +200,69 @@ export function IssuesListShell({ model, userLabels, caps, initiativeId, feature
 
       <IssuesFunnelBar
         counts={model.roamFunnel}
-        activeRoam={roam}
-        onRoamChange={(v) => push({ roam: v })}
+        activeRoams={roams}
+        onToggleRoam={(s) =>
+          setParam("roam", roams.includes(s) ? roams.filter((r) => r !== s) : [...roams, s])
+        }
+        onClear={() => push({ roam: null })}
       />
 
       <IssuesFilterBar
         query={query}
-        category={category}
-        ownerId={ownerId}
+        categories={categories}
+        owners={owners}
+        bands={bands}
+        valueStreams={valueStreams}
+        arts={arts}
         sort={sort}
         density={density}
         categoryOptions={model.facets.categories}
         ownerOptions={model.facets.owners}
-        onQueryChange={(v) => push({ q: v })}
-        onCategoryChange={(v) => push({ category: v })}
-        onOwnerChange={(v) => push({ owner: v })}
+        valueStreamOptions={model.facets.valueStreams}
+        artOptions={model.facets.arts}
+        onQueryChange={(v) => push({ q: v || null })}
+        onCategoriesChange={(v) => setParam("category", v)}
+        onOwnersChange={(v) => setParam("owner", v)}
+        onBandsChange={(v) => setParam("band", v)}
+        onValueStreamsChange={(v) => setParam("vs", v)}
+        onArtsChange={(v) => setParam("art", v)}
         onSortChange={(v) => push({ sort: v === DEFAULT_SORT ? null : v })}
         onDensityChange={(v) => push({ density: v === "comfortable" ? null : v })}
       />
 
-      <IssuesListTable rows={filteredRows} compact={density === "compact"} dnd={canReparent ? dnd : null} />
-
-      <IssueDetailDrawer
-        issues={allRows}
-        userLabels={userLabels}
-        caps={caps}
-        {...featureProps}
+      <IssuesListTable
+        rows={filteredRows}
+        compact={density === "compact"}
+        dnd={canReparent ? dnd : null}
       />
+
+      <IssueDetailDrawer issues={allRows} userLabels={userLabels} caps={caps} {...featureProps} />
     </div>
+  );
+
+  // Epic-Tab: eingebettet, ohne PageHeader/-Rahmen. Standalone `/issues`: der
+  // geteilte App-Rahmen wie überall.
+  if (embedded) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">{model.counts.total} Issues</p>
+          {createAction}
+        </div>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Page>
+      <PageHeader
+        title="Issues · Risiko-Register"
+        subtitle={`${model.counts.total} Issues — Risiken & Impedimente je ART/Epic, verschachtelbar unter einem Head-Issue.`}
+        actions={createAction}
+      />
+      {content}
+    </Page>
   );
 }
 

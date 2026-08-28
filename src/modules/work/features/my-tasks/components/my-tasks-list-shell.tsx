@@ -21,6 +21,12 @@ interface Props {
   model: MyTasksListModel;
   tenantId: string;
   showWsjf: boolean;
+  /**
+   * `true` = ohne eigenes `Page`/`PageHeader` rendern (nur Filter + Sektionen),
+   * damit die Liste unter einer gemeinsamen Seitenüberschrift stehen kann —
+   * genutzt auf der gemergten /my-tasks-Seite (Freigaben + Tasks gestapelt).
+   */
+  embedded?: boolean;
 }
 
 function parseBucket(raw: string | null): Bucket | null {
@@ -40,7 +46,7 @@ function parseLevel(raw: string | null): TaskLevel | null {
  * tragen `valueStream` direkt, Features tragen `artId` direkt etc.);
  * der Bucket-Filter geht über `model.bucketById` und ist Cross-Shape.
  */
-export function MyTasksListShell({ model, showWsjf }: Props) {
+export function MyTasksListShell({ model, showWsjf, embedded = false }: Props) {
   const { params, push: pushParam } = useUrlState();
 
   const bucket = parseBucket(params.get("bucket"));
@@ -112,12 +118,17 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
 
   const compact = false;
 
-  return (
-    <Page>
-      <PageHeader
-        title="Meine Tasks"
-        subtitle="Alles, wofür ich Owner oder Assignee bin — Epics und Features mit denselben Zeileninhalten wie auf den Hauptlisten."
-      />
+  const body = (
+    <>
+      {embedded && (
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight">Meine Tasks</h2>
+          <p className="text-sm text-muted-foreground">
+            Alles, wofür ich Owner oder Assignee bin — Epics und Features mit denselben
+            Zeileninhalten wie auf den Hauptlisten.
+          </p>
+        </div>
+      )}
 
       <MyTasksFilterBar
         query={query}
@@ -159,6 +170,18 @@ export function MyTasksListShell({ model, showWsjf }: Props) {
           Keine Tasks im aktuellen Filter.
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <Page>
+      <PageHeader
+        title="Meine Tasks"
+        subtitle="Alles, wofür ich Owner oder Assignee bin — Epics und Features mit denselben Zeileninhalten wie auf den Hauptlisten."
+      />
+      {body}
     </Page>
   );
 }

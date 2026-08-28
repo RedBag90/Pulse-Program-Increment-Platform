@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useState, startTransition } from "react";
-import { ChevronsUpDown } from "lucide-react";
 import { assignEpicOwnerAction } from "@/modules/work/features/portfolio/actions/timeline";
 import { userLabel, initials } from "@/components/detail/initiative-labels";
+import { UserPicker } from "@/components/detail/user-picker";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface Approver {
@@ -19,10 +19,6 @@ interface Props {
   approvers: Approver[];
   userLabels: Record<string, string>;
 }
-
-// Einheitliche Control-Sprache wie im ApproverPicker (natives Select + Overlay-Chevron).
-const SELECT =
-  "w-full max-w-[18rem] appearance-none rounded-md border border-input bg-background px-2 py-1.5 pr-7 text-xs shadow-xs focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60";
 
 /**
  * Epic owner — current owner plus, for authorised roles, the nomination control
@@ -57,21 +53,19 @@ export function EpicOwnerAssign({ epicId, ownerId, canAssignOwner, approvers, us
 
       {canAssignOwner && (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-0">
-            <select
-              aria-label="Epic Owner"
+          <div className="min-w-0 max-w-[18rem] flex-1">
+            <UserPicker
               value={sel}
-              onChange={(e) => setSel(e.target.value)}
-              className={SELECT}
-            >
-              <option value="">— kein Owner —</option>
-              {approvers.map((u) => (
-                <option key={u.userId} value={u.userId}>
-                  {userLabel(u.userId, userLabels)} ({u.roles.join(", ")})
-                </option>
-              ))}
-            </select>
-            <ChevronsUpDown className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              onChange={setSel}
+              options={approvers.map((u) => ({
+                value: u.userId,
+                label: userLabel(u.userId, userLabels),
+                ...(u.roles.length ? { hint: u.roles.join(", ") } : {}),
+              }))}
+              ariaLabel="Epic Owner"
+              placeholder="— kein Owner —"
+              emptyLabel="— kein Owner —"
+            />
           </div>
           <button
             type="button"

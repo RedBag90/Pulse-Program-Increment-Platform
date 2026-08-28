@@ -51,10 +51,6 @@ const BreakdownNetworkView = dynamic(
 
 type BreakdownView = "list" | "graph";
 
-function parseBreakdownView(raw: string | null): BreakdownView {
-  return raw === "graph" ? "graph" : "list";
-}
-
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 20] as const;
 
 const SELECT_CLASS =
@@ -85,6 +81,12 @@ export interface BreakdownFeature {
 
 interface Props {
   epicId: string;
+  /**
+   * Welche Fläche der Reiter rendert: `list` = Feature-Liste (Reiter
+   * „Deliverables"), `graph` = Netzplan (Reiter „Dependencies"). Kommt vom
+   * aktiven Tab der Epic-Seite — kein interner Umschalter mehr.
+   */
+  view: BreakdownView;
   /** Tenant-Id — fuer den Netzplan-Realtime-Channel (Roadmap-P8). */
   tenantId: string;
   epicTitle: string;
@@ -210,6 +212,7 @@ function FeatureEditForm({ feature }: { feature: BreakdownFeature }) {
  */
 export function EpicBreakdownTab({
   epicId,
+  view,
   tenantId,
   epicTitle,
   canEdit,
@@ -226,15 +229,6 @@ export function EpicBreakdownTab({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const view = parseBreakdownView(searchParams.get("breakdownView"));
-
-  const setView = (next: BreakdownView) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (next === "list") params.delete("breakdownView");
-    else params.set("breakdownView", next);
-    const qs = params.toString();
-    router.replace(`${pathname}${qs ? `?${qs}` : ""}` as never, { scroll: false });
-  };
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -315,52 +309,32 @@ export function EpicBreakdownTab({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-medium">Deliverables</h2>
-        <div className="flex items-center gap-2">
-          <div
-            role="tablist"
-            aria-label="Deliverables-Ansicht"
-            className="inline-flex overflow-hidden rounded-md border bg-card text-xs"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={view === "list"}
-              onClick={() => setView("list")}
-              className={`px-2.5 py-1 transition-colors ${
-                view === "list"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted/50"
-              }`}
-            >
-              Liste
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={view === "graph"}
-              onClick={() => setView("graph")}
-              className={`px-2.5 py-1 transition-colors ${
-                view === "graph"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted/50"
-              }`}
-            >
-              Netzplan
-            </button>
-          </div>
-          {canEdit && (
-            <CreateFeatureDialog epics={[{ id: epicId, title: epicTitle }]} context={{ epicId }} />
-          )}
-        </div>
+        <h2 className="font-heading text-lg font-medium">
+          {view === "graph" ? "Dependencies" : "Deliverables"}
+        </h2>
+        {canEdit && view === "list" && (
+          <CreateFeatureDialog epics={[{ id: epicId, title: epicTitle }]} context={{ epicId }} />
+        )}
       </div>
 
-      {signoff && <SectionSignoffBanner epicId={epicId} section="breakdown" {...signoff} />}
+      {view === "list" && signoff && (
+        <SectionSignoffBanner epicId={epicId} section="breakdown" {...signoff} />
+      )}
 
-      <p className="text-xs text-muted-foreground">
-        Die QS einzelner Features (durch den RTE) ist unabhängig von der Epic-Freigabe: hier nimmst
-        du die <span className="font-medium">Deliverables als Ganzes</span> für die Freigabe ab.
-      </p>
+      {view === "list" ? (
+        <p className="text-xs text-muted-foreground">
+          Die QS einzelner Features (durch den RTE) ist unabhängig von der Epic-Freigabe: hier
+          nimmst du die <span className="font-medium">Deliverables als Ganzes</span> für die
+          Freigabe ab.
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Der Netzplan zeigt die Features dieses Epics und ihre Abhängigkeiten.
+          {canLinkDependency
+            ? " Ziehe von einem Knoten zum anderen, um eine neue Abhängigkeit anzulegen."
+            : ""}
+        </p>
+      )}
 
       {view === "graph" ? (
         <BreakdownNetworkView

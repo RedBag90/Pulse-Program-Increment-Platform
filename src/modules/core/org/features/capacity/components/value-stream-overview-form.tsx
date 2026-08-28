@@ -6,11 +6,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { UserPicker } from "@/components/detail/user-picker";
 import { userLabel } from "@/components/detail/initiative-labels";
+import type { SearchSelectOption } from "@/components/ui/search-select";
 
 export interface UserOption {
   userId: string;
   roles: string[];
+}
+
+/** UserOption[] → suchbare Optionen; Rollen werden als `hint` mitgesucht. */
+function toUserOptions(
+  users: UserOption[],
+  userLabels: Record<string, string>,
+): SearchSelectOption[] {
+  return users.map((u) => ({
+    value: u.userId,
+    label: userLabel(u.userId, userLabels),
+    ...(u.roles.length ? { hint: u.roles.join(", ") } : {}),
+  }));
 }
 
 interface Props {
@@ -25,9 +39,6 @@ interface Props {
   vmoUsers: UserOption[];
   userLabels: Record<string, string>;
 }
-
-const SELECT =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 /** Inline editor for a Value Stream's details — the Overview tab. */
 export function ValueStreamOverviewForm({
@@ -57,35 +68,30 @@ export function ValueStreamOverviewForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="vs-finance">Finance Approver</Label>
-        <select
-          id="vs-finance"
+        <Label>Finance Approver</Label>
+        <UserPicker
           name="financeApproverId"
           defaultValue={financeApproverId}
-          className={SELECT}
-        >
-          <option value="">— Niemand —</option>
-          {users.map((u) => (
-            <option key={u.userId} value={u.userId}>
-              {userLabel(u.userId, userLabels)}
-            </option>
-          ))}
-        </select>
+          options={toUserOptions(users, userLabels)}
+          ariaLabel="Finance Approver"
+          placeholder="— Niemand —"
+          emptyLabel="— Niemand —"
+        />
         <p className="text-xs text-muted-foreground">
           Nimmt die Epics dieses Wertstroms als Finance-Partei ab.
         </p>
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="vs-vmo">Portfolio Manager</Label>
-        <select id="vs-vmo" name="vmoId" defaultValue={vmoId} className={SELECT}>
-          <option value="">— Niemand —</option>
-          {vmoUsers.map((u) => (
-            <option key={u.userId} value={u.userId}>
-              {userLabel(u.userId, userLabels)}
-            </option>
-          ))}
-        </select>
+        <Label>Portfolio Manager</Label>
+        <UserPicker
+          name="vmoId"
+          defaultValue={vmoId}
+          options={toUserOptions(vmoUsers, userLabels)}
+          ariaLabel="Portfolio Manager"
+          placeholder="— Niemand —"
+          emptyLabel="— Niemand —"
+        />
         {vmoUsers.length === 0 ? (
           <p className="text-xs text-amber-700">
             Keine Nutzer mit Portfolio-Manager-Rolle im Mandanten.

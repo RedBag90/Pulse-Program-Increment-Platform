@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 // hardcoding paths in each `onSuccess`; "which pages show ARTs?" is answered
 // here, once, rather than smeared across every ART/Team/Feature action.
 //
-// Paths use the App Router template form (`/art/[artId]/settings`) revalidated
+// Paths use the App Router template form (`/art/[artId]`) revalidated
 // with the `"page"` type, which refreshes *all* instances of that dynamic
 // route — no per-call ids to thread. Static routes are revalidated as-is.
 // The set per resource is a deliberate superset: over-revalidation is cheap and
@@ -41,13 +41,12 @@ export type RevalidationResource =
   | "roleOnboarding";
 
 const REGISTRY: Record<RevalidationResource, readonly string[]> = {
-  art: ["/structure", "/art/[artId]", "/art/[artId]/settings", "/value-streams/[id]"],
+  art: ["/structure", "/art/[artId]", "/value-streams/[id]"],
   // Beim CREATE reicht der schmale Cut: die neue Detail-Page wird ohnehin
   // bei der Navigation frisch gerendert; nur die Aggregations-Listen
   // muessen den neuen Eintrag sehen.
   artCreated: ["/structure", "/value-streams/[id]"],
   feature: [
-    "/art/[artId]/features",
     "/portfolio/epics/[id]",
     "/feature/[featureId]",
     "/pi/[piId]",
@@ -63,6 +62,9 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/portfolio/epics/[id]",
     "/portfolio/dashboard",
     "/budgeting/round",
+    // „I need help" toggelt am Epic und muss den Hinweis auf /my-tasks (VMO /
+    // Portfolio-Manager) auffrischen.
+    "/my-tasks",
   ],
   valueStream: ["/structure", "/value-streams/[id]"],
   // Solutions wirken auf die Verwaltungsseiten UND auf den abgeleiteten
@@ -88,7 +90,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/value-streams/[id]",
     "/reporting/portfolio-health",
   ],
-  pi: ["/umsetzung", "/structure", "/art/[artId]/pi", "/pi/[piId]", "/pi-planning"],
+  pi: ["/umsetzung", "/structure", "/pi/[piId]", "/pi-planning"],
   piStandard: ["/structure", "/value-streams/[id]"],
   budgetPlanRevision: ["/budgeting", "/budgeting/budget-plan", "/budgeting/budget-plan/[id]"],
   budgetRound: ["/budgeting", "/budgeting/rounds", "/budgeting/round", "/budgeting/periods/[id]"],
@@ -99,7 +101,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   rtbItem: ["/value-streams/[id]", "/budgeting/periods/[id]", "/budgeting/run-the-business"],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
   // the structure tab that hosts the management UI.
-  timeline: ["/umsetzung", "/structure", "/pi-planning", "/pi/[piId]", "/art/[artId]/pi", "/feature/[featureId]"],
+  timeline: ["/umsetzung", "/structure", "/pi-planning", "/pi/[piId]", "/feature/[featureId]"],
   story: ["/feature/[featureId]"],
   dependency: ["/umsetzung", "/feature/[featureId]"],
   ziele: ["/ziele"],

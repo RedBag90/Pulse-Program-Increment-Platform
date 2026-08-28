@@ -66,6 +66,12 @@ export interface GateCriterion {
   key: string;
   /** Nutzersprache, Deutsch — wird 1:1 in der Checkliste gerendert. */
   label: string;
+  /**
+   * Hilfetext in Nutzersprache: was das Kriterium bedeutet und wo/wie man es
+   * erfüllt. Wird in der Checkliste per Hover/„How to" gezeigt und fließt über
+   * `GATE_CRITERIA_DOC` auch in das Lifecycle-Popover.
+   */
+  help: string;
   satisfied: boolean;
   /**
    * `true` = verhindert den Antrag. `false` = beratend: die Checkliste zeigt
@@ -101,6 +107,12 @@ export type CriterionLabelContext = Pick<EpicGateFacts, "multiPartyApproval">;
 export interface CriterionRule {
   key: string;
   label: (ctx: CriterionLabelContext) => string;
+  /**
+   * Statischer Hilfetext (1–2 Sätze, Nutzersprache): Bedeutung des Kriteriums
+   * plus der zuständige Reiter, in dem man es erfüllt. Bewusst kontextfrei —
+   * wie {@link label} soll er ohne echtes Epic erzeugbar sein.
+   */
+  help: string;
   satisfied: (facts: EpicGateFacts) => boolean;
   blocking: boolean;
 }
@@ -117,13 +129,21 @@ const HYPOTHESIS_READY: CriterionRule = {
     f.multiPartyApproval
       ? "Benefit-Hypothese ist freigegeben"
       : "Benefit-Hypothese ist ausgearbeitet",
-  satisfied: (f) => (f.multiPartyApproval ? f.hypothesisApprovedAt != null : f.hasHypothesisContent),
+  help:
+    "Die Benefit-Hypothese beschreibt den erwarteten Nutzen und die Annahme dahinter. " +
+    "Formuliere sie im Reiter Hypothese; ist die Mehrparteien-Freigabe aktiv, muss sie " +
+    "dort zusätzlich freigegeben werden, sonst genügt ausgearbeiteter Inhalt.",
+  satisfied: (f) =>
+    f.multiPartyApproval ? f.hypothesisApprovedAt != null : f.hasHypothesisContent,
   blocking: true,
 };
 
 const OWNER_NOMINATED: CriterionRule = {
   key: "owner_nominated",
   label: () => "Epic Owner ist benannt",
+  help:
+    "Der Epic Owner verantwortet Fortschritt, Business Case und Freigaben. " +
+    "Benenne ihn im Overview über das Owner-Feld.",
   satisfied: (f) => f.ownerId != null,
   blocking: false,
 };
@@ -144,6 +164,9 @@ export const GATE_CRITERIA: Partial<Record<StageGate, readonly CriterionRule[]>>
     {
       key: "business_case_started",
       label: () => "Business Case ist begonnen",
+      help:
+        "Der Business Case hält Kosten, Nutzen und Optionen fest. Begonnen heißt: " +
+        "es gibt bereits Inhalt. Pflege ihn im Reiter Business Case.",
       satisfied: (f) => f.hasBusinessCaseContent,
       blocking: false,
     },
@@ -152,12 +175,18 @@ export const GATE_CRITERIA: Partial<Record<StageGate, readonly CriterionRule[]>>
     {
       key: "business_case_approved",
       label: () => "Business Case ist freigegeben",
+      help:
+        "Der Business Case ist von den benannten Personen abgenommen. Fordere die " +
+        "Freigabe im Reiter Business Case an.",
       satisfied: (f) => f.businessCaseApprovedAt != null,
       blocking: true,
     },
     {
       key: "budget_allocated",
       label: () => "Budget ist alloziert (Σ > 0)",
+      help:
+        "Dem Epic ist über das Participatory Budgeting Budget zugeteilt (Summe > 0). " +
+        "Die Zuteilung erfolgt in den Budgeting-Zeiträumen.",
       satisfied: (f) => f.budgetAllocationSum > 0,
       blocking: true,
     },
@@ -169,6 +198,9 @@ export const GATE_CRITERIA: Partial<Record<StageGate, readonly CriterionRule[]>>
       // erlaubt" — dieselbe Entscheidung, jetzt sichtbar statt kommentiert.
       key: "feature_started",
       label: () => "Mindestens ein Feature ist gestartet",
+      help:
+        "Mindestens ein untergeordnetes Feature ist in Umsetzung. Features entstehen " +
+        "im Reiter Deliverables; ihr Status wird im Delivery-Cockpit gesetzt.",
       satisfied: (f) => f.childFeatureStats.started > 0,
       blocking: false,
     },
@@ -177,6 +209,9 @@ export const GATE_CRITERIA: Partial<Record<StageGate, readonly CriterionRule[]>>
     {
       key: "features_completed",
       label: () => "Alle Child-Features sind abgeschlossen",
+      help:
+        "Alle untergeordneten Features sind abgeschlossen — Voraussetzung für den " +
+        "Abschluss des Epics (L5). Den Feature-Status pflegst du im Delivery-Cockpit.",
       satisfied: (f) => allChildrenCompleted(f.childFeatureStats),
       blocking: true,
     },
@@ -205,6 +240,7 @@ export function gateReadiness(facts: EpicGateFacts, to: StageGate): GateReadines
   const criteria = rules.map((rule) => ({
     key: rule.key,
     label: rule.label(facts),
+    help: rule.help,
     satisfied: rule.satisfied(facts),
     blocking: rule.blocking,
   }));

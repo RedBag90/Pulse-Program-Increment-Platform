@@ -33,6 +33,10 @@ export interface IssueTreeDnd {
     onDragLeave: () => void;
     onDrop: (e: DragEvent) => void;
   };
+  /** Tastatur-/Menü-Alternative zum Drag: Issue `id` unter `target` hängen. */
+  reparentTo: (id: string, target: DropTarget) => void;
+  /** Ist `targetId` ein zulässiges neues Parent für `id` (kein Selbst/Zyklus)? */
+  canReparentTo: (id: string, targetId: string) => boolean;
 }
 
 export function useIssueTreeDnd(opts: {
@@ -108,6 +112,14 @@ export function useIssueTreeDnd(opts: {
         endDrag();
       },
     }),
+    reparentTo: (id, target) => {
+      if (target.kind === "issue" && (target.id === id || opts.isDescendant(id, target.id))) return;
+      const fd = new FormData();
+      fd.append("id", id);
+      fd.append("newParentId", target.kind === "issue" ? target.id : "");
+      startTransition(() => reparent(fd));
+    },
+    canReparentTo: (id, targetId) => id !== targetId && !opts.isDescendant(id, targetId),
   };
 }
 

@@ -62,12 +62,12 @@ export interface NavGroup {
 
 export const NAV_GROUPS: NavGroup[] = [
   {
+    // „Meine Freigaben" ist in „Meine Tasks" aufgegangen: beide Listen liegen jetzt
+    // gestapelt auf /my-tasks. Ein-Item-Gruppe → rendert als einfacher Top-Level-
+    // Link ohne Dropdown. /my-approvals bleibt als Redirect auf /my-tasks.
     labelKey: "myTasks",
+    defaultHref: "/my-tasks",
     items: [{ href: "/my-tasks", labelKey: "myTasks", icon: ListTodo }],
-  },
-  {
-    labelKey: "myApprovals",
-    items: [{ href: "/my-approvals", labelKey: "myApprovals", icon: Inbox }],
   },
   {
     labelKey: "goals",
@@ -90,7 +90,12 @@ export const NAV_GROUPS: NavGroup[] = [
         practice: "portfolioLevel",
       },
       { href: "/portfolio/epics", labelKey: "epics", icon: Layers, practice: "portfolioLevel" },
-      { href: "/portfolio/solutions", labelKey: "solutions", icon: Boxes, practice: "portfolioLevel" },
+      {
+        href: "/portfolio/solutions",
+        labelKey: "solutions",
+        icon: Boxes,
+        practice: "portfolioLevel",
+      },
       {
         href: "/portfolio/dashboard",
         labelKey: "portfolioDashboard",

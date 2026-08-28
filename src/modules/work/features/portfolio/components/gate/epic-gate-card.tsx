@@ -1,13 +1,17 @@
 "use client";
 
 import { useActionState, useState, startTransition } from "react";
-import { ArrowUp, Check, Circle, CircleDot, Undo2, X } from "lucide-react";
+import { ArrowUp, ArrowRight, Check, Circle, CircleDot, LifeBuoy, Undo2, X } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import {
   requestGateTransitionAction,
   decideGateTransitionAction,
   withdrawGateTransitionAction,
 } from "@/modules/work/features/portfolio/actions/stage-gate";
+import { setEpicHelpRequestedAction } from "@/modules/work/features/portfolio/actions/epic";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import type { EpicGateSlice } from "@/modules/work/server/views/epic-detail";
 import { GateRevertDialog } from "./gate-revert-dialog";
 
@@ -43,6 +47,43 @@ function gateLabel(gate: string): string {
   return STAGE_GATE_LABELS[gate] ?? gate;
 }
 
+/**
+ * Sprungziel je Freigabe-Kriterium: der Ort, an dem man es erfüllt. Nach
+ * Kriterium-`key` (SSOT: `gate-readiness.ts`). Tab-Ziele landen auf der
+ * Epic-Seite via `?tab=`, zwei Kriterien zeigen in andere Bereiche.
+ * Fehlt ein Eintrag (künftiges Kriterium), wird nur der Hilfetext gezeigt.
+ */
+const CRITERION_TARGET: Record<string, { href: (epicId: string) => string; label: string }> = {
+  hypothesis_ready: {
+    href: (id) => `/portfolio/epics/${id}?tab=benefit-hypothesis`,
+    label: "Zur Hypothese",
+  },
+  owner_nominated: {
+    href: (id) => `/portfolio/epics/${id}?tab=overview`,
+    label: "Zum Overview",
+  },
+  business_case_started: {
+    href: (id) => `/portfolio/epics/${id}?tab=business-case`,
+    label: "Zum Business Case",
+  },
+  business_case_approved: {
+    href: (id) => `/portfolio/epics/${id}?tab=business-case`,
+    label: "Zum Business Case",
+  },
+  budget_allocated: {
+    href: () => "/budgeting/periods",
+    label: "Zum Budgeting",
+  },
+  feature_started: {
+    href: (id) => `/portfolio/epics/${id}?tab=breakdown`,
+    label: "Zu den Deliverables",
+  },
+  features_completed: {
+    href: (id) => `/umsetzung?epic=${id}`,
+    label: "Zum Delivery-Cockpit",
+  },
+};
+
 interface Props {
   epicId: string;
   gate: EpicGateSlice;
@@ -70,6 +111,51 @@ export function EpicGateCard({ epicId, gate, userLabels }: Props) {
       ) : (
         <NoRequest epicId={epicId} gate={gate} />
       )}
+
+      {gate.canRequestHelp && <HelpRequestControl epicId={epicId} requested={gate.helpRequested} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// „I need help" — Owner-only
+// ---------------------------------------------------------------------------
+
+/**
+ * Der Epic-Owner bittet um Unterstützung: ankreuzen stempelt `helpRequestedAt`,
+ * und in „Meine Tasks" erscheint bei VMO und Portfolio-Management ein Hinweis.
+ * Abhaken nimmt die Bitte zurück.
+ */
+function HelpRequestControl({ epicId, requested }: { epicId: string; requested: boolean }) {
+  const [state, action, pending] = useActionState(setEpicHelpRequestedAction, {});
+
+  function toggle(next: boolean) {
+    const fd = new FormData();
+    fd.set("id", epicId);
+    fd.set("value", next ? "true" : "false");
+    startTransition(() => action(fd));
+  }
+
+  return (
+    <div className="space-y-1.5 border-t border-border pt-3">
+      <label className="flex items-center gap-2 text-xs">
+        <input
+          type="checkbox"
+          checked={requested}
+          disabled={pending}
+          onChange={(e) => toggle(e.target.checked)}
+          className="size-4 rounded border-input"
+        />
+        <span className="inline-flex items-center gap-1.5 font-medium">
+          <LifeBuoy className="size-3.5 text-muted-foreground" />I need help
+        </span>
+      </label>
+      {requested && (
+        <p className="pl-6 text-[11px] text-muted-foreground">
+          VMO und Portfolio-Management sehen dieses Epic jetzt in „Meine Tasks".
+        </p>
+      )}
+      {state.error && <p className="pl-6 text-xs text-destructive">{state.error}</p>}
     </div>
   );
 }
@@ -88,7 +174,9 @@ function NoRequest({
   const [state, action, pending] = useActionState(requestGateTransitionAction, {});
 
   if (!gate.next) {
-    return <p className="text-xs text-muted-foreground">Endgate erreicht — kein weiterer Wechsel.</p>;
+    return (
+      <p className="text-xs text-muted-foreground">Endgate erreicht — kein weiterer Wechsel.</p>
+    );
   }
 
   const blocked = gate.readiness ? !gate.readiness.ready : false;
@@ -116,9 +204,48 @@ function NoRequest({
               ) : (
                 <Circle className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60" />
               )}
-              <span>
-                {c.label}
-                {!c.blocking && <span className="text-muted-foreground"> (optional)</span>}
+              <span className="flex flex-wrap items-baseline gap-x-1.5">
+                {c.help ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <span className="cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2" />
+                      }
+                    >
+                      {c.label}
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">{c.help}</TooltipContent>
+                  </Tooltip>
+                ) : (
+                  c.label
+                )}
+                {!c.blocking && <span className="text-muted-foreground">(optional)</span>}
+                {c.help && (
+                  <Popover>
+                    <PopoverTrigger
+                      render={
+                        <button
+                          type="button"
+                          className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/50 hover:text-muted-foreground"
+                        />
+                      }
+                    >
+                      How to
+                    </PopoverTrigger>
+                    <PopoverContent side="top" className="w-72 text-xs leading-relaxed">
+                      <p>{c.help}</p>
+                      {CRITERION_TARGET[c.key] && (
+                        <Link
+                          href={CRITERION_TARGET[c.key]!.href(epicId)}
+                          className="inline-flex items-center gap-1 self-start rounded-md border border-input px-2 py-1 text-xs font-medium text-primary hover:bg-muted/50"
+                        >
+                          {CRITERION_TARGET[c.key]!.label}
+                          <ArrowRight className="size-3.5" />
+                        </Link>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                )}
               </span>
             </li>
           ))}

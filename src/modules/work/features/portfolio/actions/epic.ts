@@ -146,6 +146,26 @@ export const setEpicFlagAction = createServerAction({
     formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to update epic" }),
 });
 
+/**
+ * „I need help" — der Epic-Owner setzt/entfernt die Bitte um Unterstützung.
+ * Sichtbar ist der Auslöser nur für den Owner (UI-Gate); die Autorisierung läuft
+ * über `epic.update` gegen die geladene Zeile.
+ */
+export const setEpicHelpRequestedAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    // String-Enum — z.coerce.boolean("false") wäre truthy.
+    value: z.enum(["true", "false"]),
+  }),
+  action: "epic.update",
+  resource: (_input, p) => ({ tenantId: p.tenantId }),
+  service: (ctx, input) =>
+    updateEpic(ctx, { id: input.id as EpicId, helpRequested: input.value === "true" }),
+  revalidate: "epic",
+  mapError: (e) =>
+    formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to update epic" }),
+});
+
 export const deleteEpicAction = createServerAction({
   schema: z.object({ id: z.string().uuid() }),
   action: "epic.delete",
