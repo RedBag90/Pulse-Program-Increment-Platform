@@ -10,10 +10,12 @@ export const EPIC_TABS: readonly DetailTab[] = [
   { key: "timeline", label: "Reifegrad-Phasen und Timeline" },
   { key: "benefit-hypothesis", label: "Hypothese" },
   { key: "business-case", label: "Business Case" },
-  { key: "business-case-calc", label: "Business case calculation" },
   { key: "breakdown", label: "Deliverables" },
   { key: "dependencies", label: "Dependencies" },
   { key: "kpis", label: "KPI & Nutzenkalkulation" },
+  // Bewusst weit hinten (direkt vor History; ein etwaiger Issues-Tab wird in
+  // der Page DAVOR injiziert): die Kalkulation ist eine Auswertungs-Sicht.
+  { key: "business-case-calc", label: "Business case calculation" },
   { key: "history", label: "History" },
 ];
 

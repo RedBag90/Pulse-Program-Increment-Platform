@@ -37,7 +37,7 @@ interface Props {
   /** Optionaler Hinweis unter „Aktueller Wert" (z. B. Kaskaden-Erklärung). */
   currentValueHint?: string | null | undefined;
   canEdit: boolean;
-  /** Fortschrittsquelle (manual | rollup | auto_kpi) — steuert Wert-Pflege. */
+  /** Fortschrittsquelle (manual | rollup | kpi_tree) — steuert Wert-Pflege. */
   progressMode?: string | null | undefined;
   /** Ist-Wert für die Vorbelegung des Wert-Update-Dialogs. */
   krCurrent?: number | null | undefined;

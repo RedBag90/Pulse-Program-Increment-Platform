@@ -1,7 +1,7 @@
 /**
  * Fortschritts-/Wert-Verläufe für den Ziel-Graf. Die Linie eines Knotens folgt
  * seiner Fortschrittsquelle (goal-progress-mode.ts):
- *   - auto_kpi → zeitlicher KPI-Verlauf (einheitengleiche Summe),
+ *   - kpi_tree-Blatt → zeitlicher KPI-Verlauf (einheitengleiche Summe),
  *   - rollup   → gewichteter Ø der Unterziele über die Zeit (rekursiv),
  *   - manual   → eigene Status-Snapshots + Live-Ende.
  *
@@ -36,7 +36,7 @@ interface UnitSpec {
 }
 
 /**
- * Ein zeitlicher Beitrag zum `auto_kpi`-Verlauf, je verknüpftem Epic — analog zu
+ * Ein zeitlicher Beitrag zum KPI-Blatt-Verlauf, je verknüpftem Epic — analog zu
  * `AutoKpiLink` (goal-progress-mode.ts), aber mit der vollen **Messreihe** je KPI.
  * Jede Messung liefert ein **Delta** (Verbesserung ggü. KPI-Baseline Richtung
  * KPI-Target), das über den Faktor (bzw. 1 bei sameUnit) in die Ziel-Einheit
@@ -74,7 +74,7 @@ export interface SeriesNode {
   unitSpec: UnitSpec;
   /** Eigene Status-Check-ins (eingefrorener Fortschritt 0..1), beliebige Reihenfolge. */
   checkins: ProgressPoint[];
-  /** Verknüpfte Epic-KPIs (nur bei auto_kpi relevant), faktor-bewusst. */
+  /** Verknüpfte Epic-KPIs (nur bei kpi_tree-Blättern relevant), faktor-bewusst. */
   autoKpiLinks: AutoKpiSeriesLink[];
   children: SeriesNode[];
 }
@@ -89,7 +89,7 @@ const byAt = (a: { at: string }, b: { at: string }): number =>
   a.at < b.at ? -1 : a.at > b.at ? 1 : 0;
 
 /**
- * **Absoluter** Wert-Verlauf für auto_kpi in der Ziel-Einheit, konsistent mit
+ * **Absoluter** Wert-Verlauf für KPI-getriebene Blätter in der Ziel-Einheit, konsistent mit
  * `autoKpiCurrent`: je Termin `baseline + Richtung(Ziel) × Σ (KPI-Δ × Faktor)`.
  * Jeder beitragende KPI-Strom trägt sein zuletzt bekanntes Delta bei (Step).
  */

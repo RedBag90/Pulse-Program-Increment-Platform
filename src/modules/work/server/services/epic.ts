@@ -137,6 +137,14 @@ export interface UpdateEpicInput {
   /** SAFe Portfolio Guardrails (Capacity). `null` cleart, `undefined` belaesst.
    *  Der Horizont wird NICHT mehr hier gesetzt — er kommt aus der Primär-Solution. */
   epicType?: EpicType | null | undefined;
+  /**
+   * Wertstrom-/ART-Wechsel (beides `undefined` = unverändert). Wird eines der
+   * Felder gesetzt, muss das **effektive Paar** zusammenpassen (ART gehört zum
+   * Wertstrom — dieselbe Regel wie beim Anlegen). Wechselt der Wertstrom und
+   * die bisherige Primär-Solution gehört nicht zum neuen, wird sie geleert.
+   */
+  valueStreamId?: ValueStreamId | undefined;
+  artId?: ArtId | undefined;
 }
 
 export async function updateEpic(
@@ -154,6 +162,8 @@ export async function updateEpic(
     plannedStartAt,
     plannedEndAt,
     epicType,
+    valueStreamId,
+    artId,
   } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
@@ -172,6 +182,9 @@ export async function updateEpic(
         epicType: true,
         businessCaseApprovedAt: true,
         hypothesisApprovedAt: true,
+        valueStreamId: true,
+        artId: true,
+        primarySolutionId: true,
       },
     });
     if (isErr(loaded)) return loaded;
@@ -213,6 +226,40 @@ export async function updateEpic(
       });
     }
 
+    // Wertstrom-/ART-Wechsel: das effektive Paar muss zusammenpassen (dieselbe
+    // Regel wie beim Anlegen — die UI kaskadiert, der Service prüft final).
+    let clearPrimarySolution = false;
+    if (valueStreamId !== undefined || artId !== undefined) {
+      const nextVs = valueStreamId ?? existing.valueStreamId;
+      const nextArt = artId ?? existing.artId;
+      if (!nextVs || !nextArt) {
+        return err({
+          kind: "conflict" as const,
+          reason: "Wertstrom und ART müssen gemeinsam gesetzt sein.",
+        });
+      }
+      const art = await tx.art.findFirst({
+        where: { id: nextArt, tenantId: mctx.tenantId, valueStreamId: nextVs },
+        select: { id: true },
+      });
+      if (!art) {
+        return err({
+          kind: "conflict" as const,
+          reason: "Die ART gehört nicht zum gewählten Wertstrom.",
+        });
+      }
+      // Primär-Solution ist VS-gebunden (liefert Horizont/Swimlane): passt sie
+      // nach dem Wechsel nicht mehr, wird sie geleert; die EpicSolution-Join-
+      // Zeilen bleiben zur manuellen Pflege sichtbar.
+      if (nextVs !== existing.valueStreamId && existing.primarySolutionId != null) {
+        const sol = await tx.solution.findFirst({
+          where: { id: existing.primarySolutionId, valueStreamId: nextVs, deletedAt: null },
+          select: { id: true },
+        });
+        if (!sol) clearPrimarySolution = true;
+      }
+    }
+
     const { changes, data } = recordedUpdate({
       existing,
       updates: {
@@ -224,6 +271,9 @@ export async function updateEpic(
         plannedStartAt,
         plannedEndAt,
         epicType,
+        valueStreamId,
+        artId,
+        ...(clearPrimarySolution ? { primarySolutionId: null } : {}),
       },
       fields: [
         "title",
@@ -235,6 +285,9 @@ export async function updateEpic(
         "plannedStartAt",
         "plannedEndAt",
         "epicType",
+        "valueStreamId",
+        "artId",
+        "primarySolutionId",
       ] as const,
     });
 

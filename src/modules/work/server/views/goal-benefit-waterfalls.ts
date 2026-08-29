@@ -17,7 +17,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { StageGate, TenantId } from "@/modules/core/kernel/domain/types";
 import {
-  epicTopGoalBenefits,
+  epicGoalBenefitsPerNode,
   type GoalNodeMeta,
   type EpicGoalLinkInput,
 } from "@/modules/core/goals/domain/goals-rollup";
@@ -35,9 +35,11 @@ import type {
 export type { GoalWaterfallData };
 
 /**
- * Lädt die Wasserfall-Daten aller messbaren Kopf-Ziele eines Tenants: pro Ziel
- * die verknüpften Epics mit ihrem Beitrag (planned/realized) in der Ziel-Einheit
- * und ihrem aktuellen Reifegrad (Gate + Sub-Stage).
+ * Lädt die Wasserfall-Daten aller messbaren Ziele eines Tenants — Wurzel-Ziele
+ * **und** Unterziele mit eigenem Zielwert (wählbar im Ziel-Selektor, z. B. je
+ * Wertstrom): pro Ziel die verknüpften Epics mit ihrem Beitrag
+ * (planned/realized) in der Einheit des jeweiligen Ziel-Knotens und ihrem
+ * aktuellen Reifegrad (Gate + Sub-Stage).
  */
 export async function getGoalBenefitWaterfalls(
   db: PrismaClient,
@@ -82,14 +84,16 @@ export async function getGoalBenefitWaterfalls(
     ]),
   );
 
-  // Messbare Kopf-Ziele = Wurzel-Objectives mit gesetztem Zielwert (Referenzlinie).
+  // Messbare Ziele = alle Objectives mit gesetztem Zielwert (Referenzlinie) —
+  // Wurzeln wie Unterziele; die Hierarchie (parentId) steuert den Selektor.
   const goals: GoalWaterfallGoal[] = [];
   const goalIds = new Set<string>();
   for (const o of objectives) {
     const target = toFloat(o.target);
-    if (o.parentObjectiveId === null && target != null) {
+    if (target != null) {
       goals.push({
         id: o.id,
+        parentId: o.parentObjectiveId,
         title: o.title,
         target,
         metricType: o.metricType,
@@ -135,9 +139,10 @@ export async function getGoalBenefitWaterfalls(
     featureDone,
   );
 
-  // Je Ziel die Epic-Beiträge zusammensetzen: epicTopGoalBenefits liefert pro
-  // (Kopf-Ziel × impactKind); wir summieren impactKind je Ziel und hängen den
-  // Reifegrad des Epics an.
+  // Je Ziel die Epic-Beiträge zusammensetzen: epicGoalBenefitsPerNode schreibt
+  // den Beitrag jedem Knoten der Aufstiegskette gut (Unterziel unskaliert,
+  // Vorfahren skaliert — Wurzel-Werte identisch zum bisherigen Top-Rollup);
+  // wir hängen den Reifegrad des Epics an.
   const epicsByGoal: Record<string, GoalWaterfallEpic[]> = {};
   for (const gid of goalIds) epicsByGoal[gid] = [];
 
@@ -145,14 +150,14 @@ export async function getGoalBenefitWaterfalls(
     const maturity = maturityByEpic.get(epicId);
     if (!maturity) continue; // Epic nicht (mehr) vorhanden/gelöscht
     const perGoal = new Map<string, { planned: number; realized: number }>();
-    for (const b of epicTopGoalBenefits(inputs, nodesById)) {
-      if (!goalIds.has(b.topGoalId)) continue; // Kopf-Ziel ohne Zielwert → kein Wasserfall
-      const prev = perGoal.get(b.topGoalId);
+    for (const b of epicGoalBenefitsPerNode(inputs, nodesById)) {
+      if (!goalIds.has(b.goalId)) continue; // Knoten ohne Zielwert → kein Wasserfall
+      const prev = perGoal.get(b.goalId);
       if (prev) {
         prev.planned += b.planned;
         prev.realized += b.realized;
       } else {
-        perGoal.set(b.topGoalId, { planned: b.planned, realized: b.realized });
+        perGoal.set(b.goalId, { planned: b.planned, realized: b.realized });
       }
     }
     for (const [gid, val] of perGoal) {

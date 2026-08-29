@@ -82,7 +82,8 @@ export function EpicBusinessCaseCalcTab({ rows, summary }: Props) {
   }, [rows]);
 
   // Default: alle Jahre aufgeklappt (Monate sichtbar), Monate zugeklappt (Tage aus).
-  const [openYears, setOpenYears] = useState<Set<string>>(() => new Set(tree.keys()));
+  // Standard: alles auf Jahresebene eingeklappt; Monate/Tage per Chevron.
+  const [openYears, setOpenYears] = useState<Set<string>>(() => new Set());
   const [openMonths, setOpenMonths] = useState<Set<string>>(() => new Set());
   const toggle = (set: Set<string>, key: string): Set<string> => {
     const next = new Set(set);

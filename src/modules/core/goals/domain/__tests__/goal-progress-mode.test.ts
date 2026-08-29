@@ -12,13 +12,13 @@ import {
 } from "@/modules/core/goals/domain/goal-progress-mode";
 
 describe("progress mode basics", () => {
-  it("exposes the four modes", () => {
-    expect(PROGRESS_MODES).toEqual(["manual", "rollup", "auto_kpi", "kpi_tree"]);
+  it("exposes the three modes (auto_kpi ist zurückgebaut)", () => {
+    expect(PROGRESS_MODES).toEqual(["manual", "rollup", "kpi_tree"]);
   });
   it("isProgressMode guards", () => {
     expect(isProgressMode("manual")).toBe(true);
-    expect(isProgressMode("auto_kpi")).toBe(true);
     expect(isProgressMode("kpi_tree")).toBe(true);
+    expect(isProgressMode("auto_kpi")).toBe(false); // Legacy — nur noch via effectiveProgressMode
     expect(isProgressMode("")).toBe(false);
     expect(isProgressMode(null)).toBe(false);
     expect(isProgressMode("nonsense")).toBe(false);
@@ -26,9 +26,7 @@ describe("progress mode basics", () => {
 });
 
 describe("Blatt-vs-Ast-Prädikate", () => {
-  it("derivesCurrentFromKpis: auto_kpi immer, kpi_tree nur als Blatt", () => {
-    expect(derivesCurrentFromKpis("auto_kpi", false)).toBe(true);
-    expect(derivesCurrentFromKpis("auto_kpi", true)).toBe(true);
+  it("derivesCurrentFromKpis: nur kpi_tree als Blatt", () => {
     expect(derivesCurrentFromKpis("kpi_tree", false)).toBe(true);
     expect(derivesCurrentFromKpis("kpi_tree", true)).toBe(false);
     expect(derivesCurrentFromKpis("rollup", false)).toBe(false);
@@ -39,7 +37,6 @@ describe("Blatt-vs-Ast-Prädikate", () => {
     expect(aggregatesFromChildren("kpi_tree", true)).toBe(true);
     expect(aggregatesFromChildren("rollup", false)).toBe(false);
     expect(aggregatesFromChildren("kpi_tree", false)).toBe(false);
-    expect(aggregatesFromChildren("auto_kpi", true)).toBe(false);
     expect(aggregatesFromChildren("manual", true)).toBe(false);
   });
   it("usesValueBasedCompletion: nur kpi_tree-Ast", () => {
@@ -51,8 +48,12 @@ describe("Blatt-vs-Ast-Prädikate", () => {
 
 describe("effectiveProgressMode", () => {
   it("uses a stored valid mode", () => {
-    expect(effectiveProgressMode("auto_kpi", true)).toBe("auto_kpi");
+    expect(effectiveProgressMode("kpi_tree", true)).toBe("kpi_tree");
     expect(effectiveProgressMode("manual", true)).toBe("manual");
+  });
+  it("mappt den zurückgebauten Legacy-Wert auto_kpi auf kpi_tree", () => {
+    expect(effectiveProgressMode("auto_kpi", false)).toBe("kpi_tree");
+    expect(effectiveProgressMode("auto_kpi", true)).toBe("kpi_tree");
   });
   it("derives from structure when null/invalid (legacy behaviour)", () => {
     expect(effectiveProgressMode(null, true)).toBe("rollup");
@@ -189,15 +190,12 @@ describe("isMeasurableGoal", () => {
       false,
     );
   });
-  it("manual/auto_kpi need a target", () => {
+  it("manual needs a target", () => {
     expect(isMeasurableGoal({ progressMode: "manual", target: 100, hasChildren: false })).toBe(
       true,
     );
     expect(isMeasurableGoal({ progressMode: "manual", target: null, hasChildren: true })).toBe(
       false,
-    );
-    expect(isMeasurableGoal({ progressMode: "auto_kpi", target: 50, hasChildren: false })).toBe(
-      true,
     );
   });
   it("kpi_tree ist messbar als Ast (Kinder) oder als Blatt (Target)", () => {

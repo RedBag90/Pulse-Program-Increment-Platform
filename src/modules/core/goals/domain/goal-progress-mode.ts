@@ -7,11 +7,16 @@
  *                 `current`-Spalte); gilt auf jeder Ebene, auch als Override bei
  *                 einem Knoten **mit** Kindern.
  *  - `rollup`   — gewichteter Durchschnitt der Kind-Fortschritte (ADR-0008).
- *  - `auto_kpi` — Einzel-Blatt: Ist-Wert aus den verknüpften Epic-KPIs
- *                 (`autoKpiCurrent`, Δ×Faktor auf die Ziel-Skala); ignoriert Kinder.
- *  - `kpi_tree` — KPI-Baum-Knoten: **Blatt** rechnet wie `auto_kpi` (Ist aus KPIs),
- *                 **Ast** (mit Kindern) kaskadiert die Unterziel-Werte
- *                 (`nodeUnitValue`) und misst wert-basiert `realized/|target−baseline|`.
+ *  - `kpi_tree` — KPI-Baum-Knoten: **Blatt** leitet den Ist-Wert aus den
+ *                 verknüpften Epic-KPIs ab (`autoKpiCurrent`, Δ×Faktor auf die
+ *                 Ziel-Skala), **Ast** (mit Kindern) kaskadiert die Unterziel-
+ *                 Werte (`nodeUnitValue`) und misst wert-basiert
+ *                 `realized/|target−baseline|`.
+ *
+ * Der frühere Modus `auto_kpi` („Aus verknüpften KPIs") ist zurückgebaut — er
+ * rechnete identisch zum `kpi_tree`-Blatt. Gespeicherte Altwerte mappt
+ * `effectiveProgressMode` defensiv auf `kpi_tree` (Backfill:
+ * `prisma/scripts/2026-08-29-auto-kpi-to-kpi-tree.ts`).
  *
  * `progressMode = null` in der DB ⇒ **abgeleitet** (`rollup` wenn Kinder, sonst
  * `manual`) = exakt das Verhalten vor Einführung des Feldes (kein Backfill).
@@ -20,7 +25,7 @@
 import { isMetricType } from "@/modules/core/goals/domain/goal-metric";
 import { kpiDelta, direction, type KpiPoint } from "@/modules/core/kpi/domain/kpi-valuation";
 
-export const PROGRESS_MODES = ["manual", "rollup", "auto_kpi", "kpi_tree"] as const;
+export const PROGRESS_MODES = ["manual", "rollup", "kpi_tree"] as const;
 export type ProgressMode = (typeof PROGRESS_MODES)[number];
 
 export function isProgressMode(v: string | null | undefined): v is ProgressMode {
@@ -33,9 +38,9 @@ export function isProgressMode(v: string | null | undefined): v is ProgressMode 
 // (Blatt ⇒ aus KPIs, Ast ⇒ aus Kindern), daher diese Prädikate statt verstreuter
 // `mode === …`-Vergleiche.
 
-/** Ist-Wert wird aus verknüpften Epic-KPIs abgeleitet (auto_kpi, oder kpi_tree-Blatt). */
+/** Ist-Wert wird aus verknüpften Epic-KPIs abgeleitet (kpi_tree-Blatt). */
 export function derivesCurrentFromKpis(mode: ProgressMode, hasChildren: boolean): boolean {
-  return mode === "auto_kpi" || (mode === "kpi_tree" && !hasChildren);
+  return mode === "kpi_tree" && !hasChildren;
 }
 
 /** Knoten aggregiert Fortschritt/Wert aus seinen Kindern (rollup, oder kpi_tree-Ast). */
@@ -49,13 +54,16 @@ export function usesValueBasedCompletion(mode: ProgressMode, hasChildren: boolea
 }
 
 /**
- * Effektiver Modus: ein gültig gespeicherter Wert gewinnt; sonst wird aus der
- * Struktur abgeleitet (Kinder ⇒ `rollup`, sonst `manual`).
+ * Effektiver Modus: ein gültig gespeicherter Wert gewinnt; der zurückgebaute
+ * Legacy-Wert `auto_kpi` wird defensiv auf `kpi_tree` gemappt (identisches
+ * Blatt-Verhalten); sonst wird aus der Struktur abgeleitet (Kinder ⇒ `rollup`,
+ * sonst `manual`).
  */
 export function effectiveProgressMode(
   stored: string | null | undefined,
   hasChildren: boolean,
 ): ProgressMode {
+  if (stored === "auto_kpi") return "kpi_tree";
   if (isProgressMode(stored)) return stored;
   return hasChildren ? "rollup" : "manual";
 }
@@ -86,7 +94,7 @@ export function unitsMatch(goal: GoalUnitSpec, kpiUnit: string | null | undefine
 }
 
 /**
- * Ein Beitrag zum `auto_kpi`-Ist eines Ziels, je verknüpftem Epic (GoalEpicLink).
+ * Ein Beitrag zum KPI-abgeleiteten Ist eines Ziels (kpi_tree-Blatt), je verknüpftem Epic (GoalEpicLink).
  * Die KPI-Bewegung ist stets ein **Delta** (Verbesserung Richtung KPI-Target,
  * `kpiDelta`), das in die Ziel-Einheit übersetzt und auf die Baseline
  * aufgerechnet wird (siehe `autoKpiCurrent`):
@@ -106,7 +114,7 @@ interface GoalAutoKpiSpec extends GoalUnitSpec {
 }
 
 /**
- * Abgeleiteter **absoluter** Ist-Wert für `auto_kpi`, in der Ziel-Einheit auf der
+ * Abgeleiteter **absoluter** Ist-Wert eines KPI-getriebenen Blatts (`kpi_tree`), in der Ziel-Einheit auf der
  * eigenen baseline→target-Skala: `baseline + Richtung × Σ (KPI-Δ × Faktor)`.
  * Die KPI-Bewegung ist ein Delta (`kpiDelta`), das über den Faktor (bevorzugt)
  * bzw. einheiten-gleich (Fallback) beiträgt; die Richtung stammt vom Ziel
@@ -140,7 +148,7 @@ export function autoKpiCurrent(
 
 /**
  * Ob ein Knoten einen 0..1-Fortschritt liefern kann: `rollup` braucht Kinder;
- * `manual`/`auto_kpi` brauchen einen Zielwert; `kpi_tree` ist messbar als Ast
+ * `manual` braucht einen Zielwert; `kpi_tree` ist messbar als Ast
  * (über Kinder) **oder** als Blatt (über eigenen Zielwert).
  */
 export function isMeasurableGoal(node: {

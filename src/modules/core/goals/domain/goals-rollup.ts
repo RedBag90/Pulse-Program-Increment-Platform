@@ -199,7 +199,7 @@ export interface RollupNode {
  *    der Kinder; Kinder ohne Fortschritt (`null`) werden ausgeklammert; ohne
  *    Kinder ⇒ `null`. (Der `kpi_tree`-Ast bekommt hier den Ø als Basis; ein
  *    wert-basiertes Override rechnet der Loader in `goals-forest.build()`.)
- *  - sonst (`manual` / `auto_kpi` / `kpi_tree`-**Blatt**) → eigener `progressLeaf`,
+ *  - sonst (`manual` / `kpi_tree`-**Blatt**) → eigener `progressLeaf`,
  *    **auch wenn Kinder existieren** (expliziter Override der Fortschrittsquelle).
  */
 export function nodeProgress(node: RollupNode): number | null {
@@ -279,7 +279,7 @@ export function epicSuccessKpiContribution(
  * vom Epic-Rollup entkoppelt bleibt):
  *  - aggregierend (`rollup`, oder `kpi_tree`-Ast) mit Kindern → Σ (nodeUnitValue(Kind)
  *    × Kind.childUnitFactor) für Kinder mit `includeInRollup`, PLUS eigene Epic-Beiträge.
- *  - sonst (`manual` / `auto_kpi` / `kpi_tree`-Blatt) → eigenes Blatt gewinnt:
+ *  - sonst (`manual` / `kpi_tree`-Blatt) → eigenes Blatt gewinnt:
  *    `unitValueLeaf` + eigene Epic-Link-Beiträge.
  */
 export function nodeUnitValue(node: RollupNode): RollupTrio {
@@ -375,6 +375,61 @@ export function epicTopGoalBenefits(
         realized: trio.realized,
         impactKind: link.impactKind,
       });
+    }
+  }
+  return [...grouped.values()];
+}
+
+/** Beitrag eines Epics zu EINEM Ziel-Knoten (in dessen Einheit). */
+export interface NodeGoalBenefit {
+  goalId: string;
+  planned: number;
+  realized: number;
+}
+
+/**
+ * Wie {@link epicTopGoalBenefits}, aber der Beitrag wird **jedem Knoten der
+ * Aufstiegskette** gutgeschrieben — dem verknüpften Knoten selbst unskaliert,
+ * jedem Vorfahren mit derselben Skalierung (× `parentUnitPerChildUnit` je
+ * Kante) und demselben Zyklus-Schutz. Der Wert am Wurzel-Knoten ist damit exakt
+ * identisch zu `epicTopGoalBenefits`. Ermöglicht Ziel-Sichten auf Unterziel-
+ * Ebene (z. B. der Benefit-Wasserfall je Wertstrom-Unterziel).
+ */
+export function epicGoalBenefitsPerNode(
+  links: readonly EpicGoalLinkInput[],
+  nodesById: ReadonlyMap<string, GoalNodeMeta>,
+): NodeGoalBenefit[] {
+  const grouped = new Map<string, NodeGoalBenefit>();
+  const credit = (goalId: string, trio: RollupTrio): void => {
+    const prev = grouped.get(goalId);
+    if (prev) {
+      prev.planned += trio.planned;
+      prev.realized += trio.realized;
+    } else {
+      grouped.set(goalId, { goalId, planned: trio.planned, realized: trio.realized });
+    }
+  };
+  for (const link of links) {
+    if (link.conversionFactor == null) continue;
+    let trio = epicSuccessKpiContribution(
+      link.kpi,
+      link.conversionFactor,
+      link.impactKind,
+      link.recurringInterval,
+    );
+    let node = nodesById.get(link.objectiveId);
+    if (!node) continue;
+    // Jeder Knoten wird je Link genau EINMAL gutgeschrieben — das Set ist
+    // zugleich der Zyklus-Schutz (kein Doppel-Credit bei korrupten Kanten).
+    const credited = new Set<string>([node.id]);
+    credit(node.id, trio);
+    while (node.parentId !== null) {
+      trio = scaleTrio(trio, node.parentUnitPerChildUnit ?? 0);
+      const parent = nodesById.get(node.parentId);
+      if (!parent || credited.has(parent.id)) break;
+      node = parent;
+      credited.add(node.id);
+      credit(node.id, trio);
     }
   }
   return [...grouped.values()];

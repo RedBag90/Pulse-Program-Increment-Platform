@@ -803,7 +803,7 @@ model Initiative {
 
   // Level-specific foreign keys
   valueStreamId String? @map("value_stream_id") @db.Uuid // EPIC only
-  artId         String? @map("art_id") @db.Uuid // FEATURE only
+  artId         String? @map("art_id") @db.Uuid // EPIC (Pflicht beim Anlegen) + FEATURE
   piId          String? @map("pi_id") @db.Uuid // FEATURE only
 
   // WSJF fields (FEATURE only)

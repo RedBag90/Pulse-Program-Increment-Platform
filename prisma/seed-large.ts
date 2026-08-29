@@ -406,6 +406,8 @@ async function main() {
   const epicTitles: string[] = [];
   const epicOwner: (string | null)[] = [];
   const epicCycleIdx: number[] = [];
+  /** L4.1-Datum je Epic (nur Gate ≥ L4) — Anker der KPI-Erfassung. */
+  const epicImplStart: (Date | null)[] = [];
   const gateSeen: Record<string, number> = {};
   const epicRows: Prisma.InitiativeCreateManyInput[] = [];
   for (let i = 0; i < EPIC_COUNT; i++) {
@@ -433,11 +435,12 @@ async function main() {
     const owned = gate !== "L0" || i % 3 !== 0;
     const ownerId = owned ? owners[i % owners.length]! : null;
     epicOwner[i] = ownerId;
-    const funded = ["L3", "L4", "L5"].includes(gate); // bezahlt ⇒ hat BudgetAllocation
     const definedNoBudget = gate === "L2"; // fertig definiert, wartet auf Budget
     const gteL2 = ["L2", "L3", "L4", "L5"].includes(gate);
-    const gteL3 = ["L3", "L4", "L5"].includes(gate);
-    const gteL4 = ["L4", "L5"].includes(gate);
+    const gteL4 = ["L4", "L5"].includes(gate); // bezahlt/laufend ⇒ Umsetzung gestartet
+    // Umsetzungsstart (L4.1): identischer Wert für Spalte und KPI-Messbeginn.
+    const implStartedAt = gteL4 ? beforeNow(plannedStart, 1) : null;
+    epicImplStart[i] = implStartedAt;
 
     epicRows.push({
       id: epicIds[i]!,
@@ -474,7 +477,7 @@ async function main() {
       ...(gteL2 ? { hypothesisApprovedAt: beforeNow(addDays(plannedStart, -50), 6) } : {}),
       // L2 = fertig definiert (BC freigegeben), aber ohne Budget → bleibt an L2 hängen.
       ...(gteL2 ? { businessCaseApprovedAt: beforeNow(addDays(plannedStart, -20), 4) } : {}),
-      ...(gteL4 ? { implementationStartedAt: beforeNow(plannedStart, 1) } : {}),
+      ...(implStartedAt ? { implementationStartedAt: implStartedAt } : {}),
       ...(gate === "L5" ? { impactRecognizedAt: plannedEnd, completedAt: plannedEnd } : {}),
       ...(gate !== "L0"
         ? {
@@ -517,6 +520,18 @@ async function main() {
     })),
   });
 
+  // Szenario-Invariante: JEDES Epic hängt an einer Solution (primär + Join-Satz).
+  const epicsWithoutSolution = await prisma.initiative.count({
+    where: { tenantId, level: 0, primarySolutionId: null },
+  });
+  const solutionLinks = await prisma.epicSolution.count({ where: { tenantId } });
+  if (epicsWithoutSolution > 0 || solutionLinks < EPIC_COUNT) {
+    throw new Error(
+      `Seed-Invariante verletzt: ${epicsWithoutSolution} Epics ohne primarySolutionId, ` +
+        `${solutionLinks}/${EPIC_COUNT} EpicSolution-Verknüpfungen.`,
+    );
+  }
+
   // KPIs: Primär = Kosteneinsparung (€/Jahr, nach Reifegrad realisiert); Sekundär = operativ.
   const OPS = [
     { name: "SG&A-Quote", unit: "%", base: 14, tgt: 9 },
@@ -530,6 +545,10 @@ async function main() {
     const vs = epicVs[i]!;
     const savingsTarget = SAVINGS_BASE[vs]! + (i % 40) * 12_000;
     const savId = uid(`large:kpi:${i}:save`);
+    // Erfassung beginnt erst mit der Umsetzung (L4.1): die Baseline wird am
+    // Umsetzungsstart gemessen (erster Punkt = baseline @ L4.1-Datum). Epics
+    // vor L4 tragen noch KEINE Messwerte — baseline/target bleiben Planannahme.
+    const implStart = epicImplStart[i] ?? null;
     kpiRows.push({
       id: savId,
       tenantId,
@@ -538,11 +557,13 @@ async function main() {
       unit: "€",
       baseline: 0,
       target: savingsTarget,
-      measurements: simulateSeries(0, savingsTarget, {
-        monthsBack: gate === "L5" ? 18 : 12,
-        fraction: savingsFraction[gate]!,
-        seed: i * 5,
-      }),
+      measurements: implStart
+        ? simulateSeries(0, savingsTarget, {
+            from: implStart,
+            fraction: savingsFraction[gate]!,
+            seed: i * 5,
+          })
+        : [],
       valuePerUnit: 1,
       benefitKind: "recurring",
       recurringInterval: "yearly",
@@ -562,11 +583,13 @@ async function main() {
         unit: ops.unit,
         baseline: ops.base,
         target: ops.tgt,
-        measurements: simulateSeries(ops.base, ops.tgt, {
-          monthsBack: 12,
-          fraction: 0.55,
-          seed: i * 9 + 1,
-        }),
+        measurements: implStart
+          ? simulateSeries(ops.base, ops.tgt, {
+              from: implStart,
+              fraction: 0.55,
+              seed: i * 9 + 1,
+            })
+          : [],
         valuePerUnit: 1_000,
         benefitKind: "one_time",
         recurringInterval: "monthly",
@@ -1004,14 +1027,18 @@ async function main() {
   });
 
   // Top-Ziel (Unternehmensführung) → je Wertstrom aufgebrochen (kpi_tree, aus Epics).
+  // Ziel-getriebener Prozess: das Ziel steht zuerst, Epics füllen es — ALLE
+  // Epics (auch L0/L1) zählen in die Pipeline; das Ziel liegt mit 15 % Stretch
+  // darüber, damit der Benefit-Wasserfall eine sichtbare Deckungslücke behält.
+  const GOAL_STRETCH = 1.15;
   const gVs = [uid("large:goal:vs0"), uid("large:goal:vs1"), uid("large:goal:vs2")];
   const vsTarget = [0, 0, 0];
   for (let i = 0; i < EPIC_COUNT; i++) {
-    if (!["L2", "L3", "L4", "L5"].includes(gates[i]!)) continue;
     const k = epicSavingsKpi[i];
     if (!k) continue;
     vsTarget[epicVs[i]!]! += k.target;
   }
+  for (let v = 0; v < vsTarget.length; v++) vsTarget[v] = Math.round(vsTarget[v]! * GOAL_STRETCH);
   const gCost = uid("large:goal:cost-total");
   roots.push(
     objBase(gCost, themeProd, "Gesamt-Kostenreduktion (€ p.a.)", {
@@ -1036,7 +1063,7 @@ async function main() {
       objBase(id, vsTheme[vs]!, vsNodeTitles[vs]!, {
         parentObjectiveId: gCost,
         level: 1,
-        progressMode: vs === 0 ? "auto_kpi" : "kpi_tree",
+        progressMode: "kpi_tree",
         metricType: "currency",
         metricUnit: "€",
         currencyCode: "EUR",
@@ -1049,115 +1076,17 @@ async function main() {
     ),
   );
 
-  // Flaggschiff + operative KRs (mit Check-in-Historie).
-  const gRealized = uid("large:goal:realized");
-  const gSga = uid("large:goal:sga");
-  const gScrap = uid("large:goal:scrap");
-  const gOee = uid("large:goal:oee");
-  const gFreight = uid("large:goal:freight");
-  const gDio = uid("large:goal:dio");
-  roots.push(
-    objBase(gRealized, themeProd, "Realisierte Kosteneinsparung p.a. (Programm)", {
-      progressMode: "manual",
-      metricType: "currency",
-      metricUnit: "€",
-      currencyCode: "EUR",
-      baseline: 0,
-      target: 5_000_000,
-      current: 2_400_000,
-      status: "on_track",
-      period: PROGRAM_TARGET_YEAR,
-      ownerId: U.portfolio,
-    }),
-    objBase(gSga, themeAdmin, "SG&A-Quote auf 9 % senken", {
-      progressMode: "manual",
-      metricType: "percent",
-      metricUnit: "%",
-      baseline: 14,
-      target: 9,
-      current: 10,
-      status: "on_track",
-      period: `${YEAR}`,
-      ownerId: U.portfolio,
-    }),
-    objBase(gFreight, themeLog, "Frachtkosten je Sendung senken", {
-      progressMode: "manual",
-      metricType: "currency",
-      metricUnit: "€",
-      currencyCode: "EUR",
-      baseline: 42,
-      target: 30,
-      current: 34,
-      status: "on_track",
-      period: `${YEAR}`,
-      ownerId: U.vso,
-    }),
-    objBase(gDio, themeLog, "Bestandsreichweite (DIO) senken", {
-      progressMode: "manual",
-      metricType: "number",
-      metricUnit: "Tage",
-      baseline: 68,
-      target: 45,
-      current: 52,
-      status: "at_risk",
-      period: `${YEAR}`,
-      ownerId: U.vso,
-    }),
-    objBase(gScrap, themeProd, "Ausschussquote (Scrap) auf 2 % senken", {
-      progressMode: "manual",
-      metricType: "percent",
-      metricUnit: "%",
-      baseline: 6,
-      target: 2,
-      current: 3.5,
-      status: "at_risk",
-      period: `${YEAR}`,
-      ownerId: U.vmo,
-    }),
-    objBase(gOee, themeProd, "OEE auf 85 % steigern", {
-      progressMode: "manual",
-      metricType: "percent",
-      metricUnit: "%",
-      baseline: 68,
-      target: 85,
-      current: 79,
-      status: "on_track",
-      period: PROGRAM_TARGET_YEAR,
-      ownerId: U.vmo,
-    }),
-  );
-
-  // Geschlossene Meilensteine (frühere Programmjahre).
-  const CLOSED = [
-    ["achieved", "Shared Service Center etabliert", themeAdmin, -900],
-    ["partial", "Lager-Konsolidierung Phase 1", themeLog, -640],
-    ["missed", "Energiekosten-Ziel Jahr 3", themeProd, -420],
-    ["dropped", "IT-Outsourcing-Pilot", themeAdmin, -300],
-  ] as const;
-  CLOSED.forEach(([status, title, themeId, off], i) => {
-    roots.push(
-      objBase(uid(`large:goal:closed:${i}`), themeId, title, {
-        progressMode: "manual",
-        metricType: "percent",
-        metricUnit: "%",
-        baseline: 0,
-        target: 100,
-        current: status === "achieved" ? 100 : status === "partial" ? 65 : 30,
-        status,
-        closedAt: addDays(now, off),
-        closingNote: "Meilenstein im Programm-Review abgeschlossen.",
-        period: `${YEAR + Math.floor(off / 365)}`,
-      }),
-    );
-  });
-
+  // Bewusst KEINE weiteren Ziele: Der Ziele-Baum besteht ausschließlich aus dem
+  // Top-Ziel „Gesamt-Kostenreduktion" und den drei Wertstrom-Kindern (kpi_tree
+  // aus den Epic-Einsparungs-KPIs) — keine operativen KRs, keine geschlossenen
+  // Meilensteine, keine Check-in-Historie.
   await prisma.objective.createMany({ data: roots });
   await prisma.objective.createMany({ data: children });
 
-  // Epics dem Baum zuordnen: Einsparungs-KPI jedes definierten Epics (L2–L5) → Wertstrom-Ziel.
+  // Epics dem Baum zuordnen: die Einsparungs-KPI JEDES Epics (alle Gates,
+  // auch L0/L1 — ziel-getriebener Prozess) → Wertstrom-Ziel.
   const goalLinkRows: Prisma.GoalEpicLinkCreateManyInput[] = [];
   for (let i = 0; i < EPIC_COUNT; i++) {
-    if (!["L2", "L3", "L4", "L5"].includes(gates[i]!)) continue;
     const k = epicSavingsKpi[i];
     if (!k) continue;
     goalLinkRows.push({
@@ -1174,46 +1103,11 @@ async function main() {
   }
   await prisma.goalEpicLink.createMany({ data: goalLinkRows });
 
-  // Check-in-Historie (Halbjahres-Kadenz über die Programmjahre).
-  const checkinRows: Prisma.GoalCheckinCreateManyInput[] = [];
-  const checkinPlan: { obj: string; series: number[]; statuses: string[] }[] = [
-    {
-      obj: gRealized,
-      series: [200_000, 600_000, 1_050_000, 1_500_000, 1_900_000, 2_400_000],
-      statuses: ["on_track", "on_track", "at_risk", "on_track", "on_track", "on_track"],
-    },
-    {
-      obj: gSga,
-      series: [14, 13.2, 12.4, 11.6, 10.7, 10],
-      statuses: ["on_track", "on_track", "at_risk", "on_track", "on_track", "on_track"],
-    },
-    {
-      obj: gOee,
-      series: [68, 71, 73, 75, 77, 79],
-      statuses: ["on_track", "on_track", "on_track", "on_track", "on_track", "on_track"],
-    },
-    {
-      obj: gScrap,
-      series: [6, 5.4, 4.9, 4.4, 3.9, 3.5],
-      statuses: ["at_risk", "at_risk", "on_track", "at_risk", "at_risk", "at_risk"],
-    },
-  ];
-  checkinPlan.forEach((p, pi) => {
-    p.series.forEach((value, i) => {
-      checkinRows.push({
-        id: uid(`large:ci:${pi}:${i}`),
-        tenantId,
-        objectiveId: p.obj,
-        status: p.statuses[i]!,
-        value,
-        progress: Number((i / (p.series.length - 1)).toFixed(2)),
-        ...(i % 2 === 0 ? { note: `Programm-Review Halbjahr ${i + 1}` } : {}),
-        createdAt: addDays(now, -180 * (p.series.length - 1 - i) - 3),
-        createdBy: U.portfolio,
-      });
-    });
-  });
-  await prisma.goalCheckin.createMany({ data: checkinRows });
+  // Szenario-Invariante: JEDES Epic hat genau einen Goal-Link.
+  const goalLinkCount = await prisma.goalEpicLink.count({ where: { tenantId } });
+  if (goalLinkCount !== EPIC_COUNT) {
+    throw new Error(`Seed-Invariante verletzt: ${goalLinkCount}/${EPIC_COUNT} Goal-Epic-Links.`);
+  }
 
   // ── Phase 9: Aktivität (Freigaben) + TOM ──────────────────────────────────
   console.log("\n── Freigaben + TOM");
@@ -1311,14 +1205,32 @@ function isoDate(d: Date): string {
 function simulateSeries(
   baseline: number,
   target: number,
-  opts: { monthsBack?: number; fraction: number; seed: number; endExact?: number },
+  opts: {
+    monthsBack?: number;
+    fraction: number;
+    seed: number;
+    endExact?: number;
+    /**
+     * Anker der Erfassung (Umsetzungsstart L4.1): Punkte im 30-Tage-Raster ab
+     * `from` bis maximal `now`; der erste Punkt ist die Baseline-Erfassung am
+     * Ankerdatum. Ohne `from`: Bestandsverhalten (rückwärts von `now`,
+     * `monthsBack` Punkte).
+     */
+    from?: Date;
+  },
 ): { date: string; value: number }[] {
-  const months = opts.monthsBack ?? 9;
+  const months = opts.from
+    ? Math.max(0, Math.floor((now.getTime() - opts.from.getTime()) / (30 * DAY)))
+    : (opts.monthsBack ?? 9);
   const dir = target >= baseline ? 1 : -1;
   const span = Math.abs(target - baseline);
   const finalDelta = span * opts.fraction;
   const decimals = span < 20 ? 1 : 0;
   const round = (v: number): number => Number(v.toFixed(decimals));
+  // Frisch gestartet (< 1 Monat Umsetzung): nur die Baseline-Erfassung selbst.
+  if (opts.from && months === 0) return [{ date: isoDate(opts.from), value: round(baseline) }];
+  const dateAt = (i: number): Date =>
+    opts.from ? addDays(opts.from, 30 * i) : addDays(now, -30 * (months - i));
   const out: { date: string; value: number }[] = [];
   for (let i = 0; i <= months; i++) {
     const t = months === 0 ? 1 : i / months;
@@ -1327,7 +1239,7 @@ function simulateSeries(
     const magnitude = Math.min(finalDelta, Math.max(0, eased * finalDelta + jitter));
     const value =
       i === months && opts.endExact != null ? opts.endExact : baseline + dir * magnitude;
-    out.push({ date: isoDate(addDays(now, -30 * (months - i))), value: round(value) });
+    out.push({ date: isoDate(dateAt(i)), value: round(value) });
   }
   return out;
 }

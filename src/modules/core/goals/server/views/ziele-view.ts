@@ -119,9 +119,9 @@ export interface GoalNode {
   contributionShare: number;
   baseline: number | null;
   target: number | null;
-  /** Ist-Wert; bei `progressMode = "auto_kpi"` die abgeleitete Summe. */
+  /** Ist-Wert; bei KPI-getriebenem Blatt (`kpi_tree`) die abgeleitete Summe. */
   current: number | null;
-  /** Fortschrittsquelle (effektiv aufgelöst): manual | rollup | auto_kpi. */
+  /** Fortschrittsquelle (effektiv aufgelöst): manual | rollup | kpi_tree. */
   progressMode: ProgressMode;
   /** Ob der Knoten einen 0..1-Fortschritt liefern kann (für Board/Filter). */
   isMeasurable: boolean;
@@ -295,100 +295,101 @@ export async function loadStrategyTree(
     })(),
     // "Related work": verknüpfte Epics je Knoten — EINE Query (kein N+1),
     // soft-gelöschte Epics ausgeblendet. €-Beitrag aus den Epic-KPIs. `unit` wird
-    // zusätzlich geladen für die einheitengleiche Fortschritts-Ableitung (auto_kpi).
+    // zusätzlich geladen für die einheitengleiche Fortschritts-Ableitung (kpi_tree-Blatt).
     (async (): Promise<void> => {
       if (nodeIds.length === 0) return;
       const epicLinks = await db.goalEpicLink.findMany({
-      where: { tenantId, epic: { deletedAt: null }, objectiveId: { in: nodeIds } },
-      include: {
-        kpi: {
-          select: {
-            id: true,
-            baseline: true,
-            target: true,
-            measurements: true,
-            valuePerUnit: true,
-          },
-        },
-        epic: {
-          select: {
-            id: true,
-            title: true,
-            stageGate: true,
-            kpis: {
-              select: {
-                id: true,
-                unit: true,
-                baseline: true,
-                target: true,
-                measurements: true,
-                valuePerUnit: true,
-              },
+        where: { tenantId, epic: { deletedAt: null }, objectiveId: { in: nodeIds } },
+        include: {
+          kpi: {
+            select: {
+              id: true,
+              baseline: true,
+              target: true,
+              measurements: true,
+              valuePerUnit: true,
             },
           },
-        },
-      },
-    });
-    for (const link of epicLinks) {
-      if (!link.objectiveId) continue;
-      const kpis: KpiInput[] = link.epic.kpis.map((k) => ({
-        id: k.id,
-        baseline: toFloat(k.baseline),
-        target: toFloat(k.target),
-        current: latestMeasurement(k.measurements),
-        valuePerUnit: toFloat(k.valuePerUnit),
-      }));
-      // Einheiten-Kaskade: gewählte Erfolgs-KPI (falls gesetzt) + Umrechnungsfaktor.
-      const successKpi: KpiInput | null = link.kpi
-        ? {
-            id: link.kpi.id,
-            baseline: toFloat(link.kpi.baseline),
-            target: toFloat(link.kpi.target),
-            current: latestMeasurement(link.kpi.measurements),
-            valuePerUnit: toFloat(link.kpi.valuePerUnit),
-          }
-        : null;
-      // €-Trio wird im Goal-Forest-Read-Model gerechnet (resolveNode); der Loader
-      // reicht nur die Routing-Infos + normalisierten KPIs durch.
-      (relatedByNode.get(link.objectiveId) ?? setAndGet(relatedByNode, link.objectiveId)).push({
-        epicId: link.epic.id,
-        title: link.epic.title,
-        stageGate: link.epic.stageGate,
-        href: `/portfolio/epics/${link.epic.id}`,
-        kpis,
-        successKpi,
-        conversionFactor: toFloat(link.conversionFactor),
-        impactKind: link.impactKind,
-        recurringInterval: link.recurringInterval,
-      });
-      // auto_kpi-Ist: Faktor bevorzugt (gewählte KPI-Δ × Faktor), sonst
-      // einheiten-gleiches KPI-Δ. Je Link die volle baseline/target/current-Info,
-      // damit `autoKpiCurrent` das Delta (Verbesserung) rechnen kann.
-      const autoLinks =
-        autoKpiLinksByNode.get(link.objectiveId) ?? setAndGet(autoKpiLinksByNode, link.objectiveId);
-      autoLinks.push(
-        link.kpi && link.conversionFactor != null
-          ? {
-              kind: "factor",
-              kpi: {
-                baseline: toFloat(link.kpi.baseline),
-                target: toFloat(link.kpi.target),
-                current: latestMeasurement(link.kpi.measurements),
-              },
-              factor: Number(link.conversionFactor),
-            }
-          : {
-              kind: "sameUnit",
-              kpis: link.epic.kpis.map((k) => ({
-                unit: k.unit,
-                point: {
-                  baseline: toFloat(k.baseline),
-                  target: toFloat(k.target),
-                  current: latestMeasurement(k.measurements),
+          epic: {
+            select: {
+              id: true,
+              title: true,
+              stageGate: true,
+              kpis: {
+                select: {
+                  id: true,
+                  unit: true,
+                  baseline: true,
+                  target: true,
+                  measurements: true,
+                  valuePerUnit: true,
                 },
-              })),
+              },
             },
-      );
+          },
+        },
+      });
+      for (const link of epicLinks) {
+        if (!link.objectiveId) continue;
+        const kpis: KpiInput[] = link.epic.kpis.map((k) => ({
+          id: k.id,
+          baseline: toFloat(k.baseline),
+          target: toFloat(k.target),
+          current: latestMeasurement(k.measurements),
+          valuePerUnit: toFloat(k.valuePerUnit),
+        }));
+        // Einheiten-Kaskade: gewählte Erfolgs-KPI (falls gesetzt) + Umrechnungsfaktor.
+        const successKpi: KpiInput | null = link.kpi
+          ? {
+              id: link.kpi.id,
+              baseline: toFloat(link.kpi.baseline),
+              target: toFloat(link.kpi.target),
+              current: latestMeasurement(link.kpi.measurements),
+              valuePerUnit: toFloat(link.kpi.valuePerUnit),
+            }
+          : null;
+        // €-Trio wird im Goal-Forest-Read-Model gerechnet (resolveNode); der Loader
+        // reicht nur die Routing-Infos + normalisierten KPIs durch.
+        (relatedByNode.get(link.objectiveId) ?? setAndGet(relatedByNode, link.objectiveId)).push({
+          epicId: link.epic.id,
+          title: link.epic.title,
+          stageGate: link.epic.stageGate,
+          href: `/portfolio/epics/${link.epic.id}`,
+          kpis,
+          successKpi,
+          conversionFactor: toFloat(link.conversionFactor),
+          impactKind: link.impactKind,
+          recurringInterval: link.recurringInterval,
+        });
+        // KPI-Blatt-Ist: Faktor bevorzugt (gewählte KPI-Δ × Faktor), sonst
+        // einheiten-gleiches KPI-Δ. Je Link die volle baseline/target/current-Info,
+        // damit `autoKpiCurrent` das Delta (Verbesserung) rechnen kann.
+        const autoLinks =
+          autoKpiLinksByNode.get(link.objectiveId) ??
+          setAndGet(autoKpiLinksByNode, link.objectiveId);
+        autoLinks.push(
+          link.kpi && link.conversionFactor != null
+            ? {
+                kind: "factor",
+                kpi: {
+                  baseline: toFloat(link.kpi.baseline),
+                  target: toFloat(link.kpi.target),
+                  current: latestMeasurement(link.kpi.measurements),
+                },
+                factor: Number(link.conversionFactor),
+              }
+            : {
+                kind: "sameUnit",
+                kpis: link.epic.kpis.map((k) => ({
+                  unit: k.unit,
+                  point: {
+                    baseline: toFloat(k.baseline),
+                    target: toFloat(k.target),
+                    current: latestMeasurement(k.measurements),
+                  },
+                })),
+              },
+        );
       }
     })(),
     // Related work (referenziell): Feature/PI je Knoten. EINE Link-Query, dann
@@ -396,76 +397,78 @@ export async function loadStrategyTree(
     (async (): Promise<void> => {
       if (nodeIds.length === 0) return;
       const links = await db.goalRelatedWork.findMany({
-      where: { tenantId, objectiveId: { in: nodeIds } },
-      select: { objectiveId: true, kind: true, refId: true, createdAt: true },
-      orderBy: { createdAt: "asc" },
-    });
-    if (links.length > 0) {
-      const featureIds = [
-        ...new Set(links.filter((l) => l.kind === "feature").map((l) => l.refId)),
-      ];
-      const piIds = [...new Set(links.filter((l) => l.kind === "pi").map((l) => l.refId))];
-      const [features, pis] = await Promise.all([
-        featureIds.length > 0
-          ? db.initiative.findMany({
-              where: { tenantId, id: { in: featureIds }, deletedAt: null },
-              select: { id: true, title: true, parentId: true },
-            })
-          : Promise.resolve([]),
-        piIds.length > 0
-          ? db.programIncrement.findMany({
-              where: { tenantId, id: { in: piIds } },
-              select: { id: true, name: true },
-            })
-          : Promise.resolve([]),
-      ]);
-      const featureById = new Map(features.map((f) => [f.id, f]));
-      const piName = new Map(pis.map((p) => [p.id, p.name]));
-      for (const l of links) {
-        if (l.kind === "feature") {
-          const f = featureById.get(l.refId);
-          // Feature hat keine eigene Route — Deeplink zeigt den Feature-Slide-Over
-          // im Eltern-Epic; ohne Eltern-Epic auf die Feature-Liste ausweichen.
-          const href = f?.parentId
-            ? `/portfolio/epics/${f.parentId}?featureId=${l.refId}`
-            : `/implementation/features`;
-          (
-            relatedWorkByNode.get(l.objectiveId) ?? setAndGet(relatedWorkByNode, l.objectiveId)
-          ).push({ kind: l.kind, refId: l.refId, title: f?.title ?? "(gelöscht)", href });
-        } else {
-          (
-            relatedWorkByNode.get(l.objectiveId) ?? setAndGet(relatedWorkByNode, l.objectiveId)
-          ).push({
-            kind: l.kind,
-            refId: l.refId,
-            title: piName.get(l.refId) ?? "(gelöscht)",
-            href: `/pi/${l.refId}`,
-          });
+        where: { tenantId, objectiveId: { in: nodeIds } },
+        select: { objectiveId: true, kind: true, refId: true, createdAt: true },
+        orderBy: { createdAt: "asc" },
+      });
+      if (links.length > 0) {
+        const featureIds = [
+          ...new Set(links.filter((l) => l.kind === "feature").map((l) => l.refId)),
+        ];
+        const piIds = [...new Set(links.filter((l) => l.kind === "pi").map((l) => l.refId))];
+        const [features, pis] = await Promise.all([
+          featureIds.length > 0
+            ? db.initiative.findMany({
+                where: { tenantId, id: { in: featureIds }, deletedAt: null },
+                select: { id: true, title: true, parentId: true },
+              })
+            : Promise.resolve([]),
+          piIds.length > 0
+            ? db.programIncrement.findMany({
+                where: { tenantId, id: { in: piIds } },
+                select: { id: true, name: true },
+              })
+            : Promise.resolve([]),
+        ]);
+        const featureById = new Map(features.map((f) => [f.id, f]));
+        const piName = new Map(pis.map((p) => [p.id, p.name]));
+        for (const l of links) {
+          if (l.kind === "feature") {
+            const f = featureById.get(l.refId);
+            // Feature hat keine eigene Route — Deeplink zeigt den Feature-Slide-Over
+            // im Eltern-Epic; ohne Eltern-Epic auf die Feature-Liste ausweichen.
+            const href = f?.parentId
+              ? `/portfolio/epics/${f.parentId}?featureId=${l.refId}`
+              : `/implementation/features`;
+            (
+              relatedWorkByNode.get(l.objectiveId) ?? setAndGet(relatedWorkByNode, l.objectiveId)
+            ).push({ kind: l.kind, refId: l.refId, title: f?.title ?? "(gelöscht)", href });
+          } else {
+            (
+              relatedWorkByNode.get(l.objectiveId) ?? setAndGet(relatedWorkByNode, l.objectiveId)
+            ).push({
+              kind: l.kind,
+              refId: l.refId,
+              title: piName.get(l.refId) ?? "(gelöscht)",
+              href: `/pi/${l.refId}`,
+            });
+          }
         }
-      }
       }
     })(),
     // VS/ART-Verantwortung (Epic 6a): je zwei Batch-Queries mit Namen (kein N+1).
     (async (): Promise<void> => {
       if (nodeIds.length === 0) return;
       const [vsLinks, artLinks] = await Promise.all([
-      db.goalValueStreamLink.findMany({
-        where: { tenantId, objectiveId: { in: nodeIds } },
-        select: { objectiveId: true, valueStream: { select: { id: true, name: true } } },
-        orderBy: { createdAt: "asc" },
-      }),
-      db.goalArtLink.findMany({
-        where: { tenantId, objectiveId: { in: nodeIds } },
-        select: { objectiveId: true, art: { select: { id: true, name: true } } },
-        orderBy: { createdAt: "asc" },
-      }),
-    ]);
-    for (const l of vsLinks) {
-      (valueStreamsByNode.get(l.objectiveId) ?? setAndGet(valueStreamsByNode, l.objectiveId)).push({
-        id: l.valueStream.id,
-        name: l.valueStream.name,
-      });
-    }
+        db.goalValueStreamLink.findMany({
+          where: { tenantId, objectiveId: { in: nodeIds } },
+          select: { objectiveId: true, valueStream: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
+        }),
+        db.goalArtLink.findMany({
+          where: { tenantId, objectiveId: { in: nodeIds } },
+          select: { objectiveId: true, art: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
+        }),
+      ]);
+      for (const l of vsLinks) {
+        (
+          valueStreamsByNode.get(l.objectiveId) ?? setAndGet(valueStreamsByNode, l.objectiveId)
+        ).push({
+          id: l.valueStream.id,
+          name: l.valueStream.name,
+        });
+      }
       for (const l of artLinks) {
         (artsByNode.get(l.objectiveId) ?? setAndGet(artsByNode, l.objectiveId)).push({
           id: l.art.id,
@@ -840,7 +843,7 @@ async function loadProgressChart(
       });
     }
   }
-  // auto_kpi-Verlauf: je Link Faktor bevorzugt (gewählte KPI-Messreihe × Faktor),
+  // KPI-Blatt-Verlauf: je Link Faktor bevorzugt (gewählte KPI-Messreihe × Faktor),
   // sonst die Messreihen der einheiten-gleichen Epic-KPIs — analog `autoKpiCurrent`.
   const autoKpiSeriesByNode = new Map<string, AutoKpiSeriesLink[]>();
   for (const l of epicLinks) {

@@ -70,8 +70,10 @@ export async function getPortfolioEconomics(
         stagedForBudgeting: true,
         epicType: true,
         valueStream: { select: { id: true, name: true } },
-        // ART + Horizont kommen aus der Primär-Solution (wie Guardrails/Liste).
-        primarySolution: { select: { horizon: true, art: { select: { name: true } } } },
+        // ART = direkte Epic-Zuordnung (Pflichtfeld beim Anlegen); der
+        // Investitionshorizont bleibt Solution-basiert (Guardrails-Logik).
+        art: { select: { name: true } },
+        primarySolution: { select: { horizon: true } },
         kpis: {
           select: {
             id: true,
@@ -140,7 +142,7 @@ export async function getPortfolioEconomics(
       id: row.id,
       title: row.title,
       valueStream: row.valueStream?.name ?? null,
-      art: row.primarySolution?.art?.name ?? null,
+      art: row.art?.name ?? null,
       valueStreamId: row.valueStream?.id ?? null,
       ownerId: row.ownerId,
       ownerLabel: row.ownerId ? (userLabels[row.ownerId] ?? null) : null,

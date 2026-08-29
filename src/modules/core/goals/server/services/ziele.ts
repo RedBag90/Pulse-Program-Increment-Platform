@@ -17,7 +17,6 @@ import {
 } from "@/modules/core/goals/domain/goal-reparent";
 import {
   autoKpiCurrent,
-  isProgressMode,
   effectiveProgressMode,
   type AutoKpiLink,
 } from "@/modules/core/goals/domain/goal-progress-mode";
@@ -59,7 +58,7 @@ export interface CreateObjectiveInput {
   baseline?: number | null;
   target?: number | null;
   current?: number | null;
-  /** Fortschrittsquelle (manual | rollup | auto_kpi); null/undef ⇒ abgeleitet. */
+  /** Fortschrittsquelle (manual | rollup | kpi_tree); null/undef ⇒ abgeleitet. */
   progressMode?: string | null;
 }
 
@@ -540,7 +539,7 @@ export interface CheckInGoalInput {
   /**
    * Neuer Ist-Wert bei MANUELLEN Zielen: setzt zusammen mit dem Status-Update den
    * eingefrorenen Wert am gewählten Datum und aktualisiert `current` (nach der
-   * „letzter Check-in gewinnt"-Regel). Ignoriert bei auto_kpi/kpi_tree (dort
+   * „letzter Check-in gewinnt"-Regel). Ignoriert bei kpi_tree (dort
    * kommt der Ist aus den KPIs).
    */
   value?: number | null;
@@ -682,14 +681,15 @@ export async function recordGoalCheckin(
       return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.id });
     }
     // Ist-Wert zum Check-in-Zeitpunkt einfrieren (→ Graf-Punkt am gewählten
-    // Datum): `manual` friert die eigene `current`-Spalte ein, `auto_kpi` /
-    // `kpi_tree` leiten den Ist aus den verknüpften Epic-KPIs ab (Δ×Faktor auf
-    // die Ziel-Skala). `current` selbst bleibt unberührt (Wert-Pflege läuft über
+    // Datum): `manual` friert die eigene `current`-Spalte ein, `kpi_tree`
+    // leitet den Ist aus den verknüpften Epic-KPIs ab (Δ×Faktor auf die
+    // Ziel-Skala; Legacy `auto_kpi` wird via effectiveProgressMode gemappt).
+    // `current` selbst bleibt unberührt (Wert-Pflege läuft über
     // recordGoalProgress bzw. KPIs). Ein `kpi_tree`-Ast ohne KPI-Links liefert
     // `null` (kein Freeze) — sein Wert kommt aus der Kinder-Kaskade.
-    const mode = isProgressMode(existing.progressMode) ? existing.progressMode : "manual";
+    const mode = effectiveProgressMode(existing.progressMode, false);
     let rawValue: number | null;
-    if (mode === "auto_kpi" || mode === "kpi_tree") {
+    if (mode === "kpi_tree") {
       const links = await tx.goalEpicLink.findMany({
         where: { tenantId: mctx.tenantId, objectiveId: input.id, epic: { deletedAt: null } },
         select: {
@@ -813,7 +813,7 @@ export async function recordGoalProgress(
     if (!existing) {
       return err({ kind: "not_found" as const, resourceType: "KeyResult", id: input.keyResultId });
     }
-    // Ist-Wert direkt pflegbar nur bei manueller Fortschrittsquelle — auto_kpi
+    // Ist-Wert direkt pflegbar nur bei manueller Fortschrittsquelle — kpi_tree
     // kommt aus KPIs, rollup aus den Unterzielen.
     const childCount = await tx.objective.count({
       where: { parentObjectiveId: input.keyResultId, tenantId: mctx.tenantId },

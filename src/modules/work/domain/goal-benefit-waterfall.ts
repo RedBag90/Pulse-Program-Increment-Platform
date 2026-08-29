@@ -1,12 +1,16 @@
 /**
- * Benefit-Wasserfall — Momentaufnahme des Portfolio-Nutzens **je Reifegrad-Status**
- * gegen den **Zielwert** eines Ziels. Rein, kein I/O.
+ * Benefit-Wasserfall — Momentaufnahme des Portfolio-Nutzens **je Bucket** einer
+ * wählbaren Dimension (Reifegrad-Status, Wertstrom, ART, Epic, …) gegen den
+ * **Zielwert** eines Ziels. Rein, kein I/O.
  *
- * Antwortet: „Wie viel Value steckt heute in jedem Status (L0–L5) — und wie viel
- * fehlt bis zum aufgestellten Zielwert?". Der Wert je Epic wird **reifegradabhängig**
+ * Antwortet: „Wie viel Value steckt heute in jeder Spalte — und wie viel fehlt
+ * bis zum aufgestellten Zielwert?". Der Wert je Epic wird **reifegradabhängig**
  * bewertet (siehe {@link maturityBand}): frühe Epics zählen mit ihrem geschätzten
  * Zielbeitrag (Estimate/Forecast), Epics in laufender Umsetzung mit dem gemessenen
  * Anteil plus gestricheltem Rest, fertige Epics mit dem tatsächlichen Wert.
+ * Diese Ist/Forecast-Semantik ist **dimensionsunabhängig** — die Dimension
+ * bestimmt nur, in welcher Spalte ein Epic landet ({@link WaterfallDimension};
+ * ohne Angabe: Reifegrad-Status L0–L5).
  *
  * Alle Beträge sind bereits in der **Einheit des Ziels** ausgedrückt (die Umrechnung
  * über `conversionFactor`/Einheiten-Kaskade passiert im Loader).
@@ -34,6 +38,8 @@ export function maturityBand(gate: StageGate, subStage: SubStage | null): Maturi
 /** Ein Ziel als Zielwert-Referenz des Wasserfalls (Zielwert in eigener Einheit). */
 export interface GoalWaterfallGoal {
   id: string;
+  /** Eltern-Ziel (null = Wurzel) — für die Hierarchie im Ziel-Selektor. */
+  parentId: string | null;
   title: string;
   /** Zielwert `Objective.target` in der Ziel-Einheit. */
   target: number;
@@ -58,21 +64,45 @@ export interface GoalWaterfallEpic {
 
 /**
  * Serialisierbares DTO des Wasserfall-Loaders (Server → Client): alle messbaren
- * Kopf-Ziele + je Ziel die beitragenden Epics. Die Wasserfall-Mathematik läuft
- * client-seitig über {@link buildGoalWaterfall} (reagiert auf den Projekt-ID-Filter).
+ * Ziele (Wurzeln + Unterziele mit Zielwert) + je Ziel die beitragenden Epics.
+ * Die Wasserfall-Mathematik läuft client-seitig über {@link buildGoalWaterfall}
+ * (reagiert auf den Projekt-ID-Filter).
  */
 export interface GoalWaterfallData {
   goals: GoalWaterfallGoal[];
   epicsByGoal: Record<string, GoalWaterfallEpic[]>;
 }
 
+/** Eine Spalte der gewählten Wasserfall-Dimension (Präsentation beim Aufrufer). */
+export interface WaterfallBucketDef {
+  key: string;
+  label: string;
+  sublabel?: string;
+  color?: string;
+}
+
+/**
+ * Die Bucket-Dimension des Wasserfalls: geordnete Spalten + Zuordnung je Epic.
+ * `keyOf`-Ergebnisse außerhalb der Defs werden defensiv übersprungen — der
+ * Aufrufer leitet die Defs aus derselben Epic-Menge ab und deckt damit alles ab.
+ */
+export interface WaterfallDimension {
+  buckets: readonly WaterfallBucketDef[];
+  keyOf: (e: GoalWaterfallEpic) => string;
+}
+
 /** Ein Balken des Wasserfalls (schwebend: `base` = Sockel, dann `solid` + `forecast`). */
 export interface WaterfallStep {
-  /** Stabiler Schlüssel: Gate-Kürzel bzw. „total" / „gap". */
+  /** Stabiler Schlüssel: Bucket-Key bzw. „total" / „gap". */
   key: string;
-  kind: "stage" | "total" | "gap";
-  /** Gate (nur bei `kind === "stage"`). */
+  kind: "bucket" | "total" | "gap";
+  /** Gate (nur bei der Status-Dimension gesetzt; sonst null). */
   gate: StageGate | null;
+  /** Anzeige-Label der Spalte (bei total/gap leer — der Renderer beschriftet). */
+  label: string;
+  sublabel: string;
+  /** Spaltenfarbe aus der Bucket-Def (undefined bei total/gap). */
+  color?: string;
   /** Unsichtbarer Sockel (Laufsumme vor diesem Balken). */
   base: number;
   /** Ist/Actual-Anteil (solide). */
@@ -94,9 +124,19 @@ export interface GoalWaterfall {
   overshoot: number;
 }
 
-const STAGE_ORDER: readonly StageGate[] = ["L0", "L1", "L2", "L3", "L4", "L5"];
+export const STAGE_ORDER: readonly StageGate[] = ["L0", "L1", "L2", "L3", "L4", "L5"];
 
-/** Leerer Beitrags-Akkumulator je Gate. */
+const STAGE_GATE_SET = new Set<string>(STAGE_ORDER);
+
+/** Default-Dimension: Reifegrad-Status L0–L5 (Label = Gate, Farbe beim Renderer). */
+function stageDimension(): WaterfallDimension {
+  return {
+    buckets: STAGE_ORDER.map((gate) => ({ key: gate, label: gate })),
+    keyOf: (e) => e.gate,
+  };
+}
+
+/** Leerer Beitrags-Akkumulator je Spalte. */
 interface Bucket {
   solid: number;
   forecast: number;
@@ -104,24 +144,28 @@ interface Bucket {
 
 /**
  * Baut den Wasserfall eines Ziels aus seinen (gefilterten) Epic-Beiträgen:
- *  - je Gate-Spalte `solid = Σ realized` (Bänder achieved_gap & actual),
+ *  - je Bucket-Spalte `solid = Σ realized` (Bänder achieved_gap & actual),
  *    `forecast = Σ planned` (estimate) + `Σ max(planned−realized, 0)` (achieved_gap);
- *  - kumulierter Aufbau L0→L5 (`base` = Laufsumme davor);
+ *  - kumulierter Aufbau in Bucket-Reihenfolge (`base` = Laufsumme davor);
  *  - Abschluss-Balken „Σ heute" (Summe) und „Lücke" (target − Σ, ≥ 0).
- * `selectedEpicIds = null` ⇒ alle Epics; sonst nur die enthaltenen (Projekt-ID-Filter).
+ * `selectedEpicIds = null` ⇒ alle Epics; sonst nur die enthaltenen (Projekt-ID-
+ * Filter). `dimension` bestimmt die Spalten; ohne Angabe: Status L0–L5. Leere
+ * Buckets werden vorgeseedet, damit ihre Spalten sichtbar bleiben.
  */
 export function buildGoalWaterfall(
   goal: GoalWaterfallGoal,
   epics: readonly GoalWaterfallEpic[],
   selectedEpicIds: ReadonlySet<string> | null,
+  dimension?: WaterfallDimension,
 ): GoalWaterfall {
-  const buckets = new Map<StageGate, Bucket>();
-  for (const gate of STAGE_ORDER) buckets.set(gate, { solid: 0, forecast: 0 });
+  const dim = dimension ?? stageDimension();
+  const buckets = new Map<string, Bucket>();
+  for (const def of dim.buckets) buckets.set(def.key, { solid: 0, forecast: 0 });
 
   for (const e of epics) {
     if (selectedEpicIds && !selectedEpicIds.has(e.epicId)) continue;
-    const b = buckets.get(e.gate);
-    if (!b) continue; // unbekanntes Gate defensiv überspringen
+    const b = buckets.get(dim.keyOf(e));
+    if (!b) continue; // Schlüssel außerhalb der Defs defensiv überspringen
     const band = maturityBand(e.gate, e.subStage);
     if (band === "estimate") {
       b.forecast += e.planned;
@@ -136,12 +180,15 @@ export function buildGoalWaterfall(
 
   const steps: WaterfallStep[] = [];
   let running = 0;
-  for (const gate of STAGE_ORDER) {
-    const b = buckets.get(gate)!;
+  for (const def of dim.buckets) {
+    const b = buckets.get(def.key)!;
     steps.push({
-      key: gate,
-      kind: "stage",
-      gate,
+      key: def.key,
+      kind: "bucket",
+      gate: STAGE_GATE_SET.has(def.key) ? (def.key as StageGate) : null,
+      label: def.label,
+      sublabel: def.sublabel ?? "",
+      ...(def.color !== undefined ? { color: def.color } : {}),
       base: running,
       solid: b.solid,
       forecast: b.forecast,
@@ -154,10 +201,28 @@ export function buildGoalWaterfall(
   const overshoot = Math.max(total - goal.target, 0);
 
   // Summen-Balken (0→total, als solider Umriss gerendert).
-  steps.push({ key: "total", kind: "total", gate: null, base: 0, solid: total, forecast: 0 });
+  steps.push({
+    key: "total",
+    kind: "total",
+    gate: null,
+    label: "",
+    sublabel: "",
+    base: 0,
+    solid: total,
+    forecast: 0,
+  });
   // Deckungslücke (total→target), nur wenn positiv.
   if (gap > 0) {
-    steps.push({ key: "gap", kind: "gap", gate: null, base: total, solid: 0, forecast: gap });
+    steps.push({
+      key: "gap",
+      kind: "gap",
+      gate: null,
+      label: "",
+      sublabel: "",
+      base: total,
+      solid: 0,
+      forecast: gap,
+    });
   }
 
   return { goalId: goal.id, steps, target: goal.target, total, gap, overshoot };

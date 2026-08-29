@@ -12,7 +12,7 @@ import {
 
 describe("Type-Guards", () => {
   it("akzeptiert nur die drei Epic-Typen", () => {
-    expect(isEpicType("solution")).toBe(true);
+    expect(isEpicType("solution")).toBe(false); // als Epic-Typ zurückgebaut
     expect(isEpicType("epic")).toBe(true);
     expect(isEpicType("enabler")).toBe(true);
     expect(isEpicType("feature")).toBe(false);
@@ -34,8 +34,7 @@ describe("Type-Guards", () => {
 });
 
 describe("Capacity-Buckets", () => {
-  it("schiebt solution und epic in Business, enabler in Enabler", () => {
-    expect(epicCapacityBucket("solution")).toBe("business");
+  it("schiebt epic in Business, enabler in Enabler", () => {
     expect(epicCapacityBucket("epic")).toBe("business");
     expect(epicCapacityBucket("enabler")).toBe("enabler");
     expect(epicCapacityBucket(null)).toBeNull();

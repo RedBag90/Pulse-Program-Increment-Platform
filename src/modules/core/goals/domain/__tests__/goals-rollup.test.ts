@@ -12,6 +12,7 @@ import {
   epicSuccessKpiContribution,
   nodeUnitValue,
   epicTopGoalBenefits,
+  epicGoalBenefitsPerNode,
   epicCascadeBreakdown,
 } from "@/modules/core/goals/domain/goals-rollup";
 import type {
@@ -265,13 +266,11 @@ describe("nodeProgress / nodeTrio (recursive cascade)", () => {
     expect(nodeProgress(branch([midA, leaf(1)]))).toBeCloseTo(0.75);
   });
 
-  it("manual/auto_kpi mode uses own progressLeaf even with children (override)", () => {
+  it("manual mode uses own progressLeaf even with children (override)", () => {
     // A node explicitly set to manual keeps its own progressLeaf, ignoring the
     // children rollup that would otherwise average to 0.5.
     const node = branch([leaf(0.2), leaf(0.8)], { mode: "manual", progressLeaf: 0.9 });
     expect(nodeProgress(node)).toBeCloseTo(0.9);
-    const auto = branch([leaf(0.2), leaf(0.8)], { mode: "auto_kpi", progressLeaf: 0.3 });
-    expect(nodeProgress(auto)).toBeCloseTo(0.3);
   });
 
   it("kpi_tree aggregiert mit Kindern (Ast = Ø), aber nutzt progressLeaf ohne Kinder (Blatt)", () => {
@@ -599,6 +598,65 @@ describe("epicTopGoalBenefits", () => {
     const rows = epicTopGoalBenefits([link("a", 100), link("b", 200)], nodes);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.planned).toBe(300);
+  });
+});
+
+describe("epicGoalBenefitsPerNode", () => {
+  const kpi = (over: Partial<KpiInput> = {}): KpiInput => ({
+    id: "k",
+    baseline: 0,
+    target: 10,
+    current: 5,
+    valuePerUnit: null,
+    ...over,
+  });
+
+  it("schreibt dem Kind unskaliert und der Wurzel skaliert gut (Wurzel == Top-Rollup)", () => {
+    // top '€' ← mid 'Wagen' (10000 €/Wagon) ← Link an mid (Faktor 2 Wagen/Teil).
+    const nodes = new Map<string, GoalNodeMeta>([
+      ["top", { id: "top", parentId: null, name: "Top", unit: "€", parentUnitPerChildUnit: null }],
+      [
+        "mid",
+        { id: "mid", parentId: "top", name: "Mid", unit: "Wagen", parentUnitPerChildUnit: 10000 },
+      ],
+    ]);
+    const links: EpicGoalLinkInput[] = [
+      {
+        objectiveId: "mid",
+        kpi: kpi({ target: 10, current: 5 }),
+        conversionFactor: 2,
+        impactKind: "one_time",
+        recurringInterval: "yearly",
+      },
+    ];
+    const rows = epicGoalBenefitsPerNode(links, nodes);
+    const byId = new Map(rows.map((r) => [r.goalId, r]));
+    // Kind (mid): unskaliert in Wagen — planned 10×2, realized 5×2.
+    expect(byId.get("mid")).toMatchObject({ planned: 20, realized: 10 });
+    // Wurzel (top): × 10000 €/Wagon — exakt der Top-Rollup-Wert.
+    expect(byId.get("top")).toMatchObject({ planned: 200000, realized: 100000 });
+    const top = epicTopGoalBenefits(links, nodes)[0]!;
+    expect(byId.get("top")!.planned).toBe(top.planned);
+    expect(byId.get("top")!.realized).toBe(top.realized);
+  });
+
+  it("summiert mehrere Links je Knoten und überlebt Zyklen", () => {
+    // a ↔ b Zyklus: kein Endlos-Lauf, jeder erreichte Knoten genau einmal je Link.
+    const nodes = new Map<string, GoalNodeMeta>([
+      ["a", { id: "a", parentId: "b", name: "A", unit: "€", parentUnitPerChildUnit: 1 }],
+      ["b", { id: "b", parentId: "a", name: "B", unit: "€", parentUnitPerChildUnit: 1 }],
+    ]);
+    const link: EpicGoalLinkInput = {
+      objectiveId: "a",
+      kpi: kpi({ target: 1, current: 1 }),
+      conversionFactor: 100,
+      impactKind: "recurring",
+      recurringInterval: "yearly",
+    };
+    const rows = epicGoalBenefitsPerNode([link, link], nodes);
+    const byId = new Map(rows.map((r) => [r.goalId, r]));
+    expect(byId.get("a")!.planned).toBe(200); // 2 Links × 100, unskaliert
+    expect(byId.get("b")).toBeDefined(); // über die Kante erreicht, kein Hänger
   });
 });
 

@@ -121,7 +121,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
   // History, damit History der letzte Reiter bleibt.
   const tabs = model.risks.disabled
     ? EPIC_TABS
-    : [...EPIC_TABS.slice(0, -1), { key: "issues", label: "Issues" }, EPIC_TABS.at(-1)!];
+    : [...EPIC_TABS.slice(0, -2), { key: "issues", label: "Issues" }, ...EPIC_TABS.slice(-2)];
   const activeTab = resolveTab(tabs, tab);
 
   // Slide-Over-Detail nur laden wenn ?featureId= im URL — gleiche Sicht wie im

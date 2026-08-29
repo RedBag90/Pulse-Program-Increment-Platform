@@ -13,7 +13,10 @@
 
 import { makeTypeGuard } from "@/modules/core/kernel/domain/type-guards";
 
-export const EPIC_TYPES = ["solution", "epic", "enabler"] as const;
+// „solution" ist als Epic-Typ zurückgebaut (Backfill:
+// prisma/scripts/2026-08-29-epic-type-solution-to-epic.ts) — eine Solution ist
+// das langlebige Produkt (eigene Entität), kein Epic-Typ.
+export const EPIC_TYPES = ["epic", "enabler"] as const;
 export type EpicType = (typeof EPIC_TYPES)[number];
 
 export const FEATURE_TYPES = ["feature", "enabler"] as const;
@@ -25,7 +28,6 @@ export const HORIZONS = ["h3", "h2", "h1", "h0"] as const;
 export type Horizon = (typeof HORIZONS)[number];
 
 export const EPIC_TYPE_LABEL: Record<EpicType, string> = {
-  solution: "Solution",
   epic: "Epic",
   enabler: "Enabler",
 };
@@ -43,7 +45,10 @@ export const HORIZON_LABEL: Record<Horizon, string> = {
 };
 
 /** Erklärtexte je Horizont — Quelle für Tooltips + Legende (Helfer-Schicht). */
-export const HORIZON_HELP: Record<Horizon, { blurb: string; epicArt: string; budgetFokus: string }> = {
+export const HORIZON_HELP: Record<
+  Horizon,
+  { blurb: string; epicArt: string; budgetFokus: string }
+> = {
   h3: {
     blurb: "Evaluating / R&D — noch keine Solution, nur Ideen, Spikes und Prototypen.",
     epicArt: "Exploratory Epics (Machbarkeit, Prototypen, Patente)",
@@ -82,8 +87,7 @@ export const isHorizon = makeTypeGuard(HORIZONS);
 
 /**
  * Klassifikation in „Business" oder „Enabler" — dient dem Capacity-
- * Allocation-Guardrail. `solution` und `epic` zaehlen als Business;
- * `enabler` als Enabler.
+ * Allocation-Guardrail. `epic` zaehlt als Business; `enabler` als Enabler.
  */
 export function epicCapacityBucket(
   type: EpicType | null | undefined,

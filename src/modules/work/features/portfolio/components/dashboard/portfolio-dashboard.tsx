@@ -32,7 +32,7 @@ import {
 import { matchesQuery } from "@/modules/work/lib/row-filter";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { epicColor, VALUE_COLOR, COST_COLOR, BREAKEVEN_COLOR } from "./epic-colors";
-import { GoalBenefitWaterfallSection } from "./goal-benefit-waterfall";
+import { GoalBenefitWaterfallSection, type WaterfallEpicInfo } from "./goal-benefit-waterfall";
 import type { GoalWaterfallData } from "@/modules/work/domain/goal-benefit-waterfall";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,9 @@ interface Props {
 }
 
 type GroupMode = "valueStream" | "art" | "epic" | "status";
+
+/** Sentinel der ART-Facette für Epics ohne Primär-Solution-ART. */
+const OHNE_ART = "Ohne ART";
 
 /** Deckkraft der Forecast-Monate (Zukunft, > heute) — Zeit-Konfidenz-Achse. */
 const FORECAST_OPACITY = 0.4;
@@ -160,6 +163,7 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
   const [flag, setFlag] = useState<FlagFilter>("all");
   const [horizon, setHorizon] = useState<string | null>(null);
   const [epicTypeFilter, setEpicTypeFilter] = useState<string | null>(null);
+  const [artFilter, setArtFilter] = useState<string | null>(null);
   const facetEpics = useMemo(
     () =>
       data.epics.filter((e) => {
@@ -169,9 +173,11 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
         if (flag === "budgeting" && !e.stagedForBudgeting) return false;
         if (horizon != null && e.investmentHorizon !== horizon) return false;
         if (epicTypeFilter != null && e.epicType !== epicTypeFilter) return false;
+        if (artFilter != null && (artFilter === OHNE_ART ? e.art != null : e.art !== artFilter))
+          return false;
         return matchesQuery([e.title, e.ownerLabel, e.valueStream], query.trim());
       }),
-    [data.epics, vsFilter, ownerFilter, flag, horizon, epicTypeFilter, query],
+    [data.epics, vsFilter, ownerFilter, flag, horizon, epicTypeFilter, artFilter, query],
   );
   // Facetten-Optionen aus den vorhandenen Epics (kein zusätzlicher Server-Load).
   const valueStreamOptions = useMemo(() => {
@@ -186,6 +192,17 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
     return [...m]
       .map(([id, label]) => ({ id, label }))
       .sort((a, b) => a.label.localeCompare(b.label));
+  }, [data.epics]);
+  // ART-Facette: distinct ART-Namen + „Ohne ART" (Epics ohne Primär-Solution-ART).
+  const artOptions = useMemo(() => {
+    const names = new Set<string>();
+    let hasNull = false;
+    for (const e of data.epics) {
+      if (e.art) names.add(e.art);
+      else hasNull = true;
+    }
+    const sorted = [...names].sort((a, b) => a.localeCompare(b));
+    return hasNull ? [...sorted, OHNE_ART] : sorted;
   }, [data.epics]);
   // Serien-Auswahl = Projekt-Auswahl ∩ Facetten-Treffer.
   const effectiveSelected = useMemo(() => {
@@ -244,6 +261,19 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
     () => new Map(data.epics.map((e) => [e.id, e.hasAllocation] as const)),
     [data.epics],
   );
+  // Dimension-Fakten je Epic für den Benefit-Wasserfall (VS/ART/Titel/Farbe).
+  const epicInfoById = useMemo(() => {
+    const map: Record<string, WaterfallEpicInfo> = {};
+    data.epics.forEach((e) => {
+      map[e.id] = {
+        valueStream: e.valueStream,
+        art: e.art,
+        title: e.title,
+        color: colorById[e.id] ?? epicColor(0),
+      };
+    });
+    return map;
+  }, [data.epics, colorById]);
   const displaySeries = useMemo<PortfolioSeries>(() => {
     if (groupMode === "valueStream")
       return { ...series, perEpic: groupSeriesByValueStream(series.perEpic, vsByEpicId) };
@@ -410,23 +440,28 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
           flag,
           horizon,
           epicType: epicTypeFilter,
+          art: artFilter,
           valueStreamOptions,
           ownerOptions,
+          artOptions,
           onQueryChange: setQuery,
           onValueStreamChange: setVsFilter,
           onOwnerChange: setOwnerFilter,
           onFlagChange: setFlag,
           onHorizonChange: setHorizon,
           onEpicTypeChange: setEpicTypeFilter,
+          onArtChange: setArtFilter,
         }}
       />
 
-      {/* Benefit-Wasserfall (Wert je Status vs. Zielwert) — erster Inhalts-Abschnitt.
-          Folgt Facetten + Projekt-Auswahl, sobald eingegrenzt; „Alle" = null (alle
-          ziel-verknüpften Epics zählen, auch solche ohne Business-Case-Economics). */}
+      {/* Benefit-Wasserfall (Wert je Ansicht-Spalte vs. Zielwert) — folgt Facetten,
+          Projekt-Auswahl und dem Ansicht-Umschalter; „Alle" = null (alle ziel-
+          verknüpften Epics zählen, auch solche ohne Business-Case-Economics). */}
       <GoalBenefitWaterfallSection
         data={goalWaterfalls}
         selectedEpicIds={effectiveSelected.size === data.epics.length ? null : effectiveSelected}
+        groupMode={groupMode}
+        epicInfoById={epicInfoById}
       />
 
       {canEdit && (
@@ -986,14 +1021,17 @@ interface SlicerFacetProps {
   flag: FlagFilter;
   horizon: string | null;
   epicType: string | null;
+  art: string | null;
   valueStreamOptions: { id: string; name: string }[];
   ownerOptions: { id: string; label: string }[];
+  artOptions: string[];
   onQueryChange: (next: string) => void;
   onValueStreamChange: (next: string | null) => void;
   onOwnerChange: (next: string | null) => void;
   onFlagChange: (next: FlagFilter) => void;
   onHorizonChange: (next: string | null) => void;
   onEpicTypeChange: (next: string | null) => void;
+  onArtChange: (next: string | null) => void;
 }
 
 function Slicers({

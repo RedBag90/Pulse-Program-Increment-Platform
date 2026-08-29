@@ -33,6 +33,13 @@ interface Props {
   onFlagChange: (next: FlagFilter) => void;
   onHorizonChange: (next: string | null) => void;
   onEpicTypeChange: (next: string | null) => void;
+  /**
+   * Optionale ART-Facette (Werte = ART-Namen): nur gerendert, wenn `artOptions`
+   * gesetzt ist — das Dashboard nutzt sie, die Epics-Liste nicht.
+   */
+  art?: string | null;
+  artOptions?: string[];
+  onArtChange?: (next: string | null) => void;
   /** Nachgelagerte Controls (z. B. Sortierung/Dichte der Liste), im selben Flex-Row. */
   children?: ReactNode;
 }
@@ -58,6 +65,9 @@ export function EpicFacetFilterBar({
   onFlagChange,
   onHorizonChange,
   onEpicTypeChange,
+  art,
+  artOptions,
+  onArtChange,
   children,
 }: Props) {
   const [draft, setDraft] = useState(query);
@@ -74,6 +84,7 @@ export function EpicFacetFilterBar({
     flag !== "all" ||
     horizon != null ||
     epicType != null ||
+    (art ?? null) != null ||
     query !== "";
 
   return (
@@ -91,6 +102,22 @@ export function EpicFacetFilterBar({
           </option>
         ))}
       </select>
+
+      {artOptions && onArtChange && (
+        <select
+          className={FACET_SELECT_CLASS}
+          value={art ?? ""}
+          onChange={(e) => onArtChange(e.target.value || null)}
+          aria-label="ART"
+        >
+          <option value="">Alle ARTs</option>
+          {artOptions.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      )}
 
       <div className="w-44">
         <UserPicker
@@ -165,6 +192,7 @@ export function EpicFacetFilterBar({
             onFlagChange("all");
             onHorizonChange(null);
             onEpicTypeChange(null);
+            onArtChange?.(null);
           }}
           className="h-8 px-2 text-xs text-muted-foreground"
         >

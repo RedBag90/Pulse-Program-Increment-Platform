@@ -116,7 +116,7 @@ export interface ForestCustomFieldDef {
 export interface ForestLookups {
   latestCheckin: ReadonlyMap<string, GoalLatestCheckin>;
   relatedEpics: ReadonlyMap<string, ForestRelatedEpic[]>;
-  /** auto_kpi-Ist-Beiträge je Knoten (Faktor bevorzugt, sonst gleiche Einheit). */
+  /** KPI-Ist-Beiträge je Knoten (Faktor bevorzugt, sonst gleiche Einheit). */
   autoKpiLinks: ReadonlyMap<string, AutoKpiLink[]>;
   relatedWork: ReadonlyMap<string, RelatedWorkItem[]>;
   valueStreams: ReadonlyMap<string, ScopeRef[]>;
@@ -136,7 +136,7 @@ export interface GoalForestInput {
 /** Die aufgelösten Blatt-Fakten eines Knotens — Grundlage für Baum & Graf. */
 export interface ResolvedNode {
   mode: ProgressMode;
-  /** Bei `auto_kpi` die einheitengleiche KPI-Summe, sonst der gepflegte `current`. */
+  /** Bei KPI-getriebenem Blatt die einheitengleiche KPI-Summe, sonst der gepflegte `current`. */
   effectiveCurrent: number | null;
   /** Eigener Blatt-Fortschritt 0..1; `null` bei `rollup`. */
   progressLeaf: number | null;
@@ -154,7 +154,7 @@ export interface ResolvedNode {
  * **Der Seam.** Löst für einen Knoten die Fortschrittsquelle und alle abgeleiteten
  * Blatt-Fakten (Ist-Wert, progressLeaf, trioLeaf, trioEpicLinks) auf — die eine
  * Stelle, an der der `rollup ⇒ progressLeaf=null`-Spezialfall und die
- * KPI-getriebene Wertableitung (auto_kpi/kpi_tree) leben. Rein, ohne I/O.
+ * KPI-getriebene Wertableitung (kpi_tree) leben. Rein, ohne I/O.
  */
 export function resolveNode(
   o: ForestObjective,
@@ -207,7 +207,7 @@ export function resolveNode(
           runRate: kpiDelta({ baseline: o.baseline, target: o.target, current: effectiveCurrent }),
         }
       : { planned: 0, realized: 0, runRate: 0 };
-  // Bei KPI-getriebenen Blättern (`auto_kpi`, `kpi_tree`-Blatt) fließen die
+  // Bei KPI-getriebenen Blättern (`kpi_tree`-Blatt) fließen die
   // Epic-Erfolgs-KPIs bereits über `effectiveCurrent` in `unitValueLeaf` ein —
   // sie hier NICHT ein zweites Mal addieren (`nodeUnitValue` summiert
   // `unitValueLeaf + unitEpicLinks`). Nur bei manual/rollup ist der Epic-Link-
@@ -408,7 +408,7 @@ export interface GoalChartInput {
   rows: ChartObjective[];
   /** 0..1-Fortschritts-Snapshots je Knoten (für die rekursive Serie). */
   progressByNode: ReadonlyMap<string, SeriesNode["checkins"]>;
-  /** Verknüpfte Epic-KPIs (faktor-bewusst, mit Messreihe) je Knoten — für auto_kpi. */
+  /** Verknüpfte Epic-KPIs (faktor-bewusst, mit Messreihe) je Knoten — für kpi_tree-Blätter. */
   autoKpiSeriesByNode: ReadonlyMap<string, SeriesNode["autoKpiLinks"]>;
   /** Eigene Check-ins des Wurzelknotens (Punkte-Quelle). */
   rootCheckins: ChartRootCheckin[];
@@ -515,7 +515,7 @@ export function buildProgressChart(input: GoalChartInput): ProgressChart {
 
   // 2) Eigene Check-ins: Status gesetzt → farbiger Status-Punkt; statuslos mit
   //    Wert (manueller Eintrag) → neutraler Punkt. Abgeleitete Ziele (rollup/
-  //    auto_kpi/kpi_tree) haben an jedem Datum einen abgeleiteten Wert ⇒ den
+  //    kpi_tree) haben an jedem Datum einen abgeleiteten Wert ⇒ den
   //    Marker auf die Linie am Check-in-Datum projizieren, nicht den eingefrorenen
   //    „heute"-Snapshot nutzen (der sonst Punkt UND Linie am Backdate verzerrt).
   //    Nur manuelle Ziele sind selbst die Wert-Quelle.

@@ -153,34 +153,7 @@ function leaf(over: Partial<SeriesNode>): SeriesNode {
 }
 
 describe("buildNodeProgressSeries", () => {
-  it("auto_kpi: KPI sum normalized to progress", () => {
-    const node = leaf({
-      progressMode: "auto_kpi",
-      target: 100,
-      autoKpiLinks: [
-        {
-          kind: "sameUnit",
-          kpis: [
-            {
-              unit: "Kunden",
-              baseline: 0,
-              target: 100,
-              measurements: [
-                { at: "2026-01-01", value: 20 },
-                { at: "2026-02-01", value: 60 },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-    expect(buildNodeProgressSeries(node, "2026-03-01")).toEqual([
-      { at: "2026-01-01", progress: 0.2 },
-      { at: "2026-02-01", progress: 0.6 },
-    ]);
-  });
-
-  it("kpi_tree-Blatt: gleiche KPI-Serie wie auto_kpi", () => {
+  it("kpi_tree-Blatt: KPI-Summe normalisiert zum Fortschritt", () => {
     const node = leaf({
       progressMode: "kpi_tree",
       target: 100,

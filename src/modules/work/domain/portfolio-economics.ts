@@ -563,7 +563,7 @@ export interface EpicEconomicsDTO {
   id: string;
   title: string;
   valueStream: string | null;
-  /** ART der Primär-Solution — treibt die „Nach ART"-Gruppierung (null ⇒ „Ohne ART"). */
+  /** Direkte Epic-ART (`Initiative.artId`) — treibt die „Nach ART"-Gruppierung (null ⇒ „Ohne ART"). */
   art: string | null;
   // — Facetten-Fakten für die Dashboard-Filterleiste (Quellen wie Epics-Liste) —
   valueStreamId: string | null;

@@ -40,10 +40,14 @@ export interface EpicOverviewTabProps {
     plannedStartAt: Date | null;
     plannedEndAt: Date | null;
     valueStream: { id: string; name: string } | null;
+    /** Direkte ART-Zuordnung (Pflichtfeld beim Anlegen). */
+    artId: string | null;
     /** Abgeleiteter Horizont aus der Primär-Solution. */
     primarySolution: { id: string; horizon: string } | null;
     /** Alle Solution-Zuordnungen (n:m). */
-    solutionLinks: { solution: { id: string; name: string; horizon: string; deletedAt: Date | null } }[];
+    solutionLinks: {
+      solution: { id: string; name: string; horizon: string; deletedAt: Date | null };
+    }[];
     businessCase: unknown;
     children: {
       status: string;
@@ -226,6 +230,8 @@ export function EpicOverviewTab({ epic, canEdit, kpiBenefit, solutions }: EpicOv
             id={epic.id}
             currentTitle={epic.title}
             currentDescription={epic.description ?? ""}
+            currentValueStreamId={epic.valueStream?.id ?? ""}
+            currentArtId={epic.artId ?? ""}
           />
         ) : (
           <p className="text-foreground">{epic.description ?? "Keine Beschreibung."}</p>

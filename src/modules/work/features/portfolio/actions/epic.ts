@@ -59,7 +59,11 @@ export const updateEpicAction = createServerAction({
     description: z.string().optional(),
     // SAFe Guardrails (Roadmap-G2). Leerer String = explizit clearen,
     // fehlend = nicht anpacken — die Form sendet beide Felder immer.
-    epicType: z.enum(["solution", "epic", "enabler", ""]).optional(),
+    epicType: z.enum(["epic", "enabler", ""]).optional(),
+    // Wertstrom-/ART-Wechsel (Beschreibungs-Formular). Fehlend = unverändert;
+    // der Service validiert final, dass die ART zum Wertstrom gehört.
+    valueStreamId: z.string().uuid().optional(),
+    artId: z.string().uuid().optional(),
   }),
   action: "epic.update",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -71,6 +75,10 @@ export const updateEpicAction = createServerAction({
       ...(input.epicType !== undefined && {
         epicType: input.epicType === "" ? null : input.epicType,
       }),
+      ...(input.valueStreamId !== undefined && {
+        valueStreamId: input.valueStreamId as ValueStreamId,
+      }),
+      ...(input.artId !== undefined && { artId: input.artId as ArtId }),
     }),
   revalidate: "epic",
   mapError: (e) =>

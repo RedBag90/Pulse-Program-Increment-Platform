@@ -14,12 +14,17 @@ import {
 } from "recharts";
 import {
   buildGoalWaterfall,
+  maturityBand,
+  STAGE_ORDER,
   type GoalWaterfallData,
+  type GoalWaterfallEpic,
   type GoalWaterfallGoal,
+  type WaterfallDimension,
   type WaterfallStep,
 } from "@/modules/work/domain/goal-benefit-waterfall";
 import { formatMetricValue } from "@/modules/core/goals/domain/goal-metric";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
+import { epicColor } from "./epic-colors";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 
@@ -27,6 +32,7 @@ import { Card } from "@/components/ui/card";
 const FORECAST_OPACITY = 0.4;
 const GAP_COLOR = "#dc2626";
 const TOTAL_COLOR = "#64748b";
+const NEUTRAL_COLOR = "#94a3b8";
 
 /** Gate → Farbe (Rampe L0 grau → L5 grün), konsistent mit dem Status-Modus. */
 const STAGE_COLORS: Record<StageGate, string> = {
@@ -46,6 +52,116 @@ const STAGE_SUBLABEL: Record<StageGate, string> = {
   L5: "Impact",
 };
 
+// ── Bucket-Dimension aus dem Ansicht-Umschalter des Dashboards ──────────────
+
+/** Die Ansicht des Dashboards, der der Wasserfall folgt. */
+export type WaterfallGroupMode = "valueStream" | "art" | "epic" | "status";
+
+/** Dimension-Fakten je Epic — vom Dashboard aus `data.epics` gebaut. */
+export interface WaterfallEpicInfo {
+  valueStream: string | null;
+  art: string | null;
+  title: string;
+  color: string;
+}
+
+const GROUP_LABEL: Record<WaterfallGroupMode, string> = {
+  status: "Status",
+  valueStream: "Wertstrom",
+  art: "ART",
+  epic: "Epic",
+};
+
+const NULL_BUCKET_KEY = "__none__";
+const OTHERS_BUCKET_KEY = "__others__";
+/** Epic-Modus: die N größten Beiträge als eigene Spalten, Rest = „Weitere". */
+const TOP_EPIC_BUCKETS = 15;
+
+/** Gesamt-Beitrag eines Epics in Ziel-Einheit (solid + forecast, bandabhängig). */
+function epicContribution(e: GoalWaterfallEpic): number {
+  const band = maturityBand(e.gate, e.subStage);
+  if (band === "estimate") return e.planned;
+  if (band === "actual") return e.realized;
+  return e.realized + Math.max(e.planned - e.realized, 0);
+}
+
+/**
+ * Baut die Wasserfall-Dimension für ein Ziel: Status = feste L0–L5-Spalten;
+ * Wertstrom/ART = distinct Namen der beitragenden (gefilterten) Epics, „Ohne …"
+ * zuletzt; Epic = Top-15 nach Beitrag + Sammelspalte „Weitere".
+ */
+function buildDimension(
+  mode: WaterfallGroupMode,
+  epics: readonly GoalWaterfallEpic[],
+  selectedEpicIds: ReadonlySet<string> | null,
+  epicInfoById: Record<string, WaterfallEpicInfo>,
+): WaterfallDimension {
+  if (mode === "status") {
+    return {
+      buckets: STAGE_ORDER.map((gate) => ({
+        key: gate,
+        label: gate,
+        sublabel: STAGE_SUBLABEL[gate],
+        color: STAGE_COLORS[gate],
+      })),
+      keyOf: (e) => e.gate,
+    };
+  }
+  const active = selectedEpicIds ? epics.filter((e) => selectedEpicIds.has(e.epicId)) : epics;
+
+  if (mode === "valueStream" || mode === "art") {
+    const nameOf = (epicId: string): string | null =>
+      (mode === "valueStream" ? epicInfoById[epicId]?.valueStream : epicInfoById[epicId]?.art) ??
+      null;
+    const names = new Set<string>();
+    let hasUnassigned = false;
+    for (const e of active) {
+      const n = nameOf(e.epicId);
+      if (n) names.add(n);
+      else hasUnassigned = true;
+    }
+    const sorted = [...names].sort((a, b) => a.localeCompare(b, "de"));
+    const buckets = sorted.map((n, i) => ({ key: `n:${n}`, label: n, color: epicColor(i) }));
+    if (hasUnassigned || buckets.length === 0) {
+      buckets.push({
+        key: NULL_BUCKET_KEY,
+        label: mode === "valueStream" ? "Ohne Wertstrom" : "Ohne ART",
+        color: NEUTRAL_COLOR,
+      });
+    }
+    return {
+      buckets,
+      keyOf: (e) => {
+        const n = nameOf(e.epicId);
+        return n ? `n:${n}` : NULL_BUCKET_KEY;
+      },
+    };
+  }
+
+  // mode === "epic": Beitrag je Epic summieren, Top-N als Spalten, Rest gebündelt.
+  const contrib = new Map<string, number>();
+  for (const e of active) {
+    contrib.set(e.epicId, (contrib.get(e.epicId) ?? 0) + epicContribution(e));
+  }
+  const top = [...contrib.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, TOP_EPIC_BUCKETS)
+    .map(([id]) => id);
+  const topSet = new Set(top);
+  const buckets = top.map((id) => ({
+    key: id,
+    label: epicInfoById[id]?.title ?? `Epic ${id.slice(0, 8)}`,
+    color: epicInfoById[id]?.color ?? NEUTRAL_COLOR,
+  }));
+  if (contrib.size > top.length || buckets.length === 0) {
+    buckets.push({ key: OTHERS_BUCKET_KEY, label: "Weitere", color: NEUTRAL_COLOR });
+  }
+  return {
+    buckets,
+    keyOf: (e) => (topSet.has(e.epicId) ? e.epicId : OTHERS_BUCKET_KEY),
+  };
+}
+
 type MetricSpec = Pick<GoalWaterfallGoal, "metricType" | "precision" | "currencyCode">;
 
 /** Kompaktes Achsen-Label (k/Mio für große Beträge), Einheit über den Metrik-Typ. */
@@ -61,34 +177,39 @@ function fmtCompact(v: number, goal: MetricSpec): string {
 interface WfRow {
   label: string;
   sublabel: string;
+  color: string;
   base: number;
   solid: number;
   forecast: number;
   kind: WaterfallStep["kind"];
-  gate: StageGate | null;
 }
 
 function toRows(steps: WaterfallStep[]): WfRow[] {
   return steps.map((s) => ({
-    label: s.kind === "total" ? "Σ heute" : s.kind === "gap" ? "Lücke" : s.gate!,
-    sublabel: s.kind === "stage" ? STAGE_SUBLABEL[s.gate!] : "",
+    label: s.kind === "total" ? "Σ heute" : s.kind === "gap" ? "Lücke" : s.label,
+    sublabel: s.sublabel,
+    color: s.color ?? NEUTRAL_COLOR,
     base: s.base,
     solid: s.solid,
     forecast: s.forecast,
     kind: s.kind,
-    gate: s.gate,
   }));
 }
 
 function solidColor(r: WfRow): string {
   if (r.kind === "total") return TOTAL_COLOR;
   if (r.kind === "gap") return "transparent";
-  return STAGE_COLORS[r.gate!];
+  return r.color;
 }
 function forecastColor(r: WfRow): string {
   if (r.kind === "gap") return GAP_COLOR;
   if (r.kind === "total") return "transparent";
-  return STAGE_COLORS[r.gate!];
+  return r.color;
+}
+
+/** Lange Bucket-Namen (Wertströme/Epics) auf Achsen-taugliche Länge kürzen. */
+function truncateTick(v: string): string {
+  return v.length > 14 ? `${v.slice(0, 13)}…` : v;
 }
 
 // ── großes Chart ────────────────────────────────────────────────────────────
@@ -109,6 +230,7 @@ function WaterfallChart({
         <XAxis
           dataKey="label"
           interval={0}
+          tickFormatter={truncateTick}
           tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
           axisLine={false}
           tickLine={false}
@@ -219,14 +341,15 @@ function MiniWaterfall({
   active: boolean;
   onSelect: () => void;
 }) {
+  // Die Dimension ist für die Summen egal — der Mini-Balken nutzt den Default.
   const wf = useMemo(
     () => buildGoalWaterfall(goal, data.epicsByGoal[goal.id] ?? [], selectedEpicIds),
     [goal, data.epicsByGoal, selectedEpicIds],
   );
   // kompakter Fortschrittsbalken: Ist (solid) + Estimate/Rest (forecast) gegen Ziel.
-  const solidSum = wf.steps.filter((s) => s.kind === "stage").reduce((a, s) => a + s.solid, 0);
+  const solidSum = wf.steps.filter((s) => s.kind === "bucket").reduce((a, s) => a + s.solid, 0);
   const forecastSum = wf.steps
-    .filter((s) => s.kind === "stage")
+    .filter((s) => s.kind === "bucket")
     .reduce((a, s) => a + s.forecast, 0);
   const denom = Math.max(goal.target, wf.total, 1);
   const pctSolid = (solidSum / denom) * 100;
@@ -280,23 +403,51 @@ function MiniWaterfall({
 export function GoalBenefitWaterfallSection({
   data,
   selectedEpicIds,
+  groupMode,
+  epicInfoById,
 }: {
   data: GoalWaterfallData;
   /** Aktiver Projekt-ID-Filter (null = alle). */
   selectedEpicIds: ReadonlySet<string> | null;
+  /** Die Ansicht des Dashboards — bestimmt die Wasserfall-Spalten. */
+  groupMode: WaterfallGroupMode;
+  /** Dimension-Fakten je Epic (VS/ART/Titel/Farbe), aus `data.epics` gebaut. */
+  epicInfoById: Record<string, WaterfallEpicInfo>;
 }) {
-  const [selectedGoalId, setSelectedGoalId] = useState<string>(() => data.goals[0]?.id ?? "");
+  // Wurzel-Ziele zuerst; Unterziele hängen im Selektor eingerückt darunter.
+  const rootGoals = useMemo(() => data.goals.filter((g) => g.parentId === null), [data.goals]);
+  const goalOptions = useMemo(() => {
+    const known = new Set(data.goals.map((g) => g.id));
+    const out: { goal: GoalWaterfallGoal; depth: number }[] = [];
+    for (const root of rootGoals) {
+      out.push({ goal: root, depth: 0 });
+      for (const child of data.goals.filter((g) => g.parentId === root.id)) {
+        out.push({ goal: child, depth: 1 });
+      }
+    }
+    // Unterziele, deren Eltern selbst keinen Zielwert haben, flach anhängen.
+    for (const g of data.goals) {
+      if (g.parentId !== null && !known.has(g.parentId)) out.push({ goal: g, depth: 1 });
+    }
+    return out;
+  }, [data.goals, rootGoals]);
+
+  const [selectedGoalId, setSelectedGoalId] = useState<string>(
+    () => rootGoals[0]?.id ?? data.goals[0]?.id ?? "",
+  );
 
   const goal = useMemo(
-    () => data.goals.find((g) => g.id === selectedGoalId) ?? data.goals[0],
-    [data.goals, selectedGoalId],
+    () => data.goals.find((g) => g.id === selectedGoalId) ?? rootGoals[0] ?? data.goals[0],
+    [data.goals, rootGoals, selectedGoalId],
   );
 
   const rows = useMemo(() => {
     if (!goal) return [];
-    const wf = buildGoalWaterfall(goal, data.epicsByGoal[goal.id] ?? [], selectedEpicIds);
+    const epics = data.epicsByGoal[goal.id] ?? [];
+    const dimension = buildDimension(groupMode, epics, selectedEpicIds, epicInfoById);
+    const wf = buildGoalWaterfall(goal, epics, selectedEpicIds, dimension);
     return toRows(wf.steps);
-  }, [goal, data.epicsByGoal, selectedEpicIds]);
+  }, [goal, data.epicsByGoal, selectedEpicIds, groupMode, epicInfoById]);
 
   if (data.goals.length === 0) {
     return (
@@ -322,7 +473,7 @@ export function GoalBenefitWaterfallSection({
         <div>
           <h2 className="font-heading text-sm font-medium">Benefit-Wasserfall</h2>
           <p className="text-xs text-muted-foreground">
-            Wert je Status &amp; Lücke zum Ziel — Bezug: heute
+            Wert je {GROUP_LABEL[groupMode]} &amp; Lücke zum Ziel — Bezug: heute
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -335,8 +486,9 @@ export function GoalBenefitWaterfallSection({
             onChange={(e) => setSelectedGoalId(e.target.value)}
             className="rounded-md border bg-background px-2 py-1 text-xs"
           >
-            {data.goals.map((g) => (
+            {goalOptions.map(({ goal: g, depth }) => (
               <option key={g.id} value={g.id}>
+                {depth > 0 ? "  ↳ " : ""}
                 {g.title} · Ziel {fmtCompact(g.target, g)}
               </option>
             ))}
@@ -346,7 +498,7 @@ export function GoalBenefitWaterfallSection({
 
       {goal && (
         <div className="overflow-x-auto">
-          <div className="min-w-[640px]">
+          <div style={{ minWidth: `${Math.max(640, rows.length * 90)}px` }}>
             <WaterfallChart goal={goal} rows={rows} />
           </div>
         </div>
@@ -381,14 +533,14 @@ export function GoalBenefitWaterfallSection({
         </span>
       </div>
 
-      {/* Small Multiples: alle messbaren Ziele */}
-      {data.goals.length > 1 && (
+      {/* Small Multiples: die Wurzel-Ziele (Unterziele nur im Selektor, sonst Dopplung) */}
+      {rootGoals.length > 1 && (
         <div className="mt-4 border-t pt-3">
           <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">
             Alle Ziele
           </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {data.goals.map((g) => (
+            {rootGoals.map((g) => (
               <MiniWaterfall
                 key={g.id}
                 goal={g}

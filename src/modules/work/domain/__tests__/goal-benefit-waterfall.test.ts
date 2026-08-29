@@ -8,6 +8,7 @@ import {
 
 const goal = (over: Partial<GoalWaterfallGoal> = {}): GoalWaterfallGoal => ({
   id: "g1",
+  parentId: null,
   title: "ARR-Wachstum",
   target: 100,
   metricType: "currency",
@@ -89,5 +90,34 @@ describe("buildGoalWaterfall", () => {
     const wf = buildGoalWaterfall(goal({ target: 100 }), epics, new Set());
     expect(wf.total).toBe(0);
     expect(wf.gap).toBe(100);
+  });
+
+  it("custom Dimension: bucketet nach keyOf, Reihenfolge aus den Defs, Summen identisch", () => {
+    // Zwei Buckets (a+b vs. c) + ein leerer Unassigned-Bucket zuletzt.
+    const wf = buildGoalWaterfall(goal({ target: 100 }), epics, null, {
+      buckets: [
+        { key: "vs:X", label: "X", color: "#111111" },
+        { key: "vs:Y", label: "Y" },
+        { key: "__none__", label: "Ohne Wertstrom" },
+      ],
+      keyOf: (e) => (e.epicId === "c" ? "vs:Y" : "vs:X"),
+    });
+    const byKey = new Map(wf.steps.map((s) => [s.key, s]));
+    // X = a (estimate 20 forecast) + b (achieved 12 solid + 18 Rest)
+    expect(byKey.get("vs:X")).toMatchObject({
+      kind: "bucket",
+      label: "X",
+      color: "#111111",
+      solid: 12,
+      forecast: 38,
+      gate: null,
+    });
+    // Y = c (actual 25 solid); kumulativer Sockel nach X = 50
+    expect(byKey.get("vs:Y")).toMatchObject({ solid: 25, forecast: 0, base: 50 });
+    expect(byKey.get("__none__")).toMatchObject({ solid: 0, forecast: 0 });
+    // total/gap identisch zur Status-Dimension — die Dimension ändert nur die Spalten.
+    const status = buildGoalWaterfall(goal({ target: 100 }), epics, null);
+    expect(wf.total).toBe(status.total);
+    expect(wf.gap).toBe(status.gap);
   });
 });

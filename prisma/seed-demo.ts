@@ -307,7 +307,7 @@ async function main() {
       title: "Core Banking Modernization",
       desc: "Ablösung des Legacy-Kernbankensystems — großer Cross-ART-Solution-Brocken.",
       vs: 0,
-      epicType: "solution",
+      epicType: "epic",
       horizon: "H2",
       gate: "L2",
       steering: true,
@@ -1187,14 +1187,7 @@ async function main() {
   await prisma.themeEpicLink.createMany({
     data: epicIds.map((epicId, i) => {
       const t = EPIC_DEFS[i]!;
-      const themeId =
-        t.epicType === "enabler"
-          ? themeEnabler
-          : t.epicType === "solution"
-            ? themeBiz
-            : i % 2 === 0
-              ? themeBiz
-              : themeTrust;
+      const themeId = t.epicType === "enabler" ? themeEnabler : i % 2 === 0 ? themeBiz : themeTrust;
       return { id: uid(`tel:${i}`), tenantId, themeId, epicId, createdBy: ADMIN };
     }),
   });
