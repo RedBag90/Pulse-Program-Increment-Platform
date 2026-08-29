@@ -87,6 +87,8 @@ async function main() {
     uid("art:service-contact"),
   ];
 
+  // Jeder Tenant braucht einen Plattform-Admin (globaler Operator-Grant).
+  await assignRole(U.admin, tenantId, "platform_admin");
   await assignRole(U.admin, tenantId, "tenant_admin");
   await assignRole(U.portfolio, tenantId, "portfolio_manager");
   await assignRole(U.vmo, tenantId, "portfolio_manager");

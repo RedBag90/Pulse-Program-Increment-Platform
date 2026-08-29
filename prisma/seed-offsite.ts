@@ -251,6 +251,8 @@ async function main() {
   const vsId = uid("offsite:vs");
   const artId = uid("offsite:art");
 
+  // Jeder Tenant braucht einen Plattform-Admin (globaler Operator-Grant).
+  await assignRole(admin, tenantId, "platform_admin");
   await assignRole(admin, tenantId, "tenant_admin");
   await assignRole(portfolio, tenantId, "portfolio_manager");
   await assignRole(rte, tenantId, "rte", { artIds: [artId] });

@@ -7,7 +7,7 @@
  * Accounts, der Tenant selbst und Role-Assignments bleiben (idempotent).
  *
  * Test-User (Passwort `Test1234!` ausser admin = `Admin1234!`):
- *   admin@pulse.dev          → tenant_admin
+ *   admin@pulse.dev          → platform_admin + tenant_admin
  *   portfolio@pulse.dev      → portfolio_manager
  *   vmo@pulse.dev            → portfolio_manager (VMO in PM zusammengelegt)
  *   rte@pulse.dev            → rte (Feature-QS)
@@ -44,6 +44,8 @@ async function main() {
   await wipeDomainData(tenantId);
 
   console.log("\n── Role-Assignments");
+  // Jeder Tenant braucht einen Plattform-Admin (globaler Operator-Grant).
+  await assignRole(adminId, tenantId, "platform_admin");
   await assignRole(adminId, tenantId, "tenant_admin");
   await assignRole(portfolioId, tenantId, "portfolio_manager");
   // VMO + Transformation Lead sind in portfolio_manager zusammengelegt.

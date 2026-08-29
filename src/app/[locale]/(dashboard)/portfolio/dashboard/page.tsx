@@ -1,14 +1,9 @@
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
-import {
-  getPortfolioEconomics,
-  getPortfolioGuardrailsInputs,
-} from "@/modules/work/server/services/portfolio-dashboard";
+import { getPortfolioEconomics } from "@/modules/work/server/services/portfolio-dashboard";
 import { getGoalBenefitWaterfalls } from "@/modules/work/server/views/goal-benefit-waterfalls";
 import { PortfolioDashboard } from "@/modules/work/features/portfolio/components/dashboard/portfolio-dashboard-lazy";
-import { PortfolioGuardrailsSection } from "@/modules/work/features/portfolio/components/dashboard/portfolio-guardrails-section";
-import { computePortfolioGuardrails } from "@/modules/work/server/views/portfolio-guardrails-view";
 import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import { Page, PageHeader } from "@/components/layout";
@@ -23,20 +18,12 @@ export default async function PortfolioDashboardPage() {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const [data, guardrailsInputs, goalWaterfalls] = await Promise.all([
+  const [data, goalWaterfalls] = await Promise.all([
     getPortfolioEconomics(db, principal.tenantId),
-    getPortfolioGuardrailsInputs(db, principal.tenantId),
     getGoalBenefitWaterfalls(db, principal.tenantId),
   ]);
 
   const canEdit = authorize("target.manage", { tenantId: principal.tenantId }, principal).allow;
-
-  // Targets-Pflege fuer die Guardrails lebt in der Budgeting-Uebersicht
-  // (`/budgeting`). Hier wird nur der Ist-vs-Soll-Mix gerendert.
-  const guardrailsModel = computePortfolioGuardrails({
-    epics: guardrailsInputs.epics,
-    targets: guardrailsInputs.targets,
-  });
 
   return (
     <Page>
@@ -61,8 +48,6 @@ export default async function PortfolioDashboardPage() {
           </Link>
         }
       />
-
-      <PortfolioGuardrailsSection model={guardrailsModel} />
 
       {data.epics.length === 0 ? (
         <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">
