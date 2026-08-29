@@ -8,13 +8,15 @@ import { resolveActiveCycle } from "@/modules/budgeting/domain/budget-cycle";
  * The Epic's budget-allocation summary. Budgeting owns the `budgetAllocation`
  * table; the Epic route consumes this via a port so Work never reads it directly
  * (ADR-0013). `allocatedSum` is the total of the per-period allocations — the
- * Reifegrad sub-header shows "Budget alloziert" when it is > 0.
+ * Reifegrad sub-header shows "Budget alloziert" when it is > 0. `allocatedByPeriod`
+ * carries the per-half-year map (`"YYYY-H1|H2" → €`) for the cost-over-time
+ * calculation (Business-case-calculation tab).
  */
 export async function getEpicBudgetAllocation(
   db: PrismaClient,
   tenantId: TenantId,
   epicId: EpicId,
-): Promise<{ allocatedSum: number } | null> {
+): Promise<{ allocatedSum: number; allocatedByPeriod: Record<string, number> } | null> {
   const row = await db.budgetAllocation.findUnique({
     where: { epicId },
     select: { allocations: true, tenantId: true },
@@ -24,8 +26,8 @@ export async function getEpicBudgetAllocation(
   if (!row || row.tenantId !== tenantId) return null;
   // Parse + sum via the module's shared period-map primitives, so malformed
   // cells are dropped consistently rather than hand-checked here.
-  const allocatedSum = sumPeriods(parsePeriodAmountMap(row.allocations));
-  return { allocatedSum };
+  const allocatedByPeriod = parsePeriodAmountMap(row.allocations);
+  return { allocatedSum: sumPeriods(allocatedByPeriod), allocatedByPeriod };
 }
 
 /**

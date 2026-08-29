@@ -23,6 +23,8 @@ import { EpicOverviewTab } from "@/modules/work/features/portfolio/components/ep
 import { EpicLifecycleStepper } from "@/modules/work/features/portfolio/components/epic-lifecycle-stepper";
 import { EpicGateCard } from "@/modules/work/features/portfolio/components/gate/epic-gate-card";
 import { EpicKpisTab } from "@/modules/work/features/portfolio/components/epic-kpis-tab";
+import { EpicBusinessCaseCalcTab } from "@/modules/work/features/portfolio/components/epic-business-case-calc-tab";
+import { buildEpicBusinessCaseCalc } from "@/modules/work/domain/epic-bc-calculation";
 import { EpicBreakdownTab } from "@/modules/work/features/portfolio/components/epic-breakdown-tab";
 import { BenefitHypothesisEditor } from "@/modules/work/features/portfolio/components/benefit-hypothesis-editor";
 import { BusinessCaseEditor } from "@/modules/work/features/portfolio/components/business-case-editor";
@@ -276,6 +278,36 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               />
             )}
           </section>
+        )}
+
+        {activeTab === "business-case-calc" && (
+          <EpicBusinessCaseCalcTab
+            {...buildEpicBusinessCaseCalc({
+              createdAt: epic.createdAt,
+              selectedForDetailingAt: epic.selectedForDetailingAt,
+              hypothesisApprovedAt: epic.hypothesisApprovedAt,
+              selectedForAnalyzingAt: epic.selectedForAnalyzingAt,
+              businessCaseApprovedAt: epic.businessCaseApprovedAt,
+              implementationStartedAt: epic.implementationStartedAt,
+              impactRecognizedAt: epic.impactRecognizedAt,
+              plannedEndAt: epic.plannedEndAt,
+              timeline: epic.timeline,
+              businessCase: epic.businessCase,
+              allocatedByPeriod: model.budgeting.disabled ? {} : model.budgeting.allocatedByPeriod,
+              kpis: kpiRows.map((k) => ({
+                id: k.id,
+                name: k.name,
+                baseline: k.baseline,
+                target: k.target,
+                measurements: k.measurements,
+                benefitWeight: k.weight,
+                valuePerUnit: k.valuePerUnit,
+                benefitKind: k.benefitKind,
+                recurringInterval: k.recurringInterval,
+              })),
+              now: new Date(),
+            })}
+          />
         )}
 
         {activeTab === "benefit-hypothesis" && (

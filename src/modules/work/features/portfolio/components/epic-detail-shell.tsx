@@ -10,6 +10,7 @@ export const EPIC_TABS: readonly DetailTab[] = [
   { key: "timeline", label: "Reifegrad-Phasen und Timeline" },
   { key: "benefit-hypothesis", label: "Hypothese" },
   { key: "business-case", label: "Business Case" },
+  { key: "business-case-calc", label: "Business case calculation" },
   { key: "breakdown", label: "Deliverables" },
   { key: "dependencies", label: "Dependencies" },
   { key: "kpis", label: "KPI & Nutzenkalkulation" },

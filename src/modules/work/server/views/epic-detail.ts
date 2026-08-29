@@ -96,8 +96,12 @@ export interface BreakdownEdge {
 /** Port: the dependency edges touching the Epic's Features (Drumbeat). */
 export type EpicDependenciesPort = (featureIds: string[]) => Promise<BreakdownEdge[]>;
 
-/** Port: the Epic's budget allocation sum (Budgeting), or null when none exists. */
-export type EpicBudgetPort = () => Promise<{ allocatedSum: number } | null>;
+/** Port: the Epic's budget allocation (Budgeting), or null when none exists.
+ *  `allocatedByPeriod` = per-half-year €-map, consumed by the cost-over-time calc. */
+export type EpicBudgetPort = () => Promise<{
+  allocatedSum: number;
+  allocatedByPeriod: Record<string, number>;
+} | null>;
 
 export interface EpicDetailPorts {
   pis: EpicPisPort;
@@ -120,7 +124,9 @@ export type DrumbeatSlice =
       dependencies: BreakdownEdge[];
     };
 
-export type BudgetingSlice = { disabled: true } | { disabled: false; allocated: boolean };
+export type BudgetingSlice =
+  | { disabled: true }
+  | { disabled: false; allocated: boolean; allocatedByPeriod: Record<string, number> };
 
 /** Risks is composed in the Epic route (composition root) off the full risks
  *  model; Work only carries the entitlement gate. */
@@ -150,7 +156,7 @@ export interface EpicDetailInputs {
   /** Port result — empty when `enabled.drumbeat` is false. */
   dependencies: BreakdownEdge[];
   /** Port result — null when `enabled.budgeting` is false. */
-  budget: { allocatedSum: number } | null;
+  budget: { allocatedSum: number; allocatedByPeriod: Record<string, number> } | null;
   /** Persisted breakdown-network node positions (Work-owned, always loaded). */
   breakdownPositions: Map<string, { x: number; y: number }>;
   enabled: { drumbeat: boolean; budgeting: boolean; risks: boolean };
@@ -402,7 +408,11 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
 
   // Budgeting slice — `allocated` = Σ allocations > 0 (page lines 196-202).
   const budgetingSlice: BudgetingSlice = enabled.budgeting
-    ? { disabled: false, allocated: (budget?.allocatedSum ?? 0) > 0 }
+    ? {
+        disabled: false,
+        allocated: (budget?.allocatedSum ?? 0) > 0,
+        allocatedByPeriod: budget?.allocatedByPeriod ?? {},
+      }
     : { disabled: true };
   const budgetAllocated = budgetingSlice.disabled ? false : budgetingSlice.allocated;
 
