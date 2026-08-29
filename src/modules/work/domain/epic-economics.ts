@@ -19,7 +19,11 @@ import {
   type BusinessCaseTotals,
 } from "@/modules/work/domain/business-case";
 import { parseTimeline } from "@/modules/work/domain/timeline";
-import { resolveCostStart, resolveGoLive } from "@/modules/work/domain/epic-schedule";
+import {
+  resolveCostStart,
+  resolveGoLive,
+  resolveImplementationWindow,
+} from "@/modules/work/domain/epic-schedule";
 import type { KpiMeasurement } from "@/modules/core/kpi/domain/kpi";
 import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
 import { kpiPlanned } from "@/modules/core/kpi/domain/kpi-valuation";
@@ -49,6 +53,8 @@ export interface EpicEconomicsSource {
   timeline: unknown;
   businessCaseApprovedAt: Date | null;
   hypothesisApprovedAt: Date | null;
+  /** Actual L4.1 stamp (Initiative column) — anchors the estimated-cost window. */
+  implementationStartedAt?: Date | null;
   createdAt: Date;
   /** Linked KPIs; pass `[]` when the consumer does not load them. */
   kpis: EpicEconomicsKpiInput[];
@@ -82,6 +88,11 @@ export interface EpicEconomicsView {
   costStart: Date;
   /** Implementation milestone — completion / go-live. */
   goLive: Date;
+  /**
+   * Day-precise L4.1 → L4.2 window `[start, endExclusive)` — where estimated
+   * cost accrues (`resolveImplementationWindow`).
+   */
+  implementationWindow: { start: Date; endExclusive: Date };
   /** Linked KPIs with resolved weights; empty → flat-forecast fallback. */
   benefitKpis: BenefitKpi[];
 }
@@ -166,6 +177,12 @@ export function deriveEpicEconomics(source: EpicEconomicsSource): EpicEconomicsV
     createdAt: source.createdAt,
   });
   const goLive = resolveGoLive(timeline, costStart, costSlices.length);
+  const implementationWindow = resolveImplementationWindow(
+    timeline,
+    source.implementationStartedAt ?? null,
+    costStart,
+    costSlices.length,
+  );
   // Nutzen wird direkt aus den KPIs berechnet (100 %-Zielerreichung), nicht mehr
   // manuell im Business Case gepflegt — kein bewerteter KPI → 0.
   const benefit = epicBenefitFromKpis(source.kpis);
@@ -178,6 +195,7 @@ export function deriveEpicEconomics(source: EpicEconomicsSource): EpicEconomicsV
     totals: computeBusinessCaseTotals(businessCase, benefit),
     costStart,
     goLive,
+    implementationWindow,
     benefitKpis: resolveBenefitWeights(source.kpis),
   };
 }

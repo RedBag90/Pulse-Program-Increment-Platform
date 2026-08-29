@@ -119,7 +119,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
   it("drumbeat ON + budgeting ON: both slices enabled with computed data", () => {
     const inputs = makeInputs({
       enabled: { drumbeat: true, budgeting: true, risks: false },
-      budget: { allocatedSum: 500 },
+      budget: { allocatedSum: 500, allocatedByPeriod: {} },
       pis: [
         { id: "pi-2", name: "PI 2", artId: "art-1", startDate: "2026-07-01" },
         { id: "pi-1", name: "PI 1", artId: "art-1", startDate: "2026-01-01" },
@@ -171,7 +171,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
       makeInputs({
         epic: makeEpic({ stageGate: "L3" }),
         enabled: { drumbeat: true, budgeting: true, risks: false },
-        budget: { allocatedSum: 1000 },
+        budget: { allocatedSum: 1000, allocatedByPeriod: {} },
       }),
     );
     expect(on.nextStep?.hint.startsWith("Budget ist alloziert.")).toBe(true);
@@ -205,7 +205,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
   });
 
   it("budgeting ON with allocatedSum 0 → allocated=false", () => {
-    const m = buildEpicDetailModel(makeInputs({ budget: { allocatedSum: 0 } }));
+    const m = buildEpicDetailModel(makeInputs({ budget: { allocatedSum: 0, allocatedByPeriod: {} } }));
     expect(m.budgeting.disabled).toBe(false);
     if (!m.budgeting.disabled) expect(m.budgeting.allocated).toBe(false);
   });

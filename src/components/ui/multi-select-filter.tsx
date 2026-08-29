@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, ChevronDown } from "lucide-react";
+import { useState } from "react";
+import { Check, ChevronDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -21,6 +22,8 @@ export interface MultiSelectSection {
  * Generischer Mehrfachauswahl-Filter: ein Popover-Trigger (Label + Zähler-Badge)
  * über einer Checkbox-Liste, optional gruppiert mit „alle/keine" je Gruppe. Rein
  * präsentational — Auswahl-Set + Callbacks kommen vom Aufrufer (URL-State).
+ * `searchable` blendet ein Suchfeld ein, das die Optionen auf Label-Match
+ * filtert; die „alle/keine"-Schnellwahl wirkt dann auf die gefilterte Teilmenge.
  */
 export function MultiSelectFilter({
   label,
@@ -30,6 +33,7 @@ export function MultiSelectFilter({
   onToggleSection,
   onClear,
   disabled,
+  searchable,
 }: {
   label: string;
   sections: MultiSelectSection[];
@@ -39,8 +43,19 @@ export function MultiSelectFilter({
   onToggleSection?: (values: string[], on: boolean) => void;
   onClear: () => void;
   disabled?: boolean;
+  /** Suchfeld über der Liste — für lange Optionslisten (z. B. alle Epics). */
+  searchable?: boolean;
 }) {
   const count = selected.size;
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLowerCase();
+  const visibleSections =
+    searchable && needle !== ""
+      ? sections.map((s) => ({
+          ...s,
+          options: s.options.filter((o) => o.label.toLowerCase().includes(needle)),
+        }))
+      : sections;
   return (
     <Popover>
       <PopoverTrigger
@@ -61,8 +76,23 @@ export function MultiSelectFilter({
         <ChevronDown className="size-3.5 opacity-60" aria-hidden />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 gap-1 p-1.5">
+        {searchable && (
+          <div className="relative pb-1">
+            <Search
+              className="absolute left-2 top-[13px] size-3.5 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Suchen…"
+              aria-label={`${label} durchsuchen`}
+              className="h-7 w-full rounded-md border border-input bg-transparent pl-7 pr-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
+        )}
         <div className="max-h-96 overflow-y-auto">
-          {sections.map((section, si) => {
+          {visibleSections.map((section, si) => {
             const values = section.options.map((o) => o.value);
             const allOn = values.length > 0 && values.every((v) => selected.has(v));
             return (

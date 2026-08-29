@@ -25,6 +25,12 @@ import {
 import type { StageTransition } from "@/modules/work/domain/epic-stage-timeline";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { savePortfolioDashboardSettingsAction } from "@/modules/work/features/portfolio/actions/dashboard-settings";
+import {
+  EpicFacetFilterBar,
+  type FlagFilter,
+} from "@/modules/work/features/portfolio/components/epic-facet-filter-bar";
+import { matchesQuery } from "@/modules/work/lib/row-filter";
+import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { epicColor, VALUE_COLOR, COST_COLOR, BREAKEVEN_COLOR } from "./epic-colors";
 import { GoalBenefitWaterfallSection } from "./goal-benefit-waterfall";
 import type { GoalWaterfallData } from "@/modules/work/domain/goal-benefit-waterfall";
@@ -40,7 +46,7 @@ interface Props {
   goalWaterfalls: GoalWaterfallData;
 }
 
-type GroupMode = "valueStream" | "epic" | "status";
+type GroupMode = "valueStream" | "art" | "epic" | "status";
 
 /** Deckkraft der Forecast-Monate (Zukunft, > heute) — Zeit-Konfidenz-Achse. */
 const FORECAST_OPACITY = 0.4;
@@ -146,6 +152,48 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
   // The user can shorten or extend it freely via the Stichtag slicer.
   const [toIso, setToIso] = useState(() => defaultToIso(data));
 
+  // Facetten-Filter (dieselben Prädikate wie die Epics-Liste, s. epics-list-shell):
+  // grenzen die Epic-Menge ein; die Projekt-Auswahl wählt innerhalb davon.
+  const [query, setQuery] = useState("");
+  const [vsFilter, setVsFilter] = useState<string | null>(null);
+  const [ownerFilter, setOwnerFilter] = useState<string | null>(null);
+  const [flag, setFlag] = useState<FlagFilter>("all");
+  const [horizon, setHorizon] = useState<string | null>(null);
+  const [epicTypeFilter, setEpicTypeFilter] = useState<string | null>(null);
+  const facetEpics = useMemo(
+    () =>
+      data.epics.filter((e) => {
+        if (vsFilter && e.valueStreamId !== vsFilter) return false;
+        if (ownerFilter && e.ownerId !== ownerFilter) return false;
+        if (flag === "steering" && !e.needsSteeringAttention) return false;
+        if (flag === "budgeting" && !e.stagedForBudgeting) return false;
+        if (horizon != null && e.investmentHorizon !== horizon) return false;
+        if (epicTypeFilter != null && e.epicType !== epicTypeFilter) return false;
+        return matchesQuery([e.title, e.ownerLabel, e.valueStream], query.trim());
+      }),
+    [data.epics, vsFilter, ownerFilter, flag, horizon, epicTypeFilter, query],
+  );
+  // Facetten-Optionen aus den vorhandenen Epics (kein zusätzlicher Server-Load).
+  const valueStreamOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const e of data.epics)
+      if (e.valueStreamId && e.valueStream) m.set(e.valueStreamId, e.valueStream);
+    return [...m].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [data.epics]);
+  const ownerOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const e of data.epics) if (e.ownerId) m.set(e.ownerId, e.ownerLabel ?? e.ownerId);
+    return [...m]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [data.epics]);
+  // Serien-Auswahl = Projekt-Auswahl ∩ Facetten-Treffer.
+  const effectiveSelected = useMemo(() => {
+    const s = new Set<string>();
+    for (const e of facetEpics) if (selected.has(e.id)) s.add(e.id);
+    return s;
+  }, [facetEpics, selected]);
+
   // Stable colour per Epic, keyed by its position in the full (unfiltered) list.
   const colorById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -165,15 +213,20 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
   // „heute" einmal je Mount fixieren (stabile Memo-Deps; Monatsauflösung genügt).
   const now = useMemo(() => new Date(), []);
   const series = useMemo(
-    () => buildPortfolioSeries(data, { selectedEpicIds: selected, fromIso, toIso }, now),
-    [data, selected, fromIso, toIso, now],
+    () => buildPortfolioSeries(data, { selectedEpicIds: effectiveSelected, fromIso, toIso }, now),
+    [data, effectiveSelected, fromIso, toIso, now],
   );
   const todayIndex = series.todayIndex;
 
-  // Darstellung: Standard nach Value Stream gebündelt, umschaltbar auf Epic-/Status-Sicht.
+  // Darstellung: Standard nach Value Stream gebündelt, umschaltbar auf ART-/Epic-/Status-Sicht.
   const [groupMode, setGroupMode] = useState<GroupMode>("valueStream");
   const vsByEpicId = useMemo(
     () => new Map(data.epics.map((e) => [e.id, e.valueStream] as const)),
+    [data.epics],
+  );
+  // Epic → ART (über die Primär-Solution aufgelöst, serverseitig) für „Nach ART".
+  const artByEpicId = useMemo(
+    () => new Map(data.epics.map((e) => [e.id, e.art] as const)),
     [data.epics],
   );
   // Stage-Timeline je Epic (ISO → Date) für die zeit-variable „Nach Status"-Gruppierung.
@@ -194,6 +247,11 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
   const displaySeries = useMemo<PortfolioSeries>(() => {
     if (groupMode === "valueStream")
       return { ...series, perEpic: groupSeriesByValueStream(series.perEpic, vsByEpicId) };
+    if (groupMode === "art")
+      return {
+        ...series,
+        perEpic: groupSeriesByValueStream(series.perEpic, artByEpicId, "Ohne ART", "art"),
+      };
     if (groupMode === "status")
       return {
         ...series,
@@ -205,10 +263,10 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
         ),
       };
     return series;
-  }, [series, groupMode, vsByEpicId, stageTimelineById, confirmedMap]);
-  // Stabile Farbe je Value Stream (Titel), damit die freigegeben- und die
-  // veranschlagt-Sub-Serie desselben Streams dieselbe Farbe teilen (solid vs.
-  // schraffiert). Nur im Value-Stream-Modus genutzt.
+  }, [series, groupMode, vsByEpicId, artByEpicId, stageTimelineById, confirmedMap]);
+  // Stabile Farbe je Bucket-Titel (Value Stream bzw. ART), damit die freigegeben-
+  // und die veranschlagt-Sub-Serie desselben Buckets dieselbe Farbe teilen (solid
+  // vs. schraffiert). Nur in den Bucket-Modi (Value Stream / ART) genutzt.
   const vsColorByTitle = useMemo(() => {
     const map: Record<string, string> = {};
     let i = 0;
@@ -291,9 +349,10 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
     });
   }
 
-  // Stacks der aktiven Sicht: VS-Modus je Gruppe (Farbe nach Position), Epic-Modus
-  // je Epic (stabile Farbe/Allocation), Status-Modus je Stage-Gate (Rampe L0→L5,
-  // confirmed aus dem `:est`-Suffix der Serien-ID).
+  // Stacks der aktiven Sicht: Bucket-Modi (Value Stream / ART) je Gruppe (Farbe
+  // nach Titel, confirmed aus dem `:est`-Suffix), Epic-Modus je Epic (stabile
+  // Farbe/Allocation), Status-Modus je Stage-Gate (Rampe L0→L5).
+  const bucketMode = groupMode === "valueStream" || groupMode === "art";
   const displayStacks = displaySeries.perEpic.map((e) => {
     if (groupMode === "status") {
       const gate = stageOf(e.title);
@@ -307,38 +366,67 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
     return {
       id: e.id,
       title: e.title,
-      color: groupMode === "valueStream" ? vsColorByTitle[e.title]! : colorById[e.id]!,
-      confirmed:
-        groupMode === "valueStream" ? !e.id.endsWith(":est") : (confirmedById[e.id] ?? false),
+      color: bucketMode ? vsColorByTitle[e.title]! : colorById[e.id]!,
+      confirmed: bucketMode ? !e.id.endsWith(":est") : (confirmedById[e.id] ?? false),
     };
   });
   const stackedBy =
-    groupMode === "valueStream" ? "Value Stream" : groupMode === "status" ? "Status" : "Epic";
+    groupMode === "valueStream"
+      ? "Value Stream"
+      : groupMode === "art"
+        ? "ART"
+        : groupMode === "status"
+          ? "Status"
+          : "Epic";
 
   return (
     <div className="space-y-6">
       <HatchDefs stacks={displayStacks} />
       <Slicers
-        epics={data.epics}
-        selected={selected}
+        facetEpics={facetEpics}
+        selected={effectiveSelected}
         colorById={colorById}
         onToggle={toggle}
         onAll={() => setSelected(new Set(data.epics.map((e) => e.id)))}
         onNone={() => setSelected(new Set())}
+        onToggleMany={(ids, on) =>
+          setSelected((prev) => {
+            const next = new Set(prev);
+            for (const id of ids) if (on) next.add(id);
+            if (!on) for (const id of ids) next.delete(id);
+            return next;
+          })
+        }
         fromIso={fromIso}
         toIso={toIso}
         onFrom={setFromIso}
         onTo={setToIso}
         groupMode={groupMode}
         onGroupMode={setGroupMode}
+        facets={{
+          query,
+          valueStreamId: vsFilter,
+          ownerId: ownerFilter,
+          flag,
+          horizon,
+          epicType: epicTypeFilter,
+          valueStreamOptions,
+          ownerOptions,
+          onQueryChange: setQuery,
+          onValueStreamChange: setVsFilter,
+          onOwnerChange: setOwnerFilter,
+          onFlagChange: setFlag,
+          onHorizonChange: setHorizon,
+          onEpicTypeChange: setEpicTypeFilter,
+        }}
       />
 
       {/* Benefit-Wasserfall (Wert je Status vs. Zielwert) — erster Inhalts-Abschnitt.
-          Folgt dem Projekt-ID-Filter, sobald er eingegrenzt ist; „Alle" = null (alle
+          Folgt Facetten + Projekt-Auswahl, sobald eingegrenzt; „Alle" = null (alle
           ziel-verknüpften Epics zählen, auch solche ohne Business-Case-Economics). */}
       <GoalBenefitWaterfallSection
         data={goalWaterfalls}
-        selectedEpicIds={selected.size === data.epics.length ? null : selected}
+        selectedEpicIds={effectiveSelected.size === data.epics.length ? null : effectiveSelected}
       />
 
       {canEdit && (
@@ -891,111 +979,140 @@ function Panel({
 
 // --- slicers ---------------------------------------------------------------
 
+interface SlicerFacetProps {
+  query: string;
+  valueStreamId: string | null;
+  ownerId: string | null;
+  flag: FlagFilter;
+  horizon: string | null;
+  epicType: string | null;
+  valueStreamOptions: { id: string; name: string }[];
+  ownerOptions: { id: string; label: string }[];
+  onQueryChange: (next: string) => void;
+  onValueStreamChange: (next: string | null) => void;
+  onOwnerChange: (next: string | null) => void;
+  onFlagChange: (next: FlagFilter) => void;
+  onHorizonChange: (next: string | null) => void;
+  onEpicTypeChange: (next: string | null) => void;
+}
+
 function Slicers({
-  epics,
+  facetEpics,
   selected,
   colorById,
   onToggle,
   onAll,
   onNone,
+  onToggleMany,
   fromIso,
   toIso,
   onFrom,
   onTo,
   groupMode,
   onGroupMode,
+  facets,
 }: {
-  epics: PortfolioEconomicsData["epics"];
+  /** Die Epics, die die Facetten-Filter passieren — Optionsmenge des Projekt-Dropdowns. */
+  facetEpics: PortfolioEconomicsData["epics"];
+  /** Aktive Auswahl innerhalb der Facetten-Treffer. */
   selected: Set<string>;
   colorById: Record<string, string>;
   onToggle: (id: string) => void;
   onAll: () => void;
   onNone: () => void;
+  onToggleMany: (ids: string[], on: boolean) => void;
   fromIso: string;
   toIso: string;
   onFrom: (v: string) => void;
   onTo: (v: string) => void;
   groupMode: GroupMode;
   onGroupMode: (m: GroupMode) => void;
+  facets: SlicerFacetProps;
 }) {
   return (
-    <Card className="flex flex-wrap items-start gap-x-8 gap-y-4 p-4">
-      <div className="min-w-0 flex-1 space-y-2">
-        <div className="flex items-center gap-3">
-          <h2 className="font-heading text-sm font-medium">Projekt-ID</h2>
-          <button onClick={onAll} className="text-xs text-primary hover:underline">
-            Alle
-          </button>
-          <button onClick={onNone} className="text-xs text-primary hover:underline">
-            Keine
-          </button>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {epics.map((e) => {
-            const on = selected.has(e.id);
-            return (
-              <button
-                key={e.id}
-                onClick={() => onToggle(e.id)}
-                className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs transition-colors ${
-                  on ? "bg-muted" : "opacity-50 hover:opacity-100"
-                }`}
-                title={e.title}
-              >
-                <span className="size-2 rounded-full" style={{ background: colorById[e.id] }} />
-                <span className="max-w-[10rem] truncate">{e.title}</span>
-              </button>
-            );
-          })}
-          {epics.length === 0 && (
-            <span className="text-xs text-muted-foreground">Keine Epics mit Business Case.</span>
+    <Card className="space-y-4 p-4">
+      <EpicFacetFilterBar {...facets} />
+
+      <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <h2 className="font-heading text-sm font-medium">Projekte</h2>
+            <button onClick={onAll} className="text-xs text-primary hover:underline">
+              Alle
+            </button>
+            <button onClick={onNone} className="text-xs text-primary hover:underline">
+              Keine
+            </button>
+          </div>
+          <MultiSelectFilter
+            label="Projekte"
+            searchable
+            sections={[
+              {
+                heading: "Sichtbare Projekte",
+                options: facetEpics.map((e) => ({
+                  value: e.id,
+                  label: e.title,
+                  ...(colorById[e.id] ? { color: colorById[e.id] } : {}),
+                })),
+              },
+            ]}
+            selected={selected}
+            onToggle={onToggle}
+            onToggleSection={onToggleMany}
+            onClear={onNone}
+            disabled={facetEpics.length === 0}
+          />
+          {facetEpics.length === 0 && (
+            <p className="text-xs text-muted-foreground">Keine Epics für die aktuellen Filter.</p>
           )}
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <h2 className="font-heading text-sm font-medium">Stichtag</h2>
-        <div className="flex items-center gap-2">
-          <Input
-            type="date"
-            className="w-40"
-            value={fromIso}
-            onChange={(e) => onFrom(e.target.value)}
-          />
-          <span className="text-muted-foreground">–</span>
-          <Input
-            type="date"
-            className="w-40"
-            value={toIso}
-            onChange={(e) => onTo(e.target.value)}
-          />
+        <div className="space-y-2">
+          <h2 className="font-heading text-sm font-medium">Stichtag</h2>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              className="w-40"
+              value={fromIso}
+              onChange={(e) => onFrom(e.target.value)}
+            />
+            <span className="text-muted-foreground">–</span>
+            <Input
+              type="date"
+              className="w-40"
+              value={toIso}
+              onChange={(e) => onTo(e.target.value)}
+            />
+          </div>
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <h2 className="font-heading text-sm font-medium">Ansicht</h2>
-        <div className="inline-flex rounded-full border p-0.5 text-xs">
-          {(
-            [
-              ["valueStream", "Nach Value Stream"],
-              ["epic", "Nach Epic"],
-              ["status", "Nach Status"],
-            ] as const
-          ).map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => onGroupMode(mode)}
-              aria-pressed={groupMode === mode}
-              className={`rounded-full px-3 py-1 transition-colors ${
-                groupMode === mode
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="space-y-2">
+          <h2 className="font-heading text-sm font-medium">Ansicht</h2>
+          <div className="inline-flex rounded-full border p-0.5 text-xs">
+            {(
+              [
+                ["valueStream", "Nach Value Stream"],
+                ["art", "Nach ART"],
+                ["epic", "Nach Epic"],
+                ["status", "Nach Status"],
+              ] as const
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => onGroupMode(mode)}
+                aria-pressed={groupMode === mode}
+                className={`rounded-full px-3 py-1 transition-colors ${
+                  groupMode === mode
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </Card>

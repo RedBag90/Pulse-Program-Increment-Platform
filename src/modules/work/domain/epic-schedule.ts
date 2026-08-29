@@ -17,6 +17,8 @@ import {
   parseIsoMonth,
   monthStart,
   addMonths,
+  addDays,
+  dayStart,
   parseIsoDay,
 } from "@/modules/core/kernel/domain/calendar";
 
@@ -62,6 +64,39 @@ export function resolveGoLive(
     parseIsoMonth(timeline.estimates.implementation) ??
     addMonths(monthStart(costStart), costSlicesCount * 6)
   );
+}
+
+/**
+ * The day-precise implementation window **L4.1 → L4.2** — where delivery work
+ * happens and estimated cost accrues. Half-open `[start, endExclusive)`:
+ *
+ * - start = actual L4.1 stamp (`implementationStartedAt`) → owner estimate
+ *   `implementation_started` → `monthStart(costStart)` (Epics without an L4.1).
+ * - endExclusive = day after (actual → estimated) `implementation` (L4.2) →
+ *   the derived go-live fallback `costStart + #slices × 6 months`.
+ *
+ * An inverted window collapses to a single day so `daysBetween(start,
+ * endExclusive)` is always ≥ 1 and spreading `Σ costSlices` never divides by 0.
+ */
+export function resolveImplementationWindow(
+  timeline: TimelineFields,
+  implementationStartedAt: Date | null,
+  costStart: Date,
+  costSlicesCount: number,
+): { start: Date; endExclusive: Date } {
+  const start =
+    (implementationStartedAt ? dayStart(implementationStartedAt) : null) ??
+    (timeline.estimates.implementation_started
+      ? parseIsoDay(timeline.estimates.implementation_started)
+      : null) ??
+    monthStart(costStart);
+  const l42Iso = timeline.actuals.implementation ?? timeline.estimates.implementation ?? null;
+  const l42 = l42Iso ? parseIsoDay(l42Iso) : null;
+  const endExclusive = l42
+    ? addDays(l42, 1)
+    : addMonths(monthStart(costStart), costSlicesCount * 6);
+  if (endExclusive.getTime() <= start.getTime()) return { start, endExclusive: addDays(start, 1) };
+  return { start, endExclusive };
 }
 
 /**

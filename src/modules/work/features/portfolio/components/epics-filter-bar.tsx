@@ -1,17 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Search, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
-import { UserPicker } from "@/components/detail/user-picker";
 import {
-  EPIC_TYPES,
-  HORIZONS,
-  EPIC_TYPE_LABEL,
-  HORIZON_LABEL,
-} from "@/modules/work/domain/portfolio-guardrails";
+  EpicFacetFilterBar,
+  FACET_SELECT_CLASS,
+  type FlagFilter,
+} from "@/modules/work/features/portfolio/components/epic-facet-filter-bar";
 
 export type SortKey =
   | "createdAt:desc"
@@ -21,7 +15,9 @@ export type SortKey =
   | "kpi:asc"
   | "pending:desc";
 
-export type FlagFilter = "all" | "steering" | "budgeting";
+// Die Facetten-Zeile (inkl. FlagFilter) lebt in `epic-facet-filter-bar` und wird
+// auch vom Portfolio-Dashboard genutzt; re-exportiert für bestehende Importer.
+export type { FlagFilter } from "@/modules/work/features/portfolio/components/epic-facet-filter-bar";
 
 interface Props {
   query: string;
@@ -47,9 +43,6 @@ interface Props {
   onDensityChange: (next: "comfortable" | "compact") => void;
 }
 
-const SELECT =
-  "h-8 rounded-md border border-input bg-card px-2 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
 const SORT_LABELS: Record<SortKey, string> = {
   "createdAt:desc": "Neueste zuerst",
   "createdAt:asc": "Älteste zuerst",
@@ -60,11 +53,11 @@ const SORT_LABELS: Record<SortKey, string> = {
 };
 
 /**
- * Filter bar above the table — combines facet dropdowns (Wertstrom · Owner ·
- * Flag) with a debounced search and the sort / grouping / density controls.
- * Status-Facette ist seit dem Reifegrad-Modell v2 entfallen: der Reifegrad-
- * Funnel (L0..L5) übernimmt die Höhere-Ebene-Filterung, und der status-
- * Workflow lebt in der Detail-Ansicht.
+ * Filter bar above the table — the shared facet row (`EpicFacetFilterBar`:
+ * Wertstrom · Owner · Flag · Horizont · Typ · Suche) plus the list-only sort /
+ * grouping / density controls. Status-Facette ist seit dem Reifegrad-Modell v2
+ * entfallen: der Reifegrad-Funnel (L0..L5) übernimmt die Höhere-Ebene-
+ * Filterung, und der status-Workflow lebt in der Detail-Ansicht.
  */
 export function EpicsFilterBar({
   query,
@@ -88,123 +81,28 @@ export function EpicsFilterBar({
   onGroupChange,
   onDensityChange,
 }: Props) {
-  const [draft, setDraft] = useState(query);
-  useEffect(() => setDraft(query), [query]);
-  useEffect(() => {
-    if (draft === query) return;
-    const t = window.setTimeout(() => onQueryChange(draft), 200);
-    return () => window.clearTimeout(t);
-  }, [draft, query, onQueryChange]);
-
-  const hasActiveFilter =
-    valueStreamId != null ||
-    ownerId != null ||
-    flag !== "all" ||
-    horizon != null ||
-    epicType != null ||
-    query !== "";
-
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <select
-        className={SELECT}
-        value={valueStreamId ?? ""}
-        onChange={(e) => onValueStreamChange(e.target.value || null)}
-        aria-label="Wertstrom"
-      >
-        <option value="">Alle Wertströme</option>
-        {valueStreamOptions.map((v) => (
-          <option key={v.id} value={v.id}>
-            {v.name}
-          </option>
-        ))}
-      </select>
-
-      <div className="w-44">
-        <UserPicker
-          value={ownerId ?? ""}
-          onChange={(v) => onOwnerChange(v || null)}
-          options={ownerOptions.map((o) => ({ value: o.id, label: o.label }))}
-          ariaLabel="Owner"
-          placeholder="Alle Owner"
-          emptyLabel="Alle Owner"
-        />
-      </div>
-
-      <select
-        className={SELECT}
-        value={flag}
-        onChange={(e) => onFlagChange(e.target.value as FlagFilter)}
-        aria-label="Flag"
-      >
-        <option value="all">Alle Flags</option>
-        <option value="steering">⚠ Steering</option>
-        <option value="budgeting">💰 Budget</option>
-      </select>
-
-      <select
-        className={SELECT}
-        value={horizon ?? ""}
-        onChange={(e) => onHorizonChange(e.target.value || null)}
-        aria-label="Horizon"
-      >
-        <option value="">Alle Horizonte</option>
-        {HORIZONS.map((h) => (
-          <option key={h} value={h}>
-            {HORIZON_LABEL[h]}
-          </option>
-        ))}
-      </select>
-
-      <select
-        className={SELECT}
-        value={epicType ?? ""}
-        onChange={(e) => onEpicTypeChange(e.target.value || null)}
-        aria-label="Epic-Typ"
-      >
-        <option value="">Alle Typen</option>
-        {EPIC_TYPES.map((t) => (
-          <option key={t} value={t}>
-            {EPIC_TYPE_LABEL[t]}
-          </option>
-        ))}
-      </select>
-
-      <div className="relative max-w-xs flex-1">
-        <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Suche…"
-          className="h-8 pl-7"
-        />
-      </div>
-
-      {hasActiveFilter && (
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            setDraft("");
-            onQueryChange("");
-            onValueStreamChange(null);
-            onOwnerChange(null);
-            onFlagChange("all");
-            onHorizonChange(null);
-            onEpicTypeChange(null);
-          }}
-          className="h-8 px-2 text-xs text-muted-foreground"
-        >
-          <X className="size-3.5" /> Filter
-        </Button>
-      )}
-
+    <EpicFacetFilterBar
+      query={query}
+      valueStreamId={valueStreamId}
+      ownerId={ownerId}
+      flag={flag}
+      horizon={horizon}
+      epicType={epicType}
+      valueStreamOptions={valueStreamOptions}
+      ownerOptions={ownerOptions}
+      onQueryChange={onQueryChange}
+      onValueStreamChange={onValueStreamChange}
+      onOwnerChange={onOwnerChange}
+      onFlagChange={onFlagChange}
+      onHorizonChange={onHorizonChange}
+      onEpicTypeChange={onEpicTypeChange}
+    >
       <div className="ml-auto flex items-center gap-2 text-xs">
         <label className="flex items-center gap-1 text-muted-foreground">
           Sortierung
           <select
-            className={SELECT}
+            className={FACET_SELECT_CLASS}
             value={sort}
             onChange={(e) => onSortChange(e.target.value as SortKey)}
             aria-label="Sortierung"
@@ -237,6 +135,6 @@ export function EpicsFilterBar({
           ariaLabel="Zeilenhoehe"
         />
       </div>
-    </div>
+    </EpicFacetFilterBar>
   );
 }

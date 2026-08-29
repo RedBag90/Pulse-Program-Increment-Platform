@@ -16,6 +16,7 @@ import { isoDay, monthStart } from "@/modules/core/kernel/domain/calendar";
 import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
 import { buildEpicStageTimeline } from "@/modules/work/domain/epic-stage-timeline";
 import { parsePeriodAmountMap } from "@/modules/core/kernel/domain/budget-period";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
 import type {
   EpicEconomicsDTO,
   PortfolioEconomicsData,
@@ -49,7 +50,7 @@ export async function getPortfolioEconomics(
   db: PrismaClient,
   tenantId: TenantId,
 ): Promise<PortfolioEconomicsData> {
-  const [rows, tenant] = await Promise.all([
+  const [rows, tenant, userLabels] = await Promise.all([
     db.initiative.findMany({
       where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
       select: {
@@ -64,7 +65,13 @@ export async function getPortfolioEconomics(
         implementationStartedAt: true,
         impactRecognizedAt: true,
         createdAt: true,
-        valueStream: { select: { name: true } },
+        ownerId: true,
+        needsSteeringAttention: true,
+        stagedForBudgeting: true,
+        epicType: true,
+        valueStream: { select: { id: true, name: true } },
+        // ART + Horizont kommen aus der Primär-Solution (wie Guardrails/Liste).
+        primarySolution: { select: { horizon: true, art: { select: { name: true } } } },
         kpis: {
           select: {
             id: true,
@@ -86,6 +93,7 @@ export async function getPortfolioEconomics(
       where: { id: tenantId },
       select: { costNeutralTarget: true, costPerJobSizePoint: true },
     }),
+    listTenantUserLabels(db, tenantId),
   ]);
 
   const epics: EpicEconomicsDTO[] = rows.map((row) => {
@@ -94,6 +102,7 @@ export async function getPortfolioEconomics(
       timeline: row.timeline,
       businessCaseApprovedAt: row.businessCaseApprovedAt,
       hypothesisApprovedAt: row.hypothesisApprovedAt,
+      implementationStartedAt: row.implementationStartedAt,
       createdAt: row.createdAt,
       kpis: row.kpis.map((k) => ({
         id: k.id,
@@ -131,11 +140,21 @@ export async function getPortfolioEconomics(
       id: row.id,
       title: row.title,
       valueStream: row.valueStream?.name ?? null,
+      art: row.primarySolution?.art?.name ?? null,
+      valueStreamId: row.valueStream?.id ?? null,
+      ownerId: row.ownerId,
+      ownerLabel: row.ownerId ? (userLabels[row.ownerId] ?? null) : null,
+      needsSteeringAttention: row.needsSteeringAttention,
+      stagedForBudgeting: row.stagedForBudgeting,
+      investmentHorizon: row.primarySolution?.horizon ?? null,
+      epicType: row.epicType,
       costSlices: view.costSlices,
       oneTimeBenefit: view.oneTimeBenefit,
       recurringBenefit: view.recurringBenefit,
       costStartIso: isoDay(view.costStart),
       goLiveIso: isoDay(view.goLive),
+      implementationStartIso: isoDay(view.implementationWindow.start),
+      implementationEndExclusiveIso: isoDay(view.implementationWindow.endExclusive),
       hasBusinessCase: view.hasBusinessCase,
       benefitKpis: view.benefitKpis,
       hasAllocation: row.budgetAllocation != null,
@@ -144,8 +163,12 @@ export async function getPortfolioEconomics(
     };
   });
 
-  // Axis lower bound: earliest cost start (fallback: today's month).
-  const starts = epics.map((e) => new Date(`${e.costStartIso}T00:00:00.000Z`));
+  // Axis lower bound: earliest cost begin — Backlog anchor or L4.1 window
+  // start, whichever is earlier (fallback: today's month).
+  const starts = epics.flatMap((e) => [
+    new Date(`${e.costStartIso}T00:00:00.000Z`),
+    new Date(`${e.implementationStartIso}T00:00:00.000Z`),
+  ]);
   const axisFrom = starts.length
     ? starts.reduce((min, d) => (d < min ? d : min), starts[0]!)
     : monthStart(new Date());

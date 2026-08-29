@@ -36,7 +36,7 @@ const base: BcCalcInput = {
   now: new Date("2026-03-01T00:00:00Z"),
 };
 
-const at = (rows: { day: string }[], day: string) => rows.find((r) => r.day === day);
+const at = <T extends { day: string }>(rows: T[], day: string) => rows.find((r) => r.day === day);
 const monthSum = (rows: { day: string; costPerDay: number }[], ym: string) =>
   rows.filter((r) => r.day.startsWith(ym)).reduce((a, r) => a + r.costPerDay, 0);
 
@@ -58,10 +58,19 @@ describe("buildEpicBusinessCaseCalc", () => {
     }
   });
 
-  it("Ohne Allocation: veranschlagt, Kosten aus den costSlices", () => {
-    const { summary } = buildEpicBusinessCaseCalc({ ...base, allocatedByPeriod: {} });
+  it("Ohne Allocation: veranschlagt, Kosten taggenau im Umsetzungsfenster L4.1→L4.2", () => {
+    const { rows, summary } = buildEpicBusinessCaseCalc({ ...base, allocatedByPeriod: {} });
     expect(summary.hasAllocation).toBe(false);
     expect(Math.round(summary.totalCost)).toBe(48_000 + 33_500);
+    // Fenster = 2025-01-29 … 2025-08-07 inklusive ⇒ 191 Fenstertage.
+    const windowDays = 191;
+    expect(summary.costStart).toBe("2025-01-29"); // effektiver Kostenbeginn = L4.1
+    expect(at(rows, "2025-01-28")!.costPerDay).toBe(0); // vor L4.1 keine Kosten
+    expect(at(rows, "2025-03-15")!.costPerDay).toBeCloseTo(81_500 / windowDays, 6);
+    expect(at(rows, "2025-08-07")!.costPerDay).toBeCloseTo(81_500 / windowDays, 6);
+    expect(at(rows, "2025-08-08")!.costPerDay).toBe(0); // nach L4.2 keine Kosten
+    // Monats-Summe der Tage = Monatswert des geteilten Kerns (März: 31 Fenstertage).
+    expect(monthSum(rows, "2025-03")).toBeCloseTo((81_500 * 31) / windowDays, 6);
   });
 
   it("Reifegrad folgt den Stempeln: L0 → L1 → L2 → L4 (L3 übersprungen)", () => {

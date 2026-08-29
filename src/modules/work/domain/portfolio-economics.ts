@@ -6,7 +6,8 @@
  * No I/O. Mirrors the month-axis approach in `roadmap.ts`.
  *
  * Conventions (see the Portfolio Dashboard plan):
- * - A cost slice covers 6 months; its amount is spread evenly → amount/6 per month.
+ * - Estimated cost (Σ costSlices) accrues day-weighted in the implementation
+ *   window L4.1 → L4.2 (see `epicFlows`); an allocation override wins.
  * - Go-live = costStart + (#slices × 6 months); the one-time benefit lands there.
  * - Recurring benefit is annual → recurring/12 per month, from go-live to the
  *   horizon end (inclusive).
@@ -42,6 +43,13 @@ export interface EpicEconomicsInput {
   costStart: Date;
   /** Go-live / completion month (Implementation milestone) — see `resolveGoLive`. */
   goLive: Date;
+  /**
+   * Taggenaues Umsetzungsfenster L4.1 → L4.2 (`resolveImplementationWindow`) —
+   * dort fällt die veranschlagte Investition an. Fehlen die Felder, fällt
+   * `epicFlows` auf `costStart`-Monat … `goLive`-Monat (exklusiv) zurück.
+   */
+  implementationStart?: Date;
+  implementationEndExclusive?: Date;
   /**
    * Kumulierter realisierter Wert der **one-time**-KPIs je Monat (length ===
    * monthCount). Vorhanden ⇒ der Einmal-Benefit folgt dem €-Zuwachs dieser Reihe
@@ -131,11 +139,15 @@ export interface PortfolioSeries {
  * Split; `vsNameByEpicId` liefert den VS-Namen (`null` ⇒ `unassignedLabel`).
  * Reihenfolge: VS-Name aufsteigend, je Name freigegeben vor veranschlagt, der
  * Unassigned-Bucket zuletzt. Alle Serien teilen dieselbe Achsenlänge.
+ *
+ * Auch die „Nach ART"-Sicht nutzt diese Gruppierung — mit einer Epic→ART-Map,
+ * `unassignedLabel = "Ohne ART"` und `idPrefix = "art"` (Bucket-Ids `art:<name>`).
  */
 export function groupSeriesByValueStream(
   perEpic: readonly EpicSeries[],
   vsNameByEpicId: ReadonlyMap<string, string | null>,
   unassignedLabel = "Ohne Wertstrom",
+  idPrefix = "vs",
 ): EpicSeries[] {
   const UNASSIGNED_KEY = "￿"; // sortiert nach allen echten Namen ⇒ zuletzt
   const groups = new Map<string, EpicSeries>();
@@ -147,7 +159,7 @@ export function groupSeriesByValueStream(
     const key = `${sortName}|${confirmed ? "c" : "e"}`;
     let g = groups.get(key);
     if (!g) {
-      const baseId = name != null ? `vs:${name}` : "vs:__none__";
+      const baseId = name != null ? `${idPrefix}:${name}` : `${idPrefix}:__none__`;
       g = {
         id: confirmed ? baseId : `${baseId}:est`,
         title: name ?? unassignedLabel,
@@ -551,6 +563,16 @@ export interface EpicEconomicsDTO {
   id: string;
   title: string;
   valueStream: string | null;
+  /** ART der Primär-Solution — treibt die „Nach ART"-Gruppierung (null ⇒ „Ohne ART"). */
+  art: string | null;
+  // — Facetten-Fakten für die Dashboard-Filterleiste (Quellen wie Epics-Liste) —
+  valueStreamId: string | null;
+  ownerId: string | null;
+  ownerLabel: string | null;
+  needsSteeringAttention: boolean;
+  stagedForBudgeting: boolean;
+  investmentHorizon: string | null;
+  epicType: string | null;
   costSlices: number[];
   oneTimeBenefit: number;
   recurringBenefit: number;
@@ -558,6 +580,9 @@ export interface EpicEconomicsDTO {
   costStartIso: string;
   /** Resolved go-live / completion month — Implementation milestone (ISO date). */
   goLiveIso: string;
+  /** Taggenaues Umsetzungsfenster L4.1 → L4.2, `[start, endExclusive)` (ISO-Tage). */
+  implementationStartIso: string;
+  implementationEndExclusiveIso: string;
   /** Whether the Epic carries any business-case content (else flows are 0). */
   hasBusinessCase: boolean;
   /**
@@ -612,6 +637,8 @@ function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
     recurringBenefit: e.recurringBenefit,
     costStart: isoToDate(e.costStartIso),
     goLive: isoToDate(e.goLiveIso),
+    implementationStart: isoToDate(e.implementationStartIso),
+    implementationEndExclusive: isoToDate(e.implementationEndExclusiveIso),
     hasAllocation: e.hasAllocation,
     ...(realized ? { kpiRealizedValueByMonth: realized } : {}),
     ...(recurring ? { kpiRecurringByMonth: recurring } : {}),

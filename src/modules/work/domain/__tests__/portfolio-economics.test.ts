@@ -38,11 +38,33 @@ describe("goLiveMonth", () => {
 describe("epicMonthlyFlows", () => {
   const axis = buildMonthAxis(utc("2024-01-01"), utc("2026-12-01")); // 36 months
 
-  it("spreads each 6-month slice evenly across its months", () => {
+  it("veranschlagt: Σ costSlices taggenau gewichtet im Fenster costStart→goLive", () => {
     const { cost } = epicMonthlyFlows(epic(), axis, axis.monthCount);
-    // months 0..11 (2024) carry 100 each; month 12 onward carry 0
-    expect(cost.slice(0, 12)).toEqual(new Array(12).fill(100));
-    expect(cost[12]).toBe(0);
+    // Fallback ohne Fensterfelder: Fenster = costStart-Monat … goLive-Monat
+    // (exklusiv) = Jan–Dez 2024 = 366 Tage (Schaltjahr). Monatswert = Σ ×
+    // Monats-Fenstertage ÷ 366 — Monate sind nicht mehr gleich schwer.
+    expect(cost[0]).toBeCloseTo((1200 * 31) / 366); // Jan
+    expect(cost[1]).toBeCloseTo((1200 * 29) / 366); // Feb (Schaltjahr)
+    expect(cost[11]).toBeCloseTo((1200 * 31) / 366); // Dez
+    expect(cost[12]).toBe(0); // ab goLive keine Kosten
+    expect(cost.reduce((a, b) => a + b, 0)).toBeCloseTo(1200);
+  });
+
+  it("implementationStart/-EndExclusive verschieben das Kostenfenster (L4.1→L4.2)", () => {
+    const { cost } = epicMonthlyFlows(
+      epic({
+        implementationStart: utc("2024-07-15"),
+        implementationEndExclusive: utc("2024-10-15"),
+      }),
+      axis,
+      axis.monthCount,
+    );
+    // Fenster 2024-07-15 … 2024-10-14 = 92 Tage: Jul 17 + Aug 31 + Sep 30 + Okt 14.
+    expect(cost[5]).toBe(0); // Juni: vor L4.1
+    expect(cost[6]).toBeCloseTo((1200 * 17) / 92); // Juli anteilig
+    expect(cost[7]).toBeCloseTo((1200 * 31) / 92); // August voll
+    expect(cost[9]).toBeCloseTo((1200 * 14) / 92); // Oktober anteilig
+    expect(cost[10]).toBe(0); // November: nach Fenster
     expect(cost.reduce((a, b) => a + b, 0)).toBeCloseTo(1200);
   });
 
@@ -75,9 +97,10 @@ describe("aggregatePortfolio", () => {
       axis.monthCount,
     );
     expect(series.perEpic).toHaveLength(2);
-    expect(series.costs[0]).toBeCloseTo(200); // two epics @ 100
+    const janCost = (1200 * 31) / 366; // Fenster-Gewichtung, s. epicMonthlyFlows
+    expect(series.costs[0]).toBeCloseTo(2 * janCost); // two epics
     expect(series.velocity[12]).toBeCloseTo(1200); // two epics @ 600 at go-live
-    expect(series.net[0]).toBeCloseTo(-200); // pure cost early
+    expect(series.net[0]).toBeCloseTo(-2 * janCost); // pure cost early
   });
 
   it("accumulates value and cost and finds the break-even month", () => {
@@ -397,5 +420,19 @@ describe("groupSeriesByValueStream", () => {
     expect(groups.map((g) => g.title)).toEqual(["Alpha", "Ohne Wertstrom"]);
     expect(groups[1]!.id).toBe("vs:__none__");
     expect(groups[1]!.cost).toEqual([3, 3]);
+  });
+
+  it("idPrefix/Label parametrisieren die Gruppierung (Nach-ART-Sicht)", () => {
+    const per = [mk("e1", 10, true), mk("e2", 5, false), mk("e3", 3)];
+    const art = new Map<string, string | null>([
+      ["e1", "ART Alpha"],
+      ["e2", "ART Alpha"],
+      ["e3", null],
+    ]);
+    const groups = groupSeriesByValueStream(per, art, "Ohne ART", "art");
+    expect(groups.map((g) => g.id)).toEqual(["art:ART Alpha", "art:ART Alpha:est", "art:__none__"]);
+    expect(groups[2]!.title).toBe("Ohne ART"); // Unassigned-Bucket zuletzt
+    expect(groups[0]!.cost).toEqual([10, 10]); // freigegeben solid
+    expect(groups[1]!.cost).toEqual([5, 5]); // veranschlagt :est
   });
 });

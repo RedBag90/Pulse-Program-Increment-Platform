@@ -5,10 +5,13 @@
  * auch der Epic-Tab „Business case calculation" (unterteilt die Monatswahrheit
  * tagesweise) rufen `epicFlows` auf, damit beide **nie divergieren**.
  *
- * Modell (unverändert aus dem bisherigen `epicMonthlyFlows`):
+ * Modell:
  *  - Kosten: eine Monats-Override aus der partizipativen Budgetierung
- *    (`costByMonth`, „freigegeben") gewinnt über die gleichmäßig verteilten
- *    6-Monats-`costSlices` („veranschlagt").
+ *    (`costByMonth`, „freigegeben") gewinnt; sonst („veranschlagt") fällt die
+ *    Business-Case-Investition (Σ `costSlices`) **taggenau gewichtet** im
+ *    Umsetzungsfenster **L4.1 → L4.2** an (`[implementationStart,
+ *    implementationEndExclusive)`) — dort passiert die Umsetzung und dort
+ *    entstehen die Kosten. Monatswert = Σ × Fenstertage-im-Monat ÷ Fenstertage.
  *  - Benefit (gemessen): one-time = Zuwachs der realisierten KPI-Wertung bzw.
  *    Business-Case-Spike am Go-Live; recurring = laufende KPI-Run-Rate bzw.
  *    `recurringBenefit`/12 ab Go-Live.
@@ -21,11 +24,13 @@
  * Pure, kein I/O.
  */
 
-import { monthStart, monthDiff, type MonthAxis } from "@/modules/core/kernel/domain/calendar";
 import {
-  MONTHS_PER_HALF_YEAR,
-  distributeAmountAcrossHalfYearMonths,
-} from "@/modules/core/kernel/domain/period-axis";
+  monthStart,
+  monthDiff,
+  addMonths,
+  daysBetween,
+  type MonthAxis,
+} from "@/modules/core/kernel/domain/calendar";
 import type { EpicEconomicsInput, EpicMonthlyFlows } from "./portfolio-economics";
 
 export interface EpicFlowsResult extends EpicMonthlyFlows {
@@ -52,28 +57,41 @@ export function epicFlows(
   const cost = zeros(axis.monthCount);
   const benefit = zeros(axis.monthCount);
   const benefitUplift = zeros(axis.monthCount);
-  const startIdx = monthDiff(axis.start, monthStart(input.costStart));
+  const goLiveIdx = monthDiff(axis.start, monthStart(input.goLive));
 
-  // Costs: a per-month allocation override (participatory budgeting) wins over the
-  // cost-slice forecast; otherwise each 6-month slice is spread evenly.
+  // Costs: a per-month allocation override (participatory budgeting) wins.
+  // Otherwise the whole business-case investment (Σ costSlices) accrues in the
+  // day-precise implementation window L4.1 → L4.2, weighted by each month's
+  // share of the window days — that is where the delivery work happens.
   if (input.costByMonth) {
     for (let i = 0; i < axis.monthCount; i++) cost[i] = input.costByMonth[i] ?? 0;
   } else {
-    input.costSlices.forEach((amount, s) => {
-      distributeAmountAcrossHalfYearMonths(
-        amount ?? 0,
-        startIdx + s * MONTHS_PER_HALF_YEAR,
-        axis.monthCount,
-        cost,
-      );
-    });
+    const total = input.costSlices.reduce((sum, amount) => sum + (amount ?? 0), 0);
+    if (total !== 0) {
+      // Fallback ohne Fensterfelder (direkte Aufrufer): costStart-Monat …
+      // goLive-Monat (exklusiv), mindestens 1 Tag.
+      const winStart = input.implementationStart ?? monthStart(input.costStart);
+      let winEnd = input.implementationEndExclusive ?? monthStart(input.goLive);
+      if (winEnd.getTime() <= winStart.getTime()) {
+        winEnd = new Date(winStart.getTime() + 24 * 60 * 60 * 1000);
+      }
+      const windowDays = daysBetween(winStart, winEnd);
+      const firstIdx = Math.max(0, monthDiff(axis.start, monthStart(winStart)));
+      const lastIdx = Math.min(axis.monthCount - 1, monthDiff(axis.start, monthStart(winEnd)));
+      for (let idx = firstIdx; idx <= lastIdx; idx++) {
+        const ms = addMonths(axis.start, idx);
+        const me = addMonths(axis.start, idx + 1);
+        const from = ms.getTime() > winStart.getTime() ? ms : winStart;
+        const to = me.getTime() < winEnd.getTime() ? me : winEnd;
+        const overlap = daysBetween(from, to);
+        if (overlap > 0) cost[idx] = (cost[idx] ?? 0) + (total * overlap) / windowDays;
+      }
+    }
   }
 
   // Benefit-Velocity je Monat — die beiden Nutzen-Arten getrennt (benefitKind):
   //  one-time: KPI-Realisierungs-Zuwachs, sonst Business-Case-Spike am Go-Live.
   //  recurring: laufende KPI-Run-Rate, sonst Business-Case-`recurringBenefit`/12.
-  const goLiveIdx = monthDiff(axis.start, monthStart(input.goLive));
-
   const oneTime = input.kpiRealizedValueByMonth;
   if (oneTime) {
     let prev = 0;

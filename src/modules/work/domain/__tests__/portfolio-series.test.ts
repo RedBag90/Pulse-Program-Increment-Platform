@@ -9,11 +9,21 @@ const dto = (over: Partial<EpicEconomicsDTO> = {}): EpicEconomicsDTO => ({
   id: "e1",
   title: "Epic 1",
   valueStream: null,
-  costSlices: [600, 600], // 12 months @ 100/month from costStart
+  art: null,
+  valueStreamId: null,
+  ownerId: null,
+  ownerLabel: null,
+  needsSteeringAttention: false,
+  stagedForBudgeting: false,
+  investmentHorizon: null,
+  epicType: null,
+  costSlices: [600, 600], // Σ 1200, taggenau im Fenster Jan–Dez 2026 (365 Tage)
   oneTimeBenefit: 0,
   recurringBenefit: 0,
   costStartIso: "2026-01-01",
   goLiveIso: "2027-01-01",
+  implementationStartIso: "2026-01-01",
+  implementationEndExclusiveIso: "2027-01-01",
   hasBusinessCase: true,
   benefitKpis: [],
   hasAllocation: false,
@@ -21,6 +31,9 @@ const dto = (over: Partial<EpicEconomicsDTO> = {}): EpicEconomicsDTO => ({
   stageTimeline: [],
   ...over,
 });
+
+/** Monatswert der Fixture-Kosten: Σ 1200 × Monats-Fenstertage ÷ 365. */
+const monthCost = (days: number) => (1200 * days) / 365;
 
 /** Fixed „heute" for deterministic series (todayIndex not asserted here). */
 const NOW = new Date("2026-06-01T00:00:00.000Z");
@@ -45,7 +58,7 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
       NOW,
     );
     expect(series.perEpic.map((e) => e.id)).toEqual(["a"]);
-    expect(series.costs[0]).toBeCloseTo(100); // one Epic @ 100/month
+    expect(series.costs[0]).toBeCloseTo(monthCost(31)); // one Epic, Januar-Anteil
   });
 
   it("yields an empty series when nothing is selected", () => {
@@ -90,9 +103,9 @@ describe("buildPortfolioSeries — DTO + slicer window → series", () => {
       },
       NOW,
     );
-    // 10 in-window months @ 100 (Mar–Dec); the two pre-window months are not recovered.
-    expect(series.costs.reduce((a, b) => a + b, 0)).toBeCloseTo(1000);
-    expect(series.costs[0]).toBeCloseTo(100); // March, not the cumulative pre-window cost
+    // Mär–Dez in-window (306 Fenstertage); Jan/Feb-Anteile sind nicht rückholbar.
+    expect(series.costs.reduce((a, b) => a + b, 0)).toBeCloseTo(monthCost(365 - 31 - 28));
+    expect(series.costs[0]).toBeCloseTo(monthCost(31)); // März, kein Pre-Window-Kumul
   });
 
   it("one-time-KPI: velocity = realisierter €-Zuwachs (einmalig)", () => {
