@@ -24,7 +24,9 @@ import {
   addDays,
   addMonths,
   daysBetween,
-  parseHalfYearKey,
+  monthStart,
+  monthDiff,
+  buildMonthAxis,
 } from "@/modules/core/kernel/domain/calendar";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { parseTimeline, type TimelineEstimatePhase } from "@/modules/work/domain/timeline";
@@ -32,8 +34,14 @@ import {
   deriveEpicEconomics,
   type EpicEconomicsKpiInput,
 } from "@/modules/work/domain/epic-economics";
-import { kpiPlanned, kpiPlannedAtTarget } from "@/modules/core/kpi/domain/kpi-valuation";
-import { saturatedFulfillment } from "@/modules/core/kpi/domain/kpi-direction";
+import { epicFlows } from "@/modules/work/domain/epic-flows";
+import {
+  allocatedCostByMonth,
+  kpiRealizedValueByMonth,
+  kpiRecurringByMonth,
+  kpiRecurringAtFullTotal,
+  type EpicEconomicsInput,
+} from "@/modules/work/domain/portfolio-economics";
 
 /** Eingaben je Epic (serverseitig aus dem Epic-Detail-Model befüllt). */
 export interface BcCalcInput {
@@ -80,6 +88,12 @@ export interface BcCalcSummary {
   roiPct: number | null;
   firstDay: string;
   lastDay: string;
+  /**
+   * Funding-Konfidenz: `true` ⇒ freigegebenes Budget (BudgetAllocation liegt vor,
+   * treibt die Kosten), `false` ⇒ veranschlagt (Business-Case-`costSlices`).
+   * Dieselbe Klassifikation wie die solid/schraffiert-Kosten im Dashboard.
+   */
+  hasAllocation: boolean;
 }
 
 export interface BcCalcResult {
@@ -143,54 +157,14 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
     return gate;
   };
 
-  // ── Kosten je Tag (Allocation gewinnt vor costSlices) ───────────────────
-  const costByDay = new Map<number, number>();
-  const spread = (start: Date, endExclusive: Date, amount: number): void => {
-    const days = daysBetween(start, endExclusive);
-    if (days <= 0 || !amount) return;
-    const per = amount / days;
-    for (let i = 0; i < days; i++) {
-      const key = addDays(start, i).getTime();
-      costByDay.set(key, (costByDay.get(key) ?? 0) + per);
-    }
-  };
-  const allocEntries = Object.entries(input.allocatedByPeriod);
-  if (allocEntries.length > 0) {
-    for (const [key, amount] of allocEntries) {
-      const s = parseHalfYearKey(key);
-      if (s) spread(s, addMonths(s, 6), amount);
-    }
-  } else {
-    eco.costSlices.forEach((amount, i) => {
-      const s = addMonths(eco.costStart, 6 * i);
-      spread(s, addMonths(s, 6), amount);
-    });
-  }
-
-  // ── Benefit je Tag (recurring: Run-Rate × Fulfillment; one-time: Increment) ─
-  const kpiState = eco.benefitKpis.map((k) => ({
-    k,
-    ms: k.measurements
-      .map((m) => ({ t: parseIsoDay(m.date).getTime(), v: m.value }))
-      .sort((a, b) => a.t - b.t),
-    idx: 0,
-    lastVal: null as number | null,
-    oneTimeRealized: 0,
-    dailyFull: kpiPlanned(k) / 365,
-    oneTimeTotal:
-      kpiPlannedAtTarget({
-        baseline: k.baseline,
-        target: k.target,
-        valuePerUnit: k.valuePerUnit,
-      }) ?? 0,
-  }));
-
-  // ── Horizont ────────────────────────────────────────────────────────────
+  // ── Horizont (Go-Live / plannedEnd / letzte Messung / heute + 18 M, gekappt) ─
   const nowDay = dayStart(input.now);
   let lastMeas = axisStart;
-  for (const s of kpiState) {
-    const last = s.ms[s.ms.length - 1];
-    if (last) lastMeas = maxDate(lastMeas, new Date(last.t));
+  for (const k of eco.benefitKpis) {
+    for (const m of k.measurements) {
+      const t = parseIsoDay(m.date);
+      if (t.getTime() > lastMeas.getTime()) lastMeas = t;
+    }
   }
   let end = eco.goLive;
   if (input.plannedEndAt) end = maxDate(end, dayStart(input.plannedEndAt));
@@ -200,30 +174,48 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
   const cap = addMonths(axisStart, 72); // max. 6 Jahre
   if (end.getTime() > cap.getTime()) end = cap;
 
-  // ── Tagesschleife ───────────────────────────────────────────────────────
+  // ── Monatswahrheit aus dem geteilten Kern (`epicFlows`); Tage = Unterteilung ─
+  // Exakt dieselben Monatswerte wie das Portfolio-Dashboard (eine Quelle der
+  // Wahrheit). Die Tageswerte verteilen den Monatsbetrag gleichmäßig über die
+  // Kalendertage des Monats (Σ Tage eines Monats = Monatswert).
+  const axis = buildMonthAxis(axisStart, end);
+  const todayIndex = monthDiff(axis.start, monthStart(nowDay));
+  const allocEntries = Object.entries(input.allocatedByPeriod);
+  const hasAllocation = allocEntries.length > 0;
+  const realized = kpiRealizedValueByMonth(eco.benefitKpis, axis);
+  const recurring = kpiRecurringByMonth(eco.benefitKpis, axis);
+  const recurringAtFull = kpiRecurringAtFullTotal(eco.benefitKpis);
+  const flowsInput: EpicEconomicsInput & { hasAllocation: boolean } = {
+    id: "",
+    title: "",
+    costSlices: eco.costSlices,
+    oneTimeBenefit: eco.oneTimeBenefit,
+    recurringBenefit: eco.recurringBenefit,
+    costStart: eco.costStart,
+    goLive: eco.goLive,
+    hasAllocation,
+    ...(hasAllocation ? { costByMonth: allocatedCostByMonth(input.allocatedByPeriod, axis) } : {}),
+    ...(realized ? { kpiRealizedValueByMonth: realized } : {}),
+    ...(recurring ? { kpiRecurringByMonth: recurring } : {}),
+    ...(recurringAtFull > 0 ? { kpiRecurringAtFull: recurringAtFull } : {}),
+  };
+  const flows = epicFlows(flowsInput, axis, todayIndex);
+  const daysInMonth = (idx: number): number => {
+    const ms = addMonths(axis.start, idx);
+    return daysBetween(ms, addMonths(ms, 1));
+  };
+
+  // ── Tagesschleife: Monatsbetrag ÷ Kalendertage des jeweiligen Monats ─────
   const rows: BcCalcDay[] = [];
   let cumBenefit = 0;
   let cumCost = 0;
   let breakEvenDay: string | null = null;
   for (let d = axisStart; d.getTime() <= end.getTime(); d = addDays(d, 1)) {
-    const isForecast = d.getTime() > nowDay.getTime();
-    const cost = costByDay.get(d.getTime()) ?? 0;
-    let benefit = 0;
-    for (const s of kpiState) {
-      while (s.idx < s.ms.length && s.ms[s.idx]!.t <= d.getTime()) {
-        s.lastVal = s.ms[s.idx]!.v;
-        s.idx += 1;
-      }
-      const fulfil = saturatedFulfillment(s.k.baseline, s.k.target, s.lastVal);
-      if (s.k.benefitKind === "one_time") {
-        const realized = Math.min(1, fulfil) * s.oneTimeTotal;
-        const inc = Math.max(0, realized - s.oneTimeRealized);
-        s.oneTimeRealized = realized;
-        benefit += inc;
-      } else {
-        benefit += isForecast ? s.dailyFull : s.dailyFull * fulfil;
-      }
-    }
+    const mIdx = monthDiff(axis.start, monthStart(d));
+    const dim = daysInMonth(mIdx);
+    const cost = (flows.cost[mIdx] ?? 0) / dim;
+    const benefit = ((flows.benefit[mIdx] ?? 0) + (flows.benefitUplift[mIdx] ?? 0)) / dim;
+    const isForecast = mIdx > todayIndex;
     cumBenefit += benefit;
     cumCost += cost;
     if (breakEvenDay === null && cumCost > 0 && cumBenefit >= cumCost) breakEvenDay = isoDay(d);
@@ -250,6 +242,7 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
     roiPct: totalCost > 0 ? (eco.recurringBenefit / totalCost) * 100 : null,
     firstDay: rows[0]?.day ?? isoDay(axisStart),
     lastDay: rows[rows.length - 1]?.day ?? isoDay(end),
+    hasAllocation,
   };
   return { rows, summary };
 }

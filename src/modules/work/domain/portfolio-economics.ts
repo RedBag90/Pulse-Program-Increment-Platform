@@ -21,14 +21,12 @@ import {
   buildMonthAxis,
   type MonthAxis,
 } from "@/modules/core/kernel/domain/calendar";
-import {
-  MONTHS_PER_HALF_YEAR,
-  distributeAmountAcrossHalfYearMonths,
-} from "@/modules/core/kernel/domain/period-axis";
+import { distributeAmountAcrossHalfYearMonths } from "@/modules/core/kernel/domain/period-axis";
 import { saturatedFulfillment } from "@/modules/core/kpi/domain/kpi-direction";
 import { benefitKindOrDefault } from "@/modules/core/kpi/domain/kpi-benefit-kind";
 import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";
 import { stageAtMonth, type StageTransition } from "@/modules/work/domain/epic-stage-timeline";
+import { epicFlows } from "./epic-flows";
 
 const STAGE_ORDER = ["L0", "L1", "L2", "L3", "L4", "L5"] as const;
 
@@ -68,6 +66,12 @@ export interface EpicEconomicsInput {
    * ⇒ kein KPI-Rest (Business-Case-Fallback ist bereits der Plan).
    */
   kpiRecurringAtFull?: number;
+  /**
+   * Funding-Konfidenz: `true` ⇒ eine partizipative Budget-Allocation existiert
+   * (freigegebenes Budget), `false`/`undefined` ⇒ Business-Case-Schätzung
+   * (veranschlagt). Nur ein Marker; die Kosten selbst treibt `costByMonth`.
+   */
+  hasAllocation?: boolean;
 }
 
 export interface EpicMonthlyFlows {
@@ -91,6 +95,12 @@ export interface EpicSeries extends EpicMonthlyFlows {
   accBenefit: number[];
   /** Cumulative net cash flow = accBenefit − accCost (per month, signed). */
   accNet: number[];
+  /**
+   * Funding-Konfidenz je Epic: freigegebenes Budget (true) vs. veranschlagt
+   * (false). Treibt den solid/hatched-Split der Kosten-Stacks. Für aggregierte
+   * Gruppen-Serien `undefined` (dort steckt die Klassifikation in der Sub-Serie).
+   */
+  hasAllocation?: boolean;
 }
 
 export interface PortfolioSeries {
@@ -111,12 +121,16 @@ export interface PortfolioSeries {
 }
 
 /**
- * Fasst die Epic-Serien zu **Value-Stream-Gruppen** zusammen: je Gruppe die
- * element-weise Summe aller sechs Monats-Arrays. Für die Portfolio-Dashboard-
- * Umschaltung „nach Value Stream" statt „nach Epic". `vsNameByEpicId` liefert den
- * VS-Namen je Epic (`null` ⇒ `unassignedLabel`-Bucket). Deterministische
- * Reihenfolge: VS-Name aufsteigend, der Unassigned-Bucket zuletzt. Alle Serien
- * teilen dieselbe Achsenlänge (`series.axis`).
+ * Fasst die Epic-Serien zu **Value-Stream-Gruppen** zusammen — je Value Stream
+ * **nach Funding-Konfidenz gesplittet**: eine `vs:<name>`-Serie für die
+ * freigegebenen Epics (solid) und eine `vs:<name>:est`-Serie für die
+ * veranschlagten (schraffiert), analog zum `:est`-Muster von
+ * `groupSeriesByEstimatedStage`. So klassifiziert die Value-Stream-Sicht das
+ * Funding **je Epic** (wie Epic-/Status-Sicht) statt „ein unfinanziertes Epic
+ * schraffiert den ganzen Wertstrom". `hasAllocation` je Epic-Serie steuert den
+ * Split; `vsNameByEpicId` liefert den VS-Namen (`null` ⇒ `unassignedLabel`).
+ * Reihenfolge: VS-Name aufsteigend, je Name freigegeben vor veranschlagt, der
+ * Unassigned-Bucket zuletzt. Alle Serien teilen dieselbe Achsenlänge.
  */
 export function groupSeriesByValueStream(
   perEpic: readonly EpicSeries[],
@@ -125,13 +139,17 @@ export function groupSeriesByValueStream(
 ): EpicSeries[] {
   const UNASSIGNED_KEY = "￿"; // sortiert nach allen echten Namen ⇒ zuletzt
   const groups = new Map<string, EpicSeries>();
+  const meta = new Map<string, { sortName: string; confirmed: boolean }>();
   for (const e of perEpic) {
     const name = vsNameByEpicId.get(e.id) ?? null;
-    const key = name ?? UNASSIGNED_KEY;
+    const confirmed = e.hasAllocation ?? false;
+    const sortName = name ?? UNASSIGNED_KEY;
+    const key = `${sortName}|${confirmed ? "c" : "e"}`;
     let g = groups.get(key);
     if (!g) {
+      const baseId = name != null ? `vs:${name}` : "vs:__none__";
       g = {
-        id: name != null ? `vs:${name}` : "vs:__none__",
+        id: confirmed ? baseId : `${baseId}:est`,
         title: name ?? unassignedLabel,
         cost: [],
         benefit: [],
@@ -142,6 +160,7 @@ export function groupSeriesByValueStream(
         accNet: [],
       };
       groups.set(key, g);
+      meta.set(key, { sortName, confirmed });
     }
     addInto(g.cost, e.cost);
     addInto(g.benefit, e.benefit);
@@ -151,7 +170,15 @@ export function groupSeriesByValueStream(
     addInto(g.accBenefit, e.accBenefit);
     addInto(g.accNet, e.accNet);
   }
-  return [...groups.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).map((k) => groups.get(k)!);
+  // VS-Name aufsteigend; je Name freigegeben (solid) vor veranschlagt (est).
+  return [...groups.keys()]
+    .sort((a, b) => {
+      const ma = meta.get(a)!;
+      const mb = meta.get(b)!;
+      if (ma.sortName !== mb.sortName) return ma.sortName < mb.sortName ? -1 : 1;
+      return (ma.confirmed ? 0 : 1) - (mb.confirmed ? 0 : 1);
+    })
+    .map((k) => groups.get(k)!);
 }
 
 /** Element-weise Summe: addiert `src` in `dst` (verlängert `dst` bei Bedarf). */
@@ -407,89 +434,21 @@ export function allocatedCostByMonth(
 
 /**
  * Maps the Epic's slices/benefits onto the axis as monthly cost/benefit flows.
- * The axis (Stichtag window) is the only cap — the recurring benefit accrues
- * from `benefitStart` through `axis.monthCount - 1`, so it keeps flowing for
- * as long as the chart's window does.
+ * Thin wrapper over the shared per-Epic core `epicFlows` (`./epic-flows`) — the
+ * single source of truth shared with the Epic „Business case calculation"-Tab.
+ * The funding flag is irrelevant here (the aggregator stamps it separately), so
+ * it is passed as `false` and the `hasAllocation` result dropped.
  */
 export function epicMonthlyFlows(
   input: EpicEconomicsInput,
   axis: MonthAxis,
   todayIndex: number,
 ): EpicMonthlyFlows {
-  const cost = zeros(axis.monthCount);
-  const benefit = zeros(axis.monthCount);
-  const benefitUplift = zeros(axis.monthCount);
-  const startIdx = monthDiff(axis.start, monthStart(input.costStart));
-
-  // Costs: a per-month allocation override (participatory budgeting) wins over the
-  // cost-slice forecast; otherwise each 6-month slice is spread evenly.
-  if (input.costByMonth) {
-    for (let i = 0; i < axis.monthCount; i++) cost[i] = input.costByMonth[i] ?? 0;
-  } else {
-    input.costSlices.forEach((amount, s) => {
-      distributeAmountAcrossHalfYearMonths(
-        amount ?? 0,
-        startIdx + s * MONTHS_PER_HALF_YEAR,
-        axis.monthCount,
-        cost,
-      );
-    });
-  }
-
-  // Benefit-Velocity je Monat — die beiden Nutzen-Arten getrennt (benefitKind):
-  //
-  //  Einmal-Benefit (one-time):
-  //   - KPI-getrieben (`kpiRealizedValueByMonth` vorhanden): der in diesem Monat
-  //     **realisierte** Wert = Zuwachs der kumulierten Realisierung
-  //     (realized(m) − realized(m−1)); über die Zeit summiert auf den vollen
-  //     one-time-KPI-Wert, €-Wert nur bei KPI-Bewegung.
-  //   - Fallback (keine one-time-KPI): Business-Case-`oneTimeBenefit` als Spike
-  //     bei go-live (Completion-Effekt).
-  //
-  //  Wiederkehrender Benefit (recurring):
-  //   - KPI-getrieben (`kpiRecurringByMonth` vorhanden): laufende Run-Rate
-  //     annual/12 × fulfilment(m), fortlaufend über die Achse.
-  //   - Fallback (keine recurring-KPI): Business-Case-`recurringBenefit`/12 ab
-  //     go-live (cost start + #slices × 6 Monate).
-  const goLiveIdx = monthDiff(axis.start, monthStart(input.goLive));
-
-  const oneTime = input.kpiRealizedValueByMonth;
-  if (oneTime) {
-    let prev = 0;
-    for (let idx = 0; idx < axis.monthCount; idx++) {
-      const cum = oneTime[idx] ?? 0;
-      benefit[idx] = (benefit[idx] ?? 0) + (cum - prev);
-      prev = cum;
-    }
-  } else if (goLiveIdx >= 0 && goLiveIdx < axis.monthCount) {
-    benefit[goLiveIdx] = (benefit[goLiveIdx] ?? 0) + input.oneTimeBenefit;
-  }
-
-  const recurring = input.kpiRecurringByMonth;
-  if (recurring) {
-    for (let idx = 0; idx < axis.monthCount; idx++) {
-      benefit[idx] = (benefit[idx] ?? 0) + (recurring[idx] ?? 0);
-    }
-  } else {
-    const recPerMonth = input.recurringBenefit / 12;
-    for (let idx = Math.max(0, goLiveIdx); idx < axis.monthCount; idx++) {
-      benefit[idx] = (benefit[idx] ?? 0) + recPerMonth;
-    }
-  }
-
-  // Forecast-„Rest zum Ziel": nur für KPI-getriebene recurring-KPIs, in
-  // Zukunftsmonaten (> heute, ≥ go-live) das Delta zur vollen Run-Rate @Ziel =
-  // atFull − gemessene (fortgeschriebene) Run-Rate. Ohne KPI-Run-Rate kein Rest
-  // (der Business-Case-Fallback IST bereits der Plan).
-  const atFull = input.kpiRecurringAtFull;
-  if (recurring && atFull != null && atFull > 0) {
-    const from = Math.max(goLiveIdx, todayIndex + 1, 0);
-    for (let idx = from; idx < axis.monthCount; idx++) {
-      const gap = atFull - (recurring[idx] ?? 0);
-      benefitUplift[idx] = gap > 0 ? gap : 0;
-    }
-  }
-
+  const { cost, benefit, benefitUplift } = epicFlows(
+    { ...input, hasAllocation: input.hasAllocation ?? false },
+    axis,
+    todayIndex,
+  );
   return { cost, benefit, benefitUplift };
 }
 
@@ -508,7 +467,11 @@ export function aggregatePortfolio(
   const costs = zeros(n);
 
   const perEpic: EpicSeries[] = inputs.map((input) => {
-    const { cost, benefit, benefitUplift } = epicMonthlyFlows(input, axis, todayIndex);
+    const { cost, benefit, benefitUplift, hasAllocation } = epicFlows(
+      { ...input, hasAllocation: input.hasAllocation ?? false },
+      axis,
+      todayIndex,
+    );
     // Gesamt-Benefit (gemessen + Forecast-Rest) treibt Netto/Kumulierte/Velocity.
     const total = benefit.map((b, i) => b + (benefitUplift[i] ?? 0));
     const net = cost.map((c, i) => (total[i] ?? 0) - c);
@@ -528,6 +491,7 @@ export function aggregatePortfolio(
       accCost,
       accBenefit,
       accNet: accBenefit.map((b, i) => b - (accCost[i] ?? 0)),
+      hasAllocation,
     };
   });
 
@@ -648,6 +612,7 @@ function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
     recurringBenefit: e.recurringBenefit,
     costStart: isoToDate(e.costStartIso),
     goLive: isoToDate(e.goLiveIso),
+    hasAllocation: e.hasAllocation,
     ...(realized ? { kpiRealizedValueByMonth: realized } : {}),
     ...(recurring ? { kpiRecurringByMonth: recurring } : {}),
     ...(recurringAtFull > 0 ? { kpiRecurringAtFull: recurringAtFull } : {}),

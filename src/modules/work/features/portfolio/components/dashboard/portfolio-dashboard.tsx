@@ -206,18 +206,17 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
       };
     return series;
   }, [series, groupMode, vsByEpicId, stageTimelineById, confirmedMap]);
-  // „confirmed" je Value-Stream-Gruppe: nur wenn ALLE Epics der Gruppe eine
-  // Budget-Allocation haben, sonst schraffiert (wie im Epic-Modus je Epic).
-  const confirmedByGroup = useMemo(() => {
-    const members = new Map<string, boolean[]>();
-    for (const e of data.epics) {
-      const gid = e.valueStream != null ? `vs:${e.valueStream}` : "vs:__none__";
-      (members.get(gid) ?? members.set(gid, []).get(gid)!).push(e.hasAllocation);
+  // Stabile Farbe je Value Stream (Titel), damit die freigegeben- und die
+  // veranschlagt-Sub-Serie desselben Streams dieselbe Farbe teilen (solid vs.
+  // schraffiert). Nur im Value-Stream-Modus genutzt.
+  const vsColorByTitle = useMemo(() => {
+    const map: Record<string, string> = {};
+    let i = 0;
+    for (const e of displaySeries.perEpic) {
+      if (!(e.title in map)) map[e.title] = epicColor(i++);
     }
-    const map = new Map<string, boolean>();
-    for (const [gid, arr] of members) map.set(gid, arr.every(Boolean));
     return map;
-  }, [data.epics]);
+  }, [displaySeries]);
 
   const months = series.axis.months;
   const ticks = months.map((m) => m.label).filter((l) => quarterTick(l) !== "");
@@ -295,7 +294,7 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
   // Stacks der aktiven Sicht: VS-Modus je Gruppe (Farbe nach Position), Epic-Modus
   // je Epic (stabile Farbe/Allocation), Status-Modus je Stage-Gate (Rampe L0→L5,
   // confirmed aus dem `:est`-Suffix der Serien-ID).
-  const displayStacks = displaySeries.perEpic.map((e, i) => {
+  const displayStacks = displaySeries.perEpic.map((e) => {
     if (groupMode === "status") {
       const gate = stageOf(e.title);
       return {
@@ -308,11 +307,9 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
     return {
       id: e.id,
       title: e.title,
-      color: groupMode === "valueStream" ? epicColor(i) : colorById[e.id]!,
+      color: groupMode === "valueStream" ? vsColorByTitle[e.title]! : colorById[e.id]!,
       confirmed:
-        groupMode === "valueStream"
-          ? (confirmedByGroup.get(e.id) ?? false)
-          : (confirmedById[e.id] ?? false),
+        groupMode === "valueStream" ? !e.id.endsWith(":est") : (confirmedById[e.id] ?? false),
     };
   });
   const stackedBy =

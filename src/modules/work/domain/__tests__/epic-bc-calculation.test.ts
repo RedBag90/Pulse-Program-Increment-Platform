@@ -37,13 +37,31 @@ const base: BcCalcInput = {
 };
 
 const at = (rows: { day: string }[], day: string) => rows.find((r) => r.day === day);
+const monthSum = (rows: { day: string; costPerDay: number }[], ym: string) =>
+  rows.filter((r) => r.day.startsWith(ym)).reduce((a, r) => a + r.costPerDay, 0);
 
 describe("buildEpicBusinessCaseCalc", () => {
-  it("Allocation treibt die Kosten (Σ = Allocation, gleichmäßig über die H1-Tage)", () => {
+  it("Allocation treibt die Kosten (Σ = Allocation; Monatswert = Allocation/6)", () => {
     const { rows, summary } = buildEpicBusinessCaseCalc(base);
+    expect(summary.hasAllocation).toBe(true);
     expect(Math.round(summary.totalCost)).toBe(104_000);
-    expect(at(rows, "2025-03-15")!.costPerDay).toBeCloseTo(104_000 / 181, 1);
+    // Tageswert = Monatswert (104000/6) ÷ Kalendertage des Monats — deckungsgleich
+    // mit dem Portfolio-Dashboard (nicht mehr die alte 181-Tage-Gleichverteilung).
+    expect(at(rows, "2025-03-15")!.costPerDay).toBeCloseTo(104_000 / 6 / 31, 2);
     expect(at(rows, "2025-07-15")!.costPerDay).toBe(0); // nach Jun 2025 keine Kosten
+  });
+
+  it("Monats-Summe der Tage = App-Monatswert (Allocation/6 je H1-Monat)", () => {
+    const { rows } = buildEpicBusinessCaseCalc(base);
+    for (const ym of ["2025-01", "2025-02", "2025-03", "2025-06"]) {
+      expect(monthSum(rows, ym)).toBeCloseTo(104_000 / 6, 6);
+    }
+  });
+
+  it("Ohne Allocation: veranschlagt, Kosten aus den costSlices", () => {
+    const { summary } = buildEpicBusinessCaseCalc({ ...base, allocatedByPeriod: {} });
+    expect(summary.hasAllocation).toBe(false);
+    expect(Math.round(summary.totalCost)).toBe(48_000 + 33_500);
   });
 
   it("Reifegrad folgt den Stempeln: L0 → L1 → L2 → L4 (L3 übersprungen)", () => {
@@ -54,10 +72,11 @@ describe("buildEpicBusinessCaseCalc", () => {
     expect(at(rows, "2025-02-01")!.gate).toBe("L4");
   });
 
-  it("Recurring Benefit: Forecast-Tag = Jahreswert/365 (Vollrate)", () => {
+  it("Recurring Benefit: Forecast-Monat = Vollrate (Jahreswert/12 ÷ Monatstage)", () => {
     const { rows } = buildEpicBusinessCaseCalc(base);
-    const fc = rows.find((r) => r.isForecast && r.day > "2026-03-05");
-    expect(fc!.benefitPerDay).toBeCloseTo(288_000 / 365, 1);
+    // 2026-04 liegt hinter „heute" (2026-03) ⇒ Forecast, volle Run-Rate @Ziel.
+    expect(at(rows, "2026-04-15")!.isForecast).toBe(true);
+    expect(at(rows, "2026-04-15")!.benefitPerDay).toBeCloseTo(288_000 / 12 / 30, 2);
   });
 
   it("Break-even wird erreicht", () => {

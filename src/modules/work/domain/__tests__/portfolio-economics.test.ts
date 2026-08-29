@@ -339,7 +339,7 @@ function zerosArr(n: number): number[] {
 }
 
 describe("groupSeriesByValueStream", () => {
-  const mk = (id: string, base: number): EpicSeries => ({
+  const mk = (id: string, base: number, hasAllocation = true): EpicSeries => ({
     id,
     title: id,
     cost: [base, base],
@@ -349,6 +349,7 @@ describe("groupSeriesByValueStream", () => {
     accCost: [base, base * 2],
     accBenefit: [base * 2, base * 4],
     accNet: [base, base * 2],
+    hasAllocation,
   });
 
   it("summiert element-weise je Value Stream; Reihenfolge = Name aufsteigend", () => {
@@ -364,10 +365,26 @@ describe("groupSeriesByValueStream", () => {
     const payments = groups[1]!;
     expect(banking.id).toBe("vs:Banking");
     expect(banking.cost).toEqual([7, 7]);
-    // Payments = e1 + e2 element-weise
+    // Payments = e1 + e2 element-weise (beide freigegeben ⇒ eine solide Serie)
     expect(payments.cost).toEqual([15, 15]); // 10+5
     expect(payments.accBenefit).toEqual([30, 60]); // (20+10), (40+20)
     expect(payments.accNet).toEqual([15, 30]); // (10+5), (20+10)
+  });
+
+  it("splittet je Value Stream in freigegeben (solid) + veranschlagt (:est)", () => {
+    // Ein Value Stream mit einem finanzierten und einem unfinanzierten Epic:
+    // die Kosten des finanzierten Epics bleiben SOLID (der Bug der alten
+    // .every()-Rollup: ein unfinanziertes Geschwister schraffierte den ganzen Stream).
+    const per = [mk("e1", 10, true), mk("e2", 5, false)];
+    const vs = new Map<string, string | null>([
+      ["e1", "Payments"],
+      ["e2", "Payments"],
+    ]);
+    const groups = groupSeriesByValueStream(per, vs);
+    expect(groups.map((g) => g.id)).toEqual(["vs:Payments", "vs:Payments:est"]);
+    expect(groups.every((g) => g.title === "Payments")).toBe(true);
+    expect(groups[0]!.cost).toEqual([10, 10]); // freigegeben = nur e1
+    expect(groups[1]!.cost).toEqual([5, 5]); // veranschlagt = nur e2
   });
 
   it("null-Value-Stream ⇒ 'Ohne Wertstrom'-Bucket, immer zuletzt", () => {

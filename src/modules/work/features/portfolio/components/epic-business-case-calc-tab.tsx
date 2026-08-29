@@ -96,7 +96,18 @@ export function EpicBusinessCaseCalcTab({ rows, summary }: Props) {
   return (
     <section className="space-y-4">
       <div className="space-y-1">
-        <h2 className="font-heading text-lg font-medium">Business case calculation</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="font-heading text-lg font-medium">Business case calculation</h2>
+          {summary.hasAllocation ? (
+            <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+              Budget freigegeben
+            </span>
+          ) : (
+            <span className="rounded-full border border-dashed border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+              Kosten veranschlagt
+            </span>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
           Tagesgenaue Kalkulation von Reifegrad, Benefit Velocity und Kostenverteilung. Aggregiert
           zu Monaten und Jahren — aufklappbar bis auf den Tag.
