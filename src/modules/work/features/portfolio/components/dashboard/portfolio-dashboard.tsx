@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatEUR as fmtEur } from "@/lib/formatting";
+import { StackTooltip, stackLabel, type Stack, type StackPayloadItem } from "./stack-tooltip";
 
 interface Props {
   data: PortfolioEconomicsData;
@@ -502,7 +503,6 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
             ticks={ticks}
             months={months}
             todayIndex={todayIndex}
-            hatchUnconfirmed
           />
         </Panel>
 
@@ -632,7 +632,6 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
             ticks={ticks}
             months={months}
             todayIndex={todayIndex}
-            hatchUnconfirmed
           />
         </Panel>
 
@@ -689,18 +688,20 @@ const tooltip = {
   },
 };
 
-interface Stack {
-  id: string;
-  title: string;
-  color: string;
-  confirmed: boolean;
-}
-
 /**
  * SVG hatch patterns (one per Epic colour) referenced by `url(#hatch-<id>)` from
  * the cost charts. Rendered once, hidden; pattern defs resolve by id across the
  * whole document, so Recharts bars can fill from them.
  */
+/**
+ * Die Füllung einer Serie: solide für freigegebenes Budget, schraffiert für
+ * veranschlagtes. Gilt in **allen** gestapelten Charts — ein Nutzen aus einem
+ * unfinanzierten Epic ist genauso veranschlagt wie dessen Kosten.
+ */
+function fillOf(s: Stack): string {
+  return s.confirmed ? s.color : `url(#hatch-${s.id})`;
+}
+
 function HatchDefs({ stacks }: { stacks: Stack[] }) {
   return (
     <svg width="0" height="0" aria-hidden="true" className="absolute">
@@ -772,7 +773,6 @@ function StackedChart({
   months,
   todayIndex,
   height = 300,
-  hatchUnconfirmed = false,
   uplift = false,
   children,
 }: {
@@ -783,8 +783,6 @@ function StackedChart({
   /** Ist/Forecast-Grenze: Monate mit Index > todayIndex = Zukunft (transparent). */
   todayIndex: number;
   height?: number;
-  /** Draw Epics without a budgeting allocation with a hatched fill (cost charts). */
-  hatchUnconfirmed?: boolean;
   /** Benefit-Velocity: zusätzliches Forecast-Segment `${id}#up` (Rest zum Plan). */
   uplift?: boolean;
   children?: ReactNode;
@@ -801,35 +799,46 @@ function StackedChart({
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
           <XAxis {...xAxis(ticks)} />
           <YAxis {...yAxis} />
-          <Tooltip {...tooltip} />
+          <Tooltip
+            content={({ active, payload, label }) => (
+              <StackTooltip
+                active={active}
+                payload={payload as unknown as readonly StackPayloadItem[] | undefined}
+                label={typeof label === "string" ? label : ""}
+                stacks={stacks}
+              />
+            )}
+          />
           <TodayLine months={months} todayIndex={todayIndex} />
           {children}
-          {stacks.map((s) => {
-            const estimated = hatchUnconfirmed && !s.confirmed;
-            const fill = estimated ? `url(#hatch-${s.id})` : s.color;
-            return (
-              <Bar
-                key={s.id}
-                dataKey={s.id}
-                name={estimated ? `${s.title} (veranschlagt)` : s.title}
-                stackId="a"
-                fill={fill}
-                maxBarSize={14}
-              >
-                {rows.map((_, m) => (
-                  <Cell key={m} fill={fill} fillOpacity={m > todayIndex ? FORECAST_OPACITY : 1} />
-                ))}
-              </Bar>
-            );
-          })}
+          {stacks.map((s) => (
+            <Bar
+              key={s.id}
+              dataKey={s.id}
+              name={stackLabel(s)}
+              stackId="a"
+              fill={fillOf(s)}
+              maxBarSize={14}
+            >
+              {rows.map((_, m) => (
+                <Cell
+                  key={m}
+                  fill={fillOf(s)}
+                  fillOpacity={m > todayIndex ? FORECAST_OPACITY : 1}
+                />
+              ))}
+            </Bar>
+          ))}
           {uplift &&
             stacks.map((s) => (
               <Bar
                 key={`${s.id}#up`}
                 dataKey={`${s.id}#up`}
-                name={`${s.title} · Forecast`}
+                name={`${stackLabel(s)} · Forecast`}
                 stackId="a"
-                fill={s.color}
+                // Dieselbe Füllung wie die Basis-Bar — auf einer schraffierten
+                // Serie wäre ein solides Forecast-Segment ein Widerspruch.
+                fill={fillOf(s)}
                 fillOpacity={FORECAST_OPACITY}
                 maxBarSize={14}
                 legendType="none"
@@ -837,7 +846,7 @@ function StackedChart({
             ))}
         </BarChart>
       </ResponsiveContainer>
-      <ChartLegend hatch={hatchUnconfirmed} forecast />
+      <ChartLegend hatch forecast />
     </>
   );
 }
@@ -894,9 +903,9 @@ function CashFlowChart({
           <YAxis {...yAxis} />
           <Tooltip
             content={({ active, payload, label }) => (
-              <CashTooltip
+              <StackTooltip
                 active={active}
-                payload={payload as unknown as readonly CashPayloadItem[] | undefined}
+                payload={payload as unknown as readonly StackPayloadItem[] | undefined}
                 label={typeof label === "string" ? label : ""}
                 stacks={stacks}
               />
@@ -905,7 +914,7 @@ function CashFlowChart({
           <ReferenceLine y={0} stroke="var(--border)" />
           <TodayLine months={months} todayIndex={todayIndex} />
           {stacks.flatMap((s) => {
-            const fill = s.confirmed ? s.color : `url(#hatch-${s.id})`;
+            const fill = fillOf(s);
             const cells = (suffix: string) =>
               rows.map((_, m) => (
                 <Cell
@@ -939,54 +948,6 @@ function CashFlowChart({
       </ResponsiveContainer>
       <ChartLegend hatch forecast />
     </>
-  );
-}
-
-interface CashPayloadItem {
-  dataKey?: string | number;
-  value?: number;
-}
-
-/** Tooltip that recombines each Epic's #pos/#neg parts into one signed line. */
-function CashTooltip({
-  active,
-  payload,
-  label,
-  stacks,
-}: {
-  active?: boolean | undefined;
-  payload?: readonly CashPayloadItem[] | undefined;
-  label?: string | undefined;
-  stacks: Stack[];
-}) {
-  if (!active || !payload || payload.length === 0) return null;
-  const valueById = new Map<string, number>();
-  for (const p of payload) {
-    const key = typeof p.dataKey === "string" ? p.dataKey : "";
-    const id = key.split("#")[0] ?? "";
-    valueById.set(id, (valueById.get(id) ?? 0) + (typeof p.value === "number" ? p.value : 0));
-  }
-  return (
-    <div
-      style={{
-        background: "var(--popover)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius)",
-        fontSize: 12,
-        color: "var(--popover-foreground)",
-        padding: "8px 10px",
-      }}
-    >
-      <p className="mb-1 font-medium">{label}</p>
-      {stacks.map((s) => (
-        <div key={s.id} className="flex items-center gap-1.5">
-          <span className="inline-block size-2 rounded-sm" style={{ background: s.color }} />
-          <span>
-            {s.title}: {fmtEur(valueById.get(s.id) ?? 0)}
-          </span>
-        </div>
-      ))}
-    </div>
   );
 }
 
