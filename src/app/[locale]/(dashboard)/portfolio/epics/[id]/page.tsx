@@ -351,6 +351,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             epicId={epic.id}
             tenantId={tenantId}
             epicTitle={epic.title}
+            epicValueStreamId={epic.valueStreamId}
             canEdit={model.canEdit}
             features={model.breakdownFeatures}
             pisByArt={model.drumbeat.disabled ? {} : model.drumbeat.pisByArt}
@@ -369,6 +370,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             epicId={epic.id}
             tenantId={tenantId}
             epicTitle={epic.title}
+            epicValueStreamId={epic.valueStreamId}
             canEdit={model.canEdit}
             features={model.breakdownFeatures}
             pisByArt={model.drumbeat.disabled ? {} : model.drumbeat.pisByArt}

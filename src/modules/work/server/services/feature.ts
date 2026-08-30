@@ -86,7 +86,16 @@ export async function createFeature(
     if (isErr(parentResult)) return parentResult;
     const epic = parentResult.value!; // non-null for a FEATURE's EPIC parent
 
-    const art = await tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId } });
+    // Der ART muss zum Tenant UND zum Wertstrom des Parent-Epics gehören (die UI
+    // kaskadiert bereits, der Service prüft am Seam final nach). Alt-Epics ohne
+    // Wertstrom bleiben durchlässig — die Spalte ist nullable.
+    const art = await tx.art.findFirst({
+      where: {
+        id: artId,
+        tenantId: mctx.tenantId,
+        ...(epic.valueStreamId ? { valueStreamId: epic.valueStreamId } : {}),
+      },
+    });
     if (!art) {
       return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
     }
@@ -155,7 +164,16 @@ export async function createFeatureWithDependency(
     if (isErr(parentResult)) return parentResult;
     const epic = parentResult.value!;
 
-    const art = await tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId } });
+    // Der ART muss zum Tenant UND zum Wertstrom des Parent-Epics gehören (die UI
+    // kaskadiert bereits, der Service prüft am Seam final nach). Alt-Epics ohne
+    // Wertstrom bleiben durchlässig — die Spalte ist nullable.
+    const art = await tx.art.findFirst({
+      where: {
+        id: artId,
+        tenantId: mctx.tenantId,
+        ...(epic.valueStreamId ? { valueStreamId: epic.valueStreamId } : {}),
+      },
+    });
     if (!art) {
       return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
     }
@@ -245,7 +263,16 @@ export async function insertFeatureBetween(
     if (isErr(parentResult)) return parentResult;
     const epic = parentResult.value!;
 
-    const art = await tx.art.findFirst({ where: { id: artId, tenantId: mctx.tenantId } });
+    // Der ART muss zum Tenant UND zum Wertstrom des Parent-Epics gehören (die UI
+    // kaskadiert bereits, der Service prüft am Seam final nach). Alt-Epics ohne
+    // Wertstrom bleiben durchlässig — die Spalte ist nullable.
+    const art = await tx.art.findFirst({
+      where: {
+        id: artId,
+        tenantId: mctx.tenantId,
+        ...(epic.valueStreamId ? { valueStreamId: epic.valueStreamId } : {}),
+      },
+    });
     if (!art) {
       return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
     }

@@ -97,6 +97,50 @@ describe("createFeature", () => {
     expect(result.error.kind).toBe("not_found");
   });
 
+  it("rejects an ART outside the parent Epic's value stream", async () => {
+    // Epic in den Seed-Wertstrom hängen und einen ART in einem zweiten
+    // Wertstrom anlegen — genau die Paarung, die die UI-Kaskade ausschließt.
+    const testDb = createTestPrismaClient();
+    await testDb.initiative.update({
+      where: { id: epicId },
+      data: { valueStreamId: seed.valueStreamId },
+    });
+    const otherVs = await testDb.valueStream.create({
+      data: { tenantId: seed.tenantId, name: "Other Value Stream" },
+    });
+    const foreignArt = await testDb.art.create({
+      data: { tenantId: seed.tenantId, valueStreamId: otherVs.id, name: "Foreign ART" },
+    });
+    await testDb.$disconnect();
+
+    const rejected = await createFeature(testRequestContext(db, seed), {
+      parentId: epicId,
+      artId: foreignArt.id as ArtId,
+      title: "Feature in the wrong value stream",
+      wsjfBusinessValue: 5,
+      wsjfTimeCriticality: 5,
+      wsjfRiskReduction: 5,
+      wsjfJobSize: 5,
+    });
+
+    expect(isErr(rejected)).toBe(true);
+    if (!isErr(rejected)) return;
+    expect(rejected.error.kind).toBe("not_found");
+
+    // Der ART aus dem Wertstrom des Epics geht durch.
+    const accepted = await createFeature(testRequestContext(db, seed), {
+      parentId: epicId,
+      artId: seed.artId,
+      title: "Feature in the right value stream",
+      wsjfBusinessValue: 5,
+      wsjfTimeCriticality: 5,
+      wsjfRiskReduction: 5,
+      wsjfJobSize: 5,
+    });
+
+    expect(isOk(accepted)).toBe(true);
+  });
+
   it("emits an AuditEvent row on creation", async () => {
     const before = await db.auditEvent.count({ where: { tenantId: seed.tenantId } });
 

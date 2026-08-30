@@ -27,10 +27,14 @@ const SELECT_CLASS =
 interface Art {
   id: string;
   name: string;
+  /** `/api/v1/arts` ships this along — it drives the value-stream cascade. */
+  valueStream?: { id: string } | null;
 }
 interface Epic {
   id: string;
   title: string;
+  /** Wertstrom des Epics; ohne ihn bleibt die ART-Auswahl gesperrt. */
+  valueStreamId?: string | null;
 }
 
 export interface CreateFeatureDialogProps {
@@ -75,6 +79,18 @@ export function CreateFeatureDialog({
   );
   const epicOptions = epics ?? fetchedEpics.data;
 
+  // Ein ART gehört fest zu einem Wertstrom, ein Epic ebenso — ein Feature darf
+  // deshalb nur an einen ART aus dem Wertstrom seines Epics gehen. Die Auswahl
+  // kaskadiert also Epic → ART (wie Wertstrom → ART im Epic-Dialog); der Service
+  // prüft das Paar am Seam final nach.
+  const [epicId, setEpicId] = useState(
+    context?.epicId ?? (epics?.length === 1 ? epics[0]!.id : ""),
+  );
+  const vsId = epicOptions.find((e) => e.id === epicId)?.valueStreamId ?? "";
+  const artOptions = arts.data.filter((a) => a.valueStream?.id === vsId);
+  // Ein per Route vorbelegter ART zählt nur, wenn er im Wertstrom des Epics liegt.
+  const artDefault = artOptions.some((a) => a.id === context?.artId) ? context!.artId! : "";
+
   return (
     <>
       {!isControlled && (
@@ -90,32 +106,6 @@ export function CreateFeatureDialog({
             <DialogTitle>Create Feature</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
-            {artId !== undefined ? (
-              <input type="hidden" name="artId" value={artId} />
-            ) : (
-              <div className="space-y-1.5">
-                <Label htmlFor="f-art">
-                  ART <span className="text-destructive">*</span>
-                </Label>
-                <select
-                  id="f-art"
-                  name="artId"
-                  required
-                  defaultValue={context?.artId ?? ""}
-                  disabled={arts.loading}
-                  className={SELECT_CLASS}
-                >
-                  <option value="">{arts.loading ? "Loading…" : "Select an ART…"}</option>
-                  {arts.data.map((art) => (
-                    <option key={art.id} value={art.id}>
-                      {art.name}
-                    </option>
-                  ))}
-                </select>
-                {arts.error && <p className="text-xs text-destructive">{arts.error}</p>}
-              </div>
-            )}
-
             <div className="space-y-1.5">
               <Label htmlFor="f-parent">
                 Parent Epic <span className="text-destructive">*</span>
@@ -124,7 +114,8 @@ export function CreateFeatureDialog({
                 id="f-parent"
                 name="parentId"
                 required
-                defaultValue={context?.epicId ?? ""}
+                value={epicId}
+                onChange={(e) => setEpicId(e.target.value)}
                 disabled={fetchedEpics.loading}
                 className={SELECT_CLASS}
               >
@@ -141,6 +132,41 @@ export function CreateFeatureDialog({
                 <p className="text-xs text-destructive">{fetchedEpics.error}</p>
               )}
             </div>
+
+            {artId !== undefined ? (
+              <input type="hidden" name="artId" value={artId} />
+            ) : (
+              <div className="space-y-1.5">
+                <Label htmlFor="f-art">
+                  ART <span className="text-destructive">*</span>
+                </Label>
+                <select
+                  key={vsId}
+                  id="f-art"
+                  name="artId"
+                  required
+                  defaultValue={artDefault}
+                  disabled={!vsId || arts.loading}
+                  className={SELECT_CLASS}
+                >
+                  <option value="">
+                    {!vsId
+                      ? "Select a parent epic first…"
+                      : arts.loading
+                        ? "Loading…"
+                        : artOptions.length === 0
+                          ? "No ARTs in this value stream"
+                          : "Select an ART…"}
+                  </option>
+                  {artOptions.map((art) => (
+                    <option key={art.id} value={art.id}>
+                      {art.name}
+                    </option>
+                  ))}
+                </select>
+                {arts.error && <p className="text-xs text-destructive">{arts.error}</p>}
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="f-title">

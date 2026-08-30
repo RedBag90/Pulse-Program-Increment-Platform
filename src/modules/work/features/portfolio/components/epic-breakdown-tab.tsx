@@ -89,6 +89,8 @@ interface Props {
   /** Tenant-Id — fuer den Netzplan-Realtime-Channel (Roadmap-P8). */
   tenantId: string;
   epicTitle: string;
+  /** Wertstrom des Epics — begrenzt die ART-Auswahl beim Anlegen eines Features. */
+  epicValueStreamId: string | null;
   canEdit: boolean;
   features: BreakdownFeature[];
   /** PI options keyed by ART — a child Feature's PI picker only lists its ART's PIs. */
@@ -213,6 +215,7 @@ export function EpicBreakdownTab({
   view,
   tenantId,
   epicTitle,
+  epicValueStreamId,
   canEdit,
   features,
   pisByArt,
@@ -310,7 +313,10 @@ export function EpicBreakdownTab({
           {view === "graph" ? "Dependencies" : "Deliverables"}
         </h2>
         {canEdit && view === "list" && (
-          <CreateFeatureDialog epics={[{ id: epicId, title: epicTitle }]} context={{ epicId }} />
+          <CreateFeatureDialog
+            epics={[{ id: epicId, title: epicTitle, valueStreamId: epicValueStreamId }]}
+            context={{ epicId }}
+          />
         )}
       </div>
 
@@ -334,6 +340,7 @@ export function EpicBreakdownTab({
           epicId={epicId}
           tenantId={tenantId}
           epicTitle={epicTitle}
+          epicValueStreamId={epicValueStreamId}
           features={features.map((f) => ({
             id: f.id,
             title: f.title,

@@ -90,6 +90,8 @@ interface Props {
   tenantId: string;
   /** Epic-Titel — wird in der Empty-State-CTA als Parent-Epic-Label genutzt. */
   epicTitle: string;
+  /** Wertstrom des Epics — begrenzt die ART-Auswahl beim Anlegen eines Features. */
+  epicValueStreamId: string | null;
   features: ReadonlyArray<{
     id: string;
     title: string;
@@ -702,6 +704,7 @@ export function BreakdownNetworkView({
   epicId,
   tenantId,
   epicTitle,
+  epicValueStreamId,
   features,
   pis,
   dependencies,
@@ -1142,7 +1145,10 @@ export function BreakdownNetworkView({
           Noch keine Features in diesem Epic — leg das erste an, dann baust du den Netzplan auf.
         </p>
         {canCreateFeature && (
-          <CreateFeatureDialog epics={[{ id: epicId, title: epicTitle }]} context={{ epicId }} />
+          <CreateFeatureDialog
+            epics={[{ id: epicId, title: epicTitle, valueStreamId: epicValueStreamId }]}
+            context={{ epicId }}
+          />
         )}
       </div>
     );

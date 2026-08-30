@@ -17,7 +17,7 @@ import type { MutationContext } from "@/modules/core/kernel/server/mutation";
 // ---------------------------------------------------------------------------
 
 /** The parent fields callers need after validation (path for the child's materialized path). */
-export type ValidatedParent = Pick<Initiative, "id" | "level" | "path" | "artId">;
+export type ValidatedParent = Pick<Initiative, "id" | "level" | "path" | "artId" | "valueStreamId">;
 
 /** Optional initiative columns a child-level create may set. */
 type ChildCreateData = Partial<
@@ -38,7 +38,7 @@ export async function findValidatedParent(
   const parent = parentId
     ? await tx.initiative.findFirst({
         where: { id: parentId, tenantId: mctx.tenantId, ...notDeleted },
-        select: { id: true, level: true, path: true, artId: true },
+        select: { id: true, level: true, path: true, artId: true, valueStreamId: true },
       })
     : null;
 
