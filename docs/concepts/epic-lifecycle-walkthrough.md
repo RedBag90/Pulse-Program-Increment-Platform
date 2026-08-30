@@ -2,33 +2,30 @@
 
 Dieses Papier erzählt einen vollständigen Epic-Durchlauf aus Sicht des Epic
 Owners, mit den Namen, die Pulse tatsächlich verwendet: Reifegrad-Schritte,
-Reiter, Merker, Freigabewege. Am Ende steht, wo eine verbreitete Beschreibung
-des Prozesses von der Mechanik im Tool abweicht.
+Reiter, Merker, Freigabewege.
 
-## Eine Achse, keine zwei
+## Wie sich ein Reifegrad bewegt
 
-Bevor die Erzählung losgeht, eine Klarstellung, ohne die der Rest verwirrend
-bleibt — zumal die verbreitete Beschreibung hier noch anders klingt. „Freigabe"
-heißt in Pulse **eine** Sache:
+Ein Epic durchläuft acht Schritte:
+`L0 · L1 · L2 · L3.1 · L3.2 · L4 · L4.2 · L5`. Jeder einzelne bewegt sich
+dadurch, dass jemand ihn **beantragt** und benannte Personen ihn **abnehmen** —
+je Wertstrom und Gate konfigurierbar. Vor dem Antrag zeigt Pulse eine
+Checkliste: welche Kriterien erfüllt sind und welche fehlen.
 
-- **Reifegrad-Schritte** — `L0 · L1 · L2 · L3.1 · L3.2 · L4 · L4.2 · L5`. Ein Schritt
-  bewegt sich ausschließlich, wenn jemand ihn **beantragt** und benannte Personen
-  ihn **abnehmen** (Finance, VMO, Epic Owner, die fünf Business-Case-Parteien —
-  je Wertstrom und Gate konfigurierbar). Es gibt keinen Automatismus, nirgends.
-  Siehe [ADR-0018](../adr/0018-stage-gate-transitions-are-requested-and-approved.md).
+Zwei dieser Schritte tragen zugleich eine inhaltliche Aussage:
 
-Eine **eigene Freigabe-Achse** für Hypothese und Business Case gab es einmal;
-sie ist in die Reifegrad-Schritte aufgegangen. Die Abnahme von **L0 → L1** _ist_
-die Freigabe der Benefit-Hypothese, die Abnahme von **L2 → L3.1** _ist_ die
-Freigabe des Lean Business Case — dort zeichnen MGMT, Business Owner, Finance,
-IRT-Owner und LACE/VMO. Ein Antrag, eine Abnahme, eine Aussage. Siehe den
-Nachtrag zu [ADR-0003](../adr/0003-initiative-state-axes-stay-orthogonal.md).
+- Die Abnahme von **L0 → L1** ist die Freigabe der **Benefit-Hypothese**.
+- Die Abnahme von **L2 → L3.1** ist die Freigabe des **Lean Business Case** —
+  dort zeichnen MGMT, Business Owner, Finance, IRT-Owner und LACE/VMO.
 
-Dazu kommt: nicht jeder angezeigte Reifegrad ist ein beantragbarer Schritt.
-Genau eine Stufe wird rein **abgeleitet** — `L4.1 · Umsetzung läuft`: sie ist
-schlicht „L4, aber noch nicht bestätigt fertig". `L3.1`, `L3.2` und `L4.2`
-werden dagegen beantragt und abgenommen wie jedes Haupt-Gate. Dass `L3.1` und
-`L3.2` daneben auch als Sub-Stage unter dem Gate L3 erscheinen, ist nur die
+Freigeben und Weiterrücken sind damit ein Vorgang: ein Antrag, eine Abnahme,
+eine Aussage. Solange ein Antrag offen ist, ist der Text gesperrt, über den
+entschieden wird — die Abnehmer sollen nicht auf etwas schauen, das sich unter
+ihnen ändert.
+
+Sieben der acht Stufen werden so beantragt. Eine wird rein **abgeleitet**:
+`L4.1 · Umsetzung läuft` heißt „L4, aber noch nicht bestätigt fertig". Dass
+`L3.1` und `L3.2` daneben als Sub-Stage unter dem Gate L3 erscheinen, ist die
 Anzeige: die Spalte trägt „L3", und der Investitions-Stempel entscheidet, welche
 der beiden Stufen zu sehen ist.
 
@@ -49,21 +46,14 @@ grob, aber zwei dieser Schätzungen sind mehr als eine Notiz: aus „Umsetzung
 gestartet" und „Umsetzung fertig" leitet Pulse das geplante Zeitfenster des
 Epics ab.
 
-Ist die Hypothese ausgearbeitet, beantrage ich den Reifegrad-Wechsel
-**L0 → L1**. Einen eigenen Freigabelauf für die Hypothese gibt es nicht — **die
-Abnahme dieses Schritts ist ihre Freigabe**. Ab dem gestellten Antrag ist der
-Text gesperrt: die Abnehmer sollen nicht auf etwas schauen, das sich unter ihnen
-ändert. Der VMO stimmt zu, und mit diesem einen Akt steht der Stempel und das
-Epic auf L1. Lehnt er begründet ab, bleibt das Epic auf L0 und der Text ist
-wieder frei.
+Ist die Hypothese ausgearbeitet, beantrage ich **L0 → L1**. Ab dem gestellten
+Antrag ist der Text gesperrt. Der VMO stimmt zu, und mit diesem einen Akt ist
+die Hypothese freigegeben und das Epic steht auf L1. Lehnt er begründet ab,
+bleibt das Epic auf L0 und der Text ist wieder frei.
 
-Reifegrade bewegen sich nie von allein: ich stelle einen Antrag, benannte
-Personen nehmen ihn ab, und Pulse zeigt mir vorher, welche Kriterien erfüllt
-sind und welche fehlen.
-
-Für die Konkretisierung brauche ich Geld. Ein eigenes Analyse-Budget gibt es
-nicht — es gibt eine Budgetrunde je Halbjahr. Mein Epic kommt aber schon mit der
-freigegebenen Hypothese aufs Ballot: Pulse setzt dann einen konfigurierten
+Für die Konkretisierung brauche ich Geld. Es kommt aus derselben Budgetrunde wie
+alles andere — eine je Halbjahr. Mein Epic kommt schon mit der freigegebenen
+Hypothese aufs Ballot: Pulse setzt dann einen tenant-konfigurierten
 Default-Aufwand als Kosten-Richtwert an, grob das, was das Erarbeiten des
 Business Case kostet. Ich setze im Overview den Haken **„Fürs nächste
 Budget-Meeting vormerken"**.
@@ -76,35 +66,32 @@ Jetzt die eigentliche Arbeit. Im Reiter _Deliverables_ schneide ich die
 Endprodukte als Features. Im Reiter _Dependencies_ hänge ich die Abhängigkeiten
 dran. Im Reiter _KPI & Nutzenkalkulation_ definiere ich die KPIs: Baseline,
 Ziel, Einheit — und zusammen mit Finance den Wert je Einheit und die Nutzenart,
-einmalig oder laufend. Daraus rechnet Pulse den Nutzenbeitrag. Finance
-verifiziert das nicht nebenbei, sondern zeichnet es ab: Finance ist eine der fünf
-Parteien, die den Schritt auf L3.1 abnehmen, und diese Abnahme deckt Deliverables
-und KPIs mit ab — eigene Abnahmen je Abschnitt gibt es nicht mehr. Die
-Freigabe-Inbox unter _Meine Tasks_ führt deshalb nur noch eine Gruppe:
-**Reifegrad-Wechsel**. „Epic-Hypothesen", „Epic-Stakeholder-Freigaben" und
-„Epic-Abschnitte" waren einmal drei weitere — jede Entscheidung, die dort heute
-landet, ist eine Gate-Abnahme, und daneben steht, für welche Partei ich
-zeichne.
+einmalig oder laufend. Daraus rechnet Pulse den Nutzenbeitrag. Die Baseline ist
+dabei ein Feld, das ich hier setze, kein Akt zu einem späteren Zeitpunkt.
+
+Finance verifiziert die Kalkulation nicht nebenbei, sondern zeichnet sie ab:
+Finance ist eine der fünf Parteien, die den Schritt auf L3.1 abnehmen, und diese
+Abnahme deckt Deliverables und KPIs mit ab.
 
 Die Timeline verfeinere ich — die groben Schätzungen von damals stehen jetzt
 neben belastbaren Daten.
 
 Steht der Business Case, beantrage ich **L2 → L3.1**. Beim Antrag besetze ich die
 fünf Parteien: MGMT, Business Owner, Finance, IRT-Owner und LACE/VMO — Finance
-und LACE/VMO sind aus der Wertstrom-Governance schon vorbelegt, die anderen drei
-benenne ich. Ab dem gestellten Antrag ist der Business Case gesperrt. Einen
-eigenen Freigabelauf davor gibt es nicht — **diese Abnahme ist die Freigabe**.
-Sind alle fünf durch, steht der Stempel und das Epic auf
-**L3.1 · BC freigegeben**. Lehnt eine Partei begründet ab, bleibt das Epic auf
-L2 und der Text ist wieder frei.
+und LACE/VMO sind aus der Wertstrom-Governance vorbelegt, die anderen drei
+benenne ich. Ab dem gestellten Antrag ist der Business Case gesperrt. Sind alle
+fünf durch, ist er freigegeben und das Epic steht auf **L3.1 · BC freigegeben**.
+Lehnt eine Partei begründet ab, bleibt das Epic auf L2 und der Text ist wieder
+frei.
 
-Beim **ersten** Lauf sehen die Abnehmer den Business Case, wie er dasteht. Ab dem
-zweiten sehen sie eine Gegenüberstellung: die Abnahme zieht jedes Mal einen
-Schnappschuss des freigegebenen Textes, und der nächste Antrag zeigt daneben, was
-sich seither geändert hat. Denn einen zweiten Anlauf gibt es — nur heißt er nicht
-mehr „neue Revision": Ich stufe das Epic mit Begründung auf L2 zurück (das räumt
-den Stempel ab), überarbeite und beantrage neu. Die Historie steckt vollständig in
-den Antrags-Zeilen.
+Jede Freigabe zieht einen Schnappschuss des freigegebenen Textes. Brauche ich
+einen zweiten Anlauf, stufe ich das Epic mit Begründung auf L2 zurück,
+überarbeite und beantrage neu — und die Abnehmer sehen diesmal eine
+Gegenüberstellung: was stand da zuletzt, was steht da jetzt. Die Historie steckt
+vollständig in den Antrags-Zeilen.
+
+Die Entscheidungen, die auf mich warten, finde ich unter _Meine Tasks_ in einer
+Gruppe: **Reifegrad-Wechsel**. An der Zeile steht, für welche Partei ich zeichne.
 
 Ich setze den Haken **„Im nächsten Steering-Meeting behandeln"**. Im
 Portfolio-Review wird mein Epic aufgerufen, und das Ergebnis lautet: hol dir
@@ -127,9 +114,9 @@ Das ist mein Stichwort. Ich ordne meine Features den PIs zu und beantrage
 Feature ist gestartet" —, aber es blockiert nicht: der Antrag selbst _ist_ der
 bewusste Start. Danach zeigt mein Epic **L4.1 · Umsetzung läuft**.
 
-Zum Umsetzungsstart erfasse ich den ersten Messwert je KPI. Die Baseline habe
-ich schon bei der Definition gesetzt; was jetzt beginnt, ist die Messreihe, an
-der Pulse den Erfüllungsgrad entlang der Strecke Baseline → Ziel abliest.
+Zum Umsetzungsstart erfasse ich den ersten Messwert je KPI. Damit beginnt die
+Messreihe, an der Pulse den Erfüllungsgrad entlang der Strecke Baseline → Ziel
+abliest.
 
 Dann arbeite ich ab. PI für PI, Feature für Feature, Status im Delivery-Cockpit.
 Zwischendurch erfasse ich Messwerte — der realisierte Nutzen wächst mit.
@@ -166,9 +153,10 @@ Antrag nicht durch. **Beratend** heißt: Pulse zeigt es an, hält aber nicht auf
 | → L4.2  | —                                                | Alle Child-Features sind abgeschlossen      |
 | → L5    | Umsetzung ist als abgeschlossen bestätigt (L4.2) | —                                           |
 
-Zwei dieser Kriterien fragen bewusst nach **Inhalt** und nicht nach einer
-Freigabe: → L1 und → L3.1 tragen die Freigabe selbst, sie können sie also nicht
-voraussetzen. Der Stempel wird dort gesetzt, nicht geprüft.
+Zwei dieser Kriterien fragen nach **Inhalt** statt nach einer Freigabe: → L1 und
+→ L3.1 tragen die Freigabe selbst, sie können sie also nicht voraussetzen. Der
+Stempel wird dort gesetzt, nicht geprüft — und von den Folgeschritten → L2 und
+→ L3.2 abgefragt.
 
 ## Wer nimmt welchen Schritt ab
 
@@ -187,46 +175,11 @@ Darin steckt die Begründung für den Schnitt: Finance zeichnet die
 Eintritt in L3 mit dem freigegebenen Business Case dagegen nicht. Genau deshalb
 sind L3.1 und L3.2 zwei Schritte und nicht einer.
 
-Zwei Schritte tragen zusätzlich eine inhaltliche Aussage: mit der Abnahme von
-**→ L1** ist die Benefit-Hypothese freigegeben, mit der von **→ L3.1** der Lean
-Business Case. Einen zweiten Lauf davor gibt es in beiden Fällen nicht.
-
 Die fünf Parteien an → L3.1 sind der Code-Default und zugleich der Ausdruck der
 Practice „Mehrparteien-Freigabe". Ist sie im Zielbild aus, zeichnet dort der VMO
 allein. Wer für MGMT, den Business Owner und den IRT-Owner _dieses_ Epics steht,
 benennt der Antragsteller beim Antrag — das ist eine Eigenschaft des Epics, keine
 Regel des Wertstroms.
-
-## Wo die verbreitete Beschreibung von der Mechanik abweicht
-
-1. **Freigabe und Reifegrad-Wechsel sind nicht zwei Schritte.** Die gängige
-   Erzählung lässt Hypothese und Business Case erst in einem eigenen Lauf
-   freigeben und den Reifegrad danach nachziehen. Im Tool ist das **ein** Akt:
-   die Abnahme von L0 → L1 _ist_ die Hypothesen-Freigabe, die von L2 → L3.1 _ist_
-   die des Business Case. Wer zweimal zeichnen will, findet dafür keine zweite
-   Stelle — und die Kriterien dieser beiden Schritte fragen deshalb nach Inhalt,
-   nicht nach einem Stempel.
-2. **Die Investitionsentscheidung fehlt.** Die gängige Erzählung springt von der
-   Budgetrunde direkt zur Umsetzungsfreigabe. Dazwischen liegt der beantragte
-   Schritt **L3.1 → L3.2**, und genau dieser Übergang _ist_ die
-   Investitionsentscheidung — hier werden Genehmiger und Datum am Epic gestempelt.
-3. **Die x.2-Stufen sind echte Schritte, keine Anzeige.** Verbreitet ist die
-   Annahme, alles hinter dem Punkt sei abgeleitet. Tatsächlich werden **L3.1**,
-   **L3.2** und **L4.2** beantragt und namentlich abgenommen; nur **L4.1**
-   ergibt sich von selbst — es ist „L4, solange die Umsetzung nicht bestätigt
-   fertig ist".
-4. **Kein separates Analyse-Budget.** Häufig wird „Geld für die Konkretisierung"
-   als eigene Runde beschrieben. Es gibt eine Budgetrunde je Zyklus; ein Epic
-   kommt aufs Ballot, sobald **Hypothese oder** Lean Business Case freigegeben
-   ist. Bei nur-Hypothese setzt das Ballot einen tenant-konfigurierbaren
-   Default-Aufwand als Kosten-Richtwert an. Gleiche Runde, anderer Richtwert.
-5. **Die KPI-Baseline ist ein Feld, kein Akt zum Freigabezeitpunkt.** Sie wird
-   beim Definieren der KPI gesetzt. Was zum Umsetzungsstart passiert, ist der
-   erste **Messwert**; der Nutzen rechnet sich aus dem Erfüllungsgrad entlang
-   Baseline → Ziel.
-6. **Steering-Merker und Budget-Merker sind unabhängig.** Oft wird das Vormerken
-   fürs Budget aus dem Review-Ergebnis abgeleitet. Es sind zwei Checkboxen im
-   Epic-Overview ohne technische Kopplung — die Reihenfolge ist Konvention.
 
 ## Nachschlagepunkte im Code
 
