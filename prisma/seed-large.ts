@@ -445,6 +445,8 @@ async function main() {
   const epicCycleIdx: number[] = [];
   /** L4.1-Datum je Epic (nur Gate ≥ L4) — Anker der KPI-Erfassung. */
   const epicImplStart: (Date | null)[] = [];
+  /** L4.2-Datum je Epic — dort friert die Menge, dort endet die Messreihe. */
+  const epicImplDone: (Date | null)[] = [];
   const gateSeen: Record<string, number> = {};
   const epicRows: Prisma.InitiativeCreateManyInput[] = [];
   for (let i = 0; i < EPIC_COUNT; i++) {
@@ -518,10 +520,21 @@ async function main() {
       if (step === "L2") return addDays(plannedStart, -35);
       return addDays(plannedStart, -55);
     };
+    // Jeder Schritt bekommt seinen *eigenen* Anker, nicht einen gleichmässigen
+    // Abstand: zwischen L4 und L4.2 liegt das ganze Umsetzungsfenster, und die
+    // KPI-Messreihe braucht diese Zeit, um überhaupt etwas zu zeigen. Danach
+    // zwei Korrekturen: die Kette muss streng steigen (mindestens eine Woche
+    // Abstand), und sie muss vollständig in der Vergangenheit liegen — dafür
+    // wird sie als Ganzes zurückgeschoben, damit die Abstände erhalten bleiben.
     const walked = stepsUpTo(target);
-    const lastDecided = beforeNow(anchorFor(target), 45 + (i % 20));
+    const raw = walked.map((step) => anchorFor(step).getTime());
+    for (let n = 1; n < raw.length; n++) {
+      raw[n] = Math.max(raw[n]!, raw[n - 1]! + 7 * DAY);
+    }
+    const latest = raw[raw.length - 1] ?? now.getTime();
+    const overflow = Math.max(0, latest - (now.getTime() - (45 + (i % 20)) * DAY));
     const stepDayFor = (step: GateStep): Date =>
-      addDays(lastDecided, -(walked.length - 1 - walked.indexOf(step)) * 26);
+      new Date((raw[walked.indexOf(step)] ?? now.getTime()) - overflow);
 
     // Die unbequemen Zustände über den Mandanten streuen — sonst zeigen 200
     // Epics ausschließlich den glatten Pfad.
@@ -617,6 +630,7 @@ async function main() {
     // Umsetzungsstart (L4.1): derselbe Wert für Spalte und KPI-Messbeginn.
     const implStartedAt = history.stamps.implementationStartedAt ?? null;
     epicImplStart[i] = implStartedAt;
+    epicImplDone[i] = history.stamps.implementationCompletedAt ?? null;
 
     epicRows.push({
       id: epicIds[i]!,
@@ -713,6 +727,7 @@ async function main() {
             from: implStart,
             fraction: savingsFraction[gate]!,
             seed: i * 5,
+            ...(epicImplDone[i] ? { until: epicImplDone[i]! } : {}),
           })
         : [],
       valuePerUnit: 1,
@@ -739,6 +754,7 @@ async function main() {
               from: implStart,
               fraction: 0.55,
               seed: i * 9 + 1,
+              ...(epicImplDone[i] ? { until: epicImplDone[i]! } : {}),
             })
           : [],
         valuePerUnit: 1_000,
@@ -1340,10 +1356,19 @@ function simulateSeries(
      * `monthsBack` Punkte).
      */
     from?: Date;
+    /**
+     * Ende der Rampe statt `now`. Für Epics mit abgenommener Umsetzung ist das
+     * das L4.2-Datum: dort friert die gelieferte Menge ein, also muss die Reihe
+     * bis dahin ihren Endwert erreicht haben. Ohne diesen Anker rampte sie bis
+     * heute weiter, und das Einfrieren träfe sie mitten im Anstieg — ein
+     * fertiges Epic sähe dann aus, als habe es kaum etwas geliefert.
+     */
+    until?: Date;
   },
 ): { date: string; value: number }[] {
+  const end = opts.until ?? now;
   const months = opts.from
-    ? Math.max(0, Math.floor((now.getTime() - opts.from.getTime()) / (30 * DAY)))
+    ? Math.max(0, Math.floor((end.getTime() - opts.from.getTime()) / (30 * DAY)))
     : (opts.monthsBack ?? 9);
   const dir = target >= baseline ? 1 : -1;
   const span = Math.abs(target - baseline);
@@ -1353,7 +1378,7 @@ function simulateSeries(
   // Frisch gestartet (< 1 Monat Umsetzung): nur die Baseline-Erfassung selbst.
   if (opts.from && months === 0) return [{ date: isoDate(opts.from), value: round(baseline) }];
   const dateAt = (i: number): Date =>
-    opts.from ? addDays(opts.from, 30 * i) : addDays(now, -30 * (months - i));
+    opts.from ? addDays(opts.from, 30 * i) : addDays(end, -30 * (months - i));
   const out: { date: string; value: number }[] = [];
   for (let i = 0; i <= months; i++) {
     const t = months === 0 ? 1 : i / months;

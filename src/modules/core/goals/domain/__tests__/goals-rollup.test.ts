@@ -724,3 +724,25 @@ describe("epicCascadeBreakdown", () => {
     expect(epicCascadeBreakdown([link({ conversionFactor: null })], nodes)).toEqual([]);
   });
 });
+
+describe("kpiTrio — Übererfüllung auf dem €-Pfad", () => {
+  const kpi = { id: "k", baseline: 0, target: 100, current: 130, valuePerUnit: 1_000 };
+
+  it("130 % Zielerreichung ergeben 130 % des Plan-€", () => {
+    // Früher auf 100 % gedeckelt — der €-Rollup konnte den Plan nie
+    // übertreffen, während die Einheiten-Kaskade (`epicSuccessKpiContribution`)
+    // längst ungedeckelt rechnete. Dasselbe Epic erschien in zwei Sichten
+    // verschieden.
+    const t = kpiTrio(kpi);
+    expect(t.planned).toBe(100_000);
+    expect(t.realized).toBe(130_000);
+  });
+
+  it("eine Verschlechterung ergibt 0, nicht negativ", () => {
+    expect(kpiTrio({ ...kpi, current: -50 }).realized).toBe(0);
+  });
+
+  it("die Prozent-Anzeige bleibt gedeckelt — dort ist 0..1 die Definition", () => {
+    expect(kpiAchievement(kpi)).toBe(1);
+  });
+});

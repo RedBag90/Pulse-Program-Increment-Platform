@@ -63,6 +63,7 @@ export async function getPortfolioEconomics(
         selectedForDetailingAt: true,
         selectedForAnalyzingAt: true,
         implementationStartedAt: true,
+        implementationCompletedAt: true,
         impactRecognizedAt: true,
         createdAt: true,
         ownerId: true,
@@ -157,6 +158,10 @@ export async function getPortfolioEconomics(
       goLiveIso: isoDay(view.goLive),
       implementationStartIso: isoDay(view.implementationWindow.start),
       implementationEndExclusiveIso: isoDay(view.implementationWindow.endExclusive),
+      // L4.2-Abnahme: ab hier steht die gelieferte Menge fest.
+      implementationCompletedIso: row.implementationCompletedAt
+        ? isoDay(row.implementationCompletedAt)
+        : null,
       hasBusinessCase: view.hasBusinessCase,
       benefitKpis: view.benefitKpis,
       hasAllocation: row.budgetAllocation != null,

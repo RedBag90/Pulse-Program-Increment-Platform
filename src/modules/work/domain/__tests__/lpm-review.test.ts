@@ -71,9 +71,17 @@ describe("kpiRealizedAt — Achievement(≤cutoff) × Planned", () => {
     const k = kpi({ measurements: [{ atMs: Date.parse("2026-05-01"), value: 60 }] });
     expect(kpiRealizedAt(k, Date.parse("2026-06-30"))).toBe(60_000);
   });
-  it("clamped auf 100 % bei Übererfüllung", () => {
+  it("Übererfüllung zählt voll — sie ist geliefert", () => {
+    // Früher auf 100 % gedeckelt. Damit konnte ein Epic bei 150 % die
+    // Untererfüllung eines anderen nicht ausgleichen, und das Portfolio konnte
+    // seinen Plan nie übertreffen — nur verfehlen.
     const k = kpi({ measurements: [{ atMs: Date.parse("2026-05-01"), value: 150 }] });
-    expect(kpiRealizedAt(k, Date.parse("2026-06-30"))).toBe(100_000);
+    expect(kpiRealizedAt(k, Date.parse("2026-06-30"))).toBe(150_000);
+  });
+
+  it("eine Verschlechterung unter die Baseline ergibt 0, nicht negativ", () => {
+    const k = kpi({ measurements: [{ atMs: Date.parse("2026-05-01"), value: -20 }] });
+    expect(kpiRealizedAt(k, Date.parse("2026-06-30"))).toBe(0);
   });
   it("0 vor dem ersten Messpunkt (baseline)", () => {
     const k = kpi({ measurements: [{ atMs: Date.parse("2026-05-01"), value: 60 }] });

@@ -436,3 +436,68 @@ describe("groupSeriesByValueStream", () => {
     expect(groups[1]!.cost).toEqual([5, 5]); // veranschlagt :est
   });
 });
+
+describe("Die Menge friert mit L4.2 — kein Forecast auf ein fertiges Epic", () => {
+  const axis = buildMonthAxis(utc("2026-01-01"), utc("2026-12-01"));
+  const todayIdx = 5; // Juni
+  /** KPI bei 70 % der Spanne, gemessen im März; danach nichts mehr. */
+  const kpis: BenefitKpiInput[] = [
+    {
+      baseline: 0,
+      target: 100,
+      valuePerUnit: 100,
+      benefitKind: "recurring",
+      recurringInterval: "yearly",
+      weight: 1,
+      measurements: [{ date: "2026-03-01", value: 70 }] as KpiMeasurement[],
+    },
+  ];
+
+  const laufend = epic({
+    costStart: utc("2026-01-01"),
+    goLive: utc("2026-02-01"),
+    ...(kpiRecurringByMonth(kpis, axis)
+      ? { kpiRecurringByMonth: kpiRecurringByMonth(kpis, axis)! }
+      : {}),
+    kpiRecurringAtFull: 10_000 / 12,
+  });
+
+  it("solange die Umsetzung läuft, rechnet der Forecast den Rest zum Ziel hoch", () => {
+    const f = epicMonthlyFlows(laufend, axis, todayIdx);
+    expect(f.benefitUplift.slice(todayIdx + 1).some((v) => v > 0)).toBe(true);
+  });
+
+  it("mit der L4.2-Abnahme entfällt die Hochrechnung vollständig", () => {
+    // Genau der Fall aus der Praxis: fertig gebaut, KPI bei 70 %, steigt nicht
+    // mehr. Vorher schrieb das Portfolio dem Epic die fehlenden 30 % dauerhaft
+    // gut — Break-Even und Benefit Velocity waren systematisch zu gut.
+    const fertig = { ...laufend, quantityFrozenAt: utc("2026-05-01") };
+    const f = epicMonthlyFlows(fertig, axis, todayIdx);
+    expect(f.benefitUplift.every((v) => v === 0)).toBe(true);
+  });
+
+  it("der gemessene Nutzen läuft weiter — eingefroren wird die Menge, nicht der Fluss", () => {
+    const fertig = { ...laufend, quantityFrozenAt: utc("2026-05-01") };
+    const f = epicMonthlyFlows(fertig, axis, todayIdx);
+    expect(f.benefit[axis.monthCount - 1]).toBeGreaterThan(0);
+  });
+});
+
+describe("kpiFulfillmentByMonth — Messungen nach dem Einfrieren zählen nicht", () => {
+  const axis = buildMonthAxis(utc("2026-01-01"), utc("2026-12-01"));
+  const ms: KpiMeasurement[] = [
+    { date: "2026-03-01", value: 70 },
+    { date: "2026-09-01", value: 100 }, // nach der Abnahme
+  ];
+
+  it("ohne Einfrieren steigt die Erfüllung mit der späteren Messung", () => {
+    const f = kpiFulfillmentByMonth(ms, 0, 100, axis);
+    expect(f[11]).toBeCloseTo(1);
+  });
+
+  it("mit Einfrieren hält sie den Stand zum Stichtag", () => {
+    const f = kpiFulfillmentByMonth(ms, 0, 100, axis, utc("2026-05-01"));
+    expect(f[11]).toBeCloseTo(0.7);
+    expect(f[2]).toBeCloseTo(0.7);
+  });
+});

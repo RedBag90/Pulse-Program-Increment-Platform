@@ -143,6 +143,12 @@ fertig**. Ein Kriterium erinnert daran, dass alle Child-Features abgeschlossen
 sein sollten — es hält den Antrag aber nicht auf: dass die Umsetzung fertig ist,
 stellt die Abnahme fest, nicht der Zähler. Die Abnahme kommt, der Stempel steht.
 
+Mit ihr steht auch die **gelieferte Menge** fest. Steht meine Erfolgs-KPI bei
+70 %, dann sind es 70 % — der Rest wird nicht mehr hochgerechnet, denn gebaut
+ist gebaut. Liegt sie über 100 %, zählt sie voll. Spätere Messungen bewegen die
+Menge nicht mehr; was sich danach noch ändern kann, ist ihr _Wert_, und den
+verantwortet Finance.
+
 Und dann warte ich. „Fertig gebaut" ist nicht „Nutzen nachgewiesen", und
 zwischen beidem darf beliebig viel Zeit liegen. Irgendwann sieht Controlling im
 Bericht, dass sich die Bottom Line bewegt hat, und sagt Bescheid. Ich beantrage
@@ -246,10 +252,24 @@ nachgewiesen", und zwischen beidem darf beliebig viel Zeit liegen. Ich bestätig
 dass der prognostizierte Nutzen an den KPIs bzw. auf der Bilanz angekommen ist.
 Die Abnahme setzt den Impact-Stempel.
 
+Genau in diesem Fenster liegt meine eigentliche Arbeit. Die **Menge** ist mit
+L4.2 festgeschrieben, der **Wert** noch nicht: jetzt zeigt sich, ob eine Einheit
+Verbesserung wirklich so viel gebracht hat, wie im Business Case angesetzt.
+Ziehe ich den Umrechnungsfaktor nach, gilt der neue Wert **rückwirkend** für die
+ganze Ist-Rechnung — der **Plan** dagegen bleibt bei dem Faktor und dem Ziel, die
+bei der Freigabe galten. Nur so misst Plan gegen Ist etwas.
+
 Darin steckt eine Asymmetrie, die den Schnitt erklärt: ich zeichne die
 **Geld**-Entscheidung mit und bestätige am Ende den **Nutzen** — den Eintritt in
 L3 mit dem freigegebenen Business Case aber nicht allein. Genau deshalb sind
 L3.1 und L3.2 zwei Schritte und nicht einer.
+
+Ein Epic kann damit auf **zwei Achsen** über- oder unterliefern, und die
+Kalkulation weist beide getrennt aus: die **Menge** (hat die KPI ihr Ziel
+erreicht?) und den **Wert** (war eine Einheit so viel wert wie angesetzt?). Ein
+Epic, das nur 70 % seines KPI-Ziels erreicht, dessen Einheiten sich aber als
+wertvoller herausstellen, kann unterm Strich trotzdem liefern — und man sieht,
+woran es lag.
 
 Zwischen den Sitzen ist die **Dashboard-Ökonomie** meine Lesefläche: Break-Even,
 Benefit Velocity gegen den Plan, die Kostenkurve gegen den Kostenneutralitäts-

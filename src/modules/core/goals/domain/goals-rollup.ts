@@ -19,6 +19,7 @@
  */
 
 import { fulfillmentFraction } from "@/modules/core/kpi/domain/kpi-direction";
+import { outcomeAttainment } from "@/modules/core/kpi/domain/kpi-outcome";
 import { kpiDelta } from "@/modules/core/kpi/domain/kpi-valuation";
 import {
   aggregatesFromChildren,
@@ -62,8 +63,13 @@ export function kpiTrio(kpi: KpiInput): RollupTrio {
   }
   const span = Math.abs(kpi.target - kpi.baseline);
   const planned = span * vpu;
-  const achievement = kpiAchievement(kpi);
-  const realized = achievement * planned;
+  // Bewusst NICHT `kpiAchievement`: dessen Deckel auf 100 % ist für eine
+  // Fortschritts-Anzeige richtig, für einen Geldbetrag nicht. Wer 130 %
+  // geliefert hat, hat 130 % geliefert — und die Einheiten-Kaskade
+  // (`epicSuccessKpiContribution`) rechnet längst so. Beide Pfade wichen
+  // genau hier voneinander ab: dasselbe Epic erschien im €-Rollup als 100 %
+  // und im Nutzen-Wasserfall als 130 %.
+  const realized = outcomeAttainment(kpi, kpi.current) * planned;
   return { planned, realized, runRate: realized };
 }
 

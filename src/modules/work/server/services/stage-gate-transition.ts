@@ -273,6 +273,78 @@ async function applyGateStamps(
     }
   }
   await tx.initiative.update({ where: { id: epicId }, data });
+  if (to === "L3.1") await snapshotPlanTerms(tx, epicId);
+}
+
+/**
+ * Friert die Plan-Größen der Erfolgs-KPIs und ihrer Ziel-Verknüpfungen ein —
+ * bei derselben Abnahme, die den Business Case freigibt.
+ *
+ * Ohne diesen festen Bezug misst sich der Plan an sich selbst: zieht Finance
+ * später den Umrechnungsfaktor nach (was zwischen L4.2 und L5 ausdrücklich
+ * vorgesehen ist) oder weicht jemand das Ziel auf, verschöbe sich Plan **und**
+ * Ist gleichzeitig, und die Abweichung wäre immer null. Der Schnappschuss hält
+ * fest, was bei der Freigabe versprochen wurde.
+ *
+ * Set-once: ein vorhandener Schnappschuss wird nicht überschrieben. Ein zweiter
+ * Lauf durch L3.1 (Rückstufung, überarbeiten, erneut beantragen) ändert den
+ * Ist-Wert, nicht das ursprüngliche Versprechen.
+ */
+async function snapshotPlanTerms(tx: Prisma.TransactionClient, epicId: string): Promise<void> {
+  // Auf `planSnapshot: null` wird bewusst in JS gefiltert statt im `where`:
+  // Prismas Json-Null-Filter verlangt den Laufzeit-Wert `Prisma.DbNull`, und
+  // diese Datei importiert `Prisma` nur als Typ.
+  const kpis = await tx.kpi.findMany({
+    where: { initiativeId: epicId },
+    select: {
+      id: true,
+      planSnapshot: true,
+      baseline: true,
+      target: true,
+      valuePerUnit: true,
+      benefitKind: true,
+      recurringInterval: true,
+    },
+  });
+  for (const k of kpis) {
+    if (k.planSnapshot != null) continue;
+    await tx.kpi.update({
+      where: { id: k.id },
+      data: {
+        planSnapshot: {
+          baseline: k.baseline == null ? null : Number(k.baseline),
+          target: k.target == null ? null : Number(k.target),
+          valuePerUnit: k.valuePerUnit == null ? null : Number(k.valuePerUnit),
+          benefitKind: k.benefitKind,
+          recurringInterval: k.recurringInterval,
+        },
+      },
+    });
+  }
+
+  const links = await tx.goalEpicLink.findMany({
+    where: { epicId },
+    select: {
+      id: true,
+      planSnapshot: true,
+      conversionFactor: true,
+      impactKind: true,
+      recurringInterval: true,
+    },
+  });
+  for (const l of links) {
+    if (l.planSnapshot != null) continue;
+    await tx.goalEpicLink.update({
+      where: { id: l.id },
+      data: {
+        planSnapshot: {
+          conversionFactor: l.conversionFactor == null ? null : Number(l.conversionFactor),
+          impactKind: l.impactKind,
+          recurringInterval: l.recurringInterval,
+        },
+      },
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------

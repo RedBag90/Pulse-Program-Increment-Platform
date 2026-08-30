@@ -1,22 +1,24 @@
-import { TrendingUp } from "lucide-react";
-import { kpiValueContribution } from "@/modules/core/kpi/domain/kpi-valuation";
-import { latestKpiValue, parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";
+import { TrendingUp, Lock } from "lucide-react";
+import { kpiOutcome, type KpiValuationTerms } from "@/modules/core/kpi/domain/kpi-outcome";
+import { parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";
 import { benefitKindOrDefault, type BenefitKind } from "@/modules/core/kpi/domain/kpi-benefit-kind";
-import { recurringIntervalOrDefault } from "@/modules/core/kpi/domain/kpi-recurring-interval";
 import { formatCompactEUR } from "@/lib/formatting";
 
 /**
- * Realisierter Mehrwert je Epic (Konzept-Refactor §E). Σ (current − baseline) ×
- * valuePerUnit je KPI mit gesetztem valuePerUnit — **getrennt nach Benefit-Art**,
- * weil die Einheiten sich unterscheiden: one-time-KPIs realisieren einen einmaligen
- * €-Betrag, recurring-KPIs eine jährliche Run-Rate (€/Jahr). Eine gemeinsame Summe
- * würde Bestand und Fluss vermischen. Recurring-KPIs mit monatlichem Intervall
- * werden ×12 auf ihr Jahresäquivalent normalisiert, damit „Wiederkehrend p.a."
- * eine konsistente Einheit bleibt.
+ * Realisierter Mehrwert je Epic — **getrennt nach Benefit-Art**, weil die
+ * Einheiten sich unterscheiden: one-time-KPIs realisieren einen einmaligen
+ * €-Betrag, recurring-KPIs eine jährliche Run-Rate (€/Jahr). Eine gemeinsame
+ * Summe würde Bestand und Fluss vermischen.
+ *
+ * Die Zahlen kommen aus `kpiOutcome` (Core), damit die Kachel dieselbe Rechnung
+ * zeigt wie Dashboard und Review — inklusive der zwei Achsen, auf denen ein Epic
+ * abweichen kann: **Menge** (Zielerreichung, friert mit der L4.2-Abnahme) und
+ * **Wert** (Umrechnungsfaktor, den Finance bis L5 nachziehen darf). Ohne diese
+ * Trennung sähe man nur, *dass* es anders kam, nicht *woran* es lag.
  *
  * Unterschied zum `EpicGoalsBadge`: jener zeigt nur den ueber KR-Bindungen
  * bewerteten Teil; dieser Tile zeigt die volle Epic-Sicht, unabhaengig von einer
- * Strategie-Bindung. Damit sieht Jonas-Epic-Owner seinen Mehrwert auch ohne KR.
+ * Strategie-Bindung.
  */
 interface KpiLike {
   id: string;
@@ -26,22 +28,48 @@ interface KpiLike {
   valuePerUnit: unknown;
   benefitKind: unknown;
   recurringInterval: unknown;
+  /** Plan-Stand zur Business-Case-Freigabe; null = kein Schnappschuss. */
+  planSnapshot?: unknown;
 }
 
 interface Props {
   kpis: KpiLike[];
+  /** L4.2-Abnahme — gesetzt ⇒ die gelieferte Menge steht fest. */
+  frozenAt?: Date | null;
 }
 
 interface Bucket {
   realized: number;
   planned: number;
+  quantityDelta: number;
+  valueDelta: number;
   evaluated: number;
   valued: number;
 }
 
-const emptyBucket = (): Bucket => ({ realized: 0, planned: 0, evaluated: 0, valued: 0 });
+const emptyBucket = (): Bucket => ({
+  realized: 0,
+  planned: 0,
+  quantityDelta: 0,
+  valueDelta: 0,
+  evaluated: 0,
+  valued: 0,
+});
 
-export function EpicRealizedTile({ kpis }: Props) {
+/** Liest den gespeicherten Plan-Schnappschuss; unbrauchbare Formen → null. */
+function parsePlanSnapshot(raw: unknown): KpiValuationTerms | null {
+  if (raw == null || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  return {
+    baseline: toNum(o.baseline),
+    target: toNum(o.target),
+    valuePerUnit: toNum(o.valuePerUnit),
+    ...(typeof o.benefitKind === "string" ? { benefitKind: o.benefitKind } : {}),
+    ...(typeof o.recurringInterval === "string" ? { recurringInterval: o.recurringInterval } : {}),
+  };
+}
+
+export function EpicRealizedTile({ kpis, frozenAt = null }: Props) {
   const buckets: Record<BenefitKind, Bucket> = {
     one_time: emptyBucket(),
     recurring: emptyBucket(),
@@ -50,30 +78,30 @@ export function EpicRealizedTile({ kpis }: Props) {
   for (const k of kpis) {
     const valuePerUnit = toNum(k.valuePerUnit);
     if (valuePerUnit == null) continue;
-    const baseline = toNum(k.baseline);
-    const target = toNum(k.target);
     const kind = benefitKindOrDefault(typeof k.benefitKind === "string" ? k.benefitKind : null);
     const b = buckets[kind];
-    // Recurring wird auf p.a. normalisiert: monatliches Intervall ×12 aufs Jahr.
-    const factor =
-      kind === "recurring" &&
-      recurringIntervalOrDefault(
-        typeof k.recurringInterval === "string" ? k.recurringInterval : null,
-      ) === "monthly"
-        ? 12
-        : 1;
     b.valued += 1;
 
-    if (baseline != null && target != null) {
-      b.planned += Math.abs(target - baseline) * valuePerUnit * factor;
-    }
-
-    const current = latestKpiValue(parseKpiMeasurements(k.measurements));
-    const contribution = kpiValueContribution({ baseline, target, current, valuePerUnit });
-    if (contribution != null) {
-      b.realized += contribution * factor;
-      b.evaluated += 1;
-    }
+    const measurements = parseKpiMeasurements(k.measurements);
+    // `kpiOutcome` normalisiert monatlich Wiederkehrendes selbst aufs Jahr —
+    // „Wiederkehrend p.a." bleibt damit eine konsistente Einheit.
+    const o = kpiOutcome({
+      baseline: toNum(k.baseline),
+      target: toNum(k.target),
+      valuePerUnit,
+      ...(typeof k.benefitKind === "string" ? { benefitKind: k.benefitKind } : {}),
+      ...(typeof k.recurringInterval === "string"
+        ? { recurringInterval: k.recurringInterval }
+        : {}),
+      measurements,
+      planSnapshot: parsePlanSnapshot(k.planSnapshot),
+      frozenAt,
+    });
+    b.planned += o.planned;
+    b.realized += o.realized;
+    b.quantityDelta += o.quantityDelta;
+    b.valueDelta += o.valueDelta;
+    if (measurements.length > 0) b.evaluated += 1;
   }
 
   if (buckets.one_time.valued === 0 && buckets.recurring.valued === 0) {
@@ -89,22 +117,51 @@ export function EpicRealizedTile({ kpis }: Props) {
         </h3>
       </header>
 
-      {buckets.one_time.valued > 0 && <BucketRow label="Einmalig" bucket={buckets.one_time} />}
+      {buckets.one_time.valued > 0 && (
+        <BucketRow label="Einmalig" bucket={buckets.one_time} frozen={frozenAt != null} />
+      )}
       {buckets.recurring.valued > 0 && (
-        <BucketRow label="Wiederkehrend p.a." suffix="/Jahr" bucket={buckets.recurring} />
+        <BucketRow
+          label="Wiederkehrend p.a."
+          suffix="/Jahr"
+          bucket={buckets.recurring}
+          frozen={frozenAt != null}
+        />
       )}
     </section>
   );
 }
 
-function BucketRow({ label, suffix, bucket }: { label: string; suffix?: string; bucket: Bucket }) {
-  const { realized, planned, evaluated, valued } = bucket;
+function BucketRow({
+  label,
+  suffix,
+  bucket,
+  frozen,
+}: {
+  label: string;
+  suffix?: string;
+  bucket: Bucket;
+  frozen: boolean;
+}) {
+  const { realized, planned, quantityDelta, valueDelta, evaluated, valued } = bucket;
   const ratio = planned > 0 ? Math.max(0, Math.min(1, realized / planned)) : 0;
+  const hasDelta = Math.round(quantityDelta) !== 0 || Math.round(valueDelta) !== 0;
 
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+          {label}
+          {frozen && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px]"
+              title="Die Umsetzung ist abgenommen (L4.2) — die gelieferte Menge steht fest."
+            >
+              <Lock className="h-3 w-3" aria-hidden />
+              festgeschrieben
+            </span>
+          )}
+        </span>
         <span className="text-[10px] text-muted-foreground">
           {evaluated} von {valued} KPIs gemessen
         </span>
@@ -129,11 +186,36 @@ function BucketRow({ label, suffix, bucket }: { label: string; suffix?: string; 
             />
           </div>
           <p className="mt-1 text-[10px] text-muted-foreground">
-            {Math.round(ratio * 100)} % des moeglichen Mehrwerts auf Basis aktueller KPI-Messung
+            {Math.round(ratio * 100)} % des möglichen Mehrwerts auf Basis der KPI-Messung
           </p>
         </div>
       )}
+      {hasDelta && (
+        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+          <dt>Menge (Zielerreichung)</dt>
+          <dd className="text-right tabular-nums">
+            <Delta value={quantityDelta} suffix={suffix} />
+          </dd>
+          <dt>Wert (Umrechnungsfaktor)</dt>
+          <dd className="text-right tabular-nums">
+            <Delta value={valueDelta} suffix={suffix} />
+          </dd>
+        </dl>
+      )}
     </div>
+  );
+}
+
+/** Ein Abweichungs-Betrag mit Vorzeichen — grün über Plan, bernstein darunter. */
+function Delta({ value, suffix }: { value: number; suffix?: string | undefined }) {
+  if (Math.round(value) === 0) return <span>—</span>;
+  const over = value > 0;
+  return (
+    <span className={over ? "text-emerald-700" : "text-amber-700"}>
+      {over ? "+" : "−"}
+      {formatCompactEUR(Math.abs(value))}
+      {suffix}
+    </span>
   );
 }
 

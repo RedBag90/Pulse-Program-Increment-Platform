@@ -118,8 +118,13 @@ export function epicFlows(
 
   // Forecast-„Rest zum Ziel": nur für KPI-getriebene recurring-KPIs, in
   // Zukunftsmonaten (> heute, ≥ go-live) das Delta zur vollen Run-Rate @Ziel.
+  //
+  // **Nicht mehr, sobald die Umsetzung abgenommen ist** (`quantityFrozenAt`,
+  // = L4.2): gebaut ist gebaut. Was dann nicht gemessen ist, kommt nicht mehr,
+  // und eine Hochrechnung bis zum Ziel wäre eine Behauptung ohne Grundlage.
+  // Genau das hat den Break-Even fertiger Epics dauerhaft geschönt.
   const atFull = input.kpiRecurringAtFull;
-  if (recurring && atFull != null && atFull > 0) {
+  if (recurring && atFull != null && atFull > 0 && input.quantityFrozenAt == null) {
     const from = Math.max(goLiveIdx, todayIndex + 1, 0);
     for (let idx = from; idx < axis.monthCount; idx++) {
       const gap = atFull - (recurring[idx] ?? 0);

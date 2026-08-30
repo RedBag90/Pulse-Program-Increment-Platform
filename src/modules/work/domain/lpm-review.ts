@@ -17,8 +17,9 @@
  * Konvention (wie im Ziele-/Portfolio-Code): Verhältnisse sind 0..1.
  */
 
-import { fulfillmentFraction } from "@/modules/core/kpi/domain/kpi-direction";
 import { kpiPlanned } from "@/modules/core/kpi/domain/kpi-valuation";
+import { measurementValueAt } from "@/modules/core/kpi/domain/kpi";
+import { outcomeAttainment } from "@/modules/core/kpi/domain/kpi-outcome";
 import {
   thresholdTier,
   type AmpelTier,
@@ -170,28 +171,27 @@ export interface LpmReviewModel {
  */
 export { kpiPlanned };
 
-/** Messwert zum Stichtag: letzter Messpunkt ≤ `cutoffMs`, sonst `baseline`. */
-export function measurementValueAt(
-  measurements: { atMs: number; value: number }[],
-  cutoffMs: number,
-  fallback: number | null,
-): number | null {
-  let v = fallback;
-  for (const m of measurements) {
-    if (m.atMs <= cutoffMs) v = m.value;
-    else break;
-  }
-  return v;
-}
+/**
+ * Messwert zum Stichtag — die Formel lebt jetzt in Core (`kpi.ts`), damit die
+ * Einfrier-Rechnung (`kpi-outcome.ts`) dieselbe benutzt. Re-exportiert, weil
+ * Consumer und Tests sie hier erwarten.
+ */
+export { measurementValueAt };
 
-/** Realisierter €-Anteil eines KPIs zum Stichtag = Achievement(≤cutoff) × Planned. */
+/**
+ * Realisierter €-Anteil eines KPIs zum Stichtag = Zielerreichung(≤cutoff) ×
+ * Planned.
+ *
+ * Ohne obere Deckelung: eine Übererfüllung ist geliefert und gehört ins
+ * Ergebnis. Der frühere `Math.min(1, …)` sorgte dafür, dass ein Epic bei 130 %
+ * die Untererfüllung eines anderen nicht ausgleichen konnte — das Portfolio
+ * konnte seinen Plan nie übertreffen, nur verfehlen.
+ */
 export function kpiRealizedAt(k: LpmKpiInput, cutoffMs: number): number {
   const planned = kpiPlanned(k);
   if (planned === 0) return 0;
   const value = measurementValueAt(k.measurements, cutoffMs, k.baseline);
-  const frac = fulfillmentFraction(k.baseline, k.target, value);
-  const ach = frac == null ? 0 : Math.min(1, Math.max(0, frac));
-  return ach * planned;
+  return outcomeAttainment(k, value) * planned;
 }
 
 const epicBenefitPlan = (e: LpmEpicInput): number => e.kpis.reduce((s, k) => s + kpiPlanned(k), 0);

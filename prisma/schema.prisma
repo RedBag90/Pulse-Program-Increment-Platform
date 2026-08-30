@@ -427,6 +427,10 @@ model GoalEpicLink {
   impactKind        String   @default("recurring") @map("impact_kind")
   /// Bei impactKind="recurring": "monthly" | "yearly" Run-Rate.
   recurringInterval String   @default("yearly") @map("recurring_interval")
+  /// Plan-Schnappschuss zur Business-Case-Freigabe (L2 → L3.1):
+  /// `{ conversionFactor, impactKind, recurringInterval }` — dasselbe Prinzip
+  /// wie `Kpi.planSnapshot`, nur für den Beitrag aufs Ziel.
+  planSnapshot      Json?    @map("plan_snapshot")
   createdAt         DateTime @default(now()) @map("created_at")
   createdBy         String   @map("created_by") @db.Uuid
 
@@ -1079,6 +1083,13 @@ model Kpi {
   recurringInterval String   @default("yearly") @map("recurring_interval")
   /// Freitext-Dokumentation der Herleitung (wie kommt man auf die KPI / den Wert).
   calculationNote   String?  @map("calculation_note") @db.Text
+  /// Plan-Schnappschuss zur Business-Case-Freigabe (L2 → L3.1):
+  /// `{ baseline, target, valuePerUnit, benefitKind, recurringInterval }`.
+  /// Der feste Bezugspunkt für Plan-gegen-Ist. Ohne ihn misst sich der Plan an
+  /// sich selbst: eine spätere Korrektur von Ziel oder Umrechnungsfaktor
+  /// verschöbe beide Seiten gleichzeitig und zeigte nie eine Abweichung.
+  /// null = vor Einführung freigegeben ⇒ es gilt der Live-Stand.
+  planSnapshot      Json?    @map("plan_snapshot")
 
   createdAt DateTime @default(now()) @map("created_at")
   createdBy String   @map("created_by") @db.Uuid

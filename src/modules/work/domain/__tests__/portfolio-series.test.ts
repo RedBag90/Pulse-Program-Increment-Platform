@@ -24,6 +24,7 @@ const dto = (over: Partial<EpicEconomicsDTO> = {}): EpicEconomicsDTO => ({
   goLiveIso: "2027-01-01",
   implementationStartIso: "2026-01-01",
   implementationEndExclusiveIso: "2027-01-01",
+  implementationCompletedIso: null,
   hasBusinessCase: true,
   benefitKpis: [],
   hasAllocation: false,

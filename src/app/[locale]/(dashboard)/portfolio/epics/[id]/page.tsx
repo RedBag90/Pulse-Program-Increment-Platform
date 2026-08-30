@@ -199,7 +199,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       >
         {activeTab === "overview" && (
           <div className="space-y-4">
-            <EpicRealizedTile kpis={model.kpis} />
+            <EpicRealizedTile kpis={model.kpis} frozenAt={epic.implementationCompletedAt} />
             <EpicGoalsBadge goalLinks={goalLinks.links} />
             <EpicOverviewTab
               epic={epic}

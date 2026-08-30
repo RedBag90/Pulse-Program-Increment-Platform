@@ -75,6 +75,17 @@ export interface EpicEconomicsInput {
    */
   kpiRecurringAtFull?: number;
   /**
+   * Zeitpunkt der L4.2-Abnahme (`implementationCompletedAt`). Gesetzt ⇒ die
+   * **Menge steht fest**: die Umsetzung ist abgenommen, was jetzt nicht gemessen
+   * ist, kommt nicht mehr. Der Forecast-„Rest zum Ziel" entfällt dann
+   * vollständig, und die Run-Rate hält den Stand zu diesem Stichtag.
+   *
+   * Ohne diese Angabe rechnete das Portfolio einem fertigen Epic dauerhaft
+   * einen Nutzen zu, den es nie geliefert hat — Break-Even und Benefit Velocity
+   * blieben systematisch zu gut.
+   */
+  quantityFrozenAt?: Date;
+  /**
    * Funding-Konfidenz: `true` ⇒ eine partizipative Budget-Allocation existiert
    * (freigegebenes Budget), `false`/`undefined` ⇒ Business-Case-Schätzung
    * (veranschlagt). Nur ein Marker; die Kosten selbst treibt `costByMonth`.
@@ -311,11 +322,16 @@ export function kpiFulfillmentByMonth(
   baseline: number | null,
   target: number | null,
   axis: MonthAxis,
+  frozenAt?: Date,
 ): number[] {
   const sorted = [...measurements].sort((a, b) => a.date.localeCompare(b.date));
   const out = zeros(axis.monthCount);
+  // Ab der L4.2-Abnahme zählt nur noch, was bis dahin gemessen war: die Menge
+  // ist eingefroren. Spätere Messungen bewegen die Run-Rate nicht mehr — eine
+  // nachträgliche Korrektur des *Werts* ist Sache des Umrechnungsfaktors.
+  const freezeMs = frozenAt ? frozenAt.getTime() : Number.POSITIVE_INFINITY;
   for (let i = 0; i < axis.monthCount; i++) {
-    const monthEndMs = addMonths(axis.start, i + 1).getTime(); // exclusive
+    const monthEndMs = Math.min(addMonths(axis.start, i + 1).getTime(), freezeMs); // exclusive
     let value: number | null = null;
     for (const m of sorted) {
       const t = Date.parse(m.date);
@@ -334,11 +350,22 @@ export function kpiFulfillmentByMonth(
  * KPIs. Returns null when no KPIs are linked, signalling the flat-forecast
  * fallback to `epicMonthlyFlows`.
  */
-export function recurringFactorByMonth(kpis: BenefitKpiInput[], axis: MonthAxis): number[] | null {
+export function recurringFactorByMonth(
+  kpis: BenefitKpiInput[],
+  axis: MonthAxis,
+  /** L4.2-Stichtag: ab hier steht die Menge fest (siehe `kpiFulfillmentByMonth`). */
+  frozenAt?: Date | null,
+): number[] | null {
   if (kpis.length === 0) return null;
   const out = zeros(axis.monthCount);
   for (const k of kpis) {
-    const f = kpiFulfillmentByMonth(k.measurements, k.baseline, k.target, axis);
+    const f = kpiFulfillmentByMonth(
+      k.measurements,
+      k.baseline,
+      k.target,
+      axis,
+      frozenAt ?? undefined,
+    );
     for (let i = 0; i < axis.monthCount; i++) out[i] = (out[i] ?? 0) + k.weight * (f[i] ?? 0);
   }
   return out;
@@ -367,14 +394,25 @@ function valuedKpisOfKind(
  * KPI-Wert. `null`, wenn keine bewertete **one-time**-KPI verknüpft ist →
  * Business-Case-`oneTimeBenefit`-Spike als Fallback. Kein Contribution-`weight`.
  */
-export function kpiRealizedValueByMonth(kpis: BenefitKpiInput[], axis: MonthAxis): number[] | null {
+export function kpiRealizedValueByMonth(
+  kpis: BenefitKpiInput[],
+  axis: MonthAxis,
+  /** L4.2-Stichtag: ab hier steht die Menge fest (siehe `kpiFulfillmentByMonth`). */
+  frozenAt?: Date | null,
+): number[] | null {
   const valued = valuedKpisOfKind(kpis, "one_time");
   if (valued.length === 0) return null;
   const out = zeros(axis.monthCount);
   for (const k of valued) {
     const planned = Math.abs((k.target ?? 0) - (k.baseline ?? 0)) * (k.valuePerUnit ?? 0);
     if (planned === 0) continue;
-    const f = kpiFulfillmentByMonth(k.measurements, k.baseline, k.target, axis);
+    const f = kpiFulfillmentByMonth(
+      k.measurements,
+      k.baseline,
+      k.target,
+      axis,
+      frozenAt ?? undefined,
+    );
     for (let i = 0; i < axis.monthCount; i++) out[i] = (out[i] ?? 0) + (f[i] ?? 0) * planned;
   }
   return out;
@@ -391,7 +429,12 @@ export function kpiRealizedValueByMonth(kpis: BenefitKpiInput[], axis: MonthAxis
  * keine bewertete **recurring**-KPI verknüpft ist → Business-Case-
  * `recurringBenefit`/12-Fallback.
  */
-export function kpiRecurringByMonth(kpis: BenefitKpiInput[], axis: MonthAxis): number[] | null {
+export function kpiRecurringByMonth(
+  kpis: BenefitKpiInput[],
+  axis: MonthAxis,
+  /** L4.2-Stichtag: ab hier steht die Menge fest (siehe `kpiFulfillmentByMonth`). */
+  frozenAt?: Date | null,
+): number[] | null {
   const valued = valuedKpisOfKind(kpis, "recurring");
   if (valued.length === 0) return null;
   const out = zeros(axis.monthCount);
@@ -402,7 +445,13 @@ export function kpiRecurringByMonth(kpis: BenefitKpiInput[], axis: MonthAxis): n
       recurringIntervalOrDefault(k.recurringInterval) === "monthly"
         ? periodValue
         : periodValue / 12;
-    const f = kpiFulfillmentByMonth(k.measurements, k.baseline, k.target, axis);
+    const f = kpiFulfillmentByMonth(
+      k.measurements,
+      k.baseline,
+      k.target,
+      axis,
+      frozenAt ?? undefined,
+    );
     for (let i = 0; i < axis.monthCount; i++) out[i] = (out[i] ?? 0) + monthlyAtFull * (f[i] ?? 0);
   }
   return out;
@@ -583,6 +632,11 @@ export interface EpicEconomicsDTO {
   /** Taggenaues Umsetzungsfenster L4.1 → L4.2, `[start, endExclusive)` (ISO-Tage). */
   implementationStartIso: string;
   implementationEndExclusiveIso: string;
+  /**
+   * Tag der L4.2-Abnahme (`implementationCompletedAt`), ISO — oder null, solange
+   * die Umsetzung nicht bestätigt fertig ist. Friert die Mengen-Seite ein.
+   */
+  implementationCompletedIso: string | null;
   /** Whether the Epic carries any business-case content (else flows are 0). */
   hasBusinessCase: boolean;
   /**
@@ -624,8 +678,9 @@ function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
   // KPI-Wertung treibt die Benefit-Velocity (€ über die Zeit), nach Art getrennt:
   // one-time-KPIs → Realisierungs-Zuwachs, recurring-KPIs → laufende Run-Rate.
   // Ohne bewertete KPI der jeweiligen Art → Business-Case-Fallback (Spike bzw. flat).
-  const realized = kpiRealizedValueByMonth(e.benefitKpis, axis);
-  const recurring = kpiRecurringByMonth(e.benefitKpis, axis);
+  const frozenAt = e.implementationCompletedIso ? isoToDate(e.implementationCompletedIso) : null;
+  const realized = kpiRealizedValueByMonth(e.benefitKpis, axis, frozenAt);
+  const recurring = kpiRecurringByMonth(e.benefitKpis, axis, frozenAt);
   const recurringAtFull = kpiRecurringAtFullTotal(e.benefitKpis);
   // A participatory-budgeting allocation drives the cost over the forecast slices.
   const costByMonth = e.hasAllocation ? allocatedCostByMonth(e.allocatedByPeriod, axis) : null;
@@ -644,6 +699,7 @@ function dtoToInput(e: EpicEconomicsDTO, axis: MonthAxis): EpicEconomicsInput {
     ...(recurring ? { kpiRecurringByMonth: recurring } : {}),
     ...(recurringAtFull > 0 ? { kpiRecurringAtFull: recurringAtFull } : {}),
     ...(costByMonth ? { costByMonth } : {}),
+    ...(frozenAt ? { quantityFrozenAt: frozenAt } : {}),
   };
 }
 
