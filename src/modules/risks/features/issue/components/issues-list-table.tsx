@@ -42,6 +42,27 @@ interface Props {
   dnd?: IssueTreeDnd | null;
 }
 
+/**
+ * Spaltenbreiten. Ohne `table-fixed` + feste Breiten richtet der Browser die
+ * Name-Spalte nach ihrem Inhalt aus statt umgekehrt — dann greift das
+ * `truncate` am Titel nicht, und die hinteren Spalten werden aus dem
+ * `overflow-x-auto`-Container geschoben ("Faellig" faellt raus). Name traegt
+ * bewusst keine Breite: sie nimmt den Rest.
+ */
+function ColGroup({ compact }: { compact: boolean }) {
+  return (
+    <colgroup>
+      <col />
+      <col style={{ width: "6rem" }} />
+      <col style={{ width: "6.5rem" }} />
+      {!compact && <col style={{ width: "7rem" }} />}
+      {!compact && <col style={{ width: "10rem" }} />}
+      {!compact && <col style={{ width: "12rem" }} />}
+      {!compact && <col style={{ width: "6.5rem" }} />}
+    </colgroup>
+  );
+}
+
 export function IssuesListTable({ rows, compact, dnd = null }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
@@ -59,7 +80,10 @@ export function IssuesListTable({ rows, compact, dnd = null }: Props) {
 
   return (
     <div className={TREE_CONTAINER}>
-      <table className="w-full text-sm">
+      <table
+        className={`w-full table-fixed text-sm ${compact ? "min-w-[420px]" : "min-w-[1040px]"}`}
+      >
+        <ColGroup compact={compact} />
         <thead className={TREE_THEAD}>
           <tr>
             <th className={TREE_TH}>Name</th>
@@ -296,7 +320,9 @@ function Row({
               {collapsed ? "▸" : "▾"}
             </button>
           )}
-          <span className="truncate text-sm font-medium">{row.title}</span>
+          <span className="min-w-0 truncate text-sm font-medium" title={row.title}>
+            {row.title}
+          </span>
           {row.displayNumber && (
             <span className="ml-1.5 shrink-0 text-[11px] tabular-nums text-muted-foreground">
               {row.displayNumber}
@@ -329,13 +355,23 @@ function Row({
           {row.category ? <CategoryBadge category={row.category as RiskCategory} /> : "—"}
         </td>
       )}
-      {!compact && <td className={`${TREE_TD} text-muted-foreground`}>{row.ownerLabel ?? "—"}</td>}
       {!compact && (
-        <td className={`${TREE_TD} text-muted-foreground`}>{row.initiative?.title ?? "—"}</td>
+        <td className={`${TREE_TD} text-muted-foreground`}>
+          <span className="block truncate" title={row.ownerLabel ?? undefined}>
+            {row.ownerLabel ?? "—"}
+          </span>
+        </td>
+      )}
+      {!compact && (
+        <td className={`${TREE_TD} text-muted-foreground`}>
+          <span className="block truncate" title={row.initiative?.title ?? undefined}>
+            {row.initiative?.title ?? "—"}
+          </span>
+        </td>
       )}
       {!compact && (
         <td
-          className={`${TREE_TD} tabular-nums ${
+          className={`${TREE_TD} whitespace-nowrap tabular-nums ${
             row.isOverdue ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
           }`}
         >

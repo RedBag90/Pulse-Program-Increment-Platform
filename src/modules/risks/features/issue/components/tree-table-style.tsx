@@ -17,7 +17,7 @@ export const TREE_THEAD =
   "sticky top-0 z-20 border-b bg-muted/95 text-xs uppercase tracking-wide text-muted-foreground shadow-sm backdrop-blur";
 
 /** `<th>` cell. */
-export const TREE_TH = "px-3 py-1.5 text-left font-medium";
+export const TREE_TH = "px-3 py-1.5 text-left font-medium whitespace-nowrap";
 
 /** `<td>` cell. */
 export const TREE_TD = "px-3 py-1.5 align-middle";
@@ -32,7 +32,10 @@ export const TREE_BADGE = "text-[11px] uppercase tracking-wider text-muted-foreg
  * Compose the row `boxShadow`: a left accent rail for head rows, plus an optional
  * drop-hint (top/bottom insertion line). Returns undefined when nothing applies.
  */
-export function rowShadow(opts: { head?: boolean; drop?: "over" | "before" | "after" }): string | undefined {
+export function rowShadow(opts: {
+  head?: boolean;
+  drop?: "over" | "before" | "after";
+}): string | undefined {
   const parts: string[] = [];
   if (opts.head) parts.push(`inset 3px 0 0 0 ${HEAD_ACCENT}`);
   if (opts.drop === "before") parts.push("inset 0 2px 0 0 var(--primary)");

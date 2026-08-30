@@ -42,6 +42,8 @@ type Overlay = {
   anchor: { x: number; y: number };
   line: { x1: number; y1: number; x2: number; y2: number } | null;
   plot: MatrixPlot;
+  /** Breite des Positionierungs-Containers — begrenzt den Tooltip an den Raendern. */
+  containerWidth: number;
 };
 
 const N = RISK_LEVELS.length; // 5
@@ -112,16 +114,24 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
         line = { x1: anchor.x, y1: anchor.y, x2: o.x, y2: o.y };
       }
     }
-    setOverlay({ anchor, line, plot });
+    setOverlay({ anchor, line, plot, containerWidth: cr.width });
   }, [hovered]);
 
   // Zeilen: hohe Wahrscheinlichkeit oben (RISK_LEVELS umgedreht).
   const rows = [...RISK_LEVELS].reverse();
 
   return (
-    <div className="space-y-3 rounded-lg border bg-card p-4" data-tour="risk-matrix">
+    // `containerRef` sitzt auf der Karte, nicht im Scroll-Bereich: `overflow-x-auto`
+    // rechnet `overflow-y` von `visible` auf `auto` hoch, der Container schnitte den
+    // Hover-Tooltip also an beiden Raendern ab. Gemessen wird per
+    // `getBoundingClientRect`, damit ein horizontaler Scroll automatisch drinsteckt.
+    <div
+      ref={containerRef}
+      className="relative space-y-3 rounded-lg border bg-card p-4"
+      data-tour="risk-matrix"
+    >
       <div className="overflow-x-auto">
-        <div ref={containerRef} className="relative min-w-[22rem]">
+        <div className="min-w-[22rem]">
           <div
             role="img"
             aria-label="Risiko-Matrix (Eintritt × Auswirkung)"
@@ -155,10 +165,15 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
                   return (
                     <div
                       key={key}
-                      className={`relative flex flex-wrap content-center items-center justify-center gap-1 rounded-md p-1 ${
+                      // Feste Mindesthoehe statt `aspect-ratio`: die Zellen
+                      // duerfen mit der Seitenbreite mitwachsen (die Matrix steht
+                      // ueber der Tabelle und soll gleich breit sein), aber die
+                      // Hoehe darf nicht daran haengen — sonst wird das Raster
+                      // auf einer 1400px-Seite ueber 800px hoch. Waechst nur,
+                      // wenn eine Zelle mehr Punkte fasst als eine Reihe traegt.
+                      className={`relative flex min-h-16 flex-wrap content-center items-center justify-center gap-1 rounded-md p-1 ${
                         cell ? EXPOSURE_CELL[cell.band] : "bg-muted"
                       }`}
-                      style={{ aspectRatio: "1.7 / 1" }}
                     >
                       {count > 0 && (
                         <span className="absolute left-1 top-0.5 text-[10px] font-semibold text-foreground/50">
@@ -205,25 +220,28 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
               </Fragment>
             ))}
           </div>
-          {overlay?.line && (
-            <svg
-              className="pointer-events-none absolute inset-0 h-full w-full text-foreground/70"
-              aria-hidden
-            >
-              <line
-                x1={overlay.line.x1}
-                y1={overlay.line.y1}
-                x2={overlay.line.x2}
-                y2={overlay.line.y2}
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeDasharray="4 3"
-              />
-            </svg>
-          )}
-          {overlay && <MatrixTooltip overlay={overlay} cellByKey={cellByKey} />}
         </div>
       </div>
+
+      {overlay?.line && (
+        <svg
+          // mt-0!: `space-y-3` der Karte wuerde sonst auch dieses absolut
+          // positionierte Kind um 12px nach unten schieben.
+          className="pointer-events-none absolute inset-0 mt-0! h-full w-full text-foreground/70"
+          aria-hidden
+        >
+          <line
+            x1={overlay.line.x1}
+            y1={overlay.line.y1}
+            x2={overlay.line.x2}
+            y2={overlay.line.y2}
+            stroke="currentColor"
+            strokeWidth={1.5}
+            strokeDasharray="4 3"
+          />
+        </svg>
+      )}
+      {overlay && <MatrixTooltip overlay={overlay} cellByKey={cellByKey} />}
 
       {plots.length === 0 && <p className="text-sm text-muted-foreground">{emptyLabel}</p>}
 
@@ -245,6 +263,11 @@ export function RiskMatrix({ cells, plots, emptyLabel = "Keine bewerteten Risike
   );
 }
 
+/** `max-w-64` in Pixeln — Basis fuers Rand-Clamping. */
+const TOOLTIP_MAX_W = 256;
+/** Grober Hoehen-Richtwert; entscheidet nur, ob ueber oder unter den Punkt. */
+const TOOLTIP_EST_H = 96;
+
 /** Hover-Detailkarte am aktuellen Punkt: Titel · Nummer · ROAM · Band · Eintritt×Auswirkung. */
 function MatrixTooltip({
   overlay,
@@ -257,10 +280,20 @@ function MatrixTooltip({
   const cur = p.trail[p.trail.length - 1];
   const band = cur ? cellByKey.get(cellKey(cur.probability, cur.impact))?.band : undefined;
   const roam = normalizeRoamStatus(p.roamStatus);
+  // Der Tooltip ist bis 16rem breit und steht normalerweise mittig ueber dem
+  // Punkt. An den Raendern wuerde er aus der Karte laufen, in der obersten Zeile
+  // nach oben heraus — deshalb hier einklemmen bzw. unter den Punkt klappen.
+  const half = TOOLTIP_MAX_W / 2;
+  const maxLeft = Math.max(half, overlay.containerWidth - half);
+  const left = Math.min(Math.max(overlay.anchor.x, half), maxLeft);
+  const above = overlay.anchor.y > TOOLTIP_EST_H;
+
   return (
     <div
-      className="pointer-events-none absolute z-20 w-max max-w-64 -translate-x-1/2 -translate-y-full rounded-md border bg-popover px-3 py-2 text-xs shadow-md ring-1 ring-foreground/10"
-      style={{ left: overlay.anchor.x, top: overlay.anchor.y - 10 }}
+      className={`pointer-events-none absolute z-20 mt-0! w-max max-w-64 -translate-x-1/2 rounded-md border bg-popover px-3 py-2 text-xs shadow-md ring-1 ring-foreground/10 ${
+        above ? "-translate-y-full" : ""
+      }`}
+      style={{ left, top: above ? overlay.anchor.y - 10 : overlay.anchor.y + 12 }}
     >
       <p className="font-medium text-foreground">{p.title}</p>
       {p.displayNumber && <p className="text-muted-foreground">{p.displayNumber}</p>}
