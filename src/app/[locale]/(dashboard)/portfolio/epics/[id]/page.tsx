@@ -389,6 +389,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             kpis={kpiRows}
             canEdit={model.canEdit}
             goalLinks={goalLinks.links}
+            frozenAt={epic.implementationCompletedAt}
           />
         )}
 

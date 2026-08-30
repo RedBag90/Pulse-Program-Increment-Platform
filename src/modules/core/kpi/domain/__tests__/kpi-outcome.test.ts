@@ -4,6 +4,7 @@ import {
   outcomeAttainment,
   valueAtFullTarget,
   decisiveValue,
+  parsePlanSnapshot,
   type KpiOutcomeInput,
 } from "@/modules/core/kpi/domain/kpi-outcome";
 
@@ -193,5 +194,89 @@ describe("kpiOutcome — die zwei Achsen", () => {
     expect(o.attainment).toBe(1); // gegen das aufgeweichte Ziel: erfüllt
     expect(o.realized).toBe(4_000); // aber nur 4 von 5 Tagen wert
     expect(o.quantityDelta + o.valueDelta).toBeCloseTo(-1_000);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("parsePlanSnapshot", () => {
+  it("liest die Namen der Ziel-Verknüpfung mit", () => {
+    // Die Verknüpfung speichert ihren Faktor als `conversionFactor` und ihre
+    // Nutzenart als `impactKind`; die Mengen-Größen trägt die treibende KPI bei.
+    const t = parsePlanSnapshot(
+      { conversionFactor: 10_000, impactKind: "recurring", recurringInterval: "monthly" },
+      { baseline: 0, target: 12 },
+    );
+    expect(t).toEqual({
+      baseline: 0,
+      target: 12,
+      valuePerUnit: 10_000,
+      benefitKind: "recurring",
+      recurringInterval: "monthly",
+    });
+  });
+
+  it("kein Schnappschuss und unbrauchbare Formen ergeben null", () => {
+    expect(parsePlanSnapshot(null)).toBeNull();
+    expect(parsePlanSnapshot(undefined)).toBeNull();
+    expect(parsePlanSnapshot("{}")).toBeNull();
+  });
+});
+
+/**
+ * Derselbe Kern trägt die Ziel-Verknüpfung: dort heisst „€ je Einheit" der
+ * Umrechnungsfaktor, und das Ergebnis steht in Ziel-Einheiten statt in Euro.
+ * Finance zieht den Faktor zwischen L4.2 und L5 nach — das muss als Wertanteil
+ * herauskommen, nicht in der Menge verschwinden.
+ */
+describe("kpiOutcome — die Größen einer Ziel-Verknüpfung", () => {
+  // 0 → 12 Wagons je Monat, geplant 10.000 € Ziel-Einheit je Wagon, monatlich.
+  const linkPlan = {
+    baseline: 0,
+    target: 12,
+    valuePerUnit: 10_000,
+    benefitKind: "recurring",
+    recurringInterval: "monthly",
+  };
+  const link = (over: Partial<KpiOutcomeInput> = {}): KpiOutcomeInput => ({
+    ...linkPlan,
+    measurements: [{ date: "2026-06-01", value: 9 }], // 75 %
+    planSnapshot: linkPlan,
+    frozenAt: L42,
+    ...over,
+  });
+
+  it("das Intervall zählt aufs Jahr hoch", () => {
+    // 12 Wagons × 10.000 × 12 Monate.
+    expect(kpiOutcome(link()).planned).toBe(1_440_000);
+  });
+
+  it("die Faktor-Korrektur landet im Wertanteil, nicht in der Menge", () => {
+    const o = kpiOutcome(link({ valuePerUnit: 11_000 }));
+    expect(o.attainment).toBeCloseTo(0.75);
+    // Menge: 25 % zu wenig, zum **Plan**-Faktor bewertet.
+    expect(o.quantityDelta).toBeCloseTo(-360_000);
+    // Wert: +1.000 je Wagon auf die tatsächlich gelieferten 9 × 12.
+    expect(o.valueDelta).toBeCloseTo(108_000);
+    expect(o.quantityDelta + o.valueDelta).toBeCloseTo(o.realized - o.planned);
+  });
+
+  it("ohne Schnappschuss fallen Plan und Ist-Maßstab zusammen", () => {
+    // Genau der Zustand, der die Korrektur unsichtbar machte: der geänderte
+    // Faktor ist zugleich der Plan, der Wertanteil ist zwangsläufig null.
+    const o = kpiOutcome(link({ valuePerUnit: 11_000, planSnapshot: null }));
+    expect(o.valueDelta).toBe(0);
+    expect(o.planned).toBe(kpiOutcome(link({ valuePerUnit: 11_000 })).realized / 0.75);
+  });
+
+  it("die Menge friert mit der L4.2-Abnahme — spätere Messungen zählen nicht", () => {
+    const late = link({
+      measurements: [
+        { date: "2026-06-01", value: 9 },
+        { date: "2026-09-01", value: 12 },
+      ],
+    });
+    expect(kpiOutcome(late).attainment).toBeCloseTo(0.75);
+    expect(kpiOutcome({ ...late, frozenAt: null }).attainment).toBeCloseTo(1);
   });
 });

@@ -9,6 +9,8 @@ import {
   type EpicCascadeContribution,
   type TopGoalBenefit,
 } from "@/modules/core/goals/domain/goals-rollup";
+import { parsePlanSnapshot, type KpiValuationTerms } from "@/modules/core/kpi/domain/kpi-outcome";
+import { parseKpiMeasurements, type KpiMeasurement } from "@/modules/core/kpi/domain/kpi";
 
 // ── Einheiten-Kaskade: GoalEpicLink-Pfad (Epic → mehrere Ziele) ───────────────
 
@@ -34,10 +36,24 @@ export interface EpicGoalLinkRow {
   kpiBaseline: number | null;
   kpiTarget: number | null;
   kpiCurrent: number | null;
+  /** Messreihe der gewählten Erfolgs-KPI — für die Zielerreichung zum Stichtag. */
+  kpiMeasurements: KpiMeasurement[];
   /** Ziel-Einheit je 1 KPI-Einheit (z. B. 10000 €/Wagon). */
   conversionFactor: number | null;
   impactKind: string;
   recurringInterval: string;
+  /**
+   * Der Plan-Stand dieser Verknüpfung zur Business-Case-Freigabe, in
+   * Ziel-Einheiten — `null` heisst **kein Plan-Bezug**, nicht „keine
+   * Abweichung".
+   *
+   * Zusammengesetzt aus beiden Achsen: die Menge (`baseline`/`target`)
+   * verantwortet die treibende KPI und liefert ihren eigenen Schnappschuss, den
+   * Wert (`valuePerUnit`) verantwortet die Verknüpfung mit ihrem
+   * Umrechnungsfaktor. Getrennt gehalten, damit die Mengen-Größen nicht doppelt
+   * geführt werden und auseinanderlaufen können.
+   */
+  planSnapshot: KpiValuationTerms | null;
 }
 
 export interface EpicGoalLinksModel {
@@ -85,6 +101,7 @@ export async function loadEpicGoalLinks(
           baseline: true,
           target: true,
           measurements: true,
+          planSnapshot: true,
         },
       },
     },
@@ -108,9 +125,11 @@ export async function loadEpicGoalLinks(
     kpiBaseline: l.kpi ? toFloat(l.kpi.baseline) : null,
     kpiTarget: l.kpi ? toFloat(l.kpi.target) : null,
     kpiCurrent: l.kpi ? latestMeasurement(l.kpi.measurements) : null,
+    kpiMeasurements: l.kpi ? parseKpiMeasurements(l.kpi.measurements) : [],
     conversionFactor: toFloat(l.conversionFactor),
     impactKind: l.impactKind,
     recurringInterval: l.recurringInterval,
+    planSnapshot: linkPlanTerms(l),
   }));
 
   // Alle Tenant-Ziele für den Aufstieg zum Top-Ziel (id → Meta).
@@ -267,7 +286,11 @@ export async function loadEpicGoalContributions(
   for (const l of links) {
     let entry = byEpic.get(l.epicId);
     if (!entry) {
-      entry = { title: l.epic.title, valueStreamName: l.epic.valueStream?.name ?? null, inputs: [] };
+      entry = {
+        title: l.epic.title,
+        valueStreamName: l.epic.valueStream?.name ?? null,
+        inputs: [],
+      };
       byEpic.set(l.epicId, entry);
     }
     if (l.kpi && l.conversionFactor != null) {
@@ -295,10 +318,35 @@ export async function loadEpicGoalContributions(
     const recurring = agg.recurring.filter(nonZero);
     const oneTime = agg.oneTime.filter(nonZero);
     if (recurring.length || oneTime.length) {
-      out.push({ epicId, title: entry.title, valueStreamName: entry.valueStreamName, recurring, oneTime });
+      out.push({
+        epicId,
+        title: entry.title,
+        valueStreamName: entry.valueStreamName,
+        recurring,
+        oneTime,
+      });
     }
   }
   return out;
+}
+
+/**
+ * Der Plan dieser Verknüpfung: der festgeschriebene Umrechnungsfaktor, bewertet
+ * an den festgeschriebenen Mengen-Größen der treibenden KPI. Fehlt der
+ * Schnappschuss der Verknüpfung, gibt es keinen Plan-Bezug — dann `null`, damit
+ * die Oberfläche das benennen kann, statt eine Abweichung von null zu zeigen.
+ * Fehlt nur der KPI-Schnappschuss (bei gemeinsamer Abnahme unmöglich), gilt
+ * hilfsweise der Live-Stand der Menge.
+ */
+function linkPlanTerms(l: {
+  planSnapshot: unknown;
+  kpi: { baseline: unknown; target: unknown; planSnapshot: unknown } | null;
+}): KpiValuationTerms | null {
+  const kpiPlan = parsePlanSnapshot(l.kpi?.planSnapshot);
+  return parsePlanSnapshot(l.planSnapshot, {
+    baseline: kpiPlan?.baseline ?? toFloat(l.kpi?.baseline),
+    target: kpiPlan?.target ?? toFloat(l.kpi?.target),
+  });
 }
 
 function toFloat(d: unknown): number | null {

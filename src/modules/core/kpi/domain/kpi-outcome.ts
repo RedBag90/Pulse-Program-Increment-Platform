@@ -73,6 +73,39 @@ export interface KpiOutcome {
   frozen: boolean;
 }
 
+/**
+ * Liest einen gespeicherten Plan-Schnappschuss (JSON-Spalte). Unbrauchbare
+ * Formen ergeben `null` — ein halb lesbarer Plan wäre schlimmer als keiner,
+ * weil er eine Abweichung erfände.
+ *
+ * Die Ziel-Verknüpfung speichert ihren Faktor unter `conversionFactor` und ihre
+ * Nutzenart unter `impactKind`; deshalb werden beide Namenspaare akzeptiert.
+ * Die Mengen-Größen (`baseline`/`target`) trägt dort die treibende KPI — der
+ * Aufrufer legt sie über `over` bei.
+ */
+export function parsePlanSnapshot(
+  raw: unknown,
+  over: Partial<KpiValuationTerms> = {},
+): KpiValuationTerms | null {
+  if (raw == null || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const kind = o.benefitKind ?? o.impactKind;
+  return {
+    baseline: toNum(o.baseline),
+    target: toNum(o.target),
+    valuePerUnit: toNum(o.valuePerUnit ?? o.conversionFactor),
+    ...(typeof kind === "string" ? { benefitKind: kind } : {}),
+    ...(typeof o.recurringInterval === "string" ? { recurringInterval: o.recurringInterval } : {}),
+    ...over,
+  };
+}
+
+function toNum(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 /** Jahres-Äquivalent eines Faktors: monatlich wiederkehrend zählt ×12. */
 function intervalFactor(terms: KpiValuationTerms): number {
   if (benefitKindOrDefault(terms.benefitKind ?? "recurring") === "one_time") return 1;

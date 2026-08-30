@@ -1,5 +1,5 @@
 import { TrendingUp, Lock } from "lucide-react";
-import { kpiOutcome, type KpiValuationTerms } from "@/modules/core/kpi/domain/kpi-outcome";
+import { kpiOutcome, parsePlanSnapshot } from "@/modules/core/kpi/domain/kpi-outcome";
 import { parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";
 import { benefitKindOrDefault, type BenefitKind } from "@/modules/core/kpi/domain/kpi-benefit-kind";
 import { formatCompactEUR } from "@/lib/formatting";
@@ -45,6 +45,8 @@ interface Bucket {
   valueDelta: number;
   evaluated: number;
   valued: number;
+  /** KPIs mit Plan-Schnappschuss — ohne einen gibt es keinen Bezug zu messen. */
+  withPlan: number;
 }
 
 const emptyBucket = (): Bucket => ({
@@ -54,20 +56,8 @@ const emptyBucket = (): Bucket => ({
   valueDelta: 0,
   evaluated: 0,
   valued: 0,
+  withPlan: 0,
 });
-
-/** Liest den gespeicherten Plan-Schnappschuss; unbrauchbare Formen → null. */
-function parsePlanSnapshot(raw: unknown): KpiValuationTerms | null {
-  if (raw == null || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  return {
-    baseline: toNum(o.baseline),
-    target: toNum(o.target),
-    valuePerUnit: toNum(o.valuePerUnit),
-    ...(typeof o.benefitKind === "string" ? { benefitKind: o.benefitKind } : {}),
-    ...(typeof o.recurringInterval === "string" ? { recurringInterval: o.recurringInterval } : {}),
-  };
-}
 
 export function EpicRealizedTile({ kpis, frozenAt = null }: Props) {
   const buckets: Record<BenefitKind, Bucket> = {
@@ -85,6 +75,8 @@ export function EpicRealizedTile({ kpis, frozenAt = null }: Props) {
     const measurements = parseKpiMeasurements(k.measurements);
     // `kpiOutcome` normalisiert monatlich Wiederkehrendes selbst aufs Jahr —
     // „Wiederkehrend p.a." bleibt damit eine konsistente Einheit.
+    const planSnapshot = parsePlanSnapshot(k.planSnapshot);
+    if (planSnapshot) b.withPlan += 1;
     const o = kpiOutcome({
       baseline: toNum(k.baseline),
       target: toNum(k.target),
@@ -94,7 +86,7 @@ export function EpicRealizedTile({ kpis, frozenAt = null }: Props) {
         ? { recurringInterval: k.recurringInterval }
         : {}),
       measurements,
-      planSnapshot: parsePlanSnapshot(k.planSnapshot),
+      planSnapshot,
       frozenAt,
     });
     b.planned += o.planned;
@@ -145,6 +137,7 @@ function BucketRow({
 }) {
   const { realized, planned, quantityDelta, valueDelta, evaluated, valued } = bucket;
   const ratio = planned > 0 ? Math.max(0, Math.min(1, realized / planned)) : 0;
+  const hasPlan = bucket.withPlan > 0;
   const hasDelta = Math.round(quantityDelta) !== 0 || Math.round(valueDelta) !== 0;
 
   return (
@@ -190,7 +183,15 @@ function BucketRow({
           </p>
         </div>
       )}
-      {hasDelta && (
+      {!hasPlan && (
+        // Ohne Schnappschuss misst sich der Plan an sich selbst — die Abweichung
+        // wäre zwangsläufig null. Das ist etwas anderes als „keine Abweichung"
+        // und muss unterscheidbar bleiben.
+        <p className="mt-2 text-[10px] text-amber-700 dark:text-amber-300">
+          Kein Plan-Bezug — festgehalten wird er mit der Freigabe des Business Case (L2 → L3.1).
+        </p>
+      )}
+      {hasPlan && hasDelta && (
         <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
           <dt>Menge (Zielerreichung)</dt>
           <dd className="text-right tabular-nums">
