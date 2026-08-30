@@ -4,6 +4,7 @@ import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import { createTestPrismaClient } from "@/server/db/test-client";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import { InitiativeLevel, type StageGate, type UserId } from "@/modules/core/kernel/domain/types";
+import type { GateStep } from "@/modules/work/domain/stage-gate";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import {
   requestGateTransition,
@@ -63,7 +64,10 @@ function approverCtx(userId: string): RequestContext {
   };
 }
 
-async function makeEpic(stageGate: StageGate, extra: Record<string, unknown> = {}): Promise<string> {
+async function makeEpic(
+  stageGate: StageGate,
+  extra: Record<string, unknown> = {},
+): Promise<string> {
   const epic = await db.initiative.create({
     data: {
       tenantId: seed.tenantId,
@@ -84,7 +88,7 @@ async function makeEpic(stageGate: StageGate, extra: Record<string, unknown> = {
 }
 
 /** Zwei benannte Abnehmer für `toGate`, einstimmig. */
-async function withApprovers(toGate: StageGate, userIds: string[] = [VMO, FINANCE]) {
+async function withApprovers(toGate: GateStep, userIds: string[] = [VMO, FINANCE]) {
   await db.stageGateApproverRule.create({
     data: {
       tenantId: seed.tenantId,
@@ -122,12 +126,12 @@ async function auditCount(): Promise<number> {
 
 describe("requestGateTransition", () => {
   it("legt Antrag + je eine Abnahme-Zeile an und bewegt das Gate NICHT", async () => {
-    await withApprovers("L3");
+    await withApprovers("L3.1");
     const epicId = await makeEpic("L2", READY_FOR_L3);
     await allocateBudget(epicId, 500_000);
     const before = await auditCount();
 
-    const result = await requestGateTransition(requesterCtx(), { epicId, toGate: "L3" });
+    const result = await requestGateTransition(requesterCtx(), { epicId, toGate: "L3.1" });
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
@@ -154,11 +158,11 @@ describe("requestGateTransition", () => {
   });
 
   it("blockiert bei unerfülltem Kriterium und nennt den Grund", async () => {
-    await withApprovers("L3");
+    await withApprovers("L3.1");
     const epicId = await makeEpic("L2"); // kein BC-Approval, kein Budget
     const before = await auditCount();
 
-    const result = await requestGateTransition(requesterCtx(), { epicId, toGate: "L3" });
+    const result = await requestGateTransition(requesterCtx(), { epicId, toGate: "L3.1" });
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result) || result.error.kind !== "forbidden") return;
@@ -245,7 +249,9 @@ describe("requestGateTransition", () => {
 });
 
 describe("decideGateTransition", () => {
-  async function openRequest(toGate: StageGate = "L4") {
+  // Ein Epic auf der Spalte „L3" steht ohne Investitions-Stempel auf Schritt
+  // L3.1 — der naechste Antrag ist damit L3.2, nicht L4.
+  async function openRequest(toGate: GateStep = "L3.2") {
     await withApprovers(toGate);
     const epicId = await makeEpic("L3");
     const r = await requestGateTransition(requesterCtx(), { epicId, toGate });
@@ -422,7 +428,7 @@ describe("revertStageGate", () => {
 
     const result = await revertStageGate(requesterCtx(), {
       epicId,
-      toGate: "L3",
+      toGate: "L3.1",
       reason: "Umsetzung zurückgestellt",
     });
 

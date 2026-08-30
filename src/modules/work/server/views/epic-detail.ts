@@ -49,12 +49,9 @@ import {
   type LifecycleStep,
 } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import {
-  sectionStatus,
   buildApprovalView,
   APPROVAL_PARTY_LABELS,
-  APPROVAL_SECTION_LABELS,
   type ApprovalPhase,
-  type ApprovalSection,
   type ApprovalViewModel,
 } from "@/modules/work/domain/epic-approval";
 import type { ActivityItem } from "@/components/detail/initiative-activity-sidebar";
@@ -132,13 +129,6 @@ export type BudgetingSlice =
 /** Risks is composed in the Epic route (composition root) off the full risks
  *  model; Work only carries the entitlement gate. */
 export type RisksSlice = { disabled: boolean };
-
-/** Active-revision section sign-off state (page lines 326-335). */
-export interface SectionSignoffState {
-  status: ReturnType<typeof sectionStatus>;
-  active: boolean;
-  canSignoff: boolean;
-}
 
 // ---------------------------------------------------------------------------
 // Inputs — the plain-data bag the loader hands the pure builder.
@@ -220,9 +210,6 @@ export interface EpicDetailModel {
   activeRevision: number;
   /** Active-revision approvals derivation — the Business-Case tab renders this. */
   approvalView: ApprovalViewModel;
-  signoffActive: boolean;
-  breakdownSignoff: SectionSignoffState;
-  kpisSignoff: SectionSignoffState;
 
   kpiRows: KpiRow[];
   kpiBenefit: EpicBenefit;
@@ -467,11 +454,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
       occurredAt: a.decidedAt!.toISOString(),
       actorId: a.approverUserId ?? undefined,
       comment: a.comment ?? undefined,
-      detail: a.party
-        ? APPROVAL_PARTY_LABELS[a.party as ApprovalParty]
-        : a.section
-          ? APPROVAL_SECTION_LABELS[a.section as ApprovalSection]
-          : undefined,
+      detail: a.party ? APPROVAL_PARTY_LABELS[a.party as ApprovalParty] : undefined,
     }));
 
   const activityEvents: ActivityItem[] = [...auditItems, ...approvalComments].sort((x, y) =>
@@ -484,24 +467,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
   const approvalView = buildApprovalView({
     rows: approvals.filter((a) => a.revision === activeRevision),
     defaultFinanceApproverId: epic.valueStream?.financeApproverId ?? null,
-    defaultVmoId: epic.valueStream?.vmoId ?? null,
   });
-  const sectionRecords = approvalView.records;
-  const signoffActive = approvalPhase === "stakeholder_review";
-  const sectionOwner = (section: ApprovalSection) =>
-    approvals.find(
-      (a) => a.revision === activeRevision && a.kind === "section" && a.section === section,
-    )?.approverUserId ?? null;
-  const breakdownSignoff: SectionSignoffState = {
-    status: sectionStatus(sectionRecords, "breakdown"),
-    active: signoffActive,
-    canSignoff: sectionOwner("breakdown") === principalId,
-  };
-  const kpisSignoff: SectionSignoffState = {
-    status: sectionStatus(sectionRecords, "kpis"),
-    active: signoffActive,
-    canSignoff: sectionOwner("kpis") === principalId,
-  };
 
   const kpiRows: KpiRow[] = kpis.map((k) => {
     const baseline = k.baseline === null ? null : Number(k.baseline);
@@ -578,8 +544,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
   };
   const subStage = subStageFor({
     stageGate: epic.stageGate as StageGate,
-    businessCase: epic.businessCase,
-    businessCaseApprovedAt: epic.businessCaseApprovedAt,
+    approvedAt: epic.approvedAt,
     implementationCompletedAt: epic.implementationCompletedAt,
   });
   const nextStep = epicNextStep({
@@ -621,9 +586,6 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     activityEvents,
     activeRevision,
     approvalView,
-    signoffActive,
-    breakdownSignoff,
-    kpisSignoff,
     kpiRows,
     kpiBenefit,
     benefitHypothesis,
@@ -715,6 +677,7 @@ export async function loadEpicDetailInputs(
   };
   const current = currentGateStep({
     stageGate: epic.stageGate as StageGate,
+    approvedAt: epic.approvedAt,
     implementationCompletedAt: epic.implementationCompletedAt,
   });
   const to = nextGate(current);

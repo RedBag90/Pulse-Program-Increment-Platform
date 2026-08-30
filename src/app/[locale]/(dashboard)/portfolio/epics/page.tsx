@@ -91,7 +91,7 @@ export default async function EpicsPage() {
       stagedForBudgeting: e.stagedForBudgeting,
       businessCase: e.businessCase,
       benefitHypothesis: e.benefitHypothesis,
-      businessCaseApprovedAt: e.businessCaseApprovedAt,
+      approvedAt: e.approvedAt,
       pendingGateRequest: pendingGateRequests.get(e.id) ?? null,
       plannedStartAt: e.plannedStartAt,
       plannedEndAt: e.plannedEndAt,

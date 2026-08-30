@@ -52,7 +52,7 @@ async function seedApproverRules(db: PrismaClient, tenantId: string): Promise<nu
     });
     if (existing) continue;
 
-    const preset = DEFAULT_GATE_POLICIES[gate];
+    const preset = DEFAULT_GATE_POLICIES[gate === "L3" ? "L3.1" : gate];
     await db.stageGateApproverRule.create({
       data: {
         tenantId,
@@ -128,7 +128,7 @@ async function migrateProposals(
         })
       : null;
 
-    const policy = resolveGatePolicy(toGate, rules, p.value_stream_id);
+    const policy = resolveGatePolicy(toGate === "L3" ? "L3.1" : toGate, rules, p.value_stream_id);
     const approvers = expandApprovers(policy, {
       valueStreamFinanceApproverId: valueStream?.financeApproverId ?? null,
       valueStreamVmoId: valueStream?.vmoId ?? null,
@@ -198,7 +198,10 @@ async function migrateProposals(
 }
 
 /** Schritt 3 — neue Capabilities nachziehen, alte zurückziehen. */
-async function syncCapabilities(db: PrismaClient, tenantId: string): Promise<{
+async function syncCapabilities(
+  db: PrismaClient,
+  tenantId: string,
+): Promise<{
   added: number;
   removed: number;
 }> {

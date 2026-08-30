@@ -59,7 +59,6 @@ export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly
       "epic.approval.configure",
       "epic.businesscase.submit",
       "epic.approval.decide",
-      "epic.section.signoff",
       "epic.revision.start",
       "epic.owner.assign",
     ],

@@ -42,10 +42,6 @@ export const APPROVAL_PHASES = [
 ] as const;
 export type ApprovalPhase = (typeof APPROVAL_PHASES)[number];
 
-/** Explicit review sign-off sections gated alongside the Business Case. */
-export const APPROVAL_SECTIONS = ["breakdown", "kpis"] as const;
-export type ApprovalSection = (typeof APPROVAL_SECTIONS)[number];
-
 /** Display labels for approval parties — shared by the approvals tab and the
  *  activity feed so the same "Finance" / "MGMT" wording appears everywhere. */
 export const APPROVAL_PARTY_LABELS: Record<ApprovalParty, string> = {
@@ -54,12 +50,6 @@ export const APPROVAL_PARTY_LABELS: Record<ApprovalParty, string> = {
   finance: "Finance",
   irt_owner: "IRT-Owner",
   lace_vmo: "LACE/VMO",
-};
-
-/** Display labels for the review sign-off sections. */
-export const APPROVAL_SECTION_LABELS: Record<ApprovalSection, string> = {
-  breakdown: "Deliverables",
-  kpis: "KPIs",
 };
 
 /**
@@ -171,9 +161,9 @@ export function nextPhaseFor(
  * (mirrors the `EpicApproval` persistence model without depending on it).
  */
 export interface ApprovalRecord {
-  kind: "party" | "section";
+  /** Nur noch "party" — die Sektions-Abnahme ist abgeschafft (s. `buildApprovalView`). */
+  kind: "party";
   party?: ApprovalParty | null;
-  section?: ApprovalSection | null;
   status: ApprovalStatus;
 }
 
@@ -183,11 +173,6 @@ export interface ApprovalRecord {
  */
 export function partyStatus(approvals: ApprovalRecord[], party: ApprovalParty): RollupStatus {
   return rollup(approvals.filter((a) => a.kind === "party" && a.party === party));
-}
-
-/** Status of a review section (Breakdown / KPIs). */
-export function sectionStatus(approvals: ApprovalRecord[], section: ApprovalSection): RollupStatus {
-  return rollup(approvals.filter((a) => a.kind === "section" && a.section === section));
 }
 
 /** Parties the Epic Owner has configured (those with ≥1 assigned approver). */
@@ -201,19 +186,18 @@ export function hasRejection(approvals: ApprovalRecord[]): boolean {
 }
 
 /**
- * Fully approved ⇔ at least one party is configured, every configured party is
- * approved, and both review sections (Breakdown, KPIs) are signed off.
+ * Fully approved ⇔ at least one party is configured and every configured party
+ * is approved. Die frueheren Sektions-Abnahmen (Deliverables, KPIs) sind Teil
+ * dieser einen Freigabe geworden und werden nicht mehr eigens geprueft.
  */
 export function isFullyApproved(approvals: ApprovalRecord[]): boolean {
   const parties = configuredParties(approvals);
   if (parties.length === 0) return false;
-  if (!parties.every((p) => partyStatus(approvals, p) === "approved")) return false;
-  return APPROVAL_SECTIONS.every((s) => sectionStatus(approvals, s) === "approved");
+  return parties.every((p) => partyStatus(approvals, p) === "approved");
 }
 
 /**
- * A submittable approver set ⇔ at least one party has an approver AND both
- * review sections (Deliverables, KPIs) have an assigned owner. The single
+ * A submittable approver set ⇔ at least one party has an approver. The single
  * definition of "ready to go out for stakeholder review" — used as the write
  * intent by the approver config and re-verified as the read-back guard in
  * `submitBusinessCase`. Returns the pre-formatted German `reason` on failure so
@@ -222,14 +206,6 @@ export function isFullyApproved(approvals: ApprovalRecord[]): boolean {
 export function isValidApproverSet(records: ApprovalRecord[]): { ok: boolean; reason?: string } {
   if (configuredParties(records).length === 0) {
     return { ok: false, reason: "Mindestens ein Approver muss konfiguriert sein" };
-  }
-  const hasSectionOwner = (s: ApprovalSection) =>
-    records.some((r) => r.kind === "section" && r.section === s);
-  if (!APPROVAL_SECTIONS.every(hasSectionOwner)) {
-    return {
-      ok: false,
-      reason: "Für Deliverables und KPIs muss je ein Verantwortlicher zugewiesen sein",
-    };
   }
   return { ok: true };
 }
@@ -245,31 +221,26 @@ export function isValidApproverSet(records: ApprovalRecord[]): { ok: boolean; re
 export interface ApprovalViewRow {
   kind: string;
   party?: ApprovalParty | string | null;
-  section?: ApprovalSection | string | null;
   status: string;
   approverUserId?: string | null;
 }
 
 export interface ApprovalViewInput {
-  /** The Epic's active-revision approval rows (party + section). */
+  /** The Epic's active-revision approval rows. */
   rows: readonly ApprovalViewRow[];
   /** Value-stream Finance approver — pre-fills the Finance party when unconfigured. */
   defaultFinanceApproverId?: string | null;
-  /** Value-stream Portfolio Manager — pre-fills each section owner when unset. */
-  defaultVmoId?: string | null;
 }
 
 export interface ApprovalViewModel {
-  /** Domain records for the active revision — feeds `partyStatus`/`sectionStatus`. */
+  /** Domain records for the active revision — feeds `partyStatus`. */
   records: ApprovalRecord[];
   /** Per-party assigned approvers (Finance prefilled from the value stream). */
   partyOwners: Record<ApprovalParty, string[]>;
-  /** Per-section owner (each defaults to the value stream's PM when unset). */
-  sectionOwners: Record<ApprovalSection, string>;
   counts: {
-    /** Configured parties + the two review sections. */
+    /** Configured parties. */
     stakeholderRows: number;
-    /** Approved parties + approved sections. */
+    /** Approved parties. */
     granted: number;
     /** Any row rejected → the round is blocked pending rework. */
     blocked: boolean;
@@ -280,19 +251,24 @@ export interface ApprovalViewModel {
 
 /**
  * Pure derivation of the Business-Case approvals view from the active-revision
- * rows + the value-stream defaults. Applies the Finance/section prefill exactly
- * as the tab did client-side, and reuses `configuredParties`/`partyStatus`/
- * `sectionStatus`/`hasRejection` for the counts.
+ * rows + the value-stream defaults. Applies the Finance prefill exactly as the
+ * tab did client-side, and reuses `configuredParties`/`partyStatus`/
+ * `hasRejection` for the counts.
  */
 export function buildApprovalView(input: ApprovalViewInput): ApprovalViewModel {
-  const { rows, defaultFinanceApproverId, defaultVmoId } = input;
+  const { rows, defaultFinanceApproverId } = input;
 
-  const records: ApprovalRecord[] = rows.map((r) => ({
-    kind: r.kind === "section" ? "section" : "party",
-    party: (r.party ?? null) as ApprovalParty | null,
-    section: (r.section ?? null) as ApprovalSection | null,
-    status: r.status as ApprovalStatus,
-  }));
+  // Legacy-Zeilen der abgeschafften Sektions-Abnahme (`kind: "section"`) liegen
+  // in Bestands-Datenbanken noch herum. Sie werden hier verworfen — sonst
+  // wertete `hasRejection` eine alt-abgelehnte Sektionszeile weiterhin als
+  // Ablehnung und hielte das Epic in Nacharbeit.
+  const records: ApprovalRecord[] = rows
+    .filter((r) => r.kind !== "section")
+    .map((r) => ({
+      kind: "party",
+      party: (r.party ?? null) as ApprovalParty | null,
+      status: r.status as ApprovalStatus,
+    }));
 
   const partyOwners = {} as Record<ApprovalParty, string[]>;
   for (const p of APPROVAL_PARTIES) {
@@ -305,24 +281,14 @@ export function buildApprovalView(input: ApprovalViewInput): ApprovalViewModel {
     partyOwners.finance = [defaultFinanceApproverId];
   }
 
-  const sectionOwners = {} as Record<ApprovalSection, string>;
-  for (const s of APPROVAL_SECTIONS) {
-    const row = rows.find((r) => r.kind === "section" && r.section === s);
-    // Pre-fill the section owner with the value stream's Portfolio Manager when unset.
-    sectionOwners[s] = row?.approverUserId ?? defaultVmoId ?? "";
-  }
-
   const parties = configuredParties(records);
-  const granted =
-    parties.filter((p) => partyStatus(records, p) === "approved").length +
-    APPROVAL_SECTIONS.filter((s) => sectionStatus(records, s) === "approved").length;
+  const granted = parties.filter((p) => partyStatus(records, p) === "approved").length;
 
   return {
     records,
     partyOwners,
-    sectionOwners,
     counts: {
-      stakeholderRows: parties.length + APPROVAL_SECTIONS.length,
+      stakeholderRows: parties.length,
       granted,
       blocked: hasRejection(records),
       configuredPartyCount: parties.length,

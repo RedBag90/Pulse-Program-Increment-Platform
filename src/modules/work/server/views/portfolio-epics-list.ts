@@ -127,7 +127,7 @@ interface EpicRow {
   benefitHypothesis?: unknown;
   /** Stamp set, wenn der BC die vollständige Freigabe abgeschlossen hat —
    *  treibt die Sub-Stage L2.2 in `subStageFor`. */
-  businessCaseApprovedAt: Date | null;
+  approvedAt: Date | null;
   plannedStartAt: Date | null;
   plannedEndAt: Date | null;
   createdAt: Date;
@@ -208,8 +208,7 @@ export function buildEpicsListModel(input: {
     };
     const subStage = subStageFor({
       stageGate,
-      businessCase: e.businessCase,
-      businessCaseApprovedAt: e.businessCaseApprovedAt,
+      approvedAt: e.approvedAt,
       implementationCompletedAt: e.implementationCompletedAt,
     });
     // Nächster-Schritt-Guidance — dieselbe reine Logik wie die Detailseite.

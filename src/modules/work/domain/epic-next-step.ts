@@ -124,15 +124,7 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
   }
 
   if (stageGate === "L2") {
-    // L2.2 = BC freigegeben (siehe subStageFor): Budget fehlt noch
-    if (subStage === "L2.2") {
-      return {
-        title: "Budget allozieren",
-        hint: "Business Case ist freigegeben. Plane jetzt im Controlling Budget für dieses Epic ein, damit es auf L3 weiterzieht.",
-        cta: { kind: "link", label: "Zum Controlling", href: "/budgeting" },
-      };
-    }
-    // L2.1 = BC in Arbeit
+    // Auf L2 zu stehen *ist* „Business Case in Arbeit" — kein Sub-Stage-Split mehr.
     if (approvalPhase === "stakeholder_review") {
       return {
         title: "Auf Stakeholder-Freigabe warten",
@@ -155,11 +147,24 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
   }
 
   if (stageGate === "L3") {
+    // Zwei Stationen: erst Budget holen und die Investition abnehmen lassen
+    // (L3.2), dann die Umsetzung starten.
+    if (subStage === "L3.1") {
+      return budgetAllocated
+        ? {
+            title: "Investition abnehmen lassen",
+            hint: "Budget ist alloziert. Beantrage den Schritt auf L3.2 — damit ist die Investitionsentscheidung namentlich abgenommen.",
+            cta: { kind: "gate-request", to: "L3.2" },
+          }
+        : {
+            title: "Budget allozieren",
+            hint: "Business Case ist freigegeben. Plane jetzt im Controlling Budget für dieses Epic ein, damit die Investition abgenommen werden kann.",
+            cta: { kind: "link", label: "Zum Controlling", href: "/budgeting" },
+          };
+    }
     return {
       title: "Erstes Feature starten",
-      hint: budgetAllocated
-        ? "Budget ist alloziert. Lege in den Deliverables Features an und starte das erste in einem PI — das Epic rückt damit auf L4."
-        : "Lege in den Deliverables Features an und starte das erste in einem PI — das Epic rückt damit auf L4.",
+      hint: "Die Investition ist abgenommen. Lege in den Deliverables Features an und starte das erste in einem PI — das Epic rückt damit auf L4.",
       cta: { kind: "link", label: "Zu den Deliverables", href: tab("breakdown") },
     };
   }

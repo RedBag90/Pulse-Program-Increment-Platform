@@ -2,11 +2,8 @@
 
 import { APPROVAL_PARTIES, type ApprovalParty } from "@/modules/work/domain/business-case";
 import {
-  APPROVAL_SECTIONS,
   partyStatus,
-  sectionStatus,
   type ApprovalPhase,
-  type ApprovalSection,
   type ApprovalViewModel,
 } from "@/modules/work/domain/epic-approval";
 import {
@@ -27,11 +24,6 @@ const PARTY_LABELS: Record<ApprovalParty, string> = {
   finance: "Finance",
   irt_owner: "IRT-Owner",
   lace_vmo: "LACE/VMO",
-};
-
-const SECTION_LABELS: Record<ApprovalSection, string> = {
-  breakdown: "Deliverables",
-  kpis: "KPIs",
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -157,7 +149,6 @@ export function EpicBusinessCaseApproval({
   const {
     records,
     partyOwners: current,
-    sectionOwners: currentSections,
     counts: { stakeholderRows, granted, blocked },
   } = approvalView;
 
@@ -225,7 +216,6 @@ export function EpicBusinessCaseApproval({
             epicId={epicId}
             approvers={approvers}
             current={current}
-            currentSections={currentSections}
             userLabels={userLabels}
           />
           <div className="pt-1">
@@ -289,46 +279,6 @@ export function EpicBusinessCaseApproval({
                 </div>
               );
             })}
-
-            {/* Sektionen (Deliverables / KPIs — ein Verantwortlicher) */}
-            {APPROVAL_SECTIONS.map((section) => {
-              const status = sectionStatus(records, section);
-              const row = currentApprovals.find(
-                (a) => a.kind === "section" && a.section === section,
-              );
-              const showDecide =
-                phase === "stakeholder_review" &&
-                status !== "approved" &&
-                row?.approverUserId === currentUserId;
-              return (
-                <div key={section} className="rounded-md border bg-card px-3 py-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium">{SECTION_LABELS[section]}</span>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>
-                        {row?.approverUserId
-                          ? userLabel(row.approverUserId, userLabels)
-                          : "kein Verantwortlicher"}
-                      </span>
-                      {row?.decidedAt && (
-                        <span>{new Date(row.decidedAt).toLocaleString("de-DE")}</span>
-                      )}
-                      <Badge status={status} />
-                    </div>
-                  </div>
-                  {showDecide && (
-                    <div className="mt-1 text-right">
-                      <Link
-                        href="/my-approvals"
-                        className="text-xs font-medium text-primary hover:underline"
-                      >
-                        In „Meine Freigaben" entscheiden →
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
           </div>
         </div>
       )}
@@ -346,9 +296,7 @@ export function EpicBusinessCaseApproval({
                   .map((r) => (
                     <li key={r.id} className="flex items-center gap-2">
                       <span className="w-28 shrink-0 text-muted-foreground">
-                        {r.kind === "section"
-                          ? SECTION_LABELS[r.section as ApprovalSection]
-                          : PARTY_LABELS[r.party as ApprovalParty]}
+                        {PARTY_LABELS[r.party as ApprovalParty] ?? r.kind}
                       </span>
                       {r.approverUserId && (
                         <span className="font-medium">

@@ -359,7 +359,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             canEdit={model.canEdit}
             features={model.breakdownFeatures}
             pisByArt={model.drumbeat.disabled ? {} : model.drumbeat.pisByArt}
-            signoff={model.breakdownSignoff}
             showWsjf={model.showWsjf}
             canSetDelivery={model.canSetDelivery}
             dependencies={model.drumbeat.disabled ? [] : model.drumbeat.dependencies}
@@ -378,7 +377,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             canEdit={model.canEdit}
             features={model.breakdownFeatures}
             pisByArt={model.drumbeat.disabled ? {} : model.drumbeat.pisByArt}
-            signoff={model.breakdownSignoff}
             showWsjf={model.showWsjf}
             canSetDelivery={model.canSetDelivery}
             dependencies={model.drumbeat.disabled ? [] : model.drumbeat.dependencies}
@@ -394,7 +392,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             kpis={kpiRows}
             canEdit={model.canEdit}
             goalLinks={goalLinks.links}
-            signoff={model.kpisSignoff}
           />
         )}
 

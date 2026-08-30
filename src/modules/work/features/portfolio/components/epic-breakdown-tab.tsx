@@ -19,7 +19,6 @@ import { CreateFeatureDialog } from "@/modules/work/features/feature/components/
 import { DeleteFeatureButton } from "@/modules/work/features/feature/components/delete-feature-button";
 import { FeaturePiSelect } from "@/modules/work/features/feature/components/feature-pi-select";
 import { FeatureStatusSelect } from "@/modules/work/features/feature/components/feature-status-select";
-import { SectionSignoffBanner, type SectionSignoff } from "./section-signoff-banner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,7 +94,6 @@ interface Props {
   /** PI options keyed by ART — a child Feature's PI picker only lists its ART's PIs. */
   pisByArt: Record<string, Pi[]>;
   /** Sign-off state for the Breakdown section (omit to hide the banner). */
-  signoff?: SectionSignoff;
   /** Feature-Feature-Dependencies fuer die Netzplan-Ansicht. Cross-
    *  Epic-Endpunkte tragen Ghost-Info (Roadmap-P6). */
   dependencies: ReadonlyArray<{
@@ -218,7 +216,6 @@ export function EpicBreakdownTab({
   canEdit,
   features,
   pisByArt,
-  signoff,
   dependencies,
   canLinkDependency,
   breakdownLayoutPositions,
@@ -317,15 +314,11 @@ export function EpicBreakdownTab({
         )}
       </div>
 
-      {view === "list" && signoff && (
-        <SectionSignoffBanner epicId={epicId} section="breakdown" {...signoff} />
-      )}
-
       {view === "list" ? (
         <p className="text-xs text-muted-foreground">
-          Die QS einzelner Features (durch den RTE) ist unabhängig von der Epic-Freigabe: hier
-          nimmst du die <span className="font-medium">Deliverables als Ganzes</span> für die
-          Freigabe ab.
+          Die QS einzelner Features (durch den RTE) ist unabhängig von der Epic-Freigabe: die
+          <span className="font-medium"> Deliverables als Ganzes</span> werden mit dem Business Case
+          freigegeben.
         </p>
       ) : (
         <p className="text-xs text-muted-foreground">

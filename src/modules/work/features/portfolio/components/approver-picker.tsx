@@ -4,13 +4,11 @@ import { useActionState, useState, startTransition } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { configureApproversAction } from "@/modules/work/features/portfolio/actions/epic-approval";
 import { APPROVAL_PARTIES, type ApprovalParty } from "@/modules/work/domain/business-case";
-import { APPROVAL_SECTIONS, type ApprovalSection } from "@/modules/work/domain/epic-approval";
 import { userLabel } from "@/components/detail/initiative-labels";
-import { UserPicker } from "@/components/detail/user-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SectionLabel } from "@/components/ui/section-label";
 
-/** Gemeinsame Basis für alle Auswahl-Controls (Parteien-Trigger + Sektions-Select). */
+/** Gemeinsame Basis für die Auswahl-Controls. */
 const CONTROL =
   "min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-left text-xs";
 
@@ -22,23 +20,6 @@ const PARTY_LABELS: Record<ApprovalParty, string> = {
   lace_vmo: "LACE/VMO",
 };
 
-const SECTION_LABELS: Record<ApprovalSection, string> = {
-  breakdown: "Deliverables",
-  kpis: "KPIs",
-};
-
-/**
- * Roles that may sign off a content section (mirrors the `epic.section.signoff`
- * policy grant; admins pass via `authorize()`). The owner can only pick from
- * users who hold one of these, so the assignment can't be blocked downstream.
- */
-const SECTION_REVIEWER_ROLES = new Set([
-  "value_stream_owner",
-  "portfolio_manager",
-  "tenant_admin",
-  "platform_admin",
-]);
-
 export interface TenantApprover {
   userId: string;
   roles: string[];
@@ -49,8 +30,6 @@ interface Props {
   approvers: TenantApprover[];
   /** Currently assigned user ids per party (to prefill the selection). */
   current: Record<ApprovalParty, string[]>;
-  /** Currently assigned owner per section (to prefill the selection). */
-  currentSections: Record<ApprovalSection, string>;
   /** Resolved user-id → display label (email) map. */
   userLabels: Record<string, string>;
 }
@@ -129,19 +108,13 @@ export function MultiUserSelect({
  * each content section (Breakdown, KPIs). Serialises both and posts
  * configureApprovers.
  */
-export function ApproverPicker({ epicId, approvers, current, currentSections, userLabels }: Props) {
+export function ApproverPicker({ epicId, approvers, current, userLabels }: Props) {
   const [state, action, pending] = useActionState(configureApproversAction, {});
   const [selected, setSelected] = useState<Record<ApprovalParty, Set<string>>>(() => {
     const init = {} as Record<ApprovalParty, Set<string>>;
     for (const p of APPROVAL_PARTIES) init[p] = new Set(current[p] ?? []);
     return init;
   });
-  const [sectionOwners, setSectionOwners] = useState<Record<ApprovalSection, string>>(() => {
-    const init = {} as Record<ApprovalSection, string>;
-    for (const s of APPROVAL_SECTIONS) init[s] = currentSections[s] ?? "";
-    return init;
-  });
-
   function toggle(party: ApprovalParty, userId: string) {
     setSelected((prev) => {
       const next = new Set(prev[party]);
@@ -156,20 +129,11 @@ export function ApproverPicker({ epicId, approvers, current, currentSections, us
       party,
       userIds: [...selected[party]],
     })).filter((a) => a.userIds.length > 0);
-    const sections = APPROVAL_SECTIONS.map((section) => ({
-      section,
-      userId: sectionOwners[section],
-    })).filter((s) => s.userId !== "");
     const fd = new FormData();
     fd.set("epicId", epicId);
     fd.set("assignments", JSON.stringify(assignments));
-    fd.set("sections", JSON.stringify(sections));
     startTransition(() => action(fd));
   }
-
-  const sectionEligible = approvers.filter((u) =>
-    u.roles.some((r) => SECTION_REVIEWER_ROLES.has(r)),
-  );
 
   return (
     <div className="space-y-3">
@@ -194,46 +158,6 @@ export function ApproverPicker({ epicId, approvers, current, currentSections, us
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <SectionLabel>Inhaltliche Abnahmen</SectionLabel>
-        <p className="text-xs text-muted-foreground">
-          Deliverables und KPIs sind Teil des Business Case — lege je einen Verantwortlichen fest,
-          der den Abschnitt für die Freigabe abnimmt.
-        </p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {APPROVAL_SECTIONS.map((section) => (
-            <div
-              key={section}
-              className="flex items-center gap-2 rounded-md border bg-card px-3 py-2"
-            >
-              <label htmlFor={`section-${section}`} className="w-28 shrink-0 text-xs font-medium">
-                {SECTION_LABELS[section]}
-              </label>
-              <div className="min-w-0 flex-1">
-                <UserPicker
-                  value={sectionOwners[section] ?? ""}
-                  onChange={(v) => setSectionOwners((prev) => ({ ...prev, [section]: v }))}
-                  options={sectionEligible.map((u) => ({
-                    value: u.userId,
-                    label: userLabel(u.userId, userLabels),
-                    ...(u.roles.length ? { hint: u.roles.join(", ") } : {}),
-                  }))}
-                  ariaLabel={`${SECTION_LABELS[section]} — Verantwortliche/r`}
-                  placeholder="— Verantwortlichen wählen —"
-                  emptyLabel="— Verantwortlichen wählen —"
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-        {sectionEligible.length === 0 && (
-          <p className="text-xs text-amber-700">
-            Im Mandanten gibt es keine Nutzer mit Abnahme-Rolle (Value-Stream-Owner oder
-            Portfolio-Manager).
-          </p>
-        )}
       </div>
 
       {state.error && (

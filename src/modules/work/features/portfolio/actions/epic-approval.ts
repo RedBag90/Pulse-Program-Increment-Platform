@@ -8,13 +8,11 @@ import {
   submitBusinessCase,
   reviseBusinessCase,
   decideApproval,
-  signoffSection,
   startRevision,
 } from "@/modules/work/server/services/epic-approval";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { APPROVAL_PARTIES } from "@/modules/work/domain/business-case";
-import { APPROVAL_SECTIONS } from "@/modules/work/domain/epic-approval";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 const DECISION = z.enum(["approve", "reject"]);
@@ -63,20 +61,17 @@ export const configureApproversAction = createServerAction({
     assignments: z.array(
       z.object({ party: z.enum(APPROVAL_PARTIES), userIds: z.array(z.string().uuid()) }),
     ),
-    sections: z.array(z.object({ section: z.enum(APPROVAL_SECTIONS), userId: z.string().uuid() })),
   }),
   action: "epic.approval.configure",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   parseFormData: (fd) => ({
     epicId: fields(fd).string("epicId"),
     assignments: JSON.parse((fd.get("assignments") as string | null) ?? "[]"),
-    sections: JSON.parse((fd.get("sections") as string | null) ?? "[]"),
   }),
   service: (ctx, input) =>
     configureApprovers(ctx, {
       epicId: input.epicId as EpicId,
       assignments: input.assignments,
-      sections: input.sections,
     }),
   revalidate: "epic",
   mapError: mapWorkflowError,
@@ -114,28 +109,6 @@ export const decideEpicApprovalAction = createServerAction({
   service: (ctx, input) =>
     decideApproval(ctx, {
       approvalId: input.approvalId,
-      decision: input.decision,
-      comment: input.comment,
-      intent: input.intent,
-    }),
-  revalidate: "epic",
-  mapError: mapWorkflowError,
-});
-
-export const signoffEpicSectionAction = createServerAction({
-  schema: z.object({
-    epicId: z.string().uuid(),
-    section: z.enum(APPROVAL_SECTIONS),
-    decision: DECISION,
-    comment: z.string().max(2000).optional(),
-    intent: INTENT.optional(),
-  }),
-  action: "epic.section.signoff",
-  resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) =>
-    signoffSection(ctx, {
-      epicId: input.epicId as EpicId,
-      section: input.section,
       decision: input.decision,
       comment: input.comment,
       intent: input.intent,

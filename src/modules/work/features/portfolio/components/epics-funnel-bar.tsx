@@ -7,7 +7,7 @@ import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiat
 interface Props {
   /** Pre-counted by the page-model. */
   counts: Record<StageGate, number>;
-  /** Sub-Step-Counts (L2.1 / L2.2 / L4.1 / L4.2). UI-only Breakdown unter
+  /** Sub-Step-Counts (L3.1 / L3.2 / L4.1 / L4.2). UI-only Breakdown unter
    *  den L2- und L4-Pills. */
   subStageCounts: Record<SubStage, number>;
   /** Currently-active gate filter from URL state. `null` = "Alle". */
@@ -40,7 +40,7 @@ const SEGMENT_ACTIVE: Record<StageGate, string> = {
  * Counts come pre-computed from the page-model so this stays prop-only.
  *
  * Sub-Step-Breakdown wird unter den L2- und L4-Pills als Mini-Indikator
- * gerendert (L2.1/L2.2, L4.1/L4.2). Die Sub-Steps sind nicht klickbar —
+ * gerendert (L3.1/L3.2, L4.1/L4.2). Die Sub-Steps sind nicht klickbar —
  * sie sind eine Reife-Anzeige, kein eigener Filter (der Major-Gate-Filter
  * deckt sie bereits ab).
  */

@@ -75,17 +75,18 @@ verbliebene Auto-Advance und widersprach Festlegung 1: „fertig gebaut" ist ein
 Aussage, die jemand trifft — nicht eine, die aus einer Zählung entsteht.
 
 Deshalb beantragt und abgenommen man L4.2 jetzt wie ein Gate. Die Leiter der
-beantragbaren **Schritte** (`GATE_STEPS`) lautet `L0 · L1 · L2 · L3 · L4 · L4.2 ·
-L5`; das Gate-Subsystem ist auf den Typ `GateStep` getypt. Drei Konsequenzen:
+beantragbaren **Schritte** (`GATE_STEPS`) lautet `L0 · L1 · L2 · L3.1 · L3.2 · L4 ·
+L4.2 · L5`; das Gate-Subsystem ist auf den Typ `GateStep` getypt. Drei Konsequenzen:
 
 - **`Initiative.stageGate` bleibt bei „L4".** L4.2 materialisiert sich im
   Stempel `implementationCompletedAt` — der Audit-Log der Haupt-Gates bleibt
   unberührt, `currentGateStep()` setzt Spalte und Stempel zum Schritt zusammen.
 - **Die Kriterien wandern eine Stufe nach unten.** „Alle Child-Features
-  abgeschlossen" ist jetzt Voraussetzung von **L4.2**; der L5-Antrag verlangt
-  stattdessen die abgenommene Bestätigung (`implementation_confirmed`). L4.2 ist
-  ausdrücklich **nicht** L5: zwischen fertiger Umsetzung und nachgewiesenem
-  Impact darf beliebig viel Zeit liegen.
+  abgeschlossen" hängt jetzt an **L4.2** — seit 2026-08-30 allerdings als
+  _beratendes_ Kriterium, nicht als Tor (s. Nachtrag unten); der L5-Antrag
+  verlangt stattdessen die abgenommene Bestätigung (`implementation_confirmed`).
+  L4.2 ist ausdrücklich **nicht** L5: zwischen fertiger Umsetzung und
+  nachgewiesenem Impact darf beliebig viel Zeit liegen.
 - **Das Ist-Datum gehört der Abnahme.** `timeline.actuals.implementation` wird
   ausschließlich beim abgenommenen Schritt L4→L4.2 geschrieben (und beim Revert
   geräumt); der Timeline-Reiter zeigt es nur an, `saveTimeline` verwirft
@@ -163,6 +164,56 @@ importiert.
 - **Trigger beibehalten, nur den Confirm auf Personen umstellen** — verworfen:
   der Slot (und damit Veraltung, Backstops, Cross-Modul-Schreiben, die fehlende
   Verwerfen-Möglichkeit) wäre geblieben.
+
+### Nachtrag (2026-08-30): L3.2 ist ein eigener Schritt
+
+Der Reifegrad L3 hiess „Budget alloziert" und wurde erreicht, sobald Business
+Case **und** Budget standen. Damit fielen zwei Aussagen in einen Übergang: „wir
+haben einen tragfähigen Business Case" und „wir geben Geld dafür aus".
+
+Die Leiter ist deshalb neu geschnitten. Was frueher die Sub-Stages L2.1/L2.2
+waren, ist jetzt:
+
+| frueher               | jetzt               | Bedeutung                 |
+| --------------------- | ------------------- | ------------------------- |
+| L2 mit Sub-Stage L2.1 | **L2** (ohne Split) | Business Case in Arbeit   |
+| L2.2                  | **L3.1**            | Business Case freigegeben |
+| L3                    | **L3.2**            | Budget alloziert          |
+
+**L3.2 wird beantragt und abgenommen** — genau wie L4.2 und aus demselben Grund
+(Festlegung 1: kein Auto-Advance). Waere die Investitionsentscheidung eine
+abgeleitete Folge der Budgetzuteilung, entstuende sie wieder aus einer Zahl statt
+aus einer Unterschrift. Drei Konsequenzen:
+
+- **`Initiative.stageGate` bleibt bei „L3".** L3.2 materialisiert sich im Stempel
+  `approvedAt`; `subStageFor` liest ihn zurueck, `currentGateStep` setzt Spalte
+  und Stempel zum Schritt zusammen.
+- **Die Kriterien teilen sich.** Der Eintritt L3.1 verlangt nur noch die
+  BC-Freigabe; `budget_allocated` haengt an L3.2.
+- **`isApprovalTransition` ist schrittbasiert.** Sie feuert bei L3.1 → L3.2 und
+  traegt dort `approvedBy`/`approvedAt`/`approvalComment`; `unwindStampsFor`
+  raeumt sie beim Zurueckstufen L3.2 → L3.1 ab. Der Eintritt L3.1 traegt keinen
+  eigenen Stempel.
+
+Bestandsdaten wandern per `prisma/scripts/2026-08-30-stage-gate-l2-to-l3-recut.ts`:
+Epics auf L2 mit `businessCaseApprovedAt` stehen danach auf L3 (= L3.1).
+
+### Nachtrag (2026-08-30): das L4.2-Kriterium ist beratend
+
+„Alle Child-Features sind abgeschlossen" blockierte den L4.2-Antrag. Das stellte
+den Feature-Zähler faktisch wieder vor die Abnahme: wer die Umsetzung für fertig
+hielt, kam nicht durch, solange irgendein Feature offen stand — und sei es eines,
+das bewusst offen bleibt. Damit entschied doch wieder eine Zählung, was
+Festlegung 1 gerade der abnehmenden Person zugewiesen hatte.
+
+Das Kriterium bleibt sichtbar, wird aber **beratend** (`blocking: false`), wie
+`feature_started` bei L4. Der Antrag ist der bewusste Akt; der Zähler ist der
+Anhaltspunkt, auf den die Abnahme schaut.
+
+**Hart bleibt `implementation_confirmed` bei L5.** Man kann die Umsetzung also
+früher für fertig erklären, aber den Impact weiterhin nicht ohne bestätigtes
+L4.2 melden — die Trennung „fertig gebaut" ≠ „Nutzen nachgewiesen" ist davon
+unberührt.
 
 ## Offene Punkte
 

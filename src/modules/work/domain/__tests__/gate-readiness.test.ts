@@ -33,7 +33,7 @@ function facts(stageGate: StageGate, over: Partial<EpicGateFacts> = {}): EpicGat
 
 const AT = new Date("2026-03-01T00:00:00.000Z");
 
-function keys(f: EpicGateFacts, to: StageGate, which: "unsatisfied" | "blocking-unsatisfied") {
+function keys(f: EpicGateFacts, to: GateStep, which: "unsatisfied" | "blocking-unsatisfied") {
   return gateReadiness(f, to)
     .criteria.filter((c) => !c.satisfied && (which === "unsatisfied" || c.blocking))
     .map((c) => c.key);
@@ -41,18 +41,15 @@ function keys(f: EpicGateFacts, to: StageGate, which: "unsatisfied" | "blocking-
 
 describe("nextGate / previousGate", () => {
   it("läuft die kanonische Schritt-Reihenfolge ab und endet an den Rändern", () => {
-    // L4.2 („Umsetzung fertig") liegt als eigener Schritt zwischen L4 und L5.
-    expect(["L0", "L1", "L2", "L3", "L4", "L4.2"].map((g) => nextGate(g as GateStep))).toEqual([
-      "L1",
-      "L2",
-      "L3",
-      "L4",
-      "L4.2",
-      "L5",
-    ]);
+    // L3.2 („Budget alloziert") und L4.2 („Umsetzung fertig") liegen als eigene
+    // Schritte in ihrem Haupt-Gate.
+    expect(
+      ["L0", "L1", "L2", "L3.1", "L3.2", "L4", "L4.2"].map((g) => nextGate(g as GateStep)),
+    ).toEqual(["L1", "L2", "L3.1", "L3.2", "L4", "L4.2", "L5"]);
     expect(nextGate("L5")).toBeNull();
     expect(previousGate("L0")).toBeNull();
-    expect(previousGate("L3")).toBe("L2");
+    expect(previousGate("L3.1")).toBe("L2");
+    expect(previousGate("L4")).toBe("L3.2");
     expect(previousGate("L5")).toBe("L4.2");
   });
 });
@@ -100,32 +97,27 @@ describe("gateReadiness — L2 (Eintritt in die Analyse)", () => {
 });
 
 describe("gateReadiness — L3 (Investitionsentscheidung)", () => {
-  it("verlangt freigegebenen Business Case UND Budget Σ > 0", () => {
-    expect(keys(facts("L2"), "L3", "blocking-unsatisfied")).toEqual([
-      "business_case_approved",
-      "budget_allocated",
-    ]);
-    expect(keys(facts("L2", { businessCaseApprovedAt: AT }), "L3", "blocking-unsatisfied")).toEqual(
-      ["budget_allocated"],
-    );
-    expect(
-      keys(facts("L2", { budgetAllocationSum: 250_000 }), "L3", "blocking-unsatisfied"),
-    ).toEqual(["business_case_approved"]);
-    expect(
-      gateReadiness(facts("L2", { businessCaseApprovedAt: AT, budgetAllocationSum: 1 }), "L3")
-        .ready,
-    ).toBe(true);
+  it("der Eintritt in L3 verlangt nur den freigegebenen Business Case", () => {
+    expect(keys(facts("L2"), "L3.1", "blocking-unsatisfied")).toEqual(["business_case_approved"]);
+    expect(gateReadiness(facts("L2", { businessCaseApprovedAt: AT }), "L3.1").ready).toBe(true);
+    // Das Geld ist hier ausdrücklich noch kein Thema.
+    expect(keys(facts("L2", { businessCaseApprovedAt: AT }), "L3.1", "unsatisfied")).toEqual([]);
+  });
+
+  it("L3.2 verlangt das allozierte Budget", () => {
+    expect(keys(facts("L3"), "L3.2", "blocking-unsatisfied")).toEqual(["budget_allocated"]);
+    expect(gateReadiness(facts("L3", { budgetAllocationSum: 1 }), "L3.2").ready).toBe(true);
   });
 
   it("ein Budget von exakt 0 zählt nicht als alloziert", () => {
-    const f = facts("L2", { businessCaseApprovedAt: AT, budgetAllocationSum: 0 });
-    expect(gateReadiness(f, "L3").ready).toBe(false);
+    const f = facts("L3", { budgetAllocationSum: 0 });
+    expect(gateReadiness(f, "L3.2").ready).toBe(false);
   });
 });
 
 describe("gateReadiness — L4 (Start der Umsetzung)", () => {
   it("ist beratend: der Antrag selbst ist der bewusste Start", () => {
-    const f = facts("L3");
+    const f = facts("L3", { budgetAllocationSum: 1 });
     expect(gateReadiness(f, "L4").ready).toBe(true);
     expect(keys(f, "L4", "unsatisfied")).toEqual(["feature_started"]);
     expect(keys(f, "L4", "blocking-unsatisfied")).toEqual([]);
@@ -133,28 +125,23 @@ describe("gateReadiness — L4 (Start der Umsetzung)", () => {
 });
 
 describe("gateReadiness — L4.2 (Umsetzung fertig)", () => {
-  it("verlangt, dass alle Child-Features fertig sind", () => {
-    expect(
-      gateReadiness(
-        facts("L4", { childFeatureStats: { total: 3, started: 3, completed: 2 } }),
-        "L4.2",
-      ).ready,
-    ).toBe(false);
-    expect(
-      gateReadiness(
-        facts("L4", { childFeatureStats: { total: 3, started: 3, completed: 3 } }),
-        "L4.2",
-      ).ready,
-    ).toBe(true);
+  it("ist beratend: offene Features halten den Antrag nicht auf", () => {
+    const f = facts("L4", { childFeatureStats: { total: 3, started: 3, completed: 2 } });
+    expect(gateReadiness(f, "L4.2").ready).toBe(true);
+    expect(keys(f, "L4.2", "unsatisfied")).toEqual(["features_completed"]);
+    expect(keys(f, "L4.2", "blocking-unsatisfied")).toEqual([]);
   });
 
-  it("ein Epic ganz ohne Features ist nicht fertig (0 von 0 zählt nicht)", () => {
-    expect(
-      gateReadiness(
-        facts("L4", { childFeatureStats: { total: 0, started: 0, completed: 0 } }),
-        "L4.2",
-      ).ready,
-    ).toBe(false);
+  it("meldet das Kriterium als erfüllt, sobald alle Child-Features fertig sind", () => {
+    const f = facts("L4", { childFeatureStats: { total: 3, started: 3, completed: 3 } });
+    expect(keys(f, "L4.2", "unsatisfied")).toEqual([]);
+  });
+
+  it("ein Epic ganz ohne Features erfüllt das Kriterium nicht, blockiert aber nicht", () => {
+    // „0 von 0" bleibt unerfüllt (allChildrenCompleted) — nur eben ohne Tor.
+    const f = facts("L4", { childFeatureStats: { total: 0, started: 0, completed: 0 } });
+    expect(gateReadiness(f, "L4.2").ready).toBe(true);
+    expect(keys(f, "L4.2", "unsatisfied")).toEqual(["features_completed"]);
   });
 });
 
@@ -182,8 +169,11 @@ describe("gateReadiness — L5 (Impact)", () => {
 
 describe("readinessBlockReason", () => {
   it("nennt nur die blockierenden, unerfüllten Kriterien", () => {
-    expect(readinessBlockReason(gateReadiness(facts("L2"), "L3"))).toBe(
-      "Reifegrad L3 verlangt: Business Case ist freigegeben; Budget ist alloziert (Σ > 0).",
+    expect(readinessBlockReason(gateReadiness(facts("L1"), "L2"))).toBe(
+      "Reifegrad L2 verlangt: Benefit-Hypothese ist freigegeben.",
+    );
+    expect(readinessBlockReason(gateReadiness(facts("L3"), "L3.2"))).toBe(
+      "Reifegrad L3.2 verlangt: Budget ist alloziert (Σ > 0).",
     );
   });
 
@@ -193,6 +183,6 @@ describe("readinessBlockReason", () => {
 
   it("ist null, wenn alles erfüllt ist", () => {
     const f = facts("L2", { businessCaseApprovedAt: AT, budgetAllocationSum: 10 });
-    expect(readinessBlockReason(gateReadiness(f, "L3"))).toBeNull();
+    expect(readinessBlockReason(gateReadiness(f, "L3.1"))).toBeNull();
   });
 });

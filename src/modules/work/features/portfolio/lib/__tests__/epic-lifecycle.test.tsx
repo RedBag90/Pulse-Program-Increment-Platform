@@ -44,11 +44,11 @@ describe("epicLifecycleSteps", () => {
   });
 
   it("L2 (BC in Arbeit): Business Case current", () => {
-    expect(current({ stageGate: "L2", subStage: "L2.1" })).toBe("business_case");
+    expect(current({ stageGate: "L2" })).toBe("business_case");
   });
 
-  it("L2.2 (BC freigegeben): Backlog current", () => {
-    expect(current({ stageGate: "L2", subStage: "L2.2" })).toBe("backlog");
+  it("L3.1 (BC freigegeben): Backlog current", () => {
+    expect(current({ stageGate: "L3", subStage: "L3.1" })).toBe("backlog");
   });
 
   it("L1 approvalPhase=approved: Backlog current (defensive stale gate)", () => {

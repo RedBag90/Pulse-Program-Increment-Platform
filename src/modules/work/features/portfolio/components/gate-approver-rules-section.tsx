@@ -3,8 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
-import type { StageGate } from "@/modules/core/kernel/domain/types";
-import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
+import { GATE_STEPS, type GateStep } from "@/modules/work/domain/stage-gate";
 import {
   GATE_APPROVER_ROLES,
   GATE_APPROVER_ROLE_LABELS,
@@ -24,7 +23,9 @@ import { SectionLabel } from "@/components/ui/section-label";
 
 // L0 ist der Funnel-Start — dorthin führt kein Vorwärts-Antrag, also keine
 // Freigabe-Regel. Konfiguriert werden die fünf Übergänge L1..L5.
-const GATES: StageGate[] = STAGE_GATES.filter((g) => g !== "L0");
+// Je Schritt, nicht je Haupt-Gate: L3.2 und L4.2 werden eigens abgenommen und
+// brauchen deshalb auch eine eigene Regel-Zeile. L0 hat keinen Vorwärts-Antrag.
+const GATES: GateStep[] = GATE_STEPS.filter((g) => g !== "L0");
 
 const SOURCE_LABELS: Record<GatePolicy["source"], string> = {
   value_stream: "Wertstrom-Regel",

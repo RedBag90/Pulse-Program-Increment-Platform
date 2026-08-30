@@ -35,7 +35,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useCreateResult } from "@/features/create/use-create-result";
-import { SectionSignoffBanner, type SectionSignoff } from "./section-signoff-banner";
 
 export interface KpiRow {
   id: string;
@@ -69,7 +68,6 @@ interface Props {
   /** Verknüpfte Ziele dieses Epics (Einheiten-Kaskade); leer = keine. */
   goalLinks?: EpicGoalLinkRow[];
   /** Sign-off state for the KPIs section (omit to hide the banner). */
-  signoff?: SectionSignoff;
 }
 
 /** Native-Select im Look der `Input`-Primitive (kein Select-Primitive im Kit). */
@@ -592,11 +590,9 @@ function LinkedGoalsSection({
 }
 
 /** KPIs tab — read-first tiles per KPI with edit-on-demand + linked-goal cascade. */
-export function EpicKpisTab({ initiativeId, kpis, canEdit, goalLinks, signoff }: Props) {
+export function EpicKpisTab({ initiativeId, kpis, canEdit, goalLinks }: Props) {
   return (
     <div className="space-y-6">
-      {signoff && <SectionSignoffBanner epicId={initiativeId} section="kpis" {...signoff} />}
-
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <SectionLabel>KPIs</SectionLabel>

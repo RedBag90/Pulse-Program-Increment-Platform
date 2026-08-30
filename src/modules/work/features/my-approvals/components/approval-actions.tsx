@@ -4,7 +4,6 @@ import { useActionState, useState, startTransition } from "react";
 import {
   decideEpicHypothesisAction,
   decideEpicApprovalAction,
-  signoffEpicSectionAction,
 } from "@/modules/work/features/portfolio/actions/epic-approval";
 import { decideGateTransitionAction } from "@/modules/work/features/portfolio/actions/stage-gate";
 import type { ApprovalKind, MyApprovalRow } from "@/modules/work/server/services/my-approvals";
@@ -47,8 +46,6 @@ function pickAction(kind: ApprovalKind) {
       return decideEpicHypothesisAction;
     case "epic_party":
       return decideEpicApprovalAction;
-    case "epic_section":
-      return signoffEpicSectionAction;
     case "epic_gate":
       return decideGateTransitionAction;
   }
@@ -66,12 +63,14 @@ function buildEntries(row: MyApprovalRow, mode: Mode, comment: string): Record<s
       return { ...base, epicId: row.target.epicId };
     case "epic_party":
       return { ...base, approvalId: row.target.approvalId };
-    case "epic_section":
-      return { ...base, epicId: row.target.epicId, section: row.target.section };
     case "epic_gate":
       // Die Gate-Achse kennt kein `intent` — eine Rückfrage ist dort eine
       // Ablehnung mit Begründung, der Antrag wird neu gestellt.
-      return { decision, ...(comment.trim() ? { comment: comment.trim() } : {}), transitionId: row.target.transitionId };
+      return {
+        decision,
+        ...(comment.trim() ? { comment: comment.trim() } : {}),
+        transitionId: row.target.transitionId,
+      };
   }
 }
 

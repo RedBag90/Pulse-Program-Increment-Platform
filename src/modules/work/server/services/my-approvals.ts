@@ -2,12 +2,11 @@ import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Principal } from "@/server/auth/principal";
 import type { ApprovalParty } from "@/modules/work/domain/business-case";
-import type { ApprovalSection } from "@/modules/work/domain/epic-approval";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 /**
  * "Meine Freigaben" — the personal approval inbox. Aggregates every pending
  * Epic approval assigned to the current principal (Hypothesis, Party,
- * Section, Reifegrad-Wechsel) into a single normalised row shape. Feature-QS
+ * Reifegrad-Wechsel) into a single normalised row shape. Feature-QS
  * war hier 2026-06 mit der Abschaffung des Feature-QA-Gates entfernt;
  * Features brauchen keine Freigabe mehr.
  *
@@ -16,11 +15,11 @@ import type { StageGate } from "@/modules/core/kernel/domain/types";
  * bleiben getrennt (ADR-0003), teilen sich aber den Posteingang.
  */
 
-export type ApprovalKind = "epic_hypothesis" | "epic_party" | "epic_section" | "epic_gate";
+export type ApprovalKind = "epic_hypothesis" | "epic_party" | "epic_gate";
 
 /** The fields every approval row carries, regardless of kind. */
 interface MyApprovalRowBase {
-  /** Stable row id — `EpicApproval.id` for party/section, `<kind>:<entityId>` for hypothesis. */
+  /** Stable row id — `EpicApproval.id` for party rows, `<kind>:<entityId>` for hypothesis. */
   id: string;
   title: string;
   href: string;
@@ -29,7 +28,6 @@ interface MyApprovalRowBase {
     artName?: string | null;
     valueStreamName?: string | null;
     party?: ApprovalParty | undefined;
-    section?: ApprovalSection | undefined;
     /** Nur bei `epic_gate`: welcher Reifegrad-Wechsel abgenommen werden soll. */
     fromGate?: StageGate | undefined;
     toGate?: StageGate | undefined;
@@ -46,7 +44,6 @@ export type MyApprovalRow = MyApprovalRowBase &
   (
     | { kind: "epic_hypothesis"; target: { epicId: string } }
     | { kind: "epic_party"; target: { approvalId: string } }
-    | { kind: "epic_section"; target: { epicId: string; section: ApprovalSection } }
     | { kind: "epic_gate"; target: { transitionId: string } }
   );
 
@@ -78,7 +75,7 @@ export async function listMyApprovals(
         }
       : null;
 
-  const [hypothesis, partyAndSection, gateApprovals] = await Promise.all([
+  const [hypothesis, partyApprovals, gateApprovals] = await Promise.all([
     // 1) Epic hypothesis — Portfolio Manager of the value stream, or admin.
     hypothesisWhere
       ? db.initiative.findMany({
@@ -100,20 +97,21 @@ export async function listMyApprovals(
           }>,
         ),
 
-    // 2 + 3) Epic party approvals and section sign-offs — assigned to me, pending,
-    //        joined to the Epic's current revision.
+    // 2) Epic party approvals — assigned to me, pending, joined to the Epic's
+    //    current revision. `kind: "party"` schliesst Legacy-Zeilen der
+    //    abgeschafften Sektions-Abnahme aus.
     db.epicApproval.findMany({
       where: {
         tenantId,
         approverUserId: userId,
         status: "pending",
+        kind: "party",
         initiative: { deletedAt: null, level: InitiativeLevel.EPIC },
       },
       select: {
         id: true,
         kind: true,
         party: true,
-        section: true,
         revision: true,
         requestedAt: true,
         initiative: {
@@ -174,7 +172,7 @@ export async function listMyApprovals(
     });
   }
 
-  for (const a of partyAndSection) {
+  for (const a of partyApprovals) {
     // Only surface rows that belong to the Epic's *current* revision (and an
     // approval-decidable phase). Older revisions are historical and not actionable.
     const epic = a.initiative;
@@ -194,19 +192,6 @@ export async function listMyApprovals(
           party: a.party as ApprovalParty,
         },
         target: { approvalId: a.id },
-        requestedAt: a.requestedAt,
-      });
-    } else if (a.kind === "section" && a.section) {
-      rows.push({
-        id: a.id,
-        kind: "epic_section",
-        title: epic.title,
-        href: `/portfolio/epics/${epic.id}?tab=${a.section}`,
-        context: {
-          valueStreamName: epic.valueStream?.name ?? null,
-          section: a.section as ApprovalSection,
-        },
-        target: { epicId: epic.id, section: a.section as ApprovalSection },
         requestedAt: a.requestedAt,
       });
     }

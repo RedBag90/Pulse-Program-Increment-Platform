@@ -15,12 +15,13 @@ import {
  */
 
 describe("GATE_CRITERIA_DOC", () => {
-  it("deckt genau die sechs Vorwärts-Schritte ab (inkl. L4→L4.2)", () => {
+  it("deckt genau die sieben Vorwärts-Schritte ab (inkl. L3→L3.2 und L4→L4.2)", () => {
     expect(GATE_CRITERIA_DOC.map((g) => `${g.stageFrom}->${g.stageTo}`)).toEqual([
       "L0->L1",
       "L1->L2",
-      "L2->L3",
-      "L3->L4",
+      "L2->L3.1",
+      "L3.1->L3.2",
+      "L3.2->L4",
       "L4->L4.2",
       "L4.2->L5",
     ]);
@@ -55,15 +56,15 @@ describe("GATE_CRITERIA_DOC", () => {
       impactRecognizedAt: null,
       multiPartyApproval: true,
     };
-    const doc = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L3");
-    const evaluated = gateReadiness(facts, "L3");
+    const doc = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L3.1");
+    const evaluated = gateReadiness(facts, "L3.1");
     expect(doc?.criteria.map((c) => [c.label, c.blocking])).toEqual(
       evaluated.criteria.map((c) => [c.label, c.blocking]),
     );
   });
 
-  it("markiert bei L3 beide Kriterien als blockierend, bei L4 keines", () => {
-    const l3 = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L3");
+  it("markiert bei L3.1 das Kriterium als blockierend, bei L4 keines", () => {
+    const l3 = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L3.1");
     const l4 = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L4");
     expect(l3?.criteria.every((c) => c.blocking)).toBe(true);
     expect(l4?.criteria.some((c) => c.blocking)).toBe(false);

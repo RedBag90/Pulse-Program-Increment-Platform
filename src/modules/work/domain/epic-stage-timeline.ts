@@ -13,6 +13,7 @@
 
 import { monthStart, parseIsoMonth } from "@/modules/core/kernel/domain/calendar";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
+import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import { parseTimeline, type TimelineEstimatePhase } from "@/modules/work/domain/timeline";
 
 /** Ein Stage-Übergang: ab diesem (effektiven) Monat gilt `gate`. */
@@ -52,8 +53,18 @@ const PHASE_GATE: { gate: StageGate; estimate: TimelineEstimatePhase }[] = [
 ];
 
 /**
- * Baut die (monoton sortierte) Übergangsliste. L0 = `createdAt`. Für jede weitere
- * Phase effektives Datum = Actual ?? Estimate; Phasen ohne Datum entfallen.
+ * Baut die nach **Datum** aufsteigend sortierte Übergangsliste. Je Phase gilt das
+ * effektive Datum = Actual ?? Estimate; Phasen ohne Datum entfallen.
+ *
+ * L0 = `createdAt`, aber **nur wenn es vor dem frühesten fachlichen Gate liegt**.
+ * Bei nachträglich gepflegten Ist-Daten (Portfolio-Import, Seed) ist die Zeile
+ * jünger als die Gates, die sie beschreibt — ein L0-Punkt hinter L5 trägt dann
+ * keine Information und liest sich als Rücksprung. L0 ist ohnehin der
+ * Grundzustand, den `stageAtMonth` ohne jeden Übergang liefert.
+ *
+ * Die Liste ist **nicht** monoton in der Gate-Achse: out-of-order gepflegte
+ * Estimates (L4 vor L2) bleiben in ihrer Datumsfolge stehen. `stageAtMonth`
+ * trägt dem Rechnung, indem es das höchste erreichte Gate nimmt.
  */
 export function buildEpicStageTimeline(input: EpicStageTimelineInput): StageTransition[] {
   const tl = parseTimeline(input.timeline);
@@ -70,28 +81,40 @@ export function buildEpicStageTimeline(input: EpicStageTimelineInput): StageTran
   };
 
   const points: StageTransition[] = [];
-  const l0 = parseIsoMonth(input.createdAt);
-  if (l0) points.push({ gate: "L0", month: l0 });
-
   for (const p of PHASE_GATE) {
     const iso = actualByEstimate[p.estimate] ?? tl.estimates[p.estimate] ?? null;
     const m = iso ? parseIsoMonth(iso) : null;
     if (m) points.push({ gate: p.gate, month: m });
   }
 
+  const l0 = parseIsoMonth(input.createdAt);
+  const earliest = points.reduce<number | null>(
+    (min, p) => (min == null || p.month.getTime() < min ? p.month.getTime() : min),
+    null,
+  );
+  if (l0 && (earliest == null || l0.getTime() <= earliest)) {
+    points.push({ gate: "L0", month: l0 });
+  }
+
   return points.sort((a, b) => a.month.getTime() - b.month.getTime());
 }
 
 /**
- * Status (Stage-Gate) im gegebenen Monat: das Gate des jüngsten Übergangs, dessen
- * effektives Datum ≤ dem Monat liegt. Vor jedem Übergang → „L0".
+ * Status (Stage-Gate) im gegebenen Monat: das **höchste** Gate, dessen effektives
+ * Datum ≤ dem Monat liegt. Vor jedem Übergang → „L0".
+ *
+ * Bewusst das Maximum und nicht der zeitlich letzte Übergang: der Reifegrad ist
+ * eine Ratsche. Ein Epic, das L5 erreicht hat, darf in einem späteren Monat nicht
+ * auf L0 zurückfallen, nur weil ein Punkt mit späterem Datum ein niedrigeres Gate
+ * trägt (nachgetragenes `createdAt`, out-of-order gepflegtes Estimate).
  */
 export function stageAtMonth(timeline: StageTransition[], monthDate: Date): StageGate {
   const target = monthStart(monthDate).getTime();
-  let gate: StageGate = "L0";
+  let rank = 0; // L0 = Grundzustand vor dem ersten Übergang
   for (const t of timeline) {
-    if (t.month.getTime() <= target) gate = t.gate;
-    else break; // aufsteigend sortiert
+    if (t.month.getTime() > target) break; // aufsteigend sortiert
+    const i = STAGE_GATES.indexOf(t.gate);
+    if (i > rank) rank = i;
   }
-  return gate;
+  return STAGE_GATES[rank]!;
 }

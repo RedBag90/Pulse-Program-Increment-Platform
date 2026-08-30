@@ -437,6 +437,10 @@ async function main() {
     epicOwner[i] = ownerId;
     const definedNoBudget = gate === "L2"; // fertig definiert, wartet auf Budget
     const gteL2 = ["L2", "L3", "L4", "L5"].includes(gate);
+    // Reifegrad-Neuschnitt: L2 heisst „Business Case in Arbeit", L3 heisst
+    // „Business Case freigegeben" (Sub-Stage L3.1). Der BC-Stempel gehoert
+    // deshalb erst ab L3 ans Epic — auf L2 waere er ein Widerspruch.
+    const gteL3 = ["L3", "L4", "L5"].includes(gate);
     const gteL4 = ["L4", "L5"].includes(gate); // bezahlt/laufend ⇒ Umsetzung gestartet
     // Umsetzungsstart (L4.1): identischer Wert für Spalte und KPI-Messbeginn.
     const implStartedAt = gteL4 ? beforeNow(plannedStart, 1) : null;
@@ -466,6 +470,12 @@ async function main() {
       costToMvp: gteL2 ? 40_000 + (i % 30) * 2_000 : null,
       plannedStartAt: plannedStart,
       plannedEndAt: plannedEnd,
+      // L0 = Funnel-Eintritt wird aus `createdAt` abgeleitet. Ohne diese Zeile
+      // stuende die Anlage der Zeile (Default `now()`) JAHRE nach den
+      // historischen Gate-Actuals unten — der Reifegrad-Tab zeigte dann ein
+      // L0-Datum hinter L5. 90 Tage vor plannedStart, also vor dem fruehesten
+      // Gate (selectedForDetailingAt bei -60).
+      createdAt: beforeNow(addDays(plannedStart, -90), 12),
       timeline: {
         estimates: {
           implementation_started: plannedStart.toISOString().slice(0, 10),
@@ -478,7 +488,16 @@ async function main() {
       ...(owned ? { selectedForDetailingAt: beforeNow(addDays(plannedStart, -60), 10) } : {}),
       ...(gteL2 ? { hypothesisApprovedAt: beforeNow(addDays(plannedStart, -50), 6) } : {}),
       // L2 = fertig definiert (BC freigegeben), aber ohne Budget → bleibt an L2 hängen.
-      ...(gteL2 ? { businessCaseApprovedAt: beforeNow(addDays(plannedStart, -20), 4) } : {}),
+      ...(gteL3 ? { businessCaseApprovedAt: beforeNow(addDays(plannedStart, -20), 4) } : {}),
+      // Die Investitionsentscheidung (Schritt L3 → L3.2) haben nur die Epics
+      // hinter sich, die schon in der Umsetzung sind. L3-Epics stehen auf L3.1
+      // und warten genau darauf.
+      ...(gteL4
+        ? {
+            approvedAt: beforeNow(addDays(plannedStart, -10), 2),
+            approvedBy: ownerId ?? U.owner,
+          }
+        : {}),
       ...(implStartedAt ? { implementationStartedAt: implStartedAt } : {}),
       ...(gate === "L5"
         ? {

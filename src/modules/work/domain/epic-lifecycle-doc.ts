@@ -32,7 +32,7 @@ export interface GateCriteriaDoc {
 
 /** Ableitungsregel fuer eine Sub-Stage. */
 export interface SubStageRule {
-  gate: "L2" | "L4";
+  gate: "L3" | "L4";
   key: SubStage;
   label: string;
   /** Text-Form der Bedingung — fuer Anzeige im Popover. */
@@ -69,16 +69,16 @@ export const GATE_CRITERIA_DOC: readonly GateCriteriaDoc[] = GATE_STEPS.flatMap(
 
 export const SUB_STAGE_RULES: readonly SubStageRule[] = [
   {
-    gate: "L2",
-    key: "L2.1",
-    label: "BC in Arbeit",
-    condition: "businessCase != null && businessCaseApprovedAt == null",
+    gate: "L3",
+    key: "L3.1",
+    label: "BC freigegeben",
+    condition: "approvedAt == null",
   },
   {
-    gate: "L2",
-    key: "L2.2",
-    label: "BC freigegeben",
-    condition: "businessCaseApprovedAt != null",
+    gate: "L3",
+    key: "L3.2",
+    label: "Budget alloziert",
+    condition: "approvedAt != null",
   },
   {
     gate: "L4",

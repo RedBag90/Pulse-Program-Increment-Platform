@@ -22,9 +22,7 @@ import {
   isFullyApproved,
   isValidApproverSet,
   assertAssignedApprover,
-  APPROVAL_SECTIONS,
   type ApprovalDecision,
-  type ApprovalSection,
   type ApprovalRecord,
   type ApprovalPhase,
   type RevisionMode,
@@ -57,15 +55,13 @@ function revisionOf(epic: { approvalRevision: number | null }): number {
 type ApprovalRow = {
   kind: string;
   party: string | null;
-  section: string | null;
   status: string;
 };
 
 function toRecord(row: ApprovalRow): ApprovalRecord {
   return {
-    kind: row.kind === "section" ? "section" : "party",
+    kind: "party",
     party: row.party as ApprovalParty | null,
-    section: row.section as ApprovalSection | null,
     status: row.status as ApprovalRecord["status"],
   };
 }
@@ -185,12 +181,10 @@ export async function configureApprovers(
   input: {
     epicId: EpicId;
     assignments: { party: ApprovalParty; userIds: string[] }[];
-    /** One responsible reviewer per section (Breakdown / KPIs). */
-    sections: { section: ApprovalSection; userId: string }[];
   },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { epicId, assignments, sections } = input;
+  const { epicId, assignments } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
@@ -205,8 +199,9 @@ export async function configureApprovers(
     if (!guard.ok) return guard;
 
     const rev = revisionOf(epic);
-    // Replace this revision's party + section assignments wholesale (no decisions
-    // exist yet in this phase). Archived revisions are left untouched.
+    // Replace this revision's assignments wholesale (no decisions exist yet in
+    // this phase). Archived revisions are left untouched. Das `section` im
+    // Filter raeumt zugleich Legacy-Zeilen der abgeschafften Sektions-Abnahme.
     await tx.epicApproval.deleteMany({
       where: {
         initiativeId: epicId,
@@ -227,21 +222,7 @@ export async function configureApprovers(
         createdBy: mctx.actorId,
       })),
     );
-    // Each section gets one assigned owner — only they may sign it off later.
-    const sectionRows = sections
-      .filter((s) => APPROVAL_SECTIONS.includes(s.section) && s.userId)
-      .map((s) => ({
-        tenantId: mctx.tenantId,
-        initiativeId: epicId,
-        revision: rev,
-        kind: "section",
-        section: s.section,
-        approverUserId: s.userId,
-        status: "pending",
-        createdBy: mctx.actorId,
-      }));
-    const rows = [...partyRows, ...sectionRows];
-    if (rows.length > 0) await tx.epicApproval.createMany({ data: rows });
+    if (partyRows.length > 0) await tx.epicApproval.createMany({ data: partyRows });
 
     return ok({
       result: undefined,
@@ -249,7 +230,7 @@ export async function configureApprovers(
         action: "epic.approval.configured",
         resourceType: "initiative",
         resourceId: epicId,
-        changes: { approverCount: { before: null, after: rows.length } },
+        changes: { approverCount: { before: null, after: partyRows.length } },
       },
     });
   });
@@ -277,21 +258,23 @@ export async function submitBusinessCase(
       return err({ kind: "conflict" as const, reason: "Business Case hat noch keinen Inhalt" });
     }
     const rev = revisionOf(epic);
-    // A valid approver set = ≥1 configured party AND both review sections
-    // (Deliverables, KPIs) have an assigned owner. Read the revision's rows back
+    // A valid approver set = ≥1 configured party. Read the revision's rows back
     // and re-verify through the same predicate the config write is bound by.
     const configuredRows = await tx.epicApproval.findMany({
       where: {
         initiativeId: epicId,
         tenantId: mctx.tenantId,
-        kind: { in: ["party", "section"] },
+        kind: "party",
         revision: rev,
       },
-      select: { kind: true, party: true, section: true, status: true },
+      select: { kind: true, party: true, status: true },
     });
     const valid = isValidApproverSet(configuredRows.map(toRecord));
     if (!valid.ok) {
-      return err({ kind: "conflict" as const, reason: valid.reason ?? "Ungültige Approver-Konfiguration" });
+      return err({
+        kind: "conflict" as const,
+        reason: valid.reason ?? "Ungültige Approver-Konfiguration",
+      });
     }
 
     // Each submission opens a fresh review round: reset every decision on this
@@ -301,7 +284,7 @@ export async function submitBusinessCase(
         initiativeId: epicId,
         tenantId: mctx.tenantId,
         revision: rev,
-        kind: { in: ["party", "section"] },
+        kind: "party",
       },
       data: { status: "pending", decidedAt: null, comment: null },
     });
@@ -374,7 +357,7 @@ export async function reviseBusinessCase(
 }
 
 // ---------------------------------------------------------------------------
-// Phase 3 — Stakeholder decisions + section sign-offs (+ auto-finalize)
+// Phase 3 — Stakeholder decisions (+ auto-finalize)
 // ---------------------------------------------------------------------------
 
 /**
@@ -393,9 +376,12 @@ async function applyDecisionOutcome(
   fromPhase: ApprovalPhase,
 ): Promise<{ before: ApprovalPhase; after: ApprovalPhase } | null> {
   if (decision === "reject") return null;
+  // Explizit auf Parteien gefiltert: Bestands-Datenbanken tragen noch Zeilen der
+  // abgeschafften Sektions-Abnahme, und eine alt-abgelehnte darunter haette das
+  // Epic sonst dauerhaft in Nacharbeit gehalten.
   const rows = await tx.epicApproval.findMany({
-    where: { initiativeId: epicId, tenantId: mctx.tenantId, revision },
-    select: { kind: true, party: true, section: true, status: true },
+    where: { initiativeId: epicId, tenantId: mctx.tenantId, revision, kind: "party" },
+    select: { kind: true, party: true, status: true },
   });
   if (isFullyApproved(rows.map(toRecord))) {
     await tx.initiative.update({
@@ -490,71 +476,6 @@ export async function decideApproval(
   });
 }
 
-export async function signoffSection(
-  ctx: RequestContext,
-  input: {
-    epicId: EpicId;
-    section: ApprovalSection;
-    decision: ApprovalDecision;
-    comment?: string | undefined;
-    intent?: "decision" | "clarification" | undefined;
-  },
-): Promise<Result<void>> {
-  const mctx = toMutationContext(ctx);
-  const { epicId, section, decision, comment, intent } = input;
-
-  return withAuditedTransaction(mctx, async (tx) => {
-    const epic = await tx.initiative.findFirst({ where: EPIC_WHERE(epicId, mctx.tenantId) });
-    if (!epic) return err({ kind: "not_found" as const, resourceType: "Epic", id: epicId });
-    const phase = phaseOf(epic);
-    const guard = nextPhaseFor(phase, { kind: "decide_approval" });
-    if (!guard.ok) return guard;
-    const rev = revisionOf(epic);
-    const row = await tx.epicApproval.findFirst({
-      where: {
-        initiativeId: epicId,
-        tenantId: mctx.tenantId,
-        kind: "section",
-        section,
-        revision: rev,
-      },
-    });
-    if (!row)
-      return err({ kind: "not_found" as const, resourceType: "EpicApprovalSection", id: section });
-    // Service-layer scope: only the assigned reviewer may sign off their section.
-    const assigned = assertAssignedApprover(row, mctx.actorId);
-    if (isErr(assigned)) return assigned;
-
-    const status = decisionStatus(decision);
-    await tx.epicApproval.update({
-      where: { id: row.id },
-      data: {
-        status,
-        decidedAt: new Date(),
-        comment: comment ?? null,
-      },
-    });
-
-    const phaseChange = await applyDecisionOutcome(tx, mctx, epicId, rev, decision, phase);
-    const changes: ChangeMap = {
-      section: { before: null, after: section },
-      status: { before: row.status, after: status },
-      ...(phaseChange && { approvalPhase: phaseChange }),
-      ...(intent ? { intent: { before: null, after: intent } } : {}),
-    };
-
-    return ok({
-      result: undefined,
-      audit: {
-        action: "epic.section.signed_off",
-        resourceType: "initiative",
-        resourceId: epicId,
-        changes,
-      },
-    });
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Revisions — start a fresh approval cycle: re-open a fully approved Epic, or
 // reset an in-progress cycle back to draft and restart it (Epic-owner reset).
@@ -571,7 +492,12 @@ export async function startRevision(
     const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
       id: epicId,
       action: "epic.revision.start",
-      select: { approvalPhase: true, approvalRevision: true, businessCase: true, benefitHypothesis: true },
+      select: {
+        approvalPhase: true,
+        approvalRevision: true,
+        businessCase: true,
+        benefitHypothesis: true,
+      },
     });
     if (isErr(loaded)) return loaded;
     const epic = loaded.value;
@@ -583,16 +509,16 @@ export async function startRevision(
     const rev = revisionOf(epic);
     const nextRev = rev + 1;
 
-    // Carry the previous revision's party + section assignments forward as
-    // pending rows, so the Owner starts from the prior approver set (adjustable).
+    // Carry the previous revision's party assignments forward as pending rows,
+    // so the Owner starts from the prior approver set (adjustable).
     const prevRows = await tx.epicApproval.findMany({
       where: {
         initiativeId: epicId,
         tenantId: mctx.tenantId,
-        kind: { in: ["party", "section"] },
+        kind: "party",
         revision: rev,
       },
-      select: { kind: true, party: true, section: true, approverUserId: true },
+      select: { party: true, approverUserId: true },
     });
     if (prevRows.length > 0) {
       await tx.epicApproval.createMany({
@@ -600,9 +526,8 @@ export async function startRevision(
           tenantId: mctx.tenantId,
           initiativeId: epicId,
           revision: nextRev,
-          kind: p.kind,
+          kind: "party",
           party: p.party,
-          section: p.section,
           approverUserId: p.approverUserId,
           status: "pending",
           createdBy: mctx.actorId,

@@ -83,7 +83,7 @@ export interface LifecycleStep extends LifecycleStepMeta {
 export interface EpicLifecycleInput {
   stageGate: StageGate;
   approvalPhase: string | null;
-  /** subStageFor(): L2.2 = Business Case freigegeben, L4.2 = Umsetzung abgenommen. */
+  /** subStageFor(): L3.2 = Investition abgenommen, L4.2 = Umsetzung abgenommen. */
   subStage: SubStage | null;
   impactRecognizedAt: Date | null;
 }
@@ -111,7 +111,7 @@ export function epicLifecycleSteps(input: EpicLifecycleInput): LifecycleStep[] {
     true, // detailing — folded selection marker
     gi >= 1, // hypothesis — approved ⇒ L1
     gi >= 1, // analyzing — folded selection marker
-    gi >= 3 || subStage === "L2.2" || approvalPhase === "approved", // business_case — BC freigegeben
+    gi >= 3 || approvalPhase === "approved", // business_case — L3 erreicht ⇒ BC freigegeben
     gi >= 4, // backlog — impl started ⇒ left backlog
     gi >= 5 || subStage === "L4.2", // implementation_started — L4.2 ist abgenommen
     gi >= 5, // implementation — alle Features fertig

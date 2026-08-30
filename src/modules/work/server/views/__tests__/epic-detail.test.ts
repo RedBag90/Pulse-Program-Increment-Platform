@@ -205,7 +205,9 @@ describe("buildEpicDetailModel — degradation matrix", () => {
   });
 
   it("budgeting ON with allocatedSum 0 → allocated=false", () => {
-    const m = buildEpicDetailModel(makeInputs({ budget: { allocatedSum: 0, allocatedByPeriod: {} } }));
+    const m = buildEpicDetailModel(
+      makeInputs({ budget: { allocatedSum: 0, allocatedByPeriod: {} } }),
+    );
     expect(m.budgeting.disabled).toBe(false);
     if (!m.budgeting.disabled) expect(m.budgeting.allocated).toBe(false);
   });
@@ -357,7 +359,7 @@ describe("buildEpicDetailModel — activity merge", () => {
         approvals: [
           approvalRow({
             id: "rej",
-            section: "breakdown",
+            party: "mgmt",
             status: "rejected",
             comment: "Bitte nacharbeiten",
             decidedAt: new Date("2026-02-01T00:00:00.000Z"),
@@ -367,6 +369,6 @@ describe("buildEpicDetailModel — activity merge", () => {
     );
     const item = m.activityEvents.find((e) => e.id === "approval-rej")!;
     expect(item.action).toBe("epic.approval.rejected");
-    expect(item.detail).toBe("Deliverables");
+    expect(item.detail).toBe("MGMT");
   });
 });

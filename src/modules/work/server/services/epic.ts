@@ -425,7 +425,7 @@ export async function saveBusinessCase(
 }
 
 // ---------------------------------------------------------------------------
-// Timeline — owner estimates + manual actuals; Implementation actual ⇒ Done
+// Timeline — owner estimates + der manuelle Backlog-Actual
 // ---------------------------------------------------------------------------
 
 export interface SaveTimelineInput {
@@ -434,9 +434,13 @@ export interface SaveTimelineInput {
 }
 
 /**
- * Saves the owner-controlled timeline (estimates + the manual Backlog/
- * Implementation actuals). Setting the Implementation actual is the one
- * lifecycle coupling: it marks the Epic Done (stage gate → L5).
+ * Saves the owner-controlled timeline: die Estimates und den manuellen
+ * Backlog-Actual.
+ *
+ * **Keine Lebenszyklus-Kopplung mehr.** Frueher setzte das Implementation-Ist
+ * hier den Reifegrad (Epic „Done"). Der Status L4.2 entsteht ausschliesslich
+ * durch den abgenommenen Schritt L4 → L4.2 (`stage-gate-transition.ts`); dieser
+ * Schreiber verwirft eingehende Implementation-Actuals bewusst.
  */
 export async function saveTimeline(
   ctx: RequestContext,

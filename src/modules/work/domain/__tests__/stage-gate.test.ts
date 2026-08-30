@@ -46,51 +46,40 @@ describe("isValidTransition", () => {
 });
 
 describe("isApprovalTransition", () => {
-  it("is true only when a transition first enters L3", () => {
-    expect(isApprovalTransition("L2", "L3")).toBe(true);
-    expect(isApprovalTransition("L4", "L3")).toBe(true);
+  it("ist genau der Schritt L3 → L3.2 (die Investitionsentscheidung)", () => {
+    expect(isApprovalTransition("L3.2")).toBe(true);
   });
 
-  it("is false when leaving L3 or not touching it", () => {
-    expect(isApprovalTransition("L3", "L4")).toBe(false);
-    expect(isApprovalTransition("L3", "L2")).toBe(false);
-    expect(isApprovalTransition("L0", "L1")).toBe(false);
+  it("ist für jeden anderen Schritt falsch — auch für den Eintritt L3.1", () => {
+    // L3.1 ist nur „Business Case freigegeben"; das Geld folgt erst.
+    expect(isApprovalTransition("L3.1")).toBe(false);
+    expect(isApprovalTransition("L4")).toBe(false);
+    expect(isApprovalTransition("L1")).toBe(false);
   });
 });
 
 describe("subStageFor", () => {
   const base = {
-    businessCase: null as unknown,
-    businessCaseApprovedAt: null as Date | null,
+    approvedAt: null as Date | null,
     implementationCompletedAt: null as Date | null,
   };
 
-  it("returns null for L0, L1, L3, L5 (no split there)", () => {
+  it("liefert null für L0, L1, L2, L5 (dort gibt es keinen Split)", () => {
     expect(subStageFor({ ...base, stageGate: "L0" })).toBeNull();
     expect(subStageFor({ ...base, stageGate: "L1" })).toBeNull();
-    expect(subStageFor({ ...base, stageGate: "L3" })).toBeNull();
+    // Auf L2 zu stehen *ist* „BC in Arbeit" — kein Sub-Stage mehr.
+    expect(subStageFor({ ...base, stageGate: "L2" })).toBeNull();
     expect(subStageFor({ ...base, stageGate: "L5" })).toBeNull();
   });
 
-  it("L2 + no BC content → null (not yet started)", () => {
-    expect(subStageFor({ ...base, stageGate: "L2", businessCase: null })).toBeNull();
+  it("L3 ohne Investitions-Abnahme → L3.1 (BC freigegeben)", () => {
+    expect(subStageFor({ ...base, stageGate: "L3" })).toBe("L3.1");
   });
 
-  it("L2 + BC content + not approved → L2.1 (BC creation started)", () => {
-    expect(subStageFor({ ...base, stageGate: "L2", businessCase: { description: "..." } })).toBe(
-      "L2.1",
+  it("L3 + abgenommene Investition → L3.2 (Budget alloziert)", () => {
+    expect(subStageFor({ ...base, stageGate: "L3", approvedAt: new Date("2026-05-01") })).toBe(
+      "L3.2",
     );
-  });
-
-  it("L2 + BC approved → L2.2 (BC freigegeben)", () => {
-    expect(
-      subStageFor({
-        ...base,
-        stageGate: "L2",
-        businessCase: { description: "..." },
-        businessCaseApprovedAt: new Date("2026-05-01"),
-      }),
-    ).toBe("L2.2");
   });
 
   it("L4 ohne Bestätigung → L4.1 (Umsetzung läuft)", () => {
@@ -106,11 +95,26 @@ describe("subStageFor", () => {
       }),
     ).toBe("L4.2");
   });
+
+  it("der Investitions-Stempel wirkt nur innerhalb von L3", () => {
+    expect(
+      subStageFor({ ...base, stageGate: "L2", approvedAt: new Date("2026-05-01") }),
+    ).toBeNull();
+  });
 });
 
-describe("Gate-Steps (L4.2 als eigener Schritt)", () => {
-  it("die Leiter enthält L4.2 zwischen L4 und L5", () => {
-    expect(GATE_STEPS).toEqual(["L0", "L1", "L2", "L3", "L4", "L4.2", "L5"]);
+describe("Gate-Steps (L3.2 und L4.2 als eigene Schritte)", () => {
+  const at = new Date("2026-07-01");
+
+  it("die Leiter enthält L3.2 und L4.2 an ihrer Stelle", () => {
+    expect(GATE_STEPS).toEqual(["L0", "L1", "L2", "L3.1", "L3.2", "L4", "L4.2", "L5"]);
+  });
+
+  it("erlaubt L3.1 ↔ L3.2 ↔ L4, aber nicht L3.1 → L4 direkt", () => {
+    expect(isValidStepTransition("L3.1", "L3.2")).toBe(true);
+    expect(isValidStepTransition("L3.2", "L4")).toBe(true);
+    expect(isValidStepTransition("L4", "L3.2")).toBe(true);
+    expect(isValidStepTransition("L3.1", "L4")).toBe(false);
   });
 
   it("erlaubt L4 ↔ L4.2 ↔ L5, aber nicht L4 → L5 direkt", () => {
@@ -120,19 +124,24 @@ describe("Gate-Steps (L4.2 als eigener Schritt)", () => {
     expect(isValidStepTransition("L4", "L5")).toBe(false);
   });
 
-  it("gateOfStep: L4.2 lebt im Haupt-Gate L4", () => {
+  it("gateOfStep: die zweiten Schritte leben in ihrem Haupt-Gate", () => {
+    expect(gateOfStep("L3.1")).toBe("L3");
+    expect(gateOfStep("L3.2")).toBe("L3");
     expect(gateOfStep("L4.2")).toBe("L4");
-    expect(gateOfStep("L3")).toBe("L3");
   });
 
-  it("currentGateStep: erst mit der Bestätigung steht das Epic auf L4.2", () => {
-    expect(currentGateStep({ stageGate: "L4", implementationCompletedAt: null })).toBe("L4");
-    expect(
-      currentGateStep({ stageGate: "L4", implementationCompletedAt: new Date("2026-07-01") }),
-    ).toBe("L4.2");
-    // Außerhalb von L4 ist der Stempel bedeutungslos.
-    expect(
-      currentGateStep({ stageGate: "L3", implementationCompletedAt: new Date("2026-07-01") }),
-    ).toBe("L3");
+  it("currentGateStep: erst der jeweilige Stempel hebt auf den zweiten Schritt", () => {
+    const none = { approvedAt: null, implementationCompletedAt: null };
+    expect(currentGateStep({ ...none, stageGate: "L3" })).toBe("L3.1");
+    expect(currentGateStep({ ...none, stageGate: "L3", approvedAt: at })).toBe("L3.2");
+    expect(currentGateStep({ ...none, stageGate: "L4" })).toBe("L4");
+    expect(currentGateStep({ ...none, stageGate: "L4", implementationCompletedAt: at })).toBe(
+      "L4.2",
+    );
+    // Die Stempel wirken nur in ihrem eigenen Gate.
+    expect(currentGateStep({ ...none, stageGate: "L3", implementationCompletedAt: at })).toBe(
+      "L3.1",
+    );
+    expect(currentGateStep({ ...none, stageGate: "L2", approvedAt: at })).toBe("L2");
   });
 });

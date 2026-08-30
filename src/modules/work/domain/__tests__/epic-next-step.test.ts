@@ -85,18 +85,15 @@ describe("epicNextStep", () => {
     expect(step?.title).toBe("Budget allozieren");
   });
 
-  it("L2 / L2.1 ohne BC-Inhalt → BC ausarbeiten", () => {
-    const step = epicNextStep(
-      base({ stageGate: "L2", subStage: "L2.1", approvalPhase: "business_case" }),
-    );
+  it("L2 ohne BC-Inhalt → BC ausarbeiten", () => {
+    const step = epicNextStep(base({ stageGate: "L2", approvalPhase: "business_case" }));
     expect(step?.title).toBe("Business Case ausarbeiten");
   });
 
-  it("L2 / L2.1 mit BC-Inhalt → BC einreichen", () => {
+  it("L2 mit BC-Inhalt → BC einreichen", () => {
     const step = epicNextStep(
       base({
         stageGate: "L2",
-        subStage: "L2.1",
         approvalPhase: "business_case",
         hasBusinessCase: true,
       }),
@@ -104,11 +101,10 @@ describe("epicNextStep", () => {
     expect(step?.title).toBe("Business Case einreichen");
   });
 
-  it("L2 / L2.1 + stakeholder_review → Warte-Hinweis", () => {
+  it("L2 + stakeholder_review → Warte-Hinweis", () => {
     const step = epicNextStep(
       base({
         stageGate: "L2",
-        subStage: "L2.1",
         approvalPhase: "stakeholder_review",
         hasBusinessCase: true,
       }),
@@ -116,16 +112,29 @@ describe("epicNextStep", () => {
     expect(step?.title).toBe("Auf Stakeholder-Freigabe warten");
   });
 
-  it("L2 / L2.2 → Budget allozieren mit Link auf /budgeting", () => {
+  it("L3 / L3.1 ohne Budget → Budget allozieren mit Link auf /budgeting", () => {
     const step = epicNextStep(
-      base({ stageGate: "L2", subStage: "L2.2", approvalPhase: "approved" }),
+      base({ stageGate: "L3", subStage: "L3.1", approvalPhase: "approved" }),
     );
     expect(step?.title).toBe("Budget allozieren");
     expect(step?.cta).toEqual({ kind: "link", label: "Zum Controlling", href: "/budgeting" });
   });
 
-  it("L3 → Erstes Feature starten", () => {
-    const step = epicNextStep(base({ stageGate: "L3", budgetAllocated: true }));
+  it("L3 / L3.1 mit Budget → Investition abnehmen lassen (L3.2)", () => {
+    const step = epicNextStep(
+      base({
+        stageGate: "L3",
+        subStage: "L3.1",
+        approvalPhase: "approved",
+        budgetAllocated: true,
+      }),
+    );
+    expect(step?.title).toBe("Investition abnehmen lassen");
+    expect(step?.cta).toEqual({ kind: "gate-request", to: "L3.2" });
+  });
+
+  it("L3 / L3.2 → Erstes Feature starten", () => {
+    const step = epicNextStep(base({ stageGate: "L3", subStage: "L3.2", budgetAllocated: true }));
     expect(step?.title).toBe("Erstes Feature starten");
     expect(step?.cta).toMatchObject({ kind: "link", href: expect.stringContaining("breakdown") });
   });

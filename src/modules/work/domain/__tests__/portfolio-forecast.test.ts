@@ -90,4 +90,21 @@ describe("groupSeriesByEstimatedStage — zeit-variable Status-Buckets", () => {
     const groups = groupSeriesByEstimatedStage([epic], timelines, axis, new Map([["e1", false]]));
     expect(groups.map((g) => g.id)).toEqual(["status:L0:est", "status:L3:est"]);
   });
+
+  it("haelt ein L5-Epic mit nachlaufendem createdAt ueber die ganze Achse in status:L5", () => {
+    // Der L0-Punkt (createdAt) liegt hinter L5 — vor der Ratsche landete der
+    // Nutzen ab diesem Monat wieder im L0-Bucket.
+    const late = new Map<string, StageTransition[]>([
+      [
+        "e1",
+        [
+          { gate: "L5", month: m(2025, 6) },
+          { gate: "L0", month: m(2026, 2) },
+        ],
+      ],
+    ]);
+    const groups = groupSeriesByEstimatedStage([epic], late, axis, confirmed);
+    expect(groups.map((g) => g.id)).toEqual(["status:L5"]);
+    expect(groups[0]!.benefit).toEqual([0, 0, 5, 5]);
+  });
 });

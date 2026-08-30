@@ -10,7 +10,7 @@ import {
   revertStageGate,
   saveGateApproverRule,
 } from "@/modules/work/server/services/stage-gate-transition";
-import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
+import { GATE_STEPS } from "@/modules/work/domain/stage-gate";
 import { QUORA } from "@/modules/work/domain/approval-primitives";
 import { GATE_APPROVER_ROLES } from "@/modules/work/domain/gate-policy";
 
@@ -31,7 +31,7 @@ export type { ActionState as StageGateActionState };
 export const requestGateTransitionAction = createServerAction({
   schema: z.object({
     epicId: z.string().uuid(),
-    toGate: z.enum(STAGE_GATES),
+    toGate: z.enum(GATE_STEPS),
     reason: z.string().max(1000).optional(),
     approverUserIds: z.array(z.string().uuid()).max(10).optional(),
   }),
@@ -100,7 +100,7 @@ export const withdrawGateTransitionAction = createServerAction({
 export const revertStageGateAction = createServerAction({
   schema: z.object({
     epicId: z.string().uuid(),
-    toGate: z.enum(STAGE_GATES),
+    toGate: z.enum(GATE_STEPS),
     reason: z.string().min(1, "Eine Rückstufung verlangt eine Begründung").max(1000),
   }),
   action: "epic.gate.revert",
@@ -124,7 +124,7 @@ export const saveGateApproverRuleAction = createServerAction({
   schema: z.object({
     // Leerstring = Tenant-Default (ein FormData-Feld kann nicht null tragen).
     valueStreamId: z.string().uuid().or(z.literal("")),
-    toGate: z.enum(STAGE_GATES),
+    toGate: z.enum(GATE_STEPS),
     required: z.coerce.boolean(),
     quorum: z.enum(QUORA),
     approverUserIds: z.array(z.string().uuid()).max(10).default([]),

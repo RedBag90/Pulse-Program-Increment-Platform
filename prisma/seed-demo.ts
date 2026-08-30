@@ -455,6 +455,19 @@ async function main() {
   const epicRows: Prisma.InitiativeCreateManyInput[] = EPIC_DEFS.map((def, i) => {
     const start = addDays(now, -160 + i * 12);
     const status = gateStatus[def.gate]!;
+    // Approval-Stempel einmal berechnet — sie gehen sowohl in die Zeile als auch
+    // in die Bestimmung des fruehesten Gates ein.
+    const hypothesisApprovedAt =
+      def.gate === "L2" ? addDays(now, -40 + i) : def.gate === "L3" ? addDays(now, -60 + i) : null;
+    const businessCaseApprovedAt = def.gate === "L3" ? addDays(now, -30 + i) : null;
+    // L0 (Funnel-Eintritt) wird aus `createdAt` abgeleitet und muss VOR dem
+    // fruehesten Gate liegen. Ohne das stuende die Anlage der Zeile (Default
+    // `now()`) hinter den Gates, die sie beschreibt — der Reifegrad-Tab zeigte
+    // ein L0-Datum nach L5. `start` ist das L4.1-Estimate und bei frueh
+    // indizierten Epics das frueheste Datum ueberhaupt.
+    const earliestGate = [start, hypothesisApprovedAt, businessCaseApprovedAt]
+      .filter((d): d is Date => d != null)
+      .reduce((a, b) => (a.getTime() <= b.getTime() ? a : b));
     return {
       id: epicIds[i]!,
       tenantId,
@@ -471,13 +484,8 @@ async function main() {
       // die Quelle der abgeleiteten Budget-Info: L2 = nur freigegebene Hypothese
       // (→ Default-Aufwand als Richtwert), L3 = zusätzlich freigegebener Lean
       // Business Case (→ Richtwert = Σ costSlices).
-      ...(def.gate === "L2" ? { hypothesisApprovedAt: addDays(now, -40 + i) } : {}),
-      ...(def.gate === "L3"
-        ? {
-            hypothesisApprovedAt: addDays(now, -60 + i),
-            businessCaseApprovedAt: addDays(now, -30 + i),
-          }
-        : {}),
+      ...(hypothesisApprovedAt ? { hypothesisApprovedAt } : {}),
+      ...(businessCaseApprovedAt ? { businessCaseApprovedAt } : {}),
       stageGate: def.gate,
       status,
       epicType: def.epicType,
@@ -487,6 +495,7 @@ async function main() {
       stagedForBudgeting: def.gate === "L2" || def.gate === "L3",
       plannedStartAt: start,
       plannedEndAt: addDays(start, 150),
+      createdAt: addDays(earliestGate, -30),
       // Reifegrad-Plan: Umsetzungsfenster L4.1→L4.2 = das geplante Zeitfenster
       // (plannedStartAt/EndAt werden jetzt daraus abgeleitet — deckungsgleich).
       timeline: {

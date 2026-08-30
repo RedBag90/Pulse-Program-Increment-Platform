@@ -3,7 +3,6 @@ import { PageSection } from "@/components/layout";
 import { ApprovalActions } from "@/modules/work/features/my-approvals/components/approval-actions";
 import type { MyApprovalRow } from "@/modules/work/server/services/my-approvals";
 import type { ApprovalParty } from "@/modules/work/domain/business-case";
-import type { ApprovalSection } from "@/modules/work/domain/epic-approval";
 
 /**
  * „Meine Freigaben" — the personal approval-inbox body, grouped by kind
@@ -16,7 +15,6 @@ import type { ApprovalSection } from "@/modules/work/domain/epic-approval";
 const KIND_LABELS: Record<MyApprovalRow["kind"], string> = {
   epic_hypothesis: "Epic-Hypothesen",
   epic_party: "Epic-Stakeholder-Freigaben",
-  epic_section: "Epic-Abschnitte (Deliverables / KPIs)",
   epic_gate: "Reifegrad-Wechsel",
 };
 
@@ -26,7 +24,6 @@ const KIND_ORDER: MyApprovalRow["kind"][] = [
   "epic_gate",
   "epic_hypothesis",
   "epic_party",
-  "epic_section",
 ];
 
 const PARTY_LABELS: Record<ApprovalParty, string> = {
@@ -37,11 +34,6 @@ const PARTY_LABELS: Record<ApprovalParty, string> = {
   lace_vmo: "LACE/VMO",
 };
 
-const SECTION_LABELS: Record<ApprovalSection, string> = {
-  breakdown: "Deliverables",
-  kpis: "KPIs",
-};
-
 /** Renders the per-row context column — what makes this approval distinct. */
 function ContextCell({ row }: { row: MyApprovalRow }) {
   const bits: string[] = [];
@@ -49,7 +41,6 @@ function ContextCell({ row }: { row: MyApprovalRow }) {
     bits.push(`${row.context.fromGate} → ${row.context.toGate}`);
   }
   if (row.context.party) bits.push(PARTY_LABELS[row.context.party]);
-  if (row.context.section) bits.push(SECTION_LABELS[row.context.section]);
   if (row.context.valueStreamName) bits.push(row.context.valueStreamName);
   if (row.context.artName) bits.push(row.context.artName);
   if (row.context.parentTitle) bits.push(row.context.parentTitle);

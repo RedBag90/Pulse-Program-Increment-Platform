@@ -97,8 +97,15 @@ export const DEFAULT_GATE_POLICIES: Record<
   L1: { required: true, quorum: "all", approverUserIds: [], approverRoles: ["value_stream.vmo"] },
   // Eintritt in die Analyse.
   L2: { required: true, quorum: "all", approverUserIds: [], approverRoles: ["value_stream.vmo"] },
-  // Die Investitionsentscheidung — Finance zeichnet mit.
-  L3: {
+  // Eintritt in die Investitionsphase: der Business Case ist freigegeben.
+  "L3.1": {
+    required: true,
+    quorum: "all",
+    approverUserIds: [],
+    approverRoles: ["value_stream.vmo"],
+  },
+  // Die Investitionsentscheidung selbst — Finance zeichnet mit.
+  "L3.2": {
     required: true,
     quorum: "all",
     approverUserIds: [],

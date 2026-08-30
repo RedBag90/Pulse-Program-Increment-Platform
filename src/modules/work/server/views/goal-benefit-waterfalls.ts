@@ -176,8 +176,7 @@ async function loadEpicMaturity(
     select: {
       id: true,
       stageGate: true,
-      businessCase: true,
-      businessCaseApprovedAt: true,
+      approvedAt: true,
       implementationCompletedAt: true,
     },
   });
@@ -185,8 +184,7 @@ async function loadEpicMaturity(
     const gate = r.stageGate as StageGate;
     const subStage = subStageFor({
       stageGate: gate,
-      businessCase: r.businessCase,
-      businessCaseApprovedAt: r.businessCaseApprovedAt,
+      approvedAt: r.approvedAt,
       implementationCompletedAt: r.implementationCompletedAt,
     });
     out.set(r.id, { gate, subStage });

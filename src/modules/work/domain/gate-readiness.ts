@@ -178,7 +178,9 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
       blocking: false,
     },
   ],
-  L3: [
+  // L3.1 — der Eintritt in „Investition": der Business Case ist freigegeben.
+  // Das Geld ist der Schritt danach.
+  "L3.1": [
     {
       key: "business_case_approved",
       label: () => "Business Case ist freigegeben",
@@ -188,6 +190,11 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
       satisfied: (f) => f.businessCaseApprovedAt != null,
       blocking: true,
     },
+  ],
+  // L3.2 „Budget alloziert" — die Investitionsentscheidung. Sie ist ein eigener
+  // beantragter Schritt, damit sie nicht als Nebenwirkung einer Budgetzuteilung
+  // entsteht (ADR-0018, Festlegung 1).
+  "L3.2": [
     {
       key: "budget_allocated",
       label: () => "Budget ist alloziert (Σ > 0)",
@@ -212,19 +219,23 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
       blocking: false,
     },
   ],
-  // L4.2 „Umsetzung fertig" — der beantragte Abschluss der Umsetzung. Was früher
-  // die Automatik war (alle Features fertig ⇒ L4.2), ist jetzt die Voraussetzung
-  // des Antrags; bestätigt wird per Abnahme.
+  // L4.2 „Umsetzung fertig" — der beantragte Abschluss der Umsetzung.
   "L4.2": [
     {
+      // Beratend, nicht blockierend — dieselbe Begründung wie bei
+      // `feature_started`: „fertig gebaut" ist eine Aussage, die die abnehmende
+      // Person trifft, nicht eine, die aus einer Zählung entsteht (ADR-0018,
+      // Festlegung 1). Der Feature-Zähler ist ihr Anhaltspunkt, nicht das Tor —
+      // ein Rest-Feature, das bewusst offen bleibt, darf den Abschluss nicht
+      // aufhalten. Hart bleibt dafür `implementation_confirmed` bei L5.
       key: "features_completed",
       label: () => "Alle Child-Features sind abgeschlossen",
       help:
-        "Alle untergeordneten Features sind abgeschlossen — Voraussetzung dafür, die " +
-        "Umsetzung als fertig zu bestätigen (L4.2). Den Feature-Status pflegst du im " +
-        "Delivery-Cockpit.",
+        "Alle untergeordneten Features sind abgeschlossen — der übliche Anhaltspunkt " +
+        "dafür, dass die Umsetzung fertig ist. Die Bestätigung trifft die Abnahme, " +
+        "nicht der Zähler. Den Feature-Status pflegst du im Delivery-Cockpit.",
       satisfied: (f) => allChildrenCompleted(f.childFeatureStats),
-      blocking: true,
+      blocking: false,
     },
   ],
   L5: [

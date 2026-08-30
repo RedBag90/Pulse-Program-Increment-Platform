@@ -177,7 +177,7 @@ export function EpicListRowComponent({
 
       {/* Spalten „Phase" und „Status" sind seit dem Reifegrad-Modell v2
           redundant: Phase ist im Sub-Step-Badge neben dem Stage-Dot
-          kodiert (L2.1/L2.2/…), Status ist die Kanban-Achse und gehört
+          kodiert (L3.1/L3.2/…), Status ist die Kanban-Achse und gehört
           in die Detail-Sub-Header-Sicht, nicht in die Liste. */}
 
       {!compact && (

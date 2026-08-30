@@ -87,10 +87,10 @@ export function stampsForAdvance(
   now: Date,
   comment?: string | undefined,
 ): GateStamps {
-  const isApproval = isApprovalTransition(facts.stageGate, gateOfStep(to));
+  const isApproval = isApprovalTransition(to);
   return {
-    // L4.2 lebt innerhalb von L4: das Haupt-Gate bleibt stehen, die Bestätigung
-    // materialisiert sich allein im `implementationCompletedAt`-Stempel.
+    // L3.2 und L4.2 leben innerhalb ihres Haupt-Gates: die Spalte bleibt stehen,
+    // die Bestätigung materialisiert sich allein im jeweiligen Stempel.
     stageGate: gateOfStep(to),
     ...(to === "L1" && facts.selectedForDetailingAt == null && { selectedForDetailingAt: now }),
     ...(to === "L2" && facts.selectedForAnalyzingAt == null && { selectedForAnalyzingAt: now }),
@@ -125,7 +125,9 @@ export function unwindStampsFor(from: GateStep, to: GateStep): GateStamps {
   const stamps: GateStamps = { stageGate: gateOfStep(to) };
   if (from === "L1" && to === "L0") stamps.selectedForDetailingAt = null;
   if (from === "L2" && to === "L1") stamps.selectedForAnalyzingAt = null;
-  if (from === "L3" && to === "L2") {
+  // Die Investitionsentscheidung zurücknehmen. Sie hängt am Schritt L3.1 → L3.2,
+  // nicht am Eintritt in L3.1 — der trägt keinen eigenen Stempel.
+  if (from === "L3.2" && to === "L3.1") {
     stamps.approvedBy = null;
     stamps.approvedAt = null;
     stamps.approvalComment = null;
@@ -133,7 +135,7 @@ export function unwindStampsFor(from: GateStep, to: GateStep): GateStamps {
   // Die L4.2-Bestätigung zurücknehmen — direkt (L4.2 → L4) oder indem das Epic
   // L4 ganz verlässt. Der Service räumt damit auch das Timeline-Ist-Datum ab.
   if (from === "L4.2" && to === "L4") stamps.implementationCompletedAt = null;
-  if (from === "L4" && to === "L3") {
+  if (from === "L4" && to === "L3.2") {
     stamps.implementationStartedAt = null;
     stamps.implementationCompletedAt = null;
   }

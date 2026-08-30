@@ -5,12 +5,12 @@ import {
   revisionStartPhase,
   decisionStatus,
   partyStatus,
-  sectionStatus,
   configuredParties,
   hasRejection,
   isFullyApproved,
+  isValidApproverSet,
+  buildApprovalView,
   type ApprovalRecord,
-  type ApprovalSection,
   type ApprovalStatus,
 } from "@/modules/work/domain/epic-approval";
 import type { ApprovalParty } from "@/modules/work/domain/business-case";
@@ -20,19 +20,9 @@ const party = (p: ApprovalParty, status: ApprovalStatus): ApprovalRecord => ({
   party: p,
   status,
 });
-const section = (s: ApprovalSection, status: ApprovalStatus): ApprovalRecord => ({
-  kind: "section",
-  section: s,
-  status,
-});
-
-/** A minimal fully-approved set: one party (all approved) + both sections. */
+/** A minimal fully-approved set: one configured party, approved. */
 function fullSet(): ApprovalRecord[] {
-  return [
-    party("business_owner", "approved"),
-    section("breakdown", "approved"),
-    section("kpis", "approved"),
-  ];
+  return [party("business_owner", "approved")];
 }
 
 describe("phase transitions", () => {
@@ -156,14 +146,6 @@ describe("partyStatus — all assigned approvers must approve", () => {
   });
 });
 
-describe("sectionStatus", () => {
-  it("tracks breakdown/kpis sign-off", () => {
-    expect(sectionStatus([section("breakdown", "approved")], "breakdown")).toBe("approved");
-    expect(sectionStatus([], "kpis")).toBe("unassigned");
-    expect(sectionStatus([section("kpis", "rejected")], "kpis")).toBe("rejected");
-  });
-});
-
 describe("configuredParties", () => {
   it("lists only parties with assigned approvers", () => {
     const rows = [party("business_owner", "pending"), party("finance", "approved")];
@@ -179,23 +161,16 @@ describe("hasRejection", () => {
 });
 
 describe("isFullyApproved", () => {
-  it("is true for one approved party plus both sections signed off", () => {
+  it("is true for one approved party", () => {
     expect(isFullyApproved(fullSet())).toBe(true);
   });
 
   it("is false with no parties configured", () => {
-    expect(isFullyApproved([section("breakdown", "approved"), section("kpis", "approved")])).toBe(
-      false,
-    );
+    expect(isFullyApproved([])).toBe(false);
   });
 
   it("is false while a configured party is still pending", () => {
     const rows = [...fullSet(), party("finance", "pending")];
-    expect(isFullyApproved(rows)).toBe(false);
-  });
-
-  it("is false when a review section is not signed off", () => {
-    const rows = [party("business_owner", "approved"), section("breakdown", "approved")];
     expect(isFullyApproved(rows)).toBe(false);
   });
 
@@ -209,9 +184,35 @@ describe("isFullyApproved", () => {
       party("business_owner", "approved"),
       party("finance", "approved"),
       party("mgmt", "approved"),
-      section("breakdown", "approved"),
-      section("kpis", "approved"),
     ];
     expect(isFullyApproved(rows)).toBe(true);
+  });
+});
+
+describe("isValidApproverSet — ohne Sektions-Verantwortliche", () => {
+  it("genügt eine konfigurierte Partei", () => {
+    expect(isValidApproverSet([party("business_owner", "pending")]).ok).toBe(true);
+  });
+
+  it("verlangt mindestens eine Partei", () => {
+    const r = isValidApproverSet([]);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toContain("Approver");
+  });
+});
+
+describe("buildApprovalView — Legacy-Sektionszeilen", () => {
+  it('verwirft alte kind:"section"-Zeilen, auch abgelehnte', () => {
+    // Bestands-Datenbanken tragen die Zeilen der abgeschafften Sektions-Abnahme
+    // noch. Eine abgelehnte darunter darf das Epic nicht in Nacharbeit halten.
+    const view = buildApprovalView({
+      rows: [
+        { kind: "party", party: "business_owner", status: "approved", approverUserId: "u1" },
+        { kind: "section", section: "kpis", status: "rejected", approverUserId: "u2" },
+      ] as never,
+    });
+    expect(view.records).toHaveLength(1);
+    expect(view.counts.blocked).toBe(false);
+    expect(isFullyApproved(view.records)).toBe(true);
   });
 });

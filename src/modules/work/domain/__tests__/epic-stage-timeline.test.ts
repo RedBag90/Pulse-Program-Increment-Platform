@@ -43,6 +43,21 @@ describe("buildEpicStageTimeline — effektive Übergänge (Actual ?? Estimate)"
     const tl = buildEpicStageTimeline(baseInput);
     expect(tl.map((t) => t.gate)).toEqual(["L0"]);
   });
+
+  it("lässt L0 weg, wenn createdAt hinter den fachlichen Gates liegt", () => {
+    // Nachtraeglich gepflegtes Portfolio: die Zeile ist juenger als die Gates,
+    // die sie beschreibt. Ein L0-Punkt hinter L5 waere ein Ruecksprung.
+    const tl = buildEpicStageTimeline({
+      ...baseInput,
+      createdAt: "2026-08-30",
+      selectedForDetailingAt: "2021-11-27",
+      businessCaseApprovedAt: "2022-01-06",
+      implementationStartedAt: "2022-01-26",
+      impactRecognizedAt: "2022-08-04",
+    });
+    expect(tl.map((t) => t.gate)).not.toContain("L0");
+    expect(tl.at(-1)).toMatchObject({ gate: "L5", month: m(2022, 8) });
+  });
 });
 
 describe("stageAtMonth — Status je Kalendermonat", () => {
@@ -61,5 +76,36 @@ describe("stageAtMonth — Status je Kalendermonat", () => {
     expect(stageAtMonth(tl, m(2026, 4))).toBe("L3"); // backlog
     expect(stageAtMonth(tl, m(2026, 6))).toBe("L3"); // noch vor L4
     expect(stageAtMonth(tl, m(2026, 8))).toBe("L4"); // implementation started
+  });
+});
+
+describe("stageAtMonth — Ratsche: kein Rückfall auf ein niedrigeres Gate", () => {
+  it("hält ein L5-Epic auch nach einem später datierten L0-Punkt auf L5", () => {
+    // Der gemeldete Fall: die Uebergangsliste enthaelt L0 (createdAt) ganz am
+    // Ende. „Letzter gewinnt" haette hier ab 2026-08 L0 geliefert.
+    const tl = [
+      { gate: "L1" as const, month: m(2021, 11) },
+      { gate: "L4" as const, month: m(2022, 1) },
+      { gate: "L5" as const, month: m(2022, 8) },
+      { gate: "L0" as const, month: m(2026, 8) },
+    ];
+    expect(stageAtMonth(tl, m(2026, 12))).toBe("L5");
+    expect(stageAtMonth(tl, m(2026, 8))).toBe("L5");
+    expect(stageAtMonth(tl, m(2022, 2))).toBe("L4"); // Historie bleibt gestuft
+    expect(stageAtMonth(tl, m(2021, 5))).toBe("L0"); // vor allem: Grundzustand
+  });
+
+  it("faellt nicht zurueck, wenn Estimates out-of-order gepflegt sind", () => {
+    // L4-Estimate vor dem L2-Estimate — die Liste ist nach Datum sortiert, das
+    // Gate darf danach trotzdem nicht wieder sinken.
+    const tl = buildEpicStageTimeline({
+      ...baseInput,
+      createdAt: "2026-01-01",
+      timeline: {
+        estimates: { implementation_started: "2026-03-01", business_case: "2026-06-01" },
+      },
+    });
+    expect(stageAtMonth(tl, m(2026, 3))).toBe("L4");
+    expect(stageAtMonth(tl, m(2026, 6))).toBe("L4"); // nicht zurueck auf L2
   });
 });

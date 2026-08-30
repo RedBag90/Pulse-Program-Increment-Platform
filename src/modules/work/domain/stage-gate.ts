@@ -38,20 +38,25 @@ export function isValidTransition(from: StageGate, to: StageGate): boolean {
 // ---------------------------------------------------------------------------
 // Gate-Steps — die Schritte, die beantragt und abgenommen werden.
 //
-// Die Reifegrad-Leiter hat sechs Haupt-Gates (L0–L5), aber **sieben** Schritte:
-// zwischen „Umsetzung gestartet" (L4) und „Impact bestätigt" (L5) liegt die
-// Bestätigung, dass die Umsetzung fertig ist — **L4.2**. Sie ist bewusst ein
-// eigener, beantragter und abgenommener Schritt: „fertig gebaut" und „Nutzen
-// nachgewiesen" sind zwei Aussagen, zwischen denen viel Zeit liegen darf.
+// Die Reifegrad-Leiter hat sechs Haupt-Gates (L0–L5), aber **acht** Schritte:
+// zwei Haupt-Gates tragen einen zweiten beantragbaren Schritt.
 //
-// L4.2 ist trotzdem kein Haupt-Gate: `Initiative.stageGate` bleibt auf „L4"
-// stehen: die Bestätigung materialisiert sich im Stempel
-// `implementationCompletedAt`. Der Schritt-Typ existiert nur im
-// Antrags-/Abnahme-Apparat (Policies, Kriterien, Historie).
+//  - **L3.2 „Budget alloziert"** — L3 wird mit der freigegebenen Business-Case-
+//    Freigabe betreten (Schritt **L3.1**); die Investitionsentscheidung selbst
+//    ist der Schritt danach. „Wir haben einen Business Case" und „wir geben Geld" sind
+//    zwei Aussagen, und die zweite darf nicht als Nebenwirkung einer
+//    Budgetzuteilung entstehen.
+//  - **L4.2 „Umsetzung fertig"** — „fertig gebaut" und „Nutzen nachgewiesen"
+//    sind zwei Aussagen, zwischen denen viel Zeit liegen darf.
+//
+// Beide sind keine Haupt-Gates: `Initiative.stageGate` bleibt auf „L3" bzw.
+// „L4" stehen, die Bestätigung materialisiert sich in einem Stempel
+// (`approvedAt` bzw. `implementationCompletedAt`). Der Schritt-Typ existiert nur
+// im Antrags-/Abnahme-Apparat (Policies, Kriterien, Historie).
 // ---------------------------------------------------------------------------
 
-/** Alle beantragbaren Schritte in Reihenfolge — L0 … L4, L4.2, L5. */
-export const GATE_STEPS = ["L0", "L1", "L2", "L3", "L4", "L4.2", "L5"] as const;
+/** Alle beantragbaren Schritte in Reihenfolge — L0 … L3.1, L3.2, L4, L4.2, L5. */
+export const GATE_STEPS = ["L0", "L1", "L2", "L3.1", "L3.2", "L4", "L4.2", "L5"] as const;
 export type GateStep = (typeof GATE_STEPS)[number];
 
 export function isGateStep(value: string): value is GateStep {
@@ -62,9 +67,10 @@ export function isGateStep(value: string): value is GateStep {
 export const GATE_STEP_TRANSITIONS: Record<GateStep, readonly GateStep[]> = {
   L0: ["L1"],
   L1: ["L0", "L2"],
-  L2: ["L1", "L3"],
-  L3: ["L2", "L4"],
-  L4: ["L3", "L4.2"],
+  L2: ["L1", "L3.1"],
+  "L3.1": ["L2", "L3.2"],
+  "L3.2": ["L3.1", "L4"],
+  L4: ["L3.2", "L4.2"],
   "L4.2": ["L4", "L5"],
   L5: ["L4.2"],
 };
@@ -74,33 +80,42 @@ export function isValidStepTransition(from: GateStep, to: GateStep): boolean {
   return GATE_STEP_TRANSITIONS[from].includes(to);
 }
 
-/** Das Haupt-Gate, in dem ein Schritt lebt — „L4.2" gehört zu L4. */
+/**
+ * Das Haupt-Gate, in dem ein Schritt lebt. L3 traegt beide L3.x-Schritte, L4
+ * beide L4.x — die Spalte `Initiative.stageGate` kennt nur die sechs Haupt-Gates.
+ */
 export function gateOfStep(step: GateStep): StageGate {
-  return step === "L4.2" ? "L4" : step;
+  if (step === "L3.1" || step === "L3.2") return "L3";
+  if (step === "L4.2") return "L4";
+  return step;
 }
 
 /**
- * Der Schritt, auf dem ein Epic **aktuell** steht: innerhalb von L4 entscheidet
- * die Bestätigung der fertigen Umsetzung, ob das Epic schon auf L4.2 steht.
- * Überall dort zu verwenden, wo bisher `epic.stageGate` den nächsten Antrag
- * bestimmt hat.
+ * Der Schritt, auf dem ein Epic **aktuell** steht: innerhalb von L3 entscheidet
+ * die Investitionsfreigabe (`approvedAt`), innerhalb von L4 die Bestätigung der
+ * fertigen Umsetzung, ob das Epic schon auf dem zweiten Schritt steht. Überall
+ * dort zu verwenden, wo bisher `epic.stageGate` den nächsten Antrag bestimmt hat.
  */
 export function currentGateStep(epic: {
   stageGate: StageGate;
+  approvedAt: Date | null;
   implementationCompletedAt: Date | null;
 }): GateStep {
-  return epic.stageGate === "L4" && epic.implementationCompletedAt != null
-    ? "L4.2"
-    : epic.stageGate;
+  if (epic.stageGate === "L3") return epic.approvedAt != null ? "L3.2" : "L3.1";
+  if (epic.stageGate === "L4") return epic.implementationCompletedAt != null ? "L4.2" : "L4";
+  return epic.stageGate;
 }
 
 /**
- * Reaching L3 (Portfolio Backlog) is the Epic approval decision. Returns true
- * only when a transition first enters L3, so callers know to persist the
- * approver, timestamp, and comment on the Epic itself.
+ * Der Schritt **L3.1 → L3.2 „Budget alloziert"** ist die Investitionsentscheidung.
+ * Nur dort persistieren die Aufrufer Abnehmer, Zeitpunkt und Kommentar am Epic.
+ *
+ * Frueher hing das am Erreichen des Haupt-Gates L3. Mit dem Neuschnitt betritt
+ * ein Epic L3 bereits mit der freigegebenen Business-Case-Freigabe (L3.1) — die
+ * Geldentscheidung faellt erst einen Schritt spaeter.
  */
-export function isApprovalTransition(from: StageGate, to: StageGate): boolean {
-  return to === "L3" && from !== "L3";
+export function isApprovalTransition(to: GateStep): boolean {
+  return to === "L3.2";
 }
 
 // ---------------------------------------------------------------------------
@@ -108,22 +123,22 @@ export function isApprovalTransition(from: StageGate, to: StageGate): boolean {
 //
 // Two of the six major gates carry an internally meaningful split:
 //
-// - **L2** splits into L2.1 "Business Case wird verfasst" and L2.2
-//   "Business Case freigegeben". The split is derived from `businessCase`
-//   and `businessCaseApprovedAt` on the Epic.
+// - **L3** splits into L3.1 "Business Case freigegeben" (der Eintritt) and
+//   L3.2 "Budget alloziert". L3.2 wird **beantragt und abgenommen** (s.
+//   `GATE_STEPS`) und materialisiert sich im Stempel `approvedAt`.
 //
 // - **L4** splits into L4.1 "Umsetzung läuft" and L4.2 "Umsetzung fertig".
 //   L4.2 wird **beantragt und abgenommen** (wie ein Gate, s. `GATE_STEPS`) und
 //   materialisiert sich im Stempel `implementationCompletedAt` — früher fiel
 //   das Epic automatisch auf L4.2, sobald alle Features fertig waren. „Alle
-//   Features abgeschlossen" ist jetzt die *Voraussetzung* des Antrags, nicht
-//   mehr die Bestätigung selbst.
+//   Features abgeschlossen" ist heute weder Automatik noch Tor, sondern ein
+//   *beratender* Anhaltspunkt am Antrag; bestätigt wird per Abnahme.
 //
 // Die Ableitung liest damit nur noch persistierte Fakten (BC-Stempel,
 // Bestätigungs-Stempel); der Audit-Log der Haupt-Gates bleibt unberührt.
 // ---------------------------------------------------------------------------
 
-export const SUB_STAGES = ["L2.1", "L2.2", "L4.1", "L4.2"] as const;
+export const SUB_STAGES = ["L3.1", "L3.2", "L4.1", "L4.2"] as const;
 export type SubStage = (typeof SUB_STAGES)[number];
 
 /**
@@ -132,24 +147,23 @@ export type SubStage = (typeof SUB_STAGES)[number];
  * Major-Gate-Pill die Sub-Stage-Pills rendern.
  */
 export const SUB_STAGES_BY_GATE: Partial<Record<StageGate, readonly SubStage[]>> = {
-  L2: ["L2.1", "L2.2"],
+  L3: ["L3.1", "L3.2"],
   L4: ["L4.1", "L4.2"],
 };
 
 export interface SubStageInput {
   stageGate: StageGate;
-  /** Epic's `businessCase` JSON column — used as "BC creation has started" signal. */
-  businessCase: unknown;
-  /** Stamp set when the BC clears its full approval flow. */
-  businessCaseApprovedAt: Date | null;
+  /** Stempel der abgenommenen L3.2-Investitionsentscheidung („Budget alloziert"). */
+  approvedAt: Date | null;
   /** Stempel der abgenommenen L4.2-Bestätigung („Umsetzung fertig"). */
   implementationCompletedAt: Date | null;
 }
 
 /**
- * The single "all child features completed" rule — Voraussetzung des
- * L4.2-Antrags (Kriterium `features_completed`). Sie **bestätigt** die fertige
- * Umsetzung nicht mehr selbst; das tut die Abnahme.
+ * The single "all child features completed" rule — der **beratende**
+ * Anhaltspunkt des L4.2-Antrags (Kriterium `features_completed`). Sie bestätigt
+ * die fertige Umsetzung nicht und hält den Antrag auch nicht auf; beides tut
+ * die Abnahme.
  */
 export function allChildrenCompleted(stats: { total: number; completed: number }): boolean {
   return stats.total > 0 && stats.completed === stats.total;
@@ -160,15 +174,16 @@ export function allChildrenCompleted(stats: { total: number; completed: number }
  * for the other major gates (no split there).
  */
 export function subStageFor(input: SubStageInput): SubStage | null {
-  if (input.stageGate === "L2") {
-    if (input.businessCaseApprovedAt != null) return "L2.2";
-    if (input.businessCase != null) return "L2.1";
-    return null;
+  if (input.stageGate === "L3") {
+    // Investition abgenommen (L3→L3.2) ⇒ L3.2, sonst steht das Epic auf dem
+    // Eintritt L3.1 („Business Case freigegeben").
+    return input.approvedAt != null ? "L3.2" : "L3.1";
   }
   if (input.stageGate === "L4") {
     // Bestätigt (abgenommener L4→L4.2-Antrag) ⇒ L4.2, sonst läuft die Umsetzung.
     return input.implementationCompletedAt != null ? "L4.2" : "L4.1";
   }
+  // L2 traegt keinen Split mehr: auf L2 zu stehen *ist* „Business Case in Arbeit".
   return null;
 }
 

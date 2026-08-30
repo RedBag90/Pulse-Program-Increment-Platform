@@ -29,7 +29,6 @@ export type Action =
   | "epic.approval.configure"
   | "epic.businesscase.submit"
   | "epic.approval.decide"
-  | "epic.section.signoff"
   | "epic.revision.start"
   | "epic.owner.assign"
   | "art.create"
@@ -258,7 +257,6 @@ export const POLICIES: Record<Action, Grant[]> = {
   "epic.approval.configure": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
   "epic.businesscase.submit": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
   "epic.approval.decide": [{ roles: [PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, RTE, FEATURE_OWNER] }],
-  "epic.section.signoff": [{ roles: [VALUE_STREAM_OWNER, PORTFOLIO_MANAGER] }],
   "epic.revision.start": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
   // The Portfolio Manager nominates the Epic Owner (precondition for the
   // Detailing phase); the value stream owner (scoped to their stream) plus the

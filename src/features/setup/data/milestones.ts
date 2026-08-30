@@ -106,13 +106,13 @@ export const MILESTONES: readonly Milestone[] = [
     id: "m6",
     name: "M6 · Portfolio gepflegt",
     outcome:
-      "Top-Funnel-Epics haben Owner, Hypothese und freigegebenen Business Case (Sub-Stage L2.2).",
+      "Top-Funnel-Epics haben Owner, Hypothese und freigegebenen Business Case (Reifegrad L3.1).",
     who: "Portfolio Manager, Epic Owner",
     where: [{ href: "/portfolio/epics", label: "Portfolio · Epics" }],
     checks: [
       { id: "m6-1", label: "Owner pro Epic gesetzt" },
       { id: "m6-2", label: "Hypothese + Business Case + KPIs ausgefuellt" },
-      { id: "m6-3", label: "Business Case voll freigegeben (L2.2)" },
+      { id: "m6-3", label: "Business Case voll freigegeben (L3.1)" },
     ],
   },
   {

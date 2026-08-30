@@ -545,6 +545,9 @@ async function main() {
       },
       actuals: {},
     },
+    // Vor dem fruehesten Gate (-40) — sonst liegt der abgeleitete L0-Eintritt
+    // hinter den Gates, die er beschreibt.
+    createdAt: addDays(now, -55),
     selectedForDetailingAt: addDays(now, -40),
     hypothesisApprovedAt: addDays(now, -28),
     selectedForAnalyzingAt: addDays(now, -26),

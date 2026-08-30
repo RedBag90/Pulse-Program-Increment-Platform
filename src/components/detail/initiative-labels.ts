@@ -9,9 +9,13 @@ export const STAGE_GATE_LABELS: Record<string, string> = {
   L0: "L0 Idee",
   L1: "L1 Hypothese definiert",
   L2: "L2 Business Case",
-  L3: "L3 Budget alloziert",
+  // L3 traegt zwei Schritte: Eintritt (BC freigegeben) und die
+  // Investitionsentscheidung selbst.
+  L3: "L3 Investition",
+  // Beide L3-Schritte werden beantragt und abgenommen, ebenso L4.2.
+  "L3.1": "L3.1 BC freigegeben",
+  "L3.2": "L3.2 Budget alloziert",
   L4: "L4 Implementierung",
-  // L4.2 ist ein eigener beantragter/abgenommener Schritt innerhalb von L4.
   "L4.2": "L4.2 Umsetzung fertig",
   L5: "L5 Impact realisiert",
 };
@@ -21,7 +25,9 @@ export const STAGE_SHORT: Record<string, string> = {
   L0: "Funnel",
   L1: "Hypothese",
   L2: "Business Case",
-  L3: "Backlog",
+  L3: "Investition",
+  "L3.1": "BC freigegeben",
+  "L3.2": "Budget alloziert",
   L4: "Umsetzung",
   "L4.2": "Umsetzung fertig",
   L5: "Impact",
@@ -42,13 +48,13 @@ export const STAGE_DOT: Record<string, string> = {
 };
 
 /**
- * Sub-Step-Labels innerhalb der Major-Gates L2 und L4. L2.x wird abgeleitet
- * (`subStageFor`), L4.2 kommt aus der abgenommenen Bestätigung — beide werden
- * nur in der UI gerendert.
+ * Sub-Step-Labels innerhalb der Major-Gates L3 und L4. Die Eintritts-Stufen
+ * (L3.1, L4.1) werden abgeleitet, die zweiten (L3.2, L4.2) kommen aus einer
+ * abgenommenen Bestaetigung — beide werden nur in der UI gerendert.
  */
 export const SUB_STAGE_LABELS: Record<string, string> = {
-  "L2.1": "BC in Arbeit",
-  "L2.2": "BC freigegeben",
+  "L3.1": "BC freigegeben",
+  "L3.2": "Budget alloziert",
   "L4.1": "Umsetzung läuft",
   "L4.2": "Umsetzung fertig",
 };

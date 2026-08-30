@@ -34,14 +34,7 @@ import type { Action } from "@/server/auth/policies";
  * erst im Browser: sonst gälten sie als ungesehen und würden direkt nach der
  * Tour als „neue Aufgaben" erneut angeboten.
  */
-export type DataRequirement =
-  | "valueStream"
-  | "art"
-  | "epic"
-  | "feature"
-  | "pi"
-  | "risk"
-  | "goal";
+export type DataRequirement = "valueStream" | "art" | "epic" | "feature" | "pi" | "risk" | "goal";
 
 /** Ein Schritt der geführten Tour: eine Fläche, ein Satz Verantwortung. */
 export interface TourStep {
@@ -154,10 +147,15 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       { text: "Die Organisation abbilden: Wertströme und ARTs anlegen und pflegen." },
       { text: "Externe Systeme anbinden (Jira, Azure DevOps).", capability: "integration.manage" },
-      { text: "Bei Rückfragen aus Audit oder Compliance Auskunft geben.", capability: "admin.audit-log.read" },
+      {
+        text: "Bei Rückfragen aus Audit oder Compliance Auskunft geben.",
+        capability: "admin.audit-log.read",
+      },
     ],
     handoffs: [
-      { text: "Du übernimmst von der Plattform: der Workspace existiert, du füllst ihn mit Leben." },
+      {
+        text: "Du übernimmst von der Plattform: der Workspace existiert, du füllst ihn mit Leben.",
+      },
       {
         text: "Du übergibst an Portfolio Manager und RTE: sobald Struktur und Rollen stehen, beginnt die Facharbeit.",
       },
@@ -166,7 +164,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "tenant_admin.setup",
         title: "Der Setup-Guide gibt die Reihenfolge vor",
-        body: "Acht Meilensteine von „Workspace lebt\" bis „erstes PI läuft\". Das Tempo bestimmt ihr, die Reihenfolge ist fix — und du bist der Einzige, der hier abhaken darf.",
+        body: 'Acht Meilensteine von „Workspace lebt" bis „erstes PI läuft". Das Tempo bestimmt ihr, die Reihenfolge ist fix — und du bist der Einzige, der hier abhaken darf.',
         route: "/setup",
         anchor: "setup-milestone-m1",
         capability: "tenant.users.manage",
@@ -182,7 +180,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "tenant_admin.invite",
         title: "Jemanden einladen",
-        body: "Über „Einladen\" öffnest du rechts das Formular. Nach der Zuweisung sieht der Eingeladene dasselbe Willkommensfenster, das du gerade gesehen hast — deine Rollenwahl bestimmt also, was er erklärt bekommt.",
+        body: 'Über „Einladen" öffnest du rechts das Formular. Nach der Zuweisung sieht der Eingeladene dasselbe Willkommensfenster, das du gerade gesehen hast — deine Rollenwahl bestimmt also, was er erklärt bekommt.',
         route: "/admin/users?selected=invite",
         anchor: "admin-user-list",
         capability: "tenant.users.manage",
@@ -236,7 +234,10 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
     mission:
       "Du führst das Portfolio: du entscheidest, woran gearbeitet wird, finanzierst es und weist am Ende nach, was es gebracht hat.",
     responsibilities: [
-      { text: "Den Zielzustand und die Kopf-Ziele der Organisation setzen.", capability: "target.manage" },
+      {
+        text: "Den Zielzustand und die Kopf-Ziele der Organisation setzen.",
+        capability: "target.manage",
+      },
       {
         text: "Epics durch den Investment-Funnel führen und Reifegrad-Wechsel beantragen bzw. abnehmen.",
         capability: "epic.gate.request",
@@ -249,7 +250,10 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       },
       { text: "Das Budget auf die Epics verteilen.", capability: "budget.manage" },
       { text: "Den realisierten Mehrwert im Portfolio-Review nachhalten.", module: "work" },
-      { text: "Risiken final bewerten — du bist der Einzige, der eines löschen darf.", capability: "risk.delete" },
+      {
+        text: "Risiken final bewerten — du bist der Einzige, der eines löschen darf.",
+        capability: "risk.delete",
+      },
     ],
     handoffs: [
       {
@@ -300,7 +304,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "portfolio_manager.budget_pool",
         title: "Den Budget-Topf setzen",
-        body: "Zuerst der Rahmen je Halbjahr. Die Zeile „Verbleibend\" färbt sich rot, sobald du mehr verteilst, als im Topf ist — das ist deine Leitplanke.",
+        body: 'Zuerst der Rahmen je Halbjahr. Die Zeile „Verbleibend" färbt sich rot, sobald du mehr verteilst, als im Topf ist — das ist deine Leitplanke.',
         route: "/budgeting/board",
         anchor: "budget-pool",
         capability: "budget.manage",
@@ -346,21 +350,21 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       "Du verantwortest einen Wertstrom: welche Vorhaben dort entstehen, ob sie fachlich tragen und wer sie ausarbeitet.",
     responsibilities: [
       { text: "Epics in deinem Wertstrom anlegen und schärfen.", capability: "epic.create" },
-      { text: "Einen Epic Owner benennen, der die Ausarbeitung übernimmt.", capability: "epic.owner.assign" },
+      {
+        text: "Einen Epic Owner benennen, der die Ausarbeitung übernimmt.",
+        capability: "epic.owner.assign",
+      },
       {
         text: "Als benannter Freigeber über Epics entscheiden.",
         capability: "epic.approval.decide",
         practice: "multiPartyApproval",
       },
-      {
-        text: "Deliverables und KPIs eines Epics fachlich abzeichnen.",
-        capability: "epic.section.signoff",
-        practice: "multiPartyApproval",
-      },
       { text: "Das Wertstrom-Budget auf die ARTs verteilen.", capability: "art_budget.manage" },
     ],
     handoffs: [
-      { text: "Du übernimmst vom Portfolio Manager: dein Wertstrom bekommt einen Finanzierungsrahmen." },
+      {
+        text: "Du übernimmst vom Portfolio Manager: dein Wertstrom bekommt einen Finanzierungsrahmen.",
+      },
       {
         text: "Du übergibst an den Epic Owner: er arbeitet aus, was du beauftragt hast.",
         module: "work",
@@ -402,15 +406,6 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         practice: "multiPartyApproval",
       },
       {
-        key: "value_stream_owner.signoff",
-        title: "Deliverables und KPIs abzeichnen",
-        body: "Neben den Partei-Freigaben liegen hier die fachlichen Abnahmen. Erst wenn beide Abschnitte gezeichnet sind, gilt ein Epic als vollständig freigegeben.",
-        route: "/my-approvals",
-        anchor: "approvals-list",
-        capability: "epic.section.signoff",
-        practice: "multiPartyApproval",
-      },
-      {
         key: "value_stream_owner.art_budget",
         title: "Mittel auf die ARTs verteilen",
         body: "Der Finanzierungsrahmen deines Wertstroms wird im Controlling auf die ARTs heruntergebrochen. Die Detailansicht deines Wertstroms führt dich dorthin.",
@@ -433,15 +428,27 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
     mission:
       "Du arbeitest Epics aus: du formulierst, was das Vorhaben bringen soll, belegst es und reichst es zur Entscheidung ein.",
     responsibilities: [
-      { text: "Die Benefit-Hypothese formulieren und einreichen.", capability: "epic.hypothesis.submit" },
-      { text: "Den Business Case ausarbeiten und einreichen.", capability: "epic.businesscase.submit" },
+      {
+        text: "Die Benefit-Hypothese formulieren und einreichen.",
+        capability: "epic.hypothesis.submit",
+      },
+      {
+        text: "Den Business Case ausarbeiten und einreichen.",
+        capability: "epic.businesscase.submit",
+      },
       {
         text: "Festlegen, wer das Epic freigeben muss.",
         capability: "epic.approval.configure",
         practice: "multiPartyApproval",
       },
-      { text: "Risiken deines Epics dokumentieren, bewerten und ROAM-mäßig einordnen.", capability: "risk.document" },
-      { text: "Nach einer Ablehnung überarbeiten und erneut einreichen.", capability: "epic.revision.start" },
+      {
+        text: "Risiken deines Epics dokumentieren, bewerten und ROAM-mäßig einordnen.",
+        capability: "risk.document",
+      },
+      {
+        text: "Nach einer Ablehnung überarbeiten und erneut einreichen.",
+        capability: "epic.revision.start",
+      },
     ],
     handoffs: [
       { text: "Du übernimmst vom Wertstrom-Verantwortlichen: er beauftragt, du arbeitest aus." },
@@ -529,15 +536,28 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
     mission:
       "Du orchestrierst deinen Agile Release Train: du hältst den Takt, planst die Umsetzung und räumst weg, was die Lieferung blockiert.",
     responsibilities: [
-      { text: "Program Increments anlegen, starten und abschließen.", capability: "pi.create", practice: "programLevel" },
-      { text: "Das Feature-Backlog des ART pflegen und den Lieferstatus setzen.", capability: "feature.delivery.set" },
+      {
+        text: "Program Increments anlegen, starten und abschließen.",
+        capability: "pi.create",
+        practice: "programLevel",
+      },
+      {
+        text: "Das Feature-Backlog des ART pflegen und den Lieferstatus setzen.",
+        capability: "feature.delivery.set",
+      },
       {
         text: "Abhängigkeiten zwischen Vorhaben sichtbar machen und auflösen.",
         capability: "dependency.link",
         practice: "dependencies",
       },
-      { text: "Impediments aufnehmen, eskalieren und schließen.", capability: "impediment.resolve" },
-      { text: "Risiken der Umsetzung dokumentieren und ROAM-mäßig einordnen.", capability: "risk.roam" },
+      {
+        text: "Impediments aufnehmen, eskalieren und schließen.",
+        capability: "impediment.resolve",
+      },
+      {
+        text: "Risiken der Umsetzung dokumentieren und ROAM-mäßig einordnen.",
+        capability: "risk.roam",
+      },
     ],
     handoffs: [
       {
@@ -634,8 +654,15 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       "Du verantwortest die Vorhaben deines Zuges: was als Nächstes gebaut wird, in welcher Reihenfolge und mit welchem Nutzen.",
     responsibilities: [
       { text: "Features anlegen und fachlich schärfen.", capability: "feature.create" },
-      { text: "Nach WSJF priorisieren — die Reihenfolge ist deine Aussage.", capability: "feature.wsjf.set", practice: "wsjf" },
-      { text: "Den Lieferstatus deiner Features aktuell halten.", capability: "feature.delivery.set" },
+      {
+        text: "Nach WSJF priorisieren — die Reihenfolge ist deine Aussage.",
+        capability: "feature.wsjf.set",
+        practice: "wsjf",
+      },
+      {
+        text: "Den Lieferstatus deiner Features aktuell halten.",
+        capability: "feature.delivery.set",
+      },
       {
         text: "Abhängigkeiten deiner Features benennen.",
         capability: "dependency.link",
@@ -684,7 +711,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "feature_owner.delivery",
         title: "Lieferstatus aktuell halten",
-        body: "Die Status-Spalte ist deine Zusage an den Rest des Zuges. Ein Feature, das seit Wochen auf „in Umsetzung\" steht, kostet dich Glaubwürdigkeit in der Planung.",
+        body: 'Die Status-Spalte ist deine Zusage an den Rest des Zuges. Ein Feature, das seit Wochen auf „in Umsetzung" steht, kostet dich Glaubwürdigkeit in der Planung.',
         route: "/umsetzung?view=table",
         anchor: "cockpit-table",
         capability: "feature.delivery.set",

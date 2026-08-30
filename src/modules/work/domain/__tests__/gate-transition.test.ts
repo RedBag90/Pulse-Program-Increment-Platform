@@ -40,7 +40,8 @@ function facts(step: GateStep, over: Partial<EpicGateFacts> = {}): EpicGateFacts
     approvedAt: null,
     impactRecognizedAt: null,
     multiPartyApproval: true,
-    // Der Schritt L4.2 materialisiert sich im Bestätigungs-Stempel.
+    // Die zweiten Schritte materialisieren sich in ihrem jeweiligen Stempel.
+    ...(step === "L3.2" ? { approvedAt: CONFIRMED } : {}),
     ...(step === "L4.2" ? { implementationCompletedAt: CONFIRMED } : {}),
     ...over,
   };
@@ -70,10 +71,13 @@ function readyFor(to: GateStep): EpicGateFacts {
       return facts("L0", { hypothesisApprovedAt: EARLIER });
     case "L2":
       return facts("L1", { hypothesisApprovedAt: EARLIER });
-    case "L3":
-      return facts("L2", { businessCaseApprovedAt: EARLIER, budgetAllocationSum: 500_000 });
+    case "L3.1":
+      // Der Eintritt in L3.1 verlangt nur die BC-Freigabe — das Geld folgt in L3.2.
+      return facts("L2", { businessCaseApprovedAt: EARLIER });
+    case "L3.2":
+      return facts("L3.1", { businessCaseApprovedAt: EARLIER, budgetAllocationSum: 500_000 });
     case "L4":
-      return facts("L3");
+      return facts("L3.2", { businessCaseApprovedAt: EARLIER, budgetAllocationSum: 500_000 });
     case "L4.2":
       return facts("L4", { childFeatureStats: { total: 2, started: 2, completed: 2 } });
     case "L5":
@@ -100,8 +104,8 @@ function request(to: GateStep, over: Partial<Parameters<typeof planGateRequest>[
 // ---------------------------------------------------------------------------
 
 describe("planGateRequest — strukturelle Guards", () => {
-  it("legt für jeden der sechs Vorwärts-Schritte einen Antrag an", () => {
-    for (const to of ["L1", "L2", "L3", "L4", "L4.2", "L5"] as const) {
+  it("legt für jeden der sieben Vorwärts-Schritte einen Antrag an", () => {
+    for (const to of ["L1", "L2", "L3.1", "L3.2", "L4", "L4.2", "L5"] as const) {
       const r = request(to);
       expect(isOk(r), `${to} sollte beantragbar sein`).toBe(true);
       if (!isOk(r)) continue;
@@ -112,21 +116,21 @@ describe("planGateRequest — strukturelle Guards", () => {
   });
 
   it("ein übersprungenes Gate ist eine Hierarchieverletzung", () => {
-    const r = request("L3", { facts: facts("L1", { hypothesisApprovedAt: EARLIER }) });
+    const r = request("L3.1", { facts: facts("L1", { hypothesisApprovedAt: EARLIER }) });
     expect(isErr(r)).toBe(true);
     if (!isErr(r)) return;
     expect(r.error.kind).toBe("hierarchy_violation");
   });
 
   it("rückwärts ist kein Antrag, sondern eine Korrektur — mit sprechendem Grund", () => {
-    const r = request("L2", { facts: facts("L3") });
+    const r = request("L2", { facts: facts("L3.1") });
     expect(isErr(r)).toBe(true);
     if (!isErr(r) || r.error.kind !== "hierarchy_violation") return;
     expect(r.error.detail).toContain("Korrektur");
   });
 
   it("das eigene Gate erneut zu beantragen ist ein Konflikt", () => {
-    const r = request("L3", { facts: facts("L3") });
+    const r = request("L3.1", { facts: facts("L3.1") });
     expect(isErr(r) && r.error.kind).toBe("conflict");
   });
 
@@ -136,7 +140,7 @@ describe("planGateRequest — strukturelle Guards", () => {
   });
 
   it("ein bereits offener Antrag blockiert einen zweiten", () => {
-    const r = request("L3", { hasOpenRequest: true });
+    const r = request("L3.1", { hasOpenRequest: true });
     expect(isErr(r) && r.error.kind).toBe("conflict");
     if (!isErr(r) || r.error.kind !== "conflict") return;
     expect(r.error.reason).toContain("bereits ein Reifegrad-Wechsel beantragt");
@@ -145,7 +149,7 @@ describe("planGateRequest — strukturelle Guards", () => {
 
 describe("planGateRequest — Reife", () => {
   it("ein unerfülltes blockierendes Kriterium verhindert den Antrag und nennt es", () => {
-    const r = request("L3", { facts: facts("L2", { budgetAllocationSum: 500_000 }) });
+    const r = request("L3.1", { facts: facts("L2", { budgetAllocationSum: 500_000 }) });
     expect(isErr(r)).toBe(true);
     if (!isErr(r) || r.error.kind !== "forbidden") return;
     expect(r.error.reason).toContain("Business Case ist freigegeben");
@@ -153,7 +157,7 @@ describe("planGateRequest — Reife", () => {
 
   it("ein unerfülltes BERATENDES Kriterium verhindert nichts", () => {
     // L4 ohne gestartetes Feature: der Antrag ist der bewusste Start.
-    const r = request("L4", { facts: facts("L3") });
+    const r = request("L4", { facts: facts("L3.2") });
     expect(isOk(r)).toBe(true);
     if (!isOk(r)) return;
     expect(r.value.readiness.criteria.some((c) => !c.satisfied)).toBe(true);
@@ -161,40 +165,38 @@ describe("planGateRequest — Reife", () => {
   });
 
   it("die Kriterien werden als Snapshot mitgegeben", () => {
-    const r = request("L3");
+    const r = request("L3.1");
     expect(isOk(r)).toBe(true);
     if (!isOk(r)) return;
-    expect(r.value.readiness.criteria.map((c) => c.key)).toEqual([
-      "business_case_approved",
-      "budget_allocated",
-    ]);
+    expect(r.value.readiness.criteria.map((c) => c.key)).toEqual(["business_case_approved"]);
     expect(r.value.readiness.criteria.every((c) => c.satisfied)).toBe(true);
   });
 });
 
 describe("planGateRequest — Besetzung", () => {
   it("required=false rückt sofort vor und stempelt in einem Zug", () => {
-    const r = request("L3", { policy: policy("L3", { required: false }), approvers: [] });
+    const r = request("L3.2", { policy: policy("L3.2", { required: false }), approvers: [] });
     expect(isOk(r)).toBe(true);
     if (!isOk(r)) return;
     expect(r.value.immediate).toBe(true);
     expect(r.value.approvers).toEqual([]);
+    // L3.2 lebt im Haupt-Gate L3 — die Spalte bleibt stehen.
     expect(r.value.stamps?.stageGate).toBe("L3");
-    // L3 ist die Investitionsentscheidung — der Antragsteller unterschreibt.
+    // L3.2 ist die Investitionsentscheidung — der Antragsteller unterschreibt.
     expect(r.value.stamps?.approvedBy).toBe(ACTOR);
     expect(r.value.stamps?.approvedAt).toEqual(NOW);
   });
 
   it("abnahmepflichtig ohne auflösbare Abnehmer scheitert laut statt still", () => {
     // Sonst entstünde ein Antrag, auf den niemand antworten kann.
-    const r = request("L3", { approvers: [] });
+    const r = request("L3.1", { approvers: [] });
     expect(isErr(r)).toBe(true);
     if (!isErr(r) || r.error.kind !== "conflict") return;
     expect(r.error.reason).toContain("keine abnehmende Person");
   });
 
   it("ein abnahmepflichtiger Antrag stempelt noch nichts", () => {
-    const r = request("L3");
+    const r = request("L3.1");
     expect(isOk(r) && r.value.stamps).toBeNull();
   });
 });
@@ -207,8 +209,8 @@ function rows(...statuses: Array<[string, GateApprovalRow["status"]]>): GateAppr
 
 function decide(over: Partial<Parameters<typeof decideGateTransitionOutcome>[0]> = {}) {
   return decideGateTransitionOutcome({
-    facts: readyFor("L3"),
-    to: "L3",
+    facts: readyFor("L3.1"),
+    to: "L3.1",
     quorum: "all",
     rows: rows([VMO, "pending"], [FINANCE, "pending"]),
     decision: "approve",
@@ -231,7 +233,7 @@ describe("decideGateTransitionOutcome — Quorum 'all' (einstimmig)", () => {
     expect(o.kind).toBe("advance");
     if (o.kind !== "advance") return;
     expect(o.from).toBe("L2");
-    expect(o.to).toBe("L3");
+    expect(o.to).toBe("L3.1");
     expect(o.stamps.stageGate).toBe("L3");
   });
 
@@ -258,11 +260,18 @@ describe("decideGateTransitionOutcome — Quorum 'any'", () => {
 });
 
 describe("decideGateTransitionOutcome — Stempel tragen den Entscheidenden", () => {
-  it("L2→L3: approvedBy ist der entscheidende Abnehmer, nicht der Antragsteller", () => {
-    const o = decide({ rows: rows([VMO, "approved"], [FINANCE, "pending"]), deciderId: FINANCE });
+  it("L3.1→L3.2: approvedBy ist der entscheidende Abnehmer, nicht der Antragsteller", () => {
+    const o = decide({
+      facts: readyFor("L3.2"),
+      to: "L3.2",
+      rows: rows([VMO, "approved"], [FINANCE, "pending"]),
+      deciderId: FINANCE,
+    });
     if (o.kind !== "advance") throw new Error("erwartet: advance");
     expect(o.stamps.approvedBy).toBe(FINANCE);
     expect(o.stamps.approvedAt).toEqual(NOW);
+    // Die Spalte bleibt auf dem Haupt-Gate stehen.
+    expect(o.stamps.stageGate).toBe("L3");
   });
 
   it("L4→L5: impactRecognizedBy + Kommentar kommen aus der Abnahme", () => {
@@ -284,8 +293,8 @@ describe("decideGateTransitionOutcome — Stempel tragen den Entscheidenden", ()
 
   it("set-once: ein bereits gesetzter Stempel wird nicht überschrieben", () => {
     const o = decideGateTransitionOutcome({
-      facts: { ...readyFor("L3"), approvedAt: EARLIER },
-      to: "L3",
+      facts: { ...readyFor("L3.2"), approvedAt: EARLIER },
+      to: "L3.2",
       quorum: "all",
       rows: rows([VMO, "pending"]),
       decision: "approve",
@@ -302,17 +311,17 @@ describe("decideGateTransitionOutcome — Stempel tragen den Entscheidenden", ()
 
 describe("planGateRevert", () => {
   it("verlangt eine Begründung", () => {
-    const r = planGateRevert({ facts: facts("L3"), to: "L2", reason: "   ", now: NOW });
+    const r = planGateRevert({ facts: facts("L3.1"), to: "L2", reason: "   ", now: NOW });
     expect(isErr(r) && r.error.kind).toBe("conflict");
   });
 
   it("geht nur rückwärts", () => {
-    const r = planGateRevert({ facts: facts("L2"), to: "L3", reason: "x", now: NOW });
+    const r = planGateRevert({ facts: facts("L2"), to: "L3.1", reason: "x", now: NOW });
     expect(isErr(r) && r.error.kind).toBe("conflict");
   });
 
   it("geht nur einen Schritt", () => {
-    const r = planGateRevert({ facts: facts("L3"), to: "L1", reason: "x", now: NOW });
+    const r = planGateRevert({ facts: facts("L3.1"), to: "L1", reason: "x", now: NOW });
     expect(isErr(r) && r.error.kind).toBe("hierarchy_violation");
   });
 
@@ -320,8 +329,9 @@ describe("planGateRevert", () => {
     const cases: Array<[GateStep, GateStep, keyof ReturnType<typeof unwindStampsFor>]> = [
       ["L1", "L0", "selectedForDetailingAt"],
       ["L2", "L1", "selectedForAnalyzingAt"],
-      ["L3", "L2", "approvedAt"],
-      ["L4", "L3", "implementationStartedAt"],
+      // Die Investitionsentscheidung haengt an L3.2, nicht am Eintritt in L3.
+      ["L3.2", "L3.1", "approvedAt"],
+      ["L4", "L3.2", "implementationStartedAt"],
       // L4.2 ist ein eigener Schritt: zurück heißt „Bestätigung zurücknehmen",
       // das Haupt-Gate bleibt dabei L4.
       ["L4.2", "L4", "implementationCompletedAt"],
@@ -336,30 +346,35 @@ describe("planGateRevert", () => {
     }
   });
 
-  it("L3→L2 räumt die vollständige Freigabe-Signatur ab, nicht nur den Zeitstempel", () => {
-    const s = unwindStampsFor("L3", "L2");
+  it("L3.2→L3.1 räumt die vollständige Freigabe-Signatur ab, nicht nur den Zeitstempel", () => {
+    const s = unwindStampsFor("L3.2", "L3.1");
     expect(s).toMatchObject({
-      stageGate: "L2",
+      // Das Haupt-Gate bleibt L3 — zurückgenommen wird die Investitionsentscheidung.
+      stageGate: "L3",
       approvedBy: null,
       approvedAt: null,
       approvalComment: null,
     });
   });
+
+  it("L3.1→L2 räumt nichts ab — der Eintritt in L3 trägt keinen eigenen Stempel", () => {
+    expect(unwindStampsFor("L3.1", "L2")).toEqual({ stageGate: "L2" });
+  });
 });
 
 describe("Rundlauf: vorrücken → zurückstufen → erneut vorrücken", () => {
   it("stempelt beim zweiten Mal wieder — der set-once-Defekt ist behoben", () => {
-    // 1. Vorrücken nach L3: approvedAt wird gesetzt.
-    const first = stampsForAdvance(readyFor("L3"), "L3", VMO, EARLIER);
+    // 1. Vorrücken nach L3.2: approvedAt wird gesetzt.
+    const first = stampsForAdvance(readyFor("L3.2"), "L3.2", VMO, EARLIER);
     expect(first.approvedAt).toEqual(EARLIER);
 
     // 2. Zurückstufen: die Signatur wird abgeräumt.
-    const back = unwindStampsFor("L3", "L2");
+    const back = unwindStampsFor("L3.2", "L3.1");
     expect(back.approvedAt).toBeNull();
 
     // 3. Erneut vorrücken auf einem Epic, dessen Stempel geleert wurde.
     //    Früher blieb approvedAt hier für immer auf dem alten Wert stehen.
-    const again = stampsForAdvance({ ...readyFor("L3"), approvedAt: null }, "L3", FINANCE, NOW);
+    const again = stampsForAdvance({ ...readyFor("L3.2"), approvedAt: null }, "L3.2", FINANCE, NOW);
     expect(again.approvedAt).toEqual(NOW);
     expect(again.approvedBy).toBe(FINANCE);
   });

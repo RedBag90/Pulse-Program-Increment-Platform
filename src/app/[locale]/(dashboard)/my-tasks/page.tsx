@@ -109,7 +109,7 @@ export default async function MyTasksPage() {
       stagedForBudgeting: e.stagedForBudgeting,
       businessCase: e.businessCase,
       benefitHypothesis: e.benefitHypothesis,
-      businessCaseApprovedAt: e.businessCaseApprovedAt,
+      approvedAt: e.approvedAt,
       plannedStartAt: e.plannedStartAt,
       plannedEndAt: e.plannedEndAt,
       createdAt: e.createdAt,

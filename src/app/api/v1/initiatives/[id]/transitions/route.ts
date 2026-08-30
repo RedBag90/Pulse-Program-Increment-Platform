@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createMutationHandler } from "@/server/http/mutation-handler";
 import { requestGateTransition } from "@/modules/work/server/services/stage-gate-transition";
-import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
+import { GATE_STEPS } from "@/modules/work/domain/stage-gate";
 
 /**
  * `POST /api/v1/initiatives/:id/transitions` — **beantragt** einen
@@ -17,7 +17,7 @@ import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
  * `status: "approved"` statt `"pending"`.
  */
 const transitionSchema = z.object({
-  toGate: z.enum(STAGE_GATES),
+  toGate: z.enum(GATE_STEPS),
   reason: z.string().max(1000).optional(),
 });
 
