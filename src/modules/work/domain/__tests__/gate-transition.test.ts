@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { gateOfStep, type GateStep } from "@/modules/work/domain/stage-gate";
+import { currentGateStep, gateOfStep, type GateStep } from "@/modules/work/domain/stage-gate";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import {
   planGateRequest,
@@ -214,17 +214,73 @@ function rows(...statuses: Array<[string, GateApprovalRow["status"]]>): GateAppr
 }
 
 function decide(over: Partial<Parameters<typeof decideGateTransitionOutcome>[0]> = {}) {
-  return decideGateTransitionOutcome({
+  const input = {
     facts: readyFor("L3.1"),
-    to: "L3.1",
-    quorum: "all",
+    to: "L3.1" as GateStep,
+    quorum: "all" as const,
     rows: rows([VMO, "pending"], [FINANCE, "pending"]),
-    decision: "approve",
+    decision: "approve" as const,
     deciderId: VMO,
     now: NOW,
     ...over,
-  });
+  };
+  // `from` folgt dem Epic, solange ein Test nichts anderes sagt — nur die
+  // Veraltet-Fälle setzen es abweichend.
+  return decideGateTransitionOutcome({ from: currentGateStep(input.facts), ...input });
 }
+
+describe("decideGateTransitionOutcome — Aktualität des Antrags", () => {
+  // Die Unterstufen tragen kein eigenes Haupt-Gate: ein Epic auf L3.2 steht in
+  // der Spalte auf „L3", eines auf L4.2 auf „L4". Wer den Antrag gegen die
+  // Spalte prüft statt gegen den Schritt, lässt genau diese drei Übergänge nie
+  // wieder zu.
+  it.each([
+    ["L3.1", "L3.2"],
+    ["L3.2", "L4"],
+    ["L4.2", "L5"],
+  ] as Array<[GateStep, GateStep]>)("%s → %s ist entscheidbar", (from, to) => {
+    const o = decide({
+      facts: readyFor(to),
+      from,
+      to,
+      rows: rows([VMO, "pending"]),
+    });
+    expect(o.kind).toBe("advance");
+    if (o.kind !== "advance") return;
+    expect(o.from).toBe(from);
+    expect(o.to).toBe(to);
+  });
+
+  it("ein wirklich veralteter Antrag wird nicht entschieden", () => {
+    // Der Antrag ging von L3.1 aus, das Epic ist seither auf L2 zurückgestuft.
+    const o = decide({ facts: facts("L2"), from: "L3.1", to: "L3.2" });
+    expect(o.kind).toBe("stale");
+    if (o.kind !== "stale") return;
+    expect(o.expected).toBe("L3.1");
+    expect(o.actual).toBe("L2");
+  });
+
+  it("die Unterscheidung hängt am Stempel, nicht an der Spalte", () => {
+    const onL4 = facts("L4", { childFeatureStats: { total: 2, started: 2, completed: 2 } });
+    // Dieselbe Spalte „L4", zwei verschiedene Schritte: ohne
+    // `implementationCompletedAt` steht das Epic auf L4, mit ihm auf L4.2.
+    expect(decide({ facts: onL4, from: "L4.2", to: "L5" }).kind).toBe("stale");
+    expect(
+      decide({
+        facts: { ...onL4, implementationCompletedAt: CONFIRMED },
+        from: "L4.2",
+        to: "L5",
+        rows: rows([FINANCE, "pending"]),
+        deciderId: FINANCE,
+      }).kind,
+    ).toBe("advance");
+  });
+
+  it("eine Ablehnung auf einem veralteten Antrag greift ebenfalls nicht", () => {
+    const o = decide({ facts: facts("L2"), from: "L3.1", to: "L3.2", decision: "reject" });
+    expect(o.kind).toBe("stale");
+  });
+});
 
 describe("decideGateTransitionOutcome — Quorum 'all' (einstimmig)", () => {
   it("die vorletzte Zustimmung hält den Antrag offen", () => {
@@ -283,6 +339,7 @@ describe("decideGateTransitionOutcome — Stempel tragen den Entscheidenden", ()
   it("L4→L5: impactRecognizedBy + Kommentar kommen aus der Abnahme", () => {
     const o = decideGateTransitionOutcome({
       facts: readyFor("L5"),
+      from: "L4.2",
       to: "L5",
       quorum: "all",
       rows: rows([FINANCE, "pending"]),
@@ -298,18 +355,12 @@ describe("decideGateTransitionOutcome — Stempel tragen den Entscheidenden", ()
   });
 
   it("set-once: ein bereits gesetzter Stempel wird nicht überschrieben", () => {
-    const o = decideGateTransitionOutcome({
-      facts: { ...readyFor("L3.2"), approvedAt: EARLIER },
-      to: "L3.2",
-      quorum: "all",
-      rows: rows([VMO, "pending"]),
-      decision: "approve",
-      deciderId: VMO,
-      now: NOW,
-    });
-    if (o.kind !== "advance") throw new Error("erwartet: advance");
-    expect(o.stamps.approvedAt).toBeUndefined();
-    expect(o.stamps.stageGate).toBe("L3");
+    // Direkt auf den Stempeln geprüft, nicht über die Entscheidung: ein Epic
+    // mit `approvedAt` *steht* auf L3.2 — über den Antrag L3.1 → L3.2 ist
+    // dieser Zustand gar nicht mehr erreichbar, er wäre veraltet.
+    const stamps = stampsForAdvance({ ...readyFor("L3.2"), approvedAt: EARLIER }, "L3.2", VMO, NOW);
+    expect(stamps.approvedAt).toBeUndefined();
+    expect(stamps.stageGate).toBe("L3");
   });
 });
 

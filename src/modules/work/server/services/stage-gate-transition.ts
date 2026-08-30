@@ -589,15 +589,6 @@ export async function decideGateTransition(
         id: transition.initiativeId,
       });
     }
-    // Das Epic kann seit dem Antrag bewegt worden sein (etwa durch eine
-    // Korrektur). Dann deckt der Antrag den aktuellen Zustand nicht mehr.
-    if (facts.stageGate !== transition.fromGate) {
-      return err({
-        kind: "conflict" as const,
-        reason: `Der Antrag bezieht sich auf ${transition.fromGate}, das Epic steht inzwischen auf ${facts.stageGate}.`,
-      });
-    }
-
     const siblings = await tx.stageGateApproval.findMany({
       where: { transitionId: transition.id, tenantId: mctx.tenantId },
       select: { approverUserId: true, status: true },
@@ -605,6 +596,7 @@ export async function decideGateTransition(
 
     const outcome = decideGateTransitionOutcome({
       facts,
+      from: transition.fromGate as GateStep,
       to: transition.toGate as GateStep,
       quorum: isQuorum(transition.quorum) ? (transition.quorum as Quorum) : "all",
       rows: siblings.map((s) => ({
@@ -616,6 +608,16 @@ export async function decideGateTransition(
       comment: input.comment,
       now: new Date(),
     });
+
+    // Das Epic kann seit dem Antrag bewegt worden sein (etwa durch eine
+    // Korrektur). Dann deckt der Antrag den aktuellen Zustand nicht mehr — und
+    // zwar bevor die Zeile dieses Abnehmers beschrieben wird.
+    if (outcome.kind === "stale") {
+      return err({
+        kind: "conflict" as const,
+        reason: `Der Antrag bezieht sich auf ${outcome.expected}, das Epic steht inzwischen auf ${outcome.actual}.`,
+      });
+    }
 
     const now = new Date();
     await tx.stageGateApproval.update({

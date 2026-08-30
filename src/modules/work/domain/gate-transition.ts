@@ -304,12 +304,25 @@ export interface GateApprovalRow {
 }
 
 export type GateDecisionOutcome =
+  /**
+   * Der Antrag deckt den aktuellen Zustand nicht mehr — das Epic ist seit der
+   * Antragstellung bewegt worden, etwa durch eine Korrektur. `expected` ist der
+   * Schritt, von dem der Antrag ausgeht, `actual` der, auf dem das Epic steht.
+   */
+  | { kind: "stale"; expected: GateStep; actual: GateStep }
   | { kind: "still_pending"; remaining: number }
   | { kind: "advance"; from: GateStep; to: GateStep; stamps: GateStamps }
   | { kind: "rejected" };
 
 export interface DecideGateTransitionInput {
   facts: EpicGateFacts;
+  /**
+   * Der Schritt, von dem der Antrag ausgeht. Ein **GateStep**, kein Haupt-Gate:
+   * er wird gegen `currentGateStep(facts)` gestellt, nie gegen die Rohspalte
+   * `facts.stageGate` — die kennt L3.2 und L4.2 nicht und liesse jeden Antrag
+   * aus einer Unterstufe zwangsläufig veralten.
+   */
+  from: GateStep;
   to: GateStep;
   quorum: Quorum;
   /** **Alle** Zeilen des Antrags, ohne die Entscheidung dieses Actors. */
@@ -328,9 +341,16 @@ export interface DecideGateTransitionInput {
  *
  * Eine Ablehnung stoppt den Antrag sofort, unabhängig vom Quorum: ein benannter
  * Einwand soll nicht still von einer anderen Zustimmung überstimmt werden.
+ *
+ * Zuvor steht der Aktualitäts-Guard: ein Antrag entscheidet über den Schritt,
+ * von dem er ausging. Steht das Epic inzwischen woanders, ist er veraltet und
+ * niemand darf mehr auf ihn zeichnen.
  */
 export function decideGateTransitionOutcome(input: DecideGateTransitionInput): GateDecisionOutcome {
-  const { facts, to, quorum, rows, decision, deciderId, comment, now } = input;
+  const { facts, from, to, quorum, rows, decision, deciderId, comment, now } = input;
+
+  const current = currentGateStep(facts);
+  if (current !== from) return { kind: "stale", expected: from, actual: current };
 
   const next = rows.map((r) =>
     r.approverUserId === deciderId ? { ...r, status: decisionStatus(decision) } : r,
@@ -340,7 +360,7 @@ export function decideGateTransitionOutcome(input: DecideGateTransitionInput): G
   if (quorumReached(next, quorum)) {
     return {
       kind: "advance",
-      from: currentGateStep(facts),
+      from: current,
       to,
       stamps: stampsForAdvance(facts, to, deciderId, now, comment),
     };
