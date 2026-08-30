@@ -119,6 +119,15 @@ describe("buildGateHistory — der glatte Weg", () => {
   });
 });
 
+describe("buildGateHistory — das Epic ohne Weg", () => {
+  it("spricht den Reifegrad auch dann aus, wenn nichts passiert ist", () => {
+    const r = buildGateHistory(base({ moves: [] }));
+    expect(r.finalStep).toBe("L0");
+    expect(r.stamps.stageGate).toBe("L0");
+    expect(r.transitions).toHaveLength(0);
+  });
+});
+
 describe("buildGateHistory — die Abnehmer", () => {
   it("besetzt L3.1 mit den fünf Parteien und L3.2 mit VMO und Finance", () => {
     const r = buildGateHistory(base({ moves: plain("L3.2") }));
@@ -264,7 +273,7 @@ describe("buildGateHistory — Ids", () => {
 describe("assertGateHistory", () => {
   it("lässt eine saubere Historie durch", () => {
     const r = buildGateHistory(base({ moves: plain("L5") }));
-    expect(() => assertGateHistory(r, "ok")).not.toThrow();
+    expect(() => assertGateHistory(r, "ok", NOW)).not.toThrow();
   });
 
   it("schlägt an, wenn zwei Anträge offen sind", () => {
@@ -277,19 +286,28 @@ describe("assertGateHistory", () => {
         ],
       }),
     );
-    expect(() => assertGateHistory(r, "zwei offen")).toThrow(/offene Anträge/);
+    expect(() => assertGateHistory(r, "zwei offen", NOW)).toThrow(/offene Anträge/);
   });
 
   it("schlägt an, wenn der offene Antrag nicht vom aktuellen Schritt ausgeht", () => {
     const r = buildGateHistory(base({ moves: plain("L2") }));
     // Von Hand verbogen: genau der Fall, den der Demo-Seed vorher erzeugt hat.
     r.transitions.push({ ...r.transitions[0]!, id: "x", status: "pending", fromGate: "L4" });
-    expect(() => assertGateHistory(r, "falsches fromGate")).toThrow(/nicht entscheidbar/);
+    expect(() => assertGateHistory(r, "falsches fromGate", NOW)).toThrow(/nicht entscheidbar/);
+  });
+
+  it("schlägt an, wenn ein Antrag in der Zukunft liegt", () => {
+    const r = buildGateHistory(
+      base({
+        moves: [...plain("L2"), { kind: "open", to: "L3.1", requestedAt: addDays(NOW, 5) }],
+      }),
+    );
+    expect(() => assertGateHistory(r, "Zukunft", NOW)).toThrow(/Zukunft/);
   });
 
   it("schlägt an, wenn eine Person denselben Antrag zweimal abnimmt", () => {
     const r = buildGateHistory(base({ moves: plain("L1") }));
     r.approvals.push({ ...r.approvals[0]!, id: "dup" });
-    expect(() => assertGateHistory(r, "doppelt")).toThrow(/zweimal ab/);
+    expect(() => assertGateHistory(r, "doppelt", NOW)).toThrow(/zweimal ab/);
   });
 });

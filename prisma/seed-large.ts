@@ -31,6 +31,7 @@ import {
   buildGateHistory,
   gateRuleRows,
   straightPath,
+  stepsUpTo,
   type GateApprovalRow,
   type GateMove,
   type GateTransitionRow,
@@ -42,6 +43,14 @@ const DAY = 86_400_000;
 const YEAR = new Date().getFullYear();
 // „Jetzt" ist bewusst der 1. März von Jahr 5 (= H1), unabhängig von der realen Uhr.
 const now = new Date(YEAR, 2, 1);
+/**
+ * Die echte Uhr. `now` oben ist die *simulierte* Gegenwart des
+ * Zehnjahres-Programms (1. März) — für die Historie richtig, für alles, was
+ * „gerade offen" sein soll, falsch: die App misst Wartezeiten und
+ * Überfälligkeit gegen die echte Zeit. Offene Anträge und frische
+ * Entscheidungen hängen deshalb hier.
+ */
+const realNow = new Date();
 const addDays = (base: Date, d: number): Date => new Date(base.getTime() + d * DAY);
 const beforeNow = (d: Date, margin = 3): Date =>
   new Date(Math.min(d.getTime(), now.getTime() - margin * DAY));
@@ -493,21 +502,31 @@ async function main() {
         }
       : null;
 
-    // Das Datumsgerüst: die Schritte hängen an denselben Ankern wie bisher,
-    // `beforeNow` hält jeden Stempel in der Vergangenheit.
-    const stepDay: Record<GateStep, Date> = {
-      L0: plannedStart,
-      L1: beforeNow(addDays(plannedStart, -55), 10),
-      L2: beforeNow(addDays(plannedStart, -35), 8),
-      "L3.1": beforeNow(addDays(plannedStart, -20), 6),
-      "L3.2": beforeNow(addDays(plannedStart, -10), 4),
-      L4: beforeNow(plannedStart, 3),
-      "L4.2": beforeNow(plannedEnd, 2),
-      L5: beforeNow(addDays(plannedEnd, 10), 1),
+    // Das Datumsgerüst: der **letzte** Schritt bekommt seinen natürlichen Anker
+    // im Planfenster, die früheren staffeln sich davor. `beforeNow` je Schritt
+    // reichte nicht — Epics, deren Planfenster in der Zukunft liegt (L0–L2
+    // stehen in den Bändern +1…+11 Halbjahre), bekamen sonst mehrere Schritte
+    // auf denselben Tag geklemmt, und die Kette war nicht mehr chronologisch.
+    // Der Mindestabstand von 45 Tagen lässt außerdem Platz für die
+    // Sonderfälle, die sich unten dahinterhängen.
+    const anchorFor = (step: GateStep): Date => {
+      if (step === "L5") return addDays(plannedEnd, 10);
+      if (step === "L4.2") return plannedEnd;
+      if (step === "L4") return plannedStart;
+      if (step === "L3.2") return addDays(plannedStart, -10);
+      if (step === "L3.1") return addDays(plannedStart, -20);
+      if (step === "L2") return addDays(plannedStart, -35);
+      return addDays(plannedStart, -55);
     };
+    const walked = stepsUpTo(target);
+    const lastDecided = beforeNow(anchorFor(target), 45 + (i % 20));
+    const stepDayFor = (step: GateStep): Date =>
+      addDays(lastDecided, -(walked.length - 1 - walked.indexOf(step)) * 26);
 
     // Die unbequemen Zustände über den Mandanten streuen — sonst zeigen 200
     // Epics ausschließlich den glatten Pfad.
+    // Alle Sonderfälle liegen im Fenster der letzten 44 Tage — also hinter dem
+    // glatten Pfad und vor heute.
     const extras: GateMove[] = [];
     if (target === "L2" && i % 5 === 0) {
       // Offener Business-Case-Antrag. Jeder dritte davon liegt lange genug, um
@@ -516,44 +535,47 @@ async function main() {
       extras.push({
         kind: "open",
         to: "L3.1",
-        requestedAt: addDays(now, overdue ? -34 - (i % 7) : -6 - (i % 4)),
+        requestedAt: addDays(realNow, overdue ? -30 - (i % 7) : -6 - (i % 4)),
         decidedRoles: ["epic.party.mgmt", "epic.party.finance"],
-        decidedAt: addDays(now, overdue ? -28 : -3),
+        decidedAt: addDays(realNow, overdue ? -24 : -3),
       });
     } else if (target === "L2" && i % 7 === 3) {
       extras.push({
         kind: "rejected",
         to: "L3.1",
-        requestedAt: addDays(stepDay.L2, 12),
-        decidedAt: addDays(stepDay.L2, 17),
+        requestedAt: addDays(realNow, -38),
+        decidedAt: addDays(realNow, -34),
         reason: "Die Einsparung ist nicht belegt — bitte mit Ist-Zahlen erneut vorlegen.",
       });
     } else if (target === "L2" && i % 11 === 5) {
       extras.push({
         kind: "withdrawn",
         to: "L3.1",
-        requestedAt: addDays(stepDay.L2, 9),
-        decidedAt: addDays(stepDay.L2, 12),
+        requestedAt: addDays(realNow, -42),
+        decidedAt: addDays(realNow, -40),
       });
-    } else if (target === "L3.1" && i % 4 === 1) {
+      // L3.1 liegt in diesem Mandanten nur auf GERADEN Indizes (`targetStepFor`),
+      // deshalb müssen beide folgenden Zweige gerade Reste treffen — mit 1 und 3
+      // wären sie tot.
+    } else if (target === "L3.1" && i % 4 === 0) {
       // Einmal zurückgestuft und erneut abgenommen — das Epic zeigt den Diff.
       extras.push(
         {
           kind: "revert",
           to: "L2",
-          at: addDays(stepDay["L3.1"], 8),
+          at: addDays(realNow, -40),
           reason: "Nutzenrechnung hält der Prüfung nicht stand.",
         },
         {
           kind: "advance",
           to: "L3.1",
-          requestedAt: addDays(stepDay["L3.1"], 20),
-          decidedAt: beforeNow(addDays(stepDay["L3.1"], 26), 2),
+          requestedAt: addDays(realNow, -30),
+          decidedAt: addDays(realNow, -24),
         },
       );
-    } else if (target === "L3.1" && i % 4 === 3) {
+    } else if (target === "L3.1" && i % 4 === 2) {
       // Budget ist da, die Investitionsentscheidung läuft.
-      extras.push({ kind: "open", to: "L3.2", requestedAt: addDays(now, -5 - (i % 6)) });
+      extras.push({ kind: "open", to: "L3.2", requestedAt: addDays(realNow, -5 - (i % 6)) });
     }
 
     const history = buildGateHistory({
@@ -586,7 +608,7 @@ async function main() {
       },
       childFeatureStats: { total: 2, started: 2, completed: 2 },
       budgetAllocationSum: ["L3", "L4", "L5"].includes(gate) ? 120_000 : 0,
-      moves: [...straightPath(target, (step) => stepDay[step]), ...extras],
+      moves: [...straightPath(target, stepDayFor), ...extras],
     });
     assertGateHistory(history, `#${i} ${title}`);
     gateTransitionRows.push(...history.transitions);
@@ -613,7 +635,9 @@ async function main() {
       status,
       epicType,
       primarySolutionId: solId(vs, horizon),
-      ...(i % 13 === 0 ? { needsSteeringAttention: true } : {}),
+      // Wie im Demo-Mandanten: der Merker aus der Faltung wird ueberschrieben,
+      // weil das Steering ihn im Betrieb abhakt. Uebrig bleiben die offenen.
+      needsSteeringAttention: i % 13 === 0,
       // L2-Kandidaten stehen auf dem Ballot (warten auf Budget); Bezahlte nicht mehr.
       stagedForBudgeting: definedNoBudget,
       // „I need help" nur dort, wo es weh tut: definiert, aber noch nicht in

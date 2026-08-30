@@ -462,9 +462,14 @@ export function buildGateHistory(input: GateHistoryInput): GateHistoryResult {
     }
   }
 
+  const finalStep = currentGateStep(facts);
+  // Den Reifegrad immer aussprechen — auch fuer ein Epic ohne Weg. Sonst fehlt
+  // die Spalte in der Zeile, und der Aufrufer kann nicht unterscheiden, ob das
+  // Epic auf L0 steht oder ob die Faltung geschwiegen hat.
+  stamps.stageGate = gateOfStep(finalStep);
   stamps.timeline = timeline;
   stamps.updatedBy = input.createdBy;
-  return { stamps, transitions, approvals, finalStep: currentGateStep(facts) };
+  return { stamps, transitions, approvals, finalStep };
 }
 
 // ---------------------------------------------------------------------------
@@ -529,7 +534,11 @@ export function gateColumnFor(step: GateStep): StageGate {
  * Wirft mit einem Text, der das Epic benennt; die Seeds rufen das vor dem
  * Schreiben auf.
  */
-export function assertGateHistory(result: GateHistoryResult, label: string): void {
+export function assertGateHistory(
+  result: GateHistoryResult,
+  label: string,
+  now: Date = new Date(),
+): void {
   const fail = (why: string): never => {
     throw new Error(`Seed-Invariante verletzt (${label}): ${why}`);
   };
@@ -558,6 +567,15 @@ export function assertGateHistory(result: GateHistoryResult, label: string): voi
   for (const t of result.transitions) {
     if (t.resolvedAt && t.resolvedAt.getTime() < t.requestedAt.getTime()) {
       fail(`ein Antrag wurde vor seiner Stellung entschieden (${t.fromGate}→${t.toGate}).`);
+    }
+    // Ein Seed, der in die Zukunft stempelt, erzeugt Epics, die „schon
+    // abgenommen" sind, bevor der Antrag gestellt wurde — im Zeitstrahl und in
+    // jeder Ist/Forecast-Trennung ist das Unsinn.
+    if (t.requestedAt.getTime() > now.getTime()) {
+      fail(`ein Antrag liegt in der Zukunft (${t.fromGate}→${t.toGate}).`);
+    }
+    if (t.resolvedAt && t.resolvedAt.getTime() > now.getTime()) {
+      fail(`eine Entscheidung liegt in der Zukunft (${t.fromGate}→${t.toGate}).`);
     }
     if (t.kind === "revert" && !t.reason) fail("eine Rückstufung ohne Begründung.");
   }

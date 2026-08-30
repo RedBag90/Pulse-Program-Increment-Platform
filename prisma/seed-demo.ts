@@ -481,50 +481,45 @@ async function main() {
    * den glatten Pfad, und Ablehnung, Rückstufung und Überfälligkeit blieben
    * unsichtbar.
    */
-  const STORY: Record<number, (t: (step: GateStep) => Date) => GateMove[]> = {
+  const STORY: Record<number, GateMove[]> = {
     // Open-Banking (L3.1): das Geld ist da, die Investitionsentscheidung läuft.
-    1: (t) => [{ kind: "open", to: "L3.2", requestedAt: addDays(t("L3.1"), 12) }],
+    1: [{ kind: "open", to: "L3.2", requestedAt: addDays(now, -6) }],
     // AI Fraud Detection (L2): Business Case liegt bei den fünf Parteien,
-    // zwei haben gezeichnet.
-    2: (t) => [
+    // zwei haben gezeichnet — frisch genug, um nicht überfällig zu sein.
+    2: [
       {
         kind: "open",
         to: "L3.1",
-        requestedAt: addDays(t("L2"), 20),
+        requestedAt: addDays(now, -5),
         decidedRoles: ["epic.party.mgmt", "epic.party.finance"],
-        decidedAt: addDays(t("L2"), 24),
+        decidedAt: addDays(now, -3),
       },
     ],
     // Card Tokenization (L3.1): einmal zurückgestuft, überarbeitet, erneut
     // abgenommen — das Epic zeigt den Diff gegen die letzte Freigabe.
-    5: (t) => [
+    5: [
       {
         kind: "revert",
         to: "L2",
-        at: addDays(t("L3.1"), 20),
+        at: addDays(now, -40),
         reason:
           "Nutzenrechnung hält der Prüfung durch Finance nicht stand — bitte mit belastbaren Zahlen erneut vorlegen.",
       },
-      {
-        kind: "advance",
-        to: "L3.1",
-        requestedAt: addDays(t("L3.1"), 45),
-        decidedAt: addDays(t("L3.1"), 52),
-      },
+      { kind: "advance", to: "L3.1", requestedAt: addDays(now, -30), decidedAt: addDays(now, -24) },
     ],
     // Self-Service Contact Center (L2): der erste Anlauf wurde abgelehnt.
-    6: (t) => [
+    6: [
       {
         kind: "rejected",
         to: "L3.1",
-        requestedAt: addDays(t("L2"), 15),
-        decidedAt: addDays(t("L2"), 19),
+        requestedAt: addDays(now, -36),
+        decidedAt: addDays(now, -32),
         reason: "Die Kostenscheiben decken den Betrieb nach Go-live nicht ab.",
       },
     ],
     // Core Banking (L2): der Antrag liegt seit Wochen, der Business Owner hat
     // nicht gezeichnet — genau der Fall, den Guardrail 4 messen soll.
-    9: () => [
+    9: [
       {
         kind: "open",
         to: "L3.1",
@@ -534,12 +529,12 @@ async function main() {
       },
     ],
     // Developer Platform (L2): Antrag gestellt und selbst zurückgezogen.
-    16: (t) => [
+    16: [
       {
         kind: "withdrawn",
         to: "L3.1",
-        requestedAt: addDays(t("L2"), 10),
-        decidedAt: addDays(t("L2"), 13),
+        requestedAt: addDays(now, -45),
+        decidedAt: addDays(now, -42),
       },
     ],
   };
@@ -577,13 +572,13 @@ async function main() {
     // Die Schritte fallen gleichmässig ueber das letzte Jahr, der letzte liegt
     // gut zwei Wochen zurueck. So liegt jeder Stempel in der Vergangenheit und
     // die Kette bleibt streng monoton.
+    // Der glatte Pfad endet gut sechs Wochen zurueck. Der Vorlauf ist Absicht:
+    // die Sonderfaelle unten haengen sich dahinter, und alles muss in der
+    // Vergangenheit und streng chronologisch bleiben.
     const steps = stepsUpTo(target);
     const decidedFor = (step: GateStep): Date =>
-      addDays(now, -(14 + i) - (steps.length - 1 - steps.indexOf(step)) * 26);
-    const moves: GateMove[] = [
-      ...straightPath(target, decidedFor),
-      ...(STORY[i]?.(decidedFor) ?? []),
-    ];
+      addDays(now, -(45 + i) - (steps.length - 1 - steps.indexOf(step)) * 26);
+    const moves: GateMove[] = [...straightPath(target, decidedFor), ...(STORY[i] ?? [])];
 
     const history = buildGateHistory({
       tenantId,
@@ -646,9 +641,11 @@ async function main() {
       epicType: def.epicType,
       // Horizont kommt aus der Primär-Solution (im selben Value Stream).
       primarySolutionId: solId(def.vs, def.horizon),
-      // Der Steering-Merker setzt sich auch durch die Abnahme von L1 und L3.1;
-      // die Definition kann ihn zusaetzlich erzwingen.
-      ...(def.steering ? { needsSteeringAttention: true } : {}),
+      // Jede L1- und L3.1-Abnahme setzt den Steering-Merker — nach einem Jahr
+      // Betrieb waeren fast alle Epics markiert. Im echten Ablauf hakt ihn das
+      // Steering ab; der Seed sagt deshalb aus, welche noch offen sind, und
+      // ueberschreibt damit bewusst den Wert aus der Faltung.
+      needsSteeringAttention: def.steering,
       stagedForBudgeting: def.gate === "L2" || def.gate === "L3",
       ...(HELP_REQUESTED.has(i)
         ? { helpRequestedAt: addDays(now, -6), helpRequestedBy: ownerId ?? U.owner }
