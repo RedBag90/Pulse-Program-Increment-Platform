@@ -113,7 +113,10 @@ export function SearchSelect({
     <div
       className={cn("relative", className)}
       // Verlässt der Fokus die Gruppe ganz, schließt das Feld — ein Klick
-      // *innerhalb* (Option, Suchfeld) darf das nicht auslösen.
+      // *innerhalb* (Option, Suchfeld) darf das nicht auslösen. Ob ein Klick
+      // als „innerhalb" erkannt wird, hängt daran, dass der Fokus überhaupt auf
+      // die Option wandert — deshalb verhindern die Optionen den Fokuswechsel
+      // gleich ganz (siehe `onMouseDown` unten).
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) close();
       }}
@@ -158,7 +161,12 @@ export function SearchSelect({
             />
           </div>
 
-          <ul id={listId} role="listbox" aria-label={ariaLabel} className="max-h-64 overflow-y-auto">
+          <ul
+            id={listId}
+            role="listbox"
+            aria-label={ariaLabel}
+            className="max-h-64 overflow-y-auto"
+          >
             {visible.length === 0 ? (
               <li className="px-2 py-1.5 text-sm text-muted-foreground">Keine Treffer.</li>
             ) : (
@@ -171,6 +179,20 @@ export function SearchSelect({
                       role="option"
                       aria-selected={on}
                       onMouseEnter={() => setActive(i)}
+                      // Den Fokuswechsel unterbinden, statt ihn abzufangen.
+                      //
+                      // Safari fokussiert `<button>` beim Klicken nicht (macOS-
+                      // Standard, solange „Vollständiger Tastaturzugriff" aus
+                      // ist). Der Blur des Suchfelds kam dort also mit
+                      // `relatedTarget === null` an, die Gruppen-Prüfung oben
+                      // hielt das für „Fokus hat die Gruppe verlassen", schloss
+                      // die Liste — und der `click` landete nie auf einer
+                      // Option. Jede Personen-Auswahl war in Safari damit
+                      // unbedienbar, in Chrome und in jsdom dagegen einwandfrei.
+                      //
+                      // `preventDefault` auf `mousedown` lässt den Fokus im
+                      // Suchfeld: kein Blur, kein Schließen, der Klick kommt an.
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => choose(opt.value)}
                       className={cn(
                         "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
