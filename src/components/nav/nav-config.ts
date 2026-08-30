@@ -103,6 +103,12 @@ export const NAV_GROUPS: NavGroup[] = [
         practice: "portfolioLevel",
       },
       {
+        href: "/portfolio/guardrails",
+        labelKey: "portfolioGuardrails",
+        icon: ShieldCheck,
+        practice: "portfolioLevel",
+      },
+      {
         href: "/portfolio/review",
         labelKey: "portfolioReview",
         icon: BarChart2,

@@ -6,6 +6,7 @@ import { Page, PageHeader } from "@/components/layout";
 import { PageSection } from "@/components/layout/page-section";
 import { Stat, StatStrip } from "@/components/ui/stat";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { AmpelPill as UiAmpelPill } from "@/components/ui/ampel-pill";
 import { formatMioEUR, formatPercent } from "@/lib/formatting";
 import { AMPEL_LABEL } from "@/modules/work/domain/portfolio-ampel";
 import type { LpmAmpel, LpmValueStreamRow, LpmEpicRow } from "@/modules/work/domain/lpm-review";
@@ -16,19 +17,10 @@ import { BenefitBurnup } from "./benefit-burnup";
 import { PortfolioBubbleMatrix } from "./portfolio-bubble-matrix";
 import { DivergingScheduleBar } from "./diverging-schedule-bar";
 
-/** Kleiner Ampel-Chip (grün/gelb/rot/neutral) mit Punkt + Label. */
+/** Kleiner Ampel-Chip (grün/gelb/rot/neutral). Der Chip selbst lebt jetzt in
+ *  `ui/ampel-pill`; hier bleibt nur die LPM-Wortwahl. */
 function AmpelPill({ tier }: { tier: LpmAmpel }) {
-  const label = tier === "neutral" ? "Keine Daten" : AMPEL_LABEL[tier];
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs">
-      <span
-        className="size-2 rounded-full"
-        style={{ backgroundColor: tierHex(tier) }}
-        aria-hidden
-      />
-      {label}
-    </span>
-  );
+  return <UiAmpelPill tier={tier} label={tier === "neutral" ? "Keine Daten" : AMPEL_LABEL[tier]} />;
 }
 
 const pct = (r: number | null) => (r == null ? "—" : formatPercent(r));

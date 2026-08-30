@@ -5,6 +5,8 @@
  *  - Investment by Horizon (H1/H2/H3) — McKinsey 3-Horizons
  *  - Capacity Allocation (Business vs Enabler) — wertstiftende
  *    Arbeit vs Architectural Runway / Enabler-Brocken.
+ *  - Business-Owner-Engagement (Guardrail 4) — Abdeckung + Reaktionszeit
+ *    der BO-Freigaben. Kein Mix; eigene Berechnung, optionaler Input.
  *
  * Zwei Sichten pro Guardrail: **Count** (Anzahl Epics) und **Amount**
  * (Σ Implementation Cost aus dem Business Case). Reine Funktion ohne
@@ -20,12 +22,17 @@ import {
   isHorizon,
 } from "@/modules/work/domain/portfolio-guardrails";
 import { computeMixAxis, type MixRow } from "@/modules/work/domain/guardrail-rules";
+import { thresholdTier, type AmpelTier } from "@/modules/work/domain/portfolio-ampel";
+import { MS_PER_DAY } from "@/modules/core/kernel/domain/calendar";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 
 export type { MixRow };
 
 export type CapacityBucket = "business" | "enabler";
+
+/** Ampel einer Guardrail-Achse. Eine Sprache fuer alle drei Karten. */
+export type GuardrailStatus = "green" | "amber" | "red" | "unknown";
 
 /**
  * Roh-Input pro Epic. `amount` ist die in der Card als "€"-Sicht
@@ -75,7 +82,7 @@ export interface HorizonGuardrailModel {
   maxAbsDeltaCount: number;
   maxAbsDeltaAmount: number;
   /** Ampel: gruen <5pp, amber 5..15pp, rot >15pp (groesster Bucket-Delta). */
-  status: "green" | "amber" | "red" | "unknown";
+  status: GuardrailStatus;
   /** Epics pro Stage, horizon-getaggt — Input fuer den Stage-Tower. */
   epicsByStage: Record<StageGate, StageTowerEpic[]>;
   /** Epics pro Horizon-Spalte (H1/H2/H3/none) — Input fuer den
@@ -90,7 +97,63 @@ export interface CapacityGuardrailModel {
   totalCount: number;
   maxAbsDeltaCount: number;
   maxAbsDeltaAmount: number;
-  status: "green" | "amber" | "red" | "unknown";
+  status: GuardrailStatus;
+}
+
+/**
+ * Eine `business_owner`-Freigabezeile eines Epics. Der Service filtert auf
+ * `party`; welche **Revision** zaehlt, entscheidet diese Schicht — das ist eine
+ * Regel, keine Query-Eigenheit, und soll testbar bleiben.
+ */
+export interface BoApprovalInput {
+  /** Freigabezyklus, zu dem die Zeile gehoert. */
+  revision: number;
+  /** null = Zeile existiert, aber ohne benannte Person. */
+  approverUserId: string | null;
+  approverLabel: string | null;
+  status: string;
+  requestedAt: Date;
+  decidedAt: Date | null;
+}
+
+/** Ein Epic im Freigabelauf mit seinen BO-Zeilen (alle Revisionen). */
+export interface BoEngagementEpicInput {
+  epicId: string;
+  title: string;
+  /** Laufender Freigabezyklus — nur seine Zeilen zaehlen. */
+  approvalRevision: number;
+  approvals: readonly BoApprovalInput[];
+}
+
+/** Eine offene BO-Freigabe jenseits des Zeitrahmens. */
+export interface OverdueBoApproval {
+  epicId: string;
+  epicTitle: string;
+  /** null = niemandem zugewiesen — ein anderer Mangel als „liegt lange". */
+  approverLabel: string | null;
+  daysOpen: number;
+}
+
+export interface EngagementGuardrailModel {
+  /** Epics im Freigabelauf. 0 ⇒ die Messung hat noch nicht begonnen. */
+  scopeCount: number;
+  /** Davon mit BO-Zeile UND benannter Person. */
+  coveredCount: number;
+  /** `coveredCount / scopeCount` (0..1); null bei leerem Scope. */
+  coverageRatio: number | null;
+  /** BO-Zeilen insgesamt (aktuelle Revisionen). */
+  approvalCount: number;
+  /** Davon rechtzeitig bedient. */
+  timelyCount: number;
+  /** `timelyCount / approvalCount` (0..1); null wenn es keine Zeile gibt. */
+  responseRatio: number | null;
+  /** Offene Zeilen jenseits des Zeitrahmens, laengste Wartezeit zuerst. */
+  overdue: OverdueBoApproval[];
+  /** Ziele, durchgereicht fuer die Anzeige. */
+  coverageTarget: number;
+  responseDays: number;
+  /** Schlechteres Tier der zwei Quoten. */
+  status: GuardrailStatus;
 }
 
 export interface PortfolioGuardrailsModel {
@@ -99,22 +162,109 @@ export interface PortfolioGuardrailsModel {
   /** Hinweis: > 20 % der Epics ohne Klassifikation → Mix ist nur Indiz. */
   horizonCoverageThin: boolean;
   capacityCoverageThin: boolean;
+  /** Guardrail 4. `undefined`, wenn der Aufrufer keine BO-Daten uebergibt. */
+  engagement?: EngagementGuardrailModel;
 }
 
 const COVERAGE_THIN_THRESHOLD = 0.2;
 
-function statusFor(maxAbsDelta: number, hasData: boolean): "green" | "amber" | "red" | "unknown" {
+function statusFor(maxAbsDelta: number, hasData: boolean): GuardrailStatus {
   if (!hasData) return "unknown";
   if (maxAbsDelta > 0.15) return "red";
   if (maxAbsDelta > 0.05) return "amber";
   return "green";
 }
 
+/** `thresholdTier` spricht „rose", die Guardrail-Flaeche spricht „red". */
+const TIER_TO_STATUS: Record<AmpelTier, GuardrailStatus> = {
+  green: "green",
+  amber: "amber",
+  rose: "red",
+};
+const TIER_RANK: Record<AmpelTier, number> = { green: 0, amber: 1, rose: 2 };
+
+/**
+ * Guardrail 4 — Business-Owner-Engagement. Zwei Quoten statt eines Mix:
+ *
+ *  - **Abdeckung**: Anteil der Epics im Freigabelauf mit benanntem Business Owner.
+ *  - **Reaktion**: Anteil der BO-Zeilen, die rechtzeitig bedient wurden —
+ *    entschieden innerhalb `responseDays`, **oder** noch offen und juenger als
+ *    `responseDays`. Eine spaet entschiedene Zeile ist nicht rechtzeitig, steht
+ *    aber auch nicht mehr in der Ueberfaellig-Liste; die fuehrt nur offene.
+ *
+ * Rein, `now` injiziert — die Tage-Rechnung muss im Test deterministisch sein.
+ */
+export function computeBusinessOwnerEngagement(input: {
+  epics: readonly BoEngagementEpicInput[];
+  targets: GuardrailTargets["engagement"];
+  now: Date;
+}): EngagementGuardrailModel {
+  const { epics, targets, now } = input;
+  const { coverage: coverageTarget, responseDays } = targets;
+  const windowMs = responseDays * MS_PER_DAY;
+
+  let coveredCount = 0;
+  let approvalCount = 0;
+  let timelyCount = 0;
+  const overdue: OverdueBoApproval[] = [];
+
+  for (const e of epics) {
+    // Nur der laufende Zyklus. Ohne diesen Schnitt zaehlten abgeschlossene
+    // Freigaben frueherer Revisionen mit und die Quote waere dauerhaft zu gut.
+    const current = e.approvals.filter((a) => a.revision === e.approvalRevision);
+    if (current.some((a) => a.approverUserId != null)) coveredCount += 1;
+    for (const a of current) {
+      approvalCount += 1;
+      const waitedMs = (a.decidedAt ?? now).getTime() - a.requestedAt.getTime();
+      if (waitedMs <= windowMs) {
+        timelyCount += 1;
+      } else if (a.decidedAt == null) {
+        overdue.push({
+          epicId: e.epicId,
+          epicTitle: e.title,
+          approverLabel: a.approverLabel,
+          daysOpen: Math.floor(waitedMs / MS_PER_DAY),
+        });
+      }
+    }
+  }
+  overdue.sort((a, b) => b.daysOpen - a.daysOpen);
+
+  const scopeCount = epics.length;
+  const coverageRatio = scopeCount > 0 ? coveredCount / scopeCount : null;
+  const responseRatio = approvalCount > 0 ? timelyCount / approvalCount : null;
+
+  // Schlechtestes Tier gewinnt: eine gute Reaktionszeit auf wenigen Zeilen darf
+  // eine lueckenhafte Abdeckung nicht gruen faerben.
+  const tiers: AmpelTier[] = [];
+  if (coverageRatio != null) tiers.push(thresholdTier(coverageRatio));
+  if (responseRatio != null) tiers.push(thresholdTier(responseRatio));
+  const worst = tiers.reduce<AmpelTier | null>(
+    (acc, t) => (acc == null || TIER_RANK[t] > TIER_RANK[acc] ? t : acc),
+    null,
+  );
+
+  return {
+    scopeCount,
+    coveredCount,
+    coverageRatio,
+    approvalCount,
+    timelyCount,
+    responseRatio,
+    overdue,
+    coverageTarget,
+    responseDays,
+    status: worst == null ? "unknown" : TIER_TO_STATUS[worst],
+  };
+}
+
 export function computePortfolioGuardrails(input: {
   epics: readonly GuardrailsEpicInput[];
   targets: GuardrailTargets;
+  /** Guardrail 4 — optional. Fehlt er, bleibt `engagement` undefined. */
+  engagement?: { epics: readonly BoEngagementEpicInput[]; now: Date };
 }): PortfolioGuardrailsModel {
-  const { epics, targets } = input;
+  const { epics, targets, engagement } = input;
 
   // ---- Horizon — Mix-Math via computeMixAxis, Tower-Aggregation hier ----
   const horizonMix = computeMixAxis<GuardrailsEpicInput, Horizon>({
@@ -222,5 +372,12 @@ export function computePortfolioGuardrails(input: {
     },
     horizonCoverageThin,
     capacityCoverageThin,
+    ...(engagement && {
+      engagement: computeBusinessOwnerEngagement({
+        epics: engagement.epics,
+        targets: targets.engagement,
+        now: engagement.now,
+      }),
+    }),
   };
 }

@@ -61,6 +61,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/portfolio/epics",
     "/portfolio/epics/[id]",
     "/portfolio/dashboard",
+    "/portfolio/guardrails",
     "/budgeting/round",
     // „I need help" toggelt am Epic und muss den Hinweis auf /my-tasks (VMO /
     // Portfolio-Manager) auffrischen.
@@ -74,6 +75,9 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/portfolio/solutions/[id]",
     "/portfolio",
     "/portfolio/dashboard",
+    // Der Horizont haengt an der Primaer-Solution — ohne das bleibt die
+    // Guardrails-Flaeche nach einem Solution-Wechsel kalt.
+    "/portfolio/guardrails",
     "/portfolio/epics/[id]",
   ],
   // Eine Epic-Zuteilung (oder der Topf) aendert das ABGELEITETE Wertstrom-Budget

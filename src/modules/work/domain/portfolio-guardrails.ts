@@ -1,11 +1,13 @@
 /**
  * Klassifikations-Konstanten fuer die SAFe-Portfolio-Guardrails (Roadmap-G1).
  *
- * Zwei Guardrails:
+ * Drei Guardrails:
  *  - **Investment by Horizon** — Epics nach McKinsey-3-Horizons-Modell.
  *  - **Apply Capacity Allocation** — Epics als Solution/Epic/Enabler,
  *    Features als Feature/Enabler. „Business"-Side = solution + epic /
  *    feature; „Enabler"-Side = enabler.
+ *  - **Business-Owner-Engagement** — Abdeckung + Reaktionszeit der
+ *    `business_owner`-Freigaben. Kein Mix; Berechnung im View.
  *
  * Persistiert als Strings am Initiative-Model; Validation hier in der
  * Domain-Schicht (Type-Guards + isEpicType etc.).
@@ -103,16 +105,26 @@ export function featureCapacityBucket(
 }
 
 /**
- * Guardrail-Targets — Tenant-Settings, je 100 % summierend.
+ * Guardrail-Targets — Tenant-Settings. Die zwei Mix-Achsen summieren je auf
+ * 100 %; `engagement` (Guardrail 4) ist **kein** Mix und faellt bewusst nicht
+ * unter diese Regel (siehe `validateGuardrailTargets`).
  */
 export interface GuardrailTargets {
   horizon: { h0: number; h1: number; h2: number; h3: number };
   capacity: { business: number; enabler: number };
+  /** Guardrail 4 — Business-Owner-Engagement. Kein Mix: summiert NICHT auf 100. */
+  engagement: {
+    /** Mindestanteil der Epics im Freigabelauf mit benanntem Business Owner (%). */
+    coverage: number;
+    /** Zeitrahmen, in dem eine BO-Freigabe bedient sein soll (Tage). */
+    responseDays: number;
+  };
 }
 
 export const DEFAULT_GUARDRAIL_TARGETS: GuardrailTargets = {
   horizon: { h3: 10, h2: 20, h1: 60, h0: 10 },
   capacity: { business: 80, enabler: 20 },
+  engagement: { coverage: 90, responseDays: 10 },
 };
 
 /**
@@ -156,6 +168,7 @@ export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsPar
   const r = raw as Record<string, unknown>;
   const h = (r.horizon ?? {}) as Record<string, unknown>;
   const c = (r.capacity ?? {}) as Record<string, unknown>;
+  const e = (r.engagement ?? {}) as Record<string, unknown>;
 
   // Legacy-Erkennung: ein 3-Wert-Set (h1/h2/h3 vorhanden, aber kein h0) →
   // fehlendes h0 tolerant auf 0 (bewahrt Summe = 100). Fehlt der Horizont ganz
@@ -174,6 +187,18 @@ export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsPar
     return DEFAULT_GUARDRAIL_TARGETS.capacity[key];
   };
 
+  // Legacy-Toleranz wie bei h0, aber eine Ebene hoeher: jeder Bestands-Tenant
+  // hat ein JSON *ohne* `engagement` (Guardrail 4 kam spaeter). Fehlt der Block
+  // komplett, sind die Defaults der GEWOLLTE Pfad — kein Fallback vermerken,
+  // sonst warnt `reportGuardrailTargetsFallback` fuer jeden Alt-Tenant. Nur ein
+  // teilweise befuellter Block gilt als Drift.
+  const engagementPresent = typeof r.engagement === "object" && r.engagement !== null;
+  const engagementField = (key: "coverage" | "responseDays"): number => {
+    if (typeof e[key] === "number") return e[key] as number;
+    if (engagementPresent) recordFallback(`engagement.${key}`);
+    return DEFAULT_GUARDRAIL_TARGETS.engagement[key];
+  };
+
   const targets: GuardrailTargets = {
     horizon: {
       h0: horizonField("h0"),
@@ -182,6 +207,10 @@ export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsPar
       h3: horizonField("h3"),
     },
     capacity: { business: capacityField("business"), enabler: capacityField("enabler") },
+    engagement: {
+      coverage: engagementField("coverage"),
+      responseDays: engagementField("responseDays"),
+    },
   };
 
   return {
@@ -222,6 +251,15 @@ export function validateGuardrailTargets(t: GuardrailTargets): {
   const capSum = t.capacity.business + t.capacity.enabler;
   if (Math.abs(capSum - 100) > 0.5) {
     return { ok: false, reason: `Capacity-Targets summieren auf ${capSum}, erwartet 100` };
+  }
+
+  // Engagement ist kein Mix — hier gilt nur der Wertebereich, keine Summe.
+  const { coverage, responseDays } = t.engagement;
+  if (!(coverage >= 0 && coverage <= 100)) {
+    return { ok: false, reason: "Abdeckungs-Target muss zwischen 0 und 100 liegen" };
+  }
+  if (!(responseDays >= 1)) {
+    return { ok: false, reason: "Reaktionszeit muss mindestens 1 Tag betragen" };
   }
   return { ok: true };
 }

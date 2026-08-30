@@ -24,14 +24,14 @@ export function GuardrailTargetsReadOnly({ targets }: Props) {
           </p>
         </div>
         <Link
-          href="/portfolio/dashboard"
+          href="/portfolio/guardrails"
           className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
         >
-          Mix-Verlauf öffnen
+          Ist-vs-Soll öffnen
           <ArrowRight className="size-3.5" />
         </Link>
       </header>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-md border p-3">
           <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Horizon
@@ -52,16 +52,27 @@ export function GuardrailTargetsReadOnly({ targets }: Props) {
             <Row label="Enabler" value={targets.capacity.enabler} />
           </ul>
         </div>
+        <div className="rounded-md border p-3">
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            Engagement
+          </p>
+          <ul className="space-y-1 text-sm">
+            <Row label="Abdeckung" value={targets.engagement.coverage} />
+            <Row label="Reaktionszeit" value={targets.engagement.responseDays} unit="Tage" />
+          </ul>
+        </div>
       </div>
     </Card>
   );
 }
 
-function Row({ label, value }: { label: string; value: number }) {
+function Row({ label, value, unit = "%" }: { label: string; value: number; unit?: string }) {
   return (
     <li className="flex items-center justify-between gap-2">
       <span className="text-muted-foreground">{label}</span>
-      <span className="tabular-nums">{value} %</span>
+      <span className="tabular-nums">
+        {value} {unit}
+      </span>
     </li>
   );
 }

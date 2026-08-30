@@ -6,9 +6,16 @@ import {
   epicCapacityBucket,
   featureCapacityBucket,
   parseGuardrailTargets,
+  parseGuardrailTargetsDetailed,
   validateGuardrailTargets,
   DEFAULT_GUARDRAIL_TARGETS,
 } from "@/modules/work/domain/portfolio-guardrails";
+
+/** Ein valides Ziel-Set mit gezielt ueberschriebenen Achsen. */
+const targets = (over: Partial<typeof DEFAULT_GUARDRAIL_TARGETS> = {}) => ({
+  ...DEFAULT_GUARDRAIL_TARGETS,
+  ...over,
+});
 
 describe("Type-Guards", () => {
   it("akzeptiert nur die drei Epic-Typen", () => {
@@ -72,27 +79,70 @@ describe("validateGuardrailTargets", () => {
     expect(validateGuardrailTargets(DEFAULT_GUARDRAIL_TARGETS).ok).toBe(true);
   });
   it("verlangt Horizon-Summe = 100", () => {
-    const r = validateGuardrailTargets({
-      horizon: { h0: 0, h1: 60, h2: 30, h3: 5 },
-      capacity: { business: 80, enabler: 20 },
-    });
+    const r = validateGuardrailTargets(targets({ horizon: { h0: 0, h1: 60, h2: 30, h3: 5 } }));
     expect(r.ok).toBe(false);
     expect(r.reason).toContain("Horizon");
   });
   it("verlangt Capacity-Summe = 100", () => {
-    const r = validateGuardrailTargets({
-      horizon: { h0: 10, h1: 60, h2: 20, h3: 10 },
-      capacity: { business: 70, enabler: 25 },
-    });
+    const r = validateGuardrailTargets(targets({ capacity: { business: 70, enabler: 25 } }));
     expect(r.ok).toBe(false);
     expect(r.reason).toContain("Capacity");
   });
   it("verlangt nicht-negative Werte", () => {
-    const r = validateGuardrailTargets({
-      horizon: { h0: 0, h1: 110, h2: -5, h3: -5 },
-      capacity: { business: 80, enabler: 20 },
-    });
+    const r = validateGuardrailTargets(targets({ horizon: { h0: 0, h1: 110, h2: -5, h3: -5 } }));
     expect(r.ok).toBe(false);
     expect(r.reason).toContain("negativ");
+  });
+
+  it("wendet die Summenregel NICHT auf Engagement an", () => {
+    // 90 + 10 = 100 waere Zufall; 95 + 14 ist genauso valide.
+    const r = validateGuardrailTargets(targets({ engagement: { coverage: 95, responseDays: 14 } }));
+    expect(r.ok).toBe(true);
+  });
+
+  it("begrenzt Abdeckung auf 0..100 und Reaktionszeit auf >= 1 Tag", () => {
+    expect(
+      validateGuardrailTargets(targets({ engagement: { coverage: 120, responseDays: 10 } })).ok,
+    ).toBe(false);
+    const r = validateGuardrailTargets(targets({ engagement: { coverage: 90, responseDays: 0 } }));
+    expect(r.ok).toBe(false);
+    expect(r.reason).toContain("Reaktionszeit");
+  });
+});
+
+describe("parseGuardrailTargets — Engagement-Legacy", () => {
+  it("meldet KEINEN Fallback, wenn engagement komplett fehlt", () => {
+    // Jeder Bestands-Tenant sieht so aus. Wuerde das als Drift zaehlen, feuerte
+    // reportGuardrailTargetsFallback fuer jeden einzelnen von ihnen.
+    const r = parseGuardrailTargetsDetailed({
+      horizon: { h0: 10, h1: 60, h2: 20, h3: 10 },
+      capacity: { business: 80, enabler: 20 },
+    });
+    expect(r.targets.engagement).toEqual(DEFAULT_GUARDRAIL_TARGETS.engagement);
+    expect(r.cleanlyParsed).toBe(true);
+    expect(r.fellBackFields).toEqual([]);
+  });
+
+  it("meldet einen Fallback, wenn engagement nur teilweise befuellt ist", () => {
+    const r = parseGuardrailTargetsDetailed({
+      horizon: { h0: 10, h1: 60, h2: 20, h3: 10 },
+      capacity: { business: 80, enabler: 20 },
+      engagement: { coverage: 95 },
+    });
+    expect(r.targets.engagement.coverage).toBe(95);
+    expect(r.targets.engagement.responseDays).toBe(
+      DEFAULT_GUARDRAIL_TARGETS.engagement.responseDays,
+    );
+    expect(r.cleanlyParsed).toBe(false);
+    expect(r.fellBackFields).toEqual(["engagement.responseDays"]);
+  });
+
+  it("uebernimmt ein vollstaendiges Engagement-Set", () => {
+    const r = parseGuardrailTargets({
+      horizon: { h0: 10, h1: 60, h2: 20, h3: 10 },
+      capacity: { business: 80, enabler: 20 },
+      engagement: { coverage: 75, responseDays: 21 },
+    });
+    expect(r.engagement).toEqual({ coverage: 75, responseDays: 21 });
   });
 });

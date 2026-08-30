@@ -6,21 +6,40 @@ import {
   isHorizon,
   type Horizon,
 } from "@/modules/work/domain/portfolio-guardrails";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 /** Farbklassen je Horizont — Punkt + weicher Hintergrund (Anzeige-Konsistenz). */
 export const HORIZON_BADGE_CLASS: Record<Horizon, { pill: string; dot: string }> = {
-  h3: { pill: "bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-300", dot: "bg-fuchsia-500" },
-  h2: { pill: "bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300", dot: "bg-violet-500" },
+  h3: {
+    pill: "bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-300",
+    dot: "bg-fuchsia-500",
+  },
+  h2: {
+    pill: "bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+    dot: "bg-violet-500",
+  },
   h1: { pill: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300", dot: "bg-blue-500" },
-  h0: { pill: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300", dot: "bg-slate-500" },
+  h0: {
+    pill: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    dot: "bg-slate-500",
+  },
 };
+
+/**
+ * Dieselben Toene als Farbwert — Balken, Quadrate und SVG koennen keine
+ * Tailwind-Klasse tragen. Steht bewusst neben `HORIZON_BADGE_CLASS`, damit die
+ * zwei Definitionen desselben Farbraums nicht auseinanderlaufen.
+ */
+export const HORIZON_HEX: Record<Horizon, string> = {
+  h3: "#d946ef", // fuchsia-500
+  h2: "#8b5cf6", // violet-500
+  h1: "#3b82f6", // blue-500
+  h0: "#64748b", // slate-500
+};
+
+/** „Ohne Horizont" — teilt sich den Neutralton mit `PLAN_GREY` (chart-theme). */
+export const HORIZON_NONE_HEX = "#94a3b8";
 
 const NONE_CLASS = { pill: "bg-muted text-muted-foreground", dot: "bg-muted-foreground/50" };
 

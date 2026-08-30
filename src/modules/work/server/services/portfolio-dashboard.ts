@@ -237,6 +237,70 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
   return { epics: epicInputs, targets: parsed.targets };
 }
 
+/**
+ * Epic-Phasen, in denen eine Business-Owner-Freigabe ueberhaupt erwartet wird.
+ * Davor gibt es nichts zu messen — ein Epic im Funnel hat zurecht keinen BO.
+ */
+const BO_SCOPE_PHASES = ["business_case", "stakeholder_review", "approved"];
+
+/**
+ * Inputs fuer Guardrail 4 (Business-Owner-Engagement): jedes Epic im
+ * Freigabelauf mit seinen `business_owner`-Zeilen und dem laufenden
+ * Freigabezyklus.
+ *
+ * Welche Revision zaehlt, entscheidet bewusst der View und nicht diese Query:
+ * Prisma koennte im `where` der Relation ohnehin nicht gegen eine Spalte des
+ * Elternsatzes (`initiative.approvalRevision`) vergleichen — und als Regel
+ * gehoert der Schnitt dorthin, wo er testbar ist.
+ *
+ * Rueckgabe bewusst ohne Typ-Annotation aus der View-Schicht (wie
+ * `getPortfolioGuardrailsInputs`) — die Form passt strukturell auf
+ * `BoEngagementEpicInput`, ohne dass der Service auf den View zeigt.
+ */
+export async function getBusinessOwnerEngagementInputs(db: PrismaClient, tenantId: TenantId) {
+  const [epics, userLabels] = await Promise.all([
+    db.initiative.findMany({
+      where: {
+        tenantId,
+        level: InitiativeLevel.EPIC,
+        deletedAt: null,
+        approvalPhase: { in: BO_SCOPE_PHASES },
+      },
+      select: {
+        id: true,
+        title: true,
+        approvalRevision: true,
+        epicApprovals: {
+          where: { party: "business_owner" },
+          select: {
+            revision: true,
+            approverUserId: true,
+            status: true,
+            requestedAt: true,
+            decidedAt: true,
+          },
+        },
+      },
+    }),
+    listTenantUserLabels(db, tenantId),
+  ]);
+
+  return epics.map((e) => ({
+    epicId: e.id,
+    title: e.title,
+    approvalRevision: e.approvalRevision,
+    approvals: e.epicApprovals.map((a) => ({
+      revision: a.revision,
+      approverUserId: a.approverUserId,
+      approverLabel:
+        a.approverUserId == null ? null : (userLabels[a.approverUserId] ?? a.approverUserId),
+      status: a.status,
+      requestedAt: a.requestedAt,
+      decidedAt: a.decidedAt,
+    })),
+  }));
+}
+
 async function reportGuardrailTargetsFallback(
   tenantId: TenantId,
   fields: readonly string[],

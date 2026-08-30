@@ -83,6 +83,20 @@ export function formatPercent(ratio: number): string {
   return `${Math.round(ratio * 100)} %`;
 }
 
+const PP_FORMATTER = new Intl.NumberFormat("de-DE", {
+  signDisplay: "always",
+  maximumFractionDigits: 1,
+});
+
+/**
+ * Prozentpunkt-Delta mit Vorzeichen: `formatPp(0.085)` → `+8,5 pp`. Eingabe ist
+ * ein 0..1-Delta (gleiche Konvention wie `formatPercent`), Ausgabe die Differenz
+ * zweier Anteile — deshalb „pp" und nicht „%".
+ */
+export function formatPp(delta: number): string {
+  return `${PP_FORMATTER.format(delta * 100)} pp`;
+}
+
 /**
  * de-DE date formatter. `iso` may be a `Date`, an ISO string, or `null`
  * (renders as em-dash). Default mode is `"date"` (`05.06.2026`); `"datetime"`

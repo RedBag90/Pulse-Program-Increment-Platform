@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   computePortfolioGuardrails,
+  computeBusinessOwnerEngagement,
+  type BoApprovalInput,
+  type BoEngagementEpicInput,
   type GuardrailsEpicInput,
 } from "@/modules/work/server/views/portfolio-guardrails-view";
 import { DEFAULT_GUARDRAIL_TARGETS } from "@/modules/work/domain/portfolio-guardrails";
@@ -170,6 +173,7 @@ describe("computePortfolioGuardrails", () => {
     const m = computePortfolioGuardrails({
       epics: [epic({ id: "a", investmentHorizon: "h1" })],
       targets: {
+        ...DEFAULT_GUARDRAIL_TARGETS,
         horizon: { h0: 0, h1: 100, h2: 0, h3: 0 },
         capacity: { business: 100, enabler: 0 },
       },
@@ -190,5 +194,144 @@ describe("computePortfolioGuardrails", () => {
     expect(m.horizon.rows.h2.count).toBe(1);
     expect(m.horizon.rows.h1.amount).toBe(0);
     expect(m.horizon.rows.h2.amount).toBe(0);
+  });
+});
+
+// ── Guardrail 4 — Business-Owner-Engagement ─────────────────────────────────
+
+const NOW = new Date("2026-08-30T12:00:00Z");
+const ENGAGEMENT_TARGETS = { coverage: 90, responseDays: 10 };
+
+/** Tage vor NOW als Datum. */
+const daysAgo = (n: number) => new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000);
+
+const approval = (over: Partial<BoApprovalInput> = {}): BoApprovalInput => ({
+  revision: 1,
+  approverUserId: "u1",
+  approverLabel: "bo@pulse.dev",
+  status: "pending",
+  requestedAt: daysAgo(1),
+  decidedAt: null,
+  ...over,
+});
+
+const boEpic = (over: Partial<BoEngagementEpicInput> = {}): BoEngagementEpicInput => ({
+  epicId: "e1",
+  title: "Epic",
+  approvalRevision: 1,
+  approvals: [approval()],
+  ...over,
+});
+
+const engagement = (epics: BoEngagementEpicInput[]) =>
+  computeBusinessOwnerEngagement({ epics, targets: ENGAGEMENT_TARGETS, now: NOW });
+
+describe("computeBusinessOwnerEngagement", () => {
+  it("meldet unknown statt 0 %, wenn kein Epic im Freigabelauf ist", () => {
+    const m = engagement([]);
+    expect(m.scopeCount).toBe(0);
+    expect(m.coverageRatio).toBeNull();
+    expect(m.responseRatio).toBeNull();
+    expect(m.status).toBe("unknown");
+    expect(m.overdue).toEqual([]);
+  });
+
+  it("senkt die Abdeckung, wenn eine Zeile niemandem zugewiesen ist", () => {
+    const m = engagement([
+      boEpic({ epicId: "a" }),
+      boEpic({
+        epicId: "b",
+        approvals: [approval({ approverUserId: null, approverLabel: null })],
+      }),
+    ]);
+    expect(m.coveredCount).toBe(1);
+    expect(m.coverageRatio).toBeCloseTo(0.5);
+  });
+
+  it("zaehlt ein Epic ganz ohne BO-Zeile als nicht abgedeckt", () => {
+    const m = engagement([boEpic({ epicId: "a", approvals: [] })]);
+    expect(m.coveredCount).toBe(0);
+    expect(m.approvalCount).toBe(0);
+    expect(m.responseRatio).toBeNull();
+  });
+
+  it("wertet eine offene Zeile innerhalb des Zeitrahmens als rechtzeitig", () => {
+    const m = engagement([boEpic({ approvals: [approval({ requestedAt: daysAgo(9) })] })]);
+    expect(m.timelyCount).toBe(1);
+    expect(m.overdue).toEqual([]);
+  });
+
+  it("wertet eine offene Zeile jenseits des Zeitrahmens als ueberfaellig", () => {
+    const m = engagement([boEpic({ approvals: [approval({ requestedAt: daysAgo(24) })] })]);
+    expect(m.timelyCount).toBe(0);
+    expect(m.overdue).toHaveLength(1);
+    expect(m.overdue[0]?.daysOpen).toBe(24);
+  });
+
+  it("zaehlt eine spaet entschiedene Zeile als verfehlt, aber nicht als offen", () => {
+    const m = engagement([
+      boEpic({
+        approvals: [
+          approval({ requestedAt: daysAgo(30), decidedAt: daysAgo(5), status: "approved" }),
+        ],
+      }),
+    ]);
+    expect(m.timelyCount).toBe(0);
+    expect(m.overdue).toEqual([]);
+  });
+
+  it("ignoriert Zeilen aus abgeschlossenen Freigabezyklen", () => {
+    const m = engagement([
+      boEpic({
+        approvalRevision: 2,
+        approvals: [
+          // Alte Runde, laengst ueberfaellig — darf nicht mehr zaehlen.
+          approval({ revision: 1, requestedAt: daysAgo(90) }),
+          approval({ revision: 2, requestedAt: daysAgo(2) }),
+        ],
+      }),
+    ]);
+    expect(m.approvalCount).toBe(1);
+    expect(m.timelyCount).toBe(1);
+    expect(m.overdue).toEqual([]);
+  });
+
+  it("nimmt das schlechtere der zwei Tiers", () => {
+    // Abdeckung 100 % (gruen), Reaktion 1/2 = 50 % (rot) ⇒ rot.
+    const m = engagement([
+      boEpic({
+        epicId: "a",
+        approvals: [approval({ requestedAt: daysAgo(1) }), approval({ requestedAt: daysAgo(40) })],
+      }),
+    ]);
+    expect(m.coverageRatio).toBe(1);
+    expect(m.responseRatio).toBeCloseTo(0.5);
+    expect(m.status).toBe("red");
+  });
+
+  it("sortiert die Ueberfaelligen nach Wartezeit, laengste zuerst", () => {
+    const m = engagement([
+      boEpic({ epicId: "a", approvals: [approval({ requestedAt: daysAgo(18) })] }),
+      boEpic({ epicId: "b", approvals: [approval({ requestedAt: daysAgo(31) })] }),
+    ]);
+    expect(m.overdue.map((o) => o.epicId)).toEqual(["b", "a"]);
+  });
+});
+
+describe("computePortfolioGuardrails — Engagement-Kopplung", () => {
+  it("laesst engagement weg, wenn der Aufrufer keine BO-Daten uebergibt", () => {
+    const m = computePortfolioGuardrails({ epics: [], targets: DEFAULT_GUARDRAIL_TARGETS });
+    expect(m.engagement).toBeUndefined();
+  });
+
+  it("rechnet engagement mit den Targets des Tenants", () => {
+    const m = computePortfolioGuardrails({
+      epics: [],
+      targets: DEFAULT_GUARDRAIL_TARGETS,
+      engagement: { epics: [boEpic()], now: NOW },
+    });
+    expect(m.engagement?.coverageTarget).toBe(DEFAULT_GUARDRAIL_TARGETS.engagement.coverage);
+    expect(m.engagement?.responseDays).toBe(DEFAULT_GUARDRAIL_TARGETS.engagement.responseDays);
+    expect(m.engagement?.status).toBe("green");
   });
 });

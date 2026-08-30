@@ -29,13 +29,18 @@ const guardrailTargetsSchema = z
       business: z.number().min(0).max(100),
       enabler: z.number().min(0).max(100),
     }),
+    // Kein Mix — deshalb kein Summen-Refinement, nur Wertebereiche.
+    engagement: z.object({
+      coverage: z.number().min(0).max(100),
+      responseDays: z.number().int().min(1),
+    }),
   })
   .refine(
     (t) => {
       const r = validateGuardrailTargets(t);
       return r.ok;
     },
-    { message: "Targets müssen je Achse auf 100 summieren" },
+    { message: "Die zwei Mix-Achsen müssen je auf 100 summieren" },
   );
 
 export const savePortfolioDashboardSettingsAction = createServerAction({
@@ -75,6 +80,10 @@ export const savePortfolioDashboardSettingsAction = createServerAction({
             business: num("guardrail_business"),
             enabler: num("guardrail_enabler"),
           },
+          engagement: {
+            coverage: num("guardrail_coverage"),
+            responseDays: num("guardrail_response_days"),
+          },
         }
       : undefined;
     return {
@@ -85,6 +94,7 @@ export const savePortfolioDashboardSettingsAction = createServerAction({
   service: (ctx, input) => savePortfolioDashboardSettings(ctx, input),
   onSuccess: () => {
     revalidatePath("/portfolio/dashboard", "page");
+    revalidatePath("/portfolio/guardrails", "page");
     revalidatePath("/pi-planning", "page");
   },
   mapError: (e) =>
