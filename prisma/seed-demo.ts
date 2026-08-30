@@ -26,6 +26,17 @@ import {
   uid,
 } from "./seed-helpers.js";
 import { seedRunTheBusiness, seedBudgetPeriod, type GroupSpec } from "./seed-budgeting.js";
+import {
+  assertGateHistory,
+  buildGateHistory,
+  gateRuleRows,
+  straightPath,
+  stepsUpTo,
+  type GateApprovalRow,
+  type GateMove,
+  type GateTransitionRow,
+} from "./seed-gate-history.js";
+import { gateOfStep, type GateStep } from "@/modules/work/domain/stage-gate";
 
 // ── Zeit-Helfer (relativ zu heute) ──────────────────────────────────────────
 const DAY = 86_400_000;
@@ -446,53 +457,151 @@ async function main() {
   });
   await prisma.solution.createMany({ data: solutionRows });
 
+  // ── Der Weg jedes Epics ───────────────────────────────────────────────
+  //
+  // Ein Reifegrad entsteht nicht durch das Setzen einer Spalte, sondern durch
+  // Anträge und Abnahmen (siehe docs/concepts/epic-lifecycle-walkthrough.md).
+  // Der Seed beschreibt deshalb den *Weg*; `buildGateHistory` leitet daraus die
+  // Spalten, Anträge und Abnahmen mit derselben Domänenlogik ab, die auch die
+  // App benutzt.
+
+  /** Ziel-Schritt je Epic — für einzelne auf die Unterstufe geschärft. */
+  const SUB_STEP: Record<number, GateStep> = {
+    8: "L3.2", // Data Platform — Investition abgenommen
+    12: "L3.2", // Biometric Auth — Investition abgenommen
+    13: "L4.2", // Regulatory Reporting — Umsetzung bestätigt fertig
+    19: "L4.2", // Payments Observability — Umsetzung bestätigt fertig
+  };
+  const targetStep = (i: number, def: EpicDef): GateStep =>
+    SUB_STEP[i] ?? ((def.gate === "L3" ? "L3.1" : def.gate) as GateStep);
+
+  /**
+   * Die Zustände, die der Walkthrough beschreibt — je einmal an einem benannten
+   * Epic, damit sie sich vorführen lassen. Ohne sie zeigte der Datensatz nur
+   * den glatten Pfad, und Ablehnung, Rückstufung und Überfälligkeit blieben
+   * unsichtbar.
+   */
+  const STORY: Record<number, (t: (step: GateStep) => Date) => GateMove[]> = {
+    // Open-Banking (L3.1): das Geld ist da, die Investitionsentscheidung läuft.
+    1: (t) => [{ kind: "open", to: "L3.2", requestedAt: addDays(t("L3.1"), 12) }],
+    // AI Fraud Detection (L2): Business Case liegt bei den fünf Parteien,
+    // zwei haben gezeichnet.
+    2: (t) => [
+      {
+        kind: "open",
+        to: "L3.1",
+        requestedAt: addDays(t("L2"), 20),
+        decidedRoles: ["epic.party.mgmt", "epic.party.finance"],
+        decidedAt: addDays(t("L2"), 24),
+      },
+    ],
+    // Card Tokenization (L3.1): einmal zurückgestuft, überarbeitet, erneut
+    // abgenommen — das Epic zeigt den Diff gegen die letzte Freigabe.
+    5: (t) => [
+      {
+        kind: "revert",
+        to: "L2",
+        at: addDays(t("L3.1"), 20),
+        reason:
+          "Nutzenrechnung hält der Prüfung durch Finance nicht stand — bitte mit belastbaren Zahlen erneut vorlegen.",
+      },
+      {
+        kind: "advance",
+        to: "L3.1",
+        requestedAt: addDays(t("L3.1"), 45),
+        decidedAt: addDays(t("L3.1"), 52),
+      },
+    ],
+    // Self-Service Contact Center (L2): der erste Anlauf wurde abgelehnt.
+    6: (t) => [
+      {
+        kind: "rejected",
+        to: "L3.1",
+        requestedAt: addDays(t("L2"), 15),
+        decidedAt: addDays(t("L2"), 19),
+        reason: "Die Kostenscheiben decken den Betrieb nach Go-live nicht ab.",
+      },
+    ],
+    // Core Banking (L2): der Antrag liegt seit Wochen, der Business Owner hat
+    // nicht gezeichnet — genau der Fall, den Guardrail 4 messen soll.
+    9: () => [
+      {
+        kind: "open",
+        to: "L3.1",
+        requestedAt: addDays(now, -38),
+        decidedRoles: ["epic.party.mgmt", "epic.party.lace_vmo"],
+        decidedAt: addDays(now, -30),
+      },
+    ],
+    // Developer Platform (L2): Antrag gestellt und selbst zurückgezogen.
+    16: (t) => [
+      {
+        kind: "withdrawn",
+        to: "L3.1",
+        requestedAt: addDays(t("L2"), 10),
+        decidedAt: addDays(t("L2"), 13),
+      },
+    ],
+  };
+
+  /** Epics, deren Owner um Unterstützung gebeten hat. */
+  const HELP_REQUESTED = new Set([10]);
+
   const epicIds = EPIC_DEFS.map((_, i) => uid(`epic:${i}`));
+  const gateRules = gateRuleRows(null);
+  const gateTransitionRows: GateTransitionRow[] = [];
+  const gateApprovalRows: GateApprovalRow[] = [];
   const epicRows: Prisma.InitiativeCreateManyInput[] = EPIC_DEFS.map((def, i) => {
     const start = addDays(now, -160 + i * 12);
-    const status = gateStatus[def.gate]!;
-    // Approval-Stempel einmal berechnet — sie gehen sowohl in die Zeile als auch
-    // in die Bestimmung des fruehesten Gates ein.
-    const hypothesisApprovedAt =
-      def.gate === "L2" ? addDays(now, -40 + i) : def.gate === "L3" ? addDays(now, -60 + i) : null;
-    const businessCaseApprovedAt = def.gate === "L3" ? addDays(now, -30 + i) : null;
-    // L0 (Funnel-Eintritt) wird aus `createdAt` abgeleitet und muss VOR dem
-    // fruehesten Gate liegen. Ohne das stuende die Anlage der Zeile (Default
-    // `now()`) hinter den Gates, die sie beschreibt — der Reifegrad-Tab zeigte
-    // ein L0-Datum nach L5. `start` ist das L4.1-Estimate und bei frueh
-    // indizierten Epics das frueheste Datum ueberhaupt.
-    const earliestGate = [start, hypothesisApprovedAt, businessCaseApprovedAt]
-      .filter((d): d is Date => d != null)
-      .reduce((a, b) => (a.getTime() <= b.getTime() ? a : b));
-    return {
-      id: epicIds[i]!,
+    const target = targetStep(i, def);
+    const status = gateStatus[gateOfStep(target)]!;
+    const ownerId = i % 4 === 3 ? null : i % 3 === 0 ? U.owner : i % 3 === 1 ? U.portfolio : U.vso;
+    const businessCase =
+      def.gate === "L2" || def.gate === "L3" || def.gate === "L4" || def.gate === "L5"
+        ? {
+            costSlices: [
+              { period: H1, amount: 120_000 + i * 6_000 },
+              { period: H2, amount: 90_000 + i * 4_000 },
+            ],
+            assumptions: "Kalkulation auf Basis der aktuellen Team-Kapazität und Lauf-Kosten.",
+          }
+        : null;
+    const benefitHypothesis = {
+      measuresHypothesis: `Mit „${def.title}" verbessern wir das messbare Ergebnis für ${vsNames[def.vs]}.`,
+      changeFromBaseline: "Signifikante Verbesserung gegenüber dem heutigen Startpunkt.",
+      businessOutcomes: ["Höhere Effizienz", "Bessere Kundenerfahrung", "Geringeres Risiko"],
+      leadingIndicators: ["Adoption-Rate", "Durchlaufzeit", "Fehlerquote"],
+      risks: ["Abhängigkeit von Legacy-Systemen", "Regulatorische Freigaben"],
+    };
+
+    // Die Schritte fallen gleichmässig ueber das letzte Jahr, der letzte liegt
+    // gut zwei Wochen zurueck. So liegt jeder Stempel in der Vergangenheit und
+    // die Kette bleibt streng monoton.
+    const steps = stepsUpTo(target);
+    const decidedFor = (step: GateStep): Date =>
+      addDays(now, -(14 + i) - (steps.length - 1 - steps.indexOf(step)) * 26);
+    const moves: GateMove[] = [
+      ...straightPath(target, decidedFor),
+      ...(STORY[i]?.(decidedFor) ?? []),
+    ];
+
+    const history = buildGateHistory({
       tenantId,
-      level: 0,
-      path: epicIds[i]!,
-      title: def.title,
-      description: def.desc,
-      ownerId: i % 4 === 3 ? null : i % 3 === 0 ? U.owner : i % 3 === 1 ? U.portfolio : U.vso,
-      assigneeIds: i % 2 === 0 ? [U.owner] : [],
+      epicId: epicIds[i]!,
+      makeId: (sfx) => uid(`gate:${i}:${sfx}`),
+      requestedBy: ownerId ?? U.owner,
+      createdBy: ADMIN,
+      ownerId,
       valueStreamId: vsIds[def.vs]!,
-      // ART-Zuordnung des Epics (eine der 2 ARTs seines Wertstroms).
-      artId: artIds[def.vs * 2 + (i % 2)]!,
-      // Approval-Stempel auf den vorgemerkten Epics — steuern PB-Eligibility +
-      // die Quelle der abgeleiteten Budget-Info: L2 = nur freigegebene Hypothese
-      // (→ Default-Aufwand als Richtwert), L3 = zusätzlich freigegebener Lean
-      // Business Case (→ Richtwert = Σ costSlices).
-      ...(hypothesisApprovedAt ? { hypothesisApprovedAt } : {}),
-      ...(businessCaseApprovedAt ? { businessCaseApprovedAt } : {}),
-      stageGate: def.gate,
-      status,
-      epicType: def.epicType,
-      // Horizont kommt aus der Primär-Solution (im selben Value Stream).
-      primarySolutionId: solId(def.vs, def.horizon),
-      needsSteeringAttention: def.steering,
-      stagedForBudgeting: def.gate === "L2" || def.gate === "L3",
-      plannedStartAt: start,
-      plannedEndAt: addDays(start, 150),
-      createdAt: addDays(earliestGate, -30),
-      // Reifegrad-Plan: Umsetzungsfenster L4.1→L4.2 = das geplante Zeitfenster
-      // (plannedStartAt/EndAt werden jetzt daraus abgeleitet — deckungsgleich).
+      valueStreamVmoId: U.vmo,
+      valueStreamFinanceApproverId: U.fo,
+      rules: gateRules,
+      // MGMT und IRT-Owner haben keine Wertstrom-Spalte: sie werden am Antrag
+      // benannt. Jedes vierte Epic geht ohne Business Owner raus — sonst waere
+      // die Abdeckungsquote von Guardrail 4 trivial 100 %.
+      parties: { mgmt: U.portfolio, businessOwner: i % 4 === 1 ? null : U.vso, irtOwner: U.rte },
+      benefitHypothesis,
+      businessCase,
       timeline: {
         estimates: {
           implementation_started: start.toISOString().slice(0, 10),
@@ -500,25 +609,56 @@ async function main() {
         },
         actuals: {},
       },
-      ...(status === "completed" ? { completedAt: addDays(now, -18 + i) } : {}),
-      benefitHypothesis: {
-        measuresHypothesis: `Mit „${def.title}" verbessern wir das messbare Ergebnis für ${vsNames[def.vs]}.`,
-        changeFromBaseline: "Signifikante Verbesserung gegenüber dem heutigen Startpunkt.",
-        businessOutcomes: ["Höhere Effizienz", "Bessere Kundenerfahrung", "Geringeres Risiko"],
-        leadingIndicators: ["Adoption-Rate", "Durchlaufzeit", "Fehlerquote"],
-        risks: ["Abhängigkeit von Legacy-Systemen", "Regulatorische Freigaben"],
-      },
-      ...(def.gate === "L2" || def.gate === "L3" || def.gate === "L4" || def.gate === "L5"
-        ? {
-            businessCase: {
-              costSlices: [
-                { period: H1, amount: 120_000 + i * 6_000 },
-                { period: H2, amount: 90_000 + i * 4_000 },
-              ],
-              assumptions: "Kalkulation auf Basis der aktuellen Team-Kapazität und Lauf-Kosten.",
-            },
-          }
+      childFeatureStats: { total: 2, started: 2, completed: 2 },
+      budgetAllocationSum: def.gate === "L0" || def.gate === "L1" ? 0 : 250_000,
+      moves,
+    });
+    // Vor dem Schreiben gegen die Regeln prüfen, die der Service zur Laufzeit
+    // erzwingt — ein Seed soll nicht erst an der Datenbank scheitern.
+    assertGateHistory(history, def.title);
+    gateTransitionRows.push(...history.transitions);
+    gateApprovalRows.push(...history.approvals);
+
+    // L0 (Funnel-Eintritt) wird aus `createdAt` abgeleitet und muss VOR dem
+    // fruehesten Antrag liegen. Ohne das stuende die Anlage der Zeile hinter den
+    // Gates, die sie beschreibt — der Reifegrad-Tab zeigte ein L0-Datum nach L5.
+    const earliestGate = [start, ...history.transitions.map((t) => t.requestedAt)].reduce((a, b) =>
+      a.getTime() <= b.getTime() ? a : b,
+    );
+    return {
+      id: epicIds[i]!,
+      tenantId,
+      level: 0,
+      path: epicIds[i]!,
+      title: def.title,
+      description: def.desc,
+      ownerId,
+      assigneeIds: i % 2 === 0 ? [U.owner] : [],
+      valueStreamId: vsIds[def.vs]!,
+      // ART-Zuordnung des Epics (eine der 2 ARTs seines Wertstroms).
+      artId: artIds[def.vs * 2 + (i % 2)]!,
+      // Alle Reifegrad-Spalten stammen aus der Faltung des Wegs — inklusive
+      // `stageGate`, der Baselines und des Timeline-Ist-Datums. Sie steuern
+      // nebenbei die PB-Eligibility: freigegebene Hypothese ⇒ Default-Aufwand
+      // als Richtwert, freigegebener Business Case ⇒ Richtwert = Σ costSlices.
+      ...history.stamps,
+      status,
+      epicType: def.epicType,
+      // Horizont kommt aus der Primär-Solution (im selben Value Stream).
+      primarySolutionId: solId(def.vs, def.horizon),
+      // Der Steering-Merker setzt sich auch durch die Abnahme von L1 und L3.1;
+      // die Definition kann ihn zusaetzlich erzwingen.
+      ...(def.steering ? { needsSteeringAttention: true } : {}),
+      stagedForBudgeting: def.gate === "L2" || def.gate === "L3",
+      ...(HELP_REQUESTED.has(i)
+        ? { helpRequestedAt: addDays(now, -6), helpRequestedBy: ownerId ?? U.owner }
         : {}),
+      plannedStartAt: start,
+      plannedEndAt: addDays(start, 150),
+      createdAt: addDays(earliestGate, -30),
+      ...(status === "completed" ? { completedAt: addDays(now, -18 + i) } : {}),
+      benefitHypothesis,
+      ...(businessCase ? { businessCase } : {}),
       createdBy: ADMIN,
       updatedBy: ADMIN,
     };
@@ -539,55 +679,59 @@ async function main() {
   // nicht beantragbar — ein frischer Demo-Tenant wäre sonst am ersten Gate
   // blockiert. Die Platzhalter lösen auf die Wertstrom-Governance-Spalten auf
   // (`vmoId` / `financeApproverId`), die oben schon gesetzt sind.
+  //
+  // Die `toGate`-Werte sind **GateSteps**, keine Haupt-Gates: der Lookup
+  // vergleicht gegen `L3.1`/`L3.2`/`L4.2`, eine Zeile `"L3"` träfe nie und
+  // fiele still auf den Code-Default zurück.
   await prisma.stageGateApproverRule.createMany({
-    data: (
-      [
-        ["L1", ["value_stream.vmo"]],
-        ["L2", ["value_stream.vmo"]],
-        ["L3", ["value_stream.vmo", "value_stream.finance_approver"]],
-        ["L4", ["value_stream.vmo"]],
-        ["L5", ["value_stream.finance_approver"]],
-      ] as const
-    ).map(([toGate, approverRoles]) => ({
-      tenantId,
-      valueStreamId: null,
-      toGate,
-      required: true,
-      quorum: "all",
-      approverUserIds: [],
-      approverRoles: [...approverRoles],
-      updatedBy: U.admin,
-    })),
+    data: [
+      ...gateRules.map((r) => ({
+        tenantId,
+        valueStreamId: null,
+        toGate: r.toGate,
+        required: r.required,
+        quorum: r.quorum,
+        approverUserIds: r.approverUserIds,
+        approverRoles: r.approverRoles,
+        updatedBy: U.admin,
+      })),
+      // Ein Wertstrom-Override, damit die Präzedenz (Wertstrom schlägt Tenant)
+      // im Demo-Tenant sichtbar ist: in „Digital Banking" zeichnet die
+      // Umsetzungsfreigabe zusätzlich der Wertstrom-Owner mit.
+      {
+        tenantId,
+        valueStreamId: vsIds[0]!,
+        toGate: "L4",
+        required: true,
+        quorum: "all",
+        approverUserIds: [U.vso],
+        approverRoles: ["value_stream.vmo"],
+        updatedBy: U.admin,
+      },
+    ],
   });
 
-  // Ein offener Antrag, damit die Gate-Karte und „Meine Freigaben" im Demo-
-  // Tenant ohne Vorarbeit etwas zeigen: das erste L3-Epic will nach L4.
-  const pendingGateEpicId = epicIds[EPIC_DEFS.findIndex((d) => d.gate === "L3")];
-  if (pendingGateEpicId) {
-    await prisma.stageGateTransition.create({
-      data: {
-        tenantId,
-        initiativeId: pendingGateEpicId,
-        fromGate: "L3",
-        toGate: "L4",
-        kind: "forward",
-        status: "pending",
-        quorum: "all",
-        requestedBy: U.owner,
-        reason: "Team steht bereit, Umsetzung kann starten.",
-        approvals: {
-          create: [
-            {
-              tenantId,
-              approverUserId: U.vmo,
-              role: "value_stream.vmo",
-              source: "value_stream",
-              createdBy: U.owner,
-            },
-          ],
-        },
-      },
-    });
+  // Die Reifegrad-Historie: eine Antragszeile je gegangenem Schritt plus die
+  // Abnahmen. Beides kommt aus der Faltung oben — hier wird nur geschrieben.
+  // Reihenfolge: Anträge vor Abnahmen (Fremdschlüssel).
+  await prisma.stageGateTransition.createMany({ data: gateTransitionRows });
+  await prisma.stageGateApproval.createMany({ data: gateApprovalRows });
+  console.log(
+    `  ✓ ${gateTransitionRows.length} Reifegrad-Anträge, ${gateApprovalRows.length} Abnahmen`,
+  );
+  // Invariante: jedes Epic, das L0 verlassen hat, traegt die Antragshistorie,
+  // die es dorthin gebracht hat. Genau das war vorher nicht der Fall.
+  {
+    const moved = epicRows.filter((e) => e.stageGate !== "L0");
+    const withHistory = new Set(
+      gateTransitionRows.filter((t) => t.status === "approved").map((t) => t.initiativeId),
+    );
+    const missing = moved.filter((e) => !withHistory.has(e.id as string));
+    if (missing.length > 0) {
+      throw new Error(
+        `Seed-Invariante verletzt: ${missing.length} Epic(s) jenseits von L0 ohne abgenommenen Reifegrad-Wechsel.`,
+      );
+    }
   }
 
   // Features (~44): 3 für Epics an Index %5==0, sonst 2. artId rotiert über ALLE
@@ -1652,53 +1796,6 @@ async function main() {
 
   // ── Phase 8: Approvals, Audit, Anfragen, Setup, Transformation ────────────
   console.log("\n── Workflow + Admin-Inbox");
-  // Offene L2 → L3.1-Anträge über VIELE Epics: die Abnahme dieses Schritts *ist*
-  // die Business-Case-Freigabe, also sitzen hier die fünf Parteien als
-  // Abnehmer. Damit füllt sich /my-approvals für portfolio/vmo/finance/owner/rte
-  // — und Guardrail 4 (Business-Owner-Engagement) bekommt seine Datenbasis.
-  const partyApprover: Record<string, string> = {
-    "epic.party.mgmt": U.portfolio,
-    "epic.party.business_owner": U.owner,
-    "epic.party.finance": U.fo,
-    "epic.party.irt_owner": U.rte,
-    "epic.party.lace_vmo": U.vmo,
-  };
-  const PARTY_ROLES = Object.keys(partyApprover);
-  for (const [i, epicId] of epicIds.slice(0, 12).entries()) {
-    // Mehrheit offen (Inbox füllt), einige Parteien schon entschieden.
-    const requestedAt = addDays(now, -3 - (i % 5));
-    await prisma.stageGateTransition.create({
-      data: {
-        id: uid(`appr:gate:${i}`),
-        tenantId,
-        initiativeId: epicId,
-        fromGate: "L2",
-        toGate: "L3.1",
-        kind: "forward",
-        status: "pending",
-        quorum: "all",
-        requestedBy: U.owner,
-        requestedAt,
-        reason: "Business Case ausgearbeitet — bitte abnehmen.",
-        approvals: {
-          create: PARTY_ROLES.map((role, k) => {
-            const decided = (i + k) % 4 === 3;
-            return {
-              tenantId,
-              approverUserId: partyApprover[role]!,
-              role,
-              source: "manual",
-              status: decided ? "approved" : "pending",
-              requestedAt,
-              ...(decided ? { decidedAt: addDays(now, -1), comment: "Freigegeben." } : {}),
-              createdBy: ADMIN,
-            };
-          }),
-        },
-      },
-    });
-  }
-
   // Tenant-Invite + Join-Requests (admin/anfragen)
   await prisma.tenantInvite.create({
     data: {

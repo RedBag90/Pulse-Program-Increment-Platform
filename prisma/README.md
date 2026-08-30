@@ -9,11 +9,43 @@ an — sie brauchen also `.env.local` mit `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_UR
 | ---------------------- | --------------- | --------------------------------------------------------------------------------------------- |
 | `pnpm db:seed`         | Pulse Demo Corp | Nur Konten, Mandant, Rollen — leere Fachdaten                                                 |
 | `pnpm db:seed:demo`    | Pulse Demo Corp | Dichter Story-Datensatz: 3 Wertströme, 6 ARTs, 20 Epics, ~44 Features, Ziele, Budget, Risiken |
+| `pnpm db:seed:large`   | Large Test Corp | Lastdatensatz: 3 Wertströme, 6 ARTs, 200 Epics über 10 Jahre, ~490 Features, Budget-Historie  |
 | `pnpm db:seed:offsite` | **Test Demo**   | Simulation „Firmen-Offsite": 1 Wertstrom, 1 ART, 1 Kopf-Ziel, 3 Epics, 9 Features             |
 
-> **Alle drei löschen zuerst die Fachdaten ihres Mandanten** (`wipeDomainData`). Konten, der
+> **Alle löschen zuerst die Fachdaten ihres Mandanten** (`wipeDomainData`). Konten, der
 > Mandant selbst und Rollenzuweisungen bleiben stehen. Was du von Hand angelegt hast, ist
 > danach weg. Die Ids sind deterministisch (`uid`), ein zweiter Lauf erzeugt denselben Stand.
+
+## Der Reifegrad ist eine Historie, keine Spalte
+
+Ein Epic kommt in Pulse nur durch **Antrag und namentliche Abnahme** voran
+(siehe `docs/concepts/epic-lifecycle-walkthrough.md`). Die Seeds bilden das ab:
+sie beschreiben je Epic den _Weg_, und `prisma/seed-gate-history.ts` leitet
+daraus die Spalten, Antragszeilen und Abnahmen ab — mit derselben reinen
+Domänenlogik, die auch die App benutzt (`stampsForAdvance`, `gateReadiness`,
+`resolveGatePolicy`). Ändert sich, welchen Stempel ein Schritt setzt, ziehen die
+Seeds beim nächsten Lauf automatisch mit.
+
+Beide Story-Mandanten zeigen deshalb nicht nur den glatten Pfad, sondern auch
+die Zustände, an denen sich der Prozess beweist:
+
+| Zustand                              | `db:seed:demo`                   | `db:seed:large`      |
+| ------------------------------------ | -------------------------------- | -------------------- |
+| Offener Antrag, teils gezeichnet     | AI Fraud Detection, Open-Banking | jedes fünfte L2-Epic |
+| Überfällige Business-Owner-Zeichnung | Core Banking Modernization       | jedes fünfzehnte     |
+| Begründete Ablehnung                 | Self-Service Contact Center      | gestreut             |
+| Rückstufung und zweiter Anlauf       | Card Tokenization                | gestreut über L3.1   |
+| Zurückgezogener Antrag               | Developer Platform               | gestreut             |
+| „I need help"                        | SME Lending                      | gestreut über L2/L3  |
+
+Die Seeds prüfen sich beim Lauf selbst: `assertGateHistory` wirft, sobald eine
+Historie entsteht, die die App so nie erzeugt hätte — etwa zwei offene Anträge
+an einem Epic (was am partiellen Unique-Index `stage_gate_transitions_one_open`
+scheitern würde) oder ein offener Antrag, dessen `fromGate` nicht zum aktuellen
+Schritt passt.
+
+> Die manuellen Indizes gehören vor den ersten Seed-Lauf eingespielt:
+> `psql "$DIRECT_URL" -f prisma/manual-indexes.sql`
 
 ## `db:seed:offsite` — der Simulationsmandant
 

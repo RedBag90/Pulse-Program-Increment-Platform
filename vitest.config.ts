@@ -38,6 +38,8 @@ export default defineConfig({
             // Module-Container: Domain-/Client-Tests laufen im jsdom-Projekt.
             "src/modules/**/domain/**/*.test.ts",
             "src/modules/**/*.test.tsx",
+            // Seed-Helfer: rein, ohne Prisma — laufen hier mit.
+            "prisma/**/*.test.ts",
           ],
         },
         resolve: { alias },
