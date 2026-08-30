@@ -10,7 +10,7 @@ unvereinbare Mechaniken auf derselben Spalte**:
 
 1. **Inhaltliche Trigger.** Fünf Services (`epic.ts`, `epic-approval.ts`,
    `feature.ts`, `budgeting.ts`) riefen `signalGateTrigger` und schrieben damit
-   einen *Vorschlag* in `Initiative.proposedStageGate`. Zwei davon waren
+   einen _Vorschlag_ in `Initiative.proposedStageGate`. Zwei davon waren
    Cross-Modul-Schreibkopplungen (Drumbeat → Work, Budgeting → Work).
 2. **Ein Auto-Advance.** `hypothesis_approved` schob L0→L1 sofort, ohne
    Bestätigung — die eine dokumentierte Ausnahme.
@@ -25,9 +25,9 @@ Daraus folgten konkrete Defekte:
   Capability `epic.approve` = `portfolio_manager`.
 - **Doku und Code widersprachen sich.** CONTEXT.md sagte „der Epic-Owner
   bestätigt"; der Confirm war auf `epic.approve` gegated — der Epic-Owner konnte
-  seinen eigenen Vorschlag *nicht* bestätigen.
+  seinen eigenen Vorschlag _nicht_ bestätigen.
 - **Vorschläge waren unsichtbar.** `suggest` wurde bewusst nicht auditiert, es
-  gab genau *einen* Slot pro Epic und **keine Möglichkeit, einen Vorschlag zu
+  gab genau _einen_ Slot pro Epic und **keine Möglichkeit, einen Vorschlag zu
   verwerfen**.
 - **Rückwärts-Wechsel räumten nichts auf.** `approvedAt` / `impactRecognizedAt`
   sind set-once und wurden beim Zurückstufen nie geleert — ein erneutes
@@ -66,6 +66,32 @@ Vier Festlegungen:
    Anträge nicht um.
 4. **Eigene Tabellen, nicht `EpicApproval` mit `kind: "gate"`.**
 
+### Nachtrag (2026-08-30): L4.2 ist ein eigener Schritt
+
+Ursprünglich kannte der Apparat nur die sechs Haupt-Gates L0–L5, während die
+Sub-Stage **L4.2 „Umsetzung fertig"** automatisch aus dem Feature-Zähler
+abgeleitet wurde (alle Child-Features `completed` ⇒ L4.2). Das war der letzte
+verbliebene Auto-Advance und widersprach Festlegung 1: „fertig gebaut" ist eine
+Aussage, die jemand trifft — nicht eine, die aus einer Zählung entsteht.
+
+Deshalb beantragt und abgenommen man L4.2 jetzt wie ein Gate. Die Leiter der
+beantragbaren **Schritte** (`GATE_STEPS`) lautet `L0 · L1 · L2 · L3 · L4 · L4.2 ·
+L5`; das Gate-Subsystem ist auf den Typ `GateStep` getypt. Drei Konsequenzen:
+
+- **`Initiative.stageGate` bleibt bei „L4".** L4.2 materialisiert sich im
+  Stempel `implementationCompletedAt` — der Audit-Log der Haupt-Gates bleibt
+  unberührt, `currentGateStep()` setzt Spalte und Stempel zum Schritt zusammen.
+- **Die Kriterien wandern eine Stufe nach unten.** „Alle Child-Features
+  abgeschlossen" ist jetzt Voraussetzung von **L4.2**; der L5-Antrag verlangt
+  stattdessen die abgenommene Bestätigung (`implementation_confirmed`). L4.2 ist
+  ausdrücklich **nicht** L5: zwischen fertiger Umsetzung und nachgewiesenem
+  Impact darf beliebig viel Zeit liegen.
+- **Das Ist-Datum gehört der Abnahme.** `timeline.actuals.implementation` wird
+  ausschließlich beim abgenommenen Schritt L4→L4.2 geschrieben (und beim Revert
+  geräumt); der Timeline-Reiter zeigt es nur an, `saveTimeline` verwirft
+  eingehende Werte. Das ist die bewusste Ausnahme von „`saveTimeline` ist der
+  einzige Timeline-Schreiber".
+
 ## Warum eigene Tabellen
 
 Der Grund ist nicht Ästhetik, sondern ein verifizierter Korrektheits-Hazard:
@@ -78,7 +104,7 @@ Dazu: ein Gate-Antrag hat keine BC-Revision, sondern `fromGate`/`toGate` und
 einen Kopf-Status (`pending | approved | rejected | withdrawn`) — eine Kopfzeile
 bräuchte man ohnehin. Und getrennte Tabellen halten die beiden Achsen orthogonal
 ([ADR-0003](./0003-initiative-state-axes-stay-orthogonal.md)): der
-Dokumenten-Freigabeprozess (`approvalPhase`) speist nur die *Readiness* eines
+Dokumenten-Freigabeprozess (`approvalPhase`) speist nur die _Readiness_ eines
 Gates, er schiebt es nicht.
 
 Geteilt wird nur das **Vokabular**, nicht der Zustand: `approval-primitives.ts`
@@ -100,7 +126,7 @@ importiert.
 - **Rückstufungen räumen auf.** `unwindStampsFor` leert je Paar genau die
   Stempel des verlassenen Gates; ein erneutes Vorrücken stempelt wieder.
 - **Bessere Zuordnung.** `approvedBy` / `impactRecognizedBy` tragen den
-  *entscheidenden Abnehmer* statt „wer den Trigger ausgelöst hat".
+  _entscheidenden Abnehmer_ statt „wer den Trigger ausgelöst hat".
 - **Das Board zeigt die Wahrheit.** `epicBucket()` und seine zwei
   Abweichungsregeln sind entfallen; stattdessen trägt eine Karte den Chip
   „⇧ L3 · 1/2", wenn ein Wechsel auf Abnahme wartet.
@@ -110,7 +136,7 @@ importiert.
   Abnehmer, andere Kriterien und andere offene Anträge.
 - **Zurückgezogene Capabilities:** `epic.approve` und `epic.impact.confirm`;
   neu sind `epic.gate.request | decide | withdraw | revert | approvers.configure`.
-  Weil `resolveCapabilities` nur bei *null* `role_capabilities`-Zeilen auf
+  Weil `resolveCapabilities` nur bei _null_ `role_capabilities`-Zeilen auf
   `POLICIES` zurückfällt, ist der Backfill
   (`prisma/scripts/2026-08-16-gate-transition-backfill.ts`) **zwingend**, nicht
   optional.

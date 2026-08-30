@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
+import type { GateStep } from "@/modules/work/domain/stage-gate";
 import {
   gateReadiness,
   readinessBlockReason,
@@ -22,6 +23,7 @@ function facts(stageGate: StageGate, over: Partial<EpicGateFacts> = {}): EpicGat
     selectedForDetailingAt: null,
     selectedForAnalyzingAt: null,
     implementationStartedAt: null,
+    implementationCompletedAt: null,
     approvedAt: null,
     impactRecognizedAt: null,
     multiPartyApproval: true,
@@ -38,28 +40,31 @@ function keys(f: EpicGateFacts, to: StageGate, which: "unsatisfied" | "blocking-
 }
 
 describe("nextGate / previousGate", () => {
-  it("läuft die kanonische Reihenfolge ab und endet an den Rändern", () => {
-    expect(["L0", "L1", "L2", "L3", "L4"].map((g) => nextGate(g as StageGate))).toEqual([
+  it("läuft die kanonische Schritt-Reihenfolge ab und endet an den Rändern", () => {
+    // L4.2 („Umsetzung fertig") liegt als eigener Schritt zwischen L4 und L5.
+    expect(["L0", "L1", "L2", "L3", "L4", "L4.2"].map((g) => nextGate(g as GateStep))).toEqual([
       "L1",
       "L2",
       "L3",
       "L4",
+      "L4.2",
       "L5",
     ]);
     expect(nextGate("L5")).toBeNull();
     expect(previousGate("L0")).toBeNull();
     expect(previousGate("L3")).toBe("L2");
+    expect(previousGate("L5")).toBe("L4.2");
   });
 });
 
 describe("gateReadiness — L1 (Selektion ins Detailing)", () => {
   it("Mehrparteien: verlangt den Freigabe-Stempel, nicht bloss Inhalt", () => {
-    expect(keys(facts("L0", { hasHypothesisContent: true }), "L1", "blocking-unsatisfied")).toEqual([
-      "hypothesis_ready",
-    ]);
-    expect(
-      keys(facts("L0", { hypothesisApprovedAt: AT }), "L1", "blocking-unsatisfied"),
-    ).toEqual([]);
+    expect(keys(facts("L0", { hasHypothesisContent: true }), "L1", "blocking-unsatisfied")).toEqual(
+      ["hypothesis_ready"],
+    );
+    expect(keys(facts("L0", { hypothesisApprovedAt: AT }), "L1", "blocking-unsatisfied")).toEqual(
+      [],
+    );
   });
 
   it("Einparteien: ausgearbeiteter Inhalt genügt", () => {
@@ -100,14 +105,15 @@ describe("gateReadiness — L3 (Investitionsentscheidung)", () => {
       "business_case_approved",
       "budget_allocated",
     ]);
-    expect(
-      keys(facts("L2", { businessCaseApprovedAt: AT }), "L3", "blocking-unsatisfied"),
-    ).toEqual(["budget_allocated"]);
+    expect(keys(facts("L2", { businessCaseApprovedAt: AT }), "L3", "blocking-unsatisfied")).toEqual(
+      ["budget_allocated"],
+    );
     expect(
       keys(facts("L2", { budgetAllocationSum: 250_000 }), "L3", "blocking-unsatisfied"),
     ).toEqual(["business_case_approved"]);
     expect(
-      gateReadiness(facts("L2", { businessCaseApprovedAt: AT, budgetAllocationSum: 1 }), "L3").ready,
+      gateReadiness(facts("L2", { businessCaseApprovedAt: AT, budgetAllocationSum: 1 }), "L3")
+        .ready,
     ).toBe(true);
   });
 
@@ -126,23 +132,51 @@ describe("gateReadiness — L4 (Start der Umsetzung)", () => {
   });
 });
 
-describe("gateReadiness — L5 (Impact)", () => {
+describe("gateReadiness — L4.2 (Umsetzung fertig)", () => {
   it("verlangt, dass alle Child-Features fertig sind", () => {
     expect(
-      gateReadiness(facts("L4", { childFeatureStats: { total: 3, started: 3, completed: 2 } }), "L5")
-        .ready,
+      gateReadiness(
+        facts("L4", { childFeatureStats: { total: 3, started: 3, completed: 2 } }),
+        "L4.2",
+      ).ready,
     ).toBe(false);
     expect(
-      gateReadiness(facts("L4", { childFeatureStats: { total: 3, started: 3, completed: 3 } }), "L5")
-        .ready,
+      gateReadiness(
+        facts("L4", { childFeatureStats: { total: 3, started: 3, completed: 3 } }),
+        "L4.2",
+      ).ready,
     ).toBe(true);
   });
 
   it("ein Epic ganz ohne Features ist nicht fertig (0 von 0 zählt nicht)", () => {
     expect(
-      gateReadiness(facts("L4", { childFeatureStats: { total: 0, started: 0, completed: 0 } }), "L5")
-        .ready,
+      gateReadiness(
+        facts("L4", { childFeatureStats: { total: 0, started: 0, completed: 0 } }),
+        "L4.2",
+      ).ready,
     ).toBe(false);
+  });
+});
+
+describe("gateReadiness — L5 (Impact)", () => {
+  it("verlangt die abgenommene L4.2-Bestätigung, nicht mehr die Feature-Zähler", () => {
+    // Alle Features fertig, aber nicht bestätigt ⇒ noch kein Impact-Antrag.
+    expect(
+      gateReadiness(
+        facts("L4", { childFeatureStats: { total: 3, started: 3, completed: 3 } }),
+        "L5",
+      ).ready,
+    ).toBe(false);
+    // Bestätigt ⇒ bereit, unabhängig von den Zählern (L4.2 ≠ L5, Zeit darf vergehen).
+    expect(
+      gateReadiness(
+        facts("L4", {
+          childFeatureStats: { total: 3, started: 3, completed: 3 },
+          implementationCompletedAt: new Date("2026-05-01"),
+        }),
+        "L5",
+      ).ready,
+    ).toBe(true);
   });
 });
 

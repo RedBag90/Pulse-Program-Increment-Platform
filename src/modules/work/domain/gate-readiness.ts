@@ -1,5 +1,10 @@
 import type { StageGate } from "@/modules/core/kernel/domain/types";
-import { STAGE_GATES, allChildrenCompleted } from "@/modules/work/domain/stage-gate";
+import {
+  GATE_STEPS,
+  allChildrenCompleted,
+  currentGateStep,
+  type GateStep,
+} from "@/modules/work/domain/stage-gate";
 
 // ---------------------------------------------------------------------------
 // Gate-Readiness — „ist dieses Epic reif für den nächsten Reifegrad?"
@@ -54,6 +59,8 @@ export interface EpicGateFacts {
   selectedForDetailingAt: Date | null;
   selectedForAnalyzingAt: Date | null;
   implementationStartedAt: Date | null;
+  /** Abgenommene L4.2-Bestätigung — trägt zugleich den Schritt innerhalb von L4. */
+  implementationCompletedAt: Date | null;
   approvedAt: Date | null;
   impactRecognizedAt: Date | null;
 
@@ -87,8 +94,8 @@ export interface GateCriterion {
 
 /** Die Kriterien-Auswertung für genau einen Übergang. */
 export interface GateReadiness {
-  from: StageGate;
-  to: StageGate;
+  from: GateStep;
+  to: GateStep;
   criteria: GateCriterion[];
   /** Alle **blockierenden** Kriterien erfüllt. */
   ready: boolean;
@@ -156,7 +163,7 @@ const OWNER_NOMINATED: CriterionRule = {
  * L0 hat keinen Eintrag: dorthin führt kein Vorwärts-Antrag (nur ein Revert,
  * der eigene Regeln hat).
  */
-export const GATE_CRITERIA: Partial<Record<StageGate, readonly CriterionRule[]>> = {
+export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> = {
   L1: [HYPOTHESIS_READY, OWNER_NOMINATED],
   L2: [
     HYPOTHESIS_READY,
@@ -205,29 +212,47 @@ export const GATE_CRITERIA: Partial<Record<StageGate, readonly CriterionRule[]>>
       blocking: false,
     },
   ],
-  L5: [
+  // L4.2 „Umsetzung fertig" — der beantragte Abschluss der Umsetzung. Was früher
+  // die Automatik war (alle Features fertig ⇒ L4.2), ist jetzt die Voraussetzung
+  // des Antrags; bestätigt wird per Abnahme.
+  "L4.2": [
     {
       key: "features_completed",
       label: () => "Alle Child-Features sind abgeschlossen",
       help:
-        "Alle untergeordneten Features sind abgeschlossen — Voraussetzung für den " +
-        "Abschluss des Epics (L5). Den Feature-Status pflegst du im Delivery-Cockpit.",
+        "Alle untergeordneten Features sind abgeschlossen — Voraussetzung dafür, die " +
+        "Umsetzung als fertig zu bestätigen (L4.2). Den Feature-Status pflegst du im " +
+        "Delivery-Cockpit.",
       satisfied: (f) => allChildrenCompleted(f.childFeatureStats),
+      blocking: true,
+    },
+  ],
+  L5: [
+    {
+      // L4.2 ≠ L5: „fertig gebaut" ist nicht „Nutzen nachgewiesen" — zwischen
+      // beidem darf beliebig viel Zeit liegen. Der Impact-Antrag setzt die
+      // bestätigte Umsetzung voraus, ersetzt sie aber nicht.
+      key: "implementation_confirmed",
+      label: () => "Umsetzung ist als abgeschlossen bestätigt (L4.2)",
+      help:
+        "Der Abschluss der Umsetzung wurde beantragt und abgenommen (Schritt L4.2). " +
+        "Erst danach lässt sich der realisierte Impact bestätigen (L5).",
+      satisfied: (f) => f.implementationCompletedAt != null,
       blocking: true,
     },
   ],
 };
 
-/** Das Gate nach `from`, oder `null` am Endgate L5. */
-export function nextGate(from: StageGate): StageGate | null {
-  const i = STAGE_GATES.indexOf(from);
-  return i >= 0 && i < STAGE_GATES.length - 1 ? (STAGE_GATES[i + 1] as StageGate) : null;
+/** Der Schritt nach `from`, oder `null` am Endschritt L5. */
+export function nextGate(from: GateStep): GateStep | null {
+  const i = GATE_STEPS.indexOf(from);
+  return i >= 0 && i < GATE_STEPS.length - 1 ? (GATE_STEPS[i + 1] as GateStep) : null;
 }
 
-/** Das Gate vor `from`, oder `null` am Startgate L0. */
-export function previousGate(from: StageGate): StageGate | null {
-  const i = STAGE_GATES.indexOf(from);
-  return i > 0 ? (STAGE_GATES[i - 1] as StageGate) : null;
+/** Der Schritt vor `from`, oder `null` am Startschritt L0. */
+export function previousGate(from: GateStep): GateStep | null {
+  const i = GATE_STEPS.indexOf(from);
+  return i > 0 ? (GATE_STEPS[i - 1] as GateStep) : null;
 }
 
 /**
@@ -235,7 +260,7 @@ export function previousGate(from: StageGate): StageGate | null {
  * Kriterien (z. B. L0) ist trivial bereit — die *Erlaubnis* prüft
  * `planGateRequest`, nicht diese Funktion.
  */
-export function gateReadiness(facts: EpicGateFacts, to: StageGate): GateReadiness {
+export function gateReadiness(facts: EpicGateFacts, to: GateStep): GateReadiness {
   const rules = GATE_CRITERIA[to] ?? [];
   const criteria = rules.map((rule) => ({
     key: rule.key,
@@ -245,7 +270,7 @@ export function gateReadiness(facts: EpicGateFacts, to: StageGate): GateReadines
     blocking: rule.blocking,
   }));
   return {
-    from: facts.stageGate,
+    from: currentGateStep(facts),
     to,
     criteria,
     ready: criteria.every((c) => !c.blocking || c.satisfied),

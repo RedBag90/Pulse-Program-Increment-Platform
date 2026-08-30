@@ -24,6 +24,9 @@ import {
   assertAssignedApprover,
 } from "@/modules/work/domain/approval-primitives";
 import { type EpicGateFacts, gateReadiness } from "@/modules/work/domain/gate-readiness";
+import { type GateStep } from "@/modules/work/domain/stage-gate";
+import { withImplementationActual } from "@/modules/work/domain/timeline";
+import { isoDay } from "@/modules/core/kernel/domain/calendar";
 import {
   type GatePolicy,
   type ResolvedApprover,
@@ -94,6 +97,7 @@ export async function loadEpicGateFacts(
       selectedForDetailingAt: true,
       selectedForAnalyzingAt: true,
       implementationStartedAt: true,
+      implementationCompletedAt: true,
       approvedAt: true,
       impactRecognizedAt: true,
       benefitHypothesis: true,
@@ -130,6 +134,7 @@ export async function loadEpicGateFacts(
     selectedForDetailingAt: row.selectedForDetailingAt,
     selectedForAnalyzingAt: row.selectedForAnalyzingAt,
     implementationStartedAt: row.implementationStartedAt,
+    implementationCompletedAt: row.implementationCompletedAt,
     approvedAt: row.approvedAt,
     impactRecognizedAt: row.impactRecognizedAt,
     multiPartyApproval: practices.multiPartyApproval,
@@ -146,7 +151,7 @@ export async function resolveGateApprovers(
   tx: Prisma.TransactionClient,
   tenantId: string,
   epic: { valueStreamId: string | null; ownerId: string | null },
-  toGate: StageGate,
+  toGate: GateStep,
   override?: readonly string[] | undefined,
 ): Promise<{ policy: GatePolicy; approvers: ResolvedApprover[] }> {
   const [ruleRows, valueStream] = await Promise.all([
@@ -207,8 +212,41 @@ async function requireStageGatePractice(
 }
 
 /** Der Spalten-Patch als Prisma-Update — eine Stelle für den Cast. */
-function stampsToUpdate(stamps: GateStamps, actorId: string): Prisma.InitiativeUncheckedUpdateInput {
+function stampsToUpdate(
+  stamps: GateStamps,
+  actorId: string,
+): Prisma.InitiativeUncheckedUpdateInput {
   return { ...(stamps as Prisma.InitiativeUncheckedUpdateInput), updatedBy: actorId };
+}
+
+/**
+ * Schreibt einen Stempel-Patch auf die Epic-Zeile — die **eine** Stelle dafür.
+ *
+ * Sonderfall L4.2: die Bestätigung „Umsetzung fertig" führt zugleich das
+ * Ist-Datum im Timeline-JSON (`actuals.implementation`). Das ist die bewusste
+ * Ausnahme davon, dass `saveTimeline` der einzige Timeline-Schreiber ist —
+ * dieses eine Datum gehört der Abnahme, nicht der freien Pflege. Ein Revert
+ * räumt es mit ab (`implementationCompletedAt: null`).
+ */
+async function applyGateStamps(
+  tx: Prisma.TransactionClient,
+  epicId: string,
+  stamps: GateStamps,
+  actorId: string,
+): Promise<void> {
+  const data = stampsToUpdate(stamps, actorId);
+  if (stamps.implementationCompletedAt !== undefined) {
+    const row = await tx.initiative.findUnique({
+      where: { id: epicId },
+      select: { timeline: true },
+    });
+    const iso = stamps.implementationCompletedAt ? isoDay(stamps.implementationCompletedAt) : null;
+    data.timeline = withImplementationActual(
+      row?.timeline,
+      iso,
+    ) as unknown as Prisma.InputJsonValue;
+  }
+  await tx.initiative.update({ where: { id: epicId }, data });
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +255,7 @@ function stampsToUpdate(stamps: GateStamps, actorId: string): Prisma.InitiativeU
 
 export interface RequestGateTransitionInput {
   epicId: string;
-  toGate: StageGate;
+  toGate: GateStep;
   reason?: string | undefined;
   /** Nur wirksam, wenn `ALLOW_AD_HOC_GATE_APPROVERS` an ist. */
   approverUserIds?: string[] | undefined;
@@ -226,8 +264,8 @@ export interface RequestGateTransitionInput {
 export interface RequestGateTransitionResult {
   transitionId: string;
   status: GateTransitionStatus;
-  from: StageGate;
-  to: StageGate;
+  from: GateStep;
+  to: GateStep;
   /** Wie viele Personen noch abnehmen müssen — 0 bei sofortigem Vorrücken. */
   pendingApprovers: number;
 }
@@ -314,10 +352,7 @@ export async function requestGateTransition(
       });
 
       if (immediate && stamps) {
-        await tx.initiative.update({
-          where: { id: input.epicId },
-          data: stampsToUpdate(stamps, mctx.actorId),
-        });
+        await applyGateStamps(tx, input.epicId, stamps, mctx.actorId);
       }
 
       return ok({
@@ -370,8 +405,8 @@ export interface DecideGateTransitionInput {
 
 export interface DecideGateTransitionResult {
   outcome: "pending" | "advanced" | "rejected";
-  from: StageGate;
-  to: StageGate;
+  from: GateStep;
+  to: GateStep;
   remaining: number;
 }
 
@@ -467,7 +502,7 @@ export async function decideGateTransition(
 
     const outcome = decideGateTransitionOutcome({
       facts,
-      to: transition.toGate as StageGate,
+      to: transition.toGate as GateStep,
       quorum: isQuorum(transition.quorum) ? (transition.quorum as Quorum) : "all",
       rows: siblings.map((s) => ({
         approverUserId: s.approverUserId,
@@ -489,14 +524,11 @@ export async function decideGateTransition(
       },
     });
 
-    const from = transition.fromGate as StageGate;
-    const to = transition.toGate as StageGate;
+    const from = transition.fromGate as GateStep;
+    const to = transition.toGate as GateStep;
 
     if (outcome.kind === "advance") {
-      await tx.initiative.update({
-        where: { id: transition.initiativeId },
-        data: stampsToUpdate(outcome.stamps, mctx.actorId),
-      });
+      await applyGateStamps(tx, transition.initiativeId, outcome.stamps, mctx.actorId);
       await tx.stageGateTransition.update({
         where: { id: transition.id },
         data: { status: "approved", resolvedAt: now, resolvedBy: mctx.actorId },
@@ -566,7 +598,7 @@ export async function decideGateTransition(
 export async function withdrawGateTransition(
   ctx: RequestContext,
   input: { transitionId: string; reason: string },
-): Promise<Result<{ epicId: string; toGate: StageGate }>> {
+): Promise<Result<{ epicId: string; toGate: GateStep }>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
     const transition = await tx.stageGateTransition.findFirst({
@@ -605,7 +637,7 @@ export async function withdrawGateTransition(
     });
 
     return ok({
-      result: { epicId: transition.initiativeId, toGate: transition.toGate as StageGate },
+      result: { epicId: transition.initiativeId, toGate: transition.toGate as GateStep },
       audit: {
         action: "initiative.stage_gate.request.withdrawn" as const,
         resourceType: "initiative" as const,
@@ -630,8 +662,8 @@ export async function withdrawGateTransition(
  */
 export async function revertStageGate(
   ctx: RequestContext,
-  input: { epicId: string; toGate: StageGate; reason: string },
-): Promise<Result<{ from: StageGate; to: StageGate }>> {
+  input: { epicId: string; toGate: GateStep; reason: string },
+): Promise<Result<{ from: GateStep; to: GateStep }>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
     const practice = await requireStageGatePractice(tx, mctx.tenantId);
@@ -658,10 +690,7 @@ export async function revertStageGate(
     if (isErr(plan)) return plan;
 
     const now = new Date();
-    await tx.initiative.update({
-      where: { id: input.epicId },
-      data: stampsToUpdate(plan.value.stamps, mctx.actorId),
-    });
+    await applyGateStamps(tx, input.epicId, plan.value.stamps, mctx.actorId);
 
     // Ein offener Antrag ging von einem Gate aus, auf dem das Epic nicht mehr
     // steht — er würde sonst als Karteileiche auf die Abnehmer warten.
@@ -713,7 +742,7 @@ export async function revertStageGate(
 export interface SaveGateApproverRuleInput {
   /** `null` = Tenant-Default. */
   valueStreamId: string | null;
-  toGate: StageGate;
+  toGate: GateStep;
   required: boolean;
   quorum: Quorum;
   approverUserIds: string[];
@@ -799,8 +828,8 @@ export interface GateApprovalView {
 
 export interface OpenGateTransitionView {
   id: string;
-  fromGate: StageGate;
-  toGate: StageGate;
+  fromGate: GateStep;
+  toGate: GateStep;
   quorum: Quorum;
   requestedBy: string;
   requestedAt: Date;
@@ -841,8 +870,8 @@ export async function getOpenGateTransition(
 
   return {
     id: row.id,
-    fromGate: row.fromGate as StageGate,
-    toGate: row.toGate as StageGate,
+    fromGate: row.fromGate as GateStep,
+    toGate: row.toGate as GateStep,
     quorum: isQuorum(row.quorum) ? row.quorum : "all",
     requestedBy: row.requestedBy,
     requestedAt: row.requestedAt,
@@ -860,8 +889,8 @@ export async function getOpenGateTransition(
 
 export interface GateTransitionHistoryRow {
   id: string;
-  fromGate: StageGate;
-  toGate: StageGate;
+  fromGate: GateStep;
+  toGate: GateStep;
   kind: "forward" | "revert";
   status: GateTransitionStatus;
   requestedBy: string;
@@ -895,8 +924,8 @@ export async function listGateTransitions(
   });
   return rows.map((r) => ({
     id: r.id,
-    fromGate: r.fromGate as StageGate,
-    toGate: r.toGate as StageGate,
+    fromGate: r.fromGate as GateStep,
+    toGate: r.toGate as GateStep,
     kind: r.kind === "revert" ? "revert" : "forward",
     status: r.status as GateTransitionStatus,
     requestedBy: r.requestedBy,
@@ -914,7 +943,7 @@ export async function countPendingGateRequests(
   db: PrismaClient | Prisma.TransactionClient,
   tenantId: string,
   epicIds: string[],
-): Promise<Map<string, { toGate: StageGate; pendingCount: number; totalCount: number }>> {
+): Promise<Map<string, { toGate: GateStep; pendingCount: number; totalCount: number }>> {
   if (epicIds.length === 0) return new Map();
   const rows = await db.stageGateTransition.findMany({
     where: { tenantId, status: "pending", initiativeId: { in: epicIds } },
@@ -928,7 +957,7 @@ export async function countPendingGateRequests(
     rows.map((r) => [
       r.initiativeId,
       {
-        toGate: r.toGate as StageGate,
+        toGate: r.toGate as GateStep,
         pendingCount: r.approvals.filter((a) => a.status === "pending").length,
         totalCount: r.approvals.length,
       },
@@ -971,7 +1000,7 @@ export async function loadGateReadiness(
   db: PrismaClient | Prisma.TransactionClient,
   tenantId: string,
   epicId: string,
-  to: StageGate,
+  to: GateStep,
 ) {
   const facts = await loadEpicGateFacts(db as Prisma.TransactionClient, tenantId, epicId);
   return facts ? gateReadiness(facts, to) : null;

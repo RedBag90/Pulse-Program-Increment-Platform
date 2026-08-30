@@ -109,6 +109,7 @@ export default async function EpicsPage() {
       epicApprovals: e.epicApprovals,
       childFeatureCount: featureCounts.get(e.id) ?? 0,
       completedChildFeatureCount: completedFeatureCounts.get(e.id) ?? 0,
+      implementationCompletedAt: e.implementationCompletedAt,
       epicType: e.epicType,
       investmentHorizon: e.primarySolution?.horizon ?? null,
     })),

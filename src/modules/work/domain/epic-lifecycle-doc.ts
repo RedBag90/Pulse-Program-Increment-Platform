@@ -1,5 +1,4 @@
-import type { StageGate } from "@/modules/core/kernel/domain/types";
-import { STAGE_GATES, type SubStage } from "@/modules/work/domain/stage-gate";
+import { GATE_STEPS, type GateStep, type SubStage } from "@/modules/work/domain/stage-gate";
 import {
   GATE_CRITERIA,
   nextGate,
@@ -25,8 +24,8 @@ import {
 
 /** Was ein Reifegrad-Wechsel inhaltlich voraussetzt — abgeleitet, nicht gepflegt. */
 export interface GateCriteriaDoc {
-  stageFrom: StageGate;
-  stageTo: StageGate;
+  stageFrom: GateStep;
+  stageTo: GateStep;
   /** Die Kriterien in Nutzersprache, mit Kennzeichnung „blockierend". */
   criteria: { label: string; blocking: boolean }[];
 }
@@ -52,7 +51,7 @@ export interface SubStageRule {
  */
 const DOC_LABEL_CONTEXT: CriterionLabelContext = { multiPartyApproval: true };
 
-export const GATE_CRITERIA_DOC: readonly GateCriteriaDoc[] = STAGE_GATES.flatMap((from) => {
+export const GATE_CRITERIA_DOC: readonly GateCriteriaDoc[] = GATE_STEPS.flatMap((from) => {
   const to = nextGate(from);
   if (!to) return [];
   const rules = GATE_CRITERIA[to] ?? [];
@@ -85,12 +84,12 @@ export const SUB_STAGE_RULES: readonly SubStageRule[] = [
     gate: "L4",
     key: "L4.1",
     label: "Umsetzung laeuft",
-    condition: "completed < total (oder total == 0)",
+    condition: "Umsetzung noch nicht als fertig abgenommen",
   },
   {
     gate: "L4",
     key: "L4.2",
     label: "Umsetzung fertig",
-    condition: "total > 0 && completed == total",
+    condition: "Schritt L4.2 beantragt und abgenommen (setzt alle Features abgeschlossen voraus)",
   },
 ];

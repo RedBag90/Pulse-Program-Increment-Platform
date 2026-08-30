@@ -83,9 +83,8 @@ export interface LifecycleStep extends LifecycleStepMeta {
 export interface EpicLifecycleInput {
   stageGate: StageGate;
   approvalPhase: string | null;
-  /** subStageFor(): L2.2 = Business Case freigegeben, L4.2 = alle Features fertig. */
+  /** subStageFor(): L2.2 = Business Case freigegeben, L4.2 = Umsetzung abgenommen. */
   subStage: SubStage | null;
-  childFeatureStats: { total: number; completed: number };
   impactRecognizedAt: Date | null;
 }
 
@@ -98,7 +97,7 @@ export interface EpicLifecycleInput {
  * and never hold the highlight (they carry no distinct next-action).
  */
 export function epicLifecycleSteps(input: EpicLifecycleInput): LifecycleStep[] {
-  const { stageGate, approvalPhase, subStage, childFeatureStats, impactRecognizedAt } = input;
+  const { stageGate, approvalPhase, subStage, impactRecognizedAt } = input;
   const gi = STAGE_GATES.indexOf(stageGate);
 
   // Terminal (mirrors `epicNextStep`'s `impactRecognizedAt || L5` short-circuit):
@@ -107,9 +106,6 @@ export function epicLifecycleSteps(input: EpicLifecycleInput): LifecycleStep[] {
     return LIFECYCLE_STEPS.map((step) => ({ ...step, status: "done" }));
   }
 
-  const allFeaturesDone =
-    childFeatureStats.total > 0 && childFeatureStats.completed === childFeatureStats.total;
-
   const reached = [
     true, // funnel
     true, // detailing — folded selection marker
@@ -117,7 +113,7 @@ export function epicLifecycleSteps(input: EpicLifecycleInput): LifecycleStep[] {
     gi >= 1, // analyzing — folded selection marker
     gi >= 3 || subStage === "L2.2" || approvalPhase === "approved", // business_case — BC freigegeben
     gi >= 4, // backlog — impl started ⇒ left backlog
-    gi >= 5 || subStage === "L4.2" || allFeaturesDone, // implementation_started
+    gi >= 5 || subStage === "L4.2", // implementation_started — L4.2 ist abgenommen
     gi >= 5, // implementation — alle Features fertig
     impactRecognizedAt != null || gi >= 5, // done
   ];

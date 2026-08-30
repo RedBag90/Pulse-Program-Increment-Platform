@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { EpicId, StageGate } from "@/modules/core/kernel/domain/types";
+import { currentGateStep, type GateStep } from "@/modules/work/domain/stage-gate";
 import type { Principal } from "@/server/auth/principal";
 import { authorize, hasCapability } from "@/server/auth/authorize";
 import { getEpic } from "@/modules/work/server/services/epic";
@@ -287,8 +288,8 @@ export interface EpicGateApproverView {
 
 export interface EpicGateRequestView {
   id: string;
-  fromGate: StageGate;
-  toGate: StageGate;
+  fromGate: GateStep;
+  toGate: GateStep;
   quorum: Quorum;
   requestedBy: string;
   requestedAt: string;
@@ -300,8 +301,8 @@ export interface EpicGateRequestView {
 
 export interface EpicGateHistoryView {
   id: string;
-  fromGate: StageGate;
-  toGate: StageGate;
+  fromGate: GateStep;
+  toGate: GateStep;
   kind: "forward" | "revert";
   status: GateTransitionStatus;
   requestedBy: string;
@@ -319,9 +320,10 @@ export type EpicGateSlice =
   | { disabled: true }
   | {
       disabled: false;
-      current: StageGate;
-      /** Das nächste Gate, oder null am Endgate L5. */
-      next: StageGate | null;
+      /** Der aktuelle Schritt — innerhalb L4 ggf. bereits „L4.2". */
+      current: GateStep;
+      /** Der nächste Schritt, oder null am Endschritt L5. */
+      next: GateStep | null;
       /** Kriterien-Checkliste für `current → next`; null am Endgate. */
       readiness: GateReadiness | null;
       openRequest: EpicGateRequestView | null;
@@ -578,7 +580,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     stageGate: epic.stageGate as StageGate,
     businessCase: epic.businessCase,
     businessCaseApprovedAt: epic.businessCaseApprovedAt,
-    childFeatureStats: childStats,
+    implementationCompletedAt: epic.implementationCompletedAt,
   });
   const nextStep = epicNextStep({
     epicId: epic.id,
@@ -598,7 +600,6 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     stageGate: epic.stageGate as StageGate,
     approvalPhase: multiPartyApproval ? approvalPhase : null,
     subStage,
-    childFeatureStats: childStats,
     impactRecognizedAt: epic.impactRecognizedAt,
   });
 
@@ -712,7 +713,10 @@ export async function loadEpicDetailInputs(
     withdraw: authorize("epic.gate.withdraw", gateScope, principal).allow,
     revert: authorize("epic.gate.revert", gateScope, principal).allow,
   };
-  const current = epic.stageGate as StageGate;
+  const current = currentGateStep({
+    stageGate: epic.stageGate as StageGate,
+    implementationCompletedAt: epic.implementationCompletedAt,
+  });
   const to = nextGate(current);
 
   const [
@@ -792,8 +796,8 @@ export async function loadEpicDetailInputs(
  */
 function buildGateSlice(input: {
   stageGatesEnabled: boolean;
-  current: StageGate;
-  next: StageGate | null;
+  current: GateStep;
+  next: GateStep | null;
   readiness: GateReadiness | null;
   openRequest: Awaited<ReturnType<typeof getOpenGateTransition>>;
   history: Awaited<ReturnType<typeof listGateTransitions>>;

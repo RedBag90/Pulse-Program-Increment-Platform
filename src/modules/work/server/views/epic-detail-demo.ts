@@ -104,6 +104,7 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
     selectedForAnalyzingAt: null,
     businessCaseApprovedAt: null,
     implementationStartedAt: null,
+    implementationCompletedAt: null,
     plannedStartAt: new Date("2026-04-01T00:00:00.000Z"),
     plannedEndAt: new Date("2026-09-30T00:00:00.000Z"),
     acceptanceCriteria: [] as string[],

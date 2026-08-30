@@ -1,5 +1,5 @@
-import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { type Quorum, isQuorum } from "@/modules/work/domain/approval-primitives";
+import type { GateStep } from "@/modules/work/domain/stage-gate";
 
 // ---------------------------------------------------------------------------
 // Gate-Policy — WER nimmt welchen Reifegrad-Wechsel ab.
@@ -63,9 +63,9 @@ export interface GateApproverRuleRow {
   approverRoles: string[];
 }
 
-/** Die aufgelöste Policy für genau ein Ziel-Gate. */
+/** Die aufgelöste Policy für genau einen Ziel-Schritt. */
 export interface GatePolicy {
-  toGate: StageGate;
+  toGate: GateStep;
   /**
    * `false` ⇒ dieses Gate braucht keine Abnahme; der Antrag rückt sofort vor.
    * Weiterhin ein manueller, auditierter Akt — nur ohne Gegenzeichnung.
@@ -84,11 +84,11 @@ export interface GatePolicy {
  * dass jemand erst Regeln pflegt — und trotzdem nie ohne Abnahme durchrutscht:
  * jedes Gate hat mindestens einen Platzhalter, der eine reale Person trifft.
  *
- * Bestätigter Rahmen: **alle fünf** Übergänge brauchen eine Abnahme,
+ * Bestätigter Rahmen: **alle** Vorwärts-Schritte brauchen eine Abnahme,
  * **einstimmig**.
  */
 export const DEFAULT_GATE_POLICIES: Record<
-  StageGate,
+  GateStep,
   Pick<GatePolicy, "required" | "quorum" | "approverUserIds" | "approverRoles">
 > = {
   // Nach L0 führt kein Vorwärts-Antrag — nur ein Revert, der eigenen Regeln folgt.
@@ -106,6 +106,14 @@ export const DEFAULT_GATE_POLICIES: Record<
   },
   // Start der Umsetzung.
   L4: { required: true, quorum: "all", approverUserIds: [], approverRoles: ["value_stream.vmo"] },
+  // „Umsetzung fertig": der Epic Owner meldet, der VMO bestätigt — bewusst
+  // ohne Finance, denn hier geht es um die Lieferung, nicht um den Nutzen.
+  "L4.2": {
+    required: true,
+    quorum: "all",
+    approverUserIds: [],
+    approverRoles: ["value_stream.vmo"],
+  },
   // Impact auf der Bilanz — die Controlling-Hand, früher der Impact-Dialog.
   L5: {
     required: true,
@@ -132,7 +140,7 @@ export const ALLOW_AD_HOC_GATE_APPROVERS = false;
  * Funktion sich nicht darauf verlassen, dass nur Gültiges drinsteht.
  */
 export function resolveGatePolicy(
-  toGate: StageGate,
+  toGate: GateStep,
   rows: readonly GateApproverRuleRow[],
   valueStreamId: string | null,
 ): GatePolicy {

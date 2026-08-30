@@ -4,7 +4,7 @@
  *  - **Ziele (Core/goals)**: messbare Kopf-Ziele (`Objective.target`) und den
  *    Epic-Beitrag in Ziel-Einheit über die Erfolgs-KPI-Kaskade (`epicTopGoalBenefits`).
  *  - **Reifegrad (Work)**: aktuelles `stageGate` + abgeleitete Sub-Stage
- *    (`subStageFor`, braucht die Child-Feature-Zähler).
+ *    (`subStageFor`; L4.2 kommt aus der abgenommenen Bestätigung).
  *
  * Gibt ein serialisierbares DTO zurück; die eigentliche Wasserfall-Mathematik und
  * der Projekt-ID-Filter laufen client-seitig in `buildGoalWaterfall`.
@@ -22,10 +22,6 @@ import {
   type EpicGoalLinkInput,
 } from "@/modules/core/goals/domain/goals-rollup";
 import { subStageFor } from "@/modules/work/domain/stage-gate";
-import {
-  countEpicChildFeatures,
-  countEpicCompletedChildFeatures,
-} from "@/modules/work/server/services/epic";
 import type {
   GoalWaterfallGoal,
   GoalWaterfallEpic,
@@ -45,7 +41,7 @@ export async function getGoalBenefitWaterfalls(
   db: PrismaClient,
   tenantId: TenantId,
 ): Promise<GoalWaterfallData> {
-  const [objectives, links, featureTotal, featureDone] = await Promise.all([
+  const [objectives, links] = await Promise.all([
     db.objective.findMany({
       where: { tenantId },
       select: {
@@ -66,8 +62,6 @@ export async function getGoalBenefitWaterfalls(
         kpi: { select: { id: true, name: true, baseline: true, target: true, measurements: true } },
       },
     }),
-    countEpicChildFeatures(db, tenantId),
-    countEpicCompletedChildFeatures(db, tenantId),
   ]);
 
   // Meta-Karte für den Einheiten-Aufstieg zum Kopf-Ziel.
@@ -131,13 +125,7 @@ export async function getGoalBenefitWaterfalls(
   }
 
   // Reifegrad je beitragendem Epic (aktuelles Gate + abgeleitete Sub-Stage).
-  const maturityByEpic = await loadEpicMaturity(
-    db,
-    tenantId,
-    [...inputsByEpic.keys()],
-    featureTotal,
-    featureDone,
-  );
+  const maturityByEpic = await loadEpicMaturity(db, tenantId, [...inputsByEpic.keys()]);
 
   // Je Ziel die Epic-Beiträge zusammensetzen: epicGoalBenefitsPerNode schreibt
   // den Beitrag jedem Knoten der Aufstiegskette gut (Unterziel unskaliert,
@@ -180,14 +168,18 @@ async function loadEpicMaturity(
   db: PrismaClient,
   tenantId: TenantId,
   epicIds: string[],
-  featureTotal: Map<string, number>,
-  featureDone: Map<string, number>,
 ): Promise<Map<string, { gate: StageGate; subStage: ReturnType<typeof subStageFor> }>> {
   const out = new Map<string, { gate: StageGate; subStage: ReturnType<typeof subStageFor> }>();
   if (epicIds.length === 0) return out;
   const rows = await db.initiative.findMany({
     where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null, id: { in: epicIds } },
-    select: { id: true, stageGate: true, businessCase: true, businessCaseApprovedAt: true },
+    select: {
+      id: true,
+      stageGate: true,
+      businessCase: true,
+      businessCaseApprovedAt: true,
+      implementationCompletedAt: true,
+    },
   });
   for (const r of rows) {
     const gate = r.stageGate as StageGate;
@@ -195,10 +187,7 @@ async function loadEpicMaturity(
       stageGate: gate,
       businessCase: r.businessCase,
       businessCaseApprovedAt: r.businessCaseApprovedAt,
-      childFeatureStats: {
-        total: featureTotal.get(r.id) ?? 0,
-        completed: featureDone.get(r.id) ?? 0,
-      },
+      implementationCompletedAt: r.implementationCompletedAt,
     });
     out.set(r.id, { gate, subStage });
   }

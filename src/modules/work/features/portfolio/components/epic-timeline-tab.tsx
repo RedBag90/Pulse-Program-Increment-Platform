@@ -188,9 +188,7 @@ export function EpicTimelineTab({
   // The status column reads the SHARED gate-based lifecycle status (same source
   // as the stepper above the screen) — no second derivation off milestone
   // timestamps. The 9 timeline rows map 1:1 to the 9 lifecycle steps by `key`.
-  const statusByKey = new Map<string, RowStatus>(
-    lifecycleSteps.map((s) => [s.key, s.status]),
-  );
+  const statusByKey = new Map<string, RowStatus>(lifecycleSteps.map((s) => [s.key, s.status]));
   const statusFor = (key: string): RowStatus => statusByKey.get(key) ?? "upcoming";
 
   function EstimateCell({ phase }: { phase: TimelineEstimatePhase }) {
@@ -208,6 +206,19 @@ export function EpicTimelineTab({
   }
 
   function ManualActualCell({ phase }: { phase: TimelineManualPhase }) {
+    // „Umsetzung fertig" gehört der L4.2-Abnahme: das Ist-Datum entsteht dort
+    // und wird hier nur angezeigt (der Service verwirft eingehende Werte).
+    if (phase === "implementation") {
+      return (
+        <span className="text-sm" title="Wird durch die L4.2-Abnahme gesetzt">
+          {actuals[phase] ? (
+            fmt(actuals[phase])
+          ) : (
+            <span className="text-muted-foreground/80">— per L4.2-Abnahme</span>
+          )}
+        </span>
+      );
+    }
     return canEdit ? (
       <input
         type="date"
@@ -465,7 +476,6 @@ export function EpicTimelineTab({
                 })}
               </ol>
             </div>
-
           </Fragment>
         ))}
       </div>

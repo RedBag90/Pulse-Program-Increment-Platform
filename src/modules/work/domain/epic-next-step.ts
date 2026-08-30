@@ -9,6 +9,7 @@
  */
 
 import type { StageGate } from "@/modules/core/kernel/domain/types";
+import type { GateStep } from "@/modules/work/domain/stage-gate";
 import type { SubStage } from "@/modules/work/domain/stage-gate";
 
 export type EpicNextStepCta =
@@ -18,7 +19,7 @@ export type EpicNextStepCta =
    * rendert dafür die Gate-Karte. Früher stand hier `impact-confirm` für einen
    * eigenen L4→L5-Dialog; dieser Sonderweg ist im Antragsmodell aufgegangen.
    */
-  | { kind: "gate-request"; to: StageGate };
+  | { kind: "gate-request"; to: GateStep };
 
 export interface EpicNextStep {
   title: string;
@@ -165,11 +166,21 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
 
   if (stageGate === "L4") {
     const { total, completed } = childFeatureStats;
-    if (subStage === "L4.2" || (total > 0 && completed === total)) {
+    // Drei Stationen innerhalb von L4: Features abschließen → Umsetzung
+    // bestätigen lassen (L4.2) → Impact bestätigen lassen (L5). Die mittlere
+    // ist ein eigener Antrag: „fertig gebaut" ist nicht „Nutzen nachgewiesen".
+    if (subStage === "L4.2") {
       return {
         title: "Impact bestätigen lassen",
-        hint: "Alle Features sind abgeschlossen. Beantrage den Wechsel auf L5 — das Controlling nimmt ab, dass der prognostizierte Nutzen auf der Balance-Sheet bzw. an den KPIs angekommen ist.",
+        hint: "Die Umsetzung ist als abgeschlossen bestätigt. Beantrage den Wechsel auf L5 — das Controlling nimmt ab, dass der prognostizierte Nutzen auf der Balance-Sheet bzw. an den KPIs angekommen ist.",
         cta: { kind: "gate-request", to: "L5" },
+      };
+    }
+    if (total > 0 && completed === total) {
+      return {
+        title: "Umsetzung bestätigen lassen",
+        hint: "Alle Features sind abgeschlossen. Beantrage den Schritt auf L4.2 — damit wird die fertige Umsetzung abgenommen und das Ist-Datum gesetzt.",
+        cta: { kind: "gate-request", to: "L4.2" },
       };
     }
     return {
@@ -177,7 +188,7 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
         total > 0 ? `Features abschließen (${completed}/${total})` : "Features anlegen und starten",
       hint:
         total > 0
-          ? "Die Implementierung läuft. Schließe die restlichen Features ab — sobald alle abgeschlossen sind, kann das Controlling den Impact bestätigen."
+          ? "Die Implementierung läuft. Schließe die restlichen Features ab — danach lässt sich die fertige Umsetzung (L4.2) bestätigen."
           : "Es sind noch keine Child-Features am Epic. Lege in den Deliverables welche an und starte sie.",
       cta: { kind: "link", label: "Zu den Deliverables", href: tab("breakdown") },
     };

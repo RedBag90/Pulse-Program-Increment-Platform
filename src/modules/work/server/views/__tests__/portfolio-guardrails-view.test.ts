@@ -114,10 +114,10 @@ describe("computePortfolioGuardrails", () => {
     expect(m.horizon.totalCount).toBe(4);
   });
 
-  it("epicCapacityBucket: solution+epic = business, enabler = enabler", () => {
+  it("epicCapacityBucket: epic = business, enabler = enabler", () => {
     const m = computePortfolioGuardrails({
       epics: [
-        epic({ id: "a", epicType: "solution", amount: 10 }),
+        epic({ id: "a", epicType: "epic", amount: 10 }),
         epic({ id: "b", epicType: "epic", amount: 10 }),
         epic({ id: "c", epicType: "enabler", amount: 5 }),
       ],
@@ -169,7 +169,10 @@ describe("computePortfolioGuardrails", () => {
   it("targets reagieren auf custom-Werte", () => {
     const m = computePortfolioGuardrails({
       epics: [epic({ id: "a", investmentHorizon: "h1" })],
-      targets: { horizon: { h0: 0, h1: 100, h2: 0, h3: 0 }, capacity: { business: 100, enabler: 0 } },
+      targets: {
+        horizon: { h0: 0, h1: 100, h2: 0, h3: 0 },
+        capacity: { business: 100, enabler: 0 },
+      },
     });
     expect(m.horizon.rows.h1.deltaCount).toBeCloseTo(0);
     expect(m.horizon.status).toBe("green");

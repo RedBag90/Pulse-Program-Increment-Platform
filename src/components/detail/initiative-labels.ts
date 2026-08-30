@@ -11,6 +11,8 @@ export const STAGE_GATE_LABELS: Record<string, string> = {
   L2: "L2 Business Case",
   L3: "L3 Budget alloziert",
   L4: "L4 Implementierung",
+  // L4.2 ist ein eigener beantragter/abgenommener Schritt innerhalb von L4.
+  "L4.2": "L4.2 Umsetzung fertig",
   L5: "L5 Impact realisiert",
 };
 
@@ -21,6 +23,7 @@ export const STAGE_SHORT: Record<string, string> = {
   L2: "Business Case",
   L3: "Backlog",
   L4: "Umsetzung",
+  "L4.2": "Umsetzung fertig",
   L5: "Impact",
 };
 
@@ -34,12 +37,14 @@ export const STAGE_DOT: Record<string, string> = {
   L2: "bg-blue-400",
   L3: "bg-indigo-400",
   L4: "bg-primary",
+  "L4.2": "bg-primary",
   L5: "bg-emerald-500",
 };
 
 /**
- * Sub-Step-Labels innerhalb der Major-Gates L2 und L4. Werden derived
- * (`subStageFor` in `@/domain/stage-gate`) und nur in der UI gerendert.
+ * Sub-Step-Labels innerhalb der Major-Gates L2 und L4. L2.x wird abgeleitet
+ * (`subStageFor`), L4.2 kommt aus der abgenommenen Bestätigung — beide werden
+ * nur in der UI gerendert.
  */
 export const SUB_STAGE_LABELS: Record<string, string> = {
   "L2.1": "BC in Arbeit",

@@ -15,6 +15,7 @@ import {
   STAGE_GATES,
   SUB_STAGES,
   subStageFor,
+  type GateStep,
   type SubStage,
 } from "@/modules/work/domain/stage-gate";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
@@ -67,7 +68,7 @@ export interface EpicListRow {
    * Bucket-Abweichungen: statt die Karte still in eine andere Spalte zu
    * schieben, steht das Epic da, wo es steht, und trägt daneben „⇧ L3 · 1/2".
    */
-  pendingGateRequest: { toGate: StageGate; pendingCount: number; totalCount: number } | null;
+  pendingGateRequest: { toGate: GateStep; pendingCount: number; totalCount: number } | null;
   childFeatureCount: number;
   /** ISO-day strings (or null). */
   plannedStartAt: string | null;
@@ -135,11 +136,13 @@ interface EpicRow {
   /** All `EpicApproval` rows for the Epic, across revisions. */
   epicApprovals: ApprovalRow[];
   /** Offener Gate-Antrag des Epics, vom Loader aufgelöst. */
-  pendingGateRequest?: { toGate: StageGate; pendingCount: number; totalCount: number } | null;
+  pendingGateRequest?: { toGate: GateStep; pendingCount: number; totalCount: number } | null;
   /** Count of child Features (direct only). */
   childFeatureCount: number;
-  /** Count of child Features mit status === "completed". Treibt L4.2. */
+  /** Count of child Features mit status === "completed" — Voraussetzung des L4.2-Antrags. */
   completedChildFeatureCount: number;
+  /** Stempel der abgenommenen L4.2-Bestätigung („Umsetzung fertig"). */
+  implementationCompletedAt: Date | null;
   /** SAFe-Guardrails (Roadmap-G3). */
   epicType: string | null;
   investmentHorizon: string | null;
@@ -207,7 +210,7 @@ export function buildEpicsListModel(input: {
       stageGate,
       businessCase: e.businessCase,
       businessCaseApprovedAt: e.businessCaseApprovedAt,
-      childFeatureStats,
+      implementationCompletedAt: e.implementationCompletedAt,
     });
     // Nächster-Schritt-Guidance — dieselbe reine Logik wie die Detailseite.
     // `budgetAllocated`/`impactRecognizedAt` sind hier nicht per Row geladen:

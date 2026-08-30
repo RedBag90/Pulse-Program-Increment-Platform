@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { GATE_CRITERIA_DOC, SUB_STAGE_RULES } from "@/modules/work/domain/epic-lifecycle-doc";
 import { SUB_STAGES } from "@/modules/work/domain/stage-gate";
-import { GATE_CRITERIA, gateReadiness, type EpicGateFacts } from "@/modules/work/domain/gate-readiness";
+import {
+  GATE_CRITERIA,
+  gateReadiness,
+  type EpicGateFacts,
+} from "@/modules/work/domain/gate-readiness";
 
 /**
  * Der Doku-Katalog war früher eine Parallelliste, die veralten konnte — und es
@@ -11,13 +15,14 @@ import { GATE_CRITERIA, gateReadiness, type EpicGateFacts } from "@/modules/work
  */
 
 describe("GATE_CRITERIA_DOC", () => {
-  it("deckt genau die fünf Vorwärts-Wechsel ab", () => {
+  it("deckt genau die sechs Vorwärts-Schritte ab (inkl. L4→L4.2)", () => {
     expect(GATE_CRITERIA_DOC.map((g) => `${g.stageFrom}->${g.stageTo}`)).toEqual([
       "L0->L1",
       "L1->L2",
       "L2->L3",
       "L3->L4",
-      "L4->L5",
+      "L4->L4.2",
+      "L4.2->L5",
     ]);
   });
 
@@ -45,6 +50,7 @@ describe("GATE_CRITERIA_DOC", () => {
       selectedForDetailingAt: null,
       selectedForAnalyzingAt: null,
       implementationStartedAt: null,
+      implementationCompletedAt: null,
       approvedAt: null,
       impactRecognizedAt: null,
       multiPartyApproval: true,

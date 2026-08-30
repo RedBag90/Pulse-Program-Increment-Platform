@@ -10,7 +10,6 @@ function input(over: Partial<EpicLifecycleInput> = {}): EpicLifecycleInput {
     stageGate: "L0",
     approvalPhase: null,
     subStage: null,
-    childFeatureStats: { total: 0, completed: 0 },
     impactRecognizedAt: null,
     ...over,
   };
@@ -66,17 +65,12 @@ describe("epicLifecycleSteps", () => {
 
   it("L4 (läuft): Umsetzung ▸ Start current", () => {
     expect(current({ stageGate: "L4", subStage: "L4.1" })).toBe("implementation_started");
-    // features in progress also drives L4.1
-    expect(current({ stageGate: "L4", childFeatureStats: { total: 3, completed: 1 } })).toBe(
-      "implementation_started",
-    );
   });
 
-  it("L4.2 (alle Features fertig): Umsetzung ▸ Fertig current", () => {
+  it("L4.2 (Umsetzung abgenommen): Umsetzung ▸ Fertig current", () => {
+    // Nur die abgenommene Bestätigung rückt den Schritt vor — fertige Features
+    // allein tun es seit dem beantragten L4.2 nicht mehr.
     expect(current({ stageGate: "L4", subStage: "L4.2" })).toBe("implementation");
-    expect(current({ stageGate: "L4", childFeatureStats: { total: 3, completed: 3 } })).toBe(
-      "implementation",
-    );
   });
 
   it("L5: every step done, no current", () => {

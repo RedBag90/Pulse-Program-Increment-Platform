@@ -23,7 +23,7 @@ import {
   type BusinessCaseFields,
   type BusinessCase,
 } from "@/modules/work/domain/business-case";
-import type { TimelineFields } from "@/modules/work/domain/timeline";
+import { parseTimeline, type TimelineFields } from "@/modules/work/domain/timeline";
 import { timelinePlannedWindow } from "@/modules/work/domain/epic-schedule";
 import { isPbEligible } from "@/modules/work/domain/pb-submission";
 
@@ -449,24 +449,37 @@ export async function saveTimeline(
     const loaded = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
       id: epicId,
       action: "epic.update",
-      select: { id: true },
+      select: { id: true, timeline: true },
     });
     if (isErr(loaded)) return loaded;
 
-    // L5 heisst „Impact recognized on Balance Sheet", nicht „Implementation
-    // done" — der Stempel entsteht bei der L4→L5-Abnahme durch das Controlling
-    // (ADR-0018). Implementation-Actuals lösen deshalb keinen Wechsel aus.
+    // Das Ist-Datum der **Umsetzung** gehört ausschließlich der L4.2-Abnahme
+    // (`stage-gate-transition.ts` schreibt es beim abgenommenen Schritt L4→L4.2
+    // und räumt es beim Revert ab). Eingehende Werte werden deshalb verworfen
+    // und der gespeicherte Stand behalten — der Timeline-Reiter zeigt das Feld
+    // nur an. L5 („Impact recognized") ist davon unberührt und ein eigener Antrag.
+    const stored = parseTimeline(loaded.value.timeline);
+    const merged: TimelineFields = {
+      estimates: fields.estimates,
+      actuals: {
+        ...fields.actuals,
+        ...(stored.actuals.implementation !== undefined
+          ? { implementation: stored.actuals.implementation }
+          : {}),
+      },
+    };
+    if (stored.actuals.implementation === undefined) delete merged.actuals.implementation;
 
     // Das geplante Zeitfenster folgt dem Reifegrad-Plan: L4.1 (implementation_
     // started) → L4.2 (implementation). `saveTimeline` ist damit die alleinige
     // Quelle der plannedStartAt/plannedEndAt-Spalten (Budget setzt sie nicht mehr).
-    const { plannedStartAt, plannedEndAt } = timelinePlannedWindow(fields);
+    const { plannedStartAt, plannedEndAt } = timelinePlannedWindow(merged);
 
     await tx.initiative.update({
       where: { id: epicId },
       data: {
         updatedBy: mctx.actorId,
-        timeline: fields as unknown as Prisma.InputJsonValue,
+        timeline: merged as unknown as Prisma.InputJsonValue,
         plannedStartAt,
         plannedEndAt,
       },

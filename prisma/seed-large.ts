@@ -471,14 +471,22 @@ async function main() {
           implementation_started: plannedStart.toISOString().slice(0, 10),
           implementation: plannedEnd.toISOString().slice(0, 10),
         },
-        actuals: {},
+        // Das Ist-Datum der Umsetzung entsteht nur mit der L4.2-Abnahme —
+        // L5-Epics haben sie hinter sich, L4-Epics laufen noch (L4.1).
+        actuals: gate === "L5" ? { implementation: plannedEnd.toISOString().slice(0, 10) } : {},
       },
       ...(owned ? { selectedForDetailingAt: beforeNow(addDays(plannedStart, -60), 10) } : {}),
       ...(gteL2 ? { hypothesisApprovedAt: beforeNow(addDays(plannedStart, -50), 6) } : {}),
       // L2 = fertig definiert (BC freigegeben), aber ohne Budget → bleibt an L2 hängen.
       ...(gteL2 ? { businessCaseApprovedAt: beforeNow(addDays(plannedStart, -20), 4) } : {}),
       ...(implStartedAt ? { implementationStartedAt: implStartedAt } : {}),
-      ...(gate === "L5" ? { impactRecognizedAt: plannedEnd, completedAt: plannedEnd } : {}),
+      ...(gate === "L5"
+        ? {
+            implementationCompletedAt: plannedEnd,
+            impactRecognizedAt: plannedEnd,
+            completedAt: plannedEnd,
+          }
+        : {}),
       ...(gate !== "L0"
         ? {
             benefitHypothesis: {

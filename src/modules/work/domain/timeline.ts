@@ -58,3 +58,19 @@ export function parseTimeline(raw: unknown): TimelineFields {
     actuals: pickDates(obj["actuals"], TIMELINE_MANUAL_PHASES),
   };
 }
+
+/**
+ * Setzt (oder räumt) das Ist-Datum der **Umsetzung** im gespeicherten
+ * Timeline-JSON und gibt das vollständige JSON zurück.
+ *
+ * Einziger Schreiber ist die L4.2-Abnahme: „Umsetzung fertig" ist eine
+ * abgenommene Aussage, kein frei pflegbares Feld. Der Timeline-Reiter zeigt das
+ * Datum nur an; `saveTimeline` lässt es unberührt.
+ */
+export function withImplementationActual(raw: unknown, iso: string | null): TimelineFields {
+  const parsed = parseTimeline(raw);
+  const actuals = { ...parsed.actuals };
+  if (iso === null) delete actuals.implementation;
+  else actuals.implementation = iso;
+  return { estimates: parsed.estimates, actuals };
+}

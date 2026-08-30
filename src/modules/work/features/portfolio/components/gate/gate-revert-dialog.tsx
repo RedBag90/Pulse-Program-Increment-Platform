@@ -3,9 +3,8 @@
 import { useActionState, useState, startTransition } from "react";
 import { Undo2 } from "lucide-react";
 import { revertStageGateAction } from "@/modules/work/features/portfolio/actions/stage-gate";
-import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
+import { GATE_STEPS, type GateStep } from "@/modules/work/domain/stage-gate";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
-import type { StageGate } from "@/modules/core/kernel/domain/types";
 
 /**
  * Rückstufung um genau einen Reifegrad.
@@ -15,13 +14,13 @@ import type { StageGate } from "@/modules/core/kernel/domain/types";
  * offenen Antrag mit zurück. Die Begründung ist Pflicht, weil dieser Vorgang in
  * die Historie eingreift.
  */
-export function GateRevertDialog({ epicId, current }: { epicId: string; current: StageGate }) {
+export function GateRevertDialog({ epicId, current }: { epicId: string; current: GateStep }) {
   const [state, action, pending] = useActionState(revertStageGateAction, {});
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
 
-  const index = STAGE_GATES.indexOf(current);
-  const target = index > 0 ? (STAGE_GATES[index - 1] as StageGate) : null;
+  const index = GATE_STEPS.indexOf(current);
+  const target = index > 0 ? (GATE_STEPS[index - 1] as GateStep) : null;
   if (!target) return null;
 
   function submit() {

@@ -32,6 +32,7 @@ const epic = (over: Partial<Parameters<typeof buildEpicsListModel>[0]["epics"][n
   epicApprovals: [],
   childFeatureCount: 0,
   completedChildFeatureCount: 0,
+  implementationCompletedAt: null,
   epicType: null,
   investmentHorizon: null,
   ...over,

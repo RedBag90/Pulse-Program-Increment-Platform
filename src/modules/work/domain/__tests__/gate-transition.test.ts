@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { StageGate } from "@/modules/core/kernel/domain/types";
+import { gateOfStep, type GateStep } from "@/modules/work/domain/stage-gate";
 import { isOk, isErr } from "@/modules/core/kernel/domain/errors";
 import {
   planGateRequest,
@@ -15,12 +15,17 @@ import type { GatePolicy, ResolvedApprover } from "@/modules/work/domain/gate-po
 const NOW = new Date("2026-06-01T12:00:00.000Z");
 const EARLIER = new Date("2026-01-01T00:00:00.000Z");
 const ACTOR = "actor-1";
+const CONFIRMED = new Date("2026-05-01T00:00:00.000Z");
 const VMO = "user-vmo";
 const FINANCE = "user-finance";
 
-function facts(stageGate: StageGate, over: Partial<EpicGateFacts> = {}): EpicGateFacts {
+/**
+ * Fakten für einen **Schritt**: „L4.2" ist kein Haupt-Gate — das Epic steht dann
+ * auf L4 mit gesetztem Bestätigungs-Stempel (genau wie in der DB).
+ */
+function facts(step: GateStep, over: Partial<EpicGateFacts> = {}): EpicGateFacts {
   return {
-    stageGate,
+    stageGate: gateOfStep(step),
     ownerId: "owner-1",
     hypothesisApprovedAt: null,
     hasHypothesisContent: false,
@@ -31,14 +36,17 @@ function facts(stageGate: StageGate, over: Partial<EpicGateFacts> = {}): EpicGat
     selectedForDetailingAt: null,
     selectedForAnalyzingAt: null,
     implementationStartedAt: null,
+    implementationCompletedAt: null,
     approvedAt: null,
     impactRecognizedAt: null,
     multiPartyApproval: true,
+    // Der Schritt L4.2 materialisiert sich im Bestätigungs-Stempel.
+    ...(step === "L4.2" ? { implementationCompletedAt: CONFIRMED } : {}),
     ...over,
   };
 }
 
-function policy(toGate: StageGate, over: Partial<GatePolicy> = {}): GatePolicy {
+function policy(toGate: GateStep, over: Partial<GatePolicy> = {}): GatePolicy {
   return {
     toGate,
     required: true,
@@ -56,7 +64,7 @@ const APPROVERS: ResolvedApprover[] = [
 ];
 
 /** Ein Epic, das für `to` inhaltlich reif ist. */
-function readyFor(to: StageGate): EpicGateFacts {
+function readyFor(to: GateStep): EpicGateFacts {
   switch (to) {
     case "L1":
       return facts("L0", { hypothesisApprovedAt: EARLIER });
@@ -66,14 +74,17 @@ function readyFor(to: StageGate): EpicGateFacts {
       return facts("L2", { businessCaseApprovedAt: EARLIER, budgetAllocationSum: 500_000 });
     case "L4":
       return facts("L3");
-    case "L5":
+    case "L4.2":
       return facts("L4", { childFeatureStats: { total: 2, started: 2, completed: 2 } });
+    case "L5":
+      // Reif für den Impact-Antrag heißt: die Umsetzung ist abgenommen (L4.2).
+      return facts("L4.2", { childFeatureStats: { total: 2, started: 2, completed: 2 } });
     default:
       return facts("L0");
   }
 }
 
-function request(to: StageGate, over: Partial<Parameters<typeof planGateRequest>[0]> = {}) {
+function request(to: GateStep, over: Partial<Parameters<typeof planGateRequest>[0]> = {}) {
   return planGateRequest({
     facts: readyFor(to),
     to,
@@ -89,8 +100,8 @@ function request(to: StageGate, over: Partial<Parameters<typeof planGateRequest>
 // ---------------------------------------------------------------------------
 
 describe("planGateRequest — strukturelle Guards", () => {
-  it("legt für jeden der fünf Vorwärts-Schritte einen Antrag an", () => {
-    for (const to of ["L1", "L2", "L3", "L4", "L5"] as const) {
+  it("legt für jeden der sechs Vorwärts-Schritte einen Antrag an", () => {
+    for (const to of ["L1", "L2", "L3", "L4", "L4.2", "L5"] as const) {
       const r = request(to);
       expect(isOk(r), `${to} sollte beantragbar sein`).toBe(true);
       if (!isOk(r)) continue;
@@ -194,9 +205,7 @@ function rows(...statuses: Array<[string, GateApprovalRow["status"]]>): GateAppr
   return statuses.map(([approverUserId, status]) => ({ approverUserId, status }));
 }
 
-function decide(
-  over: Partial<Parameters<typeof decideGateTransitionOutcome>[0]> = {},
-) {
+function decide(over: Partial<Parameters<typeof decideGateTransitionOutcome>[0]> = {}) {
   return decideGateTransitionOutcome({
     facts: readyFor("L3"),
     to: "L3",
@@ -307,19 +316,22 @@ describe("planGateRevert", () => {
     expect(isErr(r) && r.error.kind).toBe("hierarchy_violation");
   });
 
-  it("räumt je Paar genau die Stempel des verlassenen Gates ab", () => {
-    const cases: Array<[StageGate, StageGate, keyof ReturnType<typeof unwindStampsFor>]> = [
+  it("räumt je Paar genau die Stempel des verlassenen Schritts ab", () => {
+    const cases: Array<[GateStep, GateStep, keyof ReturnType<typeof unwindStampsFor>]> = [
       ["L1", "L0", "selectedForDetailingAt"],
       ["L2", "L1", "selectedForAnalyzingAt"],
       ["L3", "L2", "approvedAt"],
       ["L4", "L3", "implementationStartedAt"],
-      ["L5", "L4", "impactRecognizedAt"],
+      // L4.2 ist ein eigener Schritt: zurück heißt „Bestätigung zurücknehmen",
+      // das Haupt-Gate bleibt dabei L4.
+      ["L4.2", "L4", "implementationCompletedAt"],
+      ["L5", "L4.2", "impactRecognizedAt"],
     ];
     for (const [from, to, cleared] of cases) {
       const r = planGateRevert({ facts: facts(from), to, reason: "Korrektur", now: NOW });
       expect(isOk(r), `${from}→${to}`).toBe(true);
       if (!isOk(r)) continue;
-      expect(r.value.stamps.stageGate).toBe(to);
+      expect(r.value.stamps.stageGate).toBe(gateOfStep(to));
       expect(r.value.stamps[cleared], `${from}→${to} räumt ${String(cleared)}`).toBeNull();
     }
   });

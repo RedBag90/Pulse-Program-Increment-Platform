@@ -1,6 +1,14 @@
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
-import { isValidTransition, isApprovalTransition, STAGE_GATES } from "@/modules/work/domain/stage-gate";
+import {
+  isValidStepTransition,
+  isApprovalTransition,
+  isGateStep,
+  gateOfStep,
+  currentGateStep,
+  GATE_STEPS,
+  type GateStep,
+} from "@/modules/work/domain/stage-gate";
 import {
   type ApprovalDecision,
   type ApprovalStatus,
@@ -48,6 +56,13 @@ export interface GateStamps {
   selectedForDetailingAt?: Date | null;
   selectedForAnalyzingAt?: Date | null;
   implementationStartedAt?: Date | null;
+  /**
+   * L4.2-Bestätigung („Umsetzung fertig"). Gesetzt ⇒ der Service spiegelt den
+   * Tag zusätzlich als `timeline.actuals.implementation`; `null` räumt beides ab.
+   * Dieses Ist-Datum gehört **ausschließlich** der Abnahme — der Timeline-Reiter
+   * zeigt es nur an.
+   */
+  implementationCompletedAt?: Date | null;
   approvedBy?: string | null;
   approvedAt?: Date | null;
   approvalComment?: string | null;
@@ -67,17 +82,21 @@ export interface GateStamps {
  */
 export function stampsForAdvance(
   facts: EpicGateFacts,
-  to: StageGate,
+  to: GateStep,
   actorId: string,
   now: Date,
   comment?: string | undefined,
 ): GateStamps {
-  const isApproval = isApprovalTransition(facts.stageGate, to);
+  const isApproval = isApprovalTransition(facts.stageGate, gateOfStep(to));
   return {
-    stageGate: to,
+    // L4.2 lebt innerhalb von L4: das Haupt-Gate bleibt stehen, die Bestätigung
+    // materialisiert sich allein im `implementationCompletedAt`-Stempel.
+    stageGate: gateOfStep(to),
     ...(to === "L1" && facts.selectedForDetailingAt == null && { selectedForDetailingAt: now }),
     ...(to === "L2" && facts.selectedForAnalyzingAt == null && { selectedForAnalyzingAt: now }),
     ...(to === "L4" && facts.implementationStartedAt == null && { implementationStartedAt: now }),
+    ...(to === "L4.2" &&
+      facts.implementationCompletedAt == null && { implementationCompletedAt: now }),
     ...(isApproval &&
       facts.approvedAt == null && {
         approvedBy: actorId,
@@ -102,8 +121,8 @@ export function stampsForAdvance(
  * immer, egal wie oft es korrigiert und neu freigegeben wurde. Wer die Historie
  * zurückdreht, muss auch die Spuren zurückdrehen.
  */
-export function unwindStampsFor(from: StageGate, to: StageGate): GateStamps {
-  const stamps: GateStamps = { stageGate: to };
+export function unwindStampsFor(from: GateStep, to: GateStep): GateStamps {
+  const stamps: GateStamps = { stageGate: gateOfStep(to) };
   if (from === "L1" && to === "L0") stamps.selectedForDetailingAt = null;
   if (from === "L2" && to === "L1") stamps.selectedForAnalyzingAt = null;
   if (from === "L3" && to === "L2") {
@@ -111,8 +130,14 @@ export function unwindStampsFor(from: StageGate, to: StageGate): GateStamps {
     stamps.approvedAt = null;
     stamps.approvalComment = null;
   }
-  if (from === "L4" && to === "L3") stamps.implementationStartedAt = null;
-  if (from === "L5" && to === "L4") {
+  // Die L4.2-Bestätigung zurücknehmen — direkt (L4.2 → L4) oder indem das Epic
+  // L4 ganz verlässt. Der Service räumt damit auch das Timeline-Ist-Datum ab.
+  if (from === "L4.2" && to === "L4") stamps.implementationCompletedAt = null;
+  if (from === "L4" && to === "L3") {
+    stamps.implementationStartedAt = null;
+    stamps.implementationCompletedAt = null;
+  }
+  if (from === "L5" && to === "L4.2") {
     stamps.impactRecognizedBy = null;
     stamps.impactRecognizedAt = null;
     stamps.impactComment = null;
@@ -126,8 +151,8 @@ export function unwindStampsFor(from: StageGate, to: StageGate): GateStamps {
 
 /** Was beim Anlegen eines Antrags geschrieben werden muss. */
 export interface GateRequestPlan {
-  from: StageGate;
-  to: StageGate;
+  from: GateStep;
+  to: GateStep;
   quorum: Quorum;
   approvers: ResolvedApprover[];
   readiness: GateReadiness;
@@ -143,7 +168,7 @@ export interface GateRequestPlan {
 
 export interface PlanGateRequestInput {
   facts: EpicGateFacts;
-  to: StageGate;
+  to: GateStep;
   policy: GatePolicy;
   approvers: ResolvedApprover[];
   actorId: string;
@@ -161,9 +186,9 @@ export interface PlanGateRequestInput {
  */
 export function planGateRequest(input: PlanGateRequestInput): Result<GateRequestPlan> {
   const { facts, to, policy, approvers, actorId, hasOpenRequest, now } = input;
-  const from = facts.stageGate;
+  const from = currentGateStep(facts);
 
-  if (!STAGE_GATES.includes(to)) {
+  if (!isGateStep(to)) {
     return err({
       kind: "validation" as const,
       issues: [`Unbekannter Reifegrad "${to}".`],
@@ -182,7 +207,7 @@ export function planGateRequest(input: PlanGateRequestInput): Result<GateRequest
       kind: "hierarchy_violation" as const,
       violatedConstraint: "stage_gate_transition",
       detail:
-        isValidTransition(from, to) && STAGE_GATES.indexOf(to) < STAGE_GATES.indexOf(from)
+        isValidStepTransition(from, to) && GATE_STEPS.indexOf(to) < GATE_STEPS.indexOf(from)
           ? `Rückwärts von ${from} nach ${to} ist kein Antrag, sondern eine Korrektur.`
           : `Von ${from} führt nur ein Antrag nach ${nextGate(from) ?? "— (Endgate)"}, nicht nach ${to}.`,
     });
@@ -245,12 +270,12 @@ export interface GateApprovalRow {
 
 export type GateDecisionOutcome =
   | { kind: "still_pending"; remaining: number }
-  | { kind: "advance"; from: StageGate; to: StageGate; stamps: GateStamps }
+  | { kind: "advance"; from: GateStep; to: GateStep; stamps: GateStamps }
   | { kind: "rejected" };
 
 export interface DecideGateTransitionInput {
   facts: EpicGateFacts;
-  to: StageGate;
+  to: GateStep;
   quorum: Quorum;
   /** **Alle** Zeilen des Antrags, ohne die Entscheidung dieses Actors. */
   rows: readonly GateApprovalRow[];
@@ -269,9 +294,7 @@ export interface DecideGateTransitionInput {
  * Eine Ablehnung stoppt den Antrag sofort, unabhängig vom Quorum: ein benannter
  * Einwand soll nicht still von einer anderen Zustimmung überstimmt werden.
  */
-export function decideGateTransitionOutcome(
-  input: DecideGateTransitionInput,
-): GateDecisionOutcome {
+export function decideGateTransitionOutcome(input: DecideGateTransitionInput): GateDecisionOutcome {
   const { facts, to, quorum, rows, decision, deciderId, comment, now } = input;
 
   const next = rows.map((r) =>
@@ -282,7 +305,7 @@ export function decideGateTransitionOutcome(
   if (quorumReached(next, quorum)) {
     return {
       kind: "advance",
-      from: facts.stageGate,
+      from: currentGateStep(facts),
       to,
       stamps: stampsForAdvance(facts, to, deciderId, now, comment),
     };
@@ -296,7 +319,7 @@ export function decideGateTransitionOutcome(
 
 export interface PlanGateRevertInput {
   facts: EpicGateFacts;
-  to: StageGate;
+  to: GateStep;
   reason: string;
   now: Date;
 }
@@ -308,9 +331,9 @@ export interface PlanGateRevertInput {
  */
 export function planGateRevert(
   input: PlanGateRevertInput,
-): Result<{ from: StageGate; to: StageGate; stamps: GateStamps }> {
+): Result<{ from: GateStep; to: GateStep; stamps: GateStamps }> {
   const { facts, to, reason } = input;
-  const from = facts.stageGate;
+  const from = currentGateStep(facts);
 
   if (reason.trim().length === 0) {
     return err({
@@ -318,13 +341,13 @@ export function planGateRevert(
       reason: "Eine Rückstufung verlangt eine Begründung.",
     });
   }
-  if (STAGE_GATES.indexOf(to) >= STAGE_GATES.indexOf(from)) {
+  if (GATE_STEPS.indexOf(to) >= GATE_STEPS.indexOf(from)) {
     return err({
       kind: "conflict" as const,
       reason: `Eine Korrektur geht rückwärts — ${to} liegt nicht vor ${from}.`,
     });
   }
-  if (!isValidTransition(from, to)) {
+  if (!isValidStepTransition(from, to)) {
     return err({
       kind: "hierarchy_violation" as const,
       violatedConstraint: "stage_gate_transition",
