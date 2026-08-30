@@ -312,7 +312,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "portfolio_manager.budget_allocate",
         title: "Budget auf Epics verteilen",
-        body: "Unter dem Topf steht je Epic eine Zeile mit Priorität und Zuteilung je Periode. Sobald eine Zuteilung größer null gespeichert ist, rückt das Epic automatisch auf L3 — die Finanzierung ist die Entscheidung.",
+        body: "Unter dem Topf steht je Epic eine Zeile mit Priorität und Zuteilung je Periode. Eine Zuteilung größer null erfüllt das blockierende Kriterium für den Schritt auf L3.2. Die Investitionsentscheidung selbst ist der Antrag plus die Abnahme durch VMO und Finance.",
         route: "/budgeting/board",
         anchor: "budget-pool",
         capability: "budget.manage",
@@ -557,7 +557,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         module: "work",
       },
       {
-        text: "Du übergibst zurück ans Portfolio: sobald das erste Feature in Umsetzung geht, rückt das Epic automatisch auf L4.",
+        text: "Du übergibst zurück ans Portfolio: sobald das erste Feature in Umsetzung geht, ist das Epic reif für den beantragten Schritt auf L4.",
         module: "work",
       },
     ],
@@ -598,7 +598,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "rte.delivery",
         title: "Lieferstatus setzen",
-        body: "In der Status-Spalte jeder Zeile wählst du direkt aus: bereit, in Umsetzung, blockiert, fertig. Sobald das erste Feature startet, rückt das übergeordnete Epic automatisch auf L4.",
+        body: "In der Status-Spalte jeder Zeile wählst du direkt aus: bereit, in Umsetzung, blockiert, fertig. Das erste gestartete Feature erfüllt das Kriterium, mit dem der Wechsel des Epics auf L4 beantragt wird.",
         route: "/umsetzung?view=table",
         anchor: "cockpit-table",
         capability: "feature.delivery.set",

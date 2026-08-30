@@ -4,8 +4,8 @@
  * QS-Gate (`draft → in_review → approved`) ist abgeschafft (2026-06-13):
  * Features starten direkt im Delivery-Lebenszyklus ab `approved` (= UI-
  * Lane „Bereit"). Bestands-Eintraege in `draft`/`in_review` wurden per
- * Backfill auf `approved` migriert. Epics nutzen den separaten
- * `approvalPhase`-Pfad und sind hiervon nicht betroffen.
+ * Backfill auf `approved` migriert. Epics bewegen sich auf der
+ * Reifegrad-Achse (`stage-gate.ts`) und sind hiervon nicht betroffen.
  */
 
 /** The delivery lifecycle statuses for a Feature. */
