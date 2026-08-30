@@ -30,6 +30,7 @@ import { isoDay } from "@/modules/core/kernel/domain/calendar";
 import {
   type GatePolicy,
   type ResolvedApprover,
+  type ApproverOverride,
   type GateApproverRuleRow,
   resolveGatePolicy,
   expandApprovers,
@@ -152,7 +153,8 @@ export async function resolveGateApprovers(
   tenantId: string,
   epic: { valueStreamId: string | null; ownerId: string | null },
   toGate: GateStep,
-  override?: readonly string[] | undefined,
+  override?: readonly ApproverOverride[] | undefined,
+  opts?: { multiPartyApproval?: boolean },
 ): Promise<{ policy: GatePolicy; approvers: ResolvedApprover[] }> {
   const [ruleRows, valueStream] = await Promise.all([
     tx.stageGateApproverRule.findMany({
@@ -183,7 +185,9 @@ export async function resolveGateApprovers(
       : Promise.resolve(null),
   ]);
 
-  const policy = resolveGatePolicy(toGate, ruleRows as GateApproverRuleRow[], epic.valueStreamId);
+  const policy = resolveGatePolicy(toGate, ruleRows as GateApproverRuleRow[], epic.valueStreamId, {
+    ...(opts?.multiPartyApproval !== undefined && { multiPartyApproval: opts.multiPartyApproval }),
+  });
   const approvers = expandApprovers(
     policy,
     {
@@ -227,24 +231,46 @@ function stampsToUpdate(
  * Ausnahme davon, dass `saveTimeline` der einzige Timeline-Schreiber ist —
  * dieses eine Datum gehört der Abnahme, nicht der freien Pflege. Ein Revert
  * räumt es mit ab (`implementationCompletedAt: null`).
+ *
+ * Sonderfall L1 und L3.1: diese beiden Abnahmen *sind* die inhaltliche Freigabe
+ * von Hypothese bzw. Business Case. Sie ziehen deshalb einen Schnappschuss des
+ * freigegebenen Textes in die Baseline-Spalte. Früher tat das `startRevision`;
+ * seit es keine Revisionen mehr gibt, ist die Abnahme der einzige Zeitpunkt, an
+ * dem feststeht, *was* freigegeben wurde. Der Schnappschuss trägt danach den
+ * Review-Diff: wer nach einer Rückstufung neu beantragt, zeigt seinen Abnehmern,
+ * was sich gegenüber der letzten Freigabe geändert hat. Ein Revert räumt ihn
+ * bewusst **nicht** ab — genau dafür ist er da.
  */
 async function applyGateStamps(
   tx: Prisma.TransactionClient,
   epicId: string,
   stamps: GateStamps,
   actorId: string,
+  to?: GateStep,
 ): Promise<void> {
   const data = stampsToUpdate(stamps, actorId);
-  if (stamps.implementationCompletedAt !== undefined) {
+  const needsTimeline = stamps.implementationCompletedAt !== undefined;
+  const needsBaseline = to === "L1" || to === "L3.1";
+  if (needsTimeline || needsBaseline) {
     const row = await tx.initiative.findUnique({
       where: { id: epicId },
-      select: { timeline: true },
+      select: { timeline: true, benefitHypothesis: true, businessCase: true },
     });
-    const iso = stamps.implementationCompletedAt ? isoDay(stamps.implementationCompletedAt) : null;
-    data.timeline = withImplementationActual(
-      row?.timeline,
-      iso,
-    ) as unknown as Prisma.InputJsonValue;
+    if (needsTimeline) {
+      const iso = stamps.implementationCompletedAt
+        ? isoDay(stamps.implementationCompletedAt)
+        : null;
+      data.timeline = withImplementationActual(
+        row?.timeline,
+        iso,
+      ) as unknown as Prisma.InputJsonValue;
+    }
+    if (to === "L1" && row?.benefitHypothesis != null) {
+      data.baselineBenefitHypothesis = row.benefitHypothesis as Prisma.InputJsonValue;
+    }
+    if (to === "L3.1" && row?.businessCase != null) {
+      data.baselineBusinessCase = row.businessCase as Prisma.InputJsonValue;
+    }
   }
   await tx.initiative.update({ where: { id: epicId }, data });
 }
@@ -257,8 +283,12 @@ export interface RequestGateTransitionInput {
   epicId: string;
   toGate: GateStep;
   reason?: string | undefined;
-  /** Nur wirksam, wenn `ALLOW_AD_HOC_GATE_APPROVERS` an ist. */
-  approverUserIds?: string[] | undefined;
+  /**
+   * Am Antrag benannte Abnehmer, jeweils mit der Rolle, für die sie zeichnen.
+   * Nur wirksam für Schritte, die `allowsAdHocApprovers` freigibt — heute L3.1,
+   * wo die fünf Business-Case-Parteien je Epic besetzt werden.
+   */
+  approvers?: ApproverOverride[] | undefined;
 }
 
 export interface RequestGateTransitionResult {
@@ -309,7 +339,8 @@ export async function requestGateTransition(
         mctx.tenantId,
         { valueStreamId: loaded.value.valueStreamId, ownerId: loaded.value.ownerId },
         input.toGate,
-        input.approverUserIds,
+        input.approvers,
+        { multiPartyApproval: facts.multiPartyApproval },
       );
 
       const plan = planGateRequest({
@@ -352,7 +383,7 @@ export async function requestGateTransition(
       });
 
       if (immediate && stamps) {
-        await applyGateStamps(tx, input.epicId, stamps, mctx.actorId);
+        await applyGateStamps(tx, input.epicId, stamps, mctx.actorId, to);
       }
 
       return ok({
@@ -528,7 +559,7 @@ export async function decideGateTransition(
     const to = transition.toGate as GateStep;
 
     if (outcome.kind === "advance") {
-      await applyGateStamps(tx, transition.initiativeId, outcome.stamps, mctx.actorId);
+      await applyGateStamps(tx, transition.initiativeId, outcome.stamps, mctx.actorId, outcome.to);
       await tx.stageGateTransition.update({
         where: { id: transition.id },
         data: { status: "approved", resolvedAt: now, resolvedBy: mctx.actorId },

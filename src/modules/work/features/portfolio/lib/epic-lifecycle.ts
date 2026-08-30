@@ -6,7 +6,7 @@ import { STAGE_GATES, type SubStage } from "@/modules/work/domain/stage-gate";
  * guidance drives it through (the fine-grained expansion of the L0–L5 gates). Each
  * step carries a static **Erklärung** so the whole process is explicit and readable
  * from the start; the per-Epic status (done/current/upcoming) is derived from the
- * **Stage Gate** (+ subStage / approvalPhase / child-features) — the same axis as
+ * **Stage Gate** (+ subStage / child-features) — the same axis as
  * `epic-next-step.ts`, so the highlighted tile always matches the "Nächster Schritt".
  */
 export interface LifecycleStepMeta {
@@ -82,7 +82,6 @@ export interface LifecycleStep extends LifecycleStepMeta {
  */
 export interface EpicLifecycleInput {
   stageGate: StageGate;
-  approvalPhase: string | null;
   /** subStageFor(): L3.2 = Investition abgenommen, L4.2 = Umsetzung abgenommen. */
   subStage: SubStage | null;
   impactRecognizedAt: Date | null;
@@ -90,14 +89,14 @@ export interface EpicLifecycleInput {
 
 /**
  * Resolve each lifecycle step's status. A step is `reached` once the Stage Gate
- * (+ subStage / approvalPhase / child-features) has passed it; `current` is the
+ * (+ subStage / child-features) has passed it; `current` is the
  * first not-reached step, earlier steps are `done`, later steps `upcoming`. The
  * thresholds are chosen so `current` lands on exactly the step `epicNextStep`
  * addresses — the two selection markers (Detailing, Analyse) fold into their gate
  * and never hold the highlight (they carry no distinct next-action).
  */
 export function epicLifecycleSteps(input: EpicLifecycleInput): LifecycleStep[] {
-  const { stageGate, approvalPhase, subStage, impactRecognizedAt } = input;
+  const { stageGate, subStage, impactRecognizedAt } = input;
   const gi = STAGE_GATES.indexOf(stageGate);
 
   // Terminal (mirrors `epicNextStep`'s `impactRecognizedAt || L5` short-circuit):
@@ -111,7 +110,7 @@ export function epicLifecycleSteps(input: EpicLifecycleInput): LifecycleStep[] {
     true, // detailing — folded selection marker
     gi >= 1, // hypothesis — approved ⇒ L1
     gi >= 1, // analyzing — folded selection marker
-    gi >= 3 || approvalPhase === "approved", // business_case — L3 erreicht ⇒ BC freigegeben
+    gi >= 3, // business_case — der Eintritt in L3.1 *ist* die BC-Freigabe
     gi >= 4, // backlog — impl started ⇒ left backlog
     gi >= 5 || subStage === "L4.2", // implementation_started — L4.2 ist abgenommen
     gi >= 5, // implementation — alle Features fertig

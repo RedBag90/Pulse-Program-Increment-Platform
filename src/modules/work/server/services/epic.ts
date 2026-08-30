@@ -93,7 +93,6 @@ export async function createEpic(
         updatedBy: mctx.actorId,
         valueStreamId,
         artId,
-        approvalPhase: "draft",
         ...(primarySolutionId != null && { primarySolutionId }),
         ...(description !== undefined && { description }),
       },
@@ -720,7 +719,6 @@ export async function listEpicsForPortfolioList(db: PrismaClient, tenantId: Tena
           recurringInterval: true,
         },
       },
-      epicApprovals: { select: { revision: true, status: true } },
     },
     orderBy: [{ stageGate: "asc" }, { createdAt: "desc" }],
   });

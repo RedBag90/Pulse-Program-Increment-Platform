@@ -5,21 +5,24 @@ Owners, mit den Namen, die Pulse tatsächlich verwendet: Reifegrad-Schritte,
 Reiter, Merker, Freigabewege. Am Ende steht, wo eine verbreitete Beschreibung
 des Prozesses von der Mechanik im Tool abweicht.
 
-## Zwei Achsen, die man leicht zusammenzieht
+## Eine Achse, keine zwei
 
-Bevor die Erzählung losgeht, eine Unterscheidung, ohne die der Rest verwirrend
-bleibt. „Freigabe" heißt in Pulse zwei verschiedene Dinge:
+Bevor die Erzählung losgeht, eine Klarstellung, ohne die der Rest verwirrend
+bleibt — zumal die verbreitete Beschreibung hier noch anders klingt. „Freigabe"
+heißt in Pulse **eine** Sache:
 
 - **Reifegrad-Schritte** — `L0 · L1 · L2 · L3.1 · L3.2 · L4 · L4.2 · L5`. Ein Schritt
   bewegt sich ausschließlich, wenn jemand ihn **beantragt** und benannte Personen
-  ihn **abnehmen** (Finance, VMO, Epic Owner — je Wertstrom und Gate
-  konfigurierbar). Es gibt keinen Automatismus, nirgends. Siehe
-  [ADR-0018](../adr/0018-stage-gate-transitions-are-requested-and-approved.md).
-- **Mehrparteien-Freigabe** — der Sign-off von Benefit-Hypothese und Lean
-  Business Case über MGMT, Business Owner, Finance, IRT-Owner und LACE/VMO. Das
-  ist eine **eigene Achse**: sie liefert die Voraussetzungen, die die
-  Reifegrad-Kriterien abfragen, schiebt das Gate aber nicht selbst. Siehe
-  [ADR-0003](../adr/0003-initiative-state-axes-stay-orthogonal.md).
+  ihn **abnehmen** (Finance, VMO, Epic Owner, die fünf Business-Case-Parteien —
+  je Wertstrom und Gate konfigurierbar). Es gibt keinen Automatismus, nirgends.
+  Siehe [ADR-0018](../adr/0018-stage-gate-transitions-are-requested-and-approved.md).
+
+Eine **eigene Freigabe-Achse** für Hypothese und Business Case gab es einmal;
+sie ist in die Reifegrad-Schritte aufgegangen. Die Abnahme von **L0 → L1** _ist_
+die Freigabe der Benefit-Hypothese, die Abnahme von **L2 → L3.1** _ist_ die
+Freigabe des Lean Business Case — dort zeichnen MGMT, Business Owner, Finance,
+IRT-Owner und LACE/VMO. Ein Antrag, eine Abnahme, eine Aussage. Siehe den
+Nachtrag zu [ADR-0003](../adr/0003-initiative-state-axes-stay-orthogonal.md).
 
 Dazu kommt: nicht jeder angezeigte Reifegrad ist ein beantragbarer Schritt.
 Genau eine Stufe wird rein **abgeleitet** — `L4.1 · Umsetzung läuft`: sie ist
@@ -74,17 +77,24 @@ Endprodukte als Features. Im Reiter _Dependencies_ hänge ich die Abhängigkeite
 dran. Im Reiter _KPI & Nutzenkalkulation_ definiere ich die KPIs: Baseline,
 Ziel, Einheit — und zusammen mit Finance den Wert je Einheit und die Nutzenart,
 einmalig oder laufend. Daraus rechnet Pulse den Nutzenbeitrag. Finance
-verifiziert das nicht nebenbei, sondern zeichnet es ab: im Freigabelauf ist
-Finance eine der fünf Parteien, und deren Freigabe deckt Deliverables und KPIs
-mit ab — eigene Abnahmen je Abschnitt gibt es nicht mehr. Entsprechend führt die
-Freigabe-Inbox unter _Meine Tasks_ keinen Eintrag „Epic-Abschnitte" mehr.
+verifiziert das nicht nebenbei, sondern zeichnet es ab: Finance ist eine der fünf
+Parteien, die den Schritt auf L3.1 abnehmen, und diese Abnahme deckt Deliverables
+und KPIs mit ab — eigene Abnahmen je Abschnitt gibt es nicht mehr. Entsprechend
+führt die Freigabe-Inbox unter _Meine Tasks_ keinen Eintrag „Epic-Abschnitte"
+mehr.
 
 Die Timeline verfeinere ich — die groben Schätzungen von damals stehen jetzt
 neben belastbaren Daten.
 
-Ich fordere die Freigabe des Business Case an. Der Lauf geht über MGMT, Business
-Owner, Finance, IRT-Owner und LACE/VMO. Sind alle durch, kann ich **L2 → L3.1**
-beantragen. Der VMO nimmt ab, und das Epic steht auf **L3.1 · BC freigegeben**.
+Steht der Business Case, beantrage ich **L2 → L3.1**. Beim Antrag besetze ich die
+fünf Parteien: MGMT, Business Owner, Finance, IRT-Owner und LACE/VMO — Finance
+und LACE/VMO sind aus der Wertstrom-Governance schon vorbelegt, die anderen drei
+benenne ich. Ab dem gestellten Antrag ist der Business Case gesperrt; wer ihn
+abnimmt, sieht daneben, was sich seit der letzten Freigabe geändert hat. Einen
+eigenen Freigabelauf davor gibt es nicht — **diese Abnahme ist die Freigabe**.
+Sind alle fünf durch, steht der Stempel und das Epic auf
+**L3.1 · BC freigegeben**. Lehnt eine Partei begründet ab, bleibt das Epic auf
+L2 und der Text ist wieder frei.
 
 Ich setze den Haken **„Im nächsten Steering-Meeting behandeln"**. Im
 Portfolio-Review wird mein Epic aufgerufen, und das Ergebnis lautet: hol dir
@@ -140,34 +150,42 @@ Antrag nicht durch. **Beratend** heißt: Pulse zeigt es an, hält aber nicht auf
 | ------- | ------------------------------------------------ | ------------------------------------------- |
 | → L1    | Benefit-Hypothese ist ausgearbeitet              | Epic Owner ist benannt                      |
 | → L2    | Benefit-Hypothese ist freigegeben                | Epic Owner benannt · Business Case begonnen |
-| → L3.1  | Business Case freigegeben                        | —                                           |
+| → L3.1  | Business Case ist ausgearbeitet                  | Epic Owner ist benannt                      |
 | → L3.2  | Budget alloziert (Σ > 0)                         | —                                           |
 | → L4    | —                                                | Mindestens ein Feature ist gestartet        |
 | → L4.2  | —                                                | Alle Child-Features sind abgeschlossen      |
 | → L5    | Umsetzung ist als abgeschlossen bestätigt (L4.2) | —                                           |
 
-Ist die Mehrparteien-Freigabe für den Tenant ausgeschaltet, genügt bei der
-Hypothese ausgearbeiteter Inhalt statt eines Freigabe-Stempels.
+Zwei dieser Kriterien fragen bewusst nach **Inhalt** und nicht nach einer
+Freigabe: → L1 und → L3.1 tragen die Freigabe selbst, sie können sie also nicht
+voraussetzen. Der Stempel wird dort gesetzt, nicht geprüft.
 
 ## Wer nimmt welchen Schritt ab
 
 Die Code-Defaults, je Wertstrom überschreibbar. Das Quorum ist durchgehend
 einstimmig — wer eingetragen ist, muss zustimmen.
 
-| Schritt                      | Abnahme             |
-| ---------------------------- | ------------------- |
-| → L1 · L2 · L3.1 · L4 · L4.2 | VMO                 |
-| → L3.2                       | VMO **und** Finance |
-| → L5                         | Finance             |
+| Schritt               | Abnahme                                            |
+| --------------------- | -------------------------------------------------- |
+| → L1 · L2 · L4 · L4.2 | VMO                                                |
+| → L3.1                | MGMT, Business Owner, Finance, IRT-Owner, LACE/VMO |
+| → L3.2                | VMO **und** Finance                                |
+| → L5                  | Finance                                            |
 
 Darin steckt die Begründung für den Schnitt: Finance zeichnet die
 **Geld**-Entscheidung mit (L3.2) und bestätigt am Ende den **Nutzen** (L5) — den
 Eintritt in L3 mit dem freigegebenen Business Case dagegen nicht. Genau deshalb
 sind L3.1 und L3.2 zwei Schritte und nicht einer.
 
-Der Schritt **→ L1** trägt zusätzlich eine inhaltliche Aussage: mit seiner
-Abnahme ist die Benefit-Hypothese freigegeben. Einen zweiten Lauf davor gibt es
-nicht.
+Zwei Schritte tragen zusätzlich eine inhaltliche Aussage: mit der Abnahme von
+**→ L1** ist die Benefit-Hypothese freigegeben, mit der von **→ L3.1** der Lean
+Business Case. Einen zweiten Lauf davor gibt es in beiden Fällen nicht.
+
+Die fünf Parteien an → L3.1 sind der Code-Default und zugleich der Ausdruck der
+Practice „Mehrparteien-Freigabe". Ist sie im Zielbild aus, zeichnet dort der VMO
+allein. Wer für MGMT, den Business Owner und den IRT-Owner _dieses_ Epics steht,
+benennt der Antragsteller beim Antrag — das ist eine Eigenschaft des Epics, keine
+Regel des Wertstroms.
 
 ## Wo die verbreitete Beschreibung von der Mechanik abweicht
 

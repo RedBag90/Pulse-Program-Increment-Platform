@@ -1,37 +1,18 @@
 "use client";
 
-import { useActionState, useState, startTransition } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { configureApproversAction } from "@/modules/work/features/portfolio/actions/epic-approval";
-import { APPROVAL_PARTIES, type ApprovalParty } from "@/modules/work/domain/business-case";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SectionLabel } from "@/components/ui/section-label";
+import type { GatePartyStaffing } from "@/modules/work/server/views/epic-detail";
 
 /** Gemeinsame Basis für die Auswahl-Controls. */
 const CONTROL =
   "min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-left text-xs";
 
-const PARTY_LABELS: Record<ApprovalParty, string> = {
-  mgmt: "MGMT",
-  business_owner: "Business Owner",
-  finance: "Finance",
-  irt_owner: "IRT-Owner",
-  lace_vmo: "LACE/VMO",
-};
-
 export interface TenantApprover {
   userId: string;
   roles: string[];
-}
-
-interface Props {
-  epicId: string;
-  approvers: TenantApprover[];
-  /** Currently assigned user ids per party (to prefill the selection). */
-  current: Record<ApprovalParty, string[]>;
-  /** Resolved user-id → display label (email) map. */
-  userLabels: Record<string, string>;
 }
 
 /**
@@ -103,82 +84,51 @@ export function MultiUserSelect({
 }
 
 /**
- * Lets the Epic Owner pick the approvers for an Epic's Business Case: one or
- * more tenant users per stakeholder party, plus one responsible reviewer for
- * each content section (Breakdown, KPIs). Serialises both and posts
- * configureApprovers.
+ * Die Besetzung der Business-Case-Parteien — **am Reifegrad-Antrag**, nicht mehr
+ * in einem eigenen Freigabe-Dialog.
+ *
+ * Vorher konfigurierte der Epic Owner die Parteien, reichte den Business Case
+ * ein und wartete auf fünf Entscheidungen; erst danach war der Schritt L2 → L3.1
+ * zu beantragen. Beides ist jetzt ein Vorgang: wer hier ausgewählt wird, nimmt
+ * den Schritt ab, und diese Abnahme *ist* die Business-Case-Freigabe.
+ *
+ * Gesteuert von außen (`selected`/`onToggle`), damit die Auswahl mit dem Antrag
+ * in einem Submit rausgeht statt vorher eigens gespeichert zu werden.
  */
-export function ApproverPicker({ epicId, approvers, current, userLabels }: Props) {
-  const [state, action, pending] = useActionState(configureApproversAction, {});
-  const [selected, setSelected] = useState<Record<ApprovalParty, Set<string>>>(() => {
-    const init = {} as Record<ApprovalParty, Set<string>>;
-    for (const p of APPROVAL_PARTIES) init[p] = new Set(current[p] ?? []);
-    return init;
-  });
-  function toggle(party: ApprovalParty, userId: string) {
-    setSelected((prev) => {
-      const next = new Set(prev[party]);
-      if (next.has(userId)) next.delete(userId);
-      else next.add(userId);
-      return { ...prev, [party]: next };
-    });
-  }
-
-  function submit() {
-    const assignments = APPROVAL_PARTIES.map((party) => ({
-      party,
-      userIds: [...selected[party]],
-    })).filter((a) => a.userIds.length > 0);
-    const fd = new FormData();
-    fd.set("epicId", epicId);
-    fd.set("assignments", JSON.stringify(assignments));
-    startTransition(() => action(fd));
-  }
-
+export function GatePartyPicker({
+  staffing,
+  approvers,
+  selected,
+  onToggle,
+  userLabels,
+}: {
+  staffing: GatePartyStaffing;
+  approvers: TenantApprover[];
+  /** Rolle → gewählte userIds. */
+  selected: Record<string, Set<string>>;
+  onToggle: (role: string, userId: string) => void;
+  userLabels: Record<string, string>;
+}) {
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        Wähle je Partei die Personen, deren Freigabe du einholen willst (Mehrfachauswahl möglich).
-      </p>
-      <div className="space-y-2">
-        <SectionLabel>Stakeholder-Parteien</SectionLabel>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {APPROVAL_PARTIES.map((party) => (
-            <div
-              key={party}
-              className="flex items-center gap-2 rounded-md border bg-card px-3 py-2"
-            >
-              <span className="w-28 shrink-0 text-xs font-medium">{PARTY_LABELS[party]}</span>
-              <MultiUserSelect
-                options={approvers}
-                selected={selected[party]}
-                onToggle={(userId) => toggle(party, userId)}
-                userLabels={userLabels}
-              />
-            </div>
-          ))}
-        </div>
+    <div className="space-y-2">
+      <SectionLabel>Abnahme durch</SectionLabel>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {staffing.roles.map(({ role, label }) => (
+          <div key={role} className="flex items-center gap-2 rounded-md border bg-card px-3 py-2">
+            <span className="w-28 shrink-0 text-xs font-medium">{label}</span>
+            <MultiUserSelect
+              options={approvers}
+              selected={selected[role] ?? new Set()}
+              onToggle={(userId) => onToggle(role, userId)}
+              userLabels={userLabels}
+            />
+          </div>
+        ))}
       </div>
-
-      {state.error && (
-        <p role="alert" className="text-xs text-red-600">
-          {state.error}
-        </p>
-      )}
-      {state.success && (
-        <p role="status" className="text-xs text-emerald-600">
-          Approver gespeichert.
-        </p>
-      )}
-
-      <button
-        type="button"
-        onClick={submit}
-        disabled={pending}
-        className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-      >
-        {pending ? "Speichern…" : "Approver speichern"}
-      </button>
+      <p className="text-[11px] text-muted-foreground">
+        Die gewählten Personen nehmen den Wechsel ab — ihre Zustimmung ist die Freigabe des Business
+        Case. Parteien ohne Person bleiben unbesetzt.
+      </p>
     </div>
   );
 }

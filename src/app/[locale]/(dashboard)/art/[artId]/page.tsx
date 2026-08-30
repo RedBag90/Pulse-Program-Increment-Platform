@@ -4,7 +4,7 @@ import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getArt } from "@/modules/core/org/server/services/art";
 import { listAuditHistory } from "@/server/services/audit-history";
-import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
+import { listTenantApprovers } from "@/modules/work/server/services/tenant-approvers";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { userLabel } from "@/components/detail/initiative-labels";
 import {

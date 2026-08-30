@@ -238,20 +238,18 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
 }
 
 /**
- * Epic-Phasen, in denen eine Business-Owner-Freigabe ueberhaupt erwartet wird.
- * Davor gibt es nichts zu messen — ein Epic im Funnel hat zurecht keinen BO.
- */
-const BO_SCOPE_PHASES = ["business_case", "stakeholder_review", "approved"];
-
-/**
- * Inputs fuer Guardrail 4 (Business-Owner-Engagement): jedes Epic im
- * Freigabelauf mit seinen `business_owner`-Zeilen und dem laufenden
- * Freigabezyklus.
+ * Inputs fuer Guardrail 4 (Business-Owner-Engagement): jedes Epic, das die
+ * Business-Case-Freigabe beantragt hat, mit seinen L2 → L3.1-Antraegen und
+ * deren Business-Owner-Abnahmezeilen.
  *
- * Welche Revision zaehlt, entscheidet bewusst der View und nicht diese Query:
- * Prisma koennte im `where` der Relation ohnehin nicht gegen eine Spalte des
- * Elternsatzes (`initiative.approvalRevision`) vergleichen — und als Regel
- * gehoert der Schnitt dorthin, wo er testbar ist.
+ * Der Scope stand frueher auf `approvalPhase`, die Zeilen auf `EpicApproval`.
+ * Beides gibt es nicht mehr: die Abnahme des Schritts L2 → L3.1 *ist* die
+ * Business-Case-Freigabe, also ist „im Freigabelauf" gleichbedeutend mit
+ * „hat diesen Schritt beantragt" und der Business Owner ist einer seiner
+ * Abnehmer (Rolle `epic.party.business_owner`).
+ *
+ * Welcher Antrag zaehlt, entscheidet bewusst der View und nicht diese Query —
+ * als Regel gehoert der Schnitt dorthin, wo er testbar ist.
  *
  * Rueckgabe bewusst ohne Typ-Annotation aus der View-Schicht (wie
  * `getPortfolioGuardrailsInputs`) — die Form passt strukturell auf
@@ -264,20 +262,24 @@ export async function getBusinessOwnerEngagementInputs(db: PrismaClient, tenantI
         tenantId,
         level: InitiativeLevel.EPIC,
         deletedAt: null,
-        approvalPhase: { in: BO_SCOPE_PHASES },
+        gateTransitions: { some: { toGate: "L3.1", kind: "forward" } },
       },
       select: {
         id: true,
         title: true,
-        approvalRevision: true,
-        epicApprovals: {
-          where: { party: "business_owner" },
+        gateTransitions: {
+          where: { toGate: "L3.1", kind: "forward" },
           select: {
-            revision: true,
-            approverUserId: true,
-            status: true,
             requestedAt: true,
-            decidedAt: true,
+            approvals: {
+              where: { role: "epic.party.business_owner" },
+              select: {
+                approverUserId: true,
+                status: true,
+                requestedAt: true,
+                decidedAt: true,
+              },
+            },
           },
         },
       },
@@ -288,15 +290,15 @@ export async function getBusinessOwnerEngagementInputs(db: PrismaClient, tenantI
   return epics.map((e) => ({
     epicId: e.id,
     title: e.title,
-    approvalRevision: e.approvalRevision,
-    approvals: e.epicApprovals.map((a) => ({
-      revision: a.revision,
-      approverUserId: a.approverUserId,
-      approverLabel:
-        a.approverUserId == null ? null : (userLabels[a.approverUserId] ?? a.approverUserId),
-      status: a.status,
-      requestedAt: a.requestedAt,
-      decidedAt: a.decidedAt,
+    transitions: e.gateTransitions.map((t) => ({
+      requestedAt: t.requestedAt,
+      approvals: t.approvals.map((a) => ({
+        approverUserId: a.approverUserId,
+        approverLabel: userLabels[a.approverUserId] ?? a.approverUserId,
+        status: a.status,
+        requestedAt: a.requestedAt,
+        decidedAt: a.decidedAt,
+      })),
     })),
   }));
 }

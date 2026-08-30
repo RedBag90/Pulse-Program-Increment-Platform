@@ -355,9 +355,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         capability: "epic.owner.assign",
       },
       {
-        text: "Als benannter Freigeber über Epics entscheiden.",
-        capability: "epic.approval.decide",
-        practice: "multiPartyApproval",
+        text: "Als benannter Abnehmer über Reifegrad-Wechsel entscheiden.",
+        capability: "epic.gate.decide",
       },
       { text: "Das Wertstrom-Budget auf die ARTs verteilen.", capability: "art_budget.manage" },
     ],
@@ -399,11 +398,10 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "value_stream_owner.approvals",
         title: "Freigaben, die auf dich warten",
-        body: "Wo du als Freigeber eingetragen bist, erscheint die Entscheidung hier. Ohne Begründung geht nur die Zustimmung — Ablehnen und Klären verlangen einen Text.",
+        body: "Wo du als Abnehmer eingetragen bist, erscheint die Entscheidung hier. Ohne Begründung geht nur die Zustimmung — eine Ablehnung verlangt einen Text.",
         route: "/my-approvals",
         anchor: "approvals-list",
-        capability: "epic.approval.decide",
-        practice: "multiPartyApproval",
+        capability: "epic.gate.decide",
       },
       {
         key: "value_stream_owner.art_budget",
@@ -433,21 +431,16 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         capability: "epic.gate.request",
       },
       {
-        text: "Den Business Case ausarbeiten und einreichen.",
-        capability: "epic.businesscase.submit",
-      },
-      {
-        text: "Festlegen, wer das Epic freigeben muss.",
-        capability: "epic.approval.configure",
-        practice: "multiPartyApproval",
+        text: "Den Business Case ausarbeiten und den Wechsel auf L3.1 beantragen — seine Abnahme ist die Freigabe.",
+        capability: "epic.gate.request",
       },
       {
         text: "Risiken deines Epics dokumentieren, bewerten und ROAM-mäßig einordnen.",
         capability: "risk.document",
       },
       {
-        text: "Nach einer Ablehnung überarbeiten und erneut einreichen.",
-        capability: "epic.revision.start",
+        text: "Nach einer Ablehnung überarbeiten und erneut beantragen.",
+        capability: "epic.gate.request",
       },
     ],
     handoffs: [
@@ -496,19 +489,18 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "epic_owner.business_case",
         title: "Business Case belegen",
-        body: "Kosten, Nutzen, Zeitraum. Schon der erste gespeicherte Inhalt hebt das Epic auf L2 — der Reifegrad folgt deiner Arbeit, du musst ihn nicht von Hand schalten.",
+        body: "Kosten, Nutzen, Zeitraum. Steht der Inhalt, beantragst du den Wechsel auf L3.1 — die Abnahme durch die fünf Parteien ist die Freigabe des Business Case.",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
-        capability: "epic.businesscase.submit",
+        capability: "epic.gate.request",
       },
       {
         key: "epic_owner.approvers",
-        title: "Freigeber benennen",
-        body: "Im Reifegrad-Reiter legst du fest, welche Parteien zustimmen müssen. Deine eigene Zustimmung ist nicht vorgesehen: wer ausarbeitet, entscheidet nicht.",
+        title: "Abnehmer benennen",
+        body: "Beim Antrag auf L3.1 legst du fest, wer für welche Partei zeichnet. Deine eigene Zustimmung ist nicht vorgesehen: wer ausarbeitet, entscheidet nicht.",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
-        capability: "epic.approval.configure",
-        practice: "multiPartyApproval",
+        capability: "epic.gate.request",
       },
       {
         key: "epic_owner.risk_document",

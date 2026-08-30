@@ -59,7 +59,6 @@ model Tenant {
   arts                  Art[]
   initiatives           Initiative[]
   kpis                  Kpi[]
-  epicApprovals         EpicApproval[]
   gateTransitions       StageGateTransition[]
   gateApprovals         StageGateApproval[]
   gateApproverRules     StageGateApproverRule[]
@@ -860,13 +859,6 @@ model Initiative {
   /// im LPM-Portfolio-Review (Soll = Plan-PI-Ende).
   completedAt DateTime? @map("completed_at")
 
-  // Multi-party approval workflow phase (EPIC only): draft → hypothesis_review →
-  // business_case → stakeholder_review → approved. Independent of stageGate.
-  approvalPhase    String? @map("approval_phase")
-  // Active approval revision (EPIC only). Bumped each time a new approval cycle
-  // is started on an already-approved Epic; EpicApproval rows are tagged with it.
-  approvalRevision Int     @default(1) @map("approval_revision")
-
   // Epic approval metadata (set when an Epic is approved)
   approvedBy      String?   @map("approved_by") @db.Uuid
   approvedAt      DateTime? @map("approved_at")
@@ -934,7 +926,6 @@ model Initiative {
   dependenciesOut  Dependency[]          @relation("From")
   dependenciesIn   Dependency[]          @relation("To")
   kpis             Kpi[]
-  epicApprovals    EpicApproval[]
   gateTransitions  StageGateTransition[]
   themeLinks       ThemeEpicLink[]
   goalLinks        GoalEpicLink[]
@@ -955,39 +946,15 @@ model Initiative {
   @@map("initiatives")
 }
 
-model EpicApproval {
-  id           String @id @default(uuid()) @db.Uuid
-  tenantId     String @map("tenant_id") @db.Uuid
-  initiativeId String @map("initiative_id") @db.Uuid
-
-  revision       Int     @default(1) // approval cycle this row belongs to
-  kind           String // "party" | "section"
-  party          String? // ApprovalParty (kind=party): mgmt | business_owner | finance | irt_owner | lace_vmo
-  section        String? // kind=section: "breakdown" | "kpis"
-  approverUserId String? @map("approver_user_id") @db.Uuid // assigned approver (party) / reviewer (section)
-
-  status      String    @default("pending") // pending | approved | rejected
-  decidedAt   DateTime? @map("decided_at")
-  comment     String?   @db.Text
-  requestedAt DateTime  @default(now()) @map("requested_at")
-  createdBy   String    @map("created_by") @db.Uuid
-
-  tenant     Tenant     @relation(fields: [tenantId], references: [id])
-  initiative Initiative @relation(fields: [initiativeId], references: [id])
-
-  @@index([tenantId, initiativeId, revision])
-  @@index([approverUserId, status])
-  @@map("epic_approvals")
-}
-
 /// Ein **beantragter** Reifegrad-Wechsel (Stage Gate) an einem Epic — die
 /// Kopfzeile: wer hat wann welchen Push beantragt, mit welchem Ergebnis. Die
 /// namentlichen Abnahmen hängen als `StageGateApproval` daran.
 ///
-/// Bewusst NICHT über `EpicApproval` mitgeführt: `applyDecisionOutcome` liest
-/// dort revisionsweise OHNE `kind`-Filter und würde Gate-Zeilen in
-/// `isFullyApproved` mitzählen. Getrennte Tabellen halten außerdem die beiden
-/// Achsen orthogonal (ADR-0003) — siehe ADR-0018.
+/// Seit die inhaltlichen Freigaben in die Reifegrad-Schritte aufgegangen sind
+/// (L0 → L1 trägt die Hypothese, L2 → L3.1 den Business Case), ist das die
+/// **einzige** Freigabe-Tabelle: die frühere Mehrparteien-Achse `EpicApproval`
+/// samt `approval_phase`/`approval_revision` ist damit entfallen — siehe
+/// ADR-0018 und den Nachtrag zu ADR-0003.
 model StageGateTransition {
   id           String @id @default(uuid()) @db.Uuid
   tenantId     String @map("tenant_id") @db.Uuid
@@ -1023,7 +990,7 @@ model StageGateTransition {
 
 /// Eine namentliche Abnahme an einem Gate-Antrag. Der Approver wird beim Antrag
 /// aufgelöst und hier EINGEFROREN — dasselbe Snapshot-Muster wie
-/// `EpicApproval.approverUserId`, damit spätere Konfig-Änderungen laufende
+/// eingefroren, damit spätere Konfig-Änderungen laufende
 /// Anträge nicht umdeuten.
 model StageGateApproval {
   id             String  @id @default(uuid()) @db.Uuid
@@ -1032,7 +999,10 @@ model StageGateApproval {
   approverUserId String  @map("approver_user_id") @db.Uuid
   /// Herkunft: "value_stream" | "tenant" | "epic_owner" | "manual"
   source         String  @default("value_stream")
-  /// Anzeige-Rolle im Gate-Kontext: "finance" | "vmo" | "epic_owner" | null
+  /// Anzeige-Rolle im Gate-Kontext, ein `GateApproverRole`: die
+  /// Wertstrom-Platzhalter (`value_stream.vmo`, `value_stream.finance_approver`),
+  /// `epic.owner` oder eine der fünf Business-Case-Parteien
+  /// (`epic.party.business_owner` …). null bei direkt benannten Personen.
   role           String?
 
   status      String    @default("pending") // pending | approved | rejected
@@ -1045,7 +1015,7 @@ model StageGateApproval {
   transition StageGateTransition @relation(fields: [transitionId], references: [id], onDelete: Cascade)
 
   @@unique([transitionId, approverUserId])
-  // Trägt „Meine Freigaben" — derselbe Zugriffspfad wie EpicApproval.
+  // Trägt „Meine Freigaben" — der einzige Zugriffspfad des Posteingangs.
   @@index([approverUserId, status])
   @@index([tenantId, transitionId])
   @@map("stage_gate_approvals")

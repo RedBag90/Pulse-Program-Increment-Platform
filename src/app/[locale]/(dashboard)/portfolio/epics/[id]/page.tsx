@@ -8,7 +8,7 @@ import { getEpicBudgetAllocation } from "@/modules/budgeting/server/services/epi
 import { loadIssues } from "@/modules/risks/server/views/issues";
 import { IssuesListShell } from "@/modules/risks/features/issue/components/issues-list-shell";
 import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-contributions";
-import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
+import { listTenantApprovers } from "@/modules/work/server/services/tenant-approvers";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { EpicGoalsBadge } from "@/modules/work/features/portfolio/components/epic-goals-badge";
 import { EpicRealizedTile } from "@/modules/work/features/portfolio/components/epic-realized-tile";
@@ -16,7 +16,6 @@ import { EntityDetailShell, resolveTab } from "@/components/detail/entity-detail
 import { loadCockpitFeatureDetail } from "@/modules/drumbeat/server/views/cockpit-feature-detail";
 import { FeatureSlideOver } from "@/modules/drumbeat/features/cockpit/components/feature-slide-over";
 import { InitiativeActivitySidebar } from "@/components/detail/initiative-activity-sidebar";
-import { PhaseBadge } from "@/components/detail/phase-badge";
 import { EpicHistoryTimeline } from "@/modules/work/features/portfolio/components/epic-history-timeline";
 import { EPIC_TABS } from "@/modules/work/features/portfolio/components/epic-detail-shell";
 import { EpicOverviewTab } from "@/modules/work/features/portfolio/components/epic-overview-tab";
@@ -138,7 +137,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         backHref="/portfolio/epics"
         backLabel="Zurück zu den Epics"
         title={epic.title}
-        badge={model.multiPartyApproval ? <PhaseBadge phase={model.approvalPhase} /> : undefined}
         tabs={tabs}
         activeTab={activeTab}
         basePath={`/portfolio/epics/${epic.id}`}
@@ -160,7 +158,12 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             ) : undefined;
           return (
             <div className="space-y-4">
-              <EpicGateCard epicId={epic.id} gate={model.gate} userLabels={userLabels} />
+              <EpicGateCard
+                epicId={epic.id}
+                gate={model.gate}
+                approvers={approvers}
+                userLabels={userLabels}
+              />
               <EpicLifecycleStepper
                 steps={model.lifecycleSteps}
                 nextStep={model.nextStep}
@@ -226,12 +229,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               canAssignOwner={model.canAssignOwner}
               approvers={approvers}
               userLabels={userLabels}
-              multiPartyApproval={model.multiPartyApproval}
-              approvalPhase={model.approvalPhase}
-              approvalRevision={model.activeRevision}
-              approvals={model.approvals}
-              approvalView={model.approvalView}
-              currentUserId={principal.id}
               lifecycleSteps={model.lifecycleSteps}
             />
           </section>
@@ -271,7 +268,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                 current={businessCase.current}
                 history={businessCase.history}
                 readOnly={!model.bcEditable}
-                canSubmit={model.canSubmitBusinessCase}
                 kpiNames={kpiNames}
                 cascade={goalLinks.cascade}
                 {...(model.bcLockReason && { lockReason: model.bcLockReason })}

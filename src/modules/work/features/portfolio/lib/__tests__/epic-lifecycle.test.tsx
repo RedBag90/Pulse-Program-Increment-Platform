@@ -8,7 +8,6 @@ import {
 function input(over: Partial<EpicLifecycleInput> = {}): EpicLifecycleInput {
   return {
     stageGate: "L0",
-    approvalPhase: null,
     subStage: null,
     impactRecognizedAt: null,
     ...over,
@@ -49,10 +48,6 @@ describe("epicLifecycleSteps", () => {
 
   it("L3.1 (BC freigegeben): Backlog current", () => {
     expect(current({ stageGate: "L3", subStage: "L3.1" })).toBe("backlog");
-  });
-
-  it("L1 approvalPhase=approved: Backlog current (defensive stale gate)", () => {
-    expect(current({ stageGate: "L1", approvalPhase: "approved" })).toBe("backlog");
   });
 
   it("regression — L3 with no milestone timestamps: Backlog current (was Detailing)", () => {

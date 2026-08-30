@@ -74,8 +74,9 @@ function readyFor(to: GateStep): EpicGateFacts {
     case "L2":
       return facts("L1", { hypothesisApprovedAt: EARLIER });
     case "L3.1":
-      // Der Eintritt in L3.1 verlangt nur die BC-Freigabe — das Geld folgt in L3.2.
-      return facts("L2", { businessCaseApprovedAt: EARLIER });
+      // Reif fuer L3.1 heisst: der Business Case ist ausgearbeitet. Freigegeben
+      // wird er mit der Abnahme dieses Schritts — das Geld folgt in L3.2.
+      return facts("L2", { hasBusinessCaseContent: true });
     case "L3.2":
       return facts("L3.1", { businessCaseApprovedAt: EARLIER, budgetAllocationSum: 500_000 });
     case "L4":
@@ -154,7 +155,7 @@ describe("planGateRequest — Reife", () => {
     const r = request("L3.1", { facts: facts("L2", { budgetAllocationSum: 500_000 }) });
     expect(isErr(r)).toBe(true);
     if (!isErr(r) || r.error.kind !== "forbidden") return;
-    expect(r.error.reason).toContain("Business Case ist freigegeben");
+    expect(r.error.reason).toContain("Business Case ist ausgearbeitet");
   });
 
   it("ein unerfülltes BERATENDES Kriterium verhindert nichts", () => {
@@ -170,7 +171,10 @@ describe("planGateRequest — Reife", () => {
     const r = request("L3.1");
     expect(isOk(r)).toBe(true);
     if (!isOk(r)) return;
-    expect(r.value.readiness.criteria.map((c) => c.key)).toEqual(["business_case_approved"]);
+    expect(r.value.readiness.criteria.map((c) => c.key)).toEqual([
+      "business_case_drafted",
+      "owner_nominated",
+    ]);
     expect(r.value.readiness.criteria.every((c) => c.satisfied)).toBe(true);
   });
 });
@@ -359,8 +363,31 @@ describe("planGateRevert", () => {
     });
   });
 
-  it("L3.1→L2 räumt nichts ab — der Eintritt in L3 trägt keinen eigenen Stempel", () => {
-    expect(unwindStampsFor("L3.1", "L2")).toEqual({ stageGate: "L2" });
+  it("L3.1→L2 räumt die Business-Case-Freigabe ab", () => {
+    expect(unwindStampsFor("L3.1", "L2")).toEqual({
+      stageGate: "L2",
+      businessCaseApprovedAt: null,
+    });
+  });
+});
+
+describe("L2 → L3.1 trägt die Business-Case-Freigabe", () => {
+  it("stempelt den Business Case und markiert fürs Steering", () => {
+    const s = stampsForAdvance(facts("L2", { hasBusinessCaseContent: true }), "L3.1", VMO, NOW);
+    expect(s.businessCaseApprovedAt).toEqual(NOW);
+    expect(s.needsSteeringAttention).toBe(true);
+    expect(s.stageGate).toBe("L3");
+  });
+
+  it("set-once: ein vorhandener Stempel wird nicht überschrieben", () => {
+    const s = stampsForAdvance(
+      facts("L2", { hasBusinessCaseContent: true, businessCaseApprovedAt: EARLIER }),
+      "L3.1",
+      VMO,
+      NOW,
+    );
+    expect(s.businessCaseApprovedAt).toBeUndefined();
+    expect(s.needsSteeringAttention).toBe(true);
   });
 });
 
@@ -370,7 +397,6 @@ describe("L0 → L1 trägt die Hypothesen-Freigabe", () => {
     expect(s.hypothesisApprovedAt).toEqual(NOW);
     expect(s.selectedForDetailingAt).toEqual(NOW);
     expect(s.needsSteeringAttention).toBe(true);
-    expect(s.approvalPhase).toBe("business_case");
     expect(s.stageGate).toBe("L1");
   });
 
@@ -383,15 +409,14 @@ describe("L0 → L1 trägt die Hypothesen-Freigabe", () => {
     );
     expect(s.hypothesisApprovedAt).toBeUndefined();
     expect(s.selectedForDetailingAt).toBeUndefined();
-    // Das Steering-Flag und die Phase folgen der Abnahme, nicht dem Stempel.
-    expect(s.approvalPhase).toBe("business_case");
+    // Das Steering-Flag folgt der Abnahme, nicht dem Stempel.
+    expect(s.needsSteeringAttention).toBe(true);
   });
 
   it("der Revert L1 → L0 räumt die Freigabe ab", () => {
     const s = unwindStampsFor("L1", "L0");
     expect(s.hypothesisApprovedAt).toBeNull();
     expect(s.selectedForDetailingAt).toBeNull();
-    expect(s.approvalPhase).toBe("draft");
     expect(s.stageGate).toBe("L0");
   });
 });

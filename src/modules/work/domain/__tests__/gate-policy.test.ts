@@ -3,7 +3,7 @@ import {
   resolveGatePolicy,
   expandApprovers,
   DEFAULT_GATE_POLICIES,
-  ALLOW_AD_HOC_GATE_APPROVERS,
+  allowsAdHocApprovers,
   type ApproverContext,
   type GateApproverRuleRow,
 } from "@/modules/work/domain/gate-policy";
@@ -169,19 +169,50 @@ describe("expandApprovers — Platzhalter-Auflösung", () => {
     ).toEqual([]);
   });
 
-  it("der Override greift nur, wenn Ad-hoc-Abnehmer erlaubt sind", () => {
+  it("an L3.2 wird ein Override ignoriert — dort gilt die Wertstrom-Regel", () => {
+    expect(allowsAdHocApprovers("L3.2")).toBe(false);
     const p = resolveGatePolicy("L3.2", [], VS);
-    const withOverride = expandApprovers(p, ctx(), ["u-adhoc"]);
-    if (ALLOW_AD_HOC_GATE_APPROVERS) {
-      expect(withOverride).toEqual([{ userId: "u-adhoc", role: null, source: "manual" }]);
-    } else {
-      // Bestätigter Rahmen: Wertstrom-Konfiguration, nicht Wahl pro Epic.
-      expect(withOverride.map((a) => a.userId)).toEqual([VMO, FINANCE]);
-    }
+    const withOverride = expandApprovers(p, ctx(), [{ userId: "u-adhoc" }]);
+    expect(withOverride.map((a) => a.userId)).toEqual([VMO, FINANCE]);
   });
 
-  it("ein leerer Override wird auch bei erlaubtem Ad-hoc ignoriert", () => {
-    const p = resolveGatePolicy("L3.2", [], VS);
-    expect(expandApprovers(p, ctx(), []).map((a) => a.userId)).toEqual([VMO, FINANCE]);
+  it("an L3.1 ersetzt der Override die Policy — und führt die Rolle mit", () => {
+    expect(allowsAdHocApprovers("L3.1")).toBe(true);
+    const p = resolveGatePolicy("L3.1", [], VS);
+    const withOverride = expandApprovers(p, ctx(), [
+      { userId: "u-bo", role: "epic.party.business_owner" },
+      { userId: "u-mgmt", role: "epic.party.mgmt" },
+    ]);
+    expect(withOverride).toEqual([
+      { userId: "u-bo", role: "epic.party.business_owner", source: "manual" },
+      { userId: "u-mgmt", role: "epic.party.mgmt", source: "manual" },
+    ]);
+  });
+
+  it("ein leerer Override wird auch an L3.1 ignoriert", () => {
+    const p = resolveGatePolicy("L3.1", [], VS);
+    expect(expandApprovers(p, ctx(), []).map((a) => a.userId)).toEqual([FINANCE, VMO]);
+  });
+
+  it("L3.1 besetzt im Code-Default die fünf Parteien — Finance und LACE/VMO lösen auf", () => {
+    const p = resolveGatePolicy("L3.1", [], VS);
+    expect(p.approverRoles).toEqual([
+      "epic.party.mgmt",
+      "epic.party.business_owner",
+      "epic.party.finance",
+      "epic.party.irt_owner",
+      "epic.party.lace_vmo",
+    ]);
+    // MGMT, Business Owner und IRT-Owner haben keine Wertstrom-Spalte: sie
+    // fallen still weg und werden am Antrag benannt.
+    expect(expandApprovers(p, ctx())).toEqual([
+      { userId: FINANCE, role: "epic.party.finance", source: "value_stream" },
+      { userId: VMO, role: "epic.party.lace_vmo", source: "value_stream" },
+    ]);
+  });
+
+  it("ohne die Practice zeichnet an L3.1 der VMO allein", () => {
+    const p = resolveGatePolicy("L3.1", [], VS, { multiPartyApproval: false });
+    expect(p.approverRoles).toEqual(["value_stream.vmo"]);
   });
 });

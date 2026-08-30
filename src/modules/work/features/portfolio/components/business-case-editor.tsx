@@ -3,7 +3,6 @@
 import { useActionState, useState } from "react";
 import { Lock, Lightbulb, ArrowRight, ChevronRight, AlertTriangle } from "lucide-react";
 import { saveBusinessCaseAction } from "@/modules/work/features/portfolio/actions/business-case";
-import { submitEpicBusinessCaseAction } from "@/modules/work/features/portfolio/actions/epic-approval";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -28,11 +27,6 @@ interface BusinessCaseEditorProps {
   readOnly?: boolean;
   /** Why the form is locked (the current approval phase) — shown as a hint. */
   lockReason?: string;
-  /** When true, renders the "Fertig zum Einreichen"-Checkbox + Submit-Button
-   *  next to the save button. Aktiv nur in `approvalPhase = business_case`
-   *  und mit `epic.businesscase.submit`-Capability — Sichtbarkeistlogik
-   *  liegt auf der Page. */
-  canSubmit?: boolean;
   /** KPI-Namen aus dem KPI-Tab. Ersetzen das frueher freie Leading-
    *  Indicators-Feld: Single-Source-of-Truth ist der KPI-Tab. */
   kpiNames?: string[];
@@ -62,17 +56,10 @@ export function BusinessCaseEditor({
   history,
   readOnly = false,
   lockReason,
-  canSubmit = false,
   kpiNames = [],
   cascade = [],
 }: BusinessCaseEditorProps) {
   const [state, action, isPending] = useActionState(saveBusinessCaseAction, {});
-  const [submitState, submitAction, submitPending] = useActionState(
-    submitEpicBusinessCaseAction,
-    {},
-  );
-  const [readyToSubmit, setReadyToSubmit] = useState(false);
-  const submitDisabled = !readyToSubmit || submitPending;
   const [slices, setSlices] = useState<string[]>(() => initialSlices(current.costSlices));
 
   const costTotal = slices.reduce((sum, v) => sum + (parseNum(v) ?? 0), 0);
@@ -358,40 +345,6 @@ export function BusinessCaseEditor({
           </div>
         )}
       </form>
-
-      {canSubmit && !readOnly && (
-        // Separate form, damit Submit (epic.businesscase.submit) nicht
-        // versehentlich die Save-Felder mitschickt. Auf gleicher Hoehe
-        // wie der Save-Knopf, rechts ausgerichtet — analog zur Hypothese.
-        <form
-          action={submitAction}
-          className="flex flex-wrap items-center justify-end gap-3 border-t pt-4"
-        >
-          <input type="hidden" name="epicId" value={epicId} />
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={readyToSubmit}
-              onChange={(e) => setReadyToSubmit(e.target.checked)}
-              className="size-4 rounded border-border"
-            />
-            Fertig zum Einreichen
-          </label>
-          <Button type="submit" disabled={submitDisabled}>
-            {submitPending ? "Einreichen…" : "Business Case einreichen"}
-          </Button>
-          {submitState.error && (
-            <p role="alert" className="w-full text-right text-sm text-destructive">
-              {submitState.error}
-            </p>
-          )}
-          {submitState.success && (
-            <p role="status" className="w-full text-right text-sm text-emerald-600">
-              Business Case eingereicht — die Stakeholder entscheiden jetzt.
-            </p>
-          )}
-        </form>
-      )}
 
       {history.length > 0 && (
         <details className="rounded-lg border bg-muted/50 p-3">

@@ -17,8 +17,6 @@ type EpicOverrides = Partial<{
   title: string;
   valueStreamId: string;
   stageGate: string;
-  approvalPhase: string | null;
-  approvalRevision: number | null;
   benefitHypothesis: unknown;
   businessCase: unknown;
   timeline: unknown;
@@ -35,8 +33,6 @@ function makeEpic(over: EpicOverrides = {}): EpicDetailInputs["epic"] {
     title: over.title ?? "Epic",
     valueStreamId: over.valueStreamId ?? "vs-1",
     stageGate: over.stageGate ?? "L0",
-    approvalPhase: over.approvalPhase === undefined ? "draft" : over.approvalPhase,
-    approvalRevision: over.approvalRevision === undefined ? 1 : over.approvalRevision,
     benefitHypothesis: over.benefitHypothesis ?? null,
     businessCase: over.businessCase ?? null,
     timeline: over.timeline ?? null,
@@ -65,36 +61,11 @@ function auditEvent(p: {
   } as unknown as EpicDetailInputs["historyEvents"][number];
 }
 
-function approvalRow(p: {
-  id: string;
-  revision?: number;
-  kind?: "party" | "section";
-  party?: string | null;
-  section?: string | null;
-  status?: string;
-  approverUserId?: string | null;
-  comment?: string | null;
-  decidedAt?: Date | null;
-}): EpicDetailInputs["approvals"][number] {
-  return {
-    id: p.id,
-    revision: p.revision ?? 1,
-    kind: p.kind ?? "party",
-    party: p.party ?? null,
-    section: p.section ?? null,
-    status: p.status ?? "pending",
-    approverUserId: p.approverUserId ?? null,
-    comment: p.comment ?? null,
-    decidedAt: p.decidedAt ?? null,
-  } as unknown as EpicDetailInputs["approvals"][number];
-}
-
 function makeInputs(over: Partial<EpicDetailInputs> = {}): EpicDetailInputs {
   return {
     epic: makeEpic(),
     historyEvents: [],
     kpis: [],
-    approvals: [],
     pis: [],
     dependencies: [],
     budget: null,
@@ -103,7 +74,6 @@ function makeInputs(over: Partial<EpicDetailInputs> = {}): EpicDetailInputs {
     multiPartyApproval: true,
     principalId: PRINCIPAL_ID,
     canEdit: true,
-    canSubmitBusinessCase: false,
     canAssignOwner: false,
     gate: { disabled: true },
     canLinkDependency: false,
@@ -212,16 +182,13 @@ describe("buildEpicDetailModel — degradation matrix", () => {
 });
 
 describe("buildEpicDetailModel — revision visibility algebra", () => {
-  it("ohne laufende Abnahme zeigt der Owner seinen eigenen Hypothesen-Diff", () => {
-    // Der Review-Diff haengt jetzt am offenen Reifegrad-Antrag; die Algebra
-    // dahinter deckt `epic-revision-visibility.test.ts` ab. Hier zaehlt nur,
-    // dass der Model-Bau sie richtig verdrahtet.
+  // Die Algebra selbst deckt `epic-revision-visibility.test.ts` ab. Hier zaehlt
+  // nur, dass der Model-Bau sie richtig verdrahtet — insbesondere, dass der
+  // offene Reifegrad-Antrag und die Abnehmerschaft des Betrachters ankommen.
+  it("ohne laufenden Antrag zeigt der Owner seinen eigenen Hypothesen-Diff", () => {
     const m = buildEpicDetailModel(
       makeInputs({
-        epic: makeEpic({
-          approvalPhase: "draft",
-          baselineBenefitHypothesis: { measuresHypothesis: "prev" },
-        }),
+        epic: makeEpic({ baselineBenefitHypothesis: { measuresHypothesis: "prev" } }),
         canEdit: true,
       }),
     );
@@ -229,91 +196,51 @@ describe("buildEpicDetailModel — revision visibility algebra", () => {
     expect(m.showHypoOwnerEdit).toBe(true);
   });
 
-  it("showBcReviewDiff true when baseline + stakeholder_review + an open approval for the viewer", () => {
-    const m = buildEpicDetailModel(
-      makeInputs({
-        epic: makeEpic({
-          approvalPhase: "stakeholder_review",
-          baselineBusinessCase: { costSlices: [{ amount: 10 }] },
-        }),
-        approvals: [approvalRow({ id: "a1", status: "pending", approverUserId: PRINCIPAL_ID })],
-      }),
-    );
-    expect(m.viewerHasOpenApproval).toBe(true);
-    expect(m.showBcReviewDiff).toBe(true);
-    expect(m.showBcOwnerEdit).toBe(false);
-  });
-
-  it("showHypoOwnerEdit true when baseline + owner revision active + not a review diff", () => {
-    const m = buildEpicDetailModel(
-      makeInputs({
-        epic: makeEpic({
-          approvalPhase: "draft",
-          baselineBenefitHypothesis: { measuresHypothesis: "prev" },
-        }),
-        canEdit: true,
-      }),
-    );
-    expect(m.ownerRevisionActive).toBe(true);
-    expect(m.showHypoReviewDiff).toBe(false);
-    expect(m.showHypoOwnerEdit).toBe(true);
-  });
-
-  it("showBcOwnerEdit true when baseline + owner revision active + not a review diff", () => {
-    const m = buildEpicDetailModel(
-      makeInputs({
-        epic: makeEpic({
-          approvalPhase: "business_case",
-          baselineBusinessCase: { costSlices: [{ amount: 10 }] },
-        }),
-        canEdit: true,
-      }),
-    );
-    // No open approval for the viewer → showBcReviewDiff false → owner edit shows.
-    expect(m.showBcReviewDiff).toBe(false);
-    expect(m.showBcOwnerEdit).toBe(true);
-  });
-
-  it("plain view: no baselines → every side-by-side flag is false", () => {
-    const m = buildEpicDetailModel(makeInputs({ epic: makeEpic({ approvalPhase: "approved" }) }));
+  it("ohne Baselines ist jede Gegenüberstellung aus", () => {
+    const m = buildEpicDetailModel(makeInputs({ epic: makeEpic({ stageGate: "L3" }) }));
     expect(m.showHypoReviewDiff).toBe(false);
     expect(m.showBcReviewDiff).toBe(false);
     expect(m.showHypoOwnerEdit).toBe(false);
     expect(m.showBcOwnerEdit).toBe(false);
-    // approved → owner revision is not active.
-    expect(m.ownerRevisionActive).toBe(false);
+  });
+
+  it("auf L2 mit BC-Baseline sieht der Bearbeiter die Gegenüberstellung", () => {
+    const m = buildEpicDetailModel(
+      makeInputs({
+        epic: makeEpic({
+          stageGate: "L2",
+          baselineBusinessCase: { costSlices: [{ amount: 10 }] },
+        }),
+        canEdit: true,
+      }),
+    );
+    expect(m.showBcReviewDiff).toBe(false);
+    expect(m.showBcOwnerEdit).toBe(true);
   });
 });
 
 describe("buildEpicDetailModel — lock reasons", () => {
   it("ab L1 ist die Hypothese gesperrt — die Abnahme war die Freigabe", () => {
     const m = buildEpicDetailModel(
-      makeInputs({
-        epic: makeEpic({ stageGate: "L2", approvalPhase: "business_case" }),
-        canEdit: true,
-      }),
+      makeInputs({ epic: makeEpic({ stageGate: "L2" }), canEdit: true }),
     );
     expect(m.hypoLockReason).toBe(
       "Die Hypothese ist mit dem Schritt auf L1 freigegeben und damit gesperrt. Für " +
         "Änderungen das Epic auf L0 zurückstufen.",
     );
-    // Der Business Case ist in seiner Phase offen.
+    // Der Business Case ist auf L2 offen.
     expect(m.bcLockReason).toBeUndefined();
   });
 
-  it("draft locks the Business Case but not the Hypothesis", () => {
-    const m = buildEpicDetailModel(
-      makeInputs({ epic: makeEpic({ approvalPhase: "draft" }), canEdit: true }),
-    );
+  it("auf L0 ist der Business Case gesperrt, die Hypothese nicht", () => {
+    const m = buildEpicDetailModel(makeInputs({ epic: makeEpic(), canEdit: true }));
     expect(m.hypoLockReason).toBeUndefined();
-    expect(m.bcLockReason).toBe(
-      "Der Business Case wird erst bearbeitbar, sobald die Benefit-Hypothese freigegeben ist.",
-    );
+    expect(m.bcLockReason).toContain("L1");
   });
 
   it("both lock reasons are undefined when canEdit is false", () => {
     const m = buildEpicDetailModel(
-      makeInputs({ epic: makeEpic({ approvalPhase: "business_case" }), canEdit: false }),
+      makeInputs({ epic: makeEpic({ stageGate: "L2" }), canEdit: false }),
     );
     expect(m.hypoLockReason).toBeUndefined();
     expect(m.bcLockReason).toBeUndefined();
@@ -321,7 +248,9 @@ describe("buildEpicDetailModel — lock reasons", () => {
 });
 
 describe("buildEpicDetailModel — activity merge", () => {
-  it("merges audit events + one approval comment newest-first with the right action label", () => {
+  it("sortiert die Audit-Ereignisse neueste zuerst und zieht den Kommentar heraus", () => {
+    // Die Freigabe-Kommentare kommen seit dem Umbau ueber denselben
+    // Audit-Strom: jede Gate-Entscheidung schreibt sie als `changes.comment`.
     const m = buildEpicDetailModel(
       makeInputs({
         historyEvents: [
@@ -331,48 +260,21 @@ describe("buildEpicDetailModel — activity merge", () => {
             occurredAt: "2026-01-01T00:00:00.000Z",
           }),
           auditEvent({
+            id: "decided",
+            action: "initiative.stage_gate.advanced",
+            occurredAt: "2026-02-01T00:00:00.000Z",
+            comment: "Sieht gut aus",
+          }),
+          auditEvent({
             id: "new",
-            action: "epic.hypothesis.approved",
+            action: "initiative.updated",
             occurredAt: "2026-03-01T00:00:00.000Z",
           }),
         ],
-        approvals: [
-          approvalRow({
-            id: "ap",
-            party: "finance",
-            status: "approved",
-            comment: "Sieht gut aus",
-            decidedAt: new Date("2026-02-01T00:00:00.000Z"),
-            approverUserId: "user-9",
-          }),
-        ],
       }),
     );
 
-    // Sorted newest-first: new (03) → approval (02) → old (01).
-    expect(m.activityEvents.map((e) => e.id)).toEqual(["new", "approval-ap", "old"]);
-    const approvalItem = m.activityEvents.find((e) => e.id === "approval-ap")!;
-    expect(approvalItem.action).toBe("epic.approval.granted");
-    expect(approvalItem.detail).toBe("Finance");
-    expect(approvalItem.comment).toBe("Sieht gut aus");
-  });
-
-  it("a rejected approval maps to epic.approval.rejected", () => {
-    const m = buildEpicDetailModel(
-      makeInputs({
-        approvals: [
-          approvalRow({
-            id: "rej",
-            party: "mgmt",
-            status: "rejected",
-            comment: "Bitte nacharbeiten",
-            decidedAt: new Date("2026-02-01T00:00:00.000Z"),
-          }),
-        ],
-      }),
-    );
-    const item = m.activityEvents.find((e) => e.id === "approval-rej")!;
-    expect(item.action).toBe("epic.approval.rejected");
-    expect(item.detail).toBe("MGMT");
+    expect(m.activityEvents.map((e) => e.id)).toEqual(["new", "decided", "old"]);
+    expect(m.activityEvents.find((e) => e.id === "decided")!.comment).toBe("Sieht gut aus");
   });
 });

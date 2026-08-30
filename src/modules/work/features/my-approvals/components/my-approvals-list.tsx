@@ -2,35 +2,21 @@ import { Link } from "@/i18n/navigation";
 import { PageSection } from "@/components/layout";
 import { ApprovalActions } from "@/modules/work/features/my-approvals/components/approval-actions";
 import type { MyApprovalRow } from "@/modules/work/server/services/my-approvals";
-import type { ApprovalParty } from "@/modules/work/domain/business-case";
 
 /**
- * „Meine Freigaben" — the personal approval-inbox body, grouped by kind
- * (Reifegrad-Wechsel, Hypothesen, Stakeholder-Freigaben, Abschnitts-Sign-offs).
- * Extracted from the former `/my-approvals` route so the merged `/my-tasks` page
- * can render approvals and tasks stacked on one page. Server component; the
- * per-row decision buttons (`ApprovalActions`) are the only client part.
+ * „Meine Freigaben" — der persönliche Posteingang, nach Art gruppiert.
+ *
+ * Die Gruppierung ist geblieben, die Arten sind es nicht: Hypothesen- und
+ * Stakeholder-Freigaben sind in die Reifegrad-Abnahmen aufgegangen, also steht
+ * hier heute genau eine Gruppe. Server-Komponente; nur die Entscheid-Tasten
+ * (`ApprovalActions`) sind Client-Code.
  */
 
 const KIND_LABELS: Record<MyApprovalRow["kind"], string> = {
-  epic_party: "Epic-Stakeholder-Freigaben",
   epic_gate: "Reifegrad-Wechsel",
 };
 
-const KIND_ORDER: MyApprovalRow["kind"][] = [
-  // Reifegrad-Wechsel zuerst: sie blockieren den Fortschritt eines ganzen Epics,
-  // nicht nur eines Dokuments.
-  "epic_gate",
-  "epic_party",
-];
-
-const PARTY_LABELS: Record<ApprovalParty, string> = {
-  mgmt: "MGMT",
-  business_owner: "Business Owner",
-  finance: "Finance",
-  irt_owner: "IRT-Owner",
-  lace_vmo: "LACE/VMO",
-};
+const KIND_ORDER: MyApprovalRow["kind"][] = ["epic_gate"];
 
 /** Renders the per-row context column — what makes this approval distinct. */
 function ContextCell({ row }: { row: MyApprovalRow }) {
@@ -38,7 +24,7 @@ function ContextCell({ row }: { row: MyApprovalRow }) {
   if (row.context.fromGate && row.context.toGate) {
     bits.push(`${row.context.fromGate} → ${row.context.toGate}`);
   }
-  if (row.context.party) bits.push(PARTY_LABELS[row.context.party]);
+  if (row.context.roleLabel) bits.push(row.context.roleLabel);
   if (row.context.valueStreamName) bits.push(row.context.valueStreamName);
   if (row.context.artName) bits.push(row.context.artName);
   if (row.context.parentTitle) bits.push(row.context.parentTitle);

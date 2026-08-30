@@ -31,8 +31,12 @@ export interface EpicNextStepInput {
   epicId: string;
   stageGate: StageGate;
   subStage: SubStage | null;
-  /** Approval-Phase, falls Multi-Party-Approval aktiv ist; sonst null. */
-  approvalPhase: string | null;
+  /**
+   * Ziel des offenen Reifegrad-Antrags, oder null. Steht einer offen, ist der
+   * nächste Schritt immer „warten" — die inhaltlichen Freigaben sind in die
+   * Reifegrad-Abnahmen aufgegangen, es gibt keinen zweiten Vorgang daneben.
+   */
+  openGateRequestTo: GateStep | null;
   /** Sind Inhalte in der Benefit-Hypothese vorhanden? */
   hasHypothesis: boolean;
   /** Sind Inhalte im Business Case vorhanden? */
@@ -53,7 +57,7 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
     epicId,
     stageGate,
     subStage,
-    approvalPhase,
+    openGateRequestTo,
     hasHypothesis,
     hasBusinessCase,
     budgetAllocated,
@@ -67,76 +71,50 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
     return null;
   }
 
+  // Ein offener Antrag schlägt jeden inhaltlichen Rat: es liegt bei den
+  // Abnehmern, nicht mehr beim Epic.
+  if (openGateRequestTo != null) {
+    return {
+      title: `Auf die Abnahme von ${openGateRequestTo} warten`,
+      hint: "Der Reifegrad-Wechsel ist beantragt. Die benannten Personen entscheiden als Nächstes; bis dahin sind die zugehörigen Inhalte gesperrt.",
+      cta: { kind: "link", label: "Zu meinen Freigaben", href: "/my-approvals" },
+    };
+  }
+
   if (stageGate === "L0") {
-    if (approvalPhase === "hypothesis_review") {
-      return {
-        title: "Auf Portfolio-Manager-Entscheidung warten",
-        hint: "Der Portfolio Manager entscheidet als Nächstes über die Benefit-Hypothese. Solange das nicht passiert ist, bleibt das Epic auf L0.",
-        cta: { kind: "link", label: "Zu meinen Freigaben", href: "/my-approvals" },
-      };
-    }
     if (!hasHypothesis) {
       return {
         title: "Benefit Hypothese ausarbeiten",
-        hint: "Beschreibe im Hypothese-Tab Problem, Zielgruppe, erwarteten Nutzen und Leading Indicators — damit der Portfolio Manager eine Entscheidungsgrundlage hat.",
+        hint: "Beschreibe im Hypothese-Tab Problem, Zielgruppe, erwarteten Nutzen und Leading Indicators — damit die Abnehmer eine Entscheidungsgrundlage haben.",
         cta: { kind: "link", label: "Zur Hypothese", href: tab("benefit-hypothesis") },
       };
     }
     return {
-      title: "Hypothese zur Entscheidung einreichen",
-      hint: "Inhalte sind da. Reiche die Hypothese im Hypothese-Tab zur Portfolio-Manager-Entscheidung ein.",
-      cta: { kind: "link", label: "Zur Hypothese", href: tab("benefit-hypothesis") },
+      title: "Wechsel auf L1 beantragen",
+      hint: "Inhalte sind da. Beantrage den Reifegrad-Wechsel auf L1 — seine Abnahme ist zugleich die Freigabe der Benefit-Hypothese.",
+      cta: { kind: "gate-request", to: "L1" },
     };
   }
 
   if (stageGate === "L1") {
-    // Defensive: Bestands-Epics, bei denen L1 -> L2 nicht ausgeloest wurde
-    // (Trigger erst seit dem Fix in saveBusinessCase/submitBusinessCase),
-    // koennen approvalPhase business_case/stakeholder_review/approved
-    // haben — also faktisch im L2.x-Workflow stehen. Wir spiegeln das in
-    // der Empfehlung, damit der Helfer korrekt fuehrt.
-    if (approvalPhase === "stakeholder_review") {
-      return {
-        title: "Auf Stakeholder-Freigabe warten",
-        hint: "Der Business Case ist eingereicht. Die zugewiesenen Approver entscheiden als Naechstes.",
-        cta: { kind: "link", label: "Zu den Freigaben", href: tab("timeline") },
-      };
-    }
-    if (approvalPhase === "approved") {
-      return {
-        title: "Budget allozieren",
-        hint: "Business Case ist freigegeben. Plane jetzt im Controlling Budget fuer dieses Epic ein, damit es auf L3 weiterzieht.",
-        cta: { kind: "link", label: "Zum Controlling", href: "/budgeting" },
-      };
-    }
-    if (hasBusinessCase) {
-      return {
-        title: "Business Case einreichen",
-        hint: "Inhalte sind da. Reiche den Business Case im BC-Tab zur Stakeholder-Freigabe ein.",
-        cta: { kind: "link", label: "Zum Business Case", href: tab("business-case") },
-      };
-    }
+    // L1 ist die Vorstufe der Analyse: der Eintritt in L2 ist ein eigener
+    // Antrag, der Business Case wird dort ausgearbeitet.
     return {
-      title: "Business Case ausarbeiten",
-      hint: "Die Hypothese ist angenommen. Detailliere jetzt den Business Case (Kosten, Nutzen, Annahmen, Risiken).",
-      cta: { kind: "link", label: "Zum Business Case", href: tab("business-case") },
+      title: "Wechsel auf L2 beantragen",
+      hint: hasBusinessCase
+        ? "Die Hypothese ist freigegeben und der Business Case ist begonnen. Beantrage den Wechsel auf L2, um in die Analyse einzutreten."
+        : "Die Hypothese ist freigegeben. Beantrage den Wechsel auf L2 — dort wird der Business Case ausgearbeitet.",
+      cta: { kind: "gate-request", to: "L2" },
     };
   }
 
   if (stageGate === "L2") {
     // Auf L2 zu stehen *ist* „Business Case in Arbeit" — kein Sub-Stage-Split mehr.
-    if (approvalPhase === "stakeholder_review") {
-      return {
-        title: "Auf Stakeholder-Freigabe warten",
-        hint: "Die zugewiesenen Approver entscheiden als Nächstes über den Business Case.",
-        cta: { kind: "link", label: "Zu den Freigaben", href: tab("timeline") },
-      };
-    }
     if (hasBusinessCase) {
       return {
-        title: "Business Case einreichen",
-        hint: "Inhalte sind da. Reiche den Business Case im BC-Tab zur Stakeholder-Freigabe ein.",
-        cta: { kind: "link", label: "Zum Business Case", href: tab("business-case") },
+        title: "Wechsel auf L3.1 beantragen",
+        hint: "Inhalte sind da. Beantrage den Wechsel auf L3.1 — die Abnahme durch die fünf Parteien ist die Freigabe des Business Case.",
+        cta: { kind: "gate-request", to: "L3.1" },
       };
     }
     return {

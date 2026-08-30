@@ -63,10 +63,13 @@ describe("GATE_CRITERIA_DOC", () => {
     );
   });
 
-  it("markiert bei L3.1 das Kriterium als blockierend, bei L4 keines", () => {
+  it("markiert bei L3.1 den Business Case als blockierend, bei L4 keines", () => {
     const l3 = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L3.1");
     const l4 = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L4");
-    expect(l3?.criteria.every((c) => c.blocking)).toBe(true);
+    // Die Owner-Nennung ist auch hier nur beratend — blockierend ist der Inhalt.
+    expect(l3?.criteria.filter((c) => c.blocking).map((c) => c.label)).toEqual([
+      "Business Case ist ausgearbeitet",
+    ]);
     expect(l4?.criteria.some((c) => c.blocking)).toBe(false);
   });
 });

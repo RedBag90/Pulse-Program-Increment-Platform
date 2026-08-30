@@ -3,7 +3,11 @@ import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { getStructureTree } from "@/modules/core/org/server/services/structure";
 import { getActiveTargetModel } from "@/server/services/target-model";
-import { effectivePractices, PRACTICE_LABELS, type Practice } from "@/modules/core/kernel/domain/operating-model";
+import {
+  effectivePractices,
+  PRACTICE_LABELS,
+  type Practice,
+} from "@/modules/core/kernel/domain/operating-model";
 
 /**
  * The transformation gap engine — measures the current organisation (Ist)
@@ -108,7 +112,12 @@ export async function computePracticeAdoption(
     db.initiative.count({ where: { ...feature, status: "approved" } }),
     db.initiative.count({ where: epic }),
     db.initiative.count({ where: { ...epic, stageGate: { not: "L0" } } }),
-    db.initiative.count({ where: { ...epic, approvalPhase: { not: "draft" } } }),
+    // Die Mehrparteien-Freigabe hat keine eigene Phase mehr: sie ist die
+    // Abnahme des Schritts L2 → L3.1. „In/über Freigabe" heißt also: das Epic
+    // hat diesen Schritt beantragt.
+    db.initiative.count({
+      where: { ...epic, gateTransitions: { some: { toGate: "L3.1", kind: "forward" } } },
+    }),
     db.dependency.count({ where: { tenantId } }),
   ]);
 
@@ -134,7 +143,7 @@ export async function computePracticeAdoption(
     },
     multiPartyApproval: {
       value: rate(epicsInApproval, totalEpics),
-      detail: `${epicsInApproval}/${totalEpics} Epics in/über Freigabe`,
+      detail: `${epicsInApproval}/${totalEpics} Epics mit beantragter BC-Freigabe`,
     },
   };
 

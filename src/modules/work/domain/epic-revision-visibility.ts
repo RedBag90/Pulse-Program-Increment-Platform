@@ -1,35 +1,38 @@
 import type { StageGate } from "@/modules/core/kernel/domain/types";
-import type { ApprovalPhase } from "@/modules/work/domain/epic-approval";
+import type { GateStep } from "@/modules/work/domain/stage-gate";
 
 /**
- * Pure revision-diff / lock visibility algebra for the Epic detail view.
+ * Sperr- und Diff-Algebra der Epic-Detailseite — rein, ohne I/O und ohne Uhr.
  *
- * Given the approval phase, whether each artefact carries a persisted baseline
- * (⇒ an active revision is in flight), and the viewer's capabilities, this
- * resolves whether the Hypothesis / Business-Case editors are editable, whether
- * a review side-by-side diff is shown, whether an owner-edit side-by-side is
- * shown, and the German lock-reason copy for each artefact. No I/O, no `Date` —
- * a straight function of its inputs.
+ * Sie beantwortet vier Fragen für Hypothese und Business Case: darf der
+ * Betrachter den Text bearbeiten, sieht er als Abnehmer den Review-Diff gegen
+ * die zuletzt freigegebene Fassung, sieht er als Bearbeiter die
+ * Gegenüberstellung, und welcher Sperrgrund steht dran.
+ *
+ * Bezugsgröße ist seit dem Umbau die **Reifegrad-Achse**, nicht mehr eine
+ * eigene Freigabephase: beide Texte werden mit der Abnahme des Schritts
+ * freigegeben, der sie trägt (L0 → L1 die Hypothese, L2 → L3.1 der Business
+ * Case). Daraus folgt die ganze Tabelle:
+ *
+ * | Zustand                     | Text |
+ * | --------------------------- | ---- |
+ * | vor dem tragenden Schritt   | offen |
+ * | Antrag auf ihn gestellt     | gesperrt — die Abnehmer sollen nicht auf einen wandernden Text schauen |
+ * | Schritt abgenommen          | gesperrt — für Änderungen zurückstufen |
  */
 export interface EpicRevisionVisibilityInput {
-  approvalPhase: ApprovalPhase;
-  /**
-   * Reifegrad des Epics. Die Hypothesen-Sperre haengt daran und nicht mehr an
-   * der Phase: die Hypothese wird mit dem Schritt auf L1 freigegeben.
-   */
+  /** Reifegrad des Epics — beide Sperren hängen daran. */
   stageGate: StageGate;
-  /** Ein offener Reifegrad-Antrag sperrt den Text, ueber den entschieden wird. */
-  hasOpenGateRequest: boolean;
-  /** Der Betrachter ist Abnehmer des offenen Reifegrad-Antrags. */
+  /** Ziel des offenen Reifegrad-Antrags, oder null. Sperrt genau den Text, über den entschieden wird. */
+  openGateRequestTo: GateStep | null;
+  /** Der Betrachter ist Abnehmer des offenen Antrags. */
   viewerIsGateApprover: boolean;
-  /** A persisted Hypothesis baseline exists ⇒ an active revision is in flight. */
+  /** Eine freigegebene Hypothesen-Fassung liegt als Baseline vor. */
   hasHypoBaseline: boolean;
-  /** A persisted Business-Case baseline exists ⇒ an active revision is in flight. */
+  /** Eine freigegebene Business-Case-Fassung liegt als Baseline vor. */
   hasBcBaseline: boolean;
-  /** `epic.update` on this Epic — the owner may edit the current artefacts. */
+  /** `epic.update` auf diesem Epic. */
   canEdit: boolean;
-  /** The viewer owns an open (pending) approval on the active revision. */
-  viewerHasOpenApproval: boolean;
 }
 
 export interface EpicRevisionVisibility {
@@ -37,15 +40,12 @@ export interface EpicRevisionVisibility {
   hypoEditable: boolean;
   showHypoReviewDiff: boolean;
   showBcReviewDiff: boolean;
-  /** `canEdit && approvalPhase !== "approved"` — an owner revision is in flight. */
-  ownerRevisionActive: boolean;
   showHypoOwnerEdit: boolean;
   showBcOwnerEdit: boolean;
   hypoLockReason?: string;
   bcLockReason?: string;
 }
 
-/** Sperr-Text der Benefit-Hypothese — sie folgt dem Reifegrad-Antrag. */
 const HYPO_LOCK_REQUESTED =
   "Der Wechsel auf L1 ist beantragt. Bis zur Abnahme ist die Hypothese gesperrt — " +
   "die Abnehmer sollen nicht auf einen wandernden Text schauen.";
@@ -53,57 +53,71 @@ const HYPO_LOCK_APPROVED =
   "Die Hypothese ist mit dem Schritt auf L1 freigegeben und damit gesperrt. Für " +
   "Änderungen das Epic auf L0 zurückstufen.";
 
-/** German lock copy for the Business Case, keyed by the phase it is locked in. */
-const BC_LOCK: Partial<Record<ApprovalPhase, string>> = {
-  draft: "Der Business Case wird erst bearbeitbar, sobald die Benefit-Hypothese freigegeben ist.",
-  stakeholder_review: "Der Business Case ist während der laufenden Stakeholder-Freigaben gesperrt.",
-  approved: "Das Epic ist freigegeben. Für Änderungen am Business Case eine neue Revision starten.",
-};
+const BC_LOCK_TOO_EARLY =
+  "Der Business Case wird bearbeitbar, sobald das Epic auf L1 steht — die " +
+  "Hypothese wird mit diesem Schritt freigegeben.";
+const BC_LOCK_REQUESTED =
+  "Der Wechsel auf L3.1 ist beantragt. Bis die fünf Parteien entschieden haben, " +
+  "ist der Business Case gesperrt.";
+const BC_LOCK_APPROVED =
+  "Der Business Case ist mit dem Schritt auf L3.1 freigegeben und damit gesperrt. " +
+  "Für Änderungen das Epic auf L2 zurückstufen.";
+
+/** Rang des Reifegrads — nur die Grobstufe zählt, L3.1 und L3.2 liegen beide „ab L3". */
+const RANK: Record<StageGate, number> = { L0: 0, L1: 1, L2: 2, L3: 3, L4: 4, L5: 5 };
 
 export function computeEpicRevisionVisibility(
   input: EpicRevisionVisibilityInput,
 ): EpicRevisionVisibility {
   const {
-    approvalPhase,
     stageGate,
-    hasOpenGateRequest,
+    openGateRequestTo,
     viewerIsGateApprover,
     hasHypoBaseline,
     hasBcBaseline,
     canEdit,
-    viewerHasOpenApproval,
   } = input;
 
-  const bcEditable = canEdit && approvalPhase === "business_case";
+  const rank = RANK[stageGate];
+  const hypoUnderReview = openGateRequestTo === "L1";
+  const bcUnderReview = openGateRequestTo === "L3.1";
+
   // Die Hypothese ist frei, solange das Epic auf L0 steht und niemand über sie
-  // entscheidet. Ab dem gestellten Antrag ist sie gesperrt, nach der Abnahme
-  // ebenfalls — eine Ablehnung gibt sie wieder frei.
-  const hypoOnL0 = stageGate === "L0";
-  const hypoEditable = canEdit && hypoOnL0 && !hasOpenGateRequest;
+  // entscheidet. Der Business Case ab L1 bis zu seiner Freigabe an L3.1.
+  const hypoEditable = canEdit && rank === 0 && !hypoUnderReview;
+  const bcEditable = canEdit && rank >= 1 && rank <= 2 && !bcUnderReview;
 
   const hypoLockReason = !canEdit
     ? undefined
-    : hypoOnL0
-      ? hasOpenGateRequest
+    : rank > 0
+      ? HYPO_LOCK_APPROVED
+      : hypoUnderReview
         ? HYPO_LOCK_REQUESTED
-        : undefined
-      : HYPO_LOCK_APPROVED;
-  const bcLockReason = canEdit ? BC_LOCK[approvalPhase] : undefined;
+        : undefined;
+  const bcLockReason = !canEdit
+    ? undefined
+    : rank === 0
+      ? BC_LOCK_TOO_EARLY
+      : rank > 2
+        ? BC_LOCK_APPROVED
+        : bcUnderReview
+          ? BC_LOCK_REQUESTED
+          : undefined;
 
-  const showHypoReviewDiff = hasHypoBaseline && hasOpenGateRequest && viewerIsGateApprover;
-  const showBcReviewDiff =
-    hasBcBaseline && approvalPhase === "stakeholder_review" && viewerHasOpenApproval;
+  // Der Abnehmer sieht, was sich seit der zuletzt freigegebenen Fassung geändert
+  // hat — die Baseline ist der Schnappschuss, den die letzte Abnahme gezogen hat.
+  const showHypoReviewDiff = hasHypoBaseline && hypoUnderReview && viewerIsGateApprover;
+  const showBcReviewDiff = hasBcBaseline && bcUnderReview && viewerIsGateApprover;
 
-  const ownerRevisionActive = canEdit && approvalPhase !== "approved";
-  const showHypoOwnerEdit = hasHypoBaseline && ownerRevisionActive && !showHypoReviewDiff;
-  const showBcOwnerEdit = hasBcBaseline && ownerRevisionActive && !showBcReviewDiff;
+  // Der Bearbeiter sieht dieselbe Gegenüberstellung, solange er schreiben darf.
+  const showHypoOwnerEdit = hasHypoBaseline && hypoEditable && !showHypoReviewDiff;
+  const showBcOwnerEdit = hasBcBaseline && bcEditable && !showBcReviewDiff;
 
   return {
     bcEditable,
     hypoEditable,
     showHypoReviewDiff,
     showBcReviewDiff,
-    ownerRevisionActive,
     showHypoOwnerEdit,
     showBcOwnerEdit,
     ...(hypoLockReason !== undefined && { hypoLockReason }),

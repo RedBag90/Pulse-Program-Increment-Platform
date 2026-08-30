@@ -61,12 +61,12 @@ export interface GateStamps {
   hypothesisApprovedAt?: Date | null;
   /** Eine inhaltliche Freigabe markiert das Epic fürs nächste Steering. */
   needsSteeringAttention?: boolean;
-  /**
-   * Die Mehrparteien-Phase zieht mit: mit der abgenommenen Hypothese ist der
-   * Business Case dran. Früher schrieb `decideHypothesis` das.
-   */
-  approvalPhase?: string;
   selectedForAnalyzingAt?: Date | null;
+  /**
+   * Business-Case-Freigabe. Die Abnahme des Schritts L2 → L3.1 **ist** sie —
+   * die fünf Parteien zeichnen dort. `null` räumt sie beim Revert ab.
+   */
+  businessCaseApprovedAt?: Date | null;
   implementationStartedAt?: Date | null;
   /**
    * L4.2-Bestätigung („Umsetzung fertig"). Gesetzt ⇒ der Service spiegelt den
@@ -105,15 +105,20 @@ export function stampsForAdvance(
     // die Bestätigung materialisiert sich allein im jeweiligen Stempel.
     stageGate: gateOfStep(to),
     // L0 → L1 trägt die Hypothesen-Freigabe: die Abnahme *ist* sie. Deshalb
-    // stempelt sie hier mit, setzt das Steering-Flag (das hing an
-    // `decideHypothesis`) und schiebt die Phase auf „Business Case".
+    // stempelt sie hier mit und setzt das Steering-Flag (das hing an
+    // `decideHypothesis`).
     ...(to === "L1" && {
       ...(facts.selectedForDetailingAt == null && { selectedForDetailingAt: now }),
       ...(facts.hypothesisApprovedAt == null && { hypothesisApprovedAt: now }),
       needsSteeringAttention: true,
-      approvalPhase: "business_case",
     }),
     ...(to === "L2" && facts.selectedForAnalyzingAt == null && { selectedForAnalyzingAt: now }),
+    // L2 → L3.1 trägt die Business-Case-Freigabe — dieselbe Bewegung wie bei
+    // L1, nur mit den fünf Parteien als Abnehmern.
+    ...(to === "L3.1" && {
+      ...(facts.businessCaseApprovedAt == null && { businessCaseApprovedAt: now }),
+      needsSteeringAttention: true,
+    }),
     ...(to === "L4" && facts.implementationStartedAt == null && { implementationStartedAt: now }),
     ...(to === "L4.2" &&
       facts.implementationCompletedAt == null && { implementationCompletedAt: now }),
@@ -147,9 +152,12 @@ export function unwindStampsFor(from: GateStep, to: GateStep): GateStamps {
   if (from === "L1" && to === "L0") {
     stamps.selectedForDetailingAt = null;
     stamps.hypothesisApprovedAt = null;
-    stamps.approvalPhase = "draft";
   }
   if (from === "L2" && to === "L1") stamps.selectedForAnalyzingAt = null;
+  // Die Business-Case-Freigabe zurücknehmen — sie hängt an L2 → L3.1. Genau das
+  // ist der Ersatz für die frühere „neue Revision": rückstufen mit Begründung,
+  // überarbeiten, neu beantragen.
+  if (from === "L3.1" && to === "L2") stamps.businessCaseApprovedAt = null;
   // Die Investitionsentscheidung zurücknehmen. Sie hängt am Schritt L3.1 → L3.2,
   // nicht am Eintritt in L3.1 — der trägt keinen eigenen Stempel.
   if (from === "L3.2" && to === "L3.1") {

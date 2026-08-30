@@ -24,7 +24,7 @@ describe("Beispiel-Epic (Fixture der Rollen-Tour)", () => {
   it("läuft durch denselben Builder wie das Produkt und liefert ein Modell", () => {
     const model = demoEpicDetailModel();
     expect(model.epic.title).toContain("Beispiel");
-    expect(model.approvalPhase).toBeTruthy();
+    expect(model.lifecycleSteps.length).toBeGreaterThan(0);
   });
 
   it("füllt die Reiter, durch die die Tour führt", () => {

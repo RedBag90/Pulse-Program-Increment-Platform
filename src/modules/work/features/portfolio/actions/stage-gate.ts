@@ -12,7 +12,11 @@ import {
 } from "@/modules/work/server/services/stage-gate-transition";
 import { GATE_STEPS } from "@/modules/work/domain/stage-gate";
 import { QUORA } from "@/modules/work/domain/approval-primitives";
-import { GATE_APPROVER_ROLES } from "@/modules/work/domain/gate-policy";
+import {
+  GATE_APPROVER_ROLES,
+  isGateApproverRole,
+  type GateApproverRole,
+} from "@/modules/work/domain/gate-policy";
 
 export type { ActionState as StageGateActionState };
 
@@ -27,13 +31,36 @@ export type { ActionState as StageGateActionState };
 // scope-bewusste Prüfung läuft im Service gegen die geladene Zeile (ADR-0002).
 // ---------------------------------------------------------------------------
 
+/**
+ * Ein am Antrag benannter Abnehmer, übertragen als `<rolle>:<userId>`.
+ *
+ * Ein FormData-Feld trägt nur Strings, und die Rolle muss mit: ohne sie stünde
+ * auf der Abnahme-Zeile hinterher zwar eine Person, aber nicht mehr, für welche
+ * Partei sie gezeichnet hat — und Guardrail 4 verlöre seine Datenbasis. Ohne
+ * Präfix ist es eine Person ohne Rolle (`role: null`), wie bisher.
+ */
+const approverOverrideSchema = z
+  .string()
+  .max(80)
+  .transform((raw, ctx) => {
+    const i = raw.lastIndexOf(":");
+    const role = i > 0 ? raw.slice(0, i) : "";
+    const userId = i > 0 ? raw.slice(i + 1) : raw;
+    const badUser = !z.string().uuid().safeParse(userId).success;
+    if (badUser || (role !== "" && !isGateApproverRole(role))) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Ungültiger Abnehmer: ${raw}` });
+      return z.NEVER;
+    }
+    return { userId, role: role === "" ? null : (role as GateApproverRole) };
+  });
+
 /** Beantragt den Wechsel auf das nächste Gate. */
 export const requestGateTransitionAction = createServerAction({
   schema: z.object({
     epicId: z.string().uuid(),
     toGate: z.enum(GATE_STEPS),
     reason: z.string().max(1000).optional(),
-    approverUserIds: z.array(z.string().uuid()).max(10).optional(),
+    approvers: z.array(approverOverrideSchema).max(10).optional(),
   }),
   action: "epic.gate.request",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
@@ -42,7 +69,7 @@ export const requestGateTransitionAction = createServerAction({
       epicId: input.epicId,
       toGate: input.toGate,
       reason: input.reason,
-      approverUserIds: input.approverUserIds,
+      approvers: input.approvers,
     }),
   revalidate: "epic",
   mapError: (e) =>

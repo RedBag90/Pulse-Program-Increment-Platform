@@ -29,7 +29,6 @@ const epic = (over: Partial<Parameters<typeof buildEpicsListModel>[0]["epics"][n
   plannedEndAt: null,
   createdAt: new Date("2026-01-01T00:00:00Z"),
   kpis: [],
-  epicApprovals: [],
   childFeatureCount: 0,
   completedChildFeatureCount: 0,
   implementationCompletedAt: null,
@@ -132,25 +131,24 @@ describe("buildEpicsListModel", () => {
     expect(none.kpiCount).toBe(0);
   });
 
-  it("counts pending approvals only on the active revision", () => {
+  it("zaehlt die offenen Abnehmer des laufenden Reifegrad-Antrags", () => {
+    // Seit die inhaltlichen Freigaben in die Reifegrad-Schritte aufgegangen
+    // sind, gibt es genau einen Vorgang — und seine offenen Zeilen sind die
+    // „offenen Freigaben" des Epics.
     const m = buildEpicsListModel({
       epics: [
         epic({
           id: "e",
-          approvalRevision: 2,
-          epicApprovals: [
-            { revision: 1, status: "pending" }, // stale — ignored
-            { revision: 2, status: "pending" },
-            { revision: 2, status: "approved" },
-            { revision: 2, status: "pending" },
-          ],
+          pendingGateRequest: { toGate: "L3.1", pendingCount: 2, totalCount: 5 },
         }),
+        epic({ id: "ohne" }),
       ],
       valueStreams: [],
       userLabels: {},
       stageGatesEnabled: true,
     });
-    expect(m.rows[0]!.pendingApprovalsCount).toBe(2);
+    expect(m.rows.find((r) => r.id === "e")!.pendingApprovalsCount).toBe(2);
+    expect(m.rows.find((r) => r.id === "ohne")!.pendingApprovalsCount).toBe(0);
   });
 
   it("resolves ownerLabel from the labels map", () => {
@@ -185,21 +183,15 @@ describe("buildEpicsListModel", () => {
     expect(m.rows.find((r) => r.id === "l5")!.nextStep).toBeNull();
   });
 
-  it("keeps approvalPhase and status independent (two pills)", () => {
+  it("haelt QS-Status und Reifegrad getrennt (zwei Pillen)", () => {
     const m = buildEpicsListModel({
-      epics: [
-        epic({
-          id: "e",
-          status: "draft", // QS status
-          approvalPhase: "business_case", // distinct workflow phase
-        }),
-      ],
+      epics: [epic({ id: "e", status: "draft", stageGate: "L2" })],
       valueStreams: [],
       userLabels: {},
       stageGatesEnabled: true,
     });
     expect(m.rows[0]!.status).toBe("draft");
-    expect(m.rows[0]!.approvalPhase).toBe("business_case");
+    expect(m.rows[0]!.stageGate).toBe("L2");
   });
 
   it("emits distinct owner + status filter options from the dataset", () => {

@@ -24,10 +24,9 @@ export interface MyTaskRow {
    * click away from `in_progress`); `done` is the 30-day archive.
    */
   bucket: "open" | "ready" | "done";
-  /** Epic: stageGate + approvalPhase. Feature: status. */
+  /** Epic: stageGate. Feature: status. */
   state: {
     stageGate?: string;
-    approvalPhase?: string | null;
     status?: string;
   };
   context: {
@@ -72,7 +71,6 @@ export async function listMyTasks(db: PrismaClient, principal: Principal): Promi
       title: true,
       status: true,
       stageGate: true,
-      approvalPhase: true,
       piId: true,
       artId: true,
       valueStreamId: true,
@@ -116,9 +114,7 @@ export async function listMyTasks(db: PrismaClient, principal: Principal): Promi
       title: r.title,
       href: isEpic ? `/portfolio/epics/${r.id}` : `/feature/${r.id}`,
       bucket,
-      state: isEpic
-        ? { stageGate: r.stageGate, approvalPhase: r.approvalPhase }
-        : { status: r.status },
+      state: isEpic ? { stageGate: r.stageGate } : { status: r.status },
       context: {
         valueStreamName: r.valueStream?.name ?? null,
         artName: r.art?.name ?? null,

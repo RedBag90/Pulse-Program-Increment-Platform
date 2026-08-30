@@ -10,7 +10,6 @@ import {
   isQuorum,
   type ApprovalStatus,
 } from "@/modules/work/domain/approval-primitives";
-import { assertAssignedApprover as reexported } from "@/modules/work/domain/epic-approval";
 
 function rows(...statuses: ApprovalStatus[]) {
   return statuses.map((status) => ({ status }));
@@ -31,11 +30,6 @@ describe("assertAssignedApprover", () => {
   it("weist jeden anderen ab — auch bei unbesetzter Zeile", () => {
     expect(isErr(assertAssignedApprover({ approverUserId: "u1" }, "u2"))).toBe(true);
     expect(isErr(assertAssignedApprover({ approverUserId: null }, "u2"))).toBe(true);
-  });
-
-  it("ist dieselbe Funktion, die epic-approval.ts re-exportiert", () => {
-    // Beide Achsen müssen denselben Guard benutzen, nicht zwei Kopien.
-    expect(reexported).toBe(assertAssignedApprover);
   });
 });
 

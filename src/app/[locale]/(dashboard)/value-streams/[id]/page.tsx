@@ -13,7 +13,7 @@ import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-servi
 import { RtbSection } from "@/modules/budgeting/features/components/rtb/rtb-section";
 import { formatEUR } from "@/lib/formatting";
 import { listAuditHistory } from "@/server/services/audit-history";
-import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
+import { listTenantApprovers } from "@/modules/work/server/services/tenant-approvers";
 import { listGateApproverRules } from "@/modules/work/server/services/stage-gate-transition";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { userLabel } from "@/components/detail/initiative-labels";

@@ -101,28 +101,36 @@ export interface CapacityGuardrailModel {
 }
 
 /**
- * Eine `business_owner`-Freigabezeile eines Epics. Der Service filtert auf
- * `party`; welche **Revision** zaehlt, entscheidet diese Schicht — das ist eine
+ * Eine Business-Owner-Abnahmezeile am Schritt L2 → L3.1. Der Service filtert auf
+ * `role`; welcher **Antrag** zaehlt, entscheidet diese Schicht — das ist eine
  * Regel, keine Query-Eigenheit, und soll testbar bleiben.
  */
 export interface BoApprovalInput {
-  /** Freigabezyklus, zu dem die Zeile gehoert. */
-  revision: number;
-  /** null = Zeile existiert, aber ohne benannte Person. */
-  approverUserId: string | null;
+  approverUserId: string;
   approverLabel: string | null;
   status: string;
   requestedAt: Date;
   decidedAt: Date | null;
 }
 
-/** Ein Epic im Freigabelauf mit seinen BO-Zeilen (alle Revisionen). */
+/** Ein L2 → L3.1-Antrag mit seinen Business-Owner-Zeilen. */
+export interface BoTransitionInput {
+  /** Antragszeitpunkt — er entscheidet, welcher Lauf der juengste ist. */
+  requestedAt: Date;
+  approvals: readonly BoApprovalInput[];
+}
+
+/**
+ * Ein Epic, das die Business-Case-Freigabe beantragt hat, mit **allen** seinen
+ * L2 → L3.1-Antraegen. Gezaehlt wird nur der juengste — er ist der Stand der
+ * Dinge. Das ersetzt den frueheren Revisions-Schnitt: seit die Freigabe in den
+ * Reifegrad-Schritt aufgegangen ist, ist „ein neuer Lauf" eine Rueckstufung
+ * plus ein neuer Antrag, und der neue Antrag ist die neue Wahrheit.
+ */
 export interface BoEngagementEpicInput {
   epicId: string;
   title: string;
-  /** Laufender Freigabezyklus — nur seine Zeilen zaehlen. */
-  approvalRevision: number;
-  approvals: readonly BoApprovalInput[];
+  transitions: readonly BoTransitionInput[];
 }
 
 /** Eine offene BO-Freigabe jenseits des Zeitrahmens. */
@@ -186,7 +194,8 @@ const TIER_RANK: Record<AmpelTier, number> = { green: 0, amber: 1, rose: 2 };
 /**
  * Guardrail 4 — Business-Owner-Engagement. Zwei Quoten statt eines Mix:
  *
- *  - **Abdeckung**: Anteil der Epics im Freigabelauf mit benanntem Business Owner.
+ *  - **Abdeckung**: Anteil der Epics mit L2 → L3.1-Antrag, deren juengster
+ *    Antrag einen Business Owner als Abnehmer traegt.
  *  - **Reaktion**: Anteil der BO-Zeilen, die rechtzeitig bedient wurden —
  *    entschieden innerhalb `responseDays`, **oder** noch offen und juenger als
  *    `responseDays`. Eine spaet entschiedene Zeile ist nicht rechtzeitig, steht
@@ -209,10 +218,14 @@ export function computeBusinessOwnerEngagement(input: {
   const overdue: OverdueBoApproval[] = [];
 
   for (const e of epics) {
-    // Nur der laufende Zyklus. Ohne diesen Schnitt zaehlten abgeschlossene
-    // Freigaben frueherer Revisionen mit und die Quote waere dauerhaft zu gut.
-    const current = e.approvals.filter((a) => a.revision === e.approvalRevision);
-    if (current.some((a) => a.approverUserId != null)) coveredCount += 1;
+    // Nur der juengste Antrag. Ohne diesen Schnitt zaehlten abgeschlossene
+    // Laeufe frueherer Antraege mit und die Quote waere dauerhaft zu gut.
+    const newest = e.transitions.reduce<BoTransitionInput | null>(
+      (acc, t) => (acc == null || t.requestedAt > acc.requestedAt ? t : acc),
+      null,
+    );
+    const current = newest?.approvals ?? [];
+    if (current.length > 0) coveredCount += 1;
     for (const a of current) {
       approvalCount += 1;
       const waitedMs = (a.decidedAt ?? now).getTime() - a.requestedAt.getTime();

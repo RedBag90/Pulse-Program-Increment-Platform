@@ -1,25 +1,25 @@
 import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Principal } from "@/server/auth/principal";
-import type { ApprovalParty } from "@/modules/work/domain/business-case";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
+import { GATE_APPROVER_ROLE_LABELS, isGateApproverRole } from "@/modules/work/domain/gate-policy";
+
 /**
- * "Meine Freigaben" — the personal approval inbox. Aggregates every pending
- * Epic approval assigned to the current principal (Hypothesis, Party,
- * Reifegrad-Wechsel) into a single normalised row shape. Feature-QS
- * war hier 2026-06 mit der Abschaffung des Feature-QA-Gates entfernt;
- * Features brauchen keine Freigabe mehr.
+ * „Meine Freigaben" — der persönliche Posteingang.
  *
- * Der vierte Arm `epic_gate` ist die Reifegrad-Abnahme. Er läuft über denselben
- * `(approver_user_id, status)`-Index wie die Business-Case-Zeilen — die Achsen
- * bleiben getrennt (ADR-0003), teilen sich aber den Posteingang.
+ * Er hatte einmal vier Arme: Feature-QS, Hypothesen-Freigabe,
+ * Business-Case-Parteien und Reifegrad-Abnahmen. Übrig ist einer. Die
+ * Feature-QS fiel 2026-06 mit dem Feature-QA-Gate; Hypothese und Business Case
+ * sind in die Reifegrad-Schritte L0 → L1 bzw. L2 → L3.1 aufgegangen — die
+ * Abnahme dieser Schritte *ist* die inhaltliche Freigabe. Damit ist jede
+ * Entscheidung, die hier landet, eine Gate-Abnahme.
  */
 
-export type ApprovalKind = "epic_party" | "epic_gate";
+export type ApprovalKind = "epic_gate";
 
-/** The fields every approval row carries, regardless of kind. */
+/** Die Felder, die jede Zeile trägt. */
 interface MyApprovalRowBase {
-  /** Stable row id — `EpicApproval.id` for party rows, `<kind>:<entityId>` for hypothesis. */
+  /** Stabile Zeilen-Id — die `StageGateApproval.id`. */
   id: string;
   title: string;
   href: string;
@@ -27,29 +27,28 @@ interface MyApprovalRowBase {
     parentTitle?: string | null;
     artName?: string | null;
     valueStreamName?: string | null;
-    party?: ApprovalParty | undefined;
-    /** Nur bei `epic_gate`: welcher Reifegrad-Wechsel abgenommen werden soll. */
+    /** Welcher Reifegrad-Wechsel abgenommen werden soll. */
     fromGate?: StageGate | undefined;
     toGate?: StageGate | undefined;
+    /** Wofür ich zeichne („Business Owner", „Finance", …), sofern benannt. */
+    roleLabel?: string | undefined;
   };
   requestedAt: Date;
 }
 
 /**
- * A pending approval in the personal inbox, discriminated on `kind`: each kind
- * carries exactly the `target` ids its decide-action needs — so consumers narrow
- * on `kind` instead of asserting optional fields non-null.
+ * Eine offene Freigabe im Posteingang. Die Union hat heute nur ein Glied; sie
+ * bleibt discriminated, damit `target` die Ids trägt, die die Entscheid-Action
+ * braucht, und ein zweiter Arm ohne Umbau danebenpasst.
  */
-export type MyApprovalRow = MyApprovalRowBase &
-  (
-    | { kind: "epic_party"; target: { approvalId: string } }
-    | { kind: "epic_gate"; target: { transitionId: string } }
-  );
+export type MyApprovalRow = MyApprovalRowBase & {
+  kind: "epic_gate";
+  target: { transitionId: string };
+};
 
 /**
- * Every pending approval assigned to the principal — across all four sources —
- * sorted newest request first. Runs the four reads in parallel; uses the existing
- * `(approver_user_id, status)` index for kinds 3/4.
+ * Alle offenen Abnahmen des Principals, neueste Anfrage zuerst. Läuft über den
+ * `(approver_user_id, status)`-Index auf `stage_gate_approvals`.
  */
 export async function listMyApprovals(
   db: PrismaClient,
@@ -57,109 +56,53 @@ export async function listMyApprovals(
 ): Promise<MyApprovalRow[]> {
   const { id: userId, tenantId } = principal;
 
-  const [partyApprovals, gateApprovals] = await Promise.all([
-    // 1) Epic party approvals — assigned to me, pending, joined to the Epic's
-    //    current revision. `kind: "party"` schliesst Legacy-Zeilen der
-    //    abgeschafften Sektions-Abnahme aus.
-    db.epicApproval.findMany({
-      where: {
-        tenantId,
-        approverUserId: userId,
+  const gateApprovals = await db.stageGateApproval.findMany({
+    where: {
+      tenantId,
+      approverUserId: userId,
+      status: "pending",
+      transition: {
         status: "pending",
-        kind: "party",
         initiative: { deletedAt: null, level: InitiativeLevel.EPIC },
       },
-      select: {
-        id: true,
-        kind: true,
-        party: true,
-        revision: true,
-        requestedAt: true,
-        initiative: {
-          select: {
-            id: true,
-            title: true,
-            approvalRevision: true,
-            approvalPhase: true,
-            valueStream: { select: { id: true, name: true } },
+    },
+    select: {
+      id: true,
+      role: true,
+      requestedAt: true,
+      transition: {
+        select: {
+          id: true,
+          fromGate: true,
+          toGate: true,
+          initiative: {
+            select: { id: true, title: true, valueStream: { select: { name: true } } },
           },
         },
       },
-      orderBy: { requestedAt: "desc" },
-    }),
+    },
+    orderBy: { requestedAt: "desc" },
+  });
 
-    // 4) Reifegrad-Abnahmen — mir namentlich zugewiesen, Antrag noch offen.
-    db.stageGateApproval.findMany({
-      where: {
-        tenantId,
-        approverUserId: userId,
-        status: "pending",
-        transition: {
-          status: "pending",
-          initiative: { deletedAt: null, level: InitiativeLevel.EPIC },
-        },
-      },
-      select: {
-        id: true,
-        requestedAt: true,
-        transition: {
-          select: {
-            id: true,
-            fromGate: true,
-            toGate: true,
-            initiative: {
-              select: { id: true, title: true, valueStream: { select: { name: true } } },
-            },
-          },
-        },
-      },
-      orderBy: { requestedAt: "desc" },
-    }),
-  ]);
-
-  const rows: MyApprovalRow[] = [];
-
-  for (const a of partyApprovals) {
-    // Only surface rows that belong to the Epic's *current* revision (and an
-    // approval-decidable phase). Older revisions are historical and not actionable.
-    const epic = a.initiative;
-    if (!epic) continue;
-    const currentRevision = epic.approvalRevision ?? 1;
-    if (a.revision !== currentRevision) continue;
-    if (epic.approvalPhase !== "stakeholder_review") continue;
-
-    if (a.kind === "party" && a.party) {
-      rows.push({
-        id: a.id,
-        kind: "epic_party",
-        title: epic.title,
-        href: `/portfolio/epics/${epic.id}?tab=business-case`,
-        context: {
-          valueStreamName: epic.valueStream?.name ?? null,
-          party: a.party as ApprovalParty,
-        },
-        target: { approvalId: a.id },
-        requestedAt: a.requestedAt,
-      });
-    }
-  }
-
-  for (const g of gateApprovals) {
+  const rows: MyApprovalRow[] = gateApprovals.map((g) => {
     const epic = g.transition.initiative;
-    rows.push({
+    const roleLabel =
+      g.role && isGateApproverRole(g.role) ? GATE_APPROVER_ROLE_LABELS[g.role] : undefined;
+    return {
       id: g.id,
-      kind: "epic_gate",
+      kind: "epic_gate" as const,
       title: epic.title,
       href: `/portfolio/epics/${epic.id}?tab=timeline`,
       context: {
         valueStreamName: epic.valueStream?.name ?? null,
         fromGate: g.transition.fromGate as StageGate,
         toGate: g.transition.toGate as StageGate,
+        ...(roleLabel !== undefined && { roleLabel }),
       },
       target: { transitionId: g.transition.id },
       requestedAt: g.requestedAt,
-    });
-  }
+    };
+  });
 
   rows.sort((a, b) => b.requestedAt.getTime() - a.requestedAt.getTime());
   return rows;

@@ -93,11 +93,16 @@ describe("gateReadiness — L2 (Eintritt in die Analyse)", () => {
 });
 
 describe("gateReadiness — L3 (Investitionsentscheidung)", () => {
-  it("der Eintritt in L3 verlangt nur den freigegebenen Business Case", () => {
-    expect(keys(facts("L2"), "L3.1", "blocking-unsatisfied")).toEqual(["business_case_approved"]);
-    expect(gateReadiness(facts("L2", { businessCaseApprovedAt: AT }), "L3.1").ready).toBe(true);
-    // Das Geld ist hier ausdrücklich noch kein Thema.
-    expect(keys(facts("L2", { businessCaseApprovedAt: AT }), "L3.1", "unsatisfied")).toEqual([]);
+  it("der Eintritt in L3 verlangt den ausgearbeiteten Business Case, nicht seine Freigabe", () => {
+    // Die Abnahme dieses Schritts *ist* die Freigabe — sie zur Vorbedingung zu
+    // machen wäre zirkulär.
+    expect(keys(facts("L2"), "L3.1", "blocking-unsatisfied")).toEqual(["business_case_drafted"]);
+    expect(gateReadiness(facts("L2", { hasBusinessCaseContent: true }), "L3.1").ready).toBe(true);
+    // Das Geld ist hier ausdrücklich noch kein Thema; offen bleibt allenfalls
+    // die beratende Owner-Nennung.
+    expect(keys(facts("L2", { hasBusinessCaseContent: true }), "L3.1", "unsatisfied")).toEqual([
+      "owner_nominated",
+    ]);
   });
 
   it("L3.2 verlangt das allozierte Budget", () => {
@@ -178,7 +183,7 @@ describe("readinessBlockReason", () => {
   });
 
   it("ist null, wenn alles erfüllt ist", () => {
-    const f = facts("L2", { businessCaseApprovedAt: AT, budgetAllocationSum: 10 });
+    const f = facts("L2", { hasBusinessCaseContent: true, budgetAllocationSum: 10 });
     expect(readinessBlockReason(gateReadiness(f, "L3.1"))).toBeNull();
   });
 });

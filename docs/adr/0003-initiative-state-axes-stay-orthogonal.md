@@ -48,3 +48,43 @@ reduce locality-of-concern rather than improve it.
   re-scatter their transition rules into the services. They stay.
 - If a _new_ Initiative kind ever needs the same multi-party sign-off, extract
   that one axis as a reusable module — not a god-orchestrator over all three.
+
+## Nachtrag (2026-08-30): aus drei Achsen werden zwei
+
+Die Mehrparteien-Achse gibt es nicht mehr. Sie hatte genau zwei Inhalte — die
+Freigabe der Benefit-Hypothese und die des Lean Business Case —, und beide sind
+in die Reifegrad-Achse gewandert: die Abnahme des Schritts **L0 → L1** _ist_ die
+Hypothesen-Freigabe, die Abnahme von **L2 → L3.1** _ist_ die
+Business-Case-Freigabe, dort durch die fünf Parteien (MGMT, Business Owner,
+Finance, IRT-Owner, LACE/VMO) als benannte Abnehmer. Damit entfallen `EpicApproval`,
+`Initiative.approvalPhase` und `Initiative.approvalRevision`; übrig bleiben zwei
+Achsen: **Reifegrad** und **QS-Status**.
+
+**Der Grund war Doppelung, nicht Vereinfachung um ihrer selbst willen.** Vor
+jeder der beiden Stellen standen zwei Anträge und zwei Abnahmen hintereinander,
+die dasselbe aussagten — und die zweite konnte die erste nur bestätigen. Das
+Reifegrad-Kriterium fragte den Stempel ab, den der Freigabelauf gesetzt hatte;
+eine echte Entscheidung fiel nur einmal.
+
+**Die ursprüngliche Entscheidung bleibt richtig, ihre Voraussetzung ändert sich.**
+Dieses ADR wehrt einen Orchestrator über _unabhängige_ Achsen ab. Hier lag keine
+Unabhängigkeit vor: die eine Achse existierte nur, um die andere zu füttern. Was
+zusammengelegt wurde, war nie orthogonal — der Rest ist es weiterhin. Ein
+Orchestrator über Reifegrad und QS-Status wäre nach wie vor falsch.
+
+Zwei Folgen sind bewusst in Kauf genommen:
+
+- **Die Kriterien der tragenden Schritte wechseln die Aussage.** Sie können den
+  Stempel nicht verlangen, den sie selbst setzen — das wäre zirkulär. → L1
+  verlangt eine _ausgearbeitete_ Hypothese, → L3.1 einen _ausgearbeiteten_
+  Business Case; die Stempel prüfen erst die Folgeschritte (→ L2, → L3.2).
+- **Revisionen entfallen.** Ein erneuter Lauf ist eine begründete Rückstufung
+  (L1 → L0 bzw. L3.1 → L2, die den Stempel abräumt) plus ein neuer Antrag. Die
+  Historie steckt ohnehin vollständig in den Antrags-Zeilen. Die Baseline für den
+  Review-Diff zieht seither die Abnahme selbst: sie schnappschusst den
+  freigegebenen Text, damit der nächste Antrag zeigen kann, was sich seit der
+  letzten Freigabe geändert hat.
+
+Die Practice `multiPartyApproval` bleibt und hat eine schärfere Bedeutung: sie
+entscheidet nicht mehr, _ob_ es eine zweite Achse gibt, sondern **wer L2 → L3.1
+abnimmt** — die fünf Parteien (an) oder der VMO allein (aus).

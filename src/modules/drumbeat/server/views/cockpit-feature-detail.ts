@@ -3,7 +3,7 @@ import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { listTenantApprovers } from "@/modules/work/server/services/epic-approval";
+import { listTenantApprovers } from "@/modules/work/server/services/tenant-approvers";
 import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
 import { getBlockerWindowsForFeatures } from "@/modules/drumbeat/server/services/dependency";
 import {

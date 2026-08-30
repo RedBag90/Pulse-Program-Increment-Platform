@@ -15,13 +15,7 @@ import { GateHistoryList } from "./gate/gate-history-list";
 import type { LifecycleStep } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import type { EpicGateHistoryView } from "@/modules/work/server/views/epic-detail";
 import { EpicOwnerAssign } from "./epic-owner-assign";
-import {
-  EpicHypothesisApproval,
-  EpicBusinessCaseApproval,
-  type ApprovalRow,
-} from "./epic-approvals-tab";
 import type { TenantApprover } from "./approver-picker";
-import type { ApprovalPhase, ApprovalViewModel } from "@/modules/work/domain/epic-approval";
 
 interface Props {
   epicId: string;
@@ -46,15 +40,6 @@ interface Props {
   /** Tenant approver pool (owner nomination + phase approvers). */
   approvers: TenantApprover[];
   userLabels: Record<string, string>;
-  // ── Freigabe-Workflow (früher eigener „Freigaben"-Tab) — lebt jetzt im
-  //    „Business Case"-Phasen-Expander. Nur aktiv bei multiPartyApproval. ──
-  multiPartyApproval: boolean;
-  approvalPhase: ApprovalPhase;
-  approvalRevision: number;
-  approvals: ApprovalRow[];
-  /** Server-derived active-revision approvals view for the Business-Case expander. */
-  approvalView: ApprovalViewModel;
-  currentUserId: string;
   /**
    * Gate-based lifecycle status — the SAME 9-phase derivation the lifecycle
    * stepper above the screen renders (from the Stage Gate, not milestone
@@ -135,12 +120,6 @@ export function EpicTimelineTab({
   canAssignOwner,
   approvers,
   userLabels,
-  multiPartyApproval,
-  approvalPhase,
-  approvalRevision,
-  approvals,
-  approvalView,
-  currentUserId,
   lifecycleSteps,
   gateHistory,
 }: Props) {
@@ -269,7 +248,6 @@ export function EpicTimelineTab({
       level: "L1",
       estimatePhase: "hypothesis",
       actualIso: hypothesisApprovedAt,
-      expandable: multiPartyApproval && approvalPhase === "draft",
     },
     {
       key: "analyzing",
@@ -286,7 +264,6 @@ export function EpicTimelineTab({
       level: "L2",
       estimatePhase: "business_case",
       actualIso: businessCaseApprovedAt,
-      expandable: multiPartyApproval,
     },
     {
       key: "backlog",
@@ -356,9 +333,11 @@ export function EpicTimelineTab({
   }
 
   /**
-   * Aufgeklappter Inhalt je Phase: Owner-Nominierung an „Selected for Detailing",
-   * Hypothese-Freigabe an „Business hypothesis done", Business-Case-/Stakeholder-
-   * Freigabe an „Business Case". Die Phasen selbst ersetzen den Freigabe-Stepper.
+   * Aufgeklappter Inhalt je Phase — heute nur noch die Owner-Nominierung an
+   * „Selected for Detailing". Die Freigaben von Hypothese und Business Case
+   * hingen einmal an den Phasen „Business hypothesis done" und „Business Case";
+   * sie sind in die Reifegrad-Schritte L0 → L1 und L2 → L3.1 aufgegangen und
+   * werden über die Gate-Karte am Kopf der Seite geführt.
    */
   function ExpandedContent({ phase }: { phase: (typeof phases)[number] }) {
     if (phase.key === "detailing") {
@@ -371,30 +350,6 @@ export function EpicTimelineTab({
             canAssignOwner={canAssignOwner}
             approvers={approvers}
             userLabels={userLabels}
-          />
-        </div>
-      );
-    }
-    if (phase.key === "hypothesis" && multiPartyApproval) {
-      return (
-        <div className="rounded-md border bg-muted/20 p-3">
-          <EpicHypothesisApproval epicId={epicId} phase={approvalPhase} canManage={canEdit} />
-        </div>
-      );
-    }
-    if (phase.key === "business_case" && multiPartyApproval) {
-      return (
-        <div className="rounded-md border bg-muted/20 p-3">
-          <EpicBusinessCaseApproval
-            epicId={epicId}
-            phase={approvalPhase}
-            revision={approvalRevision}
-            approvals={approvals}
-            approvalView={approvalView}
-            approvers={approvers}
-            userLabels={userLabels}
-            currentUserId={currentUserId}
-            canManage={canEdit}
           />
         </div>
       );

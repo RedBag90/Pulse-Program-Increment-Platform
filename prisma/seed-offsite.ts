@@ -526,8 +526,6 @@ async function main() {
     // L3 = Budget alloziert. Der nächste Schritt ist das PI-Planning, danach L4.
     stageGate: "L3",
     status: "approved",
-    approvalPhase: "approved",
-    approvalRevision: 1,
     epicType: "epic",
     // Horizont kommt aus der Primär-Solution (H3, neue Außentagung).
     primarySolutionId: solutionId,
@@ -621,48 +619,58 @@ async function main() {
     })),
   });
 
-  // Freigaben: alle fünf Parteien plus die beiden Abschnitte — sonst passt
-  // `approvalPhase: "approved"` nicht zu dem, was der Freigaben-Tab zeigt.
-  const PARTIES = ["mgmt", "business_owner", "finance", "irt_owner", "lace_vmo"] as const;
-  const partyApprover: Record<(typeof PARTIES)[number], string> = {
-    mgmt: portfolio,
-    business_owner: vso,
-    finance: admin,
-    irt_owner: rte,
-    lace_vmo: portfolio,
+  // Die Business-Case-Freigabe ist der abgenommene Schritt L2 → L3.1: die drei
+  // Epics stehen auf L3, also liegt hinter jedem ein abgeschlossener Antrag mit
+  // den fünf Parteien als Abnehmern.
+  const PARTY_ROLES = [
+    "epic.party.mgmt",
+    "epic.party.business_owner",
+    "epic.party.finance",
+    "epic.party.irt_owner",
+    "epic.party.lace_vmo",
+  ] as const;
+  const partyApprover: Record<(typeof PARTY_ROLES)[number], string> = {
+    "epic.party.mgmt": portfolio,
+    "epic.party.business_owner": vso,
+    "epic.party.finance": admin,
+    "epic.party.irt_owner": rte,
+    "epic.party.lace_vmo": portfolio,
   };
-  const approvalRows: Prisma.EpicApprovalCreateManyInput[] = [];
   for (const e of EPICS) {
-    for (const party of PARTIES) {
-      approvalRows.push({
-        id: uid(`offsite:appr:${e.slug}:${party}`),
+    await prisma.stageGateTransition.create({
+      data: {
+        id: uid(`offsite:gate:${e.slug}`),
         tenantId,
         initiativeId: epicIds[e.slug]!,
-        kind: "party",
-        party,
-        approverUserId: partyApprover[party],
+        fromGate: "L2",
+        toGate: "L3.1",
+        kind: "forward",
         status: "approved",
-        decidedAt: addDays(now, -12),
-        comment: "Freigegeben.",
-        createdBy: admin,
-      });
-    }
-    for (const section of ["breakdown", "kpis"] as const) {
-      approvalRows.push({
-        id: uid(`offsite:appr:${e.slug}:${section}`),
-        tenantId,
-        initiativeId: epicIds[e.slug]!,
-        kind: "section",
-        section,
-        approverUserId: epicOwners[e.slug]!,
-        status: "approved",
-        decidedAt: addDays(now, -10),
-        createdBy: admin,
-      });
-    }
+        quorum: "all",
+        requestedBy: epicOwners[e.slug]!,
+        requestedAt: addDays(now, -14),
+        reason: "Business Case ausgearbeitet.",
+        resolvedAt: addDays(now, -12),
+        resolvedBy: portfolio,
+        approvals: {
+          create: PARTY_ROLES.map((role) => ({
+            tenantId,
+            approverUserId: partyApprover[role],
+            role,
+            source: "manual",
+            status: "approved",
+            requestedAt: addDays(now, -14),
+            decidedAt: addDays(now, -12),
+            comment: "Freigegeben.",
+            createdBy: admin,
+          })),
+        },
+      },
+    });
   }
-  await prisma.epicApproval.createMany({ data: approvalRows });
-  console.log(`  ✓ 3 Epics auf L3, ${approvalRows.length} Freigaben, 3 KPIs, 3 Ziel-Beiträge`);
+  console.log(
+    `  ✓ 3 Epics auf L3, ${EPICS.length * PARTY_ROLES.length} Freigaben, 3 KPIs, 3 Ziel-Beiträge`,
+  );
 
   // ── Reifegrad-Freigaben (ADR-0018) ────────────────────────────────────────
   // Wer nimmt welchen Reifegrad-Wechsel ab. Zwei Ebenen:

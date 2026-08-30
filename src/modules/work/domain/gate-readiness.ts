@@ -64,7 +64,11 @@ export interface EpicGateFacts {
   approvedAt: Date | null;
   impactRecognizedAt: Date | null;
 
-  /** Practice `multiPartyApproval` — gabelt die Hypothese-Kriterien. */
+  /**
+   * Practice `multiPartyApproval`. Sie gabelt keine Kriterien mehr, sondern die
+   * **Besetzung** von L3.1: an ⇒ die fünf Business-Case-Parteien zeichnen,
+   * aus ⇒ der VMO allein (siehe `resolveGatePolicy`).
+   */
   multiPartyApproval: boolean;
 }
 
@@ -190,18 +194,21 @@ export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> 
       blocking: false,
     },
   ],
-  // L3.1 — der Eintritt in „Investition": der Business Case ist freigegeben.
-  // Das Geld ist der Schritt danach.
+  // L3.1 — der Eintritt in „Investition". Dieser Schritt *ist* die
+  // Business-Case-Freigabe, deshalb kann er sie nicht voraussetzen; verlangt
+  // wird der ausgearbeitete Inhalt. Das Geld ist der Schritt danach.
   "L3.1": [
     {
-      key: "business_case_approved",
-      label: () => "Business Case ist freigegeben",
+      key: "business_case_drafted",
+      label: () => "Business Case ist ausgearbeitet",
       help:
-        "Der Business Case ist von den benannten Personen abgenommen. Fordere die " +
-        "Freigabe im Reiter Business Case an.",
-      satisfied: (f) => f.businessCaseApprovedAt != null,
+        "Der Business Case hält Kosten, Nutzen und Optionen fest. Pflege ihn im " +
+        "Reiter Business Case. Freigegeben wird er mit der Abnahme dieses Schritts " +
+        "durch die fünf Parteien — einen eigenen Freigabelauf davor gibt es nicht.",
+      satisfied: (f) => f.hasBusinessCaseContent,
       blocking: true,
     },
+    OWNER_NOMINATED,
   ],
   // L3.2 „Budget alloziert" — die Investitionsentscheidung. Sie ist ein eigener
   // beantragter Schritt, damit sie nicht als Nebenwirkung einer Budgetzuteilung

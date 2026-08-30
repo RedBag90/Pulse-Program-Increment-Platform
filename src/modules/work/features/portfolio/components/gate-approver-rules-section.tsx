@@ -184,6 +184,18 @@ export function GateApproverRulesSection({
           : "kein Finance-Approver hinterlegt";
       case "epic.owner":
         return "je Epic";
+      // Die Business-Case-Parteien: zwei ziehen die Wertstrom-Governance, die
+      // anderen drei werden am Antrag je Epic benannt.
+      case "epic.party.lace_vmo":
+        return vmoId ? userLabel(vmoId, userLabels) : "kein VMO hinterlegt";
+      case "epic.party.finance":
+        return financeApproverId
+          ? userLabel(financeApproverId, userLabels)
+          : "kein Finance-Approver hinterlegt";
+      case "epic.party.mgmt":
+      case "epic.party.business_owner":
+      case "epic.party.irt_owner":
+        return "je Epic am Antrag";
     }
   }
 

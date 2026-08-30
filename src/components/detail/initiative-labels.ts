@@ -96,26 +96,6 @@ export const STATUS_BADGE: Record<string, string> = {
 };
 
 /**
- * The Epic's primary lifecycle — the multi-party approval workflow phase. This is
- * the one status surfaced prominently on the Epic; the stage gate is contextual
- * and the QS `status` is not shown as a competing status.
- */
-export const APPROVAL_PHASE_LABELS: Record<string, string> = {
-  draft: "Entwurf",
-  business_case: "Business Case",
-  stakeholder_review: "Stakeholder-Freigaben",
-  approved: "Freigegeben",
-};
-
-/** Pastel pill colours per approval phase (Tailwind classes). */
-export const APPROVAL_PHASE_BADGE: Record<string, string> = {
-  draft: "bg-muted text-foreground/80",
-  business_case: "bg-blue-100 text-blue-800",
-  stakeholder_review: "bg-indigo-100 text-indigo-800",
-  approved: "bg-emerald-100 text-emerald-800",
-};
-
-/**
  * Friendly German labels for audit actions — shared by the Activity sidebar and
  * the History tab so both read the same. Unknown actions degrade gracefully via
  * {@link actionLabel}.

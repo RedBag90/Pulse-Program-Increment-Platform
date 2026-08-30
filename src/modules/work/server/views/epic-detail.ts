@@ -5,7 +5,6 @@ import type { Principal } from "@/server/auth/principal";
 import { authorize, hasCapability } from "@/server/auth/authorize";
 import { getEpic } from "@/modules/work/server/services/epic";
 import { loadBreakdownLayout } from "@/modules/work/server/services/breakdown-layout";
-import { listEpicApprovals } from "@/modules/work/server/services/epic-approval";
 import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
 import { listKpis } from "@/modules/core/kpi/server/kpi";
 import { getTenantPractices } from "@/server/services/target-model";
@@ -20,7 +19,6 @@ import {
   parseBusinessCase,
   businessCaseHasContent,
   computeBusinessCaseTotals,
-  type ApprovalParty,
   type BusinessCase,
   type BusinessCaseFields,
   type BusinessCaseTotals,
@@ -35,7 +33,13 @@ import {
 import { subStageFor } from "@/modules/work/domain/stage-gate";
 import { type GateReadiness, nextGate, previousGate } from "@/modules/work/domain/gate-readiness";
 import { type ApprovalStatus, type Quorum } from "@/modules/work/domain/approval-primitives";
-import { GATE_APPROVER_ROLE_LABELS, isGateApproverRole } from "@/modules/work/domain/gate-policy";
+import {
+  GATE_APPROVER_ROLE_LABELS,
+  BUSINESS_CASE_PARTY_ROLES,
+  allowsAdHocApprovers,
+  isGateApproverRole,
+  type GateApproverRole,
+} from "@/modules/work/domain/gate-policy";
 import type { GateTransitionStatus } from "@/modules/work/domain/gate-transition";
 import {
   getOpenGateTransition,
@@ -48,12 +52,6 @@ import {
   epicLifecycleSteps,
   type LifecycleStep,
 } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
-import {
-  buildApprovalView,
-  APPROVAL_PARTY_LABELS,
-  type ApprovalPhase,
-  type ApprovalViewModel,
-} from "@/modules/work/domain/epic-approval";
 import type { ActivityItem } from "@/components/detail/initiative-activity-sidebar";
 import type { KpiRow } from "@/modules/work/features/portfolio/components/epic-kpis-tab";
 import type { BreakdownFeature } from "@/modules/work/features/portfolio/components/epic-breakdown-tab";
@@ -141,7 +139,6 @@ export interface EpicDetailInputs {
   epic: LoadedEpic;
   historyEvents: Awaited<ReturnType<typeof listInitiativeHistory>>;
   kpis: Awaited<ReturnType<typeof listKpis>>;
-  approvals: Awaited<ReturnType<typeof listEpicApprovals>>;
   /** Port result — empty when `enabled.drumbeat` is false. */
   pis: EpicPi[];
   /** Port result — empty when `enabled.drumbeat` is false. */
@@ -151,7 +148,10 @@ export interface EpicDetailInputs {
   /** Persisted breakdown-network node positions (Work-owned, always loaded). */
   breakdownPositions: Map<string, { x: number; y: number }>;
   enabled: { drumbeat: boolean; budgeting: boolean; risks: boolean };
-  /** `practices.multiPartyApproval` — gates the approval-phase-aware branches. */
+  /**
+   * `practices.multiPartyApproval` — an ⇒ die fünf Business-Case-Parteien
+   * besetzen den Schritt L2 → L3.1, aus ⇒ der VMO allein.
+   */
   multiPartyApproval: boolean;
   /** `practices.wsjf` — blendet die WSJF-Spalte der Deliverables-Tabelle aus. */
   showWsjf: boolean;
@@ -159,7 +159,6 @@ export interface EpicDetailInputs {
   principalId: string;
   // Capability booleans (resolved in the loader; the builder never authorizes).
   canEdit: boolean;
-  canSubmitBusinessCase: boolean;
   canAssignOwner: boolean;
   canLinkDependency: boolean;
   /** Alles zum Reifegrad-Wechsel, vom Loader aufgelöst (siehe {@link EpicGateSlice}). */
@@ -184,7 +183,6 @@ export interface EpicDetailModel {
   // already fetched).
   epic: LoadedEpic;
   kpis: EpicDetailInputs["kpis"];
-  approvals: EpicDetailInputs["approvals"];
   multiPartyApproval: boolean;
   /** `practices.wsjf` — Sichtbarkeit der WSJF-Spalte. */
   showWsjf: boolean;
@@ -197,17 +195,11 @@ export interface EpicDetailModel {
   /** Work-owned persisted network positions (always present). */
   breakdownLayoutPositions: Record<string, { x: number; y: number }>;
 
-  approvalPhase: ApprovalPhase;
-
   drumbeat: DrumbeatSlice;
   budgeting: BudgetingSlice;
   risks: RisksSlice;
 
   activityEvents: ActivityItem[];
-
-  activeRevision: number;
-  /** Active-revision approvals derivation — the Business-Case tab renders this. */
-  approvalView: ApprovalViewModel;
 
   kpiRows: KpiRow[];
   kpiBenefit: EpicBenefit;
@@ -227,10 +219,8 @@ export interface EpicDetailModel {
   hypoLockReason: string | undefined;
   bcLockReason: string | undefined;
 
-  viewerHasOpenApproval: boolean;
   showHypoReviewDiff: boolean;
   showBcReviewDiff: boolean;
-  ownerRevisionActive: boolean;
   showHypoOwnerEdit: boolean;
   showBcOwnerEdit: boolean;
 
@@ -249,7 +239,6 @@ export interface EpicDetailModel {
 
   // Capability booleans — the page JSX consumes these directly.
   canEdit: boolean;
-  canSubmitBusinessCase: boolean;
   canAssignOwner: boolean;
   canLinkDependency: boolean;
 }
@@ -280,6 +269,21 @@ export interface EpicGateRequestView {
   approvers: EpicGateApproverView[];
   /** Wer noch nicht entschieden hat. */
   pendingUserIds: string[];
+}
+
+/**
+ * Die Parteien, die den nächsten Schritt besetzen müssen, plus die
+ * Vorbelegung aus der Wertstrom-Governance.
+ *
+ * Nur belegt, wo der Schritt eine Besetzung je Epic zulässt — heute L2 → L3.1,
+ * wo die fünf Business-Case-Parteien zeichnen. Wer für MGMT, den Business Owner
+ * oder den IRT-Owner *dieses* Epics steht, ist keine Wertstrom-Regel; genau das
+ * hat vorher der Approver-Dialog des Business Case erfasst.
+ */
+export interface GatePartyStaffing {
+  roles: { role: GateApproverRole; label: string }[];
+  /** Rolle → vorbelegte userIds (Finance und LACE/VMO aus dem Wertstrom). */
+  defaults: Record<string, string[]>;
 }
 
 export interface EpicGateHistoryView {
@@ -320,6 +324,8 @@ export type EpicGateSlice =
       helpRequested: boolean;
       /** Der Betrachter darf die Bitte setzen/zurücknehmen (= ist der Epic-Owner). */
       canRequestHelp: boolean;
+      /** Besetzung je Partei am Antrag; null, wo der Schritt keine zulässt. */
+      partyStaffing: GatePartyStaffing | null;
     };
 
 /** Pull the free-text comment out of an audit event's `changes` diff, if any.
@@ -345,7 +351,6 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     epic,
     historyEvents,
     kpis,
-    approvals,
     pis,
     dependencies,
     budget,
@@ -354,7 +359,6 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     showWsjf,
     principalId,
     canEdit,
-    canSubmitBusinessCase,
     canAssignOwner,
     canLinkDependency,
     canSetDelivery,
@@ -389,8 +393,6 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
 
   const breakdownLayoutPositions: Record<string, { x: number; y: number }> = {};
   for (const [k, v] of inputs.breakdownPositions) breakdownLayoutPositions[k] = v;
-
-  const approvalPhase = (epic.approvalPhase as ApprovalPhase | null) ?? "draft";
 
   // Budgeting slice — `allocated` = Σ allocations > 0 (page lines 196-202).
   const budgetingSlice: BudgetingSlice = enabled.budgeting
@@ -443,28 +445,12 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     comment: auditComment(e.changes),
   }));
 
-  const approvalComments: ActivityItem[] = approvals
-    .filter((a) => a.comment && a.decidedAt)
-    .map((a) => ({
-      id: `approval-${a.id}`,
-      action: a.status === "rejected" ? "epic.approval.rejected" : "epic.approval.granted",
-      occurredAt: a.decidedAt!.toISOString(),
-      actorId: a.approverUserId ?? undefined,
-      comment: a.comment ?? undefined,
-      detail: a.party ? APPROVAL_PARTY_LABELS[a.party as ApprovalParty] : undefined,
-    }));
-
-  const activityEvents: ActivityItem[] = [...auditItems, ...approvalComments].sort((x, y) =>
+  // Die Kommentare der Abnehmer stecken jetzt im Audit-Strom: jede
+  // Gate-Entscheidung schreibt ihren Kommentar als `changes.comment.after`,
+  // den `auditComment` oben herauszieht. Ein zweiter Zweig entfällt.
+  const activityEvents: ActivityItem[] = [...auditItems].sort((x, y) =>
     x.occurredAt < y.occurredAt ? 1 : -1,
   );
-
-  // Active-revision approvals derivation — the single owner of the records +
-  // owner maps + counts the Business-Case tab used to rebuild client-side.
-  const activeRevision = epic.approvalRevision ?? 1;
-  const approvalView = buildApprovalView({
-    rows: approvals.filter((a) => a.revision === activeRevision),
-    defaultFinanceApproverId: epic.valueStream?.financeApproverId ?? null,
-  });
 
   const kpiRows: KpiRow[] = kpis.map((k) => {
     const baseline = k.baseline === null ? null : Number(k.baseline);
@@ -509,13 +495,8 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     epic.baselineBenefitHypothesis != null
       ? parseBenefitHypothesis(epic.baselineBenefitHypothesis).current
       : null;
-  const viewerHasOpenApproval = approvals.some(
-    (a) =>
-      a.revision === activeRevision && a.status === "pending" && a.approverUserId === principalId,
-  );
-
-  // Revision-diff / lock visibility algebra — the single owner of the editable /
-  // review-diff / owner-edit / lock-reason derivation (Part 4a).
+  // Sperr- und Diff-Algebra — beide Texte folgen jetzt dem Reifegrad-Antrag,
+  // der sie trägt: L0 → L1 die Hypothese, L2 → L3.1 den Business Case.
   const {
     bcEditable,
     hypoEditable,
@@ -523,20 +504,15 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     bcLockReason,
     showHypoReviewDiff,
     showBcReviewDiff,
-    ownerRevisionActive,
     showHypoOwnerEdit,
     showBcOwnerEdit,
   } = computeEpicRevisionVisibility({
-    approvalPhase,
-    // Die Hypothesen-Sperre folgt dem Reifegrad-Antrag, nicht mehr der Phase:
-    // die Abnahme des Schritts L0 → L1 *ist* die Hypothesen-Freigabe.
     stageGate: epic.stageGate as StageGate,
-    hasOpenGateRequest: gateOpenRequest != null,
+    openGateRequestTo: gateOpenRequest?.toGate ?? null,
     viewerIsGateApprover: gateOpenRequest?.pendingUserIds.includes(principalId) ?? false,
     hasHypoBaseline: hypoBaseline != null,
     hasBcBaseline: bcBaseline != null,
     canEdit,
-    viewerHasOpenApproval,
   });
 
   const childStats = {
@@ -552,7 +528,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     epicId: epic.id,
     stageGate: epic.stageGate as StageGate,
     subStage,
-    approvalPhase: multiPartyApproval ? approvalPhase : null,
+    openGateRequestTo: gateOpenRequest?.toGate ?? null,
     hasHypothesis: benefitHypothesisHasContent(benefitHypothesis.current),
     hasBusinessCase: businessCaseHasContent(businessCase.current),
     budgetAllocated,
@@ -564,7 +540,6 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
   // embedded "Nächster Schritt" (never diverges from milestone timestamps).
   const lifecycleSteps = epicLifecycleSteps({
     stageGate: epic.stageGate as StageGate,
-    approvalPhase: multiPartyApproval ? approvalPhase : null,
     subStage,
     impactRecognizedAt: epic.impactRecognizedAt,
   });
@@ -574,19 +549,15 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     showWsjf,
     canSetDelivery,
     kpis,
-    approvals,
     multiPartyApproval,
     breakdownFeatures,
     artIds,
     featureIds,
     breakdownLayoutPositions,
-    approvalPhase,
     drumbeat: drumbeatSlice,
     budgeting: budgetingSlice,
     risks: risksSlice,
     activityEvents,
-    activeRevision,
-    approvalView,
     kpiRows,
     kpiBenefit,
     benefitHypothesis,
@@ -600,10 +571,8 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     hypoEditable,
     hypoLockReason,
     bcLockReason,
-    viewerHasOpenApproval,
     showHypoReviewDiff,
     showBcReviewDiff,
-    ownerRevisionActive,
     showHypoOwnerEdit,
     showBcOwnerEdit,
     childStats,
@@ -612,7 +581,6 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     lifecycleSteps,
     gate,
     canEdit,
-    canSubmitBusinessCase,
     canAssignOwner,
     canLinkDependency,
   };
@@ -635,8 +603,6 @@ export async function loadEpicDetailInputs(
   const epic = await getEpic(db, principal.tenantId, epicId);
   if (!epic) return null;
 
-  const approvalPhase = (epic.approvalPhase as ApprovalPhase | null) ?? "draft";
-
   // Port inputs — the distinct ARTs and the child-Feature ids (page 117/119).
   const artIds = [...new Set(epic.children.map((c) => c.artId ?? "").filter(Boolean))];
   const featureIds = epic.children.map((c) => c.id);
@@ -646,12 +612,6 @@ export async function loadEpicDetailInputs(
     tenantId: principal.tenantId,
     valueStreamId: epic.valueStreamId,
   });
-  const canSubmitBusinessCase =
-    approvalPhase === "business_case" &&
-    hasCapability(principal, "epic.businesscase.submit", {
-      tenantId: principal.tenantId,
-      valueStreamId: epic.valueStreamId,
-    });
   const canAssignOwner = authorize(
     "epic.owner.assign",
     { tenantId: principal.tenantId, valueStreamId: epic.valueStreamId },
@@ -677,7 +637,6 @@ export async function loadEpicDetailInputs(
   const [
     historyEvents,
     kpis,
-    approvals,
     practices,
     breakdownPositions,
     pis,
@@ -689,7 +648,6 @@ export async function loadEpicDetailInputs(
   ] = await Promise.all([
     listInitiativeHistory(db, principal.tenantId, epic.id),
     listKpis(db, principal.tenantId, epic.id as EpicId),
-    listEpicApprovals(db, principal.tenantId, epic.id as EpicId),
     getTenantPractices(db, principal.tenantId),
     loadBreakdownLayout(db, principal.tenantId, epic.id as EpicId),
     enabled.drumbeat ? ports.pis(artIds) : Promise.resolve([] as EpicPi[]),
@@ -711,13 +669,32 @@ export async function loadEpicDetailInputs(
     principalId: principal.id,
     ownerId: epic.ownerId,
     helpRequestedAt: epic.helpRequestedAt,
+    partyStaffing:
+      to && allowsAdHocApprovers(to) && practices.multiPartyApproval
+        ? {
+            roles: BUSINESS_CASE_PARTY_ROLES.map((role) => ({
+              role,
+              label: GATE_APPROVER_ROLE_LABELS[role],
+            })),
+            // Zwei der fünf Parteien haben eine Governance-Spalte am Wertstrom
+            // und werden daraus vorbelegt; die anderen drei benennt der
+            // Antragsteller.
+            defaults: {
+              ...(epic.valueStream?.financeApproverId && {
+                "epic.party.finance": [epic.valueStream.financeApproverId],
+              }),
+              ...(epic.valueStream?.vmoId && {
+                "epic.party.lace_vmo": [epic.valueStream.vmoId],
+              }),
+            },
+          }
+        : null,
   });
 
   return {
     epic,
     historyEvents,
     kpis,
-    approvals,
     pis,
     dependencies,
     budget,
@@ -732,7 +709,6 @@ export async function loadEpicDetailInputs(
     }),
     principalId: principal.id,
     canEdit,
-    canSubmitBusinessCase,
     canAssignOwner,
     canLinkDependency,
     gate,
@@ -760,6 +736,7 @@ function buildGateSlice(input: {
   ownerId: string | null;
   /** `helpRequestedAt != null` — der Owner hat um Unterstützung gebeten. */
   helpRequestedAt: Date | null;
+  partyStaffing: GatePartyStaffing | null;
 }): EpicGateSlice {
   if (!input.stageGatesEnabled) return { disabled: true };
 
@@ -810,6 +787,7 @@ function buildGateSlice(input: {
     viewerMustDecide: openRequest?.pendingUserIds.includes(input.principalId) ?? false,
     helpRequested: input.helpRequestedAt != null,
     canRequestHelp: input.ownerId != null && input.ownerId === input.principalId,
+    partyStaffing: input.partyStaffing,
   };
 }
 

@@ -206,7 +206,6 @@ const ENGAGEMENT_TARGETS = { coverage: 90, responseDays: 10 };
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000);
 
 const approval = (over: Partial<BoApprovalInput> = {}): BoApprovalInput => ({
-  revision: 1,
   approverUserId: "u1",
   approverLabel: "bo@pulse.dev",
   status: "pending",
@@ -215,11 +214,16 @@ const approval = (over: Partial<BoApprovalInput> = {}): BoApprovalInput => ({
   ...over,
 });
 
+/** Ein L2 → L3.1-Antrag; `requestedAt` entscheidet, welcher der juengste ist. */
+const request = (approvals: BoApprovalInput[], requestedAt = daysAgo(1)) => ({
+  requestedAt,
+  approvals,
+});
+
 const boEpic = (over: Partial<BoEngagementEpicInput> = {}): BoEngagementEpicInput => ({
   epicId: "e1",
   title: "Epic",
-  approvalRevision: 1,
-  approvals: [approval()],
+  transitions: [request([approval()])],
   ...over,
 });
 
@@ -236,33 +240,34 @@ describe("computeBusinessOwnerEngagement", () => {
     expect(m.overdue).toEqual([]);
   });
 
-  it("senkt die Abdeckung, wenn eine Zeile niemandem zugewiesen ist", () => {
+  it("senkt die Abdeckung, wenn ein Antrag ohne Business Owner gestellt wurde", () => {
     const m = engagement([
       boEpic({ epicId: "a" }),
-      boEpic({
-        epicId: "b",
-        approvals: [approval({ approverUserId: null, approverLabel: null })],
-      }),
+      boEpic({ epicId: "b", transitions: [request([])] }),
     ]);
     expect(m.coveredCount).toBe(1);
     expect(m.coverageRatio).toBeCloseTo(0.5);
   });
 
   it("zaehlt ein Epic ganz ohne BO-Zeile als nicht abgedeckt", () => {
-    const m = engagement([boEpic({ epicId: "a", approvals: [] })]);
+    const m = engagement([boEpic({ epicId: "a", transitions: [request([])] })]);
     expect(m.coveredCount).toBe(0);
     expect(m.approvalCount).toBe(0);
     expect(m.responseRatio).toBeNull();
   });
 
   it("wertet eine offene Zeile innerhalb des Zeitrahmens als rechtzeitig", () => {
-    const m = engagement([boEpic({ approvals: [approval({ requestedAt: daysAgo(9) })] })]);
+    const m = engagement([
+      boEpic({ transitions: [request([approval({ requestedAt: daysAgo(9) })])] }),
+    ]);
     expect(m.timelyCount).toBe(1);
     expect(m.overdue).toEqual([]);
   });
 
   it("wertet eine offene Zeile jenseits des Zeitrahmens als ueberfaellig", () => {
-    const m = engagement([boEpic({ approvals: [approval({ requestedAt: daysAgo(24) })] })]);
+    const m = engagement([
+      boEpic({ transitions: [request([approval({ requestedAt: daysAgo(24) })])] }),
+    ]);
     expect(m.timelyCount).toBe(0);
     expect(m.overdue).toHaveLength(1);
     expect(m.overdue[0]?.daysOpen).toBe(24);
@@ -271,8 +276,10 @@ describe("computeBusinessOwnerEngagement", () => {
   it("zaehlt eine spaet entschiedene Zeile als verfehlt, aber nicht als offen", () => {
     const m = engagement([
       boEpic({
-        approvals: [
-          approval({ requestedAt: daysAgo(30), decidedAt: daysAgo(5), status: "approved" }),
+        transitions: [
+          request([
+            approval({ requestedAt: daysAgo(30), decidedAt: daysAgo(5), status: "approved" }),
+          ]),
         ],
       }),
     ]);
@@ -280,14 +287,13 @@ describe("computeBusinessOwnerEngagement", () => {
     expect(m.overdue).toEqual([]);
   });
 
-  it("ignoriert Zeilen aus abgeschlossenen Freigabezyklen", () => {
+  it("ignoriert Zeilen aelterer Antraege — nur der juengste zaehlt", () => {
     const m = engagement([
       boEpic({
-        approvalRevision: 2,
-        approvals: [
-          // Alte Runde, laengst ueberfaellig — darf nicht mehr zaehlen.
-          approval({ revision: 1, requestedAt: daysAgo(90) }),
-          approval({ revision: 2, requestedAt: daysAgo(2) }),
+        transitions: [
+          // Alter Lauf, laengst ueberfaellig — darf nicht mehr zaehlen.
+          request([approval({ requestedAt: daysAgo(90) })], daysAgo(90)),
+          request([approval({ requestedAt: daysAgo(2) })], daysAgo(2)),
         ],
       }),
     ]);
@@ -301,7 +307,12 @@ describe("computeBusinessOwnerEngagement", () => {
     const m = engagement([
       boEpic({
         epicId: "a",
-        approvals: [approval({ requestedAt: daysAgo(1) }), approval({ requestedAt: daysAgo(40) })],
+        transitions: [
+          request([
+            approval({ requestedAt: daysAgo(1) }),
+            approval({ approverUserId: "u2", requestedAt: daysAgo(40) }),
+          ]),
+        ],
       }),
     ]);
     expect(m.coverageRatio).toBe(1);
@@ -311,8 +322,8 @@ describe("computeBusinessOwnerEngagement", () => {
 
   it("sortiert die Ueberfaelligen nach Wartezeit, laengste zuerst", () => {
     const m = engagement([
-      boEpic({ epicId: "a", approvals: [approval({ requestedAt: daysAgo(18) })] }),
-      boEpic({ epicId: "b", approvals: [approval({ requestedAt: daysAgo(31) })] }),
+      boEpic({ epicId: "a", transitions: [request([approval({ requestedAt: daysAgo(18) })])] }),
+      boEpic({ epicId: "b", transitions: [request([approval({ requestedAt: daysAgo(31) })])] }),
     ]);
     expect(m.overdue.map((o) => o.epicId)).toEqual(["b", "a"]);
   });

@@ -1,11 +1,9 @@
-import { Info, ArrowRight, Flag } from "lucide-react";
-import { Link } from "@/i18n/navigation";
+import { Info, Flag } from "lucide-react";
 import { EpicClassificationForm } from "./epic-classification-form";
 import { EpicSolutionsSection } from "./solutions/epic-solutions-section";
 import { EpicEditForm } from "./epic-edit-form";
 import { EpicGovernanceFlags } from "./epic-governance-flags";
 import { EpicPlannedWindowForm } from "./epic-planned-window-form";
-import { PhaseBadge } from "@/components/detail/phase-badge";
 import { SectionLabel } from "@/components/ui/section-label";
 import { formatCompactEUR } from "@/lib/formatting";
 import { buildInitiativeSummary } from "@/modules/core/kernel/domain/initiative-summary";
@@ -33,7 +31,6 @@ export interface EpicOverviewTabProps {
     description: string | null;
     stageGate: string;
     status: string;
-    approvalPhase: string | null;
     ownerId: string | null;
     updatedAt: Date;
     approvedAt: Date | null;
@@ -151,18 +148,6 @@ export function EpicOverviewTab({ epic, canEdit, kpiBenefit, solutions }: EpicOv
             <StatTile label="Umsetzungskosten" value={totals.implementationCost} />
           </div>
         </div>
-      </section>
-
-      <section className="flex flex-wrap items-center gap-3 rounded-lg border bg-card px-4 py-3 shadow-xs">
-        <SectionLabel>Freigabe-Status</SectionLabel>
-        <PhaseBadge phase={epic.approvalPhase ?? "draft"} />
-        <Link
-          href={`/portfolio/epics/${epic.id}?tab=timeline`}
-          className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-primary transition-colors hover:bg-primary/10"
-        >
-          Freigaben verwalten
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
       </section>
 
       <section>

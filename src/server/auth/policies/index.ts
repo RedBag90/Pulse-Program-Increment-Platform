@@ -24,10 +24,6 @@ export type Action =
   | "epic.gate.withdraw"
   | "epic.gate.revert"
   | "epic.gate.approvers.configure"
-  | "epic.approval.configure"
-  | "epic.businesscase.submit"
-  | "epic.approval.decide"
-  | "epic.revision.start"
   | "epic.owner.assign"
   | "art.create"
   | "art.update"
@@ -203,8 +199,11 @@ export const POLICIES: Record<Action, Grant[]> = {
   // `epic.gate.decide` ist bewusst breit: der eingefrorene Abnehmer kann ein
   // Finance-Controller ohne Portfolio-Rolle sein. Die Policy sieht die
   // Abnahme-Zeile nicht, also verengt der Service zeilenweise über
-  // `assertAssignedApprover` — dieselbe Aufteilung wie bei
-  // `epic.approval.decide` (grober Vorfilter hier, maßgebliche Prüfung dort).
+  // `assertAssignedApprover` (grober Vorfilter hier, maßgebliche Prüfung dort).
+  //
+  // Die Liste ist breit, weil an L2 → L3.1 die fünf Business-Case-Parteien
+  // zeichnen — MGMT, Business Owner, Finance, IRT-Owner und LACE/VMO können in
+  // ganz verschiedenen Rollen sitzen.
   "epic.gate.request": [
     { roles: [PORTFOLIO_MANAGER, EPIC_OWNER] },
     { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
@@ -240,17 +239,6 @@ export const POLICIES: Record<Action, Grant[]> = {
     { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
   ],
 
-  // Multi-party approval workflow (sequential): the Epic Owner submits the
-  // hypothesis (the Portfolio Manager decides it — the former VMO gate folds
-  // into portfolio_manager), then configures + submits the Business Case for
-  // stakeholder approval. `epic.approval.decide` is additionally gated in the
-  // service to the assigned approver (the policy can't see the approval row).
-  // Note: portfolio_manager now both submits and decides the hypothesis —
-  // owner↔approver separation remains via the distinct `epic_owner` role.
-  "epic.approval.configure": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
-  "epic.businesscase.submit": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
-  "epic.approval.decide": [{ roles: [PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, RTE, FEATURE_OWNER] }],
-  "epic.revision.start": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
   // The Portfolio Manager nominates the Epic Owner (precondition for the
   // Detailing phase); the value stream owner (scoped to their stream) plus the
   // admins via authorize() may also assign.

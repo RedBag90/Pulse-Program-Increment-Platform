@@ -217,7 +217,6 @@ async function main() {
     horizon: string; // H1 | H2 | H3
     gate: string; // L0..L5
     steering: boolean;
-    approvalPhase?: string;
   };
   const EPIC_DEFS: EpicDef[] = [
     {
@@ -246,7 +245,6 @@ async function main() {
       horizon: "H3",
       gate: "L2",
       steering: true,
-      approvalPhase: "business_case",
     },
     {
       title: "Mobile App Relaunch",
@@ -283,7 +281,6 @@ async function main() {
       horizon: "H2",
       gate: "L2",
       steering: false,
-      approvalPhase: "hypothesis_review",
     },
     {
       title: "Cloud Migration",
@@ -311,7 +308,6 @@ async function main() {
       horizon: "H2",
       gate: "L2",
       steering: true,
-      approvalPhase: "stakeholder_review",
     },
     {
       title: "SME Lending",
@@ -321,7 +317,6 @@ async function main() {
       horizon: "H2",
       gate: "L1",
       steering: false,
-      approvalPhase: "hypothesis_review",
     },
     {
       title: "Loyalty & Rewards",
@@ -524,7 +519,6 @@ async function main() {
             },
           }
         : {}),
-      ...(def.approvalPhase ? { approvalPhase: def.approvalPhase } : {}),
       createdBy: ADMIN,
       updatedBy: ADMIN,
     };
@@ -1658,53 +1652,52 @@ async function main() {
 
   // ── Phase 8: Approvals, Audit, Anfragen, Setup, Transformation ────────────
   console.log("\n── Workflow + Admin-Inbox");
-  // EpicApprovals über VIELE Epics; Parteien auf die richtigen Seed-User mappen,
-  // damit /my-approvals für portfolio/vmo/finance/owner/rte füllt.
+  // Offene L2 → L3.1-Anträge über VIELE Epics: die Abnahme dieses Schritts *ist*
+  // die Business-Case-Freigabe, also sitzen hier die fünf Parteien als
+  // Abnehmer. Damit füllt sich /my-approvals für portfolio/vmo/finance/owner/rte
+  // — und Guardrail 4 (Business-Owner-Engagement) bekommt seine Datenbasis.
   const partyApprover: Record<string, string> = {
-    mgmt: U.portfolio,
-    business_owner: U.owner,
-    finance: U.fo,
-    irt_owner: U.rte,
-    lace_vmo: U.vmo,
+    "epic.party.mgmt": U.portfolio,
+    "epic.party.business_owner": U.owner,
+    "epic.party.finance": U.fo,
+    "epic.party.irt_owner": U.rte,
+    "epic.party.lace_vmo": U.vmo,
   };
-  const PARTIES = ["mgmt", "business_owner", "finance", "irt_owner", "lace_vmo"];
-  const approvalRows: Prisma.EpicApprovalCreateManyInput[] = [];
-  epicIds.slice(0, 12).forEach((epicId, i) => {
-    const party = PARTIES[i % PARTIES.length]!;
-    // Mehrheit pending (Inbox füllt), einige entschieden.
-    const status = i % 4 === 3 ? "approved" : i % 4 === 2 ? "rejected" : "pending";
-    approvalRows.push({
-      id: uid(`appr:party:${i}`),
-      tenantId,
-      initiativeId: epicId,
-      kind: "party",
-      party,
-      approverUserId: partyApprover[party]!,
-      status,
-      ...(status !== "pending"
-        ? {
-            decidedAt: addDays(now, -2 - (i % 3)),
-            comment: status === "approved" ? "Freigegeben." : "Bitte Business Case nachschärfen.",
-          }
-        : {}),
-      createdBy: ADMIN,
-    });
-    // Zusätzlich Section-Reviews auf einigen Epics (breakdown/kpis).
-    if (i % 2 === 0) {
-      approvalRows.push({
-        id: uid(`appr:section:${i}`),
+  const PARTY_ROLES = Object.keys(partyApprover);
+  for (const [i, epicId] of epicIds.slice(0, 12).entries()) {
+    // Mehrheit offen (Inbox füllt), einige Parteien schon entschieden.
+    const requestedAt = addDays(now, -3 - (i % 5));
+    await prisma.stageGateTransition.create({
+      data: {
+        id: uid(`appr:gate:${i}`),
         tenantId,
         initiativeId: epicId,
-        kind: "section",
-        section: i % 4 === 0 ? "breakdown" : "kpis",
-        approverUserId: U.owner,
-        status: i % 3 === 0 ? "pending" : "approved",
-        ...(i % 3 !== 0 ? { decidedAt: addDays(now, -1) } : {}),
-        createdBy: ADMIN,
-      });
-    }
-  });
-  await prisma.epicApproval.createMany({ data: approvalRows });
+        fromGate: "L2",
+        toGate: "L3.1",
+        kind: "forward",
+        status: "pending",
+        quorum: "all",
+        requestedBy: U.owner,
+        requestedAt,
+        reason: "Business Case ausgearbeitet — bitte abnehmen.",
+        approvals: {
+          create: PARTY_ROLES.map((role, k) => {
+            const decided = (i + k) % 4 === 3;
+            return {
+              tenantId,
+              approverUserId: partyApprover[role]!,
+              role,
+              source: "manual",
+              status: decided ? "approved" : "pending",
+              requestedAt,
+              ...(decided ? { decidedAt: addDays(now, -1), comment: "Freigegeben." } : {}),
+              createdBy: ADMIN,
+            };
+          }),
+        },
+      },
+    });
+  }
 
   // Tenant-Invite + Join-Requests (admin/anfragen)
   await prisma.tenantInvite.create({

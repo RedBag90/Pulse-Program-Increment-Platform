@@ -5,7 +5,7 @@ const base = (over: Partial<EpicNextStepInput> = {}): EpicNextStepInput => ({
   epicId: "epic-1",
   stageGate: "L0",
   subStage: null,
-  approvalPhase: null,
+  openGateRequestTo: null,
   hasHypothesis: false,
   hasBusinessCase: false,
   budgetAllocated: false,
@@ -25,14 +25,15 @@ describe("epicNextStep", () => {
     });
   });
 
-  it("L0 mit Hypothese-Inhalt aber noch draft → Hypothese einreichen", () => {
-    const step = epicNextStep(base({ hasHypothesis: true, approvalPhase: "draft" }));
-    expect(step?.title).toBe("Hypothese zur Entscheidung einreichen");
+  it("L0 mit Hypothese-Inhalt → Wechsel auf L1 beantragen", () => {
+    const step = epicNextStep(base({ hasHypothesis: true }));
+    expect(step?.title).toBe("Wechsel auf L1 beantragen");
+    expect(step?.cta).toEqual({ kind: "gate-request", to: "L1" });
   });
 
-  it("L0 + hypothesis_review → Warte-Hinweis auf Portfolio Manager + Link zu Freigaben", () => {
-    const step = epicNextStep(base({ hasHypothesis: true, approvalPhase: "hypothesis_review" }));
-    expect(step?.title).toBe("Auf Portfolio-Manager-Entscheidung warten");
+  it("ein offener Antrag überstimmt jeden inhaltlichen Rat", () => {
+    const step = epicNextStep(base({ hasHypothesis: true, openGateRequestTo: "L1" }));
+    expect(step?.title).toBe("Auf die Abnahme von L1 warten");
     expect(step?.cta).toEqual({
       kind: "link",
       label: "Zu meinen Freigaben",
@@ -40,8 +41,14 @@ describe("epicNextStep", () => {
     });
   });
 
-  it("L1 → Business Case ausarbeiten", () => {
+  it("L1 → Wechsel auf L2 beantragen", () => {
     const step = epicNextStep(base({ stageGate: "L1", hasHypothesis: true }));
+    expect(step?.title).toBe("Wechsel auf L2 beantragen");
+    expect(step?.cta).toEqual({ kind: "gate-request", to: "L2" });
+  });
+
+  it("L2 ohne BC-Inhalt → BC ausarbeiten", () => {
+    const step = epicNextStep(base({ stageGate: "L2" }));
     expect(step?.title).toBe("Business Case ausarbeiten");
     expect(step?.cta).toMatchObject({
       kind: "link",
@@ -49,73 +56,21 @@ describe("epicNextStep", () => {
     });
   });
 
-  it("L1 + hasBusinessCase + approvalPhase business_case → BC einreichen (resilient)", () => {
-    const step = epicNextStep(
-      base({
-        stageGate: "L1",
-        hasHypothesis: true,
-        hasBusinessCase: true,
-        approvalPhase: "business_case",
-      }),
-    );
-    expect(step?.title).toBe("Business Case einreichen");
+  it("L2 mit BC-Inhalt → Wechsel auf L3.1 beantragen", () => {
+    const step = epicNextStep(base({ stageGate: "L2", hasBusinessCase: true }));
+    expect(step?.title).toBe("Wechsel auf L3.1 beantragen");
+    expect(step?.cta).toEqual({ kind: "gate-request", to: "L3.1" });
   });
 
-  it("L1 + approvalPhase stakeholder_review → Auf Stakeholder-Freigabe warten (resilient)", () => {
+  it("L2 mit offenem L3.1-Antrag → auf die Parteien warten", () => {
     const step = epicNextStep(
-      base({
-        stageGate: "L1",
-        hasHypothesis: true,
-        hasBusinessCase: true,
-        approvalPhase: "stakeholder_review",
-      }),
+      base({ stageGate: "L2", hasBusinessCase: true, openGateRequestTo: "L3.1" }),
     );
-    expect(step?.title).toBe("Auf Stakeholder-Freigabe warten");
-  });
-
-  it("L1 + approvalPhase approved → Budget allozieren (resilient)", () => {
-    const step = epicNextStep(
-      base({
-        stageGate: "L1",
-        hasHypothesis: true,
-        hasBusinessCase: true,
-        approvalPhase: "approved",
-      }),
-    );
-    expect(step?.title).toBe("Budget allozieren");
-  });
-
-  it("L2 ohne BC-Inhalt → BC ausarbeiten", () => {
-    const step = epicNextStep(base({ stageGate: "L2", approvalPhase: "business_case" }));
-    expect(step?.title).toBe("Business Case ausarbeiten");
-  });
-
-  it("L2 mit BC-Inhalt → BC einreichen", () => {
-    const step = epicNextStep(
-      base({
-        stageGate: "L2",
-        approvalPhase: "business_case",
-        hasBusinessCase: true,
-      }),
-    );
-    expect(step?.title).toBe("Business Case einreichen");
-  });
-
-  it("L2 + stakeholder_review → Warte-Hinweis", () => {
-    const step = epicNextStep(
-      base({
-        stageGate: "L2",
-        approvalPhase: "stakeholder_review",
-        hasBusinessCase: true,
-      }),
-    );
-    expect(step?.title).toBe("Auf Stakeholder-Freigabe warten");
+    expect(step?.title).toBe("Auf die Abnahme von L3.1 warten");
   });
 
   it("L3 / L3.1 ohne Budget → Budget allozieren mit Link auf /budgeting", () => {
-    const step = epicNextStep(
-      base({ stageGate: "L3", subStage: "L3.1", approvalPhase: "approved" }),
-    );
+    const step = epicNextStep(base({ stageGate: "L3", subStage: "L3.1" }));
     expect(step?.title).toBe("Budget allozieren");
     expect(step?.cta).toEqual({ kind: "link", label: "Zum Controlling", href: "/budgeting" });
   });
@@ -125,7 +80,6 @@ describe("epicNextStep", () => {
       base({
         stageGate: "L3",
         subStage: "L3.1",
-        approvalPhase: "approved",
         budgetAllocated: true,
       }),
     );

@@ -193,7 +193,6 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
   await prisma.budgetAllocation.deleteMany(w);
 
   // Initiative-Nebentabellen
-  await prisma.epicApproval.deleteMany(w);
   // Reifegrad-Abnahme (ADR-0018): Approvals hängen an der Transition (Cascade),
   // Transition an der Initiative → beide vor den Initiatives löschen.
   await prisma.stageGateApproval.deleteMany(w);

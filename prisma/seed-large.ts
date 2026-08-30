@@ -1138,57 +1138,51 @@ async function main() {
 
   // ── Phase 9: Aktivität (Freigaben) + TOM ──────────────────────────────────
   console.log("\n── Freigaben + TOM");
+  // Offene L2 → L3.1-Anträge: die Abnahme dieses Schritts *ist* die
+  // Business-Case-Freigabe, also zeichnen hier die fünf Parteien. Das füllt
+  // „Meine Freigaben" und trägt Guardrail 4 (Business-Owner-Engagement) —
+  // inklusive einiger überfälliger Zeilen, damit die Kennzahl etwas zeigt.
   const partyApprover: Record<string, string> = {
-    mgmt: U.portfolio,
-    business_owner: U.owner,
-    finance: U.fo,
-    irt_owner: U.rte,
-    lace_vmo: U.vmo,
+    "epic.party.mgmt": U.portfolio,
+    "epic.party.business_owner": U.owner,
+    "epic.party.finance": U.fo,
+    "epic.party.irt_owner": U.rte,
+    "epic.party.lace_vmo": U.vmo,
   };
-  const PARTIES = ["mgmt", "business_owner", "finance", "irt_owner", "lace_vmo"];
-  const approvalRows: Prisma.EpicApprovalCreateManyInput[] = [];
-  l2Idx.slice(0, 15).forEach((i, k) => {
-    const party = PARTIES[k % PARTIES.length]!;
-    const status = k % 4 === 3 ? "approved" : k % 4 === 2 ? "rejected" : "pending";
-    approvalRows.push({
-      id: uid(`large:appr:${i}`),
-      tenantId,
-      initiativeId: epicIds[i]!,
-      kind: "party",
-      party,
-      approverUserId: partyApprover[party]!,
-      status,
-      ...(status !== "pending"
-        ? { decidedAt: addDays(now, -2 - (k % 3)), comment: "Entschieden." }
-        : {}),
-      createdBy: ADMIN,
-    });
-  });
-  await prisma.epicApproval.createMany({ data: approvalRows });
-
-  // Offener L2→L3-Antrag (ein definiertes Epic will Budget/Freigabe).
-  if (l2Idx.length) {
+  const PARTY_ROLES = Object.keys(partyApprover);
+  for (const [k, i] of l2Idx.slice(0, 15).entries()) {
+    const requestedAt = addDays(now, -2 - k * 2);
     await prisma.stageGateTransition.create({
       data: {
+        id: uid(`large:gate:${i}`),
         tenantId,
-        initiativeId: epicIds[l2Idx[0]!]!,
+        initiativeId: epicIds[i]!,
         fromGate: "L2",
-        toGate: "L3",
+        toGate: "L3.1",
         kind: "forward",
         status: "pending",
         quorum: "all",
         requestedBy: U.owner,
-        reason: "Business Case fertig — bitte Budget für die Umsetzung freigeben.",
+        requestedAt,
+        reason: "Business Case fertig — bitte abnehmen.",
         approvals: {
-          create: [
-            {
-              tenantId,
-              approverUserId: U.vmo,
-              role: "value_stream.vmo",
-              source: "value_stream",
-              createdBy: U.owner,
-            },
-          ],
+          create: PARTY_ROLES
+            // Jede dritte Runde ohne Business Owner — so ist die
+            // Abdeckungsquote von Guardrail 4 nicht trivial 100 %.
+            .filter((role) => role !== "epic.party.business_owner" || k % 3 !== 2)
+            .map((role, r) => {
+              const decided = (k + r) % 4 === 3;
+              return {
+                tenantId,
+                approverUserId: partyApprover[role]!,
+                role,
+                source: "manual",
+                status: decided ? "approved" : "pending",
+                requestedAt,
+                ...(decided ? { decidedAt: addDays(now, -1), comment: "Entschieden." } : {}),
+                createdBy: ADMIN,
+              };
+            }),
         },
       },
     });

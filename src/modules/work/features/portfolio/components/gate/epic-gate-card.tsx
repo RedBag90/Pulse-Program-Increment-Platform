@@ -13,6 +13,10 @@ import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import type { EpicGateSlice } from "@/modules/work/server/views/epic-detail";
+import {
+  GatePartyPicker,
+  type TenantApprover,
+} from "@/modules/work/features/portfolio/components/approver-picker";
 import { GateRevertDialog } from "./gate-revert-dialog";
 
 /**
@@ -54,7 +58,11 @@ function gateLabel(gate: string): string {
  * Fehlt ein Eintrag (künftiges Kriterium), wird nur der Hilfetext gezeigt.
  */
 const CRITERION_TARGET: Record<string, { href: (epicId: string) => string; label: string }> = {
-  hypothesis_ready: {
+  hypothesis_drafted: {
+    href: (id) => `/portfolio/epics/${id}?tab=benefit-hypothesis`,
+    label: "Zur Hypothese",
+  },
+  hypothesis_approved: {
     href: (id) => `/portfolio/epics/${id}?tab=benefit-hypothesis`,
     label: "Zur Hypothese",
   },
@@ -66,7 +74,7 @@ const CRITERION_TARGET: Record<string, { href: (epicId: string) => string; label
     href: (id) => `/portfolio/epics/${id}?tab=business-case`,
     label: "Zum Business Case",
   },
-  business_case_approved: {
+  business_case_drafted: {
     href: (id) => `/portfolio/epics/${id}?tab=business-case`,
     label: "Zum Business Case",
   },
@@ -87,11 +95,13 @@ const CRITERION_TARGET: Record<string, { href: (epicId: string) => string; label
 interface Props {
   epicId: string;
   gate: EpicGateSlice;
+  /** Personenpool des Mandanten — Quelle des Abnehmer-Pickers am Antrag. */
+  approvers: TenantApprover[];
   /** userId → Anzeigename, wie überall auf der Epic-Seite. */
   userLabels: Record<string, string>;
 }
 
-export function EpicGateCard({ epicId, gate, userLabels }: Props) {
+export function EpicGateCard({ epicId, gate, approvers, userLabels }: Props) {
   if (gate.disabled) return null;
 
   return (
@@ -109,7 +119,7 @@ export function EpicGateCard({ epicId, gate, userLabels }: Props) {
       {gate.openRequest ? (
         <OpenRequest gate={gate} userLabels={userLabels} />
       ) : (
-        <NoRequest epicId={epicId} gate={gate} />
+        <NoRequest epicId={epicId} gate={gate} approvers={approvers} userLabels={userLabels} />
       )}
 
       {gate.canRequestHelp && <HelpRequestControl epicId={epicId} requested={gate.helpRequested} />}
@@ -167,11 +177,34 @@ function HelpRequestControl({ epicId, requested }: { epicId: string; requested: 
 function NoRequest({
   epicId,
   gate,
+  approvers,
+  userLabels,
 }: {
   epicId: string;
   gate: Extract<EpicGateSlice, { disabled: false }>;
+  approvers: TenantApprover[];
+  userLabels: Record<string, string>;
 }) {
   const [state, action, pending] = useActionState(requestGateTransitionAction, {});
+  // Besetzung der Parteien — nur an den Schritten, die eine je Epic zulassen
+  // (heute L2 → L3.1). Vorbelegt aus der Wertstrom-Governance.
+  const staffing = gate.partyStaffing;
+  const [parties, setParties] = useState<Record<string, Set<string>>>(() => {
+    const init: Record<string, Set<string>> = {};
+    for (const { role } of staffing?.roles ?? []) {
+      init[role] = new Set(staffing?.defaults[role] ?? []);
+    }
+    return init;
+  });
+
+  function toggleParty(role: string, userId: string) {
+    setParties((prev) => {
+      const next = new Set(prev[role] ?? []);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return { ...prev, [role]: next };
+    });
+  }
 
   if (!gate.next) {
     return (
@@ -185,6 +218,11 @@ function NoRequest({
     const fd = new FormData();
     fd.set("epicId", epicId);
     fd.set("toGate", gate.next as string);
+    // `<rolle>:<userId>` — die Rolle muss mit, sonst steht auf der
+    // Abnahme-Zeile hinterher niemand mehr für „Business Owner".
+    for (const [role, userIds] of Object.entries(parties)) {
+      for (const userId of userIds) fd.append("approvers", `${role}:${userId}`);
+    }
     startTransition(() => action(fd));
   }
 
@@ -250,6 +288,16 @@ function NoRequest({
             </li>
           ))}
         </ul>
+      )}
+
+      {staffing && gate.canRequest && (
+        <GatePartyPicker
+          staffing={staffing}
+          approvers={approvers}
+          selected={parties}
+          onToggle={toggleParty}
+          userLabels={userLabels}
+        />
       )}
 
       {gate.canRequest && (

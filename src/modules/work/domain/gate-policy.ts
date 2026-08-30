@@ -28,6 +28,16 @@ export const GATE_APPROVER_ROLES = [
   "value_stream.finance_approver",
   "value_stream.vmo",
   "epic.owner",
+  // Die fünf Business-Case-Parteien. Sie hatten eine eigene Freigabe-Achse
+  // (`EpicApproval`); seit die Abnahme des Schritts L2 → L3.1 *die*
+  // Business-Case-Freigabe ist, sind sie dessen Abnehmer. Die Rolle wandert auf
+  // die Abnahme-Zeile mit — sonst wüsste hinterher niemand mehr, wer für
+  // Finance und wer für den Business Owner unterschrieben hat (Guardrail 4).
+  "epic.party.mgmt",
+  "epic.party.business_owner",
+  "epic.party.finance",
+  "epic.party.irt_owner",
+  "epic.party.lace_vmo",
 ] as const;
 export type GateApproverRole = (typeof GATE_APPROVER_ROLES)[number];
 
@@ -40,7 +50,24 @@ export const GATE_APPROVER_ROLE_LABELS: Record<GateApproverRole, string> = {
   "value_stream.finance_approver": "Finance",
   "value_stream.vmo": "VMO",
   "epic.owner": "Epic Owner",
+  "epic.party.mgmt": "MGMT",
+  "epic.party.business_owner": "Business Owner",
+  "epic.party.finance": "Finance",
+  "epic.party.irt_owner": "IRT-Owner",
+  "epic.party.lace_vmo": "LACE/VMO",
 };
+
+/**
+ * Die fünf Parteien der Business-Case-Freigabe, in Anzeigereihenfolge. Der
+ * Abnehmer-Picker am L3.1-Antrag geht diese Liste durch.
+ */
+export const BUSINESS_CASE_PARTY_ROLES = [
+  "epic.party.mgmt",
+  "epic.party.business_owner",
+  "epic.party.finance",
+  "epic.party.irt_owner",
+  "epic.party.lace_vmo",
+] as const satisfies readonly GateApproverRole[];
 
 /** Woher ein aufgelöster Abnehmer stammt — für Anzeige und Nachvollziehbarkeit. */
 export type GateApproverSource = "value_stream" | "tenant" | "epic_owner" | "manual";
@@ -97,12 +124,14 @@ export const DEFAULT_GATE_POLICIES: Record<
   L1: { required: true, quorum: "all", approverUserIds: [], approverRoles: ["value_stream.vmo"] },
   // Eintritt in die Analyse.
   L2: { required: true, quorum: "all", approverUserIds: [], approverRoles: ["value_stream.vmo"] },
-  // Eintritt in die Investitionsphase: der Business Case ist freigegeben.
+  // Eintritt in die Investitionsphase. Dieser Schritt *ist* die
+  // Business-Case-Freigabe, deshalb zeichnen hier die fünf Parteien — nicht der
+  // VMO allein. Er steckt als LACE/VMO in der Liste.
   "L3.1": {
     required: true,
     quorum: "all",
     approverUserIds: [],
-    approverRoles: ["value_stream.vmo"],
+    approverRoles: [...BUSINESS_CASE_PARTY_ROLES],
   },
   // Die Investitionsentscheidung selbst — Finance zeichnet mit.
   "L3.2": {
@@ -131,14 +160,21 @@ export const DEFAULT_GATE_POLICIES: Record<
 };
 
 /**
- * Darf der Antragsteller die vorgeschlagenen Abnehmer je Epic überschreiben?
+ * Darf der Antragsteller die vorgeschlagenen Abnehmer für **diesen** Schritt je
+ * Epic überschreiben?
  *
- * Bestätigter Rahmen ist die Wertstrom-Konfiguration, nicht die Wahl pro Epic —
- * deshalb `false`. Der Override-Pfad ist trotzdem vollständig implementiert
- * (`expandApprovers(policy, ctx, override)`), damit ein Umschwenken eine
- * Konstante kostet und keinen Umbau. Bei Bedarf zum Practice-Flag hochziehen.
+ * Für die meisten Schritte ist der bestätigte Rahmen die
+ * Wertstrom-Konfiguration, nicht die Wahl pro Epic: „der VMO dieses Wertstroms"
+ * ist eine Regel und keine Entscheidung des Antragstellers.
+ *
+ * **L3.1 ist die Ausnahme.** Wer für MGMT, den Business Owner oder den
+ * IRT-Owner *dieses* Epics zeichnet, ist eine Eigenschaft des Epics und nicht
+ * des Wertstroms — genau das hat vorher der Approver-Dialog des Business Case
+ * erfasst. Er lebt jetzt am Antrag weiter.
  */
-export const ALLOW_AD_HOC_GATE_APPROVERS = false;
+export function allowsAdHocApprovers(toGate: GateStep): boolean {
+  return toGate === "L3.1";
+}
 
 /**
  * Präzedenz-Auflösung: die Wertstrom-Zeile gewinnt, sonst die Tenant-Zeile
@@ -150,6 +186,7 @@ export function resolveGatePolicy(
   toGate: GateStep,
   rows: readonly GateApproverRuleRow[],
   valueStreamId: string | null,
+  opts?: { multiPartyApproval?: boolean },
 ): GatePolicy {
   const forGate = rows.filter((r) => r.toGate === toGate);
   const row =
@@ -158,6 +195,19 @@ export function resolveGatePolicy(
 
   if (!row) {
     const fallback = DEFAULT_GATE_POLICIES[toGate];
+    // Die fünf Parteien an L3.1 sind der Ausdruck der Practice
+    // `multiPartyApproval`. Ist sie aus, zeichnet der VMO allein — ein schlanker
+    // Tenant soll für den Business Case nicht plötzlich fünf Unterschriften
+    // brauchen, nur weil die Freigabe auf die Reifegrad-Achse gewandert ist.
+    // Eine gepflegte Regel-Zeile (unten) sticht das ohnehin.
+    if (toGate === "L3.1" && opts?.multiPartyApproval === false) {
+      return {
+        toGate,
+        source: "code_default",
+        ...fallback,
+        approverRoles: ["value_stream.vmo"],
+      };
+    }
     return { toGate, source: "code_default", ...fallback };
   }
 
@@ -181,16 +231,38 @@ export interface ApproverContext {
 function resolveRole(role: GateApproverRole, ctx: ApproverContext): ResolvedApprover | null {
   switch (role) {
     case "value_stream.finance_approver":
+    case "epic.party.finance":
       return ctx.valueStreamFinanceApproverId
         ? { userId: ctx.valueStreamFinanceApproverId, role, source: "value_stream" }
         : null;
     case "value_stream.vmo":
+    case "epic.party.lace_vmo":
       return ctx.valueStreamVmoId
         ? { userId: ctx.valueStreamVmoId, role, source: "value_stream" }
         : null;
     case "epic.owner":
       return ctx.epicOwnerId ? { userId: ctx.epicOwnerId, role, source: "epic_owner" } : null;
+    // MGMT, Business Owner und IRT-Owner haben keine Governance-Spalte am
+    // Wertstrom — für sie gibt es keinen Code-Default. Sie kommen aus der
+    // Wertstrom-Regel (`approverUserIds`) oder werden am Antrag benannt. Ein
+    // Platzhalter ins Leere fällt still weg; `planGateRequest` fängt den Fall,
+    // dass am Ende niemand übrig bleibt.
+    case "epic.party.mgmt":
+    case "epic.party.business_owner":
+    case "epic.party.irt_owner":
+      return null;
   }
+}
+
+/**
+ * Eine am Antrag benannte Person. Die Rolle ist optional und wird — anders als
+ * beim früheren reinen `userId[]`-Override — **mitgeführt**: sonst stünde auf
+ * der Abnahme-Zeile zwar eine Person, aber nicht mehr, für welche Partei sie
+ * zeichnet, und Guardrail 4 verlöre seine Datenbasis.
+ */
+export interface ApproverOverride {
+  userId: string;
+  role?: GateApproverRole | null;
 }
 
 /**
@@ -204,16 +276,17 @@ function resolveRole(role: GateApproverRole, ctx: ApproverContext): ResolvedAppr
  * `planGateRequest` weigert sich, einen Antrag ohne Abnehmer anzulegen.
  *
  * `override` ersetzt die Policy-Auswahl vollständig (Herkunft `"manual"`) und
- * wird nur beachtet, wenn {@link ALLOW_AD_HOC_GATE_APPROVERS} an ist.
+ * wird nur beachtet, wenn {@link allowsAdHocApprovers} den Schritt dafür
+ * freigibt.
  */
 export function expandApprovers(
   policy: GatePolicy,
   ctx: ApproverContext,
-  override?: readonly string[] | undefined,
+  override?: readonly ApproverOverride[] | undefined,
 ): ResolvedApprover[] {
   const raw: ResolvedApprover[] =
-    ALLOW_AD_HOC_GATE_APPROVERS && override && override.length > 0
-      ? override.map((userId) => ({ userId, role: null, source: "manual" as const }))
+    allowsAdHocApprovers(policy.toGate) && override && override.length > 0
+      ? override.map((o) => ({ userId: o.userId, role: o.role ?? null, source: "manual" as const }))
       : [
           ...policy.approverUserIds.map((userId) => ({
             userId,

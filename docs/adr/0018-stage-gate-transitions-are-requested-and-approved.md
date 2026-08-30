@@ -246,6 +246,42 @@ ist editierbar, solange das Epic auf L0 steht und kein Antrag offen ist. Ab dem
 gestellten Antrag ist sie gesperrt — die Abnehmer sollen nicht auf etwas
 schauen, das sich unter ihnen ändert — und ab L1 ebenfalls.
 
+### Nachtrag (2026-08-30): L2 → L3.1 trägt die Business-Case-Freigabe
+
+Dieselbe Bewegung wie bei L1, eine Stufe größer. Vor L3.1 standen der
+Business-Case-Lauf über fünf Parteien und danach der Reifegrad-Antrag,
+abgenommen vom VMO — zwei Vorgänge, eine Aussage.
+
+**Der Reifegrad-Schritt trägt sie jetzt selbst, und die fünf Parteien sind seine
+Abnehmer.** `DEFAULT_GATE_POLICIES["L3.1"]` besetzt MGMT, Business Owner,
+Finance, IRT-Owner und LACE/VMO, Quorum weiterhin einstimmig; die Abnahme
+stempelt `businessCaseApprovedAt` und setzt `needsSteeringAttention`, der Revert
+L3.1 → L2 räumt beides ab. Das Kriterium an → L3.1 fragt seither den _Inhalt_
+(`business_case_drafted`), nicht den Stempel.
+
+Drei Details, die den Umbau tragen:
+
+- **Die Rolle wandert mit.** `GATE_APPROVER_ROLES` kennt fünf neue Platzhalter
+  (`epic.party.mgmt`, `…business_owner`, `…finance`, `…irt_owner`,
+  `…lace_vmo`), und sie landen auf `StageGateApproval.role`. Ohne das stünde auf
+  der Abnahme-Zeile hinterher zwar eine Person, aber nicht mehr, für welche
+  Partei sie gezeichnet hat — und Guardrail 4 (Business-Owner-Engagement)
+  verlöre seine Datenbasis.
+- **Zwei Parteien lösen aus dem Wertstrom auf, drei nicht.** Finance und
+  LACE/VMO ziehen die vorhandenen Governance-Spalten (`financeApproverId`,
+  `vmoId`). Für MGMT, Business Owner und IRT-Owner gibt es keine solche Spalte —
+  und das ist richtig so: wer dafür steht, ist eine Eigenschaft des _Epics_.
+  Deshalb erlaubt `allowsAdHocApprovers` genau an L3.1 eine Besetzung am Antrag.
+  Der frühere Approver-Dialog des Business Case lebt dort als Picker weiter.
+- **Der Posteingang hat nur noch einen Arm.** `/my-approvals` führte einmal
+  Feature-QS, Hypothese, Parteien und Reifegrad; übrig ist die Reifegrad-Abnahme.
+  Die Partei, für die man zeichnet, steht als Kontext an der Zeile.
+
+Guardrail 4 zieht mit: Scope sind seither Epics mit einem L2 → L3.1-Antrag,
+Zeilen die `epic.party.business_owner`-Abnahmen seines **jüngsten** Antrags. Der
+frühere Revisions-Schnitt hatte dieselbe Aufgabe — ein neuer Lauf ist jetzt ein
+neuer Antrag.
+
 ## Offene Punkte
 
 - **Benachrichtigung.** Ein benannter Abnehmer erfährt heute über den

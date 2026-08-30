@@ -47,10 +47,8 @@ export interface EpicListRow {
   subStage: SubStage | null;
   /** Nächster notwendiger Schritt (Reifegrad-Guidance) — null bei L5/fertig. */
   nextStep: EpicNextStep | null;
-  /** QS status — orthogonal to approvalPhase. */
+  /** QS status — orthogonal zur Reifegrad-Achse. */
   status: string;
-  /** Multi-party approval phase pill — null when not yet entered the workflow. */
-  approvalPhase: string | null;
   valueStream: { id: string; name: string } | null;
   ownerId: string | null;
   ownerLabel: string | null;
@@ -105,18 +103,11 @@ interface KpiRow {
   recurringInterval: string;
 }
 
-interface ApprovalRow {
-  revision: number;
-  status: string;
-}
-
 interface EpicRow {
   id: string;
   title: string;
   stageGate: string;
   status: string;
-  approvalPhase: string | null;
-  approvalRevision: number;
   ownerId: string | null;
   valueStream: { id: string; name: string } | null;
   needsSteeringAttention: boolean;
@@ -133,8 +124,6 @@ interface EpicRow {
   createdAt: Date;
   /** All bound KPIs (`Kpi` rows on the Epic). */
   kpis: KpiRow[];
-  /** All `EpicApproval` rows for the Epic, across revisions. */
-  epicApprovals: ApprovalRow[];
   /** Offener Gate-Antrag des Epics, vom Loader aufgelöst. */
   pendingGateRequest?: { toGate: GateStep; pendingCount: number; totalCount: number } | null;
   /** Count of child Features (direct only). */
@@ -182,15 +171,6 @@ function deriveEconomics(businessCase: unknown, kpis: KpiRow[]): EpicEconomics {
   };
 }
 
-/**
- * Count pending approvals on the active revision only — earlier revisions are
- * historical noise. Active = `epic.approvalRevision` (bumped each time a new
- * cycle is started); we tally rows whose status is still "pending".
- */
-function countPendingApprovals(approvals: ApprovalRow[], activeRevision: number): number {
-  return approvals.filter((a) => a.revision === activeRevision && a.status === "pending").length;
-}
-
 export function buildEpicsListModel(input: {
   epics: readonly EpicRow[];
   valueStreams: readonly { id: string; name: string }[];
@@ -219,7 +199,7 @@ export function buildEpicsListModel(input: {
       epicId: e.id,
       stageGate,
       subStage,
-      approvalPhase: e.approvalPhase,
+      openGateRequestTo: e.pendingGateRequest?.toGate ?? null,
       hasHypothesis: benefitHypothesisHasContent(
         parseBenefitHypothesis(e.benefitHypothesis).current,
       ),
@@ -235,7 +215,6 @@ export function buildEpicsListModel(input: {
       subStage,
       nextStep,
       status: e.status,
-      approvalPhase: e.approvalPhase,
       valueStream: e.valueStream,
       ownerId: e.ownerId,
       ownerLabel: e.ownerId ? (userLabels[e.ownerId] ?? null) : null,
@@ -245,7 +224,10 @@ export function buildEpicsListModel(input: {
       kpiProgress,
       kpiTier: kpiProgress != null ? ragTier(kpiProgress) : null,
       kpiCount: e.kpis.length,
-      pendingApprovalsCount: countPendingApprovals(e.epicApprovals, e.approvalRevision),
+      // „Offene Freigaben" ist seit dem Umbau exakt die Zahl der noch
+      // ausstehenden Abnehmer des laufenden Reifegrad-Antrags — es gibt keinen
+      // zweiten Freigabevorgang mehr daneben.
+      pendingApprovalsCount: e.pendingGateRequest?.pendingCount ?? 0,
       pendingGateRequest: e.pendingGateRequest ?? null,
       childFeatureCount: e.childFeatureCount,
       plannedStartAt: isoDay(e.plannedStartAt),
