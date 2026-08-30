@@ -79,9 +79,12 @@ Ziel, Einheit — und zusammen mit Finance den Wert je Einheit und die Nutzenart
 einmalig oder laufend. Daraus rechnet Pulse den Nutzenbeitrag. Finance
 verifiziert das nicht nebenbei, sondern zeichnet es ab: Finance ist eine der fünf
 Parteien, die den Schritt auf L3.1 abnehmen, und diese Abnahme deckt Deliverables
-und KPIs mit ab — eigene Abnahmen je Abschnitt gibt es nicht mehr. Entsprechend
-führt die Freigabe-Inbox unter _Meine Tasks_ keinen Eintrag „Epic-Abschnitte"
-mehr.
+und KPIs mit ab — eigene Abnahmen je Abschnitt gibt es nicht mehr. Die
+Freigabe-Inbox unter _Meine Tasks_ führt deshalb nur noch eine Gruppe:
+**Reifegrad-Wechsel**. „Epic-Hypothesen", „Epic-Stakeholder-Freigaben" und
+„Epic-Abschnitte" waren einmal drei weitere — jede Entscheidung, die dort heute
+landet, ist eine Gate-Abnahme, und daneben steht, für welche Partei ich
+zeichne.
 
 Die Timeline verfeinere ich — die groben Schätzungen von damals stehen jetzt
 neben belastbaren Daten.
@@ -89,12 +92,19 @@ neben belastbaren Daten.
 Steht der Business Case, beantrage ich **L2 → L3.1**. Beim Antrag besetze ich die
 fünf Parteien: MGMT, Business Owner, Finance, IRT-Owner und LACE/VMO — Finance
 und LACE/VMO sind aus der Wertstrom-Governance schon vorbelegt, die anderen drei
-benenne ich. Ab dem gestellten Antrag ist der Business Case gesperrt; wer ihn
-abnimmt, sieht daneben, was sich seit der letzten Freigabe geändert hat. Einen
+benenne ich. Ab dem gestellten Antrag ist der Business Case gesperrt. Einen
 eigenen Freigabelauf davor gibt es nicht — **diese Abnahme ist die Freigabe**.
 Sind alle fünf durch, steht der Stempel und das Epic auf
 **L3.1 · BC freigegeben**. Lehnt eine Partei begründet ab, bleibt das Epic auf
 L2 und der Text ist wieder frei.
+
+Beim **ersten** Lauf sehen die Abnehmer den Business Case, wie er dasteht. Ab dem
+zweiten sehen sie eine Gegenüberstellung: die Abnahme zieht jedes Mal einen
+Schnappschuss des freigegebenen Textes, und der nächste Antrag zeigt daneben, was
+sich seither geändert hat. Denn einen zweiten Anlauf gibt es — nur heißt er nicht
+mehr „neue Revision": Ich stufe das Epic mit Begründung auf L2 zurück (das räumt
+den Stempel ab), überarbeite und beantrage neu. Die Historie steckt vollständig in
+den Antrags-Zeilen.
 
 Ich setze den Haken **„Im nächsten Steering-Meeting behandeln"**. Im
 Portfolio-Review wird mein Epic aufgerufen, und das Ergebnis lautet: hol dir
@@ -189,25 +199,32 @@ Regel des Wertstroms.
 
 ## Wo die verbreitete Beschreibung von der Mechanik abweicht
 
-1. **Die Investitionsentscheidung fehlt.** Die gängige Erzählung springt von der
+1. **Freigabe und Reifegrad-Wechsel sind nicht zwei Schritte.** Die gängige
+   Erzählung lässt Hypothese und Business Case erst in einem eigenen Lauf
+   freigeben und den Reifegrad danach nachziehen. Im Tool ist das **ein** Akt:
+   die Abnahme von L0 → L1 _ist_ die Hypothesen-Freigabe, die von L2 → L3.1 _ist_
+   die des Business Case. Wer zweimal zeichnen will, findet dafür keine zweite
+   Stelle — und die Kriterien dieser beiden Schritte fragen deshalb nach Inhalt,
+   nicht nach einem Stempel.
+2. **Die Investitionsentscheidung fehlt.** Die gängige Erzählung springt von der
    Budgetrunde direkt zur Umsetzungsfreigabe. Dazwischen liegt der beantragte
    Schritt **L3.1 → L3.2**, und genau dieser Übergang _ist_ die
    Investitionsentscheidung — hier werden Genehmiger und Datum am Epic gestempelt.
-2. **Die x.2-Stufen sind echte Schritte, keine Anzeige.** Verbreitet ist die
+3. **Die x.2-Stufen sind echte Schritte, keine Anzeige.** Verbreitet ist die
    Annahme, alles hinter dem Punkt sei abgeleitet. Tatsächlich werden **L3.1**,
    **L3.2** und **L4.2** beantragt und namentlich abgenommen; nur **L4.1**
    ergibt sich von selbst — es ist „L4, solange die Umsetzung nicht bestätigt
    fertig ist".
-3. **Kein separates Analyse-Budget.** Häufig wird „Geld für die Konkretisierung"
+4. **Kein separates Analyse-Budget.** Häufig wird „Geld für die Konkretisierung"
    als eigene Runde beschrieben. Es gibt eine Budgetrunde je Zyklus; ein Epic
    kommt aufs Ballot, sobald **Hypothese oder** Lean Business Case freigegeben
    ist. Bei nur-Hypothese setzt das Ballot einen tenant-konfigurierbaren
    Default-Aufwand als Kosten-Richtwert an. Gleiche Runde, anderer Richtwert.
-4. **Die KPI-Baseline ist ein Feld, kein Akt zum Freigabezeitpunkt.** Sie wird
+5. **Die KPI-Baseline ist ein Feld, kein Akt zum Freigabezeitpunkt.** Sie wird
    beim Definieren der KPI gesetzt. Was zum Umsetzungsstart passiert, ist der
    erste **Messwert**; der Nutzen rechnet sich aus dem Erfüllungsgrad entlang
    Baseline → Ziel.
-5. **Steering-Merker und Budget-Merker sind unabhängig.** Oft wird das Vormerken
+6. **Steering-Merker und Budget-Merker sind unabhängig.** Oft wird das Vormerken
    fürs Budget aus dem Review-Ergebnis abgeleitet. Es sind zwei Checkboxen im
    Epic-Overview ohne technische Kopplung — die Reihenfolge ist Konvention.
 
@@ -218,7 +235,8 @@ Regel des Wertstroms.
 | Schritte + Sub-Stages, L3.2 und L4.2 als echte Schritte | `src/modules/work/domain/stage-gate.ts`                                    |
 | Kriterien je Schritt, blockierend vs. beratend          | `src/modules/work/domain/gate-readiness.ts`                                |
 | Wer nimmt welchen Schritt ab                            | `src/modules/work/domain/gate-policy.ts`                                   |
-| Freigabephasen und Parteien                             | `src/modules/work/domain/epic-approval.ts`                                 |
+| Sperre, Diff und Baseline der beiden Texte              | `src/modules/work/domain/epic-revision-visibility.ts`                      |
+| Welcher Schritt welchen Stempel setzt und abräumt       | `src/modules/work/domain/gate-transition.ts`                               |
 | Ballot-Fähigkeit + Default-Aufwand                      | `src/modules/work/domain/pb-submission.ts`                                 |
 | Budget-Prozessleiste, Rundenstatus                      | `src/modules/budgeting/server/views/budget-process-rail.ts`                |
 | Beschriftung der zwei Merker                            | `src/modules/work/features/portfolio/components/epic-governance-flags.tsx` |
