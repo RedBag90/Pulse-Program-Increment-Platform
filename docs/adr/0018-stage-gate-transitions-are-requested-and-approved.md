@@ -215,6 +215,37 @@ früher für fertig erklären, aber den Impact weiterhin nicht ohne bestätigtes
 L4.2 melden — die Trennung „fertig gebaut" ≠ „Nutzen nachgewiesen" ist davon
 unberührt.
 
+### Nachtrag (2026-08-30): L0 → L1 trägt die Hypothesen-Freigabe
+
+Vor L1 standen zwei Freigaben hintereinander, die dasselbe aussagten: der
+Hypothesen-Lauf (`submitHypothesis` / `decideHypothesis` auf der
+Mehrparteien-Achse, entschieden vom Portfolio Manager) und danach der
+Reifegrad-Antrag L0 → L1, abgenommen vom VMO. Zwei Anträge, zwei Abnahmen, eine
+Aussage — und die zweite konnte die erste nur bestätigen.
+
+**Der Reifegrad-Schritt trägt sie jetzt selbst.** Die Abnahme von L0 → L1
+stempelt `hypothesisApprovedAt` (set-once, wie `approvedAt` bei L3.2), setzt
+`needsSteeringAttention` und schiebt die Phase auf `business_case`. Der Revert
+L1 → L0 räumt beides wieder ab. Der eigene Freigabelauf entfällt samt seinen
+Capabilities, Actions und dem Posteingang-Arm.
+
+Zwei Folgen sind bewusst in Kauf genommen:
+
+- **Das L1-Kriterium wechselt die Aussage.** Es kann nicht mehr den Stempel
+  verlangen, den es selbst setzt — das wäre zirkulär. Aus `HYPOTHESIS_READY`
+  werden zwei benannte Regeln: **→ L1** verlangt Inhalt
+  (`HYPOTHESIS_DRAFTED`, blockierend), **→ L2** weiterhin den Stempel
+  (`HYPOTHESIS_APPROVED`).
+- **Die Rückfrage fällt weg.** Der Hypothesen-Lauf kannte ein drittes Votum
+  („Rückfrage"); die Gate-Achse kennt zustimmen und ablehnen, beides mit
+  Kommentar. Wer nachfragen will, lehnt begründet ab — das Epic bleibt auf L0,
+  der Text wird wieder editierbar, der Antrag kann neu gestellt werden.
+
+**Die Textsperre folgt jetzt dem Antrag,** nicht mehr der Phase: die Hypothese
+ist editierbar, solange das Epic auf L0 steht und kein Antrag offen ist. Ab dem
+gestellten Antrag ist sie gesperrt — die Abnehmer sollen nicht auf etwas
+schauen, das sich unter ihnen ändert — und ab L1 ebenfalls.
+
 ## Offene Punkte
 
 - **Benachrichtigung.** Ein benannter Abnehmer erfährt heute über den

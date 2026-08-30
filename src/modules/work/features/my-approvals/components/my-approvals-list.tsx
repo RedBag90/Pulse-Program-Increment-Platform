@@ -13,7 +13,6 @@ import type { ApprovalParty } from "@/modules/work/domain/business-case";
  */
 
 const KIND_LABELS: Record<MyApprovalRow["kind"], string> = {
-  epic_hypothesis: "Epic-Hypothesen",
   epic_party: "Epic-Stakeholder-Freigaben",
   epic_gate: "Reifegrad-Wechsel",
 };
@@ -22,7 +21,6 @@ const KIND_ORDER: MyApprovalRow["kind"][] = [
   // Reifegrad-Wechsel zuerst: sie blockieren den Fortschritt eines ganzen Epics,
   // nicht nur eines Dokuments.
   "epic_gate",
-  "epic_hypothesis",
   "epic_party",
 ];
 

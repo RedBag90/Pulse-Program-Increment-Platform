@@ -102,7 +102,6 @@ export const STATUS_BADGE: Record<string, string> = {
  */
 export const APPROVAL_PHASE_LABELS: Record<string, string> = {
   draft: "Entwurf",
-  hypothesis_review: "Hypothese in QS (Portfolio Manager)",
   business_case: "Business Case",
   stakeholder_review: "Stakeholder-Freigaben",
   approved: "Freigegeben",
@@ -111,7 +110,6 @@ export const APPROVAL_PHASE_LABELS: Record<string, string> = {
 /** Pastel pill colours per approval phase (Tailwind classes). */
 export const APPROVAL_PHASE_BADGE: Record<string, string> = {
   draft: "bg-muted text-foreground/80",
-  hypothesis_review: "bg-amber-100 text-amber-800",
   business_case: "bg-blue-100 text-blue-800",
   stakeholder_review: "bg-indigo-100 text-indigo-800",
   approved: "bg-emerald-100 text-emerald-800",

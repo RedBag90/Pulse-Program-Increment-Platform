@@ -103,8 +103,6 @@ function makeInputs(over: Partial<EpicDetailInputs> = {}): EpicDetailInputs {
     multiPartyApproval: true,
     principalId: PRINCIPAL_ID,
     canEdit: true,
-    canDecideHypothesis: false,
-    canSubmitHypothesis: false,
     canSubmitBusinessCase: false,
     canAssignOwner: false,
     gate: { disabled: true },
@@ -214,18 +212,21 @@ describe("buildEpicDetailModel — degradation matrix", () => {
 });
 
 describe("buildEpicDetailModel — revision visibility algebra", () => {
-  it("showHypoReviewDiff true when baseline + hypothesis_review + canDecideHypothesis", () => {
+  it("ohne laufende Abnahme zeigt der Owner seinen eigenen Hypothesen-Diff", () => {
+    // Der Review-Diff haengt jetzt am offenen Reifegrad-Antrag; die Algebra
+    // dahinter deckt `epic-revision-visibility.test.ts` ab. Hier zaehlt nur,
+    // dass der Model-Bau sie richtig verdrahtet.
     const m = buildEpicDetailModel(
       makeInputs({
         epic: makeEpic({
-          approvalPhase: "hypothesis_review",
+          approvalPhase: "draft",
           baselineBenefitHypothesis: { measuresHypothesis: "prev" },
         }),
-        canDecideHypothesis: true,
+        canEdit: true,
       }),
     );
-    expect(m.showHypoReviewDiff).toBe(true);
-    expect(m.showHypoOwnerEdit).toBe(false);
+    expect(m.showHypoReviewDiff).toBe(false);
+    expect(m.showHypoOwnerEdit).toBe(true);
   });
 
   it("showBcReviewDiff true when baseline + stakeholder_review + an open approval for the viewer", () => {
@@ -285,16 +286,19 @@ describe("buildEpicDetailModel — revision visibility algebra", () => {
 });
 
 describe("buildEpicDetailModel — lock reasons", () => {
-  it("hypothesis_review locks both artefacts (canEdit=true)", () => {
+  it("ab L1 ist die Hypothese gesperrt — die Abnahme war die Freigabe", () => {
     const m = buildEpicDetailModel(
-      makeInputs({ epic: makeEpic({ approvalPhase: "hypothesis_review" }), canEdit: true }),
+      makeInputs({
+        epic: makeEpic({ stageGate: "L2", approvalPhase: "business_case" }),
+        canEdit: true,
+      }),
     );
     expect(m.hypoLockReason).toBe(
-      "Die Benefit-Hypothese ist zur QS beim Portfolio Manager eingereicht und währenddessen gesperrt.",
+      "Die Hypothese ist mit dem Schritt auf L1 freigegeben und damit gesperrt. Für " +
+        "Änderungen das Epic auf L0 zurückstufen.",
     );
-    expect(m.bcLockReason).toBe(
-      "Der Business Case wird bearbeitbar, sobald der Portfolio Manager die Hypothese freigibt.",
-    );
+    // Der Business Case ist in seiner Phase offen.
+    expect(m.bcLockReason).toBeUndefined();
   });
 
   it("draft locks the Business Case but not the Hypothesis", () => {
@@ -309,7 +313,7 @@ describe("buildEpicDetailModel — lock reasons", () => {
 
   it("both lock reasons are undefined when canEdit is false", () => {
     const m = buildEpicDetailModel(
-      makeInputs({ epic: makeEpic({ approvalPhase: "hypothesis_review" }), canEdit: false }),
+      makeInputs({ epic: makeEpic({ approvalPhase: "business_case" }), canEdit: false }),
     );
     expect(m.hypoLockReason).toBeUndefined();
     expect(m.bcLockReason).toBeUndefined();

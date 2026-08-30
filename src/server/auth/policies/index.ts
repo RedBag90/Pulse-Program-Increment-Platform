@@ -24,8 +24,6 @@ export type Action =
   | "epic.gate.withdraw"
   | "epic.gate.revert"
   | "epic.gate.approvers.configure"
-  | "epic.hypothesis.submit"
-  | "epic.hypothesis.decide"
   | "epic.approval.configure"
   | "epic.businesscase.submit"
   | "epic.approval.decide"
@@ -249,11 +247,6 @@ export const POLICIES: Record<Action, Grant[]> = {
   // service to the assigned approver (the policy can't see the approval row).
   // Note: portfolio_manager now both submits and decides the hypothesis —
   // owner↔approver separation remains via the distinct `epic_owner` role.
-  "epic.hypothesis.submit": [
-    { roles: [EPIC_OWNER, PORTFOLIO_MANAGER] },
-    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
-  ],
-  "epic.hypothesis.decide": [{ roles: [PORTFOLIO_MANAGER] }],
   "epic.approval.configure": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
   "epic.businesscase.submit": [{ roles: [EPIC_OWNER, PORTFOLIO_MANAGER] }],
   "epic.approval.decide": [{ roles: [PORTFOLIO_MANAGER, VALUE_STREAM_OWNER, RTE, FEATURE_OWNER] }],

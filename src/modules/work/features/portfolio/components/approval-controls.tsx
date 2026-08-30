@@ -2,7 +2,6 @@
 
 import { useActionState, useState, startTransition } from "react";
 import {
-  submitEpicHypothesisAction,
   submitEpicBusinessCaseAction,
   reviseEpicBusinessCaseAction,
   startEpicRevisionAction,
@@ -42,20 +41,6 @@ function Err({ msg }: { msg?: string | undefined }) {
 }
 
 /** draft → submit the Benefit Hypothesis for Portfolio-Manager review. */
-export function SubmitHypothesisButton({ epicId }: { epicId: string }) {
-  const [state, action, pending] = useActionState(submitEpicHypothesisAction, {});
-  return (
-    <form action={action} className="space-y-1">
-      <input type="hidden" name="epicId" value={epicId} />
-      <button type="submit" disabled={pending} className={PRIMARY}>
-        {pending ? "…" : "Hypothese zur QS einreichen"}
-      </button>
-      <Err msg={state.error} />
-    </form>
-  );
-}
-
-/** business_case → submit the Business Case to the configured stakeholders. */
 export function SubmitBusinessCaseButton({ epicId }: { epicId: string }) {
   const [state, action, pending] = useActionState(submitEpicBusinessCaseAction, {});
   return (

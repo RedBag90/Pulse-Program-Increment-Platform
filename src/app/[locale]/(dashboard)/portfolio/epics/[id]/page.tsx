@@ -343,7 +343,6 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                 current={benefitHypothesis.current}
                 history={benefitHypothesis.history}
                 readOnly={!model.hypoEditable}
-                canSubmit={model.canSubmitHypothesis}
                 {...(model.hypoLockReason && { lockReason: model.hypoLockReason })}
               />
             )}

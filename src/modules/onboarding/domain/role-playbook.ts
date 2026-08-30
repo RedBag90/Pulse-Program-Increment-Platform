@@ -244,9 +244,9 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         practice: "stageGates",
       },
       {
-        text: "Über die Benefit-Hypothese entscheiden — das war früher die Rolle des VMO.",
-        capability: "epic.hypothesis.decide",
-        practice: "multiPartyApproval",
+        text: "Den Reifegrad-Wechsel auf L1 abnehmen — damit ist die Benefit-Hypothese freigegeben.",
+        capability: "epic.gate.decide",
+        practice: "stageGates",
       },
       { text: "Das Budget auf die Epics verteilen.", capability: "budget.manage" },
       { text: "Den realisierten Mehrwert im Portfolio-Review nachhalten.", module: "work" },
@@ -295,11 +295,11 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "portfolio_manager.approvals",
         title: "Deine Entscheidungen sammeln sich hier",
-        body: "Eingereichte Hypothesen und Business Cases warten in dieser Inbox. Freigeben, in Klärung schicken oder ablehnen — solange du nichts tust, steht das Epic still.",
+        body: "Beantragte Reifegrad-Wechsel und Business Cases warten in dieser Inbox. Zustimmen oder begründet ablehnen — solange du nichts tust, steht das Epic still.",
         route: "/my-approvals",
         anchor: "approvals-list",
-        capability: "epic.hypothesis.decide",
-        practice: "multiPartyApproval",
+        capability: "epic.gate.decide",
+        practice: "stageGates",
       },
       {
         key: "portfolio_manager.budget_pool",
@@ -429,8 +429,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       "Du arbeitest Epics aus: du formulierst, was das Vorhaben bringen soll, belegst es und reichst es zur Entscheidung ein.",
     responsibilities: [
       {
-        text: "Die Benefit-Hypothese formulieren und einreichen.",
-        capability: "epic.hypothesis.submit",
+        text: "Die Benefit-Hypothese formulieren und den Wechsel auf L1 beantragen.",
+        capability: "epic.gate.request",
       },
       {
         text: "Den Business Case ausarbeiten und einreichen.",
@@ -487,11 +487,11 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "epic_owner.hypothesis",
         title: "Benefit-Hypothese zuerst",
-        body: "Der erste Reiter. Nach dem Einreichen entscheiden die Freigeber; stimmen alle zu, rückt das Epic von L0 auf L1 — der Startschuss für den Business Case.",
+        body: "Der erste Reiter. Ist sie ausgearbeitet, beantragst du den Wechsel auf L1; mit der Abnahme ist die Hypothese freigegeben — der Startschuss für den Business Case.",
         route: "/portfolio/epics",
         anchor: "epics-funnel-bar",
-        capability: "epic.hypothesis.submit",
-        practice: "multiPartyApproval",
+        capability: "epic.gate.request",
+        practice: "stageGates",
       },
       {
         key: "epic_owner.business_case",

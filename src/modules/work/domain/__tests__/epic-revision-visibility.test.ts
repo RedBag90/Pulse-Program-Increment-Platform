@@ -1,229 +1,162 @@
 import { describe, it, expect } from "vitest";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 import type { ApprovalPhase } from "@/modules/work/domain/epic-approval";
 import {
   computeEpicRevisionVisibility,
   type EpicRevisionVisibilityInput,
 } from "@/modules/work/domain/epic-revision-visibility";
 
-const HYPO_LOCK: Partial<Record<ApprovalPhase, string>> = {
-  hypothesis_review:
-    "Die Benefit-Hypothese ist zur QS beim Portfolio Manager eingereicht und währenddessen gesperrt.",
-  business_case:
-    "Die Hypothese ist freigegeben. Sie ist nun gesperrt — für Änderungen eine neue Revision starten.",
-  stakeholder_review:
-    "Die Hypothese ist freigegeben und während der Stakeholder-Freigaben gesperrt.",
-  approved: "Das Epic ist freigegeben. Für Änderungen an der Hypothese eine neue Revision starten.",
-};
+/**
+ * Die Hypothesen-Sperre haengt seit dem Umbau am **Reifegrad-Antrag**, nicht mehr
+ * an der Freigabe-Phase: die Abnahme des Schritts L0 → L1 *ist* die
+ * Hypothesen-Freigabe. Der Business-Case-Teil bleibt phasenbasiert.
+ */
+const HYPO_LOCK_REQUESTED =
+  "Der Wechsel auf L1 ist beantragt. Bis zur Abnahme ist die Hypothese gesperrt — " +
+  "die Abnehmer sollen nicht auf einen wandernden Text schauen.";
+const HYPO_LOCK_APPROVED =
+  "Die Hypothese ist mit dem Schritt auf L1 freigegeben und damit gesperrt. Für " +
+  "Änderungen das Epic auf L0 zurückstufen.";
+
 const BC_LOCK: Partial<Record<ApprovalPhase, string>> = {
   draft: "Der Business Case wird erst bearbeitbar, sobald die Benefit-Hypothese freigegeben ist.",
-  hypothesis_review:
-    "Der Business Case wird bearbeitbar, sobald der Portfolio Manager die Hypothese freigibt.",
   stakeholder_review: "Der Business Case ist während der laufenden Stakeholder-Freigaben gesperrt.",
   approved: "Das Epic ist freigegeben. Für Änderungen am Business Case eine neue Revision starten.",
 };
 
-const PHASES: ApprovalPhase[] = [
-  "draft",
-  "hypothesis_review",
-  "business_case",
-  "stakeholder_review",
-  "approved",
-];
+const PHASES: ApprovalPhase[] = ["draft", "business_case", "stakeholder_review", "approved"];
+const GATES: StageGate[] = ["L0", "L1", "L2", "L3", "L4", "L5"];
 
 function make(over: Partial<EpicRevisionVisibilityInput> = {}): EpicRevisionVisibilityInput {
   return {
     approvalPhase: "draft",
+    stageGate: "L0",
+    hasOpenGateRequest: false,
+    viewerIsGateApprover: false,
     hasHypoBaseline: false,
     hasBcBaseline: false,
     canEdit: false,
-    canDecideHypothesis: false,
     viewerHasOpenApproval: false,
     ...over,
   };
 }
 
-describe("computeEpicRevisionVisibility — editable flags", () => {
-  it("hypoEditable only in draft (with canEdit); bcEditable only in business_case", () => {
-    for (const phase of PHASES) {
-      const v = computeEpicRevisionVisibility(make({ approvalPhase: phase, canEdit: true }));
-      expect(v.hypoEditable).toBe(phase === "draft");
-      expect(v.bcEditable).toBe(phase === "business_case");
+describe("computeEpicRevisionVisibility — die Hypothese folgt dem Antrag", () => {
+  it("ist auf L0 frei, solange kein Antrag offen ist", () => {
+    const v = computeEpicRevisionVisibility(make({ canEdit: true }));
+    expect(v.hypoEditable).toBe(true);
+    expect(v.hypoLockReason).toBeUndefined();
+  });
+
+  it("sperrt, sobald der L0→L1-Antrag steht", () => {
+    const v = computeEpicRevisionVisibility(make({ canEdit: true, hasOpenGateRequest: true }));
+    expect(v.hypoEditable).toBe(false);
+    expect(v.hypoLockReason).toBe(HYPO_LOCK_REQUESTED);
+  });
+
+  it("bleibt ab L1 gesperrt — die Abnahme war die Freigabe", () => {
+    for (const gate of GATES.filter((g) => g !== "L0")) {
+      const v = computeEpicRevisionVisibility(make({ canEdit: true, stageGate: gate }));
+      expect(v.hypoEditable, gate).toBe(false);
+      expect(v.hypoLockReason, gate).toBe(HYPO_LOCK_APPROVED);
     }
   });
 
-  it("without canEdit nothing is editable", () => {
-    for (const phase of PHASES) {
-      const v = computeEpicRevisionVisibility(make({ approvalPhase: phase, canEdit: false }));
+  it("ohne canEdit ist nichts editierbar und es gibt keinen Sperr-Hinweis", () => {
+    for (const gate of GATES) {
+      const v = computeEpicRevisionVisibility(make({ stageGate: gate, canEdit: false }));
       expect(v.hypoEditable).toBe(false);
-      expect(v.bcEditable).toBe(false);
+      expect(v.hypoLockReason).toBeUndefined();
     }
   });
 });
 
-describe("computeEpicRevisionVisibility — lock reasons", () => {
-  it("emits the exact German lock copy per phase when canEdit", () => {
+describe("computeEpicRevisionVisibility — der Business Case bleibt phasenbasiert", () => {
+  it("ist nur in `business_case` editierbar", () => {
     for (const phase of PHASES) {
       const v = computeEpicRevisionVisibility(make({ approvalPhase: phase, canEdit: true }));
-      expect(v.hypoLockReason).toBe(HYPO_LOCK[phase]);
-      expect(v.bcLockReason).toBe(BC_LOCK[phase]);
+      expect(v.bcEditable, phase).toBe(phase === "business_case");
+      expect(v.bcLockReason, phase).toBe(BC_LOCK[phase]);
     }
   });
 
-  it("draft: hypothesis is unlocked, business case is locked", () => {
-    const v = computeEpicRevisionVisibility(make({ approvalPhase: "draft", canEdit: true }));
-    expect(v.hypoLockReason).toBeUndefined();
-    expect(v.bcLockReason).toBe(BC_LOCK.draft);
-  });
-
-  it("business_case: business case is unlocked, hypothesis is locked", () => {
-    const v = computeEpicRevisionVisibility(make({ approvalPhase: "business_case", canEdit: true }));
-    expect(v.bcLockReason).toBeUndefined();
-    expect(v.hypoLockReason).toBe(HYPO_LOCK.business_case);
-  });
-
-  it("no lock reasons at all when canEdit is false", () => {
+  it("ohne canEdit kein Sperr-Hinweis", () => {
     for (const phase of PHASES) {
       const v = computeEpicRevisionVisibility(make({ approvalPhase: phase, canEdit: false }));
-      expect(v.hypoLockReason).toBeUndefined();
+      expect(v.bcEditable).toBe(false);
       expect(v.bcLockReason).toBeUndefined();
     }
   });
 });
 
-describe("computeEpicRevisionVisibility — review diffs", () => {
-  it("showHypoReviewDiff needs baseline + hypothesis_review + canDecideHypothesis", () => {
+describe("computeEpicRevisionVisibility — Review-Diffs", () => {
+  it("showHypoReviewDiff verlangt Baseline + offenen Antrag + Abnehmer-Rolle", () => {
+    const full = { hasHypoBaseline: true, hasOpenGateRequest: true, viewerIsGateApprover: true };
+    expect(computeEpicRevisionVisibility(make(full)).showHypoReviewDiff).toBe(true);
     expect(
-      computeEpicRevisionVisibility(
-        make({
-          approvalPhase: "hypothesis_review",
-          hasHypoBaseline: true,
-          canDecideHypothesis: true,
-        }),
-      ).showHypoReviewDiff,
-    ).toBe(true);
-    // Missing baseline
-    expect(
-      computeEpicRevisionVisibility(
-        make({ approvalPhase: "hypothesis_review", canDecideHypothesis: true }),
-      ).showHypoReviewDiff,
+      computeEpicRevisionVisibility(make({ ...full, hasHypoBaseline: false })).showHypoReviewDiff,
     ).toBe(false);
-    // Missing capability
     expect(
-      computeEpicRevisionVisibility(
-        make({ approvalPhase: "hypothesis_review", hasHypoBaseline: true }),
-      ).showHypoReviewDiff,
+      computeEpicRevisionVisibility(make({ ...full, viewerIsGateApprover: false }))
+        .showHypoReviewDiff,
     ).toBe(false);
-    // Wrong phase
+    // Ohne offenen Antrag entscheidet niemand — also auch kein Review-Diff.
     expect(
-      computeEpicRevisionVisibility(
-        make({ approvalPhase: "draft", hasHypoBaseline: true, canDecideHypothesis: true }),
-      ).showHypoReviewDiff,
+      computeEpicRevisionVisibility(make({ ...full, hasOpenGateRequest: false }))
+        .showHypoReviewDiff,
     ).toBe(false);
   });
 
-  it("showBcReviewDiff needs baseline + stakeholder_review + viewerHasOpenApproval", () => {
+  it("showBcReviewDiff verlangt Baseline + stakeholder_review + offene Abnahme", () => {
+    const full = {
+      approvalPhase: "stakeholder_review" as const,
+      hasBcBaseline: true,
+      viewerHasOpenApproval: true,
+    };
+    expect(computeEpicRevisionVisibility(make(full)).showBcReviewDiff).toBe(true);
     expect(
-      computeEpicRevisionVisibility(
-        make({
-          approvalPhase: "stakeholder_review",
-          hasBcBaseline: true,
-          viewerHasOpenApproval: true,
-        }),
-      ).showBcReviewDiff,
-    ).toBe(true);
-    // No open approval
-    expect(
-      computeEpicRevisionVisibility(
-        make({ approvalPhase: "stakeholder_review", hasBcBaseline: true }),
-      ).showBcReviewDiff,
+      computeEpicRevisionVisibility(make({ ...full, viewerHasOpenApproval: false }))
+        .showBcReviewDiff,
     ).toBe(false);
-    // Missing baseline
     expect(
-      computeEpicRevisionVisibility(
-        make({ approvalPhase: "stakeholder_review", viewerHasOpenApproval: true }),
-      ).showBcReviewDiff,
+      computeEpicRevisionVisibility(make({ ...full, hasBcBaseline: false })).showBcReviewDiff,
     ).toBe(false);
   });
 });
 
-describe("computeEpicRevisionVisibility — owner-edit side-by-side", () => {
-  it("ownerRevisionActive is canEdit && phase !== approved", () => {
+describe("computeEpicRevisionVisibility — Owner-Edit", () => {
+  it("ownerRevisionActive ist canEdit && Phase !== approved", () => {
     for (const phase of PHASES) {
       expect(
         computeEpicRevisionVisibility(make({ approvalPhase: phase, canEdit: true }))
           .ownerRevisionActive,
+        phase,
       ).toBe(phase !== "approved");
-      expect(
-        computeEpicRevisionVisibility(make({ approvalPhase: phase, canEdit: false }))
-          .ownerRevisionActive,
-      ).toBe(false);
     }
   });
 
-  it("showHypoOwnerEdit: baseline + owner revision active + not a review diff", () => {
-    // draft: owner active, no review diff → owner edit shows
-    expect(
-      computeEpicRevisionVisibility(
-        make({ approvalPhase: "draft", hasHypoBaseline: true, canEdit: true }),
-      ).showHypoOwnerEdit,
-    ).toBe(true);
-    // hypothesis_review with decide → review diff wins, owner edit suppressed
+  it("der Review-Diff verdrängt den Owner-Edit", () => {
     const reviewing = computeEpicRevisionVisibility(
       make({
-        approvalPhase: "hypothesis_review",
         hasHypoBaseline: true,
         canEdit: true,
-        canDecideHypothesis: true,
+        hasOpenGateRequest: true,
+        viewerIsGateApprover: true,
       }),
     );
     expect(reviewing.showHypoReviewDiff).toBe(true);
     expect(reviewing.showHypoOwnerEdit).toBe(false);
-    // approved → owner revision inactive → no owner edit
+
+    // Ohne laufende Abnahme zeigt der Owner seinen eigenen Diff.
     expect(
-      computeEpicRevisionVisibility(
-        make({ approvalPhase: "approved", hasHypoBaseline: true, canEdit: true }),
-      ).showHypoOwnerEdit,
-    ).toBe(false);
-    // no baseline → no owner edit
-    expect(
-      computeEpicRevisionVisibility(make({ approvalPhase: "draft", canEdit: true }))
+      computeEpicRevisionVisibility(make({ hasHypoBaseline: true, canEdit: true }))
         .showHypoOwnerEdit,
-    ).toBe(false);
-  });
-
-  it("showBcOwnerEdit: baseline + owner revision active + not a review diff", () => {
-    // business_case: owner active, no review diff → owner edit shows
-    expect(
-      computeEpicRevisionVisibility(
-        make({ approvalPhase: "business_case", hasBcBaseline: true, canEdit: true }),
-      ).showBcOwnerEdit,
-    ).toBe(true);
-    // stakeholder_review with open approval → review diff wins, owner edit suppressed
-    const reviewing = computeEpicRevisionVisibility(
-      make({
-        approvalPhase: "stakeholder_review",
-        hasBcBaseline: true,
-        canEdit: true,
-        viewerHasOpenApproval: true,
-      }),
-    );
-    expect(reviewing.showBcReviewDiff).toBe(true);
-    expect(reviewing.showBcOwnerEdit).toBe(false);
-    // stakeholder_review WITHOUT open approval → no review diff → owner edit shows
-    expect(
-      computeEpicRevisionVisibility(
-        make({ approvalPhase: "stakeholder_review", hasBcBaseline: true, canEdit: true }),
-      ).showBcOwnerEdit,
     ).toBe(true);
   });
-});
 
-describe("computeEpicRevisionVisibility — plain view", () => {
-  it("no baselines → every side-by-side flag is false across phases", () => {
+  it("ohne Baseline gibt es keinen einzigen Side-by-Side", () => {
     for (const phase of PHASES) {
-      const v = computeEpicRevisionVisibility(
-        make({ approvalPhase: phase, canEdit: true, canDecideHypothesis: true }),
-      );
+      const v = computeEpicRevisionVisibility(make({ approvalPhase: phase, canEdit: true }));
       expect(v.showHypoReviewDiff).toBe(false);
       expect(v.showBcReviewDiff).toBe(false);
       expect(v.showHypoOwnerEdit).toBe(false);

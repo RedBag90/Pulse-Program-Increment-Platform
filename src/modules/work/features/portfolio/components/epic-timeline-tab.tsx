@@ -269,8 +269,7 @@ export function EpicTimelineTab({
       level: "L1",
       estimatePhase: "hypothesis",
       actualIso: hypothesisApprovedAt,
-      expandable:
-        multiPartyApproval && (approvalPhase === "draft" || approvalPhase === "hypothesis_review"),
+      expandable: multiPartyApproval && approvalPhase === "draft",
     },
     {
       key: "analyzing",

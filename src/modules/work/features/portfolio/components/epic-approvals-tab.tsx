@@ -7,7 +7,6 @@ import {
   type ApprovalViewModel,
 } from "@/modules/work/domain/epic-approval";
 import {
-  SubmitHypothesisButton,
   SubmitBusinessCaseButton,
   ReviseBusinessCaseButton,
   StartRevisionButtons,
@@ -80,21 +79,8 @@ export function EpicHypothesisApproval({
     return (
       <div className="space-y-2">
         <p className="text-xs text-muted-foreground">
-          Reiche die Benefit-Hypothese zur QS beim Portfolio Manager ein.
-        </p>
-        {canManage && <SubmitHypothesisButton epicId={epicId} />}
-      </div>
-    );
-  }
-  if (phase === "hypothesis_review") {
-    return (
-      <div className="space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Wartet auf Portfolio-Manager-Freigabe der Hypothese — die Entscheidung erfolgt in{" "}
-          <Link href="/my-approvals" className="font-medium text-primary hover:underline">
-            Meine Freigaben
-          </Link>
-          .
+          Der Business Case wird bearbeitbar, sobald die Hypothese freigegeben ist — das geschieht
+          mit der Abnahme des Reifegrad-Wechsels auf L1.
         </p>
         {canManage && (
           <div className="border-t pt-2">
@@ -162,9 +148,10 @@ export function EpicBusinessCaseApproval({
       <div className="space-y-2">
         <SectionLabel>Freigaben · Revision {revision}</SectionLabel>
 
-        {(phase === "draft" || phase === "hypothesis_review") && (
+        {phase === "draft" && (
           <p className="text-xs text-muted-foreground">
-            Zuerst muss die Hypothese freigegeben sein (Phase „Business hypothesis done").
+            Zuerst muss die Hypothese freigegeben sein — sie wird mit dem Reifegrad-Wechsel auf L1
+            abgenommen.
           </p>
         )}
         {phase === "business_case" && !canManage && (

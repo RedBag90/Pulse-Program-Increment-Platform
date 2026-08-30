@@ -35,7 +35,6 @@ export { decisionStatus, assertAssignedApprover };
 
 export const APPROVAL_PHASES = [
   "draft",
-  "hypothesis_review",
   "business_case",
   "stakeholder_review",
   "approved",
@@ -57,8 +56,9 @@ export const APPROVAL_PARTY_LABELS: Record<ApprovalParty, string> = {
  * back to `draft`, a rejected stakeholder approval back to `business_case`.
  */
 const PHASE_TRANSITIONS: Record<ApprovalPhase, readonly ApprovalPhase[]> = {
-  draft: ["hypothesis_review"],
-  hypothesis_review: ["business_case", "draft"],
+  // draft → business_case schreibt nicht mehr dieser Apparat, sondern die
+  // abgenommene Reifegrad-Transition L0 → L1: sie *ist* die Hypothesen-Freigabe.
+  draft: ["business_case"],
   business_case: ["stakeholder_review"],
   stakeholder_review: ["approved", "business_case"],
   // A new revision re-opens an approved Epic: full cycle (→ draft) or
@@ -83,8 +83,6 @@ export function canPhaseTransition(from: string, to: string): boolean {
 // ---------------------------------------------------------------------------
 
 export type WorkflowIntent =
-  | { kind: "submit_hypothesis" }
-  | { kind: "decide_hypothesis"; decision: ApprovalDecision }
   | { kind: "configure_approvers" }
   | { kind: "submit_business_case" }
   | { kind: "decide_approval" }
@@ -102,8 +100,6 @@ export function revisionStartPhase(mode: RevisionMode): ApprovalPhase {
  * pass it straight back to the HTTP layer; the `reason` is pre-formatted.
  */
 const INTENT_LABEL: Record<WorkflowIntent["kind"], string> = {
-  submit_hypothesis: "die Hypothese einreichen",
-  decide_hypothesis: "eine Hypothese-Entscheidung treffen",
   configure_approvers: "Approver konfigurieren",
   submit_business_case: "den Business Case einreichen",
   decide_approval: "eine Approval-Entscheidung treffen",
@@ -133,12 +129,6 @@ export function nextPhaseFor(
   intent: WorkflowIntent,
 ): Result<ApprovalPhase | null> {
   switch (intent.kind) {
-    case "submit_hypothesis":
-      if (current !== "draft") return err(conflict(intent, current));
-      return ok("hypothesis_review");
-    case "decide_hypothesis":
-      if (current !== "hypothesis_review") return err(conflict(intent, current));
-      return ok(intent.decision === "approve" ? "business_case" : "draft");
     case "configure_approvers":
       if (current !== "business_case") return err(conflict(intent, current));
       return ok(null);

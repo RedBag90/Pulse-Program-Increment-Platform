@@ -27,14 +27,13 @@ function fullSet(): ApprovalRecord[] {
 
 describe("phase transitions", () => {
   it("allows the forward path", () => {
-    expect(canPhaseTransition("draft", "hypothesis_review")).toBe(true);
-    expect(canPhaseTransition("hypothesis_review", "business_case")).toBe(true);
+    // draft → business_case schreibt die abgenommene L0→L1-Transition.
+    expect(canPhaseTransition("draft", "business_case")).toBe(true);
     expect(canPhaseTransition("business_case", "stakeholder_review")).toBe(true);
     expect(canPhaseTransition("stakeholder_review", "approved")).toBe(true);
   });
 
   it("allows rejection rebounds", () => {
-    expect(canPhaseTransition("hypothesis_review", "draft")).toBe(true);
     expect(canPhaseTransition("stakeholder_review", "business_case")).toBe(true);
   });
 
@@ -44,10 +43,9 @@ describe("phase transitions", () => {
   });
 
   it("forbids skips and illegal exits from approved", () => {
-    expect(canPhaseTransition("draft", "business_case")).toBe(false);
+    expect(canPhaseTransition("draft", "stakeholder_review")).toBe(false);
     expect(canPhaseTransition("draft", "approved")).toBe(false);
     expect(canPhaseTransition("approved", "stakeholder_review")).toBe(false);
-    expect(canPhaseTransition("hypothesis_review", "stakeholder_review")).toBe(false);
   });
 
   it("returns false for unknown phases", () => {
@@ -63,27 +61,6 @@ describe("revisions", () => {
 });
 
 describe("nextPhaseFor — intent-driven workflow seam", () => {
-  it("submit_hypothesis from draft → hypothesis_review", () => {
-    const r = nextPhaseFor("draft", { kind: "submit_hypothesis" });
-    expect(r.ok && r.value).toBe("hypothesis_review");
-  });
-
-  it("submit_hypothesis from anywhere else → conflict", () => {
-    const r = nextPhaseFor("business_case", { kind: "submit_hypothesis" });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.kind).toBe("conflict");
-  });
-
-  it("decide_hypothesis: approve → business_case, reject → draft", () => {
-    const a = nextPhaseFor("hypothesis_review", {
-      kind: "decide_hypothesis",
-      decision: "approve",
-    });
-    expect(a.ok && a.value).toBe("business_case");
-    const r = nextPhaseFor("hypothesis_review", { kind: "decide_hypothesis", decision: "reject" });
-    expect(r.ok && r.value).toBe("draft");
-  });
-
   it("configure_approvers + decide_approval keep the phase (no transition)", () => {
     const c = nextPhaseFor("business_case", { kind: "configure_approvers" });
     expect(c.ok && c.value).toBeNull();
@@ -97,23 +74,18 @@ describe("nextPhaseFor — intent-driven workflow seam", () => {
   });
 
   it("start_revision from any started phase, but not from draft", () => {
-    for (const phase of [
-      "hypothesis_review",
-      "business_case",
-      "stakeholder_review",
-      "approved",
-    ] as const) {
+    for (const phase of ["business_case", "stakeholder_review", "approved"] as const) {
       expect(nextPhaseFor(phase, { kind: "start_revision", mode: "full" }).ok).toBe(true);
     }
     expect(nextPhaseFor("draft", { kind: "start_revision", mode: "full" }).ok).toBe(false);
   });
 
   it("conflict reason names the current phase + the intent label", () => {
-    const r = nextPhaseFor("business_case", { kind: "submit_hypothesis" });
+    const r = nextPhaseFor("draft", { kind: "submit_business_case" });
     expect(r.ok).toBe(false);
     if (!r.ok && r.error.kind === "conflict") {
-      expect(r.error.reason).toContain('"business_case"');
-      expect(r.error.reason).toContain("Hypothese");
+      expect(r.error.reason).toContain('"draft"');
+      expect(r.error.reason).toContain("Business Case");
     }
   });
 });

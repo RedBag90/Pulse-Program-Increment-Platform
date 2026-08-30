@@ -55,29 +55,25 @@ describe("nextGate / previousGate", () => {
 });
 
 describe("gateReadiness — L1 (Selektion ins Detailing)", () => {
-  it("Mehrparteien: verlangt den Freigabe-Stempel, nicht bloss Inhalt", () => {
+  it("verlangt ausgearbeiteten Inhalt, nicht den Freigabe-Stempel", () => {
+    // Die Abnahme dieses Schritts *ist* die Hypothesen-Freigabe — sie hier zu
+    // verlangen wäre zirkulär.
+    expect(keys(facts("L0"), "L1", "blocking-unsatisfied")).toEqual(["hypothesis_drafted"]);
     expect(keys(facts("L0", { hasHypothesisContent: true }), "L1", "blocking-unsatisfied")).toEqual(
-      ["hypothesis_ready"],
-    );
-    expect(keys(facts("L0", { hypothesisApprovedAt: AT }), "L1", "blocking-unsatisfied")).toEqual(
       [],
     );
   });
 
-  it("Einparteien: ausgearbeiteter Inhalt genügt", () => {
-    const f = facts("L0", { multiPartyApproval: false, hasHypothesisContent: true });
-    expect(gateReadiness(f, "L1").ready).toBe(true);
-  });
-
-  it("das Label folgt der Practice-Gabelung", () => {
-    const label = (multi: boolean) =>
-      gateReadiness(facts("L0", { multiPartyApproval: multi }), "L1").criteria[0]?.label;
-    expect(label(true)).toBe("Benefit-Hypothese ist freigegeben");
-    expect(label(false)).toBe("Benefit-Hypothese ist ausgearbeitet");
+  it("die Practice spielt hier keine Rolle mehr", () => {
+    for (const multi of [true, false]) {
+      const f = facts("L0", { multiPartyApproval: multi, hasHypothesisContent: true });
+      expect(gateReadiness(f, "L1").ready, String(multi)).toBe(true);
+      expect(gateReadiness(f, "L1").criteria[0]?.label).toBe("Benefit-Hypothese ist ausgearbeitet");
+    }
   });
 
   it("der fehlende Epic Owner ist beratend — er blockiert nicht", () => {
-    const f = facts("L0", { hypothesisApprovedAt: AT, ownerId: null });
+    const f = facts("L0", { hasHypothesisContent: true, ownerId: null });
     const r = gateReadiness(f, "L1");
     expect(r.ready).toBe(true);
     expect(keys(f, "L1", "unsatisfied")).toEqual(["owner_nominated"]);
@@ -92,7 +88,7 @@ describe("gateReadiness — L2 (Eintritt in die Analyse)", () => {
   });
 
   it("ohne freigegebene Hypothese blockiert L2", () => {
-    expect(keys(facts("L1"), "L2", "blocking-unsatisfied")).toEqual(["hypothesis_ready"]);
+    expect(keys(facts("L1"), "L2", "blocking-unsatisfied")).toEqual(["hypothesis_approved"]);
   });
 });
 

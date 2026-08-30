@@ -159,8 +159,6 @@ export interface EpicDetailInputs {
   principalId: string;
   // Capability booleans (resolved in the loader; the builder never authorizes).
   canEdit: boolean;
-  canDecideHypothesis: boolean;
-  canSubmitHypothesis: boolean;
   canSubmitBusinessCase: boolean;
   canAssignOwner: boolean;
   canLinkDependency: boolean;
@@ -251,8 +249,6 @@ export interface EpicDetailModel {
 
   // Capability booleans — the page JSX consumes these directly.
   canEdit: boolean;
-  canDecideHypothesis: boolean;
-  canSubmitHypothesis: boolean;
   canSubmitBusinessCase: boolean;
   canAssignOwner: boolean;
   canLinkDependency: boolean;
@@ -358,14 +354,15 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     showWsjf,
     principalId,
     canEdit,
-    canDecideHypothesis,
-    canSubmitHypothesis,
     canSubmitBusinessCase,
     canAssignOwner,
     canLinkDependency,
     canSetDelivery,
     gate,
   } = inputs;
+
+  /** Der offene Reifegrad-Antrag, sofern die Reifegrad-Achse aktiv ist. */
+  const gateOpenRequest = gate.disabled ? null : gate.openRequest;
 
   const breakdownFeatures: BreakdownFeature[] = epic.children.map((c) => ({
     id: c.id,
@@ -531,10 +528,14 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     showBcOwnerEdit,
   } = computeEpicRevisionVisibility({
     approvalPhase,
+    // Die Hypothesen-Sperre folgt dem Reifegrad-Antrag, nicht mehr der Phase:
+    // die Abnahme des Schritts L0 → L1 *ist* die Hypothesen-Freigabe.
+    stageGate: epic.stageGate as StageGate,
+    hasOpenGateRequest: gateOpenRequest != null,
+    viewerIsGateApprover: gateOpenRequest?.pendingUserIds.includes(principalId) ?? false,
     hasHypoBaseline: hypoBaseline != null,
     hasBcBaseline: bcBaseline != null,
     canEdit,
-    canDecideHypothesis,
     viewerHasOpenApproval,
   });
 
@@ -611,8 +612,6 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     lifecycleSteps,
     gate,
     canEdit,
-    canDecideHypothesis,
-    canSubmitHypothesis,
     canSubmitBusinessCase,
     canAssignOwner,
     canLinkDependency,
@@ -647,13 +646,6 @@ export async function loadEpicDetailInputs(
     tenantId: principal.tenantId,
     valueStreamId: epic.valueStreamId,
   });
-  const canDecideHypothesis = hasCapability(principal, "epic.hypothesis.decide");
-  const canSubmitHypothesis =
-    approvalPhase === "draft" &&
-    hasCapability(principal, "epic.hypothesis.submit", {
-      tenantId: principal.tenantId,
-      valueStreamId: epic.valueStreamId,
-    });
   const canSubmitBusinessCase =
     approvalPhase === "business_case" &&
     hasCapability(principal, "epic.businesscase.submit", {
@@ -740,8 +732,6 @@ export async function loadEpicDetailInputs(
     }),
     principalId: principal.id,
     canEdit,
-    canDecideHypothesis,
-    canSubmitHypothesis,
     canSubmitBusinessCase,
     canAssignOwner,
     canLinkDependency,

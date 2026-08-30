@@ -22,9 +22,12 @@ bleibt. „Freigabe" heißt in Pulse zwei verschiedene Dinge:
   [ADR-0003](../adr/0003-initiative-state-axes-stay-orthogonal.md).
 
 Dazu kommt: nicht jeder angezeigte Reifegrad ist ein beantragbarer Schritt.
-`L3.1` und `L4.1` — die Eintritts-Stufen ihrer Haupt-Gates — werden aus
-persistierten Fakten **abgeleitet**. `L3.2` und `L4.2` dagegen werden wirklich
-beantragt und abgenommen.
+Genau eine Stufe wird rein **abgeleitet** — `L4.1 · Umsetzung läuft`: sie ist
+schlicht „L4, aber noch nicht bestätigt fertig". `L3.1`, `L3.2` und `L4.2`
+werden dagegen beantragt und abgenommen wie jedes Haupt-Gate. Dass `L3.1` und
+`L3.2` daneben auch als Sub-Stage unter dem Gate L3 erscheinen, ist nur die
+Anzeige: die Spalte trägt „L3", und der Investitions-Stempel entscheidet, welche
+der beiden Stufen zu sehen ist.
 
 ## Der Durchlauf
 
@@ -43,10 +46,17 @@ grob, aber zwei dieser Schätzungen sind mehr als eine Notiz: aus „Umsetzung
 gestartet" und „Umsetzung fertig" leitet Pulse das geplante Zeitfenster des
 Epics ab.
 
-Ich schicke die Hypothese in die Freigabe. Sobald sie freigegeben ist, kann ich
-den Reifegrad-Wechsel **L0 → L1** beantragen — vorher nicht. Reifegrade bewegen
-sich nie von allein: ich stelle einen Antrag, benannte Personen nehmen ihn ab,
-und Pulse zeigt mir vorher, welche Kriterien erfüllt sind und welche fehlen.
+Ist die Hypothese ausgearbeitet, beantrage ich den Reifegrad-Wechsel
+**L0 → L1**. Einen eigenen Freigabelauf für die Hypothese gibt es nicht — **die
+Abnahme dieses Schritts ist ihre Freigabe**. Ab dem gestellten Antrag ist der
+Text gesperrt: die Abnehmer sollen nicht auf etwas schauen, das sich unter ihnen
+ändert. Der VMO stimmt zu, und mit diesem einen Akt steht der Stempel und das
+Epic auf L1. Lehnt er begründet ab, bleibt das Epic auf L0 und der Text ist
+wieder frei.
+
+Reifegrade bewegen sich nie von allein: ich stelle einen Antrag, benannte
+Personen nehmen ihn ab, und Pulse zeigt mir vorher, welche Kriterien erfüllt
+sind und welche fehlen.
 
 Für die Konkretisierung brauche ich Geld. Ein eigenes Analyse-Budget gibt es
 nicht — es gibt eine Budgetrunde je Halbjahr. Mein Epic kommt aber schon mit der
@@ -66,15 +76,15 @@ Ziel, Einheit — und zusammen mit Finance den Wert je Einheit und die Nutzenart
 einmalig oder laufend. Daraus rechnet Pulse den Nutzenbeitrag. Finance
 verifiziert das nicht nebenbei, sondern zeichnet es ab: im Freigabelauf ist
 Finance eine der fünf Parteien, und deren Freigabe deckt Deliverables und KPIs
-mit ab — eigene Abnahmen je Abschnitt gibt es nicht mehr.
+mit ab — eigene Abnahmen je Abschnitt gibt es nicht mehr. Entsprechend führt die
+Freigabe-Inbox unter _Meine Tasks_ keinen Eintrag „Epic-Abschnitte" mehr.
 
 Die Timeline verfeinere ich — die groben Schätzungen von damals stehen jetzt
 neben belastbaren Daten.
 
 Ich fordere die Freigabe des Business Case an. Der Lauf geht über MGMT, Business
 Owner, Finance, IRT-Owner und LACE/VMO. Sind alle durch, kann ich **L2 → L3.1**
-beantragen; das Epic steht dann auf **L3.1 · BC freigegeben** — die Sub-Stage ist
-abgeleitet, der Schritt dorthin nicht.
+beantragen. Der VMO nimmt ab, und das Epic steht auf **L3.1 · BC freigegeben**.
 
 Ich setze den Haken **„Im nächsten Steering-Meeting behandeln"**. Im
 Portfolio-Review wird mein Epic aufgerufen, und das Ergebnis lautet: hol dir
@@ -128,7 +138,7 @@ Antrag nicht durch. **Beratend** heißt: Pulse zeigt es an, hält aber nicht auf
 
 | Schritt | Blockierend                                      | Beratend                                    |
 | ------- | ------------------------------------------------ | ------------------------------------------- |
-| → L1    | Benefit-Hypothese ist freigegeben                | Epic Owner ist benannt                      |
+| → L1    | Benefit-Hypothese ist ausgearbeitet              | Epic Owner ist benannt                      |
 | → L2    | Benefit-Hypothese ist freigegeben                | Epic Owner benannt · Business Case begonnen |
 | → L3.1  | Business Case freigegeben                        | —                                           |
 | → L3.2  | Budget alloziert (Σ > 0)                         | —                                           |
@@ -139,16 +149,37 @@ Antrag nicht durch. **Beratend** heißt: Pulse zeigt es an, hält aber nicht auf
 Ist die Mehrparteien-Freigabe für den Tenant ausgeschaltet, genügt bei der
 Hypothese ausgearbeiteter Inhalt statt eines Freigabe-Stempels.
 
+## Wer nimmt welchen Schritt ab
+
+Die Code-Defaults, je Wertstrom überschreibbar. Das Quorum ist durchgehend
+einstimmig — wer eingetragen ist, muss zustimmen.
+
+| Schritt                      | Abnahme             |
+| ---------------------------- | ------------------- |
+| → L1 · L2 · L3.1 · L4 · L4.2 | VMO                 |
+| → L3.2                       | VMO **und** Finance |
+| → L5                         | Finance             |
+
+Darin steckt die Begründung für den Schnitt: Finance zeichnet die
+**Geld**-Entscheidung mit (L3.2) und bestätigt am Ende den **Nutzen** (L5) — den
+Eintritt in L3 mit dem freigegebenen Business Case dagegen nicht. Genau deshalb
+sind L3.1 und L3.2 zwei Schritte und nicht einer.
+
+Der Schritt **→ L1** trägt zusätzlich eine inhaltliche Aussage: mit seiner
+Abnahme ist die Benefit-Hypothese freigegeben. Einen zweiten Lauf davor gibt es
+nicht.
+
 ## Wo die verbreitete Beschreibung von der Mechanik abweicht
 
 1. **Die Investitionsentscheidung fehlt.** Die gängige Erzählung springt von der
    Budgetrunde direkt zur Umsetzungsfreigabe. Dazwischen liegt der beantragte
    Schritt **L3.1 → L3.2**, und genau dieser Übergang _ist_ die
    Investitionsentscheidung — hier werden Genehmiger und Datum am Epic gestempelt.
-2. **L3.1 und L4.1 werden abgeleitet, nicht beantragt.** Sie sind die
-   Eintritts-Stufen ihres Haupt-Gates und ergeben sich aus persistierten Fakten.
-   Beantragt und abgenommen werden die Haupt-Schritte — und **L3.2** sowie
-   **L4.2**, die beiden Sub-Stages, die echte Schritte sind.
+2. **Die x.2-Stufen sind echte Schritte, keine Anzeige.** Verbreitet ist die
+   Annahme, alles hinter dem Punkt sei abgeleitet. Tatsächlich werden **L3.1**,
+   **L3.2** und **L4.2** beantragt und namentlich abgenommen; nur **L4.1**
+   ergibt sich von selbst — es ist „L4, solange die Umsetzung nicht bestätigt
+   fertig ist".
 3. **Kein separates Analyse-Budget.** Häufig wird „Geld für die Konkretisierung"
    als eigene Runde beschrieben. Es gibt eine Budgetrunde je Zyklus; ein Epic
    kommt aufs Ballot, sobald **Hypothese oder** Lean Business Case freigegeben
@@ -164,14 +195,14 @@ Hypothese ausgearbeiteter Inhalt statt eines Freigabe-Stempels.
 
 ## Nachschlagepunkte im Code
 
-| Aussage                                        | Quelle                                                                     |
-| ---------------------------------------------- | -------------------------------------------------------------------------- |
-| Schritte + Sub-Stages, L4.2 als echter Schritt | `src/modules/work/domain/stage-gate.ts`                                    |
-| Kriterien je Schritt, blockierend vs. beratend | `src/modules/work/domain/gate-readiness.ts`                                |
-| Wer nimmt ab (Finance · VMO · Epic Owner)      | `src/modules/work/domain/gate-policy.ts`                                   |
-| Freigabephasen, Parteien, Sektionen            | `src/modules/work/domain/epic-approval.ts`                                 |
-| Ballot-Fähigkeit + Default-Aufwand             | `src/modules/work/domain/pb-submission.ts`                                 |
-| Budget-Prozessleiste, Rundenstatus             | `src/modules/budgeting/server/views/budget-process-rail.ts`                |
-| Beschriftung der zwei Merker                   | `src/modules/work/features/portfolio/components/epic-governance-flags.tsx` |
-| Phasen-Labels des Zeitstrahls                  | `src/components/detail/initiative-labels.ts`                               |
-| Timeline-Estimates = geplantes Fenster         | `src/modules/work/domain/epic-schedule.ts`                                 |
+| Aussage                                                 | Quelle                                                                     |
+| ------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Schritte + Sub-Stages, L3.2 und L4.2 als echte Schritte | `src/modules/work/domain/stage-gate.ts`                                    |
+| Kriterien je Schritt, blockierend vs. beratend          | `src/modules/work/domain/gate-readiness.ts`                                |
+| Wer nimmt welchen Schritt ab                            | `src/modules/work/domain/gate-policy.ts`                                   |
+| Freigabephasen und Parteien                             | `src/modules/work/domain/epic-approval.ts`                                 |
+| Ballot-Fähigkeit + Default-Aufwand                      | `src/modules/work/domain/pb-submission.ts`                                 |
+| Budget-Prozessleiste, Rundenstatus                      | `src/modules/budgeting/server/views/budget-process-rail.ts`                |
+| Beschriftung der zwei Merker                            | `src/modules/work/features/portfolio/components/epic-governance-flags.tsx` |
+| Phasen-Labels des Zeitstrahls                           | `src/components/detail/initiative-labels.ts`                               |
+| Timeline-Estimates = geplantes Fenster                  | `src/modules/work/domain/epic-schedule.ts`                                 |

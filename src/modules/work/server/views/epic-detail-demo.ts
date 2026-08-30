@@ -169,8 +169,6 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
     principalId: DEMO_USER,
     // Durchgängig schreibgeschützt — siehe Kopfkommentar.
     canEdit: false,
-    canDecideHypothesis: false,
-    canSubmitHypothesis: false,
     canSubmitBusinessCase: false,
     canAssignOwner: false,
     gate: { disabled: true },

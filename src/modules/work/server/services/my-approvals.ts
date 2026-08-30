@@ -15,7 +15,7 @@ import type { StageGate } from "@/modules/core/kernel/domain/types";
  * bleiben getrennt (ADR-0003), teilen sich aber den Posteingang.
  */
 
-export type ApprovalKind = "epic_hypothesis" | "epic_party" | "epic_gate";
+export type ApprovalKind = "epic_party" | "epic_gate";
 
 /** The fields every approval row carries, regardless of kind. */
 interface MyApprovalRowBase {
@@ -42,7 +42,6 @@ interface MyApprovalRowBase {
  */
 export type MyApprovalRow = MyApprovalRowBase &
   (
-    | { kind: "epic_hypothesis"; target: { epicId: string } }
     | { kind: "epic_party"; target: { approvalId: string } }
     | { kind: "epic_gate"; target: { transitionId: string } }
   );
@@ -56,48 +55,10 @@ export async function listMyApprovals(
   db: PrismaClient,
   principal: Principal,
 ): Promise<MyApprovalRow[]> {
-  const { id: userId, tenantId, roles } = principal;
-  const isAdmin = roles.includes("tenant_admin") || roles.includes("platform_admin");
-  const isReviewer = roles.includes("portfolio_manager");
+  const { id: userId, tenantId } = principal;
 
-  // Mirrors the gating on the Epic detail page (Approvals tab): admins decide
-  // anywhere; a Portfolio Manager (the VS's pinned reviewer, formerly "VMO")
-  // decides hypotheses in the value streams they're pinned on via `vmoId`.
-  const hypothesisWhere = isAdmin
-    ? { tenantId, level: InitiativeLevel.EPIC, deletedAt: null, approvalPhase: "hypothesis_review" }
-    : isReviewer
-      ? {
-          tenantId,
-          level: InitiativeLevel.EPIC,
-          deletedAt: null,
-          approvalPhase: "hypothesis_review",
-          valueStream: { vmoId: userId, deletedAt: null },
-        }
-      : null;
-
-  const [hypothesis, partyApprovals, gateApprovals] = await Promise.all([
-    // 1) Epic hypothesis — Portfolio Manager of the value stream, or admin.
-    hypothesisWhere
-      ? db.initiative.findMany({
-          where: hypothesisWhere,
-          select: {
-            id: true,
-            title: true,
-            updatedAt: true,
-            valueStream: { select: { id: true, name: true } },
-          },
-          orderBy: { updatedAt: "desc" },
-        })
-      : Promise.resolve(
-          [] as Array<{
-            id: string;
-            title: string;
-            updatedAt: Date;
-            valueStream: { id: string; name: string } | null;
-          }>,
-        ),
-
-    // 2) Epic party approvals — assigned to me, pending, joined to the Epic's
+  const [partyApprovals, gateApprovals] = await Promise.all([
+    // 1) Epic party approvals — assigned to me, pending, joined to the Epic's
     //    current revision. `kind: "party"` schliesst Legacy-Zeilen der
     //    abgeschafften Sektions-Abnahme aus.
     db.epicApproval.findMany({
@@ -157,20 +118,6 @@ export async function listMyApprovals(
   ]);
 
   const rows: MyApprovalRow[] = [];
-
-  for (const h of hypothesis) {
-    rows.push({
-      id: `epic_hypothesis:${h.id}`,
-      kind: "epic_hypothesis",
-      title: h.title,
-      href: `/portfolio/epics/${h.id}?tab=benefit-hypothesis`,
-      context: {
-        valueStreamName: h.valueStream?.name ?? null,
-      },
-      target: { epicId: h.id },
-      requestedAt: h.updatedAt,
-    });
-  }
 
   for (const a of partyApprovals) {
     // Only surface rows that belong to the Epic's *current* revision (and an

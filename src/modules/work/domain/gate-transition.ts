@@ -54,6 +54,18 @@ export type GateTransitionStatus = (typeof GATE_TRANSITION_STATUSES)[number];
 export interface GateStamps {
   stageGate?: StageGate;
   selectedForDetailingAt?: Date | null;
+  /**
+   * Hypothesen-Freigabe. Die Abnahme des Schritts L0 → L1 **ist** sie — es gibt
+   * keinen eigenen Freigabelauf mehr davor. `null` räumt sie beim Revert ab.
+   */
+  hypothesisApprovedAt?: Date | null;
+  /** Eine inhaltliche Freigabe markiert das Epic fürs nächste Steering. */
+  needsSteeringAttention?: boolean;
+  /**
+   * Die Mehrparteien-Phase zieht mit: mit der abgenommenen Hypothese ist der
+   * Business Case dran. Früher schrieb `decideHypothesis` das.
+   */
+  approvalPhase?: string;
   selectedForAnalyzingAt?: Date | null;
   implementationStartedAt?: Date | null;
   /**
@@ -92,7 +104,15 @@ export function stampsForAdvance(
     // L3.2 und L4.2 leben innerhalb ihres Haupt-Gates: die Spalte bleibt stehen,
     // die Bestätigung materialisiert sich allein im jeweiligen Stempel.
     stageGate: gateOfStep(to),
-    ...(to === "L1" && facts.selectedForDetailingAt == null && { selectedForDetailingAt: now }),
+    // L0 → L1 trägt die Hypothesen-Freigabe: die Abnahme *ist* sie. Deshalb
+    // stempelt sie hier mit, setzt das Steering-Flag (das hing an
+    // `decideHypothesis`) und schiebt die Phase auf „Business Case".
+    ...(to === "L1" && {
+      ...(facts.selectedForDetailingAt == null && { selectedForDetailingAt: now }),
+      ...(facts.hypothesisApprovedAt == null && { hypothesisApprovedAt: now }),
+      needsSteeringAttention: true,
+      approvalPhase: "business_case",
+    }),
     ...(to === "L2" && facts.selectedForAnalyzingAt == null && { selectedForAnalyzingAt: now }),
     ...(to === "L4" && facts.implementationStartedAt == null && { implementationStartedAt: now }),
     ...(to === "L4.2" &&
@@ -123,7 +143,12 @@ export function stampsForAdvance(
  */
 export function unwindStampsFor(from: GateStep, to: GateStep): GateStamps {
   const stamps: GateStamps = { stageGate: gateOfStep(to) };
-  if (from === "L1" && to === "L0") stamps.selectedForDetailingAt = null;
+  // Die Hypothesen-Freigabe zurücknehmen — sie hängt an L0 → L1.
+  if (from === "L1" && to === "L0") {
+    stamps.selectedForDetailingAt = null;
+    stamps.hypothesisApprovedAt = null;
+    stamps.approvalPhase = "draft";
+  }
   if (from === "L2" && to === "L1") stamps.selectedForAnalyzingAt = null;
   // Die Investitionsentscheidung zurücknehmen. Sie hängt am Schritt L3.1 → L3.2,
   // nicht am Eintritt in L3.1 — der trägt keinen eigenen Stempel.

@@ -125,23 +125,35 @@ export interface CriterionRule {
 }
 
 /**
- * L0→L1 und L1→L2 verlangen dieselbe Vorleistung: eine freigegebene (bzw. bei
- * ausgeschalteter Mehrparteien-Freigabe: ausgearbeitete) Benefit-Hypothese.
- * L2 ist der *Eintritt* in die Analyse und steht damit vor „Business Case
- * fertig" — der BC-Inhalt ist Voraussetzung fürs BC-Einreichen, nicht hier.
+ * Vorleistung für **L0 → L1**: ausgearbeiteter Inhalt, nicht die Freigabe.
+ *
+ * Die Abnahme dieses Schritts *ist* die Hypothesen-Freigabe — sie hier zur
+ * Voraussetzung zu machen wäre zirkulär. Deshalb hängt das Kriterium am Inhalt
+ * und kennt keine `multiPartyApproval`-Gabelung mehr.
  */
-const HYPOTHESIS_READY: CriterionRule = {
-  key: "hypothesis_ready",
-  label: (f) =>
-    f.multiPartyApproval
-      ? "Benefit-Hypothese ist freigegeben"
-      : "Benefit-Hypothese ist ausgearbeitet",
+const HYPOTHESIS_DRAFTED: CriterionRule = {
+  key: "hypothesis_drafted",
+  label: () => "Benefit-Hypothese ist ausgearbeitet",
   help:
     "Die Benefit-Hypothese beschreibt den erwarteten Nutzen und die Annahme dahinter. " +
-    "Formuliere sie im Reiter Hypothese; ist die Mehrparteien-Freigabe aktiv, muss sie " +
-    "dort zusätzlich freigegeben werden, sonst genügt ausgearbeiteter Inhalt.",
-  satisfied: (f) =>
-    f.multiPartyApproval ? f.hypothesisApprovedAt != null : f.hasHypothesisContent,
+    "Formuliere sie im Reiter Hypothese. Freigegeben wird sie mit der Abnahme dieses " +
+    "Schritts — einen eigenen Freigabelauf davor gibt es nicht.",
+  satisfied: (f) => f.hasHypothesisContent,
+  blocking: true,
+};
+
+/**
+ * Vorleistung für **L1 → L2**: die abgenommene Hypothese. Nach dem Umbau ist das
+ * gleichbedeutend mit „L1 wurde abgenommen" — geprüft wird aber die Tatsache
+ * (der Stempel), nicht die Spalte.
+ */
+const HYPOTHESIS_APPROVED: CriterionRule = {
+  key: "hypothesis_approved",
+  label: () => "Benefit-Hypothese ist freigegeben",
+  help:
+    "Die Hypothese wurde mit dem Schritt auf L1 abgenommen. Fehlt der Stempel, ist " +
+    "das Epic nie sauber durch L1 gegangen.",
+  satisfied: (f) => f.hypothesisApprovedAt != null,
   blocking: true,
 };
 
@@ -164,9 +176,9 @@ const OWNER_NOMINATED: CriterionRule = {
  * der eigene Regeln hat).
  */
 export const GATE_CRITERIA: Partial<Record<GateStep, readonly CriterionRule[]>> = {
-  L1: [HYPOTHESIS_READY, OWNER_NOMINATED],
+  L1: [HYPOTHESIS_DRAFTED, OWNER_NOMINATED],
   L2: [
-    HYPOTHESIS_READY,
+    HYPOTHESIS_APPROVED,
     OWNER_NOMINATED,
     {
       key: "business_case_started",

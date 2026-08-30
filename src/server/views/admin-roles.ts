@@ -54,8 +54,6 @@ export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly
       "epic.gate.withdraw",
       "epic.gate.revert",
       "epic.gate.approvers.configure",
-      "epic.hypothesis.submit",
-      "epic.hypothesis.decide",
       "epic.approval.configure",
       "epic.businesscase.submit",
       "epic.approval.decide",

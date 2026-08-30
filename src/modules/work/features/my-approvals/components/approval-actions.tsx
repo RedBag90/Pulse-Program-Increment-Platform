@@ -1,10 +1,7 @@
 "use client";
 
 import { useActionState, useState, startTransition } from "react";
-import {
-  decideEpicHypothesisAction,
-  decideEpicApprovalAction,
-} from "@/modules/work/features/portfolio/actions/epic-approval";
+import { decideEpicApprovalAction } from "@/modules/work/features/portfolio/actions/epic-approval";
 import { decideGateTransitionAction } from "@/modules/work/features/portfolio/actions/stage-gate";
 import type { ApprovalKind, MyApprovalRow } from "@/modules/work/server/services/my-approvals";
 
@@ -42,8 +39,6 @@ function dispatch(action: (fd: FormData) => void, entries: Record<string, string
 /** The decide-action for a given row kind, picked at render. */
 function pickAction(kind: ApprovalKind) {
   switch (kind) {
-    case "epic_hypothesis":
-      return decideEpicHypothesisAction;
     case "epic_party":
       return decideEpicApprovalAction;
     case "epic_gate":
@@ -59,8 +54,6 @@ function buildEntries(row: MyApprovalRow, mode: Mode, comment: string): Record<s
   if (comment.trim()) base.comment = comment.trim();
 
   switch (row.kind) {
-    case "epic_hypothesis":
-      return { ...base, epicId: row.target.epicId };
     case "epic_party":
       return { ...base, approvalId: row.target.approvalId };
     case "epic_gate":

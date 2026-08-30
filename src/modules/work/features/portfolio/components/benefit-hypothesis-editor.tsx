@@ -1,9 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { Lock } from "lucide-react";
 import { saveBenefitHypothesisAction } from "@/modules/work/features/portfolio/actions/benefit-hypothesis";
-import { submitEpicHypothesisAction } from "@/modules/work/features/portfolio/actions/epic-approval";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import type {
@@ -20,11 +19,6 @@ interface BenefitHypothesisEditorProps {
   readOnly?: boolean;
   /** Why the form is locked (the current approval phase) — shown as a hint. */
   lockReason?: string;
-  /** When true, renders the "Fertig zum Einreichen"-Checkbox + Submit-Button
-   *  next to the save button. Aktiv nur in `approvalPhase = draft` und mit
-   *  `epic.hypothesis.submit`-Capability — die Sichtbarkeitslogik liegt auf
-   *  der Page. */
-  canSubmit?: boolean;
 }
 
 function formatVersionField(value: string | string[] | undefined): string {
@@ -37,12 +31,8 @@ export function BenefitHypothesisEditor({
   history,
   readOnly = false,
   lockReason,
-  canSubmit = false,
 }: BenefitHypothesisEditorProps) {
   const [state, action, isPending] = useActionState(saveBenefitHypothesisAction, {});
-  const [submitState, submitAction, submitPending] = useActionState(submitEpicHypothesisAction, {});
-  const [readyToSubmit, setReadyToSubmit] = useState(false);
-  const submitDisabled = !readyToSubmit || submitPending;
 
   return (
     <div className="space-y-6">
@@ -146,40 +136,6 @@ export function BenefitHypothesisEditor({
           </div>
         )}
       </form>
-
-      {canSubmit && !readOnly && (
-        // Separate form, damit Submit (epic.hypothesis.submit) nicht
-        // versehentlich die Save-Felder mitschickt. Auf gleicher Hoehe
-        // wie der Save-Knopf, rechts ausgerichtet.
-        <form
-          action={submitAction}
-          className="flex flex-wrap items-center justify-end gap-3 border-t pt-4"
-        >
-          <input type="hidden" name="epicId" value={epicId} />
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={readyToSubmit}
-              onChange={(e) => setReadyToSubmit(e.target.checked)}
-              className="size-4 rounded border-border"
-            />
-            Fertig zum Einreichen
-          </label>
-          <Button type="submit" disabled={submitDisabled}>
-            {submitPending ? "Einreichen…" : "Hypothese einreichen"}
-          </Button>
-          {submitState.error && (
-            <p role="alert" className="w-full text-right text-sm text-destructive">
-              {submitState.error}
-            </p>
-          )}
-          {submitState.success && (
-            <p role="status" className="w-full text-right text-sm text-emerald-600">
-              Hypothese eingereicht — der Portfolio Manager entscheidet jetzt.
-            </p>
-          )}
-        </form>
-      )}
 
       {history.length > 0 && (
         <details className="rounded-lg border bg-muted/50 p-3">

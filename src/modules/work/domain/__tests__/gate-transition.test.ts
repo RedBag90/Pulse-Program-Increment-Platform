@@ -68,7 +68,9 @@ const APPROVERS: ResolvedApprover[] = [
 function readyFor(to: GateStep): EpicGateFacts {
   switch (to) {
     case "L1":
-      return facts("L0", { hypothesisApprovedAt: EARLIER });
+      // Reif fuer L1 heisst: die Hypothese ist ausgearbeitet. Freigegeben wird
+      // sie mit der Abnahme dieses Schritts.
+      return facts("L0", { hasHypothesisContent: true });
     case "L2":
       return facts("L1", { hypothesisApprovedAt: EARLIER });
     case "L3.1":
@@ -359,6 +361,38 @@ describe("planGateRevert", () => {
 
   it("L3.1→L2 räumt nichts ab — der Eintritt in L3 trägt keinen eigenen Stempel", () => {
     expect(unwindStampsFor("L3.1", "L2")).toEqual({ stageGate: "L2" });
+  });
+});
+
+describe("L0 → L1 trägt die Hypothesen-Freigabe", () => {
+  it("stempelt Hypothese und Selektion und schiebt die Phase", () => {
+    const s = stampsForAdvance(readyFor("L1"), "L1", VMO, NOW);
+    expect(s.hypothesisApprovedAt).toEqual(NOW);
+    expect(s.selectedForDetailingAt).toEqual(NOW);
+    expect(s.needsSteeringAttention).toBe(true);
+    expect(s.approvalPhase).toBe("business_case");
+    expect(s.stageGate).toBe("L1");
+  });
+
+  it("set-once: ein vorhandener Stempel wird nicht überschrieben", () => {
+    const s = stampsForAdvance(
+      { ...readyFor("L1"), hypothesisApprovedAt: EARLIER, selectedForDetailingAt: EARLIER },
+      "L1",
+      VMO,
+      NOW,
+    );
+    expect(s.hypothesisApprovedAt).toBeUndefined();
+    expect(s.selectedForDetailingAt).toBeUndefined();
+    // Das Steering-Flag und die Phase folgen der Abnahme, nicht dem Stempel.
+    expect(s.approvalPhase).toBe("business_case");
+  });
+
+  it("der Revert L1 → L0 räumt die Freigabe ab", () => {
+    const s = unwindStampsFor("L1", "L0");
+    expect(s.hypothesisApprovedAt).toBeNull();
+    expect(s.selectedForDetailingAt).toBeNull();
+    expect(s.approvalPhase).toBe("draft");
+    expect(s.stageGate).toBe("L0");
   });
 });
 

@@ -2,8 +2,6 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/test/setup-db";
 import { seedTenant, testRequestContext } from "@/test/fixtures/seed";
 import {
-  submitHypothesis,
-  decideHypothesis,
   configureApprovers,
   submitBusinessCase,
   reviseBusinessCase,
@@ -47,35 +45,6 @@ async function makeEpic(approvalPhase: string, withBusinessCase = false): Promis
 }
 
 const ctx = () => testRequestContext(db, seed);
-
-describe("hypothesis phase", () => {
-  it("submit moves draft → hypothesis_review", async () => {
-    const id = await makeEpic("draft");
-    expect(isOk(await submitHypothesis(ctx(), { epicId: id }))).toBe(true);
-    const epic = await db.initiative.findFirst({ where: { id } });
-    expect(epic!.approvalPhase).toBe("hypothesis_review");
-  });
-
-  it("submit from a non-draft phase → conflict", async () => {
-    const id = await makeEpic("business_case");
-    const res = await submitHypothesis(ctx(), { epicId: id });
-    expect(isErr(res)).toBe(true);
-    if (isErr(res)) expect(res.error.kind).toBe("conflict");
-  });
-
-  it("Portfolio Manager approve → business_case, reject → draft", async () => {
-    const id = await makeEpic("hypothesis_review");
-    expect(isOk(await decideHypothesis(ctx(), { epicId: id, decision: "approve" }))).toBe(true);
-    const approved = await db.initiative.findFirst({ where: { id } });
-    expect(approved!.approvalPhase).toBe("business_case");
-    // Timeline actual for the "Selected for Detailing" phase is stamped on approve.
-    expect(approved!.hypothesisApprovedAt).not.toBeNull();
-
-    const id2 = await makeEpic("hypothesis_review");
-    expect(isOk(await decideHypothesis(ctx(), { epicId: id2, decision: "reject" }))).toBe(true);
-    expect((await db.initiative.findFirst({ where: { id: id2 } }))!.approvalPhase).toBe("draft");
-  });
-});
 
 describe("business-case phase", () => {
   it("configures multiple approvers per party", async () => {
