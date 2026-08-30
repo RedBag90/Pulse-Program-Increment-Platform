@@ -141,6 +141,7 @@ export type AuditAction =
   | "budget.group.contributed"
   | "budget.group.submitted"
   | "budget.period.finalized"
+  | "budget.period.reopened"
   | "rtb_item.saved"
   | "rtb_item.removed"
   | "timeline.created"

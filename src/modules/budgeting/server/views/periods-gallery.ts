@@ -25,7 +25,16 @@ export interface PeriodTile {
   startDate: Date | null;
   endDate: Date | null;
   submissionDeadline: Date | null;
+  /** Offene Reserve einer abgeschlossenen Kachel (Grundlage des Übertrags). */
+  reserveAmount: number;
   href: string;
+}
+
+export interface CarriableReserve {
+  cycleKey: string;
+  label: string;
+  startDate: Date | null;
+  amount: number;
 }
 
 export interface PeriodsGalleryModel {
@@ -33,6 +42,12 @@ export interface PeriodsGalleryModel {
   focus: PeriodTile[];
   /** Abgeschlossene Kacheln — ausgegraut, nach unten. */
   past: PeriodTile[];
+  /**
+   * Abgeschlossene Kacheln mit offener Reserve — der Anlege-Dialog benennt sie,
+   * damit der Reserve-Übertrag den Topf nicht mehr stillschweigend erhöht.
+   * Neueste zuerst.
+   */
+  carriableReserves: CarriableReserve[];
   canManage: boolean;
 }
 
@@ -47,6 +62,7 @@ export interface PeriodRoundInput {
   participantCount: number;
   groupCount: number;
   submittedCount: number;
+  reserveAmount: number;
 }
 
 function toTile(r: PeriodRoundInput, now: Date): PeriodTile {
@@ -63,6 +79,7 @@ function toTile(r: PeriodRoundInput, now: Date): PeriodTile {
     startDate: r.startDate,
     endDate: r.endDate,
     submissionDeadline: r.submissionDeadline,
+    reserveAmount: r.reserveAmount,
     href: `/budgeting/periods/${r.id}`,
   };
 }
@@ -81,9 +98,18 @@ export function buildPeriodsGallery(
   const tiles = rounds.map((r) => toTile(r, now));
   const byRecency = (a: PeriodTile, b: PeriodTile) =>
     sortKey(b) - sortKey(a) || b.cycleKey.localeCompare(a.cycleKey);
+  const past = tiles.filter((t) => t.status === "closed").sort(byRecency);
   return {
     focus: tiles.filter((t) => t.status !== "closed").sort(byRecency),
-    past: tiles.filter((t) => t.status === "closed").sort(byRecency),
+    past,
+    carriableReserves: past
+      .filter((t) => t.reserveAmount > 0)
+      .map((t) => ({
+        cycleKey: t.cycleKey,
+        label: t.label,
+        startDate: t.startDate,
+        amount: t.reserveAmount,
+      })),
     canManage,
   };
 }
@@ -104,6 +130,7 @@ export async function loadPeriodsGallery(
       startDate: true,
       endDate: true,
       submissionDeadline: true,
+      reserveAmount: true,
       _count: { select: { participants: true, groups: true } },
       groups: { select: { submittedAt: true } },
     },
@@ -121,6 +148,7 @@ export async function loadPeriodsGallery(
       participantCount: r._count.participants,
       groupCount: r._count.groups,
       submittedCount: r.groups.filter((g) => g.submittedAt != null).length,
+      reserveAmount: r.reserveAmount ? Number(r.reserveAmount) : 0,
     })),
     canManage,
     new Date(),

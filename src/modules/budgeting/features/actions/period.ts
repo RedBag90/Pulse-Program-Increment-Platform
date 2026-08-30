@@ -10,7 +10,10 @@ import { goalTimeframe } from "@/modules/core/goals/domain/goal-period";
 const MANAGE = "budget.round.manage" as const;
 const tenantResource = (_i: unknown, p: { tenantId: string }) => ({ tenantId: p.tenantId });
 const err = (e: Parameters<typeof formatDomainError>[0]) =>
-  formatDomainError(e, { notFound: "Nicht gefunden", fallback: "Kachel konnte nicht angelegt werden" });
+  formatDomainError(e, {
+    notFound: "Nicht gefunden",
+    fallback: "Kachel konnte nicht angelegt werden",
+  });
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const toDay = (d: Date): string => d.toISOString().slice(0, 10);
@@ -31,6 +34,7 @@ export const createPeriodAction = createServerAction({
     poolTotal: z.number().nonnegative(),
     submissionDeadline: isoDate.nullable(),
     carryOver: z.boolean(),
+    carryReserve: z.boolean(),
   }),
   action: MANAGE,
   resource: tenantResource,
@@ -61,6 +65,7 @@ export const createPeriodAction = createServerAction({
       poolTotal: Number(f.string("poolTotal")),
       submissionDeadline: deadline ?? null,
       carryOver: fd.get("carryOver") != null,
+      carryReserve: fd.get("carryReserve") != null,
     };
   },
   service: (ctx, input) =>
@@ -72,6 +77,7 @@ export const createPeriodAction = createServerAction({
         ? new Date(`${input.submissionDeadline}T00:00:00.000Z`)
         : null,
       carryOver: input.carryOver,
+      carryReserve: input.carryReserve,
     }),
   revalidate: "budgetPeriod",
   mapError: err,
@@ -86,5 +92,8 @@ export const deletePeriodAction = createServerAction({
   // Listen-Revalidation ohne die [id]-Detailseite (die es gleich nicht mehr gibt).
   revalidate: "budgetPeriodList",
   mapError: (e) =>
-    formatDomainError(e, { notFound: "Nicht gefunden", fallback: "Kachel konnte nicht gelöscht werden" }),
+    formatDomainError(e, {
+      notFound: "Nicht gefunden",
+      fallback: "Kachel konnte nicht gelöscht werden",
+    }),
 });

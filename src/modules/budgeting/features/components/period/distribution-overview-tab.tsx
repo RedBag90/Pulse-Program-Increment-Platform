@@ -6,12 +6,15 @@ import type { DistributionOverviewModel } from "@/modules/budgeting/server/views
 import {
   closeDistributionAction,
   finalizePeriodAction,
+  reopenPeriodAction,
   startNextPeriodAction,
 } from "@/modules/budgeting/features/actions/finalize";
+import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 
 const EUR = (n: number) => `${n.toLocaleString("de-DE")} €`;
 const cell = "px-2 py-1.5 text-right tabular-nums";
-const btn = "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
+const btn =
+  "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
 const btnGreen =
   "rounded bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50";
 
@@ -28,15 +31,14 @@ export function DistributionOverviewTab({ model }: { model: DistributionOverview
   const closed = model.status === "closed";
 
   const [finals, setFinals] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      model.candidates.map((c) => [c.id, String(c.finalAmount ?? c.suggestion)]),
-    ),
+    Object.fromEntries(model.candidates.map((c) => [c.id, String(c.finalAmount ?? c.suggestion)])),
   );
 
   const finalTotal = useMemo(
-    () => (closed
-      ? model.candidates.reduce((s, c) => s + (c.finalAmount ?? 0), 0)
-      : model.candidates.reduce((s, c) => s + (Number(finals[c.id]) || 0), 0)),
+    () =>
+      closed
+        ? model.candidates.reduce((s, c) => s + (c.finalAmount ?? 0), 0)
+        : model.candidates.reduce((s, c) => s + (Number(finals[c.id]) || 0), 0),
     [finals, model.candidates, closed],
   );
   const reserve = model.distributable - finalTotal;
@@ -53,9 +55,29 @@ export function DistributionOverviewTab({ model }: { model: DistributionOverview
   }
 
   function runFinalize() {
+    // Der Schritt schließt die Kachel — das stand früher nicht im Button und
+    // hat Nutzer überrascht. Natives confirm() wie bei den übrigen
+    // irreversiblen Aktionen (s. ConfirmMutateForm).
+    const missing = model.groups.length - model.submittedCount;
+    const warning =
+      missing > 0
+        ? `\n\nAchtung: erst ${model.submittedCount} von ${model.groups.length} Gruppen haben abgegeben.`
+        : "";
+    if (
+      !window.confirm(
+        "Verteilung festschreiben? Die Kachel geht damit auf „abgeschlossen“ und die " +
+          "Beträge sind nur über „Finalisierung zurücknehmen“ wieder änderbar." +
+          warning,
+      )
+    ) {
+      return;
+    }
     setError(null);
     startTransition(async () => {
-      const payload = model.candidates.map((c) => ({ candidateId: c.id, amount: Number(finals[c.id]) || 0 }));
+      const payload = model.candidates.map((c) => ({
+        candidateId: c.id,
+        amount: Number(finals[c.id]) || 0,
+      }));
       const fd = new FormData();
       fd.set("id", model.roundId);
       fd.set("finals", JSON.stringify(payload));
@@ -81,10 +103,13 @@ export function DistributionOverviewTab({ model }: { model: DistributionOverview
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span className="text-muted-foreground">
           Abgaben: {model.submittedCount} / {model.groups.length} Gruppen
-          {model.deadlinePassed && <span className="ml-1 text-amber-600">· Deadline verstrichen</span>}
+          {model.deadlinePassed && (
+            <span className="ml-1 text-amber-600">· Deadline verstrichen</span>
+          )}
         </span>
         <span className="text-xs text-muted-foreground">
-          Verteilbar {EUR(model.distributable)} · {closed || decided ? `Finalisiert ${EUR(finalTotal)} · Reserve ${EUR(reserve)}` : ""}
+          Verteilbar {EUR(model.distributable)} ·{" "}
+          {closed || decided ? `Finalisiert ${EUR(finalTotal)} · Reserve ${EUR(reserve)}` : ""}
         </span>
       </div>
 
@@ -133,7 +158,10 @@ export function DistributionOverviewTab({ model }: { model: DistributionOverview
             ))}
             {model.candidates.length === 0 && (
               <tr>
-                <td colSpan={model.groups.length + 2} className="px-2 py-6 text-center text-muted-foreground">
+                <td
+                  colSpan={model.groups.length + 2}
+                  className="px-2 py-6 text-center text-muted-foreground"
+                >
                   Noch keine Kandidaten (Runde noch nicht gestartet?).
                 </td>
               </tr>
@@ -152,19 +180,42 @@ export function DistributionOverviewTab({ model }: { model: DistributionOverview
             </button>
           )}
           {decided && (
-            <button type="button" onClick={runFinalize} disabled={pending || reserve < 0} className={btnGreen}>
-              {pending ? "…" : "Als tatsächliche Verteilung speichern"}
+            <button
+              type="button"
+              onClick={runFinalize}
+              disabled={pending || reserve < 0}
+              className={btnGreen}
+            >
+              {pending ? "…" : "Verteilung festschreiben und Kachel abschließen"}
             </button>
           )}
           {closed && (
-            <button type="button" onClick={runNext} disabled={pending} className={btn}>
-              {pending ? "…" : "Nächsten Zeitraum starten →"}
-            </button>
+            <>
+              <button type="button" onClick={runNext} disabled={pending} className={btn}>
+                {pending ? "…" : "Nächsten Zeitraum starten →"}
+              </button>
+              <ConfirmMutateForm
+                action={reopenPeriodAction}
+                fields={{ id: model.roundId }}
+                label="Finalisierung zurücknehmen"
+                pendingLabel="Nehme zurück…"
+                confirmPrompt="Finalisierung zurücknehmen? Die Kachel geht zurück auf „entschieden“; die finalen Beträge bleiben als Vorbelegung erhalten."
+                variant="outline"
+              />
+            </>
           )}
         </div>
       )}
+      {model.canFinalize && decided && (
+        <p className="text-xs text-muted-foreground">
+          Festschreiben setzt die Kachel auf „abgeschlossen“ — sie wandert in der Gallery nach
+          unten. Zurücknehmen geht danach über „Finalisierung zurücknehmen“.
+        </p>
+      )}
       {decided && reserve < 0 && (
-        <p className="text-sm text-red-600">Die Summe der finalen Beträge überschreitet den verteilbaren Topf.</p>
+        <p className="text-sm text-red-600">
+          Die Summe der finalen Beträge überschreitet den verteilbaren Topf.
+        </p>
       )}
     </div>
   );

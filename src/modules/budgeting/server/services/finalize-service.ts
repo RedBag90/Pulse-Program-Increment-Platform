@@ -5,6 +5,7 @@
  * - `finalizePeriod`: decided→closed. Setzt je Kandidat `finalAmount`; für
  *   **Epic**-Kandidaten wird zusätzlich `BudgetAllocation[cycleKey]` gemergt
  *   (App-weite Kontinuität); `reserveAmount = (pool − mandatory) − Σ final`.
+ * - `reopenFinalization`: closed→decided als Korrektur (neben der Maschine).
  * - `startNextPeriod`: legt die Folge-Kachel an (Reserve-Übertrag via
  *   `createRound`) und kopiert Beteiligte + Gruppen (inkl. Sprecher/Mitglieder).
  */
@@ -29,9 +30,13 @@ export async function closeDistribution(
       where: { id: input.id, tenantId: mctx.tenantId },
       select: { status: true },
     });
-    if (!round) return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.id });
+    if (!round)
+      return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.id });
     if (round.status !== "running") {
-      return err({ kind: "conflict" as const, reason: "Nur eine laufende Runde lässt sich schließen." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Nur eine laufende Runde lässt sich schließen.",
+      });
     }
     await tx.budgetRound.update({
       where: { id: input.id },
@@ -59,9 +64,13 @@ export async function finalizePeriod(
       where: { id: input.id, tenantId: mctx.tenantId },
       select: { status: true, cycleKey: true, poolTotal: true },
     });
-    if (!round) return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.id });
+    if (!round)
+      return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.id });
     if (round.status !== "decided") {
-      return err({ kind: "conflict" as const, reason: "Erst die Verteilung schließen, dann finalisieren." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Erst die Verteilung schließen, dann finalisieren.",
+      });
     }
 
     const candidates = await tx.budgetCandidate.findMany({
@@ -91,7 +100,10 @@ export async function finalizePeriod(
         alloc[round.cycleKey] = f.amount;
         await tx.budgetAllocation.upsert({
           where: { epicId: cand.epicId },
-          update: { allocations: alloc as unknown as Prisma.InputJsonValue, updatedBy: mctx.actorId },
+          update: {
+            allocations: alloc as unknown as Prisma.InputJsonValue,
+            updatedBy: mctx.actorId,
+          },
           create: {
             tenantId: mctx.tenantId,
             epicId: cand.epicId,
@@ -125,6 +137,54 @@ export async function finalizePeriod(
   });
 }
 
+/**
+ * Korrektur: nimmt eine Finalisierung zurück (`closed` → `decided`), damit ein
+ * versehentlicher Abschluss nicht nur durch Löschen der Kachel zu heilen ist.
+ *
+ * Bewusst **neben** der Status-Maschine (`ROUND_TRANSITIONS` bleibt strikt
+ * vorwärts, `closed` terminal) — wie `epic.business_case.reopened` in Work.
+ * `BudgetCandidate.finalAmount` bleiben stehen: im Status `decided` sind sie
+ * genau die Vorbelegung der Eingabefelder. Die beim Finalisieren gemergten
+ * `BudgetAllocation` bleiben ebenfalls (app-weit, epic-keyed, nicht an die Runde
+ * gekoppelt — dieselbe Regel wie bei `deletePeriod`); der nächste Finalize
+ * überschreibt sie. `reserveAmount` wird geleert und dort neu gerechnet.
+ */
+export async function reopenFinalization(
+  ctx: RequestContext,
+  input: { id: string },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    const round = await tx.budgetRound.findFirst({
+      where: { id: input.id, tenantId: mctx.tenantId },
+      select: { status: true },
+    });
+    if (!round)
+      return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.id });
+    if (round.status !== "closed") {
+      return err({
+        kind: "conflict" as const,
+        reason: "Nur eine abgeschlossene Kachel lässt sich zurücknehmen.",
+      });
+    }
+
+    await tx.budgetRound.update({
+      where: { id: input.id },
+      data: { status: "decided", reserveAmount: null, updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "budget.period.reopened" as const,
+        resourceType: "budget_round" as const,
+        resourceId: input.id,
+        changes: { status: { before: "closed", after: "decided" } },
+      },
+    });
+  });
+}
+
 export async function startNextPeriod(
   ctx: RequestContext,
   input: { fromRoundId: string },
@@ -135,7 +195,8 @@ export async function startNextPeriod(
     where: { id: input.fromRoundId, tenantId: mctx.tenantId },
     select: { endDate: true },
   });
-  if (!from) return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.fromRoundId });
+  if (!from)
+    return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.fromRoundId });
 
   const start = from.endDate ?? new Date();
   const end = addHalfYears(start, 1);

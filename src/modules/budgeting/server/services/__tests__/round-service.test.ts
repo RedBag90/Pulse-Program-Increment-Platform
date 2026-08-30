@@ -39,6 +39,7 @@ describe("createRound", () => {
       budgetRound: {
         findUnique: vi.fn(async () => null),
         findFirst: vi.fn(async () => null),
+        findMany: vi.fn(async () => []), // Reserve-Übertrag: keine abgeschlossene Kachel
         create: vi.fn(async () => ({ id: "r1" })),
       },
       auditEvent: { create: vi.fn(async () => ({})) },
@@ -56,6 +57,7 @@ describe("createRound", () => {
     const t: Tx = {
       budgetRound: {
         findFirst: vi.fn(async () => null),
+        findMany: vi.fn(async () => []),
         create: vi.fn(async () => ({ id: "r2" })),
       },
       auditEvent: { create: vi.fn(async () => ({})) },
@@ -305,7 +307,12 @@ describe("copyPeriodSetup — Übernahme in eine neue Kachel", () => {
     const candArg = t.budgetCandidate.createMany.mock.calls[0]![0]! as {
       data: { kind: string; epicId: string; roundId: string; finalAmount: number | null }[];
     };
-    expect(candArg.data[0]).toMatchObject({ kind: "epic", epicId: "e1", roundId: "to1", finalAmount: null });
+    expect(candArg.data[0]).toMatchObject({
+      kind: "epic",
+      epicId: "e1",
+      roundId: "to1",
+      finalAmount: null,
+    });
   });
 });
 
@@ -313,7 +320,8 @@ describe("createPeriod — Übernahme beim Anlegen", () => {
   function periodCtx(previous: { id: string } | null) {
     const tx = {
       budgetRound: {
-        findFirst: vi.fn(async () => null), // createRound: kein geschlossener Vorgänger (Reserve)
+        findFirst: vi.fn(async () => null),
+        findMany: vi.fn(async () => []), // createRound: keine abgeschlossene Kachel (Reserve)
         create: vi.fn(async () => ({ id: "new1" })),
       },
       budgetParticipant: { findMany: vi.fn(async () => []), createMany: vi.fn(async () => ({})) },
@@ -364,6 +372,63 @@ describe("createPeriod — Übernahme beim Anlegen", () => {
     const res = await createPeriod(ctx, { ...input, carryOver: true });
     expect(res.ok).toBe(true);
     expect(tx.budgetCandidate.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("createRound — Reserve-Übertrag", () => {
+  function ctxWithClosed(closed: unknown[]) {
+    const t: Tx = {
+      budgetRound: {
+        findFirst: vi.fn(async () => null),
+        findMany: vi.fn(async () => closed),
+        create: vi.fn(async () => ({ id: "r1" })),
+      },
+      auditEvent: { create: vi.fn(async () => ({})) },
+    };
+    return { ctx: ctxWith(t), t };
+  }
+
+  const closed = [
+    {
+      cycleKey: "2027-H1",
+      startDate: new Date("2027-01-01T00:00:00.000Z"),
+      reserveAmount: 1_940_000,
+    },
+    {
+      cycleKey: "2026-H1",
+      startDate: new Date("2026-01-01T00:00:00.000Z"),
+      reserveAmount: 150_000,
+    },
+  ];
+
+  it("addiert die Reserve der zeitlich vorherigen Kachel — nicht die des höchsten cycleKey", async () => {
+    const { ctx, t } = ctxWithClosed(closed);
+    const res = await createRound(ctx, {
+      cycleKey: "2026-H2",
+      poolTotal: 2_000_000,
+      decisionAuthorityIds: [],
+      startDate: new Date("2026-07-01T00:00:00.000Z"),
+    });
+    expect(res.ok).toBe(true);
+    expect(t.budgetRound!.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ poolTotal: 2_150_000 }) }),
+    );
+  });
+
+  it("carryReserve=false lässt den Topf unangetastet und fragt gar nicht erst", async () => {
+    const { ctx, t } = ctxWithClosed(closed);
+    const res = await createRound(ctx, {
+      cycleKey: "2026-H2",
+      poolTotal: 2_000_000,
+      decisionAuthorityIds: [],
+      startDate: new Date("2026-07-01T00:00:00.000Z"),
+      carryReserve: false,
+    });
+    expect(res.ok).toBe(true);
+    expect(t.budgetRound!.findMany).not.toHaveBeenCalled();
+    expect(t.budgetRound!.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ poolTotal: 2_000_000 }) }),
+    );
   });
 });
 

@@ -7,6 +7,7 @@ import { formatDomainError } from "@/server/http/domain-error-display";
 import {
   closeDistribution,
   finalizePeriod,
+  reopenFinalization,
   startNextPeriod,
 } from "@/modules/budgeting/server/services/finalize-service";
 
@@ -46,6 +47,16 @@ export const finalizePeriodAction = createServerAction({
     return { id: f.string("id"), finals };
   },
   service: (ctx, i) => finalizePeriod(ctx, { id: i.id, finals: i.finals }),
+  revalidate: "budgetPeriod",
+  mapError: err,
+});
+
+export const reopenPeriodAction = createServerAction({
+  schema: z.object({ id: z.string().uuid() }),
+  action: MANAGE,
+  resource: tenantResource,
+  parseFormData: (fd) => ({ id: fields(fd).string("id") }),
+  service: (ctx, i) => reopenFinalization(ctx, { id: i.id }),
   revalidate: "budgetPeriod",
   mapError: err,
 });

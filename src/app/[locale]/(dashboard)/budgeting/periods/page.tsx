@@ -19,7 +19,9 @@ export default async function BudgetingPeriodsPage() {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
-  const canManage = hasCapability(principal, "budget.round.manage", { tenantId: principal.tenantId });
+  const canManage = hasCapability(principal, "budget.round.manage", {
+    tenantId: principal.tenantId,
+  });
   const [model, tenant] = await Promise.all([
     loadPeriodsGallery(db, principal.tenantId, canManage),
     canManage
@@ -40,7 +42,11 @@ export default async function BudgetingPeriodsPage() {
         subtitle="Je Kachel ein Zeitraum — Beteiligte, Gruppen, Verteilung und Finalisierung leben darin."
         actions={
           model.canManage ? (
-            <CreatePeriodDialog defaultPool={latest?.poolTotal ?? 0} hasPrevious={!!latest} />
+            <CreatePeriodDialog
+              defaultPool={latest?.poolTotal ?? 0}
+              hasPrevious={!!latest}
+              carriableReserves={model.carriableReserves}
+            />
           ) : undefined
         }
       />
@@ -48,7 +54,11 @@ export default async function BudgetingPeriodsPage() {
       {model.canManage && (
         <div className="mb-6">
           <BudgetingDefaultsForm
-            current={tenant?.defaultHypothesisEffort != null ? Number(tenant.defaultHypothesisEffort) : null}
+            current={
+              tenant?.defaultHypothesisEffort != null
+                ? Number(tenant.defaultHypothesisEffort)
+                : null
+            }
           />
         </div>
       )}

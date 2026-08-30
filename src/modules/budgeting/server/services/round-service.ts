@@ -11,7 +11,7 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { canTransitionRound, type RoundStatus } from "@/modules/budgeting/domain/round-status";
-import { carryReserveForward } from "@/modules/budgeting/domain/reserve";
+import { carryReserveForward, pickCarriedReserve } from "@/modules/budgeting/domain/reserve";
 import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
 import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
 import { materializeRtbCandidates } from "@/modules/budgeting/server/services/candidate-service";
@@ -76,6 +76,11 @@ export interface CreateRoundInput {
   startDate?: Date | null | undefined;
   endDate?: Date | null | undefined;
   submissionDeadline?: Date | null | undefined;
+  /**
+   * Reserve der zeitlich vorherigen abgeschlossenen Kachel auf den Topf addieren.
+   * Default `true` (bisheriges Verhalten); die Kachel-UI macht es abwählbar.
+   */
+  carryReserve?: boolean | undefined;
 }
 
 /** Legt eine Runde (Status `draft`) für den Cycle an. */
@@ -91,15 +96,29 @@ export async function createRound(
     // harter Duplikat-Guard mehr (Überschneidung wird in der UI als weiche
     // Warnung angezeigt).
 
-    // Reserve-Übertrag: die Reserve der zuletzt abgeschlossenen Runde wandert
-    // additiv in den Topf (F-03, nur der Betrag).
-    const prev = await tx.budgetRound.findFirst({
-      where: { tenantId: mctx.tenantId, status: "closed" },
-      orderBy: { cycleKey: "desc" },
-      select: { reserveAmount: true },
-    });
-    const carried = prev?.reserveAmount ? Number(prev.reserveAmount) : 0;
-    const effectivePool = carryReserveForward(poolTotal, carried);
+    // Reserve-Übertrag: die Reserve der **zeitlich vorherigen** abgeschlossenen
+    // Kachel wandert additiv in den Topf (F-03, nur der Betrag). Die Auswahl
+    // trifft `pickCarriedReserve` — seit dem Kachel-Modell koexistieren mehrere
+    // Kacheln je Cycle, ein `orderBy cycleKey desc` zog hier die Reserve einer
+    // späteren Kachel in eine frühere.
+    const carry = input.carryReserve !== false;
+    const closed = carry
+      ? await tx.budgetRound.findMany({
+          where: { tenantId: mctx.tenantId, status: "closed" },
+          select: { cycleKey: true, startDate: true, reserveAmount: true },
+        })
+      : [];
+    const picked = carry
+      ? pickCarriedReserve(
+          closed.map((r) => ({
+            cycleKey: r.cycleKey,
+            startDate: r.startDate,
+            reserveAmount: r.reserveAmount ? Number(r.reserveAmount) : 0,
+          })),
+          input.startDate ?? null,
+        )
+      : null;
+    const effectivePool = carryReserveForward(poolTotal, picked?.amount ?? 0);
 
     const round = await tx.budgetRound.create({
       data: {
@@ -126,7 +145,15 @@ export async function createRound(
         action: "budget.round.created" as const,
         resourceType: "budget_round" as const,
         resourceId: round.id,
-        changes: { cycleKey: { before: null, after: cycleKey } },
+        changes: {
+          cycleKey: { before: null, after: cycleKey },
+          ...(picked && {
+            carriedReserve: {
+              before: null,
+              after: { from: picked.fromCycleKey, amount: picked.amount },
+            },
+          }),
+        },
       },
     });
   });
@@ -220,6 +247,8 @@ export interface CreatePeriodInput {
   submissionDeadline?: Date | null | undefined;
   /** Beteiligte + Gruppen + Ballot von der jüngsten vorherigen Kachel übernehmen. */
   carryOver?: boolean | undefined;
+  /** Reserve der zeitlich vorherigen abgeschlossenen Kachel auf den Topf addieren. */
+  carryReserve?: boolean | undefined;
 }
 
 /**
@@ -250,6 +279,7 @@ export async function createPeriod(
     startDate: input.startDate,
     endDate: input.endDate,
     submissionDeadline: input.submissionDeadline ?? input.endDate,
+    carryReserve: input.carryReserve,
   });
   if (!created.ok || !previous) return created;
 
@@ -286,9 +316,13 @@ export async function startPeriod(
       where: { id: input.id, tenantId: mctx.tenantId },
       select: { status: true },
     });
-    if (!round) return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.id });
+    if (!round)
+      return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.id });
     if (round.status !== "draft") {
-      return err({ kind: "conflict" as const, reason: "Nur eine Kachel im Entwurf lässt sich starten." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Nur eine Kachel im Entwurf lässt sich starten.",
+      });
     }
 
     await materializeRtbCandidates(tx, mctx.tenantId, input.id, mctx.actorId);
@@ -340,7 +374,9 @@ export async function updateRoundFrame(
         ...(poolTotal !== undefined && { poolTotal }),
         ...(decisionAuthorityIds !== undefined && { decisionAuthorityIds }),
         ...(plannedAt !== undefined && { plannedAt }),
-        ...(input.submissionDeadline !== undefined && { submissionDeadline: input.submissionDeadline }),
+        ...(input.submissionDeadline !== undefined && {
+          submissionDeadline: input.submissionDeadline,
+        }),
         ...(input.startDate !== undefined && { startDate: input.startDate }),
         ...(input.endDate !== undefined && { endDate: input.endDate }),
         updatedBy: mctx.actorId,
@@ -483,7 +519,8 @@ export async function deletePeriod(
       where: { id: input.id, tenantId: mctx.tenantId },
       select: { id: true },
     });
-    if (!round) return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.id });
+    if (!round)
+      return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.id });
 
     await tx.budgetRound.delete({ where: { id: input.id } });
 

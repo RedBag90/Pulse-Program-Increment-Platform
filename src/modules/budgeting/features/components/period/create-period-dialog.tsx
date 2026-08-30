@@ -4,6 +4,8 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createPeriodAction } from "@/modules/budgeting/features/actions/period";
+import { formatEUR } from "@/lib/formatting";
+import type { CarriableReserve } from "@/modules/budgeting/server/views/periods-gallery";
 import { GoalPeriodField } from "@/modules/core/goals/features/components/goal-period-field";
 import type { ActionState } from "@/server/http/server-action";
 import { Button } from "@/components/ui/button";
@@ -27,11 +29,14 @@ const initialState: ActionState = {};
 export function CreatePeriodDialog({
   defaultPool = 0,
   hasPrevious = false,
+  carriableReserves = [],
 }: {
   /** Topf-Vorgabe (Topf der jüngsten Kachel). */
   defaultPool?: number;
   /** Gibt es eine vorherige Kachel zum Übernehmen? */
   hasPrevious?: boolean;
+  /** Abgeschlossene Kacheln mit offener Reserve — benannt, statt still addiert. */
+  carriableReserves?: CarriableReserve[];
 } = {}) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(createPeriodAction, initialState);
@@ -83,6 +88,27 @@ export function CreatePeriodDialog({
               <Label htmlFor="period-deadline">Abgabe-Deadline (optional, Default = Ende)</Label>
               <Input id="period-deadline" name="submissionDeadline" type="date" />
             </div>
+
+            {carriableReserves.length > 0 && (
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="carryReserve"
+                  defaultChecked
+                  className="mt-0.5 accent-primary"
+                />
+                <span>
+                  Reserve übernehmen
+                  <span className="block text-xs text-muted-foreground">
+                    Die Reserve der letzten abgeschlossenen Kachel <em>vor</em> deinem Start-Termin
+                    wird auf den Topf addiert. Offen:{" "}
+                    {carriableReserves
+                      .map((r) => `${r.label} · ${formatEUR(r.amount)}`)
+                      .join(" · ")}
+                  </span>
+                </span>
+              </label>
+            )}
 
             {hasPrevious && (
               <label className="flex items-start gap-2 text-sm">

@@ -6,7 +6,11 @@ import { describe, it, expect, vi } from "vitest";
  * Reserve und schließt die Kachel.
  */
 
-import { finalizePeriod, closeDistribution } from "@/modules/budgeting/server/services/finalize-service";
+import {
+  finalizePeriod,
+  closeDistribution,
+  reopenFinalization,
+} from "@/modules/budgeting/server/services/finalize-service";
 
 type Fn = ReturnType<typeof vi.fn>;
 type Tx = Record<string, Record<string, Fn>>;
@@ -30,7 +34,10 @@ function ctxWith(tx: Tx) {
 describe("closeDistribution", () => {
   it("running → decided", async () => {
     const t: Tx = {
-      budgetRound: { findFirst: vi.fn(async () => ({ status: "running" })), update: vi.fn(async () => ({})) },
+      budgetRound: {
+        findFirst: vi.fn(async () => ({ status: "running" })),
+        update: vi.fn(async () => ({})),
+      },
       auditEvent: { create: vi.fn(async () => ({})) },
     };
     const res = await closeDistribution(ctxWith(t), { id: "r1" });
@@ -100,8 +107,43 @@ describe("finalizePeriod", () => {
 
   it("lehnt ab, wenn nicht decided", async () => {
     const t = tx();
-    t.budgetRound!.findFirst = vi.fn(async () => ({ status: "running", cycleKey: "2026-H1", poolTotal: 1000 }));
+    t.budgetRound!.findFirst = vi.fn(async () => ({
+      status: "running",
+      cycleKey: "2026-H1",
+      poolTotal: 1000,
+    }));
     const res = await finalizePeriod(ctxWith(t), { id: "r1", finals: [] });
     expect(res.ok).toBe(false);
+  });
+});
+
+describe("reopenFinalization", () => {
+  it("closed → decided und leert die Reserve; finalAmount bleibt unangetastet", async () => {
+    const t: Tx = {
+      budgetRound: {
+        findFirst: vi.fn(async () => ({ status: "closed" })),
+        update: vi.fn(async () => ({})),
+      },
+      budgetCandidate: { update: vi.fn() },
+      auditEvent: { create: vi.fn(async () => ({})) },
+    };
+    const res = await reopenFinalization(ctxWith(t), { id: "r1" });
+    expect(res.ok).toBe(true);
+    expect(t.budgetRound!.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "decided", reserveAmount: null }),
+      }),
+    );
+    expect(t.budgetCandidate!.update).not.toHaveBeenCalled();
+  });
+
+  it.each(["running", "decided", "draft"])("lehnt Status %s ab", async (status) => {
+    const t: Tx = {
+      budgetRound: { findFirst: vi.fn(async () => ({ status })), update: vi.fn() },
+      auditEvent: { create: vi.fn(async () => ({})) },
+    };
+    const res = await reopenFinalization(ctxWith(t), { id: "r1" });
+    expect(res.ok).toBe(false);
+    expect(t.budgetRound!.update).not.toHaveBeenCalled();
   });
 });
