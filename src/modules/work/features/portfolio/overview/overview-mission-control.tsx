@@ -23,7 +23,7 @@ export function OverviewMissionControl({ data }: { data: PortfolioOverview }) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <StrategicBlock data={data} />
-        <GoalContributionBlock data={data} />
+        <GoalContributionBlock rows={data.goalContributions} />
       </div>
 
       <CompactKanban data={data} />

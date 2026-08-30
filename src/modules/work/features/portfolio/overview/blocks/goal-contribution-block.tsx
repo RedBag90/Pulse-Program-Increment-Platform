@@ -1,8 +1,18 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
-import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
-import type { UnitValue } from "@/modules/core/goals/server/views/epic-goal-contributions";
+import { ToggleGroup, type ToggleGroupOption } from "@/components/ui/toggle-group";
+import {
+  totalContribution,
+  type ContributionMode,
+} from "@/modules/core/goals/domain/epic-contribution";
+import type {
+  EpicGoalContribution,
+  UnitValue,
+} from "@/modules/core/goals/server/views/epic-goal-contributions";
 
 /** Kompakte Zahl (Muster aus der früheren Funding-Kachel), ohne Einheit. */
 function compact(n: number): string {
@@ -18,45 +28,70 @@ function fmt(unit: string | null, n: number): string {
 }
 
 /**
- * Beitragswerte einer Effektart — je Einheit eine Zeile (Plan fett + Ist
- * gedämpft). Top-Ziele können unterschiedliche Einheiten haben; deshalb wird
- * nicht über Einheiten summiert. „—" wenn keine Werte.
+ * Beitragswerte einer Effektart im aktiven Modus — je Einheit eine Zeile. Top-Ziele
+ * können unterschiedliche Einheiten haben; deshalb wird nicht über Einheiten
+ * summiert. „—" heißt „kein Beitrag berechnet"; ein Ist von 0 rendert als „0 €",
+ * sonst wäre das nicht von „noch nichts realisiert" zu unterscheiden.
  */
-function ValueCell({ values }: { values: UnitValue[] }) {
+function ValueCell({ values, mode }: { values: UnitValue[]; mode: ContributionMode }) {
   if (values.length === 0) {
     return <span className="text-muted-foreground">—</span>;
   }
   return (
     <div className="space-y-1 tabular-nums">
       {values.map((v, i) => (
-        <div key={v.unit ?? `u${i}`}>
-          <div className="font-medium">{fmt(v.unit, v.planned)}</div>
-          <div className="text-xs text-muted-foreground">Ist: {fmt(v.unit, v.realized)}</div>
+        <div key={v.unit ?? `u${i}`} className="font-medium">
+          {fmt(v.unit, v[mode])}
         </div>
       ))}
     </div>
   );
 }
 
+const MODE_OPTIONS: ReadonlyArray<ToggleGroupOption<ContributionMode>> = [
+  { id: "planned", label: "Plan" },
+  { id: "realized", label: "Ist" },
+];
+
 /**
  * „Epic-Beitrag zu Kopf-Zielen" — ersetzt die Funding-Kachel. Listet die Epics
  * nach ihrem berechneten Nutzen-Beitrag an die Top-Ziele (KPI × Conversion die
- * Ziel-Kette hoch), getrennt nach wiederkehrendem und einmaligem Effekt, je
- * Plan + Ist. Absteigend nach Gesamt-Plan sortiert; scrollbar. Server-only.
+ * Ziel-Kette hoch), getrennt nach wiederkehrendem und einmaligem Effekt.
+ * Umschaltbar zwischen Plan und Ist; die Sortierung folgt dem Modus.
  */
-export function GoalContributionBlock({ data }: { data: PortfolioOverview }) {
-  const rows = data.goalContributions;
+export function GoalContributionBlock({ rows }: { rows: EpicGoalContribution[] }) {
+  const [mode, setMode] = useState<ContributionMode>("planned");
+
+  // Plan = Server-Reihenfolge (dort bereits nach Plan sortiert). Ist muss neu
+  // sortiert werden — sonst stehen die Ist-Werte in Plan-Reihenfolge und wirken
+  // willkürlich untereinander. Dieselbe Formel wie der Server (ADR-frei: ein
+  // Helfer in der Domain-Schicht, kein zweiter Rang-Begriff).
+  const sorted = useMemo(
+    () =>
+      mode === "planned"
+        ? rows
+        : [...rows].sort((a, b) => totalContribution(b, mode) - totalContribution(a, mode)),
+    [rows, mode],
+  );
 
   return (
     <Card className="space-y-3 p-4">
       <div className="flex items-center justify-between gap-2">
-        <div>
-          <SectionLabel>Epic-Beitrag zu Kopf-Zielen</SectionLabel>
-          <p className="text-xs text-muted-foreground">Plan / Ist</p>
+        <SectionLabel>Epic-Beitrag zu Kopf-Zielen</SectionLabel>
+        <div className="flex shrink-0 items-center gap-2">
+          <ToggleGroup
+            value={mode}
+            options={MODE_OPTIONS}
+            onChange={setMode}
+            ariaLabel="Beitragswert"
+            className="bg-card text-[11px]"
+          />
+          {rows.length > 0 && (
+            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+              {rows.length}
+            </span>
+          )}
         </div>
-        {rows.length > 0 && (
-          <span className="font-mono text-xs tabular-nums text-muted-foreground">{rows.length}</span>
-        )}
       </div>
 
       {rows.length === 0 ? (
@@ -81,7 +116,7 @@ export function GoalContributionBlock({ data }: { data: PortfolioOverview }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {sorted.map((r) => (
                 <tr key={r.epicId} className="border-b last:border-0 hover:bg-muted/20">
                   <td className="px-3 py-2">
                     <Link
@@ -93,10 +128,10 @@ export function GoalContributionBlock({ data }: { data: PortfolioOverview }) {
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">{r.valueStreamName ?? "—"}</td>
                   <td className="px-3 py-2 text-right">
-                    <ValueCell values={r.recurring} />
+                    <ValueCell values={r.recurring} mode={mode} />
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <ValueCell values={r.oneTime} />
+                    <ValueCell values={r.oneTime} mode={mode} />
                   </td>
                 </tr>
               ))}

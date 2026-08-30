@@ -20,6 +20,7 @@ import {
   loadEpicGoalContributions,
   type EpicGoalContribution,
 } from "@/modules/core/goals/server/views/epic-goal-contributions";
+import { totalContribution } from "@/modules/core/goals/domain/epic-contribution";
 import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 
@@ -466,10 +467,8 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   // von wiederkehrend + einmalig) absteigend — die größten „Beiträge" oben.
   // Einheiten-Mix ist beim Ranking bewusst heuristisch; die Anzeige bleibt je
   // Einheit getrennt. Werte kommen fertig aggregiert.
-  const totalPlanned = (c: EpicGoalContribution): number =>
-    [...c.recurring, ...c.oneTime].reduce((s, v) => s + v.planned, 0);
   const goalContributions: EpicGoalContribution[] = [...goalContributionsRaw].sort(
-    (a, b) => totalPlanned(b) - totalPlanned(a),
+    (a, b) => totalContribution(b, "planned") - totalContribution(a, "planned"),
   );
 
   // Strategy — Themes (Objectives in V2) statt legacy TransformationGoals.
