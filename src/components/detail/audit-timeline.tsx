@@ -16,6 +16,12 @@ const ACTION_LABELS: Record<string, string> = {
   "team.created": "Team erstellt",
   "team.updated": "Team aktualisiert",
   "team.deleted": "Team gelöscht",
+  "solution.created": "Solution erstellt",
+  "solution.updated": "Solution aktualisiert",
+  "solution.deleted": "Solution gelöscht",
+  "solution.promoted": "Nach H1 befördert",
+  "solution.lifecycle.changed": "Lifecycle geändert",
+  "solution.run.updated": "Run-Baseline geändert",
 };
 
 function actionLabel(action: string): string {
