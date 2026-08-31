@@ -1,6 +1,14 @@
 # Budget-Modul — UI-Refactor: Spec & Konzept
 
-> Status: **Konzept / zur Umsetzung** · Erstellt 2026-08-19 · Backend unverändert (read-only ggü. Work,
+> **Abgelöst durch [budgeting-refactor.md](budgeting-refactor.md) (2026-08-31).**
+> Das Zielbild dieses Dokuments — `/budgeting/round` als die eine Arbeitsfläche
+> mit drei Ebenen — wurde vom Kachel-Modell (`/budgeting/periods`) überholt,
+> bevor es fertig umgesetzt war. Übrig blieben Redirects auf die alten Routen
+> und ihre Lese-Flächen; genau diese Halb-Ablösung ist ein Teil der heute
+> beklagten Fragmentierung. Als Zustandsbeschreibung von 2026-08-19 und als
+> Herkunft der Prozessleiste bleibt der Text hier stehen.
+
+> Status: **abgelöst** · Erstellt 2026-08-19 · Backend unverändert (read-only ggü. Work,
 > ADR-0013/0019). Dies ist ein reiner IA-/UX-/Visual-Refactor auf den vorhandenen Services & Domain.
 
 ## 1. Ziel & Treiber
@@ -24,27 +32,27 @@ oder an der Snapshot-Semantik. Budgeting bleibt gegenüber Work vollständig rea
 
 ### 2.1 Drei-Ebenen-Modell (Halbjahres-Achse `YYYY-H1`/`-H2`)
 
-| Ebene | Frage | Entscheider | Persistenz |
-|---|---|---|---|
-| **Portfolio** | Wie viel Geld je Halbjahr? Welches Epic bekommt wie viel? | Portfolio-Manager / Tenant-Admin | `Tenant.budgetPoolByPeriod`, `BudgetAllocation` |
-| **Wertstrom** | Wie viel Budget hat ein Wertstrom? | *niemand* — **abgeleitet** aus Epic-Zuteilungen | keine (Read-Model) |
-| **ART** | Wie verteilt der Wertstrom auf seine ARTs? | Finance-Approver des Wertstroms (o. `art_budget.manage`) | `ArtBudget` |
+| Ebene         | Frage                                                     | Entscheider                                              | Persistenz                                      |
+| ------------- | --------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------- |
+| **Portfolio** | Wie viel Geld je Halbjahr? Welches Epic bekommt wie viel? | Portfolio-Manager / Tenant-Admin                         | `Tenant.budgetPoolByPeriod`, `BudgetAllocation` |
+| **Wertstrom** | Wie viel Budget hat ein Wertstrom?                        | _niemand_ — **abgeleitet** aus Epic-Zuteilungen          | keine (Read-Model)                              |
+| **ART**       | Wie verteilt der Wertstrom auf seine ARTs?                | Finance-Approver des Wertstroms (o. `art_budget.manage`) | `ArtBudget`                                     |
 
 Ein Snapshot friert einen Halbjahres-Zyklus als `BudgetPlanRevision` ein (idempotent je `(tenant,
 cycleKey)`).
 
 ### 2.2 Der 7-Schritt-Prozess
 
-| # | Schritt | Ort heute | Code |
-|---|---|---|---|
-| 0 | Ökonomie-Settings (cost/Job-Size, kostenneutral, Guardrails) | Portfolio-Dashboard (Work) | `dashboard-settings.ts` |
-| 1 | **Topf** je Halbjahr setzen | `/budgeting/board` (`PoolRow`) | `saveBudgetPool` |
-| 2 | Epics **vormerken** (`stagedForBudgeting` + Hypothese/BC freigegeben) | Epic-Overview | `setEpicFlagAction`; Gate in `loadBudgetingModel` |
-| 3 | **Zuteilen** je Epic je Halbjahr | `/budgeting/board` (`EpicRow`) | `saveBudgetAllocation` |
-| 4 | L3-Readiness „Budget alloziert" (abgeleitet) | Epic-Detail | `getEpicBudgetAllocation` |
-| 5 | **Wertstrom-Rollup** (read-model) | VS-Detail / Struktur | `getValueStreamBudgets` |
-| 6 | Finance **verteilt auf ARTs** | `/value-streams/[id]` | `saveArtBudget` |
-| 7 | **Snapshot** je Zyklus | `/budgeting/budget-plan` | `captureBudgetPlanRevision` |
+| #   | Schritt                                                               | Ort heute                      | Code                                              |
+| --- | --------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------- |
+| 0   | Ökonomie-Settings (cost/Job-Size, kostenneutral, Guardrails)          | Portfolio-Dashboard (Work)     | `dashboard-settings.ts`                           |
+| 1   | **Topf** je Halbjahr setzen                                           | `/budgeting/board` (`PoolRow`) | `saveBudgetPool`                                  |
+| 2   | Epics **vormerken** (`stagedForBudgeting` + Hypothese/BC freigegeben) | Epic-Overview                  | `setEpicFlagAction`; Gate in `loadBudgetingModel` |
+| 3   | **Zuteilen** je Epic je Halbjahr                                      | `/budgeting/board` (`EpicRow`) | `saveBudgetAllocation`                            |
+| 4   | L3-Readiness „Budget alloziert" (abgeleitet)                          | Epic-Detail                    | `getEpicBudgetAllocation`                         |
+| 5   | **Wertstrom-Rollup** (read-model)                                     | VS-Detail / Struktur           | `getValueStreamBudgets`                           |
+| 6   | Finance **verteilt auf ARTs**                                         | `/value-streams/[id]`          | `saveArtBudget`                                   |
+| 7   | **Snapshot** je Zyklus                                                | `/budgeting/budget-plan`       | `captureBudgetPlanRevision`                       |
 
 ### 2.3 Heutige UI-Flächen
 
@@ -147,13 +155,13 @@ Aktuelle Periode getönt (`isCurrent`).
 
 Fünf verdichtete Schritte mit Zustand `erledigt | offen | blockiert` und Deep-Link:
 
-| Schritt | erledigt wenn | Link |
-|---|---|---|
-| **Topf** | `budgetPoolByPeriod` für den Zyklus > 0 | Runde · Topf & Epics |
-| **Epics vormerken** | ≥ 1 gestagtes Epic mit Hypothese/BC | Runde · Kandidaten |
-| **Zuteilen** | Σ Allokationen > 0 | Runde · Topf & Epics |
-| **ARTs verteilen** | ≥ 1 `ArtBudget`-Zeile gesetzt | Runde · ARTs |
-| **Snapshot** | jüngste Revision gehört zum aktiven Zyklus | Übersicht · Snapshot |
+| Schritt             | erledigt wenn                              | Link                 |
+| ------------------- | ------------------------------------------ | -------------------- |
+| **Topf**            | `budgetPoolByPeriod` für den Zyklus > 0    | Runde · Topf & Epics |
+| **Epics vormerken** | ≥ 1 gestagtes Epic mit Hypothese/BC        | Runde · Kandidaten   |
+| **Zuteilen**        | Σ Allokationen > 0                         | Runde · Topf & Epics |
+| **ARTs verteilen**  | ≥ 1 `ArtBudget`-Zeile gesetzt              | Runde · ARTs         |
+| **Snapshot**        | jüngste Revision gehört zum aktiven Zyklus | Übersicht · Snapshot |
 
 „blockiert" = Vorbedingung fehlt (z. B. Zuteilen ohne Topf). Die Leiste beantwortet „wo stehe ich".
 
@@ -173,14 +181,14 @@ Fünf verdichtete Schritte mit Zustand `erledigt | offen | blockiert` und Deep-L
 
 ## 4. Reuse-Map (was bleibt, was wird umgebaut)
 
-| Bereich | Wiederverwendet (Backend/Domain — unverändert) | UI-Änderung |
-|---|---|---|
-| Topf & Epics | `loadBudgetingBoardModel`, `buildBudgetingBoardModel`, `saveBudgetPool/Allocation` | `PoolRow`/`EpicRow` verlieren Zeilen-Save → globale Save-Bar; Perioden-Balken; Inline-Staging |
-| Wertströme | `getValueStreamBudgets`, `rollupByValueStream`, `ValueStreamChart` | eigene Ebene statt Board-Fußzeile |
-| ARTs | `loadArtBudgetModel`, `buildArtBudgetModel`, `saveArtBudget`, `aggregateArtFeatureLoad` | in die Runde geholt + VS-Auswahl; von VS-Detail verlinkt |
-| Übersicht | `loadControllingModel`, `CaptureRevisionButton` | Prozess-Leiste ergänzt; Guardrails umgelabelt |
-| Budget-Plan | `getBudgetPlanRevision`, `buildBudgetPlanRevisionModel` | visuelles Angleichen |
-| Staging | `setEpicFlagAction` (Work) | zusätzlicher Einstieg im Board (Epic-Overview bleibt) |
+| Bereich      | Wiederverwendet (Backend/Domain — unverändert)                                          | UI-Änderung                                                                                   |
+| ------------ | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Topf & Epics | `loadBudgetingBoardModel`, `buildBudgetingBoardModel`, `saveBudgetPool/Allocation`      | `PoolRow`/`EpicRow` verlieren Zeilen-Save → globale Save-Bar; Perioden-Balken; Inline-Staging |
+| Wertströme   | `getValueStreamBudgets`, `rollupByValueStream`, `ValueStreamChart`                      | eigene Ebene statt Board-Fußzeile                                                             |
+| ARTs         | `loadArtBudgetModel`, `buildArtBudgetModel`, `saveArtBudget`, `aggregateArtFeatureLoad` | in die Runde geholt + VS-Auswahl; von VS-Detail verlinkt                                      |
+| Übersicht    | `loadControllingModel`, `CaptureRevisionButton`                                         | Prozess-Leiste ergänzt; Guardrails umgelabelt                                                 |
+| Budget-Plan  | `getBudgetPlanRevision`, `buildBudgetPlanRevisionModel`                                 | visuelles Angleichen                                                                          |
+| Staging      | `setEpicFlagAction` (Work)                                                              | zusätzlicher Einstieg im Board (Epic-Overview bleibt)                                         |
 
 ## 5. Requirements (testbar)
 
@@ -212,7 +220,7 @@ Fünf verdichtete Schritte mit Zustand `erledigt | offen | blockiert` und Deep-L
 ## 7. Referenzen
 
 - `src/modules/budgeting/README.md`, `docs/concepts/budgeting-module-deepening.md` (Terminologie,
-  REQ-*/F-*), ADR-0013 (Layering), ADR-0019 (Epic-Fenster folgt dem Reifegrad-Plan), ADR-0015
+  REQ-_/F-_), ADR-0013 (Layering), ADR-0019 (Epic-Fenster folgt dem Reifegrad-Plan), ADR-0015
   (entfernte Write-Kopplung), `docs/design-tokens.md`.
 - Vorbild-Shells: `EntityDetailShell`, `StructurePageShell`, `ZieleShell` (capability-gated Edit +
   Sub-Tabs + Layout-Toggle).
