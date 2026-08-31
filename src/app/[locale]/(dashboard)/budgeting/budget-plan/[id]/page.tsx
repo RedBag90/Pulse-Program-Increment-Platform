@@ -1,9 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
-import { authorize } from "@/server/auth/authorize";
-import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
-import { isCurrentCycle } from "@/modules/budgeting/server/views/controlling-overview";
 import {
   getBudgetPlanRevision,
   listBudgetPlanRevisionCycles,
@@ -11,7 +8,6 @@ import {
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { BudgetPlanRevisionView } from "@/modules/budgeting/features/components/revision/budget-plan-revision-view";
 import { buildBudgetPlanRevisionModel } from "@/modules/budgeting/server/views/budget-plan-revision";
-import { CaptureRevisionButton } from "@/modules/budgeting/features/components/revision/capture-revision-button";
 import { PbRoundProtocol } from "@/modules/budgeting/features/components/revision/pb-round-protocol";
 import { Link } from "@/i18n/navigation";
 import { Page } from "@/components/layout";
@@ -41,25 +37,13 @@ export default async function BudgetPlanRevisionDetailPage({ params }: Props) {
   ]);
   if (!revision) notFound();
 
-  const canCapture = authorize(
-    "budget_plan.revision.capture",
-    { tenantId: principal.tenantId },
-    principal,
-  ).allow;
-  const now = new Date();
-  const currentCycleLabel = halfYearLabel(halfYearKey(now));
-  const showRecapture = canCapture && isCurrentCycle(revision.cycleKey, now);
-
   return (
     <Page>
-      <div className="flex items-baseline justify-between gap-3">
-        <Link href="/budgeting" className="text-xs font-medium text-primary hover:underline">
-          ← Controlling-Übersicht
-        </Link>
-        {showRecapture && (
-          <CaptureRevisionButton cycleLabel={currentCycleLabel} variant="compact" />
-        )}
-      </div>
+      {/* Erfasst wird im Ergebnis-Reiter der Kachel — dort, wo die Zahlen
+          entstehen. Diese Fläche ist reine Rückschau. */}
+      <Link href="/budgeting/periods" className="text-xs font-medium text-primary hover:underline">
+        ← Budgeting-Zeiträume
+      </Link>
 
       {history.length > 1 && (
         <nav className="flex flex-wrap gap-1.5 text-xs">

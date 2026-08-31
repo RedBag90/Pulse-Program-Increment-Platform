@@ -10,6 +10,8 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
+import { periodPhases, phaseSummary } from "@/modules/budgeting/domain/period-phases";
+import type { RoundStatus } from "@/modules/budgeting/domain/round-status";
 
 export interface PeriodTile {
   id: string;
@@ -27,6 +29,8 @@ export interface PeriodTile {
   submissionDeadline: Date | null;
   /** Offene Reserve einer abgeschlossenen Kachel (Grundlage des Übertrags). */
   reserveAmount: number;
+  /** „Phase 4 · Verteilen" — sagt mehr als der bloße Status. */
+  phase: string;
   href: string;
 }
 
@@ -38,6 +42,15 @@ export interface CarriableReserve {
 }
 
 export interface PeriodsGalleryModel {
+  /**
+   * Die Kachel, an der gerade gearbeitet wird: die laufende, sonst die jüngste
+   * offene. Trägt die Kopfzahlen der Gallery — die kamen früher von der
+   * Controlling-Seite und bezogen sich auf einen tenant-weiten „aktiven
+   * Zyklus", den das Kachel-Modell nicht mehr kennt.
+   */
+  active: PeriodTile | null;
+  /** Zuletzt eingefrorener Zeitraum (Label), sonst `null`. */
+  lastCapturedLabel: string | null;
   /** Kommende + laufende Kacheln (nicht abgeschlossen) — im Fokus. */
   focus: PeriodTile[];
   /** Abgeschlossene Kacheln — ausgegraut, nach unten. */
@@ -63,6 +76,9 @@ export interface PeriodRoundInput {
   groupCount: number;
   submittedCount: number;
   reserveAmount: number;
+  candidateCount: number;
+  staffedGroupCount: number;
+  hasRevision: boolean;
 }
 
 function toTile(r: PeriodRoundInput, now: Date): PeriodTile {
@@ -80,6 +96,18 @@ function toTile(r: PeriodRoundInput, now: Date): PeriodTile {
     endDate: r.endDate,
     submissionDeadline: r.submissionDeadline,
     reserveAmount: r.reserveAmount,
+    phase: phaseSummary(
+      periodPhases({
+        status: r.status as RoundStatus,
+        poolTotal: r.poolTotal,
+        hasTimeframe: r.startDate != null && r.endDate != null,
+        candidateCount: r.candidateCount,
+        staffedGroupCount: r.staffedGroupCount,
+        groupCount: r.groupCount,
+        submittedCount: r.submittedCount,
+        hasRevision: r.hasRevision,
+      }),
+    ),
     href: `/budgeting/periods/${r.id}`,
   };
 }
@@ -99,8 +127,13 @@ export function buildPeriodsGallery(
   const byRecency = (a: PeriodTile, b: PeriodTile) =>
     sortKey(b) - sortKey(a) || b.cycleKey.localeCompare(a.cycleKey);
   const past = tiles.filter((t) => t.status === "closed").sort(byRecency);
+  const focus = tiles.filter((t) => t.status !== "closed").sort(byRecency);
+  const capturedCycles = new Set(rounds.filter((r) => r.hasRevision).map((r) => r.cycleKey));
+  const lastCaptured = [...tiles].sort(byRecency).find((t) => capturedCycles.has(t.cycleKey));
   return {
-    focus: tiles.filter((t) => t.status !== "closed").sort(byRecency),
+    active: tiles.find((t) => t.status === "running") ?? focus[0] ?? null,
+    lastCapturedLabel: lastCaptured?.label ?? null,
+    focus,
     past,
     carriableReserves: past
       .filter((t) => t.reserveAmount > 0)
@@ -131,10 +164,18 @@ export async function loadPeriodsGallery(
       endDate: true,
       submissionDeadline: true,
       reserveAmount: true,
-      _count: { select: { participants: true, groups: true } },
-      groups: { select: { submittedAt: true } },
+      _count: { select: { participants: true, groups: true, candidates: true } },
+      groups: { select: { submittedAt: true, _count: { select: { members: true } } } },
     },
   });
+
+  // Ein eingefrorener Stand je Zyklus (`@@unique([tenantId, cycleKey])`) — die
+  // letzte Phase einer Kachel.
+  const revisions = await db.budgetPlanRevision.findMany({
+    where: { tenantId },
+    select: { cycleKey: true },
+  });
+  const captured = new Set(revisions.map((r) => r.cycleKey));
 
   return buildPeriodsGallery(
     rounds.map((r) => ({
@@ -149,6 +190,9 @@ export async function loadPeriodsGallery(
       groupCount: r._count.groups,
       submittedCount: r.groups.filter((g) => g.submittedAt != null).length,
       reserveAmount: r.reserveAmount ? Number(r.reserveAmount) : 0,
+      candidateCount: r._count.candidates,
+      staffedGroupCount: r.groups.filter((g) => g._count.members > 0).length,
+      hasRevision: captured.has(r.cycleKey),
     })),
     canManage,
     new Date(),

@@ -7,12 +7,19 @@ import { PeriodTileCard } from "@/modules/budgeting/features/components/period/p
 import { CreatePeriodDialog } from "@/modules/budgeting/features/components/period/create-period-dialog";
 import { BudgetingDefaultsForm } from "@/modules/budgeting/features/components/period/budgeting-defaults-form";
 import { SectionLabel } from "@/components/ui/section-label";
+import { Stat, StatStrip } from "@/components/ui/stat";
+import { formatCompactEUR } from "@/lib/formatting";
 import { Page, PageHeader } from "@/components/layout";
 
 /**
  * Budgeting-Zeiträume als Kachel-Gallery. Je Kachel ein Zeitraum; in der Kachel
- * lebt der Participatory-Budgeting-Prozess. Kommende + laufende Kacheln stehen im
- * Fokus, abgeschlossene wandern ausgegraut nach unten.
+ * lebt der **ganze** Ablauf. Kommende + laufende Kacheln stehen im Fokus,
+ * abgeschlossene wandern ausgegraut nach unten.
+ *
+ * Der Kopf trägt die vier Zahlen, die früher auf der Controlling-Seite standen —
+ * dort bezogen sie sich auf einen tenant-weiten „aktiven Zyklus" und rechneten
+ * gegen einen Topf, den niemand mehr pflegen konnte. Hier beziehen sie sich auf
+ * die laufende Kachel.
  */
 export default async function BudgetingPeriodsPage() {
   const principal = await requirePrincipal().catch(() => null);
@@ -50,6 +57,45 @@ export default async function BudgetingPeriodsPage() {
           ) : undefined
         }
       />
+
+      {model.active && (
+        <StatStrip>
+          <Stat
+            label="Laufende Kachel"
+            value={<span className="text-xl">{model.active.label}</span>}
+            delta={{ tone: "flat", text: model.active.phase }}
+          />
+          <Stat
+            label="Topf"
+            value={<span className="text-xl">{formatCompactEUR(model.active.poolTotal)}</span>}
+          />
+          <Stat
+            label="Abgaben"
+            value={
+              <span className="text-xl">
+                {model.active.submittedCount} / {model.active.groupCount}
+              </span>
+            }
+            delta={{
+              tone:
+                model.active.groupCount > 0 &&
+                model.active.submittedCount >= model.active.groupCount
+                  ? "up"
+                  : "flat",
+              text: `${model.active.participantCount} Beteiligte`,
+            }}
+          />
+          <Stat
+            label="Letzter Stand"
+            value={<span className="text-xl">{model.lastCapturedLabel ?? "—"}</span>}
+            delta={
+              model.lastCapturedLabel
+                ? { tone: "flat", text: "eingefroren" }
+                : { tone: "down", text: "noch keiner" }
+            }
+          />
+        </StatStrip>
+      )}
 
       {model.canManage && (
         <div className="mb-6">

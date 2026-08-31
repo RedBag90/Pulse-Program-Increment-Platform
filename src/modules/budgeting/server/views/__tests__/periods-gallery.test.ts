@@ -18,6 +18,9 @@ function round(p: Partial<PeriodRoundInput> & { id: string }): PeriodRoundInput 
     groupCount: 0,
     submittedCount: 0,
     reserveAmount: 0,
+    candidateCount: 0,
+    staffedGroupCount: 0,
+    hasRevision: false,
     ...p,
   };
 }
@@ -98,5 +101,49 @@ describe("buildPeriodsGallery", () => {
       NOW,
     );
     expect(m.focus[0]).toMatchObject({ groupCount: 4, submittedCount: 2, participantCount: 12 });
+  });
+});
+
+describe("buildPeriodsGallery — Phase je Kachel", () => {
+  it("benennt die laufende Phase statt nur des Status", () => {
+    const m = buildPeriodsGallery(
+      [
+        round({ id: "neu" }),
+        round({
+          id: "verteilt",
+          status: "running",
+          groupCount: 2,
+          staffedGroupCount: 2,
+          submittedCount: 1,
+        }),
+      ],
+      true,
+      NOW,
+    );
+    const byId = Object.fromEntries(m.focus.map((t) => [t.id, t.phase]));
+    expect(byId["neu"]).toBe("Phase 1 · Rahmen");
+    expect(byId["verteilt"]).toBe("Phase 4 · Verteilen");
+  });
+
+  it("eine eingefrorene Kachel ist abgeschlossen", () => {
+    const m = buildPeriodsGallery(
+      [
+        round({
+          id: "fertig",
+          status: "closed",
+          poolTotal: 1000,
+          startDate: new Date("2026-01-01"),
+          endDate: new Date("2026-06-30"),
+          candidateCount: 3,
+          groupCount: 2,
+          staffedGroupCount: 2,
+          submittedCount: 2,
+          hasRevision: true,
+        }),
+      ],
+      true,
+      NOW,
+    );
+    expect(m.past[0]!.phase).toBe("abgeschlossen");
   });
 });

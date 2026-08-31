@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
+import { fields } from "@/server/http/form-data";
 import {
   saveBudgetAllocation,
   saveBudgetPool,
@@ -91,11 +92,18 @@ export const saveArtBudgetAction = createServerAction({
  * Klick im selben Zyklus überschreibt den vorherigen Snapshot.
  */
 export const captureBudgetPlanRevisionAction = createServerAction({
-  schema: z.object({}),
+  schema: z.object({ cycleKey: z.string().optional() }),
   action: "budget_plan.revision.capture",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  parseFormData: () => ({}),
-  service: (ctx) => captureBudgetPlanRevision(ctx),
+  parseFormData: (fd) => {
+    const cycleKey = fields(fd).nonEmptyString("cycleKey");
+    return cycleKey !== undefined ? { cycleKey } : {};
+  },
+  service: (ctx, input) =>
+    captureBudgetPlanRevision(
+      ctx,
+      input.cycleKey !== undefined ? { cycleKey: input.cycleKey } : {},
+    ),
   revalidate: "budgetPlanRevision",
   describeCreated: (v: { id: string; cycleKey: string }) => ({
     id: v.id,
@@ -116,8 +124,7 @@ export const advanceBudgetCycleAction = createServerAction({
   parseFormData: () => ({}),
   service: (ctx) => advanceBudgetCycle(ctx),
   revalidate: "budgetPlanRevision",
-  mapError: (e) =>
-    formatDomainError(e, { fallback: "Zyklus konnte nicht fortgeschrieben werden" }),
+  mapError: (e) => formatDomainError(e, { fallback: "Zyklus konnte nicht fortgeschrieben werden" }),
 });
 
 /** Setzt die Rolling-Window-Größe (Halbjahre). */
@@ -128,6 +135,5 @@ export const setBudgetWindowSizeAction = createServerAction({
   parseFormData: payload,
   service: (ctx, input) => setBudgetWindowSize(ctx, { size: input.size }),
   revalidate: "budgetAllocation",
-  mapError: (e) =>
-    formatDomainError(e, { fallback: "Fenstergröße konnte nicht gesetzt werden" }),
+  mapError: (e) => formatDomainError(e, { fallback: "Fenstergröße konnte nicht gesetzt werden" }),
 });

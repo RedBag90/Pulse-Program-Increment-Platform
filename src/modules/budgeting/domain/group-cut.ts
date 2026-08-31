@@ -1,11 +1,14 @@
 /**
  * Gruppen-Schnitt-Prüfung (C-01..C-03) — Warnungen, keine harten Fehler.
  *
- * Der Wert des PB-Verfahrens hängt an unabhängigen, heterogen geschnittenen
+ * Der Wert des PB-Verfahrens hängt an unabhängigen, ausgewogen geschnittenen
  * Gruppen: mindestens 3 Gruppen (bei 2 ist die Streuzone nicht auswertbar),
- * 4–6 Personen, keine zwei aus demselben Team, Einreicher gleichmäßig verteilt,
- * je Gruppe ein Sprecher. Verstöße werden als Warnungen zurückgegeben, damit
- * der Moderator bewusst entscheiden kann.
+ * 4–6 Personen, Einreicher gleichmäßig verteilt, je Gruppe ein Sprecher.
+ * Verstöße werden als Warnungen zurückgegeben, damit der Moderator bewusst
+ * entscheiden kann.
+ *
+ * Die frühere Prüfung „keine zwei aus demselben Team" ist entfallen: Teams gibt
+ * es als Entität nicht mehr, der Zweig konnte nie feuern.
  *
  * Rein, kein I/O.
  */
@@ -23,14 +26,12 @@ export interface CutGroup {
 export interface CutMember {
   groupId: string;
   userId: string;
-  team: string | null;
   isSubmitter: boolean;
 }
 
 export type CutWarningCode =
   | "too_few_groups"
   | "group_size"
-  | "team_clash"
   | "no_spokesperson"
   | "submitters_uneven";
 
@@ -62,15 +63,6 @@ export function checkGroupCut(
       warnings.push({
         code: "group_size",
         message: `Gruppe „${g.name}" hat ${gm.length} Personen (empfohlen ${MIN_GROUP_SIZE}–${MAX_GROUP_SIZE}).`,
-        groupId: g.id,
-      });
-    }
-
-    const teams = gm.map((m) => m.team).filter((t): t is string => t != null);
-    if (new Set(teams).size < teams.length) {
-      warnings.push({
-        code: "team_clash",
-        message: `Gruppe „${g.name}" hat zwei Personen aus demselben Team.`,
         groupId: g.id,
       });
     }

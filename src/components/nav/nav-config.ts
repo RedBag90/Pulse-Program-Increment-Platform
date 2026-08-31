@@ -5,11 +5,9 @@ import {
   CalendarDays,
   Network,
   Goal,
-  Gauge,
   Map,
   LineChart,
   LayoutGrid,
-  RefreshCw,
   GitBranch,
   Route,
   BarChart2,
@@ -152,9 +150,11 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [{ href: "/issues", labelKey: "issues", icon: ShieldAlert, exact: true }],
   },
   {
-    // Budgeting als eigenständiges Top-Level-Modul: Kachel-Zeiträume (der
-    // Participatory-Budgeting-Prozess), Controlling-Übersicht, Budget-Plan. Via
-    // moduleAllowed ausgeblendet, wenn das Budgeting-Modul aus ist.
+    // Budgeting: **eine** Arbeitsfläche (die Kachel trägt den ganzen Ablauf) und
+    // **ein** Archiv. Die Controlling-Übersicht ist in Gallery und Kachel
+    // aufgegangen; Run the Business lebt in der Ballot-Phase und ist von
+    // Wertstrom und Solution aus erreichbar. Via moduleAllowed ausgeblendet,
+    // wenn das Budgeting-Modul aus ist.
     labelKey: "budgeting",
     defaultHref: "/budgeting/periods",
     items: [
@@ -165,13 +165,6 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: LayoutGrid,
         capability: "budget.round.manage",
       },
-      {
-        // Run-the-Business-Positionen je Value Stream (zentrale Pflege).
-        href: "/budgeting/run-the-business",
-        labelKey: "runTheBusiness",
-        icon: RefreshCw,
-      },
-      { href: "/budgeting", labelKey: "controllingOverview", icon: Gauge, exact: true },
       {
         href: "/budgeting/budget-plan",
         labelKey: "budgetPlan",

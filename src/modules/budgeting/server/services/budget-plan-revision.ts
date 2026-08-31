@@ -19,11 +19,9 @@ import {
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { getBudgetingBoard } from "@/modules/budgeting/server/services/budgeting";
-import { getRoundForCycle, transitionRound } from "@/modules/budgeting/server/services/round-service";
-import type { RoundStatus } from "@/modules/budgeting/domain/round-status";
+import { getRoundForCycle } from "@/modules/budgeting/server/services/round-service";
 import { loadZonesModel } from "@/modules/budgeting/server/views/zones-view";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
-import { hasCapability } from "@/server/auth/authorize";
 
 /**
  * Budget-Plan-Revisionen — manually-triggered, half-year-keyed snapshots of
@@ -43,6 +41,12 @@ const SNAPSHOT_VERSION = 1;
 export interface CaptureBudgetPlanRevisionInput {
   /** Defaults to `new Date()`; injected by tests to pin the cycle. */
   now?: Date | undefined;
+  /**
+   * Der einzufrierende Zyklus. Kommt von der Kachel, aus der heraus erfasst
+   * wird — ohne ihn träfe der Snapshot das *heutige* Halbjahr und damit
+   * womöglich eine andere Kachel als die, die man vor sich hat.
+   */
+  cycleKey?: string | undefined;
 }
 
 export async function captureBudgetPlanRevision(
@@ -51,7 +55,7 @@ export async function captureBudgetPlanRevision(
 ): Promise<Result<{ id: string; cycleKey: string }>> {
   const mctx = toMutationContext(ctx);
   const capturedAt = input.now ?? new Date();
-  const cycleKey = halfYearKey(capturedAt);
+  const cycleKey = input.cycleKey ?? halfYearKey(capturedAt);
 
   // Load everything we need to freeze *outside* the transaction — these are
   // read-only and the snapshot is just a fold over them.
@@ -188,29 +192,6 @@ async function loadPbRoundSnapshot(
   });
 }
 
-/**
- * Runden-Übergang + (beim Schließen) das Protokoll mit-einfrieren (F-C3). Der
- * Übergang bleibt die maßgebliche Mutation; die Protokoll-Erfassung ist eine
- * additive, idempotente Folge (Upsert je Cycle) und nur ausgelöst, wenn der
- * Akteur das Erfassungs-Recht hat — sonst bleibt der Snapshot per Button (die
- * Übergabe-CTA weist darauf hin). Ein Fehler beim Erfassen kippt den bereits
- * committeten Übergang nicht.
- */
-export async function transitionRoundThenProtocol(
-  ctx: RequestContext,
-  input: { id: string; to: RoundStatus },
-): Promise<Result<void>> {
-  const res = await transitionRound(ctx, input);
-  if (
-    res.ok &&
-    input.to === "closed" &&
-    hasCapability(ctx.principal, "budget_plan.revision.capture", { tenantId: ctx.principal.tenantId })
-  ) {
-    await captureBudgetPlanRevision(ctx).catch(() => undefined);
-  }
-  return res;
-}
-
 // ---------------------------------------------------------------------------
 // Reads
 // ---------------------------------------------------------------------------
@@ -283,7 +264,8 @@ export async function getBudgetPlanRevision(
   tenantId: TenantId,
   id: string,
 ): Promise<
-  (BudgetPlanRevisionHeader & { snapshot: BudgetPlanSnapshot; round: PbRoundSnapshot | null }) | null
+  | (BudgetPlanRevisionHeader & { snapshot: BudgetPlanSnapshot; round: PbRoundSnapshot | null })
+  | null
 > {
   const row = await db.budgetPlanRevision.findFirst({
     where: { id, tenantId },

@@ -20,8 +20,11 @@ const day = (d: Date | null): string =>
 
 /**
  * Kachel eines Budgeting-Zeitraums: Status-Pill (+ „geplant" für Zukunfts-
- * Zeiträume), Kennzahlen und ein Abgabe-Fortschrittsbalken. `muted` dämpft
- * abgeschlossene Kacheln. Rein präsentational.
+ * Zeiträume), Kennzahlen, die **Phase** und ein Abgabe-Fortschrittsbalken.
+ * `muted` dämpft abgeschlossene Kacheln. Rein präsentational.
+ *
+ * Die Phase steht neben dem Status, weil „läuft" nicht sagt, ob gerade verteilt
+ * oder schon finalisiert wird.
  */
 export function PeriodTileCard({ tile, muted }: { tile: PeriodTile; muted?: boolean }) {
   const frac = tile.groupCount > 0 ? tile.submittedCount / tile.groupCount : 0;
@@ -41,7 +44,9 @@ export function PeriodTileCard({ tile, muted }: { tile: PeriodTile; muted?: bool
               geplant
             </span>
           )}
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_TONE[tile.status] ?? "bg-muted"}`}>
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_TONE[tile.status] ?? "bg-muted"}`}
+          >
             {STATUS_LABEL[tile.status] ?? tile.status}
           </span>
         </div>
@@ -54,9 +59,14 @@ export function PeriodTileCard({ tile, muted }: { tile: PeriodTile; muted?: bool
         <Stat label="Abgegeben" value={`${tile.submittedCount} / ${tile.groupCount}`} />
       </dl>
 
+      <p className="mt-3 text-xs text-muted-foreground">{tile.phase}</p>
+
       {tile.groupCount > 0 && (
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round(frac * 100)}%` }} />
+        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${Math.round(frac * 100)}%` }}
+          />
         </div>
       )}
     </Link>

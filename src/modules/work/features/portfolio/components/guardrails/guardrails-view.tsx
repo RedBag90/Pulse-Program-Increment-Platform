@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Link } from "@/i18n/navigation";
-import { ArrowRight } from "lucide-react";
 import { Page, PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ToggleGroup, type ToggleGroupOption } from "@/components/ui/toggle-group";
@@ -12,6 +10,10 @@ import type {
   CapacityBucket,
   PortfolioGuardrailsModel,
 } from "@/modules/work/server/views/portfolio-guardrails-view";
+import type { GuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
+import { GuardrailTargetsForm } from "@/modules/work/features/portfolio/components/guardrail-targets-form";
+import { GuardrailTargetsReadOnly } from "@/modules/work/features/portfolio/components/guardrail-targets-readonly";
+import { SectionLabel } from "@/components/ui/section-label";
 import { GuardrailMixCard, type MixBucketSpec, type MixView } from "./guardrail-mix-card";
 import { BoEngagementCard } from "./bo-engagement-card";
 import { EpicTower } from "./epic-tower";
@@ -45,10 +47,13 @@ export function GuardrailsView({
   model,
   epicCount,
   canManageTargets,
+  targets,
 }: {
   model: PortfolioGuardrailsModel;
   epicCount: number;
   canManageTargets: boolean;
+  /** Der Soll-Mix — gepflegt am Ende dieser Seite, nicht mehr im Budgeting. */
+  targets: GuardrailTargets;
 }) {
   const [view, setView] = useState<MixView>("count");
   const { horizon, capacity, engagement } = model;
@@ -59,24 +64,13 @@ export function GuardrailsView({
         title="Portfolio-Guardrails"
         subtitle={`Ist-Mix gegen den vom LPM gesetzten Soll-Mix. ${epicCount} Epics im Portfolio.`}
         actions={
-          <>
-            <ToggleGroup
-              value={view}
-              options={VIEW_OPTIONS}
-              onChange={setView}
-              ariaLabel="Sicht"
-              className="bg-card text-[11px]"
-            />
-            {canManageTargets && (
-              <Link
-                href="/budgeting"
-                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-              >
-                Targets pflegen
-                <ArrowRight className="size-3.5" />
-              </Link>
-            )}
-          </>
+          <ToggleGroup
+            value={view}
+            options={VIEW_OPTIONS}
+            onChange={setView}
+            ariaLabel="Sicht"
+            className="bg-card text-[11px]"
+          />
         }
       />
 
@@ -120,6 +114,18 @@ export function GuardrailsView({
           <EpicTower epicsByStage={horizon.epicsByStage} epicsByHorizon={horizon.epicsByHorizon} />
         </>
       )}
+
+      {/* Der Soll-Mix steht am Ende der Seite, die ihn misst. Vorher lag er im
+          Budgeting-Modul — fachlich ein Fremdkörper und zwei Klicks entfernt
+          von jeder Abweichung, die er erklären soll. */}
+      <section className="space-y-3 border-t pt-6">
+        <SectionLabel>Soll-Mix (Targets)</SectionLabel>
+        {canManageTargets ? (
+          <GuardrailTargetsForm targets={targets} />
+        ) : (
+          <GuardrailTargetsReadOnly targets={targets} />
+        )}
+      </section>
     </Page>
   );
 }

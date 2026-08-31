@@ -12,8 +12,11 @@ import { GuardrailsView } from "@/modules/work/features/portfolio/components/gua
 /**
  * SAFe Portfolio Guardrails — Ist-Mix gegen den vom LPM gesetzten Soll-Mix.
  * Drei Achsen: Investment by Horizon, Capacity Allocation (Business vs Enabler)
- * und Business-Owner-Engagement. Reine Lese-Flaeche; die Targets werden auf der
- * Controlling-Uebersicht gepflegt.
+ * und Business-Owner-Engagement.
+ *
+ * Die Soll-Werte werden **hier** gepflegt, nicht mehr auf der
+ * Controlling-Übersicht des Budgeting-Moduls: sie gehören zu `target.manage`
+ * und damit ins Portfolio, und sie stehen jetzt neben dem Ist, das sie messen.
  */
 export default async function PortfolioGuardrailsPage() {
   const principal = await requirePrincipal().catch(() => null);
@@ -42,6 +45,7 @@ export default async function PortfolioGuardrailsPage() {
       model={model}
       epicCount={guardrails.epics.length}
       canManageTargets={canManageTargets}
+      targets={guardrails.targets}
     />
   );
 }

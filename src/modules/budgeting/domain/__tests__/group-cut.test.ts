@@ -1,24 +1,23 @@
 import { describe, it, expect } from "vitest";
 import { checkGroupCut, type CutGroup, type CutMember } from "@/modules/budgeting/domain/group-cut";
 
-const mkMembers = (groupId: string, teams: (string | null)[], submitters = 0): CutMember[] =>
-  teams.map((team, i) => ({
+const mkMembers = (groupId: string, size: number, submitters = 0): CutMember[] =>
+  Array.from({ length: size }, (_, i) => ({
     groupId,
     userId: `${groupId}-${i}`,
-    team,
     isSubmitter: i < submitters,
   }));
 
-// Nordwerk-Schnitt 6.3: 3 Gruppen × 6 Personen, heterogen, Sprecher benannt.
+// Nordwerk-Schnitt 6.3: 3 Gruppen × 6 Personen, Sprecher benannt.
 const NORDWERK_GROUPS: CutGroup[] = [
   { id: "A", name: "A", spokespersonId: "A-0" },
   { id: "B", name: "B", spokespersonId: "B-0" },
   { id: "C", name: "C", spokespersonId: "C-0" },
 ];
 const NORDWERK_MEMBERS: CutMember[] = [
-  ...mkMembers("A", ["einr", "einr2", "vertrieb", "finanzen", "it", "produkt"], 2),
-  ...mkMembers("B", ["einr", "einr2", "vertrieb", "finanzen", "it", "hr"], 2),
-  ...mkMembers("C", ["einr", "einr2", "einr3", "finanzen", "it", "produkt"], 3),
+  ...mkMembers("A", 6, 2),
+  ...mkMembers("B", 6, 2),
+  ...mkMembers("C", 6, 3),
 ];
 
 describe("checkGroupCut", () => {
@@ -31,21 +30,6 @@ describe("checkGroupCut", () => {
     expect(codes).toContain("too_few_groups");
   });
 
-  it("Team-Dopplung in einer Gruppe wird gewarnt", () => {
-    const groups: CutGroup[] = [
-      { id: "A", name: "A", spokespersonId: "A-0" },
-      { id: "B", name: "B", spokespersonId: "B-0" },
-      { id: "C", name: "C", spokespersonId: "C-0" },
-    ];
-    const members = [
-      ...mkMembers("A", ["x", "x", "y", "z"]), // zwei aus Team x
-      ...mkMembers("B", ["a", "b", "c", "d"]),
-      ...mkMembers("C", ["e", "f", "g", "h"]),
-    ];
-    const w = checkGroupCut(groups, members);
-    expect(w.some((x) => x.code === "team_clash" && x.groupId === "A")).toBe(true);
-  });
-
   it("fehlender Sprecher + falsche Größe werden gewarnt", () => {
     const groups: CutGroup[] = [
       { id: "A", name: "A", spokespersonId: null },
@@ -53,9 +37,9 @@ describe("checkGroupCut", () => {
       { id: "C", name: "C", spokespersonId: "C-0" },
     ];
     const members = [
-      ...mkMembers("A", ["a", "b"]), // 2 < 4
-      ...mkMembers("B", ["c", "d", "e", "f"]),
-      ...mkMembers("C", ["g", "h", "i", "j"]),
+      ...mkMembers("A", 2), // 2 < 4
+      ...mkMembers("B", 4),
+      ...mkMembers("C", 4),
     ];
     const codes = checkGroupCut(groups, members).map((w) => w.code);
     expect(codes).toContain("no_spokesperson");

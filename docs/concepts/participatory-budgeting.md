@@ -142,4 +142,4 @@ Detailseite rendert den Runden-Block unter dem €/ART-Snapshot (`PbRoundProtoco
 ## Bekannte Folge-Schritte
 
 - Folgerunden-Bericht gegen die Zusage (F-02) an die bestehende `lpm-review`.
-- Rendering des Verteilbogens als echtes PDF (heute Browser-Druck über `/budgeting/rounds/sheet`).
+- Rendering des Verteilbogens als echtes PDF (heute Browser-Druck über `/budgeting/periods/[id]/sheet`).

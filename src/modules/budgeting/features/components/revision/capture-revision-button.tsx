@@ -6,6 +6,12 @@ import { captureBudgetPlanRevisionAction } from "@/modules/budgeting/features/ac
 interface Props {
   /** Label of the cycle that will be captured (`H1 2026` etc.) — displayed on the button. */
   cycleLabel: string;
+  /**
+   * Der einzufrierende Zyklus. Von der Kachel gesetzt; ohne ihn nimmt der
+   * Server das heutige Halbjahr — was aus einer anderen Kachel heraus die
+   * falsche Revision träfe.
+   */
+  cycleKey?: string;
   /** Render variant. Primary = prominent CTA; compact = inline button for already-populated pages. */
   variant?: "primary" | "compact";
   /** Disables the button (e.g. for users without `budget_plan.revision.capture`). */
@@ -18,7 +24,12 @@ interface Props {
  * error if the action returns one; the success toast is handled by the
  * server-action runtime (`describeCreated`).
  */
-export function CaptureRevisionButton({ cycleLabel, variant = "primary", disabled }: Props) {
+export function CaptureRevisionButton({
+  cycleLabel,
+  cycleKey,
+  variant = "primary",
+  disabled,
+}: Props) {
   const [state, action, pending] = useActionState(captureBudgetPlanRevisionAction, {});
 
   const className =
@@ -29,6 +40,7 @@ export function CaptureRevisionButton({ cycleLabel, variant = "primary", disable
   return (
     <div className="space-y-1">
       <form action={action}>
+        {cycleKey && <input type="hidden" name="cycleKey" value={cycleKey} />}
         <button type="submit" disabled={pending || disabled} className={className}>
           {pending ? "Erstelle…" : `Snapshot für ${cycleLabel} erstellen`}
         </button>

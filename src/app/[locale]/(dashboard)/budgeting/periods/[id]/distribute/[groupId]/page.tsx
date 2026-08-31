@@ -32,10 +32,12 @@ export default async function GroupDistributePage({ params }: Props) {
         subtitle="Verteile den Topf auf die angemeldeten Positionen — Summe ≤ verteilbarer Topf."
         actions={
           <Link
-            href={`/budgeting/periods/${id}`}
+            // Zurück auf die Verteilung, nicht auf „Setup": von dort kam man
+            // her, und dort steht die eigene Abgabe im Zusammenhang.
+            href={`/budgeting/periods/${id}?tab=verteilung`}
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            Zur Kachel
+            ← Zur Verteilung
           </Link>
         }
       />
