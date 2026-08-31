@@ -1,7 +1,11 @@
 /**
  * Read-Model der Solutions-Liste (`/portfolio/solutions`): je Solution Name,
- * Value Stream, ART, Horizont, Epic-Zähler + Grow/Run. **Grow** = Σ Umsetzungs-
- * kosten der aktiven Primär-Epics (Stage < L5); **Run** = `runBaselineAmount`.
+ * Value Stream, ART, Horizont, Epic-Zähler + Grow. **Grow** = Σ Umsetzungs-
+ * kosten der aktiven Primär-Epics (Stage < L5).
+ *
+ * **Run steht hier bewusst nicht drin.** Betriebskosten sind
+ * Run-the-Business-Positionen und gehören dem Budgeting-Modul; das Work-Modul
+ * darf es nicht importieren (ADR-0013). Die Route komponiert beides.
  */
 
 import type { PrismaClient } from "@/generated/prisma";
@@ -21,8 +25,6 @@ export interface SolutionListRow {
   epicCount: number;
   /** Σ Umsetzungskosten aktiver Primär-Epics (Stage < L5). */
   grow: number;
-  /** Manuelle Run-Baseline p.a. (null = nicht gesetzt). */
-  run: number | null;
 }
 
 /** Summiert die Grow-Kosten je Solution aus den aktiven Primär-Epics. */
@@ -35,7 +37,9 @@ export function growByPrimarySolution(
     if (e.primarySolutionId == null) continue;
     count.set(e.primarySolutionId, (count.get(e.primarySolutionId) ?? 0) + 1);
     if (e.stageGate === "L5") continue; // abgeschlossen zählt nicht ins laufende Grow
-    const cost = computeBusinessCaseTotals(parseBusinessCase(e.businessCase).current).implementationCost;
+    const cost = computeBusinessCaseTotals(
+      parseBusinessCase(e.businessCase).current,
+    ).implementationCost;
     grow.set(e.primarySolutionId, (grow.get(e.primarySolutionId) ?? 0) + cost);
   }
   return { grow, count };
@@ -52,7 +56,6 @@ export async function loadSolutionsList(
       name: true,
       horizon: true,
       investmentMode: true,
-      runBaselineAmount: true,
       valueStream: { select: { name: true } },
       art: { select: { name: true } },
     },
@@ -82,7 +85,6 @@ export async function loadSolutionsList(
     investmentMode: s.investmentMode,
     epicCount: count.get(s.id) ?? 0,
     grow: grow.get(s.id) ?? 0,
-    run: s.runBaselineAmount != null ? Number(s.runBaselineAmount) : null,
   }));
 
   // Anzeige-Reihenfolge nach Horizont (h3 → h2 → h1 → h0), dann Name.

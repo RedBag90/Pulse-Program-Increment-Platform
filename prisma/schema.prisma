@@ -644,29 +644,30 @@ model Art {
 /// Investing/Extracting → h0 Decommissioning. Epics verändern Solutions; der
 /// Horizont eines Epics wird aus seiner Primär-Solution abgeleitet.
 model Solution {
-  id                String    @id @default(uuid()) @db.Uuid
-  tenantId          String    @map("tenant_id") @db.Uuid
-  valueStreamId     String    @map("value_stream_id") @db.Uuid
-  artId             String?   @map("art_id") @db.Uuid
-  name              String
-  description       String?
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  valueStreamId  String    @map("value_stream_id") @db.Uuid
+  artId          String?   @map("art_id") @db.Uuid
+  name           String
+  description    String?
   /// h0 (Decommissioning) | h1 (Investing) | h2 (Emerging) | h3 (R&D).
-  horizon           String    @default("h1")
+  horizon        String    @default("h1")
   /// Nur in H1 relevant: "investing" | "extracting". Sonst null.
-  investmentMode    String?   @map("investment_mode")
-  /// Manuelle Run-Betriebskosten p.a. Grow wird aus den Primär-Epics abgeleitet.
-  runBaselineAmount Decimal?  @map("run_baseline_amount") @db.Decimal(14, 2)
-  createdAt         DateTime  @default(now()) @map("created_at")
-  createdBy         String    @map("created_by") @db.Uuid
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  updatedBy         String    @map("updated_by") @db.Uuid
-  deletedAt         DateTime? @map("deleted_at")
+  investmentMode String?   @map("investment_mode")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  createdBy      String    @map("created_by") @db.Uuid
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  updatedBy      String    @map("updated_by") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at")
 
-  tenant         Tenant         @relation(fields: [tenantId], references: [id])
-  valueStream    ValueStream    @relation(fields: [valueStreamId], references: [id])
-  art            Art?           @relation(fields: [artId], references: [id], onDelete: SetNull)
+  tenant         Tenant               @relation(fields: [tenantId], references: [id])
+  valueStream    ValueStream          @relation(fields: [valueStreamId], references: [id])
+  art            Art?                 @relation(fields: [artId], references: [id], onDelete: SetNull)
   epicLinks      EpicSolution[]
-  primaryOfEpics Initiative[]   @relation("EpicPrimarySolution")
+  primaryOfEpics Initiative[]         @relation("EpicPrimarySolution")
+  /// Betriebskosten dieser Solution — die **eine** Run-the-Business-Definition
+  /// (Modul Budgeting). Grow wird weiterhin aus den Primär-Epics abgeleitet.
+  rtbItems       RunTheBusinessItem[]
 
   @@index([tenantId, valueStreamId])
   @@index([tenantId, horizon])
@@ -1329,8 +1330,17 @@ model RunTheBusinessItem {
   id            String  @id @default(uuid()) @db.Uuid
   tenantId      String  @map("tenant_id") @db.Uuid
   valueStreamId String  @map("value_stream_id") @db.Uuid
+  /// Optionale Zurechnung zu einer Solution. `null` = wertstrom-übergreifend
+  /// (geteilte Plattform, Programm-Office): zählt in die Wertstrom-Summe, aber
+  /// in keine Solution.
+  solutionId    String? @map("solution_id") @db.Uuid
   name          String
   plannedAmount Decimal @default(0) @map("planned_amount") @db.Decimal(14, 2)
+  /// Periode des Betrags: "monthly" | "half_yearly" | "yearly". Default
+  /// `half_yearly`, weil genau das die Bestandszeilen bedeuten — ihr Betrag war
+  /// der Ask **einer** Halbjahres-Kachel. Umgerechnet wird ausschließlich in
+  /// `domain/rtb-interval.ts`.
+  interval      String  @default("half_yearly")
   active        Boolean @default(true)
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -1340,8 +1350,10 @@ model RunTheBusinessItem {
 
   tenant      Tenant      @relation(fields: [tenantId], references: [id])
   valueStream ValueStream @relation(fields: [valueStreamId], references: [id], onDelete: Cascade)
+  solution    Solution?   @relation(fields: [solutionId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, valueStreamId])
+  @@index([tenantId, solutionId])
   @@map("run_the_business_items")
 }
 

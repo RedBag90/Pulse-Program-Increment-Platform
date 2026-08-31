@@ -21,6 +21,8 @@ const ACTION_LABELS: Record<string, string> = {
   "solution.deleted": "Solution gelöscht",
   "solution.promoted": "Nach H1 befördert",
   "solution.lifecycle.changed": "Lifecycle geändert",
+  "solution.investment_mode.changed": "Investitionsmodus geändert",
+  // Historisch — die Run-Baseline gibt es nicht mehr, alte Zeilen schon.
   "solution.run.updated": "Run-Baseline geändert",
 };
 

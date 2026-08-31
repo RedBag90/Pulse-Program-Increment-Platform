@@ -1,7 +1,11 @@
 /**
  * Read-Model der Solution-Detailseite (`/portfolio/solutions/[id]`): Kopf +
- * Lifecycle + Run/Grow + zugeordnete Primär-Epics. Grow = Σ Umsetzungskosten der
- * aktiven Primär-Epics (Stage < L5); Run = manuelle Baseline.
+ * Lifecycle + Grow + zugeordnete Primär-Epics. Grow = Σ Umsetzungskosten der
+ * aktiven Primär-Epics (Stage < L5).
+ *
+ * **Run steht hier bewusst nicht drin.** Betriebskosten sind
+ * Run-the-Business-Positionen und gehören dem Budgeting-Modul; das Work-Modul
+ * darf es nicht importieren (ADR-0013). Die Route komponiert beides.
  */
 
 import type { PrismaClient } from "@/generated/prisma";
@@ -28,7 +32,6 @@ export interface SolutionDetailModel {
   artName: string | null;
   horizon: Horizon;
   investmentMode: InvestmentMode | null;
-  run: number | null;
   grow: number;
   epics: SolutionDetailEpic[];
 }
@@ -48,7 +51,6 @@ export async function loadSolutionDetail(
       artId: true,
       horizon: true,
       investmentMode: true,
-      runBaselineAmount: true,
       valueStream: { select: { name: true } },
       art: { select: { name: true } },
     },
@@ -68,7 +70,9 @@ export async function loadSolutionDetail(
 
   let grow = 0;
   const epics: SolutionDetailEpic[] = epicRows.map((e) => {
-    const cost = computeBusinessCaseTotals(parseBusinessCase(e.businessCase).current).implementationCost;
+    const cost = computeBusinessCaseTotals(
+      parseBusinessCase(e.businessCase).current,
+    ).implementationCost;
     if (e.stageGate !== "L5") grow += cost;
     return { id: e.id, title: e.title, stageGate: e.stageGate, cost };
   });
@@ -83,7 +87,6 @@ export async function loadSolutionDetail(
     artName: s.art?.name ?? null,
     horizon: (isHorizon(s.horizon) ? s.horizon : "h1") as Horizon,
     investmentMode: isInvestmentMode(s.investmentMode) ? s.investmentMode : null,
-    run: s.runBaselineAmount != null ? Number(s.runBaselineAmount) : null,
     grow,
     epics,
   };

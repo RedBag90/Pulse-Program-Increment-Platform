@@ -117,6 +117,10 @@ export type AuditAction =
   | "solution.deleted"
   | "solution.promoted"
   | "solution.lifecycle.changed"
+  | "solution.investment_mode.changed"
+  // Abgelöst: die Run-Baseline an der Solution ist in die
+  // Run-the-Business-Positionen aufgegangen. Bleibt in der Union, weil
+  // Bestandszeilen im Audit-Log darauf stehen.
   | "solution.run.updated"
   | "epic.solutions.set"
   | "art_budget.saved"

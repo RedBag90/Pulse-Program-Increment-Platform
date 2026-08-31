@@ -13,7 +13,13 @@
 > übernimmt Beteiligte + Gruppen + Reserve.** Gruppenmitglieder sehen einen
 > abgeleiteten **My-Tasks-Hinweis** (verschwindet nach Abgabe). **Run the Business**
 > ist ein stehender, VS-Owner-gepflegter Betriebskosten-Plan
-> (`RunTheBusinessItem`), der partizipativ mitbudgetiert wird. Rechte:
+> (`RunTheBusinessItem`), der partizipativ mitbudgetiert wird — **die einzige**
+> Definition der Betriebskosten. Jede Position trägt ihre eigene Periode
+> (`interval`: monatlich / je Halbjahr / jährlich) und ist **optional einer
+> Solution zugerechnet** (`solutionId`; `null` = wertstrom-übergreifend). Der Ask
+> einer Kachel ist der Halbjahres-Anteil (`rtbCycleAmount`), die Run-Zahl einer
+> Solution das Jahres-Äquivalent ihrer aktiven Positionen (`rtbAnnualAmount`) —
+> beides ausschließlich in `budgeting/domain/rtb-interval.ts`. Rechte:
 > `budget.group.contribute` (Selbst-Verteilung, Gruppen-Scope im Service),
 > `budget.manage` (Finance-Finalisierung), `rtb_item.manage` (RtB-Plan),
 > `budget.round.manage` (Kachel-Setup). Der Abschnitt unten (Drei-Zonen-
@@ -21,7 +27,6 @@
 > entscheidet jetzt direkt.
 
 ---
-
 
 Der Budgeting-Kern von Pulse ist ein **Participatory-Budgeting-Prozess**: mehrere Gruppen verteilen
 denselben Topf **unabhängig** auf dieselben Epics; ausgewertet wird nicht die einzelne Verteilung, sondern
@@ -61,16 +66,17 @@ zeigt die aktive Runde als Widget (Status, Fortschritt, Reserve).
 
 `draft → running → decided → closed` (strikt vorwärts, `domain/round-status.ts`).
 
-| Status | Was passiert | Guard beim Verlassen |
-|---|---|---|
-| **draft** | Rahmen setzen (Topf, Termin), Pflichtvorhaben, **Gruppen** schneiden (≥3, heterogen) | empfohlen Topf > 0 · ≥3 Gruppen (**weich** — nur Warnung) |
-| **running** | **Hybrid-Erfassung**: Moderator trägt je (Gruppe, Epic) ein Ja/Nein ein; Zonen + Knappheit live | (Erfassung vollständig — heute lenient) |
-| **decided** | Entscheidungsinstanz entscheidet die **Streuzone** (funded/rejected/deferred) | alle Streuzonen-Epics entschieden |
-| **closed** | Reserve berechnet, **Übergabe** ans Detail-Board, Protokoll unveränderlich | — |
+| Status      | Was passiert                                                                                    | Guard beim Verlassen                                      |
+| ----------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| **draft**   | Rahmen setzen (Topf, Termin), Pflichtvorhaben, **Gruppen** schneiden (≥3, heterogen)            | empfohlen Topf > 0 · ≥3 Gruppen (**weich** — nur Warnung) |
+| **running** | **Hybrid-Erfassung**: Moderator trägt je (Gruppe, Epic) ein Ja/Nein ein; Zonen + Knappheit live | (Erfassung vollständig — heute lenient)                   |
+| **decided** | Entscheidungsinstanz entscheidet die **Streuzone** (funded/rejected/deferred)                   | alle Streuzonen-Epics entschieden                         |
+| **closed**  | Reserve berechnet, **Übergabe** ans Detail-Board, Protokoll unveränderlich                      | —                                                         |
 
 ## Drei-Zonen-Auswertung (`domain/three-zone.ts`)
 
 Je Epic aus den Gruppen-Ja-Stimmen:
+
 - **Konsens** (alle Gruppen Ja) → gesetzt, keine Diskussion.
 - **Ablehnung** (keine Gruppe Ja) → raus, keine Diskussion.
 - **Streuzone** (uneinheitlich) → einzige Diskussion + Entscheidung.

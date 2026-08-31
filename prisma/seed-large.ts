@@ -26,6 +26,7 @@ import { enumerateDefaultCapabilities } from "@/server/auth/policies";
 import { buildBudgetPlanSnapshot } from "@/modules/budgeting/domain/budget-plan-snapshot";
 import { prisma, upsertAuthUser, assignRole, wipeDomainData, uid } from "./seed-helpers.js";
 import { seedRunTheBusiness, seedBudgetPeriod, type GroupSpec } from "./seed-budgeting.js";
+import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 import {
   assertGateHistory,
   buildGateHistory,
@@ -297,7 +298,6 @@ async function main() {
         name: `${vsNames[vs]} ${solNameSuffix[h]}`,
         horizon: h,
         investmentMode: h === "h1" ? "extracting" : null,
-        runBaselineAmount: h === "h1" ? 200_000 + vs * 40_000 : null,
         createdBy: ADMIN,
         updatedBy: ADMIN,
       });
@@ -990,18 +990,30 @@ async function main() {
   const rtb = await seedRunTheBusiness(
     tenantId,
     ADMIN,
+    // Zwei wertstrom-übergreifende Positionen (ohne Solution) plus der Betrieb
+    // des H1-Kerns — beide Ausprägungen kommen im Mandanten vor.
     vsIds.map((vsId, k) => ({
       valueStreamId: vsId,
       items: [
-        { name: "Programm-Office & Controlling", plannedAmount: 40_000 + k * 8_000 },
-        { name: "Externe Beratung", plannedAmount: 60_000 + k * 10_000 },
+        {
+          name: "Programm-Office & Controlling",
+          plannedAmount: 40_000 + k * 8_000,
+          interval: "half_yearly",
+        },
+        { name: "Externe Beratung", plannedAmount: 60_000 + k * 10_000, interval: "yearly" },
+        {
+          name: "Betrieb & Support",
+          plannedAmount: 200_000 + k * 40_000,
+          interval: "yearly",
+          solutionId: solId(k, "h1"),
+        },
       ],
     })),
   );
   const rtbCands = rtb.map((r) => ({
     rtbItemId: r.id,
     title: r.name,
-    ask: r.plannedAmount,
+    ask: rtbCycleAmount(r.plannedAmount, r.interval),
     valueStreamId: r.valueStreamId,
   }));
   // Kandidaten der laufenden/geplanten Runden = die L2-Epics (definiert, warten auf Budget).

@@ -7,7 +7,10 @@ import { listAuditHistory } from "@/server/services/audit-history";
 import { loadSolutionDetail } from "@/modules/work/server/views/solution-detail";
 import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
 import { SolutionLifecycleBar } from "@/modules/work/features/portfolio/components/solutions/solution-lifecycle-bar";
-import { SolutionRunGrowTiles } from "@/modules/work/features/portfolio/components/solutions/solution-run-grow-tiles";
+import { SolutionGrowRunTiles } from "@/modules/work/features/portfolio/components/solutions/solution-grow-run-tiles";
+import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
+import { RtbSection } from "@/modules/budgeting/features/components/rtb/rtb-section";
+import { sumRtbAnnual } from "@/modules/budgeting/domain/rtb-interval";
 import { SolutionEditButton } from "@/modules/work/features/portfolio/components/solutions/solution-edit-button";
 import {
   EntityDetailShell,
@@ -34,6 +37,10 @@ interface Props {
  * Stream. Der Lifecycle sitzt tab-unabhängig im Sub-Header, weil der
  * Horizont-Wechsel der Vorgang dieser Fläche ist; die Reiter tragen Ökonomie,
  * zugeordnete Epics und den Audit-Verlauf.
+ *
+ * Kompositions-Wurzel über zwei Modulen (ADR-0013): Grow und Lifecycle kommen
+ * aus **Work**, die Betriebskosten (Run) aus **Budgeting**. Ohne dessen
+ * Entitlement degradiert die Run-Kachel, statt zu fehlen.
  */
 export default async function SolutionDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
@@ -48,7 +55,23 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
   if (!model) notFound();
 
   const canManage = hasCapability(principal, "solution.manage", { tenantId: principal.tenantId });
-  const history = await listAuditHistory(db, principal.tenantId, "solution", id);
+  const budgetingEnabled = principal.enabledModules.includes("budgeting");
+  // Betriebskosten pflegt, wer den Wertstrom verantwortet — nicht, wer die
+  // Solution verwaltet. Dieselbe Regel wie im Wertstrom-Detail.
+  const canManageRtb =
+    budgetingEnabled &&
+    hasCapability(principal, "rtb_item.manage", {
+      tenantId: principal.tenantId,
+      valueStreamId: model.valueStreamId,
+    });
+
+  const [history, rtbItems] = await Promise.all([
+    listAuditHistory(db, principal.tenantId, "solution", id),
+    budgetingEnabled
+      ? listRtbItems(db, principal.tenantId, { solutionId: id })
+      : Promise.resolve(null),
+  ]);
+  const run = rtbItems ? sumRtbAnnual(rtbItems) : null;
   const events = history.map((e) => ({
     id: e.id,
     action: e.action,
@@ -69,7 +92,23 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
       {...(canManage ? { headerActions: <SolutionEditButton model={model} /> } : {})}
       subHeader={<SolutionLifecycleBar model={model} canManage={canManage} />}
     >
-      {activeTab === "overview" && <SolutionRunGrowTiles model={model} canManage={canManage} />}
+      {activeTab === "overview" && (
+        <div className="space-y-6">
+          <SolutionGrowRunTiles
+            grow={model.grow}
+            run={run}
+            runItemCount={rtbItems?.filter((i) => i.active).length ?? 0}
+          />
+          {rtbItems && (
+            <RtbSection
+              valueStreamId={model.valueStreamId}
+              items={rtbItems}
+              canManage={canManageRtb}
+              solutionId={model.id}
+            />
+          )}
+        </div>
+      )}
 
       {activeTab === "epics" && (
         <section className="space-y-3">

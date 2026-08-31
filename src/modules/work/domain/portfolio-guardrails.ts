@@ -78,7 +78,7 @@ export const CONCEPT_HELP = {
   solutionVsEpic:
     "Eine Solution ist das langlebige Produkt/System (erzeugt laufende Betriebskosten, Run). Ein Epic ist eine große, zeitlich begrenzte Veränderung an einer Solution (Grow). Jedes Epic wird mindestens einer Solution zugeordnet; die Primär-Solution bestimmt seinen Investitionshorizont.",
   grow: "Grow = Σ Umsetzungskosten der laufenden Epics dieser Solution (Investition in Weiterentwicklung).",
-  run: "Run = Betriebskosten der Solution p.a. (Wartung, Support, Infrastruktur).",
+  run: "Run = Σ der Run-the-Business-Positionen, die dieser Solution zugerechnet sind, auf ein Jahr gerechnet (Wartung, Support, Infrastruktur). Gepflegt werden sie im Budgeting-Modul — je Position mit eigener Periode; wertstrom-übergreifende Positionen zählen in keine Solution.",
   primarySolution:
     "Die Primär-Solution eines Epics liefert seinen Investitionshorizont und seine Swimlane im Portfolio-Kanban.",
 } as const;

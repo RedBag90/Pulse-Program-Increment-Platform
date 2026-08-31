@@ -141,7 +141,10 @@ async function assertArtInStream(
     select: { id: true },
   });
   if (!art) {
-    return err({ kind: "conflict" as const, reason: "Der ART gehört nicht zum gewählten Value Stream." });
+    return err({
+      kind: "conflict" as const,
+      reason: "Der ART gehört nicht zum gewählten Value Stream.",
+    });
   }
   return ok(undefined);
 }
@@ -158,7 +161,8 @@ export async function createSolution(
       where: { id: valueStreamId, tenantId: mctx.tenantId, ...notDeleted },
       select: { id: true },
     });
-    if (!vs) return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
+    if (!vs)
+      return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
 
     const artCheck = await assertArtInStream(tx, mctx.tenantId, valueStreamId, artId);
     if (isErr(artCheck)) return artCheck;
@@ -199,7 +203,8 @@ export async function updateSolution(
       action: "solution.update",
       resourceType: "Solution",
       id,
-      finder: () => tx.solution.findFirst({ where: { id, tenantId: mctx.tenantId, ...notDeleted } }),
+      finder: () =>
+        tx.solution.findFirst({ where: { id, tenantId: mctx.tenantId, ...notDeleted } }),
       toResource: () => ({ tenantId: mctx.tenantId }),
     });
     if (isErr(loaded)) return loaded;
@@ -211,7 +216,8 @@ export async function updateSolution(
         where: { id: valueStreamId, tenantId: mctx.tenantId, ...notDeleted },
         select: { id: true },
       });
-      if (!vs) return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
+      if (!vs)
+        return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
     }
     // ART gegen den (ggf. neuen) Value Stream prüfen, wenn ART oder VS wechseln.
     if (artId !== undefined || valueStreamId !== undefined) {
@@ -324,18 +330,25 @@ export async function promoteSolution(
       action: "solution.manage",
       resourceType: "Solution",
       id,
-      finder: () => tx.solution.findFirst({ where: { id, tenantId: mctx.tenantId, ...notDeleted } }),
+      finder: () =>
+        tx.solution.findFirst({ where: { id, tenantId: mctx.tenantId, ...notDeleted } }),
       toResource: () => ({ tenantId: mctx.tenantId }),
     });
     if (isErr(loaded)) return loaded;
     const existing = loaded.value;
 
     if (existing.horizon !== "h2") {
-      return err({ kind: "conflict" as const, reason: "Nur Emerging-Solutions (H2) können nach H1 befördert werden." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Nur Emerging-Solutions (H2) können nach H1 befördert werden.",
+      });
     }
     const allConfirmed = PROMOTION_CRITERIA.every((c) => criteria[c.key] === true);
     if (!allConfirmed) {
-      return err({ kind: "conflict" as const, reason: "Alle vier Transition-Kriterien müssen bestätigt sein." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Alle vier Transition-Kriterien müssen bestätigt sein.",
+      });
     }
 
     await tx.solution.update({
@@ -369,7 +382,8 @@ export async function setSolutionLifecycle(
       action: "solution.manage",
       resourceType: "Solution",
       id,
-      finder: () => tx.solution.findFirst({ where: { id, tenantId: mctx.tenantId, ...notDeleted } }),
+      finder: () =>
+        tx.solution.findFirst({ where: { id, tenantId: mctx.tenantId, ...notDeleted } }),
       toResource: () => ({ tenantId: mctx.tenantId }),
     });
     if (isErr(loaded)) return loaded;
@@ -378,7 +392,9 @@ export async function setSolutionLifecycle(
     // Beim Eintritt in H1 ohne Modus: Default „investing". Sonst Modus konsistent.
     const currentMode = existing.investmentMode as InvestmentMode | null;
     const nextMode =
-      horizon === "h1" ? (currentMode ?? "investing") : investmentModeForHorizon(horizon, currentMode);
+      horizon === "h1"
+        ? (currentMode ?? "investing")
+        : investmentModeForHorizon(horizon, currentMode);
 
     const { changes, data } = recordedUpdate({
       existing,
@@ -399,13 +415,20 @@ export async function setSolutionLifecycle(
   });
 }
 
-/** Run-Baseline + (in H1) Invest/Extract-Modus setzen. */
-export async function setSolutionRun(
+/**
+ * Invest/Extract-Modus setzen (nur in H1 relevant).
+ *
+ * Hieß `setSolutionRun` und trug zusätzlich eine Run-Baseline. Die ist
+ * entfallen: Betriebskosten sind Run-the-Business-Positionen und werden im
+ * Budgeting-Modul gepflegt — an einer Stelle, mit Periode und optionaler
+ * Solution-Zurechnung.
+ */
+export async function setSolutionInvestmentMode(
   ctx: RequestContext,
-  input: { id: string; runBaselineAmount?: number | null; investmentMode?: InvestmentMode | null },
+  input: { id: string; investmentMode: InvestmentMode | null },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, runBaselineAmount, investmentMode } = input;
+  const { id, investmentMode } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const loaded = await loadAndAuthorize({
@@ -413,29 +436,27 @@ export async function setSolutionRun(
       action: "solution.manage",
       resourceType: "Solution",
       id,
-      finder: () => tx.solution.findFirst({ where: { id, tenantId: mctx.tenantId, ...notDeleted } }),
+      finder: () =>
+        tx.solution.findFirst({ where: { id, tenantId: mctx.tenantId, ...notDeleted } }),
       toResource: () => ({ tenantId: mctx.tenantId }),
     });
     if (isErr(loaded)) return loaded;
     const existing = loaded.value;
 
     // Invest/Extract nur in H1 relevant.
-    const nextMode =
-      investmentMode !== undefined
-        ? investmentModeForHorizon(existing.horizon as Horizon, investmentMode)
-        : undefined;
+    const nextMode = investmentModeForHorizon(existing.horizon as Horizon, investmentMode);
 
     const { changes, data } = recordedUpdate({
-      existing: { ...existing, runBaselineAmount: existing.runBaselineAmount != null ? Number(existing.runBaselineAmount) : null },
-      updates: { runBaselineAmount, investmentMode: nextMode },
-      fields: ["runBaselineAmount", "investmentMode"] as const,
+      existing,
+      updates: { investmentMode: nextMode },
+      fields: ["investmentMode"] as const,
     });
     await tx.solution.update({ where: { id }, data: { ...data, updatedBy: mctx.actorId } });
 
     return ok({
       result: undefined,
       audit: {
-        action: "solution.run.updated",
+        action: "solution.investment_mode.changed",
         resourceType: "solution",
         resourceId: id,
         changes,

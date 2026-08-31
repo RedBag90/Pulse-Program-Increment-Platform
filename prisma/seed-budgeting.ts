@@ -12,9 +12,18 @@
 
 import { prisma, uid } from "./seed-helpers.js";
 
+export interface RtbItemSpec {
+  name: string;
+  plannedAmount: number;
+  /** "monthly" | "half_yearly" | "yearly" — immer explizit, nie geraten. */
+  interval: string;
+  /** `null` = wertstrom-übergreifend (geteilte Plattform, Programm-Office). */
+  solutionId?: string | null;
+}
+
 export interface RtbSpec {
   valueStreamId: string;
-  items: { name: string; plannedAmount: number }[];
+  items: RtbItemSpec[];
 }
 
 export interface SeededRtbItem {
@@ -22,6 +31,7 @@ export interface SeededRtbItem {
   valueStreamId: string;
   name: string;
   plannedAmount: number;
+  interval: string;
 }
 
 /** Legt je Value Stream die Run-the-Business-Positionen an. Gibt sie zurück. */
@@ -37,6 +47,8 @@ export async function seedRunTheBusiness(
       valueStreamId: s.valueStreamId,
       name: it.name,
       plannedAmount: it.plannedAmount,
+      interval: it.interval,
+      solutionId: it.solutionId ?? null,
       active: true,
       createdBy: actorId,
       updatedBy: actorId,
@@ -48,6 +60,7 @@ export async function seedRunTheBusiness(
     valueStreamId: r.valueStreamId,
     name: r.name,
     plannedAmount: r.plannedAmount,
+    interval: r.interval,
   }));
 }
 
@@ -172,7 +185,10 @@ export async function seedBudgetPeriod(
           updatedBy: actorId,
         };
       });
-  await prisma.budgetCandidate.createMany({ data: [...epicRows, ...rtbRows], skipDuplicates: true });
+  await prisma.budgetCandidate.createMany({
+    data: [...epicRows, ...rtbRows],
+    skipDuplicates: true,
+  });
 
   // Gruppen + Mitglieder + Verteilung
   for (let i = 0; i < cfg.groups.length; i++) {
@@ -184,7 +200,7 @@ export async function seedBudgetPeriod(
         roundId,
         name: g.name,
         spokespersonId: g.spokespersonUserId,
-        submittedAt: g.submitted ? cfg.submissionDeadline ?? cfg.endDate : null,
+        submittedAt: g.submitted ? (cfg.submissionDeadline ?? cfg.endDate) : null,
         submittedBy: g.submitted ? g.spokespersonUserId : null,
       },
     });

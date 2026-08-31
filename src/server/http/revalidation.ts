@@ -102,7 +102,15 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   // Löschen: NUR die Listen-/Übersichts-Routen — NICHT die [id]-Detailseite, sonst
   // rendert die gerade gelöschte Kachel als notFound (404), bevor der Redirect greift.
   budgetPeriodList: ["/budgeting", "/budgeting/periods", "/my-tasks"],
-  rtbItem: ["/value-streams/[id]", "/budgeting/periods/[id]", "/budgeting/run-the-business"],
+  // Betriebskosten sind die Run-Zahl der Solution — die beiden
+  // Solution-Flächen hängen mit dran.
+  rtbItem: [
+    "/value-streams/[id]",
+    "/budgeting/periods/[id]",
+    "/budgeting/run-the-business",
+    "/portfolio/solutions",
+    "/portfolio/solutions/[id]",
+  ],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
   // the structure tab that hosts the management UI.
   timeline: ["/umsetzung", "/structure", "/pi-planning", "/pi/[piId]", "/feature/[featureId]"],

@@ -1,8 +1,13 @@
 /**
- * Run-the-Business-Positionen eines Value Streams (stehend, vom VS-Owner
- * gepflegt). Autorisierung wie `saveArtBudget`: die Action gated grob, hier
- * entscheidet `authorizeResource` VS-scoped — plus der Finance-Partei-Bypass
- * (`ValueStream.financeApproverId`).
+ * Run-the-Business-Positionen — die **eine** Definition der Betriebskosten.
+ * Stehend, vom VS-Owner gepflegt, optional einer Solution zugerechnet und mit
+ * eigener Periode (`domain/rtb-interval.ts`).
+ *
+ * Autorisierung wie `saveArtBudget`: die Action gated grob, hier entscheidet
+ * `authorizeResource` VS-scoped — plus der Finance-Partei-Bypass
+ * (`ValueStream.financeApproverId`). Sie hängt bewusst weiter am **Wertstrom**,
+ * auch wenn eine Position einer Solution zugerechnet ist: das Budget dieser
+ * Kosten wird im Wertstrom verantwortet.
  */
 
 import type { Prisma, PrismaClient } from "@/generated/prisma";
@@ -12,15 +17,45 @@ import { ok, err } from "@/modules/core/kernel/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { authorizeResource } from "@/server/auth/authorize";
+import { rtbIntervalOrDefault } from "@/modules/budgeting/domain/rtb-interval";
 
-export async function listRtbItems(db: PrismaClient, tenantId: TenantId, valueStreamId: string) {
+export interface RtbItemFilter {
+  valueStreamId?: string;
+  /** Genau die Positionen dieser Solution. Ohne Filter: alle, auch die ohne. */
+  solutionId?: string;
+}
+
+/**
+ * Die Positionen eines Tenants, wahlweise auf einen Wertstrom oder eine
+ * Solution eingeengt. Ohne Filter alle — das braucht die Solutions-Liste, die
+ * ihre Run-Spalte in einem Rutsch aggregiert.
+ */
+export async function listRtbItems(
+  db: PrismaClient,
+  tenantId: TenantId,
+  filter: RtbItemFilter = {},
+) {
   const rows = await db.runTheBusinessItem.findMany({
-    where: { tenantId, valueStreamId },
+    where: {
+      tenantId,
+      ...(filter.valueStreamId != null && { valueStreamId: filter.valueStreamId }),
+      ...(filter.solutionId != null && { solutionId: filter.solutionId }),
+    },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, plannedAmount: true, active: true },
+    select: {
+      id: true,
+      name: true,
+      plannedAmount: true,
+      active: true,
+      interval: true,
+      solutionId: true,
+      valueStreamId: true,
+    },
   });
   return rows.map((r) => ({ ...r, plannedAmount: Number(r.plannedAmount) }));
 }
+
+export type RtbItemRow = Awaited<ReturnType<typeof listRtbItems>>[number];
 
 /** VS-scoped Autorisierung + Finance-Bypass. `null` = erlaubt. */
 async function assertManage(
@@ -33,7 +68,8 @@ async function assertManage(
     where: { id: valueStreamId, tenantId },
     select: { financeApproverId: true },
   });
-  if (!vs) return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
+  if (!vs)
+    return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
   if (vs.financeApproverId === ctx.principal.id) return null;
   const decision = authorizeResource(ctx.principal, "rtb_item.manage", { tenantId, valueStreamId });
   if (!decision.ok) {
@@ -48,7 +84,13 @@ async function assertManage(
 
 export async function createRtbItem(
   ctx: RequestContext,
-  input: { valueStreamId: string; name: string; plannedAmount: number },
+  input: {
+    valueStreamId: string;
+    name: string;
+    plannedAmount: number;
+    interval?: string | undefined;
+    solutionId?: string | null | undefined;
+  },
 ): Promise<Result<{ id: string }>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
@@ -61,6 +103,8 @@ export async function createRtbItem(
         valueStreamId: input.valueStreamId,
         name: input.name,
         plannedAmount: input.plannedAmount,
+        interval: rtbIntervalOrDefault(input.interval),
+        solutionId: input.solutionId ?? null,
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
       },
@@ -80,7 +124,14 @@ export async function createRtbItem(
 
 export async function updateRtbItem(
   ctx: RequestContext,
-  input: { id: string; name?: string | undefined; plannedAmount?: number | undefined; active?: boolean | undefined },
+  input: {
+    id: string;
+    name?: string | undefined;
+    plannedAmount?: number | undefined;
+    active?: boolean | undefined;
+    interval?: string | undefined;
+    solutionId?: string | null | undefined;
+  },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
@@ -88,7 +139,8 @@ export async function updateRtbItem(
       where: { id: input.id, tenantId: mctx.tenantId },
       select: { valueStreamId: true },
     });
-    if (!item) return err({ kind: "not_found" as const, resourceType: "RunTheBusinessItem", id: input.id });
+    if (!item)
+      return err({ kind: "not_found" as const, resourceType: "RunTheBusinessItem", id: input.id });
     const denied = await assertManage(ctx, tx, mctx.tenantId, item.valueStreamId);
     if (denied) return denied;
 
@@ -98,6 +150,8 @@ export async function updateRtbItem(
         ...(input.name !== undefined && { name: input.name }),
         ...(input.plannedAmount !== undefined && { plannedAmount: input.plannedAmount }),
         ...(input.active !== undefined && { active: input.active }),
+        ...(input.interval !== undefined && { interval: rtbIntervalOrDefault(input.interval) }),
+        ...(input.solutionId !== undefined && { solutionId: input.solutionId }),
         updatedBy: mctx.actorId,
       },
     });
@@ -113,14 +167,18 @@ export async function updateRtbItem(
   });
 }
 
-export async function deleteRtbItem(ctx: RequestContext, input: { id: string }): Promise<Result<void>> {
+export async function deleteRtbItem(
+  ctx: RequestContext,
+  input: { id: string },
+): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
     const item = await tx.runTheBusinessItem.findFirst({
       where: { id: input.id, tenantId: mctx.tenantId },
       select: { valueStreamId: true },
     });
-    if (!item) return err({ kind: "not_found" as const, resourceType: "RunTheBusinessItem", id: input.id });
+    if (!item)
+      return err({ kind: "not_found" as const, resourceType: "RunTheBusinessItem", id: input.id });
     const denied = await assertManage(ctx, tx, mctx.tenantId, item.valueStreamId);
     if (denied) return denied;
 

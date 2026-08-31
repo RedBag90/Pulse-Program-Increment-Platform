@@ -12,10 +12,15 @@ import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { derivePbInfo, isPbEligible } from "@/modules/work/domain/pb-submission";
 import { loadDefaultHypothesisEffort } from "@/modules/budgeting/server/services/ballot";
+import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 
 /**
  * Materialisiert die **RtB**-Kandidaten einer Kachel aus den **aktiven**
  * Run-the-Business-Positionen aller Value Streams (beim Start, in derselben tx).
+ *
+ * Der Ask ist der Betrag **einer** Kachel — eine Kachel deckt ein Halbjahr ab,
+ * die Position trägt aber ihre eigene Periode. `rtbCycleAmount` ist die einzige
+ * Stelle, die daraus rechnet.
  * Idempotent je (roundId, rtbItemId). Epic-Kandidaten stammen aus der Setup-
  * Kuratierung; ab `running` ist der Kandidatensatz eingefroren.
  */
@@ -27,12 +32,12 @@ export async function materializeRtbCandidates(
 ): Promise<void> {
   const items = await tx.runTheBusinessItem.findMany({
     where: { tenantId, active: true },
-    select: { id: true, name: true, plannedAmount: true, valueStreamId: true },
+    select: { id: true, name: true, plannedAmount: true, interval: true, valueStreamId: true },
   });
   for (const it of items) {
     const data = {
       title: it.name,
-      ask: it.plannedAmount,
+      ask: rtbCycleAmount(Number(it.plannedAmount), it.interval),
       valueStreamId: it.valueStreamId,
       updatedBy: actorId,
     };
@@ -63,9 +68,13 @@ export async function addEpicCandidate(
       where: { id: input.roundId, tenantId: mctx.tenantId },
       select: { status: true },
     });
-    if (!round) return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.roundId });
+    if (!round)
+      return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.roundId });
     if (round.status !== "draft") {
-      return err({ kind: "conflict" as const, reason: "Der Ballot ist nur im Status draft kuratierbar." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Der Ballot ist nur im Status draft kuratierbar.",
+      });
     }
 
     const epic = await tx.initiative.findFirst({
@@ -86,7 +95,8 @@ export async function addEpicCandidate(
         hypothesisApprovedAt: true,
       },
     });
-    if (!epic) return err({ kind: "not_found" as const, resourceType: "Initiative", id: input.epicId });
+    if (!epic)
+      return err({ kind: "not_found" as const, resourceType: "Initiative", id: input.epicId });
     if (!isPbEligible(epic)) {
       return err({
         kind: "conflict" as const,
@@ -142,9 +152,13 @@ export async function removeCandidate(
       where: { id: input.id, tenantId: mctx.tenantId },
       select: { id: true, round: { select: { status: true } } },
     });
-    if (!row) return err({ kind: "not_found" as const, resourceType: "BudgetCandidate", id: input.id });
+    if (!row)
+      return err({ kind: "not_found" as const, resourceType: "BudgetCandidate", id: input.id });
     if (row.round.status !== "draft") {
-      return err({ kind: "conflict" as const, reason: "Der Ballot ist nur im Status draft kuratierbar." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Der Ballot ist nur im Status draft kuratierbar.",
+      });
     }
     await tx.budgetCandidate.delete({ where: { id: input.id } });
     return ok({

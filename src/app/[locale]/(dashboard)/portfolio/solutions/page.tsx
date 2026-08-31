@@ -5,6 +5,8 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { hasCapability } from "@/server/auth/authorize";
 import { loadSolutionsList } from "@/modules/work/server/views/solutions-list";
+import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
+import { rtbAnnualAmount } from "@/modules/budgeting/domain/rtb-interval";
 import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
 import { ConceptCallout } from "@/modules/work/features/portfolio/components/solutions/concept-callout";
 import { SolutionsCreateControl } from "@/modules/work/features/portfolio/components/solutions/solutions-create-control";
@@ -13,8 +15,11 @@ import { formatCompactEUR } from "@/lib/formatting";
 
 /**
  * Solutions-Verwaltung: langlebige Produkte/Systeme je Value Stream, klassifiziert
- * nach Investitionshorizont. Grow (Σ aktive Primär-Epics) + Run (Baseline) je Zeile;
- * Klick öffnet die Detailseite (Lifecycle + Run/Grow).
+ * nach Investitionshorizont. Grow (Σ aktive Primär-Epics) + Run (Σ zugerechnete
+ * Betriebskosten p. a.) je Zeile; Klick öffnet die Detailseite.
+ *
+ * Kompositions-Wurzel über zwei Modulen (ADR-0013): Grow aus **Work**, Run aus
+ * **Budgeting**. Ohne dessen Entitlement entfällt die Run-Spalte ganz.
  */
 export default async function SolutionsPage() {
   const principal = await requirePrincipal().catch(() => null);
@@ -22,7 +27,22 @@ export default async function SolutionsPage() {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const canManage = hasCapability(principal, "solution.create", { tenantId: principal.tenantId });
-  const rows = await loadSolutionsList(db, principal.tenantId);
+  const budgetingEnabled = principal.enabledModules.includes("budgeting");
+
+  const [rows, rtbItems] = await Promise.all([
+    loadSolutionsList(db, principal.tenantId),
+    budgetingEnabled ? listRtbItems(db, principal.tenantId) : Promise.resolve(null),
+  ]);
+
+  // Run je Solution: Σ Jahres-Äquivalent der aktiven Positionen, die ihr
+  // zugerechnet sind. Wertstrom-übergreifende Positionen (`solutionId === null`)
+  // zählen bewusst in keine Zeile.
+  const runBySolution = new Map<string, number>();
+  for (const it of rtbItems ?? []) {
+    if (!it.active || it.solutionId == null) continue;
+    const annual = rtbAnnualAmount(it.plannedAmount, it.interval);
+    runBySolution.set(it.solutionId, (runBySolution.get(it.solutionId) ?? 0) + annual);
+  }
 
   return (
     <Page>
@@ -63,7 +83,9 @@ export default async function SolutionsPage() {
                 <th className="px-4 py-2.5 font-semibold">Status</th>
                 <th className="px-4 py-2.5 text-right font-semibold">Epics</th>
                 <th className="px-4 py-2.5 text-right font-semibold">Grow</th>
-                <th className="px-4 py-2.5 text-right font-semibold">Run</th>
+                {budgetingEnabled && (
+                  <th className="px-4 py-2.5 text-right font-semibold">Run p.a.</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -85,9 +107,13 @@ export default async function SolutionsPage() {
                   <td className="px-4 py-2.5 text-right tabular-nums">
                     {s.grow > 0 ? formatCompactEUR(s.grow) : "—"}
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">
-                    {s.run != null ? formatCompactEUR(s.run) : "—"}
-                  </td>
+                  {budgetingEnabled && (
+                    <td className="px-4 py-2.5 text-right tabular-nums">
+                      {(runBySolution.get(s.id) ?? 0) > 0
+                        ? formatCompactEUR(runBySolution.get(s.id)!)
+                        : "—"}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

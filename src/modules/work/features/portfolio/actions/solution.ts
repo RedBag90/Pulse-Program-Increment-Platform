@@ -7,7 +7,7 @@ import {
   softDeleteSolution,
   promoteSolution,
   setSolutionLifecycle,
-  setSolutionRun,
+  setSolutionInvestmentMode,
   setEpicSolutions,
 } from "@/modules/work/server/services/solution";
 import { createServerAction } from "@/server/http/server-action";
@@ -60,7 +60,11 @@ export const createSolutionAction = createServerAction({
     });
   },
   revalidate: "solution",
-  mapError: (e) => formatDomainError(e, { notFound: "Value Stream nicht gefunden", fallback: "Solution konnte nicht angelegt werden" }),
+  mapError: (e) =>
+    formatDomainError(e, {
+      notFound: "Value Stream nicht gefunden",
+      fallback: "Solution konnte nicht angelegt werden",
+    }),
 });
 
 export const updateSolutionAction = createServerAction({
@@ -97,7 +101,12 @@ export const updateSolutionAction = createServerAction({
     });
   },
   revalidate: "solution",
-  mapError: (e) => (e.kind === "conflict" ? e.reason : e.kind === "not_found" ? "Nicht gefunden" : "Solution konnte nicht gespeichert werden"),
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Nicht gefunden"
+        : "Solution konnte nicht gespeichert werden",
 });
 
 export const deleteSolutionAction = createServerAction({
@@ -107,7 +116,11 @@ export const deleteSolutionAction = createServerAction({
   parseFormData: (fd) => ({ id: fields(fd).string("id") }),
   service: (ctx, input) => softDeleteSolution(ctx, { id: input.id }),
   revalidate: "solution",
-  mapError: (e) => formatDomainError(e, { notFound: "Solution nicht gefunden", fallback: "Solution konnte nicht gelöscht werden" }),
+  mapError: (e) =>
+    formatDomainError(e, {
+      notFound: "Solution nicht gefunden",
+      fallback: "Solution konnte nicht gelöscht werden",
+    }),
 });
 
 export const setSolutionLifecycleAction = createServerAction({
@@ -116,11 +129,19 @@ export const setSolutionLifecycleAction = createServerAction({
   resource: tenantResource,
   parseFormData: (fd) => {
     const f = fields(fd);
-    return { id: f.string("id"), horizon: (f.string("horizon") ?? "h1") as z.infer<typeof horizon> };
+    return {
+      id: f.string("id"),
+      horizon: (f.string("horizon") ?? "h1") as z.infer<typeof horizon>,
+    };
   },
   service: (ctx, input) => setSolutionLifecycle(ctx, { id: input.id, horizon: input.horizon }),
   revalidate: "solution",
-  mapError: (e) => (e.kind === "conflict" ? e.reason : e.kind === "not_found" ? "Nicht gefunden" : "Lifecycle konnte nicht geändert werden"),
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Nicht gefunden"
+        : "Lifecycle konnte nicht geändert werden",
 });
 
 export const promoteSolutionAction = createServerAction({
@@ -155,37 +176,40 @@ export const promoteSolutionAction = createServerAction({
       },
     }),
   revalidate: "solution",
-  mapError: (e) => (e.kind === "conflict" ? e.reason : e.kind === "not_found" ? "Nicht gefunden" : "Beförderung fehlgeschlagen"),
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Nicht gefunden"
+        : "Beförderung fehlgeschlagen",
 });
 
-export const setSolutionRunAction = createServerAction({
+export const setSolutionInvestmentModeAction = createServerAction({
   schema: z.object({
     id: z.string().uuid(),
-    runBaselineAmount: z.number().nonnegative().nullable().optional(),
-    investmentMode: z.enum(["investing", "extracting"]).nullable().optional(),
+    investmentMode: z.enum(["investing", "extracting"]).nullable(),
   }),
   action: "solution.manage",
   resource: tenantResource,
   parseFormData: (fd) => {
     const f = fields(fd);
-    const run = f.nonEmptyString("runBaselineAmount");
-    const mode = f.nonEmptyString("investmentMode");
     return {
       id: f.string("id"),
-      ...(fd.has("runBaselineAmount") && { runBaselineAmount: run != null ? Number(run) : null }),
-      ...(fd.has("investmentMode") && {
-        investmentMode: (mode ?? null) as "investing" | "extracting" | null,
-      }),
+      investmentMode: (f.nonEmptyString("investmentMode") ?? null) as
+        | "investing"
+        | "extracting"
+        | null,
     };
   },
   service: (ctx, input) =>
-    setSolutionRun(ctx, {
-      id: input.id,
-      ...(input.runBaselineAmount !== undefined && { runBaselineAmount: input.runBaselineAmount }),
-      ...(input.investmentMode !== undefined && { investmentMode: input.investmentMode }),
-    }),
+    setSolutionInvestmentMode(ctx, { id: input.id, investmentMode: input.investmentMode }),
   revalidate: "solution",
-  mapError: (e) => (e.kind === "conflict" ? e.reason : e.kind === "not_found" ? "Nicht gefunden" : "Run konnte nicht gespeichert werden"),
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Nicht gefunden"
+        : "Investitionsmodus konnte nicht gespeichert werden",
 });
 
 /** Setzt die Solution-Zuordnungen eines Epics (n:m) + Primär-Solution. */
@@ -215,6 +239,10 @@ export const setEpicSolutionsAction = createServerAction({
       primarySolutionId: input.primarySolutionId,
     }),
   revalidate: "solution",
-  mapError: (e) => (e.kind === "conflict" ? e.reason : e.kind === "not_found" ? "Nicht gefunden" : "Zuordnung fehlgeschlagen"),
+  mapError: (e) =>
+    e.kind === "conflict"
+      ? e.reason
+      : e.kind === "not_found"
+        ? "Nicht gefunden"
+        : "Zuordnung fehlgeschlagen",
 });
-

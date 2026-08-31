@@ -26,6 +26,7 @@ import {
   uid,
 } from "./seed-helpers.js";
 import { seedRunTheBusiness, seedBudgetPeriod, type GroupSpec } from "./seed-budgeting.js";
+import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 import {
   assertGateHistory,
   buildGateHistory,
@@ -438,7 +439,6 @@ async function main() {
         horizon: h,
         // Demo: der H1-Kern von VS 1 wird „gemolken" (Extracting) statt ausgebaut.
         investmentMode: h === "h1" ? (vs === 1 ? "extracting" : "investing") : null,
-        runBaselineAmount: h === "h1" ? 200_000 + vs * 50_000 : null,
         createdBy: ADMIN,
         updatedBy: ADMIN,
       });
@@ -451,7 +451,6 @@ async function main() {
     valueStreamId: vsIds[0]!,
     name: `${vsNames[0]} Legacy`,
     horizon: "h0",
-    runBaselineAmount: 120_000,
     createdBy: ADMIN,
     updatedBy: ADMIN,
   });
@@ -963,18 +962,38 @@ async function main() {
   const rtb = await seedRunTheBusiness(
     tenantId,
     ADMIN,
+    // Betriebskosten in beiden Ausprägungen: der Betrieb des H1-Kerns hängt an
+    // seiner Solution, das Programm-Office am Wertstrom. Die Periode steht
+    // immer explizit — nichts wird geraten.
     vsIds.map((vsId, k) => ({
       valueStreamId: vsId,
       items: [
-        { name: "Betrieb & Support", plannedAmount: 120_000 + k * 20_000 },
-        { name: "Lizenzen & Tooling", plannedAmount: 60_000 + k * 10_000 },
+        {
+          name: "Betrieb & Support",
+          plannedAmount: 120_000 + k * 20_000,
+          interval: "half_yearly",
+          solutionId: solId(k, "h1"),
+        },
+        {
+          name: "Lizenzen & Tooling",
+          plannedAmount: 60_000 + k * 10_000,
+          interval: "yearly",
+          solutionId: solId(k, "h1"),
+        },
+        {
+          name: "Programm-Office & Controlling",
+          plannedAmount: 5_000 + k * 1_000,
+          interval: "monthly",
+        },
       ],
     })),
   );
   const rtbCands = rtb.map((r) => ({
     rtbItemId: r.id,
     title: r.name,
-    ask: r.plannedAmount,
+    // Der Ask einer Kachel deckt ein Halbjahr ab — dieselbe Rechnung wie in
+    // `materializeRtbCandidates`.
+    ask: rtbCycleAmount(r.plannedAmount, r.interval),
     valueStreamId: r.valueStreamId,
   }));
 

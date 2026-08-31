@@ -129,8 +129,18 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
       ? Promise.all([
           getValueStreamBudget(db, principal.tenantId, vs.id as ValueStreamId),
           loadArtBudgetModel(db, principal.tenantId, vs.id as ValueStreamId),
-          listRtbItems(db, principal.tenantId, vs.id),
-        ]).then(([plan, artModel, rtbItems]) => ({ plan, artModel, rtbItems }))
+          listRtbItems(db, principal.tenantId, { valueStreamId: vs.id }),
+          db.solution.findMany({
+            where: { tenantId: principal.tenantId, valueStreamId: vs.id, deletedAt: null },
+            select: { id: true, name: true },
+            orderBy: { name: "asc" },
+          }),
+        ]).then(([plan, artModel, rtbItems, solutions]) => ({
+          plan,
+          artModel,
+          rtbItems,
+          solutions,
+        }))
       : Promise.resolve(null),
     listGateApproverRules(db, principal.tenantId, vs.id),
   ]);
@@ -213,6 +223,7 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
                 valueStreamId={vs.id}
                 items={budgeting.rtbItems}
                 canManage={canEditArtBudget}
+                solutions={budgeting.solutions}
               />
             </>
           )}

@@ -5,7 +5,7 @@ import type { SolutionDetailModel } from "@/modules/work/server/views/solution-d
 import {
   setSolutionLifecycleAction,
   promoteSolutionAction,
-  setSolutionRunAction,
+  setSolutionInvestmentModeAction,
 } from "@/modules/work/features/portfolio/actions/solution";
 import { PROMOTION_CRITERIA } from "@/modules/work/domain/solution";
 import { type Horizon } from "@/modules/work/domain/portfolio-guardrails";
@@ -51,7 +51,7 @@ export function SolutionLifecycleBar({
   canManage: boolean;
 }) {
   const [, lifecycleAction] = useActionState(setSolutionLifecycleAction, {});
-  const [, runAction] = useActionState(setSolutionRunAction, {});
+  const [, modeAction] = useActionState(setSolutionInvestmentModeAction, {});
   const [gateOpen, setGateOpen] = useState(false);
 
   return (
@@ -94,7 +94,7 @@ export function SolutionLifecycleBar({
           {model.horizon === "h1" && (
             <div className="ml-auto inline-flex overflow-hidden rounded-md border text-xs">
               {(["investing", "extracting"] as const).map((mode) => (
-                <form key={mode} action={runAction}>
+                <form key={mode} action={modeAction}>
                   <input type="hidden" name="id" value={model.id} />
                   <input type="hidden" name="investmentMode" value={mode} />
                   <button

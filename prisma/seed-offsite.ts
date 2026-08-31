@@ -48,6 +48,7 @@ import {
   uid,
 } from "./seed-helpers.js";
 import { seedRunTheBusiness, seedBudgetPeriod, type GroupSpec } from "./seed-budgeting.js";
+import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 
 const TENANT_NAME = "Test Demo";
 
@@ -503,7 +504,6 @@ async function main() {
       name: "Außentagung (Format)",
       horizon: "h3",
       investmentMode: null,
-      runBaselineAmount: null,
       createdBy: admin,
       updatedBy: admin,
     },
@@ -955,15 +955,20 @@ async function main() {
     {
       valueStreamId: vsId,
       items: [
-        { name: "Betrieb & Support", plannedAmount: 80_000 },
-        { name: "Lizenzen & Tooling", plannedAmount: 40_000 },
+        {
+          name: "Betrieb & Support",
+          plannedAmount: 80_000,
+          interval: "yearly",
+          solutionId,
+        },
+        { name: "Lizenzen & Tooling", plannedAmount: 40_000, interval: "half_yearly" },
       ],
     },
   ]);
   const rtbCands = rtb.map((r) => ({
     rtbItemId: r.id,
     title: r.name,
-    ask: r.plannedAmount,
+    ask: rtbCycleAmount(r.plannedAmount, r.interval),
     valueStreamId: r.valueStreamId,
   }));
   const epicCands = EPICS.map((e, ei) => ({
