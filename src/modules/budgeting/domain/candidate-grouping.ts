@@ -116,3 +116,111 @@ export function groupCandidates<T extends GroupableCandidate>(
     ];
   });
 }
+
+// ---------------------------------------------------------------------------
+// Arbeitsblatt: Abschnitte
+// ---------------------------------------------------------------------------
+
+/**
+ * Ein Abschnitt des Arbeitsblatts — die Ebene, die man am Stück abarbeitet.
+ *
+ * Run wird **ein** Abschnitt über alle Wertströme hinweg (der Wertstrom steht am
+ * Titel der Zeile): der Betrieb ist ein Block, den man als Ganzes betrachtet,
+ * kein Thema je Wertstrom. Grow zerfällt dagegen in einen Abschnitt je
+ * Wertstrom — das ist die Einheit, in der Menschen die Verteilung denken.
+ */
+export interface WorksheetSection<T> {
+  key: string;
+  label: string;
+  kind: BusinessKind;
+  /** Σ über alle Zeilen des Abschnitts, mit der Sortier-Betragsfunktion. */
+  total: number;
+  /** Solutions mit ihren Zeilen; `heading` steuert die Zwischenüberschrift. */
+  solutions: SolutionGroup<T>[];
+  items: T[];
+}
+
+/** Alle Zeilen unterhalb einer Gruppe — Grundlage der Spalten-Zwischensummen. */
+export function groupItems<T>(
+  g:
+    | Pick<BusinessGroup<T>, "valueStreams">
+    | Pick<ValueStreamGroup<T>, "solutions">
+    | Pick<SolutionGroup<T>, "items">
+    | Pick<WorksheetSection<T>, "items">,
+): T[] {
+  if ("items" in g) return [...g.items];
+  if ("solutions" in g) return g.solutions.flatMap((s) => s.items);
+  return g.valueStreams.flatMap((vs) => vs.solutions.flatMap((s) => s.items));
+}
+
+/** Faltet gleichnamige Solution-Gruppen zusammen und sortiert nach Betrag. */
+function mergeByName<T>(groups: readonly SolutionGroup<T>[]): SolutionGroup<T>[] {
+  const merged = new Map<string, SolutionGroup<T>>();
+  for (const g of groups) {
+    const prev = merged.get(g.name);
+    if (prev) {
+      prev.total += g.total;
+      prev.items = [...prev.items, ...g.items];
+    } else {
+      merged.set(g.name, { ...g, items: [...g.items] });
+    }
+  }
+  return [...merged.values()].sort(byTotalDesc);
+}
+
+/**
+ * Setzt die Zwischenüberschriften eines Abschnitts.
+ *
+ * Neben der Zwei-Zeilen-Regel fällt eine weitere weg: eine **einzelne**
+ * namenlose Gruppe („ohne Solution") als einzige des Abschnitts trägt nichts
+ * bei — der Abschnitt selbst ist dann schon die Überschrift.
+ */
+function withHeadings<T>(groups: readonly SolutionGroup<T>[]): SolutionGroup<T>[] {
+  const lonelyUnnamed = groups.length === 1 && groups[0]!.name === NO_SOLUTION;
+  return groups.map((g) => ({ ...g, heading: g.heading && !lonelyUnnamed }));
+}
+
+/**
+ * Die Abschnitte des Arbeitsblatts, in Arbeitsreihenfolge: **Run zuerst** (der
+ * Pflichtblock, den man nicht übersieht), danach die Grow-Wertströme nach
+ * Betrag absteigend — so wie sie schon aus `groupCandidates` kommen.
+ */
+export function worksheetSections<T extends GroupableCandidate>(
+  groups: readonly BusinessGroup<T>[],
+): WorksheetSection<T>[] {
+  const out: WorksheetSection<T>[] = [];
+
+  for (const kind of BUSINESS_KINDS) {
+    const g = groups.find((x) => x.kind === kind);
+    if (!g) continue;
+
+    if (kind === "run") {
+      // Ein Abschnitt über alle Wertströme. Gleichnamige Solutions müssen dabei
+      // verschmelzen — sonst trüge der Abschnitt je Wertstrom eine eigene
+      // Überschrift „ohne Solution".
+      const solutions = withHeadings(mergeByName(g.valueStreams.flatMap((vs) => vs.solutions)));
+      out.push({
+        key: "run",
+        label: g.label,
+        kind,
+        total: g.total,
+        solutions,
+        items: solutions.flatMap((s) => s.items),
+      });
+      continue;
+    }
+
+    for (const vs of g.valueStreams) {
+      out.push({
+        key: `${kind}:${vs.name}`,
+        label: vs.name,
+        kind,
+        total: vs.total,
+        solutions: withHeadings(vs.solutions),
+        items: groupItems(vs),
+      });
+    }
+  }
+
+  return out;
+}

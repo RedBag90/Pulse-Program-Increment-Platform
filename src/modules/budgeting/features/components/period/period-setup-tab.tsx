@@ -22,7 +22,7 @@ import {
   removeGroupMemberAction,
 } from "@/modules/budgeting/features/actions/round";
 import { checkGroupCut } from "@/modules/budgeting/domain/group-cut";
-import { CandidateGroups } from "@/modules/budgeting/features/components/period/candidate-groups";
+import { CandidateWorksheet } from "@/modules/budgeting/features/components/period/candidate-worksheet";
 import type { BallotEntry } from "@/modules/budgeting/server/views/period-detail";
 
 const input =
@@ -234,39 +234,47 @@ function Ballot({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
 
   return (
     <div>
-      {all.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Noch nichts auf dem Ballot.</p>
-      ) : (
-        <CandidateGroups items={all} amount={(c: BallotEntry) => c.ask}>
-          {(c) => (
-            <div className="flex items-center justify-between gap-2 py-1.5 text-sm">
-              <span className="truncate">{c.title}</span>
-              <span className="flex items-center gap-2">
-                <span className="shrink-0 tabular-nums text-muted-foreground">{EUR(c.ask)}</span>
-                {/* Nur kuratierte Epics lassen sich entfernen; die
-                    Run-the-Business-Positionen kommen aus ihrer eigenen Pflege. */}
-                {draft && model.canManage && c.kind === "epic" && (
-                  <form action={removeAction}>
-                    <input type="hidden" name="id" value={c.id} />
-                    <button type="submit" className={`${btnGhost} text-red-600`}>
-                      entfernen
-                    </button>
-                  </form>
-                )}
-              </span>
-            </div>
-          )}
-        </CandidateGroups>
-      )}
+      <CandidateWorksheet
+        items={all}
+        sortBy={(c: BallotEntry) => c.ask}
+        columns={[
+          { key: "ask", label: "Anfrage", value: (c: BallotEntry) => c.ask, width: "140px" },
+        ]}
+        title={(c) => <span className="truncate">{c.title}</span>}
+        // Im Entwurf sind die Run-Positionen noch keine Kandidaten und hier
+        // nicht bearbeitbar — der Abschnitt startet eingeklappt, seine Summe
+        // zählt aber in die Fußzeile, damit die Σ gegen den Topf stimmt.
+        collapsedByDefault={(sec) => model.rtbIsPreview && sec.kind === "run"}
+        action={(c) =>
+          draft && model.canManage && c.kind === "epic" ? (
+            <form action={removeAction}>
+              <input type="hidden" name="id" value={c.id} />
+              <button type="submit" className={`${btnGhost} text-red-600`}>
+                entfernen
+              </button>
+            </form>
+          ) : null
+        }
+        empty="Noch nichts auf dem Ballot."
+      />
 
-      {model.rtbIsPreview && model.rtbCandidates.length > 0 && (
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          Die Run-the-Business-Zeilen sind eine Vorschau — sie werden beim Start zu Kandidaten.{" "}
+      <p className="mt-2 flex flex-wrap items-baseline gap-x-3 text-[11px] text-muted-foreground">
+        <span>
+          Σ Anfragen{" "}
+          <span className="font-medium tabular-nums text-foreground">
+            {EUR(all.reduce((s, c) => s + c.ask, 0))}
+          </span>{" "}
+          gegen einen Topf von{" "}
+          <span className="font-medium tabular-nums text-foreground">
+            {EUR(model.round.poolTotal)}
+          </span>
+        </span>
+        {model.rtbIsPreview && model.rtbCandidates.length > 0 && (
           <Link href="/budgeting/run-the-business" className="text-primary hover:underline">
-            Positionen pflegen →
+            Run-the-Business-Positionen pflegen →
           </Link>
-        </p>
-      )}
+        )}
+      </p>
 
       {draft && model.canManage && model.eligibleEpics.length > 0 && (
         <form action={addAction} className="mt-3 flex flex-wrap items-end gap-2 border-t pt-3">

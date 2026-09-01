@@ -7,7 +7,7 @@ import type {
   DistributionOverviewModel,
   OverviewCandidate,
 } from "@/modules/budgeting/server/views/distribution-overview";
-import { CandidateGroups } from "@/modules/budgeting/features/components/period/candidate-groups";
+import { CandidateWorksheet } from "@/modules/budgeting/features/components/period/candidate-worksheet";
 import { closeDistributionAction } from "@/modules/budgeting/features/actions/finalize";
 import { formatEUR } from "@/lib/formatting";
 
@@ -123,32 +123,35 @@ export function PeriodDistributionTab({
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Vorschläge je Gruppe
         </h3>
-        {model.candidates.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Noch keine Kandidaten — die Runde ist nicht gestartet.
-          </p>
-        ) : (
-          <CandidateGroups items={model.candidates} amount={(c: OverviewCandidate) => c.suggestion}>
-            {(c) => (
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-1.5 text-sm">
-                <span className="min-w-0 flex-1 truncate">{c.title}</span>
-                <span className="flex items-center gap-3 text-xs tabular-nums">
-                  {model.groups.map((g) => (
-                    <span key={g.id} className="w-24 text-right text-muted-foreground">
-                      {c.amounts[g.id] != null ? formatEUR(c.amounts[g.id]!) : "—"}
-                    </span>
-                  ))}
-                  <span className="w-24 text-right font-medium">{formatEUR(c.suggestion)}</span>
-                </span>
-              </div>
-            )}
-          </CandidateGroups>
-        )}
-        {model.groups.length > 0 && model.candidates.length > 0 && (
-          <p className="text-right text-[10px] text-muted-foreground">
-            Spalten: {model.groups.map((g) => g.name).join(" · ")} · Median
-          </p>
-        )}
+        <CandidateWorksheet
+          items={model.candidates}
+          sortBy={(c: OverviewCandidate) => c.ask}
+          columns={[
+            {
+              key: "ask",
+              label: "Anfrage",
+              value: (c: OverviewCandidate) => c.ask,
+              width: "110px",
+            },
+            ...model.groups.map((g) => ({
+              key: g.id,
+              label: `${g.name}${g.submitted ? " ✓" : " ⏳"}`,
+              value: (c: OverviewCandidate) => c.amounts[g.id] ?? 0,
+              width: "110px",
+            })),
+            {
+              key: "median",
+              label: "Median",
+              value: (c: OverviewCandidate) => c.suggestion,
+              width: "110px",
+            },
+          ]}
+          title={(c) => <span className="truncate">{c.title}</span>}
+          empty="Noch keine Kandidaten — die Runde ist nicht gestartet."
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Die Zwischensummen je Gruppenspalte zeigen, welcher Wertstrom einer Gruppe wichtiger war.
+        </p>
       </section>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

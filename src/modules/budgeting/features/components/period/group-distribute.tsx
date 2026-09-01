@@ -11,7 +11,7 @@ import {
   submitGroupDistributionAction,
 } from "@/modules/budgeting/features/actions/distribution";
 import { pbSourceLabel } from "@/modules/work/domain/pb-submission";
-import { CandidateGroups } from "@/modules/budgeting/features/components/period/candidate-groups";
+import { CandidateWorksheet } from "@/modules/budgeting/features/components/period/candidate-worksheet";
 
 const EUR = (n: number) => `${n.toLocaleString("de-DE")} €`;
 const input =
@@ -110,19 +110,25 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
         </p>
       )}
 
-      {/* Die Zeilen tragen den **Richtwert** als Summe der Gliederung, nicht den
-          eingetippten Betrag: die Blöcke sollen beim Verteilen stillstehen und
-          nicht bei jeder Eingabe umsortieren. */}
-      <CandidateGroups items={model.candidates} amount={(c: DistributionCandidate) => c.ask}>
-        {(c) => (
-          <div className="py-2">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <span className="text-sm font-medium">{c.title}</span>
-                <span className="ml-2 text-xs tabular-nums text-muted-foreground">
-                  Richtwert {EUR(c.ask)}
-                </span>
-              </div>
+      <CandidateWorksheet
+        items={model.candidates}
+        // Gegliedert und sortiert nach der **Anfrage**, nicht nach dem
+        // eingetippten Betrag: beim Tippen darf keine Zeile ihre Position
+        // wechseln und kein Abschnitt umsortieren.
+        sortBy={(c: DistributionCandidate) => c.ask}
+        columns={[
+          {
+            key: "ask",
+            label: "Anfrage",
+            value: (c: DistributionCandidate) => c.ask,
+            width: "120px",
+          },
+          {
+            key: "mine",
+            label: "Mein Betrag",
+            value: (c: DistributionCandidate) => Number(amounts[c.id]) || 0,
+            width: "140px",
+            cell: (c: DistributionCandidate) => (
               <input
                 type="number"
                 min={0}
@@ -132,9 +138,15 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
                 onChange={(e) => setAmounts((a) => ({ ...a, [c.id]: e.target.value }))}
                 className={input}
               />
-            </div>
+            ),
+          },
+        ]}
+        progress={{ of: "mine", against: "ask" }}
+        title={(c) => (
+          <div className="min-w-0">
+            <span className="block truncate">{c.title}</span>
             {c.info && c.info.rows.length > 0 && (
-              <details className="mt-1 text-xs text-muted-foreground">
+              <details className="text-xs text-muted-foreground">
                 <summary className="cursor-pointer select-none">
                   Budget-Info
                   <span className="ml-1 text-muted-foreground/70">
@@ -150,7 +162,8 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
             )}
           </div>
         )}
-      </CandidateGroups>
+        empty="Noch keine Kandidaten — die Runde ist nicht gestartet."
+      />
       {over && (
         <p className="text-sm text-red-600">Die Summe überschreitet den verteilbaren Topf.</p>
       )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { formatEUR } from "@/lib/formatting";
-import { CandidateGroups } from "@/modules/budgeting/features/components/period/candidate-groups";
+import { CandidateWorksheet } from "@/modules/budgeting/features/components/period/candidate-worksheet";
 
 export interface BallotSheetModel {
   cycleLabel: string;
@@ -28,7 +28,6 @@ export interface BallotSheetModel {
  * Bogen an genau der Kachel, aus der er gedruckt wird.
  */
 export function BallotSheets({ model }: { model: BallotSheetModel }) {
-  const demand = model.candidates.reduce((s, c) => s + c.ask, 0);
   const groups = model.groups.length > 0 ? model.groups : [{ id: "_", name: "Gruppe" }];
 
   return (
@@ -70,25 +69,26 @@ export function BallotSheets({ model }: { model: BallotSheetModel }) {
           </dl>
 
           <div className="mt-4">
-            {model.candidates.length === 0 ? (
-              <p className="py-4 text-center text-gray-500">
-                Keine Kandidaten — die Runde ist nicht gestartet.
-              </p>
-            ) : (
-              <CandidateGroups items={model.candidates} amount={(c) => c.ask}>
-                {(c) => (
-                  <div className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
-                    <span className="min-w-0 flex-1">{c.title}</span>
-                    <span className="w-24 text-right tabular-nums">{formatEUR(c.ask)}</span>
-                    <span className="w-28 text-right">____________ €</span>
-                  </div>
-                )}
-              </CandidateGroups>
-            )}
-            <div className="mt-2 flex items-baseline justify-between gap-3 border-t pt-1.5 text-sm font-medium">
-              <span>Nachfrage gesamt</span>
-              <span className="tabular-nums">{formatEUR(demand)}</span>
-            </div>
+            <CandidateWorksheet
+              items={model.candidates}
+              sortBy={(c) => c.ask}
+              columns={[
+                { key: "ask", label: "Anfrage", value: (c) => c.ask, width: "110px" },
+                {
+                  key: "amount",
+                  label: "Betrag",
+                  value: () => 0,
+                  width: "120px",
+                  cell: () => (
+                    <span className="inline-block w-24 border-b border-gray-400">&nbsp;</span>
+                  ),
+                },
+              ]}
+              title={(c) => <span>{c.title}</span>}
+              // Auf Papier gibt es nichts zum Auf- und Zuklappen.
+              alwaysOpen
+              empty="Keine Kandidaten — die Runde ist nicht gestartet."
+            />
           </div>
 
           <p className="mt-4 text-xs text-gray-500">

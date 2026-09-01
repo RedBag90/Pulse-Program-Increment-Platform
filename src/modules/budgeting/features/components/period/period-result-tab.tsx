@@ -7,7 +7,7 @@ import type {
   DistributionOverviewModel,
   OverviewCandidate,
 } from "@/modules/budgeting/server/views/distribution-overview";
-import { CandidateGroups } from "@/modules/budgeting/features/components/period/candidate-groups";
+import { CandidateWorksheet } from "@/modules/budgeting/features/components/period/candidate-worksheet";
 import type { PeriodValueStreamsModel } from "@/modules/budgeting/server/views/period-valuestreams";
 import {
   finalizePeriodAction,
@@ -129,17 +129,32 @@ export function PeriodResultTab({
             </span>
           </span>
         </div>
-        {/* Gegliedert nach der Anfrage (Median), nicht nach dem eingetippten
-            Endbetrag: die Blöcke sollen beim Finalisieren stillstehen. */}
-        <CandidateGroups items={model.candidates} amount={(c: OverviewCandidate) => c.suggestion}>
-          {(c) => (
-            <div className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
-              <span className="min-w-0 flex-1 truncate">{c.title}</span>
-              <span className="w-28 text-right text-xs tabular-nums text-muted-foreground">
-                {formatEUR(c.suggestion)}
-              </span>
-              <span className="w-32 text-right">
-                {decided ? (
+        <CandidateWorksheet
+          items={model.candidates}
+          // Nach der **Anfrage** sortiert, nicht nach dem Endbetrag: beim
+          // Setzen der Zahlen darf keine Zeile ihre Position wechseln.
+          sortBy={(c: OverviewCandidate) => c.ask}
+          columns={[
+            {
+              key: "ask",
+              label: "Anfrage",
+              value: (c: OverviewCandidate) => c.ask,
+              width: "120px",
+            },
+            {
+              key: "median",
+              label: "Median",
+              value: (c: OverviewCandidate) => c.suggestion,
+              width: "120px",
+            },
+            {
+              key: "final",
+              label: "Final",
+              value: (c: OverviewCandidate) =>
+                decided ? Number(finals[c.id]) || 0 : (c.finalAmount ?? 0),
+              width: "140px",
+              cell: (c: OverviewCandidate) =>
+                decided ? (
                   <input
                     type="number"
                     min={0}
@@ -150,13 +165,14 @@ export function PeriodResultTab({
                     className="w-28 rounded border border-gray-300 px-2 py-1 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
                   />
                 ) : (
-                  <span className="font-medium tabular-nums">{formatEUR(c.finalAmount ?? 0)}</span>
-                )}
-              </span>
-            </div>
-          )}
-        </CandidateGroups>
-        <p className="text-right text-[10px] text-muted-foreground">Spalten: Median · Final</p>
+                  <span className="font-medium">{formatEUR(c.finalAmount ?? 0)}</span>
+                ),
+            },
+          ]}
+          progress={{ of: "final", against: "ask" }}
+          title={(c) => <span className="truncate">{c.title}</span>}
+          empty="Keine Kandidaten."
+        />
 
         {error && <p className="text-sm text-red-600">{error}</p>}
         {decided && reserve < 0 && (
