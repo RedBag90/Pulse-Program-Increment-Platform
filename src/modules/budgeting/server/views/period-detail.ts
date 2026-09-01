@@ -11,6 +11,8 @@ import { hasCapability } from "@/server/auth/authorize";
 import { getRound } from "@/modules/budgeting/server/services/round-service";
 import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
+import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
+import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 
 export interface PeriodMemberView {
   id: string;
@@ -25,6 +27,24 @@ export interface PeriodGroupView {
   name: string;
   spokespersonId: string | null;
   members: PeriodMemberView[];
+}
+
+/**
+ * Eine Ballot-Zeile mit allem, was die Gliederung braucht.
+ *
+ * Der **Wertstrom** steht auf dem Kandidaten (dort eingefroren, weil die
+ * Finalisierung ihn zum Rechnen braucht); die **Solution** wird beim Lesen
+ * aufgelöst — sie gliedert nur, sie rechnet nicht.
+ */
+export interface BallotEntry {
+  id: string;
+  /** Bei Epics die Epic-Id, bei RtB die Positions-Id — für Entfernen/Deeplink. */
+  sourceId: string;
+  kind: string;
+  title: string;
+  ask: number;
+  valueStreamName: string | null;
+  solutionName: string | null;
 }
 
 export interface PeriodDetailModel {
@@ -44,7 +64,16 @@ export interface PeriodDetailModel {
   /** Budgeting-reife Epics, die noch NICHT auf dem Ballot dieser Kachel sind. */
   eligibleEpics: { id: string; title: string; cost: number }[];
   /** Bereits kuratierte Epic-Kandidaten dieser Kachel. */
-  epicCandidates: { id: string; epicId: string; title: string; ask: number }[];
+  epicCandidates: BallotEntry[];
+  /**
+   * Die Run-the-Business-Seite des Ballots. Im Entwurf eine **Vorschau** der
+   * aktiven Positionen mit ihrem Kachel-Ask — sie werden erst beim Start zu
+   * Kandidaten. Ohne diese Vorschau bliebe die Run-Gruppe im Entwurf leer und
+   * die Gliederung sähe kaputt aus.
+   */
+  rtbCandidates: BallotEntry[];
+  /** `true`, solange die RtB-Zeilen nur eine Vorschau sind (Status `draft`). */
+  rtbIsPreview: boolean;
   /** Tenant-Nutzer (Id → E-Mail) für Beteiligte-/Mitglieder-/Sprecher-Auswahl. */
   users: { id: string; label: string }[];
   canManage: boolean;
@@ -58,18 +87,43 @@ export async function loadPeriodDetail(
   const round = await getRound(db, principal.tenantId, roundId);
   if (!round) return null;
 
-  const [ballot, participants, candidates, userLabels] = await Promise.all([
+  const draft = round.status === "draft";
+
+  const [ballot, participants, candidates, rtbRows, rtbItems, userLabels] = await Promise.all([
     loadRoundBallot(db, principal.tenantId),
     db.budgetParticipant.findMany({ where: { roundId }, select: { id: true, userId: true } }),
     db.budgetCandidate.findMany({
       where: { roundId, kind: "epic" },
-      select: { id: true, epicId: true, title: true, ask: true },
+      // Der Kandidat trägt nur Ids; die Namen holt die zweite Welle unten.
+      select: { id: true, epicId: true, title: true, ask: true, valueStreamId: true },
     }),
+    // Ab `running` tragen die RtB-Positionen echte Kandidatenzeilen.
+    draft
+      ? Promise.resolve([])
+      : db.budgetCandidate.findMany({
+          where: { roundId, kind: "rtb" },
+          select: { id: true, rtbItemId: true, title: true, ask: true, valueStreamId: true },
+        }),
+    // Im Entwurf die Vorschau: was beim Start dazukommt.
+    draft ? loadRtbPreview(db, principal.tenantId) : Promise.resolve([]),
     listTenantUserLabels(db, principal.tenantId),
   ]);
 
   const labelOf = (id: string): string => userLabels[id] ?? id;
-  const candidateEpicIds = new Set(candidates.map((c) => c.epicId).filter((x): x is string => x != null));
+  const candidateEpicIds = new Set(
+    candidates.map((c) => c.epicId).filter((x): x is string => x != null),
+  );
+
+  // Zweite Welle: die Namen für die Gliederung. Der **Wertstrom** steht auf dem
+  // Kandidaten (dort eingefroren, weil die Finalisierung ihn zum Rechnen
+  // braucht); die **Solution** wird hier aufgelöst — sie gliedert nur.
+  const names = await loadBallotNames(db, principal.tenantId, {
+    epicIds: [...candidateEpicIds],
+    rtbItemIds: rtbRows.map((c) => c.rtbItemId).filter((x): x is string => x != null),
+    valueStreamIds: [...candidates, ...rtbRows]
+      .map((c) => c.valueStreamId)
+      .filter((x): x is string => x != null),
+  });
 
   const users = Object.entries(userLabels)
     .map(([id, label]) => ({ id, label }))
@@ -86,7 +140,11 @@ export async function loadPeriodDetail(
       submissionDeadline: round.submissionDeadline,
     },
     distributable: Number(round.poolTotal),
-    participants: participants.map((p) => ({ id: p.id, userId: p.userId, label: labelOf(p.userId) })),
+    participants: participants.map((p) => ({
+      id: p.id,
+      userId: p.userId,
+      label: labelOf(p.userId),
+    })),
     groups: round.groups.map((g) => ({
       id: g.id,
       name: g.name,
@@ -102,11 +160,97 @@ export async function loadPeriodDetail(
     eligibleEpics: ballot.ballot.filter((e) => !candidateEpicIds.has(e.id)),
     epicCandidates: candidates.map((c) => ({
       id: c.id,
-      epicId: c.epicId ?? "",
+      sourceId: c.epicId ?? "",
+      kind: "epic",
       title: c.title,
       ask: Number(c.ask),
+      valueStreamName: names.valueStream(c.valueStreamId),
+      solutionName: names.solutionOfEpic(c.epicId),
     })),
+    rtbCandidates: draft
+      ? rtbItems
+      : rtbRows.map((c) => ({
+          id: c.id,
+          sourceId: c.rtbItemId ?? "",
+          kind: "rtb",
+          title: c.title,
+          ask: Number(c.ask),
+          valueStreamName: names.valueStream(c.valueStreamId),
+          solutionName: names.solutionOfRtbItem(c.rtbItemId),
+        })),
+    rtbIsPreview: draft,
     users,
     canManage: hasCapability(principal, "budget.round.manage", { tenantId: principal.tenantId }),
+  };
+}
+
+/**
+ * Die aktiven Run-the-Business-Positionen als Ballot-Vorschau — mit dem Betrag,
+ * den sie in **dieser** Kachel anfragen würden (`rtbCycleAmount`, eine Kachel
+ * deckt ein Halbjahr ab).
+ */
+async function loadRtbPreview(db: PrismaClient, tenantId: string): Promise<BallotEntry[]> {
+  const [items, streams, solutions] = await Promise.all([
+    listRtbItems(db, tenantId as Parameters<typeof listRtbItems>[1]),
+    db.valueStream.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+    db.solution.findMany({
+      where: { tenantId, deletedAt: null },
+      select: { id: true, name: true },
+    }),
+  ]);
+  const vsName = new Map(streams.map((v) => [v.id, v.name]));
+  const solName = new Map(solutions.map((s) => [s.id, s.name]));
+
+  return items
+    .filter((i) => i.active)
+    .map((i) => ({
+      id: i.id,
+      sourceId: i.id,
+      kind: "rtb",
+      title: i.name,
+      ask: rtbCycleAmount(i.plannedAmount, i.interval),
+      valueStreamName: vsName.get(i.valueStreamId) ?? null,
+      solutionName: i.solutionId ? (solName.get(i.solutionId) ?? null) : null,
+    }));
+}
+
+/**
+ * Die Namen hinter den Ids einer Ballot-Zeile: Wertstrom, Solution des Epics
+ * bzw. Solution der Run-the-Business-Position.
+ */
+async function loadBallotNames(
+  db: PrismaClient,
+  tenantId: string,
+  ids: { epicIds: string[]; rtbItemIds: string[]; valueStreamIds: string[] },
+) {
+  const [streams, epics, rtbItems] = await Promise.all([
+    ids.valueStreamIds.length > 0
+      ? db.valueStream.findMany({
+          where: { tenantId, id: { in: ids.valueStreamIds } },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+    ids.epicIds.length > 0
+      ? db.initiative.findMany({
+          where: { tenantId, id: { in: ids.epicIds } },
+          select: { id: true, primarySolution: { select: { name: true } } },
+        })
+      : Promise.resolve([]),
+    ids.rtbItemIds.length > 0
+      ? db.runTheBusinessItem.findMany({
+          where: { tenantId, id: { in: ids.rtbItemIds } },
+          select: { id: true, solution: { select: { name: true } } },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const vs = new Map(streams.map((v) => [v.id, v.name]));
+  const epicSol = new Map(epics.map((e) => [e.id, e.primarySolution?.name ?? null]));
+  const rtbSol = new Map(rtbItems.map((r) => [r.id, r.solution?.name ?? null]));
+
+  return {
+    valueStream: (id: string | null) => (id ? (vs.get(id) ?? null) : null),
+    solutionOfEpic: (id: string | null) => (id ? (epicSol.get(id) ?? null) : null),
+    solutionOfRtbItem: (id: string | null) => (id ? (rtbSol.get(id) ?? null) : null),
   };
 }

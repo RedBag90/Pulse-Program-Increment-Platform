@@ -3,7 +3,11 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Fragment } from "react";
-import type { DistributionOverviewModel } from "@/modules/budgeting/server/views/distribution-overview";
+import type {
+  DistributionOverviewModel,
+  OverviewCandidate,
+} from "@/modules/budgeting/server/views/distribution-overview";
+import { CandidateGroups } from "@/modules/budgeting/features/components/period/candidate-groups";
 import type { PeriodValueStreamsModel } from "@/modules/budgeting/server/views/period-valuestreams";
 import {
   finalizePeriodAction,
@@ -14,7 +18,6 @@ import { CaptureRevisionButton } from "@/modules/budgeting/features/components/r
 import { ConfirmMutateForm } from "@/components/actions/confirm-mutate-form";
 import { formatEUR } from "@/lib/formatting";
 
-const cell = "px-2 py-1.5 text-right tabular-nums";
 const btn =
   "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
 const btnGreen =
@@ -126,44 +129,34 @@ export function PeriodResultTab({
             </span>
           </span>
         </div>
-
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40 text-xs text-muted-foreground">
-                <th className="px-2 py-1.5 text-left font-medium">Kandidat</th>
-                <th className="px-2 py-1.5 text-right font-medium">Median</th>
-                <th className="px-2 py-1.5 text-right font-medium">Final</th>
-              </tr>
-            </thead>
-            <tbody>
-              {model.candidates.map((c) => (
-                <tr key={c.id} className="border-b last:border-b-0">
-                  <td className="px-2 py-1.5">
-                    {c.title}
-                    {c.kind === "rtb" && <span className="ml-1 text-xs text-amber-700">RtB</span>}
-                  </td>
-                  <td className={`${cell} text-muted-foreground`}>{formatEUR(c.suggestion)}</td>
-                  <td className={cell}>
-                    {decided ? (
-                      <input
-                        type="number"
-                        min={0}
-                        step={1000}
-                        value={finals[c.id] ?? "0"}
-                        disabled={!model.canFinalize}
-                        onChange={(e) => setFinals((f) => ({ ...f, [c.id]: e.target.value }))}
-                        className="w-28 rounded border border-gray-300 px-2 py-1 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
-                      />
-                    ) : (
-                      <span className="font-medium">{formatEUR(c.finalAmount ?? 0)}</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* Gegliedert nach der Anfrage (Median), nicht nach dem eingetippten
+            Endbetrag: die Blöcke sollen beim Finalisieren stillstehen. */}
+        <CandidateGroups items={model.candidates} amount={(c: OverviewCandidate) => c.suggestion}>
+          {(c) => (
+            <div className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
+              <span className="min-w-0 flex-1 truncate">{c.title}</span>
+              <span className="w-28 text-right text-xs tabular-nums text-muted-foreground">
+                {formatEUR(c.suggestion)}
+              </span>
+              <span className="w-32 text-right">
+                {decided ? (
+                  <input
+                    type="number"
+                    min={0}
+                    step={1000}
+                    value={finals[c.id] ?? "0"}
+                    disabled={!model.canFinalize}
+                    onChange={(e) => setFinals((f) => ({ ...f, [c.id]: e.target.value }))}
+                    className="w-28 rounded border border-gray-300 px-2 py-1 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                  />
+                ) : (
+                  <span className="font-medium tabular-nums">{formatEUR(c.finalAmount ?? 0)}</span>
+                )}
+              </span>
+            </div>
+          )}
+        </CandidateGroups>
+        <p className="text-right text-[10px] text-muted-foreground">Spalten: Median · Final</p>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
         {decided && reserve < 0 && (
@@ -210,7 +203,7 @@ export function PeriodResultTab({
             Abgeleitete Budgets
           </h3>
           <p className="text-xs text-muted-foreground">
-            Aus den finalen Beträgen oben: Wertstrom-Budget = Run the Business + Change the Business
+            Aus den finalen Beträgen oben: Wertstrom-Budget = Run the Business + Grow the Business
             (Epics nach ART).
           </p>
           <div className="overflow-x-auto rounded-lg border">

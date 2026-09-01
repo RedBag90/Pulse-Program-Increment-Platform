@@ -59,6 +59,8 @@ export default async function BallotSheetPage({ params }: Props) {
             title: c.title,
             ask: c.ask,
             kind: c.kind,
+            valueStreamName: c.valueStreamName,
+            solutionName: c.solutionName,
           })),
         }}
       />

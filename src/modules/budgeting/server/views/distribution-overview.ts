@@ -22,6 +22,11 @@ export interface OverviewCandidate {
   title: string;
   ask: number;
   valueStreamName: string | null;
+  /**
+   * Für die Gliederung, nicht für die Rechnung — beim Lesen aufgelöst, anders
+   * als der auf dem Kandidaten eingefrorene Wertstrom.
+   */
+  solutionName: string | null;
   /** groupId → €-Vorschlag der Gruppe. */
   amounts: Record<string, number>;
   /** Median der abgegebenen Vorschläge (Finalisierungs-Vorbefüllung). */
@@ -51,26 +56,51 @@ export async function loadDistributionOverview(
   });
   if (!round) return null;
 
-  const [groups, candidates, allocations, ballot, valueStreams] = await Promise.all([
-    db.budgetGroup.findMany({
-      where: { roundId },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, submittedAt: true },
-    }),
-    db.budgetCandidate.findMany({
-      where: { roundId },
-      orderBy: { title: "asc" },
-      select: { id: true, kind: true, title: true, ask: true, valueStreamId: true, finalAmount: true },
-    }),
-    db.groupAllocation.findMany({
-      where: { roundId, candidateId: { not: null } },
-      select: { groupId: true, candidateId: true, amount: true },
-    }),
-    loadRoundBallot(db, principal.tenantId),
-    db.valueStream.findMany({ where: { tenantId: principal.tenantId }, select: { id: true, name: true } }),
-  ]);
+  const [groups, candidates, allocations, ballot, valueStreams, epicSolutions, rtbSolutions] =
+    await Promise.all([
+      db.budgetGroup.findMany({
+        where: { roundId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, submittedAt: true },
+      }),
+      db.budgetCandidate.findMany({
+        where: { roundId },
+        orderBy: { title: "asc" },
+        select: {
+          id: true,
+          kind: true,
+          title: true,
+          ask: true,
+          valueStreamId: true,
+          epicId: true,
+          rtbItemId: true,
+          finalAmount: true,
+        },
+      }),
+      db.groupAllocation.findMany({
+        where: { roundId, candidateId: { not: null } },
+        select: { groupId: true, candidateId: true, amount: true },
+      }),
+      loadRoundBallot(db, principal.tenantId),
+      db.valueStream.findMany({
+        where: { tenantId: principal.tenantId },
+        select: { id: true, name: true },
+      }),
+      db.initiative.findMany({
+        where: { tenantId: principal.tenantId, primarySolutionId: { not: null } },
+        select: { id: true, primarySolution: { select: { name: true } } },
+      }),
+      db.runTheBusinessItem.findMany({
+        where: { tenantId: principal.tenantId, solutionId: { not: null } },
+        select: { id: true, solution: { select: { name: true } } },
+      }),
+    ]);
 
   const vsName = new Map(valueStreams.map((v) => [v.id, v.name]));
+  const epicSol = new Map(epicSolutions.map((e) => [e.id, e.primarySolution?.name ?? null]));
+  const rtbSol = new Map(rtbSolutions.map((r) => [r.id, r.solution?.name ?? null]));
+  const solutionOf = (c: { epicId: string | null; rtbItemId: string | null }): string | null =>
+    (c.epicId ? epicSol.get(c.epicId) : c.rtbItemId ? rtbSol.get(c.rtbItemId) : null) ?? null;
   const submittedGroupIds = new Set(groups.filter((g) => g.submittedAt != null).map((g) => g.id));
 
   // amounts[candidateId][groupId] = amount
@@ -94,6 +124,7 @@ export async function loadDistributionOverview(
       title: c.title,
       ask: Number(c.ask),
       valueStreamName: c.valueStreamId ? (vsName.get(c.valueStreamId) ?? null) : null,
+      solutionName: solutionOf(c),
       amounts,
       suggestion: median(submittedAmounts),
       finalAmount: c.finalAmount != null ? Number(c.finalAmount) : null,

@@ -33,6 +33,7 @@ describe("periodPhases", () => {
       rahmen: "current",
       ballot: "open",
       gruppen: "open",
+      start: "blocked",
       verteilen: "blocked",
       finalisieren: "blocked",
       protokoll: "blocked",
@@ -55,6 +56,28 @@ describe("periodPhases", () => {
     const ready = facts({ poolTotal: 1, hasTimeframe: true, candidateCount: 1, groupCount: 2 });
     expect(state(ready).gruppen).toBe("current");
     expect(state({ ...ready, staffedGroupCount: 1 }).gruppen).toBe("done");
+  });
+
+  it("der Start ist gesperrt, bis Ballot und Gruppen stehen", () => {
+    // Die Leiste sagt damit dasselbe wie der Knopf in der Setup-Checkliste —
+    // und trägt dieselbe Nummer.
+    const p = (f: PeriodPhaseFacts) => periodPhases(f).find((x) => x.key === "start")!;
+
+    const leer = p(facts({ poolTotal: 1, hasTimeframe: true }));
+    expect(leer.state).toBe("blocked");
+    expect(leer.blockedBy).toContain("besetzten Gruppe");
+
+    const bereit = p(
+      facts({ poolTotal: 1, hasTimeframe: true, candidateCount: 2, staffedGroupCount: 1 }),
+    );
+    expect(bereit.state).toBe("current");
+    expect(bereit.blockedBy).toBeUndefined();
+
+    expect(p(facts({ status: "running" })).state).toBe("done");
+  });
+
+  it("der Start liegt im Setup-Reiter, nicht in der Verteilung", () => {
+    expect(periodPhases(facts()).find((x) => x.key === "start")!.tab).toBe("setup");
   });
 
   it("Verteilen ist gesperrt, solange die Runde nicht läuft — mit Begründung", () => {
@@ -112,6 +135,7 @@ describe("periodPhases", () => {
       "setup",
       "setup",
       "setup",
+      "setup",
       "verteilung",
       "ergebnis",
       "ergebnis",
@@ -135,7 +159,7 @@ describe("phaseSummary", () => {
           }),
         ),
       ),
-    ).toBe("Phase 4 · Verteilen");
+    ).toBe("Phase 5 · Verteilen");
   });
 
   it("eine vollständig durchlaufene Kachel meldet sich als abgeschlossen", () => {

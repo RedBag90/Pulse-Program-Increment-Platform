@@ -1,13 +1,21 @@
 "use client";
 
 import { formatEUR } from "@/lib/formatting";
+import { CandidateGroups } from "@/modules/budgeting/features/components/period/candidate-groups";
 
 export interface BallotSheetModel {
   cycleLabel: string;
   poolTotal: number;
   distributable: number;
   groups: { id: string; name: string }[];
-  candidates: { id: string; title: string; ask: number; kind: string }[];
+  candidates: {
+    id: string;
+    title: string;
+    ask: number;
+    kind: string;
+    valueStreamName: string | null;
+    solutionName: string | null;
+  }[];
 }
 
 /**
@@ -61,41 +69,27 @@ export function BallotSheets({ model }: { model: BallotSheetModel }) {
             </div>
           </dl>
 
-          <table className="mt-4 w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th className="py-1.5 pr-2 font-medium">Kandidat</th>
-                <th className="py-1.5 pr-2 text-right font-medium">Anfrage</th>
-                <th className="w-28 py-1.5 text-right font-medium">Betrag</th>
-              </tr>
-            </thead>
-            <tbody>
-              {model.candidates.map((c) => (
-                <tr key={c.id} className="border-b">
-                  <td className="py-1.5 pr-2">
-                    {c.title}
-                    {c.kind === "rtb" && <span className="ml-1 text-xs">(RtB)</span>}
-                  </td>
-                  <td className="py-1.5 pr-2 text-right tabular-nums">{formatEUR(c.ask)}</td>
-                  <td className="py-1.5 text-right">____________ €</td>
-                </tr>
-              ))}
-              {model.candidates.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="py-4 text-center text-gray-500">
-                    Keine Kandidaten — die Runde ist nicht gestartet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-            <tfoot>
-              <tr className="border-t font-medium">
-                <td className="py-1.5 pr-2">Nachfrage gesamt</td>
-                <td className="py-1.5 pr-2 text-right tabular-nums">{formatEUR(demand)}</td>
-                <td />
-              </tr>
-            </tfoot>
-          </table>
+          <div className="mt-4">
+            {model.candidates.length === 0 ? (
+              <p className="py-4 text-center text-gray-500">
+                Keine Kandidaten — die Runde ist nicht gestartet.
+              </p>
+            ) : (
+              <CandidateGroups items={model.candidates} amount={(c) => c.ask}>
+                {(c) => (
+                  <div className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
+                    <span className="min-w-0 flex-1">{c.title}</span>
+                    <span className="w-24 text-right tabular-nums">{formatEUR(c.ask)}</span>
+                    <span className="w-28 text-right">____________ €</span>
+                  </div>
+                )}
+              </CandidateGroups>
+            )}
+            <div className="mt-2 flex items-baseline justify-between gap-3 border-t pt-1.5 text-sm font-medium">
+              <span>Nachfrage gesamt</span>
+              <span className="tabular-nums">{formatEUR(demand)}</span>
+            </div>
+          </div>
 
           <p className="mt-4 text-xs text-gray-500">
             Die Summe der verteilten Beträge darf {formatEUR(model.distributable)} nicht

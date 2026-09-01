@@ -9,7 +9,11 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { loadDefaultHypothesisEffort } from "@/modules/budgeting/server/services/ballot";
-import { derivePbInfo, type PbSourceKind, type PbInfoRow } from "@/modules/work/domain/pb-submission";
+import {
+  derivePbInfo,
+  type PbSourceKind,
+  type PbInfoRow,
+} from "@/modules/work/domain/pb-submission";
 
 export interface DistributionCandidate {
   id: string;
@@ -19,6 +23,11 @@ export interface DistributionCandidate {
   amount: number;
   valueStreamId: string | null;
   valueStreamName: string | null;
+  /**
+   * Für die Gliederung, nicht für die Rechnung — beim Lesen aufgelöst, anders
+   * als der auf dem Kandidaten eingefrorene Wertstrom.
+   */
+  solutionName: string | null;
   /** Abgeleitete Budget-Info (aus LBC bzw. Hypothese); null, wenn keine Inhalte. */
   info: { source: PbSourceKind; rows: PbInfoRow[] } | null;
 }
@@ -62,14 +71,25 @@ export async function loadGroupDistribution(
   const [candidates, allocations, valueStreams, defaultEffort] = await Promise.all([
     db.budgetCandidate.findMany({
       where: { roundId },
-      select: { id: true, kind: true, title: true, ask: true, epicId: true, valueStreamId: true },
+      select: {
+        id: true,
+        kind: true,
+        title: true,
+        ask: true,
+        epicId: true,
+        rtbItemId: true,
+        valueStreamId: true,
+      },
       orderBy: { title: "asc" },
     }),
     db.groupAllocation.findMany({
       where: { groupId, candidateId: { not: null } },
       select: { candidateId: true, amount: true },
     }),
-    db.valueStream.findMany({ where: { tenantId: principal.tenantId }, select: { id: true, name: true } }),
+    db.valueStream.findMany({
+      where: { tenantId: principal.tenantId },
+      select: { id: true, name: true },
+    }),
     loadDefaultHypothesisEffort(db, principal.tenantId),
   ]);
 
@@ -85,9 +105,19 @@ export async function loadGroupDistribution(
           benefitHypothesis: true,
           businessCaseApprovedAt: true,
           hypothesisApprovedAt: true,
+          primarySolution: { select: { name: true } },
         },
       })
     : [];
+
+  const rtbItemIds = candidates.map((c) => c.rtbItemId).filter((x): x is string => x != null);
+  const rtbItems = rtbItemIds.length
+    ? await db.runTheBusinessItem.findMany({
+        where: { id: { in: rtbItemIds } },
+        select: { id: true, solution: { select: { name: true } } },
+      })
+    : [];
+  const rtbSol = new Map(rtbItems.map((r) => [r.id, r.solution?.name ?? null]));
 
   const amountByCandidate = new Map(
     allocations.map((a) => [a.candidateId as string, Number(a.amount)]),
@@ -106,6 +136,8 @@ export async function loadGroupDistribution(
       amount: amountByCandidate.get(c.id) ?? 0,
       valueStreamId: c.valueStreamId,
       valueStreamName: c.valueStreamId ? (vsName.get(c.valueStreamId) ?? null) : null,
+      solutionName:
+        epicRow?.primarySolution?.name ?? (c.rtbItemId ? (rtbSol.get(c.rtbItemId) ?? null) : null),
       info: pb && pb.rows.length > 0 ? { source: pb.source, rows: pb.rows } : null,
     };
   });

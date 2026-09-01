@@ -11,11 +11,13 @@ import {
   submitGroupDistributionAction,
 } from "@/modules/budgeting/features/actions/distribution";
 import { pbSourceLabel } from "@/modules/work/domain/pb-submission";
+import { CandidateGroups } from "@/modules/budgeting/features/components/period/candidate-groups";
 
 const EUR = (n: number) => `${n.toLocaleString("de-DE")} €`;
 const input =
   "w-32 rounded border border-gray-300 px-2 py-1 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60";
-const btn = "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
+const btn =
+  "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
 
 /**
  * Selbst-Verteilung einer Gruppe: freie €-Beträge über alle Ballot-Kandidaten
@@ -25,8 +27,8 @@ const btn = "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hove
 export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [amounts, setAmounts] = useState<Record<string, string>>(
-    () => Object.fromEntries(model.candidates.map((c) => [c.id, String(c.amount)])),
+  const [amounts, setAmounts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(model.candidates.map((c) => [c.id, String(c.amount)])),
   );
   const [error, setError] = useState<string | null>(null);
   const base = useMemo(
@@ -73,8 +75,6 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
     });
   }
 
-  const byVs = groupByValueStream(model.candidates);
-
   return (
     <div className="space-y-4">
       <div className="rounded-lg border bg-card p-4">
@@ -110,54 +110,50 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
         </p>
       )}
 
-      {byVs.map(([vsName, cands]) => (
-        <div key={vsName} className="rounded-lg border bg-card p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{vsName}</h3>
-          <ul className="mt-2 divide-y divide-border">
-            {cands.map((c) => (
-              <li key={c.id} className="py-2">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium">{c.title}</span>
-                    {c.kind === "rtb" && (
-                      <span className="ml-1 rounded bg-amber-100 px-1 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
-                        Run the Business
-                      </span>
-                    )}
-                    <span className="ml-2 text-xs text-muted-foreground tabular-nums">
-                      Richtwert {EUR(c.ask)}
-                    </span>
-                  </div>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1000}
-                    value={amounts[c.id] ?? "0"}
-                    disabled={!model.canEdit}
-                    onChange={(e) => setAmounts((a) => ({ ...a, [c.id]: e.target.value }))}
-                    className={input}
-                  />
-                </div>
-                {c.info && c.info.rows.length > 0 && (
-                  <details className="mt-1 text-xs text-muted-foreground">
-                    <summary className="cursor-pointer select-none">
-                      Budget-Info
-                      <span className="ml-1 text-muted-foreground/70">· {pbSourceLabel(c.info.source)}</span>
-                    </summary>
-                    <dl className="mt-1 space-y-0.5 pl-3">
-                      {c.info.rows.map((r) => (
-                        <Info key={r.label} label={r.label} value={r.value} />
-                      ))}
-                    </dl>
-                  </details>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-
-      {over && <p className="text-sm text-red-600">Die Summe überschreitet den verteilbaren Topf.</p>}
+      {/* Die Zeilen tragen den **Richtwert** als Summe der Gliederung, nicht den
+          eingetippten Betrag: die Blöcke sollen beim Verteilen stillstehen und
+          nicht bei jeder Eingabe umsortieren. */}
+      <CandidateGroups items={model.candidates} amount={(c: DistributionCandidate) => c.ask}>
+        {(c) => (
+          <div className="py-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <span className="text-sm font-medium">{c.title}</span>
+                <span className="ml-2 text-xs tabular-nums text-muted-foreground">
+                  Richtwert {EUR(c.ask)}
+                </span>
+              </div>
+              <input
+                type="number"
+                min={0}
+                step={1000}
+                value={amounts[c.id] ?? "0"}
+                disabled={!model.canEdit}
+                onChange={(e) => setAmounts((a) => ({ ...a, [c.id]: e.target.value }))}
+                className={input}
+              />
+            </div>
+            {c.info && c.info.rows.length > 0 && (
+              <details className="mt-1 text-xs text-muted-foreground">
+                <summary className="cursor-pointer select-none">
+                  Budget-Info
+                  <span className="ml-1 text-muted-foreground/70">
+                    · {pbSourceLabel(c.info.source)}
+                  </span>
+                </summary>
+                <dl className="mt-1 space-y-0.5 pl-3">
+                  {c.info.rows.map((r) => (
+                    <Info key={r.label} label={r.label} value={r.value} />
+                  ))}
+                </dl>
+              </details>
+            )}
+          </div>
+        )}
+      </CandidateGroups>
+      {over && (
+        <p className="text-sm text-red-600">Die Summe überschreitet den verteilbaren Topf.</p>
+      )}
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {model.canEdit && (
@@ -179,17 +175,6 @@ export function GroupDistribute({ model }: { model: GroupDistributionModel }) {
       )}
     </div>
   );
-}
-
-function groupByValueStream(cands: DistributionCandidate[]): [string, DistributionCandidate[]][] {
-  const map = new Map<string, DistributionCandidate[]>();
-  for (const c of cands) {
-    const key = c.valueStreamName ?? "Ohne Wertstrom";
-    const arr = map.get(key) ?? [];
-    arr.push(c);
-    map.set(key, arr);
-  }
-  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
 function Stat({ label, value, className }: { label: string; value: string; className?: string }) {

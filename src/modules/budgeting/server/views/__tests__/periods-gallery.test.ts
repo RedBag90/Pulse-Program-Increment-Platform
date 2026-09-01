@@ -122,7 +122,7 @@ describe("buildPeriodsGallery — Phase je Kachel", () => {
     );
     const byId = Object.fromEntries(m.focus.map((t) => [t.id, t.phase]));
     expect(byId["neu"]).toBe("Phase 1 · Rahmen");
-    expect(byId["verteilt"]).toBe("Phase 4 · Verteilen");
+    expect(byId["verteilt"]).toBe("Phase 5 · Verteilen");
   });
 
   it("eine eingefrorene Kachel ist abgeschlossen", () => {

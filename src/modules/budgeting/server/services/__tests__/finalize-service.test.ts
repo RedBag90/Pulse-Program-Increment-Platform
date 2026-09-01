@@ -6,11 +6,19 @@ import { describe, it, expect, vi } from "vitest";
  * Reserve und schließt die Kachel.
  */
 
+import { captureBudgetPlanRevision } from "@/modules/budgeting/server/services/budget-plan-revision";
 import {
   finalizePeriod,
   closeDistribution,
   reopenFinalization,
 } from "@/modules/budgeting/server/services/finalize-service";
+
+// Der Snapshot ist eine eigene Transaktion nach dem Abschluss — hier nur die
+// Naht prüfen, nicht das Falten selbst.
+vi.mock("@/modules/budgeting/server/services/budget-plan-revision", () => ({
+  captureBudgetPlanRevision: vi.fn(async () => ({ ok: true, value: { id: "rev", cycleKey: "" } })),
+}));
+const captureMock = vi.mocked(captureBudgetPlanRevision);
 
 type Fn = ReturnType<typeof vi.fn>;
 type Tx = Record<string, Record<string, Fn>>;
@@ -145,5 +153,57 @@ describe("reopenFinalization", () => {
     const res = await reopenFinalization(ctxWith(t), { id: "r1" });
     expect(res.ok).toBe(false);
     expect(t.budgetRound!.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("finalizePeriod — der Abschluss friert ein", () => {
+  function tx(): Tx {
+    return {
+      budgetRound: {
+        findFirst: vi.fn(async () => ({ status: "decided", cycleKey: "2026-H2", poolTotal: 1000 })),
+        update: vi.fn(async () => ({})),
+      },
+      budgetCandidate: {
+        findMany: vi.fn(async () => [{ id: "c1", kind: "epic", epicId: "e1" }]),
+        update: vi.fn(async () => ({})),
+      },
+      budgetAllocation: {
+        findUnique: vi.fn(async () => null),
+        upsert: vi.fn(async () => ({})),
+      },
+      initiative: { findMany: vi.fn(async () => []) },
+      tenant: { findUnique: vi.fn(async () => null) },
+      auditEvent: { create: vi.fn(async () => ({})) },
+    };
+  }
+
+  it("erfasst den Budget-Plan mit dem Zyklus der Kachel", async () => {
+    captureMock.mockClear();
+    const res = await finalizePeriod(ctxWith(tx()), {
+      id: "r1",
+      finals: [{ candidateId: "c1", amount: 400 }],
+    });
+
+    expect(res.ok).toBe(true);
+    expect(captureMock).toHaveBeenCalledTimes(1);
+    expect(captureMock.mock.calls[0]![1]).toEqual({ cycleKey: "2026-H2" });
+  });
+
+  it("ein Fehlschlag der Erfassung kippt die Finalisierung nicht", async () => {
+    // Der Abschluss ist bereits committet — ein Rückabwickeln wäre schlimmer
+    // als ein fehlender Snapshot.
+    captureMock.mockClear();
+    captureMock.mockRejectedValueOnce(new Error("DB weg"));
+    const t = tx();
+
+    const res = await finalizePeriod(ctxWith(t), {
+      id: "r1",
+      finals: [{ candidateId: "c1", amount: 400 }],
+    });
+
+    expect(res.ok).toBe(true);
+    expect(t.budgetRound!.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "closed" }) }),
+    );
   });
 });

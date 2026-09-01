@@ -1,6 +1,6 @@
 /**
  * VS-/ART-/RtB-Budget-Tab einer Kachel. Eine Quelle: `BudgetCandidate.finalAmount`.
- * Dreifache Ableitung — je Value Stream, je ART (Change-the-Business aus Epics,
+ * Dreifache Ableitung — je Value Stream, je ART (Grow-the-Business aus Epics,
  * unter dem VS geschachtelt) und Run-the-Business je VS (aus RtB-Kandidaten).
  * Reiner Builder + impurer Loader.
  */

@@ -82,6 +82,20 @@ export function periodPhases(f: PeriodPhaseFacts): PeriodPhase[] {
       done: started || f.staffedGroupCount > 0,
     },
     {
+      // Der Start ist ein eigener Übergang, kein Nebeneffekt des Gruppen-
+      // Schritts: er friert den Ballot ein und schaltet die Verteilung frei.
+      // Ohne ihn zählte die Leiste an Position 4 schon „Verteilen", während die
+      // Setup-Checkliste dort „Runde starten" führte — derselbe Schritt mit
+      // zwei Nummern.
+      key: "start",
+      label: "Runde starten",
+      tab: "setup",
+      done: started,
+      ...(f.candidateCount > 0 && f.staffedGroupCount > 0
+        ? {}
+        : { blockedBy: "Erst mit Kandidaten auf dem Ballot und einer besetzten Gruppe." }),
+    },
+    {
       key: "verteilen",
       label: "Verteilen",
       tab: "verteilung",

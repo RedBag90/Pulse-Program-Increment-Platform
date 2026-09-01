@@ -3,11 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Link } from "@/i18n/navigation";
-import type { DistributionOverviewModel } from "@/modules/budgeting/server/views/distribution-overview";
+import type {
+  DistributionOverviewModel,
+  OverviewCandidate,
+} from "@/modules/budgeting/server/views/distribution-overview";
+import { CandidateGroups } from "@/modules/budgeting/features/components/period/candidate-groups";
 import { closeDistributionAction } from "@/modules/budgeting/features/actions/finalize";
 import { formatEUR } from "@/lib/formatting";
 
-const cell = "px-2 py-1.5 text-right tabular-nums";
 const btn =
   "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
 
@@ -120,47 +123,32 @@ export function PeriodDistributionTab({
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Vorschläge je Gruppe
         </h3>
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40 text-xs text-muted-foreground">
-                <th className="px-2 py-1.5 text-left font-medium">Kandidat</th>
-                {model.groups.map((g) => (
-                  <th key={g.id} className="px-2 py-1.5 text-right font-medium">
-                    {g.name} {g.submitted ? "✓" : "⏳"}
-                  </th>
-                ))}
-                <th className="px-2 py-1.5 text-right font-medium">Median</th>
-              </tr>
-            </thead>
-            <tbody>
-              {model.candidates.map((c) => (
-                <tr key={c.id} className="border-b last:border-b-0">
-                  <td className="px-2 py-1.5">
-                    {c.title}
-                    {c.kind === "rtb" && <span className="ml-1 text-xs text-amber-700">RtB</span>}
-                  </td>
+        {model.candidates.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Noch keine Kandidaten — die Runde ist nicht gestartet.
+          </p>
+        ) : (
+          <CandidateGroups items={model.candidates} amount={(c: OverviewCandidate) => c.suggestion}>
+            {(c) => (
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-1.5 text-sm">
+                <span className="min-w-0 flex-1 truncate">{c.title}</span>
+                <span className="flex items-center gap-3 text-xs tabular-nums">
                   {model.groups.map((g) => (
-                    <td key={g.id} className={cell}>
+                    <span key={g.id} className="w-24 text-right text-muted-foreground">
                       {c.amounts[g.id] != null ? formatEUR(c.amounts[g.id]!) : "—"}
-                    </td>
+                    </span>
                   ))}
-                  <td className={`${cell} text-muted-foreground`}>{formatEUR(c.suggestion)}</td>
-                </tr>
-              ))}
-              {model.candidates.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={model.groups.length + 2}
-                    className="px-2 py-6 text-center text-muted-foreground"
-                  >
-                    Noch keine Kandidaten — die Runde ist nicht gestartet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                  <span className="w-24 text-right font-medium">{formatEUR(c.suggestion)}</span>
+                </span>
+              </div>
+            )}
+          </CandidateGroups>
+        )}
+        {model.groups.length > 0 && model.candidates.length > 0 && (
+          <p className="text-right text-[10px] text-muted-foreground">
+            Spalten: {model.groups.map((g) => g.name).join(" · ")} · Median
+          </p>
+        )}
       </section>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Link } from "@/i18n/navigation";
 import type {
   PeriodDetailModel,
   PeriodGroupView,
@@ -21,6 +22,8 @@ import {
   removeGroupMemberAction,
 } from "@/modules/budgeting/features/actions/round";
 import { checkGroupCut } from "@/modules/budgeting/domain/group-cut";
+import { CandidateGroups } from "@/modules/budgeting/features/components/period/candidate-groups";
+import type { BallotEntry } from "@/modules/budgeting/server/views/period-detail";
 
 const input =
   "rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -61,7 +64,11 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
         title="Ballot"
         desc="Was zur Abstimmung steht: vorgemerkte Epics plus die aktiven Run-the-Business-Positionen, die beim Start dazukommen."
         done={model.epicCandidates.length > 0}
-        state={`${model.epicCandidates.length} Epics`}
+        state={
+          model.rtbCandidates.length > 0
+            ? `${model.epicCandidates.length} Epics · ${model.rtbCandidates.length} RtB`
+            : `${model.epicCandidates.length} Epics`
+        }
       >
         <Ballot model={model} draft={draft} />
       </Step>
@@ -223,29 +230,43 @@ function StartRound({
 function Ballot({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
   const [addState, addAction] = useActionState(addEpicCandidateAction, {});
   const [, removeAction] = useActionState(removeCandidateAction, {});
+  const all = [...model.epicCandidates, ...model.rtbCandidates];
+
   return (
     <div>
-      <ul className="divide-y divide-border text-sm">
-        {model.epicCandidates.map((c) => (
-          <li key={c.id} className="flex items-center justify-between gap-2 py-1.5">
-            <span className="truncate">{c.title}</span>
-            <span className="flex items-center gap-2">
-              <span className="shrink-0 tabular-nums text-muted-foreground">{EUR(c.ask)}</span>
-              {draft && model.canManage && (
-                <form action={removeAction}>
-                  <input type="hidden" name="id" value={c.id} />
-                  <button type="submit" className={`${btnGhost} text-red-600`}>
-                    entfernen
-                  </button>
-                </form>
-              )}
-            </span>
-          </li>
-        ))}
-        {model.epicCandidates.length === 0 && (
-          <li className="py-1.5 text-xs text-muted-foreground">Noch keine Epics auf dem Ballot.</li>
-        )}
-      </ul>
+      {all.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Noch nichts auf dem Ballot.</p>
+      ) : (
+        <CandidateGroups items={all} amount={(c: BallotEntry) => c.ask}>
+          {(c) => (
+            <div className="flex items-center justify-between gap-2 py-1.5 text-sm">
+              <span className="truncate">{c.title}</span>
+              <span className="flex items-center gap-2">
+                <span className="shrink-0 tabular-nums text-muted-foreground">{EUR(c.ask)}</span>
+                {/* Nur kuratierte Epics lassen sich entfernen; die
+                    Run-the-Business-Positionen kommen aus ihrer eigenen Pflege. */}
+                {draft && model.canManage && c.kind === "epic" && (
+                  <form action={removeAction}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <button type="submit" className={`${btnGhost} text-red-600`}>
+                      entfernen
+                    </button>
+                  </form>
+                )}
+              </span>
+            </div>
+          )}
+        </CandidateGroups>
+      )}
+
+      {model.rtbIsPreview && model.rtbCandidates.length > 0 && (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Die Run-the-Business-Zeilen sind eine Vorschau — sie werden beim Start zu Kandidaten.{" "}
+          <Link href="/budgeting/run-the-business" className="text-primary hover:underline">
+            Positionen pflegen →
+          </Link>
+        </p>
+      )}
 
       {draft && model.canManage && model.eligibleEpics.length > 0 && (
         <form action={addAction} className="mt-3 flex flex-wrap items-end gap-2 border-t pt-3">

@@ -5,6 +5,7 @@
  * - `finalizePeriod`: decided→closed. Setzt je Kandidat `finalAmount`; für
  *   **Epic**-Kandidaten wird zusätzlich `BudgetAllocation[cycleKey]` gemergt
  *   (App-weite Kontinuität); `reserveAmount = (pool − mandatory) − Σ final`.
+ *   Anschließend friert es den Stand als Budget-Plan-Revision ein.
  * - `reopenFinalization`: closed→decided als Korrektur (neben der Maschine).
  * - `startNextPeriod`: legt die Folge-Kachel an (Reserve-Übertrag via
  *   `createRound`) und kopiert Beteiligte + Gruppen (inkl. Sprecher/Mitglieder).
@@ -13,12 +14,13 @@
 import type { Prisma } from "@/generated/prisma";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
-import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
+import { ok, err, isErr, type Result } from "@/modules/core/kernel/domain/errors";
 import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
 import { computeReserve } from "@/modules/budgeting/domain/finalize";
 import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
 import { createRound, copyPeriodSetup } from "@/modules/budgeting/server/services/round-service";
 import { halfYearKey, addHalfYears } from "@/modules/core/kernel/domain/calendar";
+import { captureBudgetPlanRevision } from "@/modules/budgeting/server/services/budget-plan-revision";
 
 export async function closeDistribution(
   ctx: RequestContext,
@@ -58,6 +60,42 @@ export async function finalizePeriod(
   ctx: RequestContext,
   input: { id: string; finals: { candidateId: string; amount: number }[] },
 ): Promise<Result<void>> {
+  const finalized = await finalizePeriodRound(ctx, input);
+  if (isErr(finalized)) return finalized;
+
+  // Den Stand einfrieren — **nach** der Transaktion, denn der Snapshot faltet
+  // genau die eben geschriebenen `finalAmount`. Innerhalb der Transaktion läse
+  // er den Zustand davor.
+  //
+  // Die Erfassung umgeht hier bewusst `budget_plan.revision.capture`: sie ist
+  // Folge des Finalisierens, kein eigener Vorgang — wer finalisieren darf,
+  // friert damit ein.
+  //
+  // Scheitert sie, bleibt die Finalisierung trotzdem stehen: sie ist bereits
+  // festgeschrieben, und ein Rückabwickeln wäre schlimmer als ein fehlender
+  // Snapshot. Die Phase „Protokoll" bleibt dann offen und der Knopf im
+  // Ergebnis-Reiter holt ihn nach — sichtbar und selbst heilbar. Deshalb auch
+  // `try`: ein geworfener Fehler darf die Antwort einer committeten Mutation
+  // nicht kippen.
+  try {
+    const captured = await captureBudgetPlanRevision(ctx, { cycleKey: finalized.value.cycleKey });
+    if (isErr(captured)) {
+      console.error(
+        `[budgeting] Snapshot nach Finalisierung von ${input.id} fehlgeschlagen:`,
+        captured.error,
+      );
+    }
+  } catch (e) {
+    console.error(`[budgeting] Snapshot nach Finalisierung von ${input.id} fehlgeschlagen:`, e);
+  }
+  return ok(undefined);
+}
+
+/** Der eigentliche Abschluss in einer Transaktion; gibt den Zyklus zurück. */
+async function finalizePeriodRound(
+  ctx: RequestContext,
+  input: { id: string; finals: { candidateId: string; amount: number }[] },
+): Promise<Result<{ cycleKey: string }>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
     const round = await tx.budgetRound.findFirst({
@@ -126,7 +164,7 @@ export async function finalizePeriod(
     });
 
     return ok({
-      result: undefined,
+      result: { cycleKey: round.cycleKey },
       audit: {
         action: "budget.period.finalized" as const,
         resourceType: "budget_round" as const,
