@@ -34,11 +34,11 @@ der beiden Stufen zu sehen ist.
 
 ### Wer die drei sind
 
-|                             | Woher die Reichweite kommt                                                                                                                                                                                                           |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Epic Owner**              | Rolle `epic_owner`, plus die Eintragung als Owner am Epic.                                                                                                                                                                           |
-| **Portfolio Manager / VMO** | Rolle `portfolio_manager` — der konsolidierte Portfolio-Lead. Der **VMO-Sitz** in der Gate-Policy ist davon getrennt: `ValueStream.vmoId` benennt je Wertstrom die Person, die die Abnahme-Zeilen bekommt.                           |
-| **Finance**                 | **Keine Rolle.** `ValueStream.financeApproverId` benennt die Person je Wertstrom; daraus folgen ihre Abnahme-Sitze und, über einen Service-Seam, das Recht, ART-Budget und Run-the-Business-Positionen dieses Wertstroms zu pflegen. |
+|                             | Woher die Reichweite kommt                                                                                                                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Epic Owner**              | Rolle `epic_owner`, plus die Eintragung als Owner am Epic.                                                                                                                                                                |
+| **Portfolio Manager / VMO** | Rolle `portfolio_manager` — der konsolidierte Portfolio-Lead. Der **VMO-Sitz** in der Gate-Policy ist davon getrennt: `ValueStream.vmoId` benennt je Wertstrom die Person, die die Abnahme-Zeilen bekommt.                |
+| **Finance**                 | **Keine Rolle.** `ValueStream.financeApproverId` benennt die Person je Wertstrom; daraus folgen ihre Abnahme-Sitze und, über einen Service-Seam, das Recht, die Run-the-Business-Positionen dieses Wertstroms zu pflegen. |
 
 ---
 
@@ -195,11 +195,16 @@ Termins, nicht meine Erfindung. Und die offenen **„I need help"**-Bitten: als
 Portfolio-Manager sehe ich alle im Mandanten, ein reiner VMO die seines
 Wertstroms.
 
-Dann das Geld. Ich setze den **Budget-Topf** je Halbjahr und verteile ihn auf die
-Epics. Die Zeile „Verbleibend" färbt sich rot, sobald ich mehr verteile, als im
-Topf ist. Eine gespeicherte Zuteilung schiebt das Epic **nicht** weiter: sie
+Dann das Geld. Es wird nicht am Epic verteilt, sondern in einem
+**Budget-Zeitraum**: ich lege eine Kachel mit ihrem Topf an, nehme die
+vorgemerkten Epics auf den Ballot, und Gruppen verteilen unabhängig voneinander.
+Wie das abläuft, steht in
+[budgeting-walkthrough.md](budgeting-walkthrough.md).
+
+Für mein Epic zählt das Ergebnis: Wird es dort finanziert, bekommt es seine
+Budget-Zuteilung für dieses Halbjahr. Das schiebt das Epic **nicht** weiter — es
 erfüllt das blockierende Kriterium für **→ L3.2**, mehr nicht. Die
-Investitionsentscheidung ist der Antrag plus meine und Finance' Abnahme — dort
+Investitionsentscheidung ist der Antrag plus meine und Finance' Abnahme; dort
 werden Genehmiger und Datum gestempelt.
 
 Im **Portfolio-Review** stelle ich Plan und Ist gegenüber: Benefit-Plan,
@@ -226,9 +231,10 @@ Meine Frage lautet: **stimmt die Rechnung, und ist sie am Ende aufgegangen?**
 
 Ich habe keine Rolle im System. Ich bin an meinem Wertstrom als
 Finance-Approver benannt, und daraus folgt alles Weitere: die Abnahme-Zeilen, die
-bei mir landen, und das Recht, das Budget dieses Wertstroms auf die ARTs
-herunterzubrechen und seine Run-the-Business-Positionen zu pflegen — ohne dass
-mir jemand eine Portfolio-Rolle geben müsste.
+bei mir landen, und das Recht, die Run-the-Business-Positionen dieses Wertstroms
+zu pflegen — ohne dass mir jemand eine Portfolio-Rolle geben müsste. Was der
+Wertstrom und seine ARTs an Budget tragen, ergibt sich aus den
+Budget-Zeiträumen; ich lese es, ich setze es nicht.
 
 Ich habe **drei Sitze** im Lebenszyklus eines Epics:
 
@@ -329,10 +335,10 @@ Regel des Wertstroms.
 | Welcher Schritt welchen Stempel setzt und abräumt       | `src/modules/work/domain/gate-transition.ts`                               |
 | Rollensatz und Labels                                   | `src/modules/core/kernel/domain/roles.ts`                                  |
 | Was welche Rolle darf                                   | `src/server/auth/policies/index.ts`                                        |
-| Finance-Seam ohne Rolle (ART-Budget, RTB)               | `src/modules/budgeting/server/services/art-budget.ts`                      |
+| Finance-Seam ohne Rolle (Run the Business)              | `src/modules/budgeting/server/services/rtb-item-service.ts`                |
 | Empfänger der „I need help"-Bitten                      | `src/modules/work/server/services/my-help-requests.ts`                     |
 | Business-Owner-Engagement (Guardrail 4)                 | `src/modules/work/server/views/portfolio-guardrails-view.ts`               |
 | Ballot-Fähigkeit + Default-Aufwand                      | `src/modules/work/domain/pb-submission.ts`                                 |
-| Budget-Prozessleiste, Rundenstatus                      | `src/modules/budgeting/server/views/budget-process-rail.ts`                |
+| Phasen und Status eines Budget-Zeitraums                | `src/modules/budgeting/domain/period-phases.ts`                            |
 | Beschriftung der zwei Merker                            | `src/modules/work/features/portfolio/components/epic-governance-flags.tsx` |
 | Timeline-Estimates = geplantes Fenster                  | `src/modules/work/domain/epic-schedule.ts`                                 |

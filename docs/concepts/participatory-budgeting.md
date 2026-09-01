@@ -1,5 +1,10 @@
 # Participatory Budgeting (PB)
 
+> Der Ablauf aus Sicht der Beteiligten — Portfolio Manager, Gruppenmitglied,
+> Finance — steht in
+> [budgeting-walkthrough.md](budgeting-walkthrough.md). Dieses Dokument
+> beschreibt das Modell dahinter.
+
 > **Aktuelles Modell (Kachel-Prozess).** Der PB-Prozess lebt in **Kacheln** je
 > Budgeting-Zeitraum (`/budgeting/periods`, Entity `BudgetRound`, Identität `id`,
 > mehrere/zukünftige koexistieren). Ablauf je Kachel: **Beteiligte definieren

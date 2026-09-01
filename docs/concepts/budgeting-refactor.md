@@ -1,5 +1,8 @@
 # Budgeting-Modul — Analyse und Refactor-Spec
 
+> Der gelebte Ablauf des umgesetzten Zustands:
+> [budgeting-walkthrough.md](budgeting-walkthrough.md).
+
 > Status: **Spec / zur Umsetzung** · Erstellt 2026-08-31 · Löst
 > [budgeting-ui-refactor.md](budgeting-ui-refactor.md) ab.
 >

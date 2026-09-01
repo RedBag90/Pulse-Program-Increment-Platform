@@ -1,5 +1,5 @@
 /**
- * Die sechs Phasen eines Budgeting-Zeitraums — die Orientierung „wo stehe ich".
+ * Die sieben Phasen eines Budgeting-Zeitraums — die Orientierung „wo stehe ich".
  *
  * Ersetzt `views/budget-process-rail.ts`. Die alte Leiste beschrieb einen
  * Ablauf, den es so nicht mehr gibt (Zonen-Erfassung, €/ART-Detailplanung), und
@@ -49,7 +49,7 @@ const atLeast = (s: RoundStatus, min: RoundStatus): boolean =>
   ORDER.indexOf(s) >= ORDER.indexOf(min);
 
 /**
- * Die sechs Phasen mit Zustand. `current` ist die **erste** Phase, die weder
+ * Die sieben Phasen mit Zustand. `current` ist die **erste** Phase, die weder
  * erledigt noch blockiert ist — daraus liest der Nutzer, was als Nächstes
  * dran ist, ohne dass irgendwo ein Zeiger gespeichert werden müsste.
  */
