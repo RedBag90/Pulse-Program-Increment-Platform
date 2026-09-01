@@ -11,7 +11,6 @@ import {
   type BudgetPlanSnapshot,
   type FeatureSnapshotInput,
 } from "@/modules/budgeting/domain/budget-plan-snapshot";
-import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
 import {
   buildPbRoundSnapshot,
   type PbRoundSnapshot,
@@ -326,23 +325,41 @@ export async function listBudgetPlanRevisionCycles(
 // Internal helpers (loaders + payload parser)
 // ---------------------------------------------------------------------------
 
+/**
+ * ART-Budgets für den Snapshot — **abgeleitet** aus den finalen Zuteilungen der
+ * Kacheln, je Halbjahr. Vorher las diese Stelle die handgepflegte
+ * `ArtBudget`-Tabelle: das Endartefakt des Prozesses stammte damit aus einer
+ * anderen Quelle als der Prozess.
+ */
 async function loadArtSnapshotInputs(
   db: PrismaClient,
   tenantId: TenantId,
 ): Promise<ArtSnapshotInput[]> {
-  const arts = await db.art.findMany({
-    where: { tenantId, deletedAt: null },
-    select: {
-      id: true,
-      name: true,
-      budget: { select: { byPeriod: true } },
-    },
-    orderBy: { name: "asc" },
-  });
+  const [arts, finals] = await Promise.all([
+    db.art.findMany({
+      where: { tenantId, deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    db.budgetCandidate.findMany({
+      where: { tenantId, kind: "epic", artId: { not: null }, finalAmount: { not: null } },
+      select: { artId: true, finalAmount: true, round: { select: { cycleKey: true } } },
+    }),
+  ]);
+
+  const byArt = new Map<string, Record<string, number>>();
+  for (const f of finals) {
+    if (!f.artId) continue;
+    const byPeriod = byArt.get(f.artId) ?? {};
+    const key = f.round.cycleKey;
+    byPeriod[key] = (byPeriod[key] ?? 0) + Number(f.finalAmount);
+    byArt.set(f.artId, byPeriod);
+  }
+
   return arts.map((a) => ({
     artId: a.id,
     name: a.name,
-    budgetByPeriod: parsePeriodAmountMap(a.budget?.byPeriod),
+    budgetByPeriod: byArt.get(a.id) ?? {},
   }));
 }
 

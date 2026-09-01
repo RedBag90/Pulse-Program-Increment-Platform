@@ -187,9 +187,8 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
   // VS-scoped → vor valueStream.deleteMany (unten) löschen.
   await prisma.budgetRound.deleteMany(w);
   await prisma.runTheBusinessItem.deleteMany(w);
-  // Budgeting — Legacy (Snapshot/Board)
+  // Budgeting — Snapshot + die abgeleitete Epic-Zuteilung
   await prisma.budgetPlanRevision.deleteMany(w);
-  await prisma.artBudget.deleteMany(w);
   await prisma.budgetAllocation.deleteMany(w);
 
   // Initiative-Nebentabellen

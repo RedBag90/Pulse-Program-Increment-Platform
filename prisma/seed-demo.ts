@@ -76,7 +76,6 @@ async function main() {
       enabledModules: [], // Org ⇒ alle Module
       costNeutralTarget: 250_000,
       dashboardHorizonEnd: addDays(now, 540),
-      budgetPoolByPeriod: { [H1]: 2_000_000, [H2]: 2_400_000 },
       // PB-Default-Aufwand: Kosten-Richtwert im Ballot für nur-Hypothese-Epics.
       defaultHypothesisEffort: 60_000,
       costPerJobSizePoint: 1_800,
@@ -893,17 +892,6 @@ async function main() {
       priority: i,
       hypothesisBudget: i % 4 === 0 ? 50_000 : null,
       allocations: { [H1]: 80_000 + i * 6_000, [H2]: 60_000 + i * 4_000 },
-      createdBy: ADMIN,
-      updatedBy: ADMIN,
-    })),
-  });
-  // ArtBudget je ART
-  await prisma.artBudget.createMany({
-    data: artIds.map((artId, i) => ({
-      id: uid(`abudget:${i}`),
-      tenantId,
-      artId,
-      byPeriod: { [H1]: 400_000 + i * 30_000, [H2]: 380_000 + i * 25_000 },
       createdBy: ADMIN,
       updatedBy: ADMIN,
     })),

@@ -1,22 +1,47 @@
 import { describe, it, expect } from "vitest";
 import {
-  resolveActiveCycle,
+  activeCycleFromRounds,
   resolveWindowSize,
   nextCycle,
   DEFAULT_WINDOW_SIZE,
+  type CycleRound,
 } from "@/modules/budgeting/domain/budget-cycle";
 
 const now = new Date("2026-08-01T00:00:00.000Z"); // → 2026-H2
 
-describe("resolveActiveCycle", () => {
-  it("uses the stored anchor when set and valid", () => {
-    expect(resolveActiveCycle({ activeBudgetCycle: "2027-H1" }, now)).toBe("2027-H1");
+const round = (cycleKey: string, status: string, startDate: string | null = null): CycleRound => ({
+  cycleKey,
+  status,
+  startDate: startDate ? new Date(startDate) : null,
+});
+
+describe("activeCycleFromRounds", () => {
+  it("nimmt die laufende Kachel", () => {
+    expect(
+      activeCycleFromRounds(
+        [round("2027-H1", "draft", "2027-01-01"), round("2026-H1", "running", "2026-01-01")],
+        now,
+      ),
+    ).toBe("2026-H1");
   });
-  it("falls back to the half-year of `now` when unset", () => {
-    expect(resolveActiveCycle({ activeBudgetCycle: null }, now)).toBe("2026-H2");
+
+  it("ohne laufende Kachel die jüngste", () => {
+    expect(
+      activeCycleFromRounds(
+        [round("2026-H1", "closed", "2026-01-01"), round("2027-H1", "draft", "2027-01-01")],
+        now,
+      ),
+    ).toBe("2027-H1");
   });
-  it("falls back on a malformed anchor", () => {
-    expect(resolveActiveCycle({ activeBudgetCycle: "nonsense" }, now)).toBe("2026-H2");
+
+  it("ohne Start-Termin entscheidet der Zyklus-Schlüssel", () => {
+    expect(
+      activeCycleFromRounds([round("2026-H1", "closed"), round("2026-H2", "draft")], now),
+    ).toBe("2026-H2");
+  });
+
+  it("ganz ohne Kacheln gilt das heutige Halbjahr", () => {
+    expect(activeCycleFromRounds([], now)).toBe("2026-H2");
   });
 });
 

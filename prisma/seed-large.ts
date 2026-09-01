@@ -5,7 +5,7 @@
  * Workstreams (Verwaltung & Overhead · Logistik · Produktion).
  *
  * Engpass ist das **Budget: nur €2 Mio./Kalenderjahr** (≈ €1 Mio./Halbjahres-Zyklus).
- * Wir stehen im **1. Halbjahr von Jahr 5** (`activeBudgetCycle = ${YEAR}-H1`). Der
+ * Wir stehen im **1. Halbjahr von Jahr 5** (die laufende Kachel `${YEAR}-H1`). Der
  * Reifegrad + die Zeitleiste jedes Epics folgen der Budget-Verfügbarkeit:
  *   L5 Done / L4 Implementing (in der Vergangenheit bezahlt) · L3 jetzt bezahlt ·
  *   L2 fertig definiert, aber OHNE Budget (wartet, nach hinten geschoben) · L1/L0 früh.
@@ -87,7 +87,6 @@ const ALL_CYCLES = halfYearCycles(YEAR - 4, 1, YEAR + 5, 2); // 20 Zyklen
 const CURRENT_CYCLE = `${YEAR}-H1`;
 const CURRENT_IDX = ALL_CYCLES.indexOf(CURRENT_CYCLE);
 const MAX_IDX = ALL_CYCLES.length - 1;
-const NEXT_CYCLE = ALL_CYCLES[Math.min(CURRENT_IDX + 1, MAX_IDX)]!;
 const PROGRAM_TARGET_YEAR = `${YEAR + 5}`; // Programmende Jahr 10
 
 // €1 Mio. je Halbjahres-Zyklus (= €2 Mio./Kalenderjahr).
@@ -141,7 +140,9 @@ async function main() {
   const tenantId = await ensureLargeTenant();
   await wipeDomainData(tenantId);
 
-  // 10-Jahres-Budget-Entwurf: ~€1 Mio. je Zyklus über alle 20 Zyklen (Controller, Jahr 1).
+  // 10-Jahres-Budget-Entwurf: ~€1 Mio. je Zyklus über alle 20 Zyklen (Controller,
+  // Jahr 1). Nur noch eine lokale Vorgabe für die Kachel-Töpfe unten — einen
+  // Tenant-weiten Topf gibt es nicht mehr.
   const budgetPoolByPeriod: Record<string, number> = {};
   ALL_CYCLES.forEach((c) => {
     budgetPoolByPeriod[c] = CYCLE_POOL;
@@ -153,9 +154,6 @@ async function main() {
       enabledModules: [],
       costNeutralTarget: 500_000,
       dashboardHorizonEnd: cycleEnd(ALL_CYCLES[MAX_IDX]!),
-      budgetPoolByPeriod,
-      // Pinnt „heute" auf Jahr 5, 1. Halbjahr (App liest activeBudgetCycle, nicht die Uhr).
-      activeBudgetCycle: CURRENT_CYCLE,
       budgetWindowSize: 4,
       defaultHypothesisEffort: 30_000,
       costPerJobSizePoint: 1_500,
@@ -945,16 +943,6 @@ async function main() {
     }),
     (data) => prisma.budgetAllocation.createMany({ data }),
   );
-  await prisma.artBudget.createMany({
-    data: artIds.map((artId, i) => ({
-      id: uid(`large:abudget:${i}`),
-      tenantId,
-      artId,
-      byPeriod: { [CURRENT_CYCLE]: 140_000 + i * 12_000, [NEXT_CYCLE]: 140_000 + i * 12_000 },
-      createdBy: ADMIN,
-      updatedBy: ADMIN,
-    })),
-  });
   // Snapshot-Historie je vergangenem Zyklus (der früheste ≈ Controller-Entwurf Jahr 1).
   for (let c = 0; c <= CURRENT_IDX; c++) {
     const cycleKey = ALL_CYCLES[c]!;

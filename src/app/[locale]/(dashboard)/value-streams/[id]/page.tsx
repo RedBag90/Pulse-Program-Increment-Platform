@@ -8,7 +8,7 @@ import {
   type ValueStreamBudget,
 } from "@/modules/budgeting/server/services/budgeting";
 import { loadArtBudgetModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
-import { ArtBudgetEditor } from "@/modules/budgeting/features/components/art-budget/art-budget-editor";
+import { ArtBudgetView } from "@/modules/budgeting/features/components/art-budget/art-budget-view";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { RtbSection } from "@/modules/budgeting/features/components/rtb/rtb-section";
 import { formatEUR } from "@/lib/formatting";
@@ -218,7 +218,7 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
                 periods={budgeting.plan.periods}
                 plan={budgeting.plan.budget ?? undefined}
               />
-              <ArtBudgetEditor model={budgeting.artModel} canEdit={canEditArtBudget} />
+              <ArtBudgetView model={budgeting.artModel} />
               <RtbSection
                 valueStreamId={vs.id}
                 items={budgeting.rtbItems}

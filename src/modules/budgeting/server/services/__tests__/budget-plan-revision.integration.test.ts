@@ -13,7 +13,6 @@ import {
   listBudgetPlanRevisionCycles,
   listBudgetPlanRevisions,
 } from "@/modules/budgeting/server/services/budget-plan-revision";
-import { saveBudgetAllocation } from "@/modules/budgeting/server/services/budgeting";
 
 let seed: Awaited<ReturnType<typeof seedTenant>>;
 
@@ -48,11 +47,17 @@ async function makeAllocatedEpic(allocations: Record<string, number>): Promise<E
     },
   });
   await db.initiative.update({ where: { id: epic.id }, data: { path: epic.id } });
-  await saveBudgetAllocation(funderContext(), {
-    epicId: epic.id as EpicId,
-    priority: 1,
-    hypothesisBudget: null,
-    allocations,
+  // Zuteilungen entstehen nur noch aus der Kachel-Finalisierung; für das
+  // Fixture wird die Zeile direkt geschrieben.
+  await db.budgetAllocation.create({
+    data: {
+      tenantId: seed.tenantId,
+      epicId: epic.id,
+      priority: 1,
+      allocations,
+      createdBy: seed.actorId,
+      updatedBy: seed.actorId,
+    },
   });
   return epic.id as EpicId;
 }
@@ -78,11 +83,9 @@ describe("captureBudgetPlanRevision", () => {
     const ctx = funderContext();
 
     await captureBudgetPlanRevision(ctx, { now: H1_2026 });
-    await saveBudgetAllocation(ctx, {
-      epicId,
-      priority: 1,
-      hypothesisBudget: null,
-      allocations: { "2026-H1": 250_000 },
+    await db.budgetAllocation.update({
+      where: { epicId },
+      data: { allocations: { "2026-H1": 250_000 }, updatedBy: seed.actorId },
     });
     const captures = await db.auditEvent.count({
       where: { tenantId: seed.tenantId, action: "budget_plan.revision.captured" },

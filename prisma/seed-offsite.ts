@@ -233,10 +233,6 @@ async function main() {
       status: "active",
       enabledModules: [...MODULE_KEYS],
       dashboardHorizonEnd: addDays(OFFSITE_AT, 30),
-      budgetPoolByPeriod: { [PERIOD_NOW]: BUDGET_TOTAL * 0.7, [PERIOD_END]: BUDGET_TOTAL * 0.5 },
-      // Der laufende Budget-Zyklus (aktives Halbjahr). Explizit gesetzt, damit die
-      // Horizont-Budget-Zeilen des Portfolio-Kanbans einen klaren Bezug haben.
-      activeBudgetCycle: PERIOD_NOW,
       // PB-Default-Aufwand: Kosten-Richtwert im Ballot für nur-Hypothese-Epics.
       defaultHypothesisEffort: 60_000,
       // Ein Job-Size-Punkt Planungsaufwand ≈ ein Personentag.
@@ -894,19 +890,6 @@ async function main() {
       createdBy: admin,
       updatedBy: admin,
     })),
-  });
-  await prisma.artBudget.create({
-    data: {
-      id: uid("offsite:abudget"),
-      tenantId,
-      artId,
-      byPeriod: {
-        [PERIOD_NOW]: Math.round(BUDGET_TOTAL * 0.66),
-        [PERIOD_END]: Math.round(BUDGET_TOTAL * 0.34),
-      },
-      createdBy: admin,
-      updatedBy: admin,
-    },
   });
   await prisma.budgetPlanRevision.create({
     data: {

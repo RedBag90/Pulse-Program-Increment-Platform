@@ -31,14 +31,14 @@ model Tenant {
   costNeutralTarget   Decimal?  @map("cost_neutral_target") @db.Decimal(14, 2) // self-funding threshold / month
   dashboardHorizonEnd DateTime? @map("dashboard_horizon_end") @db.Date // recurring-benefit accrual end
 
-  // Participatory Budgeting: total budget pool per half-year, e.g. { "2026-H1": 500000 }.
-  budgetPoolByPeriod Json? @map("budget_pool_by_period")
-
-  // Rolling-Window: der manuell fortgeschriebene aktive Budget-Zyklus ("YYYY-H1")
-  // und die Fenstergröße in Halbjahren. `activeBudgetCycle = null` ⇒ Default =
-  // Halbjahr von `now` (Verhalten wie vor der Fortschreibung).
-  activeBudgetCycle String? @map("active_budget_cycle")
-  budgetWindowSize  Int     @default(4) @map("budget_window_size")
+  // Rolling-Window: die Fenstergröße in Halbjahren (nur Anzeige-Horizont).
+  //
+  // Der Topf und der aktive Zyklus standen früher ebenfalls hier
+  // (`budgetPoolByPeriod`, `activeBudgetCycle`). Beides ist entfallen: der Topf
+  // lebt je Kachel in `BudgetRound.poolTotal`, und „aktiv" ist die laufende
+  // Kachel (`activeCycleFromRounds`) — einen einzelnen aktiven Zyklus gibt es
+  // im Kachel-Modell nicht.
+  budgetWindowSize Int @default(4) @map("budget_window_size")
 
   // Participatory Budgeting: Default-Aufwand (Kosten-Richtwert) für Epics, die
   // erst eine approved Benefit-Hypothese (noch keinen Lean Business Case) haben —
@@ -77,7 +77,6 @@ model Tenant {
   goalCustomFieldDefs   GoalCustomFieldDef[]
   goalCustomFieldValues GoalCustomFieldValue[]
   budgetAllocations     BudgetAllocation[]
-  artBudgets            ArtBudget[]
   budgetPlanRevisions   BudgetPlanRevision[]
   budgetRounds          BudgetRound[]
   runTheBusinessItems   RunTheBusinessItem[]
@@ -630,7 +629,6 @@ model Art {
   pis         ProgramIncrement[]
   features    Initiative[]       @relation("FeatureArt")
   issues      Issue[]
-  budget      ArtBudget?
   goalLinks   GoalArtLink[]
   solutions   Solution[]
 
@@ -1128,27 +1126,6 @@ model BudgetAllocation {
 
   @@index([tenantId])
   @@map("budget_allocations")
-}
-
-/// Finance's breakdown of a Value Stream's budget to its ARTs, per half-year
-/// ("YYYY-H1" → amount). One row per ART. Mirrors BudgetAllocation; the VS budget
-/// it draws against is derived from participatory budgeting (getValueStreamBudgets).
-model ArtBudget {
-  id       String @id @default(uuid()) @db.Uuid
-  tenantId String @map("tenant_id") @db.Uuid
-  artId    String @unique @map("art_id") @db.Uuid
-  byPeriod Json   @default("{}")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  createdBy String   @map("created_by") @db.Uuid
-  updatedAt DateTime @updatedAt @map("updated_at")
-  updatedBy String   @map("updated_by") @db.Uuid
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  art    Art    @relation(fields: [artId], references: [id], onDelete: Cascade)
-
-  @@index([tenantId])
-  @@map("art_budgets")
 }
 
 /// An immutable snapshot of the participatory-budgeting plan for one

@@ -10,7 +10,7 @@ import {
   getValueStreamBudgets,
 } from "@/modules/budgeting/server/services/budgeting";
 import { getEpicCycleAllocations } from "@/modules/budgeting/server/services/epic-allocation";
-import { resolveActiveCycle } from "@/modules/budgeting/domain/budget-cycle";
+import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
@@ -126,7 +126,9 @@ export default async function PortfolioPage({ searchParams }: Props) {
           board: { periods: [], pool: {} },
           vsBudgets: { valueStreams: [] },
           cycleAllocations: {},
-          budgetCycleKey: resolveActiveCycle({ activeBudgetCycle: null }, new Date()),
+          // Ohne Budgeting-Modul gibt es keine Kacheln — dann bleibt das
+          // heutige Halbjahr als Beschriftung.
+          budgetCycleKey: halfYearKey(new Date()),
         };
       }
       const [board, vsBudgets, cycle] = await Promise.all([

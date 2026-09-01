@@ -1,27 +1,30 @@
 /**
- * Participatory budgeting service — loads the budgeting board (Epics staged for
- * the next budget meeting that have an approved hypothesis or business case),
- * and persists the pool, per-Epic allocations, and scheduling. The half-year
- * maths live in the pure `@/domain/budgeting` module.
+ * Lese-Seite der Budgetvergabe: das Board (vorgemerkte Epics mit freigegebener
+ * Hypothese oder freigegebenem Business Case), der Topf je Halbjahr und die
+ * daraus abgeleiteten Wertstrom-Budgets. Die Halbjahres-Rechnung liegt im reinen
+ * `domain/budgeting`.
+ *
+ * **Nur noch lesend, bis auf den PB-Default-Aufwand.** Topf und Zuteilung wurden
+ * früher hier von Hand geschrieben; der Topf lebt jetzt je Kachel in
+ * `BudgetRound.poolTotal`, die Zuteilung entsteht aus deren Finalisierung
+ * (`finalize-service`).
  */
 
 import { cache } from "react";
-import type { Prisma, PrismaClient } from "@/generated/prisma";
-import type { TenantId, EpicId, ValueStreamId } from "@/modules/core/kernel/domain/types";
+import type { PrismaClient } from "@/generated/prisma";
+import type { TenantId, ValueStreamId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok } from "@/modules/core/kernel/domain/errors";
-import { loadAuthorizedEpic } from "@/modules/work/server/services/epic-access";
 import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 import {
   parsePeriodAmountMap,
-  rollupByValueStream,
   type BudgetEpicView,
   type HalfYearAxis,
 } from "@/modules/budgeting/domain/budgeting";
 import { rollingWindow } from "@/modules/budgeting/domain/period-window";
-import { resolveActiveCycle, resolveWindowSize } from "@/modules/budgeting/domain/budget-cycle";
+import { activeCycleFromRounds, resolveWindowSize } from "@/modules/budgeting/domain/budget-cycle";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 
@@ -35,12 +38,6 @@ export interface BudgetingBoardData {
    * to recover the horizon start. `periods.length === count`.
    */
   axis: { start: Date; count: number };
-  /** Editierbare Halbjahre (Rolling-Window ab Anker); Rest ist read-only. */
-  editableKeys: string[];
-  /** Der aktive Zyklus (Anker) als Halbjahres-Key. */
-  activeCycleKey: string;
-  /** Fenstergröße in Halbjahren. */
-  windowSize: number;
 }
 
 /** A Value Stream's budget derived from its Epics' allocations, per half-year. */
@@ -78,7 +75,7 @@ const loadBudgetingModel = cache(async function loadBudgetingModel(
   activeCycle: string;
   windowSize: number;
 }> {
-  const [rows, tenant] = await Promise.all([
+  const [rows, tenant, rounds] = await Promise.all([
     db.initiative.findMany({
       where: {
         tenantId,
@@ -104,7 +101,14 @@ const loadBudgetingModel = cache(async function loadBudgetingModel(
     }),
     db.tenant.findUnique({
       where: { id: tenantId },
-      select: { budgetPoolByPeriod: true, activeBudgetCycle: true, budgetWindowSize: true },
+      select: { budgetWindowSize: true },
+    }),
+    // Der Topf lebt in den Kacheln. Der frühere `Tenant.budgetPoolByPeriod` war
+    // seit dem Wegfall des €-Boards nicht mehr pflegbar und lief gegen die
+    // Zuteilungen auseinander, die die Finalisierung schreibt.
+    db.budgetRound.findMany({
+      where: { tenantId },
+      select: { cycleKey: true, status: true, startDate: true, poolTotal: true },
     }),
   ]);
 
@@ -132,15 +136,16 @@ const loadBudgetingModel = cache(async function loadBudgetingModel(
     };
   });
 
-  const pool = parsePeriodAmountMap(tenant?.budgetPoolByPeriod);
+  // Mehrere Kacheln können dasselbe Halbjahr tragen — ihre Töpfe addieren sich.
+  const pool: Record<string, number> = {};
+  for (const r of rounds) {
+    pool[r.cycleKey] = (pool[r.cycleKey] ?? 0) + Number(r.poolTotal);
+  }
 
   // Rolling-Window: der Board-Horizont sind die `windowSize` Halbjahre ab dem
   // Anker (editierbar), plus alle Perioden mit Daten (Topf/Allokation) als
   // read-only Kontext. Ersetzt die frühere datenabgeleitete `forecastAxis`.
-  const activeCycle = resolveActiveCycle(
-    { activeBudgetCycle: tenant?.activeBudgetCycle ?? null },
-    new Date(),
-  );
+  const activeCycle = activeCycleFromRounds(rounds, new Date());
   const windowSize = resolveWindowSize({ budgetWindowSize: tenant?.budgetWindowSize ?? null });
   const dataKeys = [
     ...new Set([...Object.keys(pool), ...epics.flatMap((e) => Object.keys(e.allocations))]),
@@ -196,41 +201,87 @@ export async function getBudgetingBoard(
   db: PrismaClient,
   tenantId: TenantId,
 ): Promise<BudgetingBoardData> {
-  const { epics, axis, pool, editableKeys, activeCycle, windowSize } = await loadBudgetingModel(
-    db,
-    tenantId,
-  );
+  const { epics, axis, pool } = await loadBudgetingModel(db, tenantId);
   return {
     epics,
     periods: axis.periods,
     pool,
     axis: { start: axis.start, count: axis.count },
-    editableKeys,
-    activeCycleKey: activeCycle,
-    windowSize,
   };
 }
 
 /**
- * Value-Stream budgets derived from the participatory-budgeting allocations of
- * their Epics, per half-year across the forecast horizon. Read-only — always in
- * sync with the allocations, no separately-stored value. Reuses the per-Value-
- * Stream rollup; the unassigned ("Ohne Wertstrom") bucket is dropped.
+ * Wertstrom-Budgets, abgeleitet aus den **final zugeteilten** Beträgen der
+ * Epic-Kandidaten, je Halbjahr der Kachel, die sie zugeteilt hat.
+ *
+ * Quelle ist `BudgetCandidate.finalAmount` — dieselbe wie beim ART-Budget, damit
+ * beide Zahlen nicht auseinanderlaufen können. Vorher rollte diese Stelle die
+ * `BudgetAllocation`-Zeilen der **noch vorgemerkten** Epics auf: ein Epic, das
+ * nach der Finalisierung aus der Vormerkung fiel, verschwand hier, blieb aber im
+ * ART-Budget stehen. Der Bucket „Ohne Wertstrom" fällt raus.
  */
 export async function getValueStreamBudgets(
   db: PrismaClient,
   tenantId: TenantId,
 ): Promise<ValueStreamBudgetData> {
-  const { epics, axis } = await loadBudgetingModel(db, tenantId);
-  const valueStreams: ValueStreamBudget[] = rollupByValueStream(epics, axis)
-    .filter((r): r is typeof r & { valueStreamId: string } => r.valueStreamId != null)
-    .map((r) => ({
-      valueStreamId: r.valueStreamId,
-      name: r.valueStream ?? "",
-      byPeriod: r.byPeriod,
-      total: r.total,
-    }));
+  const [{ axis }, byVs] = await Promise.all([
+    loadBudgetingModel(db, tenantId),
+    loadFinalizedByValueStream(db, tenantId),
+  ]);
+  const valueStreams: ValueStreamBudget[] = [...byVs.values()].map((v) => ({
+    valueStreamId: v.valueStreamId,
+    name: v.name,
+    byPeriod: v.byPeriod,
+    total: Object.values(v.byPeriod).reduce((a, b) => a + b, 0),
+  }));
   return { periods: axis.periods, valueStreams };
+}
+
+interface FinalizedValueStream {
+  valueStreamId: string;
+  name: string;
+  byPeriod: Record<string, number>;
+}
+
+/** Faltet die finalen Epic-Zuteilungen je Wertstrom und Halbjahr. */
+async function loadFinalizedByValueStream(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<Map<string, FinalizedValueStream>> {
+  const [finals, streams] = await Promise.all([
+    db.budgetCandidate.findMany({
+      where: {
+        tenantId,
+        kind: "epic",
+        valueStreamId: { not: null },
+        finalAmount: { not: null },
+      },
+      select: {
+        valueStreamId: true,
+        finalAmount: true,
+        round: { select: { cycleKey: true } },
+      },
+    }),
+    db.valueStream.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+  ]);
+  const nameOf = new Map(streams.map((v) => [v.id, v.name]));
+
+  const out = new Map<string, FinalizedValueStream>();
+  for (const f of finals) {
+    if (!f.valueStreamId) continue;
+    let row = out.get(f.valueStreamId);
+    if (!row) {
+      row = {
+        valueStreamId: f.valueStreamId,
+        name: nameOf.get(f.valueStreamId) ?? "",
+        byPeriod: {},
+      };
+      out.set(f.valueStreamId, row);
+    }
+    const key = f.round.cycleKey;
+    row.byPeriod[key] = (row.byPeriod[key] ?? 0) + Number(f.finalAmount);
+  }
+  return out;
 }
 
 /**
@@ -248,12 +299,8 @@ export async function getValueStreamBudget(
   tenantId: TenantId,
   valueStreamId: ValueStreamId,
 ): Promise<{ periods: { key: string; label: string }[]; budget: ValueStreamBudget | null }> {
-  const { epics, axis } = await loadBudgetingModel(db, tenantId);
-  const row = rollupByValueStream(epics, axis).find((r) => r.valueStreamId === valueStreamId);
-  const budget: ValueStreamBudget | null = row
-    ? { valueStreamId, name: row.valueStream ?? "", byPeriod: row.byPeriod, total: row.total }
-    : null;
-  return { periods: axis.periods, budget };
+  const { periods, valueStreams } = await getValueStreamBudgets(db, tenantId);
+  return { periods, budget: valueStreams.find((v) => v.valueStreamId === valueStreamId) ?? null };
 }
 
 /**
@@ -269,71 +316,6 @@ export async function getValueStreamBudgetTotals(
 ): Promise<Record<string, number>> {
   const { valueStreams } = await getValueStreamBudgets(db, tenantId);
   return Object.fromEntries(valueStreams.map((b) => [b.valueStreamId, b.total]));
-}
-
-export interface SaveBudgetAllocationInput {
-  epicId: EpicId;
-  priority: number;
-  hypothesisBudget: number | null;
-  allocations: Record<string, number>;
-}
-
-/**
- * Upserts an Epic's budgeting allocation (priority, hypothesis budget, per-period grants).
- *
- * Autorisierung nach ADR-0002 gegen die GELADENE Epic-Zeile: `loadAuthorizedEpic`
- * (Work — Abwärts-Import, erlaubt) holt das Epic tenant-scoped und prüft
- * `budget.manage` gegen dessen echten Wertstrom. Vorher upsertete der Service
- * blind auf `epicId`; die Action deklarierte nur `{ tenantId }`, wodurch jeder
- * `value_stream`-Scope vakuant erfüllt war und eine fremd-tenant-eigene `epicId`
- * nicht auffiel (Befund F-04).
- */
-export async function saveBudgetAllocation(
-  ctx: RequestContext,
-  input: SaveBudgetAllocationInput,
-): Promise<Result<{ id: string }>> {
-  const mctx = toMutationContext(ctx);
-  const { epicId, priority, hypothesisBudget, allocations } = input;
-  return withAuditedTransaction(mctx, async (tx) => {
-    const epic = await loadAuthorizedEpic(tx, ctx.principal, mctx, {
-      id: epicId,
-      action: "budget.manage",
-      select: { id: true },
-    });
-    if (!epic.ok) return epic;
-
-    const data = {
-      priority,
-      hypothesisBudget,
-      allocations: allocations as unknown as Prisma.InputJsonValue,
-    };
-    const row = await tx.budgetAllocation.upsert({
-      where: { epicId },
-      update: { ...data, updatedBy: mctx.actorId },
-      create: {
-        ...data,
-        tenantId: mctx.tenantId,
-        epicId,
-        createdBy: mctx.actorId,
-        updatedBy: mctx.actorId,
-      },
-    });
-
-    // Budgeting schreibt NICHT mehr in Work's Reifegrad-Spalten: das geplante
-    // Zeitfenster (plannedStartAt/plannedEndAt) und die Timeline-Estimates folgen
-    // jetzt allein dem Reifegrad-Plan des Owners (`saveTimeline` → L4.1/L4.2).
-    // Die Budget-Summe bleibt ein L3-Readiness-Kriterium, das beim Lesen aus der
-    // Allokation abgeleitet wird — eine Cross-Modul-Schreibkopplung weniger (ADR-0015).
-
-    return ok({
-      result: { id: row.id },
-      audit: {
-        action: "budget_allocation.saved",
-        resourceType: "budget_allocation",
-        resourceId: row.id,
-      },
-    });
-  });
 }
 
 /**
@@ -356,28 +338,6 @@ export async function saveDefaultHypothesisEffort(
       audit: {
         action: "budget_defaults.saved",
         resourceType: "budget_defaults",
-        resourceId: mctx.tenantId,
-      },
-    });
-  });
-}
-
-/** Saves the tenant's total budget pool per half-year. */
-export async function saveBudgetPool(
-  ctx: RequestContext,
-  input: { byPeriod: Record<string, number> },
-): Promise<Result<{ id: string }>> {
-  const mctx = toMutationContext(ctx);
-  return withAuditedTransaction(mctx, async (tx) => {
-    await tx.tenant.update({
-      where: { id: mctx.tenantId },
-      data: { budgetPoolByPeriod: input.byPeriod as unknown as Prisma.InputJsonValue },
-    });
-    return ok({
-      result: { id: mctx.tenantId },
-      audit: {
-        action: "budget_pool.saved",
-        resourceType: "budget_pool",
         resourceId: mctx.tenantId,
       },
     });

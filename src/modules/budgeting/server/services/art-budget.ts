@@ -1,18 +1,12 @@
-import type { Prisma, PrismaClient } from "@/generated/prisma";
+import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ValueStreamId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
-import type { Result } from "@/modules/core/kernel/domain/errors";
-import { ok, err } from "@/modules/core/kernel/domain/errors";
 import { budgetPlusLoadPeriods } from "@/modules/budgeting/domain/period-window";
 import {
   aggregateArtFeatureLoad,
   type ArtFeatureLoad,
 } from "@/modules/budgeting/domain/art-budget";
-import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
 import { getValueStreamBudget } from "@/modules/budgeting/server/services/budgeting";
-import type { RequestContext } from "@/server/http/mutation-handler";
-import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
-import { authorizeResource } from "@/server/auth/authorize";
 
 export interface ArtBudgetRow {
   artId: string;
@@ -32,9 +26,12 @@ export interface ArtBudgetBreakdown {
 }
 
 /**
- * The per-ART budget breakdown + feature load for one Value Stream. Periods are
- * the VS budget plan's half-years extended to cover any half-year a Feature's PI
- * falls in. Read-only; the VS budget comes from participatory budgeting.
+ * ART-Budgets eines Wertstroms + die Feature-Last, je Halbjahr.
+ *
+ * **Vollständig abgeleitet.** Das Budget eines ART ist die Summe der final
+ * zugeteilten Beträge seiner Epics, gruppiert nach dem Halbjahr der Kachel, aus
+ * der die Zuteilung stammt. Früher stand daneben eine handgepflegte
+ * `ArtBudget`-Tabelle — zwei Zahlen für dieselbe Sache, die auseinanderliefen.
  */
 export async function getArtBudgetBreakdown(
   db: PrismaClient,
@@ -45,13 +42,28 @@ export async function getArtBudgetBreakdown(
     getValueStreamBudget(db, tenantId, valueStreamId),
     db.art.findMany({
       where: { tenantId, valueStreamId, deletedAt: null },
-      select: { id: true, name: true, budget: { select: { byPeriod: true } } },
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
   ]);
 
   const vsByPeriod = vsBudget.budget?.byPeriod ?? {};
   const artIds = arts.map((a) => a.id);
+
+  // Das ART-Budget je Halbjahr: die finalen Beträge der Epic-Kandidaten dieses
+  // ART, gruppiert nach dem Zyklus der Kachel, die sie zugeteilt hat.
+  const finals = await db.budgetCandidate.findMany({
+    where: { tenantId, kind: "epic", artId: { in: artIds }, finalAmount: { not: null } },
+    select: { artId: true, finalAmount: true, round: { select: { cycleKey: true } } },
+  });
+  const budgetByArt = new Map<string, Record<string, number>>();
+  for (const f of finals) {
+    if (!f.artId) continue;
+    const byPeriod = budgetByArt.get(f.artId) ?? {};
+    const key = f.round.cycleKey;
+    byPeriod[key] = (byPeriod[key] ?? 0) + Number(f.finalAmount);
+    budgetByArt.set(f.artId, byPeriod);
+  }
 
   const features = await db.initiative.findMany({
     where: {
@@ -77,84 +89,18 @@ export async function getArtBudgetBreakdown(
   // Columns: the budget-plan periods ∪ any half-year a feature's PI sits in —
   // the named rule lives in the pure `period-window` seam.
   const periods = budgetPlusLoadPeriods(
-    vsBudget.periods.map((p) => p.key),
+    [...new Set([...vsBudget.periods.map((p) => p.key), ...finals.map((f) => f.round.cycleKey)])],
     features.flatMap((f) => (f.pi ? [f.pi.startDate] : [])),
   );
 
   const rows: ArtBudgetRow[] = arts.map((a) => ({
     artId: a.id,
     name: a.name,
-    budgetByPeriod: parsePeriodAmountMap(a.budget?.byPeriod),
+    budgetByPeriod: budgetByArt.get(a.id) ?? {},
     // `aggregateArtFeatureLoad(artIds, …)` guarantees exactly one entry per id
     // in `artIds` (= `arts.map(a => a.id)`), so this lookup is always present.
     load: loads.get(a.id)!,
   }));
 
   return { periods, vsByPeriod, arts: rows };
-}
-
-/**
- * Upserts an ART's budget breakdown (per-half-year amounts).
- *
- * Autorisierung nach ADR-0002 **hier** am Service-Seam, gegen die GELADENE Zeile:
- * erst wird der ART samt Wertstrom geholt, dann entscheidet `authorizeResource`
- * mit dem echten `valueStreamId`/`artId` — der `value_stream`-Scope der Policy
- * greift also wirklich. Zusätzlich zugelassen ist die Finance-Partei des
- * Wertstroms (`ValueStream.financeApproverId`), die keine Rolle dafür braucht.
- *
- * Vorher stand hier eine handgeschriebene Rollenliste, die enger war als die
- * Policy: ein Wertstrom-Owner passierte den Action-Guard, bekam ein editierbares
- * Grid und lief dann in ein `forbidden` (Befund F-01).
- */
-export async function saveArtBudget(
-  ctx: RequestContext,
-  input: { artId: string; byPeriod: Record<string, number> },
-): Promise<Result<{ id: string }>> {
-  const mctx = toMutationContext(ctx);
-  const { artId, byPeriod } = input;
-
-  return withAuditedTransaction(mctx, async (tx) => {
-    const art = await tx.art.findFirst({
-      where: { id: artId, tenantId: mctx.tenantId, deletedAt: null },
-      select: {
-        id: true,
-        valueStreamId: true,
-        valueStream: { select: { financeApproverId: true } },
-      },
-    });
-    if (!art) return err({ kind: "not_found" as const, resourceType: "Art", id: artId });
-
-    const isFinance = art.valueStream?.financeApproverId === mctx.actorId;
-    if (!isFinance) {
-      const decision = authorizeResource(ctx.principal, "art_budget.manage", {
-        tenantId: mctx.tenantId,
-        valueStreamId: art.valueStreamId,
-        artId: art.id,
-      });
-      if (!decision.ok) {
-        return err({
-          kind: "forbidden" as const,
-          reason:
-            "Nur die Finance-Partei des Wertstroms (oder Portfolio-Manager/Wertstrom-Owner/Admin) darf ART-Budgets verteilen",
-        });
-      }
-    }
-
-    const row = await tx.artBudget.upsert({
-      where: { artId },
-      update: { byPeriod: byPeriod as Prisma.InputJsonValue, updatedBy: mctx.actorId },
-      create: {
-        tenantId: mctx.tenantId,
-        artId,
-        byPeriod: byPeriod as Prisma.InputJsonValue,
-        createdBy: mctx.actorId,
-        updatedBy: mctx.actorId,
-      },
-    });
-
-    return ok({
-      result: { id: row.id },
-      audit: { action: "art_budget.saved", resourceType: "art_budget", resourceId: row.id },
-    });
-  });
 }
