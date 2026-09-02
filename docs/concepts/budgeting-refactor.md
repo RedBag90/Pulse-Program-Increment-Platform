@@ -2,6 +2,8 @@
 
 > Der gelebte Ablauf des umgesetzten Zustands:
 > [budgeting-walkthrough.md](budgeting-walkthrough.md).
+> Was nach der Finalisierung mit dem Geld passiert — ART- und Wertstrom-Budget:
+> [art-budget-transparency.md](art-budget-transparency.md).
 
 > Status: **Spec / zur Umsetzung** · Erstellt 2026-08-31 · Löst
 > [budgeting-ui-refactor.md](budgeting-ui-refactor.md) ab.
