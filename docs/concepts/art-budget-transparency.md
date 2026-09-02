@@ -13,6 +13,9 @@
 > Wireframes:
 > <https://claude.ai/code/artifact/02b723c2-441b-46df-977b-da3e2c9c5a56>
 >
+> Kleine Epics aus dem Topf des ARTs statt aus dem Portfolio-Budget — Guardrail 3:
+> [art-epics.md](art-epics.md). Das Konzept schränkt REQ-R2 dieser Spec ein.
+>
 > Der gelebte Ablauf des Budgetierens:
 > [budgeting-walkthrough.md](budgeting-walkthrough.md). Das Modell dahinter:
 > [participatory-budgeting.md](participatory-budgeting.md).
