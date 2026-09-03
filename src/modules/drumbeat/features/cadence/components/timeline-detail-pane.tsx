@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { ArrowRight, Calendar, Pencil, Plus } from "lucide-react";
+import { Link } from "@/i18n/navigation";
+import { nodeHref } from "@/modules/core/org/features/structure/components/structure-routes";
 import { JoinArtToTimelineControl } from "@/modules/drumbeat/features/cadence/components/join-art-control";
 import { DeleteTimelineButton } from "@/modules/drumbeat/features/cadence/components/delete-timeline-button";
 import { LeaveTimelineButton } from "@/modules/drumbeat/features/cadence/components/leave-timeline-button";
@@ -28,7 +30,7 @@ import {
   AddStandardPisControl,
   type PiStandardOption,
 } from "@/modules/drumbeat/features/cadence/components/add-standard-pis-control";
-import type { TimelineDetail, NodeKind } from "@/modules/core/org/server/views/structure-page";
+import type { TimelineDetail } from "@/modules/core/org/server/views/structure-page";
 
 interface Props {
   timeline: TimelineDetail;
@@ -36,7 +38,6 @@ interface Props {
   /** Verfügbare PI-Standards für den „Standard anwenden"-Pfad — der einzige
    *  user-facing Pfad, über den neue PIs entstehen. */
   piStandards: PiStandardOption[];
-  onSelectNode: (kind: NodeKind, id: string) => void;
 }
 
 const PI_STATUS_LABEL: Record<string, string> = {
@@ -59,7 +60,7 @@ interface PiDialogState {
   initial?: { id?: string; name?: string; startDate?: string; endDate?: string; status?: string };
 }
 
-export function TimelineDetailPane({ timeline, canManage, piStandards, onSelectNode }: Props) {
+export function TimelineDetailPane({ timeline, canManage, piStandards }: Props) {
   const [piDialog, setPiDialog] = useState<PiDialogState>({ open: false });
 
   const openCreate = () => setPiDialog({ open: true });
@@ -212,17 +213,16 @@ export function TimelineDetailPane({ timeline, canManage, piStandards, onSelectN
                 key={art.id}
                 className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5"
               >
-                <button
-                  type="button"
-                  onClick={() => onSelectNode("art", art.id)}
-                  className="flex flex-1 items-center gap-2 text-left text-sm"
+                <Link
+                  href={nodeHref("art", art.id)}
+                  className="flex flex-1 items-center gap-2 text-left text-sm hover:underline"
                 >
                   <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
                   <span className="font-medium">{art.name}</span>
                   {art.valueStreamName && (
                     <span className="text-xs text-muted-foreground">· {art.valueStreamName}</span>
                   )}
-                </button>
+                </Link>
                 {canManage && <LeaveTimelineButton artId={art.id} artName={art.name} />}
               </li>
             ))}

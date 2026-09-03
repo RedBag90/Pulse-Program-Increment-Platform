@@ -38,6 +38,7 @@ export const GATE_APPROVER_ROLES = [
   "epic.party.finance",
   "epic.party.irt_owner",
   "epic.party.lace_vmo",
+  "solution.product_manager",
 ] as const;
 export type GateApproverRole = (typeof GATE_APPROVER_ROLES)[number];
 
@@ -55,6 +56,7 @@ export const GATE_APPROVER_ROLE_LABELS: Record<GateApproverRole, string> = {
   "epic.party.finance": "Finance",
   "epic.party.irt_owner": "IRT-Owner",
   "epic.party.lace_vmo": "LACE/VMO",
+  "solution.product_manager": "Produkt-Manager",
 };
 
 /**
@@ -70,7 +72,7 @@ export const BUSINESS_CASE_PARTY_ROLES = [
 ] as const satisfies readonly GateApproverRole[];
 
 /** Woher ein aufgelöster Abnehmer stammt — für Anzeige und Nachvollziehbarkeit. */
-export type GateApproverSource = "value_stream" | "tenant" | "epic_owner" | "manual";
+export type GateApproverSource = "value_stream" | "tenant" | "epic_owner" | "solution" | "manual";
 
 /** Ein aufgelöster, konkreter Abnehmer. */
 export interface ResolvedApprover {
@@ -127,11 +129,15 @@ export const DEFAULT_GATE_POLICIES: Record<
   // Eintritt in die Investitionsphase. Dieser Schritt *ist* die
   // Business-Case-Freigabe, deshalb zeichnen hier die fünf Parteien — nicht der
   // VMO allein. Er steckt als LACE/VMO in der Liste.
+  // Der Produkt-Manager der Primär-Solution zeichnet mit: das Vorhaben
+  // verändert sein Produkt. Hier bei **allen** Epics seiner Solution — eine
+  // Einschränkung auf ART-Epics wäre nicht entscheidbar, weil die Klasse erst
+  // aus dieser Freigabe entsteht.
   "L3.1": {
     required: true,
     quorum: "all",
     approverUserIds: [],
-    approverRoles: [...BUSINESS_CASE_PARTY_ROLES],
+    approverRoles: [...BUSINESS_CASE_PARTY_ROLES, "solution.product_manager"],
   },
   // Die Investitionsentscheidung selbst — Finance zeichnet mit.
   "L3.2": {
@@ -140,8 +146,16 @@ export const DEFAULT_GATE_POLICIES: Record<
     approverUserIds: [],
     approverRoles: ["value_stream.vmo", "value_stream.finance_approver"],
   },
-  // Start der Umsetzung.
-  L4: { required: true, quorum: "all", approverUserIds: [], approverRoles: ["value_stream.vmo"] },
+  // Start der Umsetzung. Der Produkt-Manager zeichnet hier nur bei **ART-Epics**
+  // mit — dort ist die Klasse bekannt, und dort wird sein Produkt aus dem
+  // Rahmen seines ARTs verändert. Die Einschränkung sitzt in `expandApprovers`,
+  // weil erst dort das Gate bekannt ist (siehe dort).
+  L4: {
+    required: true,
+    quorum: "all",
+    approverUserIds: [],
+    approverRoles: ["value_stream.vmo", "solution.product_manager"],
+  },
   // „Umsetzung fertig": der Epic Owner meldet, der VMO bestätigt — bewusst
   // ohne Finance, denn hier geht es um die Lieferung, nicht um den Nutzen.
   "L4.2": {
@@ -226,6 +240,14 @@ export interface ApproverContext {
   valueStreamFinanceApproverId: string | null;
   valueStreamVmoId: string | null;
   epicOwnerId: string | null;
+  /** Produkt-Manager der Primär-Solution des Epics; `null`, wenn keiner benannt. */
+  solutionProductManagerId?: string | null;
+  /**
+   * Die abgeleitete Klasse des Epics — nur an `L4` relevant, wo der
+   * Produkt-Manager ausschließlich bei ART-Epics mitzeichnet. An `L3.1` gibt es
+   * sie noch gar nicht, dort zeichnet er bei allen Epics seiner Solution.
+   */
+  epicClass?: "portfolio" | "art" | null;
 }
 
 function resolveRole(role: GateApproverRole, ctx: ApproverContext): ResolvedApprover | null {
@@ -242,6 +264,10 @@ function resolveRole(role: GateApproverRole, ctx: ApproverContext): ResolvedAppr
         : null;
     case "epic.owner":
       return ctx.epicOwnerId ? { userId: ctx.epicOwnerId, role, source: "epic_owner" } : null;
+    case "solution.product_manager":
+      return ctx.solutionProductManagerId
+        ? { userId: ctx.solutionProductManagerId, role, source: "solution" }
+        : null;
     // MGMT, Business Owner und IRT-Owner haben keine Governance-Spalte am
     // Wertstrom — für sie gibt es keinen Code-Default. Sie kommen aus der
     // Wertstrom-Regel (`approverUserIds`) oder werden am Antrag benannt. Ein
@@ -279,6 +305,21 @@ export interface ApproverOverride {
  * wird nur beachtet, wenn {@link allowsAdHocApprovers} den Schritt dafür
  * freigibt.
  */
+/**
+ * Der eine gate-abhängige Sonderfall: der **Produkt-Manager** zeichnet an `L4`
+ * nur bei ART-Epics mit.
+ *
+ * Er steht hier und nicht in `resolveRole`, weil dort das Gate nicht bekannt
+ * ist — und nicht im Aufrufer, weil die Regel sonst unsichtbar in einem Lader
+ * verschwände. Alle anderen Platzhalter gelten an jedem Schritt, an dem sie in
+ * der Regel stehen.
+ */
+function appliesAtGate(role: GateApproverRole, toGate: GateStep, ctx: ApproverContext): boolean {
+  if (role !== "solution.product_manager") return true;
+  if (toGate !== "L4") return true;
+  return ctx.epicClass === "art";
+}
+
 export function expandApprovers(
   policy: GatePolicy,
   ctx: ApproverContext,
@@ -294,6 +335,7 @@ export function expandApprovers(
             source: "manual" as const,
           })),
           ...policy.approverRoles
+            .filter((role) => appliesAtGate(role, policy.toGate, ctx))
             .map((role) => resolveRole(role, ctx))
             .filter((a): a is ResolvedApprover => a !== null),
         ];

@@ -21,11 +21,21 @@ export interface CreateValueStreamDialogProps {
   /** Controlled mode (global "+" menu). Omit to render a self-triggering button. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /**
+   * Schmale Variante für die Kopfzeile des Struktur-Baums: dort steht der
+   * Auslöser neben einer kleinen Bereichs-Beschriftung und darf die Spalte
+   * nicht dominieren.
+   */
+  compact?: boolean;
 }
 
 const initialState: ActionState = {};
 
-export function CreateValueStreamDialog({ open, onOpenChange }: CreateValueStreamDialogProps) {
+export function CreateValueStreamDialog({
+  open,
+  onOpenChange,
+  compact = false,
+}: CreateValueStreamDialogProps) {
   const isControlled = open !== undefined;
   const [selfOpen, setSelfOpen] = useState(false);
   const dialogOpen = open ?? selfOpen;
@@ -37,16 +47,20 @@ export function CreateValueStreamDialog({ open, onOpenChange }: CreateValueStrea
   return (
     <>
       {!isControlled && (
-        <Button onClick={() => setDialogOpen(true)} data-tour="value-stream-create-button">
-          <Plus className="size-4 mr-1.5" />
-          New Value Stream
+        <Button
+          onClick={() => setDialogOpen(true)}
+          data-tour="value-stream-create-button"
+          {...(compact ? { size: "sm" as const, variant: "outline" as const } : {})}
+        >
+          <Plus className={compact ? "mr-1 size-3.5" : "mr-1.5 size-4"} />
+          {compact ? "Wertstrom" : "Wertstrom anlegen"}
         </Button>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Create Value Stream</DialogTitle>
+            <DialogTitle>Wertstrom anlegen</DialogTitle>
           </DialogHeader>
           <form action={action} className="space-y-4">
             <div className="space-y-1.5">
@@ -57,7 +71,7 @@ export function CreateValueStreamDialog({ open, onOpenChange }: CreateValueStrea
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="vs-description">Description</Label>
+              <Label htmlFor="vs-description">Beschreibung</Label>
               <Textarea id="vs-description" name="description" rows={3} />
             </div>
 
@@ -69,10 +83,10 @@ export function CreateValueStreamDialog({ open, onOpenChange }: CreateValueStrea
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
+                Abbrechen
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending ? "Creating…" : "Create"}
+                {isPending ? "Wird angelegt…" : "Anlegen"}
               </Button>
             </DialogFooter>
           </form>

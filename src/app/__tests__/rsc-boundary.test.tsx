@@ -122,8 +122,26 @@ interface Violation {
   prop: string;
 }
 
-function findViolations(): Violation[] {
+interface CallViolation {
+  file: string;
+  fn: string;
+}
+
+/**
+ * Wird ein importierter Name **aufgerufen** (`name(`) statt als Komponente
+ * gerendert? Groß geschriebene Namen bleiben ausgenommen: `<Foo />` ist ein
+ * Rendering, und ein Aufruf `Foo(props)` kommt in diesem Code nicht vor.
+ */
+function calledNames(source: string, names: readonly string[]): string[] {
+  return names.filter((name) => {
+    if (/^[A-Z]/.test(name)) return false;
+    return new RegExp(`\\b${name}\\s*\\(`).test(source);
+  });
+}
+
+function findViolations(): { props: Violation[]; calls: CallViolation[] } {
   const violations: Violation[] = [];
+  const calls: CallViolation[] = [];
   const clientCache = new Map<string, boolean>();
 
   for (const file of tsxFiles(APP)) {
@@ -151,14 +169,18 @@ function findViolations(): Violation[] {
           }
         }
       }
+
+      for (const fn of calledNames(source, names)) {
+        calls.push({ file: file.slice(process.cwd().length + 1), fn });
+      }
     }
   }
-  return violations;
+  return { props: violations, calls };
 }
 
 describe("RSC-Grenze", () => {
   it("keine Server-Komponente reicht einer Client-Komponente eine Funktion durch", () => {
-    const violations = findViolations();
+    const violations = findViolations().props;
     expect(
       violations.map((v) => `${v.file} → <${v.component} ${v.prop}={…}>`),
       "Funktions-Props überleben die Serialisierung nicht — React wirft zur " +
@@ -167,10 +189,34 @@ describe("RSC-Grenze", () => {
     ).toEqual([]);
   });
 
+  /**
+   * Die zweite Richtung derselben Grenze: eine Server-Komponente darf eine
+   * Client-Komponente **rendern**, aber keine ihrer Funktionen **aufrufen**.
+   *
+   * Auch das hat eine Seite zur Laufzeit gekillt — der Reiter-Cookie-Name lag
+   * in der `"use client"`-Datei, und die Wertstrom-Fläche rief ihn serverseitig
+   * auf. `tsc` sieht es nicht (der Export ist ja eine Funktion), `next build`
+   * auch nicht, weil dynamische Routen beim Build nicht gerendert werden.
+   */
+  it("keine Server-Komponente ruft eine Funktion aus einem Client-Modul auf", () => {
+    const calls = findViolations().calls;
+    expect(
+      calls.map((c) => `${c.file} → ${c.fn}()`),
+      "Ein Client-Modul exportiert zur Laufzeit nur Referenzen für React. Der " +
+        'Helfer gehört in ein neutrales Modul ohne "use client", das beide ' +
+        "Seiten importieren.",
+    ).toEqual([]);
+  });
+
   it("erkennt einen Funktions-Prop überhaupt (Selbsttest des Detektors)", () => {
     // Ohne diesen Fall wäre ein stumpfer Detektor ununterscheidbar von „alles gut".
     const tag = openingTags('<Foo bar={(a, b) => <X />} baz={<Y />} qux="s" />', "Foo")[0]!;
     const props = [...tag.matchAll(INLINE_FUNCTION_PROP)].map((m) => m[1]);
     expect(props).toEqual(["bar"]);
+  });
+
+  it("erkennt einen Aufruf überhaupt (Selbsttest des Detektors)", () => {
+    const src = 'const n = tabCookieName("vs");\n<RememberTab kind="vs" />';
+    expect(calledNames(src, ["tabCookieName", "RememberTab"])).toEqual(["tabCookieName"]);
   });
 });

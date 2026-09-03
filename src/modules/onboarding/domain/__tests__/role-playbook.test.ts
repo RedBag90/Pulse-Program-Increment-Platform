@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { NAV_GROUPS } from "@/components/nav/nav-config";
 import { ROLE_PLAYBOOKS, type PlaybookClaim, type TourStep } from "../role-playbook";
@@ -72,10 +72,26 @@ describe("ROLE_PLAYBOOKS — Routen zeigen ins echte Produkt", () => {
 
   it("jede Route hat eine echte page.tsx (fängt Rückbauten wie den Team-Teardown)", () => {
     const base = join(process.cwd(), "src/app/[locale]/(dashboard)");
-    const missing = ALL_STEPS.filter((s) => {
-      const path = (s.route.split("?")[0] ?? "").replace(/^\//, "");
-      return !existsSync(join(base, path, "page.tsx"));
-    }).map((s) => `${s.key} → ${s.route}`);
+
+    // Routen-Gruppen (`(organisation)`) verändern die Adresse nicht, wohl aber
+    // den Ordnerpfad. Deshalb wird der Baum abgelaufen und je `page.tsx` die
+    // Route rekonstruiert, statt den Pfad direkt zusammenzusetzen.
+    const routes = new Set<string>();
+    const walk = (dir: string, route: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+          const isGroup = entry.name.startsWith("(") && entry.name.endsWith(")");
+          walk(join(dir, entry.name), isGroup ? route : `${route}/${entry.name}`);
+        } else if (entry.name === "page.tsx") {
+          routes.add(route === "" ? "/" : route);
+        }
+      }
+    };
+    walk(base, "");
+
+    const missing = ALL_STEPS.filter((s) => !routes.has(s.route.split("?")[0] ?? "")).map(
+      (s) => `${s.key} → ${s.route}`,
+    );
     expect(missing).toEqual([]);
   });
 
@@ -83,7 +99,9 @@ describe("ROLE_PLAYBOOKS — Routen zeigen ins echte Produkt", () => {
     // Diese Pfade existieren nur noch als Weiterleitung — eine Tour, die dorthin
     // springt, landet woanders als angekündigt.
     const LEGACY = ["/pi-planning", "/rte", "/portfolio/budgeting", "/team"];
-    const hits = ALL_STEPS.filter((s) => LEGACY.some((l) => s.route.startsWith(l))).map((s) => s.key);
+    const hits = ALL_STEPS.filter((s) => LEGACY.some((l) => s.route.startsWith(l))).map(
+      (s) => s.key,
+    );
     expect(hits).toEqual([]);
   });
 });
@@ -203,7 +221,8 @@ describe("ROLE_PLAYBOOKS — inhaltliche Leitplanken", () => {
     // Ohne Gate erscheint das Bullet auch in einem Tenant, der das Modul gar
     // nicht gebucht hat — und verspricht Verantwortung, die es dort nicht gibt.
     // Ein `capability`-Gate genügt: `role-tour.ts` leitet daraus das Modul ab.
-    const MODULE_CONCEPTS = /\b(Epics?|Features?|PIs?|Program Increments?|Impediments?|Abhängigkeiten|Budget\w*|Risiko|Risiken|Wertnachweis)\b/;
+    const MODULE_CONCEPTS =
+      /\b(Epics?|Features?|PIs?|Program Increments?|Impediments?|Abhängigkeiten|Budget\w*|Risiko|Risiken|Wertnachweis)\b/;
     const ungated = ALL_CLAIMS.filter(
       (c) => MODULE_CONCEPTS.test(c.text) && !c.capability && !c.practice && !c.module,
     ).map((c) => c.text.slice(0, 60));

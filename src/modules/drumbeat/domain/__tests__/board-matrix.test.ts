@@ -105,7 +105,7 @@ describe("buildBoardMatrix", () => {
     expect(matrix.columns[0]!.featureCount).toBe(0);
   });
 
-  it("normalizes null ↔ \"\" consistently between count and bucketing", () => {
+  it('normalizes null ↔ "" consistently between count and bucketing', () => {
     // A null-PI feature must land in the backlog column AND be counted there —
     // the single normalization owner keeps both in agreement.
     const f = feature("a", null, "in_progress");

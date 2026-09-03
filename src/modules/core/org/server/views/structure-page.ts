@@ -15,7 +15,13 @@ import type {
  * drilling into a separate "Overview" tab.
  */
 
-export type NodeKind = "vs" | "art" | "timeline";
+/**
+ * Die Knotenarten des Modells. Es bedient zwei Flächen: der Organisations-Baum
+ * unter `/structure` zeigt `vs`/`art`/`solution`, die Kadenz-Fläche unter
+ * `/structure/timelines` zeigt `timeline`. Deshalb die Vereinigung statt zweier
+ * Typen — die Zeilenform ist in beiden dieselbe.
+ */
+export type NodeKind = "vs" | "art" | "timeline" | "solution";
 
 /** A flat-tree row in the left column. `depth` drives the left-padding indent. */
 export interface StructureRow {
@@ -40,7 +46,6 @@ export interface VsDetail {
   description: string | null;
   vmoLabel: string | null;
   financeApproverLabel: string | null;
-  budgetTotal: number | null;
   artCount: number;
   artIds: string[];
 }
@@ -56,7 +61,6 @@ export interface ArtDetail {
   rteLabel: string | null;
   timelineId: string | null;
   timelineName: string | null;
-  piCadenceWeeks: number;
   piCount: number;
 }
 
@@ -90,6 +94,30 @@ function nameOrNull(id: string | null, labels: Readonly<Record<string, string>>)
 
 const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
 
+const HORIZON_SHORT: Record<string, string> = {
+  h0: "H0 · Decommissioning",
+  h1: "H1 · Investing",
+  h2: "H2 · Emerging",
+  h3: "H3 · R&D",
+};
+
+/** Eine Solution als Baum-Zeile — unter ihrem ART, sonst unter dem Wertstrom. */
+function solutionRow(
+  sol: { id: string; name: string; horizon: string },
+  parentId: string,
+  depth: number,
+): StructureRow {
+  return {
+    kind: "solution",
+    id: sol.id,
+    parentId,
+    depth,
+    label: sol.name,
+    subtitle: HORIZON_SHORT[sol.horizon] ?? sol.horizon,
+    gaps: [],
+  };
+}
+
 export type StructureMode = "structure" | "timelines";
 
 export function buildStructurePageModel(input: {
@@ -101,9 +129,8 @@ export function buildStructurePageModel(input: {
   tree: StructureTree;
   timeline: StructureTimeline;
   userLabels: Readonly<Record<string, string>>;
-  budgetTotals: Readonly<Record<string, number>>;
 }): StructurePageModel {
-  const { mode, tree, timeline, userLabels, budgetTotals } = input;
+  const { mode, tree, timeline, userLabels } = input;
 
   const timelineNameById = new Map<string, string>(timeline.timelines.map((t) => [t.id, t.name]));
   const artTimelineId = new Map<string, string>();
@@ -139,10 +166,15 @@ export function buildStructurePageModel(input: {
       description: vs.description ?? null,
       vmoLabel: nameOrNull(vs.vmoId, userLabels),
       financeApproverLabel: nameOrNull(vs.financeApproverId, userLabels),
-      budgetTotal: budgetTotals[vs.id] ?? null,
       artCount,
       artIds: vs.arts.map((a) => a.id),
     });
+
+    const solutionsOfArt = new Map<string, typeof vs.solutions>();
+    for (const sol of vs.solutions) {
+      if (sol.artId == null) continue;
+      solutionsOfArt.set(sol.artId, [...(solutionsOfArt.get(sol.artId) ?? []), sol]);
+    }
 
     for (const art of vs.arts) {
       const artGaps: string[] = [];
@@ -157,6 +189,9 @@ export function buildStructurePageModel(input: {
           subtitle: `${art._count.pis} PI${art._count.pis === 1 ? "" : "s"}`,
           gaps: artGaps,
         });
+        for (const sol of solutionsOfArt.get(art.id) ?? []) {
+          rows.push(solutionRow(sol, art.id, 2));
+        }
       }
       const tid = artTimelineId.get(art.id) ?? null;
       artDetails.set(art.id, {
@@ -169,9 +204,17 @@ export function buildStructurePageModel(input: {
         rteLabel: nameOrNull(art.rteId, userLabels),
         timelineId: tid,
         timelineName: tid ? (timelineNameById.get(tid) ?? null) : null,
-        piCadenceWeeks: art.piCadenceWeeks,
         piCount: art._count.pis,
       });
+    }
+
+    // Ohne ART hängt die Solution direkt am Wertstrom — sie trägt immer einen,
+    // `artId` ist optional. Sie unterschlagen hieße, sie unauffindbar machen.
+    if (mode === "structure") {
+      for (const sol of vs.solutions) {
+        if (sol.artId != null) continue;
+        rows.push(solutionRow(sol, vs.id, 1));
+      }
     }
   }
 
@@ -215,6 +258,7 @@ export function buildStructurePageModel(input: {
     vs: 0,
     art: 0,
     timeline: 0,
+    solution: 0,
   };
   for (const r of rows) kindCounts[r.kind] += 1;
 

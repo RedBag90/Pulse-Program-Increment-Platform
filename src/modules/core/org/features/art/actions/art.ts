@@ -14,7 +14,11 @@ export interface ArtActionState {
 }
 
 export const createArtAction = createServerAction({
-  describeCreated: (v: { id: string }) => ({ id: v.id, label: "ART", href: `/art/${v.id}` }),
+  describeCreated: (v: { id: string }) => ({
+    id: v.id,
+    label: "ART",
+    href: `/structure/art/${v.id}`,
+  }),
   schema: z.object({
     valueStreamId: z.string().uuid(),
     name: z.string().min(1).max(100),
@@ -35,7 +39,6 @@ export const updateArtAction = createServerAction({
     id: z.string().uuid(),
     name: z.string().min(1).max(100).optional(),
     description: z.string().optional(),
-    piCadenceWeeks: z.coerce.number().int().min(8).max(12).optional(),
     rteId: z.string().uuid().nullable().optional(),
   }),
   action: "art.update",
@@ -46,7 +49,6 @@ export const updateArtAction = createServerAction({
       id: f.string("id"),
       name: f.nonEmptyString("name"),
       description: f.nonEmptyString("description"),
-      piCadenceWeeks: f.nonEmptyString("piCadenceWeeks"),
       // nullableString: absent (partial cadence-only form) → undefined (don't
       // touch); empty → null (clear); else the value.
       rteId: f.nullableString("rteId"),
@@ -57,7 +59,6 @@ export const updateArtAction = createServerAction({
       id: input.id as ArtId,
       name: input.name,
       description: input.description,
-      piCadenceWeeks: input.piCadenceWeeks,
       rteId: input.rteId,
     }),
   revalidate: "art",

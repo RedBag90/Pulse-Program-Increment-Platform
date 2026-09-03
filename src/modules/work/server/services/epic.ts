@@ -39,6 +39,12 @@ export interface CreateEpicInput {
   artId: ArtId;
   /** Optionale Primär-Solution (muss zum `valueStreamId` gehören). Liefert den Horizont. */
   primarySolutionId?: string | null | undefined;
+  /**
+   * Erwartete Einordnung: `"portfolio" | "art"`. Sie entscheidet **nichts** —
+   * die Klasse bleibt aus dem freigegebenen Business Case abgeleitet. Sie ist
+   * der Maßstab, an dem eine Abweichung vor dem L3.1-Antrag auffällt.
+   */
+  intendedClass?: "portfolio" | "art" | undefined;
 }
 
 export async function createEpic(
@@ -46,7 +52,7 @@ export async function createEpic(
   input: CreateEpicInput,
 ): Promise<Result<{ id: EpicId }>> {
   const mctx = toMutationContext(ctx);
-  const { title, description, valueStreamId, artId, primarySolutionId } = input;
+  const { title, description, valueStreamId, artId, primarySolutionId, intendedClass } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     // Verify the value stream belongs to the same tenant (cross-tenant guard).
@@ -94,6 +100,7 @@ export async function createEpic(
         valueStreamId,
         artId,
         ...(primarySolutionId != null && { primarySolutionId }),
+        ...(intendedClass !== undefined && { intendedClass }),
         ...(description !== undefined && { description }),
       },
     });
@@ -808,5 +815,61 @@ export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) 
         orderBy: { wsjfComputed: "desc" },
       },
     },
+  });
+}
+
+/**
+ * Auf der beim Anlegen hinterlegten Erwartung bestehen: dieses Epic bleibt
+ * Portfolio-Sache, obwohl seine Kosten unter dem Limit liegen.
+ *
+ * Der fehlende Schreibpfad für `portfolioOverrideAt` — die Spalten existieren
+ * seit Guardrail 3, wurden aber von nichts geschrieben. Die Begründung ist
+ * Pflicht: eine Ausnahme ohne Grund ist im Nachhinein nicht zu beurteilen.
+ *
+ * Nur in **dieser** Richtung. Ein Epic über dem Limit als ART-Epic zu führen
+ * gibt es nicht: es würde aus dem Veränderungsrahmen seines ARTs bezahlt, und
+ * der Schreibpfad deckelt jede Zuteilung am Rahmen.
+ */
+export async function setPortfolioOverride(
+  ctx: RequestContext,
+  input: { epicId: EpicId; reason: string },
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const epic = await tx.initiative.findFirst({
+      where: {
+        id: input.epicId,
+        tenantId: mctx.tenantId,
+        level: InitiativeLevel.EPIC,
+        deletedAt: null,
+      },
+      select: { id: true, portfolioOverrideAt: true },
+    });
+    if (!epic) {
+      return err({ kind: "not_found" as const, resourceType: "Epic", id: input.epicId });
+    }
+
+    await tx.initiative.update({
+      where: { id: input.epicId },
+      data: {
+        portfolioOverrideAt: new Date(),
+        portfolioOverrideBy: mctx.actorId,
+        portfolioOverrideReason: input.reason,
+        updatedBy: mctx.actorId,
+      },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "epic.portfolio_override.set",
+        // Wie alle Epic-Ereignisse auf `initiative` + Epic-Id — nur so nimmt die
+        // Aktivitäts-Spalte der Epic-Seite sie ohne Zusatzarbeit auf.
+        resourceType: "initiative",
+        resourceId: input.epicId,
+        changes: { portfolioOverrideReason: { before: null, after: input.reason } },
+      },
+    });
   });
 }

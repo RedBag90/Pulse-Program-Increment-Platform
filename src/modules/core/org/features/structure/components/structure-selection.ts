@@ -16,6 +16,7 @@ const PREFIXES: Record<NodeKind, string> = {
   vs: "vs_",
   art: "art_",
   timeline: "timeline_",
+  solution: "solution_",
 };
 
 export function parseSelection(raw: string | null | undefined): Selection {

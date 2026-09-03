@@ -170,7 +170,7 @@ const STRUCTURE_HREF: Record<string, string> = {
 };
 
 const PRACTICE_HREF: Partial<Record<Practice, string>> = {
-  wsjf: "/structure?tab=arts",
+  wsjf: "/structure",
   featureQs: "/my-approvals",
   dependencies: "/pi-planning",
   stageGates: "/portfolio/epics",

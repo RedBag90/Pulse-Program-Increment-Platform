@@ -212,7 +212,7 @@ function SolutionCard({ rollup, cls }: { rollup: SolutionRollup; cls: EpicClass 
     >
       {rollup.solutionId ? (
         <Link
-          href={`/portfolio/solutions/${rollup.solutionId}`}
+          href={`/structure/solution/${rollup.solutionId}`}
           className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
         >
           {body}

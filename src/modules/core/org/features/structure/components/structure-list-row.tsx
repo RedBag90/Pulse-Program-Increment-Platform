@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Calendar, Network, Zap } from "lucide-react";
+import { AlertTriangle, Boxes, Calendar, Network, Zap } from "lucide-react";
 import type { StructureRow, NodeKind } from "@/modules/core/org/server/views/structure-page";
 
 interface Props {
@@ -13,12 +13,14 @@ const KIND_ICON: Record<NodeKind, React.ComponentType<{ className?: string }>> =
   vs: Network,
   art: Zap,
   timeline: Calendar,
+  solution: Boxes,
 };
 
 const KIND_LABEL: Record<NodeKind, string> = {
   vs: "Wertstrom",
   art: "ART",
   timeline: "Timeline",
+  solution: "Solution",
 };
 
 /**

@@ -625,7 +625,7 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         key: "rte.timelines",
         title: "Die Kadenz pflegen",
         body: "Eine Timeline ist der gemeinsame PI-Takt, den mehrere ARTs abonnieren. Ohne sie gibt es keine PIs — deshalb ist sie die Voraussetzung für alles darüber.",
-        route: "/timelines",
+        route: "/structure/timelines",
         anchor: "structure-tree",
         practice: "programLevel",
       },

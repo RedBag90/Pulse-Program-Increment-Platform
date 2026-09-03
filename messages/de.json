@@ -23,6 +23,7 @@
     "valueStreams": "Wertströme",
     "setupGuide": "Setup-Guide",
     "structure": "Struktur",
+    "organisation": "Organisation",
     "timelines": "Timelines",
     "capacityPlanning": "Kapazitätsplanung",
     "delivery": "Lieferung",
@@ -78,7 +79,6 @@
     "issues": "Issues",
     "riskReview": "Risk-Review",
     "budgeting": "Budgeting",
-    "setupControlling": "Setup",
     "others": "Weitere",
     "targetState": "Zielzustand",
     "openMenu": "Menü öffnen"

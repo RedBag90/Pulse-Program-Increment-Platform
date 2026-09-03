@@ -67,6 +67,8 @@ export interface EpicOverviewTabProps {
         classification: EpicClassification;
         source: GuardrailTargetsSource;
         fundingGap?: "noArt" | "noPot" | null | undefined;
+        /** Beim Anlegen hinterlegte Erwartung; `null` bei Bestands-Epics. */
+        intended?: "portfolio" | "art" | null | undefined;
       }
     | null
     | undefined;
@@ -175,6 +177,7 @@ export function EpicOverviewTab({
             classification={classification.classification}
             source={classification.source}
             fundingGap={classification.fundingGap}
+            intended={classification.intended ?? null}
           />
         </section>
       )}

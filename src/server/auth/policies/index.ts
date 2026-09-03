@@ -60,6 +60,8 @@ export type Action =
   | "admin.users.read"
   | "target.manage"
   | "budget.manage"
+  | "budget.read"
+  | "epic.portfolio_override"
   | "budget_plan.revision.capture"
   | "budget.cycle.advance"
   | "budget.round.manage"
@@ -153,6 +155,23 @@ export const POLICIES: Record<Action, Grant[]> = {
   // catalogue (create / rename / delete / join / leave) sits with the same
   // audience that already shapes the portfolio plan.
   "timeline.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
+  // Wer die Geld-Flächen eines Wertstroms oder ARTs überhaupt **sieht**.
+  //
+  // Bis zum Struktur-Umbau war nur das Modul gegated, nicht die Rolle: jeder,
+  // der die Wertstrom-Seite öffnete, sah den Budget-Plan. An der prominenteren
+  // Fläche wird das sichtbar, also steht es jetzt hier.
+  //
+  // Die drei tenant-weiten Rollen sind genau die **oberhalb des Epic Owners**
+  // (Platform-Admin passiert über den Fast-Path in `authorize()`). Dazu kommt
+  // der **RTE auf seinem ART** — er soll seine Last und sein Restbudget selbst
+  // managen, dafür ist die Fläche gebaut. Die **Finance-Partei des Wertstroms**
+  // (`ValueStream.financeApproverId`) lässt der Service-Seam zusätzlich zu,
+  // ohne dass sie eine Rolle dafür braucht — dasselbe Muster wie unten bei
+  // `art_budget.manage`.
+  "budget.read": [
+    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER] },
+    { roles: [RTE], scope: "art" },
+  ],
   // Distribute a Value Stream's budget down to its ARTs. `value_stream`-scoped:
   // ein Wertstrom-Owner darf SEINEN Wertstrom verteilen, nicht jeden — ohne den
   // Scope war der Grant vakuant und der Editor erschien auf fremden Wertstroemen.
@@ -185,6 +204,17 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Abnehmern (siehe unten, ADR-0018). `epic.impact.confirm` ist mit dem
   // eigenen L4→L5-Dialog entfallen — die Controlling-Hand steht jetzt als
   // Person auf der L5-Abnehmer-Regel.
+  // Auf der Kennzeichnung bestehen, wenn der Business Case sie widerlegt:
+  // „dieses Epic bleibt Portfolio-Sache, unabhängig von seinen Kosten."
+  //
+  // Nur nach **unten** möglich (erwartet Portfolio, abgeleitet ART) — was über
+  // dem Limit liegt, braucht eine Portfolio-Entscheidung, dafür gibt es keine
+  // Ausnahme. Und es ist kein Antragsteller-Recht: der Epic Owner sieht den
+  // Hinweis, nicht die Wahl.
+  "epic.portfolio_override": [
+    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] },
+    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
+  ],
   "value_stream.create": [{ roles: [PORTFOLIO_MANAGER] }],
   "epic.delete": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
 

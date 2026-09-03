@@ -61,7 +61,7 @@ export const MILESTONES: readonly Milestone[] = [
     name: "M3 · Cadence laeuft",
     outcome: "Eine wiederkehrende PI-Kadenz ist etabliert, die naechsten PIs sind im Kalender.",
     who: "RTE",
-    where: [{ href: "/timelines", label: "Timelines" }],
+    where: [{ href: "/structure/timelines", label: "Timelines" }],
     checks: [
       { id: "m3-1", label: "PI-Standard angelegt (Anchor + Cadence + Count)" },
       { id: "m3-2", label: "Timeline angelegt, ARTs sind subscribiert" },

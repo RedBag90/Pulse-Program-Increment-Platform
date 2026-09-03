@@ -4,8 +4,12 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { notDeleted } from "@/server/db/soft-delete";
 
 /**
- * The full portfolio structure tree — Value Streams → ARTs — for the
- * Structure hub. Excludes soft-deleted value streams and ARTs. Read-only.
+ * Der Struktur-Baum: Wertstrom → ART → **Solution**. Ohne weich gelöschte
+ * Zeilen, rein lesend.
+ *
+ * Solutions tragen immer einen Wertstrom, aber nur optional einen ART — die
+ * ohne hängen im Baum direkt am Wertstrom. Sie sind hier, weil eine Solution
+ * Struktur ist: ein langlebiges System, das betrieben und verändert wird.
  */
 export async function getStructureTree(db: PrismaClient, tenantId: TenantId) {
   return db.valueStream.findMany({
@@ -24,10 +28,14 @@ export async function getStructureTree(db: PrismaClient, tenantId: TenantId) {
           id: true,
           name: true,
           description: true,
-          piCadenceWeeks: true,
           rteId: true,
           _count: { select: { pis: true } },
         },
+      },
+      solutions: {
+        where: { ...notDeleted },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, horizon: true, artId: true },
       },
     },
   });

@@ -22,7 +22,7 @@ interface Props {
   badge?: ReactNode;
   tabs: readonly DetailTab[];
   activeTab: string;
-  /** Detail route without query, e.g. `/value-streams/<id>`; tab links append `?tab=`. */
+  /** Detail route without query, e.g. `/structure/value-stream/<id>`; tab links append `?tab=`. */
   basePath: string;
   /** Wenn gesetzt, werden Tabs als Buttons gerendert und der Caller
    *  managed den Tab-State selber — z. B. im Slide-Over, wo wir keine

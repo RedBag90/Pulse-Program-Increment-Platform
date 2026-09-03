@@ -18,6 +18,7 @@ import {
   type TenantApprover,
 } from "@/modules/work/features/portfolio/components/approver-picker";
 import { GateRevertDialog } from "./gate-revert-dialog";
+import { ClassificationDriftDialog, type DriftInfo } from "./classification-drift-dialog";
 
 /**
  * Die **eine** Affordanz für den Reifegrad-Wechsel.
@@ -99,9 +100,15 @@ interface Props {
   approvers: TenantApprover[];
   /** userId → Anzeigename, wie überall auf der Epic-Seite. */
   userLabels: Record<string, string>;
+  /**
+   * Abweichung zwischen der beim Anlegen hinterlegten Erwartung und der aus dem
+   * Business Case abgeleiteten Klasse. Gesetzt nur, wenn es eine gibt — dann
+   * tritt vor dem L3.1-Antrag ein Dialog dazwischen.
+   */
+  classDrift?: DriftInfo | null | undefined;
 }
 
-export function EpicGateCard({ epicId, gate, approvers, userLabels }: Props) {
+export function EpicGateCard({ epicId, gate, approvers, userLabels, classDrift }: Props) {
   if (gate.disabled) return null;
 
   return (
@@ -119,7 +126,13 @@ export function EpicGateCard({ epicId, gate, approvers, userLabels }: Props) {
       {gate.openRequest ? (
         <OpenRequest gate={gate} userLabels={userLabels} />
       ) : (
-        <NoRequest epicId={epicId} gate={gate} approvers={approvers} userLabels={userLabels} />
+        <NoRequest
+          epicId={epicId}
+          gate={gate}
+          approvers={approvers}
+          userLabels={userLabels}
+          classDrift={classDrift ?? null}
+        />
       )}
 
       {gate.canRequestHelp && <HelpRequestControl epicId={epicId} requested={gate.helpRequested} />}
@@ -179,13 +192,16 @@ function NoRequest({
   gate,
   approvers,
   userLabels,
+  classDrift,
 }: {
   epicId: string;
   gate: Extract<EpicGateSlice, { disabled: false }>;
   approvers: TenantApprover[];
   userLabels: Record<string, string>;
+  classDrift: DriftInfo | null;
 }) {
   const [state, action, pending] = useActionState(requestGateTransitionAction, {});
+  const [driftOpen, setDriftOpen] = useState(false);
   // Besetzung der Parteien — nur an den Schritten, die eine je Epic zulassen
   // (heute L2 → L3.1). Vorbelegt aus der Wertstrom-Governance.
   const staffing = gate.partyStaffing;
@@ -214,7 +230,12 @@ function NoRequest({
 
   const blocked = gate.readiness ? !gate.readiness.ready : false;
 
+  /**
+   * Der Antrag selbst — vom Klick getrennt, weil an L3.1 der Dialog
+   * dazwischentritt, wenn der Business Case die Erwartung widerlegt.
+   */
   function submit() {
+    setDriftOpen(false);
     const fd = new FormData();
     fd.set("epicId", epicId);
     fd.set("toGate", gate.next as string);
@@ -225,6 +246,10 @@ function NoRequest({
     }
     startTransition(() => action(fd));
   }
+
+  // Nur an L3.1: dort entsteht die Klasse, und dort wird die Abweichung
+  // erstmals sichtbar.
+  const driftBlocks = classDrift != null && classDrift.drift !== "none" && gate.next === "L3.1";
 
   return (
     <div className="space-y-3">
@@ -303,7 +328,7 @@ function NoRequest({
       {gate.canRequest && (
         <button
           type="button"
-          onClick={submit}
+          onClick={() => (driftBlocks ? setDriftOpen(true) : submit())}
           disabled={pending || blocked}
           title={
             blocked
@@ -321,6 +346,16 @@ function NoRequest({
       )}
 
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
+
+      {driftBlocks && classDrift && (
+        <ClassificationDriftDialog
+          epicId={epicId}
+          info={classDrift}
+          open={driftOpen}
+          onOpenChange={setDriftOpen}
+          onProceed={submit}
+        />
+      )}
     </div>
   );
 }

@@ -206,6 +206,24 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
             </div>
 
             <div className="space-y-1.5">
+              <Label htmlFor="epic-intended-class">Erwartete Einordnung</Label>
+              <select
+                id="epic-intended-class"
+                name="intendedClass"
+                defaultValue="portfolio"
+                required
+                className={SELECT_CLASS}
+              >
+                <option value="portfolio">Portfolio-Epic</option>
+                <option value="art">ART-Epic</option>
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Eine Erwartung, keine Entscheidung. Die Klasse entsteht aus den Kosten des
+                freigegebenen Business Case — weicht sie ab, fragt die Fläche vor dem Antrag nach.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
               <Label>Unterstütztes Ziel</Label>
               <GoalTreePicker value={goalId} onChange={setGoalId} />
             </div>

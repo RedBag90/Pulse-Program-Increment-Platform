@@ -22,7 +22,7 @@ import { EpicOverviewTab } from "@/modules/work/features/portfolio/components/ep
 import { getTenantPractices } from "@/server/services/target-model";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
 import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
-import { classifyEpic } from "@/modules/work/domain/pb-submission";
+import { classifyEpic, classificationDrift } from "@/modules/work/domain/pb-submission";
 import { EpicLifecycleStepper } from "@/modules/work/features/portfolio/components/epic-lifecycle-stepper";
 import { EpicGateCard } from "@/modules/work/features/portfolio/components/gate/epic-gate-card";
 import { EpicKpisTab } from "@/modules/work/features/portfolio/components/epic-kpis-tab";
@@ -109,6 +109,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               businessCaseApprovedAt: true,
               hypothesisApprovedAt: true,
               portfolioOverrideAt: true,
+              intendedClass: true,
             },
           }),
           listValueStreamGuardrailTargets(db, tenantId),
@@ -141,9 +142,41 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           }
         }
 
-        return { classification, source: resolved.source, fundingGap };
+        return {
+          classification,
+          source: resolved.source,
+          fundingGap,
+          intended: (row.intendedClass ?? null) as "portfolio" | "art" | null,
+          valueStreamId: row.valueStreamId,
+        };
       })()
     : null;
+
+  // Weicht die abgeleitete Klasse von der beim Anlegen hinterlegten Erwartung
+  // ab, tritt vor dem L3.1-Antrag ein Dialog dazwischen. Bestehen darf man nur
+  // nach unten (Portfolio-Sache bleiben) — und nur mit dem Recht dafür.
+  const classDrift = (() => {
+    if (!epicClassification) return null;
+    const { intended, classification } = epicClassification;
+    const derived = classification.epicClass;
+    if (intended == null || derived == null) return null;
+    const drift = classificationDrift(intended, derived);
+    if (drift === "none") return null;
+    return {
+      drift,
+      intended,
+      derived,
+      cost: classification.cost,
+      threshold: classification.threshold,
+      valueStreamId: epicClassification.valueStreamId ?? "",
+      canOverride: hasCapability(principal, "epic.portfolio_override", {
+        tenantId: principal.tenantId,
+        ...(epicClassification.valueStreamId
+          ? { valueStreamId: epicClassification.valueStreamId }
+          : {}),
+      }),
+    };
+  })();
 
   // Issues tab content — risks + impediments rolled up over the Epic's feature
   // subtree (composition root may import the risks module; ADR-0013).
@@ -218,6 +251,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
                 gate={model.gate}
                 approvers={approvers}
                 userLabels={userLabels}
+                classDrift={classDrift}
               />
               <EpicLifecycleStepper
                 steps={model.lifecycleSteps}

@@ -194,7 +194,7 @@ describe("expandApprovers — Platzhalter-Auflösung", () => {
     expect(expandApprovers(p, ctx(), []).map((a) => a.userId)).toEqual([FINANCE, VMO]);
   });
 
-  it("L3.1 besetzt im Code-Default die fünf Parteien — Finance und LACE/VMO lösen auf", () => {
+  it("L3.1 besetzt im Code-Default die fünf Parteien plus den Produkt-Manager", () => {
     const p = resolveGatePolicy("L3.1", [], VS);
     expect(p.approverRoles).toEqual([
       "epic.party.mgmt",
@@ -202,6 +202,7 @@ describe("expandApprovers — Platzhalter-Auflösung", () => {
       "epic.party.finance",
       "epic.party.irt_owner",
       "epic.party.lace_vmo",
+      "solution.product_manager",
     ]);
     // MGMT, Business Owner und IRT-Owner haben keine Wertstrom-Spalte: sie
     // fallen still weg und werden am Antrag benannt.
@@ -214,5 +215,44 @@ describe("expandApprovers — Platzhalter-Auflösung", () => {
   it("ohne die Practice zeichnet an L3.1 der VMO allein", () => {
     const p = resolveGatePolicy("L3.1", [], VS, { multiPartyApproval: false });
     expect(p.approverRoles).toEqual(["value_stream.vmo"]);
+  });
+});
+
+/**
+ * Der Produkt-Manager der Primär-Solution — der einzige Platzhalter, der nicht
+ * an jedem Schritt gleich wirkt.
+ */
+describe("expandApprovers — Produkt-Manager der Solution", () => {
+  const PM = "user-pm";
+  const base = {
+    valueStreamFinanceApproverId: null,
+    valueStreamVmoId: null,
+    epicOwnerId: null,
+  };
+
+  it("zeichnet an L3.1 bei jedem Epic seiner Solution mit", () => {
+    const p = resolveGatePolicy("L3.1", [], VS);
+    const out = expandApprovers(p, { ...base, solutionProductManagerId: PM, epicClass: null });
+    expect(out).toEqual([{ userId: PM, role: "solution.product_manager", source: "solution" }]);
+  });
+
+  it("zeichnet an L4 nur bei einem ART-Epic mit", () => {
+    const p = resolveGatePolicy("L4", [], VS);
+    const asArt = expandApprovers(p, { ...base, solutionProductManagerId: PM, epicClass: "art" });
+    expect(asArt.map((a) => a.userId)).toContain(PM);
+
+    const asPortfolio = expandApprovers(p, {
+      ...base,
+      solutionProductManagerId: PM,
+      epicClass: "portfolio",
+    });
+    expect(asPortfolio.map((a) => a.userId)).not.toContain(PM);
+  });
+
+  // „Ein Platzhalter, der ins Leere zeigt, fällt still weg" — ohne benannten
+  // Produkt-Manager läuft der Antrag wie zuvor, statt zu blockieren.
+  it("fällt still weg, wenn niemand benannt ist", () => {
+    const p = resolveGatePolicy("L3.1", [], VS);
+    expect(expandApprovers(p, { ...base, solutionProductManagerId: null })).toEqual([]);
   });
 });

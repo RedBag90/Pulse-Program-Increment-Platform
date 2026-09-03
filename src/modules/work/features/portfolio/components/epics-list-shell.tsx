@@ -210,9 +210,7 @@ export function EpicsListShell({ model, canEdit, canSelect, tenantId }: Props) {
         onToggleSelectAll={canSelect ? toggleSelectAll : null}
       />
 
-      {canSelect && (
-        <EpicsBulkActionBar selectedRows={selectedRows} onClear={clearSelected} />
-      )}
+      {canSelect && <EpicsBulkActionBar selectedRows={selectedRows} onClear={clearSelected} />}
     </div>
   );
 }

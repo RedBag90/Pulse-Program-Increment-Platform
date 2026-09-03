@@ -50,7 +50,7 @@ describe("deriveNextSteps", () => {
     };
     const steps = deriveNextSteps(emptyGap, adoption);
     expect(steps).toHaveLength(1); // only wsjf (0.2 < 0.5); featureQs (0.9) is fine
-    expect(steps[0]).toMatchObject({ key: "prac-wsjf", href: "/structure?tab=arts" });
+    expect(steps[0]).toMatchObject({ key: "prac-wsjf", href: "/structure" });
   });
 
   it("orders structure shortfalls before practice gaps (sanity)", () => {

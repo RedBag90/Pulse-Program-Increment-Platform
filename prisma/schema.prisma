@@ -616,10 +616,6 @@ model Art {
   valueStreamId  String    @map("value_stream_id") @db.Uuid
   name           String
   description    String?
-  /// Default cadence for new PIs on ARTs not yet subscribed to a Timeline
-  /// (legacy fallback). Timelines no longer carry a cadence — each PI defines
-  /// its own start/end window.
-  piCadenceWeeks Int       @default(10) @map("pi_cadence_weeks")
   rteId          String?   @map("rte_id") @db.Uuid // Release Train Engineer
   /// Subscription to a shared Timeline. Each ART belongs to at most one
   /// Timeline; nullable during the rollout so brand-new ARTs (or those that
@@ -660,6 +656,11 @@ model Solution {
   horizon        String    @default("h1")
   /// Nur in H1 relevant: "investing" | "extracting". Sonst null.
   investmentMode String?   @map("investment_mode")
+  /// Namentlich Verantwortliche:r für dieses Produkt. Freies Personenfeld ohne
+  /// Rollenbindung (wie `ValueStream.financeApproverId`) — Produktverantwortung
+  /// fällt nicht mit einer SAFe-Rolle zusammen. Darf die Solution bearbeiten
+  /// und zeichnet bei den Reifegrad-Freigaben ihrer Epics mit.
+  productManagerId String? @map("product_manager_id") @db.Uuid
   createdAt      DateTime  @default(now()) @map("created_at")
   createdBy      String    @map("created_by") @db.Uuid
   updatedAt      DateTime  @updatedAt @map("updated_at")
@@ -902,6 +903,12 @@ model Initiative {
   needsSteeringAttention  Boolean   @default(false) @map("needs_steering_attention")
   stagedForBudgeting      Boolean   @default(false) @map("staged_for_budgeting")
   /// Guardrail 3, Ausnahme: hebt ein Epic unabhängig von seinen Kosten auf den
+  /// Erwartete Einordnung beim Anlegen: "portfolio" | "art". Sie **entscheidet
+  /// nichts** — die Klasse bleibt aus den Kosten des freigegebenen Business Case
+  /// abgeleitet. Sie ist der Maßstab, an dem die Abweichung vor dem L3.1-Antrag
+  /// auffällt. Nullable, weil Bestands-Epics keine Erwartung tragen; Pflicht ist
+  /// der Anlege-Weg, nicht die Spalte.
+  intendedClass           String?   @map("intended_class")
   /// Portfolio-Ballot. Gesetzter Stempel = Ausnahme aktiv; die Begründung ist
   /// Pflicht. Die Klasse selbst bleibt abgeleitet — der Override geht in die
   /// Ableitung ein, er ersetzt sie nicht.

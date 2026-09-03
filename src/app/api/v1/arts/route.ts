@@ -7,7 +7,6 @@ import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 const createSchema = z.object({
   valueStreamId: z.string().uuid(),
   name: z.string().min(1).max(100),
-  piCadenceWeeks: z.number().int().min(8).max(12).optional(),
 });
 
 export const GET = createQueryHandler({
@@ -22,6 +21,5 @@ export const POST = createMutationHandler({
     createArt(ctx, {
       valueStreamId: input.valueStreamId as ValueStreamId,
       name: input.name,
-      piCadenceWeeks: input.piCadenceWeeks,
     }),
 });

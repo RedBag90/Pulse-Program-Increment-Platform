@@ -7,6 +7,7 @@ const vsRow = (over: {
   vmoId?: string | null;
   financeApproverId?: string | null;
   arts?: ReturnType<typeof artRow>[];
+  solutions?: ReturnType<typeof solRow>[];
 }) => ({
   id: over.id,
   name: over.name,
@@ -14,19 +15,20 @@ const vsRow = (over: {
   vmoId: over.vmoId ?? null,
   financeApproverId: over.financeApproverId ?? null,
   arts: over.arts ?? [],
+  solutions: over.solutions ?? [],
 });
 
-const artRow = (over: {
-  id: string;
-  name: string;
-  rteId?: string | null;
-  piCadenceWeeks?: number;
-  piCount?: number;
-}) => ({
+const solRow = (over: { id: string; name: string; horizon?: string; artId?: string | null }) => ({
+  id: over.id,
+  name: over.name,
+  horizon: over.horizon ?? "h1",
+  artId: over.artId ?? null,
+});
+
+const artRow = (over: { id: string; name: string; rteId?: string | null; piCount?: number }) => ({
   id: over.id,
   name: over.name,
   description: null,
-  piCadenceWeeks: over.piCadenceWeeks ?? 10,
   rteId: over.rteId ?? null,
   _count: { pis: over.piCount ?? 0 },
 });
@@ -47,7 +49,6 @@ describe("buildStructurePageModel", () => {
       ],
       timeline: { timelines: [], unassignedArts: [] },
       userLabels: { "u-vmo": "VMO", "u-rte": "RTE" },
-      budgetTotals: {},
     });
     const rows = m.rows;
     expect(rows.map((r) => [r.kind, r.depth, r.label])).toEqual([
@@ -75,7 +76,6 @@ describe("buildStructurePageModel", () => {
       ],
       timeline: { timelines: [], unassignedArts: [] },
       userLabels: {},
-      budgetTotals: {},
     });
     expect(m.rows[0]!.gaps).toContain("Kein:e Portfolio Manager");
     expect(m.rows[0]!.gaps).toContain("Kein:e Finance-Approver:in");
@@ -95,7 +95,6 @@ describe("buildStructurePageModel", () => {
       ],
       timeline: { timelines: [], unassignedArts: [] },
       userLabels: { u1: "Alice", u2: "Bob" },
-      budgetTotals: {},
     });
     const vs = m.vs.get("vs1")!;
     expect(vs.vmoLabel).toBe("Alice");
@@ -111,7 +110,6 @@ describe("buildStructurePageModel", () => {
         unassignedArts: [],
       },
       userLabels: {},
-      budgetTotals: {},
     });
     expect(m.rows.find((r) => r.kind === "timeline")).toBeUndefined();
     expect(m.kindCounts.timeline).toBe(0);
@@ -126,7 +124,6 @@ describe("buildStructurePageModel", () => {
         unassignedArts: [],
       },
       userLabels: {},
-      budgetTotals: {},
     });
     const timelineRow = m.rows.find((r) => r.kind === "timeline");
     expect(timelineRow).toBeDefined();
@@ -158,7 +155,6 @@ describe("buildStructurePageModel", () => {
         unassignedArts: [],
       },
       userLabels: {},
-      budgetTotals: {},
     });
     const art = m.art.get("art1")!;
     expect(art.timelineId).toBe("tl1");
@@ -172,10 +168,7 @@ describe("buildStructurePageModel", () => {
         vsRow({
           id: "vs1",
           name: "Retail",
-          arts: [
-            artRow({ id: "art1", name: "Mobile" }),
-            artRow({ id: "art2", name: "Web" }),
-          ],
+          arts: [artRow({ id: "art1", name: "Mobile" }), artRow({ id: "art2", name: "Web" })],
         }),
         vsRow({ id: "vs2", name: "Payments" }),
       ],
@@ -184,9 +177,75 @@ describe("buildStructurePageModel", () => {
         unassignedArts: [],
       },
       userLabels: {},
-      budgetTotals: {},
     });
     // structure-mode zaehlt nur vs/art; timeline-count = 0
-    expect(m.kindCounts).toEqual({ vs: 2, art: 2, timeline: 0 });
+    expect(m.kindCounts).toEqual({ vs: 2, art: 2, timeline: 0, solution: 0 });
+  });
+});
+
+/**
+ * Die dritte Ebene. Solutions tragen immer einen Wertstrom, aber nur optional
+ * einen ART — beide Fälle müssen im Baum einen Platz haben, sonst ist eine
+ * Solution über den Baum nicht erreichbar.
+ */
+describe("buildStructurePageModel — Solutions als dritte Ebene", () => {
+  it("hängt eine Solution unter ihren ART, eine ohne ART unter den Wertstrom", () => {
+    const m = buildStructurePageModel({
+      mode: "structure",
+      tree: [
+        vsRow({
+          id: "vs1",
+          name: "Produktion",
+          arts: [artRow({ id: "art1", name: "OEE" })],
+          solutions: [
+            solRow({ id: "s1", name: "Produktion Betrieb", artId: "art1" }),
+            solRow({ id: "s2", name: "Produktion Pilot", horizon: "h3" }),
+          ],
+        }),
+      ],
+      timeline: { timelines: [], unassignedArts: [] },
+      userLabels: {},
+    });
+
+    expect(m.rows.map((r) => [r.kind, r.label, r.depth, r.parentId])).toEqual([
+      ["vs", "Produktion", 0, null],
+      ["art", "OEE", 1, "vs1"],
+      ["solution", "Produktion Betrieb", 2, "art1"],
+      ["solution", "Produktion Pilot", 1, "vs1"],
+    ]);
+    expect(m.kindCounts.solution).toBe(2);
+  });
+
+  it("beschriftet die Solution-Zeile mit ihrem Horizont", () => {
+    const m = buildStructurePageModel({
+      mode: "structure",
+      tree: [
+        vsRow({
+          id: "vs1",
+          name: "Produktion",
+          solutions: [solRow({ id: "s1", name: "Pilot", horizon: "h3" })],
+        }),
+      ],
+      timeline: { timelines: [], unassignedArts: [] },
+      userLabels: {},
+    });
+    expect(m.rows.at(-1)?.subtitle).toBe("H3 · R&D");
+  });
+
+  // Die Kadenz-Fläche teilt sich das Modell — dort haben Solutions nichts zu suchen.
+  it("zeigt im Timelines-Modus keine Solutions", () => {
+    const m = buildStructurePageModel({
+      mode: "timelines",
+      tree: [
+        vsRow({
+          id: "vs1",
+          name: "Produktion",
+          solutions: [solRow({ id: "s1", name: "Betrieb" })],
+        }),
+      ],
+      timeline: { timelines: [], unassignedArts: [] },
+      userLabels: {},
+    });
+    expect(m.rows.filter((r) => r.kind === "solution")).toEqual([]);
   });
 });

@@ -47,7 +47,7 @@ export default async function SolutionsPage() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Portfolio"
+        eyebrow="Struktur"
         title="Solutions"
         subtitle="Langlebige Produkte/Systeme je Value Stream, klassifiziert nach Investitionshorizont."
         actions={
@@ -92,7 +92,7 @@ export default async function SolutionsPage() {
               {rows.map((s) => (
                 <tr key={s.id} className="hover:bg-muted/40">
                   <td className="px-4 py-2.5 font-medium">
-                    <Link href={`/portfolio/solutions/${s.id}`} className="hover:underline">
+                    <Link href={`/structure/solution/${s.id}`} className="hover:underline">
                       {s.name}
                     </Link>
                   </td>

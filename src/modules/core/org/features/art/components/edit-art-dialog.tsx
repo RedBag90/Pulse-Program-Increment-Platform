@@ -19,7 +19,6 @@ interface EditArtDialogProps {
   id: string;
   name: string;
   description?: string | null;
-  piCadenceWeeks: number;
 }
 
 /**
@@ -28,7 +27,7 @@ interface EditArtDialogProps {
  * Surface — dieser Dialog hält sich an die Grundfelder. Verdrahtet gegen
  * `updateArtAction`.
  */
-export function EditArtDialog({ id, name, description, piCadenceWeeks }: EditArtDialogProps) {
+export function EditArtDialog({ id, name, description }: EditArtDialogProps) {
   const [open, setOpen] = useState(false);
   const [state, action, isPending] = useActionState(updateArtAction, {});
 
@@ -63,20 +62,6 @@ export function EditArtDialog({ id, name, description, piCadenceWeeks }: EditArt
                 rows={3}
                 defaultValue={description ?? ""}
               />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-art-cadence">PI-Cadence (Wochen)</Label>
-              <Input
-                id="edit-art-cadence"
-                name="piCadenceWeeks"
-                type="number"
-                min={8}
-                max={12}
-                step={1}
-                defaultValue={piCadenceWeeks}
-              />
-              <p className="text-xs text-muted-foreground">Erlaubter Bereich: 8–12 Wochen.</p>
             </div>
 
             {state?.error && (

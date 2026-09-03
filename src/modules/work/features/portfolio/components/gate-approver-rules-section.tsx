@@ -196,6 +196,10 @@ export function GateApproverRulesSection({
       case "epic.party.business_owner":
       case "epic.party.irt_owner":
         return "je Epic am Antrag";
+      // Hängt an der Primär-Solution des Epics, nicht am Wertstrom — und an L4
+      // nur bei ART-Epics.
+      case "solution.product_manager":
+        return "je Solution des Epics";
     }
   }
 

@@ -34,6 +34,8 @@ export interface CreateSolutionInput {
   horizon: Horizon;
   /** Nur H1 relevant; außerhalb H1 auf null normalisiert. Default „investing". */
   investmentMode?: InvestmentMode | null | undefined;
+  /** Namentlich Verantwortliche:r für dieses Produkt. Freies Personenfeld. */
+  productManagerId?: string | null | undefined;
 }
 
 export interface UpdateSolutionInput {
@@ -44,6 +46,7 @@ export interface UpdateSolutionInput {
   artId?: string | null | undefined;
   horizon?: Horizon | undefined;
   investmentMode?: InvestmentMode | null | undefined;
+  productManagerId?: string | null | undefined;
 }
 
 /**
@@ -154,7 +157,8 @@ export async function createSolution(
   input: CreateSolutionInput,
 ): Promise<Result<{ id: string }>> {
   const mctx = toMutationContext(ctx);
-  const { name, description, valueStreamId, artId, horizon, investmentMode } = input;
+  const { name, description, valueStreamId, artId, horizon, investmentMode, productManagerId } =
+    input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const vs = await tx.valueStream.findFirst({
@@ -178,6 +182,7 @@ export async function createSolution(
         investmentMode: investmentModeForHorizon(horizon, investmentMode ?? "investing"),
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
+        ...(productManagerId !== undefined && { productManagerId }),
         ...(description !== undefined && { description }),
       },
       select: { id: true },
@@ -195,20 +200,31 @@ export async function updateSolution(
   input: UpdateSolutionInput,
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, name, description, valueStreamId, artId, horizon, investmentMode } = input;
+  const { id, name, description, valueStreamId, artId, horizon, investmentMode, productManagerId } =
+    input;
 
   return withAuditedTransaction(mctx, async (tx) => {
-    const loaded = await loadAndAuthorize({
-      principal: ctx.principal,
-      action: "solution.update",
-      resourceType: "Solution",
-      id,
-      finder: () =>
-        tx.solution.findFirst({ where: { id, tenantId: mctx.tenantId, ...notDeleted } }),
-      toResource: () => ({ tenantId: mctx.tenantId }),
+    // Der benannte **Produkt-Manager** darf sein Produkt bearbeiten, auch ohne
+    // `solution.update` — dasselbe Seam-Muster, mit dem die Finance-Partei des
+    // Wertstroms beim Budget zugelassen wird. Verantwortung ohne
+    // Handlungsmöglichkeit wäre eine leere Zuschreibung.
+    const row = await tx.solution.findFirst({
+      where: { id, tenantId: mctx.tenantId, ...notDeleted },
     });
-    if (isErr(loaded)) return loaded;
-    const existing = loaded.value;
+    if (!row) return err({ kind: "not_found" as const, resourceType: "Solution", id });
+
+    if (row.productManagerId !== ctx.principal.id) {
+      const loaded = await loadAndAuthorize({
+        principal: ctx.principal,
+        action: "solution.update",
+        resourceType: "Solution",
+        id,
+        finder: () => Promise.resolve(row),
+        toResource: () => ({ tenantId: mctx.tenantId }),
+      });
+      if (isErr(loaded)) return loaded;
+    }
+    const existing = row;
 
     const effectiveVs = valueStreamId ?? existing.valueStreamId;
     if (valueStreamId !== undefined) {
@@ -249,8 +265,16 @@ export async function updateSolution(
         artId,
         horizon,
         investmentMode: nextInvestmentMode,
+        productManagerId,
       },
-      fields: ["name", "valueStreamId", "artId", "horizon", "investmentMode"] as const,
+      fields: [
+        "name",
+        "valueStreamId",
+        "artId",
+        "horizon",
+        "investmentMode",
+        "productManagerId",
+      ] as const,
     });
 
     await tx.solution.update({

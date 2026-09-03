@@ -18,6 +18,9 @@ import {
   type DetailTab,
 } from "@/components/detail/entity-detail-shell";
 import { AuditTimeline } from "@/components/detail/audit-timeline";
+import { SolutionProductManager } from "@/modules/work/features/portfolio/components/solutions/solution-product-manager";
+import { listTenantApprovers } from "@/modules/work/server/services/tenant-approvers";
+import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { STAGE_SHORT } from "@/components/detail/initiative-labels";
 import { formatCompactEUR } from "@/lib/formatting";
 
@@ -55,6 +58,10 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
   if (!model) notFound();
 
   const canManage = hasCapability(principal, "solution.manage", { tenantId: principal.tenantId });
+  const [approvers, userLabels] = await Promise.all([
+    listTenantApprovers(db, principal.tenantId),
+    listTenantUserLabels(db, principal.tenantId),
+  ]);
   const budgetingEnabled = principal.enabledModules.includes("budgeting");
   // Betriebskosten pflegt, wer den Wertstrom verantwortet — nicht, wer die
   // Solution verwaltet. Dieselbe Regel wie im Wertstrom-Detail.
@@ -80,7 +87,7 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
 
   return (
     <EntityDetailShell
-      backHref="/portfolio/solutions"
+      backHref="/structure/solutions"
       backLabel="Zurück zu den Solutions"
       title={model.name}
       badge={
@@ -88,12 +95,19 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
       }
       tabs={TABS}
       activeTab={activeTab}
-      basePath={`/portfolio/solutions/${model.id}`}
+      basePath={`/structure/solution/${model.id}`}
       {...(canManage ? { headerActions: <SolutionEditButton model={model} /> } : {})}
       subHeader={<SolutionLifecycleBar model={model} canManage={canManage} />}
     >
       {activeTab === "overview" && (
         <div className="space-y-6">
+          <SolutionProductManager
+            solutionId={model.id}
+            productManagerId={model.productManagerId}
+            users={approvers}
+            userLabels={userLabels}
+            canManage={canManage || model.productManagerId === principal.id}
+          />
           <SolutionGrowRunTiles
             grow={model.grow}
             run={run}

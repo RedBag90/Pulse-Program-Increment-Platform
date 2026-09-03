@@ -10,10 +10,6 @@ interface Props {
   model: StructurePageModel;
   /** Verfügbare PI-Standards für den „Standard anwenden"-Pfad im Detail-Pane. */
   piStandards: PiStandardOption[];
-  canUpdateVs: boolean;
-  canCreateArt: boolean;
-  canUpdateArt: boolean;
-  canDeleteArt: boolean;
   canManageTimeline: boolean;
 }
 
@@ -34,15 +30,7 @@ interface Props {
  * weiterhin keine Kadenz-Komponenten, sondern bekommt sie injiziert — nur eben
  * von hier statt vom Composition-Root. Drumbeat → Core ist erlaubt.
  */
-export function TimelinesPageShell({
-  model,
-  piStandards,
-  canUpdateVs,
-  canCreateArt,
-  canUpdateArt,
-  canDeleteArt,
-  canManageTimeline,
-}: Props) {
+export function TimelinesPageShell({ model, piStandards, canManageTimeline }: Props) {
   return (
     <StructurePageShell
       title="Timelines"
@@ -50,18 +38,13 @@ export function TimelinesPageShell({
       availableKinds={["timeline"]}
       model={model}
       canCreateVs={false}
-      canUpdateVs={canUpdateVs}
-      canCreateArt={canCreateArt}
-      canUpdateArt={canUpdateArt}
-      canDeleteArt={canDeleteArt}
       canManageTimeline={canManageTimeline}
       createTimelineSlot={<CreateTimelineButton />}
-      renderTimelineDetail={(timeline, onSelectNode) => (
+      renderTimelineDetail={(timeline) => (
         <TimelineDetailPane
           timeline={timeline}
           canManage={canManageTimeline}
           piStandards={piStandards}
-          onSelectNode={onSelectNode}
         />
       )}
     />

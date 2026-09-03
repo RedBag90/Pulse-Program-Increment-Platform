@@ -6,6 +6,7 @@
 /** Parent IDs that can be derived from the current route, used to pre-fill creates. */
 export interface CreateContext {
   artId?: string;
+  valueStreamId?: string;
   piId?: string;
   featureId?: string;
   epicId?: string;
@@ -15,8 +16,14 @@ export interface CreateContext {
 export function parseCreateContext(pathname: string): CreateContext {
   const ctx: CreateContext = {};
 
-  const art = pathname.match(/^\/art\/([^/]+)/);
+  // Der ART ist seit dem Struktur-Umbau ein Knoten unter `/structure`.
+  const art = pathname.match(/^\/structure\/art\/([^/]+)/);
   if (art?.[1]) ctx.artId = art[1];
+
+  // Neu: aus dem Wertstrom-Knoten lässt sich der Wertstrom vorbelegen — das
+  // ging vorher nicht, weil die Detailseite außerhalb dieser Ableitung lag.
+  const vs = pathname.match(/^\/structure\/value-stream\/([^/]+)/);
+  if (vs?.[1]) ctx.valueStreamId = vs[1];
 
   const pi = pathname.match(/^\/pi\/([^/]+)/);
   if (pi?.[1]) ctx.piId = pi[1];

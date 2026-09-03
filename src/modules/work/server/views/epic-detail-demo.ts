@@ -125,6 +125,7 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
     featureType: null,
     needsSteeringAttention: false,
     stagedForBudgeting: false,
+    intendedClass: null,
     portfolioOverrideAt: null,
     portfolioOverrideBy: null,
     portfolioOverrideReason: null,

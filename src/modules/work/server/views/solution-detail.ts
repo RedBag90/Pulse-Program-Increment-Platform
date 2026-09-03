@@ -32,6 +32,8 @@ export interface SolutionDetailModel {
   artName: string | null;
   horizon: Horizon;
   investmentMode: InvestmentMode | null;
+  /** Namentlich Verantwortliche:r; `null` = nicht zugewiesen. */
+  productManagerId: string | null;
   grow: number;
   epics: SolutionDetailEpic[];
 }
@@ -51,6 +53,7 @@ export async function loadSolutionDetail(
       artId: true,
       horizon: true,
       investmentMode: true,
+      productManagerId: true,
       valueStream: { select: { name: true } },
       art: { select: { name: true } },
     },
@@ -87,6 +90,7 @@ export async function loadSolutionDetail(
     artName: s.art?.name ?? null,
     horizon: (isHorizon(s.horizon) ? s.horizon : "h1") as Horizon,
     investmentMode: isInvestmentMode(s.investmentMode) ? s.investmentMode : null,
+    productManagerId: s.productManagerId,
     grow,
     epics,
   };

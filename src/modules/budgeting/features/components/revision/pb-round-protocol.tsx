@@ -24,11 +24,17 @@ export function PbRoundProtocol({ round }: { round: PbRoundSnapshot }) {
         <h2 className="text-sm font-semibold">PB-Runde · Protokoll</h2>
         <div className="flex gap-4 text-xs text-muted-foreground">
           <span>
-            Finanziert: <span className="font-medium tabular-nums text-foreground">{formatEUR(round.fundedSum)}</span>
+            Finanziert:{" "}
+            <span className="font-medium tabular-nums text-foreground">
+              {formatEUR(round.fundedSum)}
+            </span>
           </span>
           {round.reserve != null && (
             <span>
-              Reserve: <span className="font-medium tabular-nums text-foreground">{formatEUR(round.reserve)}</span>
+              Reserve:{" "}
+              <span className="font-medium tabular-nums text-foreground">
+                {formatEUR(round.reserve)}
+              </span>
             </span>
           )}
         </div>
@@ -83,18 +89,32 @@ export function PbRoundProtocol({ round }: { round: PbRoundSnapshot }) {
                   <p className="text-sm font-medium">
                     {g.name}
                     {g.spokesperson && (
-                      <span className="ml-1 font-normal text-muted-foreground">· {g.spokesperson}</span>
+                      <span className="ml-1 font-normal text-muted-foreground">
+                        · {g.spokesperson}
+                      </span>
                     )}
                   </p>
                   <dl className="mt-1 space-y-0.5">
                     {g.reportOut!.costliestYes && (
-                      <ReportRow label="Teuerste Zusage" value={g.reportOut!.costliestYes} reason={g.reportOut!.costliestYesReason} />
+                      <ReportRow
+                        label="Teuerste Zusage"
+                        value={g.reportOut!.costliestYes}
+                        reason={g.reportOut!.costliestYesReason}
+                      />
                     )}
                     {g.reportOut!.clearestNo && (
-                      <ReportRow label="Klarstes Nein" value={g.reportOut!.clearestNo} reason={g.reportOut!.clearestNoReason} />
+                      <ReportRow
+                        label="Klarstes Nein"
+                        value={g.reportOut!.clearestNo}
+                        reason={g.reportOut!.clearestNoReason}
+                      />
                     )}
                     {g.reportOut!.biggestDispute && (
-                      <ReportRow label="Streitpunkt" value={g.reportOut!.biggestDispute} reason={g.reportOut!.disputeReason} />
+                      <ReportRow
+                        label="Streitpunkt"
+                        value={g.reportOut!.biggestDispute}
+                        reason={g.reportOut!.disputeReason}
+                      />
                     )}
                   </dl>
                 </div>
@@ -106,7 +126,15 @@ export function PbRoundProtocol({ round }: { round: PbRoundSnapshot }) {
   );
 }
 
-function ReportRow({ label, value, reason }: { label: string; value: string; reason: string | null }) {
+function ReportRow({
+  label,
+  value,
+  reason,
+}: {
+  label: string;
+  value: string;
+  reason: string | null;
+}) {
   return (
     <div className="flex flex-wrap gap-x-2">
       <dt className="text-muted-foreground">{label}:</dt>

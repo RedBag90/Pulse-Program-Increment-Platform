@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 // hardcoding paths in each `onSuccess`; "which pages show ARTs?" is answered
 // here, once, rather than smeared across every ART/Team/Feature action.
 //
-// Paths use the App Router template form (`/art/[artId]`) revalidated
+// Paths use the App Router template form (`/structure/art/[id]`) revalidated
 // with the `"page"` type, which refreshes *all* instances of that dynamic
 // route — no per-call ids to thread. Static routes are revalidated as-is.
 // The set per resource is a deliberate superset: over-revalidation is cheap and
@@ -41,11 +41,11 @@ export type RevalidationResource =
   | "roleOnboarding";
 
 const REGISTRY: Record<RevalidationResource, readonly string[]> = {
-  art: ["/structure", "/art/[artId]", "/value-streams/[id]"],
+  art: ["/structure", "/structure/art/[id]", "/structure/value-stream/[id]"],
   // Beim CREATE reicht der schmale Cut: die neue Detail-Page wird ohnehin
   // bei der Navigation frisch gerendert; nur die Aggregations-Listen
   // muessen den neuen Eintrag sehen.
-  artCreated: ["/structure", "/value-streams/[id]"],
+  artCreated: ["/structure", "/structure/value-stream/[id]"],
   feature: [
     "/portfolio/epics/[id]",
     "/feature/[featureId]",
@@ -67,12 +67,12 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     // Portfolio-Manager) auffrischen.
     "/my-tasks",
   ],
-  valueStream: ["/structure", "/value-streams/[id]"],
+  valueStream: ["/structure", "/structure/value-stream/[id]"],
   // Solutions wirken auf die Verwaltungsseiten UND auf den abgeleiteten
   // Epic-Horizont (Kanban-Swimlanes, Guardrail, Epic-Detail).
   solution: [
-    "/portfolio/solutions",
-    "/portfolio/solutions/[id]",
+    "/structure/solutions",
+    "/structure/solution/[id]",
     "/portfolio",
     "/portfolio/dashboard",
     // Der Horizont haengt an der Primaer-Solution — ohne das bleibt die
@@ -90,12 +90,12 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/portfolio",
     "/portfolio/epics/[id]",
     "/structure",
-    "/timelines",
-    "/value-streams/[id]",
+    "/structure/timelines",
+    "/structure/value-stream/[id]",
     "/reporting/portfolio-health",
   ],
   pi: ["/umsetzung", "/structure", "/pi/[piId]", "/pi-planning"],
-  piStandard: ["/structure", "/value-streams/[id]"],
+  piStandard: ["/structure", "/structure/value-stream/[id]"],
   budgetPlanRevision: ["/budgeting", "/budgeting/budget-plan", "/budgeting/budget-plan/[id]"],
   budgetRound: ["/budgeting", "/budgeting/rounds", "/budgeting/round", "/budgeting/periods/[id]"],
   budgetPeriod: ["/budgeting", "/budgeting/periods", "/budgeting/periods/[id]", "/my-tasks"],
@@ -105,11 +105,11 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   // Betriebskosten sind die Run-Zahl der Solution — die beiden
   // Solution-Flächen hängen mit dran.
   rtbItem: [
-    "/value-streams/[id]",
+    "/structure/value-stream/[id]",
     "/budgeting/periods/[id]",
     "/budgeting/run-the-business",
-    "/portfolio/solutions",
-    "/portfolio/solutions/[id]",
+    "/structure/solutions",
+    "/structure/solution/[id]",
   ],
   // Timeline mutations ripple anywhere PIs surface (planning, PI detail) and
   // the structure tab that hosts the management UI.

@@ -50,6 +50,9 @@ export type AuditAction =
   | "epic.hypothesis.approved"
   | "epic.hypothesis.rejected"
   | "epic.approval.configured"
+  // Ausnahme von der Kostenregel (Guardrail 3): dieses Epic bleibt
+  // Portfolio-Sache, obwohl seine Kosten unter dem Limit liegen.
+  | "epic.portfolio_override.set"
   | "epic.business_case.submitted"
   | "epic.business_case.reopened"
   | "epic.approval.granted"

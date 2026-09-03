@@ -6,7 +6,6 @@ import type { ArtId } from "@/modules/core/kernel/domain/types";
 
 const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  piCadenceWeeks: z.number().int().min(8).max(12).optional(),
 });
 
 interface Ctx {

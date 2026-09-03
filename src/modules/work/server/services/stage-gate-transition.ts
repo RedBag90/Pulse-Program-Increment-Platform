@@ -143,20 +143,30 @@ export async function loadEpicGateFacts(
 }
 
 /**
- * Löst die Abnehmer für ein Ziel-Gate auf: zwei Queries, danach entscheidet
+ * Löst die Abnehmer für ein Ziel-Gate auf: drei Queries, danach entscheidet
  * ausschliesslich reine Logik. Die Wertstrom-Governance-Spalten
  * (`financeApproverId`/`vmoId`) speisen dieselben Platzhalter, die
  * `buildApprovalView` für den Business Case schon nutzt.
+ *
+ * Dritte Quelle: der **Produkt-Manager der Primär-Solution** des Epics. Er
+ * zeichnet an L3.1 bei allen Epics seiner Solution mit, an L4 nur bei
+ * ART-Epics — welche das sind, entscheidet `expandApprovers` anhand der
+ * mitgegebenen Klasse.
  */
 export async function resolveGateApprovers(
   tx: Prisma.TransactionClient,
   tenantId: string,
-  epic: { valueStreamId: string | null; ownerId: string | null },
+  epic: {
+    valueStreamId: string | null;
+    ownerId: string | null;
+    primarySolutionId?: string | null;
+    epicClass?: "portfolio" | "art" | null;
+  },
   toGate: GateStep,
   override?: readonly ApproverOverride[] | undefined,
   opts?: { multiPartyApproval?: boolean },
 ): Promise<{ policy: GatePolicy; approvers: ResolvedApprover[] }> {
-  const [ruleRows, valueStream] = await Promise.all([
+  const [ruleRows, valueStream, solution] = await Promise.all([
     tx.stageGateApproverRule.findMany({
       where: {
         tenantId,
@@ -183,6 +193,12 @@ export async function resolveGateApprovers(
           select: { financeApproverId: true, vmoId: true },
         })
       : Promise.resolve(null),
+    epic.primarySolutionId
+      ? tx.solution.findUnique({
+          where: { id: epic.primarySolutionId },
+          select: { productManagerId: true },
+        })
+      : Promise.resolve(null),
   ]);
 
   const policy = resolveGatePolicy(toGate, ruleRows as GateApproverRuleRow[], epic.valueStreamId, {
@@ -194,6 +210,8 @@ export async function resolveGateApprovers(
       valueStreamFinanceApproverId: valueStream?.financeApproverId ?? null,
       valueStreamVmoId: valueStream?.vmoId ?? null,
       epicOwnerId: epic.ownerId,
+      solutionProductManagerId: solution?.productManagerId ?? null,
+      epicClass: epic.epicClass ?? null,
     },
     override,
   );

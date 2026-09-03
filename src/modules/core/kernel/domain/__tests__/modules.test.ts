@@ -19,7 +19,7 @@ import { POLICIES, type Action } from "@/server/auth/policies";
 describe("moduleForPath", () => {
   it("mappt Segmente auf die 4 Module (mit und ohne Locale-Präfix)", () => {
     expect(moduleForPath("/de/ziele")).toBe("core");
-    expect(moduleForPath("/value-streams/123")).toBe("core");
+    expect(moduleForPath("/structure/value-stream/123")).toBe("core");
     expect(moduleForPath("/de/admin/users")).toBe("core");
     expect(moduleForPath("/en/portfolio/epics/123")).toBe("work");
     expect(moduleForPath("/de/reporting/portfolio-health")).toBe("work");
@@ -27,6 +27,22 @@ describe("moduleForPath", () => {
     expect(moduleForPath("/roadmap/portfolio")).toBe("drumbeat");
     expect(moduleForPath("/budgeting/budget-plan")).toBe("budgeting");
     expect(moduleForPath("/de/issues")).toBe("risks");
+  });
+
+  // Der Baum ist `core` — die beiden Flächen darin gehören oberen Modulen.
+  // Ohne die Unterpfad-Ausnahmen ließe der Route-Guard sie überall durch.
+  it("Unterpfade unter /structure folgen ihrem eigenen Modul", () => {
+    expect(moduleForPath("/structure")).toBe("core");
+    expect(moduleForPath("/de/structure/art/abc")).toBe("core");
+    expect(moduleForPath("/structure/solutions")).toBe("work");
+    expect(moduleForPath("/de/structure/solutions/abc")).toBe("work");
+    expect(moduleForPath("/structure/timelines")).toBe("drumbeat");
+    expect(moduleForPath("/en/structure/timelines")).toBe("drumbeat");
+  });
+
+  // Ein Präfix darf nicht auf einen gleichnamigen Anfang durchschlagen.
+  it("greift nur auf Segmentgrenzen", () => {
+    expect(moduleForPath("/structure/solutions-archiv")).toBe("core");
   });
 
   it("core-Segmente + Root sind immer verfügbar", () => {
@@ -127,9 +143,7 @@ describe("moduleForAction", () => {
     const actions = Object.keys(POLICIES) as Action[];
     const dead = MODULE_KEYS.flatMap((k) =>
       MODULES[k].actions
-        .filter((m) =>
-          actions.every((a) => (m.endsWith(".") ? !a.startsWith(m) : a !== m)),
-        )
+        .filter((m) => actions.every((a) => (m.endsWith(".") ? !a.startsWith(m) : a !== m)))
         .map((m) => `${k}: ${m}`),
     );
     expect(dead).toEqual([]);

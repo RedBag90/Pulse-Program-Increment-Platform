@@ -9,6 +9,9 @@ const createEpicSchema = z.object({
   description: z.string().optional(),
   valueStreamId: z.string().uuid(),
   artId: z.string().uuid(),
+  // Pflicht wie im Anlege-Dialog: wer ein Epic anlegt, hinterlegt eine
+  // Erwartung. Sie entscheidet nichts, sie ist der Maßstab für die Abweichung.
+  intendedClass: z.enum(["portfolio", "art"]),
 });
 
 export const GET = createQueryHandler({
@@ -25,5 +28,6 @@ export const POST = createMutationHandler({
       description: input.description,
       valueStreamId: input.valueStreamId as ValueStreamId,
       artId: input.artId as ArtId,
+      intendedClass: input.intendedClass,
     }),
 });

@@ -77,6 +77,24 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    // Struktur: die Organisation hinter dem Portfolio — Wertströme, ARTs,
+    // Solutions, PI-Kadenz. Steht **vor** Portfolio, weil sie dessen Grundlage
+    // ist: erst die Organisation, dann was sie tut. Bis 2026-09 hing sie unter
+    // „Setup" zwischen Leitfaden und Timelines, was ihrer gewachsenen Bedeutung
+    // nicht mehr entsprach.
+    //
+    // Solutions und Timelines gehören zu Work bzw. Drumbeat — sie werden vom
+    // Route-Guard über die Unterpfad-Ausnahmen in `moduleForPath` ausgeblendet,
+    // nicht über eine Practice.
+    labelKey: "structure",
+    defaultHref: "/structure",
+    items: [
+      { href: "/structure", labelKey: "organisation", icon: Network, exact: true },
+      { href: "/structure/solutions", labelKey: "solutions", icon: Boxes },
+      { href: "/structure/timelines", labelKey: "timelines", icon: CalendarDays },
+    ],
+  },
+  {
     labelKey: "portfolio",
     defaultHref: "/portfolio",
     items: [
@@ -88,12 +106,6 @@ export const NAV_GROUPS: NavGroup[] = [
         practice: "portfolioLevel",
       },
       { href: "/portfolio/epics", labelKey: "epics", icon: Layers, practice: "portfolioLevel" },
-      {
-        href: "/portfolio/solutions",
-        labelKey: "solutions",
-        icon: Boxes,
-        practice: "portfolioLevel",
-      },
       {
         href: "/portfolio/dashboard",
         labelKey: "portfolioDashboard",
@@ -173,18 +185,13 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    labelKey: "setupControlling",
-    defaultHref: "/setup",
-    items: [
-      { href: "/setup", labelKey: "setupGuide", icon: ClipboardCheck, exact: true },
-      { href: "/structure", labelKey: "structure", icon: Network },
-      { href: "/timelines", labelKey: "timelines", icon: CalendarDays },
-    ],
-  },
-  {
     labelKey: "admin",
     defaultHref: "/admin/users",
     items: [
+      // Der Setup-Leitfaden aus der aufgelösten Gruppe „Setup". Bewusst **ohne**
+      // Capability, obwohl die übrigen Einträge hier eine tragen: sonst verlöre
+      // ein frisch angelegter Mandant genau die Seite, die ihn einrichtet.
+      { href: "/setup", labelKey: "setupGuide", icon: ClipboardCheck, exact: true },
       {
         href: "/admin/users",
         labelKey: "users",

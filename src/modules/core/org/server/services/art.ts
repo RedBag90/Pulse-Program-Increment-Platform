@@ -14,14 +14,12 @@ import { notDeleted } from "@/server/db/soft-delete";
 export interface CreateArtInput {
   valueStreamId: ValueStreamId;
   name: string;
-  piCadenceWeeks?: number | undefined;
 }
 
 export interface UpdateArtInput {
   id: ArtId;
   name?: string | undefined;
   description?: string | undefined;
-  piCadenceWeeks?: number | undefined;
   /** Release Train Engineer; null clears it. */
   rteId?: string | null | undefined;
 }
@@ -31,7 +29,7 @@ export async function createArt(
   input: CreateArtInput,
 ): Promise<Result<{ id: ArtId }>> {
   const mctx = toMutationContext(ctx);
-  const { valueStreamId, name, piCadenceWeeks } = input;
+  const { valueStreamId, name } = input;
 
   return withAuditedTransaction(
     mctx,
@@ -48,7 +46,6 @@ export async function createArt(
           tenantId: mctx.tenantId,
           valueStreamId,
           name,
-          ...(piCadenceWeeks !== undefined && { piCadenceWeeks }),
         },
       });
 
@@ -63,7 +60,7 @@ export async function createArt(
 
 export async function updateArt(ctx: RequestContext, input: UpdateArtInput): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, name, description, piCadenceWeeks, rteId } = input;
+  const { id, name, description, rteId } = input;
 
   return withAuditedTransaction(
     mctx,
@@ -77,8 +74,8 @@ export async function updateArt(ctx: RequestContext, input: UpdateArtInput): Pro
 
       const { changes, data } = recordedUpdate({
         existing,
-        updates: { name, description, piCadenceWeeks, rteId },
-        fields: ["name", "description", "piCadenceWeeks", "rteId"] as const,
+        updates: { name, description, rteId },
+        fields: ["name", "description", "rteId"] as const,
       });
 
       await tx.art.update({ where: { id }, data });

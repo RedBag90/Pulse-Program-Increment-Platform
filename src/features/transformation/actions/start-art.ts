@@ -25,7 +25,7 @@ export const startArtAction = createServerAction({
   describeCreated: (v: { artId: string }) => ({
     id: v.artId,
     label: "ART",
-    href: `/art/${v.artId}`,
+    href: `/structure/art/${v.artId}`,
   }),
   schema,
   action: "art.create",

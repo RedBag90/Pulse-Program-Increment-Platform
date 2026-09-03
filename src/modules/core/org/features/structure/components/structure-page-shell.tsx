@@ -5,8 +5,6 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Network } from "lucide-react";
 import { StructureHeader } from "@/modules/core/org/features/structure/components/structure-header";
 import { StructureList } from "@/modules/core/org/features/structure/components/structure-list";
-import { VsDetailPane } from "@/modules/core/org/features/structure/components/vs-detail-pane";
-import { ArtDetailPane } from "@/modules/core/org/features/structure/components/art-detail-pane";
 import {
   parseSelection,
   encodeSelection,
@@ -22,10 +20,6 @@ interface Props {
   availableKinds: NodeKind[];
   model: StructurePageModel;
   canCreateVs: boolean;
-  canUpdateVs: boolean;
-  canCreateArt: boolean;
-  canUpdateArt: boolean;
-  canDeleteArt: boolean;
   canManageTimeline: boolean;
   /** Kadenz-Slots (Drumbeat). Vom Composition-Root (`/timelines`) injiziert,
    *  damit dieser Core-Org-Shell die Kadenz-Komponenten (Drumbeat) nicht direkt
@@ -45,10 +39,12 @@ function parseKind(raw: string | null): NodeKind | null {
 }
 
 /**
- * Structure page shell — owns URL state (`?kind`, `?q`, `?selected`) and the
- * two-column master-detail layout. Routes the right pane to one of three
- * detail panes (VS / ART / Timeline) based on the selected entity.
- * Mirrors `goals-page-shell.tsx`.
+ * Shell der **Kadenz-Fläche** (`/structure/timelines`) — URL-Zustand (`?kind`,
+ * `?q`, `?selected`) und das zweispaltige Master-Detail-Layout.
+ *
+ * Wertströme und ARTs haben seit dem Struktur-Umbau eigene Routen; ihre Panes
+ * sind entfallen. Übrig bleibt das Timeline-Detail, das der Composition-Root
+ * per Render-Funktion hereinreicht.
  */
 export function StructurePageShell({
   title,
@@ -56,10 +52,6 @@ export function StructurePageShell({
   availableKinds,
   model,
   canCreateVs,
-  canUpdateVs,
-  canCreateArt,
-  canUpdateArt,
-  canDeleteArt,
   canManageTimeline,
   createTimelineSlot,
   renderTimelineDetail,
@@ -133,23 +125,9 @@ export function StructurePageShell({
         </div>
 
         <div className="lg:sticky lg:top-6 lg:self-start">
-          {selection.kind === "vs" && model.vs.has(selection.id) ? (
-            <VsDetailPane
-              vs={model.vs.get(selection.id)!}
-              canCreateArt={canCreateArt}
-              canUpdateVs={canUpdateVs}
-              onSelectArt={(id) => onSelectNode("art", id)}
-            />
-          ) : selection.kind === "art" && model.art.has(selection.id) ? (
-            <ArtDetailPane
-              art={model.art.get(selection.id)!}
-              canUpdateArt={canUpdateArt}
-              canDeleteArt={canDeleteArt}
-              onSelectNode={onSelectNode}
-            />
-          ) : selection.kind === "timeline" &&
-            model.timeline.has(selection.id) &&
-            renderTimelineDetail ? (
+          {selection.kind === "timeline" &&
+          model.timeline.has(selection.id) &&
+          renderTimelineDetail ? (
             renderTimelineDetail(model.timeline.get(selection.id)!, onSelectNode)
           ) : (
             <EmptyPane />

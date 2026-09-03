@@ -4,8 +4,10 @@ import {
   type CandidateFinal,
 } from "@/modules/budgeting/server/views/period-valuestreams";
 
-const vsName = (id: string | null) => (id === "vs1" ? "Payments" : id === "vs2" ? "Growth" : "Ohne Wertstrom");
-const artName = (id: string | null) => (id === "a1" ? "Checkout" : id === "a2" ? "Wallet" : "ohne ART");
+const vsName = (id: string | null) =>
+  id === "vs1" ? "Payments" : id === "vs2" ? "Growth" : "Ohne Wertstrom";
+const artName = (id: string | null) =>
+  id === "a1" ? "Checkout" : id === "a2" ? "Wallet" : "ohne ART";
 
 describe("buildPeriodValueStreams", () => {
   it("faltet Run (RtB) + Change (Epics nach ART) je Value Stream", () => {

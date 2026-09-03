@@ -56,7 +56,7 @@ export const CREATE_REGISTRY: CreateEntry[] = [
     group: "portfolio",
     indentLevel: 1,
     inPlace: true,
-    resolveHref: () => "/portfolio/solutions?create=solution",
+    resolveHref: () => "/structure/solutions?create=solution",
   },
   {
     key: "epic",

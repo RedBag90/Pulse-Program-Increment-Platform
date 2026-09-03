@@ -28,9 +28,10 @@ const KIND_LABELS: Record<NodeKind, string> = {
   vs: "Wertströme",
   art: "ARTs",
   timeline: "Timelines",
+  solution: "Solutions",
 };
 
-const KIND_ORDER: NodeKind[] = ["vs", "art", "timeline"];
+const KIND_ORDER: NodeKind[] = ["vs", "art", "solution", "timeline"];
 
 /**
  * Title + primary CTAs (Wertstrom anlegen · Timeline anlegen) + node-kind

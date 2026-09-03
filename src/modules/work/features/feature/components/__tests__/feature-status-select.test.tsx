@@ -18,9 +18,9 @@ vi.mock("@/modules/work/features/feature/actions/feature", () => ({
 }));
 
 function optionByLabel(label: string): HTMLOptionElement {
-  const opt = screen
-    .getAllByRole("option")
-    .find((o) => o.textContent === label) as HTMLOptionElement | undefined;
+  const opt = screen.getAllByRole("option").find((o) => o.textContent === label) as
+    | HTMLOptionElement
+    | undefined;
   if (!opt) throw new Error(`Option „${label}" fehlt`);
   return opt;
 }
@@ -75,7 +75,9 @@ describe("FeatureStatusSelect", () => {
   });
 
   it("ohne Recht ist das Feld gesperrt", () => {
-    render(<FeatureStatusSelect featureId="f1" status="approved" label="Antragsstrecke" disabled />);
+    render(
+      <FeatureStatusSelect featureId="f1" status="approved" label="Antragsstrecke" disabled />,
+    );
     expect(screen.getByRole("combobox")).toBeDisabled();
   });
 });

@@ -1,7 +1,12 @@
 "use server";
 
 import { z } from "zod";
-import { createEpic, updateEpic, softDeleteEpic } from "@/modules/work/server/services/epic";
+import {
+  createEpic,
+  updateEpic,
+  softDeleteEpic,
+  setPortfolioOverride,
+} from "@/modules/work/server/services/epic";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import type { ValueStreamId, EpicId, ArtId } from "@/modules/core/kernel/domain/types";
@@ -22,6 +27,9 @@ export const createEpicAction = createServerAction({
     valueStreamId: z.string().uuid(),
     artId: z.string().uuid(),
     primarySolutionId: z.string().uuid().nullable().optional(),
+    // Pflicht beim Anlegen — die Spalte bleibt nullable für Bestands-Epics,
+    // aber wer ein neues anlegt, soll sich eine Meinung bilden.
+    intendedClass: z.enum(["portfolio", "art"]),
   }),
   action: "epic.create",
   // valueStreamId carries the scope so a value_stream_owner can only create
@@ -35,6 +43,7 @@ export const createEpicAction = createServerAction({
       description: f.nonEmptyString("description"),
       valueStreamId: f.string("valueStreamId"),
       artId: f.string("artId"),
+      intendedClass: f.string("intendedClass"),
       // Leeres Solution-Feld → weglassen (optional).
       ...(sol !== undefined && { primarySolutionId: sol }),
     };
@@ -45,6 +54,7 @@ export const createEpicAction = createServerAction({
       description: input.description,
       valueStreamId: input.valueStreamId as ValueStreamId,
       artId: input.artId as ArtId,
+      intendedClass: input.intendedClass,
       ...(input.primarySolutionId !== undefined && { primarySolutionId: input.primarySolutionId }),
     }),
   revalidate: "epic",
@@ -183,4 +193,34 @@ export const deleteEpicAction = createServerAction({
   revalidate: "epic",
   mapError: (e) =>
     formatDomainError(e, { notFound: "Epic not found", fallback: "Failed to delete epic" }),
+});
+
+/**
+ * Auf der beim Anlegen hinterlegten Erwartung bestehen: dieses Epic bleibt
+ * Portfolio-Sache, obwohl der Business Case es unter das Limit bringt.
+ *
+ * Der Wertstrom trägt den Scope, damit ein Value Stream Owner nur in seinem
+ * eigenen bestehen kann. Die Begründung ist Pflicht — eine Ausnahme ohne Grund
+ * ist im Nachhinein nicht zu beurteilen.
+ */
+export const setPortfolioOverrideAction = createServerAction({
+  schema: z.object({
+    epicId: z.string().uuid(),
+    valueStreamId: z.string().uuid(),
+    reason: z.string().min(1).max(500),
+  }),
+  action: "epic.portfolio_override",
+  resource: (input, p) => ({ tenantId: p.tenantId, valueStreamId: input.valueStreamId }),
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      epicId: f.string("epicId"),
+      valueStreamId: f.string("valueStreamId"),
+      reason: f.string("reason"),
+    };
+  },
+  service: (ctx, input) =>
+    setPortfolioOverride(ctx, { epicId: input.epicId as EpicId, reason: input.reason }),
+  revalidate: "epic",
+  mapError: (e) => formatDomainError(e, { fallback: "Ausnahme konnte nicht gesetzt werden" }),
 });

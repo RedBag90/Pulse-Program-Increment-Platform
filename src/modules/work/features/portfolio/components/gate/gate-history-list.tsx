@@ -42,9 +42,7 @@ export function GateHistoryList({
   userLabels: Record<string, string>;
 }) {
   if (history.length === 0) {
-    return (
-      <p className="text-xs text-muted-foreground">Noch kein Reifegrad-Wechsel beantragt.</p>
-    );
+    return <p className="text-xs text-muted-foreground">Noch kein Reifegrad-Wechsel beantragt.</p>;
   }
 
   return (

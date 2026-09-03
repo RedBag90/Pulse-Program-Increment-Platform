@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 
-import { classifyEpic, type EpicClassState } from "@/modules/work/domain/pb-submission";
+import {
+  classifyEpic,
+  type EpicClassState,
+  classificationDrift,
+  driftAllowsOverride,
+} from "@/modules/work/domain/pb-submission";
 
 const LIMIT = 100_000;
 const bc = (...slices: number[]) => ({
@@ -68,5 +73,33 @@ describe("classifyEpic", () => {
 
   it("ein Business Case ohne Kostenscheiben zählt als 0 und damit als ART-Epic", () => {
     expect(classifyEpic(epic({ businessCase: { current: {} } }), LIMIT).epicClass).toBe("art");
+  });
+});
+
+describe("classificationDrift", () => {
+  it("meldet nichts, solange es nichts zu vergleichen gibt", () => {
+    expect(classificationDrift(null, "art")).toBe("none");
+    expect(classificationDrift("art", null)).toBe("none");
+    expect(classificationDrift(null, null)).toBe("none");
+  });
+
+  it("meldet nichts bei Übereinstimmung", () => {
+    expect(classificationDrift("art", "art")).toBe("none");
+    expect(classificationDrift("portfolio", "portfolio")).toBe("none");
+  });
+
+  it("nennt die Richtung der Abweichung", () => {
+    expect(classificationDrift("art", "portfolio")).toBe("up");
+    expect(classificationDrift("portfolio", "art")).toBe("down");
+  });
+});
+
+describe("driftAllowsOverride", () => {
+  // Nur nach unten: was über dem Limit liegt, braucht eine Portfolio-
+  // Entscheidung — und ein ART-Rahmen könnte es ohnehin nicht tragen.
+  it("erlaubt das Bestehen nur, wenn es zum ART-Epic würde", () => {
+    expect(driftAllowsOverride("down")).toBe(true);
+    expect(driftAllowsOverride("up")).toBe(false);
+    expect(driftAllowsOverride("none")).toBe(false);
   });
 });

@@ -18,7 +18,6 @@ interface Props {
   id: string;
   name: string;
   description: string;
-  piCadenceWeeks: number;
   rteId: string;
   /** Users holding the `rte` role — options for the RTE picker. */
   rteUsers: UserOption[];
@@ -26,15 +25,7 @@ interface Props {
 }
 
 /** Inline editor for an ART's details — the Overview tab. */
-export function ArtOverviewForm({
-  id,
-  name,
-  description,
-  piCadenceWeeks,
-  rteId,
-  rteUsers,
-  userLabels,
-}: Props) {
+export function ArtOverviewForm({ id, name, description, rteId, rteUsers, userLabels }: Props) {
   const [state, action, isPending] = useActionState(updateArtAction, {});
 
   return (
@@ -49,19 +40,6 @@ export function ArtOverviewForm({
       <div className="space-y-1.5">
         <Label htmlFor="art-description">Beschreibung</Label>
         <Textarea id="art-description" name="description" defaultValue={description} rows={4} />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="art-cadence">PI-Kadenz (Wochen)</Label>
-        <Input
-          id="art-cadence"
-          name="piCadenceWeeks"
-          type="number"
-          min={8}
-          max={12}
-          defaultValue={piCadenceWeeks}
-          className="w-32"
-        />
       </div>
 
       <div className="space-y-1.5 max-w-xs">

@@ -303,7 +303,6 @@ async function main() {
       description: "Das Planungsteam: drei Epic Owner, drei Feature Owner.",
       rteId: rte,
       timelineId,
-      piCadenceWeeks: PI_WEEKS,
     },
   });
 

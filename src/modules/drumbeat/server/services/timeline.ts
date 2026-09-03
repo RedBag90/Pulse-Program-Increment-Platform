@@ -373,7 +373,7 @@ export async function createTimelineFromStandard(
 
 /**
  * For every ART without a Timeline, creates a Timeline named after the ART
- * (cadence = `Art.piCadenceWeeks`) and assigns it. For every PI without a
+ * and assigns it. For every PI without a
  * `timelineId` but with a legacy `artId`, sets `pi.timelineId = art.timelineId`.
  * Idempotent — safe to run repeatedly.
  *

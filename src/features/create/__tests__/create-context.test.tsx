@@ -13,8 +13,8 @@ describe("parseCreateContext", () => {
   });
 
   it("extracts artId from an ART route and its nested pages", () => {
-    expect(parseCreateContext("/art/art-1")).toEqual({ artId: "art-1" });
-    expect(parseCreateContext("/art/art-1/features")).toEqual({ artId: "art-1" });
+    expect(parseCreateContext("/structure/art/art-1")).toEqual({ artId: "art-1" });
+    expect(parseCreateContext("/structure/art/art-1/features")).toEqual({ artId: "art-1" });
   });
 
   it("extracts piId and featureId", () => {

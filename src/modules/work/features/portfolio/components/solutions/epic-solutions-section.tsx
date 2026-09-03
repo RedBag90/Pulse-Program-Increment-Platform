@@ -63,7 +63,10 @@ export function EpicSolutionsSection({
       <div className="rounded-lg border border-dashed bg-card/50 px-3 py-3 text-sm text-muted-foreground">
         Keine Solutions im Value Stream dieses Epics.{" "}
         {canEdit && (
-          <Link href="/portfolio/solutions?create=solution" className="text-primary hover:underline">
+          <Link
+            href="/structure/solutions?create=solution"
+            className="text-primary hover:underline"
+          >
             Solution anlegen
           </Link>
         )}
@@ -99,7 +102,11 @@ export function EpicSolutionsSection({
                 aria-label="Als primär setzen"
                 disabled={!canEdit || !isLinked}
                 onClick={() => setPrimary(s.id)}
-                className={isPrimary ? "text-amber-500" : "text-muted-foreground/40 hover:text-amber-500 disabled:opacity-40"}
+                className={
+                  isPrimary
+                    ? "text-amber-500"
+                    : "text-muted-foreground/40 hover:text-amber-500 disabled:opacity-40"
+                }
               >
                 <Star className={`size-4 ${isPrimary ? "fill-amber-400" : ""}`} />
               </button>

@@ -66,7 +66,7 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
     // Kernel + Ziele/OKR + Org-Struktur (VS/ART) + Setup/Struktur + Admin.
     // `team` ist mit dem Team-Rückbau (fd8164a) entfallen — Plattform bleibt auf
     // Wertstrom + ART.
-    segments: ["ziele", "structure", "setup", "transformation", "value-streams", "art", "admin"],
+    segments: ["ziele", "structure", "setup", "transformation", "admin"],
     actions: [
       "target.manage",
       "goal.",
@@ -91,29 +91,21 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
     segments: ["portfolio", "feature", "reporting"],
     // `portfolio_filter.manage` sind die persönlich gespeicherten Filter der
     // Portfolio-Übersicht — ohne Work gibt es die Fläche nicht.
-    actions: ["epic.", "feature.", "portfolio_filter.manage"],
+    //
+    // `solution.` war bis zum Struktur-Umbau **keinem** Modul zugeordnet — die
+    // Vollständigkeits-Invariante unten war deswegen dauerhaft rot. Solutions
+    // sind Work: sie tragen den Grow-Anteil aus den Primär-Epics.
+    actions: ["epic.", "feature.", "solution.", "portfolio_filter.manage"],
     home: "/portfolio",
   },
   drumbeat: {
     label: "Drumbeat",
-    // Detailliertes Planen/Ausführen: Cockpit, PI-Planung, Dependencies, Roadmap,
-    // PI-Kadenz (Timelines/PI-Standards — nachträglich pro ART, nur mit Drumbeat).
-    segments: [
-      "umsetzung",
-      "implementation",
-      "pi",
-      "pi-planning",
-      "dependencies",
-      "roadmap",
-      "timelines",
-    ],
-    actions: [
-      "pi.",
-      "dependency.",
-      "impediment.",
-      "timeline.manage",
-      "pi_standard.manage",
-    ],
+    // Detailliertes Planen/Ausführen: Cockpit, PI-Planung, Dependencies, Roadmap.
+    // Die PI-Kadenz (Timelines/PI-Standards) liegt seit dem Struktur-Umbau unter
+    // `/structure/timelines` und wird über `PATH_OVERRIDES` gegated — sie ist
+    // deshalb kein eigenes Einstiegssegment mehr.
+    segments: ["umsetzung", "implementation", "pi", "pi-planning", "dependencies", "roadmap"],
+    actions: ["pi.", "dependency.", "impediment.", "timeline.manage", "pi_standard.manage"],
     home: "/umsetzung",
   },
   budgeting: {
@@ -142,6 +134,25 @@ const SEGMENT_TO_MODULE: ReadonlyMap<string, ModuleKey> = new Map(
   ),
 );
 
+/**
+ * Unterpfade, die **nicht** dem Modul ihres ersten Segments folgen.
+ *
+ * Der Bereich `/structure` ist `core` — der Baum aus Wertströmen und ARTs muss
+ * in jedem Mandanten erreichbar sein. Zwei Flächen darin gehören aber oberen
+ * Modulen: die Solutions-Verwaltung zu **Work**, die PI-Kadenz zu **Drumbeat**.
+ * Ohne diese Ausnahmen ließe der Route-Guard sie in jedem Mandanten durch —
+ * eine stille Entitlement-Lücke, die man erst bemerkt, wenn jemand eine Fläche
+ * bedient, für die er nicht bezahlt.
+ *
+ * Bewusst eine kurze, explizite Liste statt einer Regel: die Ausnahmen sind
+ * wenige und sollen einzeln sichtbar bleiben.
+ */
+const PATH_OVERRIDES: ReadonlyArray<readonly [prefix: string, module: ModuleKey]> = [
+  ["/structure/solutions", "work"],
+  ["/structure/solution", "work"],
+  ["/structure/timelines", "drumbeat"],
+];
+
 /** Locale-Präfix („/de/…") abstreifen; Eingabe darf mit oder ohne kommen. */
 function stripLocale(path: string): string {
   const m = /^\/[a-z]{2}(\/|$)/i.exec(path);
@@ -155,7 +166,14 @@ function stripLocale(path: string): string {
  * Segmente liefern ebenfalls `"core"` (der Key ist gleichlautend).
  */
 export function moduleForPath(path: string): ModuleKey | "core" | null {
-  const seg = stripLocale(path).split("/").filter(Boolean)[0];
+  const rest = stripLocale(path);
+  // Vor der Segment-Regel: sonst gewönne `/structure` → core.
+  const override = PATH_OVERRIDES.find(
+    ([prefix]) => rest === prefix || rest.startsWith(`${prefix}/`),
+  );
+  if (override) return override[1];
+
+  const seg = rest.split("/").filter(Boolean)[0];
   if (!seg) return "core"; // Root → /start-Dispatch
   if (CORE_SEGMENTS.includes(seg)) return "core";
   return SEGMENT_TO_MODULE.get(seg) ?? null;

@@ -200,3 +200,40 @@ export const EPIC_CLASS_LABELS: Record<EpicClass, string> = {
   portfolio: "Portfolio-Epic",
   art: "ART-Epic",
 };
+
+/** Die beim Anlegen hinterlegte Erwartung; `null` = keine (Bestands-Epics). */
+export type IntendedClass = EpicClass | null;
+
+/**
+ * Wie die abgeleitete Klasse von der Erwartung abweicht.
+ *
+ * - `none` — sie stimmen überein, oder es gibt (noch) nichts zu vergleichen:
+ *   ohne Erwartung, oder solange der Business Case nicht freigegeben ist.
+ * - `up` — erwartet ART, abgeleitet **Portfolio**: das Vorhaben ist größer als
+ *   gedacht und braucht eine Portfolio-Entscheidung.
+ * - `down` — erwartet Portfolio, abgeleitet **ART**: es fällt unter das Limit
+ *   und hängt künftig am Rahmen seines ARTs statt am Portfolio-Ballot.
+ */
+export type ClassificationDrift = "none" | "up" | "down";
+
+export function classificationDrift(
+  intended: IntendedClass,
+  derived: EpicClass | null,
+): ClassificationDrift {
+  if (intended == null || derived == null || intended === derived) return "none";
+  return derived === "portfolio" ? "up" : "down";
+}
+
+/**
+ * Darf auf der Erwartung bestanden werden?
+ *
+ * **Nur nach unten.** Erwartet Portfolio, abgeleitet ART: dann kann jemand mit
+ * dem Recht erklären, dass es Portfolio-Sache bleibt — dafür gibt es den
+ * `portfolioOverride`. In die andere Richtung bindet die Kostenregel: was über
+ * dem Limit liegt, braucht eine Portfolio-Entscheidung. Ein Bestehen wäre dort
+ * auch praktisch leer, weil ein ART-Epic aus dem Veränderungsrahmen bezahlt
+ * wird und der Schreibpfad jede Zuteilung am Rahmen deckelt.
+ */
+export function driftAllowsOverride(drift: ClassificationDrift): boolean {
+  return drift === "down";
+}

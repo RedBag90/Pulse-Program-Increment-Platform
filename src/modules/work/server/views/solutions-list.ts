@@ -45,12 +45,24 @@ export function growByPrimarySolution(
   return { grow, count };
 }
 
+/** Einschränkung auf einen Knoten der Struktur-Fläche; leer = der ganze Mandant. */
+export interface SolutionListFilter {
+  valueStreamId?: string | undefined;
+  artId?: string | undefined;
+}
+
 export async function loadSolutionsList(
   db: PrismaClient,
   tenantId: string,
+  filter: SolutionListFilter = {},
 ): Promise<SolutionListRow[]> {
   const solutions = await db.solution.findMany({
-    where: { tenantId, ...notDeleted },
+    where: {
+      tenantId,
+      ...notDeleted,
+      ...(filter.valueStreamId ? { valueStreamId: filter.valueStreamId } : {}),
+      ...(filter.artId ? { artId: filter.artId } : {}),
+    },
     select: {
       id: true,
       name: true,

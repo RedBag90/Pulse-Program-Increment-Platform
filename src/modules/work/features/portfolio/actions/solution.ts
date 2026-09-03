@@ -27,7 +27,7 @@ export const createSolutionAction = createServerAction({
   describeCreated: (v: { id: string }) => ({
     id: v.id,
     label: "Solution",
-    href: `/portfolio/solutions/${v.id}`,
+    href: `/structure/solution/${v.id}`,
   }),
   schema: z.object({
     name: z.string().min(1).max(200),
@@ -35,6 +35,7 @@ export const createSolutionAction = createServerAction({
     valueStreamId: z.string().uuid(),
     artId: z.string().uuid().nullable(),
     status,
+    productManagerId: z.string().uuid().nullable().optional(),
   }),
   action: "solution.create",
   resource: tenantResource,
@@ -46,6 +47,7 @@ export const createSolutionAction = createServerAction({
       valueStreamId: f.string("valueStreamId"),
       artId: f.nonEmptyString("artId") ?? null,
       status: (f.nonEmptyString("status") ?? "investing") as z.infer<typeof status>,
+      productManagerId: f.nonEmptyString("productManagerId") ?? null,
     };
   },
   service: (ctx, input) => {
@@ -57,6 +59,7 @@ export const createSolutionAction = createServerAction({
       artId: input.artId,
       horizon,
       investmentMode,
+      productManagerId: input.productManagerId ?? null,
     });
   },
   revalidate: "solution",
@@ -75,6 +78,7 @@ export const updateSolutionAction = createServerAction({
     valueStreamId: z.string().uuid().optional(),
     artId: z.string().uuid().nullable().optional(),
     status: status.optional(),
+    productManagerId: z.string().uuid().nullable().optional(),
   }),
   action: "solution.update",
   resource: tenantResource,
@@ -87,6 +91,7 @@ export const updateSolutionAction = createServerAction({
       valueStreamId: f.nonEmptyString("valueStreamId"),
       artId: f.nullableString("artId"),
       status: f.nonEmptyString("status") as z.infer<typeof status> | undefined,
+      productManagerId: f.nullableString("productManagerId"),
     };
   },
   service: (ctx, input) => {
@@ -97,6 +102,7 @@ export const updateSolutionAction = createServerAction({
       description: input.description,
       valueStreamId: input.valueStreamId,
       artId: input.artId,
+      productManagerId: input.productManagerId,
       ...(decoded && { horizon: decoded.horizon, investmentMode: decoded.investmentMode }),
     });
   },
