@@ -1100,7 +1100,12 @@ async function main() {
   for (let n = 0; n < closedCycles.length; n++) {
     const cycleKey = ALL_CYCLES[closedCycles[n]!]!;
     const pool = budgetPoolByPeriod[cycleKey]!;
-    const finals = finalsFor([...fundedCands, ...rtbCands], pool);
+    // Der Betrieb wird zuerst bezahlt, dann konkurriert das Wachstum um den
+    // Rest. Andersherum erschöpften die 20 Epic-Anträge (~2 Mio €) den Topf
+    // von 1 Mio €, bevor die erste Run-the-Business-Position an der Reihe
+    // wäre — jede Position stünde in jeder Kachel mit 0 € da, und kein ART
+    // hätte je einen finanzierten Veränderungsrahmen.
+    const finals = finalsFor([...rtbCands, ...fundedCands], pool);
     const acc = [...finals.values()].reduce((a, b) => a + b, 0);
     await seedBudgetPeriod(tenantId, ADMIN, {
       key: `large-closed-${n}`,
@@ -1117,6 +1122,31 @@ async function main() {
       groups: buildGroups([true, true, true], amountsFor(fundedCands)),
     });
   }
+  // Betriebs- und Rahmenrunde des laufenden Halbjahres — abgeschlossen, während
+  // die Wachstumsrunde desselben Zyklus noch läuft. Das ist die Reihenfolge der
+  // Praxis: der Betrieb steht fest, bevor um neue Vorhaben gerungen wird.
+  //
+  // Sie ist zugleich die Voraussetzung dafür, dass ein ART **jetzt** verteilen
+  // kann: der Veränderungsrahmen eines Halbjahres ist die Summe der finalen
+  // `art_change`-Beträge aus den Kacheln genau dieses Zyklus. Ohne eine
+  // geschlossene Kachel im laufenden Halbjahr wäre jeder Topf 0 €, obwohl das
+  // Verteilfenster offen steht.
+  const rtbPool = rtbCands.reduce((sum, c) => sum + c.ask, 0);
+  await seedBudgetPeriod(tenantId, ADMIN, {
+    key: "large-rtb-current",
+    cycleKey: CURRENT_CYCLE,
+    status: "closed",
+    poolTotal: rtbPool,
+    startDate: addDays(cycleStart(CURRENT_CYCLE), -60),
+    endDate: cycleStart(CURRENT_CYCLE),
+    submissionDeadline: addDays(cycleStart(CURRENT_CYCLE), -40),
+    reserveAmount: 0,
+    participantUserIds: parts,
+    epicCandidates: [],
+    rtbCandidates: rtbCands.map((c) => ({ ...c, finalAmount: c.ask })),
+    groups: buildGroups([true, true, true], amountsFor([])),
+  });
+
   // Laufende Runde = Jahr 5 H1 — die L2-Epics konkurrieren um die €1 Mio.
   await seedBudgetPeriod(tenantId, ADMIN, {
     key: "large-running",
@@ -1368,6 +1398,25 @@ async function main() {
   const LIMIT = 100_000;
   const allocSpecs: ArtAllocationSpec[] = [];
 
+  // Die Verteilliste des ARTs zeigt nur **vorgemerkte** Epics. Bei der Anlage
+  // war `stagedForBudgeting` an L2 geknüpft (definiert, wartet auf Budget) —
+  // ein ART-Epic braucht aber einen freigegebenen Business Case und steht damit
+  // frühestens auf L3.1. Die beiden Mengen überschneiden sich nie, die Liste
+  // bliebe zwangsläufig leer. Die Vormerkung meldet hier keine Portfolio-Runde
+  // an, sondern die Verteilung durch den Wertstrom.
+  const artEpicIds = artEpicRows
+    .filter((e) => {
+      const cost = computeBusinessCaseTotals(
+        parseBusinessCase(e.businessCase).current,
+      ).implementationCost;
+      return cost > 0 && cost <= LIMIT;
+    })
+    .map((e) => e.id);
+  await prisma.initiative.updateMany({
+    where: { tenantId, id: { in: artEpicIds } },
+    data: { stagedForBudgeting: true },
+  });
+
   // Der Rahmen je ART ist der Deckel — in der Anwendung prüft ihn der
   // Schreibpfad in derselben Transaktion. Ein Seed, der daran vorbeischreibt,
   // erzeugt Töpfe, die dauerhaft überzogen dastehen: einen Zustand, den das
@@ -1399,13 +1448,13 @@ async function main() {
     allocSpecs.push({
       artId: e.artId,
       epicId: e.id,
-      cycleKey: ALL_CYCLES[MAX_IDX]!,
+      cycleKey: CURRENT_CYCLE,
       amount,
       ask: amount,
     });
   }
   await seedArtEpicAllocations(tenantId, ADMIN, allocSpecs);
-  console.log(`  ✓ ${allocSpecs.length} ART-Zuteilungen (${ALL_CYCLES[MAX_IDX]})`);
+  console.log(`  ✓ ${allocSpecs.length} ART-Zuteilungen (${CURRENT_CYCLE})`);
 
   await seedValueStreamGuardrails(
     tenantId,

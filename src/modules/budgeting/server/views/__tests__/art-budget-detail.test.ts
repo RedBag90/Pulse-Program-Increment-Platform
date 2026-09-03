@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 
-import { buildArtBudgetDetail } from "@/modules/budgeting/server/views/art-budget-detail";
+import {
+  buildArtBudgetDetail,
+  coverageVerdict,
+} from "@/modules/budgeting/server/views/art-budget-detail";
 
 const NOW = new Date("2026-04-15T00:00:00Z");
 
@@ -160,6 +163,20 @@ describe("buildArtBudgetDetail", () => {
     ]);
   });
 
+  // Ein Halbjahr, in dem der ART ausschließlich aus seinem eigenen Rahmen
+  // finanziert hat, kennt keine Kachel-Kandidaten. Fehlt es in der Achse, ist
+  // seine Verteilfläche nicht anwählbar — also unsichtbar.
+  it("bietet auch Halbjahre an, die nur ART-Zuteilungen kennen", () => {
+    const d = buildArtBudgetDetail({
+      ...base,
+      candidates: [cand("a", 100, "2025-H2")],
+      epics: [epic("a")],
+      artCycleKeys: ["2026-H1"],
+    });
+    expect(d.cycles.map((c) => c.key)).toEqual(["2026-H1", "2025-H2"]);
+    expect(d.cycleKey).toBe("2026-H1");
+  });
+
   it("reicht die Zuteilungen an Epics ohne ART durch", () => {
     const d = buildArtBudgetDetail({
       ...base,
@@ -168,5 +185,43 @@ describe("buildArtBudgetDetail", () => {
       epics: [],
     });
     expect(d.epicsWithoutArt).toEqual({ count: 2, amount: 200_000 });
+  });
+});
+
+describe("coverageVerdict", () => {
+  const cov = (
+    over: Partial<{ plannedJobSize: number; allocated: number; gap: number | null }>,
+  ) => ({
+    plannedJobSize: over.plannedJobSize ?? 0,
+    featureCount: 0,
+    rate: {
+      rate: 600,
+      source: "tenantDefault" as const,
+      cycles: [],
+      caveats: [],
+      budgetSum: 0,
+      jobSizeSum: 0,
+      featureCount: 0,
+    },
+    loadEuro: null,
+    allocated: over.allocated ?? 0,
+    gap: over.gap === undefined ? 0 : over.gap,
+  });
+
+  // Ohne eigenen Zustand meldete ein leerer ART „Gedeckt" — Entwarnung über nichts.
+  it("nennt einen ART ohne Last und ohne Zuteilung leer, nicht gedeckt", () => {
+    expect(coverageVerdict(cov({}))).toBe("empty");
+  });
+
+  it("bleibt bei Zuteilung ohne Last eine Deckungsaussage", () => {
+    expect(coverageVerdict(cov({ allocated: 200_000, gap: -200_000 }))).toBe("covered");
+  });
+
+  it("meldet Last ohne Zuteilung als überbucht", () => {
+    expect(coverageVerdict(cov({ plannedJobSize: 40, gap: 24_000 }))).toBe("over");
+  });
+
+  it("hält den unbekannten Satz vom leeren ART getrennt", () => {
+    expect(coverageVerdict(cov({ plannedJobSize: 40, gap: null }))).toBe("unknown");
   });
 });

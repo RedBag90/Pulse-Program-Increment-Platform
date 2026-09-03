@@ -9,6 +9,7 @@ import { ArtPotSection } from "@/modules/budgeting/features/components/art-budge
 import { AllocationCourseChart } from "@/modules/budgeting/features/components/art-budget/allocation-course-chart";
 import {
   type ArtCoverage,
+  coverageVerdict,
   UNFUNDED_REASON_LABELS,
   UNFUNDED_REMEDIES,
   type ArtBudgetDetail,
@@ -399,17 +400,31 @@ function ReallocationView({ detail }: { detail: ArtBudgetDetail }) {
  */
 function CoverageSection({ coverage }: { coverage: ArtCoverage }) {
   const { rate, gap } = coverage;
-  const over = gap != null && gap > 0;
+  const verdict = coverageVerdict(coverage);
+  // `gap > 0` steht doppelt, damit der Über-Betrag unten ohne `!` auskommt.
+  const over = verdict === "over" && gap != null && gap > 0;
+  // 0 − 0 ist in IEEE 754 die negative Null: `formatEUR(-gap)` schriebe „-0 €".
+  const under = gap == null ? null : gap === 0 ? 0 : -gap;
+  const accent = over
+    ? "var(--destructive)"
+    : verdict === "empty"
+      ? "var(--muted-foreground)"
+      : "var(--primary)";
 
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <span
           className="inline-block size-2.5 shrink-0 rounded-full"
-          style={{ background: over ? "var(--destructive)" : "var(--primary)" }}
+          style={{ background: accent }}
         />
         <p className="text-base">
-          {gap == null ? (
+          {verdict === "empty" ? (
+            <>
+              <strong className="font-semibold">Nichts zugeteilt</strong> — für dieses Halbjahr hat
+              dieser ART weder eingeplante Features noch Budget.
+            </>
+          ) : verdict === "unknown" ? (
             <>
               <strong className="font-semibold">Deckung nicht berechenbar</strong> — für diesen ART
               liegt kein €-Satz je Job-Size-Punkt vor.
@@ -423,7 +438,7 @@ function CoverageSection({ coverage }: { coverage: ArtCoverage }) {
           ) : (
             <>
               <strong className="font-semibold">Gedeckt</strong> — die eingeplanten Features bleiben{" "}
-              {formatEUR(-gap)} unter dem Budget.
+              {formatEUR(under ?? 0)} unter dem Budget.
             </>
           )}
         </p>
@@ -431,7 +446,7 @@ function CoverageSection({ coverage }: { coverage: ArtCoverage }) {
 
       <div
         className="rounded-r-lg border border-l-[3px] bg-card p-4"
-        style={{ borderLeftColor: over ? "var(--destructive)" : "var(--primary)" }}
+        style={{ borderLeftColor: accent }}
       >
         <dl className="space-y-1 text-sm">
           <div className="flex justify-between gap-4 border-b py-1.5">
@@ -453,7 +468,7 @@ function CoverageSection({ coverage }: { coverage: ArtCoverage }) {
           <div className="flex justify-between gap-4 py-1.5">
             <dt className={over ? "font-semibold text-destructive" : "font-semibold"}>Lücke</dt>
             <dd className={`font-semibold tabular-nums ${over ? "text-destructive" : ""}`}>
-              {gap == null ? "—" : formatEUR(-gap)}
+              {under == null ? "—" : formatEUR(under)}
             </dd>
           </div>
         </dl>

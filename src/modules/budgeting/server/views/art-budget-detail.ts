@@ -157,6 +157,21 @@ export interface ArtCoverage {
   gap: number | null;
 }
 
+/**
+ * Wie die Deckungs-Ampel zu lesen ist.
+ *
+ * `empty` ist der eigene Zustand für „hier ist noch gar nichts": ohne ihn
+ * meldete ein ART ohne eingeplante Features und ohne Zuteilung **„Gedeckt"** —
+ * eine Entwarnung über nichts.
+ */
+export type CoverageVerdict = "empty" | "unknown" | "over" | "covered";
+
+export function coverageVerdict(coverage: ArtCoverage): CoverageVerdict {
+  if (coverage.plannedJobSize === 0 && coverage.allocated === 0) return "empty";
+  if (coverage.gap == null) return "unknown";
+  return coverage.gap > 0 ? "over" : "covered";
+}
+
 interface CandidateRow {
   epicId: string;
   /** `null` = die Runde hat entschieden und nichts gegeben. */
@@ -235,8 +250,21 @@ export function buildArtBudgetDetail(input: {
   artNames: Record<string, string>;
   withoutArt: { count: number; amount: number };
   cycleKey?: string | undefined;
+  /**
+   * Halbjahre, in denen dieser ART aus **seinem eigenen Rahmen** verteilt hat.
+   *
+   * Ohne sie bildete sich die Achse allein aus den Kachel-Kandidaten: ein
+   * Halbjahr, in dem ein ART ausschließlich ART-Epics finanziert hat, wäre gar
+   * nicht anwählbar und seine Verteilfläche dauerhaft unsichtbar — genau der
+   * Normalfall, den Guardrail 3 herstellen soll.
+   */
+  artCycleKeys?: readonly string[] | undefined;
 }): ArtBudgetDetail {
-  const cycleKeys = [...new Set(input.candidates.map((c) => c.cycleKey))].sort().reverse();
+  const cycleKeys = [
+    ...new Set([...input.candidates.map((c) => c.cycleKey), ...(input.artCycleKeys ?? [])]),
+  ]
+    .sort()
+    .reverse();
   // Ohne Zuteilung zeigt die Fläche das laufende Halbjahr statt gar nichts.
   const cycles = (cycleKeys.length > 0 ? cycleKeys : [halfYearKey(input.now)]).map((key) => ({
     key,
@@ -366,7 +394,7 @@ export async function loadArtBudgetDetail(
 ): Promise<ArtBudgetDetail> {
   const now = opts.now ?? new Date();
 
-  const [finals, vsFinals, arts] = await Promise.all([
+  const [finals, vsFinals, arts, artCycles] = await Promise.all([
     db.budgetCandidate.findMany({
       where: { tenantId, kind: "epic", artId: art.id },
       select: {
@@ -389,6 +417,13 @@ export async function loadArtBudgetDetail(
       select: { finalAmount: true },
     }),
     db.art.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+    // Die Halbjahre, in denen dieser ART aus seinem Rahmen verteilt hat — zweite
+    // Quelle der Achse (siehe `artCycleKeys`).
+    db.artEpicAllocation.findMany({
+      where: { tenantId, artId: art.id },
+      select: { cycleKey: true },
+      distinct: ["cycleKey"],
+    }),
   ]);
 
   const candidates: CandidateRow[] = finals
@@ -414,6 +449,7 @@ export async function loadArtBudgetDetail(
       count: vsFinals.length,
       amount: vsFinals.reduce((s, f) => s + Number(f.finalAmount), 0),
     },
+    artCycleKeys: artCycles.map((c) => c.cycleKey),
     ...(opts.cycleKey != null ? { cycleKey: opts.cycleKey } : {}),
   });
 

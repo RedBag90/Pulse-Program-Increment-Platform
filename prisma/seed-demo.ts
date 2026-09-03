@@ -1080,9 +1080,13 @@ async function main() {
     }));
 
   // Alloc-Refs (epicId | rtbItemId) + ask, für Gruppen-Verteilung + Finals.
+  // Der Betrieb steht vorn: die Greedy-Vergabe unten läuft der Reihe nach, und
+  // die Epic-Anträge allein überschreiten den Topf. Andersherum stünde jede
+  // Run-the-Business-Position mit 0 € in der Kachel — samt der
+  // Veränderungsrahmen, deren Töpfe dann trotz Zuteilungen leer wären.
   const allRefs = [
-    ...epicCands.map((c) => ({ ref: c.epicId, ask: c.ask })),
     ...rtbCands.map((c) => ({ ref: c.rtbItemId, ask: c.ask })),
+    ...epicCands.map((c) => ({ ref: c.epicId, ask: c.ask })),
   ];
   const groupAmounts = (gi: number): Record<string, number> => {
     const out: Record<string, number> = {};
