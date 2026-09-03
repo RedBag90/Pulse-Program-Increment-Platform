@@ -23,7 +23,7 @@ export function OverviewMissionControl({ data }: { data: PortfolioOverview }) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <StrategicBlock data={data} />
-        <GoalContributionBlock rows={data.goalContributions} />
+        <GoalContributionBlock rows={data.goalContributions} classFilter={data.classFilter} />
       </div>
 
       <CompactKanban data={data} />
@@ -35,12 +35,14 @@ export function OverviewMissionControl({ data }: { data: PortfolioOverview }) {
             items={data.l4DueSoon}
             hrefBase="/portfolio/epics"
             emptyText="Kein Epic mit geplantem L4-Abschluss in den nächsten 4 Wochen."
+            classFilter={data.classFilter}
           />
           <DueSoonBlock
             label="Features fällig (≤ 2 Wochen)"
             items={data.featuresDueSoon}
             hrefBase="/feature"
             emptyText="Kein Feature mit geplantem Abschluss in den nächsten 2 Wochen."
+            classFilter={data.classFilter}
           />
         </div>
         <RisksBlock data={data} />

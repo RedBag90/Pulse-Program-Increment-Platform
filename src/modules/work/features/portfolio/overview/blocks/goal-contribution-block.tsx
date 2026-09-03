@@ -9,10 +9,20 @@ import {
   totalContribution,
   type ContributionMode,
 } from "@/modules/core/goals/domain/epic-contribution";
+import type { UnitValue } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import type {
-  EpicGoalContribution,
-  UnitValue,
-} from "@/modules/core/goals/server/views/epic-goal-contributions";
+  ClassFilterState,
+  ContributionRow,
+} from "@/modules/work/server/views/portfolio-overview";
+import {
+  isClassShown,
+  rollUpBySolution,
+  type SolutionRollup,
+} from "@/modules/work/domain/epic-class-filter";
+import {
+  RollupHint,
+  rollupCellTone,
+} from "@/modules/work/features/portfolio/overview/blocks/class-rollup";
 
 /** Kompakte Zahl (Muster aus der früheren Funding-Kachel), ohne Einheit. */
 function compact(n: number): string {
@@ -48,6 +58,60 @@ function ValueCell({ values, mode }: { values: UnitValue[]; mode: ContributionMo
   );
 }
 
+/**
+ * Gleiche Einheit addieren, verschiedene getrennt lassen — dieselbe Regel wie
+ * `aggregateEpicContribution` sie für ein einzelnes Epic anwendet.
+ */
+function sumUnits(lists: readonly UnitValue[][]): UnitValue[] {
+  const byUnit = new Map<string, UnitValue>();
+  for (const values of lists) {
+    for (const v of values) {
+      const key = v.unit ?? "";
+      const prev = byUnit.get(key);
+      if (prev) {
+        prev.planned += v.planned;
+        prev.realized += v.realized;
+      } else {
+        byUnit.set(key, { ...v });
+      }
+    }
+  }
+  return [...byUnit.values()];
+}
+
+/**
+ * Die zusammengefasste Klasse — eine Zeile je Solution. Kein Link auf ein Epic,
+ * weil sie keines ist; der eingefärbte Grund sagt, dass hier gebündelt wurde.
+ */
+function SolutionRow({
+  rollup,
+  mode,
+  classFilter,
+}: {
+  rollup: { group: SolutionRollup; recurring: UnitValue[]; oneTime: UnitValue[] };
+  mode: ContributionMode;
+  classFilter: ClassFilterState;
+}) {
+  const tone = rollupCellTone(classFilter.hiddenClass);
+  return (
+    <tr className="border-b last:border-0">
+      <td className={`px-3 py-2 font-medium ${tone}`}>
+        {rollup.group.name}
+        <span className="ml-2 font-mono text-[10px] font-normal opacity-80">
+          {rollup.group.count} zusammengefasst
+        </span>
+      </td>
+      <td className={`px-3 py-2 text-xs ${tone}`}>{classFilter.hiddenLabel}</td>
+      <td className={`px-3 py-2 text-right ${tone}`}>
+        <ValueCell values={rollup.recurring} mode={mode} />
+      </td>
+      <td className={`px-3 py-2 text-right ${tone}`}>
+        <ValueCell values={rollup.oneTime} mode={mode} />
+      </td>
+    </tr>
+  );
+}
+
 const MODE_OPTIONS: ReadonlyArray<ToggleGroupOption<ContributionMode>> = [
   { id: "planned", label: "Plan" },
   { id: "realized", label: "Ist" },
@@ -59,8 +123,35 @@ const MODE_OPTIONS: ReadonlyArray<ToggleGroupOption<ContributionMode>> = [
  * Ziel-Kette hoch), getrennt nach wiederkehrendem und einmaligem Effekt.
  * Umschaltbar zwischen Plan und Ist; die Sortierung folgt dem Modus.
  */
-export function GoalContributionBlock({ rows }: { rows: EpicGoalContribution[] }) {
+export function GoalContributionBlock({
+  rows,
+  classFilter,
+}: {
+  rows: ContributionRow[];
+  classFilter: ClassFilterState;
+}) {
   const [mode, setMode] = useState<ContributionMode>("planned");
+
+  const visible = useMemo(
+    () => rows.filter((r) => isClassShown(r.epicClass, classFilter.selected)),
+    [rows, classFilter.selected],
+  );
+  // Zusammengefasst wird je Solution und **je Einheit** — dieselbe Regel, nach
+  // der ein einzelnes Epic seine Beiträge schon bündelt. Über Einheiten hinweg
+  // zu addieren hieße, € und Stück in eine Zahl zu werfen.
+  const rollups = useMemo(() => {
+    const hidden = rows.filter((r) => !isClassShown(r.epicClass, classFilter.selected));
+    const byKey = new Map<string, ContributionRow[]>();
+    for (const r of hidden) {
+      const key = r.solution?.id ?? "";
+      byKey.set(key, [...(byKey.get(key) ?? []), r]);
+    }
+    return rollUpBySolution(hidden).map((group) => ({
+      group,
+      recurring: sumUnits((byKey.get(group.solutionId ?? "") ?? []).map((r) => r.recurring)),
+      oneTime: sumUnits((byKey.get(group.solutionId ?? "") ?? []).map((r) => r.oneTime)),
+    }));
+  }, [rows, classFilter.selected]);
 
   // Plan = Server-Reihenfolge (dort bereits nach Plan sortiert). Ist muss neu
   // sortiert werden — sonst stehen die Ist-Werte in Plan-Reihenfolge und wirken
@@ -69,9 +160,9 @@ export function GoalContributionBlock({ rows }: { rows: EpicGoalContribution[] }
   const sorted = useMemo(
     () =>
       mode === "planned"
-        ? rows
-        : [...rows].sort((a, b) => totalContribution(b, mode) - totalContribution(a, mode)),
-    [rows, mode],
+        ? visible
+        : [...visible].sort((a, b) => totalContribution(b, mode) - totalContribution(a, mode)),
+    [visible, mode],
   );
 
   return (
@@ -86,15 +177,17 @@ export function GoalContributionBlock({ rows }: { rows: EpicGoalContribution[] }
             ariaLabel="Beitragswert"
             className="bg-card text-[11px]"
           />
-          {rows.length > 0 && (
+          {sorted.length + rollups.length > 0 && (
             <span className="font-mono text-xs tabular-nums text-muted-foreground">
-              {rows.length}
+              {sorted.length + rollups.length}
             </span>
           )}
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      <RollupHint classFilter={classFilter} detail="je Einheit summiert" />
+
+      {sorted.length + rollups.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Noch keine Epic-Ziel-Beiträge berechnet.{" "}
           <Link href="/ziele" className="text-primary hover:underline">
@@ -134,6 +227,14 @@ export function GoalContributionBlock({ rows }: { rows: EpicGoalContribution[] }
                     <ValueCell values={r.oneTime} mode={mode} />
                   </td>
                 </tr>
+              ))}
+              {rollups.map((r) => (
+                <SolutionRow
+                  key={r.group.solutionId ?? "none"}
+                  rollup={r}
+                  mode={mode}
+                  classFilter={classFilter}
+                />
               ))}
             </tbody>
           </table>

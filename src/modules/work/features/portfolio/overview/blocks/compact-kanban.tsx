@@ -12,7 +12,18 @@ import {
   type PortfolioOverview,
   type OverviewEpicCard,
   type HorizonBudgetFigures,
+  type ClassFilterState,
 } from "@/modules/work/server/views/portfolio-overview";
+import {
+  isClassShown,
+  rollUpBySolution,
+  type SolutionRollup,
+} from "@/modules/work/domain/epic-class-filter";
+import type { EpicClass } from "@/modules/work/domain/pb-submission";
+import {
+  RollupHint,
+  rollupTone,
+} from "@/modules/work/features/portfolio/overview/blocks/class-rollup";
 import { wipCountLabel, isOverWip } from "@/modules/work/features/portfolio/overview/wip-limits";
 import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
 import { formatCompactEUR } from "@/lib/formatting";
@@ -29,6 +40,11 @@ const CELL_LIMIT = 4;
  * Read-only Portfolio-Kanban als **Matrix**: Zeilen = Investitionshorizonte
  * (H3→H2→H1→H0→Ohne, aus der Primär-Solution), Spalten = Stage Gates. Soft-WIP je
  * Spalte. Editieren (Drag&Drop, Stage-Wechsel) lebt auf `/portfolio/epics`.
+ *
+ * Bei aktiver Klassen-Facette steht die nicht gewählte Klasse je Zelle als
+ * Sammelkarte unter den Karten. Die **WIP-Zähler bleiben davon unberührt**: sie
+ * zählen weiter alle Epics der Spalte. Ein Limit, das Entwarnung meldet, weil
+ * jemand gefiltert hat, wäre schlimmer als keines.
  */
 export function CompactKanban({ data }: { data: PortfolioOverview }) {
   return (
@@ -42,6 +58,8 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
           Im Editor öffnen <ArrowRight className="size-3" />
         </Link>
       </div>
+
+      <RollupHint classFilter={data.classFilter} detail="die Spaltenzähler bleiben vollständig" />
 
       <div className="overflow-x-auto">
         <div className="grid min-w-[960px] grid-cols-[180px_repeat(6,minmax(140px,1fr))] gap-2">
@@ -98,7 +116,7 @@ function LaneRow({ lane, data }: { lane: string; data: PortfolioOverview }) {
         {budget && budget.budgetiert > 0 && <HorizonBudget budget={budget} />}
       </div>
       {STAGE_GATES.map((gate) => (
-        <KanbanCell key={gate} lane={lane} epics={row[gate]} />
+        <KanbanCell key={gate} lane={lane} epics={row[gate]} classFilter={data.classFilter} />
       ))}
     </>
   );
@@ -135,26 +153,74 @@ const LANE_TINT: Record<string, string> = {
   none: "bg-muted/40",
 };
 
-function KanbanCell({ lane, epics }: { lane: string; epics: OverviewEpicCard[] }) {
+function KanbanCell({
+  lane,
+  epics,
+  classFilter,
+}: {
+  lane: string;
+  epics: OverviewEpicCard[];
+  classFilter: ClassFilterState;
+}) {
   const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? epics : epics.slice(0, CELL_LIMIT);
+  const visible = epics.filter((e) => isClassShown(e.epicClass, classFilter.selected));
+  const rollups = rollUpBySolution(
+    epics.filter((e) => !isClassShown(e.epicClass, classFilter.selected)),
+  );
+  const shown = expanded ? visible : visible.slice(0, CELL_LIMIT);
   return (
     <div className={cn("min-h-[52px] rounded-md border p-1.5", LANE_TINT[lane] ?? "")}>
       <ul className="space-y-1 text-xs">
         {shown.map((e) => (
           <KanbanCard key={e.id} epic={e} />
         ))}
+        {rollups.map((r) => (
+          <SolutionCard key={r.solutionId ?? "none"} rollup={r} cls={classFilter.hiddenClass} />
+        ))}
       </ul>
-      {epics.length > CELL_LIMIT && (
+      {visible.length > CELL_LIMIT && (
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
           className="mt-1 w-full text-center text-[10px] text-muted-foreground hover:text-foreground"
         >
-          {expanded ? "weniger" : `+ ${epics.length - CELL_LIMIT} weitere`}
+          {expanded ? "weniger" : `+ ${visible.length - CELL_LIMIT} weitere`}
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * Die zusammengefasste Klasse einer Zelle — eine Karte je Solution. Sie führt
+ * auf die Solution, nicht auf ein Epic; „Ohne Solution" hat kein Ziel und
+ * bleibt deshalb Text.
+ */
+function SolutionCard({ rollup, cls }: { rollup: SolutionRollup; cls: EpicClass | null }) {
+  const body = (
+    <>
+      <span className="truncate font-medium leading-snug">{rollup.name}</span>
+      <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums">{rollup.count}</span>
+    </>
+  );
+  return (
+    <li
+      className={cn(
+        "flex items-center gap-2 rounded-md border border-dashed px-2 py-1",
+        rollupTone(cls),
+      )}
+    >
+      {rollup.solutionId ? (
+        <Link
+          href={`/portfolio/solutions/${rollup.solutionId}`}
+          className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
+        >
+          {body}
+        </Link>
+      ) : (
+        <span className="flex min-w-0 flex-1 items-center gap-2">{body}</span>
+      )}
+    </li>
   );
 }
 

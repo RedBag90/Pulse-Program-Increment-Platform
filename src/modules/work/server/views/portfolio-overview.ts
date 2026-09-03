@@ -21,6 +21,14 @@ import {
   type EpicGoalContribution,
 } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import { totalContribution } from "@/modules/core/goals/domain/epic-contribution";
+import type { EpicClass } from "@/modules/work/domain/pb-submission";
+import {
+  hiddenClass,
+  hiddenClassLabel,
+  isClassShown,
+  type SolutionRef,
+} from "@/modules/work/domain/epic-class-filter";
+import { classifyEpics, type EpicClassInfo } from "@/modules/work/server/services/epic-class";
 import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 
@@ -65,6 +73,17 @@ export interface PortfolioFilter {
   stageGates: string[];
   statuses: string[];
   ownerIds: string[];
+  /**
+   * Epic-Klasse (`portfolio` | `art`) — die **einzige** Facette, die nicht die
+   * Abfrage verengt, sondern die geladene Menge teilt.
+   *
+   * Das ist kein Umweg: die Klasse entsteht aus dem Business-Case-JSON gegen
+   * ein wertstromabhängiges Limit, ist also kein Prädikat, das eine Datenbank
+   * kennt. Und sie soll gar nichts wegwerfen — die WIP-Zähler des Kanbans
+   * zählen weiter alle Epics, und die nicht gewählte Klasse wird je Solution
+   * zusammengefasst ausgewiesen statt entfernt.
+   */
+  epicClasses: string[];
 }
 
 export const EMPTY_PORTFOLIO_FILTER: PortfolioFilter = {
@@ -72,6 +91,7 @@ export const EMPTY_PORTFOLIO_FILTER: PortfolioFilter = {
   stageGates: [],
   statuses: [],
   ownerIds: [],
+  epicClasses: [],
 };
 
 // ---------------------------------------------------------------------------
@@ -93,6 +113,10 @@ export interface OverviewEpicCard {
   needsSteeringAttention: boolean;
   /** Abgeleiteter Horizont (Primär-Solution) — Swimlane-Achse im Kanban. */
   horizon: string | null;
+  /** `null` = Facette aus **oder** noch nicht eingeordnet (kein Business Case). */
+  epicClass: EpicClass | null;
+  /** Primär-Solution — der Sammelpunkt der Zusammenfassung. */
+  solution: SolutionRef | null;
 }
 
 /** Exposure-Band eines Risikos (score = probability·impact → Band). Lokale Union,
@@ -128,6 +152,8 @@ export interface SteeringEpicRow {
   ownerName: string | null;
   valueStreamName: string | null;
   daysSinceUpdate: number;
+  epicClass: EpicClass | null;
+  solution: SolutionRef | null;
 }
 
 export interface OverviewGoal {
@@ -154,6 +180,9 @@ export interface DueSoonItem {
   dateIso: string;
   daysUntil: number;
   overdue: boolean;
+  /** Bei einem Feature: Klasse und Solution stammen von seinem Epic. */
+  epicClass: EpicClass | null;
+  solution: SolutionRef | null;
 }
 
 export interface OverviewBudget {
@@ -197,6 +226,27 @@ export interface OverviewRecentEvent {
   valueStreamName: string | null;
 }
 
+/**
+ * Eine Beitragszeile mit ihrer Klasse und ihrer Solution. `EpicGoalContribution`
+ * stammt aus `core/goals` und weiß von beidem nichts — die Zuordnung entsteht
+ * hier, damit das Ziele-Modul unberührt bleibt (ADR-0013).
+ */
+export interface ContributionRow extends EpicGoalContribution {
+  epicClass: EpicClass | null;
+  solution: SolutionRef | null;
+}
+
+export interface ClassFilterState {
+  /** Gewählte Klassen (leer = Facette aus). */
+  selected: string[];
+  /** `null`, wenn nichts zusammengefasst wird. */
+  hiddenLabel: string | null;
+  /** Die zusammengefasste Klasse — treibt die Einfärbung der Sammelzeilen. */
+  hiddenClass: EpicClass | null;
+  /** Wie viele Epics zusammengefasst sind (über die ganze Seite). */
+  hiddenCount: number;
+}
+
 export interface PortfolioOverview {
   epics: OverviewEpicCard[];
   epicsByGate: Record<StageGate, OverviewEpicCard[]>;
@@ -227,7 +277,13 @@ export interface PortfolioOverview {
   risks: OverviewRisk[];
 
   /** Epics mit Beitrag zu Kopf-Zielen, nach Gesamt-Plan-Beitrag absteigend. */
-  goalContributions: EpicGoalContribution[];
+  goalContributions: ContributionRow[];
+
+  /**
+   * Zustand der Klassen-Facette — die eine Angabe, aus der jeder Block seine
+   * Klartext-Zeile über der Zusammenfassung baut.
+   */
+  classFilter: ClassFilterState;
 
   budgets: OverviewBudget[];
   poolTotal: number;
@@ -289,6 +345,14 @@ export interface PortfolioOverviewInputs {
   activePis: Array<{ id: string; name: string; endDate: Date }>;
   structureGap: StructureGap;
   practiceAdoption: PracticeAdoption;
+  /**
+   * Klasse + Primär-Solution je Epic — `null`, wenn die Facette aus ist. Der
+   * Business-Case-JSON ist eine große Spalte; er wird nur geholt, wenn die
+   * Klasse wirklich gebraucht wird.
+   */
+  epicClasses: Map<string, EpicClassInfo> | null;
+  /** Gewählte Klassen aus dem Filter (leer = keine Einschränkung). */
+  selectedClasses: string[];
   /** Pinned "today" — server passes `new Date()`, tests pass a fixed instant. */
   now: Date;
 }
@@ -346,9 +410,15 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     activePis: activePisRaw,
     structureGap,
     practiceAdoption,
+    epicClasses,
+    selectedClasses,
     now,
   } = inputs;
   const nowMs = now.getTime();
+
+  const classOf = (epicId: string): EpicClass | null => epicClasses?.get(epicId)?.epicClass ?? null;
+  const solutionOf = (epicId: string): SolutionRef | null =>
+    epicClasses?.get(epicId)?.solution ?? null;
 
   const cards: OverviewEpicCard[] = epics.map((e) => ({
     id: e.id,
@@ -362,6 +432,8 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     daysSinceUpdate: Math.floor((nowMs - new Date(e.updatedAt).getTime()) / (24 * 60 * 60 * 1000)),
     needsSteeringAttention: e.needsSteeringAttention,
     horizon: e.primarySolution?.horizon ?? null,
+    epicClass: classOf(e.id),
+    solution: solutionOf(e.id),
   }));
 
   // Gruppierung direkt nach `stageGate`. Die frühere Bucket-Abweichung
@@ -450,6 +522,8 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
       ownerName: c.ownerId ? (ownerLabels[c.ownerId] ?? null) : null,
       valueStreamName: c.valueStream?.name ?? null,
       daysSinceUpdate: c.daysSinceUpdate,
+      epicClass: c.epicClass,
+      solution: c.solution,
     }))
     .sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate);
 
@@ -467,9 +541,19 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   // von wiederkehrend + einmalig) absteigend — die größten „Beiträge" oben.
   // Einheiten-Mix ist beim Ranking bewusst heuristisch; die Anzeige bleibt je
   // Einheit getrennt. Werte kommen fertig aggregiert.
-  const goalContributions: EpicGoalContribution[] = [...goalContributionsRaw].sort(
-    (a, b) => totalContribution(b, "planned") - totalContribution(a, "planned"),
-  );
+  const goalContributions: ContributionRow[] = [...goalContributionsRaw]
+    .sort((a, b) => totalContribution(b, "planned") - totalContribution(a, "planned"))
+    .map((r) => ({ ...r, epicClass: classOf(r.epicId), solution: solutionOf(r.epicId) }));
+
+  // Die Facette teilt die geladene Menge, statt sie zu verkleinern. `hiddenCount`
+  // zählt die Epic-Karten — Features und Beitragszeilen hängen an denselben
+  // Epics und würden sonst doppelt zählen.
+  const classFilter: ClassFilterState = {
+    selected: selectedClasses,
+    hiddenLabel: hiddenClassLabel(selectedClasses),
+    hiddenClass: hiddenClass(selectedClasses),
+    hiddenCount: cards.filter((c) => !isClassShown(c.epicClass, selectedClasses)).length,
+  };
 
   // Strategy — Themes (Objectives in V2) statt legacy TransformationGoals.
   // Completion = normalisierter Ø der KR-Fortschritte (ADR-0008), konsistent
@@ -517,6 +601,8 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
       dateIso: iso,
       daysUntil: signedDays(Date.parse(iso)),
       overdue: Date.parse(iso) < today,
+      epicClass: classOf(e.id),
+      solution: solutionOf(e.id),
     }))
     .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
 
@@ -536,6 +622,9 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
         dateIso: isoDay(f.pi.endDate),
         daysUntil: signedDays(ms),
         overdue: ms < today,
+        // Ein Feature erbt beides von seinem Epic — es hat keine eigene Klasse.
+        epicClass: f.parent ? classOf(f.parent.id) : null,
+        solution: f.parent ? solutionOf(f.parent.id) : null,
       };
     })
     .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
@@ -620,6 +709,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     featuresDueSoon,
     risks,
     goalContributions,
+    classFilter,
     budgets,
     poolTotal,
     poolAllocated,
@@ -732,6 +822,18 @@ export async function loadPortfolioOverviewInputs(
 
   const { board, vsBudgets, cycleAllocations, budgetCycleKey } = budgeting;
 
+  // Zweite Welle, und nur wenn die Facette gesetzt ist: der Business-Case-JSON
+  // ist eine große Spalte, die `listEpicsForOverview` bewusst nicht mitwählt.
+  // Die Menge umfasst alles, was auf der Seite je Epic gezeigt wird — Karten,
+  // Beitragszeilen und die Eltern der Features.
+  const epicClasses = filter.epicClasses.length
+    ? await classifyEpics(db, tenantId, [
+        ...epics.map((e) => e.id),
+        ...goalContributions.map((c) => c.epicId),
+        ...features.flatMap((f) => (f.parent ? [f.parent.id] : [])),
+      ])
+    : null;
+
   return {
     epics,
     features,
@@ -746,6 +848,8 @@ export async function loadPortfolioOverviewInputs(
     activePis,
     structureGap,
     practiceAdoption,
+    epicClasses,
+    selectedClasses: filter.epicClasses,
     now: new Date(),
   };
 }

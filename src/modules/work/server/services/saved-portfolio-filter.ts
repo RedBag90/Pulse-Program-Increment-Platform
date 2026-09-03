@@ -6,7 +6,7 @@ import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err } from "@/modules/core/kernel/domain/errors";
 
 /**
- * Per-User gespeicherte Portfolio-Filter. Tenant+User-scoped; die vier Filter-
+ * Per-User gespeicherte Portfolio-Filter. Tenant+User-scoped; die Filter-
  * Dimensionen liegen als JSON-`criteria`. Genau ein `isDefault` je Nutzer wird
  * beim bloßen Öffnen von /portfolio automatisch angewandt.
  */
@@ -15,6 +15,8 @@ export interface SavedFilterCriteria {
   gate: string[];
   status: string[];
   owner: string[];
+  /** Epic-Klasse; erst später hinzugekommen — alte Zeilen lesen `[]`. */
+  cls: string[];
 }
 
 export interface SavedPortfolioFilterDTO {
@@ -24,12 +26,18 @@ export interface SavedPortfolioFilterDTO {
   isDefault: boolean;
 }
 
-/** Tolerant: liest die vier String-Arrays aus dem JSON-Blob, verwirft Fremdes. */
+/** Tolerant: liest die String-Arrays aus dem JSON-Blob, verwirft Fremdes. */
 export function parseSavedFilterCriteria(json: unknown): SavedFilterCriteria {
   const c = (json ?? {}) as Record<string, unknown>;
   const arr = (v: unknown): string[] =>
     Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-  return { vs: arr(c.vs), gate: arr(c.gate), status: arr(c.status), owner: arr(c.owner) };
+  return {
+    vs: arr(c.vs),
+    gate: arr(c.gate),
+    status: arr(c.status),
+    owner: arr(c.owner),
+    cls: arr(c.cls),
+  };
 }
 
 export async function listSavedPortfolioFilters(
@@ -108,7 +116,11 @@ export async function deleteSavedPortfolioFilter(
       where: { id: input.id, tenantId: mctx.tenantId, userId: mctx.actorId },
     });
     if (!existing) {
-      return err({ kind: "not_found" as const, resourceType: "SavedPortfolioFilter", id: input.id });
+      return err({
+        kind: "not_found" as const,
+        resourceType: "SavedPortfolioFilter",
+        id: input.id,
+      });
     }
     await tx.savedPortfolioFilter.delete({ where: { id: input.id } });
     return ok({

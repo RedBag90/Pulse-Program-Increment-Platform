@@ -6,6 +6,7 @@ import { useUrlState } from "@/lib/hooks/use-url-state";
 import { MultiSelectFilter, type MultiSelectSection } from "@/components/ui/multi-select-filter";
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { STAGE_GATES, STAGE_GATE_LABEL } from "@/modules/work/server/views/portfolio-overview";
+import { EPIC_CLASS_LABELS } from "@/modules/work/domain/pb-submission";
 import {
   savePortfolioFilterAction,
   deletePortfolioFilterAction,
@@ -19,15 +20,27 @@ interface Props {
   valueStreams: { id: string; name: string }[];
   owners: { id: string; label: string }[];
   savedFilters: SavedPortfolioFilterDTO[];
+  /**
+   * Practice `artEpics`. Ohne sie gibt es keine ART-Epics — dann bliebe die
+   * Facette eine leere Unterscheidung und wird gar nicht erst angeboten.
+   */
+  showClassFacet?: boolean;
 }
 
 /**
  * Filterleiste der Portfolio-Übersicht: Wertstrom · Stage Gate · Status · Owner
- * (Mehrfachauswahl, CSV im URL-State). Rechts die gespeicherten Filter des
+ * · Epic-Klasse (Mehrfachauswahl, CSV im URL-State). Die Klasse verhält sich für
+ * die Leserin wie die übrigen, verwirft aber nichts: die nicht gewählte Klasse
+ * wird je Solution zusammengefasst ausgewiesen. Rechts die gespeicherten Filter des
  * Nutzers (anwenden / speichern / löschen); einer kann als Standard markiert
  * werden und wird beim Öffnen automatisch angewandt (Server, page.tsx).
  */
-export function PortfolioFilterBar({ valueStreams, owners, savedFilters }: Props) {
+export function PortfolioFilterBar({
+  valueStreams,
+  owners,
+  savedFilters,
+  showClassFacet = false,
+}: Props) {
   const { params, push } = useUrlState();
   const [saveOpen, setSaveOpen] = useState(false);
 
@@ -58,7 +71,8 @@ export function PortfolioFilterBar({ valueStreams, owners, savedFilters }: Props
   const gateSel = readSet("gate");
   const statusSel = readSet("status");
   const ownerSel = readSet("owner");
-  const anyActive = vsSel.size + gateSel.size + statusSel.size + ownerSel.size > 0;
+  const clsSel = readSet("cls");
+  const anyActive = vsSel.size + gateSel.size + statusSel.size + ownerSel.size + clsSel.size > 0;
 
   const vsSections: MultiSelectSection[] = [
     { options: valueStreams.map((v) => ({ value: v.id, label: v.name })) },
@@ -72,6 +86,16 @@ export function PortfolioFilterBar({ valueStreams, owners, savedFilters }: Props
   const ownerSections: MultiSelectSection[] = [
     { options: owners.map((o) => ({ value: o.id, label: o.label })) },
   ];
+  // Zwei Werte, nicht drei: ein Epic ohne freigegebenen Business Case ist noch
+  // nicht eingeordnet und zählt zur Portfolio-Seite.
+  const clsSections: MultiSelectSection[] = [
+    {
+      options: (["portfolio", "art"] as const).map((c) => ({
+        value: c,
+        label: EPIC_CLASS_LABELS[c],
+      })),
+    },
+  ];
 
   const csv = (arr: string[]) => (arr.length ? arr.join(",") : null);
   function applySaved(f: SavedPortfolioFilterDTO) {
@@ -80,6 +104,7 @@ export function PortfolioFilterBar({ valueStreams, owners, savedFilters }: Props
       gate: csv(f.criteria.gate),
       status: csv(f.criteria.status),
       owner: csv(f.criteria.owner),
+      cls: csv(f.criteria.cls),
       f: null,
     });
   }
@@ -94,6 +119,7 @@ export function PortfolioFilterBar({ valueStreams, owners, savedFilters }: Props
       gate: [...gateSel],
       status: [...statusSel],
       owner: [...ownerSel],
+      cls: [...clsSel],
     };
     formData.set("criteria", JSON.stringify(criteria));
     startTransition(() => submitSave(formData));
@@ -132,11 +158,21 @@ export function PortfolioFilterBar({ valueStreams, owners, savedFilters }: Props
         selected={ownerSel}
         {...handlers("owner", ownerSel)}
       />
+      {showClassFacet && (
+        <MultiSelectFilter
+          label="Epic-Klasse"
+          sections={clsSections}
+          selected={clsSel}
+          {...handlers("cls", clsSel)}
+        />
+      )}
 
       {anyActive && (
         <button
           type="button"
-          onClick={() => push({ vs: null, gate: null, status: null, owner: null, f: "0" })}
+          onClick={() =>
+            push({ vs: null, gate: null, status: null, owner: null, cls: null, f: "0" })
+          }
           className="rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
         >
           Zurücksetzen

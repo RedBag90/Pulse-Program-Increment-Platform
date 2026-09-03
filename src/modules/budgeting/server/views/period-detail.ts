@@ -11,9 +11,7 @@ import { hasCapability } from "@/server/auth/authorize";
 import { getRound } from "@/modules/budgeting/server/services/round-service";
 import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
 import { getTenantPractices } from "@/server/services/target-model";
-import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
-import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
-import { classifyEpic } from "@/modules/work/domain/pb-submission";
+import { classifyEpics } from "@/modules/work/server/services/epic-class";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
@@ -141,35 +139,14 @@ export async function loadPeriodDetail(
   let filteredOut = 0;
 
   if (practices.artEpics && unpicked.length > 0) {
-    const [rows, guardrailRows, tenant] = await Promise.all([
-      db.initiative.findMany({
-        where: { tenantId: principal.tenantId, id: { in: unpicked.map((e) => e.id) } },
-        select: {
-          id: true,
-          valueStreamId: true,
-          businessCase: true,
-          businessCaseApprovedAt: true,
-          hypothesisApprovedAt: true,
-          portfolioOverrideAt: true,
-        },
-      }),
-      listValueStreamGuardrailTargets(db, principal.tenantId),
-      db.tenant.findUnique({
-        where: { id: principal.tenantId },
-        select: { guardrailTargets: true },
-      }),
-    ]);
-    const byId = new Map(rows.map((r) => [r.id, r]));
-    pool = unpicked.filter((e) => {
-      const row = byId.get(e.id);
-      if (!row) return true;
-      const limit = resolveGuardrailTargets(
-        guardrailRows,
-        tenant?.guardrailTargets ?? null,
-        row.valueStreamId,
-      ).targets.approval.portfolioThreshold;
-      return classifyEpic(row, limit).epicClass !== "art";
-    });
+    const classes = await classifyEpics(
+      db,
+      principal.tenantId,
+      unpicked.map((e) => e.id),
+    );
+    // Ein Epic, zu dem keine Zeile kam, bleibt im Pool — ausgeschlossen wird
+    // nur, was nachweislich ART-Sache ist.
+    pool = unpicked.filter((e) => classes.get(e.id)?.epicClass !== "art");
     filteredOut = unpicked.length - pool.length;
   }
 

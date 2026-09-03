@@ -6,28 +6,43 @@ import {
   STAGE_GATE_LABEL,
   type PortfolioOverview,
 } from "@/modules/work/server/views/portfolio-overview";
+import { isClassShown, rollUpBySolution } from "@/modules/work/domain/epic-class-filter";
+import { rollupTone } from "@/modules/work/features/portfolio/overview/blocks/class-rollup";
 
 /**
  * „Zur Steuerung markiert" — Tabelle der Initiativen (Epics) mit
  * `needsSteeringAttention` (fürs nächste Steering-Meeting vorgemerkt). Volle
  * Breite unter der Feature-Sektion; sortiert nach längster Zeit ohne Update
  * (Agenda-Reihenfolge). Server-only.
+ *
+ * Die zusammengefasste Klasse steht als **Fußzeile**, nicht als Zeile in der
+ * Tabelle: deren Spalten — Stage Gate, Owner, Tage ohne Update — beschreiben ein
+ * einzelnes Epic. Eine Sammelzeile ließe vier von fünf leer und sähe aus wie ein
+ * Datenfehler.
  */
 export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
-  const rows = data.steeringEpics;
+  const { classFilter } = data;
+  const rows = data.steeringEpics.filter((r) => isClassShown(r.epicClass, classFilter.selected));
+  const rollups = rollUpBySolution(
+    data.steeringEpics.filter((r) => !isClassShown(r.epicClass, classFilter.selected)),
+  );
 
   return (
     <Card className="space-y-3 p-4">
       <div className="flex items-center justify-between gap-2">
         <SectionLabel>Zur Steuerung markiert</SectionLabel>
         {rows.length > 0 && (
-          <span className="font-mono text-xs tabular-nums text-muted-foreground">{rows.length}</span>
+          <span className="font-mono text-xs tabular-nums text-muted-foreground">
+            {rows.length}
+          </span>
         )}
       </div>
 
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Keine Initiative für das nächste Steering-Meeting markiert.
+          {rollups.length > 0
+            ? "In dieser Klasse ist nichts markiert."
+            : "Keine Initiative für das nächste Steering-Meeting markiert."}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border bg-card">
@@ -68,6 +83,25 @@ export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {rollups.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-dashed pt-3">
+          <span className="text-xs text-muted-foreground">
+            Nicht in der Tabelle · {classFilter.hiddenLabel}:
+          </span>
+          {rollups.map((r) => (
+            <span
+              key={r.solutionId ?? "none"}
+              className={`inline-flex items-center gap-1.5 rounded-full border border-dashed px-2.5 py-0.5 text-xs font-medium ${rollupTone(
+                classFilter.hiddenClass,
+              )}`}
+            >
+              {r.name}
+              <span className="font-mono tabular-nums opacity-80">{r.count}</span>
+            </span>
+          ))}
         </div>
       )}
     </Card>

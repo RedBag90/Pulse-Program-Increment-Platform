@@ -7,10 +7,30 @@ import { parseSavedFilterCriteria } from "@/modules/work/server/services/saved-p
  * covered by the integration suite (requires DATABASE_URL_TEST).
  */
 describe("parseSavedFilterCriteria", () => {
-  it("reads the four string arrays from a well-formed blob", () => {
+  it("reads the string arrays from a well-formed blob", () => {
     expect(
-      parseSavedFilterCriteria({ vs: ["a", "b"], gate: ["L3"], status: ["blocked"], owner: ["u1"] }),
-    ).toEqual({ vs: ["a", "b"], gate: ["L3"], status: ["blocked"], owner: ["u1"] });
+      parseSavedFilterCriteria({
+        vs: ["a", "b"],
+        gate: ["L3"],
+        status: ["blocked"],
+        owner: ["u1"],
+        cls: ["art"],
+      }),
+    ).toEqual({
+      vs: ["a", "b"],
+      gate: ["L3"],
+      status: ["blocked"],
+      owner: ["u1"],
+      cls: ["art"],
+    });
+  });
+
+  // `cls` kam später dazu — vor der Facette gespeicherte Filter dürfen dadurch
+  // nicht ungültig werden.
+  it("liest einen vor der Klassen-Facette gespeicherten Filter unverändert", () => {
+    expect(
+      parseSavedFilterCriteria({ vs: ["a"], gate: [], status: [], owner: ["u1"] }),
+    ).toMatchObject({ vs: ["a"], owner: ["u1"], cls: [] });
   });
 
   it("defaults missing keys to empty arrays", () => {
@@ -19,17 +39,17 @@ describe("parseSavedFilterCriteria", () => {
       gate: [],
       status: [],
       owner: [],
+      cls: [],
     });
   });
 
   it("is tolerant of null, non-objects and non-string entries", () => {
-    expect(parseSavedFilterCriteria(null)).toEqual({ vs: [], gate: [], status: [], owner: [] });
-    expect(parseSavedFilterCriteria("nope")).toEqual({ vs: [], gate: [], status: [], owner: [] });
+    const empty = { vs: [], gate: [], status: [], owner: [], cls: [] };
+    expect(parseSavedFilterCriteria(null)).toEqual(empty);
+    expect(parseSavedFilterCriteria("nope")).toEqual(empty);
     expect(parseSavedFilterCriteria({ vs: ["ok", 1, null, "x"], gate: "notArray" })).toEqual({
+      ...empty,
       vs: ["ok", "x"],
-      gate: [],
-      status: [],
-      owner: [],
     });
   });
 });

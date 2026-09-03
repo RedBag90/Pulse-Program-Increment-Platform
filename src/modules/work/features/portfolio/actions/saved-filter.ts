@@ -13,6 +13,8 @@ const criteriaSchema = z.object({
   gate: z.array(z.string()).default([]),
   status: z.array(z.string()).default([]),
   owner: z.array(z.string()).default([]),
+  // Später hinzugekommen: gespeicherte Filter ohne den Schlüssel lesen `[]`.
+  cls: z.array(z.string()).default([]),
 });
 
 /**

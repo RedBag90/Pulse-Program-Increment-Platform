@@ -77,6 +77,8 @@ function baseInputs(): PortfolioOverviewInputs {
     vsBudgets: { valueStreams: [] },
     cycleAllocations: {},
     budgetCycleKey: "2026-H1",
+    epicClasses: null,
+    selectedClasses: [],
     activePis: [],
     structureGap: { hasTarget: false, targetDate: null, dimensions: [], overallProgress: 0 },
     practiceAdoption: { hasTarget: false, signals: [] },
@@ -462,5 +464,74 @@ describe("aggregateHorizonBudgets", () => {
   it("zählt fehlende/0-Allokation als 0", () => {
     const out = aggregateHorizonBudgets([card("a", "h1", "L4"), card("b", "h1", "L5")], { a: 0 });
     expect(out.h1).toEqual({ budgetiert: 0, umsetzung: 0, umgesetzt: 0 });
+  });
+});
+
+/**
+ * Die Klassen-Facette ist die einzige, die nicht die Abfrage verengt, sondern
+ * die geladene Menge teilt. Diese Tests halten die zwei Zusagen fest, die daran
+ * hängen — sonst ist der Unterschied beim nächsten Umbau wieder weg.
+ */
+describe("Klassen-Facette im Overview-Modell", () => {
+  const classes = new Map([
+    ["p1", { epicClass: "portfolio" as const, solution: { id: "s1", name: "Produktion Betrieb" } }],
+    ["a1", { epicClass: "art" as const, solution: { id: "s1", name: "Produktion Betrieb" } }],
+    ["a2", { epicClass: "art" as const, solution: { id: "s2", name: "Logistik Betrieb" } }],
+    ["n1", { epicClass: null, solution: null }],
+  ]);
+  const epics = [
+    epic({ id: "p1", title: "Werksverbund", stageGate: "L3" }),
+    epic({ id: "a1", title: "Halle 3", stageGate: "L3" }),
+    epic({ id: "a2", title: "Zoll", stageGate: "L3" }),
+    epic({ id: "n1", title: "Cloud-Kosten", stageGate: "L3" }),
+  ];
+
+  const build = (selected: string[]) =>
+    buildPortfolioOverviewModel({
+      ...baseInputs(),
+      epics,
+      epicClasses: classes,
+      selectedClasses: selected,
+    });
+
+  // Ein Limit, das Entwarnung meldet, weil jemand gefiltert hat, wäre schlimmer
+  // als keines: die Spaltenzähler bleiben über alle Facettenzustände gleich.
+  it("lässt die WIP-Zähler unberührt", () => {
+    const counts = (m: ReturnType<typeof build>) => m.epicsByGate.L3.length;
+    expect(counts(build([]))).toBe(4);
+    expect(counts(build(["portfolio"]))).toBe(4);
+    expect(counts(build(["art"]))).toBe(4);
+    expect(build(["art"]).epicsCount).toBe(build([]).epicsCount);
+  });
+
+  it("hängt Klasse und Solution an jede Karte", () => {
+    const byId = new Map(build(["portfolio"]).epics.map((c) => [c.id, c]));
+    expect(byId.get("a1")).toMatchObject({
+      epicClass: "art",
+      solution: { id: "s1", name: "Produktion Betrieb" },
+    });
+    expect(byId.get("n1")).toMatchObject({ epicClass: null, solution: null });
+  });
+
+  it("zählt die zusammengefassten Epics und benennt die Klasse", () => {
+    expect(build(["portfolio"]).classFilter).toMatchObject({
+      hiddenLabel: "ART-Epics",
+      hiddenClass: "art",
+      hiddenCount: 2,
+    });
+    // Ohne Business Case zählt zur Portfolio-Seite — bei `cls=art` verborgen.
+    expect(build(["art"]).classFilter).toMatchObject({
+      hiddenLabel: "Portfolio-Epics",
+      hiddenClass: "portfolio",
+      hiddenCount: 2,
+    });
+  });
+
+  it("fasst ohne Facette nichts zusammen", () => {
+    expect(build([]).classFilter).toMatchObject({
+      hiddenLabel: null,
+      hiddenClass: null,
+      hiddenCount: 0,
+    });
   });
 });

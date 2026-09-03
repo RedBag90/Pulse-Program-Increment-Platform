@@ -16,6 +16,7 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { listSavedPortfolioFilters } from "@/modules/work/server/services/saved-portfolio-filter";
+import { getTenantPractices } from "@/server/services/target-model";
 import { redirect } from "next/navigation";
 import { ViewSwitcher } from "@/modules/work/features/portfolio/overview/view-switcher";
 import { resolveOverviewView } from "@/modules/work/features/portfolio/overview/view-switcher-config";
@@ -32,6 +33,8 @@ interface Props {
     gate?: string;
     status?: string;
     owner?: string;
+    /** Epic-Klasse (`portfolio` | `art`) — nur bei aktiver Practice `artEpics`. */
+    cls?: string;
     /** Marker "f=0" = Nutzer hat explizit zurückgesetzt → kein Auto-Standard. */
     f?: string;
   }>;
@@ -72,23 +75,27 @@ export default async function PortfolioPage({ searchParams }: Props) {
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
 
-  const savedFilters = await listSavedPortfolioFilters(db, principal);
+  const [savedFilters, practices] = await Promise.all([
+    listSavedPortfolioFilters(db, principal),
+    getTenantPractices(db, principal.tenantId),
+  ]);
 
   // Auto-Standard: keine Filter-Parameter in der URL UND kein „leer"-Marker →
   // den als Standard markierten Filter des Nutzers anwenden (Redirect, damit die
   // URL Single Source of Truth bleibt und teilbar ist).
-  const anyFilterParam = Boolean(sp.vs || sp.gate || sp.status || sp.owner);
+  const anyFilterParam = Boolean(sp.vs || sp.gate || sp.status || sp.owner || sp.cls);
   const explicitlyCleared = sp.f === "0";
   if (!anyFilterParam && !explicitlyCleared) {
     const def = savedFilters.find((x) => x.isDefault);
     const c = def?.criteria;
-    if (c && (c.vs.length || c.gate.length || c.status.length || c.owner.length)) {
+    if (c && (c.vs.length || c.gate.length || c.status.length || c.owner.length || c.cls.length)) {
       const qs = new URLSearchParams();
       if (sp.view) qs.set("view", sp.view);
       if (c.vs.length) qs.set("vs", c.vs.join(","));
       if (c.gate.length) qs.set("gate", c.gate.join(","));
       if (c.status.length) qs.set("status", c.status.join(","));
       if (c.owner.length) qs.set("owner", c.owner.join(","));
+      if (c.cls.length) qs.set("cls", c.cls.join(","));
       redirect(`/portfolio?${qs.toString()}`);
     }
   }
@@ -98,6 +105,9 @@ export default async function PortfolioPage({ searchParams }: Props) {
     stageGates: splitCsv(sp.gate),
     statuses: splitCsv(sp.status),
     ownerIds: splitCsv(sp.owner),
+    // Ohne die Practice gibt es keine ART-Epics — dann ignoriert die Seite den
+    // Parameter, statt eine leere Unterscheidung zu treffen.
+    epicClasses: practices.artEpics ? splitCsv(sp.cls) : [],
   };
 
   // Filter-Optionen für die Leiste (Server-geladen → Bar ist rein kontrolliert).
@@ -228,6 +238,7 @@ export default async function PortfolioPage({ searchParams }: Props) {
           valueStreams={valueStreams}
           owners={owners}
           savedFilters={savedFilters}
+          showClassFacet={practices.artEpics}
         />
       </div>
 
