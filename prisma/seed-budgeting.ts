@@ -19,6 +19,10 @@ export interface RtbItemSpec {
   interval: string;
   /** `null` = wertstrom-übergreifend (geteilte Plattform, Programm-Office). */
   solutionId?: string | null;
+  /** Zurechnung zu einem ART. Pflicht für einen Veränderungsrahmen. */
+  artId?: string | null;
+  /** `"run"` (Default) = Betrieb, `"art_change"` = Veränderungsrahmen eines ARTs. */
+  kind?: string;
 }
 
 export interface RtbSpec {
@@ -32,6 +36,10 @@ export interface SeededRtbItem {
   name: string;
   plannedAmount: number;
   interval: string;
+  /** `null` = wertstrom-übergreifend. */
+  artId: string | null;
+  /** `"run"` = Betrieb, `"art_change"` = Veränderungsrahmen. */
+  kind: string;
 }
 
 /** Legt je Value Stream die Run-the-Business-Positionen an. Gibt sie zurück. */
@@ -49,6 +57,8 @@ export async function seedRunTheBusiness(
       plannedAmount: it.plannedAmount,
       interval: it.interval,
       solutionId: it.solutionId ?? null,
+      artId: it.artId ?? null,
+      kind: it.kind ?? "run",
       active: true,
       createdBy: actorId,
       updatedBy: actorId,
@@ -61,6 +71,8 @@ export async function seedRunTheBusiness(
     name: r.name,
     plannedAmount: r.plannedAmount,
     interval: r.interval,
+    artId: r.artId,
+    kind: r.kind,
   }));
 }
 
@@ -233,4 +245,77 @@ export async function seedBudgetPeriod(
 
   console.log(`  ✓ Kachel „${cfg.cycleKey}" (${cfg.status}) — ${cfg.groups.length} Gruppen`);
   return roundId;
+}
+
+// ---------------------------------------------------------------------------
+// ART-Rahmen: Zuteilungen und Guardrail-Ziele
+// ---------------------------------------------------------------------------
+
+export interface ArtAllocationSpec {
+  artId: string;
+  epicId: string;
+  cycleKey: string;
+  amount: number;
+  /** Richtwert, wie er beim Zuteilen eingefroren wurde. */
+  ask: number;
+}
+
+/**
+ * Legt die Verteilung eines ART-Rahmens auf seine ART-Epics an.
+ *
+ * Bewusst **ohne** Vollständigkeitsanspruch: nicht jedes ART-Epic bekommt eine
+ * Zeile. Genau das erzeugt die Zustände, an denen die Fläche erklärbar wird —
+ * ein Rahmen mit ungenutztem Rest, ein Epic ohne Deckung.
+ */
+export async function seedArtEpicAllocations(
+  tenantId: string,
+  actorId: string,
+  specs: readonly ArtAllocationSpec[],
+): Promise<void> {
+  if (specs.length === 0) return;
+  await prisma.artEpicAllocation.createMany({
+    data: specs.map((s) => ({
+      id: uid(`artalloc:${s.artId}:${s.epicId}:${s.cycleKey}`),
+      tenantId,
+      artId: s.artId,
+      epicId: s.epicId,
+      cycleKey: s.cycleKey,
+      amount: s.amount,
+      ask: s.ask,
+      createdBy: actorId,
+      updatedBy: actorId,
+    })),
+    skipDuplicates: true,
+  });
+}
+
+export interface GuardrailTargetsSpec {
+  valueStreamId: string;
+  /** Nur die Achsen, die dieser Wertstrom selbst setzt — der Rest bleibt geerbt. */
+  targets: Record<string, unknown>;
+}
+
+/**
+ * Setzt Guardrail-Ziele für einzelne Wertströme.
+ *
+ * Absichtlich nicht für alle: erst der Unterschied zwischen gesetzter Zeile und
+ * geerbtem Tenant-Default macht die Herkunftsanzeige („Wertstrom-Regel" gegen
+ * „Tenant-Default") in der Fläche sichtbar.
+ */
+export async function seedValueStreamGuardrails(
+  tenantId: string,
+  actorId: string,
+  specs: readonly GuardrailTargetsSpec[],
+): Promise<void> {
+  if (specs.length === 0) return;
+  await prisma.valueStreamGuardrailTargets.createMany({
+    data: specs.map((s) => ({
+      id: uid(`vsguard:${s.valueStreamId}`),
+      tenantId,
+      valueStreamId: s.valueStreamId,
+      targets: s.targets as never,
+      updatedBy: actorId,
+    })),
+    skipDuplicates: true,
+  });
 }

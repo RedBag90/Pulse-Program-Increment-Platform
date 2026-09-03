@@ -10,6 +10,10 @@ import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { getRound } from "@/modules/budgeting/server/services/round-service";
 import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
+import { getTenantPractices } from "@/server/services/target-model";
+import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
+import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
+import { classifyEpic } from "@/modules/work/domain/pb-submission";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
@@ -63,6 +67,12 @@ export interface PeriodDetailModel {
   groups: PeriodGroupView[];
   /** Budgeting-reife Epics, die noch NICHT auf dem Ballot dieser Kachel sind. */
   eligibleEpics: { id: string; title: string; cost: number }[];
+  /**
+   * Wie viele vorgemerkte Epics als **ART-Epics** ausgefiltert wurden — sie
+   * werden von ihren ARTs finanziert, nicht über die Kachel. `0`, solange die
+   * Practice `artEpics` aus ist.
+   */
+  artEpicsFilteredOut: number;
   /** Bereits kuratierte Epic-Kandidaten dieser Kachel. */
   epicCandidates: BallotEntry[];
   /**
@@ -114,6 +124,55 @@ export async function loadPeriodDetail(
     candidates.map((c) => c.epicId).filter((x): x is string => x != null),
   );
 
+  // Quellen-Trennung (Practice `artEpics`): ART-Epics gehören nicht auf den
+  // Portfolio-Ballot — sie werden aus dem Rahmen ihres ARTs finanziert.
+  //
+  // Gefiltert wird **hier**, an der Ableitung des wählbaren Pools, und nicht in
+  // `loadRoundBallot`: die Query hat vier Konsumenten, darunter die
+  // Finalisierung. Eine Klassenfilterung dort änderte stillschweigend deren
+  // Bedeutung mit.
+  //
+  // Epics **ohne** Klasse bleiben im Pool: ohne freigegebenen Business Case ist
+  // nicht entschieden, wie groß das Vorhaben ist — und genau dieses Geld
+  // braucht es, um den Business Case zu schreiben.
+  const unpicked = ballot.ballot.filter((e) => !candidateEpicIds.has(e.id));
+  const practices = await getTenantPractices(db, principal.tenantId);
+  let pool = unpicked;
+  let filteredOut = 0;
+
+  if (practices.artEpics && unpicked.length > 0) {
+    const [rows, guardrailRows, tenant] = await Promise.all([
+      db.initiative.findMany({
+        where: { tenantId: principal.tenantId, id: { in: unpicked.map((e) => e.id) } },
+        select: {
+          id: true,
+          valueStreamId: true,
+          businessCase: true,
+          businessCaseApprovedAt: true,
+          hypothesisApprovedAt: true,
+          portfolioOverrideAt: true,
+        },
+      }),
+      listValueStreamGuardrailTargets(db, principal.tenantId),
+      db.tenant.findUnique({
+        where: { id: principal.tenantId },
+        select: { guardrailTargets: true },
+      }),
+    ]);
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    pool = unpicked.filter((e) => {
+      const row = byId.get(e.id);
+      if (!row) return true;
+      const limit = resolveGuardrailTargets(
+        guardrailRows,
+        tenant?.guardrailTargets ?? null,
+        row.valueStreamId,
+      ).targets.approval.portfolioThreshold;
+      return classifyEpic(row, limit).epicClass !== "art";
+    });
+    filteredOut = unpicked.length - pool.length;
+  }
+
   // Zweite Welle: die Namen für die Gliederung. Der **Wertstrom** steht auf dem
   // Kandidaten (dort eingefroren, weil die Finalisierung ihn zum Rechnen
   // braucht); die **Solution** wird hier aufgelöst — sie gliedert nur.
@@ -157,7 +216,8 @@ export async function loadPeriodDetail(
         hasRead: m.hasRead,
       })),
     })),
-    eligibleEpics: ballot.ballot.filter((e) => !candidateEpicIds.has(e.id)),
+    eligibleEpics: pool,
+    artEpicsFilteredOut: filteredOut,
     epicCandidates: candidates.map((c) => ({
       id: c.id,
       sourceId: c.epicId ?? "",

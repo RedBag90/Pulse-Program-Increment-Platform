@@ -112,6 +112,15 @@ export function featureCapacityBucket(
 export interface GuardrailTargets {
   horizon: { h0: number; h1: number; h2: number; h3: number };
   capacity: { business: number; enabler: number };
+  /**
+   * Guardrail 3 — ab welcher Größe ein Vorhaben eine Portfolio-Entscheidung
+   * braucht. Kein Mix, sondern eine Schwelle in Euro: darüber Portfolio-Epic,
+   * darunter ART-Epic.
+   */
+  approval: {
+    /** Portfolio-Limit in €. */
+    portfolioThreshold: number;
+  };
   /** Guardrail 4 — Business-Owner-Engagement. Kein Mix: summiert NICHT auf 100. */
   engagement: {
     /** Mindestanteil der Epics im Freigabelauf mit benanntem Business Owner (%). */
@@ -124,6 +133,7 @@ export interface GuardrailTargets {
 export const DEFAULT_GUARDRAIL_TARGETS: GuardrailTargets = {
   horizon: { h3: 10, h2: 20, h1: 60, h0: 10 },
   capacity: { business: 80, enabler: 20 },
+  approval: { portfolioThreshold: 100_000 },
   engagement: { coverage: 90, responseDays: 10 },
 };
 
@@ -169,6 +179,7 @@ export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsPar
   const h = (r.horizon ?? {}) as Record<string, unknown>;
   const c = (r.capacity ?? {}) as Record<string, unknown>;
   const e = (r.engagement ?? {}) as Record<string, unknown>;
+  const a = (r.approval ?? {}) as Record<string, unknown>;
 
   // Legacy-Erkennung: ein 3-Wert-Set (h1/h2/h3 vorhanden, aber kein h0) →
   // fehlendes h0 tolerant auf 0 (bewahrt Summe = 100). Fehlt der Horizont ganz
@@ -199,6 +210,16 @@ export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsPar
     return DEFAULT_GUARDRAIL_TARGETS.engagement[key];
   };
 
+  // Wie beim Engagement: jeder Bestands-Tenant hat ein JSON *ohne* `approval`
+  // (Guardrail 3 kam später). Fehlt der Block ganz, ist der Default der
+  // GEWOLLTE Pfad — kein Fallback vermerken, sonst warnt jeder Alt-Tenant.
+  const approvalPresent = typeof r.approval === "object" && r.approval !== null;
+  const approvalField = (key: "portfolioThreshold"): number => {
+    if (typeof a[key] === "number") return a[key] as number;
+    if (approvalPresent) recordFallback(`approval.${key}`);
+    return DEFAULT_GUARDRAIL_TARGETS.approval[key];
+  };
+
   const targets: GuardrailTargets = {
     horizon: {
       h0: horizonField("h0"),
@@ -207,6 +228,7 @@ export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsPar
       h3: horizonField("h3"),
     },
     capacity: { business: capacityField("business"), enabler: capacityField("enabler") },
+    approval: { portfolioThreshold: approvalField("portfolioThreshold") },
     engagement: {
       coverage: engagementField("coverage"),
       responseDays: engagementField("responseDays"),
@@ -261,5 +283,83 @@ export function validateGuardrailTargets(t: GuardrailTargets): {
   if (!(responseDays >= 1)) {
     return { ok: false, reason: "Reaktionszeit muss mindestens 1 Tag betragen" };
   }
+
+  // Guardrail 3 ist ebenfalls kein Mix, sondern eine Schwelle: nur der
+  // Wertebereich zählt, keine Summe.
+  const { portfolioThreshold } = t.approval;
+  if (!(Number.isFinite(portfolioThreshold) && portfolioThreshold >= 0)) {
+    return { ok: false, reason: "Portfolio-Limit muss eine Zahl ≥ 0 sein" };
+  }
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Auflösung je Wertstrom
+// ---------------------------------------------------------------------------
+
+/** Woher ein Ziel-Set stammt — wird angezeigt, damit Vererbung sichtbar ist. */
+export type GuardrailTargetsSource = "value_stream" | "tenant" | "code_default";
+
+export const GUARDRAIL_SOURCE_LABELS: Record<GuardrailTargetsSource, string> = {
+  value_stream: "Wertstrom-Regel",
+  tenant: "Tenant-Default",
+  code_default: "Standard",
+};
+
+export interface ResolvedGuardrailTargets {
+  targets: GuardrailTargets;
+  source: GuardrailTargetsSource;
+  /** Die Achsen, die der Wertstrom selbst gesetzt hat — der Rest ist geerbt. */
+  overriddenAxes: ("horizon" | "capacity" | "approval" | "engagement")[];
+}
+
+/** Eine Wertstrom-Zeile, so weit die Auflösung sie kennen muss. */
+export interface GuardrailTargetsRow {
+  valueStreamId: string;
+  /** Teilmenge von `GuardrailTargets` als JSON. */
+  targets: unknown;
+}
+
+/**
+ * Löst die Ziele eines Wertstroms auf: **Wertstrom-Zeile → Tenant-Default →
+ * Code-Default**, achsenweise. Dasselbe Muster wie `resolveGatePolicy`, samt
+ * Herkunft im Ergebnis — ohne sie kann die Fläche nicht sagen, ob ein Wert
+ * gesetzt oder geerbt ist.
+ *
+ * Achsenweise, nicht als Ganzes: ein Wertstrom, der nur sein Portfolio-Limit
+ * setzen will, soll nicht gezwungen sein, den Horizont-Mix mitzuschleppen —
+ * sonst friert er dessen Tenant-Stand in dem Moment ein, in dem er ihn kopiert.
+ */
+export function resolveGuardrailTargets(
+  rows: readonly GuardrailTargetsRow[],
+  tenantRaw: unknown,
+  valueStreamId: string | null,
+): ResolvedGuardrailTargets {
+  const inherited = parseGuardrailTargets(tenantRaw);
+  const tenantSource: GuardrailTargetsSource = tenantRaw == null ? "code_default" : "tenant";
+
+  const row =
+    valueStreamId == null ? undefined : rows.find((r) => r.valueStreamId === valueStreamId);
+  const raw = row?.targets;
+  if (raw == null || typeof raw !== "object") {
+    return { targets: inherited, source: tenantSource, overriddenAxes: [] };
+  }
+
+  const r = raw as Record<string, unknown>;
+  const axes = ["horizon", "capacity", "approval", "engagement"] as const;
+  const overriddenAxes = axes.filter((a) => typeof r[a] === "object" && r[a] !== null);
+  if (overriddenAxes.length === 0) {
+    return { targets: inherited, source: tenantSource, overriddenAxes: [] };
+  }
+
+  // Nur die gesetzten Achsen ersetzen; für sie gilt derselbe tolerante Parser,
+  // damit eine halbe Achse nicht die ganze Auflösung kippt.
+  const merged = parseGuardrailTargets({
+    horizon: overriddenAxes.includes("horizon") ? r.horizon : inherited.horizon,
+    capacity: overriddenAxes.includes("capacity") ? r.capacity : inherited.capacity,
+    approval: overriddenAxes.includes("approval") ? r.approval : inherited.approval,
+    engagement: overriddenAxes.includes("engagement") ? r.engagement : inherited.engagement,
+  });
+
+  return { targets: merged, source: "value_stream", overriddenAxes };
 }

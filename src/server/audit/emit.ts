@@ -63,6 +63,8 @@ export type AuditAction =
   | "wsjf.scored"
   | "value_stream.created"
   | "value_stream.updated"
+  | "value_stream.guardrails.updated"
+  | "art.epic_allocation.set"
   | "value_stream.deleted"
   | "art.created"
   | "art.updated"

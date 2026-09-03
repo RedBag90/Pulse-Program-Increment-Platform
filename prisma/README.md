@@ -47,6 +47,37 @@ Schritt passt.
 > Die manuellen Indizes gehören vor den ersten Seed-Lauf eingespielt:
 > `psql "$DIRECT_URL" -f prisma/manual-indexes.sql`
 
+## Guardrail 3 — ART-Epics in den Datensätzen
+
+`db:seed:demo` und `db:seed:large` schalten die Practice **`artEpics`** im
+Zielbild ein; `db:seed:offsite` und `db:seed` lassen sie aus (Default). Ohne sie
+gibt es keine Klassifikation, keinen Rahmen und keine Verteilfläche — der
+Mandant verhält sich wie vorher.
+
+**`db:seed:demo` erzählt fünf Zustände**, an denen sich die Fläche erklären
+lässt. Die Kostenscheiben folgen dazu einer Größenordnung je Epic (`size`) statt
+einer Formel über den Index — vorher lag jedes Epic mit Business Case über
+210.000 €, und es gab im ganzen Datensatz kein einziges ART-Epic:
+
+| ART / Epic                   | Zustand                                                          |
+| ---------------------------- | ---------------------------------------------------------------- |
+| **Accounts & Onboarding**    | Rahmen 240.000 €, zwei Epics gedeckt, **124.000 € ungenutzt**    |
+| **Web & Mobile**             | Rahmen 120.000 €, zwei Epics à Σ 140.000 € → **eines ungedeckt** |
+| **Service & Contact Center** | **kein Rahmen** — sein ART-Epic hat keinen Finanzierungsweg      |
+| _Card Tokenization_          | klein, aber **Portfolio-Ausnahme** mit Begründung                |
+| _AI Fraud Detection_         | **Klassenwechsel**: alte ART-Zuteilung, heute Portfolio-Epic     |
+
+Ein Wertstrom setzt eigene Guardrail-Ziele, die beiden anderen erben — nur so
+zeigt die Fläche beide Herkünfte („Wertstrom-Regel" gegen „Tenant-Default").
+
+> Die Zuteilungen liegen im **abgeschlossenen** Zyklus: ein Rahmen wird erst zum
+> Topf, wenn eine Kachel ihn festgeschrieben hat. Die Verteilfläche zeigt sie
+> deshalb, lässt sie aber nicht ändern — vergangene Halbjahre sind gesperrt.
+
+`db:seed:large` bekommt keine Einzelfälle, sondern Masse: ein Veränderungsrahmen
+je ART (alle sechs), rund 40 erzeugte ART-Zuteilungen und Guardrail-Ziele für
+jeden Wertstrom. Etwa ein Drittel der ART-Epics bleibt absichtlich ungedeckt.
+
 ## `db:seed:offsite` — der Simulationsmandant
 
 Ein absichtlich kleines Szenario zum Kennenlernen: _„Ich will ein Firmen-Offsite planen."_

@@ -124,7 +124,13 @@ export const POLICIES: Record<Action, Grant[]> = {
   // Define/manage the organisation's target operating model (the Soll the
   // transformation drives toward). Management-owned: the LPM/portfolio lead
   // (which now folds in the former transformation-lead) and the tenant admin.
-  "target.manage": [{ roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] }],
+  // Guardrail-Ziele: tenant-weit das Portfolio-Management; die Wertstrom-Zeile
+  // darf zusätzlich der Wertstrom-Owner setzen — dieselbe Reichweite wie bei
+  // `rtb_item.manage`, weil es dieselbe Verantwortung ist.
+  "target.manage": [
+    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] },
+    { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
+  ],
 
   // Run participatory budgeting: distribute the budget pool across Epics. The
   // portfolio funders own this — the LPM/portfolio lead and the tenant admin.

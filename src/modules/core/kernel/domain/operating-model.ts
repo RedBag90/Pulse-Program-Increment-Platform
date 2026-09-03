@@ -15,6 +15,7 @@ export const PRACTICES = [
   "multiPartyApproval",
   "featureQs",
   "dependencies",
+  "artEpics",
 ] as const;
 
 export type Practice = (typeof PRACTICES)[number];
@@ -31,6 +32,12 @@ export interface StructureTargets {
 }
 
 /** When no target model is defined yet, everything is on (today's behaviour). */
+/**
+ * Wenn kein Zielbild definiert ist, ist alles an — mit **einer** Ausnahme:
+ * `artEpics` startet aus. Ein Schalter, der Geldflüsse umleitet, darf nicht
+ * stillschweigend angehen; er wird bewusst eingeschaltet, nachdem sichtbar ist,
+ * wie viele Vorhaben er betrifft.
+ */
 export const DEFAULT_PRACTICES: PracticeFlags = {
   portfolioLevel: true,
   programLevel: true,
@@ -39,6 +46,7 @@ export const DEFAULT_PRACTICES: PracticeFlags = {
   multiPartyApproval: true,
   featureQs: true,
   dependencies: true,
+  artEpics: false,
 };
 
 /** Short German labels for the configurator + glossary. */
@@ -50,6 +58,7 @@ export const PRACTICE_LABELS: Record<Practice, string> = {
   multiPartyApproval: "Mehrparteien-Freigabe für Epics",
   featureQs: "Feature-QS",
   dependencies: "Abhängigkeiten",
+  artEpics: "ART-Epics (kleine Vorhaben aus dem ART-Rahmen)",
 };
 
 export type OperatingModelTemplate = "team_level" | "essential_safe" | "portfolio_safe" | "custom";
@@ -67,6 +76,7 @@ export interface OperatingModelTemplateDef {
 }
 
 const off: PracticeFlags = {
+  artEpics: false,
   portfolioLevel: false,
   programLevel: false,
   stageGates: false,
@@ -107,9 +117,12 @@ export const OPERATING_MODEL_TEMPLATE_DEFS: Record<
       targetPiCadenceWeeks: 10,
     },
   },
-  // The full model — every practice on.
+  // The full model — every practice on. `artEpics` ist im Default aus (ein
+  // Schalter, der Geldflüsse umleitet, geht nicht stillschweigend an) — wer
+  // dieses Template wählt, entscheidet sich aber ausdrücklich für das volle
+  // Modell, und dazu gehört es.
   portfolio_safe: {
-    practices: { ...DEFAULT_PRACTICES },
+    practices: { ...DEFAULT_PRACTICES, artEpics: true },
     structure: {
       targetValueStreams: 1,
       targetArtsTotal: 2,
@@ -135,6 +148,9 @@ export function effectivePractices(
 ): PracticeFlags {
   if (!model) return { ...DEFAULT_PRACTICES };
   return {
+    // Ausnahme von "alles an": ART-Epics leiten Geld um und werden bewusst
+    // eingeschaltet, nicht per Default geerbt.
+    artEpics: model.artEpics ?? false,
     portfolioLevel: model.portfolioLevel ?? true,
     programLevel: model.programLevel ?? true,
     stageGates: model.stageGates ?? true,

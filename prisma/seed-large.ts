@@ -25,7 +25,15 @@ import type { Prisma } from "@/generated/prisma";
 import { enumerateDefaultCapabilities } from "@/server/auth/policies";
 import { buildBudgetPlanSnapshot } from "@/modules/budgeting/domain/budget-plan-snapshot";
 import { prisma, upsertAuthUser, assignRole, wipeDomainData, uid } from "./seed-helpers.js";
-import { seedRunTheBusiness, seedBudgetPeriod, type GroupSpec } from "./seed-budgeting.js";
+import { computeBusinessCaseTotals, parseBusinessCase } from "@/modules/work/domain/business-case";
+import {
+  seedArtEpicAllocations,
+  seedBudgetPeriod,
+  seedRunTheBusiness,
+  seedValueStreamGuardrails,
+  type ArtAllocationSpec,
+  type GroupSpec,
+} from "./seed-budgeting.js";
 import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 import {
   assertGateHistory,
@@ -995,6 +1003,22 @@ async function main() {
           interval: "yearly",
           solutionId: solId(k, "h1"),
         },
+        // Je ART ein Veränderungsrahmen — beide ARTs des Wertstroms, damit die
+        // Flächen unter Last mit Daten laufen und nicht nur mit Sonderfällen.
+        {
+          name: `Veränderungsrahmen ${artNames[k * 2]}`,
+          plannedAmount: 180_000 + k * 30_000,
+          interval: "half_yearly",
+          artId: artIds[k * 2]!,
+          kind: "art_change",
+        },
+        {
+          name: `Veränderungsrahmen ${artNames[k * 2 + 1]}`,
+          plannedAmount: 140_000 + k * 20_000,
+          interval: "half_yearly",
+          artId: artIds[k * 2 + 1]!,
+          kind: "art_change",
+        },
       ],
     })),
   );
@@ -1317,10 +1341,84 @@ async function main() {
       targetTeamsTotal: 18,
       targetPiCadenceWeeks: 10,
       targetDate: cycleStart(ALL_CYCLES[MAX_IDX]!),
+      // Guardrail 3 an — der Lastdatensatz soll die neuen Flächen mit Masse
+      // durchlaufen, nicht mit Sonderfällen.
+      artEpics: true,
       createdBy: ADMIN,
       updatedBy: ADMIN,
     },
   });
+
+  // ── Guardrail 3: Rahmen-Verteilung und Ziele je Wertstrom ─────────────────
+  //
+  // Erzeugt, nicht von Hand gesetzt: der Lastdatensatz braucht Masse in den
+  // neuen Tabellen. Klassifiziert wird über den freigegebenen Business Case —
+  // deshalb kommen nur Epics infrage, die L3.1 erreicht haben.
+  const artEpicRows = await prisma.initiative.findMany({
+    where: {
+      tenantId,
+      level: 0,
+      deletedAt: null,
+      artId: { not: null },
+      businessCaseApprovedAt: { not: null },
+    },
+    select: { id: true, artId: true, businessCase: true },
+  });
+
+  const LIMIT = 100_000;
+  const allocSpecs: ArtAllocationSpec[] = [];
+
+  // Der Rahmen je ART ist der Deckel — in der Anwendung prüft ihn der
+  // Schreibpfad in derselben Transaktion. Ein Seed, der daran vorbeischreibt,
+  // erzeugt Töpfe, die dauerhaft überzogen dastehen: einen Zustand, den das
+  // System gar nicht zulässt. Deshalb wird er hier mitgerechnet.
+  const frameByArt = new Map<string, number>();
+  for (const it of rtb) {
+    if (it.kind !== "art_change" || it.artId == null) continue;
+    frameByArt.set(
+      it.artId,
+      (frameByArt.get(it.artId) ?? 0) + rtbCycleAmount(it.plannedAmount, it.interval),
+    );
+  }
+  const usedByArt = new Map<string, number>();
+
+  for (const [n, e] of artEpicRows.entries()) {
+    const cost = computeBusinessCaseTotals(
+      parseBusinessCase(e.businessCase).current,
+    ).implementationCost;
+    if (cost > LIMIT || cost === 0 || e.artId == null) continue;
+    // Nur etwa zwei Drittel bekommen überhaupt Geld — der Rest bleibt sichtbar
+    // ungedeckt, sonst zeigt die Fläche überall denselben Normalfall.
+    if (n % 3 === 2) continue;
+
+    const amount = Math.round(cost);
+    const used = usedByArt.get(e.artId) ?? 0;
+    if (used + amount > (frameByArt.get(e.artId) ?? 0)) continue; // passt nicht mehr
+
+    usedByArt.set(e.artId, used + amount);
+    allocSpecs.push({
+      artId: e.artId,
+      epicId: e.id,
+      cycleKey: ALL_CYCLES[MAX_IDX]!,
+      amount,
+      ask: amount,
+    });
+  }
+  await seedArtEpicAllocations(tenantId, ADMIN, allocSpecs);
+  console.log(`  ✓ ${allocSpecs.length} ART-Zuteilungen (${ALL_CYCLES[MAX_IDX]})`);
+
+  await seedValueStreamGuardrails(
+    tenantId,
+    ADMIN,
+    vsIds.map((vsId, k) => ({
+      valueStreamId: vsId,
+      targets: {
+        capacity: { business: 70 + k * 5, enabler: 30 - k * 5 },
+        approval: { portfolioThreshold: 100_000 + k * 25_000 },
+      },
+    })),
+  );
+  console.log(`  ✓ Guardrail-Ziele für ${vsIds.length} Wertströme`);
 
   console.log("\n✅ Large-Seed fertig (budget-getriebenes 10-Jahres-Programm, Jahr 5 H1).\n");
 }

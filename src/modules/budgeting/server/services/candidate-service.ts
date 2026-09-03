@@ -32,13 +32,23 @@ export async function materializeRtbCandidates(
 ): Promise<void> {
   const items = await tx.runTheBusinessItem.findMany({
     where: { tenantId, active: true },
-    select: { id: true, name: true, plannedAmount: true, interval: true, valueStreamId: true },
+    select: {
+      id: true,
+      name: true,
+      plannedAmount: true,
+      interval: true,
+      valueStreamId: true,
+      artId: true,
+    },
   });
   for (const it of items) {
     const data = {
       title: it.name,
       ask: rtbCycleAmount(Number(it.plannedAmount), it.interval),
       valueStreamId: it.valueStreamId,
+      // Bisher fest `null`: die Position kannte keinen ART. Jetzt trägt sie ihn
+      // mit, damit der Veränderungsrahmen einem ART zurechenbar ist.
+      artId: it.artId,
       updatedBy: actorId,
     };
     await tx.budgetCandidate.upsert({
@@ -50,7 +60,6 @@ export async function materializeRtbCandidates(
         tenantId,
         roundId,
         rtbItemId: it.id,
-        artId: null,
         createdBy: actorId,
       },
     });

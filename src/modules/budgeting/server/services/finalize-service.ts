@@ -11,11 +11,10 @@
  *   `createRound`) und kopiert Beteiligte + Gruppen (inkl. Sprecher/Mitglieder).
  */
 
-import type { Prisma } from "@/generated/prisma";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { ok, err, isErr, type Result } from "@/modules/core/kernel/domain/errors";
-import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
+import { mergeEpicAllocation } from "@/modules/budgeting/server/services/epic-allocation";
 import { computeReserve } from "@/modules/budgeting/domain/finalize";
 import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
 import { createRound, copyPeriodSetup } from "@/modules/budgeting/server/services/round-service";
@@ -130,26 +129,12 @@ async function finalizePeriodRound(
 
       // Epic-Kandidaten: BudgetAllocation für den Cycle mergen (App-Kontinuität).
       if (cand.kind === "epic" && cand.epicId) {
-        const existing = await tx.budgetAllocation.findUnique({
-          where: { epicId: cand.epicId },
-          select: { allocations: true },
-        });
-        const alloc = parsePeriodAmountMap(existing?.allocations);
-        alloc[round.cycleKey] = f.amount;
-        await tx.budgetAllocation.upsert({
-          where: { epicId: cand.epicId },
-          update: {
-            allocations: alloc as unknown as Prisma.InputJsonValue,
-            updatedBy: mctx.actorId,
-          },
-          create: {
-            tenantId: mctx.tenantId,
-            epicId: cand.epicId,
-            priority: 0,
-            allocations: alloc as unknown as Prisma.InputJsonValue,
-            createdBy: mctx.actorId,
-            updatedBy: mctx.actorId,
-          },
+        await mergeEpicAllocation(tx, {
+          tenantId: mctx.tenantId,
+          epicId: cand.epicId,
+          cycleKey: round.cycleKey,
+          amount: f.amount,
+          actorId: mctx.actorId,
         });
       }
     }

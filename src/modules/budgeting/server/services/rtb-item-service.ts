@@ -18,11 +18,16 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { authorizeResource } from "@/server/auth/authorize";
 import { rtbIntervalOrDefault } from "@/modules/budgeting/domain/rtb-interval";
+import { rtbKindOrDefault } from "@/modules/budgeting/domain/rtb-kind";
 
 export interface RtbItemFilter {
   valueStreamId?: string;
   /** Genau die Positionen dieser Solution. Ohne Filter: alle, auch die ohne. */
   solutionId?: string;
+  /** Genau die Positionen dieses ARTs. Ohne Filter: alle, auch die ohne. */
+  artId?: string;
+  /** `"run"` = Betrieb, `"art_change"` = Veränderungsrahmen. Ohne Filter: beide. */
+  kind?: string;
 }
 
 /**
@@ -40,6 +45,8 @@ export async function listRtbItems(
       tenantId,
       ...(filter.valueStreamId != null && { valueStreamId: filter.valueStreamId }),
       ...(filter.solutionId != null && { solutionId: filter.solutionId }),
+      ...(filter.artId != null && { artId: filter.artId }),
+      ...(filter.kind != null && { kind: filter.kind }),
     },
     orderBy: { name: "asc" },
     select: {
@@ -50,6 +57,8 @@ export async function listRtbItems(
       interval: true,
       solutionId: true,
       valueStreamId: true,
+      artId: true,
+      kind: true,
     },
   });
   return rows.map((r) => ({ ...r, plannedAmount: Number(r.plannedAmount) }));
@@ -90,6 +99,8 @@ export async function createRtbItem(
     plannedAmount: number;
     interval?: string | undefined;
     solutionId?: string | null | undefined;
+    artId?: string | null | undefined;
+    kind?: string | undefined;
   },
 ): Promise<Result<{ id: string }>> {
   const mctx = toMutationContext(ctx);
@@ -105,6 +116,8 @@ export async function createRtbItem(
         plannedAmount: input.plannedAmount,
         interval: rtbIntervalOrDefault(input.interval),
         solutionId: input.solutionId ?? null,
+        artId: input.artId ?? null,
+        kind: rtbKindOrDefault(input.kind),
         createdBy: mctx.actorId,
         updatedBy: mctx.actorId,
       },
@@ -131,6 +144,8 @@ export async function updateRtbItem(
     active?: boolean | undefined;
     interval?: string | undefined;
     solutionId?: string | null | undefined;
+    artId?: string | null | undefined;
+    kind?: string | undefined;
   },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
@@ -152,6 +167,8 @@ export async function updateRtbItem(
         ...(input.active !== undefined && { active: input.active }),
         ...(input.interval !== undefined && { interval: rtbIntervalOrDefault(input.interval) }),
         ...(input.solutionId !== undefined && { solutionId: input.solutionId }),
+        ...(input.artId !== undefined && { artId: input.artId }),
+        ...(input.kind !== undefined && { kind: rtbKindOrDefault(input.kind) }),
         updatedBy: mctx.actorId,
       },
     });

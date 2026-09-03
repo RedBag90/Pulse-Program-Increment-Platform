@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  stackLabel,
-  stackTooltipRows,
-  type Stack,
-} from "@/modules/work/features/portfolio/components/dashboard/stack-tooltip";
+import { stackLabel, stackTooltipRows, type Stack } from "@/components/charts/stack-tooltip";
 
 /**
  * Der Fall, der dieses Modul veranlasst hat: der Tooltip der Benefit Velocity

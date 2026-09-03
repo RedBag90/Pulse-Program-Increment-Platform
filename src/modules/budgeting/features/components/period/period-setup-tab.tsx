@@ -296,6 +296,12 @@ function Ballot({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
             + auf den Ballot
           </button>
           {addState.error && <span className="text-xs text-red-600">{addState.error}</span>}
+          {model.artEpicsFilteredOut > 0 && (
+            <p className="w-full text-xs text-muted-foreground">
+              {model.artEpicsFilteredOut} vorgemerkte Epics stehen nicht zur Wahl: sie liegen unter
+              dem Portfolio-Limit und werden vom jeweiligen ART aus dessen Rahmen finanziert.
+            </p>
+          )}
         </form>
       )}
     </div>

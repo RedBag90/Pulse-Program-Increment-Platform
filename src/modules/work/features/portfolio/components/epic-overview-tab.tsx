@@ -3,6 +3,9 @@ import { EpicClassificationForm } from "./epic-classification-form";
 import { EpicSolutionsSection } from "./solutions/epic-solutions-section";
 import { EpicEditForm } from "./epic-edit-form";
 import { EpicGovernanceFlags } from "./epic-governance-flags";
+import { EpicClassBadge } from "./epic-class-badge";
+import type { EpicClassification } from "@/modules/work/domain/pb-submission";
+import type { GuardrailTargetsSource } from "@/modules/work/domain/portfolio-guardrails";
 import { EpicPlannedWindowForm } from "./epic-planned-window-form";
 import { SectionLabel } from "@/components/ui/section-label";
 import { formatCompactEUR } from "@/lib/formatting";
@@ -58,6 +61,15 @@ export interface EpicOverviewTabProps {
     epicType: string | null;
   };
   canEdit: boolean;
+  /** Guardrail 3: Portfolio- oder ART-Epic. `null` = Practice aus. */
+  classification?:
+    | {
+        classification: EpicClassification;
+        source: GuardrailTargetsSource;
+        fundingGap?: "noArt" | "noPot" | null | undefined;
+      }
+    | null
+    | undefined;
   /** Nutzen bei 100 % KPI-Zielerreichung — direkt aus den KPIs berechnet. */
   kpiBenefit: { oneTimeBenefit: number; recurringBenefit: number };
   /** Zuordenbare Solutions (im Value Stream des Epics) für die Zuordnung. */
@@ -97,7 +109,13 @@ function StatTile({
  * from data the Epic already carries; financials are derived from the
  * businessCase JSON.
  */
-export function EpicOverviewTab({ epic, canEdit, kpiBenefit, solutions }: EpicOverviewTabProps) {
+export function EpicOverviewTab({
+  epic,
+  canEdit,
+  kpiBenefit,
+  solutions,
+  classification,
+}: EpicOverviewTabProps) {
   const completedChildren = epic.children.filter((c) => c.status === "completed").length;
 
   const summary = buildInitiativeSummary({
@@ -149,6 +167,17 @@ export function EpicOverviewTab({ epic, canEdit, kpiBenefit, solutions }: EpicOv
           </div>
         </div>
       </section>
+
+      {classification && (
+        <section>
+          <SectionLabel className="mb-2">Einordnung</SectionLabel>
+          <EpicClassBadge
+            classification={classification.classification}
+            source={classification.source}
+            fundingGap={classification.fundingGap}
+          />
+        </section>
+      )}
 
       <section>
         <SectionLabel className="mb-2 flex items-center gap-1.5">

@@ -44,6 +44,8 @@ export function GuardrailTargetsForm({ targets }: Props) {
     setDraft((p) => ({ ...p, capacity: { ...p.capacity, [key]: num(v) } }));
   const setEngagement = (key: "coverage" | "responseDays", v: number) =>
     setDraft((p) => ({ ...p, engagement: { ...p.engagement, [key]: num(v) } }));
+  const setThreshold = (v: number) =>
+    setDraft((p) => ({ ...p, approval: { portfolioThreshold: num(v) } }));
 
   const horizonSum = draft.horizon.h0 + draft.horizon.h1 + draft.horizon.h2 + draft.horizon.h3;
   const capacitySum = draft.capacity.business + draft.capacity.enabler;
@@ -129,6 +131,23 @@ export function GuardrailTargetsForm({ targets }: Props) {
               onChange={(v) => setEngagement("responseDays", v)}
             />
             <p className="pt-1 text-[11px] text-muted-foreground">keine Summenregel</p>
+          </fieldset>
+
+          <fieldset className="space-y-2 rounded-md border p-3">
+            <legend className="px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Portfolio-Limit
+            </legend>
+            <NumberRow
+              label="Schwelle"
+              name="guardrail_portfolio_threshold"
+              value={draft.approval.portfolioThreshold}
+              unit="€"
+              max={100_000_000}
+              onChange={setThreshold}
+            />
+            <p className="pt-1 text-[11px] text-muted-foreground">
+              Ab dieser Größe entscheidet das Portfolio. Darunter finanziert der ART.
+            </p>
           </fieldset>
         </div>
         {!validation.ok && (

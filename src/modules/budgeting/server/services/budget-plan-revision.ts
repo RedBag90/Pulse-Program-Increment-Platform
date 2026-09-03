@@ -64,7 +64,15 @@ export async function captureBudgetPlanRevision(
     loadFeatureSnapshotInputs(ctx.db, mctx.tenantId),
   ]);
 
+  // Woher das Geld des Zyklus stammt — der Beleg soll es später auseinanderhalten
+  // können, ohne die Klassifikation neu zu rechnen.
+  const artFunded = await ctx.db.artEpicAllocation.findMany({
+    where: { tenantId: mctx.tenantId, cycleKey },
+    select: { epicId: true },
+  });
+
   const snapshot = buildBudgetPlanSnapshot({
+    artFundedEpicIds: new Set(artFunded.map((a) => a.epicId)),
     cycleKey,
     capturedAt,
     pool: board.pool,

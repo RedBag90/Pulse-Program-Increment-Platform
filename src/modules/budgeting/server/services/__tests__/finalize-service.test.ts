@@ -113,6 +113,44 @@ describe("finalizePeriod", () => {
     );
   });
 
+  // Die Zyklus-Karte ist eine Fortschreibung: sie trägt alle Halbjahre, in denen
+  // das Epic je Geld bekommen hat. Ein Finalize darf nur die eigene Zelle setzen.
+  // Dieser Test steht hier, bevor der Merge in eine eigene Funktion wandert —
+  // er ist die Absicherung der Extraktion, nicht ihre Folge.
+  it("ergänzt die Zyklus-Karte, statt frühere Halbjahre zu verlieren", async () => {
+    const t = tx();
+    t.budgetAllocation!.findUnique = vi.fn(async () => ({
+      allocations: { "2025-H2": 300 },
+    }));
+
+    const res = await finalizePeriod(ctxWith(t), {
+      id: "r1",
+      finals: [{ candidateId: "c1", amount: 400 }],
+    });
+
+    expect(res.ok).toBe(true);
+    const arg = t.budgetAllocation!.upsert!.mock.calls[0]![0] as {
+      update: { allocations: Record<string, number> };
+      create: { allocations: Record<string, number> };
+    };
+    expect(arg.update.allocations).toEqual({ "2025-H2": 300, "2026-H1": 400 });
+    expect(arg.create.allocations).toEqual({ "2025-H2": 300, "2026-H1": 400 });
+  });
+
+  it("ersetzt den Betrag desselben Zyklus, statt ihn zu addieren", async () => {
+    const t = tx();
+    t.budgetAllocation!.findUnique = vi.fn(async () => ({
+      allocations: { "2026-H1": 900 },
+    }));
+
+    await finalizePeriod(ctxWith(t), { id: "r1", finals: [{ candidateId: "c1", amount: 400 }] });
+
+    const arg = t.budgetAllocation!.upsert!.mock.calls[0]![0] as {
+      update: { allocations: Record<string, number> };
+    };
+    expect(arg.update.allocations).toEqual({ "2026-H1": 400 });
+  });
+
   it("lehnt ab, wenn nicht decided", async () => {
     const t = tx();
     t.budgetRound!.findFirst = vi.fn(async () => ({

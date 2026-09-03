@@ -3,15 +3,22 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
 import { getValueStream } from "@/modules/core/org/server/services/value-stream";
-import {
-  getValueStreamBudget,
-  type ValueStreamBudget,
-} from "@/modules/budgeting/server/services/budgeting";
+import { getValueStreamBudget } from "@/modules/budgeting/server/services/budgeting";
 import { loadArtBudgetModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
 import { ArtBudgetView } from "@/modules/budgeting/features/components/art-budget/art-budget-view";
+import { ValueStreamBudgetPlan } from "@/modules/budgeting/features/components/value-stream/value-stream-budget-plan";
+import { loadValueStreamCourse } from "@/modules/budgeting/server/views/art-budget-detail";
+import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
+import {
+  loadClassificationPreview,
+  loadValueStreamCapacityMix,
+} from "@/modules/work/server/views/value-stream-capacity-mix";
+import { getTenantPractices } from "@/server/services/target-model";
+import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
+import { ValueStreamGuardrailsSection } from "@/modules/work/features/portfolio/components/value-stream-guardrails-section";
+import { AllocationCourseChart } from "@/modules/budgeting/features/components/art-budget/allocation-course-chart";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { RtbSection } from "@/modules/budgeting/features/components/rtb/rtb-section";
-import { formatEUR } from "@/lib/formatting";
 import { listAuditHistory } from "@/server/services/audit-history";
 import { listTenantApprovers } from "@/modules/work/server/services/tenant-approvers";
 import { listGateApproverRules } from "@/modules/work/server/services/stage-gate-transition";
@@ -30,62 +37,17 @@ import { Link } from "@/i18n/navigation";
 import { redirect } from "next/navigation";
 import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 
-const TABS: readonly DetailTab[] = [
+const BASE_TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },
   { key: "arts", label: "ARTs" },
   { key: "history", label: "Verlauf" },
 ];
 
-/**
- * Read-only budget plan derived from the Value Stream's Epics' participatory-
- * budgeting allocations, per half-year across the forecast horizon.
- */
-function BudgetPlan({
-  periods,
-  plan,
-}: {
-  periods: { key: string; label: string }[];
-  plan: ValueStreamBudget | undefined;
-}) {
-  const hasAny = periods.some((p) => (plan?.byPeriod[p.key] ?? 0) > 0);
-  return (
-    <section className="space-y-2">
-      <h2 className="text-sm font-medium">Budgetplan</h2>
-      <p className="text-xs text-muted-foreground">
-        Automatisch aus den Participatory-Budgeting-Zuteilungen der Epics dieses Wertstroms.
-      </p>
-      {!hasAny ? (
-        <p className="text-sm text-muted-foreground">Noch kein Budget zugeteilt.</p>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50 text-xs text-muted-foreground">
-                {periods.map((p) => (
-                  <th key={p.key} className="p-2 text-right font-medium">
-                    {p.label}
-                  </th>
-                ))}
-                <th className="p-2 text-right font-medium">Summe</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                {periods.map((p) => (
-                  <td key={p.key} className="p-2 text-right tabular-nums">
-                    {formatEUR(plan?.byPeriod[p.key] ?? 0)}
-                  </td>
-                ))}
-                <td className="p-2 text-right font-medium tabular-nums">
-                  {formatEUR(plan?.total ?? 0)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  );
+/** Budget nur mit aktivem Modul — und stets vor „Verlauf", wie auf der Epic-Seite. */
+function tabsFor(budgetingEnabled: boolean): readonly DetailTab[] {
+  return budgetingEnabled
+    ? [...BASE_TABS.slice(0, -1), { key: "budget", label: "Budget" }, ...BASE_TABS.slice(-1)]
+    : BASE_TABS;
 }
 
 interface Props {
@@ -96,7 +58,6 @@ interface Props {
 export default async function ValueStreamDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
   const { tab } = await searchParams;
-  const activeTab = resolveTab(TABS, tab);
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -120,30 +81,60 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
   // Der schmale `getValueStreamBudget`-Seam ersetzt das frueher tenant-weite
   // `getValueStreamBudgets(...).find(...)`.
   const budgetingEnabled = principal.enabledModules.includes("budgeting");
+  // Der Reiter existiert nur mit Modul; `resolveTab` fängt ein `?tab=budget`
+  // ohne Modul auf den ersten Reiter ab.
+  const tabs = tabsFor(budgetingEnabled);
+  const activeTab = resolveTab(tabs, tab);
 
-  const [history, approvers, userLabels, budgeting, gateRules] = await Promise.all([
-    listAuditHistory(db, principal.tenantId, "value_stream", vs.id),
-    listTenantApprovers(db, principal.tenantId),
-    listTenantUserLabels(db, principal.tenantId),
-    budgetingEnabled
-      ? Promise.all([
-          getValueStreamBudget(db, principal.tenantId, vs.id as ValueStreamId),
-          loadArtBudgetModel(db, principal.tenantId, vs.id as ValueStreamId),
-          listRtbItems(db, principal.tenantId, { valueStreamId: vs.id }),
-          db.solution.findMany({
-            where: { tenantId: principal.tenantId, valueStreamId: vs.id, deletedAt: null },
-            select: { id: true, name: true },
-            orderBy: { name: "asc" },
-          }),
-        ]).then(([plan, artModel, rtbItems, solutions]) => ({
-          plan,
-          artModel,
-          rtbItems,
-          solutions,
-        }))
+  const [history, approvers, userLabels, budgeting, gateRules, guardrailRows, tenant] =
+    await Promise.all([
+      listAuditHistory(db, principal.tenantId, "value_stream", vs.id),
+      listTenantApprovers(db, principal.tenantId),
+      listTenantUserLabels(db, principal.tenantId),
+      budgetingEnabled
+        ? Promise.all([
+            getValueStreamBudget(db, principal.tenantId, vs.id as ValueStreamId),
+            loadArtBudgetModel(db, principal.tenantId, vs.id as ValueStreamId),
+            listRtbItems(db, principal.tenantId, { valueStreamId: vs.id }),
+            loadValueStreamCourse(db, principal.tenantId, vs.id),
+            db.solution.findMany({
+              where: { tenantId: principal.tenantId, valueStreamId: vs.id, deletedAt: null },
+              select: { id: true, name: true },
+              orderBy: { name: "asc" },
+            }),
+          ]).then(([plan, artModel, rtbItems, course, solutions]) => ({
+            plan,
+            artModel,
+            rtbItems,
+            course,
+            solutions,
+          }))
+        : Promise.resolve(null),
+      listGateApproverRules(db, principal.tenantId, vs.id),
+      listValueStreamGuardrailTargets(db, principal.tenantId),
+      db.tenant.findUnique({
+        where: { id: principal.tenantId },
+        select: { guardrailTargets: true },
+      }),
+    ]);
+
+  const resolved = resolveGuardrailTargets(guardrailRows, tenant?.guardrailTargets ?? null, vs.id);
+  const practices = await getTenantPractices(db, principal.tenantId);
+  const [capacityMix, classPreview] = await Promise.all([
+    loadValueStreamCapacityMix(db, principal.tenantId, vs.id, resolved.targets.capacity),
+    practices.artEpics
+      ? loadClassificationPreview(
+          db,
+          principal.tenantId,
+          vs.id,
+          resolved.targets.approval.portfolioThreshold,
+        )
       : Promise.resolve(null),
-    listGateApproverRules(db, principal.tenantId, vs.id),
   ]);
+  const canSetTargets = hasCapability(principal, "target.manage", {
+    tenantId: principal.tenantId,
+    valueStreamId: vs.id,
+  });
 
   // ART budgets are distributed by the VS Finance approver (or anyone the
   // `art_budget.manage` policy grants). Migration note: the previous inline
@@ -169,7 +160,7 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
       backLabel="Zurück zur Struktur"
       title={vs.name}
       badge={`${vs.arts.length} ART${vs.arts.length !== 1 ? "s" : ""}`}
-      tabs={TABS}
+      tabs={tabs}
       activeTab={activeTab}
       basePath={`/value-streams/${vs.id}`}
     >
@@ -212,21 +203,39 @@ export default async function ValueStreamDetailPage({ params, searchParams }: Pr
             userLabels={userLabels}
             canConfigure={canConfigureGates}
           />
-          {budgeting && (
-            <>
-              <BudgetPlan
-                periods={budgeting.plan.periods}
-                plan={budgeting.plan.budget ?? undefined}
-              />
-              <ArtBudgetView model={budgeting.artModel} />
-              <RtbSection
-                valueStreamId={vs.id}
-                items={budgeting.rtbItems}
-                canManage={canEditArtBudget}
-                solutions={budgeting.solutions}
-              />
-            </>
+        </div>
+      )}
+
+      {activeTab === "budget" && budgeting && (
+        <div className="space-y-8">
+          <ValueStreamBudgetPlan
+            periods={budgeting.plan.periods}
+            plan={budgeting.plan.budget ?? undefined}
+          />
+          {budgeting.course.course && (
+            <AllocationCourseChart
+              course={budgeting.course.course}
+              todayIndex={budgeting.course.todayIndex}
+              title={`Verlauf · ${budgeting.course.cycles.find((c) => c.key === budgeting.course.cycleKey)?.label ?? ""}`}
+              subtitle="Alle Zuteilungen dieses Wertstroms, auf die Monate des Halbjahres verteilt."
+            />
           )}
+          <ArtBudgetView model={budgeting.artModel} />
+          <ValueStreamGuardrailsSection
+            valueStreamId={vs.id}
+            mix={capacityMix}
+            threshold={resolved.targets.approval.portfolioThreshold}
+            source={resolved.source}
+            overriddenAxes={resolved.overriddenAxes}
+            canEdit={canSetTargets}
+            preview={classPreview}
+          />
+          <RtbSection
+            valueStreamId={vs.id}
+            items={budgeting.rtbItems}
+            canManage={canEditArtBudget}
+            solutions={budgeting.solutions}
+          />
         </div>
       )}
 

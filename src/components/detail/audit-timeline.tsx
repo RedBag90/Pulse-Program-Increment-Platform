@@ -9,6 +9,8 @@ export interface AuditTimelineItem {
 const ACTION_LABELS: Record<string, string> = {
   "value_stream.created": "Value Stream erstellt",
   "value_stream.updated": "Value Stream aktualisiert",
+  "value_stream.guardrails.updated": "Guardrail-Ziele geändert",
+  "art.epic_allocation.set": "ART-Rahmen verteilt",
   "value_stream.deleted": "Value Stream gelöscht",
   "art.created": "ART erstellt",
   "art.updated": "ART aktualisiert",

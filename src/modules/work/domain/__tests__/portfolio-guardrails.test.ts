@@ -9,6 +9,7 @@ import {
   parseGuardrailTargetsDetailed,
   validateGuardrailTargets,
   DEFAULT_GUARDRAIL_TARGETS,
+  resolveGuardrailTargets,
 } from "@/modules/work/domain/portfolio-guardrails";
 
 /** Ein valides Ziel-Set mit gezielt ueberschriebenen Achsen. */
@@ -144,5 +145,121 @@ describe("parseGuardrailTargets — Engagement-Legacy", () => {
       engagement: { coverage: 75, responseDays: 21 },
     });
     expect(r.engagement).toEqual({ coverage: 75, responseDays: 21 });
+  });
+});
+
+describe("Guardrail 3 · Portfolio-Limit", () => {
+  it("liefert den Default, wenn der Block fehlt — ohne Drift zu melden", () => {
+    const parsed = parseGuardrailTargetsDetailed({
+      horizon: { h0: 10, h1: 60, h2: 20, h3: 10 },
+      capacity: { business: 80, enabler: 20 },
+      engagement: { coverage: 90, responseDays: 10 },
+    });
+    expect(parsed.targets.approval.portfolioThreshold).toBe(
+      DEFAULT_GUARDRAIL_TARGETS.approval.portfolioThreshold,
+    );
+    // Jeder Bestands-Tenant hat ein JSON ohne `approval` — das ist der gewollte
+    // Pfad, keine Korruption.
+    expect(parsed.cleanlyParsed).toBe(true);
+  });
+
+  it("meldet Drift, wenn der Block da ist, aber das Feld fehlt", () => {
+    const parsed = parseGuardrailTargetsDetailed({
+      horizon: { h0: 10, h1: 60, h2: 20, h3: 10 },
+      capacity: { business: 80, enabler: 20 },
+      engagement: { coverage: 90, responseDays: 10 },
+      approval: {},
+    });
+    expect(parsed.cleanlyParsed).toBe(false);
+    expect(parsed.fellBackFields).toContain("approval.portfolioThreshold");
+  });
+
+  it("übernimmt einen gesetzten Wert", () => {
+    const t = parseGuardrailTargets({ approval: { portfolioThreshold: 250_000 } });
+    expect(t.approval.portfolioThreshold).toBe(250_000);
+  });
+
+  // Kein Mix: nur der Wertebereich zählt, keine Summe.
+  it("weist ein negatives Limit zurück", () => {
+    const t = { ...DEFAULT_GUARDRAIL_TARGETS, approval: { portfolioThreshold: -1 } };
+    expect(validateGuardrailTargets(t).ok).toBe(false);
+  });
+
+  it("lässt 0 zu — dann ist alles Portfolio-Sache", () => {
+    const t = { ...DEFAULT_GUARDRAIL_TARGETS, approval: { portfolioThreshold: 0 } };
+    expect(validateGuardrailTargets(t).ok).toBe(true);
+  });
+});
+
+describe("resolveGuardrailTargets", () => {
+  const TENANT = {
+    horizon: { h0: 5, h1: 65, h2: 20, h3: 10 },
+    capacity: { business: 80, enabler: 20 },
+    approval: { portfolioThreshold: 100_000 },
+    engagement: { coverage: 90, responseDays: 10 },
+  };
+
+  it("erbt vom Tenant, wenn der Wertstrom keine Zeile hat", () => {
+    const r = resolveGuardrailTargets([], TENANT, "vs-1");
+    expect(r.source).toBe("tenant");
+    expect(r.overriddenAxes).toEqual([]);
+    expect(r.targets.capacity).toEqual({ business: 80, enabler: 20 });
+  });
+
+  it("fällt auf den Code-Default, wenn auch der Tenant nichts gesetzt hat", () => {
+    const r = resolveGuardrailTargets([], null, "vs-1");
+    expect(r.source).toBe("code_default");
+    expect(r.targets).toEqual(DEFAULT_GUARDRAIL_TARGETS);
+  });
+
+  // Der Kern: eine gesetzte Achse ersetzt, die übrigen bleiben geerbt. Sonst
+  // friert ein Wertstrom den Tenant-Stand ein, sobald er irgendetwas setzt.
+  it("ersetzt nur die gesetzten Achsen und erbt den Rest", () => {
+    const r = resolveGuardrailTargets(
+      [{ valueStreamId: "vs-1", targets: { capacity: { business: 75, enabler: 25 } } }],
+      TENANT,
+      "vs-1",
+    );
+    expect(r.source).toBe("value_stream");
+    expect(r.overriddenAxes).toEqual(["capacity"]);
+    expect(r.targets.capacity).toEqual({ business: 75, enabler: 25 });
+    expect(r.targets.horizon).toEqual(TENANT.horizon);
+    expect(r.targets.approval.portfolioThreshold).toBe(100_000);
+  });
+
+  it("setzt auch nur das Portfolio-Limit", () => {
+    const r = resolveGuardrailTargets(
+      [{ valueStreamId: "vs-1", targets: { approval: { portfolioThreshold: 250_000 } } }],
+      TENANT,
+      "vs-1",
+    );
+    expect(r.overriddenAxes).toEqual(["approval"]);
+    expect(r.targets.approval.portfolioThreshold).toBe(250_000);
+    expect(r.targets.capacity).toEqual(TENANT.capacity);
+  });
+
+  it("greift nicht auf die Zeile eines anderen Wertstroms zurück", () => {
+    const r = resolveGuardrailTargets(
+      [{ valueStreamId: "vs-2", targets: { capacity: { business: 50, enabler: 50 } } }],
+      TENANT,
+      "vs-1",
+    );
+    expect(r.source).toBe("tenant");
+    expect(r.targets.capacity).toEqual(TENANT.capacity);
+  });
+
+  it("behandelt eine leere Zeile wie keine", () => {
+    const r = resolveGuardrailTargets([{ valueStreamId: "vs-1", targets: {} }], TENANT, "vs-1");
+    expect(r.source).toBe("tenant");
+    expect(r.overriddenAxes).toEqual([]);
+  });
+
+  it("ohne Wertstrom-Bezug gilt der Tenant-Stand", () => {
+    const r = resolveGuardrailTargets(
+      [{ valueStreamId: "vs-1", targets: { capacity: { business: 50, enabler: 50 } } }],
+      TENANT,
+      null,
+    );
+    expect(r.source).toBe("tenant");
   });
 });

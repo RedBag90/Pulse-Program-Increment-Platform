@@ -122,7 +122,7 @@ export async function computePracticeAdoption(
   ]);
 
   const candidates: Record<
-    Exclude<Practice, "portfolioLevel" | "programLevel">,
+    Exclude<Practice, "portfolioLevel" | "programLevel" | "artEpics">,
     { value: number; detail: string }
   > = {
     wsjf: {

@@ -19,6 +19,10 @@ import { InitiativeActivitySidebar } from "@/components/detail/initiative-activi
 import { EpicHistoryTimeline } from "@/modules/work/features/portfolio/components/epic-history-timeline";
 import { EPIC_TABS } from "@/modules/work/features/portfolio/components/epic-detail-shell";
 import { EpicOverviewTab } from "@/modules/work/features/portfolio/components/epic-overview-tab";
+import { getTenantPractices } from "@/server/services/target-model";
+import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
+import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
+import { classifyEpic } from "@/modules/work/domain/pb-submission";
 import { EpicLifecycleStepper } from "@/modules/work/features/portfolio/components/epic-lifecycle-stepper";
 import { EpicGateCard } from "@/modules/work/features/portfolio/components/gate/epic-gate-card";
 import { EpicKpisTab } from "@/modules/work/features/portfolio/components/epic-kpis-tab";
@@ -89,6 +93,57 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     loadEpicGoalLinks(db, principal, epicId),
   ]);
   if (!model) redirect("/portfolio/epics");
+
+  // Guardrail 3: Portfolio- oder ART-Epic. Nur mit aktiver Practice — ohne sie
+  // gibt es die Unterscheidung nicht, und ein Badge dafür wäre eine Behauptung
+  // über ein Verfahren, das nicht läuft.
+  const practices = await getTenantPractices(db, tenantId);
+  const epicClassification = practices.artEpics
+    ? await (async () => {
+        const [row, guardrailRows, tenantRow] = await Promise.all([
+          db.initiative.findFirst({
+            where: { id: epicId, tenantId },
+            select: {
+              valueStreamId: true,
+              businessCase: true,
+              businessCaseApprovedAt: true,
+              hypothesisApprovedAt: true,
+              portfolioOverrideAt: true,
+            },
+          }),
+          listValueStreamGuardrailTargets(db, tenantId),
+          db.tenant.findUnique({ where: { id: tenantId }, select: { guardrailTargets: true } }),
+        ]);
+        if (!row) return null;
+        const resolved = resolveGuardrailTargets(
+          guardrailRows,
+          tenantRow?.guardrailTargets ?? null,
+          row.valueStreamId,
+        );
+        const classification = classifyEpic(row, resolved.targets.approval.portfolioThreshold);
+
+        // Nach der Quellen-Trennung ist ein ART-Epic vom Ballot ausgeschlossen.
+        // Fehlt ihm auch ein Rahmen, hat es überhaupt keinen Weg mehr — das
+        // wird ausgewiesen, nicht verschwiegen.
+        let fundingGap: "noArt" | "noPot" | null = null;
+        if (classification.epicClass === "art") {
+          const art = await db.initiative.findFirst({
+            where: { id: epicId, tenantId },
+            select: { artId: true },
+          });
+          if (art?.artId == null) {
+            fundingGap = "noArt";
+          } else {
+            const pot = await db.runTheBusinessItem.count({
+              where: { tenantId, artId: art.artId, kind: "art_change", active: true },
+            });
+            if (pot === 0) fundingGap = "noPot";
+          }
+        }
+
+        return { classification, source: resolved.source, fundingGap };
+      })()
+    : null;
 
   // Issues tab content — risks + impediments rolled up over the Epic's feature
   // subtree (composition root may import the risks module; ADR-0013).
@@ -206,6 +261,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               canEdit={model.canEdit}
               kpiBenefit={model.kpiBenefit}
               solutions={availableSolutions}
+              classification={epicClassification}
             />
           </div>
         )}

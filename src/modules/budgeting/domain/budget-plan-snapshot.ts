@@ -53,6 +53,15 @@ export interface BudgetPlanSnapshotEpic {
   cycleBudget: number;
   /** Features that were assigned to a PI in the captured cycle's half-year. */
   cycleFeatures: BudgetPlanSnapshotFeature[];
+  /**
+   * Woher das Geld des erfassten Zyklus stammt: `"portfolio"` aus einer
+   * Budget-Kachel, `"art"` aus dem Veränderungsrahmen eines ARTs.
+   *
+   * Optional, weil Revisionen von **vor** der Trennung das Feld nicht tragen.
+   * Der Leser zeigt dann „unbekannt" — er darf nicht „Portfolio" raten, sonst
+   * behauptet der Beleg etwas, das er nicht weiß.
+   */
+  source?: "portfolio" | "art" | undefined;
 }
 
 /**
@@ -143,6 +152,14 @@ export interface BuildBudgetPlanSnapshotInputs {
   artRows: ReadonlyArray<ArtSnapshotInput>;
   /** All scheduled Features that may contribute to a cycle bucket or ART load. */
   features: ReadonlyArray<FeatureSnapshotInput>;
+  /**
+   * Epic-Ids, deren Zuteilung im erfassten Zyklus aus einem **ART-Rahmen**
+   * stammt. Alles Übrige kam aus einer Budget-Kachel.
+   *
+   * Fehlt die Menge (Aufrufer vor der Trennung), bleibt `source` an den Epics
+   * ungesetzt — „unbekannt" ist ehrlicher als geraten.
+   */
+  artFundedEpicIds?: ReadonlySet<string> | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -155,7 +172,7 @@ function byPriority(a: BudgetEpicView, b: BudgetEpicView): number {
 }
 
 export function buildBudgetPlanSnapshot(inputs: BuildBudgetPlanSnapshotInputs): BudgetPlanSnapshot {
-  const { cycleKey, capturedAt, pool, epics, artRows, features } = inputs;
+  const { cycleKey, capturedAt, pool, epics, artRows, features, artFundedEpicIds } = inputs;
 
   // Index Features by their parent Epic — used twice (Epic.cycleFeatures + ART load).
   const featuresByEpic = new Map<string, FeatureSnapshotInput[]>();
@@ -193,6 +210,9 @@ export function buildBudgetPlanSnapshot(inputs: BuildBudgetPlanSnapshotInputs): 
       valueStreamId: e.valueStreamId,
       valueStreamName: e.valueStream,
       priority: e.priority,
+      ...(artFundedEpicIds
+        ? { source: artFundedEpicIds.has(e.id) ? ("art" as const) : ("portfolio" as const) }
+        : {}),
       allocations: { ...e.allocations },
       total,
       cycleBudget,

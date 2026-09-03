@@ -82,6 +82,43 @@ export interface PrismaContext {
   tenantId: string;
 }
 
-export function createPrismaClient(_ctx: PrismaContext): PrismaClient {
-  return getBaseClient();
+/**
+ * Schalter für die RLS-Vorbereitung. **Standardmäßig aus.**
+ *
+ * Solange RLS nirgends erzwungen ist, wäre der Claim wirkungslos und würde nur
+ * Ladezeit kosten. Er lässt sich damit einschalten, um genau diese Kosten zu
+ * messen — und muss eingeschaltet sein, **bevor** `prisma/sql/rls-hardening.sql`
+ * gefahren wird, sonst liefert jede Leseoperation leer.
+ */
+export const RLS_CLAIMS_ENABLED = process.env.PULSE_RLS_CLAIMS === "1";
+
+export function createPrismaClient(ctx: PrismaContext): PrismaClient {
+  const base = getBaseClient();
+  if (!RLS_CLAIMS_ENABLED) return base;
+
+  // Der Claim muss in **derselben** Transaktion gesetzt werden wie die Abfrage,
+  // sonst ist er wirkungslos: `set_config(..., true)` gilt transaktionslokal.
+  // Deshalb wird die Operation über den Transaktions-Client neu aufgerufen und
+  // nicht über `query(args)` — das liefe außerhalb.
+  return base.$extends({
+    query: {
+      async $allOperations({ model, operation, args, query }) {
+        // Raw- und Transaktions-Operationen tragen kein Modell; sie laufen
+        // unverändert durch. Ihre Aufrufer setzen den Claim selbst, wenn nötig.
+        if (model == null) return query(args);
+        return base.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe(
+            `SELECT set_config('request.jwt.claims', $1, true)`,
+            JSON.stringify({ tenant_id: ctx.tenantId, sub: ctx.userId }),
+          );
+          const delegate = (tx as unknown as Record<string, Record<string, unknown>>)[
+            model.charAt(0).toLowerCase() + model.slice(1)
+          ];
+          const fn = delegate?.[operation];
+          if (typeof fn !== "function") return query(args);
+          return (fn as (a: unknown) => Promise<unknown>).call(delegate, args);
+        });
+      },
+    },
+  }) as unknown as PrismaClient;
 }

@@ -25,7 +25,13 @@ import {
   wipeDomainData,
   uid,
 } from "./seed-helpers.js";
-import { seedRunTheBusiness, seedBudgetPeriod, type GroupSpec } from "./seed-budgeting.js";
+import {
+  seedArtEpicAllocations,
+  seedBudgetPeriod,
+  seedRunTheBusiness,
+  seedValueStreamGuardrails,
+  type GroupSpec,
+} from "./seed-budgeting.js";
 import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 import {
   assertGateHistory,
@@ -228,6 +234,18 @@ async function main() {
     horizon: string; // H1 | H2 | H3
     gate: string; // L0..L5
     steering: boolean;
+    /**
+     * Größenordnung des Vorhabens — **die Voraussetzung dafür, dass Guardrail 3
+     * überhaupt zwei Klassen kennt.**
+     *
+     * Vorher entstanden die Kostenscheiben aus einer Formel, die jedes Epic über
+     * 210.000 € hob: der Demodatensatz hatte damit kein einziges ART-Epic, und
+     * die ganze Fläche blieb leer. Ein echtes Portfolio besteht auch nicht aus
+     * zwanzig gleich großen Vorhaben.
+     *
+     * `klein` liegt unter dem Portfolio-Limit von 100.000 €.
+     */
+    size?: "klein" | "mittel" | "gross";
   };
   const EPIC_DEFS: EpicDef[] = [
     {
@@ -238,6 +256,7 @@ async function main() {
       horizon: "H2",
       gate: "L4",
       steering: false,
+      size: "klein",
     },
     {
       title: "Open-Banking & PSD2 APIs",
@@ -247,6 +266,7 @@ async function main() {
       horizon: "H2",
       gate: "L3",
       steering: false,
+      size: "gross",
     },
     {
       title: "AI Fraud Detection",
@@ -256,6 +276,7 @@ async function main() {
       horizon: "H3",
       gate: "L2",
       steering: true,
+      size: "mittel",
     },
     {
       title: "Mobile App Relaunch",
@@ -265,6 +286,7 @@ async function main() {
       horizon: "H1",
       gate: "L4",
       steering: false,
+      size: "klein",
     },
     {
       title: "Instant SEPA",
@@ -274,6 +296,7 @@ async function main() {
       horizon: "H1",
       gate: "L5",
       steering: false,
+      size: "gross",
     },
     {
       title: "Card Tokenization",
@@ -283,6 +306,7 @@ async function main() {
       horizon: "H2",
       gate: "L3",
       steering: false,
+      size: "klein",
     },
     {
       title: "Self-Service Contact Center",
@@ -292,6 +316,7 @@ async function main() {
       horizon: "H2",
       gate: "L2",
       steering: false,
+      size: "mittel",
     },
     {
       title: "Cloud Migration",
@@ -301,6 +326,7 @@ async function main() {
       horizon: "H1",
       gate: "L4",
       steering: true,
+      size: "mittel",
     },
     {
       title: "Data Platform",
@@ -310,6 +336,7 @@ async function main() {
       horizon: "H2",
       gate: "L3",
       steering: false,
+      size: "klein",
     },
     {
       title: "Core Banking Modernization",
@@ -319,6 +346,7 @@ async function main() {
       horizon: "H2",
       gate: "L2",
       steering: true,
+      size: "mittel",
     },
     {
       title: "SME Lending",
@@ -328,6 +356,7 @@ async function main() {
       horizon: "H2",
       gate: "L1",
       steering: false,
+      size: "mittel",
     },
     {
       title: "Loyalty & Rewards",
@@ -337,6 +366,7 @@ async function main() {
       horizon: "H3",
       gate: "L1",
       steering: false,
+      size: "mittel",
     },
     {
       title: "Biometric Auth",
@@ -346,6 +376,7 @@ async function main() {
       horizon: "H2",
       gate: "L3",
       steering: false,
+      size: "klein",
     },
     {
       title: "Regulatory Reporting",
@@ -355,6 +386,7 @@ async function main() {
       horizon: "H1",
       gate: "L4",
       steering: false,
+      size: "mittel",
     },
     {
       title: "PFM Insights",
@@ -364,6 +396,7 @@ async function main() {
       horizon: "H3",
       gate: "L1",
       steering: false,
+      size: "mittel",
     },
     {
       title: "Green Banking",
@@ -373,6 +406,7 @@ async function main() {
       horizon: "H3",
       gate: "L0",
       steering: false,
+      size: "mittel",
     },
     {
       title: "Developer Platform",
@@ -382,6 +416,7 @@ async function main() {
       horizon: "H3",
       gate: "L2",
       steering: true,
+      size: "gross",
     },
     {
       title: "Wealth Management Cockpit",
@@ -391,6 +426,7 @@ async function main() {
       horizon: "H3",
       gate: "L0",
       steering: false,
+      size: "mittel",
     },
     {
       title: "Omnichannel Notifications",
@@ -400,6 +436,7 @@ async function main() {
       horizon: "H1",
       gate: "L5",
       steering: false,
+      size: "klein",
     },
     {
       title: "Payments Observability",
@@ -409,6 +446,7 @@ async function main() {
       horizon: "H1",
       gate: "L4",
       steering: false,
+      size: "gross",
     },
   ];
 
@@ -544,18 +582,36 @@ async function main() {
   const gateRules = gateRuleRows(null);
   const gateTransitionRows: GateTransitionRow[] = [];
   const gateApprovalRows: GateApprovalRow[] = [];
+  /** Die kleinen Vorhaben, die die Guardrail-3-Geschichte tragen (Indizes in `EPIC_DEFS`). */
+  const ART_EPIC_STORY = new Set([0, 3, 8, 12, 18]);
+  /** Klein, aber bewusst Portfolio-Sache — das Ventil zur Kostenregel. */
+  const OVERRIDE_EPIC = 5;
+
   const epicRows: Prisma.InitiativeCreateManyInput[] = EPIC_DEFS.map((def, i) => {
     const start = addDays(now, -160 + i * 12);
     const target = targetStep(i, def);
     const status = gateStatus[gateOfStep(target)]!;
     const ownerId = i % 4 === 3 ? null : i % 3 === 0 ? U.owner : i % 3 === 1 ? U.portfolio : U.vso;
+    // Guardrail 3 klassifiziert über Σ costSlices. Die Beträge folgen deshalb
+    // der Größenordnung des Vorhabens, nicht mehr einer Formel über den Index:
+    // `klein` muss unter dem Portfolio-Limit von 100.000 € landen, sonst gibt es
+    // im ganzen Datensatz kein ART-Epic.
+    const slices =
+      def.size === "klein"
+        ? [{ period: H1, amount: 40_000 + (i % 5) * 12_000 }]
+        : def.size === "gross"
+          ? [
+              { period: H1, amount: 320_000 + i * 12_000 },
+              { period: H2, amount: 240_000 + i * 8_000 },
+            ]
+          : [
+              { period: H1, amount: 120_000 + i * 6_000 },
+              { period: H2, amount: 90_000 + i * 4_000 },
+            ];
     const businessCase =
       def.gate === "L2" || def.gate === "L3" || def.gate === "L4" || def.gate === "L5"
         ? {
-            costSlices: [
-              { period: H1, amount: 120_000 + i * 6_000 },
-              { period: H2, amount: 90_000 + i * 4_000 },
-            ],
+            costSlices: slices,
             assumptions: "Kalkulation auf Basis der aktuellen Team-Kapazität und Lauf-Kosten.",
           }
         : null;
@@ -644,7 +700,21 @@ async function main() {
       // Steering ab; der Seed sagt deshalb aus, welche noch offen sind, und
       // ueberschreibt damit bewusst den Wert aus der Faltung.
       needsSteeringAttention: def.steering,
-      stagedForBudgeting: def.gate === "L2" || def.gate === "L3",
+      // Vormerkung ist auch für ART-Epics Voraussetzung: sie meldet dort keine
+      // Portfolio-Runde an, sondern die Verteilung durch den Wertstrom. Die
+      // kleinen Vorhaben aus der Guardrail-3-Geschichte werden deshalb ebenfalls
+      // vorgemerkt, sonst blieben sie in der Verteilliste unsichtbar.
+      stagedForBudgeting: def.gate === "L2" || def.gate === "L3" || ART_EPIC_STORY.has(i),
+      // Guardrail-3-Ausnahme: klein, aber ART-übergreifend heikel — bewusst
+      // Portfolio-Sache. Zeigt, dass die Kostenregel ein Ventil hat.
+      ...(i === OVERRIDE_EPIC
+        ? {
+            portfolioOverrideAt: addDays(now, -35),
+            portfolioOverrideBy: U.portfolio,
+            portfolioOverrideReason:
+              "Betrifft zwei ARTs und die regulatorische Meldestrecke — trotz kleiner Kosten eine Portfolio-Entscheidung.",
+          }
+        : {}),
       ...(HELP_REQUESTED.has(i)
         ? { helpRequestedAt: addDays(now, -6), helpRequestedBy: ownerId ?? U.owner }
         : {}),
@@ -973,6 +1043,19 @@ async function main() {
           plannedAmount: 5_000 + k * 1_000,
           interval: "monthly",
         },
+        // Der Veränderungsrahmen: derselbe Weg über den Ballot wie der Betrieb,
+        // aber als eigene Art geführt — sonst würde Grow-Arbeit als Run
+        // ausgewiesen. Er hängt an einem ART, nicht am Wertstrom allein.
+        // Absichtlich unterschiedlich groß: der erste Rahmen deckt seine Epics
+        // mit Rest, der dritte deckt sie nicht. Der zweite ART hat Epics ohne
+        // Rahmen — er bekommt hier gar keinen.
+        {
+          name: "Veränderungsrahmen ART",
+          plannedAmount: [240_000, 180_000, 120_000][k] ?? 120_000,
+          interval: "half_yearly",
+          artId: artIds[k * 2]!,
+          kind: "art_change",
+        },
       ],
     })),
   );
@@ -1087,6 +1170,59 @@ async function main() {
     rtbCandidates: rtbCands,
     groups: buildGroups([false, false, false], false),
   });
+
+  // ── Guardrail 3: der ART-Rahmen und seine Verteilung ──────────────────────
+  //
+  // Der Rahmen wird erst zum Topf, wenn eine Kachel ihn festgeschrieben hat —
+  // das ist hier die abgeschlossene. Die Zuteilungen liegen deshalb in
+  // demselben Zyklus; die Verteilfläche zeigt sie, lässt sie aber nicht mehr
+  // ändern (vergangene Halbjahre sind gesperrt).
+  //
+  // Drei Zustände, absichtlich verschieden:
+  //   ART 0 — Rahmen 240.000 €, beide Epics gedeckt, Rest bleibt ungenutzt
+  //   ART 4 — Rahmen 120.000 €, deckt nur eines der beiden Epics (Σ 140.000 €)
+  //   ART 5 — hat gar keinen Rahmen: sein ART-Epic ist nicht finanzierbar
+  const smallAsk = (i: number): number => 40_000 + (i % 5) * 12_000;
+  await seedArtEpicAllocations(tenantId, ADMIN, [
+    {
+      artId: artIds[0]!,
+      epicId: epicIds[0]!,
+      cycleKey: PREV_H2,
+      amount: smallAsk(0),
+      ask: smallAsk(0),
+    },
+    {
+      artId: artIds[0]!,
+      epicId: epicIds[8]!,
+      cycleKey: PREV_H2,
+      amount: smallAsk(8),
+      ask: smallAsk(8),
+    },
+    // ART 4: nur das teurere Vorhaben passt in den Rahmen; Epic 6 bleibt offen.
+    {
+      artId: artIds[4]!,
+      epicId: epicIds[18]!,
+      cycleKey: PREV_H2,
+      amount: smallAsk(18),
+      ask: smallAsk(18),
+    },
+    // Klassenwechsel: dieses Epic wurde einmal aus dem ART-Rahmen finanziert,
+    // ist mit seinem heutigen Business Case aber Portfolio-Sache. Die alte
+    // Zuteilung bleibt stehen — die Kachel hat sie damals so entschieden.
+    { artId: artIds[2]!, epicId: epicIds[2]!, cycleKey: PREV_H2, amount: 100_000, ask: 100_000 },
+  ]);
+
+  // Nur EIN Wertstrom setzt eigene Ziele — erst der Unterschied zum geerbten
+  // Tenant-Default macht die Herkunftsanzeige der Fläche sichtbar.
+  await seedValueStreamGuardrails(tenantId, ADMIN, [
+    {
+      valueStreamId: vsIds[1]!,
+      targets: {
+        capacity: { business: 75, enabler: 25 },
+        approval: { portfolioThreshold: 150_000 },
+      },
+    },
+  ]);
 
   // ── Phase 6: Dependencies, Issues, System-Demos ───────────────────────────
   console.log("\n── Programm-Inhalt (Deps, Issues, Demos)");
@@ -1921,6 +2057,10 @@ async function main() {
       targetArtsTotal: 6,
       targetTeamsTotal: 18,
       targetPiCadenceWeeks: 10,
+      // Guardrail 3 ist im Zielbild eingeschaltet — nur dann zeigt der Mandant
+      // ART-Epics, den Rahmen und die Klassen-Anzeige. Die Practice steht im
+      // Default auf `false`, weil sie Geldflüsse umleitet.
+      artEpics: true,
       createdBy: ADMIN,
       updatedBy: ADMIN,
     },

@@ -47,8 +47,10 @@ muss die Zuteilung **staffeln**.
 
 Ebenso irreführend ist das heutige `artBudgetRemaining`: es rechnet
 Wertstrom-Budget − Σ ART-Budgets. Da beide aus derselben Spalte stammen, einmal
-nach `valueStreamId` und einmal nach `artId` gruppiert, ist diese Differenz in
-Wahrheit „Zuteilungen an Epics ohne ART" — nicht ein Rest im Sinne einer
+nach `valueStreamId` und einmal nach `artId` gruppiert, ist diese Differenz in Wahrheit die Summe der Zuteilungen, die **keiner
+ART-Zeile dieses Wertstroms zugeordnet** sind: Epics ohne `artId`, und solche mit
+einem `artId`, der nicht zu diesem Wertstrom gehört — ein gelöschter ART, oder
+ein Epic, das den Wertstrom gewechselt hat. Kein Rest im Sinne einer
 Deckungsreserve. Die Zahl ist richtig gerechnet und falsch benannt.
 
 ### 1.3 Pulse kennt keine Ist-Kosten
@@ -182,9 +184,21 @@ Darunter die Ergebniszeile: _„Selbst wenn alles Nichtbegonnene umgewidmet wür
 fehlten X €."_
 
 Getrennte Listen beantworten diese Frage nicht — sie zwingen den Leser, zwei
-Summen im Kopf zu behalten. Die Fläche **führt keine Umbuchung aus**: Beträge
-ändern sich ausschließlich beim Festschreiben einer Kachel. Sie zeigt, womit man
-in die nächste Runde geht, und verlinkt dorthin.
+Summen im Kopf zu behalten. Die Fläche **führt keine Umbuchung des
+Portfolio-Budgets aus**: diese Beträge ändern sich ausschließlich beim
+Festschreiben einer Kachel. Sie zeigt, womit man in die nächste Runde geht, und
+verlinkt dorthin.
+
+**„Nicht finanziert" zerfällt in zwei Fälle mit verschiedener Abhilfe** und wird
+deshalb getrennt ausgewiesen:
+
+| Fall                                                            | Abhilfe                          |
+| --------------------------------------------------------------- | -------------------------------- |
+| Auf dem Ballot gegen andere verloren                            | Auf die nächste Kachel setzen    |
+| Vom ART-Rahmen nicht gedeckt (mit [art-epics.md](art-epics.md)) | Einen größeren Rahmen beantragen |
+
+Beide in einer Liste zu führen, verwischt genau die Information, wegen der man
+hinsieht.
 
 ### 2.5 Guardrail 2 je Wertstrom
 
@@ -234,12 +248,30 @@ Chronik:
 
 1. **Last gegen Deckung** mit der Lücke und dem Satz samt Herkunft
 2. **Zuteilung** als vier Kacheln (Zugeteilt · Verbraucht · Gebunden · Nicht
-   begonnen), Anteil in der Fußzeile jeder Kachel
+   begonnen), Anteil in der Fußzeile jeder Kachel — **je Geldquelle eine eigene
+   Reihe**, sobald es mehr als eine gibt (siehe unten)
 3. **Was sich verschieben ließe** — die Reallokations-Sicht aus §2.4
-4. **Verlauf** des gewählten Halbjahres
-5. **Epics dieses ARTs**, sortiert nach Zustand: was nicht läuft, steht oben
-6. **Run the Business** dieses ARTs
-7. **Anmerkungen zur Datenlage** — gewechselter ART, Epics ohne ART
+4. **ART-Epics finanzieren** — die Verteilung des ART-Rahmens, sobald
+   [art-epics.md](art-epics.md) umgesetzt ist
+5. **Verlauf** des gewählten Halbjahres
+6. **Epics dieses ARTs**, sortiert nach Zustand: was nicht läuft, steht oben
+7. **Run the Business** dieses ARTs — Betrieb und Veränderungsrahmen getrennt
+8. **Anmerkungen zur Datenlage** — gewechselter ART, Epics ohne ART
+
+**Zwei Festlegungen, die ab der zweiten Geldquelle greifen:**
+
+- **Kopfzahlen getrennt nach Quelle.** Portfolio-Budget und ART-Topf bekommen je
+  eine eigene Kachelreihe, eine eigene Zustandsstaffel und einen eigenen
+  Verlauf. Beide Wege schreiben in dieselbe `BudgetAllocation` — die Vermischung
+  entstünde also von selbst, wenn niemand sie trennt. Jede Zahl soll einen
+  Verantwortlichen haben.
+- **Getrennte Listen statt Quellen-Spalte.** „Epics dieses ARTs" führt nur die
+  aus Kacheln finanzierten; die ART-Epics stehen im Verteilabschnitt darüber.
+  Jede Summe stimmt für sich, keine Zeile erscheint doppelt.
+
+Beide Vorgaben gelten schon beim Bau, obwohl es zunächst nur eine Quelle gibt:
+die Komponenten tragen die Quelle von Anfang an, damit die zweite später ohne
+Umbau hinzukommt.
 
 **Wertstrom · Reiter „Budget"** — der Stapel zieht aus dem Overview-Tab um:
 
@@ -350,8 +382,12 @@ Neu zu bauen sind genau vier Dinge: die **Zustandsstaffel**, die
 - **REQ-R1** Die Gegenüberstellung zeigt links die nicht begonnenen Zuteilungen,
   rechts die nicht finanzierten Kandidaten desselben ARTs, darunter die
   Differenz.
-- **REQ-R2** Die Fläche schreibt keine Beträge. Die einzige Schreibaktion ist das
-  Vormerken fürs nächste Budget (`stagedForBudgeting`).
+- **REQ-R2** Die Fläche schreibt **keine Beträge des Portfolio-Budgets**.
+  Schreibend sind nur das Vormerken fürs nächste Budget (`stagedForBudgeting`)
+  und — mit [art-epics.md](art-epics.md) — die Verteilung des ART-Rahmens auf
+  ART-Epics.
+- **REQ-R3** Nicht finanzierte Vorhaben werden nach ihrer Ursache getrennt
+  ausgewiesen: auf dem Ballot verloren gegen vom Rahmen nicht gedeckt.
 - **REQ-A1** Der Budget-Reiter erscheint nur bei aktivem Budgeting-Modul; ohne
   Modul ist die ART-Seite unverändert.
 - **REQ-A2** Im Kopf steht **eine** führende Ampel im Klartext; die zweite ist
@@ -373,9 +409,16 @@ Neu zu bauen sind genau vier Dinge: die **Zustandsstaffel**, die
 - **REQ-P1** Die Wertstrom-Guardrail-Ziele pflegt, wer `target.manage` für diesen
   Wertstrom hält — die Policy bekommt dafür eine `scope: "value_stream"`-Zeile,
   wie sie `rtb_item.manage` schon trägt.
-- **REQ-P2** Das Vormerken von der ART-Fläche aus darf der RTE (`Art.rteId`) für
-  Epics seines ARTs — über einen Service-Seam, wie ihn Finance über
-  `ValueStream.financeApproverId` hat. `isPbEligible` bleibt das Gate.
+- **REQ-P2** Das Vormerken von der ART-Fläche aus folgt den Rechten von
+  `epic.update`; `isPbEligible` bleibt das Gate.
+
+  > **Offen.** Ursprünglich war hier ein Service-Seam für den RTE (`Art.rteId`)
+  > vorgesehen, wie ihn Finance über `ValueStream.financeApproverId` hat. Für die
+  > Verteilung des ART-Rahmens ist der RTE inzwischen ausdrücklich **nicht**
+  > berechtigt ([art-epics.md](art-epics.md) §8) — er hat auf seiner eigenen
+  > ART-Seite heute überhaupt kein Schreibrecht (`art.update` ist
+  > `TENANT_ADMIN`-only). Ob er wenigstens vormerken darf, ist damit erneut zu
+  > entscheiden, statt es aus dem alten Entwurf zu übernehmen.
 
 ---
 

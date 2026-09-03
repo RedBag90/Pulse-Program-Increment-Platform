@@ -135,3 +135,68 @@ export function pbSourceLabel(source: PbSourceKind): string {
       return "";
   }
 }
+
+// ---------------------------------------------------------------------------
+// Guardrail 3 — Portfolio-Epic oder ART-Epic
+// ---------------------------------------------------------------------------
+
+/**
+ * Die Klasse eines Epics. `null` = noch nicht einzuordnen.
+ *
+ * **Nur ein freigegebener Lean Business Case begründet eine Klasse.** Wer nur
+ * eine Hypothese hat, trägt keine Kostenschätzung, sondern den tenant-weiten
+ * Default-Aufwand — und der liegt unter jedem sinnvollen Limit. Würde er
+ * klassifizieren, träfe die Regel eine Aussage über die **Reife** des Artefakts
+ * und gäbe sie als Aussage über die **Größe** aus.
+ *
+ * Am echten Datenbestand gemessen (2026-09-02): von 18 budgeting-reifen Epics
+ * lagen genau die 7 ohne Business Case unter dem Limit — und trugen zugleich
+ * 1,66 Mio. € an Zuteilungen, das Vierfache ihres Richtwerts.
+ */
+export type EpicClass = "portfolio" | "art";
+
+export interface EpicClassState extends PbApprovalState {
+  businessCase: unknown;
+  /** Gesetzt = Ausnahme aktiv: das Epic gehört unabhängig von den Kosten ins Portfolio. */
+  portfolioOverrideAt: Date | null;
+}
+
+export interface EpicClassification {
+  epicClass: EpicClass | null;
+  /** Die Kosten, gegen die entschieden wurde — `null`, wenn keine vorliegen. */
+  cost: number | null;
+  /** Das Limit, gegen das entschieden wurde. */
+  threshold: number;
+  /** `true`, wenn die Ausnahme die Kostenregel überstimmt hat. */
+  overridden: boolean;
+}
+
+/**
+ * Ordnet ein Epic ein: `Kosten > Limit` → Portfolio, sonst ART. Ein gesetzter
+ * Override hebt es unabhängig von den Kosten ins Portfolio.
+ *
+ * Gleichstand ist ein ART-Epic — die Schwelle ist die Untergrenze dessen, was
+ * das Portfolio entscheidet.
+ */
+export function classifyEpic(e: EpicClassState, threshold: number): EpicClassification {
+  if (e.portfolioOverrideAt != null) {
+    return { epicClass: "portfolio", cost: null, threshold, overridden: true };
+  }
+  if (e.businessCaseApprovedAt == null) {
+    return { epicClass: null, cost: null, threshold, overridden: false };
+  }
+  const cost = computeBusinessCaseTotals(
+    parseBusinessCase(e.businessCase).current,
+  ).implementationCost;
+  return {
+    epicClass: cost > threshold ? "portfolio" : "art",
+    cost,
+    threshold,
+    overridden: false,
+  };
+}
+
+export const EPIC_CLASS_LABELS: Record<EpicClass, string> = {
+  portfolio: "Portfolio-Epic",
+  art: "ART-Epic",
+};

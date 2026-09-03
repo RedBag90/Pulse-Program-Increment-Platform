@@ -140,7 +140,7 @@ export async function getArt(db: PrismaClient, tenantId: TenantId, id: ArtId) {
   return db.art.findFirst({
     where: { id, tenantId, ...notDeleted },
     include: {
-      valueStream: { select: { id: true, name: true } },
+      valueStream: { select: { id: true, name: true, financeApproverId: true } },
       pis: { select: { id: true, name: true, status: true, startDate: true, endDate: true } },
     },
   });

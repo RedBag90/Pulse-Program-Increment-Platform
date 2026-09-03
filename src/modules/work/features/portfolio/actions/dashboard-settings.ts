@@ -29,6 +29,10 @@ const guardrailTargetsSchema = z
       business: z.number().min(0).max(100),
       enabler: z.number().min(0).max(100),
     }),
+    // Guardrail 3: eine Schwelle in Euro, kein Mix.
+    approval: z.object({
+      portfolioThreshold: z.number().min(0),
+    }),
     // Kein Mix — deshalb kein Summen-Refinement, nur Wertebereiche.
     engagement: z.object({
       coverage: z.number().min(0).max(100),
@@ -79,6 +83,12 @@ export const savePortfolioDashboardSettingsAction = createServerAction({
           capacity: {
             business: num("guardrail_business"),
             enabler: num("guardrail_enabler"),
+          },
+          approval: {
+            // Guardrail 3 wird auf dieser Fläche (noch) nicht gepflegt — der
+            // Bestandswert bleibt stehen, statt beim Speichern der übrigen
+            // Guardrails still auf den Default zu fallen.
+            portfolioThreshold: num("guardrail_portfolio_threshold"),
           },
           engagement: {
             coverage: num("guardrail_coverage"),

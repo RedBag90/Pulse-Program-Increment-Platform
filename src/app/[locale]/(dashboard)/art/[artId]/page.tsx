@@ -14,6 +14,11 @@ import {
 } from "@/components/detail/entity-detail-shell";
 import { AuditTimeline } from "@/components/detail/audit-timeline";
 import { ArtOverviewForm } from "@/modules/core/org/features/capacity/components/art-overview-form";
+import { loadArtBudgetDetail } from "@/modules/budgeting/server/views/art-budget-detail";
+import { getTenantPractices } from "@/server/services/target-model";
+import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
+import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
+import { ArtBudgetTab } from "@/modules/budgeting/features/components/art-budget/art-budget-tab";
 import { redirect, notFound } from "next/navigation";
 import type { ArtId } from "@/modules/core/kernel/domain/types";
 
@@ -23,21 +28,27 @@ import type { ArtId } from "@/modules/core/kernel/domain/types";
  * früheren route-basierten Tabs Features (Redirect ins Cockpit), Program Increment
  * (vom Umsetzungs-Cockpit abgelöst) und Velocity (Seite längst gelöscht) sind raus.
  */
-const TABS: readonly DetailTab[] = [
+const BASE_TABS: readonly DetailTab[] = [
   { key: "overview", label: "Overview" },
   { key: "settings", label: "Settings" },
   { key: "history", label: "Verlauf" },
 ];
 
+/** Budget nur mit aktivem Modul — und stets vor „Verlauf", wie beim Wertstrom. */
+function tabsFor(budgetingEnabled: boolean): readonly DetailTab[] {
+  return budgetingEnabled
+    ? [...BASE_TABS.slice(0, -1), { key: "budget", label: "Budget" }, ...BASE_TABS.slice(-1)]
+    : BASE_TABS;
+}
+
 interface Props {
   params: Promise<{ artId: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; cycle?: string }>;
 }
 
 export default async function ArtDetailPage({ params, searchParams }: Props) {
   const { artId } = await params;
-  const { tab } = await searchParams;
-  const activeTab = resolveTab(TABS, tab);
+  const { tab, cycle } = await searchParams;
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -48,10 +59,53 @@ export default async function ArtDetailPage({ params, searchParams }: Props) {
 
   const canEdit = hasCapability(principal, "art.update", { tenantId: principal.tenantId, artId });
 
-  const [history, approvers, userLabels] = await Promise.all([
+  // Budgeting ist ein oberes Modul: ohne Entitlement lädt die Seite seine Daten
+  // gar nicht erst und zeigt den Reiter nicht (Degradation, ADR-0013).
+  const budgetingEnabled = principal.enabledModules.includes("budgeting");
+  const tabs = tabsFor(budgetingEnabled);
+  const activeTab = resolveTab(tabs, tab);
+
+  const [practices, guardrailRows, tenantRow] = await Promise.all([
+    getTenantPractices(db, principal.tenantId),
+    budgetingEnabled
+      ? listValueStreamGuardrailTargets(db, principal.tenantId)
+      : Promise.resolve([]),
+    budgetingEnabled
+      ? db.tenant.findUnique({
+          where: { id: principal.tenantId },
+          select: { guardrailTargets: true },
+        })
+      : Promise.resolve(null),
+  ]);
+  const threshold = resolveGuardrailTargets(
+    guardrailRows,
+    tenantRow?.guardrailTargets ?? null,
+    art.valueStream.id,
+  ).targets.approval.portfolioThreshold;
+  // Verteilt wird der Rahmen *für* den ART — die Rechte hängen am Wertstrom.
+  const canDistribute =
+    art.valueStream.financeApproverId === principal.id ||
+    hasCapability(principal, "rtb_item.manage", {
+      tenantId: principal.tenantId,
+      valueStreamId: art.valueStream.id,
+    });
+
+  const [history, approvers, userLabels, budgetDetail] = await Promise.all([
     listAuditHistory(db, principal.tenantId, "art", art.id),
     listTenantApprovers(db, principal.tenantId),
     listTenantUserLabels(db, principal.tenantId),
+    budgetingEnabled
+      ? loadArtBudgetDetail(
+          db,
+          principal.tenantId,
+          { id: art.id, valueStreamId: art.valueStream.id },
+          {
+            ...(cycle != null ? { cycleKey: cycle } : {}),
+            artEpics: practices.artEpics,
+            threshold,
+          },
+        )
+      : Promise.resolve(null),
   ]);
   const rteUsers = approvers.filter((u) => u.roles.includes("rte"));
   const events = history.map((e) => ({
@@ -66,7 +120,7 @@ export default async function ArtDetailPage({ params, searchParams }: Props) {
       backLabel="Zurück zur Struktur"
       title={art.name}
       badge={art.valueStream.name}
-      tabs={TABS}
+      tabs={tabs}
       activeTab={activeTab}
       basePath={`/art/${art.id}`}
     >
@@ -108,6 +162,14 @@ export default async function ArtDetailPage({ params, searchParams }: Props) {
             </dl>
           )}
         </section>
+      )}
+
+      {activeTab === "budget" && budgetDetail && (
+        <ArtBudgetTab
+          detail={budgetDetail}
+          basePath={`/art/${art.id}`}
+          canDistribute={canDistribute}
+        />
       )}
 
       {activeTab === "history" && (

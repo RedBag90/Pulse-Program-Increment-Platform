@@ -185,6 +185,11 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
   // Budgeting — Kachel-Modell (budgetRound cascadet Gruppen→Mitglieder/Allocations,
   // Kandidaten, Beteiligte, Decisions, ReportOuts). runTheBusinessItem ist
   // VS-scoped → vor valueStream.deleteMany (unten) löschen.
+  // Vor den Runden: die Zuteilungen des ART-Rahmens und die Guardrail-Zeilen je
+  // Wertstrom. Beide würden zwar über Epic bzw. Wertstrom kaskadieren — sich
+  // darauf zu verlassen macht die Reihenfolge zu einer Zufälligkeit.
+  await prisma.artEpicAllocation.deleteMany(w);
+  await prisma.valueStreamGuardrailTargets.deleteMany(w);
   await prisma.budgetRound.deleteMany(w);
   await prisma.runTheBusinessItem.deleteMany(w);
   // Budgeting — Snapshot + die abgeleitete Epic-Zuteilung
