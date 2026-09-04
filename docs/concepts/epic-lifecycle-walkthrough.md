@@ -5,6 +5,13 @@ vorantreibt, des **Portfolio Managers / VMO**, der ihn steuert und abnimmt, und
 der **Finance**, die das Geld und den Nutzen gegenzeichnet. Mit den Namen, die
 Pulse tatsächlich verwendet: Reifegrad-Schritte, Reiter, Merker, Freigabewege.
 
+Vier Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+[Epic](epic-lifecycle-walkthrough.md) — was gebaut wird ·
+[Budget](budgeting-walkthrough.md) — womit ·
+[PI](pi-walkthrough.md) — wann geliefert wird ·
+[Risiko](risk-walkthrough.md) — was dazwischenkommt. Den Rahmen, in dem sie
+stattfinden, führt [Struktur](structure-walkthrough.md) vor.
+
 ## Die gemeinsame Mechanik
 
 Ein Epic durchläuft acht Schritte:
@@ -19,7 +26,13 @@ Zwei dieser Schritte tragen zugleich eine inhaltliche Aussage:
 
 - Die Abnahme von **L0 → L1** ist die Freigabe der **Benefit-Hypothese**.
 - Die Abnahme von **L2 → L3.1** ist die Freigabe des **Lean Business Case** —
-  dort zeichnen MGMT, Business Owner, Finance, IRT-Owner und LACE/VMO.
+  dort zeichnen MGMT, Business Owner, Finance, IRT-Owner und LACE/VMO, dazu der
+  **Produkt-Manager** der Primär-Solution, sofern einer benannt ist.
+
+Dieselbe Abnahme entscheidet noch etwas Drittes: **mit ihr entsteht die
+Einordnung** des Epics als Portfolio- oder ART-Epic — sie fällt aus den Kosten
+des freigegebenen Business Case gegen das Portfolio-Limit des Wertstroms. Vorher
+gibt es sie nicht, und deshalb kann sie vorher auch nichts steuern.
 
 Freigeben und Weiterrücken sind damit ein Vorgang: ein Antrag, eine Abnahme,
 eine Aussage. Solange ein Antrag offen ist, ist der Text gesperrt, über den
@@ -94,10 +107,19 @@ statt etwas zu beantragen.
 Steht der Business Case, beantrage ich **L2 → L3.1**. Beim Antrag besetze ich die
 fünf Parteien: MGMT, Business Owner, Finance, IRT-Owner und LACE/VMO — Finance
 und LACE/VMO sind aus der Wertstrom-Governance vorbelegt, die anderen drei
-benenne ich. Ab dem gestellten Antrag ist der Business Case gesperrt. Sind alle
-fünf durch, ist er freigegeben und das Epic steht auf **L3.1 · BC freigegeben**.
-Lehnt eine Partei begründet ab, bleibt das Epic auf L2 und der Text ist wieder
-frei.
+benenne ich. Hat die Primär-Solution meines Epics einen benannten
+**Produkt-Manager**, zeichnet er als sechster mit: das Vorhaben verändert sein
+Produkt. Ist keiner benannt, fällt er still weg — der Antrag läuft wie zuvor.
+
+Ab dem gestellten Antrag ist der Business Case gesperrt. Sind alle durch, ist er
+freigegeben und das Epic steht auf **L3.1 · BC freigegeben**. Lehnt eine Partei
+begründet ab, bleibt das Epic auf L2 und der Text ist wieder frei.
+
+**Vor dem Absenden kann ein Dialog dazwischentreten.** Beim Anlegen habe ich
+hinterlegt, womit ich rechne — Portfolio-Epic oder ART-Epic. Weicht die aus den
+Kosten abgeleitete Einordnung davon ab, sagt Pulse mir das, bevor der Antrag
+rausgeht: „angelegt als …, die Kosten machen es zum …". In eine Richtung darf
+jemand darauf bestehen (siehe unten); in die andere bindet die Kostenregel.
 
 Jede Freigabe zieht einen Schnappschuss des freigegebenen Textes. Brauche ich
 einen zweiten Anlauf, wird das Epic mit Begründung auf L2 zurückgestuft — das
@@ -105,21 +127,50 @@ kann nur das Portfolio-Management —, ich überarbeite und beantrage neu. Die
 Abnehmer sehen diesmal eine Gegenüberstellung: was stand da zuletzt, was steht da
 jetzt. Die Historie steckt vollständig in den Antrags-Zeilen.
 
+**Mit der Freigabe entsteht die Einordnung.** Vorher stand an meinem Epic „noch
+nicht eingeordnet" — und das war keine Lücke, sondern die Wahrheit: ohne
+freigegebenen Business Case liegt keine belastbare Kostenschätzung vor, und ohne
+die ist nicht entschieden, wie groß das Vorhaben ist. Jetzt rechnet Pulse die
+Kostenscheiben zusammen und stellt sie dem **Portfolio-Limit** meines Wertstroms
+gegenüber:
+
+- **darüber** → Portfolio-Epic. Es geht den bekannten Weg über den Ballot einer
+  Budget-Kachel.
+- **darunter** → ART-Epic. Es steht **nicht** auf dem Ballot, sondern wird aus
+  dem Veränderungsrahmen meines ARTs bedient — der Wertstrom verteilt ihn im
+  Budget-Reiter des ARTs.
+
+Die Ausnahme heißt Override: wer sie trägt, kann erklären, dass ein Epic
+Portfolio-Sache bleibt, obwohl seine Kosten darunter liegen — mit Begründung.
+Umgekehrt geht es nicht. Was über dem Limit liegt, braucht eine
+Portfolio-Entscheidung, und der Rahmen eines ARTs könnte es ohnehin nicht
+tragen.
+
 Ich setze den Haken **„Im nächsten Steering-Meeting behandeln"**. Im
 Portfolio-Review wird mein Epic aufgerufen, und das Ergebnis lautet: hol dir
 Budget. Ich setze den zweiten Haken, „Fürs nächste Budget-Meeting vormerken".
 Die beiden Haken hängen technisch nicht zusammen — dass der eine auf den anderen
 folgt, ist meine Entscheidung, nicht die des Tools.
 
-Die nächste Runde läuft. Diesmal steht mein Epic mit freigegebenem Business Case
-auf dem Ballot, und der Kosten-Richtwert ist jetzt die Summe der Kostenscheiben
-aus dem BC statt des Defaults. Die Runde diskutiert, entscheidet, teilt zu.
+Die nächste Runde läuft. **Ist mein Epic ein Portfolio-Epic**, steht es mit
+freigegebenem Business Case auf dem Ballot, und der Kosten-Richtwert ist jetzt
+die Summe der Kostenscheiben aus dem BC statt des Defaults. Die Runde
+diskutiert, entscheidet, teilt zu.
+
+**Ist es ein ART-Epic**, warte ich auf keine Runde. Es taucht in der
+Kandidatenliste gar nicht auf; stattdessen steht es im Budget-Reiter meines ARTs
+zur Verteilung — dort, wo der Veränderungsrahmen liegt. Verteilt wird im
+laufenden oder im nächsten Halbjahr, nicht rückwirkend. Hat mein ART keinen
+Rahmen, hat mein Epic **keinen** Weg zu Geld; Pulse sagt das an der Epic-Seite,
+statt es mich beim Warten herausfinden zu lassen.
 
 Jetzt kommt der Schritt, den man leicht übersieht: **L3.1 → L3.2 · Budget
 alloziert**. Das ist die Investitionsentscheidung, und sie ist ein eigener
 Antrag — nicht die Nebenwirkung einer Budgetzuteilung. Ein blockierendes
-Kriterium: die Summe der Zuteilung ist größer null. Mit der Abnahme stempelt
-Pulse Genehmiger und Datum ans Epic.
+Kriterium: die Summe der Zuteilung ist größer null. Beide Wege — Kachel wie
+ART-Rahmen — schreiben in dieselbe Summe; für diesen Schritt ist es also
+gleichgültig, woher das Geld kam. Mit der Abnahme stempelt Pulse Genehmiger und
+Datum ans Epic.
 
 Das ist mein Stichwort. Ich ordne meine Features den PIs zu und beantrage
 **L3.2 → L4**, den Start der Umsetzung. Ein Kriterium gibt es — „mindestens ein
@@ -311,12 +362,21 @@ Stempel wird dort gesetzt, nicht geprüft — und von den Folgeschritten → L2 
 Die Code-Defaults, je Wertstrom überschreibbar. Das Quorum ist durchgehend
 einstimmig — wer eingetragen ist, muss zustimmen.
 
-| Schritt               | Abnahme                                            |
-| --------------------- | -------------------------------------------------- |
-| → L1 · L2 · L4 · L4.2 | VMO                                                |
-| → L3.1                | MGMT, Business Owner, Finance, IRT-Owner, LACE/VMO |
-| → L3.2                | VMO **und** Finance                                |
-| → L5                  | Finance                                            |
+| Schritt   | Abnahme                                                                                       |
+| --------- | --------------------------------------------------------------------------------------------- |
+| → L1 · L2 | VMO                                                                                           |
+| → L3.1    | MGMT, Business Owner, Finance, IRT-Owner, LACE/VMO — plus Produkt-Manager der Primär-Solution |
+| → L3.2    | VMO **und** Finance                                                                           |
+| → L4      | VMO — plus Produkt-Manager, aber **nur bei einem ART-Epic**                                   |
+| → L4.2    | VMO                                                                                           |
+| → L5      | Finance                                                                                       |
+
+Der Produkt-Manager steht an **zwei** Schritten, mit unterschiedlicher
+Reichweite. An → L3.1 zeichnet er bei **jedem** Epic seiner Solution mit — dort
+existiert die Einordnung ja noch gar nicht, eine Einschränkung auf ART-Epics
+wäre nicht entscheidbar. An → L4 ist sie bekannt, und dort zeichnet er nur bei
+ART-Epics: sein Produkt wird aus dem Rahmen seines ARTs verändert. Ist kein
+Produkt-Manager benannt, fällt er an beiden Stellen still weg.
 
 Die fünf Parteien an → L3.1 sind der Code-Default und zugleich der Ausdruck der
 Practice „Mehrparteien-Freigabe". Ist sie im Zielbild aus, zeichnet dort der VMO
@@ -339,6 +399,11 @@ Regel des Wertstroms.
 | Empfänger der „I need help"-Bitten                      | `src/modules/work/server/services/my-help-requests.ts`                     |
 | Business-Owner-Engagement (Guardrail 4)                 | `src/modules/work/server/views/portfolio-guardrails-view.ts`               |
 | Ballot-Fähigkeit + Default-Aufwand                      | `src/modules/work/domain/pb-submission.ts`                                 |
+| Einordnung: Kosten gegen Portfolio-Limit                | `src/modules/work/domain/pb-submission.ts` (`classifyEpic`)                |
+| Abweichung Erwartung ↔ Ableitung                        | `src/modules/work/domain/pb-submission.ts` (`classificationDrift`)         |
+| Das Limit je Wertstrom (mit Tenant-Vorgabe)             | `src/modules/work/domain/portfolio-guardrails.ts`                          |
+| ART-Epics werden vom Ballot ausgenommen                 | `src/modules/budgeting/server/views/period-detail.ts`                      |
+| Veränderungsrahmen und Zuteilung an ART-Epics           | `src/modules/budgeting/server/services/art-pot.ts`                         |
 | Phasen und Status eines Budget-Zeitraums                | `src/modules/budgeting/domain/period-phases.ts`                            |
 | Beschriftung der zwei Merker                            | `src/modules/work/features/portfolio/components/epic-governance-flags.tsx` |
 | Timeline-Estimates = geplantes Fenster                  | `src/modules/work/domain/epic-schedule.ts`                                 |

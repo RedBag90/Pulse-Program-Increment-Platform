@@ -9,6 +9,13 @@ Das Schwesterdokument für das Epic ist
 [epic-lifecycle-walkthrough.md](epic-lifecycle-walkthrough.md). Beide treffen
 sich an einer Stelle — siehe [Die Naht zum Epic](#die-naht-zum-epic).
 
+Vier Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+[Epic](epic-lifecycle-walkthrough.md) — was gebaut wird ·
+[Budget](budgeting-walkthrough.md) — womit ·
+[PI](pi-walkthrough.md) — wann geliefert wird ·
+[Risiko](risk-walkthrough.md) — was dazwischenkommt. Den Rahmen, in dem sie
+stattfinden, führt [Struktur](structure-walkthrough.md) vor.
+
 ## Die gemeinsame Mechanik
 
 Ein Budget-Zeitraum ist eine **Kachel**. Sie durchläuft sieben Phasen —
@@ -38,11 +45,19 @@ Die Regeln, die man kennen sollte, um nicht überrascht zu werden:
 - **Was auf den Ballot darf.** Ein Epic braucht eine freigegebene Benefit-
   Hypothese **oder** einen freigegebenen Lean Business Case. Der Richtwert kommt
   aus dem Business Case (Σ der Kostenscheiben); liegt nur die Hypothese vor,
-  gilt der tenant-weite Default-Aufwand.
+  gilt der tenant-weite Default-Aufwand. **Ausgenommen sind ART-Epics** — sie
+  werden aus dem Veränderungsrahmen ihres ARTs bedient und stehen deshalb gar
+  nicht zur Wahl (siehe [Die Naht zum Epic](#die-naht-zum-epic)).
 - **Run the Business wird mitbudgetiert**, nicht vorweg abgezogen. Der Richtwert
   einer Position ist ihr Anteil an _dieser_ Kachel — die Position trägt ihre
   eigene Periode (monatlich, je Halbjahr, jährlich), eine Kachel deckt ein
   Halbjahr ab.
+- **Der Veränderungsrahmen eines ARTs ist so eine Position** — geführt als
+  eigene Art (`art_change`), damit Wachstums-Geld nicht als Betrieb ausgewiesen
+  wird. Er geht denselben Weg über den Ballot; was am Ende festgeschrieben ist,
+  ist der Topf, den der ART auf seine ART-Epics verteilen darf. Ohne
+  **geschlossene** Kachel für dieses Halbjahr ist der Topf null, auch wenn der
+  Rahmen gepflegt ist.
 - **Das Verteil-Fenster** ist offen, solange die Runde läuft, die Gruppe noch
   nicht eingereicht hat und die Abgabe-Deadline nicht verstrichen ist. Fällt
   eines davon weg, ist Schluss — auch mitten in der Arbeit.
@@ -207,14 +222,39 @@ Reserve wandern mit.
 ## Die Naht zum Epic
 
 Der Reifegrad-Schritt **L3.1 → L3.2** eines Epics — die Investitionsentscheidung
-— hat genau eine blockierende Bedingung: _Budget ist alloziert (Σ > 0)_. Diese
-Summe entsteht ausschließlich hier, beim Festschreiben einer Kachel.
+— hat genau eine blockierende Bedingung: _Budget ist alloziert (Σ > 0)_.
 
-Damit hängen die beiden Abläufe ineinander: Ein Epic, dessen Business Case
-freigegeben ist (L3.1), ist ballot-fähig. Kommt es auf den Ballot einer Kachel
-und wird dort finanziert, öffnet sich sein nächster Schritt. Wird es nicht
-finanziert, bleibt es auf L3.1 stehen — nicht abgelehnt, sondern unbezahlt, und
-beim nächsten Zeitraum wieder dabei.
+**Diese Summe entsteht auf zwei Wegen.** Bis Guardrail 3 gab es nur einen: die
+Kachel. Seit die Größe eines Vorhabens darüber entscheidet, wer es verantwortet,
+sind es zwei — und welcher gilt, hängt allein an den Kosten des freigegebenen
+Business Case gegen das **Portfolio-Limit** des Wertstroms:
+
+|                 | Portfolio-Epic                        | ART-Epic                                                |
+| --------------- | ------------------------------------- | ------------------------------------------------------- |
+| Kosten          | **über** dem Limit                    | **unter** dem Limit                                     |
+| Wer entscheidet | das Portfolio, in einer Budget-Kachel | der Wertstrom, über den **Veränderungsrahmen** des ARTs |
+| Der Weg         | Ballot der Kachel → Finalisierung     | Zuteilung aus dem Rahmen, im Budget-Reiter des ARTs     |
+| Auf dem Ballot  | ja                                    | **nein** — ausdrücklich ausgeschlossen                  |
+
+Beide schreiben am Ende in **dieselbe** `BudgetAllocation`. Für das Epic ändert
+sich die Bedingung also nicht: Σ > 0 bleibt Σ > 0. Nur der Weg dorthin ist
+zweigeteilt, und mit ihm die Frage, wen man fragen muss.
+
+**Für den Ballot heißt das:** ein Epic mit freigegebenem Business Case ist
+ballot-fähig, **solange es kein ART-Epic ist**. Ist es eines, taucht es in der
+Kandidatenliste der Kachel gar nicht erst auf — nicht abgelehnt, sondern
+woanders zuhause. Es wird stattdessen im Budget-Reiter seines ARTs aus dessen
+Veränderungsrahmen bedient.
+
+Ein Epic **ohne** freigegebenen Business Case hat noch gar keine Klasse — vor
+L3.1 ist nicht entschieden, wie groß es ist. Es bleibt deshalb auf dem Ballot:
+genau dieses Geld braucht es, um den Business Case überhaupt zu schreiben.
+
+Wird ein Portfolio-Epic in der Runde nicht finanziert, bleibt es auf L3.1 stehen
+— nicht abgelehnt, sondern unbezahlt, und beim nächsten Zeitraum wieder dabei.
+Ein ART-Epic, für dessen ART kein Rahmen angelegt ist, hat dagegen **keinen**
+Weg: es steht nicht auf dem Ballot und hat keinen Topf. Pulse weist das an der
+Epic-Seite aus, statt es zu verschweigen.
 
 Die Gegenrichtung gilt auch: Wer auf den Ballot will, braucht mindestens eine
 freigegebene Benefit-Hypothese. Die Budget-Runde entscheidet über Geld, nicht
@@ -240,14 +280,16 @@ auf „Phase 1" zurück, bloß weil jemand später einen Kandidaten entfernt.
 
 ## Wer welchen Schritt macht
 
-| Schritt                                                                      | Wer                                                                       | Recht                          |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------ |
-| Kachel anlegen, Rahmen, Ballot, Gruppen, Starten                             | Portfolio Manager / Admin                                                 | `budget.round.manage`          |
-| Run-the-Business-Positionen pflegen                                          | Wertstrom-Owner, Finance-Partei des Wertstroms, Portfolio Manager / Admin | `rtb_item.manage` (+ Seam)     |
-| Beträge einer Gruppe setzen                                                  | jedes Mitglied der Gruppe                                                 | Mitgliedschaft                 |
-| Verteilung einreichen                                                        | Sprecher oder Einreicher                                                  | Mitgliedschaft + Markierung    |
-| Verteilung schließen, festschreiben, zurücknehmen, nächsten Zeitraum starten | Finance / Portfolio Manager / Admin                                       | `budget.manage`                |
-| Budget-Plan erfassen                                                         | dieselben — beim Festschreiben ohnehin automatisch                        | `budget_plan.revision.capture` |
+| Schritt                                                                      | Wer                                                                               | Recht                          |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------ |
+| Kachel anlegen, Rahmen, Ballot, Gruppen, Starten                             | Portfolio Manager / Admin                                                         | `budget.round.manage`          |
+| Run-the-Business-Positionen pflegen                                          | Wertstrom-Owner, Finance-Partei des Wertstroms, Portfolio Manager / Admin         | `rtb_item.manage` (+ Seam)     |
+| Beträge einer Gruppe setzen                                                  | jedes Mitglied der Gruppe                                                         | Mitgliedschaft                 |
+| Verteilung einreichen                                                        | Sprecher oder Einreicher                                                          | Mitgliedschaft + Markierung    |
+| Verteilung schließen, festschreiben, zurücknehmen, nächsten Zeitraum starten | Finance / Portfolio Manager / Admin                                               | `budget.manage`                |
+| Budget-Plan erfassen                                                         | dieselben — beim Festschreiben ohnehin automatisch                                | `budget_plan.revision.capture` |
+| Veränderungsrahmen eines ARTs auf ART-Epics verteilen                        | Wertstrom-Owner, Finance-Partei des Wertstroms, Portfolio Manager / Admin         | `rtb_item.manage` (+ Seam)     |
+| Die Geld-Reiter eines Knotens überhaupt sehen                                | Admin, Portfolio Manager, Wertstrom-Owner; RTE auf **seinem** ART; Finance-Partei | `budget.read` (+ Seam)         |
 
 ## Nachschlagepunkte im Code
 
@@ -257,6 +299,9 @@ auf „Phase 1" zurück, bloß weil jemand später einen Kandidaten entfernt.
 | Erlaubte Status-Übergänge                             | `src/modules/budgeting/domain/round-status.ts`                        |
 | Kachel anlegen, Übernahme, Starten                    | `src/modules/budgeting/server/services/round-service.ts`              |
 | Ballot: Epics kuratieren, RtB materialisieren         | `src/modules/budgeting/server/services/candidate-service.ts`          |
+| ART-Epics vom Ballot ausnehmen                        | `src/modules/budgeting/server/views/period-detail.ts`                 |
+| Veränderungsrahmen und Zuteilung an ART-Epics         | `src/modules/budgeting/server/services/art-pot.ts`                    |
+| Die Einordnung selbst (Kosten gegen Limit)            | `src/modules/work/domain/pb-submission.ts` (`classifyEpic`)           |
 | Ballot-Fähigkeit + Richtwert aus LBC bzw. Hypothese   | `src/modules/work/domain/pb-submission.ts`                            |
 | Gruppen-Schnitt-Warnungen                             | `src/modules/budgeting/domain/group-cut.ts`                           |
 | Verteil-Fenster, Einreichen                           | `src/modules/budgeting/server/services/group-distribution-service.ts` |
