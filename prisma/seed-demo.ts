@@ -50,9 +50,18 @@ const DAY = 86_400_000;
 const now = new Date();
 const YEAR = now.getFullYear();
 const addDays = (base: Date, d: number): Date => new Date(base.getTime() + d * DAY);
-const H1 = `${YEAR}-H1`;
-const H2 = `${YEAR}-H2`;
-const PREV_H2 = `${YEAR - 1}-H2`; // ältere, abgelöste Budget-Revision (Historie)
+/**
+ * Die drei Halbjahre, um die sich das Budget dreht — **aus der echten Uhr**.
+ *
+ * Früher standen hier fest `${YEAR}-H1` als laufendes und `${YEAR}-H2` als
+ * geplantes Halbjahr. Von Juli bis Dezember war die „laufende" Kachel damit
+ * für die App längst vergangen, das laufende Halbjahr trug nur einen Entwurf,
+ * und **jeder Veränderungsrahmen stand auf 0 €** — die ART-Budgetfläche, die
+ * dieser Mandant eigentlich vorführen soll, zeigte nichts.
+ */
+const CUR = `${YEAR}-H${now.getMonth() < 6 ? 1 : 2}`;
+const NEXT = now.getMonth() < 6 ? `${YEAR}-H2` : `${YEAR + 1}-H1`;
+const PREV = now.getMonth() < 6 ? `${YEAR - 1}-H2` : `${YEAR}-H1`;
 
 async function main() {
   console.log("\n🌱  Pulse DEMO-Seed startet (dichter Story-Datensatz)\n");
@@ -133,8 +142,26 @@ async function main() {
   // ── Phase 3: Struktur-Spine (VS → ART, Timeline, PIs) ─────────────────────
   console.log("\n── Struktur (Value Streams, ARTs, Timeline, PIs)");
   const timelineId = uid("timeline:konzern");
-  await prisma.timeline.create({
-    data: { id: timelineId, tenantId, name: "Konzern-Kadenz" },
+  /**
+   * **Zwei Timelines, nicht eine.** Der Takt lebt an der Timeline, und zwei
+   * Regeln des PI-Ablaufs lassen sich mit nur einer gar nicht zeigen: „ein
+   * aktives PI je Timeline" und „ein ART tritt einer Timeline bei".
+   *
+   * Dazu kommt ein Grund, der in der Mechanik steckt: `countOpenRoamIssues`
+   * zählt offene Issues über **alle ARTs einer Timeline**, nicht über ein PI.
+   * Bei einer einzigen Timeline ist „keine offenen Issues" deshalb eine
+   * mandantenweite Eigenschaft — und weil offene Issues erwünscht sind, käme
+   * kein einziges PI je durch das Abschluss-Tor. Die zweite Timeline trägt den
+   * sauberen Fall.
+   */
+  const timelineBId = uid("timeline:payments");
+  /** Die ARTs, die an der zweiten Timeline hängen (Index in `artIds`). */
+  const TIMELINE_B_ARTS = new Set([2]);
+  await prisma.timeline.createMany({
+    data: [
+      { id: timelineId, tenantId, name: "Konzern-Kadenz" },
+      { id: timelineBId, tenantId, name: "Payments-Kadenz" },
+    ],
   });
   await prisma.piStandard.create({
     data: {
@@ -185,7 +212,7 @@ async function main() {
       name,
       description: `${name} — Agile Release Train`,
       rteId: U.rte,
-      timelineId,
+      timelineId: TIMELINE_B_ARTS.has(i) ? timelineBId : timelineId,
     })),
   });
 
@@ -213,8 +240,57 @@ async function main() {
       status: p.status,
       capacityJobSize: 110 + i * 5,
       capacityAmount: 880_000 + i * 20_000,
+      // Die drei Zeremonie-Fakten des Abschluss-Tors. Sie stehen nur an
+      // abgeschlossenen PIs — im Produkt gibt es (noch) keine Fläche, sie zu
+      // setzen, siehe `docs/concepts/pi-walkthrough.md`.
       ...(p.status === "completed"
-        ? { systemDemoAt: addDays(p.start, 68), inspectAdaptAt: addDays(p.start, 69) }
+        ? {
+            systemDemoAt: addDays(p.start, 68),
+            inspectAdaptAt: addDays(p.start, 69),
+            retrospectiveAt: addDays(p.start, 69),
+            retrospectiveNotes:
+              "Gut gelaufen: die Abstimmung zwischen den ARTs am Zahlungskern. " +
+              "Verbessern: Abhängigkeiten früher schneiden — zwei Features " +
+              "sind erst in Woche 8 angelaufen. Maßnahme: Dependency-Board " +
+              "schon im PI-Planning führen.",
+          }
+        : {}),
+    })),
+  });
+
+  /**
+   * Die zweite Kadenz — kleiner, und bewusst **sauber**: über ihrem ART liegt
+   * kein offenes, nicht eingeordnetes Issue. Ihr abgeschlossenes PI erfüllt
+   * damit alle vier Bedingungen des Abschluss-Tors, das die Konzern-Kadenz
+   * absichtlich verfehlt.
+   */
+  const piBSpecs = [
+    { key: "pib1", name: "Payments PI 1", start: addDays(piBase, -70), status: "completed" },
+    { key: "pib2", name: "Payments PI 2", start: piBase, status: "active" },
+    { key: "pib3", name: "Payments PI 3", start: addDays(piBase, 70), status: "planned" },
+  ];
+  for (const p of piBSpecs) piIds[p.key] = uid(`pi:${p.key}`);
+  await prisma.programIncrement.createMany({
+    data: piBSpecs.map((p, i) => ({
+      id: piIds[p.key]!,
+      tenantId,
+      timelineId: timelineBId,
+      name: p.name,
+      startDate: p.start,
+      endDate: addDays(p.start, 69),
+      status: p.status,
+      capacityJobSize: 60 + i * 4,
+      capacityAmount: 420_000 + i * 15_000,
+      ...(p.status === "completed"
+        ? {
+            systemDemoAt: addDays(p.start, 68),
+            inspectAdaptAt: addDays(p.start, 69),
+            retrospectiveAt: addDays(p.start, 69),
+            retrospectiveNotes:
+              "Der Takt sitzt. Offen geblieben: die Testdaten für die " +
+              "Kartenstrecke kamen zu spät — im nächsten PI zieht das Team sie " +
+              "in die erste Woche vor.",
+          }
         : {}),
     })),
   });
@@ -464,6 +540,27 @@ async function main() {
   // Der Horizont eines Epics wird aus seiner Primär-Solution abgeleitet.
   const solId = (vs: number, h: string) => uid(`sol:${vs}:${h.toLowerCase()}`);
   const solNameSuffix: Record<string, string> = { h1: "Core", h2: "MVP", h3: "R&D" };
+  /**
+   * Der **Produkt-Manager** je Solution — ein freies Personenfeld ohne
+   * Rollenbindung (siehe `docs/concepts/structure-walkthrough.md`). Er darf
+   * seine Solution bearbeiten und zeichnet bei den Reifegrad-Freigaben ihrer
+   * Epics mit.
+   *
+   * Die drei **H3-Piloten bleiben absichtlich unbesetzt**: „ist keiner benannt,
+   * fällt er still weg" ist selbst eine Aussage des Ablaufs, und sie lässt sich
+   * nur an einem Datensatz zeigen, in dem beides vorkommt.
+   */
+  const solutionPm: Record<string, string | null> = {
+    "0:h1": U.fo,
+    "0:h2": U.owner,
+    "0:h3": null,
+    "1:h1": U.vso,
+    "1:h2": U.portfolio,
+    "1:h3": null,
+    "2:h1": U.owner,
+    "2:h2": U.fo,
+    "2:h3": null,
+  };
   const solutionRows: Prisma.SolutionCreateManyInput[] = [];
   for (let vs = 0; vs < vsIds.length; vs++) {
     for (const h of ["h1", "h2", "h3"] as const) {
@@ -474,6 +571,7 @@ async function main() {
         artId: h === "h1" ? artIds[vs * 2]! : null,
         name: `${vsNames[vs]} ${solNameSuffix[h]}`,
         horizon: h,
+        productManagerId: solutionPm[`${vs}:${h}`] ?? null,
         // Demo: der H1-Kern von VS 1 wird „gemolken" (Extracting) statt ausgebaut.
         investmentMode: h === "h1" ? (vs === 1 ? "extracting" : "investing") : null,
         createdBy: ADMIN,
@@ -488,6 +586,8 @@ async function main() {
     valueStreamId: vsIds[0]!,
     name: `${vsNames[0]} Legacy`,
     horizon: "h0",
+    // Auch das Stilllegen braucht jemanden, der dafür geradesteht.
+    productManagerId: U.transformation,
     createdBy: ADMIN,
     updatedBy: ADMIN,
   });
@@ -586,6 +686,36 @@ async function main() {
   const ART_EPIC_STORY = new Set([0, 3, 8, 12, 18]);
   /** Klein, aber bewusst Portfolio-Sache — das Ventil zur Kostenregel. */
   const OVERRIDE_EPIC = 5;
+  /**
+   * Das Portfolio-Limit je Wertstrom — dieselbe Kaskade, die
+   * `resolveGuardrailTargets` zur Laufzeit läuft: Wertstrom-Regel vor
+   * Tenant-Default vor Code-Default. Nur Payments Platform (VS 1) setzt eine
+   * eigene (siehe `seedValueStreamGuardrails` weiter unten), die beiden anderen
+   * erben die 100.000 € aus dem Code.
+   */
+  const PORTFOLIO_THRESHOLD = [100_000, 150_000, 100_000];
+  /**
+   * Die **Einordnungs-Erwartung**: womit der Epic Owner beim Anlegen gerechnet
+   * hat (`intendedClass`). Sie ist beim Anlegen Pflicht und entsteht damit
+   * *vor* jeder belastbaren Kostenschätzung — deshalb kann sie von der später
+   * abgeleiteten Klasse abweichen, und deshalb gibt es den Dialog vor dem
+   * L3.1-Antrag.
+   *
+   * Der Normalfall ist Übereinstimmung; drei Epics erzählen die Ausnahmen:
+   */
+  const INTENDED: Record<number, "portfolio" | "art"> = {
+    // Als ART-Sache gedacht, die Kosten machen es zur Portfolio-Sache: Drift
+    // **nach oben**. Darauf bestehen geht nicht — die Kostenregel bindet.
+    1: "art",
+    // Klein kalkuliert, aber als Portfolio-Sache gedacht: Drift **nach unten**,
+    // und jemand hat darauf bestanden. Der Override unten ist die Auflösung —
+    // hier steht, woher er kommt.
+    [OVERRIDE_EPIC]: "portfolio",
+    // Dieselbe Abweichung, aber **offen**: klein kalkuliert, Erwartung
+    // Portfolio, kein Override gesetzt. Hier dürfte jemand noch darauf
+    // bestehen — der Fall, an dem `driftAllowsOverride` sichtbar wird.
+    12: "portfolio",
+  };
 
   const epicRows: Prisma.InitiativeCreateManyInput[] = EPIC_DEFS.map((def, i) => {
     const start = addDays(now, -160 + i * 12);
@@ -598,15 +728,15 @@ async function main() {
     // im ganzen Datensatz kein ART-Epic.
     const slices =
       def.size === "klein"
-        ? [{ period: H1, amount: 40_000 + (i % 5) * 12_000 }]
+        ? [{ period: CUR, amount: 40_000 + (i % 5) * 12_000 }]
         : def.size === "gross"
           ? [
-              { period: H1, amount: 320_000 + i * 12_000 },
-              { period: H2, amount: 240_000 + i * 8_000 },
+              { period: CUR, amount: 320_000 + i * 12_000 },
+              { period: NEXT, amount: 240_000 + i * 8_000 },
             ]
           : [
-              { period: H1, amount: 120_000 + i * 6_000 },
-              { period: H2, amount: 90_000 + i * 4_000 },
+              { period: CUR, amount: 120_000 + i * 6_000 },
+              { period: NEXT, amount: 90_000 + i * 4_000 },
             ];
     const businessCase =
       def.gate === "L2" || def.gate === "L3" || def.gate === "L4" || def.gate === "L5"
@@ -615,6 +745,21 @@ async function main() {
             assumptions: "Kalkulation auf Basis der aktuellen Team-Kapazität und Lauf-Kosten.",
           }
         : null;
+    // Σ der Kostenscheiben gegen das Limit — dieselbe Rechnung wie
+    // `classifyEpic`. Sie trägt zwei Dinge: die Erwartung (unten) und die
+    // Klasse, die an L4 entscheidet, ob der Produkt-Manager mitzeichnet.
+    const sliceSum = slices.reduce((sum, sl) => sum + sl.amount, 0);
+    const threshold = PORTFOLIO_THRESHOLD[def.vs]!;
+    const intendedClass = INTENDED[i] ?? (sliceSum > threshold ? "portfolio" : "art");
+    // Die Klasse entsteht **erst mit der Freigabe des Business Case**. Vorher
+    // gibt es sie nicht — „noch nicht eingeordnet" ist keine Lücke, sondern die
+    // Wahrheit. Der Override hebt sie unabhängig von den Kosten auf Portfolio.
+    const bcApproved = businessCase != null && stepsUpTo(target).includes("L3.1");
+    const epicClass: "portfolio" | "art" | null = !bcApproved
+      ? null
+      : i === OVERRIDE_EPIC || sliceSum > threshold
+        ? "portfolio"
+        : "art";
     const benefitHypothesis = {
       measuresHypothesis: `Mit „${def.title}" verbessern wir das messbare Ergebnis für ${vsNames[def.vs]}.`,
       changeFromBaseline: "Signifikante Verbesserung gegenüber dem heutigen Startpunkt.",
@@ -649,6 +794,11 @@ async function main() {
       // benannt. Jedes vierte Epic geht ohne Business Owner raus — sonst waere
       // die Abdeckungsquote von Guardrail 4 trivial 100 %.
       parties: { mgmt: U.portfolio, businessOwner: i % 4 === 1 ? null : U.vso, irtOwner: U.rte },
+      // Der sechste Sitz an L3.1 und der zweite an L4. Er löst sich nur auf,
+      // wenn die Primär-Solution einen Produkt-Manager trägt — und an L4 nur
+      // bei ART-Epics.
+      solutionProductManagerId: solutionPm[`${def.vs}:${def.horizon.toLowerCase()}`] ?? null,
+      epicClass,
       benefitHypothesis,
       businessCase,
       timeline: {
@@ -700,6 +850,9 @@ async function main() {
       // Steering ab; der Seed sagt deshalb aus, welche noch offen sind, und
       // ueberschreibt damit bewusst den Wert aus der Faltung.
       needsSteeringAttention: def.steering,
+      // Womit beim Anlegen gerechnet wurde. Weicht die abgeleitete Klasse davon
+      // ab, sagt Pulse das vor dem L3.1-Antrag.
+      intendedClass,
       // Vormerkung ist auch für ART-Epics Voraussetzung: sie meldet dort keine
       // Portfolio-Runde an, sondern die Verteilung durch den Wertstrom. Die
       // kleinen Vorhaben aus der Guardrail-3-Geschichte werden deshalb ebenfalls
@@ -827,9 +980,20 @@ async function main() {
       const js = 2 + ((ei + f) % 9);
       const wsjf = Number((((bv + tc + rr) / js) as number).toFixed(2));
       const status = FEATURE_STATUS[gf % FEATURE_STATUS.length]!;
-      const artId = artIds[gf % artIds.length]!; // ALLE 6 ARTs füllen
-      const piId =
-        status === "completed"
+      // Der ART des Epics, nicht ein rotierender: ein Feature liefert im selben
+      // Train wie sein Epic. Daraus folgt auch, an welcher Kadenz es hängt —
+      // ein Feature in einem PI der fremden Timeline wäre ein Termin im
+      // falschen Kalender.
+      const artIdx = EPIC_DEFS[ei]!.vs * 2 + (ei % 2);
+      const artId = artIds[artIdx]!;
+      const onTimelineB = TIMELINE_B_ARTS.has(artIdx);
+      const piId = onTimelineB
+        ? status === "completed"
+          ? piIds["pib1"]!
+          : gf % 7 === 0
+            ? piIds["pib3"]!
+            : piIds["pib2"]!
+        : status === "completed"
           ? gf % 3 === 0
             ? piIds["pi1"]!
             : prevPi
@@ -961,21 +1125,21 @@ async function main() {
       epicId,
       priority: i,
       hypothesisBudget: i % 4 === 0 ? 50_000 : null,
-      allocations: { [H1]: 80_000 + i * 6_000, [H2]: 60_000 + i * 4_000 },
+      allocations: { [CUR]: 80_000 + i * 6_000, [NEXT]: 60_000 + i * 4_000 },
       createdBy: ADMIN,
       updatedBy: ADMIN,
     })),
   });
-  // BudgetPlanRevision ×2: aktuelle H1 + ältere, abgelöste Revision (Historie).
+  // BudgetPlanRevision ×2: die des laufenden Halbjahres + eine ältere, abgelöste (Historie).
   await prisma.budgetPlanRevision.create({
     data: {
-      id: uid(`bprev:${PREV_H2}`),
+      id: uid(`bprev:${PREV}`),
       tenantId,
-      cycleKey: PREV_H2,
+      cycleKey: PREV,
       capturedAt: addDays(now, -120),
       capturedBy: ADMIN,
       payload: buildSnapshotPayload({
-        cycleKey: PREV_H2,
+        cycleKey: PREV,
         capturedAt: addDays(now, -120),
         epics: epicIds.slice(0, 6).map((epicId, i) => ({
           epicId,
@@ -991,13 +1155,13 @@ async function main() {
   });
   await prisma.budgetPlanRevision.create({
     data: {
-      id: uid(`bprev:${H1}`),
+      id: uid(`bprev:${CUR}`),
       tenantId,
-      cycleKey: H1,
+      cycleKey: CUR,
       capturedAt: addDays(now, -20),
       capturedBy: ADMIN,
       payload: buildSnapshotPayload({
-        cycleKey: H1,
+        cycleKey: CUR,
         capturedAt: addDays(now, -20),
         epics: epicIds.slice(0, 8).map((epicId, i) => ({
           epicId,
@@ -1132,7 +1296,7 @@ async function main() {
   // 1) Abgeschlossen (Vergangenheit) — finalisiert, Reserve, alle Gruppen abgegeben.
   await seedBudgetPeriod(tenantId, ADMIN, {
     key: "demo-closed",
-    cycleKey: PREV_H2,
+    cycleKey: PREV,
     status: "closed",
     poolTotal: POOL,
     startDate: addDays(now, -220),
@@ -1148,7 +1312,7 @@ async function main() {
   // 2) Läuft (aktuell) — Gruppe A abgegeben, B+C offen → My-Tasks-Hinweis.
   await seedBudgetPeriod(tenantId, ADMIN, {
     key: "demo-running",
-    cycleKey: H1,
+    cycleKey: CUR,
     status: "running",
     poolTotal: POOL,
     startDate: addDays(now, -30),
@@ -1163,7 +1327,7 @@ async function main() {
   // 3) Geplant/Entwurf (Zukunft) — Setup, kuratierte Epic-Kandidaten, keine RtB/Allocations.
   await seedBudgetPeriod(tenantId, ADMIN, {
     key: "demo-draft",
-    cycleKey: H2,
+    cycleKey: NEXT,
     status: "draft",
     poolTotal: POOL,
     startDate: addDays(now, 160),
@@ -1191,14 +1355,14 @@ async function main() {
     {
       artId: artIds[0]!,
       epicId: epicIds[0]!,
-      cycleKey: PREV_H2,
+      cycleKey: PREV,
       amount: smallAsk(0),
       ask: smallAsk(0),
     },
     {
       artId: artIds[0]!,
       epicId: epicIds[8]!,
-      cycleKey: PREV_H2,
+      cycleKey: PREV,
       amount: smallAsk(8),
       ask: smallAsk(8),
     },
@@ -1206,14 +1370,14 @@ async function main() {
     {
       artId: artIds[4]!,
       epicId: epicIds[18]!,
-      cycleKey: PREV_H2,
+      cycleKey: PREV,
       amount: smallAsk(18),
       ask: smallAsk(18),
     },
     // Klassenwechsel: dieses Epic wurde einmal aus dem ART-Rahmen finanziert,
     // ist mit seinem heutigen Business Case aber Portfolio-Sache. Die alte
     // Zuteilung bleibt stehen — die Kachel hat sie damals so entschieden.
-    { artId: artIds[2]!, epicId: epicIds[2]!, cycleKey: PREV_H2, amount: 100_000, ask: 100_000 },
+    { artId: artIds[2]!, epicId: epicIds[2]!, cycleKey: PREV, amount: 100_000, ask: 100_000 },
   ]);
 
   // Nur EIN Wertstrom setzt eigene Ziele — erst der Unterschied zum geerbten
@@ -1260,7 +1424,19 @@ async function main() {
   const LEVELS = ["very_low", "low", "medium", "high", "very_high"];
   const CAT = ["technical", "business", "schedule", "external"];
   const ROAM = ["open", "resolved", "owned", "accepted", "mitigated"];
-  type IssueDef = { key: string; title: string; parent?: string };
+  /**
+   * `review` ist die **erste** der beiden Achsen (siehe
+   * `docs/concepts/risk-walkthrough.md`): kommt der Eintrag ins Register?
+   * Ohne Angabe gilt `documented` — der Standard eines direkt angelegten
+   * Issues. Ein `suggested` trägt **keine Exposure**, keine Kategorie und
+   * keinen ART: er ist im System, aber nicht im Register.
+   */
+  type IssueDef = {
+    key: string;
+    title: string;
+    parent?: string;
+    review?: "suggested" | "rejected";
+  };
   const issueDefs: IssueDef[] = [
     { key: "reg", title: "Regulatorische Bereitschaft" }, // 0 head
     { key: "reg-dora", title: "DORA-Compliance noch offen", parent: "reg" }, // 1
@@ -1290,11 +1466,45 @@ async function main() {
     { key: "pfm-dq", title: "Datenqualität PFM unzureichend" }, // 25
     { key: "fx", title: "Wechselkurs-Volatilität" }, // 26
     { key: "churn", title: "Personalfluktuation im RTE-Kreis" }, // 27
+
+    // ── Achse 1, die andere Hälfte ──────────────────────────────────────────
+    // Vorschläge warten auf die Prüfung. Melden darf jede Rolle bis zum Viewer
+    // hinunter, deshalb kommen sie von überall her — und deshalb ist ihre Zahl
+    // größer als die der Ablehnungen.
+    { key: "sug-onb-doku", title: "Onboarding-Doku veraltet", review: "suggested" }, // 28
+    { key: "sug-vertrag", title: "Rahmenvertrag Hosting läuft aus", review: "suggested" }, // 29
+    {
+      key: "sug-schnitt",
+      title: "Schnittstelle zum CRM steht nicht rechtzeitig",
+      review: "suggested",
+    }, // 30
+    { key: "sug-urlaub", title: "Urlaubswelle im August trifft zwei Teams", review: "suggested" }, // 31
+    { key: "sug-lizenz", title: "Lizenzmodell des Testwerkzeugs ändert sich", review: "suggested" }, // 32
+    {
+      key: "sug-monitor",
+      title: "Kein Monitoring auf der neuen Kartenstrecke",
+      parent: "sec",
+      review: "suggested",
+    }, // 33
+    // Geprüft und **nicht** aufgenommen. Sie verschwinden nicht: dass jemand
+    // hingesehen und entschieden hat, bleibt nachvollziehbar.
+    { key: "rej-doppelt", title: "Doppelmeldung zum DORA-Thema", review: "rejected" }, // 34
+    { key: "rej-wunsch", title: "Wunsch nach zweitem Testsystem", review: "rejected" }, // 35
+    { key: "rej-alt", title: "Altes Kapazitätsthema aus PI 1", review: "rejected" }, // 36
   ];
   const issueIdByKey: Record<string, string> = {};
   issueDefs.forEach((d, i) => (issueIdByKey[d.key] = uid(`issue:${i}`)));
   const issueOwners = [U.rte, U.owner, U.portfolio, U.vmo, U.fo];
+  /** Melden darf jede Rolle — auch der Viewer. Genau das zeigen die Vorschläge. */
+  const suggesters = [U.viewer, U.fo, U.owner];
+  /**
+   * ARTs, an die ein Issue gehängt werden darf. Die ARTs der zweiten Timeline
+   * bleiben frei: über ihnen soll kein offenes, nicht eingeordnetes Issue
+   * liegen, sonst verfehlt auch ihr PI das Abschluss-Tor.
+   */
+  const issueArtIds = artIds.filter((_, k) => !TIMELINE_B_ARTS.has(k));
   const issueRows: Prisma.IssueCreateManyInput[] = issueDefs.map((d, i) => {
+    const review = d.review ?? "documented";
     // Volle 5×5-Matrix: i=0..24 deckt alle Kombinationen ab.
     const probability = LEVELS[Math.floor(i / 5) % 5]!;
     const impact = LEVELS[i % 5]!;
@@ -1307,6 +1517,32 @@ async function main() {
       : i % 3 === 0
         ? epicIds[i % epicIds.length]!
         : undefined;
+
+    // ── Achse 1: der Vorschlag ────────────────────────────────────────────
+    // Er ist im System, aber nicht im Register: keine Exposure, keine
+    // Kategorie, kein ART, kein ROAM-Grund. Und deshalb blockiert er nichts.
+    if (review !== "documented") {
+      const reviewed = review === "rejected";
+      return {
+        id: issueIdByKey[d.key]!,
+        tenantId,
+        issueNumber: i + 1,
+        title: d.title,
+        description: `Beobachtung, gemeldet: ${d.title}.`,
+        reviewStatus: review,
+        roamStatus: "open",
+        raisedBy: suggesters[i % suggesters.length]!,
+        ...(reviewed
+          ? {
+              reviewedBy: U.portfolio,
+              reviewedAt: addDays(now, -4 - (i % 7)),
+              description: `Geprüft und nicht ins Register aufgenommen: ${d.title}.`,
+            }
+          : {}),
+        ...(d.parent ? { parentId: issueIdByKey[d.parent]! } : {}),
+      };
+    }
+
     return {
       id: issueIdByKey[d.key]!,
       tenantId,
@@ -1317,24 +1553,36 @@ async function main() {
       impact,
       category,
       reviewStatus: "documented",
+      // Aufgenommen heißt: jemand hat hingesehen und entschieden.
+      reviewedBy: U.portfolio,
+      reviewedAt: addDays(now, -30 - (i % 9)),
       roamStatus,
+      // Und wer eingeordnet hat, steht am Eintrag — das ist die Handlung mit
+      // der unmittelbarsten Wirkung auf den Takt.
       ...(roamStatus !== "open"
-        ? { roamRationale: "ROAM-Entscheidung im letzten Risk-Review festgehalten." }
+        ? {
+            roamRationale: "ROAM-Entscheidung im letzten Risk-Review festgehalten.",
+            roamedAt: addDays(now, -12 - (i % 6)),
+            roamedBy: issueOwners[(i + 2) % issueOwners.length]!,
+          }
         : {}),
       ownerId: issueOwners[i % issueOwners.length]!,
       raisedBy: U.rte,
       targetResolutionDate: addDays(now, 20 + (i % 5) * 10),
       ...(d.parent ? { parentId: issueIdByKey[d.parent]! } : {}),
       ...(initiativeId ? { initiativeId } : {}),
-      ...(i % 4 === 0 ? { artId: artIds[i % artIds.length]! } : {}),
+      ...(i % 4 === 0 ? { artId: issueArtIds[i % issueArtIds.length]! } : {}),
       ...(i % 6 === 0 ? { piId: activePi } : {}),
     };
   });
   await prisma.issue.createMany({ data: issueRows });
 
-  // IssueMitigation (1–3 auf mehreren Issues).
+  // IssueMitigation (1–3 auf mehreren Issues). Maßnahmen und Bewertungen
+  // gehören nur ins **Register**: über einen Vorschlag hat noch niemand
+  // entschieden, und ihn zu bewerten hieße, ihn schon aufgenommen zu haben.
   const mitigationRows: Prisma.IssueMitigationCreateManyInput[] = [];
   issueDefs.forEach((d, i) => {
+    if (d.review != null) return;
     if (i % 3 !== 0) return;
     const n = 1 + (Math.floor(i / 3) % 3); // 1–3 Maßnahmen (variiert deterministisch)
     for (let m = 0; m < n; m++) {
@@ -1352,6 +1600,7 @@ async function main() {
   // IssueAssessment: Neubewertungs-Trail auf einigen Issues (verschiebt Exposure).
   const assessmentRows: Prisma.IssueAssessmentCreateManyInput[] = [];
   issueDefs.forEach((d, i) => {
+    if (d.review != null) return;
     if (i % 5 !== 0) return;
     // Erst-Bewertung + spätere Re-Assessment mit verschobenem Prob/Impact.
     assessmentRows.push(
@@ -1386,34 +1635,40 @@ async function main() {
       lastNumber: issueDefs.length,
     },
   });
+  const reviewCount = (v: string) => issueRows.filter((r) => r.reviewStatus === v).length;
   console.log(
-    `  ✓ ${issueRows.length} Issues, ${mitigationRows.length} Mitigations, ${assessmentRows.length} Assessments`,
+    `  ✓ ${issueRows.length} Issues (${reviewCount("documented")} dokumentiert, ` +
+      `${reviewCount("suggested")} vorgeschlagen, ${reviewCount("rejected")} abgelehnt), ` +
+      `${mitigationRows.length} Mitigations, ${assessmentRows.length} Assessments`,
   );
 
-  // System-Demos je abgeschlossenem PI (pi1, pi2) + Items über MEHRERE Epics.
-  const demoEpicSets: Record<string, number[]> = {
-    pi1: [3, 4, 7, 13, 18],
-    pi2: [0, 5, 8, 16, 19],
-  };
-  for (const demoKey of ["pi1", "pi2"] as const) {
+  // System-Demos je abgeschlossenem PI — **beider** Kadenzen. Die Agenda zieht
+  // sich aus den Features, die tatsächlich in diesem PI lagen: die Demo ist die
+  // eine Gelegenheit, an der ein Ergebnis nicht als Status, sondern als Sache
+  // gezeigt wird.
+  const featureTitleById = new Map(featureRows.map((f) => [f.id as string, f.title as string]));
+  const demoSchedule: Record<string, number> = { pi1: -82, pi2: -12, pib1: -12 };
+  for (const demoKey of ["pi1", "pi2", "pib1"] as const) {
     const piId = piIds[demoKey]!;
-    const featureSet = demoEpicSets[demoKey]!.flatMap((ei) =>
-      (featureIdsByEpic[ei] ?? []).slice(0, 1).map((fid) => ({ ei, fid })),
-    );
+    const featureSet = featureRows
+      .filter((f) => f.piId === piId && f.status === "completed")
+      .slice(0, 5)
+      .map((f) => f.id as string);
+    if (featureSet.length === 0) continue;
     await prisma.systemDemo.create({
       data: {
         id: uid(`demo:${demoKey}`),
         tenantId,
         piId,
-        scheduledAt: addDays(now, demoKey === "pi2" ? -12 : -82),
+        scheduledAt: addDays(now, demoSchedule[demoKey]!),
         notes: "System-Demo-Agenda: End-to-End-Durchstiche der abgeschlossenen Features.",
         createdBy: ADMIN,
         items: {
-          create: featureSet.map(({ ei, fid }, k) => ({
+          create: featureSet.map((fid, k) => ({
             id: uid(`demoitem:${demoKey}:${k}`),
             tenantId,
             featureId: fid,
-            title: `Demo: ${EPIC_DEFS[ei]!.title}`,
+            title: `Demo: ${featureTitleById.get(fid) ?? "Feature"}`,
             ownerId: U.owner,
             presented: true,
             position: k,
@@ -1549,7 +1804,7 @@ async function main() {
       target: 60,
       current: 52,
       status: "on_track",
-      period: H1,
+      period: CUR,
       ownerId: U.portfolio,
     }),
   );
@@ -1721,7 +1976,7 @@ async function main() {
         status,
         closedAt: addDays(now, -20 + i),
         closingNote: "Quartals-Retrospektive abgeschlossen — Lessons Learned dokumentiert.",
-        period: H1,
+        period: CUR,
       }),
     );
   });

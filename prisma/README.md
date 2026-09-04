@@ -5,12 +5,12 @@ Drei Einstiegspunkte, drei Zwecke. Alle drei laufen über einen **rohen** Prisma
 an — sie brauchen also `.env.local` mit `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL` und
 `SUPABASE_SERVICE_ROLE_KEY`.
 
-| Befehl                 | Mandant         | Inhalt                                                                                        |
-| ---------------------- | --------------- | --------------------------------------------------------------------------------------------- |
-| `pnpm db:seed`         | Pulse Demo Corp | Nur Konten, Mandant, Rollen — leere Fachdaten                                                 |
-| `pnpm db:seed:demo`    | Pulse Demo Corp | Dichter Story-Datensatz: 3 Wertströme, 6 ARTs, 20 Epics, ~44 Features, Ziele, Budget, Risiken |
-| `pnpm db:seed:large`   | Large Test Corp | Lastdatensatz: 3 Wertströme, 6 ARTs, 200 Epics über 10 Jahre, ~490 Features, Budget-Historie  |
-| `pnpm db:seed:offsite` | **Test Demo**   | Simulation „Firmen-Offsite": 1 Wertstrom, 1 ART, 1 Kopf-Ziel, 3 Epics, 9 Features             |
+| Befehl                 | Mandant         | Inhalt                                                                                                            |
+| ---------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `pnpm db:seed`         | Pulse Demo Corp | Nur Konten, Mandant, Rollen — leere Fachdaten                                                                     |
+| `pnpm db:seed:demo`    | Pulse Demo Corp | Dichter Story-Datensatz: 3 Wertströme, 6 ARTs, 2 Timelines, 20 Epics, 44 Features, Ziele, Budget, Risiken         |
+| `pnpm db:seed:large`   | Large Test Corp | Zehnjahres-Programm: 3 Wertströme, 6 ARTs, 2 Timelines, 200 Epics in Rollout-Bögen, 390 Features, Budget-Historie |
+| `pnpm db:seed:offsite` | **Test Demo**   | Simulation „Firmen-Offsite": 1 Wertstrom, 1 ART, 1 Kopf-Ziel, 3 Epics, 9 Features                                 |
 
 > **Alle löschen zuerst die Fachdaten ihres Mandanten** (`wipeDomainData`). Konten, der
 > Mandant selbst und Rollenzuweisungen bleiben stehen. Was du von Hand angelegt hast, ist
@@ -74,9 +74,110 @@ zeigt die Fläche beide Herkünfte („Wertstrom-Regel" gegen „Tenant-Default"
 > Topf, wenn eine Kachel ihn festgeschrieben hat. Die Verteilfläche zeigt sie
 > deshalb, lässt sie aber nicht ändern — vergangene Halbjahre sind gesperrt.
 
-`db:seed:large` bekommt keine Einzelfälle, sondern Masse: ein Veränderungsrahmen
-je ART (alle sechs), rund 40 erzeugte ART-Zuteilungen und Guardrail-Ziele für
-jeden Wertstrom. Etwa ein Drittel der ART-Epics bleibt absichtlich ungedeckt.
+`db:seed:large` bekommt Masse statt benannter Einzelfälle: ein
+Veränderungsrahmen je ART (alle sechs), 17 ART-Zuteilungen über neun Halbjahre
+und Guardrail-Ziele für jeden Wertstrom (**60.000 / 70.000 / 80.000 €**). Der
+Rahmen ist der eigentliche Engpass — er deckelt die Zuteilungen, und was nicht
+mehr hineinpasst, bleibt sichtbar ungedeckt. Eine künstliche Quote gibt es
+nicht: der Rahmen ist der einzige Grund, aus dem ein ART-Epic leer ausgeht.
+
+## Das Geld: eine Kachel je Halbjahr
+
+Beide Story-Mandanten führen **genau eine Kachel je Halbjahr**, und welches das
+laufende ist, sagt die **echte Uhr**. Beides war einmal anders, und beides ging
+schief:
+
+- `db:seed:large` legte zwei Kacheln in denselben Zyklus — die Wachstumsrunde
+  und eine separate „Betriebs- und Rahmenrunde", deren Topf die Summe aller
+  Run-the-Business-Asks war und deren Zeitraum außerhalb ihres eigenen
+  Halbjahres lag. Das war eine Umgehung: Betrieb (609 T€) und
+  Veränderungsrahmen (1.110 T€) forderten zusammen **172 % des Topfes**, die
+  Epic-Zuteilungen noch einmal 100 % — also bekam der Betrieb einen eigenen
+  Topf. In der Liste standen dadurch zwei Kacheln „H1 20xx", zwischen denen
+  nichts unterschied.
+- Beide Seeds nagelten das laufende Halbjahr auf **H1** fest. Von Juli bis
+  Dezember zeigten sie deshalb eine „laufende" Runde, die für die App längst
+  vergangen war: das Verteilfenster der ART-Rahmen (`potWindowClosedReason`)
+  war zu, und in `db:seed:demo` stand **jeder Veränderungsrahmen auf 0 €** — die
+  ART-Budgetfläche zeigte nichts.
+
+Der Topf trägt jetzt, was gefordert wird:
+
+| `db:seed:large`             | je Halbjahr                 |
+| --------------------------- | --------------------------- |
+| Topf                        | 2.000.000 € (= 4 Mio./Jahr) |
+| Betrieb                     | 306.000 €                   |
+| Veränderungsrahmen (6 ARTs) | 690.000 €                   |
+| Rest für den Ballot         | ~1.000.000 €                |
+
+**ART-Epics stehen nicht auf dem Ballot.** Kandidat einer Runde ist nur, was
+über dem Portfolio-Limit seines Wertstroms liegt; die kleineren Vorhaben werden
+aus dem Veränderungsrahmen ihres ARTs bedient — genau die Regel, die
+`period-detail.ts` zur Laufzeit anwendet. In Large ergibt das 66 Portfolio- und
+26 ART-Epics.
+
+Die Kachel des **laufenden** Halbjahres ist `abgeschlossen`, nicht `läuft`: die
+finalen Beträge entstehen erst im Übergang `entschieden → abgeschlossen`, und
+ohne sie wäre jeder Veränderungsrahmen 0 €. Die laufende Runde ist deshalb die
+des **nächsten** Halbjahres — man budgetiert H2 im Lauf von H1. In
+`db:seed:demo` liegen die ART-Zuteilungen bewusst im **abgeschlossenen**
+Halbjahr: die Verteilfläche zeigt sie, lässt sie aber nicht mehr ändern.
+
+## Die Walkthroughs, im Datensatz nachweisbar
+
+`docs/concepts/*-walkthrough.md` beschreibt fünf Abläufe. Die beiden
+Story-Mandanten sind der Ort, an dem sich jede Aussage daraus **antreffen**
+lässt — dazu tragen sie folgende Zustände:
+
+| Aussage im Dokument                                 | `db:seed:demo`                       | `db:seed:large`                        |
+| --------------------------------------------------- | ------------------------------------ | -------------------------------------- |
+| **Produkt-Manager** je Solution, mit Sitz an L4     | 7 von 10 besetzt                     | 6 von 9 besetzt                        |
+| … und keiner benannt ⇒ der Sitz fällt still weg     | die drei H3-Solutions                | die drei Pilot-Solutions               |
+| **Einordnungs-Erwartung** (`intendedClass`)         | an jedem Epic                        | an jedem Epic                          |
+| Abweichung **nach oben** (Kostenregel bindet)       | Open-Banking & PSD2 APIs             | 5 Epics                                |
+| Abweichung **nach unten** (Bestehen möglich)        | Biometric Auth                       | 3 Epics                                |
+| Abweichung **aufgelöst** durch den Override         | Card Tokenization                    | 7 Epics                                |
+| **Prüf-Achse**: `suggested`                         | 6                                    | 19                                     |
+| **Prüf-Achse**: `rejected`, mit Prüfer und Datum    | 3                                    | 9                                      |
+| Kopf-Issues, unter denen gebündelt wird             | 4 (bis 3 Ebenen tief)                | 3 (eines je Workstream)                |
+| **Abschluss-Tor** vollständig erfüllt               | „Payments PI 1"                      | „Werk-PI 1", „Werk-PI 2"               |
+| Budget-Kacheln, eine je Halbjahr                    | 3                                    | 12                                     |
+| … und die Kadenz, die es verfehlt (Warnung)         | Konzern-Kadenz, 2 offene ROAM-Issues | Restrukturierungs-Kadenz, 17 offene    |
+| Feature-Status `approved` (geplant, nicht begonnen) | 11                                   | 156 (die Deliverables der L2/L3-Epics) |
+
+### Zwei Timelines, nicht eine
+
+Beide Mandanten führen **zwei** Kadenzen — die kleine mit genau einem ART. Das
+hat einen Grund in der Mechanik: `countOpenRoamIssues` zählt offene, nicht
+eingeordnete Issues über **alle ARTs einer Timeline**, nicht über ein PI. Bei
+einer einzigen Timeline wäre „keine offenen Issues" damit eine mandantenweite
+Eigenschaft — und weil offene Issues erwünscht sind, käme kein PI je durch das
+volle Tor. Über den ARTs der zweiten Kadenz liegt deshalb bewusst keines.
+
+Nebenbei üben die beiden zwei Regeln des PI-Ablaufs aus, die mit einer Timeline
+gar nicht vorkommen können: „ein aktives PI je Timeline" und „ein ART tritt
+einer Timeline bei".
+
+### Rollout-Bögen in `db:seed:large`
+
+Ein Kostenhebel wird in einer Restrukturierung nicht einmal gezogen, sondern
+**ausgerollt**. Die 200 Epics stehen deshalb in Bögen von zwei bis vier Stufen:
+
+```
+Predictive Maintenance — Pilot Werk Nord        L5 · bezahlt Jahr 2
+  └─ Predictive Maintenance — Rollout Werk Süd    L4 · bezahlt Jahr 4
+       └─ Predictive Maintenance — Skalierung Konzern   L2 · wartet auf Budget
+```
+
+Je Kante eine `Dependency` (`depends_on`) — 90 im ganzen Datensatz. Weil das
+Zyklus-Band am Reifegrad hängt, fällt der Rest von selbst richtig: **der
+Reifegrad sinkt entlang der Kette, der Finanzierungszyklus steigt.** Das Budget
+ist der Engpass dieses Mandanten, und die Kette erzählt genau ihn.
+
+> Ein Befund am Rande, der im Datensatz **nicht** vorkommt: an **L3.1**
+> zeichnet der Produkt-Manager nicht mit, sobald der Antragsteller die fünf
+> Parteien benennt — `expandApprovers` verwirft dann alle Platzhalter-Rollen.
+> Die Seeds bilden ab, was die App tut, nicht was die Dokumente behaupten.
 
 ## `db:seed:offsite` — der Simulationsmandant
 

@@ -109,6 +109,17 @@ export interface GateHistoryInput {
   parties: PartySeats;
   /** Practice `multiPartyApproval` — aus ihr folgt die Besetzung von L3.1. */
   multiPartyApproval?: boolean;
+  /**
+   * Der Produkt-Manager der Primär-Solution — Auflösung des Platzhalters
+   * `solution.product_manager`. Ist keiner benannt, fällt der Sitz still weg;
+   * genau so verhält sich `resolveRole` zur Laufzeit.
+   */
+  solutionProductManagerId?: string | null;
+  /**
+   * Die Einordnung des Epics. Sie entscheidet an **L4**, ob der Produkt-Manager
+   * mitzeichnet (`appliesAtGate` lässt ihn dort nur bei ART-Epics zu).
+   */
+  epicClass?: "portfolio" | "art" | null;
   /** Inhalte des Epics — aus ihnen zieht die Abnahme die Baselines. */
   benefitHypothesis: Prisma.InputJsonValue | null;
   businessCase: Prisma.InputJsonValue | null;
@@ -265,6 +276,8 @@ function approversFor(input: GateHistoryInput, to: GateStep): ResolvedApprover[]
     valueStreamFinanceApproverId: input.valueStreamFinanceApproverId,
     valueStreamVmoId: input.valueStreamVmoId,
     epicOwnerId: input.ownerId,
+    solutionProductManagerId: input.solutionProductManagerId ?? null,
+    epicClass: input.epicClass ?? null,
   };
   const override: ApproverOverride[] | undefined =
     to === "L3.1" && (input.multiPartyApproval ?? true)
@@ -496,10 +509,17 @@ export const GATE_STEP_RULES: { toGate: GateStep; approverRoles: GateApproverRol
       "epic.party.finance",
       "epic.party.irt_owner",
       "epic.party.lace_vmo",
+      // Der sechste Sitz. Er löst sich nur auf, wenn die Primär-Solution einen
+      // Produkt-Manager trägt — und er kommt an L3.1 nur zum Zug, wenn der
+      // Antragsteller die fünf Parteien *nicht* selbst besetzt: eine
+      // Override-Liste verdrängt in `expandApprovers` alle Platzhalter.
+      "solution.product_manager",
     ],
   },
   { toGate: "L3.2", approverRoles: ["value_stream.vmo", "value_stream.finance_approver"] },
-  { toGate: "L4", approverRoles: ["value_stream.vmo"] },
+  // An L4 zeichnet der Produkt-Manager mit — aber nur bei ART-Epics, weil das
+  // Vorhaben dort den Rahmen seines ARTs verändert (`appliesAtGate`).
+  { toGate: "L4", approverRoles: ["value_stream.vmo", "solution.product_manager"] },
   { toGate: "L4.2", approverRoles: ["value_stream.vmo"] },
   { toGate: "L5", approverRoles: ["value_stream.finance_approver"] },
 ];
