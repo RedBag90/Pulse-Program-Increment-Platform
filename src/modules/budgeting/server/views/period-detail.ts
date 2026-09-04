@@ -1,6 +1,6 @@
 /**
  * Read-Model der Kachel-Detailseite (`/budgeting/periods/[id]`), Setup-Tab:
- * Rahmen + Beteiligte-Roster + Gruppen + Ballot-Kuratierung. Impurer Loader
+ * Rahmen + Beteiligte-Roster + Gruppen + PB-Listen-Kuratierung. Impurer Loader
  * (eine parallele Welle), die Ableitung (verteilbarer Topf, kuratierbare Epics)
  * ist trivial und inline.
  */
@@ -9,7 +9,7 @@ import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
 import { getRound } from "@/modules/budgeting/server/services/round-service";
-import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
+import { loadPbList } from "@/modules/budgeting/server/services/pb-list";
 import { getTenantPractices } from "@/server/services/target-model";
 import { classifyEpics } from "@/modules/work/server/services/epic-class";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
@@ -32,13 +32,13 @@ export interface PeriodGroupView {
 }
 
 /**
- * Eine Ballot-Zeile mit allem, was die Gliederung braucht.
+ * Eine PB-Listen-Zeile mit allem, was die Gliederung braucht.
  *
  * Der **Wertstrom** steht auf dem Kandidaten (dort eingefroren, weil die
  * Finalisierung ihn zum Rechnen braucht); die **Solution** wird beim Lesen
  * aufgelöst — sie gliedert nur, sie rechnet nicht.
  */
-export interface BallotEntry {
+export interface PbListEntry {
   id: string;
   /** Bei Epics die Epic-Id, bei RtB die Positions-Id — für Entfernen/Deeplink. */
   sourceId: string;
@@ -63,7 +63,7 @@ export interface PeriodDetailModel {
   distributable: number;
   participants: { id: string; userId: string; label: string }[];
   groups: PeriodGroupView[];
-  /** Budgeting-reife Epics, die noch NICHT auf dem Ballot dieser Kachel sind. */
+  /** Budgeting-reife Epics, die noch NICHT auf der PB-Liste dieser Kachel sind. */
   eligibleEpics: { id: string; title: string; cost: number }[];
   /**
    * Wie viele vorgemerkte Epics als **ART-Epics** ausgefiltert wurden — sie
@@ -72,14 +72,14 @@ export interface PeriodDetailModel {
    */
   artEpicsFilteredOut: number;
   /** Bereits kuratierte Epic-Kandidaten dieser Kachel. */
-  epicCandidates: BallotEntry[];
+  epicCandidates: PbListEntry[];
   /**
-   * Die Run-the-Business-Seite des Ballots. Im Entwurf eine **Vorschau** der
+   * Die Run-the-Business-Seite des PB-Listen. Im Entwurf eine **Vorschau** der
    * aktiven Positionen mit ihrem Kachel-Ask — sie werden erst beim Start zu
    * Kandidaten. Ohne diese Vorschau bliebe die Run-Gruppe im Entwurf leer und
    * die Gliederung sähe kaputt aus.
    */
-  rtbCandidates: BallotEntry[];
+  rtbCandidates: PbListEntry[];
   /** `true`, solange die RtB-Zeilen nur eine Vorschau sind (Status `draft`). */
   rtbIsPreview: boolean;
   /** Tenant-Nutzer (Id → E-Mail) für Beteiligte-/Mitglieder-/Sprecher-Auswahl. */
@@ -98,7 +98,7 @@ export async function loadPeriodDetail(
   const draft = round.status === "draft";
 
   const [ballot, participants, candidates, rtbRows, rtbItems, userLabels] = await Promise.all([
-    loadRoundBallot(db, principal.tenantId),
+    loadPbList(db, principal.tenantId),
     db.budgetParticipant.findMany({ where: { roundId }, select: { id: true, userId: true } }),
     db.budgetCandidate.findMany({
       where: { roundId, kind: "epic" },
@@ -123,10 +123,10 @@ export async function loadPeriodDetail(
   );
 
   // Quellen-Trennung (Practice `artEpics`): ART-Epics gehören nicht auf den
-  // Portfolio-Ballot — sie werden aus dem Rahmen ihres ARTs finanziert.
+  // PB-Liste — sie werden aus dem Rahmen ihres ARTs finanziert.
   //
   // Gefiltert wird **hier**, an der Ableitung des wählbaren Pools, und nicht in
-  // `loadRoundBallot`: die Query hat vier Konsumenten, darunter die
+  // `loadPbList`: die Query hat vier Konsumenten, darunter die
   // Finalisierung. Eine Klassenfilterung dort änderte stillschweigend deren
   // Bedeutung mit.
   //
@@ -153,7 +153,7 @@ export async function loadPeriodDetail(
   // Zweite Welle: die Namen für die Gliederung. Der **Wertstrom** steht auf dem
   // Kandidaten (dort eingefroren, weil die Finalisierung ihn zum Rechnen
   // braucht); die **Solution** wird hier aufgelöst — sie gliedert nur.
-  const names = await loadBallotNames(db, principal.tenantId, {
+  const names = await loadPbListNames(db, principal.tenantId, {
     epicIds: [...candidateEpicIds],
     rtbItemIds: rtbRows.map((c) => c.rtbItemId).filter((x): x is string => x != null),
     valueStreamIds: [...candidates, ...rtbRows]
@@ -222,40 +222,51 @@ export async function loadPeriodDetail(
 }
 
 /**
- * Die aktiven Run-the-Business-Positionen als Ballot-Vorschau — mit dem Betrag,
- * den sie in **dieser** Kachel anfragen würden (`rtbCycleAmount`, eine Kachel
- * deckt ein Halbjahr ab).
+ * Die aktiven Run-the-Business-Positionen als PB-Listen-Vorschau — **eine Zeile je
+ * Wertstrom**, mit dem Betrag, den er in **dieser** Kachel anfragen würde
+ * (`rtbCycleAmount`, eine Kachel deckt ein Halbjahr ab).
+ *
+ * Die Bündelung muss dieselbe sein wie in `materializeRtbCandidates`: sonst
+ * zeigte der Entwurf n Zeilen und die laufende Runde eine, und die Liste spränge
+ * genau in dem Moment, in dem niemand mehr etwas ändern kann.
  */
-async function loadRtbPreview(db: PrismaClient, tenantId: string): Promise<BallotEntry[]> {
-  const [items, streams, solutions] = await Promise.all([
+async function loadRtbPreview(db: PrismaClient, tenantId: string): Promise<PbListEntry[]> {
+  const [items, streams] = await Promise.all([
     listRtbItems(db, tenantId as Parameters<typeof listRtbItems>[1]),
     db.valueStream.findMany({ where: { tenantId }, select: { id: true, name: true } }),
-    db.solution.findMany({
-      where: { tenantId, deletedAt: null },
-      select: { id: true, name: true },
-    }),
   ]);
-  const vsName = new Map(streams.map((v) => [v.id, v.name]));
-  const solName = new Map(solutions.map((s) => [s.id, s.name]));
 
-  return items
-    .filter((i) => i.active)
-    .map((i) => ({
-      id: i.id,
-      sourceId: i.id,
-      kind: "rtb",
-      title: i.name,
-      ask: rtbCycleAmount(i.plannedAmount, i.interval),
-      valueStreamName: vsName.get(i.valueStreamId) ?? null,
-      solutionName: i.solutionId ? (solName.get(i.solutionId) ?? null) : null,
-    }));
+  const askByValueStream = new Map<string, number>();
+  for (const i of items) {
+    if (!i.active) continue;
+    const cycle = rtbCycleAmount(i.plannedAmount, i.interval);
+    askByValueStream.set(i.valueStreamId, (askByValueStream.get(i.valueStreamId) ?? 0) + cycle);
+  }
+
+  return streams.flatMap((v) => {
+    const ask = askByValueStream.get(v.id);
+    if (ask == null) return [];
+    return [
+      {
+        id: v.id,
+        sourceId: v.id,
+        kind: "rtb" as const,
+        title: v.name,
+        ask,
+        valueStreamName: v.name,
+        // Die Solution-Zwischenebene hat bei einer Zeile je Wertstrom keinen
+        // Gegenstand mehr — sie zerteilte genau das, was hier zusammengefasst wird.
+        solutionName: null,
+      },
+    ];
+  });
 }
 
 /**
- * Die Namen hinter den Ids einer Ballot-Zeile: Wertstrom, Solution des Epics
+ * Die Namen hinter den Ids einer PB-Listen-Zeile: Wertstrom, Solution des Epics
  * bzw. Solution der Run-the-Business-Position.
  */
-async function loadBallotNames(
+async function loadPbListNames(
   db: PrismaClient,
   tenantId: string,
   ids: { epicIds: string[]; rtbItemIds: string[]; valueStreamIds: string[] },

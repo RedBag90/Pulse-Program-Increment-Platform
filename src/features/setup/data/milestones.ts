@@ -123,7 +123,7 @@ export const MILESTONES: readonly Milestone[] = [
     who: "Controller, Portfolio Manager",
     where: [
       { href: "/budgeting/budget-plan", label: "Budget-Plan (Pool + Perioden)" },
-      { href: "/budgeting/board", label: "Participatory Budgeting" },
+      { href: "/budgeting/periods", label: "Participatory Budgeting" },
     ],
     checks: [
       { id: "m7-1", label: "Budget-Pool + Perioden konfiguriert" },

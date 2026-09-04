@@ -1,7 +1,7 @@
 /**
- * Geteilter Ballot-Loader (Spec F-C1).
+ * Geteilter PB-Listen-Loader (Spec F-C1).
  *
- * „Welche Epics stehen auf dem PB-Ballot (vorgemerkt + budgeting-reif)" lag früher
+ * „Welche Epics stehen auf dem PB-Liste (vorgemerkt + budgeting-reif)" lag früher
  * mehrfach dupliziert; hier **einmal**. Der Kosten-Richtwert je Epic wird aus den
  * Artefakten abgeleitet (approved Lean Business Case → Σ costSlices; sonst approved
  * Benefit-Hypothese → tenant-konfigurierter Default-Aufwand), nicht mehr aus einem
@@ -19,14 +19,14 @@ import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { derivePbInfo, DEFAULT_HYPOTHESIS_EFFORT } from "@/modules/work/domain/pb-submission";
 
-export interface BallotEpic {
+export interface PbListEpic {
   id: string;
   title: string;
   cost: number;
 }
 
-export interface RoundBallot {
-  ballot: BallotEpic[];
+export interface PbList {
+  ballot: PbListEpic[];
   mandatoryCount: number;
   mandatorySum: number;
 }
@@ -48,10 +48,10 @@ export async function loadDefaultHypothesisEffort(
     : DEFAULT_HYPOTHESIS_EFFORT;
 }
 
-export async function loadRoundBallot(
+export async function loadPbList(
   db: Pick<PrismaClient, "initiative" | "tenant">,
   tenantId: string,
-): Promise<RoundBallot> {
+): Promise<PbList> {
   const [ballotEpics, defaultEffort] = await Promise.all([
     db.initiative.findMany({
       where: {

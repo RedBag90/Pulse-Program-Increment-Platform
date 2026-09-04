@@ -22,6 +22,29 @@ export const MONTH_LABELS = [
   "Dec",
 ] as const;
 
+/**
+ * Dieselbe Achse auf Deutsch — für Flächen, die den Nutzern gehören.
+ *
+ * Getrennt von `MONTH_LABELS`, weil das englische Set in technischen Kontexten
+ * gebraucht wird und ein stiller Tausch dort Beschriftungen umgestellt hätte.
+ * Zwei weitere handgeschriebene Kopien leben noch in `goal-period.ts` und
+ * `timeline-grid.ts`; sie gehören hierher, sobald jemand sie anfasst.
+ */
+export const MONTH_LABELS_DE = [
+  "Jan",
+  "Feb",
+  "Mär",
+  "Apr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Okt",
+  "Nov",
+  "Dez",
+] as const;
+
 // --- day -------------------------------------------------------------------
 
 /** Milliseconds in a day. */

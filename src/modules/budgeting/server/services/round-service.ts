@@ -108,7 +108,7 @@ export async function createRound(
 
 /**
  * Kopiert das Setup einer Runde in eine neue Kachel: **Beteiligte** + **Gruppen**
- * (inkl. Sprecher/Mitglieder) + die kuratierten **Epic-Kandidaten** (Ballot).
+ * (inkl. Sprecher/Mitglieder) + die kuratierten **Epic-Kandidaten** (PB-Liste).
  * RtB-Kandidaten werden NICHT kopiert (sie materialisieren beim Start).
  * Genutzt von `createPeriod` (Übernahme beim Anlegen) und `startNextPeriod`.
  */
@@ -192,7 +192,7 @@ export interface CreatePeriodInput {
   endDate: Date;
   /** Verteil-Deadline der Gruppen (Default = endDate). */
   submissionDeadline?: Date | null | undefined;
-  /** Beteiligte + Gruppen + Ballot von der jüngsten vorherigen Kachel übernehmen. */
+  /** Beteiligte + Gruppen + PB-Liste von der jüngsten vorherigen Kachel übernehmen. */
   carryOver?: boolean | undefined;
   /** Reserve der zeitlich vorherigen abgeschlossenen Kachel auf den Topf addieren. */
   carryReserve?: boolean | undefined;

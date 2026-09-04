@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "@/i18n/navigation";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
@@ -22,17 +23,6 @@ import { ValueStreamOverviewForm } from "@/modules/core/org/features/capacity/co
 import { GateApproverRulesSection } from "@/modules/work/features/portfolio/components/gate-approver-rules-section";
 import { listGateApproverRules } from "@/modules/work/server/services/stage-gate-transition";
 import { DeleteValueStreamButton } from "@/modules/core/org/features/value-stream/components/delete-value-stream-button";
-import {
-  getValueStreamBudget,
-  getValueStreamBudgetTotals,
-} from "@/modules/budgeting/server/services/budgeting";
-import { loadArtBudgetModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
-import { loadValueStreamCourse } from "@/modules/budgeting/server/views/art-budget-detail";
-import { ArtBudgetView } from "@/modules/budgeting/features/components/art-budget/art-budget-view";
-import { ValueStreamBudgetPlan } from "@/modules/budgeting/features/components/value-stream/value-stream-budget-plan";
-import { AllocationCourseChart } from "@/modules/budgeting/features/components/art-budget/allocation-course-chart";
-import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
-import { RtbSection } from "@/modules/budgeting/features/components/rtb/rtb-section";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
 import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
 import {
@@ -43,7 +33,6 @@ import { ValueStreamGuardrailsSection } from "@/modules/work/features/portfolio/
 import { getTenantPractices } from "@/server/services/target-model";
 import { SolutionsOfNode } from "@/modules/work/features/portfolio/components/solutions/solutions-of-node";
 import { loadSolutionsList } from "@/modules/work/server/views/solutions-list";
-import { formatEUR } from "@/lib/formatting";
 import type { ValueStreamId } from "@/modules/core/kernel/domain/types";
 
 /**
@@ -94,13 +83,10 @@ export default async function ValueStreamNodePage({ params, searchParams }: Prop
 
   const tabs: DetailTab[] = [
     { key: "overview", label: "Allgemein" },
-    ...(canReadBudget
-      ? [
-          { key: "budget", label: "Budget" },
-          { key: "guardrails", label: "Guardrails" },
-          { key: "operations", label: "Betrieb" },
-        ]
-      : []),
+    // Budget und Betrieb sind nach `/budgeting/value-streams/[id]` gezogen:
+    // Geld wird im Budgeting-Bereich verwaltet, nicht in der Struktur.
+    // Guardrails bleibt — das ist `modules/work`, kein Budgeting.
+    ...(canReadBudget ? [{ key: "guardrails", label: "Guardrails" }] : []),
     ...(inScope
       ? [
           { key: "solutions", label: "Solutions" },
@@ -141,15 +127,23 @@ export default async function ValueStreamNodePage({ params, searchParams }: Prop
         </div>
       )}
 
+      {activeTab === "overview" && canReadBudget && (
+        <p className="mb-4 rounded-lg border bg-card px-4 py-3 text-sm">
+          Budget, Betriebskosten und die ART-Epic-Budgets dieses Wertstroms liegen im
+          Budgeting-Bereich.{" "}
+          <Link
+            href={`/budgeting/value-streams/${vs.id}`}
+            className="font-medium text-primary hover:underline"
+          >
+            Budget dieses Wertstroms →
+          </Link>
+        </p>
+      )}
       {activeTab === "overview" && (
         <OverviewTab db={db} vs={vs} principal={principal} canEdit={canEdit} inScope={inScope} />
       )}
-      {activeTab === "budget" && <BudgetTab db={db} tenantId={principal.tenantId} vs={vs} />}
       {activeTab === "guardrails" && (
         <GuardrailsTab db={db} principal={principal} vsId={vs.id} inScope={inScope} />
-      )}
-      {activeTab === "operations" && (
-        <OperationsTab db={db} principal={principal} vs={vs} canEdit={canEdit} />
       )}
       {activeTab === "solutions" && (
         <SolutionsTab db={db} tenantId={principal.tenantId} valueStreamId={vs.id} />
@@ -235,38 +229,6 @@ async function OverviewTab({ db, vs, principal, canEdit, inScope }: any) {
   );
 }
 
-async function BudgetTab({ db, tenantId, vs }: any) {
-  const [plan, artModel, course, totals] = await Promise.all([
-    getValueStreamBudget(db, tenantId, vs.id),
-    loadArtBudgetModel(db, tenantId, vs.id),
-    loadValueStreamCourse(db, tenantId, vs.id),
-    // Dieselbe Summe, die bis zum Umbau im Struktur-Pane stand — jetzt hinter
-    // `budget.read`, statt im Baum für jeden sichtbar.
-    getValueStreamBudgetTotals(db, tenantId),
-  ]);
-
-  return (
-    <div className="space-y-8">
-      <section className="rounded-lg border bg-card p-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Zugeteilt im laufenden Zyklus
-        </h2>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{formatEUR(totals[vs.id] ?? 0)}</p>
-      </section>
-      <ValueStreamBudgetPlan periods={plan.periods} plan={plan.budget ?? undefined} />
-      {course.course && (
-        <AllocationCourseChart
-          course={course.course}
-          todayIndex={course.todayIndex}
-          title={`Verlauf · ${course.cycles.find((c: { key: string }) => c.key === course.cycleKey)?.label ?? ""}`}
-          subtitle="Alle Zuteilungen dieses Wertstroms, auf die Monate des Halbjahres verteilt."
-        />
-      )}
-      <ArtBudgetView model={artModel} />
-    </div>
-  );
-}
-
 async function GuardrailsTab({ db, principal, vsId, inScope }: any) {
   const [guardrailRows, tenant, practices] = await Promise.all([
     listValueStreamGuardrailTargets(db, principal.tenantId),
@@ -301,33 +263,6 @@ async function GuardrailsTab({ db, principal, vsId, inScope }: any) {
         })
       }
       preview={preview}
-    />
-  );
-}
-
-async function OperationsTab({ db, principal, vs, canEdit }: any) {
-  const [rtbItems, solutions] = await Promise.all([
-    listRtbItems(db, principal.tenantId, { valueStreamId: vs.id }),
-    db.solution.findMany({
-      where: { tenantId: principal.tenantId, valueStreamId: vs.id, deletedAt: null },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
-  ]);
-  const canManage =
-    canEdit ||
-    vs.financeApproverId === principal.id ||
-    hasCapability(principal, "art_budget.manage", {
-      tenantId: principal.tenantId,
-      valueStreamId: vs.id,
-    });
-
-  return (
-    <RtbSection
-      valueStreamId={vs.id}
-      items={rtbItems}
-      canManage={canManage}
-      solutions={solutions}
     />
   );
 }

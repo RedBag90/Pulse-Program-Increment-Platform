@@ -59,7 +59,7 @@ export function periodPhases(f: PeriodPhaseFacts): PeriodPhase[] {
   const finalized = f.status === "closed";
 
   // Der Start ist der Abschluss des Setups: seine Guards lassen ihn nur zu, wenn
-  // Rahmen, Ballot und Gruppen stehen. Eine laufende Kachel deshalb nicht wieder
+  // Rahmen, PB-Liste und Gruppen stehen. Eine laufende Kachel deshalb nicht wieder
   // auf „Phase 1" zurückfallen lassen, bloß weil jemand später einen Kandidaten
   // entfernt hat.
   const raw: Array<Omit<PeriodPhase, "state"> & { done: boolean; blockedBy?: string }> = [
@@ -71,7 +71,7 @@ export function periodPhases(f: PeriodPhaseFacts): PeriodPhase[] {
     },
     {
       key: "ballot",
-      label: "Ballot",
+      label: "PB-Liste",
       tab: "setup",
       done: started || f.candidateCount > 0,
     },
@@ -83,7 +83,7 @@ export function periodPhases(f: PeriodPhaseFacts): PeriodPhase[] {
     },
     {
       // Der Start ist ein eigener Übergang, kein Nebeneffekt des Gruppen-
-      // Schritts: er friert den Ballot ein und schaltet die Verteilung frei.
+      // Schritts: er friert die PB-Liste ein und schaltet die Verteilung frei.
       // Ohne ihn zählte die Leiste an Position 4 schon „Verteilen", während die
       // Setup-Checkliste dort „Runde starten" führte — derselbe Schritt mit
       // zwei Nummern.
@@ -93,7 +93,7 @@ export function periodPhases(f: PeriodPhaseFacts): PeriodPhase[] {
       done: started,
       ...(f.candidateCount > 0 && f.staffedGroupCount > 0
         ? {}
-        : { blockedBy: "Erst mit Kandidaten auf dem Ballot und einer besetzten Gruppe." }),
+        : { blockedBy: "Erst mit Kandidaten auf der PB-Liste und einer besetzten Gruppe." }),
     },
     {
       key: "verteilen",

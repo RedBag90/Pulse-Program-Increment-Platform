@@ -2,6 +2,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { authorize } from "@/server/auth/authorize";
 import { getPortfolioEconomics } from "@/modules/work/server/services/portfolio-dashboard";
+import { getEpicAllocationMaps } from "@/modules/budgeting/server/services/epic-allocation";
 import { getGoalBenefitWaterfalls } from "@/modules/work/server/views/goal-benefit-waterfalls";
 import { PortfolioDashboard } from "@/modules/work/features/portfolio/components/dashboard/portfolio-dashboard-lazy";
 import { Link } from "@/i18n/navigation";
@@ -18,8 +19,19 @@ export default async function PortfolioDashboardPage() {
   if (!principal) redirect("/sign-in");
 
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
+
+  // Die Kostenkurve zeichnet die zugeteilten Beträge je Halbjahr — und die
+  // gehören dem Budgeting-Modul. Ohne dessen Lizenz wird der Port gar nicht
+  // erst hereingereicht: die Kurve zeigt dann, was der Mandant selbst im
+  // Business Case hinterlegt hat, und keine fremden Zahlen.
+  const budgetingEnabled = principal.enabledModules.includes("budgeting");
+
   const [data, goalWaterfalls] = await Promise.all([
-    getPortfolioEconomics(db, principal.tenantId),
+    getPortfolioEconomics(
+      db,
+      principal.tenantId,
+      budgetingEnabled ? () => getEpicAllocationMaps(db, principal.tenantId) : null,
+    ),
     getGoalBenefitWaterfalls(db, principal.tenantId),
   ]);
 

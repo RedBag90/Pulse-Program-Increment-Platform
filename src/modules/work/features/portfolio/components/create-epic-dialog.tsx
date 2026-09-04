@@ -7,6 +7,8 @@ import { createEpicAction } from "@/modules/work/features/portfolio/actions/epic
 import { linkEpicToGoalAction } from "@/modules/core/goals/features/actions/ziele";
 import { useCreateResult } from "@/features/create/use-create-result";
 import { useEntityOptions, optionsEndpoint } from "@/features/create/use-entity-options";
+import { usePortfolioThresholds } from "@/modules/work/features/portfolio/components/use-portfolio-thresholds";
+import { intendedClassOptions } from "@/modules/work/features/portfolio/components/intended-class-options";
 import { GoalTreePicker } from "@/modules/core/goals/features/components/goal-tree-picker";
 import type { ActionState } from "@/server/http/server-action";
 import { Button } from "@/components/ui/button";
@@ -108,6 +110,14 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
   const artOptions = arts.data.filter((a) => a.valueStream?.id === vsId);
   const solutions = useEntityOptions<Solution>(optionsEndpoint("solution"), dialogOpen);
   const solutionOptions = solutions.data.filter((s) => s.valueStream?.id === vsId);
+
+  // Die Schwelle, an der sich die Einordnung entscheidet, hängt am Wertstrom —
+  // und der wird in diesem Formular gewählt. Das Label zieht deshalb mit.
+  // Solange nichts geladen ist, bleiben die schlichten Namen.
+  const thresholds = usePortfolioThresholds(dialogOpen);
+  const classOptions = intendedClassOptions(
+    thresholds == null ? null : (thresholds.byValueStream[vsId] ?? thresholds.defaultThreshold),
+  );
 
   return (
     <>
@@ -214,8 +224,11 @@ export function CreateEpicDialog({ open, onOpenChange, valueStreams }: CreateEpi
                 required
                 className={SELECT_CLASS}
               >
-                <option value="portfolio">Portfolio-Epic</option>
-                <option value="art">ART-Epic</option>
+                {classOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
               </select>
               <p className="text-xs text-muted-foreground">
                 Eine Erwartung, keine Entscheidung. Die Klasse entsteht aus den Kosten des

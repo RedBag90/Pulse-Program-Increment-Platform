@@ -1,7 +1,7 @@
 /**
  * Knappheitsfaktor — das Qualitätstor vor der PB-Runde (A-06).
  *
- * Übersteigt die Gesamtnachfrage (Σ Kosten-bis-MVP aller Ballot-Epics) das
+ * Übersteigt die Gesamtnachfrage (Σ Kosten-bis-MVP aller PB-Listen-Epics) das
  * verteilbare Budget nicht deutlich, gibt es keinen echten Trade-off — die
  * Runde entfällt und wird zentral entschieden. Schwelle: Faktor ≥ 1,3.
  *

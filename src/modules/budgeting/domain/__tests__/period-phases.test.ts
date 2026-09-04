@@ -58,7 +58,7 @@ describe("periodPhases", () => {
     expect(state({ ...ready, staffedGroupCount: 1 }).gruppen).toBe("done");
   });
 
-  it("der Start ist gesperrt, bis Ballot und Gruppen stehen", () => {
+  it("der Start ist gesperrt, bis PB-Liste und Gruppen stehen", () => {
     // Die Leiste sagt damit dasselbe wie der Knopf in der Setup-Checkliste —
     // und trägt dieselbe Nummer.
     const p = (f: PeriodPhaseFacts) => periodPhases(f).find((x) => x.key === "start")!;
@@ -99,7 +99,7 @@ describe("periodPhases", () => {
   });
 
   it("der Start schließt das Setup ab, auch wenn später ein Kandidat verschwindet", () => {
-    // Die Start-Guards lassen die Runde nur laufen, wenn Rahmen, Ballot und
+    // Die Start-Guards lassen die Runde nur laufen, wenn Rahmen, PB-Liste und
     // Gruppen standen — eine laufende Kachel darf nicht auf Phase 1 zurückfallen.
     const s = state(facts({ status: "running", groupCount: 2 }));
     expect([s.rahmen, s.ballot, s.gruppen]).toEqual(["done", "done", "done"]);

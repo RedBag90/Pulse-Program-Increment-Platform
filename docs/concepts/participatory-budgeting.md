@@ -8,7 +8,7 @@
 > **Aktuelles Modell (Kachel-Prozess).** Der PB-Prozess lebt in **Kacheln** je
 > Budgeting-Zeitraum (`/budgeting/periods`, Entity `BudgetRound`, Identität `id`,
 > mehrere/zukünftige koexistieren). Ablauf je Kachel: **Beteiligte definieren
-> (`BudgetParticipant`) → Gruppen bilden → Ballot kuratieren
+> (`BudgetParticipant`) → Gruppen bilden → PB-Liste kuratieren
 > (`BudgetCandidate` = Epics **und** Run-the-Business-Positionen) → Runde starten
 > (friert Kandidaten ein, materialisiert RtB) → Gruppen verteilen **freie
 > €-Beträge** selbst (`GroupAllocation.amount`, mitglieds-scoped, bis Deadline) →
@@ -62,7 +62,7 @@ Beim `close` verbindet eine Transaktion die zwei Schichten sichtbar in Daten (`r
   wird **nicht** überschrieben.
 - **Topf-Vererbung** (F-C2): der Runden-Topf (inkl. Reserve-Übertrag) wird der Detailplanungs-Topf dieses
   Cycles (`Tenant.budgetPoolByPeriod[cycleKey]`).
-- **Un-Staging**: nicht finanzierte Ballot-Epics verlassen das Board (`stagedForBudgeting=false`).
+- **Un-Staging**: nicht finanzierte PB-Listen-Epics verlassen das Board (`stagedForBudgeting=false`).
 
 Auf `/budgeting/rounds` erscheint bei `closed` eine **Übergabe-CTA** „Zur €/ART-Detailplanung"; das Controlling
 zeigt die aktive Runde als Widget (Status, Fortschritt, Reserve).
@@ -98,7 +98,7 @@ Abweichung definiert).
   Übertrag** in die Folgerunde (nur der Betrag).
 - **Gruppen-Schnitt** (`group-cut.ts`): ≥3 Gruppen, 4–6 Personen, keine Team-Dopplung, Einreicher verteilt,
   Sprecher — als Warnungen.
-- **Einreichung** (`work/domain/submission.ts`): ein Epic darf nur auf den Ballot, wenn Problem, MVP-Schnitt,
+- **Einreichung** (`work/domain/submission.ts`): ein Epic darf nur auf die PB-Liste, wenn Problem, MVP-Schnitt,
   Kosten-bis-MVP (eine Zahl), Risiko-Ampel und „wenn nicht finanziert" gesetzt sind (Vormerk-Gate serverseitig).
 
 ## Rollen & Rechte

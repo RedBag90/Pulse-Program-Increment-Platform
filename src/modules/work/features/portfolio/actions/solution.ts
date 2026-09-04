@@ -81,6 +81,10 @@ export const updateSolutionAction = createServerAction({
     productManagerId: z.string().uuid().nullable().optional(),
   }),
   action: "solution.update",
+  // Der benannte Produkt-Manager darf sein Produkt bearbeiten, auch ohne
+  // `solution.update`. Das prüft `updateSolution` zeilenweise — die Vorprüfung
+  // hier hätte ihn vorher abgewiesen und den Seam wirkungslos gemacht.
+  authorizedInService: true,
   resource: tenantResource,
   parseFormData: (fd) => {
     const f = fields(fd);

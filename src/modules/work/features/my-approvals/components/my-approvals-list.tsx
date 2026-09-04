@@ -2,6 +2,7 @@ import { Link } from "@/i18n/navigation";
 import { PageSection } from "@/components/layout";
 import { ApprovalActions } from "@/modules/work/features/my-approvals/components/approval-actions";
 import type { MyApprovalRow } from "@/modules/work/server/services/my-approvals";
+import { gateStepLabel } from "@/modules/work/domain/stage-gate";
 
 /**
  * „Meine Freigaben" — der persönliche Posteingang, nach Art gruppiert.
@@ -22,7 +23,9 @@ const KIND_ORDER: MyApprovalRow["kind"][] = ["epic_gate"];
 function ContextCell({ row }: { row: MyApprovalRow }) {
   const bits: string[] = [];
   if (row.context.fromGate && row.context.toGate) {
-    bits.push(`${row.context.fromGate} → ${row.context.toGate}`);
+    // Bisher stand hier der rohe Schrittcode — dieselbe Beschriftung wie auf
+    // der Gate-Karte, damit „L4" und „L4.1" nicht zwei Dinge zu sein scheinen.
+    bits.push(`${gateStepLabel(row.context.fromGate)} → ${gateStepLabel(row.context.toGate)}`);
   }
   if (row.context.roleLabel) bits.push(row.context.roleLabel);
   if (row.context.valueStreamName) bits.push(row.context.valueStreamName);

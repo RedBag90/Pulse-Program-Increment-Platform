@@ -220,7 +220,7 @@ export async function updateEpic(
       });
     }
 
-    // Vormerk-Gate: ein Epic darf nur auf den PB-Ballot, wenn es budgeting-reif
+    // Vormerk-Gate: ein Epic darf nur auf die PB-Liste, wenn es budgeting-reif
     // ist — mindestens eine approved Benefit-Hypothese ODER ein approved Lean
     // Business Case. Die PB-Infos werden daraus abgeleitet (kein manuelles
     // Einreichungsformular mehr, s. `domain/pb-submission.ts`).
@@ -827,7 +827,7 @@ export async function getEpic(db: PrismaClient, tenantId: TenantId, id: EpicId) 
  * Pflicht: eine Ausnahme ohne Grund ist im Nachhinein nicht zu beurteilen.
  *
  * Nur in **dieser** Richtung. Ein Epic über dem Limit als ART-Epic zu führen
- * gibt es nicht: es würde aus dem Veränderungsrahmen seines ARTs bezahlt, und
+ * gibt es nicht: es würde aus dem ART-Epic-Budget seines ARTs bezahlt, und
  * der Schreibpfad deckelt jede Zuteilung am Rahmen.
  */
 export async function setPortfolioOverride(

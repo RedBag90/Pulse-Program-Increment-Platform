@@ -5,7 +5,7 @@ import { setBudgetingDefaultsAction } from "@/modules/budgeting/features/actions
 
 /**
  * Kompakte Tenant-Einstellung: der Default-Aufwand (Kosten-Richtwert), der für
- * Ballot-Kandidaten greift, die erst eine Benefit-Hypothese (noch keinen Lean
+ * PB-Listen-Kandidaten greift, die erst eine Benefit-Hypothese (noch keinen Lean
  * Business Case) haben. Leeres Feld ⇒ Code-Fallback.
  */
 export function BudgetingDefaultsForm({ current }: { current: number | null }) {
@@ -41,8 +41,8 @@ export function BudgetingDefaultsForm({ current }: { current: number | null }) {
         {pending ? "…" : "Speichern"}
       </button>
       <p className="w-full text-xs text-muted-foreground">
-        Kosten-Richtwert im Ballot für Epics mit freigegebener Benefit-Hypothese, aber noch ohne Lean
-        Business Case. Leer ⇒ Standard (50.000 €).
+        Kosten-Richtwert in der PB-Liste für Epics mit freigegebener Benefit-Hypothese, aber noch
+        ohne Lean Business Case. Leer ⇒ Standard (50.000 €).
       </p>
       {state.error && <span className="w-full text-xs text-red-600">{state.error}</span>}
       {state.success && <span className="w-full text-xs text-emerald-700">Gespeichert.</span>}

@@ -157,7 +157,7 @@ export function totalAllocatedByPeriod(
 /**
  * Pool − Σ allocated per half-year key (negative = over-allocated). The fachliche
  * Name stays here; the arithmetic is the shared `remainingByPeriod` primitive —
- * the same shape `artBudgetRemaining` uses one level down.
+ * the same shape `unassignedToArts` uses one level down.
  */
 export function poolRemaining(
   pool: Record<string, number>,

@@ -20,7 +20,7 @@ const btn =
   "rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50";
 
 /**
- * Selbst-Verteilung einer Gruppe: freie €-Beträge über alle Ballot-Kandidaten
+ * Selbst-Verteilung einer Gruppe: freie €-Beträge über alle PB-Listen-Kandidaten
  * (Epics + Run-the-Business), Live-Summe gegen den verteilbaren Topf. „Speichern"
  * schreibt die geänderten Zeilen; „Einreichen" (nur Sprecher) schließt ab.
  */

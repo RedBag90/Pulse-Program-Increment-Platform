@@ -1,5 +1,5 @@
 /**
- * Gliederung der Ballot-Kandidaten: **Run/Grow → Wertstrom → Solution**.
+ * Gliederung die PB-Liste-Kandidaten: **Run/Grow → Wertstrom → Solution**.
  *
  * Die Liste ist die Grundlage der Verteilung — wer abstimmt, muss die Blöcke
  * erkennen: was ist Betrieb, was ist Veränderung, welcher Wertstrom und welches

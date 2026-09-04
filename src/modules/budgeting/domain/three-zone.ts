@@ -37,7 +37,7 @@ export interface EpicZone {
 }
 
 /**
- * Klassifiziert jedes Ballot-Epic in seine Zone. `total` ist immer die
+ * Klassifiziert jedes PB-Listen-Epic in seine Zone. `total` ist immer die
  * Gruppenzahl — eine fehlende Stimme zählt als Nein (die Gruppe hat das Epic
  * nicht finanziert). Reihenfolge folgt `epicIds`.
  */
@@ -54,9 +54,9 @@ export function classifyZones(
   return epicIds.map((epicId) => {
     const yes = yesByEpic.get(epicId) ?? 0;
     const total = groupCount;
-    const zone: Zone = yes === total && total > 0 ? "consensus" : yes === 0 ? "rejection" : "spread";
-    const majority: Majority =
-      yes * 2 > total ? "yes" : yes * 2 < total ? "no" : "none";
+    const zone: Zone =
+      yes === total && total > 0 ? "consensus" : yes === 0 ? "rejection" : "spread";
+    const majority: Majority = yes * 2 > total ? "yes" : yes * 2 < total ? "no" : "none";
     return { epicId, yes, total, zone, majority };
   });
 }

@@ -6,7 +6,7 @@
  * Vorher lebten diese vier Rechnungen verstreut: die Summe über eine Karte stand
  * ad-hoc in `epic-allocation.ts`, zweimal in `budget-plan-snapshot.ts` und in der
  * Revisions-View; „Verbleibend" existierte als `poolRemaining` (Topf − Σ Epics)
- * und `artBudgetRemaining` (VS-Budget − Σ ARTs) in zwei formgleichen Kopien.
+ * und `unassignedToArts` (VS-Budget − Σ ARTs) in zwei formgleichen Kopien.
  * Hier ist die Mathe **einmal** aufgeschrieben; die fachlichen Namen bleiben
  * dort, wo sie hingehören (siehe `budgeting.ts` / `art-budget.ts`).
  *

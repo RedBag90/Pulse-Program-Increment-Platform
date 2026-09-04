@@ -85,8 +85,8 @@ export function EpicClassBadge({
           <strong className="font-semibold">Kein Finanzierungsweg.</strong>{" "}
           {fundingGap === "noArt"
             ? "Das Epic trägt keinen ART und kann deshalb aus keinem Rahmen finanziert werden."
-            : "Für den ART dieses Epics ist kein Veränderungsrahmen angelegt."}{" "}
-          Als ART-Epic steht es auch nicht auf dem Portfolio-Ballot. Ausweg: einen Rahmen anlegen —
+            : "Für den ART dieses Epics ist kein ART-Epic-Budget angelegt."}{" "}
+          Als ART-Epic steht es auch nicht auf der PB-Liste. Ausweg: ein ART-Epic-Budget anlegen —
           oder das Epic mit Begründung bewusst zur Portfolio-Sache erklären.
         </p>
       )}

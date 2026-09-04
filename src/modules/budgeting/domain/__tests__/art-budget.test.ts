@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { aggregateArtFeatureLoad, artBudgetRemaining } from "@/modules/budgeting/domain/art-budget";
+import { aggregateArtFeatureLoad, unassignedToArts } from "@/modules/budgeting/domain/art-budget";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
@@ -37,9 +37,9 @@ describe("aggregateArtFeatureLoad", () => {
   });
 });
 
-describe("artBudgetRemaining", () => {
+describe("unassignedToArts", () => {
   it("subtracts the sum of ART allocations from the VS budget per period", () => {
-    const remaining = artBudgetRemaining(
+    const remaining = unassignedToArts(
       { "2026-H1": 100, "2026-H2": 50 },
       [{ "2026-H1": 60, "2026-H2": 20 }, { "2026-H1": 30 }],
       ["2026-H1", "2026-H2"],
@@ -49,7 +49,7 @@ describe("artBudgetRemaining", () => {
   });
 
   it("goes negative when ARTs are over-allocated", () => {
-    const remaining = artBudgetRemaining({ "2026-H1": 40 }, [{ "2026-H1": 70 }], ["2026-H1"]);
+    const remaining = unassignedToArts({ "2026-H1": 40 }, [{ "2026-H1": 70 }], ["2026-H1"]);
     expect(remaining["2026-H1"]).toBe(-30);
   });
 });

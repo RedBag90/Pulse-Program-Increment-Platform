@@ -1,5 +1,5 @@
 /**
- * Der **Veränderungsrahmen eines ARTs** und seine Verteilung auf ART-Epics.
+ * Der **ART-Epic-Budget eines ARTs** und seine Verteilung auf ART-Epics.
  *
  * Der Rahmen ist keine eigene Größe: er ist die Summe der finalen Beträge der
  * `art_change`-Positionen dieses ARTs aus den Kacheln des Halbjahres. Der
@@ -17,11 +17,12 @@ import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { authorizeResource } from "@/server/auth/authorize";
 import { potWindowClosedReason } from "@/modules/budgeting/domain/art-pot-window";
+import { artPotAccessDeniedReason } from "@/modules/budgeting/domain/art-pot-access";
 import { mergeEpicAllocation } from "@/modules/budgeting/server/services/epic-allocation";
 
 export interface ArtPot {
   cycleKey: string;
-  /** Σ der finalen Beträge der Veränderungsrahmen-Positionen dieses ARTs. */
+  /** Σ der finalen Beträge der ART-Epic-Budget-Positionen dieses ARTs. */
   total: number;
   /** Was der ART davon vergeben hat. */
   distributed: number;
@@ -39,6 +40,37 @@ export interface ArtEpicAllocationRow {
 }
 
 /** Der Rahmen eines ARTs für ein Halbjahr, samt bereits Verteiltem. */
+/**
+ * Das **zugesprochene** ART-Epic-Budget eines ARTs im Halbjahr: die Summe der
+ * Awards auf seinen `art_change`-Positionen.
+ *
+ * Nur **aktive** Positionen zählen — dieselbe Einschränkung, die `loadRtbAwards`
+ * und die Epic-Seite treffen. Ohne sie zählte eine deaktivierte Position weiter
+ * in die Summe und damit in den Deckel, während sie aus der Aufteil-Fläche
+ * längst verschwunden wäre.
+ *
+ * Steht hier **einmal**, weil sowohl das Lesen der Fläche als auch die Prüfung
+ * beim Schreiben dieselbe Zahl braucht. Vorher stand sie zweimal wortgleich da.
+ */
+export async function artEpicBudgetTotal(
+  tx: Pick<PrismaClient, "runTheBusinessItem" | "rtbItemAward">,
+  tenantId: string,
+  artId: string,
+  cycleKey: string,
+): Promise<number> {
+  // Die Art der Position steht an ihr, nicht am Kandidaten.
+  const items = await tx.runTheBusinessItem.findMany({
+    where: { tenantId, artId, kind: "art_change", active: true },
+    select: { id: true },
+  });
+  if (items.length === 0) return 0;
+  const awards = await tx.rtbItemAward.findMany({
+    where: { tenantId, cycleKey, rtbItemId: { in: items.map((i) => i.id) } },
+    select: { amount: true },
+  });
+  return awards.reduce((s, a) => s + Number(a.amount), 0);
+}
+
 export async function loadArtPot(
   db: PrismaClient,
   tenantId: TenantId,
@@ -46,32 +78,18 @@ export async function loadArtPot(
   cycleKey: string,
   now: Date = new Date(),
 ): Promise<ArtPot> {
-  // `BudgetCandidate` kennt nur `kind: "rtb"`; die Art der Position steht an ihr.
-  const changeItems = await db.runTheBusinessItem.findMany({
-    where: { tenantId, artId, kind: "art_change" },
-    select: { id: true },
-  });
-
-  const [finals, allocations] = await Promise.all([
-    changeItems.length === 0
-      ? Promise.resolve([])
-      : db.budgetCandidate.findMany({
-          where: {
-            tenantId,
-            kind: "rtb",
-            rtbItemId: { in: changeItems.map((i) => i.id) },
-            finalAmount: { not: null },
-            round: { cycleKey },
-          },
-          select: { finalAmount: true },
-        }),
+  // Das Budget kommt aus der **Aufteilung des Wertstroms**, nicht aus dem
+  // finalen Betrag eines eigenen Kandidaten: seit die PB-Liste je Wertstrom eine
+  // Zeile trägt, entscheidet die Runde nur die Summe, und der Wertstrom verteilt
+  // sie danach auf seine Positionen.
+  const [total, allocations] = await Promise.all([
+    artEpicBudgetTotal(db, tenantId, artId, cycleKey),
     db.artEpicAllocation.findMany({
       where: { tenantId, artId, cycleKey },
       select: { amount: true },
     }),
   ]);
 
-  const total = finals.reduce((s, f) => s + Number(f.finalAmount), 0);
   const distributed = allocations.reduce((s, a) => s + Number(a.amount), 0);
 
   return {
@@ -147,35 +165,50 @@ export async function setArtEpicAllocation(
       return err({ kind: "not_found" as const, resourceType: "Art", id: input.artId });
     }
 
-    // Verteilt wird der Rahmen **für** den ART, nicht vom ART: die Rechte
-    // folgen `rtb_item.manage` samt Finance-Bypass des Wertstroms.
-    const vs = await tx.valueStream.findFirst({
-      where: { id: art.valueStreamId, tenantId: mctx.tenantId },
-      select: { financeApproverId: true },
-    });
-    const isFinance = vs?.financeApproverId === ctx.principal.id;
-    if (!isFinance) {
-      const decision = authorizeResource(ctx.principal, "rtb_item.manage", {
+    // Vier Wege führen zum Verteilen: der RTE **dieses** ARTs über
+    // `art_budget.distribute`, `rtb_item.manage` samt Finance-Bypass des
+    // Wertstroms, und der Produkt-Manager der Primär-Solution **dieses** Epics.
+    // Die Regel selbst steht rein in `artPotAccessDeniedReason`.
+    const [vs, epic] = await Promise.all([
+      tx.valueStream.findFirst({
+        where: { id: art.valueStreamId, tenantId: mctx.tenantId },
+        select: { financeApproverId: true },
+      }),
+      tx.initiative.findFirst({
+        where: { id: input.epicId, tenantId: mctx.tenantId },
+        select: { primarySolution: { select: { productManagerId: true } } },
+      }),
+    ]);
+    const denied = artPotAccessDeniedReason({
+      isValueStreamFinance: vs?.financeApproverId === ctx.principal.id,
+      isEpicSolutionProductManager:
+        epic?.primarySolution?.productManagerId === ctx.principal.id &&
+        epic?.primarySolution?.productManagerId != null,
+      hasRtbCapability: authorizeResource(ctx.principal, "rtb_item.manage", {
         tenantId: mctx.tenantId,
         valueStreamId: art.valueStreamId,
-      });
-      if (!decision.ok) {
-        return err({
-          kind: "forbidden" as const,
-          reason:
-            "Nur Wertstrom-Owner, Finance-Partei oder Portfolio-Management dürfen den ART-Rahmen verteilen.",
-        });
-      }
-    }
+      }).ok,
+      hasArtDistributeCapability: authorizeResource(ctx.principal, "art_budget.distribute", {
+        tenantId: mctx.tenantId,
+        artId: input.artId,
+      }).ok,
+    });
+    if (denied) return err({ kind: "forbidden" as const, reason: denied });
 
     const existing = await tx.artEpicAllocation.findFirst({
       where: { artId: input.artId, epicId: input.epicId, cycleKey: input.cycleKey },
       select: { id: true, amount: true, ask: true },
     });
 
+    // Das Budget dieses Halbjahres — gebraucht für den Deckel **und** für den
+    // Rest, den der Aufrufer zurückbekommt. Deshalb vor dem Zweig, nicht darin.
+    // Dieselbe Funktion, die auch die Fläche liest: eine Zahl, eine Rechnung.
+    const pot = await artEpicBudgetTotal(tx, mctx.tenantId, input.artId, input.cycleKey);
+
     if (input.amount === 0) {
       if (existing) await tx.artEpicAllocation.delete({ where: { id: existing.id } });
       await mergeEpicAllocation(tx, {
+        source: "art_epic_budget" as const,
         tenantId: mctx.tenantId,
         epicId: input.epicId,
         cycleKey: input.cycleKey,
@@ -184,25 +217,6 @@ export async function setArtEpicAllocation(
       });
     } else {
       // Deckel gegen den Rahmen — mit dem Stand aus derselben Transaktion.
-      const changeItems = await tx.runTheBusinessItem.findMany({
-        where: { tenantId: mctx.tenantId, artId: input.artId, kind: "art_change" },
-        select: { id: true },
-      });
-      const finals =
-        changeItems.length === 0
-          ? []
-          : await tx.budgetCandidate.findMany({
-              where: {
-                tenantId: mctx.tenantId,
-                kind: "rtb",
-                rtbItemId: { in: changeItems.map((i) => i.id) },
-                finalAmount: { not: null },
-                round: { cycleKey: input.cycleKey },
-              },
-              select: { finalAmount: true },
-            });
-      const pot = finals.reduce((s, f) => s + Number(f.finalAmount), 0);
-
       const others = await tx.artEpicAllocation.findMany({
         where: {
           tenantId: mctx.tenantId,
@@ -241,6 +255,7 @@ export async function setArtEpicAllocation(
       }
 
       await mergeEpicAllocation(tx, {
+        source: "art_epic_budget" as const,
         tenantId: mctx.tenantId,
         epicId: input.epicId,
         cycleKey: input.cycleKey,
@@ -255,7 +270,12 @@ export async function setArtEpicAllocation(
     });
 
     return ok({
-      result: { remaining: after.reduce((s, a) => s - Number(a.amount), 0) },
+      // Rahmen minus Verteiltes. Stand hier nur `-verteilt` — der Wert wurde von
+      // keiner Fläche gelesen (die UI nimmt `pot.remaining` aus `loadArtPot`),
+      // war aber falsch, sobald jemand ihn benutzt hätte.
+      result: {
+        remaining: pot - after.reduce((s, a) => s + Number(a.amount), 0),
+      },
       audit: {
         action: "art.epic_allocation.set" as const,
         resourceType: "art" as const,
@@ -266,6 +286,120 @@ export async function setArtEpicAllocation(
             after: input.amount === 0 ? null : input.amount,
           },
         },
+      },
+    });
+  });
+}
+
+export interface SaveArtEpicAllocationsInput {
+  artId: string;
+  cycleKey: string;
+  amounts: { epicId: string; amount: number; ask: number }[];
+}
+
+/**
+ * Die ganze Verteilliste in **einem** Zug.
+ *
+ * `setArtEpicAllocation` schreibt eine Zeile und prüft den Deckel gegen die
+ * Summe aller anderen — bei zeilenweiser Bedienung heißt das: ein Roundtrip je
+ * Betrag, und wer zwei Zeilen tauschen will, muss die Reihenfolge kennen, in
+ * der der Deckel es erlaubt. Hier gilt der Deckel gegen die Summe **der
+ * Eingabe**, wie beim Aufteilen des Zuspruchs (`saveRtbAwards`).
+ *
+ * Die Einzelfunktion bleibt: sie trägt die Rechte- und Fenster-Prüfung, und die
+ * Actions-Schicht ruft für einen einzelnen Betrag weiterhin sie.
+ */
+export async function saveArtEpicAllocations(
+  ctx: RequestContext,
+  input: SaveArtEpicAllocationsInput,
+  now: Date = new Date(),
+): Promise<Result<{ remaining: number }>> {
+  const closed = potWindowClosedReason(input.cycleKey, now);
+  if (closed) return err({ kind: "conflict" as const, reason: closed });
+
+  const mctx = toMutationContext(ctx);
+  return withAuditedTransaction(mctx, async (tx) => {
+    const art = await tx.art.findFirst({
+      where: { id: input.artId, tenantId: mctx.tenantId },
+      select: { valueStreamId: true },
+    });
+    if (!art) return err({ kind: "not_found" as const, resourceType: "Art", id: input.artId });
+
+    const vs = await tx.valueStream.findFirst({
+      where: { id: art.valueStreamId, tenantId: mctx.tenantId },
+      select: { financeApproverId: true },
+    });
+    const denied = artPotAccessDeniedReason({
+      isValueStreamFinance: vs?.financeApproverId === ctx.principal.id,
+      // Sammelspeichern bewegt mehrere Epics; der zeilenweise Weg des
+      // Produkt-Managers trägt das nicht. Er behält den Einzelweg.
+      isEpicSolutionProductManager: false,
+      hasRtbCapability: authorizeResource(ctx.principal, "rtb_item.manage", {
+        tenantId: mctx.tenantId,
+        valueStreamId: art.valueStreamId,
+      }).ok,
+      hasArtDistributeCapability: authorizeResource(ctx.principal, "art_budget.distribute", {
+        tenantId: mctx.tenantId,
+        artId: input.artId,
+      }).ok,
+    });
+    if (denied) return err({ kind: "forbidden" as const, reason: denied });
+
+    const pot = await artEpicBudgetTotal(tx, mctx.tenantId, input.artId, input.cycleKey);
+    const sum = input.amounts.reduce((s, a) => s + a.amount, 0);
+    if (sum > pot) {
+      return err({
+        kind: "conflict" as const,
+        reason: `Die Summe überschreitet das ART-Epic-Budget um ${Math.round(sum - pot)} €.`,
+      });
+    }
+
+    const existing = await tx.artEpicAllocation.findMany({
+      where: { tenantId: mctx.tenantId, artId: input.artId, cycleKey: input.cycleKey },
+      select: { id: true, epicId: true },
+    });
+    const byEpic = new Map(existing.map((e) => [e.epicId, e.id]));
+
+    for (const a of input.amounts) {
+      const id = byEpic.get(a.epicId);
+      if (a.amount === 0) {
+        if (id) await tx.artEpicAllocation.delete({ where: { id } });
+      } else if (id) {
+        await tx.artEpicAllocation.update({
+          where: { id },
+          data: { amount: a.amount, ask: a.ask, updatedBy: mctx.actorId },
+        });
+      } else {
+        await tx.artEpicAllocation.create({
+          data: {
+            tenantId: mctx.tenantId,
+            artId: input.artId,
+            epicId: a.epicId,
+            cycleKey: input.cycleKey,
+            amount: a.amount,
+            ask: a.ask,
+            createdBy: mctx.actorId,
+            updatedBy: mctx.actorId,
+          },
+        });
+      }
+      await mergeEpicAllocation(tx, {
+        source: "art_epic_budget" as const,
+        tenantId: mctx.tenantId,
+        epicId: a.epicId,
+        cycleKey: input.cycleKey,
+        amount: a.amount,
+        actorId: mctx.actorId,
+      });
+    }
+
+    return ok({
+      result: { remaining: pot - sum },
+      audit: {
+        action: "art.epic_allocation.set" as const,
+        resourceType: "art" as const,
+        resourceId: input.artId,
+        changes: { cycleKey: { before: null, after: input.cycleKey } },
       },
     });
   });

@@ -153,6 +153,9 @@ export type AuditAction =
   | "budget.period.reopened"
   | "rtb_item.saved"
   | "rtb_item.removed"
+  // Der Wertstrom teilt seinen Zuspruch auf seine Positionen auf — daraus
+  // entsteht der ART-Epic-Budget jedes ARTs.
+  | "rtb_item.awards_set"
   | "timeline.created"
   | "timeline.updated"
   | "timeline.deleted"

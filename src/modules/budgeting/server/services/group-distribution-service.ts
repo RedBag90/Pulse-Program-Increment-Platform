@@ -65,9 +65,13 @@ export async function setGroupAmount(
   const now = new Date();
   return withAuditedTransaction(mctx, async (tx) => {
     const g = await loadGroupGuard(tx, mctx.tenantId, input.groupId);
-    if (!g) return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.groupId });
+    if (!g)
+      return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.groupId });
     if (!g.members.some((m) => m.userId === mctx.actorId)) {
-      return err({ kind: "forbidden" as const, reason: "Nur Mitglieder dieser Gruppe dürfen verteilen." });
+      return err({
+        kind: "forbidden" as const,
+        reason: "Nur Mitglieder dieser Gruppe dürfen verteilen.",
+      });
     }
     const closed = windowClosedReason(g, now);
     if (closed) return err({ kind: "conflict" as const, reason: closed });
@@ -78,7 +82,11 @@ export async function setGroupAmount(
       select: { id: true },
     });
     if (!candidate) {
-      return err({ kind: "not_found" as const, resourceType: "BudgetCandidate", id: input.candidateId });
+      return err({
+        kind: "not_found" as const,
+        resourceType: "BudgetCandidate",
+        id: input.candidateId,
+      });
     }
 
     // Eindeutigkeit (groupId, candidateId) im Service: bestehende Zeile finden,
@@ -124,7 +132,8 @@ export async function submitGroupDistribution(
   const now = new Date();
   return withAuditedTransaction(mctx, async (tx) => {
     const g = await loadGroupGuard(tx, mctx.tenantId, input.groupId);
-    if (!g) return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.groupId });
+    if (!g)
+      return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.groupId });
 
     const isSpokesperson = g.spokespersonId === mctx.actorId;
     const isSubmitter = g.members.some((m) => m.userId === mctx.actorId && m.isSubmitter);

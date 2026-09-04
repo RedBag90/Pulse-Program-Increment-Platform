@@ -61,6 +61,38 @@ export async function getEpicCycleAllocations(
 }
 
 /**
+ * Die **vollständige** Halbjahres-Karte je Epic (`epicId → { "YYYY-H1": €, … }`).
+ *
+ * Der Bruder von `getEpicCycleAllocations`, aber über alle Halbjahre statt nur
+ * dem laufenden: das Portfolio-Dashboard zeichnet eine Kostenkurve über die
+ * Zeit und braucht deshalb die ganze Reihe, nicht den Stand eines Zyklus.
+ *
+ * Ohne diesen Port las `work` die Tabelle selbst — auf einer Fläche, die kein
+ * Budgeting-Entitlement prüft. Der Port macht den Zugriff sichtbar und
+ * abschaltbar: der Composition-Root reicht ihn nur herein, wenn der Mandant
+ * Budgeting lizenziert hat.
+ *
+ * Epics ohne Zuteilung fehlen in der Karte — ein leerer Eintrag und ein
+ * fehlender sind dasselbe, und zwei Darstellungen desselben Zustands laufen
+ * auseinander.
+ */
+export async function getEpicAllocationMaps(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<Record<string, Record<string, number>>> {
+  const rows = await db.budgetAllocation.findMany({
+    where: { tenantId },
+    select: { epicId: true, allocations: true },
+  });
+  const out: Record<string, Record<string, number>> = {};
+  for (const row of rows) {
+    const map = parsePeriodAmountMap(row.allocations);
+    if (Object.keys(map).length > 0) out[row.epicId] = map;
+  }
+  return out;
+}
+
+/**
  * Schreibt den Betrag **eines** Halbjahres in die Zyklus-Karte eines Epics und
  * lässt alle übrigen Zellen stehen.
  *
@@ -78,6 +110,12 @@ export async function getEpicCycleAllocations(
  * sie zu entfernen — der zweite Schreiber wird das anders brauchen und bekommt
  * dann einen ausdrücklichen Schalter, keine stille Änderung für beide.
  */
+/**
+ * Woher der Betrag kommt. Ein Epic gehört in **genau eine** Quelle (REQ-18);
+ * das Argument macht eine Verletzung sichtbar, statt sie stumm zu überschreiben.
+ */
+export type AllocationSource = "pb_list" | "art_epic_budget";
+
 export async function mergeEpicAllocation(
   tx: Prisma.TransactionClient,
   input: {
@@ -88,6 +126,7 @@ export async function mergeEpicAllocation(
     cycleKey: string;
     amount: number;
     actorId: string;
+    source: AllocationSource;
   },
 ): Promise<void> {
   const existing = await tx.budgetAllocation.findUnique({
@@ -95,6 +134,21 @@ export async function mergeEpicAllocation(
     select: { allocations: true },
   });
   const allocations = parsePeriodAmountMap(existing?.allocations);
+
+  // Der Sicherheitsgurt zu REQ-18: die Zuständigkeit wird eine Ebene höher
+  // entschieden (ein ART-Epic kommt nicht auf die PB-Liste, ein Kandidat nicht
+  // in die Verteilliste). Kippt die Einordnung trotzdem — etwa weil die
+  // Kostenschätzung unter das Limit rutscht —, überschriebe die zweite Quelle
+  // hier lautlos die erste. Deshalb: laut melden, dann schreiben.
+  const previous = allocations[input.cycleKey];
+  if (previous != null && previous !== input.amount && previous > 0) {
+    console.warn(
+      `[budgeting] Zuteilung überschrieben: Epic ${input.epicId} · ${input.cycleKey} · ` +
+        `${previous} € → ${input.amount} € (Quelle: ${input.source}). ` +
+        "Ein Epic sollte nur aus einer Quelle finanziert werden (REQ-18).",
+    );
+  }
+
   allocations[input.cycleKey] = input.amount;
   const json = allocations as unknown as Prisma.InputJsonValue;
 

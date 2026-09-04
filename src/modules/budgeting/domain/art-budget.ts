@@ -6,7 +6,7 @@
  *  - `aggregateArtFeatureLoad` — the decision-support load: per ART, the Feature
  *    count + Σ Job Size bucketed into the half-year of each Feature's PI, with a
  *    Backlog bucket for unscheduled Features.
- *  - `artBudgetRemaining` — VS budget − Σ ART allocations per period (mirrors
+ *  - `unassignedToArts` — VS budget − Σ ART allocations per period (mirrors
  *    `poolRemaining` for the participatory-budgeting pool, one level down).
  *
  * No I/O.
@@ -76,7 +76,7 @@ export function aggregateArtFeatureLoad(
  * Remaining VS budget per period = `vsByPeriod[key] − Σ artBudgets[*][key]`.
  * Negative means the ARTs are over-allocated against the Value Stream's budget.
  */
-export function artBudgetRemaining(
+export function unassignedToArts(
   vsByPeriod: Record<string, number>,
   artBudgets: readonly Record<string, number>[],
   periodKeys: readonly string[],

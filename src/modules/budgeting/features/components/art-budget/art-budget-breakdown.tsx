@@ -11,9 +11,6 @@ import {
 import { AllocationBar } from "@/modules/budgeting/features/components/round/allocation-bar";
 import { formatEUR } from "@/lib/formatting";
 
-const cellInput =
-  "h-8 w-24 rounded-md border border-input bg-transparent px-2 text-right text-sm disabled:opacity-60";
-
 /** ART-Budget-Eingabestand: artId → periodKey → String. */
 export type ArtBudgetState = Record<string, Record<string, string>>;
 
@@ -22,8 +19,6 @@ interface Props {
   model: ArtBudgetModel;
   /** Kontrollierter Editier-Stand (vom Workspace). */
   budgets: ArtBudgetState;
-  onChange: (artId: string, key: string, value: string) => void;
-  canEdit: boolean;
 }
 
 /**
@@ -35,7 +30,7 @@ interface Props {
  * über die Save-Bar. „Verbleibend" rechnet `buildArtBudgetModel` — dieselbe reine
  * Funktion, die der Server benutzt.
  */
-export function ArtBudgetBreakdown({ model: initial, budgets, onChange, canEdit }: Props) {
+export function ArtBudgetBreakdown({ model: initial, budgets }: Props) {
   const { periods } = initial;
 
   const model = useMemo(
@@ -92,14 +87,12 @@ export function ArtBudgetBreakdown({ model: initial, budgets, onChange, canEdit 
                 ))}
               </tr>
               {initial.rows.map((a) => (
-                <ArtBudgetRow
+                <ArtGridRow
                   key={a.artId}
                   artId={a.artId}
                   name={a.name}
                   periods={periods}
                   values={budgets[a.artId] ?? {}}
-                  canEdit={canEdit}
-                  onChange={(key, value) => onChange(a.artId, key, value)}
                 />
               ))}
               <tr className="border-t">
@@ -108,7 +101,7 @@ export function ArtBudgetBreakdown({ model: initial, budgets, onChange, canEdit 
                 </td>
                 {periods.map((p) => {
                   const budget = model.vsByPeriod[p.key] ?? 0;
-                  const allocated = budget - (model.remaining[p.key] ?? 0);
+                  const allocated = model.allocatedByPeriod[p.key] ?? 0;
                   return (
                     <td key={p.key} className="p-2 align-top">
                       <AllocationBar allocated={allocated} budget={budget} />
@@ -189,34 +182,34 @@ function LoadCellView({ cell }: { cell?: { count: number; jobSize: number } | un
   );
 }
 
-function ArtBudgetRow({
+/**
+ * Eine Zeile des ART-Rasters — **Text, kein Formular.**
+ *
+ * Hier standen echte, nur deaktivierte Eingabefelder: ein Gitter aus grauen
+ * Feldern aus einem stillgelegten Editier-Pfad, ohne Speichern-Knopf. Die Zahlen
+ * sind abgeleitet und werden nirgends hier gesetzt; also sehen sie auch nicht
+ * so aus, als ließen sie sich setzen.
+ */
+function ArtGridRow({
   name,
   periods,
   values,
-  canEdit,
-  onChange,
 }: {
   artId: string;
   name: string;
   periods: Period[];
   values: Record<string, string>;
-  canEdit: boolean;
-  onChange: (key: string, value: string) => void;
 }) {
   return (
     <tr className="border-b align-top">
       <td className="p-2 font-medium">{name}</td>
       {periods.map((p) => (
-        <td key={p.key} className="p-1 text-right">
-          <input
-            className={cellInput}
-            inputMode="numeric"
-            value={values[p.key] ?? ""}
-            disabled={!canEdit}
-            placeholder="0"
-            onChange={(e) => onChange(p.key, e.target.value)}
-            aria-label={`Budget ${name} ${p.label}`}
-          />
+        <td key={p.key} className="p-2 text-right tabular-nums">
+          {values[p.key] ? (
+            `${Number(values[p.key]).toLocaleString("de-DE")} €`
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
         </td>
       ))}
     </tr>

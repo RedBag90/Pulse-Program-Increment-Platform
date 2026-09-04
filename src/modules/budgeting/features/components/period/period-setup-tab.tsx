@@ -23,7 +23,7 @@ import {
 } from "@/modules/budgeting/features/actions/round";
 import { checkGroupCut } from "@/modules/budgeting/domain/group-cut";
 import { CandidateWorksheet } from "@/modules/budgeting/features/components/period/candidate-worksheet";
-import type { BallotEntry } from "@/modules/budgeting/server/views/period-detail";
+import type { PbListEntry } from "@/modules/budgeting/server/views/period-detail";
 
 const input =
   "rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -34,7 +34,7 @@ const EUR = (n: number) => `${n.toLocaleString("de-DE")} €`;
 const day = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
 /**
- * Reiter „Setup" als **geordnete Liste**: Rahmen → Ballot → Beteiligte &
+ * Reiter „Setup" als **geordnete Liste**: Rahmen → PB-Liste → Beteiligte &
  * Gruppen → Runde starten.
  *
  * Vorher standen die vier Blöcke gleichrangig nebeneinander, jeder mit eigenem
@@ -61,7 +61,7 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
 
       <Step
         n={2}
-        title="Ballot"
+        title="PB-Liste"
         desc="Was zur Abstimmung steht: vorgemerkte Epics plus die aktiven Run-the-Business-Positionen, die beim Start dazukommen."
         done={model.epicCandidates.length > 0}
         state={
@@ -70,7 +70,7 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
             : `${model.epicCandidates.length} Epics`
         }
       >
-        <Ballot model={model} draft={draft} />
+        <PbList model={model} draft={draft} />
       </Step>
 
       <Step
@@ -90,7 +90,7 @@ export function PeriodSetupTab({ model }: { model: PeriodDetailModel }) {
       <Step
         n={4}
         title="Runde starten"
-        desc="Friert den Ballot ein (inklusive der Run-the-Business-Positionen) und schaltet die Gruppen-Verteilung frei."
+        desc="Friert die PB-Liste ein (inklusive der Run-the-Business-Positionen) und schaltet die Gruppen-Verteilung frei."
         done={!draft}
         state={draft ? "ausstehend" : "gestartet"}
       >
@@ -200,7 +200,7 @@ function StartRound({
   if (!draft) {
     return (
       <p className="text-xs text-muted-foreground">
-        Die Runde läuft — der Ballot ist eingefroren. Der Fortgang steht im Reiter „Verteilung".
+        Die Runde läuft — die PB-Liste ist eingefroren. Der Fortgang steht im Reiter „Verteilung".
       </p>
     );
   }
@@ -212,7 +212,7 @@ function StartRound({
     staffedGroups === 0
       ? "Erst möglich, wenn mindestens eine Gruppe ein Mitglied hat."
       : model.epicCandidates.length === 0
-        ? "Der Ballot ist leer — ohne Kandidaten gibt es nichts zu verteilen."
+        ? "Die PB-Liste ist leer — ohne Kandidaten gibt es nichts zu verteilen."
         : null;
 
   return (
@@ -227,7 +227,7 @@ function StartRound({
   );
 }
 
-function Ballot({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
+function PbList({ model, draft }: { model: PeriodDetailModel; draft: boolean }) {
   const [addState, addAction] = useActionState(addEpicCandidateAction, {});
   const [, removeAction] = useActionState(removeCandidateAction, {});
   const all = [...model.epicCandidates, ...model.rtbCandidates];
@@ -236,9 +236,9 @@ function Ballot({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
     <div>
       <CandidateWorksheet
         items={all}
-        sortBy={(c: BallotEntry) => c.ask}
+        sortBy={(c: PbListEntry) => c.ask}
         columns={[
-          { key: "ask", label: "Anfrage", value: (c: BallotEntry) => c.ask, width: "140px" },
+          { key: "ask", label: "Anfrage", value: (c: PbListEntry) => c.ask, width: "140px" },
         ]}
         title={(c) => <span className="truncate">{c.title}</span>}
         // Im Entwurf sind die Run-Positionen noch keine Kandidaten und hier
@@ -255,7 +255,7 @@ function Ballot({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
             </form>
           ) : null
         }
-        empty="Noch nichts auf dem Ballot."
+        empty="Noch nichts auf der PB-Liste."
       />
 
       <p className="mt-2 flex flex-wrap items-baseline gap-x-3 text-[11px] text-muted-foreground">
@@ -293,7 +293,7 @@ function Ballot({ model, draft }: { model: PeriodDetailModel; draft: boolean }) 
             </select>
           </label>
           <button type="submit" className={btnGhost}>
-            + auf den Ballot
+            + auf die PB-Liste
           </button>
           {addState.error && <span className="text-xs text-red-600">{addState.error}</span>}
           {model.artEpicsFilteredOut > 0 && (

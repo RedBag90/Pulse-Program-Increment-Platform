@@ -50,6 +50,27 @@ interface BaseConfig<TInput, TOutput> {
   action: Action;
   resource: (input: TInput, principal: Principal) => AuthResource;
   /**
+   * **Der Service autorisiert selbst.** Setzt die RBAC-Vorprüfung dieser Action
+   * aus; das Modul-Gate, das Schema-Parsing, der Audit-Sink und die
+   * Revalidierung bleiben unverändert.
+   *
+   * Gedacht für **zeilenabhängige** Rechte, die sich nicht als Capability
+   * ausdrücken lassen: die Finance-Partei eines Wertstroms
+   * (`ValueStream.financeApproverId`) und der Produkt-Manager einer Solution
+   * (`Solution.productManagerId`) sind keine Rollen — sie tragen die am
+   * Action-Objekt deklarierte Capability nicht und wurden deshalb hier
+   * abgewiesen, **bevor** der Service seinen eigenen, feineren Check
+   * überhaupt laufen lassen konnte. Die Fläche zeigte ihnen den Knopf, die
+   * Action antwortete „Insufficient permissions".
+   *
+   * `action` bleibt trotzdem gesetzt: daraus leitet sich das Modul-Gate ab, und
+   * sie bleibt die Beschriftung im Timing-Log.
+   *
+   * **Bedingung:** nur zulässig, wenn der Service den Aufruf selbst autorisiert
+   * — sonst öffnet die Angabe eine Mutation für jeden angemeldeten Nutzer.
+   */
+  authorizedInService?: boolean;
+  /**
    * Optional. When omitted, the factory walks the `schema` itself via
    * `parseFromSchema` — that covers ~90% of actions. Provide a callback only
    * when the schema doesn't map 1:1 to FormData (JSON payloads, multi-line
@@ -125,10 +146,14 @@ export function createServerAction<TInput, TOutput = unknown>(
       };
     }
 
-    const decision = authorize(config.action, config.resource(parsed.data, principal), principal);
-    if (!decision.allow) {
-      logActionTiming(config.action, performance.now() - startedAt, "err");
-      return { error: "Insufficient permissions" };
+    // Vorprüfung — außer die Action erklärt den Service zur Autorität. Siehe
+    // `authorizedInService`.
+    if (!config.authorizedInService) {
+      const decision = authorize(config.action, config.resource(parsed.data, principal), principal);
+      if (!decision.allow) {
+        logActionTiming(config.action, performance.now() - startedAt, "err");
+        return { error: "Insufficient permissions" };
+      }
     }
 
     // Modul-Gate (Entitlement-Achse, fail-closed): Mutationen eines Moduls,

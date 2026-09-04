@@ -1,11 +1,11 @@
-# ART-Epics — Guardrail 3 und der ART-Topf
+# ART-Epics — Guardrail 3 und der ART-Epic-Budget
 
 > Status: **Spec / zur Umsetzung** · Erstellt 2026-09-02 · Entscheidungen
 > eingearbeitet 2026-09-02
 >
 > Wireframes: <https://claude.ai/code/artifact/9ae8ecef-d56b-4df4-80c4-d821a333f901>
 >
-> Heute ist jedes Epic ein Portfolio-Epic: es kommt auf den Ballot einer
+> Heute ist jedes Epic ein Portfolio-Epic: es kommt auf die PB-Liste einer
 > Budget-Kachel und wird dort finanziert — unabhängig davon, ob es 40.000 € oder
 > 4 Mio. € kostet. **Guardrail 3 („welche Vorhaben braucht eine
 > Portfolio-Entscheidung") existiert im Code nicht.**
@@ -27,11 +27,11 @@
 `engagement`. Es gibt im gesamten Code **keine Schwelle**, ab der ein Vorhaben
 eine Portfolio-Entscheidung braucht — weder tenant-weit noch je Wertstrom.
 
-### 1.2 Der Ballot kennt keine Größe
+### 1.2 Die PB-Liste kennt keine Größe
 
-`loadRoundBallot` filtert auf Tenant, `level = EPIC`, `stagedForBudgeting` und
+`loadRoundPB-Liste` filtert auf Tenant, `level = EPIC`, `stagedForBudgeting` und
 „Hypothese **oder** Business Case freigegeben". Kein Betrag, kein Wertstrom, kein
-ART. Ein 40.000-€-Epic steht auf demselben Ballot wie ein 4-Mio.-€-Epic und
+ART. Ein 40.000-€-Epic steht auf demselben PB-Liste wie ein 4-Mio.-€-Epic und
 konkurriert in denselben Verteilrunden.
 
 ### 1.3 Es gibt genau eine Geldquelle
@@ -113,9 +113,9 @@ Guardrails und Reporting.
 ## 4 Was sich ändert: eine Zielgröße, zwei Quellen
 
 ```
-Portfolio-Epic   Ballot → Gruppen verteilen → finalAmount ─┐
+Portfolio-Epic   PB-Liste → Gruppen verteilen → finalAmount ─┐
                                                             ├→ BudgetAllocation[cycleKey]
-ART-Epic         ART-Topf → der ART verteilt ──────────────┘        │
+ART-Epic         ART-Epic-Budget → der ART verteilt ──────────────┘        │
                                                                      ▼
                                                         L3.1 → L3.2 „Budget alloziert"
 ```
@@ -131,25 +131,25 @@ eine zweite Zielgröße.
 
 ---
 
-## 5 Der ART-Topf
+## 5 Der ART-Epic-Budget
 
 ### 5.1 Das Problem mit „Run the Business"
 
 Der Topf soll aus den Run-the-Business-Mitteln des Wertstroms bzw. ARTs kommen.
 Damit würde **Veränderungsarbeit aus dem Betriebstopf bezahlt** — und genau
 diese Trennung tragen heute mehrere Flächen: die Grow-/Run-Kacheln der Solution,
-der Run-Anteil im Wertstrom, die Gliederung des Ballots in „Run the Business" und
+der Run-Anteil im Wertstrom, die Gliederung der PB-Liste in „Run the Business" und
 „Grow the Business", und Guardrail 2.
 
-Deshalb: **der ART-Topf ist eine eigene Position im selben Mechanismus**, kein
+Deshalb: **der ART-Epic-Budget ist eine eigene Position im selben Mechanismus**, kein
 Anteil am Betrieb. `RunTheBusinessItem` bekommt eine Art:
 
-| Art             | Bedeutung                                             | Zählt als |
-| --------------- | ----------------------------------------------------- | --------- |
-| `run` (Default) | Betrieb — heutiges Verhalten, unverändert             | Run       |
-| `art_change`    | **Veränderungsrahmen eines ARTs** für seine ART-Epics | Grow      |
+| Art             | Bedeutung                                          | Zählt als |
+| --------------- | -------------------------------------------------- | --------- |
+| `run` (Default) | Betrieb — heutiges Verhalten, unverändert          | Run       |
+| `art_change`    | **ART-Epic-Budget eines ARTs** für seine ART-Epics | Grow      |
 
-Beide gehen wie bisher als Kandidaten auf den Ballot, werden dort mitverteilt und
+Beide gehen wie bisher als Kandidaten auf die PB-Liste, werden dort mitverteilt und
 bekommen ihren `finalAmount`. Das Verfahren bleibt: Der Wertstrom entscheidet in
 der Kachel, **wie groß** der Rahmen des ARTs ist; der ART entscheidet danach,
 **wofür**. Der Betrieb bleibt Betrieb.
@@ -157,7 +157,7 @@ der Kachel, **wie groß** der Rahmen des ARTs ist; der ART entscheidet danach,
 ### 5.2 Der Topf eines ARTs
 
 ```
-ART-Topf(art, cycle) = Σ finalAmount der Kandidaten
+ART-Epic-Budget(art, cycle) = Σ finalAmount der Kandidaten
                        mit kind = "rtb", art = <art>, Art = "art_change",
                        aus Kacheln mit cycleKey = <cycle>
 ```
@@ -174,7 +174,7 @@ aus der Position übernehmen.
 
 **Zwei Regeln verhindern, dass Geld doppelt oder gar nicht fließt:**
 
-**R1 · Die Klasse steuert die Quelle.** Der Portfolio-Ballot zeigt ausschließlich
+**R1 · Die Klasse steuert die Quelle.** Der PB-Liste zeigt ausschließlich
 Portfolio-Epics; die ART-Verteilung ausschließlich ART-Epics desselben ARTs. Ein
 Epic kann pro Zyklus aus genau einer Quelle Geld bekommen — geprüft beim
 Schreiben, nicht nur in der Anzeige.
@@ -182,21 +182,21 @@ Schreiben, nicht nur in der Anzeige.
 **R2 · Finanzierung schlägt Klassenwechsel — innerhalb des Zyklus.** Steigen die
 Kosten eines ART-finanzierten Epics über das Limit, behält es sein Geld für den
 laufenden Zyklus und wird als **gewechselt** markiert; ab dem nächsten Zyklus
-gehört es auf den Portfolio-Ballot. Umgekehrt genauso. Ohne diese Regel würde
+gehört es auf den PB-Liste. Umgekehrt genauso. Ohne diese Regel würde
 zugeteiltes Geld unsichtbar, sobald jemand eine Kostenscheibe ändert.
 
 Beide Richtungen brauchen einen sichtbaren Hinweis — auf der ART-Fläche
-(„verlässt den ART-Topf zum nächsten Zyklus") und im Ballot-Setup („kommt neu
+(„verlässt den ART-Epic-Budget zum nächsten Zyklus") und in der PB-Liste-Setup („kommt neu
 dazu").
 
 **R3 · Ohne Rahmen kein Weg — und ein Ventil dagegen.** Hat ein ART für den
-Zyklus keinen Veränderungsrahmen, oder trägt ein Epic gar keinen ART, dann ist
-es nach der Trennung **weder über den Ballot noch über einen Topf finanzierbar**.
+Zyklus keinen ART-Epic-Budget, oder trägt ein Epic gar keinen ART, dann ist
+es nach der Trennung **weder über die PB-Liste noch über einen Topf finanzierbar**.
 Das wird ausgewiesen, nicht verschwiegen: das Epic trägt den Zustand **„kein
 Finanzierungsweg"** — auf der ART-Fläche, in der Epic-Liste und am Epic selbst.
 
 Das Ventil dazu ist die **Ausnahme**: ein Epic kann mit Pflicht-Begründung
-bewusst aufs Portfolio-Ballot gehoben werden — für ein kleines, aber strategisch
+bewusst aufs PB-Liste gehoben werden — für ein kleines, aber strategisch
 heikles oder ART-übergreifendes Vorhaben, und als Ausweg aus der Sackgasse. Die
 Klasse bleibt abgeleitet; der Override ist ein eigenes, auditiertes Feld, das in
 die Ableitung eingeht:
@@ -215,7 +215,7 @@ Zustand mit einem benannten Ausweg.
 | Änderung                                                                                                                                                                             | Warum                                                                                                                                                                                        |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Guardrail-Ziele um `approval: { portfolioThreshold: number }` erweitern — im Tenant-JSON und in der Wertstrom-Tabelle aus der Budget-Transparenz-Spec                                | Guardrail 3, mit derselben Vererbung wie Guardrail 2                                                                                                                                         |
-| `RunTheBusinessItem.kind String @default("run")`                                                                                                                                     | Betrieb vs. ART-Veränderungsrahmen (§5.1)                                                                                                                                                    |
+| `RunTheBusinessItem.kind String @default("run")`                                                                                                                                     | Betrieb vs. ART-ART-Epic-Budget (§5.1)                                                                                                                                                       |
 | `RunTheBusinessItem.artId String? @db.Uuid` + FK + Index                                                                                                                             | bereits in der Budget-Transparenz-Spec; hier tragend                                                                                                                                         |
 | Neue Tabelle **`ArtEpicAllocation`** (`tenantId`, `artId`, `epicId`, `cycleKey`, `amount`, **`ask`** = eingefrorener Richtwert, Audit-Felder, `@@unique([artId, epicId, cycleKey])`) | Das Ledger der ART-Verteilung                                                                                                                                                                |
 | Override-Feld am Epic (`portfolioOverride` + Pflicht-Begründung), auditiert                                                                                                          | Die Ausnahme aus §6                                                                                                                                                                          |
@@ -311,7 +311,7 @@ fest: _„Die Fläche schreibt keine Beträge."_ Das gilt nach diesem Konzept nu
 noch **gegenüber dem Portfolio-Budget**. Präziser Ersatz:
 
 > **REQ-R2 (neu)** Die ART-Fläche schreibt keine Beträge des Portfolio-Budgets.
-> Sie verteilt ausschließlich den ART-Topf auf ART-Epics (§8) und merkt Epics
+> Sie verteilt ausschließlich den ART-Epic-Budget auf ART-Epics (§8) und merkt Epics
 > fürs nächste Budget vor.
 
 Weitere Berührungen, alle additiv:
@@ -319,11 +319,11 @@ Weitere Berührungen, alle additiv:
 - Die **Zustandsstaffel** und der **Verlauf** unterscheiden nicht nach Quelle —
   sie lesen `BudgetAllocation`. Nichts zu tun.
 - Die **Kopfzahlen** des ARTs zeigen künftig zwei Töpfe: Portfolio-Zuteilung und
-  ART-Topf. Sie dürfen nicht addiert dargestellt werden, ohne beschriftet zu sein.
+  ART-Epic-Budget. Sie dürfen nicht addiert dargestellt werden, ohne beschriftet zu sein.
 - Die **Reallokations-Sicht** gewinnt an Bedeutung: nicht finanzierte ART-Epics
   sind jetzt tatsächlich vom ART selbst finanzierbar — sie stehen nicht mehr nur
   da.
-- **Guardrail 2** zählt ART-Epics wie alle anderen; der ART-Veränderungsrahmen
+- **Guardrail 2** zählt ART-Epics wie alle anderen; der ART-ART-Epic-Budget
   zählt als Grow (§5.1).
 
 ---
@@ -337,7 +337,7 @@ Weitere Berührungen, alle additiv:
 - **REQ-K2** Ohne **freigegebenen Business Case** hat ein Epic keine Klasse; es
   bleibt Portfolio-Sache und erscheint nicht in der ART-Verteilliste.
 - **REQ-K5** Ein gesetzter Override hebt das Epic unabhängig von seinen Kosten
-  auf den Portfolio-Ballot; die Begründung ist Pflicht und wird auditiert.
+  auf den PB-Liste; die Begründung ist Pflicht und wird auditiert.
 - **REQ-K3** Genau `Kosten > Limit` ist ein Portfolio-Epic; Gleichstand ist ein
   ART-Epic.
 - **REQ-K4** Das Limit wird wie Guardrail 2 aufgelöst: Wertstrom-Zeile vor
@@ -345,7 +345,7 @@ Weitere Berührungen, alle additiv:
 
 ### Trennung der Quellen
 
-- **REQ-Q1** `loadRoundBallot` liefert ausschließlich Portfolio-Epics.
+- **REQ-Q1** `loadRoundPB-Liste` liefert ausschließlich Portfolio-Epics.
 - **REQ-Q2** Die ART-Verteilfläche listet ausschließlich ART-Epics des eigenen
   ARTs.
 - **REQ-Q3** Ein Epic hat je Zyklus höchstens eine Quelle; der Schreibpfad prüft
@@ -358,7 +358,7 @@ Weitere Berührungen, alle additiv:
 
 ### Topf und Verteilung
 
-- **REQ-T1** Der ART-Topf eines Zyklus ist Σ `finalAmount` der
+- **REQ-T1** Der ART-Epic-Budget eines Zyklus ist Σ `finalAmount` der
   `art_change`-Positionen dieses ARTs aus Kacheln dieses Zyklus.
 - **REQ-T2** Σ der Zuteilungen darf den Topf nicht überschreiten; die Prüfung
   läuft in derselben Transaktion wie der Schreibvorgang.
@@ -376,7 +376,7 @@ Weitere Berührungen, alle additiv:
 
 ### Berechtigungen
 
-- **REQ-B1** Den ART-Topf verteilt der RTE des ARTs (`Art.rteId`), der
+- **REQ-B1** Den ART-Epic-Budget verteilt der RTE des ARTs (`Art.rteId`), der
   Wertstrom-Owner und das Portfolio-Management — über einen Service-Seam für den
   RTE, wie ihn Finance über `ValueStream.financeApproverId` hat.
 - **REQ-B2** Das Portfolio-Limit pflegt, wer `target.manage` für den Wertstrom
@@ -409,13 +409,13 @@ KPI-Kette, Zwei-Achsen-Auswertung und Zielbeitrag gelten für ART-Epics wie für
 jedes andere. Bei kleinen Vorhaben ändert sich weder Verfahren noch
 Nutzenmessung — nur die Geldquelle.
 
-### E2 · Der Veränderungsrahmen als eigene Position — oder doch aus dem Betrieb?
+### E2 · Der ART-Epic-Budget als eigene Position — oder doch aus dem Betrieb?
 
 §5.1 schlägt `kind = "art_change"` vor, damit Betrieb Betrieb bleibt.
 
 > **Empfehlung:** So umsetzen. Die Alternative — ART-Epics direkt aus den
 > Betriebspositionen zu bezahlen — macht vier bestehende Flächen unwahr
-> (Grow/Run-Kacheln, Wertstrom-Run-Anteil, Ballot-Gliederung, Guardrail 2) und
+> (Grow/Run-Kacheln, Wertstrom-Run-Anteil, PB-Liste-Gliederung, Guardrail 2) und
 > spart nur eine Spalte.
 
 ### E3 · Ein Limit für alle oder je Wertstrom?
@@ -436,13 +436,13 @@ Die Vorgabe nennt ein Limit: 100.000 €.
 1. **Guardrail 3 als Zahl** — Ziel-Erweiterung, Auflösung, Anzeige auf der
    Guardrails- und der Wertstrom-Fläche. Noch ohne Wirkung.
 2. **Klassifikation sichtbar machen** — abgeleitete Klasse am Epic, in der
-   Epic-Liste und im Ballot-Setup anzeigen. Immer noch ohne Wirkung auf das Geld;
+   Epic-Liste und in der PB-Liste-Setup anzeigen. Immer noch ohne Wirkung auf das Geld;
    erlaubt aber, die Verteilung der Bestands-Epics zu prüfen, **bevor** sie greift.
-3. **Der ART-Topf** — `kind` und `artId` an `RunTheBusinessItem`,
+3. **Der ART-Epic-Budget** — `kind` und `artId` an `RunTheBusinessItem`,
    Materialisierung anpassen, Topf je ART und Zyklus ableiten und anzeigen.
 4. **Die Verteilfläche** — `ArtEpicAllocation`, Schreibpfad, Fortschreibung,
    Audit, Berechtigungen.
-5. **Die Trennung scharf schalten** — Ballot filtert Portfolio-Epics, die
+5. **Die Trennung scharf schalten** — PB-Liste filtert Portfolio-Epics, die
    Verteilfläche ART-Epics, Wechsel-Hinweise auf beiden Seiten.
 6. **Optional (E1)** — eigener Gate-Policy-Default für ART-Epics.
 
@@ -465,7 +465,7 @@ ein Schalter, der Geldflüsse umleitet, darf nicht stillschweigend angehen. Das
 Template **Portfolio SAFe** schaltet ihn dagegen ausdrücklich ein: wer es wählt,
 entscheidet sich für das volle Modell.
 
-Solange die Practice aus ist, verhält sich alles wie zuvor: der Ballot filtert
+Solange die Practice aus ist, verhält sich alles wie zuvor: die PB-Liste filtert
 nicht, es gibt keine Verteilfläche und keine Klassen-Anzeige.
 
 ## 14 Messung (M0) — Befund vom 2026-09-02
@@ -495,7 +495,7 @@ Schnitt rund 237.000 € — das Vierfache ihres Richtwerts.
 **Daraus folgt die Regel in §2:** Nur ein freigegebener Business Case begründet
 eine Klasse. Ohne diese Korrektur wäre die Klassifikation eine Reifegrad-Aussage
 im Gewand einer Größen-Aussage gewesen, und große, bereits finanzierte Vorhaben
-wären in den ART-Topf gewandert.
+wären in den ART-Epic-Budget gewandert.
 
 ### Der empirische €-Satz trägt vorerst nicht
 
@@ -556,8 +556,8 @@ Vorhaben und gehört nicht in dieses.
 | ----------------------------------------- | ------------------------------------------------------------ |
 | Guardrail-Ziele, Validierung, Defaults    | `src/modules/work/domain/portfolio-guardrails.ts`            |
 | Vererbung je Wertstrom                    | `src/modules/work/domain/gate-policy.ts`                     |
-| Kosten und Ballot-Fähigkeit eines Epics   | `src/modules/work/domain/pb-submission.ts`                   |
-| Ballot-Pool                               | `src/modules/budgeting/server/services/ballot.ts`            |
+| Kosten und PB-Liste-Fähigkeit eines Epics | `src/modules/work/domain/pb-submission.ts`                   |
+| PB-Liste-Pool                             | `src/modules/budgeting/server/services/ballot.ts`            |
 | RtB-Materialisierung (`artId: null`)      | `src/modules/budgeting/server/services/candidate-service.ts` |
 | Betrag je Kachel aus der Periode          | `src/modules/budgeting/domain/rtb-interval.ts`               |
 | Einziger Schreiber von `BudgetAllocation` | `src/modules/budgeting/server/services/finalize-service.ts`  |

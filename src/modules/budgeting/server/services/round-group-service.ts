@@ -34,12 +34,20 @@ export async function addGroup(
       where: { id: input.roundId, tenantId: mctx.tenantId },
       select: { status: true },
     });
-    if (!round) return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.roundId });
+    if (!round)
+      return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.roundId });
     if (round.status !== "draft") {
-      return err({ kind: "conflict" as const, reason: "Gruppen sind nur im Status draft änderbar." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Gruppen sind nur im Status draft änderbar.",
+      });
     }
     const group = await tx.budgetGroup.create({
-      data: { roundId: input.roundId, name: input.name, spokespersonId: input.spokespersonId ?? null },
+      data: {
+        roundId: input.roundId,
+        name: input.name,
+        spokespersonId: input.spokespersonId ?? null,
+      },
       select: { id: true },
     });
     return ok({
@@ -61,9 +69,13 @@ export async function updateGroup(
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
     const ctxRound = await roundOfGroup(tx, mctx.tenantId, input.id);
-    if (!ctxRound) return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.id });
+    if (!ctxRound)
+      return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.id });
     if (ctxRound.status !== "draft") {
-      return err({ kind: "conflict" as const, reason: "Gruppen sind nur im Status draft änderbar." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Gruppen sind nur im Status draft änderbar.",
+      });
     }
     await tx.budgetGroup.update({
       where: { id: input.id },
@@ -84,13 +96,20 @@ export async function updateGroup(
   });
 }
 
-export async function removeGroup(ctx: RequestContext, input: { id: string }): Promise<Result<void>> {
+export async function removeGroup(
+  ctx: RequestContext,
+  input: { id: string },
+): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
     const ctxRound = await roundOfGroup(tx, mctx.tenantId, input.id);
-    if (!ctxRound) return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.id });
+    if (!ctxRound)
+      return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.id });
     if (ctxRound.status !== "draft") {
-      return err({ kind: "conflict" as const, reason: "Gruppen sind nur im Status draft änderbar." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Gruppen sind nur im Status draft änderbar.",
+      });
     }
     await tx.budgetGroup.delete({ where: { id: input.id } });
     return ok({
@@ -118,9 +137,13 @@ export async function addGroupMember(
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
     const ctxRound = await roundOfGroup(tx, mctx.tenantId, input.groupId);
-    if (!ctxRound) return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.groupId });
+    if (!ctxRound)
+      return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.groupId });
     if (ctxRound.status !== "draft") {
-      return err({ kind: "conflict" as const, reason: "Mitglieder sind nur im Status draft änderbar." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Mitglieder sind nur im Status draft änderbar.",
+      });
     }
     const member = await tx.budgetGroupMember.create({
       data: {
@@ -154,9 +177,13 @@ export async function removeGroupMember(
       where: { id: input.id, group: { round: { tenantId: mctx.tenantId } } },
       select: { groupId: true, group: { select: { round: { select: { status: true } } } } },
     });
-    if (!member) return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.id });
+    if (!member)
+      return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.id });
     if (member.group.round.status !== "draft") {
-      return err({ kind: "conflict" as const, reason: "Mitglieder sind nur im Status draft änderbar." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Mitglieder sind nur im Status draft änderbar.",
+      });
     }
     await tx.budgetGroupMember.delete({ where: { id: input.id } });
     return ok({
@@ -182,8 +209,12 @@ export async function setMemberRead(
       where: { id: input.id, group: { round: { tenantId: mctx.tenantId } } },
       select: { groupId: true },
     });
-    if (!member) return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.id });
-    await tx.budgetGroupMember.update({ where: { id: input.id }, data: { hasRead: input.hasRead } });
+    if (!member)
+      return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.id });
+    await tx.budgetGroupMember.update({
+      where: { id: input.id },
+      data: { hasRead: input.hasRead },
+    });
     return ok({
       result: undefined,
       audit: {

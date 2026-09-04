@@ -9,170 +9,33 @@
  */
 
 import type { PrismaClient } from "@/generated/prisma";
-import { InitiativeLevel, type TenantId } from "@/modules/core/kernel/domain/types";
-import {
-  addMonths,
-  halfYearKey,
-  halfYearLabel,
-  monthStart,
-  parseHalfYearKey,
-} from "@/modules/core/kernel/domain/calendar";
-import {
-  buildEpicStageTimeline,
-  stageAtMonth,
-  type StageTransition,
-} from "@/modules/work/domain/epic-stage-timeline";
-import { classifyEpic } from "@/modules/work/domain/pb-submission";
+import type { TenantId } from "@/modules/core/kernel/domain/types";
+import { loadArtCoverage } from "@/modules/budgeting/server/services/art-coverage";
+import { loadArtPotView, type ArtPotViewer } from "@/modules/budgeting/server/views/art-pot-view";
+import { halfYearKey, halfYearLabel, monthStart } from "@/modules/core/kernel/domain/calendar";
+import { stageAtMonth, type StageTransition } from "@/modules/work/domain/epic-stage-timeline";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
+import { monthsOfCycle } from "@/modules/budgeting/domain/period-window";
+import { loadEpicRows, type EpicRow } from "@/modules/budgeting/server/views/epic-rows";
+import type {
+  ArtBudgetDetail,
+  ArtBudgetSourceView,
+  UnfundedCandidate,
+} from "@/modules/budgeting/server/views/art-budget-model";
+import { ALLOCATION_SOURCE_LABELS } from "@/modules/budgeting/server/views/art-budget-model";
 import { isChangeKind } from "@/modules/budgeting/domain/rtb-kind";
 import { rtbAnnualAmount, rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 import {
-  loadArtPot,
-  loadArtEpicAllocations,
-  type ArtPot,
-} from "@/modules/budgeting/server/services/art-pot";
-import {
-  deriveJobSizeRate,
-  loadInEuro,
-  type JobSizeRate,
-  type ThroughputCycle,
-} from "@/modules/budgeting/domain/art-throughput";
-import {
   buildAllocationCourse,
-  type AllocationCourse,
   type CourseEpic,
 } from "@/modules/budgeting/domain/allocation-course";
 import {
   summarizeAllocations,
   type AllocatedEpic,
-  type AllocationBreakdown,
   type AllocationState,
 } from "@/modules/budgeting/domain/allocation-state";
 
-/** Woher das Geld einer Zuteilung kommt. Heute nur `portfolio`. */
-export const ALLOCATION_SOURCES = ["portfolio", "art"] as const;
-export type AllocationSource = (typeof ALLOCATION_SOURCES)[number];
-
-export const ALLOCATION_SOURCE_LABELS: Record<AllocationSource, string> = {
-  portfolio: "Portfolio-Budget",
-  art: "ART-Topf",
-};
-
-/**
- * Warum ein Vorhaben kein Geld hat. Die Abhilfe unterscheidet sich je Fall —
- * deshalb getrennt geführt und nicht in eine Liste geworfen.
- */
-export const UNFUNDED_REASONS = ["ballot", "artPot"] as const;
-export type UnfundedReason = (typeof UNFUNDED_REASONS)[number];
-
-export const UNFUNDED_REASON_LABELS: Record<UnfundedReason, string> = {
-  ballot: "Auf dem Ballot ohne Zuteilung geblieben",
-  artPot: "Vom ART-Rahmen nicht gedeckt",
-};
-
-export const UNFUNDED_REMEDIES: Record<UnfundedReason, string> = {
-  ballot: "Auf die nächste Kachel setzen.",
-  artPot: "Einen größeren Rahmen beantragen.",
-};
-
-export interface UnfundedCandidate {
-  epicId: string;
-  title: string;
-  stageGate: string | null;
-  ask: number;
-  reason: UnfundedReason;
-}
-
-export interface ArtBudgetEpicRow {
-  epicId: string;
-  title: string;
-  stageGate: string;
-  amount: number;
-}
-
-export interface ArtBudgetSourceView {
-  source: AllocationSource;
-  label: string;
-  breakdown: AllocationBreakdown;
-  /** Titel je Epic, damit die Fläche die Staffel-Zeilen benennen kann. */
-  titles: Record<string, string>;
-}
-
-export interface ArtBudgetDetail {
-  artId: string;
-  /** Halbjahre mit Zuteilung, neueste zuerst — die Auswahl des Umschalters. */
-  cycles: { key: string; label: string }[];
-  cycleKey: string;
-  sources: ArtBudgetSourceView[];
-  /** Epics, deren ART sich nach der Zuteilung geändert hat. */
-  switchedArt: { epicId: string; title: string; currentArtName: string | null }[];
-  /** Zuteilungen des Wertstroms an Epics ohne ART — sie fehlen in jeder ART-Sicht. */
-  epicsWithoutArt: { count: number; amount: number };
-  /** Beantragt und leer ausgegangen — die Gegenseite der Reallokations-Sicht. */
-  unfunded: UnfundedCandidate[];
-  /** Der Monatsverlauf des gewählten Halbjahres, je Quelle. */
-  course: Record<AllocationSource, AllocationCourse | null>;
-  /** Index des laufenden Monats auf der Achse; −1 = außerhalb des Halbjahres. */
-  todayIndex: number;
-  /** Last gegen Deckung — `null`, solange kein ART-Budget geladen wurde. */
-  coverage: ArtCoverage | null;
-  /** Der Veränderungsrahmen und seine Verteilung — `null`, wenn Practice aus. */
-  pot: ArtPotView | null;
-  /** Run-the-Business-Positionen dieses ARTs, nach Art getrennt. */
-  rtb: {
-    run: { id: string; name: string; cycleAmount: number; annualAmount: number }[];
-    change: { id: string; name: string; cycleAmount: number; annualAmount: number }[];
-  };
-}
-
-export interface ArtPotView {
-  pot: ArtPot;
-  /**
-   * Die ART-Epics dieses ARTs, die vorgemerkt und budgeting-reif sind — mit
-   * ihrem eingefrorenen Richtwert, sobald einmal zugeteilt wurde.
-   */
-  rows: {
-    epicId: string;
-    title: string;
-    stageGate: string;
-    ask: number;
-    amount: number;
-    /** `true`, wenn der aktuelle Business Case vom eingefrorenen Richtwert abweicht. */
-    askDrifted: boolean;
-  }[];
-  /** Die Zustandsstaffel der ART-finanzierten Zuteilungen — die zweite Quelle. */
-  breakdown: AllocationBreakdown;
-  titles: Record<string, string>;
-}
-
-export interface ArtCoverage {
-  /** Σ Job Size der Features, die im gewählten Halbjahr eingeplant sind. */
-  plannedJobSize: number;
-  featureCount: number;
-  rate: JobSizeRate;
-  /** Last in Geld — `null`, wenn kein Satz vorliegt. */
-  loadEuro: number | null;
-  allocated: number;
-  /** `loadEuro − allocated`; positiv = überbucht. `null` ohne Satz. */
-  gap: number | null;
-}
-
-/**
- * Wie die Deckungs-Ampel zu lesen ist.
- *
- * `empty` ist der eigene Zustand für „hier ist noch gar nichts": ohne ihn
- * meldete ein ART ohne eingeplante Features und ohne Zuteilung **„Gedeckt"** —
- * eine Entwarnung über nichts.
- */
-export type CoverageVerdict = "empty" | "unknown" | "over" | "covered";
-
-export function coverageVerdict(coverage: ArtCoverage): CoverageVerdict {
-  if (coverage.plannedJobSize === 0 && coverage.allocated === 0) return "empty";
-  if (coverage.gap == null) return "unknown";
-  return coverage.gap > 0 ? "over" : "covered";
-}
-
-interface CandidateRow {
+export interface CandidateRow {
   epicId: string;
   /** `null` = die Runde hat entschieden und nichts gegeben. */
   amount: number | null;
@@ -181,16 +44,6 @@ interface CandidateRow {
   cycleKey: string;
   /** Nur eine abgeschlossene Kachel hat wirklich „nichts gegeben". */
   decided: boolean;
-}
-
-interface EpicRow {
-  id: string;
-  title: string;
-  stageGate: string;
-  artId: string | null;
-  implementationCompletedAt: Date | null;
-  /** Reifegrad-Verlauf, sofern geladen — sonst bleibt der Kurs leer. */
-  stageTimeline?: StageTransition[] | undefined;
 }
 
 /**
@@ -210,40 +63,19 @@ function stateInMonth(
   return "notStarted";
 }
 
-/** Die sechs Monate eines Halbjahres, ab seinem ersten Tag. */
-function monthsOfCycle(cycleKey: string): { key: string; label: string; date: Date }[] {
-  const start = parseHalfYearKey(cycleKey);
-  if (!start) return [];
-  const LABELS = [
-    "Jan",
-    "Feb",
-    "Mär",
-    "Apr",
-    "Mai",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Okt",
-    "Nov",
-    "Dez",
-  ];
-  return Array.from({ length: 6 }, (_, i) => {
-    const date = addMonths(start, i);
-    return {
-      key: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
-      label: LABELS[date.getUTCMonth()]!,
-      date,
-    };
-  });
-}
-
 /**
  * Faltet Kandidaten und Epics in das Seitenmodell. Rein — der Server reicht
  * herein, was er geladen hat, damit die Regel testbar bleibt.
  */
 export function buildArtBudgetDetail(input: {
-  artId: string;
+  /**
+   * Der ART, um dessen Sicht es geht — oder `null` für eine Sicht **ohne** ART
+   * (der Wertstrom-Verlauf). Bei `null` entfällt die Aussage „gehört inzwischen
+   * zu einem anderen ART", weil es kein „hier" gibt, von dem etwas abweichen
+   * könnte. Vorher stand an dieser Stelle ein Sentinel-Wert, gegen den jedes
+   * Epic abwich — das Ergebnis war Unsinn, den der einzige Aufrufer wegwarf.
+   */
+  artId: string | null;
   now: Date;
   candidates: readonly CandidateRow[];
   epics: readonly EpicRow[];
@@ -341,7 +173,7 @@ export function buildArtBudgetDetail(input: {
   // Der ART der Kachel ist eingefroren; wechselt ein Epic danach, bleibt das
   // Budget hier — die Kachel hat es hier entschieden. Sichtbar machen, nicht
   // stillschweigend hinnehmen.
-  const switchedArt = allocated
+  const switchedArt = (input.artId == null ? [] : allocated)
     .map((a) => byEpic.get(a.epicId))
     .filter((e): e is EpicRow => e != null && e.artId !== input.artId)
     .map((e) => ({
@@ -390,6 +222,8 @@ export async function loadArtBudgetDetail(
     artEpics?: boolean;
     /** Aufgelöstes Portfolio-Limit des Wertstroms. */
     threshold?: number;
+    /** Der Betrachter — entscheidet, welche Zeilen der Verteilliste bedienbar sind. */
+    viewer?: ArtPotViewer;
   } = {},
 ): Promise<ArtBudgetDetail> {
   const now = opts.now ?? new Date();
@@ -463,7 +297,15 @@ export async function loadArtBudgetDetail(
   const [coverage, pot, rtbItems] = await Promise.all([
     loadArtCoverage(db, tenantId, art.id, detail.cycleKey, allocatedByCycle),
     opts.artEpics
-      ? loadArtPotView(db, tenantId, art, detail.cycleKey, opts.threshold ?? 100_000, now)
+      ? loadArtPotView(
+          db,
+          tenantId,
+          art,
+          detail.cycleKey,
+          opts.threshold ?? 100_000,
+          now,
+          opts.viewer,
+        )
       : Promise.resolve(null),
     listRtbItems(db, tenantId, { artId: art.id }),
   ]);
@@ -479,7 +321,7 @@ export async function loadArtBudgetDetail(
     ...detail,
     coverage,
     pot,
-    // Betrieb und Veränderungsrahmen getrennt: das eine ist Run, das andere
+    // Betrieb und ART-Epic-Budget getrennt: das eine ist Run, das andere
     // Grow — in einer Summe wären beide falsch dargestellt.
     rtb: {
       run: rtbItems.filter((i) => i.active && !isChangeKind(i.kind)).map(rtbRow),
@@ -499,299 +341,5 @@ export async function loadArtBudgetDetail(
             },
           ]
         : detail.sources,
-  };
-}
-
-/** Lädt die Epics der Kandidaten samt rekonstruierter Reifegrad-Historie. */
-async function loadEpicRows(
-  db: PrismaClient,
-  tenantId: TenantId,
-  candidates: readonly CandidateRow[],
-): Promise<EpicRow[]> {
-  const rows = await db.initiative.findMany({
-    where: {
-      tenantId,
-      level: InitiativeLevel.EPIC,
-      deletedAt: null,
-      id: { in: [...new Set(candidates.map((c) => c.epicId))] },
-    },
-    select: {
-      id: true,
-      title: true,
-      stageGate: true,
-      artId: true,
-      implementationCompletedAt: true,
-      // Reifegrad-Historie: aus diesen Stempeln rekonstruiert `buildEpicStageTimeline`,
-      // in welchem Zustand das Epic in einem gegebenen Monat stand.
-      createdAt: true,
-      selectedForDetailingAt: true,
-      hypothesisApprovedAt: true,
-      selectedForAnalyzingAt: true,
-      businessCaseApprovedAt: true,
-      implementationStartedAt: true,
-      impactRecognizedAt: true,
-      timeline: true,
-    },
-  });
-
-  const iso = (d: Date | null): string | null => (d == null ? null : d.toISOString());
-  return rows.map((e) => ({
-    id: e.id,
-    title: e.title,
-    stageGate: e.stageGate,
-    artId: e.artId,
-    implementationCompletedAt: e.implementationCompletedAt,
-    stageTimeline: buildEpicStageTimeline({
-      createdAt: e.createdAt.toISOString(),
-      selectedForDetailingAt: iso(e.selectedForDetailingAt),
-      hypothesisApprovedAt: iso(e.hypothesisApprovedAt),
-      selectedForAnalyzingAt: iso(e.selectedForAnalyzingAt),
-      businessCaseApprovedAt: iso(e.businessCaseApprovedAt),
-      implementationStartedAt: iso(e.implementationStartedAt),
-      impactRecognizedAt: iso(e.impactRecognizedAt),
-      timeline: e.timeline,
-    }),
-  }));
-}
-
-/**
- * Derselbe Verlauf für einen **ganzen Wertstrom** — alle Epics, die eine
- * Kachel diesem Wertstrom zugeteilt hat, unabhängig vom ART.
- *
- * Bewusst ein eigener, schmaler Einstieg statt eines Scope-Schalters im
- * ART-Modell: die ART-Sicht trägt Aussagen, die es auf Wertstrom-Ebene nicht
- * gibt (gewechselter ART, Epics ohne ART). Ein gemeinsamer Typ mit halb
- * gefüllten Feldern wäre schlechter als zwei ehrliche.
- */
-export async function loadValueStreamCourse(
-  db: PrismaClient,
-  tenantId: TenantId,
-  valueStreamId: string,
-  opts: { now?: Date; cycleKey?: string | undefined } = {},
-): Promise<{
-  cycles: { key: string; label: string }[];
-  cycleKey: string;
-  course: AllocationCourse | null;
-  todayIndex: number;
-}> {
-  const now = opts.now ?? new Date();
-
-  const finals = await db.budgetCandidate.findMany({
-    where: { tenantId, kind: "epic", valueStreamId, finalAmount: { not: null } },
-    select: {
-      epicId: true,
-      title: true,
-      ask: true,
-      finalAmount: true,
-      round: { select: { cycleKey: true, status: true } },
-    },
-  });
-
-  const candidates: CandidateRow[] = finals
-    .filter((f): f is typeof f & { epicId: string } => f.epicId != null)
-    .map((f) => ({
-      epicId: f.epicId,
-      title: f.title,
-      ask: Number(f.ask),
-      amount: f.finalAmount == null ? null : Number(f.finalAmount),
-      cycleKey: f.round.cycleKey,
-      decided: f.round.status === "closed",
-    }));
-
-  const epics = await loadEpicRows(db, tenantId, candidates);
-
-  // Der Builder trägt ART-spezifische Aussagen mit; für den Wertstrom
-  // interessiert nur der Kurs, deshalb ein Sentinel-ART, den kein Epic hat.
-  const detail = buildArtBudgetDetail({
-    artId: "__value_stream__",
-    now,
-    candidates,
-    epics,
-    artNames: {},
-    withoutArt: { count: 0, amount: 0 },
-    ...(opts.cycleKey != null ? { cycleKey: opts.cycleKey } : {}),
-  });
-
-  return {
-    cycles: detail.cycles,
-    cycleKey: detail.cycleKey,
-    course: detail.course.portfolio,
-    todayIndex: detail.todayIndex,
-  };
-}
-
-/**
- * Last gegen Deckung eines ARTs im gewählten Halbjahr.
- *
- * Der Nenner des Satzes ist **neu**: `aggregateArtFeatureLoad` bucketet nach
- * geplanter PI und filtert nicht nach Status — für den Durchsatz braucht es die
- * *fertiggestellten* Features, gebucketet nach ihrem **Abschluss**-Halbjahr.
- * Zwei verschiedene Fragen, deshalb zwei Aggregationen statt eines Schalters.
- *
- * Datierungsregel wie bei `buildEpicStageTimeline`: Actual vor Estimate —
- * `completedAt`, ersatzweise das Ende der zugewiesenen PI. Features ohne beides
- * fallen aus dem Nenner **und werden gezählt**, damit die Zahl ihre Lücke kennt.
- */
-export async function loadArtCoverage(
-  db: PrismaClient,
-  tenantId: TenantId,
-  artId: string,
-  cycleKey: string,
-  allocatedByCycle: Record<string, number>,
-): Promise<ArtCoverage> {
-  const [features, tenant] = await Promise.all([
-    db.initiative.findMany({
-      where: { tenantId, level: InitiativeLevel.FEATURE, deletedAt: null, artId },
-      select: {
-        status: true,
-        completedAt: true,
-        wsjfJobSize: true,
-        pi: { select: { startDate: true, endDate: true } },
-      },
-    }),
-    db.tenant.findUnique({ where: { id: tenantId }, select: { costPerJobSizePoint: true } }),
-  ]);
-
-  // Nenner: fertiggestellte Features je Abschluss-Halbjahr.
-  const doneByCycle = new Map<string, { jobSize: number; count: number }>();
-  let undated = 0;
-  let placeholder = 0;
-  let plannedJobSize = 0;
-  let plannedCount = 0;
-
-  for (const f of features) {
-    const jobSize = f.wsjfJobSize ?? 0;
-    if (f.wsjfJobSize === 3) placeholder += 1;
-
-    if (f.status === "completed") {
-      const at = f.completedAt ?? f.pi?.endDate ?? null;
-      if (at == null) {
-        undated += 1;
-      } else {
-        const key = halfYearKey(at);
-        const cur = doneByCycle.get(key) ?? { jobSize: 0, count: 0 };
-        doneByCycle.set(key, { jobSize: cur.jobSize + jobSize, count: cur.count + 1 });
-      }
-    }
-
-    // Zähler der Last: was im gewählten Halbjahr eingeplant ist.
-    if (f.pi?.startDate && halfYearKey(f.pi.startDate) === cycleKey) {
-      plannedJobSize += jobSize;
-      plannedCount += 1;
-    }
-  }
-
-  // Nur Zyklen, die vor dem gewählten liegen — der laufende ist nicht abgeschlossen.
-  const cycles: ThroughputCycle[] = [...doneByCycle.entries()]
-    .filter(([key]) => key < cycleKey)
-    .map(([key, v]) => ({
-      cycleKey: key,
-      budget: allocatedByCycle[key] ?? 0,
-      jobSize: v.jobSize,
-      featureCount: v.count,
-    }));
-
-  const rate = deriveJobSizeRate({
-    cycles,
-    tenantDefault: tenant?.costPerJobSizePoint != null ? Number(tenant.costPerJobSizePoint) : null,
-    undatedFeatures: undated,
-    placeholderJobSize: placeholder,
-  });
-
-  const loadEuro = loadInEuro(plannedJobSize, rate);
-  const allocated = allocatedByCycle[cycleKey] ?? 0;
-
-  return {
-    plannedJobSize,
-    featureCount: plannedCount,
-    rate,
-    loadEuro,
-    allocated,
-    gap: loadEuro == null ? null : loadEuro - allocated,
-  };
-}
-
-/**
- * Der Veränderungsrahmen eines ARTs und die Epics, auf die er verteilt wird.
- *
- * Gelistet werden nur Epics, die **vorgemerkt** (`stagedForBudgeting`),
- * **budgeting-reif** und der Klasse `art` sind. Die Vormerkung bleibt der aktive
- * Schritt des Owners — sie meldet hier keine Portfolio-Runde an, sondern die
- * Verteilung durch den Wertstrom.
- */
-export async function loadArtPotView(
-  db: PrismaClient,
-  tenantId: TenantId,
-  art: { id: string; valueStreamId: string },
-  cycleKey: string,
-  threshold: number,
-  now: Date = new Date(),
-): Promise<ArtPotView> {
-  const [pot, allocations, candidates] = await Promise.all([
-    loadArtPot(db, tenantId, art.id, cycleKey, now),
-    loadArtEpicAllocations(db, tenantId, art.id, cycleKey),
-    db.initiative.findMany({
-      where: {
-        tenantId,
-        level: InitiativeLevel.EPIC,
-        deletedAt: null,
-        artId: art.id,
-        stagedForBudgeting: true,
-        businessCaseApprovedAt: { not: null },
-      },
-      select: {
-        id: true,
-        title: true,
-        stageGate: true,
-        implementationCompletedAt: true,
-        businessCase: true,
-        businessCaseApprovedAt: true,
-        hypothesisApprovedAt: true,
-        portfolioOverrideAt: true,
-      },
-    }),
-  ]);
-
-  const byEpic = new Map(allocations.map((a) => [a.epicId, a]));
-
-  const rows = candidates.flatMap((e) => {
-    const c = classifyEpic(e, threshold);
-    if (c.epicClass !== "art") return [];
-    const existing = byEpic.get(e.id);
-    const currentAsk = c.cost ?? 0;
-    // Der Richtwert friert beim ersten Zuteilen ein — sonst verschöbe sich die
-    // Liste zwischen zwei Besuchen, ohne dass jemand etwas getan hat.
-    const ask = existing ? existing.ask : currentAsk;
-    return [
-      {
-        epicId: e.id,
-        title: e.title,
-        stageGate: e.stageGate,
-        ask,
-        amount: existing?.amount ?? 0,
-        askDrifted: existing != null && existing.ask !== currentAsk,
-      },
-    ];
-  });
-
-  rows.sort((a, b) => b.ask - a.ask);
-
-  // Die zweite Quelle bekommt dieselbe Staffel wie die erste — getrennt
-  // ausgewiesen, nicht stillschweigend addiert.
-  const byId = new Map(candidates.map((c) => [c.id, c]));
-  const breakdown = summarizeAllocations(
-    rows.map((r) => ({
-      epicId: r.epicId,
-      amount: r.amount,
-      stageGate: r.stageGate,
-      implementationCompletedAt: byId.get(r.epicId)?.implementationCompletedAt ?? null,
-    })),
-  );
-
-  return {
-    pot,
-    rows,
-    breakdown,
-    titles: Object.fromEntries(rows.map((r) => [r.epicId, r.title])),
   };
 }

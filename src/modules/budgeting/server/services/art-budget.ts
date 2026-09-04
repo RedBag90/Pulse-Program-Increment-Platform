@@ -8,7 +8,7 @@ import {
 } from "@/modules/budgeting/domain/art-budget";
 import { getValueStreamBudget } from "@/modules/budgeting/server/services/budgeting";
 
-export interface ArtBudgetRow {
+export interface ArtBudgetByPeriod {
   artId: string;
   name: string;
   /** Finance's budget allocation per half-year. */
@@ -22,7 +22,7 @@ export interface ArtBudgetBreakdown {
   periods: { key: string; label: string }[];
   /** The Value Stream's budget per half-year — what the ARTs draw against. */
   vsByPeriod: Record<string, number>;
-  arts: ArtBudgetRow[];
+  arts: ArtBudgetByPeriod[];
 }
 
 /**
@@ -93,7 +93,7 @@ export async function getArtBudgetBreakdown(
     features.flatMap((f) => (f.pi ? [f.pi.startDate] : [])),
   );
 
-  const rows: ArtBudgetRow[] = arts.map((a) => ({
+  const rows: ArtBudgetByPeriod[] = arts.map((a) => ({
     artId: a.id,
     name: a.name,
     budgetByPeriod: budgetByArt.get(a.id) ?? {},

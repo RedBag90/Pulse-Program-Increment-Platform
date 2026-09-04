@@ -3,7 +3,7 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { loadPeriodDetail } from "@/modules/budgeting/server/views/period-detail";
 import { loadDistributionOverview } from "@/modules/budgeting/server/views/distribution-overview";
-import { BallotSheets } from "@/modules/budgeting/features/components/period/ballot-sheets";
+import { Sheets } from "@/modules/budgeting/features/components/period/ballot-sheets";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import { Link } from "@/i18n/navigation";
 import { Page, PageHeader } from "@/components/layout";
@@ -19,7 +19,7 @@ interface Props {
  * Vorgänger war `/budgeting/rounds/sheet`, das die Runde des tenant-weiten
  * „aktiven Zyklus" zeigte und aus der Oberfläche gar nicht mehr erreichbar war.
  */
-export default async function BallotSheetPage({ params }: Props) {
+export default async function SheetPage({ params }: Props) {
   const { id } = await params;
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -48,7 +48,7 @@ export default async function BallotSheetPage({ params }: Props) {
           }
         />
       </div>
-      <BallotSheets
+      <Sheets
         model={{
           cycleLabel: halfYearLabel(detail.round.cycleKey),
           poolTotal: detail.round.poolTotal,

@@ -10,7 +10,7 @@
 
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ValueStreamId } from "@/modules/core/kernel/domain/types";
-import { artBudgetRemaining, type ArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
+import { unassignedToArts, type ArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
 import type { PeriodAmounts } from "@/modules/budgeting/domain/period-map";
 import type { Period } from "@/modules/budgeting/domain/period-window";
 import { getArtBudgetBreakdown } from "@/modules/budgeting/server/services/art-budget";
@@ -29,8 +29,15 @@ export interface ArtBudgetModel {
   /** Das abgeleitete Wertstrom-Budget, gegen das die ARTs ziehen. */
   vsByPeriod: PeriodAmounts;
   rows: ArtBudgetModelRow[];
-  /** VS-Budget − Σ ART-Budgets je Periode; negativ = überverteilt (REQ-A2). */
-  remaining: PeriodAmounts;
+  /** Σ der ART-Zeilen je Halbjahr — die Auslastung. */
+  allocatedByPeriod: PeriodAmounts;
+  /**
+   * Wertstrom-Budget − Σ ART-Zeilen. **Kein Rest im Sinne einer Reserve:** die
+   * Differenz sind Zuteilungen, die keiner ART-Zeile dieses Wertstroms
+   * zugeordnet sind — Epics ohne ART oder mit einem fremden. Deshalb heißt die
+   * Funktion dahinter `unassignedToArts` und nicht mehr `artBudgetRemaining`.
+   */
+  unassigned: PeriodAmounts;
   /** Kein ART im Wertstrom — die Sicht zeigt dann nur einen Hinweis. */
   isEmpty: boolean;
 }
@@ -53,7 +60,14 @@ export function buildArtBudgetModel(inputs: BuildArtBudgetInputs): ArtBudgetMode
     periods,
     vsByPeriod: inputs.vsByPeriod,
     rows,
-    remaining: artBudgetRemaining(
+    // Σ der ART-Zeilen je Halbjahr — die Zahl, die die Auslastungs-Leiste
+    // braucht. Vorher lieferte das Modell nur `unassignedToArts` (früher
+    // `artBudgetRemaining`), und die Fläche rechnete `Budget − Rest` zurück,
+    // um an sie heranzukommen.
+    allocatedByPeriod: Object.fromEntries(
+      periods.map((p) => [p.key, rows.reduce((sum, r) => sum + (r.budgetByPeriod[p.key] ?? 0), 0)]),
+    ),
+    unassigned: unassignedToArts(
       inputs.vsByPeriod,
       rows.map((r) => r.budgetByPeriod),
       periods.map((p) => p.key),

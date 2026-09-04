@@ -2,9 +2,9 @@ import type { PrismaClient } from "@/generated/prisma";
 import { classifyZones, type Zone, type Majority } from "@/modules/budgeting/domain/three-zone";
 import { scarcityFactor, passesScarcityGate } from "@/modules/budgeting/domain/scarcity";
 import { getRound } from "@/modules/budgeting/server/services/round-service";
-import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
+import { loadPbList } from "@/modules/budgeting/server/services/pb-list";
 
-export interface BallotEpic {
+export interface PbListEpic {
   id: string;
   title: string;
   cost: number;
@@ -37,7 +37,7 @@ export interface BuildZonesInput {
   roundId: string;
   status: string;
   groups: { id: string; name: string }[];
-  ballot: BallotEpic[];
+  ballot: PbListEpic[];
   votes: { groupId: string; epicId: string; funded: boolean }[];
   distributable: number;
 }
@@ -47,12 +47,24 @@ export function buildZonesModel(input: BuildZonesInput): ZonesModel {
   const { roundId, status, groups, ballot, votes, distributable } = input;
   const groupCount = groups.length;
 
-  const zones = classifyZones(votes, ballot.map((e) => e.id), groupCount);
+  const zones = classifyZones(
+    votes,
+    ballot.map((e) => e.id),
+    groupCount,
+  );
   const zoneById = new Map(zones.map((z) => [z.epicId, z]));
 
   const epics: EpicZoneRow[] = ballot.map((e) => {
     const z = zoneById.get(e.id)!;
-    return { epicId: e.id, title: e.title, cost: e.cost, yes: z.yes, total: z.total, zone: z.zone, majority: z.majority };
+    return {
+      epicId: e.id,
+      title: e.title,
+      cost: e.cost,
+      yes: z.yes,
+      total: z.total,
+      zone: z.zone,
+      majority: z.majority,
+    };
   });
 
   const voteLookup: Record<string, boolean> = {};
@@ -78,7 +90,7 @@ export function buildZonesModel(input: BuildZonesInput): ZonesModel {
   };
 }
 
-/** Lädt Runde + Ballot + Stimmen und baut das Zonen-Modell. */
+/** Lädt Runde + PB-Liste + Stimmen und baut das Zonen-Modell. */
 export async function loadZonesModel(
   db: PrismaClient,
   tenantId: string,
@@ -88,7 +100,7 @@ export async function loadZonesModel(
   if (!round) return null;
 
   const [ballot, votesRaw] = await Promise.all([
-    loadRoundBallot(db, tenantId),
+    loadPbList(db, tenantId),
     db.groupAllocation.findMany({
       where: { roundId, epicId: { not: null } },
       select: { groupId: true, epicId: true, funded: true },

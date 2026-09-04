@@ -16,7 +16,7 @@ import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel
 import { ok, err, isErr, type Result } from "@/modules/core/kernel/domain/errors";
 import { mergeEpicAllocation } from "@/modules/budgeting/server/services/epic-allocation";
 import { computeReserve } from "@/modules/budgeting/domain/finalize";
-import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
+import { loadPbList } from "@/modules/budgeting/server/services/pb-list";
 import { createRound, copyPeriodSetup } from "@/modules/budgeting/server/services/round-service";
 import { halfYearKey, addHalfYears } from "@/modules/core/kernel/domain/calendar";
 import { captureBudgetPlanRevision } from "@/modules/budgeting/server/services/budget-plan-revision";
@@ -130,6 +130,7 @@ async function finalizePeriodRound(
       // Epic-Kandidaten: BudgetAllocation für den Cycle mergen (App-Kontinuität).
       if (cand.kind === "epic" && cand.epicId) {
         await mergeEpicAllocation(tx, {
+          source: "pb_list" as const,
           tenantId: mctx.tenantId,
           epicId: cand.epicId,
           cycleKey: round.cycleKey,
@@ -139,7 +140,7 @@ async function finalizePeriodRound(
       }
     }
 
-    const ballot = await loadRoundBallot(tx, mctx.tenantId);
+    const ballot = await loadPbList(tx, mctx.tenantId);
     const distributable = Number(round.poolTotal) - ballot.mandatorySum;
     const reserve = computeReserve(distributable, [sumFinal]);
 

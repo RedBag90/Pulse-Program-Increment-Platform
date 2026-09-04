@@ -40,6 +40,8 @@ describe("revalidateFor", () => {
 
   it("issues one revalidatePath call per registered path", () => {
     revalidateFor("valueStream");
-    expect(revalidatePath).toHaveBeenCalledTimes(2); // /structure + /structure/value-stream/[id]
+    // /structure + /structure/value-stream/[id] + /budgeting/value-streams/[id]:
+    // die Budget-Fläche des Wertstroms lebt seit dem Umzug unter /budgeting.
+    expect(revalidatePath).toHaveBeenCalledTimes(3);
   });
 });

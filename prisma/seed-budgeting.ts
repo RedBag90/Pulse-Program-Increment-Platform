@@ -19,9 +19,9 @@ export interface RtbItemSpec {
   interval: string;
   /** `null` = wertstrom-übergreifend (geteilte Plattform, Programm-Office). */
   solutionId?: string | null;
-  /** Zurechnung zu einem ART. Pflicht für einen Veränderungsrahmen. */
+  /** Zurechnung zu einem ART. Pflicht für ein ART-Epic-Budget. */
   artId?: string | null;
-  /** `"run"` (Default) = Betrieb, `"art_change"` = Veränderungsrahmen eines ARTs. */
+  /** `"run"` (Default) = Betrieb, `"art_change"` = ART-Epic-Budget eines ARTs. */
   kind?: string;
 }
 
@@ -38,7 +38,7 @@ export interface SeededRtbItem {
   interval: string;
   /** `null` = wertstrom-übergreifend. */
   artId: string | null;
-  /** `"run"` = Betrieb, `"art_change"` = Veränderungsrahmen. */
+  /** `"run"` = Betrieb, `"art_change"` = ART-Epic-Budget. */
   kind: string;
 }
 
@@ -177,22 +177,47 @@ export async function seedBudgetPeriod(
       updatedBy: actorId,
     };
   });
+  /**
+   * **Eine RtB-Zeile je Wertstrom.** Die Spezifikation bleibt je Position —
+   * dort steckt die Erzählung (welcher Rahmen deckt seine Epics, welcher
+   * nicht) —, aber der PB-Liste bündelt sie, wie es
+   * `materializeRtbCandidates` zur Laufzeit tut.
+   *
+   * Die Einzelbeträge gehen nicht verloren: sie werden zur **Aufteilung**
+   * (`RtbItemAward`) desselben Halbjahres, und daraus entsteht der
+   * ART-Epic-Budget jedes ARTs.
+   */
+  const vsNames = new Map(
+    (
+      await prisma.valueStream.findMany({ where: { tenantId }, select: { id: true, name: true } })
+    ).map((v) => [v.id, v.name]),
+  );
+  const byValueStream = new Map<string, RtbCandidateSpec[]>();
+  for (const c of cfg.rtbCandidates) {
+    const key = c.valueStreamId ?? "__none__";
+    byValueStream.set(key, [...(byValueStream.get(key) ?? []), c]);
+  }
+
   const rtbRows = draft
     ? []
-    : cfg.rtbCandidates.map((c) => {
-        const id = uid(`cand:${cfg.key}:rtb:${c.rtbItemId}`);
-        candidateIdByRef.set(c.rtbItemId, id);
+    : [...byValueStream.entries()].map(([key, specs]) => {
+        const id = uid(`cand:${cfg.key}:rtb:${key}`);
+        // Jede Position dieses Wertstroms zeigt auf die Sammelzeile — die
+        // Gruppen verteilen auf sie, nicht mehr auf die Einzelposition.
+        for (const c of specs) candidateIdByRef.set(c.rtbItemId, id);
+        const finals = specs.filter((c) => c.finalAmount != null);
         return {
           id,
           tenantId,
           roundId,
           kind: "rtb",
-          rtbItemId: c.rtbItemId,
-          title: c.title,
-          ask: c.ask,
-          valueStreamId: c.valueStreamId,
+          rtbItemId: null,
+          title: key === "__none__" ? "Ohne Wertstrom" : (vsNames.get(key) ?? "Wertstrom"),
+          ask: specs.reduce((sum, c) => sum + c.ask, 0),
+          valueStreamId: key === "__none__" ? null : key,
           artId: null,
-          finalAmount: c.finalAmount ?? null,
+          finalAmount:
+            finals.length === 0 ? null : finals.reduce((sum, c) => sum + (c.finalAmount ?? 0), 0),
           createdBy: actorId,
           updatedBy: actorId,
         };
@@ -225,25 +250,51 @@ export async function seedBudgetPeriod(
       })),
       skipDuplicates: true,
     });
-    const allocRows = Object.entries(g.amounts)
-      .map(([ref, amount]) => {
-        const candidateId = candidateIdByRef.get(ref);
-        if (!candidateId) return null;
-        return {
-          id: uid(`alloc:${cfg.key}:${i}:${ref}`),
-          roundId,
-          groupId,
-          candidateId,
-          amount,
-        };
-      })
-      .filter((r): r is NonNullable<typeof r> => r !== null);
+    // Mehrere RtB-Referenzen desselben Wertstroms zeigen jetzt auf **eine**
+    // Kandidatenzeile — ihre Beträge addieren sich, statt einander zu
+    // überschreiben. Ein Vorschlag je Gruppe und Zeile, wie im Produkt.
+    const byCandidate = new Map<string, number>();
+    for (const [ref, amount] of Object.entries(g.amounts)) {
+      const candidateId = candidateIdByRef.get(ref);
+      if (!candidateId) continue;
+      byCandidate.set(candidateId, (byCandidate.get(candidateId) ?? 0) + amount);
+    }
+    const allocRows = [...byCandidate.entries()].map(([candidateId, amount]) => ({
+      id: uid(`alloc:${cfg.key}:${i}:${candidateId}`),
+      roundId,
+      groupId,
+      candidateId,
+      amount,
+    }));
     if (allocRows.length > 0) {
       await prisma.groupAllocation.createMany({ data: allocRows, skipDuplicates: true });
     }
   }
 
-  console.log(`  ✓ Kachel „${cfg.cycleKey}" (${cfg.status}) — ${cfg.groups.length} Gruppen`);
+  /**
+   * Die Aufteilung des Zuspruchs auf die Positionen. Sie ist die Quelle des
+   * ART-Epic-Budgets; ohne sie stünde jeder Topf auf 0 €, obwohl die
+   * Kachel geschlossen ist.
+   */
+  const awardRows = cfg.rtbCandidates
+    .filter((c) => c.finalAmount != null)
+    .map((c) => ({
+      id: uid(`rtbaward:${cfg.cycleKey}:${c.rtbItemId}`),
+      tenantId,
+      rtbItemId: c.rtbItemId,
+      cycleKey: cfg.cycleKey,
+      amount: c.finalAmount!,
+      createdBy: actorId,
+      updatedBy: actorId,
+    }));
+  if (awardRows.length > 0) {
+    await prisma.rtbItemAward.createMany({ data: awardRows, skipDuplicates: true });
+  }
+
+  console.log(
+    `  ✓ Kachel „${cfg.cycleKey}" (${cfg.status}) — ${rtbRows.length} RtB-Zeilen, ` +
+      `${cfg.groups.length} Gruppen`,
+  );
   return roundId;
 }
 

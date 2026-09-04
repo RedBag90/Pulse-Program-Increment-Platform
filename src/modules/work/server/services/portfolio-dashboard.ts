@@ -15,7 +15,6 @@ import { parseKpiMeasurements } from "@/modules/core/kpi/domain/kpi";
 import { isoDay, monthStart } from "@/modules/core/kernel/domain/calendar";
 import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
 import { buildEpicStageTimeline } from "@/modules/work/domain/epic-stage-timeline";
-import { parsePeriodAmountMap } from "@/modules/core/kernel/domain/budget-period";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import type {
   EpicEconomicsDTO,
@@ -46,11 +45,22 @@ export type {
  * tenant setting, or — when unset — three years past the last go-live so the
  * recurring benefit has room to play out.
  */
+/**
+ * Port: die Halbjahres-Zuteilung je Epic (`epicId → { "YYYY-H1": €, … }`).
+ *
+ * Strukturell deklariert, ohne Import — Work zeigt nicht nach Budgeting
+ * (ADR-0013). Der Composition-Root reicht den Adapter herein, **und nur dann,
+ * wenn der Mandant Budgeting lizenziert hat**: `null` heißt „kein Budgeting",
+ * und dann zeigt das Dashboard keine Beträge statt fremder.
+ */
+export type EpicAllocationsPort = () => Promise<Record<string, Record<string, number>>>;
+
 export async function getPortfolioEconomics(
   db: PrismaClient,
   tenantId: TenantId,
+  getAllocations: EpicAllocationsPort | null = null,
 ): Promise<PortfolioEconomicsData> {
-  const [rows, tenant, userLabels] = await Promise.all([
+  const [rows, tenant, userLabels, allocations] = await Promise.all([
     db.initiative.findMany({
       where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
       select: {
@@ -88,7 +98,6 @@ export async function getPortfolioEconomics(
             recurringInterval: true,
           },
         },
-        budgetAllocation: { select: { allocations: true } },
       },
       orderBy: { createdAt: "asc" },
     }),
@@ -97,6 +106,11 @@ export async function getPortfolioEconomics(
       select: { costNeutralTarget: true, costPerJobSizePoint: true },
     }),
     listTenantUserLabels(db, tenantId),
+    // Ohne Port keine Beträge: die Kostenkurve zeigt dann nur, was der Mandant
+    // selbst im Business Case hinterlegt hat.
+    getAllocations
+      ? getAllocations()
+      : Promise.resolve({} as Record<string, Record<string, number>>),
   ]);
 
   const epics: EpicEconomicsDTO[] = rows.map((row) => {
@@ -164,8 +178,8 @@ export async function getPortfolioEconomics(
         : null,
       hasBusinessCase: view.hasBusinessCase,
       benefitKpis: view.benefitKpis,
-      hasAllocation: row.budgetAllocation != null,
-      allocatedByPeriod: parsePeriodAmountMap(row.budgetAllocation?.allocations),
+      hasAllocation: allocations[row.id] != null,
+      allocatedByPeriod: allocations[row.id] ?? {},
       stageTimeline,
     };
   });

@@ -15,7 +15,7 @@ import {
   type ArtBudgetDetail,
   type UnfundedCandidate,
   type UnfundedReason,
-} from "@/modules/budgeting/server/views/art-budget-detail";
+} from "@/modules/budgeting/server/views/art-budget-model";
 
 /**
  * Der Budget-Reiter eines ARTs: was zugeteilt ist, in welchem Zustand es steht,
@@ -35,20 +35,33 @@ const STATE_COLOR: Record<AllocationState, string> = {
 /** Reihenfolge der Kacheln: das Ganze, dann die Staffel von fertig nach offen. */
 const TILE_ORDER: AllocationState[] = ["consumed", "committed", "notStarted"];
 
+/**
+ * Geschnitten nach **Modus, nicht nach Thema**: „Übersicht" ist alles zum Lesen,
+ * „Verteilen" ist die Arbeit. Ein dritter Reiter für Run the Business wäre dünn
+ * gewesen, und seine Tabellen beantworten dieselbe Frage wie die
+ * Quellen-Staffel — woher kommt das Geld.
+ *
+ * `view: "all"` rendert weiterhin alles am Stück; das braucht die alte
+ * Struktur-Fläche, solange sie existiert.
+ */
 export function ArtBudgetTab({
   detail,
   basePath,
   canDistribute = false,
+  view = "all",
 }: {
   detail: ArtBudgetDetail;
   basePath: string;
   canDistribute?: boolean;
+  view?: "all" | "overview" | "distribute";
 }) {
+  const showRead = view !== "distribute";
+  const showWork = view !== "overview";
   return (
     <div className="space-y-8">
-      {detail.coverage && <CoverageSection coverage={detail.coverage} />}
+      {showRead && detail.coverage && <CoverageSection coverage={detail.coverage} />}
 
-      {detail.cycles.length > 1 && (
+      {view === "all" && detail.cycles.length > 1 && (
         <nav className="flex flex-wrap items-center gap-2" aria-label="Halbjahr">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Halbjahr
@@ -70,104 +83,108 @@ export function ArtBudgetTab({
         </nav>
       )}
 
-      {detail.sources.map((s) => (
-        <section key={s.source} className="space-y-3">
-          <div className="flex items-baseline gap-3">
-            <h2 className="text-lg font-medium">{s.label}</h2>
-            <span className="text-sm text-muted-foreground">
-              {detail.cycles.find((c) => c.key === detail.cycleKey)?.label}
-            </span>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="rounded-lg border bg-card p-4">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Zugeteilt
-              </div>
-              <div className="mt-1 text-2xl font-semibold tabular-nums">
-                {s.breakdown.total > 0 ? formatCompactEUR(s.breakdown.total) : "—"}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {s.breakdown.rows.length} {s.breakdown.rows.length === 1 ? "Epic" : "Epics"}
-              </div>
+      {showRead &&
+        detail.sources.map((s) => (
+          <section key={s.source} className="space-y-3">
+            <div className="flex items-baseline gap-3">
+              <h2 className="text-lg font-medium">{s.label}</h2>
+              <span className="text-sm text-muted-foreground">
+                {detail.cycles.find((c) => c.key === detail.cycleKey)?.label}
+              </span>
             </div>
 
-            {TILE_ORDER.map((state) => (
-              <div key={state} className="rounded-lg border bg-card p-4">
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="rounded-lg border bg-card p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {ALLOCATION_STATE_LABELS[state]}
+                  Zugeteilt
                 </div>
-                <div
-                  className="mt-1 text-2xl font-semibold tabular-nums"
-                  style={{ color: STATE_COLOR[state] }}
-                >
-                  {s.breakdown.byState[state] > 0
-                    ? formatCompactEUR(s.breakdown.byState[state])
-                    : "—"}
+                <div className="mt-1 text-2xl font-semibold tabular-nums">
+                  {s.breakdown.total > 0 ? formatCompactEUR(s.breakdown.total) : "—"}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {allocationShare(s.breakdown, state)} % · {s.breakdown.countByState[state]}{" "}
-                  {s.breakdown.countByState[state] === 1 ? "Epic" : "Epics"}
+                  {s.breakdown.rows.length} {s.breakdown.rows.length === 1 ? "Epic" : "Epics"}
                 </div>
               </div>
-            ))}
-          </div>
 
-          {s.breakdown.rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Für dieses Halbjahr ist diesem ART nichts zugeteilt.
-            </p>
-          ) : (
-            <ul className="divide-y rounded-lg border">
-              <li className="flex items-center gap-3 bg-surface-frame px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                <span className="flex-1">Epic</span>
-                <span className="w-32">Zustand</span>
-                <span className="w-28 text-right">Zuteilung</span>
-                <span className="w-12 text-right">Anteil</span>
-              </li>
-              {s.breakdown.rows.map((r) => (
-                <li key={r.epicId} className="flex items-center gap-3 px-3 py-2 text-sm">
-                  <span className="flex-1 truncate">
-                    <Link
-                      href={`/portfolio/epics/${r.epicId}`}
-                      className="font-medium hover:underline"
-                    >
-                      {s.titles[r.epicId] ?? r.epicId}
-                    </Link>{" "}
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                      {r.stageGate}
-                    </span>
-                  </span>
-                  <span className="flex w-32 items-center gap-1.5 text-xs">
-                    <span
-                      className="inline-block size-2 shrink-0 rounded-sm"
-                      style={{ background: STATE_COLOR[r.state] }}
-                    />
-                    {ALLOCATION_STATE_LABELS[r.state]}
-                  </span>
-                  <span className="w-28 text-right tabular-nums">{formatEUR(r.amount)}</span>
-                  <span className="w-12 text-right tabular-nums text-muted-foreground">
-                    {s.breakdown.total > 0 ? Math.round((r.amount / s.breakdown.total) * 100) : 0} %
-                  </span>
-                </li>
+              {TILE_ORDER.map((state) => (
+                <div key={state} className="rounded-lg border bg-card p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {ALLOCATION_STATE_LABELS[state]}
+                  </div>
+                  <div
+                    className="mt-1 text-2xl font-semibold tabular-nums"
+                    style={{ color: STATE_COLOR[state] }}
+                  >
+                    {s.breakdown.byState[state] > 0
+                      ? formatCompactEUR(s.breakdown.byState[state])
+                      : "—"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {allocationShare(s.breakdown, state)} % · {s.breakdown.countByState[state]}{" "}
+                    {s.breakdown.countByState[state] === 1 ? "Epic" : "Epics"}
+                  </div>
+                </div>
               ))}
-              <li className="flex items-center gap-3 bg-surface-frame px-3 py-2 text-sm font-semibold">
-                <span className="flex-1">Σ</span>
-                <span className="w-32" />
-                <span className="w-28 text-right tabular-nums">{formatEUR(s.breakdown.total)}</span>
-                <span className="w-12 text-right tabular-nums">100 %</span>
-              </li>
-            </ul>
-          )}
+            </div>
 
-          <p className="text-sm text-muted-foreground">
-            „{ALLOCATION_STATE_LABELS.notStarted}" ist das Restbudget — es hängt an diesen Epics und
-            wird ohne neue Budget-Kachel nicht umgewidmet.
-          </p>
-        </section>
-      ))}
+            {s.breakdown.rows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Für dieses Halbjahr ist diesem ART nichts zugeteilt.
+              </p>
+            ) : (
+              <ul className="divide-y rounded-lg border">
+                <li className="flex items-center gap-3 bg-surface-frame px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  <span className="flex-1">Epic</span>
+                  <span className="w-32">Zustand</span>
+                  <span className="w-28 text-right">Zuteilung</span>
+                  <span className="w-12 text-right">Anteil</span>
+                </li>
+                {s.breakdown.rows.map((r) => (
+                  <li key={r.epicId} className="flex items-center gap-3 px-3 py-2 text-sm">
+                    <span className="flex-1 truncate">
+                      <Link
+                        href={`/portfolio/epics/${r.epicId}`}
+                        className="font-medium hover:underline"
+                      >
+                        {s.titles[r.epicId] ?? r.epicId}
+                      </Link>{" "}
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                        {r.stageGate}
+                      </span>
+                    </span>
+                    <span className="flex w-32 items-center gap-1.5 text-xs">
+                      <span
+                        className="inline-block size-2 shrink-0 rounded-sm"
+                        style={{ background: STATE_COLOR[r.state] }}
+                      />
+                      {ALLOCATION_STATE_LABELS[r.state]}
+                    </span>
+                    <span className="w-28 text-right tabular-nums">{formatEUR(r.amount)}</span>
+                    <span className="w-12 text-right tabular-nums text-muted-foreground">
+                      {s.breakdown.total > 0 ? Math.round((r.amount / s.breakdown.total) * 100) : 0}{" "}
+                      %
+                    </span>
+                  </li>
+                ))}
+                <li className="flex items-center gap-3 bg-surface-frame px-3 py-2 text-sm font-semibold">
+                  <span className="flex-1">Σ</span>
+                  <span className="w-32" />
+                  <span className="w-28 text-right tabular-nums">
+                    {formatEUR(s.breakdown.total)}
+                  </span>
+                  <span className="w-12 text-right tabular-nums">100 %</span>
+                </li>
+              </ul>
+            )}
 
-      {detail.course.portfolio && (
+            <p className="text-sm text-muted-foreground">
+              „{ALLOCATION_STATE_LABELS.notStarted}" ist das Restbudget — es hängt an diesen Epics
+              und wird ohne neue Budget-Kachel nicht umgewidmet.
+            </p>
+          </section>
+        ))}
+
+      {showRead && detail.course.portfolio && (
         <AllocationCourseChart
           course={detail.course.portfolio}
           todayIndex={detail.todayIndex}
@@ -176,23 +193,25 @@ export function ArtBudgetTab({
         />
       )}
 
-      {detail.pot && (
+      {/* Ein ART-Epic-Budget gibt es nur in einer ART-Sicht — dort trägt
+          `artId` immer einen Wert. */}
+      {showWork && detail.pot && detail.artId != null && (
         <ArtPotSection view={detail.pot} artId={detail.artId} canDistribute={canDistribute} />
       )}
 
-      <ReallocationView detail={detail} />
+      {showWork && <ReallocationView detail={detail} />}
 
-      {(detail.rtb.run.length > 0 || detail.rtb.change.length > 0) && (
+      {showRead && (detail.rtb.run.length > 0 || detail.rtb.change.length > 0) && (
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Run the Business</h2>
           <p className="text-sm text-muted-foreground">
             Diesem ART zugerechnet. Verantwortet wird das Budget im Wertstrom. Betrieb und
-            Veränderungsrahmen stehen getrennt — das eine ist Run, das andere Grow.
+            ART-Epic-Budget stehen getrennt — das eine ist Run, das andere Grow.
           </p>
           {(
             [
               ["Betrieb", detail.rtb.run],
-              ["Veränderungsrahmen", detail.rtb.change],
+              ["ART-Epic-Budget", detail.rtb.change],
             ] as const
           ).map(([label, items]) =>
             items.length === 0 ? null : (

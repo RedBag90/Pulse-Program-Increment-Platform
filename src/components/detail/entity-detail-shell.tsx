@@ -22,8 +22,14 @@ interface Props {
   badge?: ReactNode;
   tabs: readonly DetailTab[];
   activeTab: string;
-  /** Detail route without query, e.g. `/structure/value-stream/<id>`; tab links append `?tab=`. */
+  /** Detail route **without query**, e.g. `/structure/value-stream/<id>`; tab
+   *  links append `?tab=`. Wer hier eine Query anhängt, erzeugt ein zweites
+   *  `?` — der Tab-Parameter kommt dann nie an. Für zusätzliche Parameter gibt
+   *  es `tabQuery`. */
   basePath: string;
+  /** Parameter, die beim Reiterwechsel erhalten bleiben — etwa das gewählte
+   *  Halbjahr einer Budgetfläche. Werden hinter `?tab=` gehängt. */
+  tabQuery?: Record<string, string>;
   /** Wenn gesetzt, werden Tabs als Buttons gerendert und der Caller
    *  managed den Tab-State selber — z. B. im Slide-Over, wo wir keine
    *  Navigation wollen. Wenn undefined: Tabs sind Links (Standalone-
@@ -53,12 +59,16 @@ export function EntityDetailShell({
   tabs,
   activeTab,
   basePath,
+  tabQuery,
   onTabChange,
   headerActions,
   subHeader,
   aside,
   children,
 }: Props) {
+  const tabSuffix = Object.entries(tabQuery ?? {})
+    .map(([k, v]) => `&${k}=${encodeURIComponent(v)}`)
+    .join("");
   return (
     <div className="flex flex-col">
       <header className="border-b bg-surface-frame px-6 py-4">
@@ -112,7 +122,7 @@ export function EntityDetailShell({
                     </button>
                   ) : (
                     <Link
-                      href={`${basePath}?tab=${tab.key}`}
+                      href={`${basePath}?tab=${tab.key}${tabSuffix}`}
                       aria-current={active ? "page" : undefined}
                       className={cls}
                     >

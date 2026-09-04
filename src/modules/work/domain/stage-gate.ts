@@ -63,6 +63,38 @@ export function isGateStep(value: string): value is GateStep {
   return (GATE_STEPS as readonly string[]).includes(value);
 }
 
+/**
+ * Beschriftung der **Schritte** — bewusst getrennt von `STAGE_GATE_LABELS`
+ * (`src/components/detail/initiative-labels.ts`), das dieselben Schlüssel für
+ * die **Major-Gates** benutzt.
+ *
+ * Der Unterschied fällt an genau einer Stelle auf: `L4` heißt als Major-Gate
+ * „L4 Implementierung", weil es beide Unterstufen umfasst (Trichter-Leiste,
+ * Epics-Tabelle, Cockpit). Als **Schritt** meint dasselbe `L4` den Eintritt in
+ * die Umsetzung — und der steht danach als `L4.1` am Epic. Wer ihn beantragte,
+ * las vorher „L4" und hinterher „L4.1" und musste selbst schließen, dass das
+ * dieselbe Sache ist.
+ *
+ * Der **gespeicherte Wert bleibt `"L4"`**: dies ist eine Beschriftung, kein
+ * neuer Schritt. `GATE_STEPS`, `stage_gate_transitions.toGate` und die v1-API
+ * sind unberührt.
+ */
+export const GATE_STEP_LABELS: Record<GateStep, string> = {
+  L0: "L0 Idee",
+  L1: "L1 Hypothese definiert",
+  L2: "L2 Business Case",
+  "L3.1": "L3.1 BC freigegeben",
+  "L3.2": "L3.2 Budget alloziert",
+  L4: "L4.1 Umsetzung läuft",
+  "L4.2": "L4.2 Umsetzung fertig",
+  L5: "L5 Impact realisiert",
+};
+
+/** Beschriftung eines Schritts; unbekannte Werte fallen auf sich selbst zurück. */
+export function gateStepLabel(step: string): string {
+  return GATE_STEP_LABELS[step as GateStep] ?? step;
+}
+
 /** Erlaubte Schritt-Wechsel: ein Schritt vor oder zurück. */
 export const GATE_STEP_TRANSITIONS: Record<GateStep, readonly GateStep[]> = {
   L0: ["L1"],

@@ -13,7 +13,7 @@
  *   - `rtbAnnualAmount` — Jahres-Äquivalent, für die Run-Anzeige an Solution
  *     und Wertstrom.
  *   - `rtbCycleAmount` — Ask **einer** Halbjahres-Kachel, für die
- *     Ballot-Materialisierung.
+ *     PB-Listen-Materialisierung.
  *
  * Default `half_yearly`: genau das bedeuten die Bestandszeilen: ihr Betrag war
  * der Ask einer Kachel. So bleibt jeder existierende Ask bitgenau gleich.

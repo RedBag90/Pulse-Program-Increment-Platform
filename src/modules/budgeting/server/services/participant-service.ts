@@ -17,9 +17,13 @@ export async function addParticipant(
       where: { id: input.roundId, tenantId: mctx.tenantId },
       select: { status: true },
     });
-    if (!round) return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.roundId });
+    if (!round)
+      return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.roundId });
     if (round.status !== "draft") {
-      return err({ kind: "conflict" as const, reason: "Beteiligte sind nur im Status draft änderbar." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Beteiligte sind nur im Status draft änderbar.",
+      });
     }
 
     // Idempotent: (roundId, userId) ist unique.
@@ -57,9 +61,13 @@ export async function removeParticipant(
       where: { id: input.id, round: { tenantId: mctx.tenantId } },
       select: { id: true, round: { select: { status: true } } },
     });
-    if (!row) return err({ kind: "not_found" as const, resourceType: "BudgetParticipant", id: input.id });
+    if (!row)
+      return err({ kind: "not_found" as const, resourceType: "BudgetParticipant", id: input.id });
     if (row.round.status !== "draft") {
-      return err({ kind: "conflict" as const, reason: "Beteiligte sind nur im Status draft änderbar." });
+      return err({
+        kind: "conflict" as const,
+        reason: "Beteiligte sind nur im Status draft änderbar.",
+      });
     }
     await tx.budgetParticipant.delete({ where: { id: input.id } });
     return ok({

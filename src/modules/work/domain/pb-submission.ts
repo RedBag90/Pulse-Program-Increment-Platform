@@ -212,7 +212,7 @@ export type IntendedClass = EpicClass | null;
  * - `up` — erwartet ART, abgeleitet **Portfolio**: das Vorhaben ist größer als
  *   gedacht und braucht eine Portfolio-Entscheidung.
  * - `down` — erwartet Portfolio, abgeleitet **ART**: es fällt unter das Limit
- *   und hängt künftig am Rahmen seines ARTs statt am Portfolio-Ballot.
+ *   und hängt künftig am Rahmen seines ARTs statt an der PB-Liste.
  */
 export type ClassificationDrift = "none" | "up" | "down";
 
@@ -231,7 +231,7 @@ export function classificationDrift(
  * dem Recht erklären, dass es Portfolio-Sache bleibt — dafür gibt es den
  * `portfolioOverride`. In die andere Richtung bindet die Kostenregel: was über
  * dem Limit liegt, braucht eine Portfolio-Entscheidung. Ein Bestehen wäre dort
- * auch praktisch leer, weil ein ART-Epic aus dem Veränderungsrahmen bezahlt
+ * auch praktisch leer, weil ein ART-Epic aus dem ART-Epic-Budget bezahlt
  * wird und der Schreibpfad jede Zuteilung am Rahmen deckelt.
  */
 export function driftAllowsOverride(drift: ClassificationDrift): boolean {

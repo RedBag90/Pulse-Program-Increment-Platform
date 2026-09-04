@@ -12,7 +12,7 @@ interface Props {
 
 /**
  * Gruppen-Verteilseite: Gruppenmitglieder verteilen freie €-Beträge über die
- * Ballot-Kandidaten (Epics + Run-the-Business) bis zur Deadline; der Sprecher
+ * PB-Listen-Kandidaten (Epics + Run-the-Business) bis zur Deadline; der Sprecher
  * reicht ein. Ziel des My-Tasks-Hinweises.
  */
 export default async function GroupDistributePage({ params }: Props) {

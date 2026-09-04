@@ -56,7 +56,7 @@ const addDays = (base: Date, d: number): Date => new Date(base.getTime() + d * D
  * Früher standen hier fest `${YEAR}-H1` als laufendes und `${YEAR}-H2` als
  * geplantes Halbjahr. Von Juli bis Dezember war die „laufende" Kachel damit
  * für die App längst vergangen, das laufende Halbjahr trug nur einen Entwurf,
- * und **jeder Veränderungsrahmen stand auf 0 €** — die ART-Budgetfläche, die
+ * und **jedes ART-Epic-Budget stand auf 0 €** — die ART-Budgetfläche, die
  * dieser Mandant eigentlich vorführen soll, zeigte nichts.
  */
 const CUR = `${YEAR}-H${now.getMonth() < 6 ? 1 : 2}`;
@@ -91,7 +91,7 @@ async function main() {
       enabledModules: [], // Org ⇒ alle Module
       costNeutralTarget: 250_000,
       dashboardHorizonEnd: addDays(now, 540),
-      // PB-Default-Aufwand: Kosten-Richtwert im Ballot für nur-Hypothese-Epics.
+      // PB-Default-Aufwand: Kosten-Richtwert im PB-Liste für nur-Hypothese-Epics.
       defaultHypothesisEffort: 60_000,
       costPerJobSizePoint: 1_800,
       guardrailTargets: {
@@ -1207,14 +1207,14 @@ async function main() {
           plannedAmount: 5_000 + k * 1_000,
           interval: "monthly",
         },
-        // Der Veränderungsrahmen: derselbe Weg über den Ballot wie der Betrieb,
+        // Das ART-Epic-Budget: derselbe Weg über den PB-Liste wie der Betrieb,
         // aber als eigene Art geführt — sonst würde Grow-Arbeit als Run
         // ausgewiesen. Er hängt an einem ART, nicht am Wertstrom allein.
         // Absichtlich unterschiedlich groß: der erste Rahmen deckt seine Epics
         // mit Rest, der dritte deckt sie nicht. Der zweite ART hat Epics ohne
         // Rahmen — er bekommt hier gar keinen.
         {
-          name: "Veränderungsrahmen ART",
+          name: "ART-Epic-Budget",
           plannedAmount: [240_000, 180_000, 120_000][k] ?? 120_000,
           interval: "half_yearly",
           artId: artIds[k * 2]!,
@@ -1232,7 +1232,7 @@ async function main() {
     valueStreamId: r.valueStreamId,
   }));
 
-  // Vorgemerkte Epics (L2/L3) als Ballot-Kandidaten.
+  // Vorgemerkte Epics (L2/L3) als PB-Liste-Kandidaten.
   const epicCands = EPIC_DEFS.map((def, i) => ({ def, i }))
     .filter(({ def }) => def.gate === "L2" || def.gate === "L3")
     .map(({ def, i }) => ({
@@ -1247,7 +1247,7 @@ async function main() {
   // Der Betrieb steht vorn: die Greedy-Vergabe unten läuft der Reihe nach, und
   // die Epic-Anträge allein überschreiten den Topf. Andersherum stünde jede
   // Run-the-Business-Position mit 0 € in der Kachel — samt der
-  // Veränderungsrahmen, deren Töpfe dann trotz Zuteilungen leer wären.
+  // ART-Epic-Budgets, deren Beträge dann trotz Zuteilungen leer wären.
   const allRefs = [
     ...rtbCands.map((c) => ({ ref: c.rtbItemId, ask: c.ask })),
     ...epicCands.map((c) => ({ ref: c.epicId, ask: c.ask })),

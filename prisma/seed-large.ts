@@ -6,7 +6,7 @@
  *
  * Engpass ist das **Budget: €4 Mio./Kalenderjahr** (€2 Mio./Halbjahres-Zyklus).
  * Davon geht rund die Hälfte an Run the Business — Betrieb (~300 T€) und die
- * Veränderungsrahmen der sechs ARTs (~700 T€) —, der Rest steht dem Ballot zur
+ * ART-Epic-Budgets der sechs ARTs (~700 T€) —, der Rest steht dem PB-Liste zur
  * Verfügung. Wir stehen im **laufenden Halbjahr von Jahr 5**; welches das ist,
  * sagt die echte Uhr, nicht eine feste Annahme.
  *
@@ -16,8 +16,8 @@
  * Nur bezahlte Epics (L3–L5) tragen eine `BudgetAllocation`.
  *
  * **Zwei Wege zum Geld, wie im Ablauf beschrieben:** Portfolio-Epics (Kosten über
- * dem Limit ihres Wertstroms) stehen auf dem Ballot ihrer Halbjahres-Kachel;
- * ART-Epics stehen dort **nicht**, sondern werden aus dem Veränderungsrahmen
+ * dem Limit ihres Wertstroms) stehen auf dem PB-Liste ihrer Halbjahres-Kachel;
+ * ART-Epics stehen dort **nicht**, sondern werden aus dem ART-Epic-Budget
  * ihres ARTs bedient. Je Halbjahr existiert genau **eine** Kachel.
  *
  * Zusätzlich: Issues je Epic (L2–L5, vom Owner beim LBC aufgenommen), Features im
@@ -118,7 +118,7 @@ const MAX_IDX = ALL_CYCLES.length - 1;
 const PROGRAM_TARGET_YEAR = `${YEAR + 5}`; // Programmende Jahr 10
 
 // €2 Mio. je Halbjahres-Zyklus (= €4 Mio./Kalenderjahr). Der Topf muss Betrieb,
-// Veränderungsrahmen **und** die Portfolio-Vorhaben tragen — vorher forderten
+// ART-Epic-Budget **und** die Portfolio-Vorhaben tragen — vorher forderten
 // die drei zusammen 272 % des Topfes, und die Kachel-Logik wich dem mit einer
 // zweiten Runde im selben Halbjahr aus.
 const CYCLE_POOL = 2_000_000;
@@ -590,8 +590,8 @@ async function main() {
   const epicPredecessor: (number | null)[] = new Array(EPIC_COUNT).fill(null);
   /**
    * Die Einordnung je Epic, wie sie die Freigabe des Business Case ergibt.
-   * Die Budget-Phase liest sie: **Portfolio-Epics stehen auf dem Ballot,
-   * ART-Epics nicht** — die werden aus dem Veränderungsrahmen ihres ARTs
+   * Die Budget-Phase liest sie: **Portfolio-Epics stehen auf dem PB-Liste,
+   * ART-Epics nicht** — die werden aus dem ART-Epic-Budget ihres ARTs
    * bedient (`docs/concepts/budgeting-walkthrough.md`, „Die Naht zum Epic").
    */
   const epicClassOf: ("portfolio" | "art" | null)[] = new Array(EPIC_COUNT).fill(null);
@@ -907,7 +907,7 @@ async function main() {
               "Greift über mehrere ARTs und die Konzern-Berichtslinie — trotz kleiner Kosten eine Portfolio-Entscheidung.",
           }
         : {}),
-      // L2-Kandidaten stehen auf dem Ballot (warten auf Budget); Bezahlte nicht mehr.
+      // L2-Kandidaten stehen auf dem PB-Liste (warten auf Budget); Bezahlte nicht mehr.
       stagedForBudgeting: definedNoBudget,
       // „I need help" nur dort, wo es weh tut: definiert, aber noch nicht in
       // der Umsetzung.
@@ -1442,17 +1442,17 @@ async function main() {
           interval: "yearly",
           solutionId: solId(k, "h1"),
         },
-        // Je ART ein Veränderungsrahmen — beide ARTs des Wertstroms, damit die
+        // Je ART ein ART-Epic-Budget — beide ARTs des Wertstroms, damit die
         // Flächen unter Last mit Daten laufen und nicht nur mit Sonderfällen.
         {
-          name: `Veränderungsrahmen ${artNames[k * 2]}`,
+          name: `ART-Epic-Budget ${artNames[k * 2]}`,
           plannedAmount: 120_000 + k * 20_000,
           interval: "half_yearly",
           artId: artIds[k * 2]!,
           kind: "art_change",
         },
         {
-          name: `Veränderungsrahmen ${artNames[k * 2 + 1]}`,
+          name: `ART-Epic-Budget ${artNames[k * 2 + 1]}`,
           plannedAmount: 80_000 + k * 10_000,
           interval: "half_yearly",
           artId: artIds[k * 2 + 1]!,
@@ -1485,8 +1485,8 @@ async function main() {
     artId: artIds[epicVs[i]! * 2 + (i % 2)]!,
   });
   /**
-   * **Nur Portfolio-Epics stehen auf dem Ballot.** ART-Epics werden aus dem
-   * Veränderungsrahmen ihres ARTs bedient und tauchen in der Kandidatenliste
+   * **Nur Portfolio-Epics stehen auf dem PB-Liste.** ART-Epics werden aus dem
+   * ART-Epic-Budget ihres ARTs bedient und tauchen in der Kandidatenliste
    * gar nicht auf — vorher standen sie dort, was der Regel widersprach, die
    * `period-detail.ts` zur Laufzeit anwendet.
    *
@@ -1576,7 +1576,7 @@ async function main() {
       cycleKey,
       // Die finalen Beträge entstehen im Übergang `entschieden → abgeschlossen`.
       // Auch das **laufende** Halbjahr ist deshalb abgeschlossen: ohne
-      // festgeschriebene `art_change`-Beträge wäre jeder Veränderungsrahmen 0 €,
+      // festgeschriebene `art_change`-Beträge wäre jeder ART-Epic-Budget 0 €,
       // und kein ART könnte verteilen.
       status: "closed",
       poolTotal: pool,
@@ -1848,8 +1848,8 @@ async function main() {
   // neuen Tabellen. Klassifiziert wird über den freigegebenen Business Case —
   // deshalb kommen nur Epics infrage, die L3.1 erreicht haben.
   /**
-   * **Der zweite Weg zum Geld.** Ein ART-Epic steht nicht auf dem Ballot; es
-   * wird aus dem Veränderungsrahmen seines ARTs bedient. Der Seed schreibt
+   * **Der zweite Weg zum Geld.** Ein ART-Epic steht nicht auf dem PB-Liste; es
+   * wird aus dem ART-Epic-Budget seines ARTs bedient. Der Seed schreibt
    * diese Zuteilungen für **jeden** Zyklus, in dem ein ART-Epic bezahlt wurde,
    * nicht nur für das laufende Halbjahr — sonst stünde in der Vergangenheit
    * eine Budget-Zuteilung ohne jede Herkunft.
@@ -1871,18 +1871,29 @@ async function main() {
     data: { stagedForBudgeting: true },
   });
 
-  // Der Rahmen je ART ist der Deckel — in der Anwendung prüft ihn der
-  // Schreibpfad in derselben Transaktion. Ein Seed, der daran vorbeischreibt,
-  // erzeugt Töpfe, die dauerhaft überzogen dastehen: einen Zustand, den das
-  // System gar nicht zulässt. Deshalb wird er hier mitgerechnet — je Halbjahr
-  // neu, denn der Rahmen ist eine Position je Zyklus, kein Gesamttopf.
+  /**
+   * Der Rahmen je ART ist der Deckel — in der Anwendung prüft ihn der
+   * Schreibpfad in derselben Transaktion. Ein Seed, der daran vorbeischreibt,
+   * erzeugt Töpfe, die dauerhaft überzogen dastehen: einen Zustand, den das
+   * System gar nicht zulässt.
+   *
+   * Gelesen wird die **Aufteilung**, nicht der geplante Betrag: seit der PB-Liste
+   * je Wertstrom eine Zeile trägt, ist der Rahmen das, was der Wertstrom seiner
+   * Position zugeteilt hat. Wer hier die Planzahl nähme, schriebe Zuteilungen,
+   * die die App zur Laufzeit ablehnt — der Unterschied fiele erst auf der
+   * Verteilfläche auf.
+   */
+  const changeItemIds = rtb
+    .filter((it) => it.kind === "art_change" && it.artId != null)
+    .map((it) => ({ id: it.id, artId: it.artId! }));
+  const awardRows = await prisma.rtbItemAward.findMany({
+    where: { tenantId, cycleKey: CURRENT_CYCLE, rtbItemId: { in: changeItemIds.map((i) => i.id) } },
+    select: { rtbItemId: true, amount: true },
+  });
+  const awardByItem = new Map(awardRows.map((a) => [a.rtbItemId, Number(a.amount)]));
   const frameByArt = new Map<string, number>();
-  for (const it of rtb) {
-    if (it.kind !== "art_change" || it.artId == null) continue;
-    frameByArt.set(
-      it.artId,
-      (frameByArt.get(it.artId) ?? 0) + rtbCycleAmount(it.plannedAmount, it.interval),
-    );
+  for (const it of changeItemIds) {
+    frameByArt.set(it.artId, (frameByArt.get(it.artId) ?? 0) + (awardByItem.get(it.id) ?? 0));
   }
 
   const allocSpecs: ArtAllocationSpec[] = [];

@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { Link } from "@/i18n/navigation";
 import { notFound, redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
@@ -19,11 +20,7 @@ import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { userLabel } from "@/components/detail/initiative-labels";
 import { ArtOverviewForm } from "@/modules/core/org/features/capacity/components/art-overview-form";
 import { DeleteArtButton } from "@/modules/core/org/features/art/components/delete-art-button";
-import { loadArtBudgetDetail } from "@/modules/budgeting/server/views/art-budget-detail";
-import { ArtBudgetTab } from "@/modules/budgeting/features/components/art-budget/art-budget-tab";
-import { getTenantPractices } from "@/server/services/target-model";
-import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
-import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
+import { mayReadArtBudget } from "@/modules/budgeting/server/services/art-budget-access";
 import { SolutionsOfNode } from "@/modules/work/features/portfolio/components/solutions/solutions-of-node";
 import { loadSolutionsList } from "@/modules/work/server/views/solutions-list";
 import type { ArtId } from "@/modules/core/kernel/domain/types";
@@ -46,7 +43,7 @@ interface Props {
 
 export default async function ArtNodePage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { tab, cycle } = await searchParams;
+  const { tab } = await searchParams;
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -60,20 +57,16 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
     valueStreamId: art.valueStream.id,
   });
 
-  const budgetingEnabled = principal.enabledModules.includes("budgeting");
-  const canReadBudget =
-    budgetingEnabled &&
-    inScope &&
-    (art.valueStream.financeApproverId === principal.id ||
-      hasCapability(principal, "budget.read", {
-        tenantId: principal.tenantId,
-        valueStreamId: art.valueStream.id,
-        artId: art.id,
-      }));
+  // Das Budget dieses ARTs lebt im Budgeting-Bereich. Hier steht nur der Weg
+  // dorthin — für die, die ihn öffnen dürfen.
+  const showBudgetLink = await mayReadArtBudget(db, principal, {
+    id: art.id,
+    valueStreamId: art.valueStream.id,
+    financeApproverId: art.valueStream.financeApproverId,
+  });
 
   const tabs: DetailTab[] = [
     { key: "overview", label: "Allgemein" },
-    ...(canReadBudget ? [{ key: "budget", label: "Budget" }] : []),
     ...(inScope
       ? [
           { key: "solutions", label: "Solutions" },
@@ -110,10 +103,21 @@ export default async function ArtNodePage({ params, searchParams }: Props) {
       )}
 
       {activeTab === "overview" && (
-        <OverviewTab db={db} art={art} principal={principal} canEdit={canEdit} />
-      )}
-      {activeTab === "budget" && (
-        <BudgetTab db={db} principal={principal} art={art} cycle={cycle ?? null} />
+        <>
+          {showBudgetLink && (
+            <p className="mb-4 rounded-lg border bg-card px-4 py-3 text-sm">
+              Das Budget dieses ARTs — Zuteilung, Deckung und die Verteilung auf seine ART-Epics —
+              liegt im Budgeting-Bereich.{" "}
+              <Link
+                href={`/budgeting/arts/${art.id}`}
+                className="font-medium text-primary hover:underline"
+              >
+                Budget dieses ARTs →
+              </Link>
+            </p>
+          )}
+          <OverviewTab db={db} art={art} principal={principal} canEdit={canEdit} />
+        </>
       )}
       {activeTab === "solutions" && (
         <SolutionsTab db={db} tenantId={principal.tenantId} artId={art.id} />
@@ -182,47 +186,6 @@ async function OverviewTab({ db, art, principal, canEdit }: any) {
     </div>
   );
 }
-
-async function BudgetTab({ db, principal, art, cycle }: any) {
-  const [practices, guardrailRows, tenantRow] = await Promise.all([
-    getTenantPractices(db, principal.tenantId),
-    listValueStreamGuardrailTargets(db, principal.tenantId),
-    db.tenant.findUnique({ where: { id: principal.tenantId }, select: { guardrailTargets: true } }),
-  ]);
-  const threshold = resolveGuardrailTargets(
-    guardrailRows,
-    tenantRow?.guardrailTargets ?? null,
-    art.valueStream.id,
-  ).targets.approval.portfolioThreshold;
-
-  const detail = await loadArtBudgetDetail(
-    db,
-    principal.tenantId,
-    { id: art.id, valueStreamId: art.valueStream.id },
-    {
-      ...(cycle != null ? { cycleKey: cycle } : {}),
-      artEpics: practices.artEpics,
-      threshold,
-    },
-  );
-
-  // Verteilt wird der Rahmen *für* den ART — die Rechte hängen am Wertstrom.
-  const canDistribute =
-    art.valueStream.financeApproverId === principal.id ||
-    hasCapability(principal, "rtb_item.manage", {
-      tenantId: principal.tenantId,
-      valueStreamId: art.valueStream.id,
-    });
-
-  return (
-    <ArtBudgetTab
-      detail={detail}
-      basePath={`/structure/art/${art.id}`}
-      canDistribute={canDistribute}
-    />
-  );
-}
-
 async function SolutionsTab({ db, tenantId, artId }: any) {
   const rows = await loadSolutionsList(db, tenantId, { artId });
   return (

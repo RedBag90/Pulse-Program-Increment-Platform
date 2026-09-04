@@ -33,7 +33,7 @@ export function ArtBudgetView({ model }: { model: ArtBudgetModel }) {
 
   return (
     <div className="space-y-2">
-      <ArtBudgetBreakdown model={model} budgets={budgets} onChange={() => {}} canEdit={false} />
+      <ArtBudgetBreakdown model={model} budgets={budgets} />
       <p className="text-xs text-muted-foreground">
         Abgeleitet aus der Finalisierung der Budgeting-Zeiträume.{" "}
         <Link href="/budgeting/periods" className="text-primary hover:underline">

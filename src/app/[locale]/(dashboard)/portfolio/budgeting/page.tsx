@@ -6,5 +6,5 @@ import { redirect } from "next/navigation";
  * Budget-Runde — daher direkt dorthin (kein Doppel-Hop über `/budgeting/board`).
  */
 export default function LegacyPortfolioBudgetingPage() {
-  redirect("/budgeting/rounds");
+  redirect("/budgeting/periods");
 }

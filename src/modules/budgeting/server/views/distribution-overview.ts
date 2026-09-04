@@ -7,7 +7,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
-import { loadRoundBallot } from "@/modules/budgeting/server/services/ballot";
+import { loadPbList } from "@/modules/budgeting/server/services/pb-list";
 import { median } from "@/modules/budgeting/domain/finalize";
 
 export interface OverviewGroup {
@@ -81,7 +81,7 @@ export async function loadDistributionOverview(
         where: { roundId, candidateId: { not: null } },
         select: { groupId: true, candidateId: true, amount: true },
       }),
-      loadRoundBallot(db, principal.tenantId),
+      loadPbList(db, principal.tenantId),
       db.valueStream.findMany({
         where: { tenantId: principal.tenantId },
         select: { id: true, name: true },

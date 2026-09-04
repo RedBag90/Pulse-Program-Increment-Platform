@@ -1,5 +1,5 @@
 import { ArrowUp, Undo2 } from "lucide-react";
-import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { gateStepLabel } from "@/modules/work/domain/stage-gate";
 import type { EpicGateHistoryView } from "@/modules/work/server/views/epic-detail";
 
 /**
@@ -24,9 +24,8 @@ const STATUS_CLASS: Record<string, string> = {
   withdrawn: "text-muted-foreground",
 };
 
-function gateLabel(gate: string): string {
-  return STAGE_GATE_LABELS[gate] ?? gate;
-}
+// `fromGate`/`toGate` einer Antragszeile sind Schritte, keine Major-Gates.
+const gateLabel = gateStepLabel;
 
 /** ISO → de-DE, wie im Timeline-Tab. */
 function day(iso: string): string {

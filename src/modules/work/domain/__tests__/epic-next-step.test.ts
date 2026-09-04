@@ -72,7 +72,11 @@ describe("epicNextStep", () => {
   it("L3 / L3.1 ohne Budget → Budget allozieren mit Link auf /budgeting", () => {
     const step = epicNextStep(base({ stageGate: "L3", subStage: "L3.1" }));
     expect(step?.title).toBe("Budget allozieren");
-    expect(step?.cta).toEqual({ kind: "link", label: "Zum Controlling", href: "/budgeting" });
+    expect(step?.cta).toEqual({
+      kind: "link",
+      label: "Zum Controlling",
+      href: "/budgeting/periods",
+    });
   });
 
   it("L3 / L3.1 mit Budget → Investition abnehmen lassen (L3.2)", () => {

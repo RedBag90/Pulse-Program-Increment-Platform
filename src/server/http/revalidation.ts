@@ -41,11 +41,17 @@ export type RevalidationResource =
   | "roleOnboarding";
 
 const REGISTRY: Record<RevalidationResource, readonly string[]> = {
-  art: ["/structure", "/structure/art/[id]", "/structure/value-stream/[id]"],
+  art: [
+    "/structure",
+    "/structure/art/[id]",
+    "/budgeting/arts/[artId]",
+    "/structure/value-stream/[id]",
+    "/budgeting/value-streams/[id]",
+  ],
   // Beim CREATE reicht der schmale Cut: die neue Detail-Page wird ohnehin
   // bei der Navigation frisch gerendert; nur die Aggregations-Listen
   // muessen den neuen Eintrag sehen.
-  artCreated: ["/structure", "/structure/value-stream/[id]"],
+  artCreated: ["/structure", "/structure/value-stream/[id]", "/budgeting/value-streams/[id]"],
   feature: [
     "/portfolio/epics/[id]",
     "/feature/[featureId]",
@@ -67,7 +73,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     // Portfolio-Manager) auffrischen.
     "/my-tasks",
   ],
-  valueStream: ["/structure", "/structure/value-stream/[id]"],
+  valueStream: ["/structure", "/structure/value-stream/[id]", "/budgeting/value-streams/[id]"],
   // Solutions wirken auf die Verwaltungsseiten UND auf den abgeleiteten
   // Epic-Horizont (Kanban-Swimlanes, Guardrail, Epic-Detail).
   solution: [
@@ -92,10 +98,11 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
     "/structure",
     "/structure/timelines",
     "/structure/value-stream/[id]",
+    "/budgeting/value-streams/[id]",
     "/reporting/portfolio-health",
   ],
   pi: ["/umsetzung", "/structure", "/pi/[piId]", "/pi-planning"],
-  piStandard: ["/structure", "/structure/value-stream/[id]"],
+  piStandard: ["/structure", "/structure/value-stream/[id]", "/budgeting/value-streams/[id]"],
   budgetPlanRevision: ["/budgeting", "/budgeting/budget-plan", "/budgeting/budget-plan/[id]"],
   budgetRound: ["/budgeting", "/budgeting/rounds", "/budgeting/round", "/budgeting/periods/[id]"],
   budgetPeriod: ["/budgeting", "/budgeting/periods", "/budgeting/periods/[id]", "/my-tasks"],
@@ -106,6 +113,7 @@ const REGISTRY: Record<RevalidationResource, readonly string[]> = {
   // Solution-Flächen hängen mit dran.
   rtbItem: [
     "/structure/value-stream/[id]",
+    "/budgeting/value-streams/[id]",
     "/budgeting/periods/[id]",
     "/budgeting/run-the-business",
     "/structure/solutions",

@@ -72,7 +72,7 @@ describe("createRound", () => {
 });
 
 describe("startPeriod — draft→running + RtB-Materialisierung", () => {
-  it("materialisiert aktive RtB-Positionen als Kandidaten und schaltet auf running", async () => {
+  it("bündelt die Positionen eines Wertstroms zu einer Zeile und schaltet auf running", async () => {
     const t: Tx = {
       budgetRound: {
         findFirst: vi.fn(async () => ({ status: "draft" })),
@@ -80,19 +80,51 @@ describe("startPeriod — draft→running + RtB-Materialisierung", () => {
       },
       runTheBusinessItem: {
         findMany: vi.fn(async () => [
-          { id: "rtb1", name: "Betrieb", plannedAmount: 100, valueStreamId: "vs1" },
-          { id: "rtb2", name: "Lizenzen", plannedAmount: 50, valueStreamId: "vs1" },
+          { plannedAmount: 100, interval: "half_yearly", valueStreamId: "vs1" },
+          { plannedAmount: 50, interval: "half_yearly", valueStreamId: "vs1" },
         ]),
       },
-      budgetCandidate: { upsert: vi.fn(async () => ({ id: "c1" })) },
+      valueStream: { findMany: vi.fn(async () => [{ id: "vs1", name: "Digital Banking" }]) },
+      budgetCandidate: { findFirst: vi.fn(async () => null), create: vi.fn(async () => ({})) },
       auditEvent: { create: vi.fn(async () => ({})) },
     };
     const res = await startPeriod(ctxWith(t), { id: "r1" });
     expect(res.ok).toBe(true);
-    expect(t.budgetCandidate!.upsert).toHaveBeenCalledTimes(2);
+
+    // Zwei Positionen, ein Wertstrom, **eine** PB-Listen-Zeile — mit der Summe als
+    // Richtwert. Das ist der Kern der Bündelung.
+    expect(t.budgetCandidate!.create).toHaveBeenCalledTimes(1);
+    expect(t.budgetCandidate!.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "rtb",
+          valueStreamId: "vs1",
+          title: "Digital Banking",
+          ask: 150,
+          rtbItemId: null,
+        }),
+      }),
+    );
     expect(t.budgetRound!.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "running" }) }),
     );
+  });
+
+  it("legt für einen Wertstrom ohne aktive Positionen keine Zeile an", async () => {
+    // Ein Antrag über nichts wäre kein fehlender Antrag, sondern ein falscher.
+    const t: Tx = {
+      budgetRound: {
+        findFirst: vi.fn(async () => ({ status: "draft" })),
+        update: vi.fn(async () => ({})),
+      },
+      runTheBusinessItem: { findMany: vi.fn(async () => []) },
+      valueStream: { findMany: vi.fn(async () => [{ id: "vs1", name: "Ohne Betrieb" }]) },
+      budgetCandidate: { findFirst: vi.fn(async () => null), create: vi.fn(async () => ({})) },
+      auditEvent: { create: vi.fn(async () => ({})) },
+    };
+    const res = await startPeriod(ctxWith(t), { id: "r1" });
+    expect(res.ok).toBe(true);
+    expect(t.budgetCandidate!.create).not.toHaveBeenCalled();
   });
 
   it("lehnt Start ab, wenn nicht im Entwurf", async () => {

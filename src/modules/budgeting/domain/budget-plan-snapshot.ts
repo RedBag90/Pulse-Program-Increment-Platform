@@ -55,7 +55,7 @@ export interface BudgetPlanSnapshotEpic {
   cycleFeatures: BudgetPlanSnapshotFeature[];
   /**
    * Woher das Geld des erfassten Zyklus stammt: `"portfolio"` aus einer
-   * Budget-Kachel, `"art"` aus dem Veränderungsrahmen eines ARTs.
+   * Budget-Kachel, `"art"` aus dem ART-Epic-Budget eines ARTs.
    *
    * Optional, weil Revisionen von **vor** der Trennung das Feld nicht tragen.
    * Der Leser zeigt dann „unbekannt" — er darf nicht „Portfolio" raten, sonst

@@ -67,7 +67,7 @@ describe("closeDistribution", () => {
 
 describe("finalizePeriod", () => {
   function tx(): Tx {
-    // loadRoundBallot: budgeting-reife Ballot-Epics (hier leer)
+    // loadPbList: budgeting-reife PB-Listen-Epics (hier leer)
     const findMany = vi.fn().mockResolvedValue([]);
     return {
       budgetRound: {
@@ -86,7 +86,7 @@ describe("finalizePeriod", () => {
         upsert: vi.fn(async () => ({ id: "a1" })),
       },
       initiative: { findMany },
-      // loadRoundBallot löst den tenant-Default-Aufwand auf.
+      // loadPbList löst den tenant-Default-Aufwand auf.
       tenant: { findUnique: vi.fn(async () => null) },
       auditEvent: { create: vi.fn(async () => ({})) },
     };

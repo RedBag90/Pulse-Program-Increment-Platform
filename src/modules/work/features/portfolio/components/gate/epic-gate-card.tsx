@@ -9,7 +9,7 @@ import {
   withdrawGateTransitionAction,
 } from "@/modules/work/features/portfolio/actions/stage-gate";
 import { setEpicHelpRequestedAction } from "@/modules/work/features/portfolio/actions/epic";
-import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
+import { gateStepLabel } from "@/modules/work/domain/stage-gate";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import type { EpicGateSlice } from "@/modules/work/server/views/epic-detail";
@@ -48,9 +48,9 @@ const REJECT =
 const CLARIFY =
   "rounded-md border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50";
 
-function gateLabel(gate: string): string {
-  return STAGE_GATE_LABELS[gate] ?? gate;
-}
+// Hier werden **Schritte** benannt, nicht Major-Gates: `L4` heißt deshalb
+// „L4.1 Umsetzung läuft" — dieselbe Zahl, die danach am Epic steht.
+const gateLabel = gateStepLabel;
 
 /**
  * Sprungziel je Freigabe-Kriterium: der Ort, an dem man es erfüllt. Nach

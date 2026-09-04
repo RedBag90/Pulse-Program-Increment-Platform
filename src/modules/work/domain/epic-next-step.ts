@@ -137,7 +137,7 @@ export function epicNextStep(input: EpicNextStepInput): EpicNextStep | null {
         : {
             title: "Budget allozieren",
             hint: "Business Case ist freigegeben. Plane jetzt im Controlling Budget für dieses Epic ein, damit die Investition abgenommen werden kann.",
-            cta: { kind: "link", label: "Zum Controlling", href: "/budgeting" },
+            cta: { kind: "link", label: "Zum Controlling", href: "/budgeting/periods" },
           };
     }
     return {

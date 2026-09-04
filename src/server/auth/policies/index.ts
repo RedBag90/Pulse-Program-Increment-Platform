@@ -69,6 +69,7 @@ export type Action =
   | "budget.group.contribute"
   | "timeline.manage"
   | "art_budget.manage"
+  | "art_budget.distribute"
   | "rtb_item.manage"
   | "kpi.bind"
   | "role.capability.manage"
@@ -180,6 +181,16 @@ export const POLICIES: Record<Action, Grant[]> = {
   "art_budget.manage": [
     { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER] },
     { roles: [VALUE_STREAM_OWNER], scope: "value_stream" },
+  ],
+  // Das zugesprochene ART-Epic-Budget auf die ART-Epics verteilen.
+  // Spiegelt `budget.read`: wer das Budget seines ARTs sehen darf, darf es auch
+  // verteilen — der RTE `art`-scoped auf seinen eigenen. Das Budget **setzt** er
+  // damit nicht; das bleibt beim Wertstrom. Der Service-Seam lässt zusätzlich die
+  // Finance-Partei und den Produkt-Manager der Solution eines Epics zu
+  // (`domain/art-pot-access.ts`).
+  "art_budget.distribute": [
+    { roles: [TENANT_ADMIN, PORTFOLIO_MANAGER, VALUE_STREAM_OWNER] },
+    { roles: [RTE], scope: "art" },
   ],
   // Run-the-Business-Positionen eines Value Streams pflegen (stehend am VS).
   // Modelliert auf `art_budget.manage`: `value_stream`-scoped für den VS-Owner;

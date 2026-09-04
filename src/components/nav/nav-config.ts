@@ -16,6 +16,7 @@ import {
   Plug,
   ClipboardCheck,
   ClipboardList,
+  TrainFront,
   Inbox,
   ListTodo,
   Compass,
@@ -162,11 +163,10 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [{ href: "/issues", labelKey: "issues", icon: ShieldAlert, exact: true }],
   },
   {
-    // Budgeting: **eine** Arbeitsfläche (die Kachel trägt den ganzen Ablauf) und
-    // **ein** Archiv. Die Controlling-Übersicht ist in Gallery und Kachel
-    // aufgegangen; Run the Business lebt in der Ballot-Phase und ist von
-    // Wertstrom und Solution aus erreichbar. Via moduleAllowed ausgeblendet,
-    // wenn das Budgeting-Modul aus ist.
+    // Budgeting: die Nav ist die Geldkette. Die Kachel spricht dem Wertstrom
+    // Geld zu → der Wertstrom teilt es auf Betrieb und ART-Epic-Budgets auf →
+    // der ART verteilt seines auf seine Epics → der Budget-Plan friert den
+    // Stand ein. Via moduleAllowed ausgeblendet, wenn das Modul aus ist.
     labelKey: "budgeting",
     defaultHref: "/budgeting/periods",
     items: [
@@ -176,6 +176,20 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: "budgetPeriods",
         icon: LayoutGrid,
         capability: "budget.round.manage",
+      },
+      {
+        // Wo ein ART-Epic-Budget entsteht und der Zuspruch aufgeteilt wird.
+        href: "/budgeting/value-streams",
+        labelKey: "budgetValueStreams",
+        icon: Network,
+      },
+      {
+        // Wo ein ART sein Budget verteilt — ohne Umweg über eine Kachel.
+        // Die Practice `artEpics` blendet die Route selbst aus (REQ-19); die
+        // Nav-Konfiguration kennt keine Practices.
+        href: "/budgeting/arts",
+        labelKey: "budgetArts",
+        icon: TrainFront,
       },
       {
         href: "/budgeting/budget-plan",

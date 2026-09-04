@@ -5,9 +5,10 @@ vorantreibt, des **Portfolio Managers / VMO**, der ihn steuert und abnimmt, und
 der **Finance**, die das Geld und den Nutzen gegenzeichnet. Mit den Namen, die
 Pulse tatsächlich verwendet: Reifegrad-Schritte, Reiter, Merker, Freigabewege.
 
-Vier Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+Fünf Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
 [Epic](epic-lifecycle-walkthrough.md) — was gebaut wird ·
 [Budget](budgeting-walkthrough.md) — womit ·
+[ART-Budget](art-epic-budget-walkthrough.md) — womit, wenn es klein ist ·
 [PI](pi-walkthrough.md) — wann geliefert wird ·
 [Risiko](risk-walkthrough.md) — was dazwischenkommt. Den Rahmen, in dem sie
 stattfinden, führt [Struktur](structure-walkthrough.md) vor.
@@ -83,7 +84,7 @@ ziehe ich meinen Antrag selbst zurück.
 
 Für die Konkretisierung brauche ich Geld. Es kommt aus derselben Budgetrunde wie
 alles andere — eine je Halbjahr. Mein Epic kommt schon mit der freigegebenen
-Hypothese aufs Ballot: Pulse setzt dann einen tenant-konfigurierten
+Hypothese aufs PB-Liste: Pulse setzt dann einen tenant-konfigurierten
 Default-Aufwand als Kosten-Richtwert an, grob das, was das Erarbeiten des
 Business Case kostet. Ich setze im Overview den Haken **„Fürs nächste
 Budget-Meeting vormerken"**.
@@ -134,10 +135,10 @@ die ist nicht entschieden, wie groß das Vorhaben ist. Jetzt rechnet Pulse die
 Kostenscheiben zusammen und stellt sie dem **Portfolio-Limit** meines Wertstroms
 gegenüber:
 
-- **darüber** → Portfolio-Epic. Es geht den bekannten Weg über den Ballot einer
+- **darüber** → Portfolio-Epic. Es geht den bekannten Weg über die PB-Liste einer
   Budget-Kachel.
-- **darunter** → ART-Epic. Es steht **nicht** auf dem Ballot, sondern wird aus
-  dem Veränderungsrahmen meines ARTs bedient — der Wertstrom verteilt ihn im
+- **darunter** → ART-Epic. Es steht **nicht** auf der PB-Liste, sondern wird aus
+  dem ART-Epic-Budget meines ARTs bedient — der Wertstrom verteilt ihn im
   Budget-Reiter des ARTs.
 
 Die Ausnahme heißt Override: wer sie trägt, kann erklären, dass ein Epic
@@ -153,16 +154,28 @@ Die beiden Haken hängen technisch nicht zusammen — dass der eine auf den ande
 folgt, ist meine Entscheidung, nicht die des Tools.
 
 Die nächste Runde läuft. **Ist mein Epic ein Portfolio-Epic**, steht es mit
-freigegebenem Business Case auf dem Ballot, und der Kosten-Richtwert ist jetzt
+freigegebenem Business Case auf der PB-Liste, und der Kosten-Richtwert ist jetzt
 die Summe der Kostenscheiben aus dem BC statt des Defaults. Die Runde
 diskutiert, entscheidet, teilt zu.
 
 **Ist es ein ART-Epic**, warte ich auf keine Runde. Es taucht in der
 Kandidatenliste gar nicht auf; stattdessen steht es im Budget-Reiter meines ARTs
-zur Verteilung — dort, wo der Veränderungsrahmen liegt. Verteilt wird im
+zur Verteilung — dort, wo der ART-Epic-Budget liegt. Verteilt wird im
 laufenden oder im nächsten Halbjahr, nicht rückwirkend. Hat mein ART keinen
 Rahmen, hat mein Epic **keinen** Weg zu Geld; Pulse sagt das an der Epic-Seite,
 statt es mich beim Warten herausfinden zu lassen.
+
+Wen ich dafür ansprechen muss: den **Wertstrom-Owner**, die **Finance-Partei**
+des Wertstroms, das **Portfolio-Management** — oder den **Produkt-Manager**
+meiner Primär-Solution, der für die Epics seines Produkts selbst zuteilen darf.
+Den freien Betrag sehe ich nicht: die Geld-Reiter tragen ein eigenes Recht, und
+das liegt oberhalb des Epic Owners. Was ich sehe, ist, **ob** überhaupt ein
+Rahmen da ist. Der Rest ist ein Gespräch, und das ist Absicht.
+
+Und die Reihenfolge ist die, die man leicht andersherum erwartet: **erst die
+Zuteilung, dann der Antrag.** Die Freigabe von L3.2 genehmigt kein Geld, sie
+stellt fest, dass welches da ist. Der ganze Weg, aus drei Perspektiven, steht in
+[art-epic-budget-walkthrough.md](art-epic-budget-walkthrough.md).
 
 Jetzt kommt der Schritt, den man leicht übersieht: **L3.1 → L3.2 · Budget
 alloziert**. Das ist die Investitionsentscheidung, und sie ist ein eigener
@@ -173,9 +186,18 @@ gleichgültig, woher das Geld kam. Mit der Abnahme stempelt Pulse Genehmiger und
 Datum ans Epic.
 
 Das ist mein Stichwort. Ich ordne meine Features den PIs zu und beantrage
-**L3.2 → L4**, den Start der Umsetzung. Ein Kriterium gibt es — „mindestens ein
-Feature ist gestartet" —, aber es blockiert nicht: der Antrag selbst _ist_ der
-bewusste Start. Danach zeigt mein Epic **L4.1 · Umsetzung läuft**.
+**L4.1 · Umsetzung läuft**, den Start der Umsetzung. Ein Kriterium gibt es —
+„mindestens ein Feature ist gestartet" —, aber es blockiert nicht: der Antrag
+selbst _ist_ der bewusste Start.
+
+Zur Benennung: gespeichert wird dieser Schritt als `L4`, angezeigt heißt er
+überall **L4.1**. Das Haupt-Gate `L4` umfasst beide Unterstufen — L4.1 und L4.2
+—, und die Trichter-Leiste nennt es deshalb weiterhin so. Wo dagegen ein
+**Schritt** benannt wird (Gate-Karte, Antrag, Rückstufung, Historie, meine
+Freigaben), steht L4.1: dieselbe Zahl, die danach am Epic steht.
+
+Die PI-Zuordnung ist übrigens keine Folge dieser Abnahme, sondern ihre
+Voraussetzung: ein Feature lässt sich erst starten, wenn es in einem PI liegt.
 
 Zum Umsetzungsstart erfasse ich den ersten Messwert je KPI. Damit beginnt die
 Messreihe, an der Pulse den Erfüllungsgrad entlang der Strecke Baseline → Ziel
@@ -248,7 +270,7 @@ Wertstroms.
 
 Dann das Geld. Es wird nicht am Epic verteilt, sondern in einem
 **Budget-Zeitraum**: ich lege eine Kachel mit ihrem Topf an, nehme die
-vorgemerkten Epics auf den Ballot, und Gruppen verteilen unabhängig voneinander.
+vorgemerkten Epics auf die PB-Liste, und Gruppen verteilen unabhängig voneinander.
 Wie das abläuft, steht in
 [budgeting-walkthrough.md](budgeting-walkthrough.md).
 
@@ -367,7 +389,7 @@ einstimmig — wer eingetragen ist, muss zustimmen.
 | → L1 · L2 | VMO                                                                                           |
 | → L3.1    | MGMT, Business Owner, Finance, IRT-Owner, LACE/VMO — plus Produkt-Manager der Primär-Solution |
 | → L3.2    | VMO **und** Finance                                                                           |
-| → L4      | VMO — plus Produkt-Manager, aber **nur bei einem ART-Epic**                                   |
+| → L4.1    | VMO — plus Produkt-Manager, aber **nur bei einem ART-Epic**                                   |
 | → L4.2    | VMO                                                                                           |
 | → L5      | Finance                                                                                       |
 
@@ -377,6 +399,11 @@ existiert die Einordnung ja noch gar nicht, eine Einschränkung auf ART-Epics
 wäre nicht entscheidbar. An → L4 ist sie bekannt, und dort zeichnet er nur bei
 ART-Epics: sein Produkt wird aus dem Rahmen seines ARTs verändert. Ist kein
 Produkt-Manager benannt, fällt er an beiden Stellen still weg.
+
+Dieselbe Person darf im Übrigen auch das Geld dafür zuteilen — aus dem Rahmen
+des ARTs, aber nur an die Epics ihrer eigenen Solution. Wer über eine Freigabe
+entscheidet, deren Gegenstand sein eigenes Produkt ist, soll auch den Weg dorthin
+gehen können.
 
 Die fünf Parteien an → L3.1 sind der Code-Default und zugleich der Ausdruck der
 Practice „Mehrparteien-Freigabe". Ist sie im Zielbild aus, zeichnet dort der VMO
@@ -398,12 +425,12 @@ Regel des Wertstroms.
 | Finance-Seam ohne Rolle (Run the Business)              | `src/modules/budgeting/server/services/rtb-item-service.ts`                |
 | Empfänger der „I need help"-Bitten                      | `src/modules/work/server/services/my-help-requests.ts`                     |
 | Business-Owner-Engagement (Guardrail 4)                 | `src/modules/work/server/views/portfolio-guardrails-view.ts`               |
-| Ballot-Fähigkeit + Default-Aufwand                      | `src/modules/work/domain/pb-submission.ts`                                 |
+| PB-Liste-Fähigkeit + Default-Aufwand                    | `src/modules/work/domain/pb-submission.ts`                                 |
 | Einordnung: Kosten gegen Portfolio-Limit                | `src/modules/work/domain/pb-submission.ts` (`classifyEpic`)                |
 | Abweichung Erwartung ↔ Ableitung                        | `src/modules/work/domain/pb-submission.ts` (`classificationDrift`)         |
 | Das Limit je Wertstrom (mit Tenant-Vorgabe)             | `src/modules/work/domain/portfolio-guardrails.ts`                          |
-| ART-Epics werden vom Ballot ausgenommen                 | `src/modules/budgeting/server/views/period-detail.ts`                      |
-| Veränderungsrahmen und Zuteilung an ART-Epics           | `src/modules/budgeting/server/services/art-pot.ts`                         |
+| ART-Epics werden vom PB-Liste ausgenommen               | `src/modules/budgeting/server/views/period-detail.ts`                      |
+| ART-Epic-Budget und Zuteilung an ART-Epics              | `src/modules/budgeting/server/services/art-pot.ts`                         |
 | Phasen und Status eines Budget-Zeitraums                | `src/modules/budgeting/domain/period-phases.ts`                            |
 | Beschriftung der zwei Merker                            | `src/modules/work/features/portfolio/components/epic-governance-flags.tsx` |
 | Timeline-Estimates = geplantes Fenster                  | `src/modules/work/domain/epic-schedule.ts`                                 |

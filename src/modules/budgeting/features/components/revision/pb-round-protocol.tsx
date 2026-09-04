@@ -68,7 +68,7 @@ export function PbRoundProtocol({ round }: { round: PbRoundSnapshot }) {
             {round.epics.length === 0 && (
               <tr>
                 <td colSpan={6} className="p-4 text-center text-muted-foreground">
-                  Keine Ballot-Epics im Protokoll.
+                  Keine PB-Listen-Epics im Protokoll.
                 </td>
               </tr>
             )}

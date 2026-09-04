@@ -8,7 +8,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 
-export interface ArtBudgetRow {
+export interface PeriodArtBudget {
   artId: string | null;
   artName: string;
   total: number;
@@ -20,7 +20,7 @@ export interface VsBudgetRow {
   runTotal: number;
   changeTotal: number;
   total: number;
-  arts: ArtBudgetRow[];
+  arts: PeriodArtBudget[];
 }
 
 export interface PeriodValueStreamsModel {
@@ -45,7 +45,7 @@ export function buildPeriodValueStreams(
   artName: (id: string | null) => string,
 ): PeriodValueStreamsModel {
   const vsMap = new Map<string, VsBudgetRow>();
-  const artMap = new Map<string, Map<string, ArtBudgetRow>>();
+  const artMap = new Map<string, Map<string, PeriodArtBudget>>();
 
   const vsKey = (id: string | null) => id ?? NO_VS;
 

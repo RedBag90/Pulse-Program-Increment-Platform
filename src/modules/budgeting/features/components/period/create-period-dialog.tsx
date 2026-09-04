@@ -121,7 +121,7 @@ export function CreatePeriodDialog({
                 <span>
                   Vom vorherigen Zeitraum übernehmen
                   <span className="block text-xs text-muted-foreground">
-                    Beteiligte, Gruppen (inkl. Sprecher) und den Ballot (Epics). Danach im Setup
+                    Beteiligte, Gruppen (inkl. Sprecher) und die PB-Liste (Epics). Danach im Setup
                     anpassbar.
                   </span>
                 </span>

@@ -16,6 +16,7 @@ import { authorizeResource } from "@/server/auth/authorize";
 import {
   validateGuardrailTargets,
   parseGuardrailTargets,
+  resolveGuardrailTargets,
   type GuardrailTargetsRow,
 } from "@/modules/work/domain/portfolio-guardrails";
 
@@ -29,6 +30,46 @@ export async function listValueStreamGuardrailTargets(
     select: { valueStreamId: true, targets: true },
   });
   return rows.map((r) => ({ valueStreamId: r.valueStreamId, targets: r.targets }));
+}
+
+/**
+ * Das **Portfolio-Limit** je Wertstrom, aufgelöst — plus der Wert, der ohne
+ * Wertstrom gilt.
+ *
+ * Gedacht für Flächen, die die Schwelle *benennen*, bevor ein Epic existiert:
+ * im Anlege-Dialog wählt jemand die erwartete Einordnung, und die Zahl dahinter
+ * hängt am Wertstrom, den er im selben Formular erst wählt.
+ *
+ * `byValueStream` trägt **jeden** Wertstrom, nicht nur die mit eigener Zeile —
+ * sonst müsste der Aufrufer die Auflösung ein zweites Mal nachbauen, um zu
+ * wissen, ob ein fehlender Eintrag „geerbt" oder „unbekannt" heißt.
+ */
+export interface PortfolioThresholds {
+  /** Gilt, solange kein Wertstrom gewählt ist: Tenant-Default, sonst Code-Default. */
+  defaultThreshold: number;
+  byValueStream: Record<string, number>;
+}
+
+export async function loadPortfolioThresholds(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<PortfolioThresholds> {
+  const [rows, tenant, valueStreams] = await Promise.all([
+    listValueStreamGuardrailTargets(db, tenantId),
+    db.tenant.findUnique({ where: { id: tenantId }, select: { guardrailTargets: true } }),
+    db.valueStream.findMany({ where: { tenantId, deletedAt: null }, select: { id: true } }),
+  ]);
+
+  const tenantRaw = tenant?.guardrailTargets ?? null;
+  const limitOf = (valueStreamId: string | null): number =>
+    resolveGuardrailTargets(rows, tenantRaw, valueStreamId).targets.approval.portfolioThreshold;
+
+  // Je Wertstrom einmal auflösen statt je Zeile — dasselbe Muster wie
+  // `classifyEpics` (`work/server/services/epic-class.ts`).
+  const byValueStream: Record<string, number> = {};
+  for (const vs of valueStreams) byValueStream[vs.id] = limitOf(vs.id);
+
+  return { defaultThreshold: limitOf(null), byValueStream };
 }
 
 export interface SaveValueStreamGuardrailTargetsInput {

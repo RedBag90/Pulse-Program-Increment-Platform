@@ -123,7 +123,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
         );
         const classification = classifyEpic(row, resolved.targets.approval.portfolioThreshold);
 
-        // Nach der Quellen-Trennung ist ein ART-Epic vom Ballot ausgeschlossen.
+        // Nach der Quellen-Trennung ist ein ART-Epic vom PB-Liste ausgeschlossen.
         // Fehlt ihm auch ein Rahmen, hat es überhaupt keinen Weg mehr — das
         // wird ausgewiesen, nicht verschwiegen.
         let fundingGap: "noArt" | "noPot" | null = null;

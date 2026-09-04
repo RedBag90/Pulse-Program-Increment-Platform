@@ -28,7 +28,7 @@ describe("buildArtBudgetModel", () => {
       vsByPeriod: { "2026-H1": 1000, "2026-H2": 800 },
       rows: [row("a", { "2026-H1": 300 }), row("b", { "2026-H1": 200, "2026-H2": 500 })],
     });
-    expect(model.remaining).toEqual({ "2026-H1": 500, "2026-H2": 300 });
+    expect(model.unassigned).toEqual({ "2026-H1": 500, "2026-H2": 300 });
   });
 
   it("Ueberverteilung ergibt einen negativen Rest", () => {
@@ -37,13 +37,13 @@ describe("buildArtBudgetModel", () => {
       vsByPeriod: { "2026-H1": 100 },
       rows: [row("a", { "2026-H1": 250 })],
     });
-    expect(model.remaining["2026-H1"]).toBe(-150);
+    expect(model.unassigned["2026-H1"]).toBe(-150);
   });
 
   it("ohne ART ist das Modell leer — die Sicht zeigt dann nur einen Hinweis", () => {
     const model = buildArtBudgetModel({ periods, vsByPeriod: {}, rows: [] });
     expect(model.isEmpty).toBe(true);
-    expect(model.remaining).toEqual({ "2026-H1": 0, "2026-H2": 0 });
+    expect(model.unassigned).toEqual({ "2026-H1": 0, "2026-H2": 0 });
   });
 
   it("belegt jede Spalte, auch wenn weder Budget noch ART sie kennt", () => {
@@ -52,7 +52,7 @@ describe("buildArtBudgetModel", () => {
       vsByPeriod: { "2026-H1": 10 },
       rows: [row("a", {})],
     });
-    expect(Object.keys(model.remaining)).toEqual(["2026-H1", "2026-H2"]);
+    expect(Object.keys(model.unassigned)).toEqual(["2026-H1", "2026-H2"]);
     expect(model.isEmpty).toBe(false);
   });
 });

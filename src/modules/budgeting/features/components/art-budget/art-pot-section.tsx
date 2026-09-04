@@ -3,19 +3,25 @@
 import { useActionState, useState } from "react";
 
 import { formatEUR } from "@/lib/formatting";
-import { setArtEpicAllocationAction } from "@/modules/budgeting/features/actions/art-pot";
-import type { ArtPotView } from "@/modules/budgeting/server/views/art-budget-detail";
+import { saveArtEpicAllocationsAction } from "@/modules/budgeting/features/actions/art-pot";
+import type { ArtPotView } from "@/modules/budgeting/server/views/art-budget-model";
 
 /**
- * Der Veränderungsrahmen eines ARTs und seine Verteilung auf ART-Epics.
+ * Der ART-Epic-Budget eines ARTs und seine Verteilung auf ART-Epics.
  *
  * Nichts ist vorbelegt, und sortiert wird nach Richtwert, nicht nach Eingabe —
  * dieselben zwei Regeln wie im Verteilbogen der Gruppen: jede Zuteilung ist eine
  * Entscheidung, und beim Tippen springt keine Zeile.
  *
- * Verteilt wird **nicht** vom ART: zuständig sind Wertstrom-Owner,
- * Finance-Partei und Portfolio-Management. Die Fläche liegt hier, weil hier der
- * Zusammenhang sichtbar wird — die Entscheidung liegt es nicht.
+ * Verteilt wird vom **RTE dieses ARTs**, der Finance-Partei, dem
+ * Wertstrom-Owner, dem Portfolio-Management — oder, zeilenweise, vom
+ * Produkt-Manager der Solution eines Epics.
+ *
+ * **Ein Knopf für die ganze Tabelle.** Vorher war jede Zeile ein eigenes
+ * Formular mit ✓-Knopf: ein Roundtrip je Betrag, kein Zustand „ungespeichert",
+ * kein Zurück — und wer zwei Beträge tauschen wollte, musste die Reihenfolge
+ * kennen, in der der Deckel es zuließ. Das Aufteilen des Zuspruchs einen
+ * Schritt vorher macht es längst so.
  */
 export function ArtPotSection({
   view,
@@ -27,7 +33,7 @@ export function ArtPotSection({
   canDistribute: boolean;
 }) {
   const { pot, rows } = view;
-  const [state, formAction, pending] = useActionState(setArtEpicAllocationAction, {});
+  const [state, formAction, pending] = useActionState(saveArtEpicAllocationsAction, {});
   const [draft, setDraft] = useState<Record<string, string>>(() =>
     Object.fromEntries(rows.map((r) => [r.epicId, String(r.amount)])),
   );
@@ -41,7 +47,7 @@ export function ArtPotSection({
       <section className="space-y-2">
         <h2 className="text-lg font-medium">ART-Epics finanzieren</h2>
         <p className="rounded-r-md border-l-2 bg-surface-frame px-3 py-2 text-sm text-muted-foreground">
-          Für dieses Halbjahr ist diesem ART kein Veränderungsrahmen zugeteilt. Ein Rahmen wird als
+          Für dieses Halbjahr ist diesem ART kein ART-Epic-Budget zugeteilt. Ein Rahmen wird als
           Run-the-Business-Position im Wertstrom angelegt und in der Kachel mitverteilt.
         </p>
       </section>
@@ -52,12 +58,12 @@ export function ArtPotSection({
     <section className="space-y-3">
       <h2 className="text-lg font-medium">ART-Epics finanzieren · {pot.cycleKey}</h2>
       <p className="text-sm text-muted-foreground">
-        Aus dem Veränderungsrahmen des ARTs. Portfolio-Epics laufen über die Kachel.
+        Aus dem ART-Epic-Budget des ARTs. Portfolio-Epics laufen über die Kachel.
       </p>
 
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          { label: "ART-Topf", value: pot.total, tone: "" },
+          { label: "ART-Epic-Budget", value: pot.total, tone: "" },
           { label: "Verteilt", value: sum, tone: "var(--primary)" },
           { label: "Rest", value: pot.total - sum, tone: over ? "var(--destructive)" : "" },
         ].map((t) => (
@@ -108,29 +114,14 @@ export function ArtPotSection({
                   </td>
                   <td className="p-2 text-right tabular-nums">{formatEUR(r.ask)}</td>
                   <td className="p-2 text-right">
-                    {canDistribute && pot.closedReason == null ? (
-                      <form action={formAction} className="inline-flex items-center gap-1">
-                        <input type="hidden" name="artId" value={artId} />
-                        <input type="hidden" name="epicId" value={r.epicId} />
-                        <input type="hidden" name="cycleKey" value={pot.cycleKey} />
-                        <input type="hidden" name="ask" value={r.ask} />
-                        <input
-                          name="amount"
-                          value={draft[r.epicId] ?? "0"}
-                          onChange={(ev) =>
-                            setDraft((p) => ({ ...p, [r.epicId]: ev.target.value }))
-                          }
-                          inputMode="numeric"
-                          className="w-28 rounded-md border bg-background px-2 py-1 text-right tabular-nums"
-                        />
-                        <button
-                          type="submit"
-                          disabled={pending}
-                          className="rounded-md border px-2 py-1 text-xs disabled:opacity-50"
-                        >
-                          ✓
-                        </button>
-                      </form>
+                    {canDistribute && r.canDistribute && pot.closedReason == null ? (
+                      <input
+                        value={draft[r.epicId] ?? "0"}
+                        onChange={(ev) => setDraft((p) => ({ ...p, [r.epicId]: ev.target.value }))}
+                        inputMode="numeric"
+                        aria-label={`Zuteilung für ${r.title}`}
+                        className="w-28 rounded-md border bg-background px-2 py-1 text-right tabular-nums"
+                      />
                     ) : (
                       <span className="tabular-nums">{formatEUR(r.amount)}</span>
                     )}
@@ -150,9 +141,43 @@ export function ArtPotSection({
         </div>
       )}
 
+      {canDistribute && pot.closedReason == null && rows.some((r) => r.canDistribute) && (
+        <form
+          action={formAction}
+          className="flex flex-wrap items-center gap-3 rounded-lg border bg-surface-frame px-3 py-2"
+        >
+          <input type="hidden" name="artId" value={artId} />
+          <input type="hidden" name="cycleKey" value={pot.cycleKey} />
+          <input
+            type="hidden"
+            name="amounts"
+            value={JSON.stringify(
+              rows
+                .filter((r) => r.canDistribute)
+                .map((r) => ({
+                  epicId: r.epicId,
+                  amount: Number(draft[r.epicId]) || 0,
+                  ask: r.ask,
+                })),
+            )}
+          />
+          <span className="text-sm text-muted-foreground">
+            Summe <span className="font-medium tabular-nums text-foreground">{formatEUR(sum)}</span>{" "}
+            von {formatEUR(pot.total)}
+          </span>
+          <button
+            type="submit"
+            disabled={pending || over}
+            className="ml-auto rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          >
+            {pending ? "…" : "Zuteilung speichern"}
+          </button>
+        </form>
+      )}
+
       {over && (
         <p role="alert" className="text-sm text-destructive">
-          Die Summe überschreitet den Rahmen um {formatEUR(sum - pot.total)}.
+          Die Summe überschreitet das ART-Epic-Budget um {formatEUR(sum - pot.total)}.
         </p>
       )}
       {state.error && (
@@ -172,9 +197,15 @@ export function ArtPotSection({
         </p>
       )}
       <p className="text-sm text-muted-foreground">
-        Die Zuteilung erfüllt das blockierende Kriterium für L3.2. Beantragt und abgenommen wird wie
-        bei jedem Epic.
+        Die Zuteilung erfüllt das blockierende Kriterium für L3.2 — sie kommt also <em>vor</em> dem
+        Antrag. Beantragt und abgenommen wird danach wie bei jedem Epic.
       </p>
+      {canDistribute && rows.some((r) => !r.canDistribute) && (
+        <p className="text-sm text-muted-foreground">
+          Bedienbar sind nur die Zeilen, deren Solution Sie als Produkt-Manager verantworten. Für
+          die übrigen entscheidet der Wertstrom.
+        </p>
+      )}
     </section>
   );
 }

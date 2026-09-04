@@ -167,7 +167,7 @@ export function ValueStreamGuardrailsSection({
             <div>
               <div className="text-2xl font-semibold tabular-nums">{preview.portfolio.count}</div>
               <div className="text-xs text-muted-foreground">
-                Portfolio-Epics · {formatEUR(preview.portfolio.amount)} · über den Ballot
+                Portfolio-Epics · {formatEUR(preview.portfolio.amount)} · über die PB-Liste
               </div>
             </div>
             <div>

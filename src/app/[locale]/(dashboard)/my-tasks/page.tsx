@@ -17,7 +17,10 @@ import { buildEpicsListModel } from "@/modules/work/server/views/portfolio-epics
 import { buildFeaturesListModel } from "@/server/views/features-list";
 import { buildMyTasksListModel } from "@/modules/work/server/views/my-tasks-list";
 import { MyTasksListShell } from "@/modules/work/features/my-tasks/components/my-tasks-list-shell";
-import { listMyBudgetingTasks } from "@/modules/budgeting/server/services/my-budgeting-tasks";
+import {
+  listMyBudgetingTasks,
+  listMyArtFundingTasks,
+} from "@/modules/budgeting/server/services/my-budgeting-tasks";
 import { BudgetingTasksSection } from "@/modules/budgeting/features/components/my-tasks/budgeting-tasks-section";
 import { listMyApprovals } from "@/modules/work/server/services/my-approvals";
 import { MyApprovalsList } from "@/modules/work/features/my-approvals/components/my-approvals-list";
@@ -229,9 +232,24 @@ export default async function MyTasksPage() {
 
   // Cross-Modul (ADR-0013): der Budgeting-Hinweis wird am Kompositionsroot
   // geladen (Work importiert nicht Budgeting), hinter dem Modul-Gate.
-  const budgetingTasks = principal.enabledModules.includes("budgeting")
+  const budgetingEnabled = principal.enabledModules.includes("budgeting");
+  const budgetingTasks = budgetingEnabled
     ? await listMyBudgetingTasks(db, { id: principal.id, tenantId })
     : [];
+
+  // Und der Hinweis an den ART, dessen Budget steht: sichtbar für die ARTs, auf
+  // die `art_budget.distribute` scoped ist — plus alle, wenn jemand die
+  // Capability tenant-weit trägt.
+  const distributeScope = principal.capabilities.filter(
+    (c) => c.action === "art_budget.distribute",
+  );
+  const artIds = distributeScope.some((c) => c.scope == null)
+    ? (await db.art.findMany({ where: { tenantId }, select: { id: true } })).map((a) => a.id)
+    : principal.scopes.artIds;
+  const artFundingTasks =
+    budgetingEnabled && artIds.length > 0
+      ? await listMyArtFundingTasks(db, { id: principal.id, tenantId }, artIds)
+      : [];
 
   // Freigaben-Inbox — die zweite Sicht dieser Seite (früher /my-approvals).
   const approvals = await listMyApprovals(db, principal);
@@ -246,7 +264,7 @@ export default async function MyTasksPage() {
   return (
     <>
       <HelpRequestsSection tasks={helpRequests} userLabels={userLabels} />
-      <BudgetingTasksSection tasks={budgetingTasks} />
+      <BudgetingTasksSection tasks={budgetingTasks} funding={artFundingTasks} />
       <Page>
         <PageHeader title="Meine Tasks" subtitle="Deine Freigaben und Aufgaben an einem Ort." />
         <MyApprovalsList rows={approvals} />

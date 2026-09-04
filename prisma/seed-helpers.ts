@@ -191,6 +191,9 @@ export async function wipeDomainData(tenantId: string): Promise<void> {
   await prisma.artEpicAllocation.deleteMany(w);
   await prisma.valueStreamGuardrailTargets.deleteMany(w);
   await prisma.budgetRound.deleteMany(w);
+  // Die Aufteilung des Wertstrom-Zuspruchs hängt an der Position und würde über
+  // sie kaskadieren — auch hier gilt: nicht auf die Kaskade verlassen.
+  await prisma.rtbItemAward.deleteMany(w);
   await prisma.runTheBusinessItem.deleteMany(w);
   // Budgeting — Snapshot + die abgeleitete Epic-Zuteilung
   await prisma.budgetPlanRevision.deleteMany(w);

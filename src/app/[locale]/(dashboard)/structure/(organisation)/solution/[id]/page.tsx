@@ -64,13 +64,22 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
   ]);
   const budgetingEnabled = principal.enabledModules.includes("budgeting");
   // Betriebskosten pflegt, wer den Wertstrom verantwortet — nicht, wer die
-  // Solution verwaltet. Dieselbe Regel wie im Wertstrom-Detail.
+  // Solution verwaltet. **Einschließlich der Finance-Partei:** der Service lässt
+  // sie durch (`assertRtbManage`), die Fläche tat es bisher nicht, und dieselbe
+  // Person sah dieselben Zeilen im Wertstrom bedienbar und hier als Text.
+  const vsFinance = budgetingEnabled
+    ? await db.valueStream.findFirst({
+        where: { id: model.valueStreamId, tenantId: principal.tenantId },
+        select: { financeApproverId: true },
+      })
+    : null;
   const canManageRtb =
     budgetingEnabled &&
-    hasCapability(principal, "rtb_item.manage", {
-      tenantId: principal.tenantId,
-      valueStreamId: model.valueStreamId,
-    });
+    (vsFinance?.financeApproverId === principal.id ||
+      hasCapability(principal, "rtb_item.manage", {
+        tenantId: principal.tenantId,
+        valueStreamId: model.valueStreamId,
+      }));
 
   const [history, rtbItems] = await Promise.all([
     listAuditHistory(db, principal.tenantId, "solution", id),

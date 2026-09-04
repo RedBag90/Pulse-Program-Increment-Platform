@@ -43,7 +43,7 @@ model Tenant {
   // Participatory Budgeting: Default-Aufwand (Kosten-Richtwert) für Epics, die
   // erst eine approved Benefit-Hypothese (noch keinen Lean Business Case) haben —
   // grob der Aufwand, um den Business Case zu erarbeiten. `null` ⇒ Code-Fallback
-  // (DEFAULT_HYPOTHESIS_EFFORT). Für nur-Hypothese-Kandidaten der Ballot-Richtwert.
+  // (DEFAULT_HYPOTHESIS_EFFORT). Für nur-Hypothese-Kandidaten der PB-Liste-Richtwert.
   defaultHypothesisEffort Decimal? @map("default_hypothesis_effort") @db.Decimal(14, 2)
 
   // Conversion rate that turns WSJF Job-Size points into € for the PI-Planning
@@ -80,6 +80,7 @@ model Tenant {
   budgetPlanRevisions   BudgetPlanRevision[]
   budgetRounds          BudgetRound[]
   runTheBusinessItems   RunTheBusinessItem[]
+  rtbItemAwards         RtbItemAward[]
   piStandards           PiStandard[]
   timelines             Timeline[]
   setupProgress         SetupProgress[]
@@ -611,19 +612,19 @@ model ValueStream {
 }
 
 model Art {
-  id             String    @id @default(uuid()) @db.Uuid
-  tenantId       String    @map("tenant_id") @db.Uuid
-  valueStreamId  String    @map("value_stream_id") @db.Uuid
-  name           String
-  description    String?
-  rteId          String?   @map("rte_id") @db.Uuid // Release Train Engineer
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  valueStreamId String    @map("value_stream_id") @db.Uuid
+  name          String
+  description   String?
+  rteId         String?   @map("rte_id") @db.Uuid // Release Train Engineer
   /// Subscription to a shared Timeline. Each ART belongs to at most one
   /// Timeline; nullable during the rollout so brand-new ARTs (or those that
   /// left a Timeline) live without one. The PI grid the ART planss against
   /// comes from `timeline.programIncrements`.
-  timelineId     String?   @map("timeline_id") @db.Uuid
-  createdAt      DateTime  @default(now()) @map("created_at")
-  deletedAt      DateTime? @map("deleted_at")
+  timelineId    String?   @map("timeline_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  deletedAt     DateTime? @map("deleted_at")
 
   tenant          Tenant               @relation(fields: [tenantId], references: [id])
   valueStream     ValueStream          @relation(fields: [valueStreamId], references: [id])
@@ -646,26 +647,26 @@ model Art {
 /// Investing/Extracting → h0 Decommissioning. Epics verändern Solutions; der
 /// Horizont eines Epics wird aus seiner Primär-Solution abgeleitet.
 model Solution {
-  id             String    @id @default(uuid()) @db.Uuid
-  tenantId       String    @map("tenant_id") @db.Uuid
-  valueStreamId  String    @map("value_stream_id") @db.Uuid
-  artId          String?   @map("art_id") @db.Uuid
-  name           String
-  description    String?
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  valueStreamId    String    @map("value_stream_id") @db.Uuid
+  artId            String?   @map("art_id") @db.Uuid
+  name             String
+  description      String?
   /// h0 (Decommissioning) | h1 (Investing) | h2 (Emerging) | h3 (R&D).
-  horizon        String    @default("h1")
+  horizon          String    @default("h1")
   /// Nur in H1 relevant: "investing" | "extracting". Sonst null.
-  investmentMode String?   @map("investment_mode")
+  investmentMode   String?   @map("investment_mode")
   /// Namentlich Verantwortliche:r für dieses Produkt. Freies Personenfeld ohne
   /// Rollenbindung (wie `ValueStream.financeApproverId`) — Produktverantwortung
   /// fällt nicht mit einer SAFe-Rolle zusammen. Darf die Solution bearbeiten
   /// und zeichnet bei den Reifegrad-Freigaben ihrer Epics mit.
-  productManagerId String? @map("product_manager_id") @db.Uuid
-  createdAt      DateTime  @default(now()) @map("created_at")
-  createdBy      String    @map("created_by") @db.Uuid
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-  updatedBy      String    @map("updated_by") @db.Uuid
-  deletedAt      DateTime? @map("deleted_at")
+  productManagerId String?   @map("product_manager_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
+  createdBy        String    @map("created_by") @db.Uuid
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  updatedBy        String    @map("updated_by") @db.Uuid
+  deletedAt        DateTime? @map("deleted_at")
 
   tenant         Tenant               @relation(fields: [tenantId], references: [id])
   valueStream    ValueStream          @relation(fields: [valueStreamId], references: [id])
@@ -909,7 +910,7 @@ model Initiative {
   /// auffällt. Nullable, weil Bestands-Epics keine Erwartung tragen; Pflicht ist
   /// der Anlege-Weg, nicht die Spalte.
   intendedClass           String?   @map("intended_class")
-  /// Portfolio-Ballot. Gesetzter Stempel = Ausnahme aktiv; die Begründung ist
+  /// Portfolio-PB-Liste. Gesetzter Stempel = Ausnahme aktiv; die Begründung ist
   /// Pflicht. Die Klasse selbst bleibt abgeleitet — der Override geht in die
   /// Ableitung ein, er ersetzt sie nicht.
   portfolioOverrideAt     DateTime? @map("portfolio_override_at")
@@ -923,7 +924,7 @@ model Initiative {
   helpRequestedBy String?   @map("help_requested_by") @db.Uuid
 
   // Participatory-Budgeting-Einreichungsfelder (EPIC only). `mandatory` = vorab
-  // gesetztes Pflichtvorhaben (vom Topf abgezogen, nicht auf dem Ballot).
+  // gesetztes Pflichtvorhaben (vom Topf abgezogen, nicht auf dem PB-Liste).
   // `costToMvp` = kanonische Kosten-bis-MVP als eine Zahl (PB-Verteileinheit).
   mandatory        Boolean  @default(false)
   costToMvp        Decimal? @map("cost_to_mvp") @db.Decimal(14, 2)
@@ -1248,7 +1249,7 @@ model BudgetGroupMember {
   @@map("budget_group_members")
 }
 
-/// €-Vorschlag einer Gruppe je Ballot-Kandidat (Kachel-Modell). Legacy: `epicId`
+/// €-Vorschlag einer Gruppe je PB-Liste-Kandidat (Kachel-Modell). Legacy: `epicId`
 /// + `funded` (Ja/Nein bis MVP) aus dem alten Drei-Zonen-Flow — nullbar während
 /// des Umbaus, fällt im Cutover (Phase 5) weg.
 model GroupAllocation {
@@ -1275,7 +1276,7 @@ model GroupAllocation {
   @@map("group_allocations")
 }
 
-/// Vereinheitlichter Ballot-Kandidat je Kachel: ein Epic ODER eine
+/// Vereinheitlichter PB-Liste-Kandidat je Kachel: ein Epic ODER eine
 /// Run-the-Business-Position. Beim Start eingefroren. `valueStreamId`/`artId`
 /// sind denormalisiert (für die VS-/ART-Ableitung, keine FK). `finalAmount` =
 /// Finance-Endbetrag.
@@ -1339,8 +1340,8 @@ model RunTheBusinessItem {
   /// Verlagerung der Zuständigkeit.
   artId         String? @map("art_id") @db.Uuid
   /// "run" = laufender Betrieb (Default, heutiges Verhalten).
-  /// "art_change" = Veränderungsrahmen eines ARTs für seine ART-Epics. Beide
-  /// gehen als Kandidaten auf den Ballot; getrennt gehalten, damit Grow-Arbeit
+  /// "art_change" = ART-Epic-Budget eines ARTs für seine ART-Epics. Beide
+  /// gehen als Kandidaten auf den PB-Liste; getrennt gehalten, damit Grow-Arbeit
   /// nicht als Betrieb ausgewiesen wird (Grow/Run-Kacheln, Guardrail 2).
   kind          String  @default("run")
   name          String
@@ -1357,14 +1358,48 @@ model RunTheBusinessItem {
   updatedAt DateTime @updatedAt @map("updated_at")
   updatedBy String   @map("updated_by") @db.Uuid
 
-  tenant      Tenant      @relation(fields: [tenantId], references: [id])
-  art         Art?        @relation(fields: [artId], references: [id], onDelete: SetNull)
-  valueStream ValueStream @relation(fields: [valueStreamId], references: [id], onDelete: Cascade)
-  solution    Solution?   @relation(fields: [solutionId], references: [id], onDelete: SetNull)
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  art         Art?           @relation(fields: [artId], references: [id], onDelete: SetNull)
+  valueStream ValueStream    @relation(fields: [valueStreamId], references: [id], onDelete: Cascade)
+  solution    Solution?      @relation(fields: [solutionId], references: [id], onDelete: SetNull)
+  awards      RtbItemAward[]
 
   @@index([tenantId, valueStreamId])
   @@index([tenantId, solutionId])
   @@map("run_the_business_items")
+}
+
+/// Was eine Position aus dem Zuspruch ihres Wertstroms bekommen hat.
+///
+/// Seit der PB-Liste **je Wertstrom eine Zeile** trägt, entscheidet die Runde nur
+/// noch die Summe. Wie sie sich auf Betrieb und die ART-Epic-Budget der ARTs
+/// verteilt, entscheidet der Wertstrom danach — und das steht hier.
+///
+/// Damit ist diese Tabelle die Quelle des **ART-Epic-Budgets**: `loadArtPot`
+/// summiert die Awards der `art_change`-Positionen eines ARTs, nicht mehr die
+/// finalen Beträge einzelner PB-Liste-Kandidaten (die es je Position nicht mehr gibt).
+///
+/// Achse ist das **Halbjahr**, wie bei `ArtEpicAllocation` — dieselbe Größe, die
+/// auch der Topf und sein Verteilfenster benutzen.
+model RtbItemAward {
+  id        String  @id @default(uuid()) @db.Uuid
+  tenantId  String  @map("tenant_id") @db.Uuid
+  rtbItemId String  @map("rtb_item_id") @db.Uuid
+  /// Halbjahr, "YYYY-H1" | "YYYY-H2".
+  cycleKey  String  @map("cycle_key")
+  amount    Decimal @default(0) @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by") @db.Uuid
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by") @db.Uuid
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id])
+  rtbItem RunTheBusinessItem @relation(fields: [rtbItemId], references: [id], onDelete: Cascade)
+
+  @@unique([rtbItemId, cycleKey])
+  @@index([tenantId, cycleKey])
+  @@map("rtb_item_awards")
 }
 
 /// Entscheidung der Instanz je Streuzonen-Epic. Begründung Pflicht bei Abweichung
@@ -1752,7 +1787,7 @@ model ValueStreamGuardrailTargets {
 }
 
 /// Das Ledger der ART-Verteilung: welcher ART hat welchem Epic aus seinem
-/// Veränderungsrahmen wie viel gegeben.
+/// ART-Epic-Budget wie viel gegeben.
 ///
 /// Eigene Tabelle statt eines Felds in der `BudgetAllocation`-JSON-Karte: die
 /// Karte ist eine Fortschreibung ohne Historie, hätte sonst zwei Schreiber mit

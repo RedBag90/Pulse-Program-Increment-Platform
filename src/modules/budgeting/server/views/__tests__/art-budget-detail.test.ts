@@ -1,9 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-import {
-  buildArtBudgetDetail,
-  coverageVerdict,
-} from "@/modules/budgeting/server/views/art-budget-detail";
+import { buildArtBudgetDetail } from "@/modules/budgeting/server/views/art-budget-detail";
+import { coverageVerdict } from "@/modules/budgeting/server/views/art-budget-model";
 
 const NOW = new Date("2026-04-15T00:00:00Z");
 

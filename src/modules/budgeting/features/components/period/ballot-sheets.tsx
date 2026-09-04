@@ -3,7 +3,7 @@
 import { formatEUR } from "@/lib/formatting";
 import { CandidateWorksheet } from "@/modules/budgeting/features/components/period/candidate-worksheet";
 
-export interface BallotSheetModel {
+export interface SheetModel {
   cycleLabel: string;
   poolTotal: number;
   distributable: number;
@@ -27,7 +27,7 @@ export interface BallotSheetModel {
  * tenant-weiten „aktiven Zyklus" — im Kachel-Modell mehrdeutig. Jetzt hängt der
  * Bogen an genau der Kachel, aus der er gedruckt wird.
  */
-export function BallotSheets({ model }: { model: BallotSheetModel }) {
+export function Sheets({ model }: { model: SheetModel }) {
   const groups = model.groups.length > 0 ? model.groups : [{ id: "_", name: "Gruppe" }];
 
   return (

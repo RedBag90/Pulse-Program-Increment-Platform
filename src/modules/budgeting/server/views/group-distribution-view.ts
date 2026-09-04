@@ -1,6 +1,6 @@
 /**
  * Read-Model der Gruppen-Verteilseite (`/budgeting/periods/[id]/distribute/[groupId]`):
- * alle Ballot-Kandidaten (Epics + Run-the-Business) als eine Liste, gruppierbar
+ * alle PB-Listen-Kandidaten (Epics + Run-the-Business) als eine Liste, gruppierbar
  * nach Value Stream, mit Budget-Info je Epic, dem aktuellen €-Betrag der Gruppe
  * und den Editier-/Einreich-Rechten (mitglieds-scoped, Fenster-abhängig).
  */
@@ -8,7 +8,7 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
-import { loadDefaultHypothesisEffort } from "@/modules/budgeting/server/services/ballot";
+import { loadDefaultHypothesisEffort } from "@/modules/budgeting/server/services/pb-list";
 import {
   derivePbInfo,
   type PbSourceKind,

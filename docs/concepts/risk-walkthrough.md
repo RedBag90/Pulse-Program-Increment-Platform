@@ -9,9 +9,10 @@ Das Schwesterdokument ist [pi-walkthrough.md](pi-walkthrough.md) — dort ist ei
 offenes, nicht eingeordnetes Issue die Bedingung, die den PI-Abschluss berührt.
 Dieses Dokument erklärt die andere Seite derselben Naht.
 
-Vier Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+Fünf Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
 [Epic](epic-lifecycle-walkthrough.md) — was gebaut wird ·
 [Budget](budgeting-walkthrough.md) — womit ·
+[ART-Budget](art-epic-budget-walkthrough.md) — womit, wenn es klein ist ·
 [PI](pi-walkthrough.md) — wann geliefert wird ·
 [Risiko](risk-walkthrough.md) — was dazwischenkommt. Den Rahmen, in dem sie
 stattfinden, führt [Struktur](structure-walkthrough.md) vor.

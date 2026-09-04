@@ -11,7 +11,7 @@ import { formatEUR } from "@/lib/formatting";
 
 /**
  * Das Arbeitsblatt der Kandidaten: **ein Abschnitt je Wertstrom**, Run vorn als
- * Pflichtblock. Trägt alle fünf Flächen, auf denen Kandidaten stehen — Ballot,
+ * Pflichtblock. Trägt alle fünf Flächen, auf denen Kandidaten stehen — PB-Liste,
  * Verteil-Seite, Vorschlags-Matrix, Ergebnis und Druckbogen.
  *
  * Bewusst **ein** Raster statt einer Tabelle je Abschnitt: die Abschnitte sind
@@ -58,7 +58,7 @@ export function CandidateWorksheet<T extends GroupableCandidate>({
   empty: string;
   /** Druck: keine Klapp-Steuerung, alles offen. */
   alwaysOpen?: boolean;
-  /** Abschnitte, die eingeklappt starten (z. B. Run auf dem Ballot). */
+  /** Abschnitte, die eingeklappt starten (z. B. Run auf der PB-Liste). */
   collapsedByDefault?: (section: WorksheetSection<T>) => boolean;
 }) {
   const sections = worksheetSections(groupCandidates(items, sortBy));
