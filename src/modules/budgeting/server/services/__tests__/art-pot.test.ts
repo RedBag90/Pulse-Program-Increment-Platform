@@ -8,10 +8,7 @@ import { describe, it, expect, vi } from "vitest";
  * saßen der fehlende `active`-Filter und die zweite, wortgleiche Topfrechnung.
  */
 
-import {
-  setArtEpicAllocation,
-  artEpicBudgetTotal,
-} from "@/modules/budgeting/server/services/art-pot";
+import { setArtEpicAllocation } from "@/modules/budgeting/server/services/art-pot";
 
 type Tx = Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 
@@ -57,7 +54,13 @@ function txWith(over: Partial<Tx> = {}, awardAmounts: number[] = [100_000]): Tx 
     valueStream: { findFirst: vi.fn(async () => ({ financeApproverId: "finance" })) },
     initiative: { findFirst: vi.fn(async () => ({ primarySolution: null })) },
     runTheBusinessItem: { findMany: vi.fn(async () => [{ id: "rtb1" }]) },
-    rtbItemAward: { findMany: vi.fn(async () => awardAmounts.map((a) => ({ amount: a }))) },
+    // Das Budget wird seit `art-epic-budget.ts` über die Relation gefiltert;
+    // die Awards tragen deshalb ihren ART mit.
+    rtbItemAward: {
+      findMany: vi.fn(async () =>
+        awardAmounts.map((a) => ({ amount: a, rtbItem: { artId: ART } })),
+      ),
+    },
     artEpicAllocation: {
       findFirst: vi.fn(async () => null),
       findMany: vi.fn(async () => []),
@@ -73,33 +76,6 @@ function txWith(over: Partial<Tx> = {}, awardAmounts: number[] = [100_000]): Tx 
     ...over,
   } as Tx;
 }
-
-describe("artEpicBudgetTotal", () => {
-  it("zählt nur aktive ART-Epic-Budget-Positionen", async () => {
-    const items = vi.fn(async (_args: { where: unknown }) => [{ id: "rtb1" }]);
-    const tx = {
-      runTheBusinessItem: { findMany: items },
-      rtbItemAward: { findMany: vi.fn(async () => [{ amount: 80_000 }]) },
-    } as unknown as Parameters<typeof artEpicBudgetTotal>[0];
-    const total = await artEpicBudgetTotal(tx, "T", ART, "2026-H2");
-    expect(total).toBe(80_000);
-    // Der Filter ist der Kern von REQ-3: eine deaktivierte Position zählte
-    // vorher weiter in die Summe und damit in den Deckel.
-    expect(items.mock.calls[0]?.[0]).toMatchObject({
-      where: { kind: "art_change", active: true },
-    });
-  });
-
-  it("spart die Award-Abfrage, wenn es keine Position gibt", async () => {
-    const awards = vi.fn(async () => []);
-    const tx = {
-      runTheBusinessItem: { findMany: vi.fn(async () => []) },
-      rtbItemAward: { findMany: awards },
-    } as unknown as Parameters<typeof artEpicBudgetTotal>[0];
-    expect(await artEpicBudgetTotal(tx, "T", ART, "2026-H2")).toBe(0);
-    expect(awards).not.toHaveBeenCalled();
-  });
-});
 
 describe("setArtEpicAllocation", () => {
   const now = new Date();

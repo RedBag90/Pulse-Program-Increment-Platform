@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 
 import { formatEUR } from "@/lib/formatting";
 import { saveArtEpicAllocationsAction } from "@/modules/budgeting/features/actions/art-pot";
-import type { ArtPotView } from "@/modules/budgeting/server/views/art-budget-model";
+import type { ArtPotView } from "@/modules/budgeting/domain/art-budget-model";
 
 /**
  * Der ART-Epic-Budget eines ARTs und seine Verteilung auf ART-Epics.

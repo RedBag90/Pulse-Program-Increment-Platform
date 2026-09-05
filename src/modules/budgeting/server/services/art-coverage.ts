@@ -10,13 +10,14 @@
 import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel, type TenantId } from "@/modules/core/kernel/domain/types";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
+import { compareCycles } from "@/modules/budgeting/domain/cycle";
 import {
   deriveJobSizeRate,
   loadInEuro,
   type ThroughputCycle,
 } from "@/modules/budgeting/domain/art-throughput";
 import { aggregateArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
-import type { ArtCoverage } from "@/modules/budgeting/server/views/art-budget-model";
+import type { ArtCoverage } from "@/modules/budgeting/domain/art-budget-model";
 
 /**
  * Last gegen Deckung eines ARTs im gewählten Halbjahr.
@@ -89,7 +90,7 @@ export async function loadArtCoverage(
 
   // Nur Zyklen, die vor dem gewählten liegen — der laufende ist nicht abgeschlossen.
   const cycles: ThroughputCycle[] = [...doneByCycle.entries()]
-    .filter(([key]) => key < cycleKey)
+    .filter(([key]) => compareCycles(key, cycleKey) < 0)
     .map(([key, v]) => ({
       cycleKey: key,
       budget: allocatedByCycle[key] ?? 0,

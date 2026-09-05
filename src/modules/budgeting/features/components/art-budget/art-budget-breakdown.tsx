@@ -5,8 +5,8 @@ import { numOr0 } from "@/modules/budgeting/features/lib/allocation-payload";
 import type { ArtFeatureLoad } from "@/modules/budgeting/domain/art-budget";
 import type { Period } from "@/modules/budgeting/domain/period-window";
 import {
-  buildArtBudgetModel,
-  type ArtBudgetModel,
+  buildArtGridModel,
+  type ArtGridModel,
 } from "@/modules/budgeting/server/views/art-budget-breakdown";
 import { AllocationBar } from "@/modules/budgeting/features/components/round/allocation-bar";
 import { formatEUR } from "@/lib/formatting";
@@ -16,7 +16,7 @@ export type ArtBudgetState = Record<string, Record<string, string>>;
 
 interface Props {
   /** Vorberechnetes Server-Modell — der Ausgangsstand des Grids. */
-  model: ArtBudgetModel;
+  model: ArtGridModel;
   /** Kontrollierter Editier-Stand (vom Workspace). */
   budgets: ArtBudgetState;
 }
@@ -27,7 +27,7 @@ interface Props {
  * read-only Feature-Last als Entscheidungsgrundlage.
  *
  * Kontrolliert: der Editier-Stand lebt im Workspace, gespeichert wird zentral
- * über die Save-Bar. „Verbleibend" rechnet `buildArtBudgetModel` — dieselbe reine
+ * über die Save-Bar. „Verbleibend" rechnet `buildArtGridModel` — dieselbe reine
  * Funktion, die der Server benutzt.
  */
 export function ArtBudgetBreakdown({ model: initial, budgets }: Props) {
@@ -35,7 +35,7 @@ export function ArtBudgetBreakdown({ model: initial, budgets }: Props) {
 
   const model = useMemo(
     () =>
-      buildArtBudgetModel({
+      buildArtGridModel({
         periods,
         vsByPeriod: initial.vsByPeriod,
         rows: initial.rows.map((r) => ({

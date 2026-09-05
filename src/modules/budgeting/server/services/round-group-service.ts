@@ -197,32 +197,3 @@ export async function removeGroupMember(
     });
   });
 }
-
-/** Pre-Read-Häkchen (C-05) — auch in `running` setzbar. */
-export async function setMemberRead(
-  ctx: RequestContext,
-  input: { id: string; hasRead: boolean },
-): Promise<Result<void>> {
-  const mctx = toMutationContext(ctx);
-  return withAuditedTransaction(mctx, async (tx) => {
-    const member = await tx.budgetGroupMember.findFirst({
-      where: { id: input.id, group: { round: { tenantId: mctx.tenantId } } },
-      select: { groupId: true },
-    });
-    if (!member)
-      return err({ kind: "not_found" as const, resourceType: "BudgetGroup", id: input.id });
-    await tx.budgetGroupMember.update({
-      where: { id: input.id },
-      data: { hasRead: input.hasRead },
-    });
-    return ok({
-      result: undefined,
-      audit: {
-        action: "budget.group.updated" as const,
-        resourceType: "budget_group" as const,
-        resourceId: member.groupId,
-        changes: { hasRead: { before: null, after: input.hasRead } },
-      },
-    });
-  });
-}

@@ -1,8 +1,16 @@
-import type { PrismaClient } from "@/generated/prisma";
+/**
+ * Die **drei Zonen** einer PB-Liste — welche Epics die Gruppen tragen, welche
+ * sie ablehnen, und wo sie auseinandergehen.
+ *
+ * Lag bis September 2026 in `server/views/zones-view.ts` — einer „View", die
+ * keine Fläche ansah: ihr einziger Aufrufer war ein Service. Der reine Falter
+ * steht jetzt bei den anderen reinen Faltern, der Lader bei den Ladern.
+ *
+ * Rein, kein I/O.
+ */
+
 import { classifyZones, type Zone, type Majority } from "@/modules/budgeting/domain/three-zone";
 import { scarcityFactor, passesScarcityGate } from "@/modules/budgeting/domain/scarcity";
-import { getRound } from "@/modules/budgeting/server/services/round-service";
-import { loadPbList } from "@/modules/budgeting/server/services/pb-list";
 
 export interface PbListEpic {
   id: string;
@@ -88,37 +96,4 @@ export function buildZonesModel(input: BuildZonesInput): ZonesModel {
     spreadSum,
     scarcity: { demand, distributable, factor, passes: passesScarcityGate(factor) },
   };
-}
-
-/** Lädt Runde + PB-Liste + Stimmen und baut das Zonen-Modell. */
-export async function loadZonesModel(
-  db: PrismaClient,
-  tenantId: string,
-  roundId: string,
-): Promise<ZonesModel | null> {
-  const round = await getRound(db, tenantId, roundId);
-  if (!round) return null;
-
-  const [ballot, votesRaw] = await Promise.all([
-    loadPbList(db, tenantId),
-    db.groupAllocation.findMany({
-      where: { roundId, epicId: { not: null } },
-      select: { groupId: true, epicId: true, funded: true },
-    }),
-  ]);
-
-  // epicId ist im Kachel-Modell nullbar (Legacy-Spalte); der Alt-Zonen-Flow
-  // arbeitet nur mit den Epic-Zeilen.
-  const votes = votesRaw.map((v) => ({ groupId: v.groupId, epicId: v.epicId!, funded: v.funded }));
-
-  const distributable = Number(round.poolTotal) - ballot.mandatorySum;
-
-  return buildZonesModel({
-    roundId,
-    status: round.status,
-    groups: round.groups.map((g) => ({ id: g.id, name: g.name })),
-    ballot: ballot.ballot,
-    votes,
-    distributable,
-  });
 }

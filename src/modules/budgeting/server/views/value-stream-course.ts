@@ -5,16 +5,16 @@
  * Lag bis zum Zerlegen von `art-budget-detail.ts` in dieser Datei: das
  * Seitenmodell einer fremden Seite, mitten in der ART-Sicht. Es teilt sich mit
  * ihr den Falter und die Epic-Ladefunktion, beantwortet aber eine andere Frage.
+ *
+ * Der Verlauf eines Wertstroms — die Wertstrom-Fläche rendert daraus; den Falter teilt sie sich mit der ART-Fläche (`buildArtBudgetDetail`). Der Ordner `views/` trägt, woraus eine Seite
+ * rendert — nicht nur Dateien, die Lader **und** Falter selbst enthalten.
  */
 
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import type { AllocationCourse } from "@/modules/budgeting/domain/allocation-course";
-import {
-  buildArtBudgetDetail,
-  type CandidateRow,
-} from "@/modules/budgeting/server/views/art-budget-detail";
-import { loadEpicRows } from "@/modules/budgeting/server/views/epic-rows";
+import { buildArtBudgetDetail } from "@/modules/budgeting/server/views/art-budget-detail";
+import { loadEpicRows, type CandidateRow } from "@/modules/budgeting/server/services/epic-rows";
 
 /**
  * Derselbe Verlauf für einen **ganzen Wertstrom** — alle Epics, die eine

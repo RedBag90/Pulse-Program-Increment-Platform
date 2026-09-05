@@ -11,18 +11,26 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { loadArtCoverage } from "@/modules/budgeting/server/services/art-coverage";
-import { loadArtPotView, type ArtPotViewer } from "@/modules/budgeting/server/views/art-pot-view";
-import { halfYearKey, halfYearLabel, monthStart } from "@/modules/core/kernel/domain/calendar";
+import {
+  loadArtEpicBudgetView,
+  type ArtPotViewer,
+} from "@/modules/budgeting/server/services/art-pot-view";
+import { halfYearKey, monthStart } from "@/modules/core/kernel/domain/calendar";
 import { stageAtMonth, type StageTransition } from "@/modules/work/domain/epic-stage-timeline";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { monthsOfCycle } from "@/modules/budgeting/domain/period-window";
-import { loadEpicRows, type EpicRow } from "@/modules/budgeting/server/views/epic-rows";
+import { sortCycles, currentCycle, cycleLabel } from "@/modules/budgeting/domain/cycle";
+import {
+  loadEpicRows,
+  type EpicRow,
+  type CandidateRow,
+} from "@/modules/budgeting/server/services/epic-rows";
 import type {
   ArtBudgetDetail,
   ArtBudgetSourceView,
   UnfundedCandidate,
-} from "@/modules/budgeting/server/views/art-budget-model";
-import { ALLOCATION_SOURCE_LABELS } from "@/modules/budgeting/server/views/art-budget-model";
+} from "@/modules/budgeting/domain/art-budget-model";
+import { ALLOCATION_SOURCE_LABELS } from "@/modules/budgeting/domain/art-budget-model";
 import { isChangeKind } from "@/modules/budgeting/domain/rtb-kind";
 import { rtbAnnualAmount, rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 import {
@@ -34,17 +42,6 @@ import {
   type AllocatedEpic,
   type AllocationState,
 } from "@/modules/budgeting/domain/allocation-state";
-
-export interface CandidateRow {
-  epicId: string;
-  /** `null` = die Runde hat entschieden und nichts gegeben. */
-  amount: number | null;
-  ask: number;
-  title: string;
-  cycleKey: string;
-  /** Nur eine abgeschlossene Kachel hat wirklich „nichts gegeben". */
-  decided: boolean;
-}
 
 /**
  * Der Zustand einer Zuteilung **in einem bestimmten Monat** — dieselbe Regel wie
@@ -92,15 +89,15 @@ export function buildArtBudgetDetail(input: {
    */
   artCycleKeys?: readonly string[] | undefined;
 }): ArtBudgetDetail {
-  const cycleKeys = [
-    ...new Set([...input.candidates.map((c) => c.cycleKey), ...(input.artCycleKeys ?? [])]),
-  ]
-    .sort()
-    .reverse();
+  // Neueste zuerst — die Ordnung ist benannt, nicht unterstellt.
+  const cycleKeys = sortCycles(
+    [...input.candidates.map((c) => c.cycleKey), ...(input.artCycleKeys ?? [])],
+    "desc",
+  );
   // Ohne Zuteilung zeigt die Fläche das laufende Halbjahr statt gar nichts.
-  const cycles = (cycleKeys.length > 0 ? cycleKeys : [halfYearKey(input.now)]).map((key) => ({
+  const cycles = (cycleKeys.length > 0 ? cycleKeys : [currentCycle(input.now)]).map((key) => ({
     key,
-    label: halfYearLabel(key),
+    label: cycleLabel(key),
   }));
   const cycleKey =
     input.cycleKey != null && cycles.some((c) => c.key === input.cycleKey)
@@ -297,7 +294,7 @@ export async function loadArtBudgetDetail(
   const [coverage, pot, rtbItems] = await Promise.all([
     loadArtCoverage(db, tenantId, art.id, detail.cycleKey, allocatedByCycle),
     opts.artEpics
-      ? loadArtPotView(
+      ? loadArtEpicBudgetView(
           db,
           tenantId,
           art,

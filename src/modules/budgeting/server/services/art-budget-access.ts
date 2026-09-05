@@ -1,42 +1,47 @@
 /**
- * Wer darf das Budget eines ARTs **sehen**?
+ * Der **Faktensammler** für „darf dieser Betrachter das Budget dieses ARTs
+ * sehen".
  *
- * Drei Wege, und der dritte ist der Grund, warum diese Regel eine eigene
- * Funktion ist: der **Produkt-Manager** einer Solution darf für die Epics
- * seines Produkts aus dem ART-Epic-Budget zuteilen — dann muss er es auch
- * sehen, sonst ließe sich nicht verteilen. Geprüft wird an der Sache, nicht an
- * einer Rolle.
+ * Die Entscheidung steht rein in `domain/budget-access.ts`
+ * (`artBudgetReadDeniedReason`). Hier wird beschafft — und zwar **in der
+ * richtigen Reihenfolge**: der Produkt-Manager-Weg kostet eine Abfrage und wird
+ * erst geprüft, wenn keiner der billigen Wege greift.
  *
- * Zwei Stellen brauchen die Antwort: die Budgetfläche des ARTs selbst und der
- * Verweis darauf in der Struktur. Als Kopie wären sie auseinandergelaufen.
+ * Zwei Stellen brauchen die Antwort: die Budgetfläche des ARTs und der Verweis
+ * darauf in der Struktur. Als Kopie wären sie auseinandergelaufen.
  */
 
 import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { hasCapability } from "@/server/auth/authorize";
 import type { Principal } from "@/server/auth/principal";
+import {
+  artBudgetReadDeniedReason,
+  readAllowedWithoutProductManagerCheck,
+} from "@/modules/budgeting/domain/budget-access";
 
 export async function mayReadArtBudget(
   db: PrismaClient,
   principal: Principal,
   art: { id: string; valueStreamId: string; financeApproverId: string | null },
 ): Promise<boolean> {
-  if (!principal.enabledModules.includes("budgeting")) return false;
-
-  if (
-    art.financeApproverId === principal.id ||
-    hasCapability(principal, "budget.read", { tenantId: principal.tenantId, artId: art.id }) ||
-    hasCapability(principal, "budget.read", {
-      tenantId: principal.tenantId,
-      valueStreamId: art.valueStreamId,
-    }) ||
-    hasCapability(principal, "art_budget.distribute", {
+  const cheap = {
+    budgetingEnabled: principal.enabledModules.includes("budgeting"),
+    isValueStreamFinance: art.financeApproverId === principal.id,
+    hasBudgetRead:
+      hasCapability(principal, "budget.read", { tenantId: principal.tenantId, artId: art.id }) ||
+      hasCapability(principal, "budget.read", {
+        tenantId: principal.tenantId,
+        valueStreamId: art.valueStreamId,
+      }),
+    hasArtDistributeCapability: hasCapability(principal, "art_budget.distribute", {
       tenantId: principal.tenantId,
       artId: art.id,
-    })
-  ) {
-    return true;
-  }
+    }),
+  };
+
+  if (!cheap.budgetingEnabled) return false;
+  if (readAllowedWithoutProductManagerCheck(cheap)) return true;
 
   // Dieselben Bedingungen wie die Verteilliste selbst: vorgemerkt und mit
   // freigegebenem Business Case. Sonst öffnete sich die Fläche auch dort, wo
@@ -52,5 +57,6 @@ export async function mayReadArtBudget(
       businessCaseApprovedAt: { not: null },
     },
   });
-  return owned > 0;
+
+  return artBudgetReadDeniedReason({ ...cheap, isEpicSolutionProductManager: owned > 0 }) == null;
 }

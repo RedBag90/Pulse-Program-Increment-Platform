@@ -16,19 +16,19 @@ import type { Period } from "@/modules/budgeting/domain/period-window";
 import { getArtBudgetBreakdown } from "@/modules/budgeting/server/services/art-budget";
 
 /** Eine ART-Zeile: Name, verteiltes Budget je Halbjahr, Feature-Last. */
-export interface ArtBudgetModelRow {
+export interface ArtGridRow {
   artId: string;
   name: string;
   budgetByPeriod: PeriodAmounts;
   load: ArtFeatureLoad;
 }
 
-export interface ArtBudgetModel {
+export interface ArtGridModel {
   /** Budget-Perioden ∪ Halbjahre der Feature-PIs (REQ-A4). */
   periods: Period[];
   /** Das abgeleitete Wertstrom-Budget, gegen das die ARTs ziehen. */
   vsByPeriod: PeriodAmounts;
-  rows: ArtBudgetModelRow[];
+  rows: ArtGridRow[];
   /** Σ der ART-Zeilen je Halbjahr — die Auslastung. */
   allocatedByPeriod: PeriodAmounts;
   /**
@@ -42,10 +42,10 @@ export interface ArtBudgetModel {
   isEmpty: boolean;
 }
 
-export interface BuildArtBudgetInputs {
+export interface BuildArtGridInputs {
   periods: readonly Period[];
   vsByPeriod: PeriodAmounts;
-  rows: readonly ArtBudgetModelRow[];
+  rows: readonly ArtGridRow[];
 }
 
 /**
@@ -53,7 +53,7 @@ export interface BuildArtBudgetInputs {
  * `rows[*].budgetByPeriod` ist der Stand, gegen den gerechnet wird — beim Server
  * der gespeicherte, beim Client der gerade eingetippte.
  */
-export function buildArtBudgetModel(inputs: BuildArtBudgetInputs): ArtBudgetModel {
+export function buildArtGridModel(inputs: BuildArtGridInputs): ArtGridModel {
   const periods = [...inputs.periods];
   const rows = [...inputs.rows];
   return {
@@ -77,13 +77,13 @@ export function buildArtBudgetModel(inputs: BuildArtBudgetInputs): ArtBudgetMode
 }
 
 /** Lädt den Breakdown eines Wertstroms und faltet ihn. */
-export async function loadArtBudgetModel(
+export async function loadArtGridModel(
   db: PrismaClient,
   tenantId: TenantId,
   valueStreamId: ValueStreamId,
-): Promise<ArtBudgetModel> {
+): Promise<ArtGridModel> {
   const breakdown = await getArtBudgetBreakdown(db, tenantId, valueStreamId);
-  return buildArtBudgetModel({
+  return buildArtGridModel({
     periods: breakdown.periods,
     vsByPeriod: breakdown.vsByPeriod,
     rows: breakdown.arts,

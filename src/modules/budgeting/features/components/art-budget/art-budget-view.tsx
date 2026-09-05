@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Link } from "@/i18n/navigation";
 import { ArtBudgetBreakdown } from "@/modules/budgeting/features/components/art-budget/art-budget-breakdown";
-import type { ArtBudgetModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
+import type { ArtGridModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
 
 /**
  * ART-Budgets eines Wertstroms — **read-only**.
@@ -13,7 +13,7 @@ import type { ArtBudgetModel } from "@/modules/budgeting/server/views/art-budget
  * die Zuteilung stammt. Vorher stand hier ein editierbares Grid neben derselben
  * Zahl in der Kachel — zwei Wahrheiten für dieselbe Sache.
  */
-export function ArtBudgetView({ model }: { model: ArtBudgetModel }) {
+export function ArtBudgetView({ model }: { model: ArtGridModel }) {
   // Das Grid ist kontrolliert; im Lesemodus ist der Stand einfach der Server-Stand.
   const budgets = useMemo(
     () =>

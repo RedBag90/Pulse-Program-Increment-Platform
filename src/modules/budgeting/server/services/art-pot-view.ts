@@ -5,15 +5,20 @@
  *
  * Lag bis zum Zerlegen von `art-budget-detail.ts` in dieser Datei — obwohl sie
  * zum Verteil-Service gehört und nicht zum Falter des Budget-Reiters.
+ *
+ * Lag bis September 2026 in `server/views/`. Die Verteilliste eines ARTs — sie lädt und faltet, aber sie ist kein Seitenmodell: die ART-Fläche bezieht sie über `art-budget-detail`. Der Ordner `views/`
+ * trägt Seitenmodelle — impurer Loader **plus** reiner Falter; wo der Falter
+ * fehlt, ist es ein Vorgang und gehört zu den Services.
  */
 
 import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel, type TenantId } from "@/modules/core/kernel/domain/types";
 import { classifyEpic } from "@/modules/work/domain/pb-submission";
-import { mayDistributeToEpic } from "@/modules/budgeting/domain/art-pot-access";
+import { mayDistributeToEpic } from "@/modules/budgeting/domain/budget-access";
 import { summarizeAllocations } from "@/modules/budgeting/domain/allocation-state";
-import { loadArtPot, loadArtEpicAllocations } from "@/modules/budgeting/server/services/art-pot";
-import type { ArtPotView } from "@/modules/budgeting/server/views/art-budget-model";
+import { loadArtEpicAllocations } from "@/modules/budgeting/server/services/art-pot";
+import { loadArtEpicBudget } from "@/modules/budgeting/server/services/art-epic-budget";
+import type { ArtPotView } from "@/modules/budgeting/domain/art-budget-model";
 
 /**
  * Der ART-Epic-Budget eines ARTs und die Epics, auf die er verteilt wird.
@@ -36,7 +41,7 @@ export interface ArtPotViewer {
   hasArtDistributeCapability: boolean;
 }
 
-export async function loadArtPotView(
+export async function loadArtEpicBudgetView(
   db: PrismaClient,
   tenantId: TenantId,
   art: { id: string; valueStreamId: string },
@@ -46,7 +51,7 @@ export async function loadArtPotView(
   viewer?: ArtPotViewer,
 ): Promise<ArtPotView> {
   const [pot, allocations, candidates, onPbList] = await Promise.all([
-    loadArtPot(db, tenantId, art.id, cycleKey, now),
+    loadArtEpicBudget(db, tenantId, art.id, cycleKey, now),
     loadArtEpicAllocations(db, tenantId, art.id, cycleKey),
     db.initiative.findMany({
       where: {

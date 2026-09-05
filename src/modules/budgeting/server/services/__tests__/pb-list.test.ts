@@ -49,8 +49,6 @@ describe("loadPbList", () => {
       { id: "e2", title: "Beta", cost: 55_000 },
     ]);
     // Pflichtvorhaben-Konzept entfällt.
-    expect(res.mandatoryCount).toBe(0);
-    expect(res.mandatorySum).toBe(0);
   });
 
   it("fällt ohne Tenant-Default auf den Code-Fallback zurück", async () => {
@@ -64,7 +62,5 @@ describe("loadPbList", () => {
   it("liefert leeres PB-Liste und Summe 0 ohne Einträge", async () => {
     const res = await loadPbList(dbWith([], 50_000), "T");
     expect(res.ballot).toEqual([]);
-    expect(res.mandatoryCount).toBe(0);
-    expect(res.mandatorySum).toBe(0);
   });
 });

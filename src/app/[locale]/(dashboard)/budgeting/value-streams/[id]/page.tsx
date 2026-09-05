@@ -1,13 +1,14 @@
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { hasCapability } from "@/server/auth/authorize";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
-import { openCycleKeys } from "@/modules/budgeting/domain/art-pot-window";
+import { resolveCycle } from "@/modules/budgeting/domain/cycle";
 import { listRtbItems } from "@/modules/budgeting/server/services/rtb-item-service";
 import { loadRtbAwards } from "@/modules/budgeting/server/services/rtb-award-service";
-import { loadArtBudgetModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
+import { loadArtGridModel } from "@/modules/budgeting/server/views/art-budget-breakdown";
 import { loadValueStreamCourse } from "@/modules/budgeting/server/views/value-stream-course";
 import { loadFundingPhases } from "@/modules/budgeting/server/views/art-funding";
 import { getValueStreamBudget } from "@/modules/budgeting/server/services/budgeting";
@@ -61,13 +62,9 @@ export default async function BudgetingValueStreamPage({
       valueStreamId: vs.id,
     });
 
-  const cycles = openCycleKeys(new Date());
-  const cycleKey =
-    cycle != null && (cycles as readonly string[]).includes(cycle) ? cycle : cycles[0];
+  const { cycleKey, options: cycles } = resolveCycle(cycle, new Date());
   const active = resolveTab(TABS, tab);
   const basePath = `/budgeting/value-streams/${vs.id}`;
-
-  const phases = await loadFundingPhases(db, principal.tenantId, vs.id, cycleKey);
 
   return (
     <EntityDetailShell
@@ -83,21 +80,28 @@ export default async function BudgetingValueStreamPage({
         <nav className="flex items-center gap-1" aria-label="Halbjahr">
           {cycles.map((c) => (
             <Link
-              key={c}
-              href={`${basePath}?tab=${active}&cycle=${c}`}
-              aria-current={c === cycleKey ? "page" : undefined}
+              key={c.key}
+              href={`${basePath}?tab=${active}&cycle=${c.key}`}
+              aria-current={c.key === cycleKey ? "page" : undefined}
               className={`rounded-md border px-2.5 py-1 text-sm ${
-                c === cycleKey
+                c.key === cycleKey
                   ? "border-primary bg-primary/10 font-medium text-primary"
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              {halfYearLabel(c)}
+              {c.label}
             </Link>
           ))}
         </nav>
       }
-      subHeader={<ArtFundingRail phases={phases} surface="value_stream" />}
+      subHeader={
+        // Eigene Insel: der Leitfaden braucht sechs Abfragen, die niemand sonst
+        // auf dieser Seite braucht. Vorher stand hier ein nacktes `await` vor
+        // dem `return` und hielt den Reiter auf, bis die Leiste stand.
+        <Suspense fallback={<RailSkeleton />}>
+          <FundingRail db={db} tenantId={principal.tenantId} vsId={vs.id} cycleKey={cycleKey} />
+        </Suspense>
+      }
     >
       {active === "budget" ? (
         <BudgetTab db={db} tenantId={principal.tenantId} vsId={vs.id} cycleKey={cycleKey} />
@@ -114,6 +118,27 @@ export default async function BudgetingValueStreamPage({
   );
 }
 
+/** Der Leitfaden als eigene Insel — er blockiert die Reiter nicht mehr. */
+async function FundingRail({
+  db,
+  tenantId,
+  vsId,
+  cycleKey,
+}: {
+  db: ReturnType<typeof createPrismaClient>;
+  tenantId: string;
+  vsId: string;
+  cycleKey: string;
+}) {
+  const phases = await loadFundingPhases(db, tenantId as never, vsId, cycleKey);
+  return <ArtFundingRail phases={phases} surface="value_stream" />;
+}
+
+/** Platzhalter in der Höhe der Leiste, damit der Kopf nicht springt. */
+function RailSkeleton() {
+  return <div className="h-[58px] animate-pulse rounded-lg border bg-muted/40" />;
+}
+
 async function BudgetTab({
   db,
   tenantId,
@@ -127,7 +152,7 @@ async function BudgetTab({
 }) {
   const [plan, model, course] = await Promise.all([
     getValueStreamBudget(db, tenantId as never, vsId as never),
-    loadArtBudgetModel(db, tenantId as never, vsId as never),
+    loadArtGridModel(db, tenantId as never, vsId as never),
     loadValueStreamCourse(db, tenantId as never, vsId, { cycleKey }),
   ]);
 

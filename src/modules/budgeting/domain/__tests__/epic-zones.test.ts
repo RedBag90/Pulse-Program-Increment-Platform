@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildZonesModel } from "@/modules/budgeting/server/views/zones-view";
+import { buildZonesModel } from "@/modules/budgeting/domain/epic-zones";
 
 const BALLOT = [
   { id: "E1", title: "Kundenportal", cost: 600_000 },
@@ -13,12 +13,18 @@ const BALLOT = [
 
 const V = (groupId: string, epicId: string) => ({ groupId, epicId, funded: true });
 const VOTES = [
-  V("A", "E1"), V("C", "E1"),
-  V("A", "E2"), V("B", "E2"), V("C", "E2"),
+  V("A", "E1"),
+  V("C", "E1"),
+  V("A", "E2"),
+  V("B", "E2"),
+  V("C", "E2"),
   V("C", "E3"),
   V("B", "E4"),
-  V("A", "E5"), V("B", "E5"),
-  V("A", "E8"), V("B", "E8"), V("C", "E8"),
+  V("A", "E5"),
+  V("B", "E5"),
+  V("A", "E8"),
+  V("B", "E8"),
+  V("C", "E8"),
 ];
 
 describe("buildZonesModel — Nordwerk", () => {

@@ -22,6 +22,21 @@ afterEach(async () => {
       outbox_events,
       idempotency_keys,
       audit_events,
+      -- Budgeting. Fehlten hier bis September 2026 vollstaendig: die Zeilen
+      -- wurden nur mittelbar ueber CASCADE von tenants/initiatives erwischt,
+      -- was zwischen zwei Tests Reste stehen liess, sobald einer davon einen
+      -- Mandanten wiederverwendete.
+      art_epic_allocations,
+      rtb_item_awards,
+      run_the_business_items,
+      budget_decisions,
+      budget_candidates,
+      budget_group_members,
+      budget_groups,
+      budget_participants,
+      budget_rounds,
+      budget_plan_revisions,
+      budget_allocations,
       impediments,
       dependencies,
       stage_gate_approvals,

@@ -7,12 +7,17 @@
  * sie zeigten die Loader-Dateien mit Typ-Importen im Kreis aufeinander.
  *
  * Rein, kein I/O.
+ *
+ * Lag bis September 2026 in `server/views/`, obwohl zwei Services und zwei
+ * Komponenten die Formen von hier bezogen — der Ordner der Seitenmodelle wurde
+ * damit von unten importiert. Seit `ArtPot` weg ist, kennt die Datei nichts
+ * außer Domäne und gehört dorthin.
  */
 
 import type { AllocationBreakdown } from "@/modules/budgeting/domain/allocation-state";
 import type { AllocationCourse } from "@/modules/budgeting/domain/allocation-course";
 import type { JobSizeRate } from "@/modules/budgeting/domain/art-throughput";
-import type { ArtPot } from "@/modules/budgeting/server/services/art-pot";
+import type { ArtEpicBudget } from "@/modules/budgeting/domain/art-epic-budget";
 
 /** Woher das Geld einer Zuteilung kommt. Heute nur `portfolio`. */
 export type AllocationSource = "portfolio" | "art";
@@ -83,7 +88,7 @@ export interface ArtBudgetDetail {
 }
 
 export interface ArtPotView {
-  pot: ArtPot;
+  pot: ArtEpicBudget;
   /**
    * Die ART-Epics dieses ARTs, die vorgemerkt und budgeting-reif sind — mit
    * ihrem eingefrorenen Richtwert, sobald einmal zugeteilt wurde.

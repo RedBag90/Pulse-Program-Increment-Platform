@@ -5,19 +5,17 @@
  * `draft`; ab `running` eingefroren.
  */
 
-import type { Prisma, PrismaClient } from "@/generated/prisma";
+import type { Prisma } from "@/generated/prisma";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
-import { InitiativeLevel, type TenantId } from "@/modules/core/kernel/domain/types";
+import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import {
   classifyEpic,
   derivePbInfo,
   isPbEligible,
   type EpicClassState,
 } from "@/modules/work/domain/pb-submission";
-import { loadPortfolioThresholds } from "@/modules/work/server/services/guardrail-targets";
-import { getTenantPractices } from "@/server/services/target-model";
 import { loadDefaultHypothesisEffort } from "@/modules/budgeting/server/services/pb-list";
 import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 
@@ -97,6 +95,26 @@ export async function materializeRtbCandidates(
 
 /** Fügt ein Epic als PB-Listen-Kandidat zu dieser Kachel hinzu (Kuratierung). */
 /**
+ * Was der Aufrufer beisteuern muss, damit die Einordnung entschieden werden kann.
+ *
+ * Ein **Port**, kein Import: die Grundlage stammt aus `work` (Practice-Schalter
+ * und Portfolio-Limits) und wurde vorher mitten in der Transaktion geladen —
+ * mit zwei `tx as unknown as PrismaClient`-Casts, weil die fremden Loader einen
+ * vollen Client erwarten. Fremdes Prisma hielt damit Budgetings Transaktion
+ * offen, und getestet war es auf **keiner** Seite der Naht.
+ *
+ * Jetzt beschafft der Aufrufer sie **vor** der Transaktion. Zwei Adapter
+ * rechtfertigen die Naht: die Action reicht die echten Loader herein, ein Test
+ * reicht Zahlen herein.
+ */
+export interface ClassificationBasis {
+  /** Ist die Practice `artEpics` aktiv? Ohne sie gibt es die Trennung nicht. */
+  artEpicsPractice: boolean;
+  /** Das Portfolio-Limit dieses Wertstroms — geerbt, wo keines gesetzt ist. */
+  thresholdFor: (valueStreamId: string | null) => number;
+}
+
+/**
  * Ist dieses Epic ein ART-Epic? Dann gehört es nicht auf die PB-Liste.
  *
  * Nur wirksam, wenn die Practice `artEpics` läuft — ohne sie gibt es die
@@ -104,19 +122,12 @@ export async function materializeRtbCandidates(
  *
  * `null` = in Ordnung.
  */
-async function assertNotArtEpic(
-  tx: Prisma.TransactionClient,
-  tenantId: TenantId,
+function assertNotArtEpic(
+  basis: ClassificationBasis,
   epic: EpicClassState & { valueStreamId: string | null; title: string },
-): Promise<Result<never> | null> {
-  const practices = await getTenantPractices(tx as unknown as PrismaClient, tenantId);
-  if (!practices.artEpics) return null;
-  const thresholds = await loadPortfolioThresholds(tx as unknown as PrismaClient, tenantId);
-  const threshold =
-    epic.valueStreamId == null
-      ? thresholds.defaultThreshold
-      : (thresholds.byValueStream[epic.valueStreamId] ?? thresholds.defaultThreshold);
-  if (classifyEpic(epic, threshold).epicClass !== "art") return null;
+): Result<never> | null {
+  if (!basis.artEpicsPractice) return null;
+  if (classifyEpic(epic, basis.thresholdFor(epic.valueStreamId)).epicClass !== "art") return null;
   return err({
     kind: "conflict" as const,
     reason:
@@ -128,6 +139,7 @@ async function assertNotArtEpic(
 export async function addEpicCandidate(
   ctx: RequestContext,
   input: { roundId: string; epicId: string },
+  basis: ClassificationBasis,
 ): Promise<Result<{ id: string }>> {
   const mctx = toMutationContext(ctx);
   return withAuditedTransaction(mctx, async (tx) => {
@@ -180,7 +192,7 @@ export async function addEpicCandidate(
     // suchen — stünde es auf beiden, überschriebe die zuletzt geschriebene
     // Zuteilung die andere (`mergeEpicAllocation` setzt, statt zu addieren),
     // und Gate-Prüfung und Wertstrom-Tabelle sähen verschiedene Zahlen.
-    const denied = await assertNotArtEpic(tx, mctx.tenantId, epic);
+    const denied = assertNotArtEpic(basis, epic);
     if (denied) return denied;
 
     // Kosten-Richtwert aus den Artefakten ableiten (LBC → Σ costSlices; sonst

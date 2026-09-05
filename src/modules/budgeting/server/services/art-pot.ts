@@ -17,88 +17,15 @@ import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { authorizeResource } from "@/server/auth/authorize";
 import { potWindowClosedReason } from "@/modules/budgeting/domain/art-pot-window";
-import { artPotAccessDeniedReason } from "@/modules/budgeting/domain/art-pot-access";
+import { loadArtEpicBudget } from "@/modules/budgeting/server/services/art-epic-budget";
+import { artPotAccessDeniedReason } from "@/modules/budgeting/domain/budget-access";
 import { mergeEpicAllocation } from "@/modules/budgeting/server/services/epic-allocation";
-
-export interface ArtPot {
-  cycleKey: string;
-  /** Σ der finalen Beträge der ART-Epic-Budget-Positionen dieses ARTs. */
-  total: number;
-  /** Was der ART davon vergeben hat. */
-  distributed: number;
-  /** Rest — verfällt nicht und wandert nicht; er wird ausgewiesen. */
-  remaining: number;
-  /** Warum gerade nicht verteilt werden darf; `null` = offen. */
-  closedReason: string | null;
-}
 
 export interface ArtEpicAllocationRow {
   epicId: string;
   amount: number;
   /** Richtwert, eingefroren beim ersten Zuteilen. */
   ask: number;
-}
-
-/** Der Rahmen eines ARTs für ein Halbjahr, samt bereits Verteiltem. */
-/**
- * Das **zugesprochene** ART-Epic-Budget eines ARTs im Halbjahr: die Summe der
- * Awards auf seinen `art_change`-Positionen.
- *
- * Nur **aktive** Positionen zählen — dieselbe Einschränkung, die `loadRtbAwards`
- * und die Epic-Seite treffen. Ohne sie zählte eine deaktivierte Position weiter
- * in die Summe und damit in den Deckel, während sie aus der Aufteil-Fläche
- * längst verschwunden wäre.
- *
- * Steht hier **einmal**, weil sowohl das Lesen der Fläche als auch die Prüfung
- * beim Schreiben dieselbe Zahl braucht. Vorher stand sie zweimal wortgleich da.
- */
-export async function artEpicBudgetTotal(
-  tx: Pick<PrismaClient, "runTheBusinessItem" | "rtbItemAward">,
-  tenantId: string,
-  artId: string,
-  cycleKey: string,
-): Promise<number> {
-  // Die Art der Position steht an ihr, nicht am Kandidaten.
-  const items = await tx.runTheBusinessItem.findMany({
-    where: { tenantId, artId, kind: "art_change", active: true },
-    select: { id: true },
-  });
-  if (items.length === 0) return 0;
-  const awards = await tx.rtbItemAward.findMany({
-    where: { tenantId, cycleKey, rtbItemId: { in: items.map((i) => i.id) } },
-    select: { amount: true },
-  });
-  return awards.reduce((s, a) => s + Number(a.amount), 0);
-}
-
-export async function loadArtPot(
-  db: PrismaClient,
-  tenantId: TenantId,
-  artId: string,
-  cycleKey: string,
-  now: Date = new Date(),
-): Promise<ArtPot> {
-  // Das Budget kommt aus der **Aufteilung des Wertstroms**, nicht aus dem
-  // finalen Betrag eines eigenen Kandidaten: seit die PB-Liste je Wertstrom eine
-  // Zeile trägt, entscheidet die Runde nur die Summe, und der Wertstrom verteilt
-  // sie danach auf seine Positionen.
-  const [total, allocations] = await Promise.all([
-    artEpicBudgetTotal(db, tenantId, artId, cycleKey),
-    db.artEpicAllocation.findMany({
-      where: { tenantId, artId, cycleKey },
-      select: { amount: true },
-    }),
-  ]);
-
-  const distributed = allocations.reduce((s, a) => s + Number(a.amount), 0);
-
-  return {
-    cycleKey,
-    total,
-    distributed,
-    remaining: total - distributed,
-    closedReason: potWindowClosedReason(cycleKey, now),
-  };
 }
 
 /** Die Zuteilungen eines ARTs im Halbjahr. */
@@ -203,7 +130,7 @@ export async function setArtEpicAllocation(
     // Das Budget dieses Halbjahres — gebraucht für den Deckel **und** für den
     // Rest, den der Aufrufer zurückbekommt. Deshalb vor dem Zweig, nicht darin.
     // Dieselbe Funktion, die auch die Fläche liest: eine Zahl, eine Rechnung.
-    const pot = await artEpicBudgetTotal(tx, mctx.tenantId, input.artId, input.cycleKey);
+    const pot = (await loadArtEpicBudget(tx, mctx.tenantId, input.artId, input.cycleKey)).total;
 
     if (input.amount === 0) {
       if (existing) await tx.artEpicAllocation.delete({ where: { id: existing.id } });
@@ -271,7 +198,7 @@ export async function setArtEpicAllocation(
 
     return ok({
       // Rahmen minus Verteiltes. Stand hier nur `-verteilt` — der Wert wurde von
-      // keiner Fläche gelesen (die UI nimmt `pot.remaining` aus `loadArtPot`),
+      // keiner Fläche gelesen (die UI nimmt `pot.remaining` aus `loadArtEpicBudget`),
       // war aber falsch, sobald jemand ihn benutzt hätte.
       result: {
         remaining: pot - after.reduce((s, a) => s + Number(a.amount), 0),
@@ -345,7 +272,7 @@ export async function saveArtEpicAllocations(
     });
     if (denied) return err({ kind: "forbidden" as const, reason: denied });
 
-    const pot = await artEpicBudgetTotal(tx, mctx.tenantId, input.artId, input.cycleKey);
+    const pot = (await loadArtEpicBudget(tx, mctx.tenantId, input.artId, input.cycleKey)).total;
     const sum = input.amounts.reduce((s, a) => s + a.amount, 0);
     if (sum > pot) {
       return err({

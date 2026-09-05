@@ -4,6 +4,10 @@
  * Eigene Datei, weil zwei Sichten sie brauchen: die ART-Budgetfläche und der
  * Wertstrom-Verlauf. Vorher lag sie in der ART-Sicht, und der Wertstrom
  * importierte quer hinein.
+ *
+ * Lag bis September 2026 in `server/views/`. Die Epics hinter den Kandidaten — ein Ladevorgang, den zwei Sichten teilen. Der Ordner `views/`
+ * trägt Seitenmodelle — impurer Loader **plus** reiner Falter; wo der Falter
+ * fehlt, ist es ein Vorgang und gehört zu den Services.
  */
 
 import type { PrismaClient } from "@/generated/prisma";
@@ -12,7 +16,17 @@ import {
   buildEpicStageTimeline,
   type StageTransition,
 } from "@/modules/work/domain/epic-stage-timeline";
-import type { CandidateRow } from "@/modules/budgeting/server/views/art-budget-detail";
+
+export interface CandidateRow {
+  epicId: string;
+  /** `null` = die Runde hat entschieden und nichts gegeben. */
+  amount: number | null;
+  ask: number;
+  title: string;
+  cycleKey: string;
+  /** Nur eine abgeschlossene Kachel hat wirklich „nichts gegeben". */
+  decided: boolean;
+}
 
 export interface EpicRow {
   id: string;

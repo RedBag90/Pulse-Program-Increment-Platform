@@ -111,10 +111,10 @@ export async function getEpicAllocationMaps(
  * dann einen ausdrücklichen Schalter, keine stille Änderung für beide.
  */
 /**
- * Woher der Betrag kommt. Ein Epic gehört in **genau eine** Quelle (REQ-18);
+ * Aus **welchem der beiden Geldwege** der Betrag stammt. Ein Epic gehört in **genau eine** Quelle (REQ-18);
  * das Argument macht eine Verletzung sichtbar, statt sie stumm zu überschreiben.
  */
-export type AllocationSource = "pb_list" | "art_epic_budget";
+export type FundingSource = "pb_list" | "art_epic_budget";
 
 export async function mergeEpicAllocation(
   tx: Prisma.TransactionClient,
@@ -126,7 +126,7 @@ export async function mergeEpicAllocation(
     cycleKey: string;
     amount: number;
     actorId: string;
-    source: AllocationSource;
+    source: FundingSource;
   },
 ): Promise<void> {
   const existing = await tx.budgetAllocation.findUnique({

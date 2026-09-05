@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildBudgetPlanRevisionModel } from "@/modules/budgeting/server/views/budget-plan-revision";
+import { buildBudgetPlanRevisionModel } from "@/modules/budgeting/domain/budget-plan-revision-model";
 import type { BudgetPlanSnapshot } from "@/modules/budgeting/domain/budget-plan-snapshot";
 
 const snapshot = (over: Partial<BudgetPlanSnapshot> = {}): BudgetPlanSnapshot => ({

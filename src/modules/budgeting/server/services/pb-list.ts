@@ -8,8 +8,6 @@
  * manuellen Einreichungsfeld — s. `@/modules/work/domain/pb-submission`.
  *
  * Das frühere Pflichtvorhaben-Konzept (`mandatory`, Off-the-top-Abzug) ist entfallen;
- * `mandatoryCount`/`mandatorySum` bleiben als 0-Felder erhalten, solange Legacy-
- * Konsumenten sie noch lesen.
  *
  * `db` ist strukturell typisiert (`Pick<…>`), damit sowohl der PrismaClient als auch
  * ein Transaktions-Client (im Close-Seam) ihn erfüllen.
@@ -27,8 +25,6 @@ export interface PbListEpic {
 
 export interface PbList {
   ballot: PbListEpic[];
-  mandatoryCount: number;
-  mandatorySum: number;
 }
 
 /**
@@ -81,7 +77,5 @@ export async function loadPbList(
       cost: derivePbInfo(e, defaultEffort).cost,
     })),
     // Pflichtvorhaben-Konzept entfällt — kein Off-the-top-Abzug mehr.
-    mandatoryCount: 0,
-    mandatorySum: 0,
   };
 }

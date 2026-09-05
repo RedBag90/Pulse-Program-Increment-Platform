@@ -18,6 +18,7 @@ import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok } from "@/modules/core/kernel/domain/errors";
 import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
+import { sortCycles, cycleLabel } from "@/modules/budgeting/domain/cycle";
 import {
   parsePeriodAmountMap,
   type BudgetEpicView,
@@ -163,39 +164,6 @@ export interface BudgetingCandidate {
   isHypothesisOnly: boolean;
 }
 
-/**
- * Die Kandidatenmenge fürs Inline-Vormerken: freigegebene Epics (Hypothese oder
- * Business Case), die **noch nicht** `stagedForBudgeting` sind — das Readiness-Gate
- * aus {@link loadBudgetingModel}, invertiert auf „noch nicht vorgemerkt".
- */
-export async function listBudgetingCandidates(
-  db: PrismaClient,
-  tenantId: TenantId,
-): Promise<BudgetingCandidate[]> {
-  const rows = await db.initiative.findMany({
-    where: {
-      tenantId,
-      level: InitiativeLevel.EPIC,
-      deletedAt: null,
-      stagedForBudgeting: false,
-      OR: [{ hypothesisApprovedAt: { not: null } }, { businessCaseApprovedAt: { not: null } }],
-    },
-    select: {
-      id: true,
-      title: true,
-      businessCaseApprovedAt: true,
-      valueStream: { select: { name: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
-  return rows.map((r) => ({
-    id: r.id,
-    title: r.title,
-    valueStream: r.valueStream?.name ?? null,
-    isHypothesisOnly: r.businessCaseApprovedAt === null,
-  }));
-}
-
 /** Loads the budgeting board: eligible Epics + their need/allocation + the pool. */
 export async function getBudgetingBoard(
   db: PrismaClient,
@@ -220,21 +188,49 @@ export async function getBudgetingBoard(
  * nach der Finalisierung aus der Vormerkung fiel, verschwand hier, blieb aber im
  * ART-Budget stehen. Der Bucket „Ohne Wertstrom" fällt raus.
  */
-export async function getValueStreamBudgets(
+/**
+ * Die abgeleiteten Wertstrom-Budgets.
+ *
+ * **Die Achse kommt aus den Zuteilungen selbst.** Vorher hing sie an
+ * `loadBudgetingModel` — dem Prognose-Horizont, der dafür jedes vorgemerkte
+ * Epic des Mandanten mit `businessCase`, `timeline` und `allocations` lädt, um
+ * daraus Kostenfenster abzuleiten. Von diesem Modell behielt die Funktion
+ * **nur die Achse**; die Epic-Zeilen samt dreier JSON-Spalten wurden geladen
+ * und weggeworfen.
+ *
+ * Das war auch fachlich schief: die Sicht heißt „was wurde zugeteilt", und eine
+ * Prognose-Achse setzt Spalten davor und dahinter, in denen nichts steht. Die
+ * belegten Halbjahre sind die richtige Achse für diese Frage.
+ *
+ * `cache` sitzt hier und nicht eine Ebene tiefer, weil zwei Aufrufer je Anfrage
+ * dasselbe fragen (die Wertstrom-Seite und der ART-Breakdown darunter) — vorher
+ * fing der Cache nur die halbe Arbeit ab, und `loadFinalizedByValueStream` lief
+ * zweimal.
+ */
+export const getValueStreamBudgets = cache(async function getValueStreamBudgets(
   db: PrismaClient,
   tenantId: TenantId,
 ): Promise<ValueStreamBudgetData> {
-  const [{ axis }, byVs] = await Promise.all([
-    loadBudgetingModel(db, tenantId),
-    loadFinalizedByValueStream(db, tenantId),
-  ]);
+  const byVs = await loadFinalizedByValueStream(db, tenantId);
   const valueStreams: ValueStreamBudget[] = [...byVs.values()].map((v) => ({
     valueStreamId: v.valueStreamId,
     name: v.name,
     byPeriod: v.byPeriod,
     total: Object.values(v.byPeriod).reduce((a, b) => a + b, 0),
   }));
-  return { periods: axis.periods, valueStreams };
+
+  // Die Spalten sind die Vereinigung der belegten Halbjahre über alle
+  // Wertströme — damit die Tabellen zweier Wertströme nebeneinander dieselbe
+  // Achse haben.
+  const occupied = new Set<string>();
+  for (const v of valueStreams) for (const k of Object.keys(v.byPeriod)) occupied.add(k);
+
+  return { periods: periodsFromOccupied(occupied), valueStreams };
+});
+
+/** Belegte Halbjahre als Spalten — sortiert, dedupliziert, beschriftet. */
+function periodsFromOccupied(keys: Iterable<string>): { key: string; label: string }[] {
+  return sortCycles(keys).map((key) => ({ key, label: cycleLabel(key) }));
 }
 
 interface FinalizedValueStream {

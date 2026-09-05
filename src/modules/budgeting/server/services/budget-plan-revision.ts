@@ -19,7 +19,7 @@ import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { getBudgetingBoard } from "@/modules/budgeting/server/services/budgeting";
 import { getRoundForCycle } from "@/modules/budgeting/server/services/round-service";
-import { loadZonesModel } from "@/modules/budgeting/server/views/zones-view";
+import { loadZonesModel } from "@/modules/budgeting/server/services/zones";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 
 /**

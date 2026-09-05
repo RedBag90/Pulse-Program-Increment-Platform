@@ -1,35 +1,26 @@
 /**
- * Wer darf die Run-the-Business-Positionen eines Wertstroms bewegen?
+ * Der **Faktensammler** für das Pflegen von Run-the-Business-Positionen und das
+ * Aufteilen des Zuspruchs.
  *
- * Zwei Wege führen hin, und sie sind bewusst verschieden begründet:
- *
- *  - Die **Finance-Partei** des Wertstroms (`ValueStream.financeApproverId`) —
- *    eine zeilenabhängige Zuständigkeit, die sich nicht als Capability
- *    ausdrücken lässt und deshalb vor der RBAC-Prüfung steht.
- *  - Die **Capability** `rtb_item.manage` (Wertstrom-Owner, Portfolio-Management,
- *    Tenant-Admin), auf den Wertstrom bezogen.
- *
- * Die Regel stand wortgleich in `rtb-item-service.ts` und `rtb-award-service.ts`
- * — zwei Kopien, die sich nur in ihrer Fehlermeldung unterschieden. Sie leben
- * jetzt hier; der Aufrufer sagt über `purpose`, wovon er spricht.
+ * Die Entscheidung selbst steht rein in `domain/budget-access.ts`
+ * (`rtbManageDeniedReason`) — hier wird nur beschafft, was sie braucht: die
+ * Finance-Partei des Wertstroms aus der Datenbank und die Capability aus dem
+ * Principal. Das ist die Aufteilung, die alle drei Autorisierungen des Moduls
+ * jetzt teilen: Fakten sammeln ist I/O, Entscheiden ist rein und geprüft.
  */
 
 import type { Prisma } from "@/generated/prisma";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { err, type Result } from "@/modules/core/kernel/domain/errors";
 import { authorizeResource } from "@/server/auth/authorize";
+import {
+  rtbManageDeniedReason,
+  type RtbManagePurpose,
+} from "@/modules/budgeting/domain/budget-access";
 
-/** Wovon der Aufrufer spricht — trägt nur die Fehlermeldung. */
-export type RtbManagePurpose = "items" | "awards";
+export type { RtbManagePurpose };
 
-const REASON: Record<RtbManagePurpose, string> = {
-  items:
-    "Nur der Wertstrom-Owner/Finance-Partei (oder Portfolio-Manager/Admin) darf Run-the-Business-Positionen pflegen.",
-  awards:
-    "Nur der Wertstrom-Owner, die Finance-Partei oder das Portfolio-Management dürfen den Zuspruch aufteilen.",
-};
-
-/** VS-scoped Autorisierung + Finance-Bypass. `null` = erlaubt. */
+/** VS-scoped Autorisierung samt Finance-Bypass. `null` = erlaubt. */
 export async function assertRtbManage(
   ctx: RequestContext,
   tx: Prisma.TransactionClient,
@@ -43,8 +34,16 @@ export async function assertRtbManage(
   });
   if (!vs)
     return err({ kind: "not_found" as const, resourceType: "ValueStream", id: valueStreamId });
-  if (vs.financeApproverId === ctx.principal.id) return null;
-  const decision = authorizeResource(ctx.principal, "rtb_item.manage", { tenantId, valueStreamId });
-  if (!decision.ok) return err({ kind: "forbidden" as const, reason: REASON[purpose] });
-  return null;
+
+  const reason = rtbManageDeniedReason(
+    {
+      isValueStreamFinance: vs.financeApproverId === ctx.principal.id,
+      hasRtbCapability: authorizeResource(ctx.principal, "rtb_item.manage", {
+        tenantId,
+        valueStreamId,
+      }).ok,
+    },
+    purpose,
+  );
+  return reason == null ? null : err({ kind: "forbidden" as const, reason });
 }

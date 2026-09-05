@@ -66,6 +66,28 @@ narrative lives in `docs/concepts/`; role↔capability mapping in
   (`GanttMonthSpan`).
 - **Half-year axis** (`HalfYearAxis`) — the inclusive `{ start, count, periods[] }`
   span used by participatory budgeting.
+- **Zyklus** (`budgeting/domain/cycle.ts`) — das Halbjahr **als Begriff des
+  Budget-Moduls**, nicht als Zeichenkette. Besitzt die vier Fragen, die vorher
+  verstreut beantwortet wurden: ist das ein gültiger Schlüssel
+  (`CYCLE_KEY_PATTERN`), wie ordnen sich zwei Zyklen (`compareCycles` — die
+  lexikographische Ordnung, benannt statt unterstellt), welche zwei Halbjahre
+  sind offen (`openCycles`: das laufende und das nächste), und welches Halbjahr
+  meint diese Anfrage (`resolveCycle`, mit stummem Rückfall auf das laufende).
+  Die Datums-Primitiven bleiben im **Calendar**; hier wohnt, was Budgeting
+  daraus macht. Ob ein offenes Halbjahr auch **beschreibbar** ist, sagt
+  `potWindowClosedReason` — das ist die Regel, `openCycles` nur die Achse.
+- **PB-Liste** — was in einer Budgeting-Runde um Geld konkurriert: die
+  vorgemerkten Epics plus die aktiven Run-the-Business-Positionen. Hieß bis
+  September 2026 „Ballot", ein Wort, das zugleich die gedruckten
+  **Verteilbögen** meinte.
+- **ART-Epic-Budget** (`budgeting/server/services/art-epic-budget.ts`) — das
+  Geld, mit dem ein ART seine kleinen Epics finanziert, in **drei benannten
+  Zuständen**: _beantragt_ (die `art_change`-Position im Wertstrom),
+  _zugesprochen_ (was die Runde davon bewilligt und der Wertstrom aufgeteilt
+  hat), _verteilt_ (was der ART seinen Epics gegeben hat). Die Schnittstelle
+  fragt nach einer **Menge** von ARTs; der Einzelfall ist ihr Sonderfall.
+  Abzugrenzen vom **Portfolio-Budget**, der Zuteilung über die PB-Liste — ein
+  Epic wird aus genau einer der beiden Quellen finanziert.
 - **Epic Schedule** — `src/domain/epic-schedule.ts`, the pure read/derivation
   model of an Epic's delivery timeline. Resolves the two anchors —
   **costStart** (the Backlog milestone, where cost begins) and **goLive** (the

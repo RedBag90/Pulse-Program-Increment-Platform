@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
@@ -5,8 +6,7 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { hasCapability } from "@/server/auth/authorize";
 import { getTenantPractices } from "@/server/services/target-model";
 import { mayReadArtBudget } from "@/modules/budgeting/server/services/art-budget-access";
-import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
-import { openCycleKeys } from "@/modules/budgeting/domain/art-pot-window";
+import { resolveCycle } from "@/modules/budgeting/domain/cycle";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
 import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
 import { loadArtBudgetDetail } from "@/modules/budgeting/server/views/art-budget-detail";
@@ -62,9 +62,7 @@ export default async function ArtBudgetDetailPage({
   });
   if (!mayRead) notFound();
 
-  const cycles = openCycleKeys(new Date());
-  const cycleKey =
-    cycle != null && (cycles as readonly string[]).includes(cycle) ? cycle : cycles[0];
+  const { cycleKey, options: cycles } = resolveCycle(cycle, new Date());
 
   const [guardrailRows, tenantRow] = await Promise.all([
     listValueStreamGuardrailTargets(db, principal.tenantId),
@@ -76,31 +74,28 @@ export default async function ArtBudgetDetailPage({
     art.valueStream.id,
   ).targets.approval.portfolioThreshold;
 
-  const [detail, phases] = await Promise.all([
-    loadArtBudgetDetail(
-      db,
-      principal.tenantId,
-      { id: art.id, valueStreamId: art.valueStream.id },
-      {
-        cycleKey,
-        artEpics: practices.artEpics,
-        threshold,
-        viewer: {
-          userId: principal.id,
-          isValueStreamFinance: art.valueStream.financeApproverId === principal.id,
-          hasRtbCapability: hasCapability(principal, "rtb_item.manage", {
-            tenantId: principal.tenantId,
-            valueStreamId: art.valueStream.id,
-          }),
-          hasArtDistributeCapability: hasCapability(principal, "art_budget.distribute", {
-            tenantId: principal.tenantId,
-            artId: art.id,
-          }),
-        },
+  const detail = await loadArtBudgetDetail(
+    db,
+    principal.tenantId,
+    { id: art.id, valueStreamId: art.valueStream.id },
+    {
+      cycleKey,
+      artEpics: practices.artEpics,
+      threshold,
+      viewer: {
+        userId: principal.id,
+        isValueStreamFinance: art.valueStream.financeApproverId === principal.id,
+        hasRtbCapability: hasCapability(principal, "rtb_item.manage", {
+          tenantId: principal.tenantId,
+          valueStreamId: art.valueStream.id,
+        }),
+        hasArtDistributeCapability: hasCapability(principal, "art_budget.distribute", {
+          tenantId: principal.tenantId,
+          artId: art.id,
+        }),
       },
-    ),
-    loadFundingPhases(db, principal.tenantId, art.valueStream.id, cycleKey, art.id),
-  ]);
+    },
+  );
 
   const canDistribute =
     art.valueStream.financeApproverId === principal.id ||
@@ -131,21 +126,33 @@ export default async function ArtBudgetDetailPage({
         <nav className="flex items-center gap-1" aria-label="Halbjahr">
           {cycles.map((c) => (
             <Link
-              key={c}
-              href={`${basePath}?tab=${active}&cycle=${c}`}
-              aria-current={c === cycleKey ? "page" : undefined}
+              key={c.key}
+              href={`${basePath}?tab=${active}&cycle=${c.key}`}
+              aria-current={c.key === cycleKey ? "page" : undefined}
               className={`rounded-md border px-2.5 py-1 text-sm ${
-                c === cycleKey
+                c.key === cycleKey
                   ? "border-primary bg-primary/10 font-medium text-primary"
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              {halfYearLabel(c)}
+              {c.label}
             </Link>
           ))}
         </nav>
       }
-      subHeader={<ArtFundingRail phases={phases} surface="art" />}
+      subHeader={
+        // Eigene Insel — der Leitfaden kostet sechs Abfragen für einen Streifen,
+        // den niemand liest, bevor er die Zahlen darunter gesehen hat.
+        <Suspense fallback={<RailSkeleton />}>
+          <FundingRail
+            db={db}
+            tenantId={principal.tenantId}
+            vsId={art.valueStream.id}
+            cycleKey={cycleKey}
+            artId={art.id}
+          />
+        </Suspense>
+      }
     >
       <ArtBudgetTab
         detail={detail}
@@ -155,4 +162,27 @@ export default async function ArtBudgetDetailPage({
       />
     </EntityDetailShell>
   );
+}
+
+/** Der Leitfaden als eigene Insel, damit er die Reiter nicht aufhält. */
+async function FundingRail({
+  db,
+  tenantId,
+  vsId,
+  cycleKey,
+  artId,
+}: {
+  db: ReturnType<typeof createPrismaClient>;
+  tenantId: string;
+  vsId: string;
+  cycleKey: string;
+  artId: string;
+}) {
+  const phases = await loadFundingPhases(db, tenantId as never, vsId, cycleKey, artId);
+  return <ArtFundingRail phases={phases} surface="art" />;
+}
+
+/** Platzhalter in der Höhe der Leiste, damit der Kopf nicht springt. */
+function RailSkeleton() {
+  return <div className="h-[58px] animate-pulse rounded-lg border bg-muted/40" />;
 }

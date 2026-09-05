@@ -4,9 +4,8 @@ import { requirePrincipal } from "@/server/auth/principal";
 import { createPrismaClient } from "@/server/db/prisma";
 import { hasCapability } from "@/server/auth/authorize";
 import { getTenantPractices } from "@/server/services/target-model";
-import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
-import { openCycleKeys } from "@/modules/budgeting/domain/art-pot-window";
-import { artEpicBudgetTotal } from "@/modules/budgeting/server/services/art-pot";
+import { resolveCycle } from "@/modules/budgeting/domain/cycle";
+import { loadArtEpicBudgets } from "@/modules/budgeting/server/services/art-epic-budget";
 import { Page, PageHeader } from "@/components/layout";
 
 /**
@@ -32,10 +31,7 @@ export default async function ArtBudgetsPage({
   if (!practices.artEpics) redirect("/budgeting/periods");
 
   const { cycle, vs } = await searchParams;
-  const now = new Date();
-  const cycles = openCycleKeys(now);
-  const cycleKey =
-    cycle != null && (cycles as readonly string[]).includes(cycle) ? cycle : cycles[0];
+  const { cycleKey, options: cycles } = resolveCycle(cycle, new Date());
 
   const arts = await db.art.findMany({
     where: {
@@ -46,32 +42,24 @@ export default async function ArtBudgetsPage({
     orderBy: { name: "asc" },
   });
 
-  const rows = (
-    await Promise.all(
-      arts.map(async (a) => {
-        // Dieselben drei Lesewege wie am Knoten — nur hier als Filter.
-        const visible =
-          hasCapability(principal, "budget.read", {
-            tenantId: principal.tenantId,
-            artId: a.id,
-          }) ||
-          hasCapability(principal, "art_budget.distribute", {
-            tenantId: principal.tenantId,
-            artId: a.id,
-          });
-        if (!visible) return null;
-        const [total, allocations] = await Promise.all([
-          artEpicBudgetTotal(db, principal.tenantId, a.id, cycleKey),
-          db.artEpicAllocation.findMany({
-            where: { tenantId: principal.tenantId, artId: a.id, cycleKey },
-            select: { amount: true },
-          }),
-        ]);
-        const distributed = allocations.reduce((s, x) => s + Number(x.amount), 0);
-        return { ...a, total, distributed, remaining: total - distributed };
+  // Dieselben drei Lesewege wie am Knoten — nur hier als Filter.
+  const visible = arts.filter(
+    (a) =>
+      hasCapability(principal, "budget.read", { tenantId: principal.tenantId, artId: a.id }) ||
+      hasCapability(principal, "art_budget.distribute", {
+        tenantId: principal.tenantId,
+        artId: a.id,
       }),
-    )
-  ).filter((r): r is NonNullable<typeof r> => r != null);
+  );
+
+  // **Zwei** Abfragen für alle ARTs zusammen. Vorher waren es drei je ART.
+  const budgets = await loadArtEpicBudgets(
+    db,
+    principal.tenantId,
+    visible.map((a) => a.id),
+    cycleKey,
+  );
+  const rows = visible.map((a) => ({ ...a, ...budgets.get(a.id)! }));
 
   const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((s, r) => s + pick(r), 0);
 
@@ -85,16 +73,16 @@ export default async function ArtBudgetsPage({
         </span>
         {cycles.map((c) => (
           <Link
-            key={c}
-            href={`/budgeting/arts?cycle=${c}${vs != null ? `&vs=${vs}` : ""}`}
-            aria-current={c === cycleKey ? "page" : undefined}
+            key={c.key}
+            href={`/budgeting/arts?cycle=${c.key}${vs != null ? `&vs=${vs}` : ""}`}
+            aria-current={c.key === cycleKey ? "page" : undefined}
             className={`rounded-md border px-2.5 py-1 text-sm ${
-              c === cycleKey
+              c.key === cycleKey
                 ? "border-primary bg-primary/10 font-medium text-primary"
                 : "text-muted-foreground hover:bg-muted"
             }`}
           >
-            {halfYearLabel(c)}
+            {c.label}
           </Link>
         ))}
       </nav>

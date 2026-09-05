@@ -11,7 +11,7 @@ import type {
 } from "@/modules/budgeting/domain/budget-plan-snapshot";
 import type { SnapshotDisplayPeriod } from "@/modules/budgeting/domain/period-window";
 import { sumPeriods } from "@/modules/budgeting/domain/period-map";
-import type { BudgetPlanRevisionModel } from "@/modules/budgeting/server/views/budget-plan-revision";
+import type { BudgetPlanRevisionModel } from "@/modules/budgeting/domain/budget-plan-revision-model";
 
 /** A column the view renders — current cycle is flagged for tint. Re-uses the
  *  domain's `SnapshotDisplayPeriod` so the view and `computeDisplayPeriods`

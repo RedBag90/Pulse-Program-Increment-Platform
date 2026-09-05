@@ -1305,6 +1305,10 @@ model BudgetCandidate {
   @@unique([roundId, rtbItemId])
   @@index([roundId])
   @@index([tenantId])
+  // Die Kandidaten werden fast immer nach Art **und** Träger gefiltert;
+  // `@@index([tenantId])` allein liess den Rest im Heap filtern.
+  @@index([tenantId, kind, artId])
+  @@index([tenantId, kind, valueStreamId])
   @@map("budget_candidates")
 }
 
@@ -1366,6 +1370,9 @@ model RunTheBusinessItem {
 
   @@index([tenantId, valueStreamId])
   @@index([tenantId, solutionId])
+  // Die häufigste Abfrage des Budget-Moduls: das ART-Epic-Budget eines ARTs.
+  // Lief bis hierhin ohne passenden Index.
+  @@index([tenantId, artId, kind, active])
   @@map("run_the_business_items")
 }
 
@@ -1818,5 +1825,6 @@ model ArtEpicAllocation {
 
   @@unique([artId, epicId, cycleKey])
   @@index([tenantId, cycleKey])
+  @@index([tenantId, artId, cycleKey])
   @@map("art_epic_allocations")
 }

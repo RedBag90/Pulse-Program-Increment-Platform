@@ -16,7 +16,6 @@ import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel
 import { ok, err, isErr, type Result } from "@/modules/core/kernel/domain/errors";
 import { mergeEpicAllocation } from "@/modules/budgeting/server/services/epic-allocation";
 import { computeReserve } from "@/modules/budgeting/domain/finalize";
-import { loadPbList } from "@/modules/budgeting/server/services/pb-list";
 import { createRound, copyPeriodSetup } from "@/modules/budgeting/server/services/round-service";
 import { halfYearKey, addHalfYears } from "@/modules/core/kernel/domain/calendar";
 import { captureBudgetPlanRevision } from "@/modules/budgeting/server/services/budget-plan-revision";
@@ -140,8 +139,10 @@ async function finalizePeriodRound(
       }
     }
 
-    const ballot = await loadPbList(tx, mctx.tenantId);
-    const distributable = Number(round.poolTotal) - ballot.mandatorySum;
+    // `loadPbList` stand hier nur, um eine konstant leere Pflichtsumme
+    // abzuziehen — ein Relikt der abgeschafften Pflichtvorhaben. Der Topf ist
+    // vollständig verteilbar.
+    const distributable = Number(round.poolTotal);
     const reserve = computeReserve(distributable, [sumFinal]);
 
     await tx.budgetRound.update({

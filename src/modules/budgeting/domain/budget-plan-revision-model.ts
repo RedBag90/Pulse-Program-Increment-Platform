@@ -6,6 +6,11 @@
  * Faltung. Vorher rechnete die 426-Zeilen-Server-Komponente ihre vier Headline-
  * Zahlen und die sichtbaren Spalten selbst aus dem Snapshot.
  *
+ * Hieß bis September 2026 `server/views/budget-plan-revision.ts` — genauso wie
+ * der 16-KB-Service daneben, der ganz andere Arbeit tut. Zwei Dateien, ein
+ * Name: wer den Verlauf einer Zahl suchte, landete zur Hälfte falsch. Der reine
+ * Falter heißt jetzt, was er ist, und steht bei den anderen reinen Faltern.
+ *
  * Rein, kein I/O, keine Uhr.
  */
 

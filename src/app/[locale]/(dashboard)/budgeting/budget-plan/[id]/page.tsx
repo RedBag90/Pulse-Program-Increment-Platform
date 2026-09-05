@@ -7,7 +7,7 @@ import {
 } from "@/modules/budgeting/server/services/budget-plan-revision";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 import { BudgetPlanRevisionView } from "@/modules/budgeting/features/components/revision/budget-plan-revision-view";
-import { buildBudgetPlanRevisionModel } from "@/modules/budgeting/server/views/budget-plan-revision";
+import { buildBudgetPlanRevisionModel } from "@/modules/budgeting/domain/budget-plan-revision-model";
 import { PbRoundProtocol } from "@/modules/budgeting/features/components/revision/pb-round-protocol";
 import { Link } from "@/i18n/navigation";
 import { Page } from "@/components/layout";

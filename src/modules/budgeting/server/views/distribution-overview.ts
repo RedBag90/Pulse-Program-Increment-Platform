@@ -7,7 +7,6 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import { hasCapability } from "@/server/auth/authorize";
-import { loadPbList } from "@/modules/budgeting/server/services/pb-list";
 import { median } from "@/modules/budgeting/domain/finalize";
 
 export interface OverviewGroup {
@@ -56,7 +55,7 @@ export async function loadDistributionOverview(
   });
   if (!round) return null;
 
-  const [groups, candidates, allocations, ballot, valueStreams, epicSolutions, rtbSolutions] =
+  const [groups, candidates, allocations, valueStreams, epicSolutions, rtbSolutions] =
     await Promise.all([
       db.budgetGroup.findMany({
         where: { roundId },
@@ -81,7 +80,6 @@ export async function loadDistributionOverview(
         where: { roundId, candidateId: { not: null } },
         select: { groupId: true, candidateId: true, amount: true },
       }),
-      loadPbList(db, principal.tenantId),
       db.valueStream.findMany({
         where: { tenantId: principal.tenantId },
         select: { id: true, name: true },
@@ -136,7 +134,7 @@ export async function loadDistributionOverview(
   return {
     roundId: round.id,
     status: round.status,
-    distributable: Number(round.poolTotal) - ballot.mandatorySum,
+    distributable: Number(round.poolTotal),
     groups: groups.map((g) => ({ id: g.id, name: g.name, submitted: g.submittedAt != null })),
     candidates: candidateViews,
     submittedCount: submittedGroupIds.size,

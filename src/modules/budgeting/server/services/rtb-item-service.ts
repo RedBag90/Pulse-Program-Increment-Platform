@@ -68,7 +68,7 @@ export async function listRtbItems(
  * Ein ART-Epic-Budget braucht einen ART, und der muss zu diesem Wertstrom
  * gehören.
  *
- * Ohne ART hätte das Budget niemanden, der es verteilen darf — `loadArtPot`
+ * Ohne ART hätte das Budget niemanden, der es verteilen darf — `loadArtEpicBudget`
  * gruppiert die Awards nach `artId`, eine Position ohne ART fiele lautlos aus
  * jeder Sicht. Und ein ART aus einem fremden Wertstrom bekäme Geld aus einem
  * Zuspruch, der ihm nicht gilt.

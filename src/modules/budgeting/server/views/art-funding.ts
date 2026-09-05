@@ -4,6 +4,9 @@
  *
  * Alles hier wird auf den Flächen ohnehin gebraucht; die Funktion bündelt es
  * nur, damit die Leiste nicht auf jeder Seite neu zusammengesammelt wird.
+ *
+ * Die Fakten des Leitfadens — zwei Flächen rendern daraus; der Falter (`artFundingPhases`) wohnt in der Domäne. Der Ordner `views/` trägt, woraus eine Seite
+ * rendert — nicht nur Dateien, die Lader **und** Falter selbst enthalten.
  */
 
 import type { PrismaClient } from "@/generated/prisma";
@@ -13,7 +16,7 @@ import {
   type FundingPhase,
   type FundingPhaseFacts,
 } from "@/modules/budgeting/domain/art-funding-phases";
-import { artEpicBudgetTotal } from "@/modules/budgeting/server/services/art-pot";
+import { loadArtEpicBudgets } from "@/modules/budgeting/server/services/art-epic-budget";
 
 export async function loadFundingPhases(
   db: PrismaClient,
@@ -35,7 +38,7 @@ export async function loadFundingPhases(
     db.art.findMany({ where: { tenantId, valueStreamId }, select: { id: true } }),
   ]);
 
-  const [candidate, awards, allocations] = await Promise.all([
+  const [candidate, awards, budgets] = await Promise.all([
     round == null
       ? Promise.resolve(null)
       : db.budgetCandidate.findFirst({
@@ -48,23 +51,19 @@ export async function loadFundingPhases(
           where: { tenantId, cycleKey, rtbItemId: { in: items.map((i) => i.id) } },
           select: { rtbItemId: true, amount: true },
         }),
-    db.artEpicAllocation.findMany({
-      where: { tenantId, cycleKey, artId: { in: arts.map((a) => a.id) } },
-      select: { artId: true, amount: true },
-    }),
+    // Zwei Abfragen für alle ARTs des Wertstroms — vorher zwei **je** ART.
+    loadArtEpicBudgets(
+      db,
+      tenantId,
+      arts.map((a) => a.id),
+      cycleKey,
+    ),
   ]);
 
-  const distributed = new Map<string, number>();
-  for (const a of allocations) {
-    distributed.set(a.artId, (distributed.get(a.artId) ?? 0) + Number(a.amount));
-  }
-  const totals = await Promise.all(
-    arts.map(async (a) => ({
-      artId: a.id,
-      total: await artEpicBudgetTotal(db, tenantId, a.id, cycleKey),
-      distributed: distributed.get(a.id) ?? 0,
-    })),
-  );
+  const totals = arts.map((a) => {
+    const b = budgets.get(a.id);
+    return { artId: a.id, total: b?.total ?? 0, distributed: b?.distributed ?? 0 };
+  });
 
   const facts: FundingPhaseFacts = {
     valueStreamId,

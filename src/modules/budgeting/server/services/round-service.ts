@@ -395,11 +395,3 @@ export function getRoundForCycle(db: PrismaClient, tenantId: string, cycleKey: s
     include: { groups: { include: { members: true }, orderBy: { name: "asc" } } },
   });
 }
-
-export function listRounds(db: PrismaClient, tenantId: string) {
-  return db.budgetRound.findMany({
-    where: { tenantId },
-    orderBy: { cycleKey: "desc" },
-    select: { id: true, cycleKey: true, status: true, poolTotal: true, plannedAt: true },
-  });
-}

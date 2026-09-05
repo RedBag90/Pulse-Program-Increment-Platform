@@ -15,7 +15,7 @@ import {
   type ArtBudgetDetail,
   type UnfundedCandidate,
   type UnfundedReason,
-} from "@/modules/budgeting/server/views/art-budget-model";
+} from "@/modules/budgeting/domain/art-budget-model";
 
 /**
  * Der Budget-Reiter eines ARTs: was zugeteilt ist, in welchem Zustand es steht,

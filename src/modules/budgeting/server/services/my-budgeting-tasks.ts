@@ -15,7 +15,9 @@
  */
 
 import type { PrismaClient } from "@/generated/prisma";
-import { halfYearKey, halfYearLabel } from "@/modules/core/kernel/domain/calendar";
+import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
+import { currentCycle } from "@/modules/budgeting/domain/cycle";
+import { loadArtEpicBudgets } from "@/modules/budgeting/server/services/art-epic-budget";
 
 export interface MyArtFundingTask {
   artId: string;
@@ -84,7 +86,10 @@ export async function listMyArtFundingTasks(
   now: Date = new Date(),
 ): Promise<MyArtFundingTask[]> {
   if (artIds.length === 0) return [];
-  const cycleKey = halfYearKey(now);
+  // Dieselbe Auslegung wie die Flächen: das laufende Halbjahr. Stand hier
+  // vorher als eigener `halfYearKey(now)`-Aufruf — die vierte Antwort auf „welches
+  // Halbjahr gilt", die sich unbemerkt von den anderen dreien hätte lösen können.
+  const cycleKey = currentCycle(now);
 
   const items = await db.runTheBusinessItem.findMany({
     where: {
@@ -97,37 +102,27 @@ export async function listMyArtFundingTasks(
   });
   if (items.length === 0) return [];
 
-  const [awards, allocations] = await Promise.all([
-    db.rtbItemAward.findMany({
-      where: { tenantId: principal.tenantId, cycleKey, rtbItemId: { in: items.map((i) => i.id) } },
-      select: { rtbItemId: true, amount: true },
-    }),
-    db.artEpicAllocation.findMany({
-      where: { tenantId: principal.tenantId, cycleKey, artId: { in: [...artIds] } },
-      select: { artId: true, amount: true },
-    }),
-  ]);
-
-  const awardByItem = new Map(awards.map((a) => [a.rtbItemId, Number(a.amount)]));
-  const totalByArt = new Map<string, { name: string; total: number }>();
+  // Die dritte Kopie der Rechnung *zugesprochen − verteilt* ist damit weg; sie
+  // wohnt jetzt in `art-epic-budget.ts`. Die Namen der ARTs stehen schon oben.
+  const names = new Map<string, string>();
   for (const i of items) {
-    if (i.artId == null) continue;
-    const cur = totalByArt.get(i.artId) ?? { name: i.art?.name ?? "ART", total: 0 };
-    cur.total += awardByItem.get(i.id) ?? 0;
-    totalByArt.set(i.artId, cur);
+    if (i.artId != null) names.set(i.artId, i.art?.name ?? "ART");
   }
-  const distributedByArt = new Map<string, number>();
-  for (const a of allocations) {
-    distributedByArt.set(a.artId, (distributedByArt.get(a.artId) ?? 0) + Number(a.amount));
-  }
+  const budgets = await loadArtEpicBudgets(
+    db,
+    principal.tenantId,
+    [...names.keys()],
+    cycleKey,
+    now,
+  );
 
-  return [...totalByArt.entries()]
-    .map(([artId, v]) => ({
+  return [...names.entries()]
+    .map(([artId, artName]) => ({
       artId,
-      artName: v.name,
+      artName,
       cycleKey,
       cycleLabel: halfYearLabel(cycleKey),
-      remaining: v.total - (distributedByArt.get(artId) ?? 0),
+      remaining: budgets.get(artId)?.remaining ?? 0,
       href: `/budgeting/arts/${artId}?tab=verteilen`,
     }))
     .filter((t) => t.remaining > 0);
