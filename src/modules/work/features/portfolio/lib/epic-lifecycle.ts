@@ -234,3 +234,30 @@ export function lifecycleSpans(input: {
     return { from, to: gateActuals[i] ?? null, days, running };
   });
 }
+
+/**
+ * Die **Kanban-Spalte** eines Epics — das Kanban zeigt den Prozess, nicht den
+ * Reifegrad.
+ *
+ * Für fünf der sechs Spalten fällt beides zusammen. Nur `L0` zerfällt: solange
+ * das Epic ungesichtet im Funnel liegt, steht es in **Funnel**; sobald der VMO
+ * es gesichtet und den Owner benannt hat, wird an der **Hypothese** gearbeitet —
+ * und genau das soll die Spalte zeigen, obwohl der Reifegrad noch `L0` ist.
+ *
+ * Das ist bewusst **nicht** die alte Bucket-Abweichung, die mit ADR-0018
+ * entfallen ist: die glich aus, dass ein Gate der Wirklichkeit hinterherlief.
+ * Hier läuft nichts hinterher — die Erstsichtung ist ein Meilenstein, der den
+ * Reifegrad **per Definition** nicht bewegt, und ohne diese Regel wäre er im
+ * Kanban unsichtbar.
+ *
+ * Der Reifegrad-Balken zählt weiterhin nach `stageGate`: eine Fläche für den
+ * Prozess, eine für die Meilensteine.
+ *
+ * Rein, kein I/O.
+ */
+export function processColumn(epic: {
+  stageGate: string;
+  selectedForDetailingAt: Date | null;
+}): string {
+  return epic.stageGate === "L0" && epic.selectedForDetailingAt != null ? "L1" : epic.stageGate;
+}

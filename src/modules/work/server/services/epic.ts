@@ -688,6 +688,9 @@ export async function listEpicsForOverview(
       status: true,
       stageGate: true,
       ownerId: true,
+      // Die Erstsichtung bewegt den Reifegrad nicht — im Kanban trennt dieser
+      // Stempel die Spalte „Funnel" von „Hypothese", beide bei stageGate L0.
+      selectedForDetailingAt: true,
       businessCaseApprovedAt: true,
       updatedAt: true,
       needsSteeringAttention: true,

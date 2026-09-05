@@ -9,6 +9,7 @@ import {
   type HorizonLane,
 } from "@/modules/work/domain/portfolio-guardrails";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
+import { processColumn } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import {
   computeStructureGap,
   computePracticeAdoption,
@@ -108,9 +109,14 @@ export interface OverviewEpicCard {
   title: string;
   status: string;
   stageGate: string;
-  /** Genutzt fuer Kanban-Bucket-Splitt L0+Owner → „Hypothese erstellen". */
   ownerId: string | null;
-  /** Stamp aus dem BC-Approval-Pfad. Treibt den L2+BC-approved → L3-Bucket. */
+  /**
+   * Stempel der Erstsichtung. Er trennt im Kanban die Spalte **Funnel** von
+   * **Hypothese** — beide tragen `stageGate === "L0"`, denn die Erstsichtung
+   * bewegt den Reifegrad nicht.
+   */
+  selectedForDetailingAt: Date | null;
+  /** Stamp aus dem BC-Approval-Pfad — von der Steering-Tabelle gelesen. */
   businessCaseApprovedAt: Date | null;
   valueStream: { id: string; name: string } | null;
   updatedAt: Date;
@@ -254,7 +260,14 @@ export interface ClassFilterState {
 
 export interface PortfolioOverview {
   epics: OverviewEpicCard[];
+  /** **Meilenstein-Achse** — nach `stageGate`. Funnel-Balken, Banner, Hero. */
   epicsByGate: Record<StageGate, OverviewEpicCard[]>;
+  /**
+   * **Prozess-Achse** — nach `processColumn`. Nur fürs Kanban und dessen
+   * WIP-Warnung. Unterschied zur Meilenstein-Achse: ein gesichtetes Epic in L0
+   * steht hier schon unter „Hypothese", weil dort gearbeitet wird.
+   */
+  epicsByColumn: Record<StageGate, OverviewEpicCard[]>;
   /** Horizont-Swimlanes × Stage-Gate für den Overview-Kanban. */
   epicsByHorizonGate: Record<HorizonLane, Record<StageGate, OverviewEpicCard[]>>;
   epicsCount: number;
@@ -431,6 +444,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     status: e.status,
     stageGate: e.stageGate,
     ownerId: e.ownerId,
+    selectedForDetailingAt: e.selectedForDetailingAt,
     businessCaseApprovedAt: e.businessCaseApprovedAt,
     valueStream: e.valueStream,
     updatedAt: e.updatedAt,
@@ -456,16 +470,31 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     // Direkt nach `stageGate` — die frühere Bucket-Abweichung ist entfallen.
     epicsByGate[gate].push(c);
   }
+  // Zweite Zählung, zweite Achse: `epicsByGate` zählt **Reifegrade** (Funnel-
+  // Balken, Perioden-Banner, Hero), `epicsByColumn` den **Prozess** fürs Kanban.
+  // Sie unterscheiden sich an genau einer Stelle — einem gesichteten Epic in L0,
+  // an dem schon die Hypothese entsteht. Zwei Zahlen sind hier richtiger als
+  // eine: sonst zählte der Balken Meilensteine und das Kanban auch.
+  const epicsByColumn = Object.fromEntries(
+    STAGE_GATES.map((g) => [g, [] as OverviewEpicCard[]]),
+  ) as Record<StageGate, OverviewEpicCard[]>;
+  for (const c of cards) {
+    const col = processColumn(c) as StageGate;
+    if ((STAGE_GATES as readonly string[]).includes(col)) epicsByColumn[col].push(c);
+  }
+
   for (const gate of STAGE_GATES) {
     // Sortierung im Kanban: zuerst die fürs nächste Steering markierten
     // Epics (gelbe Karten), danach unmarkierte. Innerhalb jeder Gruppe
     // weiter oldest-first, damit der „liegt am längsten"-Hinweis bleibt.
-    epicsByGate[gate].sort((a, b) => {
+    const bySteeringThenAge = (a: OverviewEpicCard, b: OverviewEpicCard) => {
       if (a.needsSteeringAttention !== b.needsSteeringAttention) {
         return a.needsSteeringAttention ? -1 : 1;
       }
       return b.daysSinceUpdate - a.daysSinceUpdate;
-    });
+    };
+    epicsByGate[gate].sort(bySteeringThenAge);
+    epicsByColumn[gate].sort(bySteeringThenAge);
   }
 
   // Horizont-Swimlanes: Matrix Horizont × Stage-Gate für den Overview-Kanban.
@@ -698,6 +727,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   return {
     epics: cards,
     epicsByGate,
+    epicsByColumn,
     epicsByHorizonGate,
     epicsCount: cards.length,
     oldestPerGate,

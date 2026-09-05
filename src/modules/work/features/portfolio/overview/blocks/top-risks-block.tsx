@@ -33,7 +33,7 @@ export function TopRisksBlock({ data }: { data: PortfolioOverview }) {
 
   for (const gate of STAGE_GATES) {
     const limit = PORTFOLIO_WIP_LIMITS[gate];
-    const count = data.epicsByGate[gate].length;
+    const count = data.epicsByColumn[gate].length;
     if (limit !== null && count > limit) {
       risks.push({
         key: `wip-${gate}`,

@@ -3,6 +3,7 @@ import {
   epicLifecycleSteps,
   lifecycleSpans,
   runningStepIndex,
+  processColumn,
   LIFECYCLE_STEPS,
   type EpicLifecycleInput,
 } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
@@ -214,5 +215,26 @@ describe("lifecycleSpans — Dauern ohne ein neues Feld", () => {
       now,
     });
     expect(spans).toHaveLength(LIFECYCLE_STEPS.length);
+  });
+});
+
+describe("processColumn — das Kanban zeigt den Prozess", () => {
+  const at = (d: string | null) => ({ selectedForDetailingAt: d ? D(d) : null });
+
+  it("laesst ein ungesichtetes Epic im Funnel", () => {
+    expect(processColumn({ stageGate: "L0", ...at(null) })).toBe("L0");
+  });
+
+  it("rueckt ein gesichtetes Epic in die Hypothese-Spalte", () => {
+    // Der Reifegrad bleibt L0 — gearbeitet wird aber schon an der Hypothese,
+    // und genau das soll die Spalte zeigen.
+    expect(processColumn({ stageGate: "L0", ...at("2026-09-06") })).toBe("L1");
+  });
+
+  it("laesst alle uebrigen Reifegrade unveraendert", () => {
+    for (const g of ["L1", "L2", "L3", "L4", "L5"]) {
+      expect(processColumn({ stageGate: g, ...at(null) })).toBe(g);
+      expect(processColumn({ stageGate: g, ...at("2026-09-06") })).toBe(g);
+    }
   });
 });

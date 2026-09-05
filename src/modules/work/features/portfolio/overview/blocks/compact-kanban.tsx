@@ -70,7 +70,7 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
             </span>
           </div>
           {STAGE_GATES.map((gate) => {
-            const over = isOverWip(gate, data.epicsByGate[gate].length);
+            const over = isOverWip(gate, data.epicsByColumn[gate].length);
             return (
               <div
                 key={gate}
@@ -90,7 +90,7 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
                       : "text-muted-foreground",
                   )}
                 >
-                  {wipCountLabel(gate, data.epicsByGate[gate].length)}
+                  {wipCountLabel(gate, data.epicsByColumn[gate].length)}
                 </span>
               </div>
             );
