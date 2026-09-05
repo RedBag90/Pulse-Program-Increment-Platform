@@ -44,6 +44,8 @@ interface Props {
   metricType?: string | null | undefined;
   precision?: number | null | undefined;
   currencyCode?: string | null | undefined;
+  /** Freies Einheiten-Label — Achsen-Suffix bei Metriktyp „individuell". */
+  metricUnit?: string | null | undefined;
 }
 
 /**
@@ -65,6 +67,7 @@ export function GoalDetailPanel({
   metricType,
   precision,
   currencyCode,
+  metricUnit,
 }: Props) {
   const router = useRouter();
   const [detail, setDetail] = useState<GoalDetailPayload | null>(null);
@@ -168,7 +171,7 @@ export function GoalDetailPanel({
   // Punkte sind die eigenen Status-Updates (Farbe = Status).
   const chart = detail?.progressChart;
   const chartData = chart?.series ?? [];
-  const metricSpec = { metricType, precision, currencyCode };
+  const metricSpec = { metricType, precision, currencyCode, metricUnit };
   // Value-Modus zeigt Rohwerte in der Ziel-Einheit; Rollup zeigt %.
   const unitSuffix = chart?.mode === "value" ? metricUnitSuffix(metricSpec) : " %";
 

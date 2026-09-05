@@ -29,7 +29,6 @@ const obj = (over: Partial<ForestObjective>): ForestObjective => ({
   periodStart: null,
   periodEnd: null,
   status: null,
-  dueDate: null,
   ownerId: null,
   metricUnit: null,
   metricType: "number",

@@ -121,11 +121,28 @@ function cursorInner(type: ZodTypeAny): ZodTypeAny {
 function getObjectShape(schema: z.ZodTypeAny): Record<string, ZodTypeAny> | null {
   // ZodObject exposes `shape` via the public API and `.shape` getter; the
   // safest read is `schema._def.shape()` which returns the shape map.
-  const def = (
-    schema as unknown as {
-      _def?: { typeName?: string; shape?: () => Record<string, ZodTypeAny> };
+  //
+  // `.superRefine()` / `.refine()` / `.transform()` wickeln das Objekt in
+  // ZodEffects. Ohne das Abschälen läse der Reader hier `null` und lieferte ein
+  // **leeres** Objekt an `safeParse` — jedes Feld einer Action mit Cross-Field-
+  // Validierung wäre still weg. Deshalb erst die Effekt-Hüllen abtragen.
+  let cursor: z.ZodTypeAny = schema;
+  for (let depth = 0; depth < 8; depth++) {
+    const def = (
+      cursor as unknown as {
+        _def?: {
+          typeName?: string;
+          shape?: () => Record<string, ZodTypeAny>;
+          schema?: ZodTypeAny;
+        };
+      }
+    )._def;
+    if (def?.typeName === "ZodEffects" && def.schema) {
+      cursor = def.schema;
+      continue;
     }
-  )._def;
-  if (def?.typeName !== "ZodObject" || typeof def.shape !== "function") return null;
-  return def.shape();
+    if (def?.typeName !== "ZodObject" || typeof def.shape !== "function") return null;
+    return def.shape();
+  }
+  return null;
 }

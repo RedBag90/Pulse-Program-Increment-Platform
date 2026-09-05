@@ -101,7 +101,6 @@ export interface GoalNode {
   periodEnd: string | null;
   /** Persistierter Goal-Status (src/domain/goal-status.ts) oder null. */
   status: string | null;
-  dueDate: string | null;
   ownerId: string | null;
   latestCheckin: GoalLatestCheckin | null;
   // ── Metrik (nur bei messbaren Blättern relevant) ──
@@ -244,7 +243,6 @@ export async function loadStrategyTree(
       periodStart: true,
       periodEnd: true,
       status: true,
-      dueDate: true,
       ownerId: true,
       metricUnit: true,
       metricType: true,
@@ -521,7 +519,6 @@ export async function loadStrategyTree(
     periodStart: o.periodStart ? o.periodStart.toISOString() : null,
     periodEnd: o.periodEnd ? o.periodEnd.toISOString() : null,
     status: o.status,
-    dueDate: o.dueDate ? o.dueDate.toISOString() : null,
     ownerId: o.ownerId,
     metricUnit: o.metricUnit,
     metricType: o.metricType,

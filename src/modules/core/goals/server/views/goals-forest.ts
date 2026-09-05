@@ -85,8 +85,6 @@ export interface ForestObjective {
   periodStart: string | null;
   periodEnd: string | null;
   status: string | null;
-  /** ISO-String oder null. */
-  dueDate: string | null;
   ownerId: string | null;
   metricUnit: string | null;
   metricType: string;
@@ -329,7 +327,6 @@ export function buildStrategyTree(input: GoalForestInput): {
       periodStart: o.periodStart,
       periodEnd: o.periodEnd,
       status: o.status,
-      dueDate: o.dueDate,
       ownerId: o.ownerId,
       latestCheckin: lookups.latestCheckin.get(o.id) ?? null,
       metricUnit: o.metricUnit,

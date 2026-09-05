@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, startTransition, useMemo, useState } from "react";
+import { useActionState, startTransition, useCallback, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -52,7 +52,14 @@ import {
   RelatedWorkSearch,
   type RelatedWorkResult,
 } from "@/modules/core/goals/features/components/related-work-search";
-import { formatMetricValue } from "@/modules/core/goals/domain/goal-metric";
+import {
+  formatMetricValue,
+  METRIC_TYPES,
+  METRIC_TYPE_LABELS,
+} from "@/modules/core/goals/domain/goal-metric";
+import type { ProgressMode } from "@/modules/core/goals/domain/goal-progress-mode";
+import { useCreateResult } from "@/features/create/use-create-result";
+import { useActionResult } from "@/lib/hooks/use-action-result";
 
 /**
  * Ziele-Edit-Drawer — flach 2-Ebenen (Refactor §Hierarchie-Vereinfachung).
@@ -114,7 +121,10 @@ export function ZieleEditDrawer({ model, canEdit, userLabels = {} }: Props) {
 
   const open = Boolean(entity && (id || isNew));
 
-  function close() {
+  // Memoisiert, weil `close` als `onClose` in den Effect-Deps von
+  // useCreateResult/useActionResult landet — eine bei jedem Render neue
+  // Funktion ließe die Effekte unnötig durchlaufen.
+  const close = useCallback(() => {
     const next = new URLSearchParams(searchParams.toString());
     next.delete("entity");
     next.delete("id");
@@ -122,7 +132,7 @@ export function ZieleEditDrawer({ model, canEdit, userLabels = {} }: Props) {
     next.delete("parent");
     const qs = next.toString();
     router.replace(`${pathname}${qs ? `?${qs}` : ""}` as never, { scroll: false });
-  }
+  }, [router, pathname, searchParams]);
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && close()}>
@@ -147,7 +157,7 @@ export function ZieleEditDrawer({ model, canEdit, userLabels = {} }: Props) {
 
 // ── Goal-Knoten — ein Pane für jede Ebene ────────────────────────────────
 
-type GoalProgressMode = "manual" | "rollup" | "kpi_tree";
+type GoalProgressMode = ProgressMode;
 
 /**
  * Ein einziger Pane für Anlegen + Bearbeiten jedes Goal-Knotens (Theme wie
@@ -183,6 +193,13 @@ function GoalPane({
   const pending = createPending || updatePending || deletePending;
   const err = createState.error || updateState.error || deleteState.error;
 
+  // Nach erfolgreichem Anlegen/Speichern schließt der Drawer — sonst bliebe er
+  // mit gefüllten Feldern offen (die URL trüge weiter `new=1`) und ein zweiter
+  // Klick auf „Speichern" legte ein Duplikat an. Dasselbe Muster wie in allen
+  // anderen Create-Dialogen des Repos.
+  useCreateResult(createState, onClose);
+  useActionResult(updateState, "Ziel gespeichert", onClose);
+
   // Einheitliche Benennung: jeder Knoten heißt „Ziel" (Top-Level wie Unterebene).
   const depth = node ? node.depth : parentId ? 1 : 0;
   const isTopLevel = depth === 0;
@@ -194,6 +211,17 @@ function GoalPane({
   const [mode, setMode] = useState<GoalProgressMode>(
     (node?.progressMode as GoalProgressMode | undefined) ?? "manual",
   );
+  // Der Metrik-Block ist eine Kaskade: erst der Typ, dann nur die Felder, die zu
+  // ihm gehören. Beim Anlegen bewusst leer ⇒ die Auswahl ist Pflicht (`required`
+  // am gerenderten Select; serverseitig bleibt das Feld optional, weil der ganze
+  // Block bei Fortschrittsquelle „Aus Unterzielen" gar nicht erst rendert).
+  const [metricType, setMetricType] = useState<string>(node?.metricType ?? "");
+  const showUnitLabel = metricType === "number" || metricType === "individuell";
+  const showCurrency = metricType === "currency";
+  // Den Ist-Wert pflegt man nur bei manueller Fortschrittsquelle; sonst leiten
+  // ihn KPIs bzw. die Unterziel-Kaskade ab (derselbe Schnitt wie der
+  // Server-Guard in `recordGoalProgress`).
+  const showCurrent = mode === "manual";
   const [confirmOpen, setConfirmOpen] = useState(false);
   // Edit-Drawer-Tabs (B2): Überblick / Verknüpfungen / Einstellungen.
   const [tab, setTab] = useState<"overview" | "links" | "settings">("overview");
@@ -234,106 +262,121 @@ function GoalPane({
           disabled={!canEdit}
         />
       </Field>
-      <Field label="Fällig am">
-        <input
-          name="dueDate"
-          type="date"
-          defaultValue={node?.dueDate ? node.dueDate.slice(0, 10) : ""}
-          className={INPUT}
-          disabled={!canEdit}
-        />
-      </Field>
       {mode !== "rollup" && (
+        // Kaskade: erst der Metriktyp, dann nur das, was zu ihm gehört. Was
+        // ausgeblendet ist, wird **nicht** mitgesendet (undefined = unverändert)
+        // — ein Leer-Reset würde sonst still Daten löschen, die man nicht mehr
+        // sieht (metricUnit trägt bei Nicht-Währung die KPI-Einheiten-Zuordnung).
         <div className="space-y-3 rounded-md border border-dashed p-3">
-          <Field label="Einheit (Label)">
-            <input
-              name="metricUnit"
-              defaultValue={node?.metricUnit ?? ""}
+          <Field label="Metriktyp">
+            <select
+              name="metricType"
+              value={metricType}
+              required
               className={INPUT}
               disabled={!canEdit}
-            />
+              onChange={(e) => {
+                const next = e.target.value;
+                setMetricType(next);
+                // Bei „Prozent" leere Baseline/Target auf 0/100 vorbelegen.
+                if (next !== "percent") return;
+                const form = e.currentTarget.form;
+                if (!form) return;
+                const b = form.elements.namedItem("baseline") as HTMLInputElement | null;
+                const t = form.elements.namedItem("target") as HTMLInputElement | null;
+                if (b && b.value === "") b.value = "0";
+                if (t && t.value === "") t.value = "100";
+              }}
+            >
+              <option value="" disabled>
+                — Metriktyp wählen —
+              </option>
+              {METRIC_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {METRIC_TYPE_LABELS[t]}
+                </option>
+              ))}
+            </select>
           </Field>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Metriktyp">
-              <select
-                name="metricType"
-                defaultValue={node?.metricType ?? "number"}
-                className={INPUT}
-                disabled={!canEdit}
-                onChange={(e) => {
-                  // Bei „Prozent" leere Baseline/Target auf 0/100 vorbelegen.
-                  if (e.target.value !== "percent") return;
-                  const form = e.currentTarget.form;
-                  if (!form) return;
-                  const b = form.elements.namedItem("baseline") as HTMLInputElement | null;
-                  const t = form.elements.namedItem("target") as HTMLInputElement | null;
-                  if (b && b.value === "") b.value = "0";
-                  if (t && t.value === "") t.value = "100";
-                }}
-              >
-                <option value="number">Zahl</option>
-                <option value="percent">Prozent</option>
-                <option value="currency">Währung</option>
-              </select>
-            </Field>
-            <Field label="Nachkomma (0–6)">
-              <input
-                name="precision"
-                type="number"
-                min={0}
-                max={6}
-                defaultValue={node?.precision ?? 0}
-                className={INPUT}
-                disabled={!canEdit}
-              />
-            </Field>
-            <Field label="Währung (ISO)">
-              <input
-                name="currencyCode"
-                defaultValue={node?.currencyCode ?? ""}
-                placeholder="EUR"
-                className={INPUT}
-                disabled={!canEdit}
-              />
-            </Field>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Baseline">
-              <input
-                name="baseline"
-                type="number"
-                step="any"
-                defaultValue={node?.baseline ?? ""}
-                className={INPUT}
-                disabled={!canEdit}
-              />
-            </Field>
-            <Field label="Target (Zielwert)">
-              <input
-                name="target"
-                type="number"
-                step="any"
-                defaultValue={node?.target ?? ""}
-                className={INPUT}
-                disabled={!canEdit}
-              />
-            </Field>
-            <Field label={mode === "kpi_tree" ? "Ist (abgeleitet)" : "Aktuell"}>
-              <input
-                name="current"
-                type="number"
-                step="any"
-                defaultValue={node?.current ?? ""}
-                className={INPUT}
-                disabled={!canEdit || mode === "kpi_tree"}
-                title={
-                  mode === "kpi_tree"
-                    ? "Abgeleitet aus verknüpften KPIs bzw. der Unterziel-Kaskade"
-                    : undefined
-                }
-              />
-            </Field>
-          </div>
+          {metricType !== "" && (
+            <>
+              {showUnitLabel && (
+                <Field
+                  label="Einheit (Label)"
+                  hint="Freies Label der Messgröße, etwa Kunden oder Stück. Bei Metriktyp Individuell hängt es als Suffix an jedem angezeigten Wert."
+                >
+                  <input
+                    name="metricUnit"
+                    defaultValue={node?.metricUnit ?? ""}
+                    placeholder={metricType === "individuell" ? "z. B. Kunden" : ""}
+                    className={INPUT}
+                    disabled={!canEdit}
+                  />
+                </Field>
+              )}
+              <div className={showCurrency ? "grid grid-cols-2 gap-3" : ""}>
+                <Field label="Nachkomma (0–6)">
+                  <input
+                    name="precision"
+                    type="number"
+                    min={0}
+                    max={6}
+                    defaultValue={node?.precision ?? 0}
+                    className={INPUT}
+                    disabled={!canEdit}
+                  />
+                </Field>
+                {showCurrency && (
+                  <Field label="Währung (ISO)">
+                    <input
+                      name="currencyCode"
+                      defaultValue={node?.currencyCode ?? ""}
+                      placeholder="EUR"
+                      className={INPUT}
+                      disabled={!canEdit}
+                    />
+                  </Field>
+                )}
+              </div>
+              <div className={showCurrent ? "grid grid-cols-3 gap-3" : "grid grid-cols-2 gap-3"}>
+                <Field label="Baseline">
+                  <input
+                    name="baseline"
+                    type="number"
+                    step="any"
+                    // Die Prozent-Vorbelegung (0/100) macht sonst der onChange am
+                    // Metriktyp — beim **ersten** Wählen sind diese Felder aber noch
+                    // gar nicht im DOM. Der Mount-Default fängt genau diesen Fall.
+                    defaultValue={node?.baseline ?? (isNew && metricType === "percent" ? 0 : "")}
+                    className={INPUT}
+                    disabled={!canEdit}
+                  />
+                </Field>
+                <Field label="Target (Zielwert)">
+                  <input
+                    name="target"
+                    type="number"
+                    step="any"
+                    defaultValue={node?.target ?? (isNew && metricType === "percent" ? 100 : "")}
+                    className={INPUT}
+                    disabled={!canEdit}
+                  />
+                </Field>
+                {showCurrent && (
+                  <Field label="Aktuell">
+                    <input
+                      name="current"
+                      type="number"
+                      step="any"
+                      defaultValue={node?.current ?? ""}
+                      className={INPUT}
+                      disabled={!canEdit}
+                    />
+                  </Field>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
       <Field
@@ -487,6 +530,7 @@ function GoalPane({
     metricType: node.metricType,
     precision: node.precision,
     currencyCode: node.currencyCode,
+    metricUnit: node.metricUnit,
   };
   const currentValueLabel =
     detailTarget === "kr" && node.current != null
@@ -538,6 +582,7 @@ function GoalPane({
             metricType={node.metricType}
             precision={node.precision}
             currencyCode={node.currencyCode}
+            metricUnit={node.metricUnit}
             {...(node.unitValue.planned > 0
               ? { currentValueHint: "Aus verknüpften KPIs und Unterzielen hochgerechnet." }
               : {})}

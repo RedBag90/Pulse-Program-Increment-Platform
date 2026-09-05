@@ -73,6 +73,11 @@ describe("unitsMatch", () => {
     expect(unitsMatch(goal, "EUR")).toBe(true);
     expect(unitsMatch(goal, "USD")).toBe(false);
   });
+  it("matches the free label for the individuell type too", () => {
+    const goal = { metricUnit: "Kunden", metricType: "individuell", currencyCode: null };
+    expect(unitsMatch(goal, "kunden")).toBe(true);
+    expect(unitsMatch(goal, "Leads")).toBe(false);
+  });
   it("empty units never match", () => {
     expect(unitsMatch({ metricUnit: "", metricType: "number", currencyCode: null }, "")).toBe(
       false,

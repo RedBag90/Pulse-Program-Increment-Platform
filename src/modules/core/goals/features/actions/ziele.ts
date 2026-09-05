@@ -31,6 +31,7 @@ import {
   unlinkGoalArt,
 } from "@/modules/core/goals/server/services/goal-scope-link";
 import { isGoalPeriodKey } from "@/modules/core/goals/domain/goal-period";
+import { METRIC_TYPES } from "@/modules/core/goals/domain/goal-metric";
 
 /**
  * Ziele-Modul-Actions. Permission-Gate ueberall `target.manage`
@@ -52,7 +53,8 @@ const goalStatusEnum = z.enum([
   "dropped",
 ]);
 const goalTargetEnum = z.enum(["objective", "kr"]);
-const metricTypeEnum = z.enum(["number", "percent", "currency"]);
+/** Aus der Domäne abgeleitet, damit ein neuer Metriktyp hier nicht abdriftet. */
+const metricTypeEnum = z.enum(METRIC_TYPES);
 const optPrecision = z.coerce.number().int().min(0).max(6).optional();
 /**
  * Fortschrittsquelle (goal-progress-mode.ts); leer/undef ⇒ abgeleitet. Wie
@@ -104,43 +106,79 @@ const goalSectionsField = z.preprocess(
     .max(20)
     .optional(),
 );
-/** ISO date string ("" clears it) → Date | null. */
-function toDueDate(v: string | undefined): Date | null | undefined {
+/** Datumsfeld aus dem Formular ("" löscht) → Date | null. */
+function toDay(v: string | undefined): Date | null | undefined {
   if (v === undefined) return undefined;
   if (v === "") return null;
   return new Date(v);
+}
+
+/**
+ * Individueller Zeitraum: entweder **beide** Grenzen oder keine. Eine halbe
+ * Range ergibt keinen effektiven Zeitraum (`goalTimeframe` verlangt Start UND
+ * Ende) — das Ziel fiele stumm aus Roadmap, Zeitraum-Filter und Pace-Linie,
+ * während der Setup-Stepper den Schritt als erledigt meldete.
+ *
+ * Der Raster-Modus sendet beide Felder leer mit ⇒ erster Zweig, kein Fehler.
+ * Die Meldung muss für sich stehen: der Wrapper reicht nur `issues[0].message`
+ * ins Formular, eine feldgenaue Anzeige gibt es nicht.
+ */
+function refineGoalRange(
+  v: { periodStart?: string | undefined; periodEnd?: string | undefined },
+  ctx: z.RefinementCtx,
+): void {
+  const s = v.periodStart ?? "";
+  const e = v.periodEnd ?? "";
+  if (s === "" && e === "") return;
+  if (s === "" || e === "") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [s === "" ? "periodStart" : "periodEnd"],
+      message: "Individueller Zeitraum braucht Start und Ende",
+    });
+    return;
+  }
+  if (new Date(s).getTime() > new Date(e).getTime()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["periodEnd"],
+      message: "Das Ende darf nicht vor dem Start liegen",
+    });
+  }
 }
 
 // ── Objective ──────────────────────────────────────────────────────────
 
 export const createObjectiveAction = createServerAction({
   describeCreated: (v: { id: string }) => ({ id: v.id, label: "Ziel", href: "/ziele" }),
-  schema: z.object({
-    // Optional; serverseitig wird die Default-StrategicTheme aufgeloest,
-    // wenn der Wert fehlt (Hierarchie-Vereinfachung).
-    themeId: z.string().uuid().optional(),
-    /** Eltern-Goal-Knoten für ein Sub-Ziel (beliebig tiefe Kaskade). */
-    parentObjectiveId: z.string().uuid().optional(),
-    title: z.string().min(1).max(200),
-    narrative: optStr,
-    period: periodField,
-    periodStart: optStr,
-    periodEnd: optStr,
-    // Tolerant wie beim Update: "" (kein Owner) → null, uuid → gesetzt.
-    ownerId: ownerIdField,
-    // Optionaler Metrik-Block (jeder Knoten kann messbar sein) + Fortschrittsquelle.
-    metricName: optStr,
-    metricUnit: optStr,
-    metricType: metricTypeEnum.optional(),
-    precision: optPrecision,
-    currencyCode: optStr,
-    rollupWeight: optNum,
-    parentUnitPerChildUnit: optNum,
-    baseline: optNum,
-    target: optNum,
-    current: optNum,
-    progressMode: progressModeField,
-  }),
+  schema: z
+    .object({
+      // Optional; serverseitig wird die Default-StrategicTheme aufgeloest,
+      // wenn der Wert fehlt (Hierarchie-Vereinfachung).
+      themeId: z.string().uuid().optional(),
+      /** Eltern-Goal-Knoten für ein Sub-Ziel (beliebig tiefe Kaskade). */
+      parentObjectiveId: z.string().uuid().optional(),
+      title: z.string().min(1).max(200),
+      narrative: optStr,
+      period: periodField,
+      periodStart: optStr,
+      periodEnd: optStr,
+      // Tolerant wie beim Update: "" (kein Owner) → null, uuid → gesetzt.
+      ownerId: ownerIdField,
+      // Optionaler Metrik-Block (jeder Knoten kann messbar sein) + Fortschrittsquelle.
+      metricName: optStr,
+      metricUnit: optStr,
+      metricType: metricTypeEnum.optional(),
+      precision: optPrecision,
+      currencyCode: optStr,
+      rollupWeight: optNum,
+      parentUnitPerChildUnit: optNum,
+      baseline: optNum,
+      target: optNum,
+      current: optNum,
+      progressMode: progressModeField,
+    })
+    .superRefine(refineGoalRange),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
@@ -173,36 +211,36 @@ export const createObjectiveAction = createServerAction({
 export const createGoalNodeAction = createObjectiveAction;
 
 export const updateObjectiveAction = createServerAction({
-  schema: z.object({
-    id: z.string().uuid(),
-    title: z.string().min(1).max(200).optional(),
-    narrative: optStr,
-    period: periodField,
-    periodStart: optStr,
-    periodEnd: optStr,
-    status: statusField,
-    dueDate: optStr,
-    closingNote: optStr,
-    ownerId: ownerIdField,
-    // Optionaler Metrik-Block + Fortschrittsquelle.
-    metricName: optStr,
-    metricUnit: optStr,
-    metricType: metricTypeEnum.optional(),
-    precision: optPrecision,
-    currencyCode: optStr,
-    rollupWeight: optNum,
-    parentUnitPerChildUnit: optNum,
-    baseline: optNum,
-    target: optNum,
-    current: optNum,
-    progressMode: progressModeField,
-  }),
+  schema: z
+    .object({
+      id: z.string().uuid(),
+      title: z.string().min(1).max(200).optional(),
+      narrative: optStr,
+      period: periodField,
+      periodStart: optStr,
+      periodEnd: optStr,
+      status: statusField,
+      closingNote: optStr,
+      ownerId: ownerIdField,
+      // Optionaler Metrik-Block + Fortschrittsquelle.
+      metricName: optStr,
+      metricUnit: optStr,
+      metricType: metricTypeEnum.optional(),
+      precision: optPrecision,
+      currencyCode: optStr,
+      rollupWeight: optNum,
+      parentUnitPerChildUnit: optNum,
+      baseline: optNum,
+      target: optNum,
+      current: optNum,
+      progressMode: progressModeField,
+    })
+    .superRefine(refineGoalRange),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) => {
-    const dueDate = toDueDate(input.dueDate);
-    const periodStart = toDueDate(input.periodStart);
-    const periodEnd = toDueDate(input.periodEnd);
+    const periodStart = toDay(input.periodStart);
+    const periodEnd = toDay(input.periodEnd);
     return updateObjective(ctx, {
       id: input.id,
       ...(input.title !== undefined ? { title: input.title } : {}),
@@ -211,7 +249,6 @@ export const updateObjectiveAction = createServerAction({
       ...(periodStart !== undefined ? { periodStart } : {}),
       ...(periodEnd !== undefined ? { periodEnd } : {}),
       ...(input.status !== undefined ? { status: input.status === "" ? null : input.status } : {}),
-      ...(dueDate !== undefined ? { dueDate } : {}),
       ...(input.closingNote !== undefined ? { closingNote: input.closingNote } : {}),
       ...(input.ownerId !== undefined
         ? { ownerId: input.ownerId === "" ? null : input.ownerId }
@@ -368,14 +405,12 @@ export const updateKeyResultAction = createServerAction({
     current: optNum,
     period: periodField,
     status: statusField,
-    dueDate: optStr,
     ownerId: ownerIdField,
   }),
   action: "target.manage",
   resource: (_input, p) => ({ tenantId: p.tenantId }),
-  service: (ctx, input) => {
-    const dueDate = toDueDate(input.dueDate);
-    return updateKeyResult(ctx, {
+  service: (ctx, input) =>
+    updateKeyResult(ctx, {
       id: input.id,
       ...(input.title !== undefined ? { title: input.title } : {}),
       ...(input.metricName !== undefined ? { metricName: input.metricName } : {}),
@@ -394,12 +429,10 @@ export const updateKeyResultAction = createServerAction({
       ...(input.current !== undefined ? { current: input.current } : {}),
       ...(input.period !== undefined ? { period: input.period === "" ? null : input.period } : {}),
       ...(input.status !== undefined ? { status: input.status === "" ? null : input.status } : {}),
-      ...(dueDate !== undefined ? { dueDate } : {}),
       ...(input.ownerId !== undefined
         ? { ownerId: input.ownerId === "" ? null : input.ownerId }
         : {}),
-    });
-  },
+    }),
   revalidate: "ziele",
   mapError: (e) =>
     formatDomainError(e, { fallback: "Key Result konnte nicht aktualisiert werden" }),

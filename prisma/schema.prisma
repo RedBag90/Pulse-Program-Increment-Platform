@@ -316,7 +316,6 @@ model Objective {
   /// recent updates"). Open: on_track | at_risk | off_track. Closed:
   /// achieved | partial | missed | dropped.
   status                 String?
-  dueDate                DateTime? @map("due_date")
   /// Gesetzt, sobald ein Closed-Status gewaehlt wird.
   closedAt               DateTime? @map("closed_at")
   /// Lessons-Learned-Notiz, gepflegt beim Quartal-Reset-Wizard.

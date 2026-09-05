@@ -16,7 +16,6 @@ const row = (over: Partial<GoalFieldValues> = {}): GoalFieldValues => ({
   periodStart: null,
   periodEnd: null,
   status: null,
-  dueDate: null,
   closingNote: null,
   ownerId: null,
   metricName: null,

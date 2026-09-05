@@ -166,7 +166,6 @@ export interface UpdateObjectiveInput {
   periodStart?: Date | null;
   periodEnd?: Date | null;
   status?: GoalStatus | null;
-  dueDate?: Date | null;
   closingNote?: string | null;
   ownerId?: string | null;
   // Optionaler Metrik-Block + Fortschrittsquelle (jeder Knoten kann messbar sein).
@@ -463,7 +462,6 @@ export interface UpdateKeyResultInput {
   current?: number | null;
   period?: string | null;
   status?: GoalStatus | null;
-  dueDate?: Date | null;
   ownerId?: string | null;
 }
 

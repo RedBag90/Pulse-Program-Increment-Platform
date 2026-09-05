@@ -12,8 +12,12 @@
  * unter den Filtern sichtbaren Knoten — daraus entsteht `actionGoalHidden`.
  *
  * Pure / DB-free: the input is a structural subset of the loaded `GoalNode`, so
- * this module stays independent of the server views.
+ * this module stays independent of the server views. Der Zeitraum-Schritt prüft
+ * den **effektiven** Zeitraum (`goalTimeframe`) — dieselbe Wahrheit, an der auch
+ * Roadmap, Sortierung und Filter hängen.
  */
+
+import { goalTimeframe } from "@/modules/core/goals/domain/goal-period";
 
 /** Reserved `setup_progress.checkId` for the tenant-level "guide dismissed" flag. */
 export const ZIELE_SETUP_DISMISSED_KEY = "ziele-setup-guide-dismissed";
@@ -23,6 +27,7 @@ export interface GoalSetupNode {
   id: string;
   period: string | null;
   periodStart: string | null;
+  periodEnd: string | null;
   ownerId: string | null;
   target: number | null;
   latestCheckin: unknown;
@@ -113,7 +118,10 @@ function flatten(nodes: readonly GoalSetupNode[]): GoalSetupNode[] {
 
 /** Per-node predicate for each step (index-aligned with GOAL_SETUP_STEPS 1..4). */
 const NODE_SATISFIES: readonly ((n: GoalSetupNode) => boolean)[] = [
-  (n) => n.period != null || n.periodStart != null, // period
+  // Der **effektive** Zeitraum zählt, nicht das blosse Vorhandensein eines
+  // Feldes: eine halbe Range (nur Start) ergibt keinen Zeitraum und trüge den
+  // Schritt sonst fälschlich als erledigt.
+  (n) => goalTimeframe(n.period, n.periodStart, n.periodEnd) != null, // period
   (n) => n.ownerId != null, // owner
   (n) => n.target != null || n.children.length > 0, // metric / rollup
   (n) => n.latestCheckin != null || n.status != null, // checkin

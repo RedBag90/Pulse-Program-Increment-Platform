@@ -168,4 +168,40 @@ describe("parseFromSchema — picks the right fields() reader per Zod shape", ()
     expect(fixed.safeParse({ status: "" }).success).toBe(true);
     expect(fixed.safeParse({ status: "on_track" }).success).toBe(true);
   });
+
+  it("peels ZodEffects — a .superRefine()'d object still yields its shape", () => {
+    // Cross-Field-Validierung wickelt das Objekt in ZodEffects. Ohne Abschälen
+    // läse der Reader ein leeres Objekt und JEDES Feld wäre still weg.
+    const base = z.object({ periodStart: z.string().optional(), periodEnd: z.string().optional() });
+    const refined = base.superRefine((v, ctx) => {
+      const s = v.periodStart ?? "";
+      const e = v.periodEnd ?? "";
+      if (s === "" && e === "") return;
+      if (s === "" || e === "") {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "beide Grenzen" });
+      }
+    });
+    const fd = makeFd([
+      ["periodStart", "2026-01-01"],
+      ["periodEnd", "2026-06-30"],
+    ]);
+    expect(parseFromSchema(fd, refined)).toEqual({
+      periodStart: "2026-01-01",
+      periodEnd: "2026-06-30",
+    });
+
+    // …und die Verfeinerung greift auf dem gelesenen Rohobjekt.
+    const half = parseFromSchema(makeFd([["periodStart", "2026-01-01"]]), refined);
+    expect(half).toEqual({ periodStart: "2026-01-01", periodEnd: undefined });
+    expect(refined.safeParse(half).success).toBe(false);
+    expect(refined.safeParse(parseFromSchema(makeFd([]), refined)).success).toBe(true);
+  });
+
+  it("peels nested ZodEffects (.refine().superRefine())", () => {
+    const schema = z
+      .object({ a: z.string().optional() })
+      .refine(() => true)
+      .superRefine(() => {});
+    expect(parseFromSchema(makeFd([["a", "x"]]), schema)).toEqual({ a: "x" });
+  });
 });

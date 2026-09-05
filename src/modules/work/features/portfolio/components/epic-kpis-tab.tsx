@@ -417,7 +417,12 @@ function LinkOutcome({
   frozenAt,
 }: {
   link: EpicGoalLinkRow;
-  goalSpec: { metricType: string; precision: number; currencyCode: string | null };
+  goalSpec: {
+    metricType: string;
+    precision: number;
+    currencyCode: string | null;
+    metricUnit: string | null;
+  };
   frozenAt: Date | null;
 }) {
   const o = kpiOutcome({
@@ -498,7 +503,12 @@ function LinkDelta({
   suffix,
 }: {
   value: number;
-  goalSpec: { metricType: string; precision: number; currencyCode: string | null };
+  goalSpec: {
+    metricType: string;
+    precision: number;
+    currencyCode: string | null;
+    metricUnit: string | null;
+  };
   suffix: string;
 }) {
   if (Math.abs(value) < 0.5) return <span>—</span>;
@@ -534,6 +544,7 @@ function LinkedGoalRow({
     metricType: link.goalMetricType,
     precision: link.goalPrecision,
     currencyCode: link.goalCurrencyCode,
+    metricUnit: link.goalUnit,
   };
   const hasGoalMetric =
     link.goalBaseline != null || link.goalTarget != null || link.goalCurrent != null;

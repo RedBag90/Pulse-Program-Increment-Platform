@@ -10,6 +10,7 @@ function node(over: Partial<GoalSetupNode> = {}): GoalSetupNode {
     id: "n1",
     period: null,
     periodStart: null,
+    periodEnd: null,
     ownerId: null,
     target: null,
     latestCheckin: null,
@@ -51,8 +52,17 @@ describe("goalSetupSteps", () => {
     expect(current([node({ id: "g1", period: "2026-Q1", ownerId: "u1" })])).toBe("metric");
   });
 
-  it("periodStart range also satisfies the period step", () => {
-    expect(current([node({ period: null, periodStart: "2026-01-01" })])).toBe("owner");
+  it("a complete range satisfies the period step", () => {
+    expect(
+      current([node({ period: null, periodStart: "2026-01-01", periodEnd: "2026-06-30" })]),
+    ).toBe("owner");
+  });
+
+  it("half a range does not — goalTimeframe needs both bounds", () => {
+    // Nur Start: das Ziel hätte keinen effektiven Zeitraum (keine Roadmap-Position,
+    // kein Filter-Treffer) — der Schritt darf deshalb nicht als erledigt gelten.
+    expect(current([node({ period: null, periodStart: "2026-01-01" })])).toBe("period");
+    expect(current([node({ period: null, periodEnd: "2026-06-30" })])).toBe("period");
   });
 
   it("rollup parent (children, no own target) satisfies the metric step", () => {

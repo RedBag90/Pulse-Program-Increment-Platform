@@ -66,7 +66,7 @@ export function CreatePeriodDialog({
               <Label>
                 Start der Budgeting-Phase <span className="text-destructive">*</span>
               </Label>
-              <GoalPeriodField />
+              <GoalPeriodField allowOpenEnd />
               <p className="text-xs text-muted-foreground">
                 Raster (H1/H2) oder individuelles Datum. Ohne Ende: Start + 6 Monate.
               </p>

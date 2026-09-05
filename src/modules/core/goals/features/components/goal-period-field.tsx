@@ -12,17 +12,26 @@ const INPUT =
  * FY/H1·H2/Q1–Q4 über den `PeriodPicker`) oder **Individuell** (Start–Ende als
  * `type=date`). Submittet je nach Modus `period` ODER `periodStart`/`periodEnd`;
  * die inaktiven Felder werden leer mitgesendet, damit die Gegenseite geleert wird.
+ *
+ * Im Modus **Individuell** sind beide Grenzen Pflicht: `goalTimeframe` verlangt
+ * Start UND Ende, eine halbe Range ergäbe gar keinen Zeitraum (das Ziel fiele
+ * stumm aus Roadmap, Filter und Pace-Linie). Einzige Ausnahme ist
+ * `allowOpenEnd` — Budgeting rechnet dort ein fehlendes Ende serverseitig als
+ * Start + 6 Monate.
  */
 export function GoalPeriodField({
   defaultPeriod,
   defaultStart,
   defaultEnd,
   disabled,
+  allowOpenEnd,
 }: {
   defaultPeriod?: string | null;
   defaultStart?: string | null;
   defaultEnd?: string | null;
   disabled?: boolean;
+  /** Erlaubt im Modus „Individuell" ein leeres Ende (Budgeting füllt es auf). */
+  allowOpenEnd?: boolean;
 }) {
   const [mode, setMode] = useState<"bucket" | "range">(
     defaultStart && defaultEnd ? "range" : "bucket",
@@ -64,6 +73,7 @@ export function GoalPeriodField({
                 name="periodStart"
                 defaultValue={day(defaultStart)}
                 disabled={disabled}
+                required={!allowOpenEnd}
                 className={INPUT}
               />
             </label>
@@ -76,6 +86,7 @@ export function GoalPeriodField({
                 name="periodEnd"
                 defaultValue={day(defaultEnd)}
                 disabled={disabled}
+                required={!allowOpenEnd}
                 className={INPUT}
               />
             </label>
