@@ -11,8 +11,29 @@
 import { ALL_ROLES, ROLE_LABELS, type Role } from "@/modules/core/kernel/domain/roles";
 import { enumerateDefaultCapabilities, type Action, type ScopeCheck } from "@/server/auth/policies";
 
-/** Domänen-Gruppierung wie in der Plan-Datei dokumentiert. */
-export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly Action[] }[] = [
+export interface CapabilityDomain {
+  key: string;
+  label: string;
+  actions: readonly Action[];
+}
+
+/**
+ * Die **Ordnung** der Funktionen, nicht ihre Quelle.
+ *
+ * Bis September 2026 war diese Liste beides — und lag damit hinterher: sie
+ * nannte 45 der 69 Actions aus `enumerateDefaultCapabilities()`. Die fehlenden
+ * 24 waren über die Fläche weder erteilbar noch entziehbar (das ganze
+ * Risiko-Modul, die Budget-Runden, `art_budget.distribute`, die Solutions), und
+ * schlimmer: `grantedCount` und der Standard-Abgleich rechneten nur über die
+ * gezeigten. Eine Rolle konnte vom Standard abweichen, ohne dass die Fläche das
+ * ausweisen konnte — sie wusste es nicht.
+ *
+ * Deshalb steht hier nur noch die Gruppierung. Was gezeigt wird, entscheidet
+ * `capabilityDomains()`: jede bekannte Action behält ihre Domäne, jede neue
+ * fällt in „Weitere" und ist damit **sofort sichtbar**. Eine Action kann nicht
+ * mehr durchfallen, weil jemand vergisst, sie hier einzutragen.
+ */
+const DOMAIN_ORDER: CapabilityDomain[] = [
   {
     key: "governance",
     label: "Governance / Admin",
@@ -23,7 +44,8 @@ export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly
       "admin.audit-log.read",
       "admin.users.read",
       "role.capability.manage",
-      "goal.custom_field.manage",
+      "role.onboarding.manage",
+      "portfolio_filter.manage",
     ],
   },
   { key: "target", label: "Target-Modell", actions: ["target.manage"] },
@@ -31,10 +53,17 @@ export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly
     key: "budget",
     label: "Budget / Finance",
     actions: [
+      "budget.read",
       "budget.manage",
+      "budget.round.manage",
+      "budget.round.decide",
+      "budget.group.contribute",
+      "budget.cycle.advance",
       "budget_plan.revision.capture",
       "timeline.manage",
+      "rtb_item.manage",
       "art_budget.manage",
+      "art_budget.distribute",
     ],
   },
   {
@@ -55,6 +84,7 @@ export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly
       "epic.gate.revert",
       "epic.gate.approvers.configure",
       "epic.owner.assign",
+      "epic.portfolio_override",
     ],
   },
   { key: "art", label: "ART", actions: ["art.create", "art.update", "art.delete"] },
@@ -67,6 +97,8 @@ export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly
       "pi.start",
       "pi.complete",
       "pi.delete",
+      "pi.advance",
+      "pi.demo.manage",
       "pi_standard.manage",
     ],
   },
@@ -90,7 +122,57 @@ export const CAPABILITY_DOMAINS: { key: string; label: string; actions: readonly
     label: "Impediments",
     actions: ["impediment.create", "impediment.escalate", "impediment.resolve"],
   },
+  {
+    key: "risks",
+    label: "Risiken",
+    actions: [
+      "risk.suggest",
+      "risk.document",
+      "risk.review",
+      "risk.update",
+      "risk.delete",
+      "risk.link",
+      "risk.roam",
+      "risk.settings.manage",
+    ],
+  },
+  {
+    key: "solutions",
+    label: "Solutions",
+    actions: ["solution.create", "solution.update", "solution.delete", "solution.manage"],
+  },
+  {
+    key: "goals",
+    label: "Ziele / KPI",
+    actions: ["goal.custom_field.manage", "kpi.bind"],
+  },
 ];
+
+/** Wohin eine Action fällt, die in `DOMAIN_ORDER` nicht vorkommt. */
+const CATCH_ALL_KEY = "other";
+
+/**
+ * Die Domänen, wie die Fläche sie zeigt: die feste Ordnung, ergänzt um alles,
+ * was das Default-Bundle sonst noch kennt.
+ *
+ * `tenant.create` bleibt in „Governance / Admin", obwohl es kein Default-Grant
+ * ist — es ist bewusst gezeigt und bewusst gesperrt.
+ */
+export function capabilityDomains(): CapabilityDomain[] {
+  const placed = new Set<string>(DOMAIN_ORDER.flatMap((d) => d.actions));
+  const rest = [...new Set(enumerateDefaultCapabilities().map((t) => t.action))]
+    .filter((a) => !placed.has(a))
+    .sort();
+  if (rest.length === 0) return DOMAIN_ORDER;
+  return [...DOMAIN_ORDER, { key: CATCH_ALL_KEY, label: "Weitere", actions: rest }];
+}
+
+/**
+ * Rückwärtskompatibler Name für die Komponenten, die die Domänen rendern.
+ * Ausgewertet beim Laden des Moduls — `enumerateDefaultCapabilities()` ist rein
+ * und konstant.
+ */
+export const CAPABILITY_DOMAINS: CapabilityDomain[] = capabilityDomains();
 
 export interface RoleCapabilityRow {
   action: Action;

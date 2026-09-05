@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { z } from "zod";
 import * as Sentry from "@sentry/nextjs";
 import type { PrismaClient, Prisma } from "@/generated/prisma";
 import type { TenantId, UserId } from "@/modules/core/kernel/domain/types";
@@ -315,24 +316,57 @@ function resolveTraceId(explicit: string | undefined): string {
  *   });
  * });
  */
+const UUID = z.string().uuid();
+
+/**
+ * `resource_id` ist eine `uuid`-Spalte. Ein sprechender Schlüssel darin — etwa
+ * `"tenant_admin:budget.manage"` — scheitert in Postgres mit einer Meldung, die
+ * weder die Ressource noch das Ereignis nennt. Stand der Aufruf hinter einer
+ * bereits geschriebenen Änderung, sah der Benutzer eine Fehlerseite über einer
+ * Änderung, die trotzdem galt. Genau so trat es in der Rollenverwaltung auf.
+ *
+ * Deshalb **erklärt** diese Funktion den Fehler, statt ihn vorwegzunehmen: nur
+ * wenn die Datenbank ohnehin abgelehnt hat **und** die Id keine UUID ist, tritt
+ * eine Meldung an ihre Stelle, die sagt, was zu tun ist. Eine Vorprüfung wäre
+ * die schärfere Naht, würde aber jedem Test mit lesbaren Fixture-Ids echte
+ * UUIDs abverlangen — eine Bedingung, die mit dem Fehler nichts zu tun hat.
+ *
+ * Wo eine Ressource keine eigene Zeile hat, gehört die Mandanten-Id in
+ * `resourceId` und der Schlüssel in `changes` — so hält es der Rest des Codes
+ * bereits (`risk_settings`, `budget_defaults`).
+ */
+function explainResourceId(error: unknown, input: AuditEventInput): unknown {
+  if (UUID.safeParse(input.resourceId).success) return error;
+  return new Error(
+    `Audit-Ereignis "${input.action}": resourceId muss eine UUID sein, ` +
+      `bekam "${input.resourceId}" für resourceType "${input.resourceType}". ` +
+      `Ressourcen ohne eigene Zeile tragen hier die Mandanten-Id.`,
+    { cause: error },
+  );
+}
+
 export async function emitAuditEvent(
   db: Pick<PrismaClient, "auditEvent">,
   input: AuditEventInput,
 ): Promise<void> {
-  await db.auditEvent.create({
-    data: {
-      tenantId: input.tenantId,
-      actorId: input.actorId,
-      action: input.action,
-      resourceType: input.resourceType,
-      resourceId: input.resourceId,
-      traceId: resolveTraceId(input.traceId),
-      // Omit nullish fields so Prisma uses the column default (SQL NULL)
-      ...(input.changes !== undefined && { changes: input.changes as Prisma.InputJsonValue }),
-      ...(input.ipAddress !== undefined && { ipAddress: input.ipAddress }),
-      ...(input.userAgent !== undefined && { userAgent: input.userAgent }),
-    },
-  });
+  try {
+    await db.auditEvent.create({
+      data: {
+        tenantId: input.tenantId,
+        actorId: input.actorId,
+        action: input.action,
+        resourceType: input.resourceType,
+        resourceId: input.resourceId,
+        traceId: resolveTraceId(input.traceId),
+        // Omit nullish fields so Prisma uses the column default (SQL NULL)
+        ...(input.changes !== undefined && { changes: input.changes as Prisma.InputJsonValue }),
+        ...(input.ipAddress !== undefined && { ipAddress: input.ipAddress }),
+        ...(input.userAgent !== undefined && { userAgent: input.userAgent }),
+      },
+    });
+  } catch (e) {
+    throw explainResourceId(e, input);
+  }
 }
 
 // ---------------------------------------------------------------------------

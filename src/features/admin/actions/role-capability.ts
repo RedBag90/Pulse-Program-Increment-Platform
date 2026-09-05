@@ -6,8 +6,8 @@ import { headers } from "next/headers";
 import { requirePrincipal } from "@/server/auth/principal";
 import { authorize } from "@/server/auth/authorize";
 import { createPrismaClient } from "@/server/db/prisma";
-import { extractRequestMeta } from "@/server/audit/emit";
-import { ALL_ROLES, type Role } from "@/modules/core/kernel/domain/roles";
+import { emitAuditEvent, extractRequestMeta } from "@/server/audit/emit";
+import { ALL_ROLES } from "@/modules/core/kernel/domain/roles";
 import { enumerateDefaultCapabilities, type Action, type ScopeCheck } from "@/server/auth/policies";
 
 const ROLE_SET = new Set<string>(ALL_ROLES);
@@ -70,29 +70,42 @@ export async function setRoleCapabilityAction(
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const { ipAddress, userAgent } = extractRequestMeta(await headers());
 
-  await db.roleCapability.upsert({
-    where: { tenantId_role_action: { tenantId: principal.tenantId, role, action } },
-    update: { scope },
-    create: {
-      tenantId: principal.tenantId,
-      role,
-      action,
-      scope,
-      createdBy: principal.id,
-    },
-  });
+  // Änderung und Protokoll in **einem** Vorgang: vorher standen sie
+  // nacheinander, und wenn das Protokoll scheiterte, galt die Zuweisung
+  // trotzdem — die Fläche zeigte einen Fehler über einer gesetzten Rolle.
+  await db.$transaction(async (tx) => {
+    const before = await tx.roleCapability.findUnique({
+      where: { tenantId_role_action: { tenantId: principal.tenantId, role, action } },
+      select: { scope: true },
+    });
+    const row = await tx.roleCapability.upsert({
+      where: { tenantId_role_action: { tenantId: principal.tenantId, role, action } },
+      update: { scope },
+      create: {
+        tenantId: principal.tenantId,
+        role,
+        action,
+        scope,
+        createdBy: principal.id,
+      },
+    });
 
-  await db.auditEvent.create({
-    data: {
+    await emitAuditEvent(tx, {
       tenantId: principal.tenantId,
       actorId: principal.id,
       action: "role.capability.granted",
       resourceType: "role_capability",
-      resourceId: `${role}:${action}`,
-      changes: { role, action, scope },
+      // Die Zeile selbst — `resource_id` ist eine uuid-Spalte. Wer die
+      // Zuweisung sucht, findet sie über `changes`.
+      resourceId: row.id,
+      changes: {
+        role: { before: before ? role : null, after: role },
+        action: { before: before ? action : null, after: action },
+        scope: { before: before?.scope ?? null, after: scope },
+      },
       ...(ipAddress !== undefined && { ipAddress }),
       ...(userAgent !== undefined && { userAgent }),
-    },
+    });
   });
 
   revalidatePath("/admin/roles");
@@ -120,25 +133,32 @@ export async function removeRoleCapabilityAction(
   const db = createPrismaClient({ userId: principal.id, tenantId: principal.tenantId });
   const { ipAddress, userAgent } = extractRequestMeta(await headers());
 
-  // deleteMany statt delete — kein Fehler, wenn die Row nicht existiert.
-  const res = await db.roleCapability.deleteMany({
-    where: { tenantId: principal.tenantId, role, action },
-  });
-
-  if (res.count > 0) {
-    await db.auditEvent.create({
-      data: {
-        tenantId: principal.tenantId,
-        actorId: principal.id,
-        action: "role.capability.revoked",
-        resourceType: "role_capability",
-        resourceId: `${role}:${action}`,
-        changes: { role, action },
-        ...(ipAddress !== undefined && { ipAddress }),
-        ...(userAgent !== undefined && { userAgent }),
-      },
+  await db.$transaction(async (tx) => {
+    // Erst lesen, dann löschen: das Protokoll braucht die Id der Zeile, und
+    // nach dem Löschen gibt es sie nicht mehr.
+    const row = await tx.roleCapability.findUnique({
+      where: { tenantId_role_action: { tenantId: principal.tenantId, role, action } },
+      select: { id: true, scope: true },
     });
-  }
+    if (!row) return; // Nichts zu entziehen — wie bisher stiller Erfolg.
+
+    await tx.roleCapability.delete({ where: { id: row.id } });
+
+    await emitAuditEvent(tx, {
+      tenantId: principal.tenantId,
+      actorId: principal.id,
+      action: "role.capability.revoked",
+      resourceType: "role_capability",
+      resourceId: row.id,
+      changes: {
+        role: { before: role, after: null },
+        action: { before: action, after: null },
+        scope: { before: row.scope, after: null },
+      },
+      ...(ipAddress !== undefined && { ipAddress }),
+      ...(userAgent !== undefined && { userAgent }),
+    });
+  });
 
   revalidatePath("/admin/roles");
   return { success: true };
@@ -168,35 +188,37 @@ export async function resetRoleToDefaultAction(
 
   const defaults = enumerateDefaultCapabilities().filter((t) => t.role === role);
 
-  // Transaktion: weg mit allen aktuellen, rein mit allen Defaults.
-  await db.$transaction([
-    db.roleCapability.deleteMany({
+  // Transaktion: weg mit allen aktuellen, rein mit allen Defaults — und das
+  // Protokoll gehört mit hinein, nicht dahinter.
+  await db.$transaction(async (tx) => {
+    const removed = await tx.roleCapability.deleteMany({
       where: { tenantId: principal.tenantId, role },
-    }),
-    ...defaults.map((t) =>
-      db.roleCapability.create({
-        data: {
-          tenantId: principal.tenantId,
-          role: t.role,
-          action: t.action,
-          scope: t.scope as ScopeCheck | null,
-          createdBy: principal.id,
-        },
-      }),
-    ),
-  ]);
+    });
+    await tx.roleCapability.createMany({
+      data: defaults.map((t) => ({
+        tenantId: principal.tenantId,
+        role: t.role,
+        action: t.action,
+        scope: t.scope as ScopeCheck | null,
+        createdBy: principal.id,
+      })),
+    });
 
-  await db.auditEvent.create({
-    data: {
+    await emitAuditEvent(tx, {
       tenantId: principal.tenantId,
       actorId: principal.id,
       action: "role.capability.reset",
       resourceType: "role",
-      resourceId: role as Role,
-      changes: { role, restoredCount: defaults.length },
+      // Eine Rolle ist keine Zeile — wie `budget_defaults` und `risk_settings`
+      // trägt das Ereignis die Mandanten-Id; welche Rolle, sagt `changes`.
+      resourceId: principal.tenantId,
+      changes: {
+        role: { before: role, after: role },
+        capabilityCount: { before: removed.count, after: defaults.length },
+      },
       ...(ipAddress !== undefined && { ipAddress }),
       ...(userAgent !== undefined && { userAgent }),
-    },
+    });
   });
 
   revalidatePath("/admin/roles");

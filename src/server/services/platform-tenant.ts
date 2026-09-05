@@ -112,7 +112,10 @@ export async function createOrgTenant(
       actorId: actor.id,
       action: "user.invited",
       resourceType: "user_role_assignment",
-      resourceId: input.adminEmail,
+      // Es gibt noch keine Zuweisung — die Einladung ist erst ausgesprochen.
+      // `resource_id` ist eine uuid-Spalte, also steht hier der Mandant, in den
+      // eingeladen wurde; die E-Mail steht in `changes`.
+      resourceId: tenant.id,
       changes: {
         role: { before: null, after: ROLES.TENANT_ADMIN },
         email: { before: null, after: input.adminEmail },
@@ -225,7 +228,8 @@ export async function addTenantMember(
       actorId: actor.id,
       action: "user.invited",
       resourceType: "user_role_assignment",
-      resourceId: email,
+      // Wie oben: noch keine Zuweisung, also der Mandant statt einer E-Mail.
+      resourceId: tenantId,
       changes: { role: { before: null, after: role }, email: { before: null, after: email } },
     });
   });

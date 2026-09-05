@@ -77,6 +77,54 @@ describe("emitAuditEvent", () => {
   });
 });
 
+/**
+ * `resource_id` ist eine `uuid`-Spalte. Lehnte Postgres einen sprechenden
+ * Schlüssel ab, kam eine Meldung zurück, die weder Ressource noch Ereignis
+ * nannte — und wenn der Aufruf hinter einer bereits geschriebenen Änderung
+ * stand, sah der Benutzer eine Fehlerseite über einer Änderung, die trotzdem
+ * galt. Genau so trat es in der Rollenverwaltung auf.
+ */
+describe("emitAuditEvent — resourceId", () => {
+  const pgUuidError = new Error('invalid input syntax for type uuid: "tenant_admin:budget.manage"');
+
+  it("laesst eine echte UUID durch", async () => {
+    await emitAuditEvent(mockDb, baseInput);
+    expect(mockCreate).toHaveBeenCalledOnce();
+  });
+
+  it("erklaert die Ablehnung, statt sie durchzureichen", async () => {
+    mockCreate.mockRejectedValueOnce(pgUuidError);
+    await expect(
+      emitAuditEvent(mockDb, {
+        ...baseInput,
+        action: "role.capability.granted",
+        resourceType: "role_capability",
+        resourceId: "tenant_admin:budget.manage",
+      }),
+    ).rejects.toThrow(/resourceId muss eine UUID sein/);
+  });
+
+  it("nennt Ereignis, Wert und Ressourcentyp", async () => {
+    mockCreate.mockRejectedValueOnce(pgUuidError);
+    const err = await emitAuditEvent(mockDb, {
+      ...baseInput,
+      resourceId: "portfolio_manager",
+    }).catch((e: Error) => e);
+    expect(err.message).toContain("initiative.created");
+    expect(err.message).toContain("portfolio_manager");
+    expect(err.message).toContain("initiative");
+    // Die urspruengliche Meldung geht nicht verloren.
+    expect((err as Error & { cause?: unknown }).cause).toBe(pgUuidError);
+  });
+
+  it("laesst einen fremden Fehler unveraendert", async () => {
+    // Nur die Id erklaert diese Funktion — alles andere gehoert dem Aufrufer.
+    const other = new Error("connection reset");
+    mockCreate.mockRejectedValueOnce(other);
+    await expect(emitAuditEvent(mockDb, baseInput)).rejects.toBe(other);
+  });
+});
+
 describe("extractRequestMeta", () => {
   function makeHeaders(entries: Record<string, string>) {
     return {
