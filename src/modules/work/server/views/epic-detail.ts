@@ -542,6 +542,9 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     stageGate: epic.stageGate as StageGate,
     subStage,
     impactRecognizedAt: epic.impactRecognizedAt,
+    // Die Erstsichtung bewegt den Reifegrad nicht — solange das Epic in L0
+    // steht, ist dieser Stempel die einzige Auskunft darueber, ob sie war.
+    selectedForDetailingAt: epic.selectedForDetailingAt,
   });
 
   return {

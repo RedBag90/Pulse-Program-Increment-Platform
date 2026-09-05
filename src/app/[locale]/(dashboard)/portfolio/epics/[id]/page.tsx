@@ -312,6 +312,8 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               businessCaseApprovedAt={epic.businessCaseApprovedAt?.toISOString() ?? null}
               implementationStartedAt={epic.implementationStartedAt?.toISOString() ?? null}
               impactRecognizedAt={epic.impactRecognizedAt?.toISOString() ?? null}
+              approvedAt={epic.approvedAt?.toISOString() ?? null}
+              implementationCompletedAt={epic.implementationCompletedAt?.toISOString() ?? null}
               timeline={timeline}
               canEdit={model.canEdit}
               gateHistory={model.gate.disabled ? [] : model.gate.history}

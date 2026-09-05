@@ -1,8 +1,11 @@
 "use client";
 
-import { useActionState, useState, startTransition, Fragment } from "react";
+import { useActionState, useState, startTransition } from "react";
 import { CheckCircle2, CircleDot, Circle, Lock, ChevronRight } from "lucide-react";
-import { LIFECYCLE_STEPS } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
+import {
+  lifecycleSpans,
+  type LifecycleSpan,
+} from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import { saveTimelineAction } from "@/modules/work/features/portfolio/actions/timeline";
 import type {
   TimelineFields,
@@ -30,6 +33,10 @@ interface Props {
   implementationStartedAt: string | null;
   /** Set by Controlling on impact confirmation (L5). */
   impactRecognizedAt: string | null;
+  /** Investitionsentscheidung (L3.2) — Rückfall, wenn kein Ist gepflegt ist. */
+  approvedAt: string | null;
+  /** Bestätigte fertige Umsetzung (L4.2) — ebenso als Rückfall. */
+  implementationCompletedAt: string | null;
   timeline: TimelineFields;
   canEdit: boolean;
   /** Antragshistorie der Reifegrad-Wechsel — wer wann was beantragt/abgenommen hat. */
@@ -99,12 +106,18 @@ function StatusIcon({ status }: { status: RowStatus }) {
 }
 
 /**
- * Epic Timeline — the lifecycle as phase milestones (stage gates L0–L5) with an
- * Estimate (owner forecast) and an Actual per phase. Funnel/Detailing/Business
- * Case/Implementation-started actuals come from workflow events (read-only);
- * Backlog/Implementation-done actuals are entered by the Owner. Impact Realized
- * (L5) wird gestempelt, wenn das Controlling die L4→L5-Abnahme erteilt (ADR-0018).
- * The Owner is nominated by the Portfolio Manager on the Detailing phase.
+ * Die Zeitleiste eines Epics: **acht Prozessabschnitte, getrennt durch acht
+ * Tore**, entlang einer Bahn, die sichtbar durch jedes Tor hindurchläuft.
+ *
+ * Der **Abschnitt** sagt, woran gearbeitet wird und wie lange schon; das **Tor**
+ * darunter, was erreicht ist, wenn das Epic die Schwelle überschreitet — mit
+ * Soll und Ist, denn ein Datum ist ein Ereignis, keine Strecke.
+ *
+ * Vorher waren es neun gleichartige Zeilen, in denen Prozess und Meilenstein
+ * nicht auseinanderzuhalten waren; zwei davon trugen zwei Namen für dasselbe
+ * Tor (→L1). Die Dauern sind rein abgeleitet (`lifecycleSpans`), ohne ein
+ * einziges neues Feld: ein Abschnitt läuft vom vorigen Tor bis zu seinem
+ * eigenen — oder, solange das offen ist, bis heute.
  */
 export function EpicTimelineTab({
   epicId,
@@ -115,6 +128,8 @@ export function EpicTimelineTab({
   businessCaseApprovedAt,
   implementationStartedAt,
   impactRecognizedAt,
+  approvedAt,
+  implementationCompletedAt,
   timeline,
   canEdit,
   ownerId,
@@ -165,26 +180,6 @@ export function EpicTimelineTab({
     startTransition(() => saveAction(fd));
   }
 
-  // The status column reads the SHARED gate-based lifecycle status (same source
-  // as the stepper above the screen) — no second derivation off milestone
-  // timestamps. The 9 timeline rows map 1:1 to the 9 lifecycle steps by `key`.
-  const statusByKey = new Map<string, RowStatus>(lifecycleSteps.map((s) => [s.key, s.status]));
-  const statusFor = (key: string): RowStatus => statusByKey.get(key) ?? "upcoming";
-
-  function EstimateCell({ phase }: { phase: TimelineEstimatePhase }) {
-    return canEdit ? (
-      <input
-        type="date"
-        aria-label="Estimate"
-        value={estimates[phase]}
-        onChange={(e) => setEstimates((p) => ({ ...p, [phase]: e.target.value }))}
-        className={`${INPUT} w-full self-start`}
-      />
-    ) : (
-      <span className="text-sm text-muted-foreground/80">{fmt(estimates[phase])}</span>
-    );
-  }
-
   function ManualActualCell({ phase }: { phase: TimelineManualPhase }) {
     // „Umsetzung fertig" gehört der L4.2-Abnahme: das Ist-Datum entsteht dort
     // und wird hier nur angezeigt (der Service verwirft eingehende Werte).
@@ -212,110 +207,107 @@ export function EpicTimelineTab({
     );
   }
 
-  // Die neun Zeilen sind die neun Lifecycle-Schritte — Titel, Untertitel und
-  // Reifegrad-Spalte kommen aus `LIFECYCLE_STEPS`, derselben Quelle, aus der die
-  // Statusfarbe schon gelesen wird. Vorher standen sie hier ein zweites Mal, auf
-  // Englisch und im alten Wortschatz („Selected for Detailing", „Backlog"),
-  // während der Stepper darüber längst „Detailing" und „Umsetzung" sagte.
+  // Ein Eintrag je Abschnitt: der Schritt (aus dem geteilten Modell), seine
+  // Dauer und das Ist-Datum seines Tores. Titel, Beschreibung, Reifegrad und
+  // Meilenstein kommen aus `LIFECYCLE_STEPS` — dieselbe Quelle, aus der der
+  // Stepper über der Fläche liest; die Zeitleiste schreibt sie nicht selbst.
   //
-  // Nur was die Zeitleiste zusätzlich braucht, steht hier: welches Schätzfeld,
-  // welches Ist-Datum, und ob die Zeile aufklappt.
-  const EXTRAS: Record<
-    string,
-    {
-      estimatePhase?: TimelineEstimatePhase;
-      actualPhase?: TimelineManualPhase;
-      actualIso?: string | null;
-      expandable?: boolean;
-    }
-  > = {
-    funnel: { actualIso: createdAt },
-    detailing: { estimatePhase: "detailing", actualIso: selectedForDetailingAt, expandable: true },
-    hypothesis: { estimatePhase: "hypothesis", actualIso: hypothesisApprovedAt },
-    analyzing: { estimatePhase: "analyzing", actualIso: selectedForAnalyzingAt },
-    business_case: { estimatePhase: "business_case", actualIso: businessCaseApprovedAt },
-    backlog: { estimatePhase: "backlog", actualPhase: "backlog" },
-    implementation_started: {
-      estimatePhase: "implementation_started",
-      actualIso: implementationStartedAt,
-    },
-    implementation: { estimatePhase: "implementation", actualPhase: "implementation" },
-    done: { estimatePhase: "done", actualIso: impactRecognizedAt },
+  // Zwei Tore lesen ihr Ist aus einem **manuell** gepflegten Feld. Ist dort
+  // nichts gepflegt, springt der Workflow-Stempel ein — sonst risse die Kette
+  // der Dauern genau in der Mitte, sobald jemand die zwei Felder auslässt.
+  const gateActualIso: Record<string, string | null> = {
+    detailing: selectedForDetailingAt,
+    hypothesis: hypothesisApprovedAt,
+    analyzing: selectedForAnalyzingAt,
+    business_case: businessCaseApprovedAt,
+    backlog: actuals.backlog || approvedAt,
+    implementation_started: implementationStartedAt,
+    implementation: actuals.implementation || implementationCompletedAt,
+    done: impactRecognizedAt,
   };
 
-  const phases: {
-    key: string;
-    title: string;
-    subtitle: string;
-    level: string;
-    estimatePhase?: TimelineEstimatePhase;
-    actualPhase?: TimelineManualPhase;
-    actualIso?: string | null;
-    expandable?: boolean;
-  }[] = LIFECYCLE_STEPS.map((step) => ({
-    key: step.key,
-    title: step.label,
-    subtitle: step.description,
-    level: step.gate,
-    ...EXTRAS[step.key],
+  const toDate = (iso: string | null | undefined): Date | null => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const runningIndex = lifecycleSteps.findIndex((s) => s.status === "current");
+  const spans = lifecycleSpans({
+    createdAt: new Date(createdAt),
+    gateActuals: lifecycleSteps.map((s) => toDate(gateActualIso[s.key])),
+    runningIndex: runningIndex === -1 ? null : runningIndex,
+    now: new Date(),
+  });
+
+  const rows = lifecycleSteps.map((step, i) => ({
+    step,
+    span: spans[i]!,
+    /** Nur die zwei Tore mit manuell gepflegtem Ist sind hier bearbeitbar. */
+    manualPhase: (step.key === "backlog"
+      ? "backlog"
+      : step.key === "implementation"
+        ? "implementation"
+        : null) as TimelineManualPhase | null,
+    actualIso: gateActualIso[step.key] ?? null,
   }));
 
-  const groups = reifegradGroups(phases.map((p) => p.level));
+  const groups = reifegradGroups(rows.map((r) => r.step.gate));
 
-  function EstimateSlot({ phase }: { phase: (typeof phases)[number] }) {
-    if (!phase.estimatePhase)
-      return <span className="text-sm text-muted-foreground/80 sm:pt-0.5">—</span>;
-    return <EstimateCell phase={phase.estimatePhase} />;
+  /** Das Soll eines Tores — vom Owner geschätzt. */
+  function SollCell({ phase }: { phase: TimelineEstimatePhase }) {
+    return canEdit ? (
+      <input
+        type="date"
+        aria-label="Soll"
+        value={estimates[phase]}
+        onChange={(e) => setEstimates((p) => ({ ...p, [phase]: e.target.value }))}
+        className={`${INPUT} w-full`}
+      />
+    ) : (
+      <span className="text-sm text-muted-foreground/80">{fmt(estimates[phase])}</span>
+    );
   }
 
-  function ActualSlot({ phase }: { phase: (typeof phases)[number] }) {
-    const estimate = phase.estimatePhase ? estimates[phase.estimatePhase] : "";
-    const actualDate = phase.actualPhase ? actuals[phase.actualPhase] : (phase.actualIso ?? "");
+  /** Das Ist eines Tores — Stempel, oder für zwei Tore ein gepflegtes Feld. */
+  function IstCell({ row }: { row: (typeof rows)[number] }) {
+    const estimate = estimates[row.step.key as TimelineEstimatePhase] ?? "";
     const variance =
-      estimate && actualDate ? <VarianceBadge estimate={estimate} actual={actualDate} /> : null;
+      estimate && row.actualIso ? (
+        <VarianceBadge estimate={estimate} actual={row.actualIso} />
+      ) : null;
 
-    if (phase.actualPhase) {
+    if (row.manualPhase === "backlog" && canEdit) {
       return (
         <div className="space-y-1">
-          <ManualActualCell phase={phase.actualPhase} />
+          <ManualActualCell phase="backlog" />
           {variance}
         </div>
       );
     }
-    if (phase.actualIso !== undefined) {
-      return (
-        <div className="flex flex-wrap items-center gap-1.5 sm:pt-0.5">
-          <span className="text-sm">{fmt(phase.actualIso)}</span>
-          {variance}
-        </div>
-      );
-    }
-    return <span className="text-sm text-muted-foreground/80 sm:pt-0.5">—</span>;
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-sm">{fmt(row.actualIso)}</span>
+        {variance}
+      </div>
+    );
   }
 
-  /**
-   * Aufgeklappter Inhalt je Phase — heute nur noch die Owner-Nominierung an
-   * „Selected for Detailing". Die Freigaben von Hypothese und Business Case
-   * hingen einmal an den Phasen „Business hypothesis done" und „Business Case";
-   * sie sind in die Reifegrad-Schritte L0 → L1 und L2 → L3.1 aufgegangen und
-   * werden über die Gate-Karte am Kopf der Seite geführt.
-   */
-  function ExpandedContent({ phase }: { phase: (typeof phases)[number] }) {
-    if (phase.key === "detailing") {
-      return (
-        <div className="space-y-2 rounded-md border bg-muted/20 p-3">
-          <SectionLabel>Epic Owner</SectionLabel>
-          <EpicOwnerAssign
-            epicId={epicId}
-            ownerId={ownerId}
-            canAssignOwner={canAssignOwner}
-            approvers={approvers}
-            userLabels={userLabels}
-          />
-        </div>
-      );
+  /** „7 Tage" · „läuft seit 12.6. · Tag 3" · „noch nicht begonnen". */
+  function Dauer({ span }: { span: LifecycleSpan }) {
+    if (span.days == null) {
+      return <span className="text-[11px] text-muted-foreground/70">noch nicht begonnen</span>;
     }
-    return null;
+    const label = span.running
+      ? `läuft seit ${fmt(span.from?.toISOString() ?? null)} · Tag ${span.days}`
+      : `${span.days} ${span.days === 1 ? "Tag" : "Tage"}`;
+    return (
+      <span
+        className={`text-[11px] tabular-nums ${span.running ? "font-medium text-primary" : "text-muted-foreground/70"}`}
+      >
+        {label}
+      </span>
+    );
   }
 
   return (
@@ -325,73 +317,126 @@ export function EpicTimelineTab({
         <GateHistoryList history={gateHistory} userLabels={userLabels} />
       </section>
 
-      {/* Column headers (desktop) — pl offset = Reifegrad-Gutter (2.5rem) + gap (0.75rem). */}
-      <div className="hidden gap-x-3 pl-[3.25rem] sm:grid sm:grid-cols-[1.25rem_minmax(0,1fr)_11rem_11rem]">
-        <span />
-        <SectionLabel>Phase</SectionLabel>
-        <SectionLabel>Estimate</SectionLabel>
-        <SectionLabel>Actual</SectionLabel>
+      {/* Spaltenköpfe (Desktop) — der Versatz links entspricht der Bahn. */}
+      <div className="hidden gap-x-3 pl-[4.5rem] sm:grid sm:grid-cols-[minmax(0,1fr)_9rem_9rem]">
+        <SectionLabel>Prozess &amp; Tore</SectionLabel>
+        <SectionLabel>Soll</SectionLabel>
+        <SectionLabel>Ist</SectionLabel>
       </div>
 
-      {/* Ein Block je Reifegrad-Gruppe: links das L-Kürzel, durch eine vertikale
-          Linie von den Phasen getrennt — die Linie spannt über alle Phasen der Gruppe. */}
-      <div className="space-y-4">
+      {/* Ein Block je Reifegrad-Gruppe: links das L-Kürzel, rechts die Bahn mit
+          ihren Abschnitten und Toren. */}
+      <div className="space-y-2">
         {groups.map((g) => (
-          <Fragment key={`${g.level}-${g.start}`}>
-            <div className="flex gap-3">
-              <div
-                className="flex w-[2.5rem] shrink-0 items-start justify-end gap-2"
-                title={STAGE_GATE_LABELS[g.level] ?? g.level}
-              >
-                <span className="pt-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
-                  {g.level}
-                </span>
-                <span className="w-px self-stretch bg-border" />
-              </div>
-
-              <ol className="flex-1 space-y-4">
-                {phases.slice(g.start, g.start + g.span).map((phase) => {
-                  return (
-                    <li
-                      key={phase.key}
-                      className="grid grid-cols-[1.25rem_1fr] gap-x-3 gap-y-2 sm:grid-cols-[1.25rem_minmax(0,1fr)_11rem_11rem]"
-                    >
-                      <div className="flex justify-center sm:pt-0.5">
-                        <StatusIcon status={statusFor(phase.key)} />
-                      </div>
-                      <div className="min-w-0 space-y-1.5">
-                        {phase.expandable ? (
-                          <button
-                            type="button"
-                            onClick={() => toggle(phase.key)}
-                            aria-expanded={expanded.has(phase.key)}
-                            className="flex items-center gap-1 text-sm font-medium hover:text-primary"
-                          >
-                            <ChevronRight
-                              className={`size-3.5 shrink-0 transition-transform ${
-                                expanded.has(phase.key) ? "rotate-90" : ""
-                              }`}
-                            />
-                            {phase.title}
-                          </button>
-                        ) : (
-                          <p className="text-sm font-medium">{phase.title}</p>
-                        )}
-                        <p className="text-xs text-muted-foreground">{phase.subtitle}</p>
-                      </div>
-                      <EstimateSlot phase={phase} />
-                      <ActualSlot phase={phase} />
-                      {phase.expandable && expanded.has(phase.key) && (
-                        <div className="col-span-2 sm:col-span-4">
-                          <ExpandedContent phase={phase} />
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ol>
+          <div key={`${g.level}-${g.start}`} className="flex gap-3">
+            <div
+              className="flex w-[2.5rem] shrink-0 items-start justify-end gap-2 pt-4"
+              title={STAGE_GATE_LABELS[g.level] ?? g.level}
+            >
+              <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+                {g.level}
+              </span>
+              <span className="w-px self-stretch bg-border" />
             </div>
-          </Fragment>
+
+            {/* Die Bahn: eine durchgehende Spur, durch die jedes Tor sichtbar
+                hindurchgeht — der Knoten liegt über dem Torrahmen. */}
+            <ol className="relative flex-1 pl-8">
+              <span
+                aria-hidden
+                className="absolute bottom-0 left-2 top-0 w-2 rounded-full bg-muted"
+              />
+              {rows.slice(g.start, g.start + g.span).map((row) => {
+                const { step, span } = row;
+                const gate = step.milestone;
+                const isNext = step.milestoneStatus === "current";
+                const isDone = step.milestoneStatus === "done";
+                const soft = gate.step === null;
+                return (
+                  <li key={step.key} className="relative">
+                    {/* Abschnitt — was getan wird, und wie lange schon. */}
+                    <div className="py-3">
+                      <div className="flex items-center gap-2">
+                        <StatusIcon status={step.status} />
+                        <p
+                          className={`text-sm font-medium ${step.status === "current" ? "text-primary" : ""}`}
+                        >
+                          {step.label}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">{step.description}</p>
+                      <p className="mt-1">
+                        <Dauer span={span} />
+                      </p>
+                    </div>
+
+                    {/* Tor — was erreicht ist, wenn die Schwelle überschritten wird. */}
+                    <div className="relative -ml-8">
+                      <span
+                        aria-hidden
+                        className={`absolute left-2 top-1/2 z-10 h-8 w-2 -translate-y-1/2 rounded-full ${
+                          isDone ? "bg-emerald-600" : isNext ? "bg-primary" : "bg-muted"
+                        }`}
+                      />
+                      <div
+                        className={`grid grid-cols-1 gap-2 rounded-lg border-2 bg-card py-3 pl-11 pr-4 sm:grid-cols-[minmax(0,1fr)_9rem_9rem] sm:items-center ${
+                          isNext
+                            ? "border-primary bg-primary/5"
+                            : isDone
+                              ? "border-emerald-600/60"
+                              : "border-border"
+                        } ${soft ? "border-dashed" : ""}`}
+                      >
+                        <div className="min-w-0">
+                          {soft ? (
+                            <button
+                              type="button"
+                              onClick={() => toggle(step.key)}
+                              aria-expanded={expanded.has(step.key)}
+                              className={`flex items-center gap-1 text-sm font-semibold hover:text-primary ${isNext ? "text-primary" : ""}`}
+                            >
+                              <ChevronRight
+                                className={`size-3.5 shrink-0 transition-transform ${
+                                  expanded.has(step.key) ? "rotate-90" : ""
+                                }`}
+                              />
+                              {gate.label}
+                            </button>
+                          ) : (
+                            <p className={`text-sm font-semibold ${isNext ? "text-primary" : ""}`}>
+                              {gate.label}
+                            </p>
+                          )}
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            <span className="mr-1.5 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                              {soft ? "Meilenstein" : "Gate"}
+                            </span>
+                            {gate.approver}
+                          </p>
+                        </div>
+                        <SollCell phase={step.key as TimelineEstimatePhase} />
+                        <IstCell row={row} />
+                        {soft && expanded.has(step.key) && (
+                          <div className="sm:col-span-3">
+                            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+                              <SectionLabel>Epic Owner</SectionLabel>
+                              <EpicOwnerAssign
+                                epicId={epicId}
+                                ownerId={ownerId}
+                                canAssignOwner={canAssignOwner}
+                                approvers={approvers}
+                                userLabels={userLabels}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
         ))}
       </div>
 

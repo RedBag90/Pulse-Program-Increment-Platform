@@ -145,22 +145,23 @@ describe("buildEpicDetailModel — degradation matrix", () => {
     expect(on.nextStep?.hint.startsWith("Budget ist alloziert.")).toBe(true);
   });
 
-  it("exposes lifecycleSteps derived from the stage gate (L0 → Hypothese current)", () => {
+  it("exposes lifecycleSteps derived from the stage gate (L0 → Erstsichtung offen)", () => {
+    // Acht Abschnitte statt neun gemischter Schritte: ein frisch angelegtes Epic
+    // wartet im Funnel auf die Erstsichtung — davor ist nichts erreicht.
     const m = buildEpicDetailModel(makeInputs());
-    expect(m.lifecycleSteps).toHaveLength(9);
-    expect(m.lifecycleSteps[0]!.status).toBe("done"); // funnel
-    // Stand hier als "done": ein Epic im Funnel zeigte damit einen Haken auf
-    // "L1 Detailing · Owner nominiert", ohne das Gate erreicht zu haben.
-    expect(m.lifecycleSteps[1]!.status).toBe("upcoming"); // detailing — Gate offen
-    expect(m.lifecycleSteps[2]!.key).toBe("hypothesis");
-    expect(m.lifecycleSteps[2]!.status).toBe("current");
+    expect(m.lifecycleSteps).toHaveLength(8);
+    expect(m.lifecycleSteps[0]!.key).toBe("detailing");
+    expect(m.lifecycleSteps[0]!.status).toBe("current");
+    expect(m.lifecycleSteps[0]!.milestone.label).toBe("Erstsichtung");
+    expect(m.lifecycleSteps.slice(1).every((s) => s.status === "upcoming")).toBe(true);
     expect(m.lifecycleSteps.every((s) => s.description.length > 0)).toBe(true);
   });
 
-  it("lifecycleSteps stay coherent with the stage gate (L3 → Backlog current)", () => {
+  it("lifecycleSteps stay coherent with the stage gate (L3 → Budget zuteilen)", () => {
     const m = buildEpicDetailModel(makeInputs({ epic: makeEpic({ stageGate: "L3" }) }));
     const currentStep = m.lifecycleSteps.find((s) => s.status === "current");
     expect(currentStep?.key).toBe("backlog");
+    expect(currentStep?.label).toBe("Budget zuteilen");
   });
 
   it("risks slice is an entitlement gate (composed in the route)", () => {
