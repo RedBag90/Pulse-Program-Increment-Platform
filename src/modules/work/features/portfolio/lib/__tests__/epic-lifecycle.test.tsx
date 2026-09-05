@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { STAGE_SHORT } from "@/components/detail/initiative-labels";
 import {
   epicLifecycleSteps,
   LIFECYCLE_STEPS,
@@ -29,13 +30,27 @@ describe("epicLifecycleSteps", () => {
     expect(LIFECYCLE_STEPS[8]!.key).toBe("done");
   });
 
-  it("L0: Funnel + Detailing done, Hypothese current (matches next-step)", () => {
+  it("L0: nur Funnel abgehakt, Hypothese current (matches next-step)", () => {
+    // Hier stand: „Funnel + Detailing done". Ein frisch angelegtes Epic zeigte
+    // damit einen gruenen Haken auf „L1 Detailing · Owner nominiert", obwohl es
+    // im Funnel stand und keinen Owner hatte.
     const steps = epicLifecycleSteps(input({ stageGate: "L0" }));
     expect(steps[0]!.status).toBe("done"); // funnel
-    expect(steps[1]!.status).toBe("done"); // detailing (folded marker)
+    expect(steps[1]!.status).toBe("upcoming"); // detailing — Gate nicht erreicht
     expect(steps[2]!.key).toBe("hypothesis");
     expect(steps[2]!.status).toBe("current");
     expect(steps.slice(3).every((s) => s.status === "upcoming")).toBe(true);
+  });
+
+  it("L0: kein Haken auf einem Schritt, den das Epic nicht erreicht hat", () => {
+    const steps = epicLifecycleSteps(input({ stageGate: "L0" }));
+    expect(steps.filter((s) => s.status === "done").map((s) => s.key)).toEqual(["funnel"]);
+  });
+
+  it("eine Auswahl-Markierung haelt nie den Punkt", () => {
+    // Sie traegt keine Handlung — sie faellt an, wenn das Gate gezeichnet wird.
+    expect(current({ stageGate: "L0" })).not.toBe("detailing");
+    expect(current({ stageGate: "L1" })).not.toBe("analyzing");
   });
 
   it("L1: Business Case current (hypothesis approved, BC pending)", () => {
@@ -77,5 +92,35 @@ describe("epicLifecycleSteps", () => {
   it("impactRecognizedAt set (any gate): Impact done, no current", () => {
     const steps = epicLifecycleSteps(input({ stageGate: "L4", impactRecognizedAt: D }));
     expect(steps[8]!.status).toBe("done");
+  });
+});
+
+describe("ein Wortschatz", () => {
+  it("beschriftet jeden Schritt deutsch und ohne Altbestand", () => {
+    // Die Zeitleiste schrieb ihre neun Zeilen einmal selbst, auf Englisch
+    // („Selected for Detailing", „Business hypothesis done"), waehrend der
+    // Stepper darueber diese Liste las. Jetzt lesen beide dasselbe.
+    const alt = [
+      "Funnel Entry",
+      "Selected for Detailing",
+      "Business hypothesis done",
+      "Selected for analyzing",
+      "Implementation started",
+      "Implementation done",
+      "Impact Realized",
+    ];
+    for (const step of LIFECYCLE_STEPS) {
+      expect(alt).not.toContain(step.label);
+      expect(step.label.length).toBeGreaterThan(0);
+      expect(step.description.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("gibt jedem Gate ein Kurzlabel", () => {
+    // Faengt die naechste Dublette, bevor sie entsteht: ein neues Gate ohne
+    // Wort faellt hier auf, nicht erst auf der Flaeche.
+    for (const step of LIFECYCLE_STEPS) {
+      expect(STAGE_SHORT[step.gate]).toBeTruthy();
+    }
   });
 });

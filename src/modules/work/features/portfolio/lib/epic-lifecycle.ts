@@ -14,6 +14,17 @@ export interface LifecycleStepMeta {
   gate: StageGate;
   label: string;
   description: string;
+  /**
+   * **Auswahl-Markierung** — ein Schritt, den niemand erledigt: er fällt als
+   * Nebenwirkung der Gate-Abnahme an. Solche Schritte halten nie den
+   * Highlight; der Punkt springt auf den nächsten, der eine Handlung trägt.
+   *
+   * Das war bisher dadurch ausgedrückt, dass sie **immer als erreicht** galten
+   * — und damit abgehakt wurden, bevor das Epic ihr Gate erreicht hatte. Ein
+   * neues Epic in L0 zeigte einen grünen Haken auf „Detailing · Owner
+   * nominiert", obwohl es im Funnel stand und keinen Owner hatte.
+   */
+  foldedMarker?: boolean;
 }
 
 export const LIFECYCLE_STEPS: readonly LifecycleStepMeta[] = [
@@ -23,6 +34,7 @@ export const LIFECYCLE_STEPS: readonly LifecycleStepMeta[] = [
     gate: "L1",
     label: "Detailing",
     description: "Zur Ausarbeitung ausgewählt, Owner nominiert.",
+    foldedMarker: true,
   },
   {
     key: "hypothesis",
@@ -35,6 +47,7 @@ export const LIFECYCLE_STEPS: readonly LifecycleStepMeta[] = [
     gate: "L2",
     label: "Analyse",
     description: "Epic zur Analyse ausgewählt.",
+    foldedMarker: true,
   },
   {
     key: "business_case",
@@ -88,12 +101,21 @@ export interface EpicLifecycleInput {
 }
 
 /**
- * Resolve each lifecycle step's status. A step is `reached` once the Stage Gate
- * (+ subStage / child-features) has passed it; `current` is the
- * first not-reached step, earlier steps are `done`, later steps `upcoming`. The
- * thresholds are chosen so `current` lands on exactly the step `epicNextStep`
- * addresses — the two selection markers (Detailing, Analyse) fold into their gate
- * and never hold the highlight (they carry no distinct next-action).
+ * Der Status jedes Schritts. **Zwei Fragen, zwei Antworten:**
+ *
+ *  - *Ist der Schritt erreicht?* Das entscheidet der Reifegrad (+ subStage) und
+ *    damit, ob ein Haken steht.
+ *  - *Trägt der Schritt eine Handlung?* Das entscheidet, ob der Punkt auf ihm
+ *    landen darf. Die zwei Auswahl-Markierungen tragen keine (`foldedMarker`)
+ *    und werden übersprungen.
+ *
+ * Bis September 2026 steckten beide Fragen in einer Zahl: um den Punkt über die
+ * Markierungen hinwegzuschieben, galten sie als **erreicht** — und wurden
+ * abgehakt, lange bevor das Epic ihr Gate hatte. Ein frisch angelegtes Epic in
+ * L0 zeigte deshalb einen grünen Haken auf „L1 Detailing".
+ *
+ * Der Punkt landet weiterhin auf genau dem Schritt, den `epicNextStep`
+ * adressiert — die beiden Flächen dürfen nicht auseinanderlaufen.
  */
 export function epicLifecycleSteps(input: EpicLifecycleInput): LifecycleStep[] {
   const { stageGate, subStage, impactRecognizedAt } = input;
@@ -106,19 +128,22 @@ export function epicLifecycleSteps(input: EpicLifecycleInput): LifecycleStep[] {
   }
 
   const reached = [
-    true, // funnel
-    true, // detailing — folded selection marker
+    true, // funnel — mit dem Anlegen erreicht
+    gi >= 1, // detailing — erreicht, sobald das Epic den Funnel verlassen hat
     gi >= 1, // hypothesis — approved ⇒ L1
-    gi >= 1, // analyzing — folded selection marker
+    gi >= 2, // analyzing — erreicht mit dem Eintritt in L2
     gi >= 3, // business_case — der Eintritt in L3.1 *ist* die BC-Freigabe
     gi >= 4, // backlog — impl started ⇒ left backlog
     gi >= 5 || subStage === "L4.2", // implementation_started — L4.2 ist abgenommen
     gi >= 5, // implementation — alle Features fertig
     impactRecognizedAt != null || gi >= 5, // done
   ];
-  const firstOpen = reached.indexOf(false);
+
+  // Der Punkt: der erste offene Schritt, der auch eine Handlung trägt.
+  const highlight = LIFECYCLE_STEPS.findIndex((step, i) => !reached[i] && !step.foldedMarker);
+
   return LIFECYCLE_STEPS.map((step, i) => ({
     ...step,
-    status: firstOpen === -1 || i < firstOpen ? "done" : i === firstOpen ? "current" : "upcoming",
+    status: reached[i] ? "done" : i === highlight ? "current" : "upcoming",
   }));
 }

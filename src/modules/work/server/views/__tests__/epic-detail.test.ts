@@ -149,7 +149,9 @@ describe("buildEpicDetailModel — degradation matrix", () => {
     const m = buildEpicDetailModel(makeInputs());
     expect(m.lifecycleSteps).toHaveLength(9);
     expect(m.lifecycleSteps[0]!.status).toBe("done"); // funnel
-    expect(m.lifecycleSteps[1]!.status).toBe("done"); // detailing (folded marker)
+    // Stand hier als "done": ein Epic im Funnel zeigte damit einen Haken auf
+    // "L1 Detailing · Owner nominiert", ohne das Gate erreicht zu haben.
+    expect(m.lifecycleSteps[1]!.status).toBe("upcoming"); // detailing — Gate offen
     expect(m.lifecycleSteps[2]!.key).toBe("hypothesis");
     expect(m.lifecycleSteps[2]!.status).toBe("current");
     expect(m.lifecycleSteps.every((s) => s.description.length > 0)).toBe(true);
