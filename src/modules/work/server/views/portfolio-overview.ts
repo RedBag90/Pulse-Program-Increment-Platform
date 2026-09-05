@@ -1,9 +1,14 @@
 import type { PrismaClient } from "@/generated/prisma";
-import type { TenantId } from "@/modules/core/kernel/domain/types";
+import type { TenantId, StageGate } from "@/modules/core/kernel/domain/types";
 import { listEpicsForOverview } from "@/modules/work/server/services/epic";
 import { listOverviewFeatures } from "@/modules/work/server/services/feature";
 import { parseTimeline } from "@/modules/work/domain/timeline";
-import { HORIZONS, isHorizon, type Horizon } from "@/modules/work/domain/portfolio-guardrails";
+import {
+  HORIZON_LANES,
+  isHorizon,
+  type HorizonLane,
+} from "@/modules/work/domain/portfolio-guardrails";
+import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import {
   computeStructureGap,
   computePracticeAdoption,
@@ -35,13 +40,13 @@ import { listTenantUserLabels } from "@/server/services/tenant-users";
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
-/** Stage gate keys, in canonical Funnel→Done order. */
-export const STAGE_GATES = ["L0", "L1", "L2", "L3", "L4", "L5"] as const;
-export type StageGate = (typeof STAGE_GATES)[number];
-
-/** Swimlane-Achse des Overview-Kanbans: die vier Horizonte + „Ohne". */
-export const HORIZON_LANES = [...HORIZONS, "none"] as const;
-export type HorizonLane = Horizon | "none";
+// `STAGE_GATES`, `StageGate` und `HORIZON_LANES` standen hier als zweite Kopie
+// neben `domain/stage-gate.ts`, dem Kernel und `domain/portfolio-guardrails.ts`.
+// Client-Komponenten lasen sie von hier und zogen damit ein Servermodul ins
+// Browser-Bündel. Sie kommen jetzt aus der Domäne; weitergereicht werden sie,
+// damit vorhandene Importe dieser Datei nichts merken.
+export { STAGE_GATES, HORIZON_LANES };
+export type { StageGate, HorizonLane };
 
 /** Budget-Kennzahlen einer Horizont-Zeile (laufender Zyklus). */
 export interface HorizonBudgetFigures {

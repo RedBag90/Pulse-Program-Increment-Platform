@@ -1,10 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
-import {
-  STAGE_GATES,
-  STAGE_GATE_LABEL,
-  type PortfolioOverview,
-} from "@/modules/work/server/views/portfolio-overview";
+import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
+import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import { PORTFOLIO_WIP_LIMITS } from "@/modules/work/features/portfolio/overview/wip-limits";
 
 /**
@@ -29,7 +27,7 @@ export function PipelineBarsBlock({ data }: { data: PortfolioOverview }) {
           const over = limit !== null && count > limit;
           return (
             <li key={g} className="grid grid-cols-[7rem_1fr_auto] items-center gap-3">
-              <span className="text-xs text-muted-foreground">{STAGE_GATE_LABEL[g]}</span>
+              <span className="text-xs text-muted-foreground">{STAGE_SHORT[g]}</span>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div
                   className={`h-full rounded-full ${over ? "bg-amber-500" : "bg-primary/70"}`}

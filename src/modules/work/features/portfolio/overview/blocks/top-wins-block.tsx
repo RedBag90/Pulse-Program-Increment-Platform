@@ -2,10 +2,8 @@ import { Link } from "@/i18n/navigation";
 import { Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
-import {
-  STAGE_GATE_LABEL,
-  type PortfolioOverview,
-} from "@/modules/work/server/views/portfolio-overview";
+import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 
 /**
  * Top 3 "wins" for the executive briefing — most recent epic transitions out
@@ -20,8 +18,7 @@ export function TopWinsBlock({ data }: { data: PortfolioOverview }) {
     .filter((e) => e.stageGate !== "L0" && e.stageGate !== "L5" && e.status !== "blocked")
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
   if (moving) {
-    const gate =
-      STAGE_GATE_LABEL[moving.stageGate as keyof typeof STAGE_GATE_LABEL] ?? moving.stageGate;
+    const gate = STAGE_SHORT[moving.stageGate as keyof typeof STAGE_SHORT] ?? moving.stageGate;
     wins.push({
       key: `epic-${moving.id}`,
       label: `„${moving.title}" → ${gate}`,

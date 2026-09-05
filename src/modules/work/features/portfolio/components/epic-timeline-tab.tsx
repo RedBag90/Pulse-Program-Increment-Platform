@@ -2,6 +2,7 @@
 
 import { useActionState, useState, startTransition, Fragment } from "react";
 import { CheckCircle2, CircleDot, Circle, Lock, ChevronRight } from "lucide-react";
+import { LIFECYCLE_STEPS } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import { saveTimelineAction } from "@/modules/work/features/portfolio/actions/timeline";
 import type {
   TimelineFields,
@@ -211,10 +212,37 @@ export function EpicTimelineTab({
     );
   }
 
-  // Lifecycle phases in order. `level` (L0–L5) drives the left Reifegrad gutter;
-  // `estimatePhase` → editable Owner estimate (every phase except Funnel);
-  // `actualPhase` → editable manual actual; `actualIso` → read-only workflow
-  // actual; no actual field → em dash.
+  // Die neun Zeilen sind die neun Lifecycle-Schritte — Titel, Untertitel und
+  // Reifegrad-Spalte kommen aus `LIFECYCLE_STEPS`, derselben Quelle, aus der die
+  // Statusfarbe schon gelesen wird. Vorher standen sie hier ein zweites Mal, auf
+  // Englisch und im alten Wortschatz („Selected for Detailing", „Backlog"),
+  // während der Stepper darüber längst „Detailing" und „Umsetzung" sagte.
+  //
+  // Nur was die Zeitleiste zusätzlich braucht, steht hier: welches Schätzfeld,
+  // welches Ist-Datum, und ob die Zeile aufklappt.
+  const EXTRAS: Record<
+    string,
+    {
+      estimatePhase?: TimelineEstimatePhase;
+      actualPhase?: TimelineManualPhase;
+      actualIso?: string | null;
+      expandable?: boolean;
+    }
+  > = {
+    funnel: { actualIso: createdAt },
+    detailing: { estimatePhase: "detailing", actualIso: selectedForDetailingAt, expandable: true },
+    hypothesis: { estimatePhase: "hypothesis", actualIso: hypothesisApprovedAt },
+    analyzing: { estimatePhase: "analyzing", actualIso: selectedForAnalyzingAt },
+    business_case: { estimatePhase: "business_case", actualIso: businessCaseApprovedAt },
+    backlog: { estimatePhase: "backlog", actualPhase: "backlog" },
+    implementation_started: {
+      estimatePhase: "implementation_started",
+      actualIso: implementationStartedAt,
+    },
+    implementation: { estimatePhase: "implementation", actualPhase: "implementation" },
+    done: { estimatePhase: "done", actualIso: impactRecognizedAt },
+  };
+
   const phases: {
     key: string;
     title: string;
@@ -224,80 +252,13 @@ export function EpicTimelineTab({
     actualPhase?: TimelineManualPhase;
     actualIso?: string | null;
     expandable?: boolean;
-  }[] = [
-    {
-      key: "funnel",
-      title: "Funnel Entry",
-      subtitle: "Erstellung des Epics",
-      level: "L0",
-      actualIso: createdAt,
-    },
-    {
-      key: "detailing",
-      title: "Selected for Detailing",
-      subtitle: "Owner nominiert",
-      level: "L1",
-      estimatePhase: "detailing",
-      actualIso: selectedForDetailingAt,
-      expandable: true,
-    },
-    {
-      key: "hypothesis",
-      title: "Business hypothesis done",
-      subtitle: "Benefit-Hypothese freigegeben",
-      level: "L1",
-      estimatePhase: "hypothesis",
-      actualIso: hypothesisApprovedAt,
-    },
-    {
-      key: "analyzing",
-      title: "Selected for analyzing",
-      subtitle: "Für Analyse ausgewählt",
-      level: "L2",
-      estimatePhase: "analyzing",
-      actualIso: selectedForAnalyzingAt,
-    },
-    {
-      key: "business_case",
-      title: "Business Case",
-      subtitle: "Lean Business Case freigegeben",
-      level: "L2",
-      estimatePhase: "business_case",
-      actualIso: businessCaseApprovedAt,
-    },
-    {
-      key: "backlog",
-      title: "Backlog",
-      subtitle: "Portfolio-Backlog",
-      level: "L3",
-      estimatePhase: "backlog",
-      actualPhase: "backlog",
-    },
-    {
-      key: "implementation_started",
-      title: "Implementation started",
-      subtitle: "Umsetzung gestartet",
-      level: "L4",
-      estimatePhase: "implementation_started",
-      actualIso: implementationStartedAt,
-    },
-    {
-      key: "implementation",
-      title: "Implementation done",
-      subtitle: "Ist-Datum = Umsetzung abgeschlossen.",
-      level: "L4",
-      estimatePhase: "implementation",
-      actualPhase: "implementation",
-    },
-    {
-      key: "done",
-      title: "Impact Realized",
-      subtitle: "Impact durch Controlling bestätigt",
-      level: "L5",
-      estimatePhase: "done",
-      actualIso: impactRecognizedAt,
-    },
-  ];
+  }[] = LIFECYCLE_STEPS.map((step) => ({
+    key: step.key,
+    title: step.label,
+    subtitle: step.description,
+    level: step.gate,
+    ...EXTRAS[step.key],
+  }));
 
   const groups = reifegradGroups(phases.map((p) => p.level));
 

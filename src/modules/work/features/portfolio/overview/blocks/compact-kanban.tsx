@@ -5,14 +5,14 @@ import { Link } from "@/i18n/navigation";
 import { ArrowRight, Flag } from "lucide-react";
 import { SectionLabel } from "@/components/ui/section-label";
 import { cn } from "@/lib/utils";
-import {
-  STAGE_GATES,
-  STAGE_GATE_LABEL,
-  HORIZON_LANES,
-  type PortfolioOverview,
-  type OverviewEpicCard,
-  type HorizonBudgetFigures,
-  type ClassFilterState,
+import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
+import { HORIZON_LANES } from "@/modules/work/domain/portfolio-guardrails";
+import type {
+  PortfolioOverview,
+  OverviewEpicCard,
+  HorizonBudgetFigures,
+  ClassFilterState,
 } from "@/modules/work/server/views/portfolio-overview";
 import {
   isClassShown,
@@ -80,7 +80,7 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
                 )}
               >
                 <span className="text-[10px] font-semibold uppercase tracking-wide">
-                  {STAGE_GATE_LABEL[gate]}
+                  {STAGE_SHORT[gate]}
                 </span>
                 <span
                   className={cn(

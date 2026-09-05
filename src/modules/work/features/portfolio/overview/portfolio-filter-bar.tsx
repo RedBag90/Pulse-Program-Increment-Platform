@@ -5,7 +5,8 @@ import { Star, Save, Trash2 } from "lucide-react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { MultiSelectFilter, type MultiSelectSection } from "@/components/ui/multi-select-filter";
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
-import { STAGE_GATES, STAGE_GATE_LABEL } from "@/modules/work/server/views/portfolio-overview";
+import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import { EPIC_CLASS_LABELS } from "@/modules/work/domain/pb-submission";
 import {
   savePortfolioFilterAction,
@@ -78,7 +79,7 @@ export function PortfolioFilterBar({
     { options: valueStreams.map((v) => ({ value: v.id, label: v.name })) },
   ];
   const gateSections: MultiSelectSection[] = [
-    { options: STAGE_GATES.map((g) => ({ value: g, label: `${g} · ${STAGE_GATE_LABEL[g]}` })) },
+    { options: STAGE_GATES.map((g) => ({ value: g, label: `${g} · ${STAGE_SHORT[g]}` })) },
   ];
   const statusSections: MultiSelectSection[] = [
     { options: STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_LABELS[s] ?? s })) },

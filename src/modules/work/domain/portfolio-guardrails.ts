@@ -363,3 +363,13 @@ export function resolveGuardrailTargets(
 
   return { targets: merged, source: "value_stream", overriddenAxes };
 }
+
+/**
+ * Die Swimlane-Achse des Übersichts-Kanbans: die vier Horizonte plus „Ohne".
+ *
+ * Lag bis September 2026 im Server-View der Portfolio-Übersicht — und zog damit
+ * die Client-Komponente, die sie liest, in ein Servermodul. Sie leitet sich rein
+ * aus `HORIZONS` ab und gehört daneben.
+ */
+export const HORIZON_LANES = [...HORIZONS, "none"] as const;
+export type HorizonLane = Horizon | "none";

@@ -2,10 +2,8 @@ import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
-import {
-  STAGE_GATE_LABEL,
-  type PortfolioOverview,
-} from "@/modules/work/server/views/portfolio-overview";
+import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import { isClassShown, rollUpBySolution } from "@/modules/work/domain/epic-class-filter";
 import { rollupTone } from "@/modules/work/features/portfolio/overview/blocks/class-rollup";
 
@@ -68,9 +66,7 @@ export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
                       {r.title}
                     </Link>
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {STAGE_GATE_LABEL[r.stageGate]}
-                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">{STAGE_SHORT[r.stageGate]}</td>
                   <td className="px-3 py-2 text-muted-foreground">
                     {STATUS_LABELS[r.status] ?? r.status}
                   </td>

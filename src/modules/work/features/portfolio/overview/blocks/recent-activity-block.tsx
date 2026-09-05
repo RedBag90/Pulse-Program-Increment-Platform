@@ -1,10 +1,8 @@
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
-import {
-  STAGE_GATE_LABEL,
-  type PortfolioOverview,
-} from "@/modules/work/server/views/portfolio-overview";
+import { STAGE_SHORT } from "@/components/detail/initiative-labels";
+import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 
 function relativeDays(d: Date): string {
   const days = Math.floor((Date.now() - new Date(d).getTime()) / (1000 * 60 * 60 * 24));
@@ -27,8 +25,7 @@ export function RecentActivityBlock({ data }: { data: PortfolioOverview }) {
       ) : (
         <ul className="space-y-1.5 text-sm">
           {data.recentActivity.map((e) => {
-            const gate =
-              STAGE_GATE_LABEL[e.stageGate as keyof typeof STAGE_GATE_LABEL] ?? e.stageGate;
+            const gate = STAGE_SHORT[e.stageGate as keyof typeof STAGE_SHORT] ?? e.stageGate;
             return (
               <li key={e.id} className="flex items-baseline justify-between gap-3">
                 <span className="truncate">
