@@ -1,16 +1,17 @@
 # Seeds
 
-Drei Einstiegspunkte, drei Zwecke. Alle drei laufen über einen **rohen** Prisma-Client auf
+Fünf Einstiegspunkte, fünf Zwecke. Alle laufen über einen **rohen** Prisma-Client auf
 `DIRECT_URL` (Port 5432, nicht den 6543-Pooler) und legen Konten über die Supabase-Admin-API
 an — sie brauchen also `.env.local` mit `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL` und
 `SUPABASE_SERVICE_ROLE_KEY`.
 
-| Befehl                 | Mandant         | Inhalt                                                                                                            |
-| ---------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `pnpm db:seed`         | Pulse Demo Corp | Nur Konten, Mandant, Rollen — leere Fachdaten                                                                     |
-| `pnpm db:seed:demo`    | Pulse Demo Corp | Dichter Story-Datensatz: 3 Wertströme, 6 ARTs, 2 Timelines, 20 Epics, 44 Features, Ziele, Budget, Risiken         |
-| `pnpm db:seed:large`   | Large Test Corp | Zehnjahres-Programm: 3 Wertströme, 6 ARTs, 2 Timelines, 200 Epics in Rollout-Bögen, 390 Features, Budget-Historie |
-| `pnpm db:seed:offsite` | **Test Demo**   | Simulation „Firmen-Offsite": 1 Wertstrom, 1 ART, 1 Kopf-Ziel, 3 Epics, 9 Features                                 |
+| Befehl                     | Mandant          | Inhalt                                                                                                                                                                 |
+| -------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm db:seed`             | Pulse Demo Corp  | Nur Konten, Mandant, Rollen — leere Fachdaten                                                                                                                          |
+| `pnpm db:seed:demo`        | Pulse Demo Corp  | Dichter Story-Datensatz: 3 Wertströme, 6 ARTs, 2 Timelines, 20 Epics, 44 Features, Ziele, Budget, Risiken                                                              |
+| `pnpm db:seed:large`       | Large Test Corp  | Zehnjahres-Programm: 3 Wertströme, 6 ARTs, 2 Timelines, 200 Epics in Rollout-Bögen, 390 Features, Budget-Historie                                                      |
+| `pnpm db:seed:large-setup` | Large Setup Corp | Der Aufbau von Large Test Corp **ohne Inhalte**: Ökonomie, Guardrails, Practice `artEpics`, Rollen, dieselben acht Konten — keine Wertströme, ARTs, Epics oder Budgets |
+| `pnpm db:seed:offsite`     | **Test Demo**    | Simulation „Firmen-Offsite": 1 Wertstrom, 1 ART, 1 Kopf-Ziel, 3 Epics, 9 Features                                                                                      |
 
 > **Alle löschen zuerst die Fachdaten ihres Mandanten** (`wipeDomainData`). Konten, der
 > Mandant selbst und Rollenzuweisungen bleiben stehen. Was du von Hand angelegt hast, ist

@@ -26,6 +26,7 @@
     "db:seed:demo": "tsx prisma/seed-demo.ts",
     "db:seed:offsite": "tsx prisma/seed-offsite.ts",
     "db:seed:large": "tsx prisma/seed-large.ts",
+    "db:seed:large-setup": "tsx prisma/seed-large-setup.ts",
     "prepare": "husky"
   },
   "dependencies": {
