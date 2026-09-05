@@ -516,7 +516,17 @@ export const addGoalCommentAction = createServerAction({
 /**
  * Epic ↔ Ziel-Verknüpfung ("Related work"). Hängt ein Epic direkt an ein
  * Objective oder Key Result; sein KPI-Mehrwert rollt danach in den Ziel-Trio.
- * Capability `kpi.bind` (gleiche „Wert an ein Ziel hängen"-Verantwortung).
+ *
+ * **Der Dienst autorisiert selbst** (`epicLinkDeniedReason`): das blanke
+ * Anhängen verlangt `epic.update` — es ist Teil des Vorschlags, den der VMO im
+ * ersten Review bestätigt —, das Binden eines bezifferten Beitrags weiterhin
+ * `kpi.bind`. Die Vorprüfung hier wies einen Epic Owner ab, **nachdem** sein
+ * Epic bereits angelegt war; sie kannte den Unterschied zwischen beiden
+ * Handlungen nicht.
+ *
+ * `action` bleibt `kpi.bind`: daraus leitet sich das Modul-Gate ab
+ * (`kpi.bind` → core, `epic.update` → work), und sie ist die Beschriftung im
+ * Timing-Log.
  */
 export const linkEpicToGoalAction = createServerAction({
   schema: z.object({
@@ -529,6 +539,7 @@ export const linkEpicToGoalAction = createServerAction({
     recurringInterval: z.enum(["monthly", "yearly"]).optional(),
   }),
   action: "kpi.bind",
+  authorizedInService: true,
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
     linkEpicToGoal(ctx, {
@@ -546,6 +557,9 @@ export const linkEpicToGoalAction = createServerAction({
 export const unlinkEpicFromGoalAction = createServerAction({
   schema: z.object({ epicId: z.string().uuid(), goalId: z.string().uuid() }),
   action: "kpi.bind",
+  // Wie oben: der Dienst kennt die bestehende Verknüpfung und damit, ob ein
+  // bezifferter Beitrag daran hängt.
+  authorizedInService: true,
   resource: (_input, p) => ({ tenantId: p.tenantId }),
   service: (ctx, input) =>
     unlinkEpicFromGoal(ctx, { epicId: input.epicId, objectiveId: input.goalId }),

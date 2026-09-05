@@ -1,5 +1,6 @@
 import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { checkEpicLink } from "@/modules/core/goals/domain/epic-link-invariant";
+import { epicLinkDeniedReason } from "@/modules/core/goals/domain/epic-link-access";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { authorizeResource } from "@/server/auth/authorize";
@@ -12,7 +13,11 @@ import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel
  * (Ziel-Einheit je 1 KPI-Einheit). Ein Epic kann mehrere Ziele treiben; jede
  * Verknüpfung ist ein eigener (epicId, objectiveId)-Datensatz.
  *
- * Nutzt `kpi.bind` als Capability. Count-once auf **KPI-Ebene**:
+ * Autorisiert **selbst** (`authorizedInService`), weil die Regel feiner ist,
+ * als eine Capability am Action-Objekt sie ausdrücken kann: das blanke Anhängen
+ * ist Autorenarbeit am Epic (`epic.update`), das Binden eines bezifferten
+ * Beitrags eine Zusage (`kpi.bind`). Welche gilt, entscheidet
+ * `epicLinkDeniedReason`. Count-once auf **KPI-Ebene**:
  *  1. Validator `checkEpicLink` (pure) — Konflikt, falls die gewählte KPI schon
  *     ein anderes Ziel treibt; muss zum Epic gehören; Faktor erforderlich.
  *  2. Dieser Service — per-Epic advisory transaction lock *vor* dem Laden.
@@ -56,6 +61,17 @@ interface LinkFields {
   conversionFactor: number | null;
   impactKind: string;
   recurringInterval: string;
+}
+
+/**
+ * Die Fakten für `epicLinkDeniedReason` — zwei Capability-Abfragen, sonst
+ * nichts. Das Sammeln bleibt hier, damit die Regel rein bleibt.
+ */
+function linkAccessFacts(ctx: RequestContext, tenantId: string) {
+  return {
+    mayEditEpic: authorizeResource(ctx.principal, "epic.update", { tenantId }).ok,
+    mayBindKpi: authorizeResource(ctx.principal, "kpi.bind", { tenantId }).ok,
+  };
 }
 
 async function applyEpicLink(
@@ -117,8 +133,13 @@ async function applyEpicLink(
         });
       }
       case "delete": {
-        const authz = authorizeResource(ctx.principal, "kpi.bind", { tenantId: mctx.tenantId });
-        if (!authz.ok) return authz;
+        // Die bestehende Verknüpfung entscheidet: trug sie eine KPI, nimmt das
+        // Lösen denselben Wert wieder weg, den ihr Anlegen zugesagt hat.
+        const denied = epicLinkDeniedReason(
+          linkAccessFacts(ctx, mctx.tenantId),
+          existing!.kpiId != null,
+        );
+        if (denied) return err({ kind: "forbidden" as const, reason: denied });
         await tx.goalEpicLink.delete({ where: { id: existing!.id } });
         // „Kein Wert ohne Verknüpfung": die Bewertung lebt am Link, also beim
         // Entlinken die €-Bewertung der KPI leeren (valuePerUnit → null).
@@ -159,8 +180,8 @@ async function applyEpicLink(
           return err({ kind: "not_found" as const, resourceType: "Objective", id: objectiveId });
         }
 
-        const authz = authorizeResource(ctx.principal, "kpi.bind", { tenantId: mctx.tenantId });
-        if (!authz.ok) return authz;
+        const denied = epicLinkDeniedReason(linkAccessFacts(ctx, mctx.tenantId), f.kpiId != null);
+        if (denied) return err({ kind: "forbidden" as const, reason: denied });
 
         const data = {
           kpiId: f.kpiId,
