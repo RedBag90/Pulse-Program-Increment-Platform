@@ -48,8 +48,16 @@ export interface RtbAwardView {
 /**
  * Der Zuspruch eines Wertstroms für ein Halbjahr, samt Aufteilung.
  *
- * Solange nichts gespeichert ist, steht die **anteilige Vorbelegung** in den
+ * Solange **nichts** gespeichert ist, steht die anteilige Vorbelegung in den
  * Zeilen — wie der Median die Endbeträge vorbelegt, ohne sie zu entscheiden.
+ *
+ * Sobald einmal aufgeteilt wurde, ist die Vorbelegung vorbei: eine Position,
+ * die danach dazukommt, steht auf **0 €**, bis jemand ihr etwas zuspricht. Der
+ * Zuspruch ist eine Entscheidung des Wertstroms, und eine neue Zeile ist noch
+ * nicht entschieden. Vorher erbte sie einen Anteil aus der Vorbelegung — mit
+ * zwei Folgen: die Fläche behauptete einen Zuspruch, den niemand erteilt hatte,
+ * und zusammen mit den gespeicherten Zeilen überschritt die angezeigte Summe
+ * den Zuspruch des Wertstroms.
  */
 export async function loadRtbAwards(
   db: PrismaClient,
@@ -98,7 +106,8 @@ export async function loadRtbAwards(
 
   const savedBy = new Map(awards.map((a) => [a.rtbItemId, Number(a.amount)]));
   const saved = items.some((i) => savedBy.has(i.id));
-  const prefill = awarded == null ? {} : proportionalAwards(asks, awarded);
+  // Vorbelegen nur, solange es keine Entscheidung gibt, die sie überschreiben würde.
+  const prefill = awarded == null || saved ? {} : proportionalAwards(asks, awarded);
 
   return {
     cycleKey,
