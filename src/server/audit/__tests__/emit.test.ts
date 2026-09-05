@@ -106,15 +106,18 @@ describe("emitAuditEvent — resourceId", () => {
 
   it("nennt Ereignis, Wert und Ressourcentyp", async () => {
     mockCreate.mockRejectedValueOnce(pgUuidError);
-    const err = await emitAuditEvent(mockDb, {
-      ...baseInput,
-      resourceId: "portfolio_manager",
-    }).catch((e: Error) => e);
-    expect(err.message).toContain("initiative.created");
-    expect(err.message).toContain("portfolio_manager");
-    expect(err.message).toContain("initiative");
+    let err: (Error & { cause?: unknown }) | undefined;
+    try {
+      await emitAuditEvent(mockDb, { ...baseInput, resourceId: "portfolio_manager" });
+    } catch (e) {
+      err = e as Error & { cause?: unknown };
+    }
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.message).toContain("initiative.created");
+    expect(err?.message).toContain("portfolio_manager");
+    expect(err?.message).toContain("initiative");
     // Die urspruengliche Meldung geht nicht verloren.
-    expect((err as Error & { cause?: unknown }).cause).toBe(pgUuidError);
+    expect(err?.cause).toBe(pgUuidError);
   });
 
   it("laesst einen fremden Fehler unveraendert", async () => {
