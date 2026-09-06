@@ -72,20 +72,32 @@ export function HorizonBadge({
   horizon,
   investmentMode,
   withHelp = false,
+  short = false,
   className,
 }: {
   horizon: string | null;
   /** Nur in H1 relevant: „extracting" ⇒ Label „H1 · Extracting" (gleiche H1-Farbe). */
   investmentMode?: string | null;
   withHelp?: boolean;
+  /**
+   * Nur die Stufe — `H3` statt `H3 · R&D`.
+   *
+   * Für schmale Spalten: der ausgeschriebene Name bricht dort auf zwei Zeilen
+   * um, und die Stufe allein trägt die Auskunft. Die Stufe wird aus dem
+   * Horizont selbst gebildet, nicht aus einer zweiten Etikettenliste, die
+   * neben `HORIZON_LABEL` veralten könnte.
+   */
+  short?: boolean;
   className?: string;
 }) {
   const h = isHorizon(horizon) ? horizon : null;
   const style = h ? HORIZON_BADGE_CLASS[h] : NONE_CLASS;
   const label = h
-    ? h === "h1" && investmentMode === "extracting"
-      ? "H1 · Extracting"
-      : HORIZON_LABEL[h]
+    ? short
+      ? h.toUpperCase()
+      : h === "h1" && investmentMode === "extracting"
+        ? "H1 · Extracting"
+        : HORIZON_LABEL[h]
     : "Ohne";
 
   const pill = (

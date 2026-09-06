@@ -20,15 +20,25 @@ export function OverviewMissionControl({ data }: { data: PortfolioOverview }) {
     <div className="space-y-6">
       <PeriodBanner data={data} />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* 1/3 : 2/3 — links ein Ziel mit einem Balken, rechts eine Tabelle mit
+          sechs Spalten und umbrechenden Epic-Titeln. Haelftig geteilt bekam die
+          Beitrags-Kachel zu wenig Platz. Nur diese Rasterzeile; die beiden
+          anderen der Uebersicht bleiben zweispaltig. */}
+      <div className="grid gap-4 md:grid-cols-3">
         <StrategicBlock data={data} />
-        <GoalContributionBlock rows={data.goalContributions} classFilter={data.classFilter} />
+        <div className="md:col-span-2">
+          <GoalContributionBlock rows={data.goalContributions} classFilter={data.classFilter} />
+        </div>
       </div>
 
       {/* Die Ebene zwischen Epic und Portfolio: welches Produkt steht wo, und
           wie viel Geld bindet es dort. Über dem Kanban, weil es den Rahmen
           setzt, in dem die Epics darunter laufen. */}
-      <HorizonFunnelBlock items={data.funnelItems} cycleKey={data.budgetCycleKey} />
+      <HorizonFunnelBlock
+        items={data.funnelItems}
+        cycleKey={data.budgetCycleKey}
+        horizonTargets={data.horizonTargets}
+      />
 
       <CompactKanban data={data} />
 

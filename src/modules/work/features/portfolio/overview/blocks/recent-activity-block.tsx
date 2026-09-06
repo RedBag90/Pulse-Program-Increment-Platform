@@ -23,7 +23,7 @@ export function RecentActivityBlock({ data }: { data: PortfolioOverview }) {
       {data.recentActivity.length === 0 ? (
         <p className="text-sm text-muted-foreground">Noch keine Aktivität.</p>
       ) : (
-        <ul className="space-y-1.5 text-sm">
+        <ul className="space-y-1.5 text-xs">
           {data.recentActivity.map((e) => {
             const gate = STAGE_SHORT[e.stageGate as keyof typeof STAGE_SHORT] ?? e.stageGate;
             return (

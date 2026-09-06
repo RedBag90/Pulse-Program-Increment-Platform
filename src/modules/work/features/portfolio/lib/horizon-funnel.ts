@@ -1,4 +1,10 @@
-import { HORIZONS, type Horizon } from "@/modules/work/domain/portfolio-guardrails";
+import {
+  HORIZONS,
+  STATIONS,
+  stationsOf,
+  type Horizon,
+  type Station,
+} from "@/modules/work/domain/portfolio-guardrails";
 import type { InvestmentMode } from "@/modules/work/domain/solution";
 
 /**
@@ -62,8 +68,36 @@ export interface PlacedItem extends FunnelItem {
   box: { x: number; y: number; w: number; h: number };
 }
 
+/**
+ * Die Soll-Verteilung des Portfolio-Budgets über die **Stationen**, in Prozent
+ * — die Guardrail „Investment by Horizon".
+ *
+ * Sie gilt für das gesamte Budget, Betriebskosten eingeschlossen; damit misst
+ * sie dieselbe Größe wie die Öffnung des Trichters, und die beiden Linien sind
+ * vergleichbar. Seit H1 in Investing und Extracting zerfällt, trägt jede
+ * Station ihr eigenes Ziel.
+ */
+export type HorizonTargets = Record<Station, number>;
+
+/** Eine Station innerhalb eines Bandes — H1 hat zwei, alle anderen eine. */
+export interface FunnelStation {
+  station: Station;
+  x0: number;
+  x1: number;
+  money: number;
+  half: number;
+  minimal: boolean;
+  enlarged: boolean;
+}
+
 export interface FunnelBand {
   horizon: Horizon;
+  /**
+   * Die Stationen dieses Bandes, jede mit **eigener** Öffnung. H1 führt zwei,
+   * seit Investing und Extracting eigene Ziele tragen; die Silhouette macht an
+   * ihrer Grenze deshalb eine Stufe.
+   */
+  stations: FunnelStation[];
   /** Das **Plateau**: hier ist die Öffnung exakt `half`, und hier liegen Symbole. */
   x0: number;
   x1: number;
@@ -92,6 +126,12 @@ export interface FunnelLayout {
   dropped: FunnelItem[];
   /** Kontrollpunkte der Silhouette: `[x, halbeÖffnung]`, monoton in x. */
   profile: [number, number][];
+  /**
+   * Dieselben Kontrollpunkte für die **Soll-Verteilung** (Guardrail).
+   * `null`, wenn keine Ziele übergeben wurden oder im Zyklus kein Geld liegt —
+   * dann gibt es nichts zu vergleichen.
+   */
+  targetProfile: [number, number][] | null;
   /** Die natürliche Breite der Zeichnung; sie wird per `viewBox` gestaucht. */
   width: number;
   /**
@@ -218,21 +258,12 @@ export function clipCode(code: string, max: number): string {
 const totalOf = (i: FunnelItem) => i.invest + i.run;
 
 /**
- * **Die Achse hat fünf Stationen, nicht vier.** H1 zerfällt in Investing und
- * Extracting — dieselbe Fünferleiter wie die Lebenszyklus-Leiste am Produkt.
- *
- * Vorher war die Trennung eine Linie *innerhalb* eines Bandes, die nur erschien,
- * wenn beide Gruppen besetzt waren. In Large Test Corp sind alle drei
- * H1-Produkte in der Ernte, also verschwand sie ganz — und der Bandkopf sagte
- * weiterhin „H1 · Investing". Als eigene Stationen ist die leere Hälfte die
- * Aussage, nicht der Grund, die Linie wegzulassen.
+ * Die Fünferleiter kommt aus der Domäne
+ * (`work/domain/portfolio-guardrails.ts`) — sie ist keine Eigenschaft der
+ * Zeichnung, seit die Guardrail eigene Ziele je Station trägt. Hier nur
+ * weitergereicht, damit die vorhandenen Aufrufer nichts merken.
  */
-export const STATIONS = ["h3", "h2", "h1.1", "h1.2", "h0"] as const;
-export type Station = (typeof STATIONS)[number];
-
-/** Die Stationen eines Horizonts — H1 belegt zwei, alle anderen eine. */
-export const stationsOf = (h: Horizon): Station[] =>
-  h === "h1" ? ["h1.1", "h1.2"] : [h as Station];
+export { STATIONS, stationsOf, type Station };
 
 /**
  * Die Ernte ist eine Eigenschaft des **Produkts**. Ein Epic trägt keinen
@@ -316,15 +347,24 @@ export function layoutFunnel(
   items: readonly FunnelItem[],
   geometry: FunnelGeometry = DEFAULT_GEOMETRY,
   maxCodeLength: number = CODE_STEPS[0],
+  horizonTargets: HorizonTargets | null = null,
 ): FunnelLayout {
   const g = geometry;
   const homelessItems = items.filter((i) => i.horizon == null);
   const placedItems = items.filter((i) => i.horizon != null);
 
   // 1 · Das Geld je Band bestimmt die Öffnung.
-  const money = Object.fromEntries(HORIZONS.map((h) => [h, 0])) as Record<Horizon, number>;
-  for (const i of placedItems) money[i.horizon!] += totalOf(i);
+  // **Je Station, nicht je Horizont.** Solange nur der Horizont ein Ziel hatte,
+  // war eine Öffnung über beide H1-Hälften richtig — die Trennung war eine
+  // Unterteilung, kein Tor. Seit die Guardrail eigene Ziele für H1.1 und H1.2
+  // trägt, ist ihr Geld eine eigene Größe: eine Ziel-Linie, die springt,
+  // während die Ist-Kurve flach durchläuft, misst an dieser Stelle nichts.
+  const stationOfItem = (i: FunnelItem): Station =>
+    i.horizon === "h1" ? (isExtracting(i) ? "h1.2" : "h1.1") : (i.horizon as Station);
+  const money = Object.fromEntries(STATIONS.map((st) => [st, 0])) as Record<Station, number>;
+  for (const i of placedItems) money[stationOfItem(i)] += totalOf(i);
   const richest = Math.max(...Object.values(money), 1);
+  const bandMoney = (h: Horizon) => stationsOf(h).reduce((sum, st) => sum + money[st], 0);
   const maxTotal = Math.max(...items.map(totalOf), 1);
 
   // 2 · Die Kästen je **Station**. Die Öffnung folgt erst, wenn feststeht, wie
@@ -367,65 +407,114 @@ export function layoutFunnel(
   //     die des Geldes bleiben; der absolute Maßstab war ohnehin nie eine
   //     Aussage, er ist auf das reichste Band normiert.
   const columnsByStation = new Map<Station, Boxed[][]>();
-  const proportional = {} as Record<Horizon, number>;
-  const needed = {} as Record<Horizon, number>;
+  const proportional = {} as Record<Station, number>;
+  const needed = {} as Record<Station, number>;
   let openFactor = 1;
-  for (const h of HORIZONS) {
-    let tallest = 0;
-    for (const st of stationsOf(h)) {
-      const columns = columnsInWidth(boxesByStation.get(st) ?? [], unit, g);
-      columnsByStation.set(st, columns);
-      if (columns.length > 0) tallest = Math.max(tallest, tallestColumn(columns, g));
-    }
-    proportional[h] =
-      money[h] <= 0 ? g.minHalf : Math.max(g.minHalf, (money[h] / richest) * g.maxHalf);
-    // Beide Hälften von H1 teilen sich **eine** Öffnung: H1 trägt ein Geld, und
-    // die Trennung ist eine Unterteilung, kein Tor. Maßgeblich ist deshalb die
-    // höhere der beiden Spalten.
-    needed[h] = tallest > 0 ? tallest / 2 + g.padding : 0;
-    // **Nur Bänder mit Geld treiben den Faktor.** Die Mindestöffnung eines
-    // leeren Bandes ist keine Aussage über Geld, sondern ein Platzhalter —
+  for (const st of STATIONS) {
+    const columns = columnsInWidth(boxesByStation.get(st) ?? [], unit, g);
+    columnsByStation.set(st, columns);
+    proportional[st] =
+      money[st] <= 0 ? g.minHalf : Math.max(g.minHalf, (money[st] / richest) * g.maxHalf);
+    needed[st] = columns.length > 0 ? tallestColumn(columns, g) / 2 + g.padding : 0;
+    // **Nur Stationen mit Geld treiben den Faktor.** Die Mindestöffnung einer
+    // leeren Station ist keine Aussage über Geld, sondern ein Platzhalter —
     // gemessen riss ein leeres H3 mit drei Umrissen die Öffnung von H1 von 150
     // auf 248, weil sein Inhalt gegen den Bodensatz von 40 gerechnet wurde.
-    if (money[h] > 0) openFactor = Math.max(openFactor, needed[h] / proportional[h]);
+    if (money[st] > 0) openFactor = Math.max(openFactor, needed[st] / proportional[st]);
   }
-  const halves = {} as Record<Horizon, { half: number; minimal: boolean; enlarged: boolean }>;
-  for (const h of HORIZONS) {
-    const minimal = money[h] <= 0;
-    halves[h] = {
-      // Ein Band ohne Geld fasst seinen Inhalt für sich; es verzerrt damit
-      // nichts, weil seine Öffnung ohnehin als Mindestöffnung ausgewiesen ist.
-      half: minimal ? Math.max(g.minHalf * openFactor, needed[h]) : proportional[h] * openFactor,
+  const halfOf = (st: Station) => {
+    const minimal = money[st] <= 0;
+    return {
+      // Eine Station ohne Geld fasst ihren Inhalt für sich; sie verzerrt damit
+      // nichts, weil ihre Öffnung ohnehin als Mindestöffnung ausgewiesen ist.
+      half: minimal ? Math.max(g.minHalf * openFactor, needed[st]) : proportional[st] * openFactor,
       minimal,
-      // Gekennzeichnet wird das Band, dessen Inhalt die Weitung **verursacht**
-      // hat — es ist dicht belegt. Die übrigen ziehen mit, ohne dass ihr
+      // Gekennzeichnet wird die Station, deren Inhalt die Weitung **verursacht**
+      // hat — sie ist dicht belegt. Die übrigen ziehen mit, ohne dass ihr
       // Verhältnis zueinander sich ändert.
-      enlarged: !minimal && needed[h] > proportional[h] + 1e-6,
+      enlarged: !minimal && needed[st] > proportional[st] + 1e-6,
     };
-  }
+  };
 
   // 5 · Die Mittellinie weicht aus, wenn die weiteste Öffnung über sie
   //     hinauswächst — sonst liefe der obere Rand ins Negative.
-  const maxHalf = Math.max(...HORIZONS.map((h) => halves[h].half));
+  //
+  //     **Die Ziel-Linie zählt mit.** Gemessen liegt in Large Test Corp das
+  //     H1-Ziel bei einer halben Öffnung von 401 px, das Ist bei 249 — wer nur
+  //     das Ist misst, schneidet die Vergleichslinie oben ab, und zwar genau
+  //     dann, wenn der Abstand am größten und die Aussage am wichtigsten ist.
+  const totalMoney = STATIONS.reduce((sum, st) => sum + money[st], 0);
+  const targetHalfOf = (st: Station): number =>
+    horizonTargets == null || totalMoney <= 0
+      ? 0
+      : (((horizonTargets[st] ?? 0) / 100) * totalMoney * g.maxHalf * openFactor) / richest;
+  const maxHalf = Math.max(...STATIONS.map((st) => Math.max(halfOf(st).half, targetHalfOf(st))));
   const mid = Math.max(g.mid, maxHalf + g.headroom);
 
-  // 6 · Bänder nebeneinander, dazwischen die Übergangslücke.
+  // 6 · Bänder nebeneinander, dazwischen die Übergangslücke. Jedes Band führt
+  //     seine Stationen samt eigener Öffnung — H1 hat zwei.
   const bands: FunnelBand[] = [];
   let x = g.padding;
   for (const [index, h] of HORIZONS.entries()) {
-    const w = filled(h) ? stationsOf(h).length * unit : g.stubWidth;
-    bands.push({ horizon: h, x0: x, x1: x + w, money: money[h], ...halves[h] });
+    const segs = filled(h) ? stationsOf(h) : [stationsOf(h)[0]!];
+    const w = filled(h) ? segs.length * unit : g.stubWidth;
+    const segWidth = w / segs.length;
+    const stations = segs.map((st, zone) => ({
+      station: st,
+      x0: x + zone * segWidth,
+      x1: x + (zone + 1) * segWidth,
+      money: money[st],
+      ...halfOf(st),
+    }));
+    bands.push({
+      horizon: h,
+      x0: x,
+      x1: x + w,
+      money: bandMoney(h),
+      stations,
+      // Für die Bandbeschriftung: die weiteste seiner Stationen, und „dicht
+      // belegt", sobald **eine** von ihnen die Weitung verursacht hat.
+      half: Math.max(...stations.map((z) => z.half)),
+      minimal: stations.every((z) => z.minimal),
+      enlarged: stations.some((z) => z.enlarged),
+    });
     x += w + (index < HORIZONS.length - 1 ? g.transition : 0);
   }
   const width = x + g.padding;
 
-  // 7 · Die Silhouette: über jedem Plateau konstant, bewegt nur in den Lücken.
-  //     Über beide H1-Hälften läuft sie **flach durch** — ein Horizont, ein Geld.
+  // 7 · Die Silhouette: über jeder Station konstant, bewegt nur in den Lücken —
+  //     und an der H1-Trennung, seit beide Hälften ihr eigenes Geld führen.
   const profile: [number, number][] = [];
   for (const b of bands) {
-    profile.push([b.x0, b.half]);
-    profile.push([b.x1, b.half]);
+    for (const z of b.stations) {
+      profile.push([z.x0, z.half]);
+      profile.push([z.x1, z.half]);
+    }
   }
+
+  // 7b · Dieselbe Silhouette für die **Soll-Verteilung**: wo die Kurve verliefe,
+  //      wenn das Geld der Guardrail folgte.
+  //
+  //      Sie entsteht hier und nicht in der Fläche, weil hier die einzige
+  //      Stelle ist, die Geld in eine Öffnung übersetzt. Zwei Linien, die
+  //      dieselbe Skala meinen, dürfen sie nicht zweimal definieren.
+  //
+  //      **Ohne die Mindestöffnung.** Der Bodensatz `minHalf` ist ein
+  //      Platzhalter für „kein Geld"; auf ein Ziel angewandt höbe er ein
+  //      kleines Ziel künstlich an und behauptete eine Vorgabe, die es nicht
+  //      gibt.
+  const targetProfile: [number, number][] | null =
+    horizonTargets == null || totalMoney <= 0
+      ? null
+      : bands.flatMap((b) =>
+          b.stations.flatMap(
+            (z) =>
+              [
+                [z.x0, targetHalfOf(z.station)],
+                [z.x1, targetHalfOf(z.station)],
+              ] as [number, number][],
+          ),
+        );
 
   // 8 · Platzieren: je Station ein Spaltenblock, waagerecht in seiner Station
   //     zentriert, jede Spalte senkrecht auf der Mittellinie.
@@ -502,6 +591,7 @@ export function layoutFunnel(
     homeless,
     dropped,
     profile,
+    targetProfile,
     width,
     maxHalf,
     mid,
@@ -536,12 +626,13 @@ export function fitFunnel(
   targetWidth: number,
   geometry: FunnelGeometry = DEFAULT_GEOMETRY,
   minZoom = 0.8,
+  horizonTargets: HorizonTargets | null = null,
 ): FunnelLayout {
   const g = { ...geometry, targetWidth };
-  let last = layoutFunnel(items, g, CODE_STEPS[CODE_STEPS.length - 1]!);
+  let last = layoutFunnel(items, g, CODE_STEPS[CODE_STEPS.length - 1]!, horizonTargets);
   // `CODE_STEPS` ist absteigend: die erste brauchbare Stufe ist die längste.
   for (const max of CODE_STEPS) {
-    const layout = layoutFunnel(items, g, max);
+    const layout = layoutFunnel(items, g, max, horizonTargets);
     if (layout.maxHalf <= g.maxHalf && targetWidth / layout.width >= minZoom) return layout;
     last = layout;
   }

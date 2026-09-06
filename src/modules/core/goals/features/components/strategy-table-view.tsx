@@ -10,6 +10,7 @@ import {
   useActionState,
   memo,
 } from "react";
+import { STICKY_THEAD } from "@/components/ui/table-chrome";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -406,7 +407,7 @@ export function StrategyTableView({ themes, canEdit, userLabels = {} }: Props) {
         className="overflow-x-auto rounded-xl border bg-card shadow-sm"
       >
         <table className="w-full text-sm">
-          <thead className="sticky top-0 z-20 border-b bg-muted/95 text-xs uppercase tracking-wide text-muted-foreground shadow-sm backdrop-blur">
+          <thead className={STICKY_THEAD}>
             <tr>
               <Th>Name</Th>
               <Th className="w-14">Owner</Th>

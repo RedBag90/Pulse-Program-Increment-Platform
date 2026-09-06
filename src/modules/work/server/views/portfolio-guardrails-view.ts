@@ -14,8 +14,9 @@
  */
 
 import {
-  HORIZONS,
+  STATIONS,
   type Horizon,
+  type Station,
   type GuardrailTargets,
   epicCapacityBucket,
   isEpicType,
@@ -45,6 +46,12 @@ export interface GuardrailsEpicInput {
   title: string;
   epicType: string | null;
   investmentHorizon: string | null;
+  /**
+   * `investmentMode` der Primaer-Solution — nur in H1 relevant, dort trennt er
+   * Investing (H1.1) von Extracting (H1.2). `null` = keine Solution oder kein
+   * Modus gesetzt; dann zaehlt das Epic zu H1.1.
+   */
+  investmentMode: string | null;
   /** Implementation Cost (€). null wenn kein Business Case oder ohne Kosten. */
   amount: number | null;
   /** SAFe-Kanban-Stage (L0..L5). Treibt die Stage-Tower-Spalten. */
@@ -71,7 +78,8 @@ export const HORIZON_COLUMNS = ["h3", "h2", "h1", "h0", "none"] as const;
 export type HorizonColumn = (typeof HORIZON_COLUMNS)[number];
 
 export interface HorizonGuardrailModel {
-  rows: Record<Horizon, MixRow>;
+  /** Je **Station** — H1 zerfaellt in Investing und Extracting. */
+  rows: Record<Station, MixRow>;
   /** Epics ohne Horizon-Klassifikation. */
   unclassifiedCount: number;
   /** Σ amounts der unklassifizierten Epics (sind aus dem Amount-Mix raus). */
@@ -280,10 +288,25 @@ export function computePortfolioGuardrails(input: {
   const { epics, targets, engagement } = input;
 
   // ---- Horizon — Mix-Math via computeMixAxis, Tower-Aggregation hier ----
-  const horizonMix = computeMixAxis<GuardrailsEpicInput, Horizon>({
+  /**
+   * **Fuenf Kuebel, nicht vier.** H1 zerfaellt in Investing und Extracting, und
+   * welche Haelfte ein Epic traegt, entscheidet der `investmentMode` seiner
+   * **Primaer-Solution** — die Ernte ist eine Eigenschaft des Produkts.
+   *
+   * Ein Epic **ohne** Solution zaehlt zu H1.1: Geld, das einem Epic zugeteilt
+   * ist, ist eine Investition. Dieselbe Regel wendet der Horizont-Trichter an;
+   * zwei Auslegungen desselben Falls waeren ein Widerspruch zwischen zwei
+   * Flaechen, die dieselbe Zahl zeigen.
+   */
+  const stationOf = (e: GuardrailsEpicInput): Station | null => {
+    if (!isHorizon(e.investmentHorizon)) return null;
+    if (e.investmentHorizon !== "h1") return e.investmentHorizon;
+    return e.investmentMode === "extracting" ? "h1.2" : "h1.1";
+  };
+  const horizonMix = computeMixAxis<GuardrailsEpicInput, Station>({
     items: epics,
-    buckets: HORIZONS,
-    classify: (e) => (isHorizon(e.investmentHorizon) ? e.investmentHorizon : null),
+    buckets: STATIONS,
+    classify: stationOf,
     amountOf: (e) => e.amount,
     targets: targets.horizon,
   });

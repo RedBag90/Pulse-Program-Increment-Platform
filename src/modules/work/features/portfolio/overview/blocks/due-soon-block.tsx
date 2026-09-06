@@ -70,7 +70,7 @@ export function DueSoonBlock({
       {visible.length === 0 && rollups.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyText}</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="max-h-96 space-y-2 overflow-y-auto">
           {visible.map((it) => (
             <li key={it.id} className="flex items-start gap-2">
               {it.overdue ? (
@@ -82,13 +82,13 @@ export function DueSoonBlock({
                 <div className="flex items-baseline justify-between gap-3">
                   <Link
                     href={`${hrefBase}/${it.id}`}
-                    className="truncate text-sm font-medium hover:text-primary hover:underline"
+                    className="truncate text-xs font-medium hover:text-primary hover:underline"
                     title={it.title}
                   >
                     {it.title}
                   </Link>
                   <span
-                    className={`shrink-0 text-xs tabular-nums ${
+                    className={`shrink-0 text-[10px] tabular-nums ${
                       it.overdue ? "font-medium text-rose-600" : "text-muted-foreground"
                     }`}
                   >
@@ -122,8 +122,8 @@ export function DueSoonBlock({
                 classFilter.hiddenClass,
               )}`}
             >
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{r.name}</span>
-              <span className="shrink-0 font-mono text-xs tabular-nums">
+              <span className="min-w-0 flex-1 truncate text-xs font-medium">{r.name}</span>
+              <span className="shrink-0 font-mono text-[10px] tabular-nums">
                 {r.overdue > 0 ? (
                   <span className="font-semibold text-rose-600 dark:text-rose-400">
                     {r.overdue} überfällig

@@ -24,7 +24,7 @@ import {
   RollupHint,
   rollupTone,
 } from "@/modules/work/features/portfolio/overview/blocks/class-rollup";
-import { wipCountLabel, isOverWip } from "@/modules/work/features/portfolio/overview/wip-limits";
+import { COLUMN_ACTIVITY } from "@/modules/work/features/portfolio/overview/column-meta";
 import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
 import { formatCompactEUR } from "@/lib/formatting";
 
@@ -39,13 +39,20 @@ const CELL_LIMIT = 4;
 
 /**
  * Read-only Portfolio-Kanban als **Matrix**: Zeilen = Investitionshorizonte
- * (H3→H2→H1→H0→Ohne, aus der Primär-Solution), Spalten = Stage Gates. Soft-WIP je
- * Spalte. Editieren (Drag&Drop, Stage-Wechsel) lebt auf `/portfolio/epics`.
+ * (H3→H2→H1→H0→Ohne, aus der Primär-Solution), Spalten = Stage Gates.
+ * Editieren (Drag&Drop, Stage-Wechsel) lebt auf `/portfolio/epics`.
+ *
+ * **Die Spalten zeigen, wo gearbeitet wird** (`COLUMN_ACTIVITY`): Hypothese,
+ * Business Case und Umsetzung stehen erhoben, Funnel und Investition treten
+ * zurück — dort wartet das Epic auf eine fremde Entscheidung. Bis September 2026
+ * trug das Board stattdessen die Soft-WIP-Grenzen als `38 / 5 ⚠`, und seine
+ * einzige Farbe war damit ein Alarm. Die Grenzen selbst gibt es weiterhin; sie
+ * werden von den Pipeline-Balken und den Top-Risiken gelesen, wo sie über einen
+ * Engpass sprechen statt an jeder Spalte zu warnen.
  *
  * Bei aktiver Klassen-Facette steht die nicht gewählte Klasse je Zelle als
- * Sammelkarte unter den Karten. Die **WIP-Zähler bleiben davon unberührt**: sie
- * zählen weiter alle Epics der Spalte. Ein Limit, das Entwarnung meldet, weil
- * jemand gefiltert hat, wäre schlimmer als keines.
+ * Sammelkarte unter den Karten. Die **Spaltenzähler bleiben davon unberührt**:
+ * sie zählen weiter alle Epics der Spalte.
  */
 export function CompactKanban({ data }: { data: PortfolioOverview }) {
   return (
@@ -71,27 +78,27 @@ export function CompactKanban({ data }: { data: PortfolioOverview }) {
             </span>
           </div>
           {STAGE_GATES.map((gate) => {
-            const over = isOverWip(gate, data.epicsByColumn[gate].length);
+            const work = COLUMN_ACTIVITY[gate] === "work";
             return (
               <div
                 key={gate}
                 className={cn(
-                  "flex items-baseline justify-between gap-1 rounded-md border px-2 py-1.5",
-                  over && "border-amber-300 bg-amber-100/60 dark:bg-amber-900/30",
+                  "flex items-baseline justify-between gap-1 rounded-md px-2 py-1.5",
+                  work ? "border border-border/80 bg-card shadow-sm" : "border border-transparent",
                 )}
+                style={work ? WORK_TINT : undefined}
               >
-                <span className="text-[10px] font-semibold uppercase tracking-wide">
-                  {STAGE_SHORT[gate]}
-                </span>
                 <span
                   className={cn(
-                    "font-mono text-[10px] tabular-nums",
-                    over
-                      ? "font-semibold text-amber-900 dark:text-amber-300"
-                      : "text-muted-foreground",
+                    "flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide",
+                    work ? "text-foreground" : "text-muted-foreground",
                   )}
                 >
-                  {wipCountLabel(gate, data.epicsByColumn[gate].length)}
+                  {work && <span className="size-1.5 rounded-full bg-primary/70" />}
+                  {STAGE_SHORT[gate]}
+                </span>
+                <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                  {data.epicsByColumn[gate].length}
                 </span>
               </div>
             );
@@ -117,7 +124,13 @@ function LaneRow({ lane, data }: { lane: string; data: PortfolioOverview }) {
         {budget && budget.budgetiert > 0 && <HorizonBudget budget={budget} />}
       </div>
       {STAGE_GATES.map((gate) => (
-        <KanbanCell key={gate} lane={lane} epics={row[gate]} classFilter={data.classFilter} />
+        <KanbanCell
+          key={gate}
+          lane={lane}
+          epics={row[gate]}
+          classFilter={data.classFilter}
+          work={COLUMN_ACTIVITY[gate] === "work"}
+        />
       ))}
     </>
   );
@@ -146,22 +159,47 @@ function HorizonBudget({ budget }: { budget: HorizonBudgetFigures }) {
   );
 }
 
+/**
+ * Der Grund einer Bahn — dieselbe Ordnung wie `HORIZON_BADGE_CLASS`.
+ *
+ * Sie stand bis September 2026 noch auf der alten Palette (Fuchsia, Violett,
+ * Blau, Schiefer), waehrend die Badges daneben laengst violett, tuerkis, orange
+ * und steingrau waren: eine Bahn trug zwei Farben.
+ */
 const LANE_TINT: Record<string, string> = {
-  h3: "bg-fuchsia-50/50 dark:bg-fuchsia-950/20",
-  h2: "bg-violet-50/50 dark:bg-violet-950/20",
-  h1: "bg-blue-50/50 dark:bg-blue-950/20",
-  h0: "bg-slate-100/60 dark:bg-slate-800/30",
+  h3: "bg-violet-50/50 dark:bg-violet-950/20",
+  h2: "bg-teal-50/50 dark:bg-teal-950/20",
+  h1: "bg-orange-50/50 dark:bg-orange-950/20",
+  h0: "bg-stone-100/60 dark:bg-stone-800/30",
   none: "bg-muted/40",
 };
+
+/**
+ * **Die Spalten sagen, wo gearbeitet wird — ohne einen zweiten Farbkreis.**
+ *
+ * Die Bahnen tragen bereits die Horizont-Palette. Ein eigener Farbton fuer die
+ * Spalten traete damit in Wettstreit, und das Board haette zwei Farbachsen, die
+ * nichts miteinander zu tun haben. Die Unterscheidung laeuft deshalb ueber
+ * Helligkeit und Gewicht: Arbeitsspalten stehen erhoben auf `bg-card` mit einem
+ * Hauch Primaerton, Warteschlangen bleiben auf dem Seitengrund und treten
+ * zurueck.
+ *
+ * Ueber `transparent` gemischt statt mit fester Deckkraft — so bleibt der Hauch
+ * theme-fest, statt im dunklen Thema als heller Fleck stehenzubleiben.
+ */
+const WORK_TINT = { backgroundColor: "color-mix(in srgb, var(--primary) 6%, transparent)" };
 
 function KanbanCell({
   lane,
   epics,
   classFilter,
+  work,
 }: {
   lane: string;
   epics: OverviewEpicCard[];
   classFilter: ClassFilterState;
+  /** Arbeitsspalte statt Warteschlange — siehe `COLUMN_ACTIVITY`. */
+  work: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const visible = epics.filter((e) => isClassShown(e.epicClass, classFilter.selected));
@@ -170,7 +208,14 @@ function KanbanCell({
   );
   const shown = expanded ? visible : visible.slice(0, CELL_LIMIT);
   return (
-    <div className={cn("min-h-[52px] rounded-md border p-1.5", LANE_TINT[lane] ?? "")}>
+    <div
+      className={cn(
+        "min-h-[52px] rounded-md border p-1.5",
+        // Der Grund gehoert der Bahn; die Spalte spricht nur ueber den Rahmen.
+        work ? "border-border" : "border-border/40",
+        LANE_TINT[lane] ?? "",
+      )}
+    >
       <ul className="space-y-1 text-xs">
         {shown.map((e) => (
           <KanbanCard key={e.id} epic={e} />

@@ -9,8 +9,9 @@ import { savePortfolioDashboardSettingsAction } from "@/modules/work/features/po
 import {
   validateGuardrailTargets,
   HORIZON_LABEL,
+  STATIONS,
   type GuardrailTargets,
-  type Horizon,
+  type Station,
 } from "@/modules/work/domain/portfolio-guardrails";
 
 interface Props {
@@ -38,7 +39,7 @@ export function GuardrailTargetsForm({ targets }: Props) {
   const validation = validateGuardrailTargets(draft);
   const num = (v: number) => (Number.isFinite(v) ? v : 0);
 
-  const setHorizon = (key: Horizon, v: number) =>
+  const setHorizon = (key: Station, v: number) =>
     setDraft((p) => ({ ...p, horizon: { ...p.horizon, [key]: num(v) } }));
   const setCapacity = (key: "business" | "enabler", v: number) =>
     setDraft((p) => ({ ...p, capacity: { ...p.capacity, [key]: num(v) } }));
@@ -47,7 +48,7 @@ export function GuardrailTargetsForm({ targets }: Props) {
   const setThreshold = (v: number) =>
     setDraft((p) => ({ ...p, approval: { portfolioThreshold: num(v) } }));
 
-  const horizonSum = draft.horizon.h0 + draft.horizon.h1 + draft.horizon.h2 + draft.horizon.h3;
+  const horizonSum = STATIONS.reduce((sum, st) => sum + draft.horizon[st], 0);
   const capacitySum = draft.capacity.business + draft.capacity.enabler;
 
   return (
@@ -77,11 +78,20 @@ export function GuardrailTargetsForm({ targets }: Props) {
               value={draft.horizon.h2}
               onChange={(v) => setHorizon("h2", v)}
             />
+            {/* H1 zerfaellt in zwei Stationen: ausbauen gegen ernten. Die
+                Teilung wird hier gesetzt — der Code-Default (haelftig) ist nur
+                ein Startwert, keine Empfehlung. */}
             <NumberRow
-              label={HORIZON_LABEL.h1}
-              name="guardrail_h1"
-              value={draft.horizon.h1}
-              onChange={(v) => setHorizon("h1", v)}
+              label="H1.1 · Investing"
+              name="guardrail_h1_1"
+              value={draft.horizon["h1.1"]}
+              onChange={(v) => setHorizon("h1.1", v)}
+            />
+            <NumberRow
+              label="H1.2 · Extracting"
+              name="guardrail_h1_2"
+              value={draft.horizon["h1.2"]}
+              onChange={(v) => setHorizon("h1.2", v)}
             />
             <NumberRow
               label={HORIZON_LABEL.h0}

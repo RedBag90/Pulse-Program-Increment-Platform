@@ -4,7 +4,12 @@ import { useState } from "react";
 import { Page, PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ToggleGroup, type ToggleGroupOption } from "@/components/ui/toggle-group";
-import { HORIZONS, HORIZON_LABEL } from "@/modules/work/domain/portfolio-guardrails";
+import {
+  HORIZON_LABEL,
+  STATIONS,
+  horizonOfStation,
+  type Station,
+} from "@/modules/work/domain/portfolio-guardrails";
 import { HORIZON_HEX } from "@/modules/work/features/portfolio/components/horizon-badge";
 import type {
   CapacityBucket,
@@ -23,10 +28,22 @@ const VIEW_OPTIONS: ReadonlyArray<ToggleGroupOption<MixView>> = [
   { id: "amount", label: "€ Kosten" },
 ];
 
-const HORIZON_BUCKETS = HORIZONS.map((h) => ({
-  id: h,
-  label: HORIZON_LABEL[h],
-  color: HORIZON_HEX[h],
+/**
+ * Fuenf Kuebel: H1 zerfaellt in Investing und Extracting. Beide behalten den
+ * H1-Ton — es ist ein Horizont mit zwei Phasen, nicht zwei Horizonte.
+ */
+const STATION_LABEL: Record<Station, string> = {
+  h3: HORIZON_LABEL.h3,
+  h2: HORIZON_LABEL.h2,
+  "h1.1": "H1.1 · Investing",
+  "h1.2": "H1.2 · Extracting",
+  h0: HORIZON_LABEL.h0,
+};
+
+const HORIZON_BUCKETS: ReadonlyArray<MixBucketSpec<Station>> = STATIONS.map((st) => ({
+  id: st,
+  label: STATION_LABEL[st],
+  color: HORIZON_HEX[horizonOfStation(st)],
 }));
 
 /**

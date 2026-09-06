@@ -61,15 +61,30 @@ describe("parseGuardrailTargets", () => {
   });
   it("uebernimmt nur valide Numbers aus dem Input", () => {
     const r = parseGuardrailTargets({
-      horizon: { h1: 60, h2: 30, h3: 10 },
+      horizon: { "h1.1": 30, "h1.2": 30, h2: 30, h3: 10 },
       capacity: { business: 75, enabler: 25 },
     });
-    expect(r.horizon.h1).toBe(60);
+    expect(r.horizon["h1.1"]).toBe(30);
     expect(r.capacity.business).toBe(75);
   });
+  it("teilt ein gespeichertes h1 im Verhaeltnis der Vorgabe", () => {
+    // Bis September 2026 trug die Achse vier Kuebel. Ein Bestandswert wird beim
+    // **Lesen** verteilt, nicht in der Datenbank gewandert — die Summe des
+    // Mandanten bleibt dabei exakt erhalten, und es wird keine Richtung
+    // erfunden, die niemand gesetzt hat.
+    const r = parseGuardrailTargets({ horizon: { h0: 10, h1: 60, h2: 20, h3: 10 } });
+    const d = DEFAULT_GUARDRAIL_TARGETS.horizon;
+    const anteil = d["h1.1"] / (d["h1.1"] + d["h1.2"]);
+    expect(r.horizon["h1.1"]).toBeCloseTo(60 * anteil, 10);
+    expect(r.horizon["h1.2"]).toBeCloseTo(60 * (1 - anteil), 10);
+    expect(r.horizon["h1.1"] + r.horizon["h1.2"]).toBeCloseTo(60, 10);
+    // Und der Rest der Achse bleibt unangetastet.
+    expect(r.horizon.h3).toBe(10);
+    expect(r.horizon.h0).toBe(10);
+  });
   it("faellt auf Default fuer fehlende Felder zurueck", () => {
-    const r = parseGuardrailTargets({ horizon: { h1: 50 } });
-    expect(r.horizon.h1).toBe(50);
+    const r = parseGuardrailTargets({ horizon: { "h1.1": 50 } });
+    expect(r.horizon["h1.1"]).toBe(50);
     expect(r.horizon.h2).toBe(DEFAULT_GUARDRAIL_TARGETS.horizon.h2);
     expect(r.capacity).toEqual(DEFAULT_GUARDRAIL_TARGETS.capacity);
   });
@@ -80,7 +95,9 @@ describe("validateGuardrailTargets", () => {
     expect(validateGuardrailTargets(DEFAULT_GUARDRAIL_TARGETS).ok).toBe(true);
   });
   it("verlangt Horizon-Summe = 100", () => {
-    const r = validateGuardrailTargets(targets({ horizon: { h0: 0, h1: 60, h2: 30, h3: 5 } }));
+    const r = validateGuardrailTargets(
+      targets({ horizon: { h0: 0, "h1.1": 30, "h1.2": 30, h2: 30, h3: 5 } }),
+    );
     expect(r.ok).toBe(false);
     expect(r.reason).toContain("Horizon");
   });
@@ -90,7 +107,9 @@ describe("validateGuardrailTargets", () => {
     expect(r.reason).toContain("Capacity");
   });
   it("verlangt nicht-negative Werte", () => {
-    const r = validateGuardrailTargets(targets({ horizon: { h0: 0, h1: 110, h2: -5, h3: -5 } }));
+    const r = validateGuardrailTargets(
+      targets({ horizon: { h0: 0, "h1.1": 60, "h1.2": 50, h2: -5, h3: -5 } }),
+    );
     expect(r.ok).toBe(false);
     expect(r.reason).toContain("negativ");
   });
@@ -116,7 +135,7 @@ describe("parseGuardrailTargets — Engagement-Legacy", () => {
     // Jeder Bestands-Tenant sieht so aus. Wuerde das als Drift zaehlen, feuerte
     // reportGuardrailTargetsFallback fuer jeden einzelnen von ihnen.
     const r = parseGuardrailTargetsDetailed({
-      horizon: { h0: 10, h1: 60, h2: 20, h3: 10 },
+      horizon: { h0: 10, "h1.1": 30, "h1.2": 30, h2: 20, h3: 10 },
       capacity: { business: 80, enabler: 20 },
     });
     expect(r.targets.engagement).toEqual(DEFAULT_GUARDRAIL_TARGETS.engagement);
@@ -126,7 +145,7 @@ describe("parseGuardrailTargets — Engagement-Legacy", () => {
 
   it("meldet einen Fallback, wenn engagement nur teilweise befuellt ist", () => {
     const r = parseGuardrailTargetsDetailed({
-      horizon: { h0: 10, h1: 60, h2: 20, h3: 10 },
+      horizon: { h0: 10, "h1.1": 30, "h1.2": 30, h2: 20, h3: 10 },
       capacity: { business: 80, enabler: 20 },
       engagement: { coverage: 95 },
     });
@@ -140,7 +159,7 @@ describe("parseGuardrailTargets — Engagement-Legacy", () => {
 
   it("uebernimmt ein vollstaendiges Engagement-Set", () => {
     const r = parseGuardrailTargets({
-      horizon: { h0: 10, h1: 60, h2: 20, h3: 10 },
+      horizon: { h0: 10, "h1.1": 30, "h1.2": 30, h2: 20, h3: 10 },
       capacity: { business: 80, enabler: 20 },
       engagement: { coverage: 75, responseDays: 21 },
     });
@@ -151,7 +170,7 @@ describe("parseGuardrailTargets — Engagement-Legacy", () => {
 describe("Guardrail 3 · Portfolio-Limit", () => {
   it("liefert den Default, wenn der Block fehlt — ohne Drift zu melden", () => {
     const parsed = parseGuardrailTargetsDetailed({
-      horizon: { h0: 10, h1: 60, h2: 20, h3: 10 },
+      horizon: { h0: 10, "h1.1": 30, "h1.2": 30, h2: 20, h3: 10 },
       capacity: { business: 80, enabler: 20 },
       engagement: { coverage: 90, responseDays: 10 },
     });
@@ -165,7 +184,7 @@ describe("Guardrail 3 · Portfolio-Limit", () => {
 
   it("meldet Drift, wenn der Block da ist, aber das Feld fehlt", () => {
     const parsed = parseGuardrailTargetsDetailed({
-      horizon: { h0: 10, h1: 60, h2: 20, h3: 10 },
+      horizon: { h0: 10, "h1.1": 30, "h1.2": 30, h2: 20, h3: 10 },
       capacity: { business: 80, enabler: 20 },
       engagement: { coverage: 90, responseDays: 10 },
       approval: {},
@@ -223,7 +242,9 @@ describe("resolveGuardrailTargets", () => {
     expect(r.source).toBe("value_stream");
     expect(r.overriddenAxes).toEqual(["capacity"]);
     expect(r.targets.capacity).toEqual({ business: 75, enabler: 25 });
-    expect(r.targets.horizon).toEqual(TENANT.horizon);
+    // Geerbt heisst: derselbe Stand wie beim Parsen des Tenants — der teilt ein
+    // gespeichertes `h1` auf die beiden Stationen auf.
+    expect(r.targets.horizon).toEqual(parseGuardrailTargets(TENANT).horizon);
     expect(r.targets.approval.portfolioThreshold).toBe(100_000);
   });
 

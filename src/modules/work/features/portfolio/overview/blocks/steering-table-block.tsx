@@ -1,6 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { SectionLabel } from "@/components/ui/section-label";
+import { STICKY_THEAD } from "@/components/ui/table-chrome";
 import { STATUS_LABELS } from "@/components/detail/initiative-labels";
 import { STAGE_SHORT } from "@/components/detail/initiative-labels";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
@@ -43,10 +44,10 @@ export function SteeringTableBlock({ data }: { data: PortfolioOverview }) {
             : "Keine Initiative für das nächste Steering-Meeting markiert."}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border bg-card">
-          <table className="w-full border-collapse text-sm">
-            <thead className="bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
-              <tr className="border-b">
+        <div className="max-h-96 overflow-auto rounded-lg border bg-card">
+          <table className="w-full border-collapse text-xs">
+            <thead className={STICKY_THEAD}>
+              <tr>
                 <th className="px-3 py-2 text-left font-medium">Titel</th>
                 <th className="px-3 py-2 text-left font-medium">Stage Gate</th>
                 <th className="px-3 py-2 text-left font-medium">Status</th>

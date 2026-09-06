@@ -21,7 +21,10 @@ const guardrailTargetsSchema = z
   .object({
     horizon: z.object({
       h0: z.number().min(0).max(100),
-      h1: z.number().min(0).max(100),
+      // H1 zerfaellt in Investing und Extracting — dieselbe Fuenferleiter wie
+      // im Lebenszyklus und in der Zeichnung.
+      "h1.1": z.number().min(0).max(100),
+      "h1.2": z.number().min(0).max(100),
       h2: z.number().min(0).max(100),
       h3: z.number().min(0).max(100),
     }),
@@ -71,12 +74,13 @@ export const savePortfolioDashboardSettingsAction = createServerAction({
           costPerJobSizePoint: numberOrNull("costPerJobSizePoint"),
         }
       : {};
-    const hasGuardrailFields = fd.has("guardrail_h1");
+    const hasGuardrailFields = fd.has("guardrail_h1_1");
     const guardrailTargets: GuardrailTargets | undefined = hasGuardrailFields
       ? {
           horizon: {
             h0: num("guardrail_h0"),
-            h1: num("guardrail_h1"),
+            "h1.1": num("guardrail_h1_1"),
+            "h1.2": num("guardrail_h1_2"),
             h2: num("guardrail_h2"),
             h3: num("guardrail_h3"),
           },

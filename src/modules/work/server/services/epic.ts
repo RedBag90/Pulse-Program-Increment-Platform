@@ -724,6 +724,10 @@ export async function listEpicsForOverview(
       // Stempel die Spalte „Funnel" von „Hypothese", beide bei stageGate L0.
       selectedForDetailingAt: true,
       businessCaseApprovedAt: true,
+      // Fuer den Over-/Underperform-Indikator der Beitrags-Kachel: erst wenn die
+      // Umsetzung fertig gemeldet ist (L4.2), ist ein Vergleich von Ist gegen
+      // Plan fair — der realisierte Nutzen waechst ueber die Zeit.
+      implementationCompletedAt: true,
       updatedAt: true,
       needsSteeringAttention: true,
       timeline: true,

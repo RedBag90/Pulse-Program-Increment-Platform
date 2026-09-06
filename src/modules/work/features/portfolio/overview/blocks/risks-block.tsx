@@ -61,18 +61,18 @@ export function RisksBlock({ data }: { data: PortfolioOverview }) {
                 <div className="flex items-baseline justify-between gap-3">
                   <Link
                     href="/risks"
-                    className="truncate text-sm font-medium hover:text-primary hover:underline"
+                    className="truncate text-xs font-medium hover:text-primary hover:underline"
                     title={r.title}
                   >
                     {r.title}
                   </Link>
-                  <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                  <span className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground">
                     <span className={`size-1.5 rounded-full ${ROAM_DOT[r.roamStatus]}`} />
                     {ROAM_LABELS[r.roamStatus]}
                   </span>
                 </div>
                 {r.epic && (
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="truncate text-[10px] text-muted-foreground">
                     Epic:{" "}
                     <Link
                       href={`/portfolio/epics/${r.epic.id}`}

@@ -15,9 +15,12 @@ import { HORIZON_LABEL, type Horizon } from "@/modules/work/domain/portfolio-gua
 import {
   fitFunnel,
   halfAt,
+  stationsOf,
   DEFAULT_GEOMETRY as G,
   type FunnelItem,
+  type HorizonTargets,
   type PlacedItem,
+  type Station,
 } from "@/modules/work/features/portfolio/lib/horizon-funnel";
 
 /**
@@ -51,11 +54,20 @@ const BAND_TITLE: Record<Horizon, string> = {
   h1: "H1 · Investing & Extracting",
 };
 
-const AXIS: Record<Horizon, string> = {
-  h3: "Evaluating",
-  h2: "Emerging",
-  h1: "Investing · Extracting",
-  h0: "Retiring",
+/**
+ * Die Achse unter dem Trichter — **je Station**, nicht je Horizont.
+ *
+ * H1 zerfällt seit dem Fünf-Stationen-Umbau in Investing und Extracting, und
+ * die beiden stehen nebeneinander; ein gemeinsamer Fuß „Investing · Extracting"
+ * hing zwischen ihnen und gehörte keiner von beiden. Die zweite Zeile sagt, was
+ * in der Station tatsächlich geschieht — das Wort allein sagt es nicht.
+ */
+const AXIS: Record<Station, { word: string; detail: string }> = {
+  h3: { word: "Evaluating", detail: "Analysen und Research" },
+  h2: { word: "Emerging", detail: "Piloten und MVPs" },
+  "h1.1": { word: "Investing", detail: "Up and coming Products" },
+  "h1.2": { word: "Extracting", detail: "Produkte im Regelbetrieb" },
+  h0: { word: "Retiring", detail: "Currently in Phase-Out" },
 };
 
 /** Nutzbare Kartenbreite; darüber staucht die `viewBox` das ganze Bild. */
@@ -271,6 +283,8 @@ interface FunnelProps {
   items: FunnelItem[];
   /** `null` = es gilt gerade kein Budget-Rahmen (`appliedPeriod`). */
   cycleKey: string | null;
+  /** Soll-Verteilung (Guardrail) — `null` = keine Vergleichslinie. */
+  horizonTargets: HorizonTargets | null;
 }
 
 /**
@@ -278,7 +292,7 @@ interface FunnelProps {
  * unbedingt laufen: ein früher Rücksprung mitten zwischen Hooks wäre ein
  * Regelbruch, kein Stilfehler.
  */
-export function HorizonFunnelBlock({ items, cycleKey }: FunnelProps) {
+export function HorizonFunnelBlock({ items, cycleKey, horizonTargets }: FunnelProps) {
   if (items.length === 0) {
     return (
       <Card className="space-y-2 p-4">
@@ -290,15 +304,22 @@ export function HorizonFunnelBlock({ items, cycleKey }: FunnelProps) {
       </Card>
     );
   }
-  return <FunnelCard items={items} cycleKey={cycleKey} />;
+  return <FunnelCard items={items} cycleKey={cycleKey} horizonTargets={horizonTargets} />;
 }
 
-function FunnelCard({ items, cycleKey }: FunnelProps) {
+function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
   const [wrapRef, measured] = useMeasuredWidth();
 
   const layout = useMemo(
-    () => fitFunnel(items, Math.max(MIN_LAYOUT_WIDTH, measured ?? TARGET_WIDTH)),
-    [items, measured],
+    () =>
+      fitFunnel(
+        items,
+        Math.max(MIN_LAYOUT_WIDTH, measured ?? TARGET_WIDTH),
+        undefined,
+        undefined,
+        horizonTargets,
+      ),
+    [items, measured, horizonTargets],
   );
   const { bands, profile } = layout;
   const split = layout.h1;
@@ -313,18 +334,19 @@ function FunnelCard({ items, cycleKey }: FunnelProps) {
 
   // Die Kurve als Streckenzug: alle 4 px abgetastet, damit die S-Übergänge in
   // den Lücken weich aussehen, ohne Bézier-Kontrollpunkte von Hand zu setzen.
-  const curve = (from: number, to: number, sign: 1 | -1) => {
+  const curveOf = (p: readonly [number, number][], from: number, to: number, sign: 1 | -1) => {
     const pts: string[] = [];
     for (let x = from; x <= to; x += 4)
-      pts.push(`${x},${(layout.mid + sign * halfAt(profile, x)).toFixed(1)}`);
-    pts.push(`${to},${(layout.mid + sign * halfAt(profile, to)).toFixed(1)}`);
+      pts.push(`${x},${(layout.mid + sign * halfAt(p, x)).toFixed(1)}`);
+    pts.push(`${to},${(layout.mid + sign * halfAt(p, to)).toFixed(1)}`);
     return `M${pts.join(" L")}`;
   };
+  const curve = (from: number, to: number, sign: 1 | -1) => curveOf(profile, from, to, sign);
   // H0 gestrichelt, solange seine Öffnung gesetzt und nicht gemessen ist.
   const cut = last.minimal ? last.x0 : last.x1;
   const FOOT = footOf(layout);
   const STRIP_Y = FOOT + STRIP_GAP;
-  const height = layout.homeless.length > 0 ? STRIP_Y + STRIP_H + 12 : FOOT + 20;
+  const height = layout.homeless.length > 0 ? STRIP_Y + STRIP_H + 12 : FOOT + 34;
 
   return (
     <Card className="space-y-3 p-4">
@@ -402,18 +424,58 @@ function FunnelCard({ items, cycleKey }: FunnelProps) {
                 {b.minimal ? "kein Geld · Mindestöffnung" : formatScaledEUR(b.money)}
                 {b.enlarged && !b.minimal ? " · dicht belegt" : ""}
               </text>
-              <text
-                x={(b.x0 + b.x1) / 2}
-                y={FOOT}
-                textAnchor="middle"
-                fontSize={12}
-                fontWeight={600}
-                className="fill-muted-foreground"
-              >
-                {AXIS[b.horizon]}
-              </text>
+              {/* Je Station ein Fuss, mittig unter ihrer Haelfte. Traegt H1
+                  nichts, ist es ein Stummel — dann steht dort **ein** Fuss
+                  statt zweier gequetschter. */}
+              {(b.horizon === "h1" && layout.h1 != null
+                ? stationsOf("h1")
+                : [b.horizon as Station]
+              ).map((st, zone, all) => {
+                const w = (b.x1 - b.x0) / all.length;
+                const cx = b.x0 + zone * w + w / 2;
+                return (
+                  <g key={st}>
+                    <text
+                      x={cx}
+                      y={FOOT}
+                      textAnchor="middle"
+                      fontSize={12}
+                      fontWeight={600}
+                      className="fill-muted-foreground"
+                    >
+                      {AXIS[st].word}
+                    </text>
+                    <text
+                      x={cx}
+                      y={FOOT + 13}
+                      textAnchor="middle"
+                      fontSize={10}
+                      className="fill-muted-foreground/70"
+                    >
+                      {AXIS[st].detail}
+                    </text>
+                  </g>
+                );
+              })}
             </g>
           ))}
+
+          {/* Die **Soll-Verteilung** (Guardrail „Investment by Horizon") als
+              zweite, dünne Silhouette: wo die Kurve verliefe, wenn das Budget
+              den Zielanteilen folgte. Sie liegt unter der Ist-Kurve, damit
+              diese im Vordergrund bleibt. */}
+          {layout.targetProfile != null &&
+            ([1, -1] as const).map((sign) => (
+              <path
+                key={`target-${sign}`}
+                d={curveOf(layout.targetProfile!, first.x0, last.x1, sign)}
+                fill="none"
+                className="stroke-muted-foreground"
+                strokeWidth={1.2}
+                strokeDasharray="5 4"
+                opacity={0.65}
+              />
+            ))}
 
           {/* Die Silhouette. */}
           {([1, -1] as const).map((sign) => (
@@ -562,6 +624,35 @@ function FunnelCard({ items, cycleKey }: FunnelProps) {
           )}
         </svg>
       </div>
+
+      {/* Die Zeichnung trägt sechs Bedeutungen, und keine erklärt sich von
+          selbst. Die Legende nennt **nur, was man nicht raten kann** — was in
+          der Kopfzeile steht (Zyklus, Grundlage der Größe), wiederholt sie
+          nicht. Die Guardrail-Linie steht darin, weil sie sonst als
+          Zeichenfehler durchginge. */}
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+        <li className="flex items-center gap-1.5">
+          <span className="inline-block size-2 rotate-45 bg-muted-foreground/70" />
+          Produkt
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span className="inline-block size-2 rounded-full bg-muted-foreground/70" />
+          Epic ohne Produkt
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span className="inline-block size-2 rounded-full border border-dashed border-muted-foreground/70" />
+          kein Geld im Zyklus
+        </li>
+        <li>Größe = gebundenes Geld</li>
+        <li>dunkler Sockel = Betriebsanteil</li>
+        <li>Kurvenabstand = Geld des Horizonts</li>
+        {layout.targetProfile != null && (
+          <li className="flex items-center gap-1.5">
+            <span className="inline-block h-px w-4 border-t border-dashed border-muted-foreground" />
+            Guardrail-Ziel
+          </li>
+        )}
+      </ul>
 
       {/* Zu eng für Beschriftungen am Symbol: die Namen wandern nach unten.
           Position und Größe — die beiden echten Aussagen — bleiben im Bild. */}

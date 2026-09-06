@@ -29,6 +29,27 @@ export type FeatureType = (typeof FEATURE_TYPES)[number];
 export const HORIZONS = ["h3", "h2", "h1", "h0"] as const;
 export type Horizon = (typeof HORIZONS)[number];
 
+/**
+ * **Die Fuenferleiter des Lebenszyklus.** H1 zerfaellt in Investing (H1.1) und
+ * Extracting (H1.2) — wirtschaftlich zwei verschiedene Phasen: ausbauen gegen
+ * ernten.
+ *
+ * Sie steht hier und nicht in der Zeichnung, seit die Guardrail eigene Ziele je
+ * Station traegt. Zwei Namen fuer dieselbe Leiter — einer in der Domaene, einer
+ * in `features/portfolio/lib/horizon-funnel.ts` — waeren ein Wartungsfehler in
+ * Wartestellung, und die Domaene darf ohnehin nicht in die Fläche importieren.
+ */
+export const STATIONS = ["h3", "h2", "h1.1", "h1.2", "h0"] as const;
+export type Station = (typeof STATIONS)[number];
+
+/** Die Stationen eines Horizonts — H1 belegt zwei, alle anderen eine. */
+export const stationsOf = (h: Horizon): Station[] =>
+  h === "h1" ? ["h1.1", "h1.2"] : [h as Station];
+
+/** Der Horizont, zu dem eine Station gehoert. */
+export const horizonOfStation = (st: Station): Horizon =>
+  st === "h1.1" || st === "h1.2" ? "h1" : (st as Horizon);
+
 export const EPIC_TYPE_LABEL: Record<EpicType, string> = {
   epic: "Epic",
   enabler: "Enabler",
@@ -110,7 +131,7 @@ export function featureCapacityBucket(
  * unter diese Regel (siehe `validateGuardrailTargets`).
  */
 export interface GuardrailTargets {
-  horizon: { h0: number; h1: number; h2: number; h3: number };
+  horizon: Record<Station, number>;
   capacity: { business: number; enabler: number };
   /**
    * Guardrail 3 — ab welcher Größe ein Vorhaben eine Portfolio-Entscheidung
@@ -131,7 +152,13 @@ export interface GuardrailTargets {
 }
 
 export const DEFAULT_GUARDRAIL_TARGETS: GuardrailTargets = {
-  horizon: { h3: 10, h2: 20, h1: 60, h0: 10 },
+  /**
+   * Die 60 % von H1 stehen haelftig auf beiden Stationen. Das ist **keine
+   * fachliche Empfehlung**, sondern ein Startwert: die Teilung wird im
+   * Guardrail-Formular gesetzt. Wer sie liest, soll sie nicht fuer eine
+   * Aussage ueber Ausbau gegen Ernte halten.
+   */
+  horizon: { h3: 10, h2: 20, "h1.1": 30, "h1.2": 30, h0: 10 },
   capacity: { business: 80, enabler: 20 },
   approval: { portfolioThreshold: 100_000 },
   engagement: { coverage: 90, responseDays: 10 },
@@ -186,9 +213,32 @@ export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsPar
   // (z. B. `{}`), fallen alle Felder auf den Default (inkl. h0).
   const horizonHasAnyKey =
     typeof h.h1 === "number" || typeof h.h2 === "number" || typeof h.h3 === "number";
-  const horizonField = (key: Horizon): number => {
+
+  /**
+   * **Ein gespeichertes `h1` teilt sich beim Lesen**, statt in der Datenbank
+   * gewandert zu werden.
+   *
+   * Bis September 2026 trug die Achse vier Kuebel; H1 zerfaellt seither in
+   * Investing und Extracting. Ein Bestandswert wird im **Verhaeltnis der
+   * geltenden Vorgabe** verteilt — die Summe des Mandanten bleibt damit exakt
+   * erhalten, und es wird keine Richtung erfunden, die niemand gesetzt hat.
+   * Sobald jemand speichert, stehen fuenf Schluessel in der Zeile.
+   */
+  const splitLegacyH1 = (st: "h1.1" | "h1.2"): number | null => {
+    if (typeof h.h1 !== "number") return null;
+    const d = DEFAULT_GUARDRAIL_TARGETS.horizon;
+    const whole = d["h1.1"] + d["h1.2"];
+    const share = whole > 0 ? d[st] / whole : 0.5;
+    return (h.h1 as number) * share;
+  };
+
+  const horizonField = (key: Station): number => {
     if (typeof h[key] === "number") return h[key] as number;
     if (key === "h0" && horizonHasAnyKey) return 0;
+    if (key === "h1.1" || key === "h1.2") {
+      const split = splitLegacyH1(key);
+      if (split != null) return split;
+    }
     recordFallback(`horizon.${key}`);
     return DEFAULT_GUARDRAIL_TARGETS.horizon[key];
   };
@@ -221,12 +271,10 @@ export function parseGuardrailTargetsDetailed(raw: unknown): GuardrailTargetsPar
   };
 
   const targets: GuardrailTargets = {
-    horizon: {
-      h0: horizonField("h0"),
-      h1: horizonField("h1"),
-      h2: horizonField("h2"),
-      h3: horizonField("h3"),
-    },
+    horizon: Object.fromEntries(STATIONS.map((st) => [st, horizonField(st)])) as Record<
+      Station,
+      number
+    >,
     capacity: { business: capacityField("business"), enabler: capacityField("enabler") },
     approval: { portfolioThreshold: approvalField("portfolioThreshold") },
     engagement: {
@@ -258,15 +306,12 @@ export function validateGuardrailTargets(t: GuardrailTargets): {
   reason?: string;
 } {
   const allNonNeg =
-    t.horizon.h0 >= 0 &&
-    t.horizon.h1 >= 0 &&
-    t.horizon.h2 >= 0 &&
-    t.horizon.h3 >= 0 &&
+    STATIONS.every((st) => t.horizon[st] >= 0) &&
     t.capacity.business >= 0 &&
     t.capacity.enabler >= 0;
   if (!allNonNeg) return { ok: false, reason: "Targets duerfen nicht negativ sein" };
 
-  const horizonSum = t.horizon.h0 + t.horizon.h1 + t.horizon.h2 + t.horizon.h3;
+  const horizonSum = STATIONS.reduce((sum, st) => sum + t.horizon[st], 0);
   if (Math.abs(horizonSum - 100) > 0.5) {
     return { ok: false, reason: `Horizon-Targets summieren auf ${horizonSum}, erwartet 100` };
   }

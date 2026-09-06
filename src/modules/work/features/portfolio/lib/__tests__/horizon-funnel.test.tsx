@@ -75,11 +75,20 @@ const LARGE: FunnelItem[] = [
 const TARGET = 1100;
 
 describe("Senkrecht steht das Geld", () => {
-  it("verhält sich streng proportional zwischen zwei Bändern", () => {
-    const by = Object.fromEntries(layoutFunnel(DEMO).bands.map((b) => [b.horizon, b]));
+  it("verhält sich streng proportional zwischen zwei Stationen", () => {
+    // Seit H1 in Investing und Extracting zerfällt, ist die Station die
+    // Bezugsgröße — jede führt ihr eigenes Geld und ihre eigene Öffnung.
+    const layout = layoutFunnel(DEMO);
+    const by = Object.fromEntries(layout.bands.map((b) => [b.horizon, b]));
     expect(by.h3!.money).toBe(1_590_000);
     expect(by.h1!.money).toBe(2_530_000);
-    expect(by.h1!.half / by.h3!.half).toBeCloseTo(2_530_000 / 1_590_000, 5);
+
+    const zonen = layout.bands.flatMap((b) => b.stations).filter((z) => z.money > 0);
+    expect(zonen.length).toBeGreaterThan(1);
+    const bezug = zonen[0]!;
+    for (const z of zonen) {
+      expect(z.half / bezug.half).toBeCloseTo(z.money / bezug.money, 5);
+    }
   });
 
   it("gibt einem Horizont ohne Geld die Mindestöffnung — und sagt es", () => {
@@ -499,17 +508,26 @@ describe("Fünf Stationen statt vier Bänder", () => {
     expect(layout.h1!.splitX).toBeCloseTo((h1.x0 + h1.x1) / 2, 5);
   });
 
-  it("läuft mit der Silhouette flach über beide Hälften — ein Horizont, ein Geld", () => {
-    // Die Trennung ist eine Unterteilung, kein Tor: an ihr darf die Kurve
-    // keine Stufe machen.
+  it("macht an der Trennung eine Stufe, wenn die Hälften Verschiedenes tragen", () => {
+    // **Das ersetzt eine frühere Zusicherung.** Sie lautete: „ein Horizont, ein
+    // Geld — an der Trennung darf die Kurve keine Stufe machen." Das war
+    // richtig, solange nur der Horizont ein Ziel hatte. Seit die Guardrail
+    // eigene Ziele für H1.1 und H1.2 trägt, ist ihr Geld eine eigene Größe —
+    // und eine Ziel-Linie, die springt, während die Ist-Kurve flach
+    // durchläuft, misst an dieser Stelle nichts.
+    //
+    // Die Betraege liegen bewusst beide **ueber** der Mindestoeffnung: bei
+    // 900 zu 100 faengt der Bodensatz die kleinere Haelfte ab (40 statt 16,7),
+    // und das Verhaeltnis waere dann 3,75 statt 9 — richtig gerechnet, aber
+    // kein Beleg fuer die Stufe.
     const layout = layoutFunnel([
       sol("c", "h1", 900_000, 0, "investing"),
-      sol("d", "h1", 100_000, 0, "extracting"),
+      sol("d", "h1", 300_000, 0, "extracting"),
     ]);
-    const h1 = layout.bands.find((b) => b.horizon === "h1")!;
     const x = layout.h1!.splitX;
-    expect(halfAt(layout.profile, x - 20)).toBeCloseTo(h1.half, 6);
-    expect(halfAt(layout.profile, x + 20)).toBeCloseTo(h1.half, 6);
+    const links = halfAt(layout.profile, x - 20);
+    const rechts = halfAt(layout.profile, x + 20);
+    expect(links / rechts).toBeCloseTo(3, 5);
   });
 
   it("zählt ein Epic ohne Modus zu H1.1 · Investing", () => {
@@ -518,6 +536,77 @@ describe("Fünf Stationen statt vier Bänder", () => {
     const layout = layoutFunnel([{ ...sol("e", "h1", 50_000), kind: "epic" as const }]);
     expect(layout.h1!.investing).toBe(50_000);
     expect(layout.h1!.extracting).toBe(0);
+  });
+});
+
+describe("Das Ziel-Profil — die Guardrail als zweite Silhouette", () => {
+  const spread = [sol("a", "h3", 1_000_000), sol("b", "h2", 1_000_000), sol("c", "h1", 1_000_000)];
+  const targets = { h3: 10, h2: 20, "h1.1": 30, "h1.2": 30, h0: 10 };
+
+  it("liegt auf derselben Skala wie das Ist", () => {
+    // Gleiches Geld, gleiche Oeffnung: bekommt ein Band genau den Anteil, den
+    // es tatsaechlich haelt, muessen Ist- und Ziel-Linie zusammenfallen.
+    const gleich = layoutFunnel(spread, DEFAULT_GEOMETRY, CODE_STEPS[0], {
+      h3: 100 / 3,
+      h2: 100 / 3,
+      "h1.1": 100 / 3,
+      "h1.2": 0,
+      h0: 0,
+    });
+    const h3 = gleich.bands.find((b) => b.horizon === "h3")!;
+    expect(halfAt(gleich.targetProfile!, (h3.x0 + h3.x1) / 2)).toBeCloseTo(h3.half, 6);
+  });
+
+  it("folgt den Anteilen, nicht dem Ist", () => {
+    const l = layoutFunnel(spread, DEFAULT_GEOMETRY, CODE_STEPS[0], targets);
+    const at = (st: string) => {
+      const z = l.bands.flatMap((b) => b.stations).find((x) => x.station === st)!;
+      return halfAt(l.targetProfile!, (z.x0 + z.x1) / 2);
+    };
+    // 30 : 20 : 10 — das Verhaeltnis der Vorgabe je Station, nicht das der drei
+    // gleichen Ist-Betraege.
+    expect(at("h1.1") / at("h2")).toBeCloseTo(1.5, 5);
+    expect(at("h2") / at("h3")).toBeCloseTo(2, 5);
+  });
+
+  it("hebt ein kleines Ziel nicht auf die Mindestoeffnung an", () => {
+    // Der Bodensatz ist ein Platzhalter fuer „kein Geld"; auf ein Ziel
+    // angewandt behauptete er eine Vorgabe, die es nicht gibt.
+    const l = layoutFunnel(spread, DEFAULT_GEOMETRY, CODE_STEPS[0], {
+      h3: 1,
+      h2: 33,
+      "h1.1": 66,
+      "h1.2": 0,
+      h0: 0,
+    });
+    const h3 = l.bands.find((b) => b.horizon === "h3")!;
+    expect(halfAt(l.targetProfile!, (h3.x0 + h3.x1) / 2)).toBeLessThan(DEFAULT_GEOMETRY.minHalf);
+  });
+
+  it("passt ins Bild, auch wenn es weiter reicht als jedes Ist-Band", () => {
+    // Gemessen in Large Test Corp: das H1-Ziel liegt bei einer halben Oeffnung
+    // von 401 px, das Ist bei 249. Wer nur das Ist misst, schneidet die
+    // Vergleichslinie oben ab — genau dann, wenn der Abstand am groessten und
+    // die Aussage am wichtigsten ist.
+    const l = layoutFunnel(spread, DEFAULT_GEOMETRY, CODE_STEPS[0], {
+      h3: 0,
+      h2: 0,
+      "h1.1": 100,
+      "h1.2": 0,
+      h0: 0,
+    });
+    const hoechste = Math.max(...l.targetProfile!.map(([, half]) => half));
+    expect(hoechste).toBeGreaterThan(Math.max(...l.bands.map((b) => b.half)));
+    // Nichts laeuft oben aus dem Bild, und die Kopffreiheit bleibt.
+    expect(l.mid - hoechste).toBeGreaterThanOrEqual(DEFAULT_GEOMETRY.headroom - 1e-6);
+  });
+
+  it("entfaellt ohne Ziele und ohne Geld", () => {
+    expect(layoutFunnel(spread).targetProfile).toBeNull();
+    const ohneGeld = [sol("leer", "h1", 0)];
+    expect(
+      layoutFunnel(ohneGeld, DEFAULT_GEOMETRY, CODE_STEPS[0], targets).targetProfile,
+    ).toBeNull();
   });
 });
 

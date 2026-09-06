@@ -227,7 +227,9 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
         // Der Horizont: eigener Wert vor abgeleitetem (`domain/epic-horizon.ts`).
         investmentHorizon: true,
         businessCaseApprovedAt: true,
-        primarySolution: { select: { horizon: true } },
+        // `investmentMode` trennt in H1 Investing von Extracting — die
+        // Guardrail zaehlt seit September 2026 fuenf Kuebel statt vier.
+        primarySolution: { select: { horizon: true, investmentMode: true } },
         businessCase: true,
         stageGate: true,
         needsSteeringAttention: true,
@@ -251,6 +253,7 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
         solutionHorizon: e.primarySolution?.horizon ?? null,
         businessCaseApprovedAt: e.businessCaseApprovedAt,
       }),
+      investmentMode: e.primarySolution?.investmentMode ?? null,
       amount,
       stageGate: e.stageGate,
       needsSteeringAttention: e.needsSteeringAttention,

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
+import { STICKY_THEAD } from "@/components/ui/table-chrome";
 import type { BcCalcDay, BcCalcSummary } from "@/modules/work/domain/epic-bc-calculation";
 
 interface Props {
@@ -134,7 +135,7 @@ export function EpicBusinessCaseCalcTab({ rows, summary }: Props) {
 
       <div className="max-h-[70vh] overflow-auto rounded-lg border">
         <table className="w-full border-collapse text-xs tabular-nums">
-          <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
+          <thead className={STICKY_THEAD}>
             <tr className="text-left text-muted-foreground">
               <th className="px-3 py-2 font-medium">Zeitraum</th>
               <th className="px-3 py-2 font-medium">Reifegrad</th>

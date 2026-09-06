@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react";
+import { STICKY_THEAD } from "@/components/ui/table-chrome";
 
 /**
  * Shared visual tokens + primitives for the Goals-style tree/list tables (issue
@@ -12,9 +13,8 @@ export const HEAD_ACCENT = "#60a5fa";
 /** Outer container around the `<table>`. */
 export const TREE_CONTAINER = "overflow-x-auto rounded-xl border bg-card shadow-sm";
 
-/** `<thead>` chrome — sticky, muted, uppercase. */
-export const TREE_THEAD =
-  "sticky top-0 z-20 border-b bg-muted/95 text-xs uppercase tracking-wide text-muted-foreground shadow-sm backdrop-blur";
+/** `<thead>` chrome — sticky, muted, uppercase. Shared token, see table-chrome. */
+export const TREE_THEAD = STICKY_THEAD;
 
 /** `<th>` cell. */
 export const TREE_TH = "px-3 py-1.5 text-left font-medium whitespace-nowrap";

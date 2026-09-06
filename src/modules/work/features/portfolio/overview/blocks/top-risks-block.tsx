@@ -5,7 +5,7 @@ import { SectionLabel } from "@/components/ui/section-label";
 import { STAGE_SHORT } from "@/components/detail/initiative-labels";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
-import { PORTFOLIO_WIP_LIMITS } from "@/modules/work/features/portfolio/overview/wip-limits";
+import { PORTFOLIO_WIP_LIMITS } from "@/modules/work/features/portfolio/overview/column-meta";
 
 /**
  * Top 3 "risks" — blocked epics, oldest stale epic, and any overfull stage
@@ -49,7 +49,7 @@ export function TopRisksBlock({ data }: { data: PortfolioOverview }) {
       {risks.length === 0 ? (
         <p className="text-sm text-muted-foreground">Keine akuten Risiken.</p>
       ) : (
-        <ul className="space-y-2 text-sm">
+        <ul className="space-y-2 text-xs">
           {risks.slice(0, 3).map((r) => (
             <li key={r.key} className="flex items-start gap-2">
               <X className="mt-0.5 size-4 shrink-0 text-red-500" />

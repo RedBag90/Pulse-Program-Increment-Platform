@@ -13,6 +13,7 @@ const epic = (over: Partial<GuardrailsEpicInput> = {}): GuardrailsEpicInput => (
   title: "Epic",
   epicType: null,
   investmentHorizon: null,
+  investmentMode: null,
   amount: null,
   stageGate: "L0",
   needsSteeringAttention: false,
@@ -108,12 +109,12 @@ describe("computePortfolioGuardrails", () => {
       ],
       targets: DEFAULT_GUARDRAIL_TARGETS,
     });
-    expect(m.horizon.rows.h1.count).toBe(2);
+    expect(m.horizon.rows["h1.1"].count).toBe(2);
     expect(m.horizon.rows.h2.count).toBe(1);
     expect(m.horizon.rows.h3.count).toBe(0);
     expect(m.horizon.unclassifiedCount).toBe(1);
-    expect(m.horizon.rows.h1.countShare).toBeCloseTo(2 / 3);
-    expect(m.horizon.rows.h1.amountShare).toBeCloseTo(200 / 250);
+    expect(m.horizon.rows["h1.1"].countShare).toBeCloseTo(2 / 3);
+    expect(m.horizon.rows["h1.1"].amountShare).toBeCloseTo(200 / 250);
     expect(m.horizon.totalCount).toBe(4);
   });
 
@@ -134,8 +135,16 @@ describe("computePortfolioGuardrails", () => {
   it("ampel: gruen wenn alle deltas <=5pp", () => {
     const m = computePortfolioGuardrails({
       epics: [
-        // Target h3/h2/h1/h0 = 10/20/60/10. Mix mit 1/2/6/1 = exakt 10/20/60/10.
-        ...new Array(6).fill(0).map((_, i) => epic({ id: `h1-${i}`, investmentHorizon: "h1" })),
+        // Target h3/h2/h1.1/h1.2/h0 = 10/20/30/30/10. Mix mit 1/2/3/3/1 trifft
+        // das exakt. H1 zerfaellt seit September 2026 in zwei Kuebel — sechs
+        // Epics **ohne** Solution-Modus laegen alle in H1.1 und rissen die
+        // Ampel auf rot, obwohl der Horizont insgesamt stimmt.
+        ...new Array(3).fill(0).map((_, i) => epic({ id: `h11-${i}`, investmentHorizon: "h1" })),
+        ...new Array(3)
+          .fill(0)
+          .map((_, i) =>
+            epic({ id: `h12-${i}`, investmentHorizon: "h1", investmentMode: "extracting" }),
+          ),
         ...new Array(2).fill(0).map((_, i) => epic({ id: `h2-${i}`, investmentHorizon: "h2" })),
         epic({ id: "h3-0", investmentHorizon: "h3" }),
         epic({ id: "h0-0", investmentHorizon: "h0" }),
@@ -174,11 +183,11 @@ describe("computePortfolioGuardrails", () => {
       epics: [epic({ id: "a", investmentHorizon: "h1" })],
       targets: {
         ...DEFAULT_GUARDRAIL_TARGETS,
-        horizon: { h0: 0, h1: 100, h2: 0, h3: 0 },
+        horizon: { h0: 0, "h1.1": 100, "h1.2": 0, h2: 0, h3: 0 },
         capacity: { business: 100, enabler: 0 },
       },
     });
-    expect(m.horizon.rows.h1.deltaCount).toBeCloseTo(0);
+    expect(m.horizon.rows["h1.1"].deltaCount).toBeCloseTo(0);
     expect(m.horizon.status).toBe("green");
   });
 
@@ -190,9 +199,9 @@ describe("computePortfolioGuardrails", () => {
       ],
       targets: DEFAULT_GUARDRAIL_TARGETS,
     });
-    expect(m.horizon.rows.h1.count).toBe(1);
+    expect(m.horizon.rows["h1.1"].count).toBe(1);
     expect(m.horizon.rows.h2.count).toBe(1);
-    expect(m.horizon.rows.h1.amount).toBe(0);
+    expect(m.horizon.rows["h1.1"].amount).toBe(0);
     expect(m.horizon.rows.h2.amount).toBe(0);
   });
 });

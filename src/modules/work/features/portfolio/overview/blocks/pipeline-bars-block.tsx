@@ -3,7 +3,7 @@ import { SectionLabel } from "@/components/ui/section-label";
 import { STAGE_SHORT } from "@/components/detail/initiative-labels";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
-import { PORTFOLIO_WIP_LIMITS } from "@/modules/work/features/portfolio/overview/wip-limits";
+import { PORTFOLIO_WIP_LIMITS } from "@/modules/work/features/portfolio/overview/column-meta";
 
 /**
  * Horizontal bar per stage gate — the executive variant's substitute for the
@@ -20,7 +20,7 @@ export function PipelineBarsBlock({ data }: { data: PortfolioOverview }) {
   return (
     <Card className="space-y-3 p-4">
       <SectionLabel>Pipeline</SectionLabel>
-      <ul className="space-y-2 text-sm">
+      <ul className="space-y-2 text-xs">
         {STAGE_GATES.filter((g) => g !== "L5").map((g) => {
           const count = data.epicsByGate[g].length;
           const limit = PORTFOLIO_WIP_LIMITS[g];

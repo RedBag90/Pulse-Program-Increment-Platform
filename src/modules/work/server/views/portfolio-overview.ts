@@ -7,8 +7,10 @@ import { parseTimeline } from "@/modules/work/domain/timeline";
 import {
   HORIZON_LANES,
   isHorizon,
+  resolveGuardrailTargets,
   type HorizonLane,
 } from "@/modules/work/domain/portfolio-guardrails";
+import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
 import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
 import { processColumn } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import {
@@ -37,7 +39,10 @@ import {
 } from "@/modules/work/domain/epic-class-filter";
 import { classifyEpics, type EpicClassInfo } from "@/modules/work/server/services/epic-class";
 import { loadHorizonFunnelItems } from "@/modules/work/server/services/horizon-funnel";
-import type { FunnelItem } from "@/modules/work/features/portfolio/lib/horizon-funnel";
+import type {
+  FunnelItem,
+  HorizonTargets,
+} from "@/modules/work/features/portfolio/lib/horizon-funnel";
 import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 
@@ -176,6 +181,8 @@ export interface OverviewGoal {
   status: string | null;
   progress: number;
   epicLinkCount: number;
+  /** Die untergeordneten Ziele, eine Ebene tief. */
+  children: OverviewGoalChild[];
 }
 
 /**
@@ -248,6 +255,13 @@ export interface OverviewRecentEvent {
 export interface ContributionRow extends EpicGoalContribution {
   epicClass: EpicClass | null;
   solution: SolutionRef | null;
+  /** Aufgeloest wie bei den Epic-Karten (`resolveEpicHorizon`). */
+  horizon: string | null;
+  /**
+   * `true` ab L4.2 — erst dann ist ein Vergleich von Ist gegen Plan fair.
+   * Siehe `benefitAssessableOf`; die Kachel zeigt sonst keinen Indikator.
+   */
+  benefitAssessable: boolean;
 }
 
 export interface ClassFilterState {
@@ -290,6 +304,13 @@ export interface PortfolioOverview {
    * Fläche selbst (`lib/horizon-funnel.ts`) — das Modell trägt nur die Zahlen.
    */
   funnelItems: FunnelItem[];
+  /**
+   * Die Soll-Verteilung des Budgets über die Horizonte (Guardrail „Investment
+   * by Horizon"), in Prozent — der Trichter zeichnet sie als gestrichelte
+   * Vergleichslinie. Sie gilt für das **gesamte** Portfolio-Budget,
+   * Betriebskosten eingeschlossen, misst also dieselbe Größe wie die Öffnung.
+   */
+  horizonTargets: HorizonTargets | null;
 
   goals: OverviewGoal[];
   goalsOnTrack: number;
@@ -352,6 +373,24 @@ export interface PortfolioOverviewTheme {
   progress: number | null;
   trio: RollupTrio;
   epicLinkCount: number;
+  /**
+   * Die untergeordneten Ziele — Titel, Status, Fortschritt, mehr braucht die
+   * Übersicht nicht.
+   *
+   * `loadStrategyTree` liefert den ganzen Baum; die Übersicht nahm bis September
+   * 2026 nur die Wurzeln und flachte jeden Knoten ab. Die Kachel zeigte damit
+   * nicht „ein Ziel von dreien", sondern alle Kopf-Ziele und keines der
+   * untergeordneten — und das sah aus wie ein Filter.
+   */
+  children: OverviewGoalChild[];
+}
+
+/** Ein untergeordnetes Ziel, so weit die Übersicht es zeigt. */
+export interface OverviewGoalChild {
+  id: string;
+  title: string;
+  status: string | null;
+  progress: number;
 }
 
 export interface PortfolioOverviewInputs {
@@ -364,6 +403,11 @@ export interface PortfolioOverviewInputs {
   /** ownerId → Anzeigename, für die Owner-Spalte der Steering-Tabelle. */
   ownerLabels: Record<string, string>;
   themes: PortfolioOverviewTheme[];
+  /**
+   * Die Soll-Verteilung des Budgets ueber die Horizonte (Guardrail), in Prozent
+   * — oder `null`, wenn der Trichter nichts zu vergleichen hat.
+   */
+  horizonTargets: HorizonTargets | null;
   board: PortfolioBudgetingBoard;
   vsBudgets: PortfolioVsBudgets;
   /** Zyklus-Allokation je Epic (laufender Zyklus) — Budgeting-Adapter, ADR-0013. */
@@ -444,6 +488,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     epicClasses,
     selectedClasses,
     funnelItems,
+    horizonTargets,
     now,
   } = inputs;
   const nowMs = now.getTime();
@@ -451,6 +496,31 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   const classOf = (epicId: string): EpicClass | null => epicClasses?.get(epicId)?.epicClass ?? null;
   const solutionOf = (epicId: string): SolutionRef | null =>
     epicClasses?.get(epicId)?.solution ?? null;
+
+  // Die Beitragszeilen holen sich Horizont und Bewertbarkeit aus derselben
+  // Epic-Menge, aus der auch die Karten entstehen — kein zweiter Ladeweg.
+  const epicById = new Map(epics.map((e) => [e.id, e]));
+  const horizonOf = (epicId: string): string | null => {
+    const e = epicById.get(epicId);
+    return e == null
+      ? null
+      : resolveEpicHorizon({
+          investmentHorizon: e.investmentHorizon,
+          solutionHorizon: e.primarySolution?.horizon ?? null,
+          businessCaseApprovedAt: e.businessCaseApprovedAt,
+        });
+  };
+  /**
+   * Darf man Ist gegen Plan halten? Erst ab **L4.2** — dieselbe Schwelle, die
+   * `subStageFor` zieht. Der realisierte Nutzen waechst ueber die Zeit; ein Epic
+   * mitten in der Umsetzung hat den Plan noch gar nicht erreichen koennen, und
+   * ein Indikator darauf saehe bei fast jeder Zeile gleich aus.
+   */
+  const benefitAssessableOf = (epicId: string): boolean => {
+    const e = epicById.get(epicId);
+    if (e == null) return false;
+    return e.stageGate === "L5" || (e.stageGate === "L4" && e.implementationCompletedAt != null);
+  };
 
   const cards: OverviewEpicCard[] = epics.map((e) => ({
     id: e.id,
@@ -595,7 +665,13 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   // Einheit getrennt. Werte kommen fertig aggregiert.
   const goalContributions: ContributionRow[] = [...goalContributionsRaw]
     .sort((a, b) => totalContribution(b, "planned") - totalContribution(a, "planned"))
-    .map((r) => ({ ...r, epicClass: classOf(r.epicId), solution: solutionOf(r.epicId) }));
+    .map((r) => ({
+      ...r,
+      epicClass: classOf(r.epicId),
+      solution: solutionOf(r.epicId),
+      horizon: horizonOf(r.epicId),
+      benefitAssessable: benefitAssessableOf(r.epicId),
+    }));
 
   // Die Facette teilt die geladene Menge, statt sie zu verkleinern. `hiddenCount`
   // zählt die Epic-Karten — Features und Beitragszeilen hängen an denselben
@@ -616,6 +692,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     status: t.status,
     progress: t.progress ?? 0,
     epicLinkCount: t.epicLinkCount,
+    children: t.children,
   }));
   // In-flight = offen oder noch ohne Check-in (null); geschlossene Ziele
   // (achieved/partial/missed/dropped) zaehlen nicht zu den aktiven.
@@ -753,6 +830,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     blockedEpics,
     steeringEpics,
     funnelItems,
+    horizonTargets,
     goals,
     goalsOnTrack,
     goalAverageProgress,
@@ -857,6 +935,8 @@ export async function loadPortfolioOverviewInputs(
     structureGap,
     practiceAdoption,
     runBySolution,
+    tenantRow,
+    guardrailRows,
   ] = await Promise.all([
     listEpicsForOverview(db, tenantId, {
       valueStreamIds: filter.valueStreamIds,
@@ -883,6 +963,12 @@ export async function loadPortfolioOverviewInputs(
     computeStructureGap(db, tenantId),
     computePracticeAdoption(db, tenantId),
     getSolutionRunCosts(),
+    // Guardrail „Investment by Horizon" — die Soll-Verteilung, die der Trichter
+    // als gestrichelte Vergleichslinie zeichnet. Sie gilt fuer das **gesamte**
+    // Portfolio-Budget, Betriebskosten eingeschlossen; damit misst sie dieselbe
+    // Groesse wie die Oeffnung der Kurve.
+    db.tenant.findUnique({ where: { id: tenantId }, select: { guardrailTargets: true } }),
+    listValueStreamGuardrailTargets(db, tenantId),
   ]);
   const runCosts = runBySolution;
 
@@ -895,6 +981,14 @@ export async function loadPortfolioOverviewInputs(
     progress: t.progress,
     trio: t.trio,
     epicLinkCount: 0,
+    // Eine Ebene tief — mehr zeigt die Kachel nicht, und mehr durchzureichen
+    // hiesse, ein Modell zu tragen, das niemand liest.
+    children: t.children.map((c) => ({
+      id: c.id,
+      title: c.title,
+      status: c.status,
+      progress: c.progress ?? 0,
+    })),
   }));
 
   const { board, vsBudgets, cycleAllocations, budgetCycleKey } = budgeting;
@@ -936,6 +1030,17 @@ export async function loadPortfolioOverviewInputs(
     epicClasses,
     selectedClasses: filter.epicClasses,
     funnelItems,
+    /**
+     * **Welche Ziele gelten, wenn gefiltert ist.** Genau ein Wertstrom gewaehlt
+     * → dessen Zeile; keiner oder mehrere → der Tenant-Default. Eine Linie kann
+     * die abweichenden Ziele mehrerer Wertstroeme nicht darstellen, und sie zu
+     * mitteln waere eine erfundene Zahl.
+     */
+    horizonTargets: resolveGuardrailTargets(
+      guardrailRows,
+      tenantRow?.guardrailTargets ?? null,
+      filter.valueStreamIds.length === 1 ? (filter.valueStreamIds[0] ?? null) : null,
+    ).targets.horizon,
     now: new Date(),
   };
 }

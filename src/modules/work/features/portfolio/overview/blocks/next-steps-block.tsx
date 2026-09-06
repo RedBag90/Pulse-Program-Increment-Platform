@@ -18,7 +18,7 @@ export function NextStepsBlock({ data }: { data: PortfolioOverview }) {
           Aktuell keine konkreten Hinweise — Struktur und Praxis sind im Ziel.
         </p>
       ) : (
-        <ul className="space-y-1.5 text-sm">
+        <ul className="space-y-1.5 text-xs">
           {data.nextSteps.map((s) => (
             <li key={s.key}>
               <Link

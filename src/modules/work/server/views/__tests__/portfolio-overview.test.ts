@@ -87,6 +87,7 @@ function baseInputs(): PortfolioOverviewInputs {
     budgetCycleKey: "2026-H1",
     epicClasses: null,
     funnelItems: [],
+    horizonTargets: null,
     selectedClasses: [],
     activePis: [],
     structureGap: { hasTarget: false, targetDate: null, dimensions: [], overallProgress: 0 },
@@ -186,6 +187,7 @@ describe("buildPortfolioOverviewModel", () => {
         progress: 0.8,
         trio: { planned: 100, realized: 80, runRate: 80 },
         epicLinkCount: 0,
+        children: [],
       },
       {
         id: "t2",
@@ -195,6 +197,7 @@ describe("buildPortfolioOverviewModel", () => {
         progress: 0.2,
         trio: { planned: 100, realized: 20, runRate: 20 },
         epicLinkCount: 0,
+        children: [],
       },
       {
         id: "t3",
@@ -204,6 +207,7 @@ describe("buildPortfolioOverviewModel", () => {
         progress: 1,
         trio: { planned: 100, realized: 100, runRate: 100 },
         epicLinkCount: 0,
+        children: [],
       },
     ];
     const m = buildPortfolioOverviewModel(inputs);
