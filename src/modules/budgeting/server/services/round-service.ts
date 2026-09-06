@@ -13,6 +13,11 @@ import { ok, err, type Result } from "@/modules/core/kernel/domain/errors";
 import { carryReserveForward, pickCarriedReserve } from "@/modules/budgeting/domain/reserve";
 import { materializeRtbCandidates } from "@/modules/budgeting/server/services/candidate-service";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
+import {
+  periodValidity,
+  timeframeEditDeniedReason,
+} from "@/modules/budgeting/domain/period-validity";
+import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
 
 export interface CreateRoundInput {
   cycleKey: string;
@@ -204,6 +209,38 @@ export interface CreatePeriodInput {
  * fällt) und setzt Start/Ende/Deadline. Kein `decisionAuthority` mehr (Finance
  * entscheidet direkt). Zukunfts-Starts sind erlaubt.
  */
+/** Zwei Wochen vor dem Start — Default der Abgabe-Deadline. */
+function twoWeeksBefore(d: Date): Date {
+  return new Date(d.getTime() - 14 * 86_400_000);
+}
+
+/**
+ * Der Schlüssel, unter dem **alle** Zuteilungen einer Kachel liegen
+ * (`BudgetAllocation.allocations`, `ArtEpicAllocation`, `RtbItemAward`), wird
+ * aus dem Halbjahr des Starts abgeleitet. Zwei Kacheln, die im selben Halbjahr
+ * starten, teilen ihn — und überschreiben einander still.
+ *
+ * Deshalb wird er hier erzwungen eindeutig. Die Begründung nennt den Grund und
+ * den Ausweg, statt nur „nein" zu sagen: Zeiträume unterhalb eines Halbjahres
+ * brauchen `cycleKey` als freien Perioden-Schlüssel, und das ist eine Migration
+ * über drei Geld-Tabellen.
+ *
+ * `null` = frei.
+ */
+async function cycleKeyTaken(
+  db: RequestContext["db"],
+  tenantId: string,
+  cycleKey: string,
+): Promise<string | null> {
+  const existing = await db.budgetRound.findFirst({
+    where: { tenantId, cycleKey },
+    select: { id: true },
+  });
+  return existing
+    ? `Für ${cycleKey} gibt es bereits eine Kachel. Zwei Kacheln, die im selben Halbjahr beginnen, teilen sich den Schlüssel ihrer Budget-Zuteilungen und würden einander überschreiben — bitte einen Start in einem anderen Halbjahr wählen.`
+    : null;
+}
+
 export async function createPeriod(
   ctx: RequestContext,
   input: CreatePeriodInput,
@@ -219,13 +256,19 @@ export async function createPeriod(
       })
     : null;
 
+  const taken = await cycleKeyTaken(ctx.db, mctx.tenantId, halfYearKey(input.startDate));
+  if (taken) return err({ kind: "conflict" as const, reason: taken });
+
   const created = await createRound(ctx, {
     cycleKey: halfYearKey(input.startDate),
     poolTotal: input.poolTotal,
     decisionAuthorityIds: [],
     startDate: input.startDate,
     endDate: input.endDate,
-    submissionDeadline: input.submissionDeadline ?? input.endDate,
+    // Die Verteilung muss fertig sein, **bevor** der Rahmen gilt — deshalb
+    // liegt die Abgabe-Deadline vor dem Start, nicht am Ende. (Bestands-Kacheln
+    // bleiben unangetastet; nur neue folgen der Regel.)
+    submissionDeadline: input.submissionDeadline ?? twoWeeksBefore(input.startDate),
     carryReserve: input.carryReserve,
   });
   if (!created.ok || !previous) return created;
@@ -393,5 +436,81 @@ export function getRoundForCycle(db: PrismaClient, tenantId: string, cycleKey: s
     where: { tenantId, cycleKey },
     orderBy: { createdAt: "desc" },
     include: { groups: { include: { members: true }, orderBy: { name: "asc" } } },
+  });
+}
+
+export interface UpdatePeriodTimeframeInput {
+  id: string;
+  startDate: Date;
+  endDate: Date;
+  submissionDeadline: Date | null;
+}
+
+/**
+ * Den **Geltungszeitraum** einer Kachel korrigieren.
+ *
+ * Bis September 2026 ging das gar nicht: es gab nur Anlegen und Löschen. Wer
+ * sich im Enddatum vertan hatte, musste die Kachel samt Setup wegwerfen.
+ *
+ * Was erlaubt ist, hängt an der Geltung (`timeframeEditDeniedReason`): in der
+ * Ausarbeitung alles, bei einer **geltenden** Kachel nur das Verlängern des
+ * Endes, bei einer abgelaufenen nichts. Den Start einer geltenden Kachel zu
+ * verschieben oder ihr Ende vorzuziehen verschöbe **rückwirkend** die Grenze,
+ * gegen die schon Geld verplant wurde.
+ *
+ * **`cycleKey` bleibt unberührt** — auch wenn der neue Start in einem anderen
+ * Halbjahr liegt. Er ist der Schlüssel, unter dem die Zuteilungen dieser Kachel
+ * liegen; ihn neu abzuleiten machte das Geld verwaist. Er ist eine Identität,
+ * kein abgeleitetes Datum.
+ */
+export async function updatePeriodTimeframe(
+  ctx: RequestContext,
+  input: UpdatePeriodTimeframeInput,
+): Promise<Result<void>> {
+  const mctx = toMutationContext(ctx);
+
+  if (input.endDate.getTime() < input.startDate.getTime()) {
+    return err({ kind: "conflict" as const, reason: "Das Ende liegt vor dem Start." });
+  }
+
+  return withAuditedTransaction(mctx, async (tx) => {
+    const existing = await tx.budgetRound.findFirst({
+      where: { id: input.id, tenantId: mctx.tenantId },
+      select: { id: true, status: true, startDate: true, endDate: true, submissionDeadline: true },
+    });
+    if (!existing) {
+      return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.id });
+    }
+
+    const denied = timeframeEditDeniedReason({
+      validity: periodValidity(existing, new Date()),
+      current: { startDate: existing.startDate, endDate: existing.endDate },
+      next: { startDate: input.startDate, endDate: input.endDate },
+    });
+    if (denied) return err({ kind: "forbidden" as const, reason: denied });
+
+    const { changes, data } = recordedUpdate({
+      existing,
+      updates: {
+        startDate: input.startDate,
+        endDate: input.endDate,
+        submissionDeadline: input.submissionDeadline,
+      },
+      fields: ["startDate", "endDate", "submissionDeadline"] as const,
+    });
+    await tx.budgetRound.update({
+      where: { id: input.id },
+      data: { ...data, updatedBy: mctx.actorId },
+    });
+
+    return ok({
+      result: undefined,
+      audit: {
+        action: "budget.round.timeframe.changed" as const,
+        resourceType: "budget_round" as const,
+        resourceId: input.id,
+        changes,
+      },
+    });
   });
 }

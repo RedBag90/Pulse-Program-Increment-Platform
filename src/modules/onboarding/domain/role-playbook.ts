@@ -321,8 +321,8 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
       {
         key: "portfolio_manager.review",
         title: "Der wiederkehrende Steuerungstermin",
-        body: "Das Portfolio-Review stellt Plan und Ist gegenüber: Benefit-Plan, Forecast, Plantreue, Terminabweichung. Über den Stichtag oben vergleichst du Stände.",
-        route: "/portfolio/review",
+        body: "Die Portfolio-Übersicht ist die Fläche des Termins: das Kanban zeigt, wo die Vorhaben stehen, die Kacheln darüber Fördertopf, Ziele und Risiken. Was hier stockt, gehört auf die Tagesordnung.",
+        route: "/portfolio",
         practice: "portfolioLevel",
       },
       {

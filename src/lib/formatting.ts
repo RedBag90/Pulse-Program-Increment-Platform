@@ -7,6 +7,7 @@
  * - `formatEUR(n)` — full Intl.NumberFormat de-DE EUR (no decimals).
  * - `formatCompactEUR(n)` — `€X.XM` / `€X.XK` / `€1.234` (overview tiles).
  * - `formatCompactNumber(n)` — same compact rule sans EUR prefix.
+ * - `formatScaledEUR(n)` — deutsch, Einheit folgt der Größenordnung.
  *
  * Date helpers cover the two formats the UI used most often (date, datetime).
  */
@@ -60,18 +61,30 @@ export function formatCompactNumber(n: number): string {
 }
 
 /**
- * Deutscher Kompakt-Euro für Portfolio-Kennzahlen: `24,6 Mio €` / `1,3 Mrd €`,
- * eine Nachkommastelle, deutsche Dezimaltrennung (Komma). Anders als
- * `formatCompactEUR` (`€24.60M`, englisch) folgt dies der LPM-Review-Vorgabe
- * (Spec: „24,6 Mio €"). Werte < 1 Mio werden ebenfalls in Mio dargestellt
- * (z. B. `0,4 Mio €`), damit KPI-Karten und Achsen eine Einheit teilen.
+ * Deutscher Kompakt-Euro, **dessen Einheit der Größenordnung folgt**:
+ * `1,3 Mrd €` · `24,6 Mio €` · `49 T€` · `840 €`. Anders als `formatCompactEUR`
+ * (`€24.60M`, englisch) deutsch gesetzt, mit Komma als Dezimaltrennung.
+ *
+ * Der Vorgänger `formatMioEUR` schrieb **jeden** Betrag in Mio — auch 49.000 €,
+ * die damit als `0,0 Mio €` erschienen. Begründet war das mit den KPI-Karten
+ * und Achsen der LPM-Review, „damit sie eine Einheit teilen"; die Fläche ist
+ * mit dem Rückbau des Steuerungstermins entfallen, die feste Einheit hat ihre
+ * Aufrufer also überlebt. Geblieben war der Horizont-Trichter, und dort standen
+ * drei Betriebsposten (49/42/35 T€) ununterscheidbar neben drei Produkten, die
+ * tatsächlich kein Geld tragen.
+ *
+ * **Der Sprung an der Mio-Grenze ist gewollt:** 999.500 € liest sich als
+ * `1.000 T€`, 1.000.000 € als `1,0 Mio €`. Lieber eine sichtbare Stufe als eine
+ * Einheit, die unterhalb ihrer Auflösung weiterzählt.
  */
-export function formatMioEUR(n: number): string {
+export function formatScaledEUR(n: number): string {
   const abs = Math.abs(n);
   const de = (x: number) =>
     x.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   if (abs >= 1_000_000_000) return `${de(n / 1_000_000_000)} Mrd €`;
-  return `${de(n / 1_000_000)} Mio €`;
+  if (abs >= 1_000_000) return `${de(n / 1_000_000)} Mio €`;
+  if (abs >= 1_000) return `${Math.round(n / 1_000).toLocaleString("de-DE")} T€`;
+  return formatEUR(n);
 }
 
 /**

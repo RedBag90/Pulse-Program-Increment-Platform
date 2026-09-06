@@ -40,12 +40,6 @@ model Tenant {
   // im Kachel-Modell nicht.
   budgetWindowSize Int @default(4) @map("budget_window_size")
 
-  // Participatory Budgeting: Default-Aufwand (Kosten-Richtwert) für Epics, die
-  // erst eine approved Benefit-Hypothese (noch keinen Lean Business Case) haben —
-  // grob der Aufwand, um den Business Case zu erarbeiten. `null` ⇒ Code-Fallback
-  // (DEFAULT_HYPOTHESIS_EFFORT). Für nur-Hypothese-Kandidaten der PB-Liste-Richtwert.
-  defaultHypothesisEffort Decimal? @map("default_hypothesis_effort") @db.Decimal(14, 2)
-
   // Conversion rate that turns WSJF Job-Size points into € for the PI-Planning
   // capacity overlay (Σ Job Size × this = €-Demand vs. ART budget). When null,
   // the €-axis of the capacity badge is hidden — Job Size alone is rendered.
@@ -886,11 +880,18 @@ model Initiative {
   // SAFe Portfolio Guardrails (Roadmap-G1).
   // EPIC-only: epicType klassifiziert das Investment (Solution = grosser
   // Cross-ART-Brocken, Epic = Standard, Enabler = Architectural Runway /
-  // Compliance / NFR). investmentHorizon: H1 (Sustain), H2 (Grow),
-  // H3 (Innovate) — McKinsey-3-Horizons-Modell.
+  // Compliance / NFR).
   epicType          String? @map("epic_type")
-  // Vestigial: der Investitionshorizont kommt jetzt aus der Primär-Solution
-  // (primarySolutionId). Spalte bleibt nullbar, wird nicht mehr gelesen/geschrieben.
+  /// Der Investitionshorizont **dieses Epics**: h3 (R&D) | h2 (Emerging) |
+  /// h1 (Investing/Extracting) | h0 (Decommissioning) — der SAFe-Produkt-
+  /// lebenszyklus, dieselbe Skala wie `Solution.horizon`. (Der frühere
+  /// Kommentar nannte hier das McKinsey-3-Horizons-Modell mit H1 = Sustain;
+  /// das trifft die Anwendung nicht — bei McKinsey gibt es kein h0.)
+  ///
+  /// `null` = aus der Primär-Solution ableiten. Steht ein Wert, schlägt er die
+  /// Ableitung; mit der Business-Case-Freigabe (L3.1) friert er ein, damit ein
+  /// späterer Horizont-Wechsel der Solution die Geschichte nicht rückwirkend
+  /// umschreibt. Die Auflösung liegt in `domain/epic-horizon.ts`.
   investmentHorizon String? @map("investment_horizon")
   // EPIC only: Primär-Solution → liefert den abgeleiteten Horizont. Weitere
   // Zuordnungen in EpicSolution; die Primär-Solution muss dort enthalten sein.
@@ -1128,15 +1129,18 @@ model Kpi {
 
 /// Participatory Budgeting: one row per Epic in the current budgeting round.
 /// `allocations` holds the granted amount per half-year period, e.g.
-/// { "2026-H1": 120000 }. `hypothesisBudget` is the fixed budget for
-/// hypothesis-only Epics (no business-case cost slices). The scheduled start
-/// lives on the Epic timeline (timeline.estimates.backlog), not here.
+/// { "2026-H1": 120000 }. The scheduled start lives on the Epic timeline
+/// (timeline.estimates.backlog), not here.
+///
+/// Eine Zeile gibt es nur für Epics mit **freigegebenem Lean Business Case**
+/// (ab L3.1). Die frühere Spalte `hypothesis_budget` trug den Pauschalbetrag
+/// für Epics, die erst eine Benefit-Hypothese hatten — damit budgetierte das
+/// Portfolio die Erarbeitung des Business Case selbst. Der Weg ist entfallen.
 model BudgetAllocation {
   id               String   @id @default(uuid()) @db.Uuid
   tenantId         String   @map("tenant_id") @db.Uuid
   epicId           String   @unique @map("epic_id") @db.Uuid
   priority         Int      @default(0)
-  hypothesisBudget Decimal? @map("hypothesis_budget") @db.Decimal(14, 2)
   allocations      Json     @default("{}")
 
   createdAt DateTime @default(now()) @map("created_at")

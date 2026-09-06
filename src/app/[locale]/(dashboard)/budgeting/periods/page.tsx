@@ -5,7 +5,6 @@ import { hasCapability } from "@/server/auth/authorize";
 import { loadPeriodsGallery } from "@/modules/budgeting/server/views/periods-gallery";
 import { PeriodTileCard } from "@/modules/budgeting/features/components/period/period-tile";
 import { CreatePeriodDialog } from "@/modules/budgeting/features/components/period/create-period-dialog";
-import { BudgetingDefaultsForm } from "@/modules/budgeting/features/components/period/budgeting-defaults-form";
 import { SectionLabel } from "@/components/ui/section-label";
 import { Stat, StatStrip } from "@/components/ui/stat";
 import { formatCompactEUR } from "@/lib/formatting";
@@ -29,15 +28,7 @@ export default async function BudgetingPeriodsPage() {
   const canManage = hasCapability(principal, "budget.round.manage", {
     tenantId: principal.tenantId,
   });
-  const [model, tenant] = await Promise.all([
-    loadPeriodsGallery(db, principal.tenantId, canManage),
-    canManage
-      ? db.tenant.findUnique({
-          where: { id: principal.tenantId },
-          select: { defaultHypothesisEffort: true },
-        })
-      : Promise.resolve(null),
-  ]);
+  const model = await loadPeriodsGallery(db, principal.tenantId, canManage);
   // Jüngste Kachel (Gallery nach Start-Termin sortiert) für Topf-Vorgabe + Übernahme.
   const latest = model.focus[0] ?? model.past[0];
 
@@ -95,18 +86,6 @@ export default async function BudgetingPeriodsPage() {
             }
           />
         </StatStrip>
-      )}
-
-      {model.canManage && (
-        <div className="mb-6">
-          <BudgetingDefaultsForm
-            current={
-              tenant?.defaultHypothesisEffort != null
-                ? Number(tenant.defaultHypothesisEffort)
-                : null
-            }
-          />
-        </div>
       )}
 
       {model.focus.length === 0 && model.past.length === 0 ? (

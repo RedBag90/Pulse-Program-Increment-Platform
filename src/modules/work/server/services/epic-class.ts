@@ -6,6 +6,10 @@
  * von Epics braucht, muss deshalb die Guardrail-Ziele einmal auflösen und je
  * Zeile den passenden Schwellwert einsetzen — genau das tut dieser Dienst.
  *
+ * Und wo noch nichts entschieden ist, springt die beim Anlegen hinterlegte
+ * **Erwartung** ein (`resolveEpicClass`). Ohne sie fand die Facette
+ * „Epic-Klasse" nur 103 von 226 Epics.
+ *
  * Die Primär-Solution kommt gleich mit: sie ist der Sammelpunkt, unter dem die
  * Portfolio-Übersicht ART-Epics zusammenfasst, und wäre sonst eine zweite
  * Abfrage über dieselben Zeilen.
@@ -13,14 +17,30 @@
 
 import type { PrismaClient } from "@/generated/prisma";
 import { InitiativeLevel, type TenantId } from "@/modules/core/kernel/domain/types";
-import { classifyEpic, type EpicClass } from "@/modules/work/domain/pb-submission";
+import {
+  classifyEpic,
+  isEpicClass,
+  resolveEpicClass,
+  type EpicClass,
+  type EpicClassSource,
+} from "@/modules/work/domain/pb-submission";
 import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
 import type { SolutionRef } from "@/modules/work/domain/epic-class-filter";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
 
 export interface EpicClassInfo {
-  /** `null` = ohne freigegebenen Business Case, also noch nicht entschieden. */
+  /**
+   * Aufgelöst: die entschiedene Klasse, sonst die beim Anlegen hinterlegte
+   * Erwartung. `null` nur, wenn es weder das eine noch das andere gibt — heute
+   * trifft das **kein einziges** Epic.
+   */
   epicClass: EpicClass | null;
+  /**
+   * Woher sie stammt. Die Fläche zeigt Erwartung und Entscheidung bewusst
+   * gleich; das Feld entsteht trotzdem, weil die Unterscheidung sonst im Modell
+   * verschwindet und später nicht ohne erneuten Umbau zurückzuholen wäre.
+   */
+  classSource: EpicClassSource;
   solution: SolutionRef | null;
 }
 
@@ -52,6 +72,8 @@ export async function classifyEpics(
         businessCaseApprovedAt: true,
         hypothesisApprovedAt: true,
         portfolioOverrideAt: true,
+        // Die Erwartung springt ein, wo noch nichts entschieden ist.
+        intendedClass: true,
         primarySolution: { select: { id: true, name: true } },
       },
     }),
@@ -76,7 +98,10 @@ export async function classifyEpics(
     rows.map((r) => [
       r.id,
       {
-        epicClass: classifyEpic(r, limitFor(r.valueStreamId)).epicClass,
+        ...resolveEpicClass(
+          classifyEpic(r, limitFor(r.valueStreamId)).epicClass,
+          isEpicClass(r.intendedClass) ? r.intendedClass : null,
+        ),
         solution: r.primarySolution ?? null,
       },
     ]),

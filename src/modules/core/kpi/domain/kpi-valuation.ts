@@ -110,7 +110,7 @@ export function kpiPlannedAtTarget(kpi: {
 /**
  * Planned € of a KPI at 100 % target, one-time vs. recurring-annualised — the
  * single source of the formula previously duplicated in `epic-economics.ts`
- * and `lpm-review.ts`. One-time → the raw base; recurring → base (yearly) or
+ * (the Portfolio-Review reader that has since been torn down). One-time → the raw base; recurring → base (yearly) or
  * base × 12 (monthly). Any missing field or a zero-width base → 0.
  */
 export function kpiPlanned(kpi: {

@@ -42,8 +42,12 @@ export interface EpicOverviewTabProps {
     valueStream: { id: string; name: string } | null;
     /** Direkte ART-Zuordnung (Pflichtfeld beim Anlegen). */
     artId: string | null;
-    /** Abgeleiteter Horizont aus der Primär-Solution. */
+    /** Die Primär-Solution — sie liefert den Horizont, solange am Epic keiner steht. */
     primarySolution: { id: string; horizon: string } | null;
+    /** Der am Epic gesetzte Horizont; friert mit der Business-Case-Freigabe ein. */
+    investmentHorizon: string | null;
+    /** Der L3.1-Stempel — er entscheidet über das Einfrieren. */
+    businessCaseApprovedAt: Date | null;
     /** Alle Solution-Zuordnungen (n:m). */
     solutionLinks: {
       solution: { id: string; name: string; horizon: string; deletedAt: Date | null };
@@ -61,6 +65,8 @@ export interface EpicOverviewTabProps {
     epicType: string | null;
   };
   canEdit: boolean;
+  /** `epic.portfolio_override` — zusätzliche Hürde für den eingefrorenen Horizont. */
+  canOverrideHorizon: boolean;
   /** Guardrail 3: Portfolio- oder ART-Epic. `null` = Practice aus. */
   classification?:
     | {
@@ -114,6 +120,7 @@ function StatTile({
 export function EpicOverviewTab({
   epic,
   canEdit,
+  canOverrideHorizon,
   kpiBenefit,
   solutions,
   classification,
@@ -219,8 +226,11 @@ export function EpicOverviewTab({
         <EpicClassificationForm
           epicId={epic.id}
           epicType={epic.epicType}
-          derivedHorizon={epic.primarySolution?.horizon ?? null}
+          ownHorizon={epic.investmentHorizon}
+          solutionHorizon={epic.primarySolution?.horizon ?? null}
+          businessCaseApprovedAtIso={epic.businessCaseApprovedAt?.toISOString() ?? null}
           canEdit={canEdit}
+          canOverrideHorizon={canOverrideHorizon}
         />
       </section>
 

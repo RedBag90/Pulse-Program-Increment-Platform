@@ -136,6 +136,13 @@ export default async function SolutionDetailPage({ params, searchParams }: Props
       {activeTab === "epics" && (
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Zugeordnete Epics (Primär)</h2>
+          <p className="text-sm text-muted-foreground">
+            Diese Epics erben den Horizont der Solution — bis ihr Business Case freigegeben ist. Ab
+            dann tragen sie ihn selbst, vom Tag der Freigabe, und folgen einem späteren Wechsel der
+            Solution nicht mehr. Sie können deshalb in einem anderen Horizont stehen als das
+            Produkt; das ist kein Fehler, sondern die Zusicherung, dass ein Horizont-Wechsel die
+            Vergangenheit nicht umschreibt.
+          </p>
           {model.epics.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Noch keine Epics dieser Solution zugeordnet.

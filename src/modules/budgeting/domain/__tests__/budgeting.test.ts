@@ -20,9 +20,7 @@ const bcEpic = (over: Partial<BudgetEpicView> = {}): BudgetEpicView => ({
   title: "BC Epic",
   valueStreamId: "vs1",
   valueStream: "Stream 1",
-  isHypothesisOnly: false,
   costSlices: [100, 200],
-  hypothesisBudget: 0,
   startKey: "2026-H1",
   allocations: {},
   priority: 0,
@@ -46,14 +44,14 @@ describe("requestedByPeriod", () => {
     expect(requestedByPeriod(e, axis)).toEqual({ "2027-H2": 50 });
   });
 
-  it("places a hypothesis fixed budget in the start half-year", () => {
-    const h = bcEpic({
-      isHypothesisOnly: true,
-      costSlices: [],
-      hypothesisBudget: 75,
-      startKey: "2026-H2",
-    });
-    expect(requestedByPeriod(h, axis)).toEqual({ "2026-H2": 75 });
+  it("fordert nichts ohne Kostenscheiben", () => {
+    // Bis September 2026 landete hier ein Pauschalbetrag: ein Epic ohne
+    // Kostenscheiben — also ohne freigegebenen Business Case — bekam den
+    // „Hypothesen-Aufwand" in sein Start-Halbjahr. Damit budgetierte das
+    // Portfolio die Erarbeitung des Business Case. Jetzt gibt es nur noch
+    // einen Weg: die Scheiben des freigegebenen LBC.
+    const h = bcEpic({ costSlices: [], startKey: "2026-H2" });
+    expect(requestedByPeriod(h, axis)).toEqual({});
   });
 });
 

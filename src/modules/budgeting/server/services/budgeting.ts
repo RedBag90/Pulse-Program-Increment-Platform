@@ -14,8 +14,6 @@ import { cache } from "react";
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, ValueStreamId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
-import type { Result } from "@/modules/core/kernel/domain/errors";
-import { ok } from "@/modules/core/kernel/domain/errors";
 import { deriveEpicEconomics } from "@/modules/work/domain/epic-economics";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 import { sortCycles, cycleLabel } from "@/modules/budgeting/domain/cycle";
@@ -26,8 +24,6 @@ import {
 } from "@/modules/budgeting/domain/budgeting";
 import { rollingWindow } from "@/modules/budgeting/domain/period-window";
 import { activeCycleFromRounds, resolveWindowSize } from "@/modules/budgeting/domain/budget-cycle";
-import type { RequestContext } from "@/server/http/mutation-handler";
-import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 
 export interface BudgetingBoardData {
   epics: BudgetEpicView[];
@@ -95,7 +91,7 @@ const loadBudgetingModel = cache(async function loadBudgetingModel(
         createdAt: true,
         valueStream: { select: { id: true, name: true } },
         budgetAllocation: {
-          select: { priority: true, hypothesisBudget: true, allocations: true },
+          select: { priority: true, allocations: true },
         },
       },
       orderBy: { createdAt: "asc" },
@@ -128,9 +124,7 @@ const loadBudgetingModel = cache(async function loadBudgetingModel(
       title: row.title,
       valueStreamId: row.valueStream?.id ?? null,
       valueStream: row.valueStream?.name ?? null,
-      isHypothesisOnly: row.businessCaseApprovedAt === null,
       costSlices: view.costSlices,
-      hypothesisBudget: alloc?.hypothesisBudget != null ? Number(alloc.hypothesisBudget) : 0,
       startKey: halfYearKey(view.costStart),
       allocations: parsePeriodAmountMap(alloc?.allocations),
       priority: alloc?.priority ?? 0,
@@ -161,7 +155,6 @@ export interface BudgetingCandidate {
   id: string;
   title: string;
   valueStream: string | null;
-  isHypothesisOnly: boolean;
 }
 
 /** Loads the budgeting board: eligible Epics + their need/allocation + the pool. */
@@ -314,28 +307,7 @@ export async function getValueStreamBudgetTotals(
   return Object.fromEntries(valueStreams.map((b) => [b.valueStreamId, b.total]));
 }
 
-/**
- * Speichert den tenant-weiten Default-Aufwand (Kosten-Richtwert) für Epics, die
- * erst eine Benefit-Hypothese (noch keinen Lean Business Case) haben. `null`
- * setzt zurück auf den Code-Fallback (`DEFAULT_HYPOTHESIS_EFFORT`).
- */
-export async function saveDefaultHypothesisEffort(
-  ctx: RequestContext,
-  input: { defaultHypothesisEffort: number | null },
-): Promise<Result<{ id: string }>> {
-  const mctx = toMutationContext(ctx);
-  return withAuditedTransaction(mctx, async (tx) => {
-    await tx.tenant.update({
-      where: { id: mctx.tenantId },
-      data: { defaultHypothesisEffort: input.defaultHypothesisEffort },
-    });
-    return ok({
-      result: { id: mctx.tenantId },
-      audit: {
-        action: "budget_defaults.saved",
-        resourceType: "budget_defaults",
-        resourceId: mctx.tenantId,
-      },
-    });
-  });
-}
+// Die Tenant-Einstellung „Standard-Aufwand für Hypothesen-Epics" ist entfallen.
+// Sie konfigurierte den Kosten-Richtwert für Epics, die erst eine Benefit-
+// Hypothese hatten — und damit die Finanzierung der Business-Case-Erarbeitung
+// durch das Portfolio. Mit dem Weg ist auch ihr Setzer weggefallen.

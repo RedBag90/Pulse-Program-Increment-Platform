@@ -3,12 +3,74 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SectionLabel } from "@/components/ui/section-label";
 import { userLabel, initials } from "@/components/detail/initiative-labels";
 import { formatCompactEUR } from "@/lib/formatting";
+import type { EpicBudgetStandingView } from "@/modules/work/server/views/epic-detail";
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
       <SectionLabel>{label}</SectionLabel>
       <div className="mt-0.5 truncate text-sm font-medium">{children}</div>
+    </div>
+  );
+}
+
+const fmtDay = (d: Date) =>
+  d.toLocaleDateString("de-DE", { day: "numeric", month: "short", year: "numeric" });
+
+/**
+ * Die Budget-Zelle: **habe ich Geld, und für wann?**
+ *
+ * Oben der Betrag im *geltenden* Rahmen samt Zeitraum — die Antwort auf „darf
+ * ich jetzt ausgeben?". Darunter klein die Gesamtsumme über alle Zyklen. Bei den
+ * übrigen Zuständen tritt der Zustandssatz an die Stelle des Betrags: eine
+ * Zuteilung in einem künftigen oder abgelaufenen Rahmen ist etwas anderes als
+ * verfügbares Geld, und ein blosses „Budget erhalten" verwischte das.
+ */
+function BudgetFact({ standing }: { standing: EpicBudgetStandingView | null }) {
+  if (standing == null || standing.state === "none") {
+    return (
+      <Fact label="Budget">
+        <span className="text-muted-foreground">Kein Budget</span>
+      </Fact>
+    );
+  }
+
+  const total =
+    standing.cycleCount > 1
+      ? `gesamt ${formatCompactEUR(standing.totalAmount)} über ${standing.cycleCount} Zyklen`
+      : null;
+
+  if (standing.state === "applies") {
+    const p = standing.currentPeriod;
+    return (
+      <div className="min-w-0">
+        <SectionLabel>Budget</SectionLabel>
+        <div className="mt-0.5 truncate text-sm font-medium tabular-nums">
+          {formatCompactEUR(standing.currentAmount)}
+        </div>
+        {p?.start && p.end && (
+          <div className="truncate text-[11px] text-muted-foreground tabular-nums">
+            {fmtDay(p.start)} – {fmtDay(p.end)}
+          </div>
+        )}
+        {total && <div className="truncate text-[11px] text-muted-foreground">{total}</div>}
+      </div>
+    );
+  }
+
+  const hint =
+    standing.state === "upcoming"
+      ? standing.startsAt
+        ? `zugeteilt, gilt ab ${fmtDay(standing.startsAt)}`
+        : "zugeteilt, Rahmen noch in Ausarbeitung"
+      : "Rahmen abgelaufen";
+  return (
+    <div className="min-w-0">
+      <SectionLabel>Budget</SectionLabel>
+      <div className="mt-0.5 truncate text-sm font-medium tabular-nums text-muted-foreground">
+        {formatCompactEUR(standing.totalAmount)}
+      </div>
+      <div className="truncate text-[11px] text-muted-foreground">{hint}</div>
     </div>
   );
 }
@@ -37,6 +99,7 @@ export function EpicHeroFacts({
   implementationCost,
   kpiCount,
   kpiAvgPct,
+  budgetStanding,
 }: {
   ownerId: string | null;
   userLabels: Record<string, string>;
@@ -49,10 +112,12 @@ export function EpicHeroFacts({
   implementationCost: number;
   kpiCount: number;
   kpiAvgPct: number | null;
+  /** `null` = Budgeting-Modul aus. */
+  budgetStanding: EpicBudgetStandingView | null;
 }) {
   const ownerName = ownerId ? userLabel(ownerId, userLabels) : null;
   return (
-    <div className="grid grid-cols-2 gap-x-5 gap-y-3 rounded-lg border bg-card p-3.5 shadow-xs sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-x-5 gap-y-3 rounded-lg border bg-card p-3.5 shadow-xs sm:grid-cols-3 lg:grid-cols-7">
       <Fact label="Owner">
         {ownerName ? (
           <span className="flex items-center gap-1.5">
@@ -90,6 +155,7 @@ export function EpicHeroFacts({
           {implementationCost > 0 ? formatCompactEUR(implementationCost) : "—"}
         </span>
       </Fact>
+      <BudgetFact standing={budgetStanding} />
       <Fact label="Nutzen p.a.">
         <span className="tabular-nums text-emerald-600 dark:text-emerald-400">
           {recurringBenefit > 0 ? formatCompactEUR(recurringBenefit) : "—"}

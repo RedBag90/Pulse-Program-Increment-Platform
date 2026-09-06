@@ -1,3 +1,4 @@
+import { resolveEpicHorizon } from "@/modules/work/domain/epic-horizon";
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId, StageGate } from "@/modules/core/kernel/domain/types";
 import { listEpicsForOverview } from "@/modules/work/server/services/epic";
@@ -35,6 +36,8 @@ import {
   type SolutionRef,
 } from "@/modules/work/domain/epic-class-filter";
 import { classifyEpics, type EpicClassInfo } from "@/modules/work/server/services/epic-class";
+import { loadHorizonFunnelItems } from "@/modules/work/server/services/horizon-funnel";
+import type { FunnelItem } from "@/modules/work/features/portfolio/lib/horizon-funnel";
 import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { listTenantUserLabels } from "@/server/services/tenant-users";
 
@@ -281,10 +284,16 @@ export interface PortfolioOverview {
   /** Epics mit `needsSteeringAttention` — die Steering-Agenda-Tabelle. */
   steeringEpics: SteeringEpicRow[];
 
+  /**
+   * Der Horizont-Trichter über dem Kanban: welches Produkt steht in welchem
+   * Horizont, und wie viel Geld bindet es dort. Die Geometrie rechnet die
+   * Fläche selbst (`lib/horizon-funnel.ts`) — das Modell trägt nur die Zahlen.
+   */
+  funnelItems: FunnelItem[];
+
   goals: OverviewGoal[];
   goalsOnTrack: number;
   goalAverageProgress: number;
-  topGoal: OverviewGoal | null;
 
   /** Epics in L4 whose estimated implementation-end is ≤ 4 weeks out (or overdue). */
   l4DueSoon: DueSoonItem[];
@@ -314,7 +323,8 @@ export interface PortfolioOverview {
    *  budgetiert gesamt, davon in Umsetzung (L4) und umgesetzt (L5). */
   horizonBudgets: Record<HorizonLane, HorizonBudgetFigures>;
   /** Halbjahres-Key des laufenden Budget-Zyklus (Bezug der Horizont-Budgets). */
-  budgetCycleKey: string;
+  /** `null` = es gilt gerade kein Budget-Rahmen (`appliedPeriod`). */
+  budgetCycleKey: string | null;
 
   activePis: OverviewActivePi[];
   nearestPiEnd: OverviewActivePi | null;
@@ -359,7 +369,8 @@ export interface PortfolioOverviewInputs {
   /** Zyklus-Allokation je Epic (laufender Zyklus) — Budgeting-Adapter, ADR-0013. */
   cycleAllocations: Record<string, number>;
   /** Halbjahres-Key des laufenden Budget-Zyklus. */
-  budgetCycleKey: string;
+  /** `null` = es gilt gerade kein Budget-Rahmen (`appliedPeriod`). */
+  budgetCycleKey: string | null;
   activePis: Array<{ id: string; name: string; endDate: Date }>;
   structureGap: StructureGap;
   practiceAdoption: PracticeAdoption;
@@ -369,6 +380,8 @@ export interface PortfolioOverviewInputs {
    * Klasse wirklich gebraucht wird.
    */
   epicClasses: Map<string, EpicClassInfo> | null;
+  /** Produkte und produktlose Epics mit gebundenem Geld — der Horizont-Trichter. */
+  funnelItems: FunnelItem[];
   /** Gewählte Klassen aus dem Filter (leer = keine Einschränkung). */
   selectedClasses: string[];
   /** Pinned "today" — server passes `new Date()`, tests pass a fixed instant. */
@@ -430,6 +443,7 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     practiceAdoption,
     epicClasses,
     selectedClasses,
+    funnelItems,
     now,
   } = inputs;
   const nowMs = now.getTime();
@@ -450,7 +464,11 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     updatedAt: e.updatedAt,
     daysSinceUpdate: Math.floor((nowMs - new Date(e.updatedAt).getTime()) / (24 * 60 * 60 * 1000)),
     needsSteeringAttention: e.needsSteeringAttention,
-    horizon: e.primarySolution?.horizon ?? null,
+    horizon: resolveEpicHorizon({
+      investmentHorizon: e.investmentHorizon,
+      solutionHorizon: e.primarySolution?.horizon ?? null,
+      businessCaseApprovedAt: e.businessCaseApprovedAt,
+    }),
     epicClass: classOf(e.id),
     solution: solutionOf(e.id),
   }));
@@ -610,8 +628,6 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   // "On-track" = nicht im Drift-Bereich (Run-Rate >= 70% des Planned).
   const activeThemes = themes.filter((t) => isInFlight(t.status));
   const goalsOnTrack = activeThemes.filter((t) => !isAtRisk(t.trio)).length;
-  const topGoal =
-    activeGoals.length === 0 ? null : [...activeGoals].sort((a, b) => b.progress - a.progress)[0]!;
 
   // "Fällig"-Listen — was in den nächsten N Wochen laut Plan/Estimate landet
   // (oder schon überfällig ist). Kein unteres Datumsfenster ⇒ Überfällige sind
@@ -736,10 +752,10 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
     staleEpics,
     blockedEpics,
     steeringEpics,
+    funnelItems,
     goals,
     goalsOnTrack,
     goalAverageProgress,
-    topGoal,
     l4DueSoon,
     featuresDueSoon,
     risks,
@@ -791,8 +807,29 @@ export type BudgetingDataPort = () => Promise<{
   vsBudgets: PortfolioVsBudgets;
   /** Zyklus-Allokation je Epic (laufender Zyklus) + dessen Halbjahres-Key. */
   cycleAllocations: Record<string, number>;
-  budgetCycleKey: string;
+  /** `null` = es gilt gerade kein Budget-Rahmen (`appliedPeriod`). */
+  budgetCycleKey: string | null;
 }>;
+
+/**
+ * Port: Betriebskosten je Solution-Id als **Ask einer Halbjahres-Kachel** — für
+ * den Horizont-Trichter, auf derselben Periode wie die Epic-Allokationen. Die
+ * Rechnung lebt im Budgeting-Modul (`solutionCycleRunCosts`), und Work
+ * importiert dorthin nicht (ADR-0013). Ohne aktives Modul reicht der
+ * Composition-Root `{}` — der Trichter zeigt dann nur die Investition.
+ */
+export type SolutionRunCostPort = () => Promise<{
+  bySolution: Record<string, number>;
+  /** Betrieb ohne Solution-Zuordnung — er landet im Streifen, nicht in einem Band. */
+  unassigned: { valueStreamId: string; valueStreamName: string | null; amount: number }[];
+}>;
+
+/**
+ * Port: Zuteilungen aus dem **ART-Topf** je Epic im angewandten Zyklus. Der
+ * zweite Geldweg neben `BudgetAllocation` — wer nur den ersten liest, sieht das
+ * Geld der ART-Epics nicht.
+ */
+export type ArtAllocationPort = (cycleKey: string | null) => Promise<Record<string, number>>;
 
 /** Port: liefert die render-fertigen, dokumentierten Risiken. Der Composition-
  *  Root reicht den Risks-Adapter herein — Work importiert `@/modules/risks`
@@ -804,6 +841,8 @@ export async function loadPortfolioOverviewInputs(
   tenantId: TenantId,
   getBudgetingData: BudgetingDataPort,
   getRisks: RisksSummaryPort,
+  getSolutionRunCosts: SolutionRunCostPort,
+  getArtAllocations: ArtAllocationPort,
   filter: PortfolioFilter = EMPTY_PORTFOLIO_FILTER,
 ): Promise<PortfolioOverviewInputs> {
   const [
@@ -817,6 +856,7 @@ export async function loadPortfolioOverviewInputs(
     activePis,
     structureGap,
     practiceAdoption,
+    runBySolution,
   ] = await Promise.all([
     listEpicsForOverview(db, tenantId, {
       valueStreamIds: filter.valueStreamIds,
@@ -842,7 +882,9 @@ export async function loadPortfolioOverviewInputs(
     }),
     computeStructureGap(db, tenantId),
     computePracticeAdoption(db, tenantId),
+    getSolutionRunCosts(),
   ]);
+  const runCosts = runBySolution;
 
   // ThemeEpicLink-Bridge ist V2-schema-ready, hat aber noch keine UI-Pflege —
   // bis dahin koennen Themes keine direkten Epic-Links zaehlen. Zeigt als 0.
@@ -857,17 +899,25 @@ export async function loadPortfolioOverviewInputs(
 
   const { board, vsBudgets, cycleAllocations, budgetCycleKey } = budgeting;
 
-  // Zweite Welle, und nur wenn die Facette gesetzt ist: der Business-Case-JSON
-  // ist eine große Spalte, die `listEpicsForOverview` bewusst nicht mitwählt.
-  // Die Menge umfasst alles, was auf der Seite je Epic gezeigt wird — Karten,
-  // Beitragszeilen und die Eltern der Features.
-  const epicClasses = filter.epicClasses.length
-    ? await classifyEpics(db, tenantId, [
-        ...epics.map((e) => e.id),
-        ...goalContributions.map((c) => c.epicId),
-        ...features.flatMap((f) => (f.parent ? [f.parent.id] : [])),
-      ])
-    : null;
+  // Zweite Welle. Die Klassen werden **immer** geladen, nicht mehr nur bei
+  // gesetzter Facette: der Horizont-Trichter braucht sie, um je Epic den
+  // richtigen Topf zu wählen (`chooseAllocation`). Der Preis ist der
+  // Business-Case-JSON — eine große Spalte, die `listEpicsForOverview` bewusst
+  // nicht mitwählt. Eine Abfrage, zwei Leser.
+  const [epicClasses, artAllocations] = await Promise.all([
+    classifyEpics(db, tenantId),
+    getArtAllocations(budgetCycleKey),
+  ]);
+
+  // Der Trichter erst hier: sein Invest **ist** die Zuteilung des angewandten
+  // Zyklus — aus beiden Töpfen, je Epic genau einer.
+  const funnelItems = await loadHorizonFunnelItems(db, tenantId, {
+    runBySolution: runCosts.bySolution,
+    unassignedRun: runCosts.unassigned,
+    cycleAllocations,
+    artAllocations,
+    epicClasses,
+  });
 
   return {
     epics,
@@ -885,6 +935,7 @@ export async function loadPortfolioOverviewInputs(
     practiceAdoption,
     epicClasses,
     selectedClasses: filter.epicClasses,
+    funnelItems,
     now: new Date(),
   };
 }
@@ -898,9 +949,19 @@ export async function loadPortfolioOverview(
   tenantId: TenantId,
   getBudgetingData: BudgetingDataPort,
   getRisks: RisksSummaryPort,
+  getSolutionRunCosts: SolutionRunCostPort,
+  getArtAllocations: ArtAllocationPort,
   filter: PortfolioFilter = EMPTY_PORTFOLIO_FILTER,
 ): Promise<PortfolioOverview> {
   return buildPortfolioOverviewModel(
-    await loadPortfolioOverviewInputs(db, tenantId, getBudgetingData, getRisks, filter),
+    await loadPortfolioOverviewInputs(
+      db,
+      tenantId,
+      getBudgetingData,
+      getRisks,
+      getSolutionRunCosts,
+      getArtAllocations,
+      filter,
+    ),
   );
 }

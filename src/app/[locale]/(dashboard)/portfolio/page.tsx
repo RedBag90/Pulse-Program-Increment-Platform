@@ -9,8 +9,11 @@ import {
   getBudgetingBoard,
   getValueStreamBudgets,
 } from "@/modules/budgeting/server/services/budgeting";
+import {
+  cycleRunCosts,
+  artEpicCycleAllocations,
+} from "@/modules/budgeting/server/services/rtb-item-service";
 import { getEpicCycleAllocations } from "@/modules/budgeting/server/services/epic-allocation";
-import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 import type { RoamStatus } from "@/modules/core/kernel/domain/roam";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import { listValueStreams } from "@/modules/core/org/server/services/value-stream";
@@ -136,9 +139,9 @@ export default async function PortfolioPage({ searchParams }: Props) {
           board: { periods: [], pool: {} },
           vsBudgets: { valueStreams: [] },
           cycleAllocations: {},
-          // Ohne Budgeting-Modul gibt es keine Kacheln — dann bleibt das
-          // heutige Halbjahr als Beschriftung.
-          budgetCycleKey: halfYearKey(new Date()),
+          // Ohne Budgeting-Modul gibt es keine Kacheln — und damit auch keinen
+          // geltenden Budget-Rahmen.
+          budgetCycleKey: null,
         };
       }
       const [board, vsBudgets, cycle] = await Promise.all([
@@ -222,6 +225,16 @@ export default async function PortfolioPage({ searchParams }: Props) {
           };
         });
     },
+    // Betriebskosten für den Horizont-Trichter, auf der Periode des angewandten
+    // Zyklus — getrennt nach Solution-Zurechnung und wertstromübergreifend.
+    // Ohne das Budgeting-Modul gibt es keine Run-the-Business-Positionen; dann
+    // zeigt der Trichter nur die Investition, und das ist die ganze Wahrheit.
+    async () =>
+      budgetingEnabled ? cycleRunCosts(db, principal.tenantId) : { bySolution: {}, unassigned: [] },
+    // Der ART-Topf: der zweite Geldweg. Ohne ihn zeigte der Trichter für
+    // ART-Epics null, obwohl ihnen zugeteilt wurde.
+    async (cycleKey) =>
+      budgetingEnabled ? artEpicCycleAllocations(db, principal.tenantId, cycleKey) : {},
     filter,
   );
 

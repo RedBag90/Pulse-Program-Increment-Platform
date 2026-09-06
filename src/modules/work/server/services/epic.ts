@@ -5,7 +5,9 @@ import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err, isErr } from "@/modules/core/kernel/domain/errors";
 import { recordedUpdate } from "@/modules/core/kernel/server/recorded-update";
-import type { EpicType } from "@/modules/work/domain/portfolio-guardrails";
+import type { EpicType, Horizon } from "@/modules/work/domain/portfolio-guardrails";
+import { epicHorizon, horizonEditDeniedReason } from "@/modules/work/domain/epic-horizon";
+import { authorizeResource } from "@/server/auth/authorize";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
 import { createInitiativeWithDerivedPath } from "@/modules/core/kernel/server/initiative-write";
@@ -140,9 +142,15 @@ export interface UpdateEpicInput {
   /** Planned delivery window ("Soll"). `null` clears, `undefined` leaves unchanged. */
   plannedStartAt?: Date | null | undefined;
   plannedEndAt?: Date | null | undefined;
-  /** SAFe Portfolio Guardrails (Capacity). `null` cleart, `undefined` belaesst.
-   *  Der Horizont wird NICHT mehr hier gesetzt — er kommt aus der Primär-Solution. */
+  /** SAFe Portfolio Guardrails (Capacity). `null` cleart, `undefined` belaesst. */
   epicType?: EpicType | null | undefined;
+  /**
+   * Der Investitionshorizont **am Epic**. `null` = wieder aus der
+   * Primär-Solution ableiten, `undefined` = unverändert. Ist er eingefroren
+   * (Business Case freigegeben *und* ein eigener Wert gesetzt), verlangt jede
+   * Änderung zusätzlich `epic.portfolio_override` — siehe `domain/epic-horizon.ts`.
+   */
+  investmentHorizon?: Horizon | null | undefined;
   /**
    * Wertstrom-/ART-Wechsel (beides `undefined` = unverändert). Wird eines der
    * Felder gesetzt, muss das **effektive Paar** zusammenpassen (ART gehört zum
@@ -168,6 +176,7 @@ export async function updateEpic(
     plannedStartAt,
     plannedEndAt,
     epicType,
+    investmentHorizon,
     valueStreamId,
     artId,
   } = input;
@@ -191,6 +200,8 @@ export async function updateEpic(
         valueStreamId: true,
         artId: true,
         primarySolutionId: true,
+        investmentHorizon: true,
+        primarySolution: { select: { horizon: true } },
       },
     });
     if (isErr(loaded)) return loaded;
@@ -209,6 +220,25 @@ export async function updateEpic(
             }
           : { helpRequestedAt: null, helpRequestedBy: null };
 
+    // Der Horizont: wer ihn *bewegen* darf, hängt daran, ob er eingefroren ist.
+    // `epic.update` ist bereits durchgesetzt (loadAuthorizedEpic oben) — die
+    // Übersteuerung kommt nach dem Einfrieren als **zusätzliche** Hürde dazu.
+    if (investmentHorizon !== undefined) {
+      const denied = horizonEditDeniedReason({
+        frozen: epicHorizon({
+          investmentHorizon: existing.investmentHorizon,
+          solutionHorizon: existing.primarySolution?.horizon ?? null,
+          businessCaseApprovedAt: existing.businessCaseApprovedAt,
+        }).frozen,
+        mayEditEpic: true,
+        mayOverride: authorizeResource(ctx.principal, "epic.portfolio_override", {
+          tenantId: mctx.tenantId,
+          valueStreamId: existing.valueStreamId,
+        }).ok,
+      });
+      if (denied) return err({ kind: "forbidden" as const, reason: denied });
+    }
+
     // Effective post-update endpoints — used for the start ≤ end check so the
     // validation is correct when only one column is being touched.
     const nextStart = plannedStartAt === undefined ? existing.plannedStartAt : plannedStartAt;
@@ -220,15 +250,15 @@ export async function updateEpic(
       });
     }
 
-    // Vormerk-Gate: ein Epic darf nur auf die PB-Liste, wenn es budgeting-reif
-    // ist — mindestens eine approved Benefit-Hypothese ODER ein approved Lean
-    // Business Case. Die PB-Infos werden daraus abgeleitet (kein manuelles
-    // Einreichungsformular mehr, s. `domain/pb-submission.ts`).
+    // Vormerk-Gate: ein Epic darf nur auf die PB-Liste, wenn sein **Lean
+    // Business Case freigegeben** ist. Eine freigegebene Benefit-Hypothese
+    // reichte bis September 2026 — damit budgetierte das Portfolio die
+    // Erarbeitung des Business Case selbst. Es finanziert die Umsetzung.
     if (stagedForBudgeting === true && !isPbEligible(existing)) {
       return err({
         kind: "conflict" as const,
         reason:
-          "Epic ist noch nicht budgeting-reif — es braucht mindestens eine freigegebene Benefit-Hypothese oder einen freigegebenen Lean Business Case.",
+          "Epic ist noch nicht budgeting-reif — es braucht einen freigegebenen Lean Business Case (L3.1).",
       });
     }
 
@@ -277,6 +307,7 @@ export async function updateEpic(
         plannedStartAt,
         plannedEndAt,
         epicType,
+        investmentHorizon,
         valueStreamId,
         artId,
         ...(clearPrimarySolution ? { primarySolutionId: null } : {}),
@@ -291,6 +322,7 @@ export async function updateEpic(
         "plannedStartAt",
         "plannedEndAt",
         "epicType",
+        "investmentHorizon",
         "valueStreamId",
         "artId",
         "primarySolutionId",
@@ -696,7 +728,9 @@ export async function listEpicsForOverview(
       needsSteeringAttention: true,
       timeline: true,
       valueStream: { select: { id: true, name: true } },
-      // Abgeleiteter Horizont für die Kanban-Swimlanes.
+      // Der Horizont für die Kanban-Bahnen: der am Epic gesetzte Wert schlägt
+      // den der Solution — aufgelöst in `domain/epic-horizon.ts`.
+      investmentHorizon: true,
       primarySolution: { select: { horizon: true } },
     },
     orderBy: [{ stageGate: "asc" }, { createdAt: "desc" }],

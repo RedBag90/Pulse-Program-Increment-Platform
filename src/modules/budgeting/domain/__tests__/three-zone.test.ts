@@ -40,7 +40,11 @@ describe("classifyZones — Nordwerk-Durchlauf", () => {
   });
 
   it("nur vier Epics stehen zur Diskussion (Streuzone)", () => {
-    expect(spreadZone(zones).map((z) => z.epicId).sort()).toEqual(["E1", "E3", "E4", "E5"]);
+    expect(
+      spreadZone(zones)
+        .map((z) => z.epicId)
+        .sort(),
+    ).toEqual(["E1", "E3", "E4", "E5"]);
   });
 });
 
@@ -60,10 +64,12 @@ describe("classifyZones — Kanten", () => {
 
   it("fehlende Stimme zählt als Nein", () => {
     // Nur eine Ja-Stimme erfasst, Gruppenzahl 3 ⇒ yes 1 / total 3.
-    expect(classifyZones([{ groupId: "A", epicId: "Y", funded: true }], ["Y"], 3)[0]).toMatchObject({
-      yes: 1,
-      total: 3,
-      zone: "spread",
-    });
+    expect(classifyZones([{ groupId: "A", epicId: "Y", funded: true }], ["Y"], 3)[0]).toMatchObject(
+      {
+        yes: 1,
+        total: 3,
+        zone: "spread",
+      },
+    );
   });
 });

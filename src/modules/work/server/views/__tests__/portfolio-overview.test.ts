@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import type { EpicClassSource } from "@/modules/work/domain/pb-submission";
+import type { SolutionRef } from "@/modules/work/domain/epic-class-filter";
 import {
   buildPortfolioOverviewModel,
   aggregateHorizonBudgets,
@@ -26,6 +28,10 @@ function epic(p: {
   steering?: boolean;
   /** Sets timeline.estimates.implementation (L4-Abschluss estimate), ISO yyyy-mm-dd. */
   implEstimate?: string;
+  /** Der am Epic gesetzte Horizont — schlägt den der Primär-Solution. */
+  ownHorizon?: string | null;
+  /** Der Horizont der Primär-Solution, falls es eine gibt. */
+  solutionHorizon?: string | null;
 }) {
   return {
     id: p.id,
@@ -40,6 +46,8 @@ function epic(p: {
     timeline: p.implEstimate
       ? { estimates: { implementation: p.implEstimate }, actuals: {} }
       : null,
+    investmentHorizon: p.ownHorizon ?? null,
+    primarySolution: p.solutionHorizon ? { horizon: p.solutionHorizon } : null,
     // Extra Prisma fields the builder ignores — kept as `unknown` cast.
   } as unknown as PortfolioOverviewInputs["epics"][number];
 }
@@ -78,6 +86,7 @@ function baseInputs(): PortfolioOverviewInputs {
     cycleAllocations: {},
     budgetCycleKey: "2026-H1",
     epicClasses: null,
+    funnelItems: [],
     selectedClasses: [],
     activePis: [],
     structureGap: { hasTarget: false, targetDate: null, dimensions: [], overallProgress: 0 },
@@ -199,13 +208,11 @@ describe("buildPortfolioOverviewModel", () => {
     ];
     const m = buildPortfolioOverviewModel(inputs);
     expect(m.goalsOnTrack).toBe(1);
-    expect(m.topGoal?.id).toBe("t1");
     expect(m.goalAverageProgress).toBeCloseTo(0.5);
   });
 
-  it("returns topGoal=null and 0% average when there are no active goals", () => {
+  it("returns 0% average when there are no active goals", () => {
     const m = buildPortfolioOverviewModel(baseInputs());
-    expect(m.topGoal).toBeNull();
     expect(m.goalAverageProgress).toBe(0);
     expect(m.goalsOnTrack).toBe(0);
   });
@@ -473,11 +480,21 @@ describe("aggregateHorizonBudgets", () => {
  * hängen — sonst ist der Unterschied beim nächsten Umbau wieder weg.
  */
 describe("Klassen-Facette im Overview-Modell", () => {
+  const cls = (epicClass: "portfolio" | "art" | null, solution: SolutionRef | null) => ({
+    epicClass,
+    // „erwartet" bei a2: seit die Erwartung einspringt, ist das der Normalfall
+    // für Epics ohne freigegebenen Business Case — die Facette findet sie jetzt.
+    classSource: (epicClass == null ? "none" : "approved") as EpicClassSource,
+    solution,
+  });
   const classes = new Map([
-    ["p1", { epicClass: "portfolio" as const, solution: { id: "s1", name: "Produktion Betrieb" } }],
-    ["a1", { epicClass: "art" as const, solution: { id: "s1", name: "Produktion Betrieb" } }],
-    ["a2", { epicClass: "art" as const, solution: { id: "s2", name: "Logistik Betrieb" } }],
-    ["n1", { epicClass: null, solution: null }],
+    ["p1", cls("portfolio", { id: "s1", name: "Produktion Betrieb" })],
+    ["a1", cls("art", { id: "s1", name: "Produktion Betrieb" })],
+    [
+      "a2",
+      { ...cls("art", { id: "s2", name: "Logistik Betrieb" }), classSource: "intended" as const },
+    ],
+    ["n1", cls(null, null)],
   ]);
   const epics = [
     epic({ id: "p1", title: "Werksverbund", stageGate: "L3" }),
@@ -533,5 +550,31 @@ describe("Klassen-Facette im Overview-Modell", () => {
       hiddenClass: null,
       hiddenCount: 0,
     });
+  });
+});
+
+describe("Der Horizont einer Epic-Karte", () => {
+  const horizonOf = (over: Parameters<typeof epic>[0]) => {
+    const inputs = baseInputs();
+    inputs.epics = [epic(over)];
+    return buildPortfolioOverviewModel(inputs).epics[0]!.horizon;
+  };
+
+  it("kommt aus der Primär-Solution, solange am Epic nichts steht", () => {
+    expect(horizonOf({ id: "e1", title: "A", solutionHorizon: "h2" })).toBe("h2");
+  });
+
+  it("steht auch ohne Solution — die Lücke, für die das Feld existiert", () => {
+    // Vorher fiel dieses Epic in die Bahn „Ohne" und zählte in keiner
+    // Guardrail-Quote mit, obwohl die Solution beim Anlegen optional ist.
+    expect(horizonOf({ id: "e2", title: "B", ownHorizon: "h1" })).toBe("h1");
+  });
+
+  it("schlägt den der Solution, wenn beide gesetzt sind", () => {
+    expect(horizonOf({ id: "e3", title: "C", ownHorizon: "h3", solutionHorizon: "h1" })).toBe("h3");
+  });
+
+  it("bleibt leer, wenn es weder das eine noch das andere gibt", () => {
+    expect(horizonOf({ id: "e4", title: "D" })).toBeNull();
   });
 });

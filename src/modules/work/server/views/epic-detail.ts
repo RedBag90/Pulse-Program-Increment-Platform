@@ -92,11 +92,36 @@ export interface BreakdownEdge {
 /** Port: the dependency edges touching the Epic's Features (Drumbeat). */
 export type EpicDependenciesPort = (featureIds: string[]) => Promise<BreakdownEdge[]>;
 
+/**
+ * **Habe ich Budget — und für wann?** Der Stand des Epics, vom Budgeting-Modul
+ * fertig gefaltet hereingereicht.
+ *
+ * Die Form steht hier, nicht drüben: Work deklariert sie selbst (wie
+ * `BreakdownEdge`) und importiert nichts aus Budgeting (ADR-0013).
+ *
+ * `state` unterscheidet, was ein blosses „Budget erhalten" verschweigt:
+ * `applies` = das Geld gilt jetzt · `upcoming` = zugeteilt, der Rahmen gilt noch
+ * nicht · `expired` = der Rahmen ist abgelaufen · `none` = kein Geld.
+ */
+export interface EpicBudgetStandingView {
+  state: "applies" | "upcoming" | "expired" | "none";
+  /** Betrag im angewandten Rahmen. */
+  currentAmount: number;
+  currentPeriod: { cycleKey: string; start: Date | null; end: Date | null } | null;
+  /** Summe über alle Zyklen mit Geld. */
+  totalAmount: number;
+  cycleCount: number;
+  span: { start: Date; end: Date } | null;
+  /** Bei `upcoming`: ab wann der früheste noch nicht geltende Rahmen beginnt. */
+  startsAt: Date | null;
+}
+
 /** Port: the Epic's budget allocation (Budgeting), or null when none exists.
  *  `allocatedByPeriod` = per-half-year €-map, consumed by the cost-over-time calc. */
 export type EpicBudgetPort = () => Promise<{
   allocatedSum: number;
   allocatedByPeriod: Record<string, number>;
+  standing: EpicBudgetStandingView;
 } | null>;
 
 export interface EpicDetailPorts {
@@ -122,7 +147,13 @@ export type DrumbeatSlice =
 
 export type BudgetingSlice =
   | { disabled: true }
-  | { disabled: false; allocated: boolean; allocatedByPeriod: Record<string, number> };
+  | {
+      disabled: false;
+      allocated: boolean;
+      allocatedByPeriod: Record<string, number>;
+      /** Der Stand für das Kernfakten-Band: Betrag, Zeitraum und Zustand. */
+      standing: EpicBudgetStandingView;
+    };
 
 /** Risks is composed in the Epic route (composition root) off the full risks
  *  model; Work only carries the entitlement gate. */
@@ -144,7 +175,11 @@ export interface EpicDetailInputs {
   /** Port result — empty when `enabled.drumbeat` is false. */
   dependencies: BreakdownEdge[];
   /** Port result — null when `enabled.budgeting` is false. */
-  budget: { allocatedSum: number; allocatedByPeriod: Record<string, number> } | null;
+  budget: {
+    allocatedSum: number;
+    allocatedByPeriod: Record<string, number>;
+    standing: EpicBudgetStandingView;
+  } | null;
   /** Persisted breakdown-network node positions (Work-owned, always loaded). */
   breakdownPositions: Map<string, { x: number; y: number }>;
   enabled: { drumbeat: boolean; budgeting: boolean; risks: boolean };
@@ -161,6 +196,12 @@ export interface EpicDetailInputs {
   canEdit: boolean;
   canAssignOwner: boolean;
   canLinkDependency: boolean;
+  /**
+   * `epic.portfolio_override` — die **zusätzliche** Hürde für den mit der
+   * Business-Case-Freigabe eingefrorenen Horizont. Vor dem Einfrieren genügt
+   * `canEdit`; danach gehört der Wert einer Abnahme durch fünf Parteien.
+   */
+  canOverrideHorizon: boolean;
   /** Alles zum Reifegrad-Wechsel, vom Loader aufgelöst (siehe {@link EpicGateSlice}). */
   gate: EpicGateSlice;
   /**
@@ -241,6 +282,8 @@ export interface EpicDetailModel {
   canEdit: boolean;
   canAssignOwner: boolean;
   canLinkDependency: boolean;
+  /** `epic.portfolio_override` — s. {@link EpicDetailModel.canOverrideHorizon}. */
+  canOverrideHorizon: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -361,6 +404,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     canEdit,
     canAssignOwner,
     canLinkDependency,
+    canOverrideHorizon,
     canSetDelivery,
     gate,
   } = inputs;
@@ -400,6 +444,15 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
         disabled: false,
         allocated: (budget?.allocatedSum ?? 0) > 0,
         allocatedByPeriod: budget?.allocatedByPeriod ?? {},
+        standing: budget?.standing ?? {
+          state: "none",
+          currentAmount: 0,
+          currentPeriod: null,
+          totalAmount: 0,
+          cycleCount: 0,
+          span: null,
+          startsAt: null,
+        },
       }
     : { disabled: true };
   const budgetAllocated = budgetingSlice.disabled ? false : budgetingSlice.allocated;
@@ -586,6 +639,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     canEdit,
     canAssignOwner,
     canLinkDependency,
+    canOverrideHorizon,
   };
 }
 
@@ -622,6 +676,10 @@ export async function loadEpicDetailInputs(
   ).allow;
   const canLinkDependency = hasCapability(principal, "dependency.link", {
     tenantId: principal.tenantId,
+  });
+  const canOverrideHorizon = hasCapability(principal, "epic.portfolio_override", {
+    tenantId: principal.tenantId,
+    valueStreamId: epic.valueStreamId,
   });
 
   const gateScope = { tenantId: principal.tenantId, valueStreamId: epic.valueStreamId };
@@ -714,6 +772,7 @@ export async function loadEpicDetailInputs(
     canEdit,
     canAssignOwner,
     canLinkDependency,
+    canOverrideHorizon,
     gate,
   };
 }

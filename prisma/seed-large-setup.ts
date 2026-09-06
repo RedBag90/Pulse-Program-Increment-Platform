@@ -92,7 +92,6 @@ async function main() {
       costNeutralTarget: 500_000,
       dashboardHorizonEnd: LAST_CYCLE_END,
       budgetWindowSize: 4,
-      defaultHypothesisEffort: 30_000,
       costPerJobSizePoint: 1_500,
       guardrailTargets: {
         horizon: { h3: 10, h2: 25, h1: 55, h0: 10 },

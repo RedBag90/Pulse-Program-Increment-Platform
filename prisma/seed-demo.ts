@@ -44,6 +44,12 @@ import {
   type GateTransitionRow,
 } from "./seed-gate-history.js";
 import { gateOfStep, type GateStep } from "@/modules/work/domain/stage-gate";
+import {
+  mayHoldAllocation,
+  allocationRuleViolations,
+  formatAllocationViolations,
+  type AllocationFacts,
+} from "@/modules/budgeting/domain/allocation-eligibility";
 
 // ── Zeit-Helfer (relativ zu heute) ──────────────────────────────────────────
 const DAY = 86_400_000;
@@ -92,7 +98,6 @@ async function main() {
       costNeutralTarget: 250_000,
       dashboardHorizonEnd: addDays(now, 540),
       // PB-Default-Aufwand: Kosten-Richtwert im PB-Liste für nur-Hypothese-Epics.
-      defaultHypothesisEffort: 60_000,
       costPerJobSizePoint: 1_800,
       guardrailTargets: {
         horizon: { h3: 10, h2: 20, h1: 60, h0: 10 },
@@ -809,7 +814,9 @@ async function main() {
         actuals: {},
       },
       childFeatureStats: { total: 2, started: 2, completed: 2 },
-      budgetAllocationSum: def.gate === "L0" || def.gate === "L1" ? 0 : 250_000,
+      // Dieselbe Regel wie unten bei den Allokationen — vorher standen hier
+      // zwei verschiedene Fassungen im selben Seed.
+      budgetAllocationSum: mayHoldAllocation(target) ? 250_000 : 0,
       moves,
     });
     // Vor dem Schreiben gegen die Regeln prüfen, die der Service zur Laufzeit
@@ -1117,14 +1124,21 @@ async function main() {
   });
   await prisma.kpi.createMany({ data: kpiRows });
 
-  // BudgetAllocation je Epic
+  // BudgetAllocation — **nur** für Epics, die Budget tragen dürfen (ab L3.1).
+  //
+  // Vorher bekam hier jedes Epic eine Zeile, unabhängig vom Reifegrad: neun der
+  // zwanzig hielten Geld im Funnel, in der Hypothese, in der Analyse-Einplanung
+  // oder im Business Case. Das Kanban managt die Epics, und vor der Freigabe des
+  // Lean Business Case gibt es nichts zu finanzieren.
+  const fundedEpics = epicIds
+    .map((epicId, i) => ({ epicId, i, step: targetStep(i, EPIC_DEFS[i]!) }))
+    .filter((e) => mayHoldAllocation(e.step));
   await prisma.budgetAllocation.createMany({
-    data: epicIds.map((epicId, i) => ({
+    data: fundedEpics.map(({ epicId, i }, k) => ({
       id: uid(`balloc:${i}`),
       tenantId,
       epicId,
-      priority: i,
-      hypothesisBudget: i % 4 === 0 ? 50_000 : null,
+      priority: k,
       allocations: { [CUR]: 80_000 + i * 6_000, [NEXT]: 60_000 + i * 4_000 },
       createdBy: ADMIN,
       updatedBy: ADMIN,
@@ -1232,9 +1246,18 @@ async function main() {
     valueStreamId: r.valueStreamId,
   }));
 
-  // Vorgemerkte Epics (L2/L3) als PB-Liste-Kandidaten.
+  /**
+   * **PB-Liste-Kandidaten: Epics mit freigegebenem Business Case.**
+   *
+   * Vorher standen hier `L2 || L3` — die L2-Haelfte war die Budgetierung der
+   * Business-Case-Erstellung, und die gibt es nicht mehr. Massgeblich ist
+   * dieselbe Schwelle wie beim Geld (`FIRST_FUNDABLE_STEP`): mit L3.1 ist der
+   * Lean Business Case freigegeben, und erst dann darf ein Epic um Budget
+   * bitten. Eine eigene Reifegrad-Liste daneben wuerde genau so veralten wie
+   * die, die sie ersetzt.
+   */
   const epicCands = EPIC_DEFS.map((def, i) => ({ def, i }))
-    .filter(({ def }) => def.gate === "L2" || def.gate === "L3")
+    .filter(({ def, i }) => mayHoldAllocation(targetStep(i, def)))
     .map(({ def, i }) => ({
       epicId: epicIds[i]!,
       title: def.title,
@@ -1309,11 +1332,17 @@ async function main() {
     groups: buildGroups([true, true, true], true),
   });
 
-  // 2) Läuft (aktuell) — Gruppe A abgegeben, B+C offen → My-Tasks-Hinweis.
+  // 2) **Das angewandte Budget** — finalisiert und deckt den heutigen Tag ab.
+  //
+  // Vorher stand diese Kachel auf `running`, also noch in Ausarbeitung. Nach der
+  // Trennung von Vorbereitung und Geltung (`domain/period-validity.ts`) galt
+  // damit im ganzen Mandanten **kein** Budget: Horizont-Trichter und
+  // Epic-Kachel sagten überall „kein gültiger Rahmen". Der Datensatz führte
+  // nirgends Geld vor.
   await seedBudgetPeriod(tenantId, ADMIN, {
     key: "demo-running",
     cycleKey: CUR,
-    status: "running",
+    status: "closed",
     poolTotal: POOL,
     startDate: addDays(now, -30),
     endDate: addDays(now, 150),
@@ -1324,7 +1353,9 @@ async function main() {
     groups: buildGroups([true, false, false], true),
   });
 
-  // 3) Geplant/Entwurf (Zukunft) — Setup, kuratierte Epic-Kandidaten, keine RtB/Allocations.
+  // 3) **In Ausarbeitung** — läuft parallel zum geltenden Budget, genau wie im
+  //    Prozess vorgesehen: die Vorbereitung der nächsten Kachel geschieht,
+  //    während die aktuelle den Rahmen setzt.
   await seedBudgetPeriod(tenantId, ADMIN, {
     key: "demo-draft",
     cycleKey: NEXT,
@@ -1379,6 +1410,30 @@ async function main() {
     // Zuteilung bleibt stehen — die Kachel hat sie damals so entschieden.
     { artId: artIds[2]!, epicId: epicIds[2]!, cycleKey: PREV, amount: 100_000, ask: 100_000 },
   ]);
+
+  // ── Die Budgetierungs-Regel gegenprüfen ───────────────────────────────────
+  //
+  // Ein Seed soll nicht erst an der Fläche auffallen. Dieselbe Haltung wie bei
+  // `assertGateHistory`: laut scheitern statt still falsche Daten schreiben.
+  // Vorher hielt dieser Datensatz neun von zwanzig Epics mit Geld im Funnel, in
+  // der Hypothese, in der Analyse-Einplanung oder im Business Case.
+  {
+    // Die ART-Zuteilungen dieses Datensatzes liegen sämtlich in `PREV` (siehe
+    // oben) — für den laufenden Zyklus zählt hier also nur der Portfolio-Topf.
+    const facts: AllocationFacts[] = EPIC_DEFS.map((def, i) => ({
+      id: epicIds[i]!,
+      title: def.title,
+      step: targetStep(i, def),
+      amountInCycle: fundedEpics.some((f) => f.i === i) ? 80_000 + i * 6_000 : 0,
+    }));
+    const violations = allocationRuleViolations(facts, CUR);
+    if (violations.length > 0) {
+      throw new Error(
+        `Budgetierungs-Regel verletzt (${CUR}):\n${formatAllocationViolations(violations)}`,
+      );
+    }
+    console.log(`  ✓ Budgetierungs-Regel geprüft — ${facts.length} Epics, keine Verstöße`);
+  }
 
   // Nur EIN Wertstrom setzt eigene Ziele — erst der Unterschied zum geerbten
   // Tenant-Default macht die Herkunftsanzeige der Fläche sichtbar.
@@ -2469,9 +2524,7 @@ function buildSnapshotPayload(input: {
       title: e.title,
       valueStreamId: e.valueStreamId,
       valueStream: e.valueStreamName,
-      isHypothesisOnly: false,
       costSlices: [e.alloc],
-      hypothesisBudget: 0,
       startKey: input.cycleKey,
       allocations: { [input.cycleKey]: e.alloc },
       priority: e.priority,

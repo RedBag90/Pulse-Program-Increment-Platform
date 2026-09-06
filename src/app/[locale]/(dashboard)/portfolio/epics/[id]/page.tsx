@@ -4,7 +4,11 @@ import { createPrismaClient } from "@/server/db/prisma";
 import { loadEpicDetail } from "@/modules/work/server/views/epic-detail";
 import { listProgramIncrementsForArts } from "@/modules/drumbeat/server/services/pi";
 import { listBreakdownDependencies } from "@/modules/drumbeat/server/services/dependency";
-import { getEpicBudgetAllocation } from "@/modules/budgeting/server/services/epic-allocation";
+import { classifyEpics } from "@/modules/work/server/services/epic-class";
+import {
+  getEpicBudgetAllocation,
+  getEpicBudgetStanding,
+} from "@/modules/budgeting/server/services/epic-allocation";
 import { loadIssues } from "@/modules/risks/server/views/issues";
 import { IssuesListShell } from "@/modules/risks/features/issue/components/issues-list-shell";
 import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-contributions";
@@ -76,6 +80,15 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
     risks: principal.enabledModules.includes("risks"),
   };
 
+  /**
+   * Die Einordnung dieses Epics — sie entscheidet, aus welchem Topf sein Geld
+   * kommt (`chooseAllocation`). Eigene Abfrage, weil der Budget-Port innerhalb
+   * von `loadEpicDetail` läuft und die Klassifikation der Guardrail-Kachel erst
+   * danach entsteht.
+   */
+  const epicClassOf = async () =>
+    (await classifyEpics(db, tenantId, [epicId])).get(epicId)?.epicClass ?? null;
+
   const [model, approvers, userLabels, goalLinks] = await Promise.all([
     loadEpicDetail(
       db,
@@ -84,7 +97,20 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       {
         pis: (artIds) => listProgramIncrementsForArts(db, tenantId, artIds),
         dependencies: (featureIds) => listBreakdownDependencies(db, tenantId, featureIds),
-        budget: () => getEpicBudgetAllocation(db, tenantId, epicId),
+        budget: async () => {
+          // Der Stand liest **beide** Töpfe (Portfolio- und ART-Zuteilung) und
+          // wählt nach der Klasse — nie beide zusammen. Die Klasse steht hier
+          // im Composition-Root; Work importiert nichts aus Budgeting.
+          const [allocation, standing] = await Promise.all([
+            getEpicBudgetAllocation(db, tenantId, epicId),
+            getEpicBudgetStanding(db, tenantId, epicId, await epicClassOf(), new Date()),
+          ]);
+          return {
+            allocatedSum: allocation?.allocatedSum ?? 0,
+            allocatedByPeriod: allocation?.allocatedByPeriod ?? {},
+            standing,
+          };
+        },
       },
       enabled,
     ),
@@ -261,6 +287,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
               <EpicHeroFacts
                 ownerId={epic.ownerId}
                 userLabels={userLabels}
+                budgetStanding={model.budgeting.disabled ? null : model.budgeting.standing}
                 valueStreamName={epic.valueStream?.name ?? null}
                 planStart={
                   timeline.estimates.implementation_started
@@ -293,6 +320,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             <EpicOverviewTab
               epic={epic}
               canEdit={model.canEdit}
+              canOverrideHorizon={model.canOverrideHorizon}
               kpiBenefit={model.kpiBenefit}
               solutions={availableSolutions}
               classification={epicClassification}

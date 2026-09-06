@@ -4,8 +4,11 @@ import { z } from "zod";
 import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { formatDomainError } from "@/server/http/domain-error-display";
-import { createPeriod, deletePeriod } from "@/modules/budgeting/server/services/round-service";
-import { goalTimeframe } from "@/modules/core/goals/domain/goal-period";
+import {
+  createPeriod,
+  deletePeriod,
+  updatePeriodTimeframe,
+} from "@/modules/budgeting/server/services/round-service";
 
 const MANAGE = "budget.round.manage" as const;
 const tenantResource = (_i: unknown, p: { tenantId: string }) => ({ tenantId: p.tenantId });
@@ -23,9 +26,17 @@ function plusSixMonths(d: Date): Date {
 }
 
 /**
- * Legt eine Budgeting-Kachel an. Der Zeitraum kommt aus dem Ziele-Picker:
- * **Raster** (`period` = H1/H2/Q/FY) ODER **Individuell** (`periodStart`/
- * `periodEnd`). Fehlt das Ende, wird Start + 6 Monate genommen.
+ * Legt eine Budgeting-Kachel an. Der Zeitraum ist der **Geltungszeitraum des
+ * Budgets** — von wann bis wann der Rahmen gilt —, nicht die Dauer der
+ * Vorbereitung.
+ *
+ * Er wird **frei** angegeben; das frühere Raster (H1/H2/Q1–Q4/FY) ist entfallen.
+ * Es versprach Quartals- und Jahres-Kacheln, die der Schlüssel der Zuteilungen
+ * gar nicht trägt: `cycleKey` ist das Halbjahr des Starts, und zwei Kacheln im
+ * selben Halbjahr teilen sich sämtliche Budget-Zuteilungen. Der Dienst weist
+ * das jetzt ab, statt still zu überschreiben.
+ *
+ * Fehlt das Ende, wird Start + 6 Monate genommen.
  */
 export const createPeriodAction = createServerAction({
   schema: z.object({
@@ -40,22 +51,15 @@ export const createPeriodAction = createServerAction({
   resource: tenantResource,
   parseFormData: (fd) => {
     const f = fields(fd);
-    const period = f.nonEmptyString("period");
     const startStr = f.nonEmptyString("periodStart");
     const endStr = f.nonEmptyString("periodEnd");
 
-    // Bucket ODER Range über den geteilten Ziele-Helfer auflösen; sonst Start
-    // + 6 Monate. Fällt alles aus, greift die zod-Validierung (leere Strings).
-    const tf = goalTimeframe(period ?? null, startStr ?? null, endStr ?? null);
     let startDate = "";
     let endDate = "";
-    if (tf) {
-      startDate = toDay(tf.start);
-      endDate = toDay(tf.end);
-    } else if (startStr) {
+    if (startStr) {
       const s = new Date(`${startStr}T00:00:00.000Z`);
       startDate = toDay(s);
-      endDate = toDay(plusSixMonths(s));
+      endDate = endStr ? toDay(new Date(`${endStr}T00:00:00.000Z`)) : toDay(plusSixMonths(s));
     }
 
     const deadline = f.nonEmptyString("submissionDeadline");
@@ -96,4 +100,40 @@ export const deletePeriodAction = createServerAction({
       notFound: "Nicht gefunden",
       fallback: "Kachel konnte nicht gelöscht werden",
     }),
+});
+
+/**
+ * Korrigiert den **Geltungszeitraum** einer Kachel. Was erlaubt ist, entscheidet
+ * der Dienst anhand der Geltung: in der Ausarbeitung alles, bei einer geltenden
+ * Kachel nur das Verlängern des Endes, bei einer abgelaufenen nichts.
+ */
+export const updatePeriodTimeframeAction = createServerAction({
+  schema: z.object({
+    id: z.string().uuid(),
+    startDate: isoDate,
+    endDate: isoDate,
+    submissionDeadline: isoDate.nullable(),
+  }),
+  action: MANAGE,
+  resource: tenantResource,
+  parseFormData: (fd) => {
+    const f = fields(fd);
+    return {
+      id: f.string("id"),
+      startDate: f.string("periodStart"),
+      endDate: f.string("periodEnd"),
+      submissionDeadline: f.nonEmptyString("submissionDeadline") ?? null,
+    };
+  },
+  service: (ctx, input) =>
+    updatePeriodTimeframe(ctx, {
+      id: input.id,
+      startDate: new Date(`${input.startDate}T00:00:00.000Z`),
+      endDate: new Date(`${input.endDate}T00:00:00.000Z`),
+      submissionDeadline: input.submissionDeadline
+        ? new Date(`${input.submissionDeadline}T00:00:00.000Z`)
+        : null,
+    }),
+  revalidate: "budgetPeriod",
+  mapError: err,
 });

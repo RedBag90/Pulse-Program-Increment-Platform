@@ -6,6 +6,7 @@
  * slicers react instantly) via the pure `@/domain/portfolio-economics` module.
  */
 
+import { resolveEpicHorizon } from "@/modules/work/domain/epic-horizon";
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
@@ -81,9 +82,11 @@ export async function getPortfolioEconomics(
         stagedForBudgeting: true,
         epicType: true,
         valueStream: { select: { id: true, name: true } },
-        // ART = direkte Epic-Zuordnung (Pflichtfeld beim Anlegen); der
-        // Investitionshorizont bleibt Solution-basiert (Guardrails-Logik).
+        // ART = direkte Epic-Zuordnung (Pflichtfeld beim Anlegen).
         art: { select: { name: true } },
+        // Der Horizont: der am Epic gesetzte Wert schlägt den der Solution —
+        // aufgelöst in `domain/epic-horizon.ts`.
+        investmentHorizon: true,
         primarySolution: { select: { horizon: true } },
         kpis: {
           select: {
@@ -163,7 +166,11 @@ export async function getPortfolioEconomics(
       ownerLabel: row.ownerId ? (userLabels[row.ownerId] ?? null) : null,
       needsSteeringAttention: row.needsSteeringAttention,
       stagedForBudgeting: row.stagedForBudgeting,
-      investmentHorizon: row.primarySolution?.horizon ?? null,
+      investmentHorizon: resolveEpicHorizon({
+        investmentHorizon: row.investmentHorizon,
+        solutionHorizon: row.primarySolution?.horizon ?? null,
+        businessCaseApprovedAt: row.businessCaseApprovedAt,
+      }),
       epicType: row.epicType,
       costSlices: view.costSlices,
       oneTimeBenefit: view.oneTimeBenefit,
@@ -217,7 +224,9 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
         id: true,
         title: true,
         epicType: true,
-        // Horizont kommt aus der Primär-Solution (nicht mehr aus dem Epic-Feld).
+        // Der Horizont: eigener Wert vor abgeleitetem (`domain/epic-horizon.ts`).
+        investmentHorizon: true,
+        businessCaseApprovedAt: true,
         primarySolution: { select: { horizon: true } },
         businessCase: true,
         stageGate: true,
@@ -237,7 +246,11 @@ export async function getPortfolioGuardrailsInputs(db: PrismaClient, tenantId: T
       id: e.id,
       title: e.title,
       epicType: e.epicType,
-      investmentHorizon: e.primarySolution?.horizon ?? null,
+      investmentHorizon: resolveEpicHorizon({
+        investmentHorizon: e.investmentHorizon,
+        solutionHorizon: e.primarySolution?.horizon ?? null,
+        businessCaseApprovedAt: e.businessCaseApprovedAt,
+      }),
       amount,
       stageGate: e.stageGate,
       needsSteeringAttention: e.needsSteeringAttention,

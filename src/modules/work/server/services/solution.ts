@@ -395,10 +395,10 @@ export async function promoteSolution(
 /** Freier Lifecycle-Wechsel (vor-/rückwärts), z. B. H3→H2, H1→H0, H0→H1. */
 export async function setSolutionLifecycle(
   ctx: RequestContext,
-  input: { id: string; horizon: Horizon },
+  input: { id: string; horizon: Horizon; investmentMode?: InvestmentMode | null },
 ): Promise<Result<void>> {
   const mctx = toMutationContext(ctx);
-  const { id, horizon } = input;
+  const { id, horizon, investmentMode } = input;
 
   return withAuditedTransaction(mctx, async (tx) => {
     const loaded = await loadAndAuthorize({
@@ -413,12 +413,14 @@ export async function setSolutionLifecycle(
     if (isErr(loaded)) return loaded;
     const existing = loaded.value;
 
-    // Beim Eintritt in H1 ohne Modus: Default „investing". Sonst Modus konsistent.
+    // Der Modus: nennt der Aufrufer einen (die Leiter tut das — H1.1 und H1.2
+    // sind für sie zwei Stufen), gilt der. Sonst bleibt der bestehende, und beim
+    // Eintritt in H1 ohne Modus greift der Default „investing". Ausserhalb H1
+    // räumt `investmentModeForHorizon` ihn in jedem Fall ab.
     const currentMode = existing.investmentMode as InvestmentMode | null;
+    const wanted = investmentMode !== undefined ? investmentMode : currentMode;
     const nextMode =
-      horizon === "h1"
-        ? (currentMode ?? "investing")
-        : investmentModeForHorizon(horizon, currentMode);
+      horizon === "h1" ? (wanted ?? "investing") : investmentModeForHorizon(horizon, wanted);
 
     const { changes, data } = recordedUpdate({
       existing,
@@ -439,52 +441,8 @@ export async function setSolutionLifecycle(
   });
 }
 
-/**
- * Invest/Extract-Modus setzen (nur in H1 relevant).
- *
- * Hieß `setSolutionRun` und trug zusätzlich eine Run-Baseline. Die ist
- * entfallen: Betriebskosten sind Run-the-Business-Positionen und werden im
- * Budgeting-Modul gepflegt — an einer Stelle, mit Periode und optionaler
- * Solution-Zurechnung.
- */
-export async function setSolutionInvestmentMode(
-  ctx: RequestContext,
-  input: { id: string; investmentMode: InvestmentMode | null },
-): Promise<Result<void>> {
-  const mctx = toMutationContext(ctx);
-  const { id, investmentMode } = input;
-
-  return withAuditedTransaction(mctx, async (tx) => {
-    const loaded = await loadAndAuthorize({
-      principal: ctx.principal,
-      action: "solution.manage",
-      resourceType: "Solution",
-      id,
-      finder: () =>
-        tx.solution.findFirst({ where: { id, tenantId: mctx.tenantId, ...notDeleted } }),
-      toResource: () => ({ tenantId: mctx.tenantId }),
-    });
-    if (isErr(loaded)) return loaded;
-    const existing = loaded.value;
-
-    // Invest/Extract nur in H1 relevant.
-    const nextMode = investmentModeForHorizon(existing.horizon as Horizon, investmentMode);
-
-    const { changes, data } = recordedUpdate({
-      existing,
-      updates: { investmentMode: nextMode },
-      fields: ["investmentMode"] as const,
-    });
-    await tx.solution.update({ where: { id }, data: { ...data, updatedBy: mctx.actorId } });
-
-    return ok({
-      result: undefined,
-      audit: {
-        action: "solution.investment_mode.changed",
-        resourceType: "solution",
-        resourceId: id,
-        changes,
-      },
-    });
-  });
-}
+// Der eigenständige Invest/Extract-Setzer ist entfallen. Mit der fünfstufigen
+// Lebenszyklus-Leiter ist H1.1 → H1.2 ein Stufenwechsel wie jeder andere und
+// läuft über `setSolutionLifecycle`; der Schieber, der ihn brauchte, gibt es
+// nicht mehr. Alt-Audit-Zeilen `solution.investment_mode.changed` bleiben
+// gültig — sie beschreiben, was damals geschah.

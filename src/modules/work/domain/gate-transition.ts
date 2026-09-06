@@ -75,6 +75,12 @@ export interface GateStamps {
    * zeigt es nur an.
    */
   implementationCompletedAt?: Date | null;
+  /**
+   * Der **eingefrorene** Investitionshorizont. Die L3.1-Abnahme kopiert ihn aus
+   * der Primär-Solution; danach folgt das Epic ihr nicht mehr. `null` löst den
+   * Freeze bei der Rückstufung wieder — siehe `unwindStampsFor`.
+   */
+  investmentHorizon?: string | null;
   approvedBy?: string | null;
   approvedAt?: Date | null;
   approvalComment?: string | null;
@@ -115,8 +121,14 @@ export function stampsForAdvance(
     ...(to === "L2" && facts.selectedForAnalyzingAt == null && { selectedForAnalyzingAt: now }),
     // L2 → L3.1 trägt die Business-Case-Freigabe — dieselbe Bewegung wie bei
     // L1, nur mit den fünf Parteien als Abnehmern.
+    // L2 → L3.1 friert zugleich den Horizont ein: ab hier trägt das Epic ihn
+    // selbst, statt ihn bei jedem Lesen aus der Solution abzuleiten. Set-once
+    // wie alles hier — ein von Hand gesetzter Wert wird **nicht** überschrieben,
+    // und ohne Solution gibt es nichts zu kopieren (das Epic bleibt „ohne").
     ...(to === "L3.1" && {
       ...(facts.businessCaseApprovedAt == null && { businessCaseApprovedAt: now }),
+      ...(facts.investmentHorizon == null &&
+        facts.solutionHorizon != null && { investmentHorizon: facts.solutionHorizon }),
       needsSteeringAttention: true,
     }),
     ...(to === "L4" && facts.implementationStartedAt == null && { implementationStartedAt: now }),
@@ -138,6 +150,29 @@ export function stampsForAdvance(
 }
 
 /**
+ * Was die Rückstufung über den Horizont wissen muss.
+ *
+ * Den Freeze zu lösen heisst „folge wieder der Solution". Abgeräumt wird
+ * deshalb **nur der Abdruck, den die Abnahme selbst gemacht hat** — erkennbar
+ * daran, dass der Wert am Epic genau der Solution entspricht. Steht dort etwas
+ * anderes, hat ein Mensch ihn bewusst gesetzt; den zu löschen wäre genau der
+ * Verlust, gegen den dieses Feld existiert. Ohne Primär-Solution gibt es
+ * ohnehin nichts, dem zu folgen: der Wert bleibt.
+ *
+ * (Der Plan sah „abräumen, sobald eine Primär-Solution existiert" vor. Das
+ * hätte auch einen abweichenden, von Hand gesetzten Wert gelöscht — dieselbe
+ * Klasse Fehler, gegen die Vorhaben A gebaut ist. Bewusste Abweichung.)
+ */
+export interface HorizonUnwindFacts {
+  investmentHorizon: string | null;
+  solutionHorizon: string | null;
+}
+
+function unfreezesHorizon(facts: HorizonUnwindFacts): boolean {
+  return facts.investmentHorizon != null && facts.investmentHorizon === facts.solutionHorizon;
+}
+
+/**
  * Der Gegenpart: welche Stempel ein Rückwärts-Schritt `from → to` **abräumt**.
  *
  * Hier stirbt ein echter Defekt. Bisher setzte ein Rückwärts-Schritt gar nichts
@@ -146,7 +181,11 @@ export function stampsForAdvance(
  * immer, egal wie oft es korrigiert und neu freigegeben wurde. Wer die Historie
  * zurückdreht, muss auch die Spuren zurückdrehen.
  */
-export function unwindStampsFor(from: GateStep, to: GateStep): GateStamps {
+export function unwindStampsFor(
+  from: GateStep,
+  to: GateStep,
+  facts?: HorizonUnwindFacts,
+): GateStamps {
   const stamps: GateStamps = { stageGate: gateOfStep(to) };
   // Die Hypothesen-Freigabe zurücknehmen — sie hängt an L0 → L1.
   if (from === "L1" && to === "L0") {
@@ -157,7 +196,12 @@ export function unwindStampsFor(from: GateStep, to: GateStep): GateStamps {
   // Die Business-Case-Freigabe zurücknehmen — sie hängt an L2 → L3.1. Genau das
   // ist der Ersatz für die frühere „neue Revision": rückstufen mit Begründung,
   // überarbeiten, neu beantragen.
-  if (from === "L3.1" && to === "L2") stamps.businessCaseApprovedAt = null;
+  if (from === "L3.1" && to === "L2") {
+    stamps.businessCaseApprovedAt = null;
+    // Und den Horizont wieder auftauen — aber nur den **Abdruck der Abnahme**,
+    // nicht jede Eintragung. Siehe `HorizonUnwindFacts`.
+    if (facts != null && unfreezesHorizon(facts)) stamps.investmentHorizon = null;
+  }
   // Die Investitionsentscheidung zurücknehmen. Sie hängt am Schritt L3.1 → L3.2,
   // nicht am Eintritt in L3.1 — der trägt keinen eigenen Stempel.
   if (from === "L3.2" && to === "L3.1") {
@@ -410,5 +454,5 @@ export function planGateRevert(
     });
   }
 
-  return ok({ from, to, stamps: unwindStampsFor(from, to) });
+  return ok({ from, to, stamps: unwindStampsFor(from, to, facts) });
 }

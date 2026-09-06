@@ -24,6 +24,7 @@ import {
   assertAssignedApprover,
 } from "@/modules/work/domain/approval-primitives";
 import { type EpicGateFacts, gateReadiness } from "@/modules/work/domain/gate-readiness";
+import { isHorizon } from "@/modules/work/domain/portfolio-guardrails";
 import { type GateStep } from "@/modules/work/domain/stage-gate";
 import { withImplementationActual } from "@/modules/work/domain/timeline";
 import { isoDay } from "@/modules/core/kernel/domain/calendar";
@@ -104,6 +105,10 @@ export async function loadEpicGateFacts(
       benefitHypothesis: true,
       businessCase: true,
       budgetAllocation: { select: { allocations: true } },
+      // Der Horizont: der eigene Wert und der der Primär-Solution. L3.1 friert
+      // den einen aus dem anderen ein — siehe `domain/epic-horizon.ts`.
+      investmentHorizon: true,
+      primarySolution: { select: { horizon: true } },
     },
   });
   if (!row) return null;
@@ -138,6 +143,8 @@ export async function loadEpicGateFacts(
     implementationCompletedAt: row.implementationCompletedAt,
     approvedAt: row.approvedAt,
     impactRecognizedAt: row.impactRecognizedAt,
+    solutionHorizon: isHorizon(row.primarySolution?.horizon) ? row.primarySolution.horizon : null,
+    investmentHorizon: isHorizon(row.investmentHorizon) ? row.investmentHorizon : null,
     multiPartyApproval: practices.multiPartyApproval,
   };
 }

@@ -134,6 +134,7 @@ export type AuditAction =
   | "budget.cycle.advanced"
   | "budget.window.sized"
   | "budget.round.created"
+  | "budget.round.timeframe.changed"
   | "budget.round.started"
   | "budget.round.decided"
   | "budget.round.closed"

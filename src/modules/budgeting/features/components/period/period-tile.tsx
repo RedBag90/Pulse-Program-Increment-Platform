@@ -2,29 +2,33 @@ import { Link } from "@/i18n/navigation";
 import { formatEUR } from "@/lib/formatting";
 import type { PeriodTile } from "@/modules/budgeting/server/views/periods-gallery";
 
-const STATUS_TONE: Record<string, string> = {
-  draft: "bg-muted text-muted-foreground",
-  running: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-200",
-  decided: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200",
-  closed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200",
+/** Die **Geltung** trägt die Kachel — sie ist die Hauptaussage. */
+const VALIDITY_TONE: Record<string, string> = {
+  applied: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200",
+  in_preparation: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-200",
+  expired: "bg-muted text-muted-foreground",
 };
+
+/** Der Prozess-Status steht daneben — er sagt, wie weit die Vorbereitung ist. */
 const STATUS_LABEL: Record<string, string> = {
   draft: "Entwurf",
-  running: "läuft",
+  running: "Verteilung läuft",
   decided: "entschieden",
-  closed: "abgeschlossen",
+  closed: "finalisiert",
 };
 
 const day = (d: Date | null): string =>
   d ? d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
 
 /**
- * Kachel eines Budgeting-Zeitraums: Status-Pill (+ „geplant" für Zukunfts-
- * Zeiträume), Kennzahlen, die **Phase** und ein Abgabe-Fortschrittsbalken.
- * `muted` dämpft abgeschlossene Kacheln. Rein präsentational.
+ * Kachel eines Budgeting-Zeitraums. Zuoberst die **Geltung** („Angewandtes
+ * Budget" · „In Ausarbeitung" · „Abgelaufener Budget-Zeitraum"), daneben der
+ * Vorbereitungs-Stand. `muted` dämpft abgelaufene Kacheln. Rein präsentational.
  *
- * Die Phase steht neben dem Status, weil „läuft" nicht sagt, ob gerade verteilt
- * oder schon finalisiert wird.
+ * Die beiden Achsen liefen bis September 2026 zusammen: die Kachel trug nur den
+ * Prozess-Status, und „abgeschlossen" hiess sowohl „fertig ausgearbeitet" als
+ * auch „vorbei". Es ist aber das Gegenteil — fertig ausgearbeitet ist der
+ * Moment, in dem ein Budget zu **gelten** beginnt.
  */
 export function PeriodTileCard({ tile, muted }: { tile: PeriodTile; muted?: boolean }) {
   const frac = tile.groupCount > 0 ? tile.submittedCount / tile.groupCount : 0;
@@ -38,15 +42,18 @@ export function PeriodTileCard({ tile, muted }: { tile: PeriodTile; muted?: bool
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">{tile.label}</h3>
-        <div className="flex items-center gap-1.5">
-          {tile.upcoming && (
-            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/60 dark:text-violet-200">
-              geplant
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${VALIDITY_TONE[tile.validity] ?? "bg-muted"}`}
+          >
+            {tile.validityLabel}
+          </span>
+          {tile.extended && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+              verlängert
             </span>
           )}
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_TONE[tile.status] ?? "bg-muted"}`}
-          >
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
             {STATUS_LABEL[tile.status] ?? tile.status}
           </span>
         </div>

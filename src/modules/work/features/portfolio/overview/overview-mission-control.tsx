@@ -3,11 +3,10 @@ import { PeriodBanner } from "@/modules/work/features/portfolio/overview/blocks/
 import { StrategicBlock } from "@/modules/work/features/portfolio/overview/blocks/strategic-block";
 import { GoalContributionBlock } from "@/modules/work/features/portfolio/overview/blocks/goal-contribution-block";
 import { CompactKanban } from "@/modules/work/features/portfolio/overview/blocks/compact-kanban";
+import { HorizonFunnelBlock } from "@/modules/work/features/portfolio/overview/blocks/horizon-funnel-block";
 import { DueSoonBlock } from "@/modules/work/features/portfolio/overview/blocks/due-soon-block";
 import { RisksBlock } from "@/modules/work/features/portfolio/overview/blocks/risks-block";
 import { SteeringTableBlock } from "@/modules/work/features/portfolio/overview/blocks/steering-table-block";
-import { TopWinsBlock } from "@/modules/work/features/portfolio/overview/blocks/top-wins-block";
-import { HealthAlertsBlock } from "@/modules/work/features/portfolio/overview/blocks/health-alerts-block";
 import { RecentActivityBlock } from "@/modules/work/features/portfolio/overview/blocks/recent-activity-block";
 
 /**
@@ -25,6 +24,11 @@ export function OverviewMissionControl({ data }: { data: PortfolioOverview }) {
         <StrategicBlock data={data} />
         <GoalContributionBlock rows={data.goalContributions} classFilter={data.classFilter} />
       </div>
+
+      {/* Die Ebene zwischen Epic und Portfolio: welches Produkt steht wo, und
+          wie viel Geld bindet es dort. Über dem Kanban, weil es den Rahmen
+          setzt, in dem die Epics darunter laufen. */}
+      <HorizonFunnelBlock items={data.funnelItems} cycleKey={data.budgetCycleKey} />
 
       <CompactKanban data={data} />
 
@@ -50,10 +54,7 @@ export function OverviewMissionControl({ data }: { data: PortfolioOverview }) {
 
       <SteeringTableBlock data={data} />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <TopWinsBlock data={data} />
-        <HealthAlertsBlock data={data} />
-      </div>
+      <div className="grid gap-4 md:grid-cols-2"></div>
 
       <RecentActivityBlock data={data} />
     </div>

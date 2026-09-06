@@ -2,22 +2,42 @@
  * Kachel-Gallery der Budgeting-Zeiträume (`/budgeting/periods`). Je Kachel eine
  * Runde. Reiner Builder (`buildPeriodsGallery`, `now` injiziert) + impurer Loader.
  *
- * Fokus-Ordnung: kommende + laufende Kacheln oben; abgeschlossene wandern
- * ausgegraut nach unten. Der Prozess-Status (`draft/running/decided/closed`) ist
- * unabhängig davon, ob der Budget-Zeitraum (`startDate`) schon begonnen hat.
+ * Sortiert wird nach **Geltung**, nicht nach Prozess-Status: das angewandte
+ * Budget zuoberst, darunter die Kacheln in Ausarbeitung, ganz unten die
+ * abgelaufenen.
+ *
+ * Vorher stand hier `past = status === "closed"` — also wanderte eine Kachel
+ * genau in dem Moment ins Archiv, in dem sie fertig ausgearbeitet war und zu
+ * gelten begann. Der Prozess-Status beschreibt die **Vorbereitung** (die sieben
+ * Phasen); ob ein Budget *gilt*, sagt allein sein Zeitraum
+ * (`domain/period-validity.ts`).
  */
 
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
 import { halfYearLabel } from "@/modules/core/kernel/domain/calendar";
 import { periodPhases, phaseSummary } from "@/modules/budgeting/domain/period-phases";
+import {
+  appliedPeriod,
+  periodValidity,
+  PERIOD_VALIDITY_LABEL,
+  type PeriodValidity,
+} from "@/modules/budgeting/domain/period-validity";
 import type { RoundStatus } from "@/modules/budgeting/domain/round-status";
 
 export interface PeriodTile {
   id: string;
   cycleKey: string;
   label: string;
-  status: string; // draft | running | decided | closed
+  status: string; // draft | running | decided | closed — die **Vorbereitung**
+  /** Gilt dieses Budget? Die Hauptaussage der Kachel. */
+  validity: PeriodValidity;
+  validityLabel: string;
+  /**
+   * `true` = der Zeitraum ist vorbei, die Kachel gilt aber weiter, weil noch
+   * keine nächste begonnen hat. Nur an der angewandten Kachel gesetzt.
+   */
+  extended: boolean;
   /** Budget-Zeitraum liegt (noch) in der Zukunft. */
   upcoming: boolean;
   poolTotal: number;
@@ -87,6 +107,9 @@ function toTile(r: PeriodRoundInput, now: Date): PeriodTile {
     cycleKey: r.cycleKey,
     label: halfYearLabel(r.cycleKey),
     status: r.status,
+    validity: periodValidity(r, now),
+    validityLabel: PERIOD_VALIDITY_LABEL[periodValidity(r, now)],
+    extended: false,
     upcoming: r.startDate != null && r.startDate.getTime() > now.getTime(),
     poolTotal: r.poolTotal,
     participantCount: r.participantCount,
@@ -124,14 +147,26 @@ export function buildPeriodsGallery(
   now: Date,
 ): PeriodsGalleryModel {
   const tiles = rounds.map((r) => toTile(r, now));
+  // Die angewandte Kachel kann eine **abgelaufene** sein, die weitergilt, weil
+  // noch keine nächste begonnen hat — dann trägt sie die Geltung, nicht ihr
+  // Zeitraum.
+  const applied = appliedPeriod(rounds, now);
+  for (const t of tiles) {
+    if (applied && t.id === applied.period.id) {
+      t.validity = "applied";
+      t.validityLabel = PERIOD_VALIDITY_LABEL.applied;
+      t.extended = applied.extended;
+    }
+  }
   const byRecency = (a: PeriodTile, b: PeriodTile) =>
     sortKey(b) - sortKey(a) || b.cycleKey.localeCompare(a.cycleKey);
-  const past = tiles.filter((t) => t.status === "closed").sort(byRecency);
-  const focus = tiles.filter((t) => t.status !== "closed").sort(byRecency);
+  const past = tiles.filter((t) => t.validity === "expired").sort(byRecency);
+  const focus = tiles.filter((t) => t.validity !== "expired").sort(byRecency);
   const capturedCycles = new Set(rounds.filter((r) => r.hasRevision).map((r) => r.cycleKey));
   const lastCaptured = [...tiles].sort(byRecency).find((t) => capturedCycles.has(t.cycleKey));
   return {
-    active: tiles.find((t) => t.status === "running") ?? focus[0] ?? null,
+    // „Aktiv" ist die Kachel, die **gilt** — nicht die, an der gearbeitet wird.
+    active: tiles.find((t) => t.validity === "applied") ?? focus[0] ?? null,
     lastCapturedLabel: lastCaptured?.label ?? null,
     focus,
     past,

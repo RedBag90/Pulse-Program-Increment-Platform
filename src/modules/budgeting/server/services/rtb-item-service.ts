@@ -16,7 +16,7 @@ import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok, err } from "@/modules/core/kernel/domain/errors";
 import type { RequestContext } from "@/server/http/mutation-handler";
 import { withAuditedTransaction, toMutationContext } from "@/modules/core/kernel/server/mutation";
-import { rtbIntervalOrDefault } from "@/modules/budgeting/domain/rtb-interval";
+import { rtbIntervalOrDefault, sumRtbCycle } from "@/modules/budgeting/domain/rtb-interval";
 import { assertRtbManage } from "@/modules/budgeting/server/services/rtb-authz";
 import { isChangeKind, rtbKindOrDefault } from "@/modules/budgeting/domain/rtb-kind";
 
@@ -237,4 +237,106 @@ export async function deleteRtbItem(
       },
     });
   });
+}
+
+/**
+ * Betriebskosten je Solution als **Ask einer Halbjahres-Kachel** — dieselbe
+ * Periode, auf der auch die Epic-Allokationen stehen.
+ *
+ * Der Horizont-Trichter der Portfolio-Übersicht braucht diese Zahl, darf das
+ * Budgeting-Modul aber nicht importieren (ADR-0013: `Work ← Budgeting`, nicht
+ * umgekehrt). Deshalb liegt die Rechnung hier und wird als Port hereingereicht —
+ * dasselbe Muster wie `BudgetingDataPort` für die Kacheln.
+ *
+ * Nur `kind: "run"` zählt: `art_change` ist ART-Epic-Budget, also Grow-Arbeit,
+ * und würde als Betrieb ausgewiesen die Aussage des Bildes verfälschen.
+ * Umgerechnet wird ausschließlich über `sumRtbCycle` — die Positionen tragen
+ * eine Periode, und rohe Beträge zu summieren mischt Halbjahre mit Jahren.
+ */
+export async function solutionCycleRunCosts(
+  db: PrismaClient,
+  tenantId: TenantId,
+): Promise<Record<string, number>> {
+  return (await cycleRunCosts(db, tenantId)).bySolution;
+}
+
+export interface CycleRunCosts {
+  /** Betrieb je Solution-Id. */
+  bySolution: Record<string, number>;
+  /**
+   * Betrieb, der **keiner** Solution zugerechnet ist — wertstromübergreifend
+   * (geteilte Plattform, Programm-Office). Er fällt im Zyklus an, gehört aber
+   * keinem Produkt; der Horizont-Trichter zeigt ihn deshalb im Streifen, statt
+   * ihn einem Band zuzuschlagen, das ihn nicht trägt.
+   */
+  unassigned: { valueStreamId: string; valueStreamName: string | null; amount: number }[];
+}
+
+/** Betrieb des Halbjahres, getrennt nach zugerechnet und wertstromübergreifend. */
+export async function cycleRunCosts(db: PrismaClient, tenantId: TenantId): Promise<CycleRunCosts> {
+  const rows = await db.runTheBusinessItem.findMany({
+    where: { tenantId, kind: "run" },
+    select: {
+      solutionId: true,
+      valueStreamId: true,
+      plannedAmount: true,
+      interval: true,
+      active: true,
+      valueStream: { select: { name: true } },
+    },
+  });
+
+  type Item = { plannedAmount: number; interval: string; active: boolean };
+  const bySolution = new Map<string, Item[]>();
+  const byValueStream = new Map<string, { name: string | null; items: Item[] }>();
+  for (const r of rows) {
+    const item: Item = {
+      plannedAmount: Number(r.plannedAmount),
+      interval: r.interval,
+      active: r.active,
+    };
+    if (r.solutionId != null) {
+      bySolution.set(r.solutionId, [...(bySolution.get(r.solutionId) ?? []), item]);
+      continue;
+    }
+    const vs = byValueStream.get(r.valueStreamId) ?? {
+      name: r.valueStream?.name ?? null,
+      items: [],
+    };
+    vs.items.push(item);
+    byValueStream.set(r.valueStreamId, vs);
+  }
+
+  return {
+    bySolution: Object.fromEntries([...bySolution].map(([id, items]) => [id, sumRtbCycle(items)])),
+    unassigned: [...byValueStream]
+      .map(([valueStreamId, v]) => ({
+        valueStreamId,
+        valueStreamName: v.name,
+        amount: sumRtbCycle(v.items),
+      }))
+      .filter((v) => v.amount > 0),
+  };
+}
+
+/**
+ * Zuteilungen aus dem **ART-Topf** je Epic in einem Zyklus.
+ *
+ * Der zweite Geldweg neben `BudgetAllocation`: ART-Epics werden aus dem Rahmen
+ * ihres ARTs finanziert. Wer nur den ersten liest, sieht ihr Geld nicht — in
+ * Pulse Demo Corp sind das 292 T€ auf vier Epics.
+ */
+export async function artEpicCycleAllocations(
+  db: PrismaClient,
+  tenantId: TenantId,
+  cycleKey: string | null,
+): Promise<Record<string, number>> {
+  if (cycleKey == null) return {};
+  const rows = await db.artEpicAllocation.findMany({
+    where: { tenantId, cycleKey },
+    select: { epicId: true, amount: true },
+  });
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.epicId] = (out[r.epicId] ?? 0) + Number(r.amount);
+  return out;
 }

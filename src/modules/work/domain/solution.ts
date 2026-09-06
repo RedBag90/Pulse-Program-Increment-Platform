@@ -98,3 +98,62 @@ export function investmentModeForHorizon(
 ): InvestmentMode | null {
   return horizon === "h1" ? mode : null;
 }
+
+/**
+ * Die Leiter als **Stufen-Beschriftung** — fünf Stationen, nicht vier.
+ *
+ * H1 trägt zwei wirtschaftlich verschiedene Phasen: ausbauen und ernten. Bis
+ * September 2026 zeigte die Lebenszyklus-Leiste sie nicht als Schritte, sondern
+ * als Schieber am rechten Rand: vier Stufen oben, ein Umschalter unten. Der
+ * Wechsel von „wir bauen aus" zu „wir melken" war damit optisch kein Schritt auf
+ * der Leiter, obwohl er einer ist.
+ *
+ * Die Nummerierung folgt dem Reifegrad-Vorbild, wo `L3` ebenso in `L3.1`/`L3.2`
+ * zerfällt: **die Achse bleibt vierwertig, die Leiter zeigt fünf Stufen.**
+ */
+export const SOLUTION_STATUS_STEP_LABEL: Record<SolutionStatus, string> = {
+  rd: "H3 · R&D",
+  emerging: "H2 · Emerging",
+  investing: "H1.1 · Investing",
+  extracting: "H1.2 · Extracting",
+  decommissioning: "H0 · Decommissioning",
+};
+
+export interface SolutionTransition {
+  to: SolutionStatus;
+  label: string;
+  /**
+   * Das Beförderungs-Tor. Genau **eine** Kante trägt es: der Eintritt in den
+   * Kern (H2 → H1.1), an dem `PROMOTION_CRITERIA` bestätigt werden müssen.
+   * Ohne diese Zusicherung umginge die Leiste das Tor, das sie selbst zeichnet.
+   */
+  gate?: boolean;
+}
+
+/**
+ * Die erlaubten Kanten je Stufe — vorwärts, rückwärts und aus dem Auslauf zurück.
+ *
+ * H1.1 → H1.2 ist ein Schritt wie jeder andere: ein Klick, keine Rückfrage. Der
+ * Rückweg bleibt offen, denn ein Produkt kann wieder Investitionen bekommen.
+ *
+ * Rein, kein I/O — deshalb prüfbar. Vorher stand dieselbe Liste als
+ * Objektliteral in der Komponente und war es nicht.
+ */
+export const SOLUTION_TRANSITIONS: Record<SolutionStatus, readonly SolutionTransition[]> = {
+  rd: [{ to: "emerging", label: "Nach H2 (Emerging)" }],
+  emerging: [
+    { to: "investing", label: "Nach H1 befördern", gate: true },
+    { to: "rd", label: "Zurück zu H3" },
+  ],
+  investing: [
+    { to: "extracting", label: "Auf Ernten umstellen (H1.2)" },
+    { to: "decommissioning", label: "Stilllegen (H0)" },
+    { to: "emerging", label: "Zurück zu H2" },
+  ],
+  extracting: [
+    { to: "investing", label: "Wieder investieren (H1.1)" },
+    { to: "decommissioning", label: "Stilllegen (H0)" },
+    { to: "emerging", label: "Zurück zu H2" },
+  ],
+  decommissioning: [{ to: "investing", label: "Reaktivieren (H1.1)" }],
+};

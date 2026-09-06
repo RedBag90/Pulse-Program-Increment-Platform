@@ -145,8 +145,17 @@ export async function loadPeriodDetail(
       unpicked.map((e) => e.id),
     );
     // Ein Epic, zu dem keine Zeile kam, bleibt im Pool — ausgeschlossen wird
-    // nur, was nachweislich ART-Sache ist.
-    pool = unpicked.filter((e) => classes.get(e.id)?.epicClass !== "art");
+    // nur, was **nachweislich** ART-Sache ist. „Nachweislich" heisst: aus den
+    // Kosten des freigegebenen Business Case entschieden.
+    //
+    // Seit die Klasse zweistufig auflöst (`resolveEpicClass`), springt sonst die
+    // beim Anlegen hinterlegte **Erwartung** ein. Die zählt hier ausdrücklich
+    // nicht: eine Erwartung ist keine Entscheidung, und sie dürfte kein Epic
+    // still aus dem Portfolio-Topf werfen. Deshalb die Prüfung auf `approved`.
+    pool = unpicked.filter((e) => {
+      const c = classes.get(e.id);
+      return !(c?.epicClass === "art" && c.classSource === "approved");
+    });
     filteredOut = unpicked.length - pool.length;
   }
 

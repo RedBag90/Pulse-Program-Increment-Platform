@@ -5,12 +5,18 @@ import type { SolutionDetailModel } from "@/modules/work/server/views/solution-d
 import {
   setSolutionLifecycleAction,
   promoteSolutionAction,
-  setSolutionInvestmentModeAction,
 } from "@/modules/work/features/portfolio/actions/solution";
-import { PROMOTION_CRITERIA } from "@/modules/work/domain/solution";
-import { type Horizon } from "@/modules/work/domain/portfolio-guardrails";
-import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
+import {
+  PROMOTION_CRITERIA,
+  SOLUTION_STATUSES,
+  SOLUTION_STATUS_STEP_LABEL,
+  SOLUTION_TRANSITIONS,
+  solutionStatusOf,
+  solutionStatusToHorizonMode,
+} from "@/modules/work/domain/solution";
+import { HORIZON_BADGE_CLASS } from "@/modules/work/features/portfolio/components/horizon-badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -19,25 +25,20 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-/** Erlaubte Lifecycle-Übergänge je aktuellem Horizont (vor-/rückwärts). */
-const TRANSITIONS: Record<Horizon, { to: Horizon; label: string; gate?: boolean }[]> = {
-  h3: [{ to: "h2", label: "Nach H2 (Emerging)" }],
-  h2: [
-    { to: "h1", label: "Nach H1 befördern", gate: true },
-    { to: "h3", label: "Zurück zu H3" },
-  ],
-  h1: [
-    { to: "h0", label: "Stilllegen (H0)" },
-    { to: "h2", label: "Zurück zu H2" },
-  ],
-  h0: [{ to: "h1", label: "Reaktivieren (H1)" }],
-};
-
-const ORDER: Horizon[] = ["h3", "h2", "h1", "h0"];
-
 /**
- * Der Lifecycle einer Solution als Sub-Header der Detail-Shell: Kontext-Zeile,
- * Horizont-Stepper und die erlaubten Übergänge.
+ * Der Lebenszyklus einer Solution als Sub-Header der Detail-Shell: Kontext-Zeile,
+ * **fünfstufige** Leiter und die erlaubten Übergänge.
+ *
+ * H1 zerfällt sichtbar in `H1.1 · Investing` und `H1.2 · Extracting` — zwei
+ * wirtschaftlich verschiedene Phasen, die bis September 2026 als Schieber am
+ * rechten Rand hingen: vier Stufen oben, ein Umschalter unten. Der Wechsel von
+ * „wir bauen aus" zu „wir melken" war damit optisch kein Schritt auf der Leiter,
+ * obwohl er einer ist. Jetzt ist er einer — ein Klick, keine Rückfrage, und der
+ * Rückweg bleibt offen.
+ *
+ * **Gespeichert wird nichts Neues**: weiterhin `horizon` + `investmentMode`. Die
+ * Kanten stehen als reine Liste in `domain/solution.ts` und sind dort geprüft;
+ * hier wird nur gezeichnet.
  *
  * Bewusst tab-unabhängig — dasselbe Muster wie die Gate-Karte und der
  * Reifegrad-Stepper der Epic-Seite: der Zustandswechsel ist der Vorgang, um den
@@ -51,8 +52,9 @@ export function SolutionLifecycleBar({
   canManage: boolean;
 }) {
   const [, lifecycleAction] = useActionState(setSolutionLifecycleAction, {});
-  const [, modeAction] = useActionState(setSolutionInvestmentModeAction, {});
   const [gateOpen, setGateOpen] = useState(false);
+
+  const current = solutionStatusOf(model.horizon, model.investmentMode);
 
   return (
     <div className="space-y-3">
@@ -62,19 +64,32 @@ export function SolutionLifecycleBar({
       {model.description && <p className="max-w-2xl text-sm">{model.description}</p>}
 
       <div className="flex items-center gap-1">
-        {ORDER.map((h, i) => (
-          <div key={h} className="flex flex-1 items-center gap-1">
-            <div className={`flex-1 text-center ${h === model.horizon ? "" : "opacity-45"}`}>
-              <HorizonBadge horizon={h} />
+        {SOLUTION_STATUSES.map((st, i) => {
+          const tone = HORIZON_BADGE_CLASS[solutionStatusToHorizonMode(st).horizon];
+          const active = st === current;
+          return (
+            <div key={st} className="flex flex-1 items-center gap-1">
+              <div className={cn("flex-1 text-center", active ? "" : "opacity-45")}>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                    tone.pill,
+                    active && "ring-1 ring-current/30",
+                  )}
+                >
+                  <span className={cn("size-1.5 shrink-0 rounded-full", tone.dot)} />
+                  {SOLUTION_STATUS_STEP_LABEL[st]}
+                </span>
+              </div>
+              {i < SOLUTION_STATUSES.length - 1 && <div className="h-px w-4 shrink-0 bg-border" />}
             </div>
-            {i < ORDER.length - 1 && <div className="h-px w-4 shrink-0 bg-border" />}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {canManage && (
         <div className="flex flex-wrap items-center gap-2">
-          {TRANSITIONS[model.horizon].map((t) =>
+          {SOLUTION_TRANSITIONS[current].map((t) =>
             t.gate ? (
               <Button key={t.to} size="sm" onClick={() => setGateOpen(true)}>
                 {t.label}
@@ -82,34 +97,12 @@ export function SolutionLifecycleBar({
             ) : (
               <form key={t.to} action={lifecycleAction}>
                 <input type="hidden" name="id" value={model.id} />
-                <input type="hidden" name="horizon" value={t.to} />
+                <input type="hidden" name="status" value={t.to} />
                 <Button type="submit" size="sm" variant="outline">
                   {t.label}
                 </Button>
               </form>
             ),
-          )}
-
-          {/* Invest/Extract nur in H1 — davor gibt es nichts zu ernten. */}
-          {model.horizon === "h1" && (
-            <div className="ml-auto inline-flex overflow-hidden rounded-md border text-xs">
-              {(["investing", "extracting"] as const).map((mode) => (
-                <form key={mode} action={modeAction}>
-                  <input type="hidden" name="id" value={model.id} />
-                  <input type="hidden" name="investmentMode" value={mode} />
-                  <button
-                    type="submit"
-                    className={`px-3 py-1.5 font-medium ${
-                      model.investmentMode === mode
-                        ? "bg-blue-600 text-white"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {mode === "investing" ? "Investing" : "Extracting"}
-                  </button>
-                </form>
-              ))}
-            </div>
           )}
         </div>
       )}
@@ -138,10 +131,11 @@ function TransitionGateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Solution nach H1 befördern</DialogTitle>
+          <DialogTitle>Solution nach H1.1 befördern</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Alle Kriterien bestätigen, um die Solution zur dauerhaften Kern-Solution (H1) zu machen.
+          Alle Kriterien bestätigen, um die Solution zur dauerhaften Kern-Solution zu machen. Sie
+          landet auf H1.1 · Investing.
         </p>
         <form action={action} className="mt-2 space-y-2">
           <input type="hidden" name="id" value={solutionId} />

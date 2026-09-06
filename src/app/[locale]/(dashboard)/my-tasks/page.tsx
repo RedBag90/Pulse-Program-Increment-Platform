@@ -1,3 +1,4 @@
+import { resolveEpicHorizon } from "@/modules/work/domain/epic-horizon";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { requirePrincipal } from "@/server/auth/principal";
@@ -128,7 +129,11 @@ export default async function MyTasksPage() {
       completedChildFeatureCount: completedFeatureCounts.get(e.id) ?? 0,
       implementationCompletedAt: e.implementationCompletedAt,
       epicType: e.epicType,
-      investmentHorizon: e.primarySolution?.horizon ?? null,
+      investmentHorizon: resolveEpicHorizon({
+        investmentHorizon: e.investmentHorizon,
+        solutionHorizon: e.primarySolution?.horizon ?? null,
+        businessCaseApprovedAt: e.businessCaseApprovedAt,
+      }),
     })),
     valueStreams,
     userLabels,

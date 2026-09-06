@@ -39,6 +39,8 @@ function facts(step: GateStep, over: Partial<EpicGateFacts> = {}): EpicGateFacts
     implementationCompletedAt: null,
     approvedAt: null,
     impactRecognizedAt: null,
+    solutionHorizon: null,
+    investmentHorizon: null,
     multiPartyApproval: true,
     // Die zweiten Schritte materialisieren sich in ihrem jeweiligen Stempel.
     ...(step === "L3.2" ? { approvedAt: CONFIRMED } : {}),
@@ -439,6 +441,70 @@ describe("L2 → L3.1 trägt die Business-Case-Freigabe", () => {
     );
     expect(s.businessCaseApprovedAt).toBeUndefined();
     expect(s.needsSteeringAttention).toBe(true);
+  });
+
+  it("friert den Horizont der Primär-Solution ein", () => {
+    // Ab hier trägt das Epic seinen Horizont selbst. Ohne das schriebe jeder
+    // spätere Solution-Wechsel die gemessene Portfolio-Balance rückwirkend um.
+    const s = stampsForAdvance(
+      facts("L2", { hasBusinessCaseContent: true, solutionHorizon: "h2" }),
+      "L3.1",
+      VMO,
+      NOW,
+    );
+    expect(s.investmentHorizon).toBe("h2");
+  });
+
+  it("überschreibt einen von Hand gesetzten Horizont nicht", () => {
+    const s = stampsForAdvance(
+      facts("L2", {
+        hasBusinessCaseContent: true,
+        solutionHorizon: "h1",
+        investmentHorizon: "h3",
+      }),
+      "L3.1",
+      VMO,
+      NOW,
+    );
+    expect(s.investmentHorizon).toBeUndefined();
+  });
+
+  it("friert nichts ein, wo es keine Solution gibt", () => {
+    // Die Freigabe verlangt keinen Horizont — ein Epic darf ohne durchgehen.
+    const s = stampsForAdvance(facts("L2", { hasBusinessCaseContent: true }), "L3.1", VMO, NOW);
+    expect(s.investmentHorizon).toBeUndefined();
+  });
+});
+
+describe("Die Rückstufung L3.1 → L2 taut den Horizont wieder auf", () => {
+  it("räumt den Abdruck der Abnahme ab", () => {
+    const s = unwindStampsFor("L3.1", "L2", { investmentHorizon: "h2", solutionHorizon: "h2" });
+    expect(s.investmentHorizon).toBeNull();
+    expect(s.businessCaseApprovedAt).toBeNull();
+  });
+
+  it("lässt einen abweichenden, von Hand gesetzten Wert stehen", () => {
+    // Den Freeze lösen heisst „folge wieder der Solution". Steht am Epic etwas
+    // anderes, hat ein Mensch das entschieden — genau der Wert, für den dieses
+    // Feld existiert.
+    const s = unwindStampsFor("L3.1", "L2", { investmentHorizon: "h3", solutionHorizon: "h1" });
+    expect(s.investmentHorizon).toBeUndefined();
+  });
+
+  it("lässt den Wert eines Epics ohne Solution stehen", () => {
+    const s = unwindStampsFor("L3.1", "L2", { investmentHorizon: "h1", solutionHorizon: null });
+    expect(s.investmentHorizon).toBeUndefined();
+  });
+
+  it("fasst den Horizont ohne Fakten gar nicht an", () => {
+    expect(unwindStampsFor("L3.1", "L2").investmentHorizon).toBeUndefined();
+  });
+
+  it("taut nur an diesem einen Schritt auf", () => {
+    // Der Freeze hängt an der Business-Case-Freigabe, nicht an L3.2 oder L4.
+    const both = { investmentHorizon: "h2", solutionHorizon: "h2" };
+    expect(unwindStampsFor("L3.2", "L3.1", both).investmentHorizon).toBeUndefined();
+    expect(unwindStampsFor("L4", "L3.2", both).investmentHorizon).toBeUndefined();
   });
 });
 

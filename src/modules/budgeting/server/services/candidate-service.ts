@@ -16,7 +16,6 @@ import {
   isPbEligible,
   type EpicClassState,
 } from "@/modules/work/domain/pb-submission";
-import { loadDefaultHypothesisEffort } from "@/modules/budgeting/server/services/pb-list";
 import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 
 /**
@@ -195,13 +194,11 @@ export async function addEpicCandidate(
     const denied = assertNotArtEpic(basis, epic);
     if (denied) return denied;
 
-    // Kosten-Richtwert aus den Artefakten ableiten (LBC → Σ costSlices; sonst
-    // Hypothese → tenant-Default-Aufwand).
-    const defaultEffort = await loadDefaultHypothesisEffort(tx, mctx.tenantId);
+    // Kosten-Richtwert aus dem freigegebenen Lean Business Case (Σ costSlices).
     const data = {
       kind: "epic",
       title: epic.title,
-      ask: derivePbInfo(epic, defaultEffort).cost,
+      ask: derivePbInfo(epic).cost,
       valueStreamId: epic.valueStreamId,
       artId: epic.artId,
       updatedBy: mctx.actorId,

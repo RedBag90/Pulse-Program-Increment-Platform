@@ -64,27 +64,45 @@ const runningGroup = (over: Partial<GroupRow> = {}): GroupRow => ({
 describe("setGroupAmount", () => {
   it("Mitglied verteilt in laufender Runde", async () => {
     const t = txWith(runningGroup());
-    const res = await setGroupAmount(ctxWith(t), { groupId: "g1", candidateId: "c1", amount: 1000 });
+    const res = await setGroupAmount(ctxWith(t), {
+      groupId: "g1",
+      candidateId: "c1",
+      amount: 1000,
+    });
     expect(res.ok).toBe(true);
     expect(t.groupAllocation!.create).toHaveBeenCalled();
   });
 
   it("Nicht-Mitglied wird abgewiesen (forbidden)", async () => {
     const t = txWith(runningGroup({ members: [{ userId: "someone-else", isSubmitter: false }] }));
-    const res = await setGroupAmount(ctxWith(t), { groupId: "g1", candidateId: "c1", amount: 1000 });
+    const res = await setGroupAmount(ctxWith(t), {
+      groupId: "g1",
+      candidateId: "c1",
+      amount: 1000,
+    });
     expect(res.ok).toBe(false);
     expect(t.groupAllocation!.create).not.toHaveBeenCalled();
   });
 
   it("lehnt Schreiben ab, wenn bereits eingereicht", async () => {
     const t = txWith(runningGroup({ submittedAt: new Date("2026-01-01") }));
-    const res = await setGroupAmount(ctxWith(t), { groupId: "g1", candidateId: "c1", amount: 1000 });
+    const res = await setGroupAmount(ctxWith(t), {
+      groupId: "g1",
+      candidateId: "c1",
+      amount: 1000,
+    });
     expect(res.ok).toBe(false);
   });
 
   it("lehnt Schreiben ab, wenn Runde nicht läuft", async () => {
-    const t = txWith(runningGroup({ round: { id: "r1", status: "draft", submissionDeadline: null } }));
-    const res = await setGroupAmount(ctxWith(t), { groupId: "g1", candidateId: "c1", amount: 1000 });
+    const t = txWith(
+      runningGroup({ round: { id: "r1", status: "draft", submissionDeadline: null } }),
+    );
+    const res = await setGroupAmount(ctxWith(t), {
+      groupId: "g1",
+      candidateId: "c1",
+      amount: 1000,
+    });
     expect(res.ok).toBe(false);
   });
 });

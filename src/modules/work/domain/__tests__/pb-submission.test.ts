@@ -3,7 +3,8 @@ import {
   derivePbInfo,
   isPbEligible,
   pbSourceKind,
-  DEFAULT_HYPOTHESIS_EFFORT,
+  resolveEpicClass,
+  isEpicClass,
   type PbSource,
 } from "@/modules/work/domain/pb-submission";
 
@@ -47,26 +48,31 @@ describe("isPbEligible / pbSourceKind", () => {
     expect(isPbEligible(e)).toBe(true);
   });
 
-  it("hypothesis-only when only the hypothesis is approved", () => {
+  it("eine freigegebene Hypothese allein reicht **nicht**", () => {
+    // Bis September 2026 kam dieses Epic auf die PB-Liste und bekam einen
+    // Pauschalbetrag — das Portfolio budgetierte damit die Erarbeitung des
+    // Business Case. Es finanziert die Umsetzung.
     const e = { businessCaseApprovedAt: null, hypothesisApprovedAt: new Date() };
-    expect(pbSourceKind(e)).toBe("hypothesis");
+    expect(pbSourceKind(e)).toBe("none");
+    expect(isPbEligible(e)).toBe(false);
   });
 });
 
 describe("derivePbInfo", () => {
   it("none → not ready, cost 0, no rows", () => {
-    const info = derivePbInfo(base, DEFAULT_HYPOTHESIS_EFFORT);
+    const info = derivePbInfo(base);
     expect(info).toEqual({ ready: false, source: "none", cost: 0, rows: [] });
   });
 
   it("approved LBC → cost from cost slices + LBC rows", () => {
-    const info = derivePbInfo(
-      { ...base, businessCase: BUSINESS_CASE, businessCaseApprovedAt: new Date() },
-      99999,
-    );
+    const info = derivePbInfo({
+      ...base,
+      businessCase: BUSINESS_CASE,
+      businessCaseApprovedAt: new Date(),
+    });
     expect(info.ready).toBe(true);
     expect(info.source).toBe("lbc");
-    expect(info.cost).toBe(200000); // 120k + 80k, NOT the default
+    expect(info.cost).toBe(200000); // 120k + 80k
     expect(info.rows).toEqual([
       { label: "Beschreibung", value: "Kundenportal ausbauen" },
       { label: "Business-Outcome", value: "NPS +10" },
@@ -76,20 +82,48 @@ describe("derivePbInfo", () => {
     ]);
   });
 
-  it("hypothesis-only → default effort + hypothesis rows (blank entries dropped)", () => {
-    const info = derivePbInfo(
-      { ...base, benefitHypothesis: HYPOTHESIS, hypothesisApprovedAt: new Date() },
-      70000,
-    );
-    expect(info.ready).toBe(true);
-    expect(info.source).toBe("hypothesis");
-    expect(info.cost).toBe(70000);
-    expect(info.rows).toEqual([
-      { label: "Maßnahmen-Hypothese", value: "Self-Service-Portal" },
-      { label: "Veränderung ggü. Baseline", value: "von manuell zu automatisiert" },
-      { label: "Business Outcomes", value: "Ticketvolumen −30 %" },
-      { label: "Frühindikatoren", value: "Portal-Logins" },
-      { label: "Risiken", value: "Adoption unklar" },
-    ]);
+  it("nur Hypothese → nicht budgeting-reif, kein Richtwert", () => {
+    const info = derivePbInfo({
+      ...base,
+      benefitHypothesis: HYPOTHESIS,
+      hypothesisApprovedAt: new Date(),
+    });
+    expect(info).toEqual({ ready: false, source: "none", cost: 0, rows: [] });
+  });
+});
+
+describe("resolveEpicClass — entschieden schlägt erwartet", () => {
+  it("nimmt die Entscheidung, wenn es eine gibt", () => {
+    expect(resolveEpicClass("portfolio", "art")).toEqual({
+      epicClass: "portfolio",
+      classSource: "approved",
+    });
+  });
+
+  it("nimmt die Erwartung, solange nichts entschieden ist", () => {
+    // Die 123 Epics, die die Facette bisher nicht fand.
+    expect(resolveEpicClass(null, "art")).toEqual({ epicClass: "art", classSource: "intended" });
+  });
+
+  it("bleibt ohne beides leer", () => {
+    expect(resolveEpicClass(null, null)).toEqual({ epicClass: null, classSource: "none" });
+  });
+
+  it("ist eine Einbahnstraße: eine Erwartung überschreibt nie eine Entscheidung", () => {
+    for (const decided of ["portfolio", "art"] as const) {
+      for (const intended of ["portfolio", "art", null] as const) {
+        expect(resolveEpicClass(decided, intended).epicClass).toBe(decided);
+      }
+    }
+  });
+});
+
+describe("isEpicClass", () => {
+  it("lässt nur die beiden echten Werte durch", () => {
+    expect(isEpicClass("portfolio")).toBe(true);
+    expect(isEpicClass("art")).toBe(true);
+    expect(isEpicClass("Portfolio")).toBe(false);
+    expect(isEpicClass(null)).toBe(false);
+    expect(isEpicClass(undefined)).toBe(false);
   });
 });

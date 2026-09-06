@@ -173,6 +173,7 @@ export function demoEpicDetailInputs(): EpicDetailInputs {
     canAssignOwner: false,
     gate: { disabled: true },
     canLinkDependency: false,
+    canOverrideHorizon: false,
     showWsjf: true,
     canSetDelivery: false,
   };

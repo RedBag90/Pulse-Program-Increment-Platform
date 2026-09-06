@@ -1,15 +1,23 @@
 /**
  * Ableitung der Participatory-Budgeting-Einreichungsinfos eines Epics.
  *
- * Die PB-Infos werden NICHT mehr manuell gepflegt, sondern aus den vorhandenen
- * Artefakten abgeleitet:
- *   - approved **Lean Business Case** (`businessCaseApprovedAt != null`) → Infos +
- *     Kosten-Richtwert (Σ costSlices) aus dem LBC;
- *   - sonst approved **Benefit-Hypothese** (`hypothesisApprovedAt != null`) → Infos
- *     aus der Hypothese; der Kosten-Richtwert kommt aus einem tenant-konfigurierbaren
- *     Default (grob der Aufwand, um den LBC zu erarbeiten).
+ * Die PB-Infos werden nicht manuell gepflegt, sondern aus dem **freigegebenen
+ * Lean Business Case** abgeleitet: Infos aus seinen Feldern, Kosten-Richtwert als
+ * Σ `costSlices`.
  *
- * Rein, kein I/O. Ersetzt das frühere manuelle `submission.ts`-Vollständigkeits-Gate.
+ * **Bis September 2026 gab es einen zweiten Weg.** Ein Epic mit bloß
+ * freigegebener Benefit-Hypothese kam ebenfalls auf die PB-Liste und bekam einen
+ * pauschalen Richtwert — „grob der Aufwand, um den LBC zu erarbeiten", aus einem
+ * tenant-konfigurierbaren Default. Das Portfolio budgetierte damit die
+ * **Erstellung** des Business Case, nicht nur seine Umsetzung. Dieser Weg ist
+ * entfallen: die Analyse- und Business-Case-Arbeit läuft aus der laufenden
+ * Kapazität von Wertstrom und ART.
+ *
+ * Damit erreicht nur noch ein Epic **ab L3.1** die PB-Liste — dieselbe Grenze,
+ * die `budgeting/domain/allocation-eligibility.ts` zieht, hier am Eingang
+ * durchgesetzt statt nur in den Seeds.
+ *
+ * Rein, kein I/O.
  */
 
 import {
@@ -17,18 +25,14 @@ import {
   computeBusinessCaseTotals,
   type BusinessCaseFields,
 } from "@/modules/work/domain/business-case";
-import {
-  parseBenefitHypothesis,
-  type BenefitHypothesisFields,
-} from "@/modules/work/domain/benefit-hypothesis";
 
-/** Code-Fallback, wenn der Tenant keinen Default-Aufwand gesetzt hat. */
-export const DEFAULT_HYPOTHESIS_EFFORT = 50_000;
-
-/** Die zwei Approval-Stempel, die die Eligibility bestimmen. */
+/**
+ * Die Approval-Stempel. `hypothesisApprovedAt` bleibt Teil der Form, weil die
+ * Aufrufer ihn ohnehin laden — für die Eligibility zählt er **nicht** mehr.
+ */
 export interface PbApprovalState {
   businessCaseApprovedAt: Date | null;
-  hypothesisApprovedAt: Date | null;
+  hypothesisApprovedAt?: Date | null;
 }
 
 /** Roh-Quelle für die Ableitung: die JSON-Artefakte + die Approval-Stempel. */
@@ -39,7 +43,7 @@ export interface PbSource extends PbApprovalState {
   benefitHypothesis: unknown;
 }
 
-export type PbSourceKind = "lbc" | "hypothesis" | "none";
+export type PbSourceKind = "lbc" | "none";
 
 export interface PbInfoRow {
   label: string;
@@ -47,34 +51,32 @@ export interface PbInfoRow {
 }
 
 export interface PbCandidateInfo {
-  /** true, sobald eine approved Hypothese ODER ein approved LBC vorliegt. */
+  /** true, sobald ein freigegebener Lean Business Case vorliegt. */
   ready: boolean;
   source: PbSourceKind;
-  /** Kosten-Richtwert (ask): LBC → Σ costSlices; nur-Hypothese → defaultEffort; none → 0. */
+  /** Kosten-Richtwert (ask): Σ costSlices des LBC; ohne LBC 0. */
   cost: number;
   /** Quellen-abhängiger Read-only-Readout; leere Felder ausgelassen. */
   rows: PbInfoRow[];
 }
 
-/** Ist das Epic budgeting-reif (mind. eine approved Hypothese oder ein LBC)? */
+/**
+ * Ist das Epic budgeting-reif? **Nur mit freigegebenem Lean Business Case.**
+ *
+ * Eine freigegebene Benefit-Hypothese reicht nicht mehr: das Portfolio
+ * finanziert die Umsetzung, nicht die Erarbeitung des Business Case.
+ */
 export function isPbEligible(e: PbApprovalState): boolean {
-  return e.businessCaseApprovedAt != null || e.hypothesisApprovedAt != null;
+  return e.businessCaseApprovedAt != null;
 }
 
-/** Welches Artefakt speist die PB-Infos — approved LBC gewinnt vor Hypothese. */
+/** Welches Artefakt speist die PB-Infos — nur der freigegebene LBC. */
 export function pbSourceKind(e: PbApprovalState): PbSourceKind {
-  if (e.businessCaseApprovedAt != null) return "lbc";
-  if (e.hypothesisApprovedAt != null) return "hypothesis";
-  return "none";
+  return e.businessCaseApprovedAt != null ? "lbc" : "none";
 }
 
 function pushText(rows: PbInfoRow[], label: string, v: string | undefined): void {
   if (v != null && v.trim() !== "") rows.push({ label, value: v.trim() });
-}
-
-function pushList(rows: PbInfoRow[], label: string, v: string[] | undefined): void {
-  const items = (v ?? []).map((s) => s.trim()).filter((s) => s !== "");
-  if (items.length > 0) rows.push({ label, value: items.join(" · ") });
 }
 
 function lbcRows(bc: BusinessCaseFields): PbInfoRow[] {
@@ -87,53 +89,23 @@ function lbcRows(bc: BusinessCaseFields): PbInfoRow[] {
   return rows;
 }
 
-function hypothesisRows(h: BenefitHypothesisFields): PbInfoRow[] {
-  const rows: PbInfoRow[] = [];
-  pushText(rows, "Maßnahmen-Hypothese", h.measuresHypothesis);
-  pushText(rows, "Veränderung ggü. Baseline", h.changeFromBaseline);
-  pushList(rows, "Business Outcomes", h.businessOutcomes);
-  pushList(rows, "Frühindikatoren", h.leadingIndicators);
-  pushList(rows, "Risiken", h.risks);
-  return rows;
-}
-
-/**
- * Leitet die PB-Kandidaten-Info eines Epics aus seinen Artefakten ab. `defaultEffort`
- * ist der tenant-konfigurierte Kosten-Richtwert für nur-Hypothese-Epics.
- */
-export function derivePbInfo(source: PbSource, defaultEffort: number): PbCandidateInfo {
-  const kind = pbSourceKind(source);
-  if (kind === "lbc") {
-    const bc = parseBusinessCase(source.businessCase).current;
-    return {
-      ready: true,
-      source: "lbc",
-      cost: computeBusinessCaseTotals(bc).implementationCost,
-      rows: lbcRows(bc),
-    };
+/** Leitet die PB-Kandidaten-Info eines Epics aus seinem Business Case ab. */
+export function derivePbInfo(source: PbSource): PbCandidateInfo {
+  if (pbSourceKind(source) !== "lbc") {
+    return { ready: false, source: "none", cost: 0, rows: [] };
   }
-  if (kind === "hypothesis") {
-    const hyp = parseBenefitHypothesis(source.benefitHypothesis).current;
-    return {
-      ready: true,
-      source: "hypothesis",
-      cost: defaultEffort,
-      rows: hypothesisRows(hyp),
-    };
-  }
-  return { ready: false, source: "none", cost: 0, rows: [] };
+  const bc = parseBusinessCase(source.businessCase).current;
+  return {
+    ready: true,
+    source: "lbc",
+    cost: computeBusinessCaseTotals(bc).implementationCost,
+    rows: lbcRows(bc),
+  };
 }
 
 /** Menschlicher Quellen-Label für den Readout-Header. */
 export function pbSourceLabel(source: PbSourceKind): string {
-  switch (source) {
-    case "lbc":
-      return "aus Lean Business Case";
-    case "hypothesis":
-      return "aus Benefit-Hypothese";
-    default:
-      return "";
-  }
+  return source === "lbc" ? "aus Lean Business Case" : "";
 }
 
 // ---------------------------------------------------------------------------
@@ -203,6 +175,44 @@ export const EPIC_CLASS_LABELS: Record<EpicClass, string> = {
 
 /** Die beim Anlegen hinterlegte Erwartung; `null` = keine (Bestands-Epics). */
 export type IntendedClass = EpicClass | null;
+
+export function isEpicClass(v: string | null | undefined): v is EpicClass {
+  return v === "portfolio" || v === "art";
+}
+
+/** Woher die angezeigte Klasse stammt. */
+export type EpicClassSource = "approved" | "intended" | "none";
+
+export interface ResolvedEpicClass {
+  /** Aufgelöst: entschieden ?? erwartet. */
+  epicClass: EpicClass | null;
+  classSource: EpicClassSource;
+}
+
+/**
+ * Die Einordnung in **zwei Stufen**: entschieden, sonst erwartet.
+ *
+ * Bis September 2026 gab es nur die erste. Solange kein Business Case
+ * freigegeben war, blieb die Klasse `null` — und die Facette „Epic-Klasse" der
+ * Portfolio-Übersicht fand damit **103 von 226** Epics. Die übrigen 123 trugen
+ * längst eine Erwartung (der Anlege-Dialog verlangt sie), die nirgends gelesen
+ * wurde.
+ *
+ * **Die Rangfolge ist eine Einbahnstraße.** Ist entschieden, gewinnt die
+ * Entscheidung immer; eine Erwartung überschreibt sie nie. Genau das meint der
+ * Schema-Kommentar mit „sie entscheidet nichts": sie entscheidet nicht *statt*
+ * der Kosten, sie springt nur ein, solange die Kosten noch nichts sagen.
+ *
+ * Rein, kein I/O.
+ */
+export function resolveEpicClass(
+  decided: EpicClass | null,
+  intended: IntendedClass,
+): ResolvedEpicClass {
+  if (decided != null) return { epicClass: decided, classSource: "approved" };
+  if (intended != null) return { epicClass: intended, classSource: "intended" };
+  return { epicClass: null, classSource: "none" };
+}
 
 /**
  * Wie die abgeleitete Klasse von der Erwartung abweicht.

@@ -178,6 +178,47 @@ export async function seedBudgetPeriod(
     };
   });
   /**
+   * **Auf die PB-Liste kommt nur ein Epic mit freigegebenem Business Case.**
+   *
+   * Seit die Erstellung des Business Case nicht mehr aus dem Portfolio
+   * budgetiert wird, ist das in `isPbEligible` die einzige Bedingung, und die
+   * Anwendung weist alles andere ab. Die Seeds schrieben ihre Kandidaten
+   * dagegen als Rohzeilen an der Regel vorbei — gemessen 56 Stück ohne
+   * Freigabe, 44 davon allein in den beiden kommenden Runden von Large Test
+   * Corp, die vollstaendig aus L2-Epics bestanden.
+   *
+   * Geprueft wird hier, weil dies die einzige Stelle ist, an der ein Seed eine
+   * Kandidatenzeile schreibt: eine Pruefung deckt alle vier Datensaetze. Und
+   * sie misst den **Stempel**, nicht den Reifegrad — eine Gate-Arithmetik
+   * daneben koennte veralten, `businessCaseApprovedAt` ist die Regel selbst.
+   */
+  if (epicRows.length > 0) {
+    const approved = new Set(
+      (
+        await prisma.initiative.findMany({
+          where: {
+            id: { in: epicRows.map((r) => r.epicId) },
+            businessCaseApprovedAt: { not: null },
+          },
+          select: { id: true },
+        })
+      ).map((e) => e.id),
+    );
+    const offenders = epicRows.filter((r) => !approved.has(r.epicId));
+    if (offenders.length > 0) {
+      throw new Error(
+        `PB-Regel verletzt in Kachel ${cfg.cycleKey} (${cfg.key}): ${offenders.length} ` +
+          `Kandidat(en) ohne freigegebenen Business Case — ` +
+          offenders
+            .slice(0, 8)
+            .map((o) => o.title)
+            .join(", ") +
+          (offenders.length > 8 ? `, … und ${offenders.length - 8} weitere` : ""),
+      );
+    }
+  }
+
+  /**
    * **Eine RtB-Zeile je Wertstrom.** Die Spezifikation bleibt je Position —
    * dort steckt die Erzählung (welcher Rahmen deckt seine Epics, welcher
    * nicht) —, aber der PB-Liste bündelt sie, wie es

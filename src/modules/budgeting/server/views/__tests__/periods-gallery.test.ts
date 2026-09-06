@@ -26,33 +26,84 @@ function round(p: Partial<PeriodRoundInput> & { id: string }): PeriodRoundInput 
 }
 
 describe("buildPeriodsGallery", () => {
-  it("trennt Fokus (nicht abgeschlossen) von Vergangen (closed)", () => {
+  const from = (start: string, end: string) => ({
+    startDate: new Date(`${start}T00:00:00.000Z`),
+    endDate: new Date(`${end}T00:00:00.000Z`),
+  });
+
+  it("trennt nach **Geltung**, nicht nach Prozess-Status", () => {
+    // Vorher stand hier `past = status === "closed"` — eine Kachel wanderte
+    // also genau dann ins Archiv, wenn sie fertig ausgearbeitet war und zu
+    // gelten begann. „abgelaufen" ist eine Aussage über die Zeit, nicht über
+    // den Fortschritt der Vorbereitung.
     const m = buildPeriodsGallery(
       [
-        round({ id: "a", status: "running" }),
-        round({ id: "b", status: "closed" }),
-        round({ id: "c", status: "draft" }),
+        round({ id: "gilt", status: "closed", ...from("2026-01-01", "2026-06-30") }),
+        round({ id: "vorbei", status: "closed", ...from("2025-01-01", "2025-06-30") }),
+        round({ id: "arbeit", status: "running", ...from("2026-07-01", "2026-12-31") }),
       ],
       true,
       NOW,
     );
-    expect(m.focus.map((t) => t.id).sort()).toEqual(["a", "c"]);
-    expect(m.past.map((t) => t.id)).toEqual(["b"]);
+    expect(m.focus.map((t) => t.id).sort()).toEqual(["arbeit", "gilt"]);
+    expect(m.past.map((t) => t.id)).toEqual(["vorbei"]);
     expect(m.canManage).toBe(true);
+  });
+
+  it("nennt die geltende Kachel `active` — nicht die, an der gearbeitet wird", () => {
+    const m = buildPeriodsGallery(
+      [
+        round({ id: "gilt", status: "closed", ...from("2026-01-01", "2026-06-30") }),
+        round({ id: "arbeit", status: "running", ...from("2026-07-01", "2026-12-31") }),
+      ],
+      true,
+      NOW,
+    );
+    expect(m.active!.id).toBe("gilt");
+    expect(m.active!.validity).toBe("applied");
+    expect(m.focus.find((t) => t.id === "arbeit")!.validity).toBe("in_preparation");
+  });
+
+  it("markiert eine abgelaufene Kachel, die mangels Nachfolger weitergilt", () => {
+    const m = buildPeriodsGallery(
+      [round({ id: "alt", status: "closed", ...from("2025-01-01", "2025-12-31") })],
+      true,
+      NOW,
+    );
+    expect(m.active!.id).toBe("alt");
+    expect(m.active!.extended).toBe(true);
+    expect(m.active!.validityLabel).toBe("Angewandtes Budget");
   });
 
   it("listet nur abgeschlossene Kacheln mit offener Reserve als übertragbar", () => {
     const m = buildPeriodsGallery(
       [
-        round({ id: "a", status: "closed", cycleKey: "2026-H1", reserveAmount: 150_000 }),
-        round({ id: "b", status: "closed", cycleKey: "2026-H2", reserveAmount: 0 }),
+        round({
+          id: "a",
+          status: "closed",
+          cycleKey: "2026-H1",
+          reserveAmount: 150_000,
+          ...from("2025-01-01", "2025-06-30"),
+        }),
+        round({
+          id: "b",
+          status: "closed",
+          cycleKey: "2026-H2",
+          reserveAmount: 0,
+          ...from("2025-07-01", "2025-12-31"),
+        }),
         round({ id: "c", status: "running", cycleKey: "2027-H1", reserveAmount: 999 }),
       ],
       true,
       NOW,
     );
     expect(m.carriableReserves).toEqual([
-      { cycleKey: "2026-H1", label: "H1 2026", startDate: null, amount: 150_000 },
+      {
+        cycleKey: "2026-H1",
+        label: "H1 2026",
+        startDate: new Date("2025-01-01T00:00:00.000Z"),
+        amount: 150_000,
+      },
     ]);
   });
 
@@ -132,18 +183,29 @@ describe("buildPeriodsGallery — Phase je Kachel", () => {
           id: "fertig",
           status: "closed",
           poolTotal: 1000,
-          startDate: new Date("2026-01-01"),
-          endDate: new Date("2026-06-30"),
+          startDate: new Date("2025-01-01"),
+          endDate: new Date("2025-06-30"),
           candidateCount: 3,
           groupCount: 2,
           staffedGroupCount: 2,
           submittedCount: 2,
           hasRevision: true,
         }),
+        // Ohne Nachfolger gälte „fertig" weiter, weil heute in keine Kachel
+        // fällt — erst diese hier macht sie wirklich abgelaufen.
+        round({
+          id: "gilt",
+          cycleKey: "2026-H1",
+          status: "closed",
+          startDate: new Date("2026-01-01T00:00:00.000Z"),
+          endDate: new Date("2026-06-30T00:00:00.000Z"),
+        }),
       ],
       true,
       NOW,
     );
+    // Der Zeitraum ist vorbei — die Kachel steht im Archiv, ihre Phase ist fertig.
     expect(m.past[0]!.phase).toBe("abgeschlossen");
+    expect(m.past[0]!.validity).toBe("expired");
   });
 });

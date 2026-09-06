@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
  * Ampel-Chip — Punkt + Label im geteilten Ampel-Farbraum
  * (`GOAL_STATUS_TIER_HEX`, wie `ProgressBar` und die Chart-Bubbles).
  *
- * Hochgezogen aus `lpm-review-shell.tsx`, wo er als lokale Komponente lag; die
+ * Ursprünglich eine lokale Komponente des Portfolio-Reviews (seit dessen
+ * Rückbau im September 2026 hier zu Hause); die
  * Guardrails-Flaeche braucht dieselbe Ampelsprache, soll aber nicht das
  * LPM-Review importieren. Zwei Auspraegungen:
  *

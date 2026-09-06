@@ -5,6 +5,7 @@ import {
   allocationShare,
   type AllocationState,
 } from "@/modules/budgeting/domain/allocation-state";
+import { potStanding } from "@/modules/budgeting/domain/art-epic-budget";
 import { ArtPotSection } from "@/modules/budgeting/features/components/art-budget/art-pot-section";
 import { AllocationCourseChart } from "@/modules/budgeting/features/components/art-budget/allocation-course-chart";
 import {
@@ -25,6 +26,65 @@ import {
  * verfügbar: das Geld hängt an konkreten Epics und wird ohne neue Budget-Kachel
  * nicht umgewidmet. Die Fläche sagt das, statt es der Leserin zu überlassen.
  */
+
+/**
+ * **Die fünfte Kachel: was vom Rahmen noch nicht vergeben ist.**
+ *
+ * Die vier daneben beschreiben allesamt dasselbe Geld — das bereits an Epics
+ * verteilte, aufgeschlüsselt nach seinem Zustand. Der unverteilte Rest stand
+ * bisher nur im Reiter *Verteilen*, also dort, wo man schon hingegangen sein
+ * muss, um zu erfahren, dass man hingehen sollte.
+ *
+ * Sie rechnet mit `pot.remaining` und nicht mit `total − breakdown.total`: der
+ * Topf ist die Größe, die darüber entscheidet, was sich noch verteilen lässt.
+ * Die Nachbarkachel *Zugeteilt* zählt die Zuteilungen dieses ARTs; beide
+ * Summen können auseinanderlaufen, wenn ein Epic nach der Zuteilung den ART
+ * gewechselt hat (`detail.switchedArt` weist diese Fälle gesondert aus).
+ *
+ * Der Link erscheint nur, wenn tatsächlich verteilt werden darf — einer, der
+ * auf ein gesperrtes Formular führt, wäre eine falsche Auskunft.
+ */
+function RemainingTile({
+  detail,
+  basePath,
+  canDistribute,
+}: {
+  detail: ArtBudgetDetail;
+  basePath: string;
+  canDistribute: boolean;
+}) {
+  const standing = potStanding(detail.pot?.pot ?? null);
+  const showAmount = standing.state === "open" || standing.state === "closed";
+  const note =
+    standing.state === "open"
+      ? `${Math.round(standing.share * 100)} % des Rahmens`
+      : standing.state === "fully_distributed"
+        ? "vollständig verteilt"
+        : standing.state === "closed"
+          ? standing.reason
+          : "kein Rahmen zugesprochen";
+
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Noch zu verteilen
+      </div>
+      <div className="mt-1 text-2xl font-semibold tabular-nums">
+        {showAmount ? formatCompactEUR(standing.remaining) : "—"}
+      </div>
+      <div className="text-xs text-muted-foreground">{note}</div>
+      {standing.state === "open" && canDistribute && (
+        <Link
+          // Auf **dasselbe** Halbjahr, das die Übersicht gerade zeigt.
+          href={`${basePath}?tab=verteilen&cycle=${detail.cycleKey}`}
+          className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
+        >
+          Verteilen →
+        </Link>
+      )}
+    </div>
+  );
+}
 
 const STATE_COLOR: Record<AllocationState, string> = {
   notStarted: "var(--muted-foreground)",
@@ -93,7 +153,9 @@ export function ArtBudgetTab({
               </span>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
+            <div
+              className={`grid gap-4 ${s.source === "art" ? "md:grid-cols-5" : "md:grid-cols-4"}`}
+            >
               <div className="rounded-lg border bg-card p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Zugeteilt
@@ -125,6 +187,10 @@ export function ArtBudgetTab({
                   </div>
                 </div>
               ))}
+
+              {s.source === "art" && (
+                <RemainingTile detail={detail} basePath={basePath} canDistribute={canDistribute} />
+              )}
             </div>
 
             {s.breakdown.rows.length === 0 ? (

@@ -6,7 +6,6 @@ import { Plus } from "lucide-react";
 import { createPeriodAction } from "@/modules/budgeting/features/actions/period";
 import { formatEUR } from "@/lib/formatting";
 import type { CarriableReserve } from "@/modules/budgeting/server/views/periods-gallery";
-import { GoalPeriodField } from "@/modules/core/goals/features/components/goal-period-field";
 import type { ActionState } from "@/server/http/server-action";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,12 +62,17 @@ export function CreatePeriodDialog({
           </DialogHeader>
           <form action={action} className="space-y-4">
             <div className="space-y-1.5">
-              <Label>
-                Start der Budgeting-Phase <span className="text-destructive">*</span>
+              <Label htmlFor="period-start">
+                Geltungszeitraum des Budgets <span className="text-destructive">*</span>
               </Label>
-              <GoalPeriodField allowOpenEnd />
+              <div className="flex items-center gap-2">
+                <Input id="period-start" name="periodStart" type="date" required />
+                <span className="text-sm text-muted-foreground">bis</span>
+                <Input id="period-end" name="periodEnd" type="date" />
+              </div>
               <p className="text-xs text-muted-foreground">
-                Raster (H1/H2) oder individuelles Datum. Ohne Ende: Start + 6 Monate.
+                Von wann bis wann dieses Budget gilt — nicht die Dauer der Vorbereitung. Ohne Ende:
+                Start + 6 Monate. Zwei Kacheln dürfen nicht im selben Halbjahr beginnen.
               </p>
             </div>
 

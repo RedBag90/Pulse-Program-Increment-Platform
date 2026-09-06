@@ -230,6 +230,11 @@ function initialFacts(input: GateHistoryInput): EpicGateFacts {
     hasHypothesisContent: input.benefitHypothesis != null,
     hasBusinessCaseContent: input.businessCase != null,
     businessCaseApprovedAt: null,
+    // Ohne Horizont: die Demo-Epics folgen weiter ihrer Primär-Solution. Der
+    // Freeze gilt „ab jetzt" und wird nicht in den Bestand zurückgeschrieben —
+    // sonst zeigte der Datensatz einen Zustand, den es real nicht gibt.
+    solutionHorizon: null,
+    investmentHorizon: null,
     budgetAllocationSum: input.budgetAllocationSum ?? 0,
     childFeatureStats: input.childFeatureStats ?? { total: 0, started: 0, completed: 0 },
     selectedForDetailingAt: null,

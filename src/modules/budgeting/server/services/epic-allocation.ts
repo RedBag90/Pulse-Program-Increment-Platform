@@ -2,7 +2,15 @@ import type { Prisma, PrismaClient } from "@/generated/prisma";
 import type { TenantId, EpicId } from "@/modules/core/kernel/domain/types";
 import { parsePeriodAmountMap } from "@/modules/budgeting/domain/budgeting";
 import { sumPeriods } from "@/modules/budgeting/domain/period-map";
-import { activeCycleFromRounds } from "@/modules/budgeting/domain/budget-cycle";
+import { appliedPeriod } from "@/modules/budgeting/domain/period-validity";
+import {
+  chooseAllocations,
+  type EpicClassLike,
+} from "@/modules/work/domain/epic-allocation-choice";
+import {
+  epicBudgetStanding,
+  type EpicBudgetStanding,
+} from "@/modules/budgeting/domain/epic-budget-standing";
 
 /**
  * The Epic's budget-allocation summary. Budgeting owns the `budgetAllocation`
@@ -30,34 +38,57 @@ export async function getEpicBudgetAllocation(
   return { allocatedSum: sumPeriods(allocatedByPeriod), allocatedByPeriod };
 }
 
+export interface AppliedCycleAllocations {
+  /** `null` = es gilt gerade kein Budget-Rahmen. */
+  cycleKey: string | null;
+  byEpic: Record<string, number>;
+  /** Der Zeitraum ist abgelaufen; die Kachel gilt weiter, bis die nächste beginnt. */
+  extended: boolean;
+}
+
 /**
- * Pro Epic der Allokationsbetrag des **laufenden Budget-Zyklus** (das Halbjahr
- * der laufenden Kachel, s. `activeCycleFromRounds`). Speist die Horizont-Budget-Zeilen des Portfolio-Kanbans
- * über den `BudgetingDataPort` (ADR-0013: Work liest die `budgetAllocation`-Tabelle
- * nie direkt). Nur Nicht-Null-Beträge landen in `byEpic`.
+ * Pro Epic der Allokationsbetrag des **angewandten** Budget-Zyklus — der
+ * Kachel, deren Zeitraum den heutigen Tag abdeckt und die finalisiert ist
+ * (`appliedPeriod`).
+ *
+ * **Nicht** die Kachel, an der gerade gearbeitet wird.** Genau diese
+ * Verwechslung stand hier bis September 2026: `activeCycleFromRounds` liefert
+ * die Kachel mit `status === "running"`, also die in Phase 5 „Verteilen". In
+ * Large Test Corp war das eine Kachel, deren Zeitraum erst vier Monate später
+ * beginnt und die kein Geld trägt — der Horizont-Trichter der
+ * Portfolio-Übersicht blieb deshalb leer, während die geltende Kachel 1,00 Mio €
+ * führte. Wer wissen will, *woran gearbeitet wird*, fragt weiterhin
+ * `activeCycleFromRounds`; wer Geld **misst**, fragt hier.
+ *
+ * Speist die Horizont-Budget-Zeilen des Portfolio-Kanbans über den
+ * `BudgetingDataPort` (ADR-0013: Work liest die `budgetAllocation`-Tabelle nie
+ * direkt). Nur Nicht-Null-Beträge landen in `byEpic`.
  */
 export async function getEpicCycleAllocations(
   db: PrismaClient,
   tenantId: TenantId,
   now: Date,
-): Promise<{ cycleKey: string; byEpic: Record<string, number> }> {
+): Promise<AppliedCycleAllocations> {
   const [rounds, rows] = await Promise.all([
     db.budgetRound.findMany({
       where: { tenantId },
-      select: { cycleKey: true, status: true, startDate: true },
+      select: { id: true, cycleKey: true, status: true, startDate: true, endDate: true },
     }),
     db.budgetAllocation.findMany({
       where: { tenantId },
       select: { epicId: true, allocations: true },
     }),
   ]);
-  const cycleKey = activeCycleFromRounds(rounds, now);
+  const applied = appliedPeriod(rounds, now);
+  if (!applied) return { cycleKey: null, byEpic: {}, extended: false };
+
+  const cycleKey = rounds.find((r) => r.id === applied.period.id)!.cycleKey;
   const byEpic: Record<string, number> = {};
   for (const row of rows) {
     const amount = parsePeriodAmountMap(row.allocations)[cycleKey] ?? 0;
     if (amount !== 0) byEpic[row.epicId] = amount;
   }
-  return { cycleKey, byEpic };
+  return { cycleKey, byEpic, extended: applied.extended };
 }
 
 /**
@@ -163,5 +194,57 @@ export async function mergeEpicAllocation(
       createdBy: input.actorId,
       updatedBy: input.actorId,
     },
+  });
+}
+
+/**
+ * **Habe ich Budget — und für wann?** Der Stand eines Epics, fertig gefaltet.
+ *
+ * Liest **beide** Töpfe: `BudgetAllocation` (Portfolio-Epics) und
+ * `ArtEpicAllocation` (ART-Epics). Welcher zählt, entscheidet die Klasse des
+ * Epics — nie eine Summe (`chooseAllocations`). Ohne den zweiten Topf sagte die
+ * Fläche bei vier Epics in Pulse Demo Corp „kein Budget", obwohl ihnen 292 T€
+ * zugeteilt sind; mit einer Summe verdoppelte sie in Large Test Corp jeden
+ * Betrag, weil dort derselbe Euro in beiden Tabellen steht.
+ *
+ * Die Kacheln kommen mit, weil der Stand die **Geltung** braucht: „gilt jetzt"
+ * ist etwas anderes als „zugeteilt, gilt ab" und als „Rahmen abgelaufen".
+ */
+export async function getEpicBudgetStanding(
+  db: PrismaClient,
+  tenantId: TenantId,
+  epicId: EpicId,
+  epicClass: EpicClassLike,
+  now: Date,
+): Promise<EpicBudgetStanding> {
+  const [allocation, artRows, rounds] = await Promise.all([
+    db.budgetAllocation.findUnique({
+      where: { epicId },
+      select: { allocations: true, tenantId: true },
+    }),
+    db.artEpicAllocation.findMany({
+      where: { epicId, tenantId },
+      select: { cycleKey: true, amount: true },
+    }),
+    db.budgetRound.findMany({
+      where: { tenantId },
+      select: { id: true, cycleKey: true, status: true, startDate: true, endDate: true },
+    }),
+  ]);
+
+  // Tenant-scope defensiv — `findUnique` geht über die global eindeutige epicId.
+  const portfolio =
+    allocation && allocation.tenantId === tenantId
+      ? parsePeriodAmountMap(allocation.allocations)
+      : {};
+  const art: Record<string, number> = {};
+  for (const row of artRows) {
+    art[row.cycleKey] = (art[row.cycleKey] ?? 0) + Number(row.amount);
+  }
+
+  return epicBudgetStanding({
+    byCycle: chooseAllocations(portfolio, art, epicClass),
+    rounds,
+    now,
   });
 }

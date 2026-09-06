@@ -234,7 +234,6 @@ async function main() {
       enabledModules: [...MODULE_KEYS],
       dashboardHorizonEnd: addDays(OFFSITE_AT, 30),
       // PB-Default-Aufwand: Kosten-Richtwert im Ballot für nur-Hypothese-Epics.
-      defaultHypothesisEffort: 60_000,
       // Ein Job-Size-Punkt Planungsaufwand ≈ ein Personentag.
       costPerJobSizePoint: 600,
       // Kleiner, sichtbarer Richtwert, damit die Benefit-Velocity-Ziel-Linie rendert.
@@ -519,8 +518,12 @@ async function main() {
     stageGate: "L3",
     status: "approved",
     epicType: "epic",
-    // Horizont kommt aus der Primär-Solution (H3, neue Außentagung).
     primarySolutionId: solutionId,
+    // Der Horizont steht **am Epic**: eine neue Außentagung ist explorativ (H3).
+    // Er ist damit vom späteren Weg der Solution unabhängig — genau die
+    // Stabilität, die `domain/epic-horizon.ts` herstellt. (Im Datensatz ist die
+    // Solution inzwischen nach H1 befördert; diese Epics behalten H3, weil ihr
+    // Business Case vorher freigegeben wurde.)
     investmentHorizon: "h3",
     stagedForBudgeting: true,
     needsSteeringAttention: false,
@@ -907,9 +910,7 @@ async function main() {
             title: e.title,
             valueStreamId: vsId,
             valueStream: "Firmen-Offsite",
-            isHypothesisOnly: false,
             costSlices: [e.budget],
-            hypothesisBudget: 0,
             startKey: PERIOD_NOW,
             allocations: { [PERIOD_NOW]: e.budget },
             priority: i,

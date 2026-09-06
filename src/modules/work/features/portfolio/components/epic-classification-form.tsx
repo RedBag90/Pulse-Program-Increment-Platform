@@ -2,31 +2,84 @@
 
 import { useActionState, startTransition } from "react";
 import { updateEpicAction } from "@/modules/work/features/portfolio/actions/epic";
-import { EPIC_TYPES, EPIC_TYPE_LABEL } from "@/modules/work/domain/portfolio-guardrails";
+import {
+  EPIC_TYPES,
+  EPIC_TYPE_LABEL,
+  HORIZONS,
+  HORIZON_LABEL,
+} from "@/modules/work/domain/portfolio-guardrails";
+import { epicHorizon, horizonEditDeniedReason } from "@/modules/work/domain/epic-horizon";
 import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
 
 interface Props {
   epicId: string;
   epicType: string | null;
-  /** Abgeleiteter Horizont aus der Primär-Solution (read-only). */
-  derivedHorizon: string | null;
+  /** Der am Epic gesetzte Horizont. `null` = aus der Primär-Solution ableiten. */
+  ownHorizon: string | null;
+  /** Der Horizont der Primär-Solution — die Ableitung, falls es eine gibt. */
+  solutionHorizon: string | null;
+  /** Der L3.1-Stempel als ISO-Tag; er entscheidet über das Einfrieren. */
+  businessCaseApprovedAtIso: string | null;
   canEdit: boolean;
+  /** `epic.portfolio_override` — nötig, sobald der Horizont eingefroren ist. */
+  canOverrideHorizon: boolean;
 }
 
+const dateLabel = (iso: string) =>
+  new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "long", year: "numeric" });
+
 /**
- * SAFe-Guardrails-Klassifikation. Der **Epic-Typ** (Capacity: Solution/Epic/Enabler)
- * wird hier gesetzt (Auto-Submit). Der **Horizont** ist read-only und kommt aus der
- * Primär-Solution (s. Solutions-Abschnitt) — kein Horizont-Dropdown mehr am Epic.
+ * SAFe-Guardrails-Klassifikation: **Epic-Typ** und **Investitionshorizont**,
+ * beide mit Auto-Submit.
+ *
+ * Der Horizont war bis September 2026 read-only und kam bei jedem Lesen aus der
+ * Primär-Solution. Jetzt kann er am Epic stehen — nötig für Epics ohne Solution
+ * (das Feld ist beim Anlegen optional) — und friert mit der
+ * Business-Case-Freigabe ein, damit ein späterer Solution-Wechsel die
+ * Geschichte nicht rückwirkend umschreibt.
+ *
+ * Die drei Zustände stehen im Untertext, damit niemand raten muss, woher der
+ * angezeigte Wert kommt: *aus Primär-Solution* · *am Epic gesetzt* ·
+ * *eingefroren mit der Business-Case-Freigabe am …*
  */
-export function EpicClassificationForm({ epicId, epicType, derivedHorizon, canEdit }: Props) {
+export function EpicClassificationForm({
+  epicId,
+  epicType,
+  ownHorizon,
+  solutionHorizon,
+  businessCaseApprovedAtIso,
+  canEdit,
+  canOverrideHorizon,
+}: Props) {
   const [state, submit, busy] = useActionState(updateEpicAction, {});
 
-  function update(value: string) {
+  const resolved = epicHorizon({
+    investmentHorizon: ownHorizon,
+    solutionHorizon,
+    businessCaseApprovedAt: businessCaseApprovedAtIso ? new Date(businessCaseApprovedAtIso) : null,
+  });
+  const denied = horizonEditDeniedReason({
+    frozen: resolved.frozen,
+    mayEditEpic: canEdit,
+    mayOverride: canOverrideHorizon,
+  });
+
+  function update(field: "epicType" | "investmentHorizon", value: string) {
     const fd = new FormData();
     fd.set("id", epicId);
-    fd.set("epicType", value);
+    fd.set(field, value);
     startTransition(() => submit(fd));
   }
+
+  // Woher der Wert kommt — in Nutzersprache, nicht als Feldname.
+  const origin =
+    resolved.frozen && businessCaseApprovedAtIso
+      ? `eingefroren mit der Business-Case-Freigabe am ${dateLabel(businessCaseApprovedAtIso)}`
+      : resolved.source === "epic"
+        ? "am Epic gesetzt"
+        : resolved.source === "solution"
+          ? "aus Primär-Solution"
+          : "kein Horizont — weder am Epic gesetzt noch aus einer Solution ableitbar";
 
   return (
     <div className="space-y-2">
@@ -43,7 +96,7 @@ export function EpicClassificationForm({ epicId, epicType, derivedHorizon, canEd
               id="epic-type-select"
               value={epicType ?? ""}
               disabled={busy}
-              onChange={(e) => update(e.target.value)}
+              onChange={(e) => update("epicType", e.target.value)}
               className="w-full rounded-lg border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             >
               <option value="">— ungesetzt</option>
@@ -55,18 +108,48 @@ export function EpicClassificationForm({ epicId, epicType, derivedHorizon, canEd
             </select>
           ) : (
             <div className="flex min-h-9 items-center rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-              {epicType ? (EPIC_TYPE_LABEL[epicType as keyof typeof EPIC_TYPE_LABEL] ?? epicType) : "—"}
+              {epicType
+                ? (EPIC_TYPE_LABEL[epicType as keyof typeof EPIC_TYPE_LABEL] ?? epicType)
+                : "—"}
             </div>
           )}
         </div>
         <div>
-          <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="epic-horizon-select"
+            className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+          >
             Horizont
-          </p>
-          <div className="flex min-h-9 items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-            <HorizonBadge horizon={derivedHorizon} withHelp />
-            <span className="text-xs text-muted-foreground">aus Primär-Solution</span>
-          </div>
+          </label>
+          {denied === null ? (
+            <select
+              id="epic-horizon-select"
+              value={ownHorizon ?? ""}
+              disabled={busy}
+              onChange={(e) => update("investmentHorizon", e.target.value)}
+              className="w-full rounded-lg border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+            >
+              {/* Leerer Wert = wieder ableiten. Ohne Solution heisst das „ohne". */}
+              <option value="">
+                {solutionHorizon
+                  ? `— aus Primär-Solution (${HORIZON_LABEL[solutionHorizon as keyof typeof HORIZON_LABEL] ?? solutionHorizon})`
+                  : "— ohne Horizont"}
+              </option>
+              {HORIZONS.map((h) => (
+                <option key={h} value={h}>
+                  {HORIZON_LABEL[h]}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="flex min-h-9 items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+              <HorizonBadge horizon={resolved.horizon} withHelp />
+            </div>
+          )}
+          <p className="mt-1 text-xs text-muted-foreground">{origin}</p>
+          {denied !== null && canEdit && (
+            <p className="mt-1 text-xs text-muted-foreground">{denied}</p>
+          )}
         </div>
       </div>
       {state.error && (

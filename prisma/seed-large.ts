@@ -44,6 +44,12 @@ import {
 } from "./seed-budgeting.js";
 import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 import {
+  mayHoldAllocation,
+  allocationRuleViolations,
+  formatAllocationViolations,
+  type AllocationFacts,
+} from "@/modules/budgeting/domain/allocation-eligibility";
+import {
   assertGateHistory,
   buildGateHistory,
   gateRuleRows,
@@ -188,7 +194,6 @@ async function main() {
       costNeutralTarget: 500_000,
       dashboardHorizonEnd: cycleEnd(ALL_CYCLES[MAX_IDX]!),
       budgetWindowSize: 4,
-      defaultHypothesisEffort: 30_000,
       costPerJobSizePoint: 1_500,
       guardrailTargets: {
         horizon: { h3: 10, h2: 25, h1: 55, h0: 10 },
@@ -1367,22 +1372,41 @@ async function main() {
 
   // ── Phase 7: Budget (nur bezahlte Epics L3–L5, Σ ≤ ~€1 Mio./Zyklus) ───────
   console.log("\n── Budget (Allocations + Historie + Kacheln)");
+  // Wer Budget tragen darf, entscheidet die gemeinsame Regel — nicht eine
+  // Liste von Reifegraden, die neben ihr veraltet.
   const fundedIdx = Array.from({ length: EPIC_COUNT }, (_, i) => i).filter((i) =>
-    ["L3", "L4", "L5"].includes(gates[i]!),
+    mayHoldAllocation(targetStepFor(gates[i]!, i)),
   );
-  const l2Idx = Array.from({ length: EPIC_COUNT }, (_, i) => i).filter((i) => gates[i] === "L2");
-  // Allocation je bezahltem Epic in SEINEM Förderzyklus (Vergangenheit/jetzt).
+  /**
+   * Allocation je bezahltem Epic — **in jedem Zyklus, den es durchläuft.**
+   *
+   * Vorher bekam jedes Epic genau eine Zeile, in seinem Startzyklus. Für ein
+   * Epic in Umsetzung (`BANDS.L4` liegt ein bis drei Zyklen **vor** dem
+   * laufenden) hiess das: es lief, aber im laufenden Zyklus stand kein Geld —
+   * gemessen 19 von 21. Laufende Epics haben bei der Vergabe aber Vorrang; sie
+   * wurden damals finanziert **und** werden es jetzt wieder.
+   *
+   * Die historische Kostenkurve bleibt damit erhalten, statt in den laufenden
+   * Zyklus zu wandern.
+   */
+  /** Betrag je Epic im laufenden Zyklus — Grundlage der Abschluss-Prüfung. */
+  const portfolioInCurrent = new Map<number, number>();
   await createManyChunked(
     fundedIdx.map((i, k) => {
-      const cyc = ALL_CYCLES[epicCycleIdx[i]!]!;
+      const startIdx = epicCycleIdx[i]!;
       const cost = 80_000 + (i % 6) * 8_000; // ~80–120k → ~€1 Mio./Zyklus bei ~10 Epics
+      // Ein Epic in Umsetzung zahlt bis einschliesslich heute; ein fertiges nur
+      // bis zu seinem Startzyklus (es wurde damals bezahlt und ist durch).
+      const lastIdx = gates[i] === "L4" ? Math.max(startIdx, CURRENT_IDX) : startIdx;
+      const allocations: Record<string, number> = {};
+      for (let c = startIdx; c <= lastIdx; c++) allocations[ALL_CYCLES[c]!] = cost;
+      if (allocations[CURRENT_CYCLE] != null) portfolioInCurrent.set(i, cost);
       return {
         id: uid(`large:balloc:${i}`),
         tenantId,
         epicId: epicIds[i]!,
         priority: k,
-        hypothesisBudget: null,
-        allocations: { [cyc]: cost },
+        allocations,
         createdBy: ADMIN,
         updatedBy: ADMIN,
       };
@@ -1467,8 +1491,20 @@ async function main() {
     ask: rtbCycleAmount(r.plannedAmount, r.interval),
     valueStreamId: r.valueStreamId,
   }));
-  // Kandidaten der laufenden/geplanten Runden = die L2-Epics (definiert, warten auf Budget).
-  const backlogCands = l2Idx.slice(0, 22).map((i) => ({
+  /**
+   * **Kandidaten der laufenden und geplanten Runden.**
+   *
+   * Vorher waren das die L2-Epics — „definiert, warten auf Budget". Genau die
+   * duerfen es nicht mehr sein: die Erstellung des Business Case wird nicht
+   * mehr aus dem Portfolio budgetiert, und `isPbEligible` verlangt den
+   * freigegebenen LBC. Beide kommenden Runden dieses Mandanten bestanden
+   * gemessen zu 22 von 22 aus L2-Epics; die Anwendung haette sie abgewiesen,
+   * der Seed schrieb sie als Rohzeilen daran vorbei.
+   *
+   * Jetzt bitten dieselben Epics um Geld, die es auch tragen duerfen — `L3.1`
+   * aufwaerts, dieselbe Schwelle wie beim Topf.
+   */
+  const backlogCands = fundedIdx.slice(0, 22).map((i) => ({
     epicId: epicIds[i]!,
     title: epicTitles[i]!,
     ask: 60_000 + (i % 12) * 6_000,
@@ -1913,6 +1949,35 @@ async function main() {
     }
   }
   await seedArtEpicAllocations(tenantId, ADMIN, allocSpecs);
+
+  // ── Die Budgetierungs-Regel gegenprüfen ───────────────────────────────────
+  //
+  // Beide Töpfe stehen jetzt. Laut scheitern statt still falsche Daten
+  // schreiben — dieselbe Haltung wie `assertGateHistory`. Vorher hielt dieser
+  // Datensatz 19 von 21 Epics in Umsetzung ohne Geld im laufenden Zyklus, weil
+  // `BANDS.L4` ihr Budget ein bis drei Zyklen in die Vergangenheit legte.
+  {
+    const artInCurrent = new Map<string, number>();
+    for (const a of allocSpecs) {
+      if (a.cycleKey !== CURRENT_CYCLE) continue;
+      artInCurrent.set(a.epicId, (artInCurrent.get(a.epicId) ?? 0) + a.amount);
+    }
+    const facts: AllocationFacts[] = Array.from({ length: EPIC_COUNT }, (_, i) => ({
+      id: epicIds[i]!,
+      title: epicTitles[i] ?? `Epic #${i}`,
+      step: gates[i] === "L0" && i % 3 === 0 ? "L0" : targetStepFor(gates[i]!, i),
+      amountInCycle: (portfolioInCurrent.get(i) ?? 0) + (artInCurrent.get(epicIds[i]!) ?? 0),
+    }));
+    const violations = allocationRuleViolations(facts, CURRENT_CYCLE);
+    if (violations.length > 0) {
+      throw new Error(
+        `Budgetierungs-Regel verletzt (${CURRENT_CYCLE}):\n${formatAllocationViolations(violations.slice(0, 12))}` +
+          (violations.length > 12 ? `\n  … und ${violations.length - 12} weitere` : ""),
+      );
+    }
+    console.log(`  ✓ Budgetierungs-Regel geprüft — ${EPIC_COUNT} Epics, keine Verstöße`);
+  }
+
   const currentAllocs = allocSpecs.filter((a) => a.cycleKey === CURRENT_CYCLE).length;
   console.log(
     `  ✓ ${allocSpecs.length} ART-Zuteilungen über ${artFundedByCycle.size} Halbjahre ` +
@@ -2027,9 +2092,7 @@ function buildSnapshotPayload(input: {
       title: e.title,
       valueStreamId: e.valueStreamId,
       valueStream: e.valueStreamName,
-      isHypothesisOnly: false,
       costSlices: [e.alloc],
-      hypothesisBudget: 0,
       startKey: input.cycleKey,
       allocations: { [input.cycleKey]: e.alloc },
       priority: e.priority,

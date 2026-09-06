@@ -1,20 +1,23 @@
 import { describe, it, expect, vi } from "vitest";
 
 /**
- * Fake-DB-Abdeckung des geteilten PB-Listen-Loaders (F-C1). Der Kosten-Richtwert wird
- * aus den Artefakten abgeleitet: approved Lean Business Case → Σ costSlices; sonst
- * approved Benefit-Hypothese → tenant-Default-Aufwand (Fallback `DEFAULT_HYPOTHESIS_EFFORT`).
- * Ein `initiative.findMany` (PB-Liste) + `tenant.findUnique` (Default) reichen.
+ * Fake-DB-Abdeckung des geteilten PB-Listen-Loaders (F-C1). Der Kosten-Richtwert
+ * kommt **allein** aus dem freigegebenen Lean Business Case (Σ costSlices).
+ *
+ * Bis September 2026 gab es einen zweiten Weg: ein Epic mit bloß freigegebener
+ * Benefit-Hypothese landete ebenfalls auf der Liste, mit einem pauschalen
+ * Tenant-Default als Richtwert. Damit budgetierte das Portfolio die *Erarbeitung*
+ * des Business Case — dieser Weg ist entfallen, und mit ihm der Tenant-Default.
  */
 
 import { loadPbList } from "@/modules/budgeting/server/services/pb-list";
-import { DEFAULT_HYPOTHESIS_EFFORT } from "@/modules/work/domain/pb-submission";
 
-function dbWith(ballot: unknown[], defaultEffort: number | null) {
+function dbWith(ballot: unknown[]) {
+  const findMany = vi.fn().mockResolvedValue(ballot);
   return {
-    initiative: { findMany: vi.fn().mockResolvedValue(ballot) },
-    tenant: { findUnique: vi.fn().mockResolvedValue({ defaultHypothesisEffort: defaultEffort }) },
-  } as unknown as Parameters<typeof loadPbList>[0];
+    db: { initiative: { findMany } } as unknown as Parameters<typeof loadPbList>[0],
+    findMany,
+  };
 }
 
 const lbcEpic = (id: string, title: string, slices: number[]) => ({
@@ -26,41 +29,25 @@ const lbcEpic = (id: string, title: string, slices: number[]) => ({
   hypothesisApprovedAt: new Date(),
 });
 
-const hypothesisEpic = (id: string, title: string) => ({
-  id,
-  title,
-  businessCase: null,
-  benefitHypothesis: { current: { measuresHypothesis: "H" } },
-  businessCaseApprovedAt: null,
-  hypothesisApprovedAt: new Date(),
-});
-
 describe("loadPbList", () => {
-  it("leitet Kosten aus LBC-Slices ab, Hypothese-only nutzt den Tenant-Default", async () => {
-    const db = dbWith(
-      [lbcEpic("e1", "Alpha", [60_000, 40_000]), hypothesisEpic("e2", "Beta")],
-      55_000,
-    );
-
+  it("leitet die Kosten aus den LBC-Slices ab", async () => {
+    const { db } = dbWith([lbcEpic("e1", "Alpha", [60_000, 40_000])]);
     const res = await loadPbList(db, "T");
-
-    expect(res.ballot).toEqual([
-      { id: "e1", title: "Alpha", cost: 100_000 },
-      { id: "e2", title: "Beta", cost: 55_000 },
-    ]);
-    // Pflichtvorhaben-Konzept entfällt.
+    expect(res.ballot).toEqual([{ id: "e1", title: "Alpha", cost: 100_000 }]);
   });
 
-  it("fällt ohne Tenant-Default auf den Code-Fallback zurück", async () => {
-    const db = dbWith([hypothesisEpic("e1", "Alpha")], null);
-
-    const res = await loadPbList(db, "T");
-
-    expect(res.ballot).toEqual([{ id: "e1", title: "Alpha", cost: DEFAULT_HYPOTHESIS_EFFORT }]);
+  it("fragt die Datenbank nur nach Epics mit freigegebenem Business Case", async () => {
+    // Die Regel steht in der Abfrage, nicht erst im Fold — sonst lüde die Liste
+    // Epics, die sie danach wieder wegwerfen müsste.
+    const { db, findMany } = dbWith([]);
+    await loadPbList(db, "T");
+    const where = findMany.mock.calls[0]![0]!.where;
+    expect(where.businessCaseApprovedAt).toEqual({ not: null });
+    expect(where.OR).toBeUndefined();
   });
 
-  it("liefert leeres PB-Liste und Summe 0 ohne Einträge", async () => {
-    const res = await loadPbList(dbWith([], 50_000), "T");
-    expect(res.ballot).toEqual([]);
+  it("liefert eine leere PB-Liste ohne Einträge", async () => {
+    const { db } = dbWith([]);
+    expect((await loadPbList(db, "T")).ballot).toEqual([]);
   });
 });

@@ -1,7 +1,6 @@
 import { Stat, StatStrip } from "@/components/ui/stat";
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
 import { CompactKanban } from "@/modules/work/features/portfolio/overview/blocks/compact-kanban";
-import { HealthAlertsBlock } from "@/modules/work/features/portfolio/overview/blocks/health-alerts-block";
 import { FundingSnapshotTable } from "@/modules/work/features/portfolio/overview/blocks/funding-snapshot-table";
 
 function pct(n: number): string {
@@ -31,7 +30,6 @@ export function OverviewHero({ data }: { data: PortfolioOverview }) {
       <CompactKanban data={data} />
 
       <div className="grid gap-4 md:grid-cols-2">
-        <HealthAlertsBlock data={data} />
         <FundingSnapshotTable data={data} />
       </div>
     </div>

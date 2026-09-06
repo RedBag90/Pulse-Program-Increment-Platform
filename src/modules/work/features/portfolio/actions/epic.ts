@@ -70,6 +70,11 @@ export const updateEpicAction = createServerAction({
     // SAFe Guardrails (Roadmap-G2). Leerer String = explizit clearen,
     // fehlend = nicht anpacken — die Form sendet beide Felder immer.
     epicType: z.enum(["epic", "enabler", ""]).optional(),
+    // Der Investitionshorizont am Epic. Leerer String = wieder aus der
+    // Primär-Solution ableiten; fehlend = nicht anpacken. Ob der Aufrufer ihn
+    // *bewegen* darf, entscheidet der Dienst — nach dem Einfrieren braucht es
+    // `epic.portfolio_override` zusätzlich.
+    investmentHorizon: z.enum(["h0", "h1", "h2", "h3", ""]).optional(),
     // Wertstrom-/ART-Wechsel (Beschreibungs-Formular). Fehlend = unverändert;
     // der Service validiert final, dass die ART zum Wertstrom gehört.
     valueStreamId: z.string().uuid().optional(),
@@ -84,6 +89,9 @@ export const updateEpicAction = createServerAction({
       description: input.description,
       ...(input.epicType !== undefined && {
         epicType: input.epicType === "" ? null : input.epicType,
+      }),
+      ...(input.investmentHorizon !== undefined && {
+        investmentHorizon: input.investmentHorizon === "" ? null : input.investmentHorizon,
       }),
       ...(input.valueStreamId !== undefined && {
         valueStreamId: input.valueStreamId as ValueStreamId,

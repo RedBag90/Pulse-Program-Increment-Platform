@@ -54,6 +54,8 @@ describe("GATE_CRITERIA_DOC", () => {
       implementationCompletedAt: null,
       approvedAt: null,
       impactRecognizedAt: null,
+      solutionHorizon: null,
+      investmentHorizon: null,
       multiPartyApproval: true,
     };
     const doc = GATE_CRITERIA_DOC.find((g) => g.stageTo === "L3.1");

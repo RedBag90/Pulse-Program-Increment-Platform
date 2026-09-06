@@ -17,7 +17,8 @@ import { ok, err, isErr, type Result } from "@/modules/core/kernel/domain/errors
 import { mergeEpicAllocation } from "@/modules/budgeting/server/services/epic-allocation";
 import { computeReserve } from "@/modules/budgeting/domain/finalize";
 import { createRound, copyPeriodSetup } from "@/modules/budgeting/server/services/round-service";
-import { halfYearKey, addHalfYears } from "@/modules/core/kernel/domain/calendar";
+import { parseHalfYearKey, addHalfYears } from "@/modules/core/kernel/domain/calendar";
+import { nextCycle } from "@/modules/budgeting/domain/budget-cycle";
 import { captureBudgetPlanRevision } from "@/modules/budgeting/server/services/budget-plan-revision";
 
 export async function closeDistribution(
@@ -218,22 +219,30 @@ export async function startNextPeriod(
 
   const from = await ctx.db.budgetRound.findFirst({
     where: { id: input.fromRoundId, tenantId: mctx.tenantId },
-    select: { endDate: true },
+    select: { cycleKey: true, endDate: true },
   });
   if (!from)
     return err({ kind: "not_found" as const, resourceType: "BudgetRound", id: input.fromRoundId });
 
-  const start = from.endDate ?? new Date();
-  const end = addHalfYears(start, 1);
+  // Die Nachfolgerin beginnt im **nächsten Halbjahr**, nicht am Ende der
+  // Vorgängerin. Beides lag früher am selben Tag — und weil `cycleKey` aus dem
+  // Halbjahr des Starts kommt, bekam die Nachfolgerin bei einer Kachel, die im
+  // selben Halbjahr endet, in dem sie begann, **denselben Schlüssel** wie ihre
+  // Vorgängerin. Sie hätte deren Budget-Zuteilungen still überschrieben.
+  const cycleKey = nextCycle(from.cycleKey);
+  const start = parseHalfYearKey(cycleKey) ?? from.endDate ?? new Date();
+  // Ende = letzter Tag des Halbjahres, damit die Kacheln die Achse lückenlos
+  // kacheln (beide Enden zählen mit, s. `domain/period-validity.ts`).
+  const end = new Date(addHalfYears(start, 1).getTime() - 86_400_000);
 
   // createRound trägt die Reserve der zuletzt geschlossenen Runde in den Topf.
   const created = await createRound(ctx, {
-    cycleKey: halfYearKey(start),
+    cycleKey,
     poolTotal: 0,
     decisionAuthorityIds: [],
     startDate: start,
     endDate: end,
-    submissionDeadline: end,
+    submissionDeadline: new Date(start.getTime() - 14 * 86_400_000),
   });
   if (!created.ok) return created;
   const newId = created.value.id;

@@ -61,11 +61,11 @@ async function allocate(epicId: EpicId, allocations: Record<string, number>, pri
 }
 
 describe("getBudgetingBoard — die Kandidatenmenge (REQ-B1)", () => {
-  it("zeigt ein vorgemerktes Epic mit freigegebener Hypothese", async () => {
+  it("blendet ein Epic mit nur freigegebener Hypothese aus", async () => {
+    // Das Portfolio finanziert die Umsetzung, nicht die Erarbeitung des
+    // Business Case. Bis September 2026 stand dieses Epic auf der Liste.
     await makeEpic();
-    const board = await getBudgetingBoard(db, seed.tenantId);
-    expect(board.epics).toHaveLength(1);
-    expect(board.epics[0]!.isHypothesisOnly).toBe(true);
+    expect((await getBudgetingBoard(db, seed.tenantId)).epics).toHaveLength(0);
   });
 
   it("blendet ein Epic ohne `stagedForBudgeting` aus", async () => {
@@ -80,9 +80,7 @@ describe("getBudgetingBoard — die Kandidatenmenge (REQ-B1)", () => {
 
   it("ein freigegebener Business Case genuegt auch ohne Hypothesen-Freigabe", async () => {
     await makeEpic({ hypothesisApprovedAt: null, businessCaseApprovedAt: new Date() });
-    const board = await getBudgetingBoard(db, seed.tenantId);
-    expect(board.epics).toHaveLength(1);
-    expect(board.epics[0]!.isHypothesisOnly).toBe(false);
+    expect((await getBudgetingBoard(db, seed.tenantId)).epics).toHaveLength(1);
   });
 
   it("blendet ein geloeschtes Epic aus", async () => {

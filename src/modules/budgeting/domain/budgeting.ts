@@ -29,12 +29,9 @@ export interface BudgetEpicView {
   title: string;
   valueStreamId: string | null;
   valueStream: string | null;
-  /** Hypothesis-only Epic (no business-case cost slices) → uses hypothesisBudget. */
-  isHypothesisOnly: boolean;
   /** Business-case 6-month cost amounts (one per half-year from startKey). */
   costSlices: number[];
   /** Fixed budget for a hypothesis-only Epic (0 if unset). */
-  hypothesisBudget: number;
   /** Half-year the Epic starts (scheduled / cost start), e.g. "2026-H1". */
   startKey: string;
   /** Granted amount per half-year key. */
@@ -64,11 +61,11 @@ export function requestedByPeriod(
     out[key] = (out[key] ?? 0) + amount;
   };
 
-  if (epic.isHypothesisOnly) {
-    put(startIdx, epic.hypothesisBudget);
-  } else {
-    epic.costSlices.forEach((amount, i) => put(startIdx + i, amount || 0));
-  }
+  // Nur noch **ein** Weg: die Kostenscheiben des freigegebenen Lean Business
+  // Case. Der zweite — ein Pauschalbetrag für Epics, die erst eine Hypothese
+  // hatten — ist mit der Regel „das Portfolio finanziert die Umsetzung, nicht
+  // die Erarbeitung des Business Case" entfallen.
+  epic.costSlices.forEach((amount, i) => put(startIdx + i, amount || 0));
   return out;
 }
 

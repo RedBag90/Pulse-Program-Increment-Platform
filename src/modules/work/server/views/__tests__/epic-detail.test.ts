@@ -4,6 +4,17 @@ import {
   type EpicDetailInputs,
 } from "@/modules/work/server/views/epic-detail";
 
+/** Ein Budget-Stand ohne Geld — die Fixtures prüfen `allocated`, nicht ihn. */
+const noStanding = {
+  state: "none" as const,
+  currentAmount: 0,
+  currentPeriod: null,
+  totalAmount: 0,
+  cycleCount: 0,
+  span: null,
+  startsAt: null,
+};
+
 /**
  * Builder tests at the Epic-detail page-model seam. Fixtures are in-memory (no
  * Prisma, no DB). The builder never authorizes — the capability booleans and
@@ -77,6 +88,7 @@ function makeInputs(over: Partial<EpicDetailInputs> = {}): EpicDetailInputs {
     canAssignOwner: false,
     gate: { disabled: true },
     canLinkDependency: false,
+    canOverrideHorizon: false,
     showWsjf: true,
     canSetDelivery: false,
     ...over,
@@ -87,7 +99,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
   it("drumbeat ON + budgeting ON: both slices enabled with computed data", () => {
     const inputs = makeInputs({
       enabled: { drumbeat: true, budgeting: true, risks: false },
-      budget: { allocatedSum: 500, allocatedByPeriod: {} },
+      budget: { allocatedSum: 500, allocatedByPeriod: {}, standing: noStanding },
       pis: [
         { id: "pi-2", name: "PI 2", artId: "art-1", startDate: "2026-07-01" },
         { id: "pi-1", name: "PI 1", artId: "art-1", startDate: "2026-01-01" },
@@ -139,7 +151,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
       makeInputs({
         epic: makeEpic({ stageGate: "L3" }),
         enabled: { drumbeat: true, budgeting: true, risks: false },
-        budget: { allocatedSum: 1000, allocatedByPeriod: {} },
+        budget: { allocatedSum: 1000, allocatedByPeriod: {}, standing: noStanding },
       }),
     );
     expect(on.nextStep?.hint.startsWith("Budget ist alloziert.")).toBe(true);
@@ -177,7 +189,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
 
   it("budgeting ON with allocatedSum 0 → allocated=false", () => {
     const m = buildEpicDetailModel(
-      makeInputs({ budget: { allocatedSum: 0, allocatedByPeriod: {} } }),
+      makeInputs({ budget: { allocatedSum: 0, allocatedByPeriod: {}, standing: noStanding } }),
     );
     expect(m.budgeting.disabled).toBe(false);
     if (!m.budgeting.disabled) expect(m.budgeting.allocated).toBe(false);

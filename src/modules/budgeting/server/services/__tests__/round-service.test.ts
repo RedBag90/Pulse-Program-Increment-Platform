@@ -213,7 +213,13 @@ describe("createPeriod — Übernahme beim Anlegen", () => {
         scopes: { artIds: [], teamIds: [], valueStreamIds: [] },
       },
       db: {
-        budgetRound: { findFirst: vi.fn(async () => previous) }, // jüngste-vorherige-Lookup
+        budgetRound: {
+          // Zwei Abfragen mit derselben Methode: die Eindeutigkeitsprüfung
+          // fragt nach `cycleKey`, die Übernahme nach der jüngsten Kachel.
+          findFirst: vi.fn(async (args: { where?: { cycleKey?: string } }) =>
+            args?.where?.cycleKey != null ? null : previous,
+          ),
+        },
         $transaction: async (cb: (tx: unknown) => Promise<unknown>) => cb(tx),
         auditEvent: { create: vi.fn(async () => ({})) },
       },

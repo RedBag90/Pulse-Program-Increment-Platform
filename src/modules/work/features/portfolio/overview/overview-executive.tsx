@@ -1,5 +1,4 @@
 import type { PortfolioOverview } from "@/modules/work/server/views/portfolio-overview";
-import { TopWinsBlock } from "@/modules/work/features/portfolio/overview/blocks/top-wins-block";
 import { TopRisksBlock } from "@/modules/work/features/portfolio/overview/blocks/top-risks-block";
 import { PipelineBarsBlock } from "@/modules/work/features/portfolio/overview/blocks/pipeline-bars-block";
 import { NextStepsBlock } from "@/modules/work/features/portfolio/overview/blocks/next-steps-block";
@@ -63,7 +62,6 @@ export function OverviewExecutive({ data }: { data: PortfolioOverview }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <TopWinsBlock data={data} />
         <TopRisksBlock data={data} />
       </div>
 

@@ -7,7 +7,6 @@ import {
   softDeleteSolution,
   promoteSolution,
   setSolutionLifecycle,
-  setSolutionInvestmentMode,
   setEpicSolutions,
 } from "@/modules/work/server/services/solution";
 import { createServerAction } from "@/server/http/server-action";
@@ -19,8 +18,6 @@ import { solutionStatusToHorizonMode } from "@/modules/work/domain/solution";
 export type { ActionState as SolutionActionState };
 
 const status = z.enum(["rd", "emerging", "investing", "extracting", "decommissioning"]);
-// Lifecycle-Stepper wechselt Horizonte direkt (kein Status).
-const horizon = z.enum(["h0", "h1", "h2", "h3"]);
 const tenantResource = (_i: unknown, p: { tenantId: string }) => ({ tenantId: p.tenantId });
 
 export const createSolutionAction = createServerAction({
@@ -133,18 +130,27 @@ export const deleteSolutionAction = createServerAction({
     }),
 });
 
+/**
+ * Der Stufenwechsel der Lebenszyklus-Leiter. Sie spricht die **Fünfer-Sprache**
+ * (H1.1/H1.2 sind zwei Stufen); dekodiert wird hier, genau wie beim Anlegen und
+ * Bearbeiten. Gespeichert wird weiter `horizon` + `investmentMode` — die
+ * vierwertige Achse, nach der Kanban und Guardrails bucketen, bleibt unberührt.
+ */
 export const setSolutionLifecycleAction = createServerAction({
-  schema: z.object({ id: z.string().uuid(), horizon }),
+  schema: z.object({ id: z.string().uuid(), status }),
   action: "solution.manage",
   resource: tenantResource,
   parseFormData: (fd) => {
     const f = fields(fd);
     return {
       id: f.string("id"),
-      horizon: (f.string("horizon") ?? "h1") as z.infer<typeof horizon>,
+      status: (f.string("status") ?? "investing") as z.infer<typeof status>,
     };
   },
-  service: (ctx, input) => setSolutionLifecycle(ctx, { id: input.id, horizon: input.horizon }),
+  service: (ctx, input) => {
+    const { horizon, investmentMode } = solutionStatusToHorizonMode(input.status);
+    return setSolutionLifecycle(ctx, { id: input.id, horizon, investmentMode });
+  },
   revalidate: "solution",
   mapError: (e) =>
     e.kind === "conflict"
@@ -192,34 +198,6 @@ export const promoteSolutionAction = createServerAction({
       : e.kind === "not_found"
         ? "Nicht gefunden"
         : "Beförderung fehlgeschlagen",
-});
-
-export const setSolutionInvestmentModeAction = createServerAction({
-  schema: z.object({
-    id: z.string().uuid(),
-    investmentMode: z.enum(["investing", "extracting"]).nullable(),
-  }),
-  action: "solution.manage",
-  resource: tenantResource,
-  parseFormData: (fd) => {
-    const f = fields(fd);
-    return {
-      id: f.string("id"),
-      investmentMode: (f.nonEmptyString("investmentMode") ?? null) as
-        | "investing"
-        | "extracting"
-        | null,
-    };
-  },
-  service: (ctx, input) =>
-    setSolutionInvestmentMode(ctx, { id: input.id, investmentMode: input.investmentMode }),
-  revalidate: "solution",
-  mapError: (e) =>
-    e.kind === "conflict"
-      ? e.reason
-      : e.kind === "not_found"
-        ? "Nicht gefunden"
-        : "Investitionsmodus konnte nicht gespeichert werden",
 });
 
 /** Setzt die Solution-Zuordnungen eines Epics (n:m) + Primär-Solution. */

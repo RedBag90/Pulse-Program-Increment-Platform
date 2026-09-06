@@ -29,7 +29,8 @@ import { HorizonBadge } from "@/modules/work/features/portfolio/components/horiz
 import { formatCompactEUR } from "@/lib/formatting";
 
 /** „2026-H1" → „H1 2026" für die kompakte Zyklus-Caption. */
-function cycleLabel(key: string): string {
+function cycleLabel(key: string | null): string {
+  if (key == null) return "kein gültiger Rahmen";
   const m = /^(\d{4})-(H[12])$/.exec(key);
   return m ? `${m[2]} ${m[1]}` : key;
 }

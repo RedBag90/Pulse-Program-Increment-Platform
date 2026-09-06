@@ -26,6 +26,8 @@ function facts(stageGate: StageGate, over: Partial<EpicGateFacts> = {}): EpicGat
     implementationCompletedAt: null,
     approvedAt: null,
     impactRecognizedAt: null,
+    solutionHorizon: null,
+    investmentHorizon: null,
     multiPartyApproval: true,
     ...over,
   };

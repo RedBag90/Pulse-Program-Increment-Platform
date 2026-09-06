@@ -8,7 +8,6 @@
 import type { PrismaClient } from "@/generated/prisma";
 import type { Principal } from "@/server/auth/principal";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
-import { loadDefaultHypothesisEffort } from "@/modules/budgeting/server/services/pb-list";
 import {
   derivePbInfo,
   type PbSourceKind,
@@ -68,7 +67,7 @@ export async function loadGroupDistribution(
   });
   if (!group) return null;
 
-  const [candidates, allocations, valueStreams, defaultEffort] = await Promise.all([
+  const [candidates, allocations, valueStreams] = await Promise.all([
     db.budgetCandidate.findMany({
       where: { roundId },
       select: {
@@ -90,11 +89,10 @@ export async function loadGroupDistribution(
       where: { tenantId: principal.tenantId },
       select: { id: true, name: true },
     }),
-    loadDefaultHypothesisEffort(db, principal.tenantId),
   ]);
 
-  // Budget-Info je Epic-Kandidat: abgeleitet aus LBC bzw. Benefit-Hypothese
-  // (die denormalisierten Candidate-Felder tragen nur Titel/ask).
+  // Budget-Info je Epic-Kandidat: abgeleitet aus dem freigegebenen Lean
+  // Business Case (die denormalisierten Candidate-Felder tragen nur Titel/ask).
   const epicIds = candidates.map((c) => c.epicId).filter((x): x is string => x != null);
   const epics = epicIds.length
     ? await db.initiative.findMany({
@@ -127,7 +125,7 @@ export async function loadGroupDistribution(
 
   const candidateViews: DistributionCandidate[] = candidates.map((c) => {
     const epicRow = c.epicId ? epicById.get(c.epicId) : undefined;
-    const pb = epicRow ? derivePbInfo(epicRow, defaultEffort) : null;
+    const pb = epicRow ? derivePbInfo(epicRow) : null;
     return {
       id: c.id,
       kind: c.kind,

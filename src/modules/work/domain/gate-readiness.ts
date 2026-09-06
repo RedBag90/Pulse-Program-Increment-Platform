@@ -1,4 +1,5 @@
 import type { StageGate } from "@/modules/core/kernel/domain/types";
+import type { Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import {
   GATE_STEPS,
   allChildrenCompleted,
@@ -63,6 +64,18 @@ export interface EpicGateFacts {
   implementationCompletedAt: Date | null;
   approvedAt: Date | null;
   impactRecognizedAt: Date | null;
+
+  /**
+   * Der Horizont der Primär-Solution und der bereits am Epic gesetzte Wert.
+   * Beide gelesen, damit die L3.1-Abnahme den Horizont **einfrieren** und die
+   * Rückstufung den Freeze wieder lösen kann (siehe `domain/epic-horizon.ts`).
+   *
+   * Für die *Reife* zählt keiner von beiden: ein Epic darf ohne Horizont durch
+   * jedes Gate. Sie stehen hier, weil `stampsForAdvance` und `unwindStampsFor`
+   * dieselben Fakten lesen wie die Kriterien — eine Quelle, kein zweiter Lader.
+   */
+  solutionHorizon: Horizon | null;
+  investmentHorizon: Horizon | null;
 
   /**
    * Practice `multiPartyApproval`. Sie gabelt keine Kriterien mehr, sondern die
