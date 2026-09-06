@@ -329,14 +329,16 @@ export function EpicTimelineTab({
       <div className="space-y-2">
         {groups.map((g) => (
           <div key={`${g.level}-${g.start}`} className="flex gap-3">
+            {/* Nur das L-Kürzel — die senkrechte Trennlinie, die hier stand,
+                lief neben der Bahn her und doppelte sie. Die Bahn trägt den
+                Verlauf jetzt allein. */}
             <div
-              className="flex w-[2.5rem] shrink-0 items-start justify-end gap-2 pt-4"
+              className="w-[2.5rem] shrink-0 pt-4 text-right"
               title={STAGE_GATE_LABELS[g.level] ?? g.level}
             >
               <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
                 {g.level}
               </span>
-              <span className="w-px self-stretch bg-border" />
             </div>
 
             {/* Die Bahn: eine durchgehende Spur, durch die jedes Tor sichtbar
