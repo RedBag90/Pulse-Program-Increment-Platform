@@ -239,6 +239,10 @@ export const ROLE_PLAYBOOKS: Record<Role, RolePlaybook> = {
         capability: "target.manage",
       },
       {
+        text: "Die Organisation aufbauen: Wertströme anlegen und die ARTs darin.",
+        capability: "art.create",
+      },
+      {
         text: "Epics durch den Investment-Funnel führen und Reifegrad-Wechsel beantragen bzw. abnehmen.",
         capability: "epic.gate.request",
         practice: "stageGates",

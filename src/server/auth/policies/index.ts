@@ -295,10 +295,25 @@ export const POLICIES: Record<Action, Grant[]> = {
   ],
 
   // ── ART / Program ───────────────────────────────────────────────────────
-  // ART lifecycle is a tenant-admin org-structure concern; the RTE orchestrates
-  // the train (PIs, objectives, team updates) and runs Feature QS.
-  "art.create": [{ roles: [TENANT_ADMIN] }],
-  "art.update": [{ roles: [TENANT_ADMIN] }],
+  // Ein ART ist **Portfolio-Struktur, kein Admin-Thema**: wer Wertströme
+  // anlegt, legt auch die Trains darin an. Bis September 2026 lag der ganze
+  // ART-Lebenszyklus beim Tenant-Admin, und damit stockte der Portfolio-Aufbau
+  // an genau einer Stelle — der Portfolio Manager konnte Wertströme, Solutions,
+  // Ziele, Guardrails und Timelines anlegen, ARTs aber nicht.
+  //
+  // `create` und `update` gehören zusammen: ein ART ohne benannten RTE ist
+  // unfertig, und der RTE wird erst auf der Detailseite gesetzt. Wer anlegen
+  // darf, muss fertigstellen dürfen.
+  //
+  // **Löschen bleibt beim Admin.** Ein ART trägt Solutions, PIs und Epics; sein
+  // Verlust ist nicht die Umkehrung des Anlegens. Das ist dieselbe Trennung wie
+  // beim Reifegrad-Rücksprung (`epic.gate.revert`): erzeugen ist Alltag,
+  // vernichten ist es nicht.
+  //
+  // Der RTE orchestriert den Train (PIs, Objectives, Team-Updates) und macht
+  // Feature-QS — er bearbeitet den ART-Stammsatz nicht.
+  "art.create": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
+  "art.update": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
   "art.delete": [{ roles: [TENANT_ADMIN] }],
 
   "pi.create": [{ roles: [RTE] }],

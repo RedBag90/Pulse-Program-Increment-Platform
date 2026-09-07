@@ -40,7 +40,7 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 | Rolle                 | Persona (Kurzform)                                                                 |
 | --------------------- | ---------------------------------------------------------------------------------- |
 | `platform_admin`      | Plattform-Betreiber — betreibt Pulse mandantenübergreifend                         |
-| `tenant_admin`        | Mandanten-Administrator — Benutzer, Rollen, ARTs, Integrationen                    |
+| `tenant_admin`        | Mandanten-Administrator — Benutzer, Rollen, Integrationen                          |
 | `transformation_lead` | Transformations-Lead (Coach / SPC) — definiert den Zielzustand, steuert den Wandel |
 | `portfolio_manager`   | Portfolio-Lead / LPM — Portfolio-Backlog & Wertstrom-Finanzierung                  |
 | `value_stream_owner`  | Wertstrom-Verantwortlicher (~Business Owner) — steuert seinen Wertstrom            |
@@ -70,14 +70,14 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 
 ### Portfolio
 
-| Funktion              | Beschreibung                     |
-| --------------------- | -------------------------------- |
-| `value_stream.create` | Wertstrom anlegen                |
-| `epic.delete`         | Epic löschen                     |
-| `epic.gate.request`   | Reifegrad-Wechsel beantragen     |
-| `epic.gate.decide`    | Als benannte Person abnehmen     |
-| `epic.gate.withdraw`  | Eigenen Antrag zurückziehen      |
-| `epic.gate.revert`    | Epic zurückstufen (mit Grund)    |
+| Funktion              | Beschreibung                  |
+| --------------------- | ----------------------------- |
+| `value_stream.create` | Wertstrom anlegen             |
+| `epic.delete`         | Epic löschen                  |
+| `epic.gate.request`   | Reifegrad-Wechsel beantragen  |
+| `epic.gate.decide`    | Als benannte Person abnehmen  |
+| `epic.gate.withdraw`  | Eigenen Antrag zurückziehen   |
+| `epic.gate.revert`    | Epic zurückstufen (mit Grund) |
 
 ### Wertstrom
 
@@ -202,6 +202,9 @@ einen Scope.
 - **Portfolio:** `value_stream.create`, `value_stream.update`, `epic.create`,
   `epic.update`, `epic.delete`, `epic.gate.request`/`epic.gate.decide` (Reifegrad),
   `epic.hypothesis.submit`.
+- **ART-Struktur:** `art.create`, `art.update` — ein ART ist Portfolio-Struktur,
+  kein Admin-Thema; wer Wertströme anlegt, legt auch die Trains darin an.
+  `art.delete` bleibt beim `tenant_admin`.
 - **Feature:** `feature.create`, `feature.update`, `feature.wsjf.set`,
   `feature.delete`, `feature.review.submit`.
 - **Ausführung:** `story.create/update/delete` (art), `task.create/edit` (art),
@@ -258,7 +261,9 @@ einen Scope.
 - **Ausführung:** `story.create/update/delete` (art), `task.create/edit` (art),
   `dependency.link/unlink`, `impediment.create/escalate/resolve`.
 - Scope: ARTs.
-- ART-Lebenszyklus (`art.create/update/delete`) bleibt beim `tenant_admin`.
+- ART-Stammsatz: `art.create`/`art.update` liegen beim `portfolio_manager`
+  (seit September 2026), `art.delete` beim `tenant_admin`. Der RTE orchestriert
+  den Train, er legt ihn nicht an.
 
 ### Ebene 5 — Feature
 
@@ -313,8 +318,8 @@ Stand des letzten Abgleichs gegen die Portfolio-Verantwortlichkeiten:
   `epic.hypothesis.submit`, value_stream-skopiert) — vorher trug die Rolle nur eine
   einzige Funktion.
 - `epic.approve` (Stage Gates) wurde um `vmo` erweitert — das VMO co-governt den
-  Epic-Investment-Funnel. *(Historisch: `epic.approve` ist seit ADR-0018 zurückgezogen; der
-  Investment-Funnel läuft über `epic.gate.*` plus namentlich benannte Abnehmer.)*
+  Epic-Investment-Funnel. _(Historisch: `epic.approve` ist seit ADR-0018 zurückgezogen; der
+  Investment-Funnel läuft über `epic.gate._` plus namentlich benannte Abnehmer.)\*
 - `impediment.create` wurde um `feature_owner` erweitert — die Feature-Ebene
   konnte zuvor keine Impediments melden.
 - Offene Folge-Aufgabe: strikte `value_stream`-Scope-Durchsetzung für

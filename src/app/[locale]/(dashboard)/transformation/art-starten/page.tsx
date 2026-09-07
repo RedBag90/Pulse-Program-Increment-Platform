@@ -11,7 +11,7 @@ import { Page, PageHeader } from "@/components/layout";
 /**
  * Guided "launch an ART" wizard — lowers the activation energy of standing up a
  * train: one form creates the ART, sets its cadence and RTE, and plans the first
- * PI. Gated by the `art.create` capability (tenant admin).
+ * PI. Gated by the `art.create` capability (Portfolio Manager / Tenant-Admin).
  */
 export default async function StartArtPage() {
   const principal = await requirePrincipal().catch(() => null);
