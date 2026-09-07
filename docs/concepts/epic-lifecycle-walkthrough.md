@@ -5,7 +5,10 @@ vorantreibt, des **Portfolio Managers / VMO**, der ihn steuert und abnimmt, und
 der **Finance**, die das Geld und den Nutzen gegenzeichnet. Mit den Namen, die
 Pulse tatsächlich verwendet: Reifegrad-Schritte, Reiter, Merker, Freigabewege.
 
-Fünf Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+Acht Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+[Aufbau](portfolio-setup-walkthrough.md) — woraus alles besteht ·
+[Intake](epic-intake-walkthrough.md) — wie eine Idee hereinkommt ·
+[Halbjahr](portfolio-cycle-walkthrough.md) — wie der Takt schlägt ·
 [Epic](epic-lifecycle-walkthrough.md) — was gebaut wird ·
 [Budget](budgeting-walkthrough.md) — womit ·
 [ART-Budget](art-epic-budget-walkthrough.md) — womit, wenn es klein ist ·

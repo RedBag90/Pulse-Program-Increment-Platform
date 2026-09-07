@@ -1,12 +1,20 @@
 # Eine Führung durch den Bereich Struktur
 
-Dies ist **kein** „gelebter Prozess" wie die fünf Schwesterdokumente — und das
-ist Absicht. [Epic](epic-lifecycle-walkthrough.md),
+Dies ist **kein** „gelebter Prozess" wie die acht Schwesterdokumente — und das
+ist Absicht. [Aufbau](portfolio-setup-walkthrough.md),
+[Intake](epic-intake-walkthrough.md),
+[Halbjahr](portfolio-cycle-walkthrough.md),
+[Epic](epic-lifecycle-walkthrough.md),
 [Budget](budgeting-walkthrough.md), [ART-Budget](art-epic-budget-walkthrough.md),
 [PI](pi-walkthrough.md) und [Risiko](risk-walkthrough.md) erzählen
 Abläufe: etwas beginnt, wandert durch Zustände, endet. Die Struktur wandert
 nicht. Sie ist der Rahmen, in dem sie stattfinden — Wertströme, ARTs,
 Solutions und die Menschen, die dafür geradestehen.
+
+Wie dieser Rahmen **entsteht** — Kopfziel, Wertströme, ARTs, Solutions,
+Guardrails, Unterziele, PI-Kadenz —, erzählt
+[Aufbau](portfolio-setup-walkthrough.md). Dieses Dokument zeigt, was danach
+dasteht.
 
 Deshalb ist dies eine **Führung durch eine Fläche**, kein Durchlauf über Rollen.
 Ein Format zu erzwingen, das nicht passt, hätte nur einen künstlichen Ablauf

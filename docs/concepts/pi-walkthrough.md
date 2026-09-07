@@ -11,7 +11,10 @@ Die Schwesterdokumente sind
 wird. Dieses hier beantwortet die dritte Frage: **wann geliefert wird.** Alle
 drei treffen sich; siehe [Die Nähte](#die-nähte).
 
-Fünf Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+Acht Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+[Aufbau](portfolio-setup-walkthrough.md) — woraus alles besteht ·
+[Intake](epic-intake-walkthrough.md) — wie eine Idee hereinkommt ·
+[Halbjahr](portfolio-cycle-walkthrough.md) — wie der Takt schlägt ·
 [Epic](epic-lifecycle-walkthrough.md) — was gebaut wird ·
 [Budget](budgeting-walkthrough.md) — womit ·
 [ART-Budget](art-epic-budget-walkthrough.md) — womit, wenn es klein ist ·
