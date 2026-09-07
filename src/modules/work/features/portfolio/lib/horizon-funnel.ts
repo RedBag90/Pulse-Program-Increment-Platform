@@ -1,6 +1,7 @@
 import {
   HORIZONS,
   STATIONS,
+  horizonOfStation,
   stationsOf,
   type Horizon,
   type Station,
@@ -94,8 +95,12 @@ export interface FunnelBand {
   horizon: Horizon;
   /**
    * Die Stationen dieses Bandes, jede mit **eigener** Öffnung. H1 führt zwei,
-   * seit Investing und Extracting eigene Ziele tragen; die Silhouette macht an
-   * ihrer Grenze deshalb eine Stufe.
+   * seit Investing und Extracting eigene Ziele tragen; die Silhouette wechselt
+   * an ihrer Grenze die Höhe — gerundet, weil zwischen den beiden Plateaus
+   * `stationGap` liegt.
+   *
+   * `x0`/`x1` sind deshalb die **Plateaugrenzen**, nicht die Slot-Grenzen: die
+   * Lücke gehört keiner der beiden Stationen.
    */
   stations: FunnelStation[];
   /** Das **Plateau**: hier ist die Öffnung exakt `half`, und hier liegen Symbole. */
@@ -209,6 +214,17 @@ export interface FunnelGeometry {
    * Horizonts, und die Kurve bewegt sich genau dort, wo das Tor steht.
    */
   transition: number;
+  /**
+   * Dieselbe Lücke **innerhalb** eines Bandes, zwischen zwei Stationen — halb
+   * so breit. Die Trennung H1.1 | H1.2 ist ein Übergang im selben Horizont und
+   * soll als kleinerer Einschnitt lesen als ein Tor zwischen zwei Horizonten.
+   *
+   * Ohne sie stoßen die beiden Plateaus direkt aneinander; `halfAt` findet
+   * dann zwei Kontrollpunkte mit demselben `x` und springt — die Silhouette
+   * und die gestrichelte Ziel-Linie machten dort einen rechten Winkel statt
+   * einer Rundung.
+   */
+  stationGap: number;
 }
 
 export const DEFAULT_GEOMETRY: FunnelGeometry = {
@@ -225,6 +241,7 @@ export const DEFAULT_GEOMETRY: FunnelGeometry = {
   stubWidth: 64,
   targetWidth: 1100,
   transition: 48,
+  stationGap: 24,
 };
 
 /** Die Kürzungsstufen, von der ausführlichsten zur knappsten. */
@@ -406,12 +423,19 @@ export function layoutFunnel(
   //     Höhe gewandert. Ein gemeinsamer Faktor lässt die **Verhältnisse** exakt
   //     die des Geldes bleiben; der absolute Maßstab war ohnehin nie eine
   //     Aussage, er ist auf das reichste Band normiert.
+  //
+  //     **Gepackt wird auf das Plateau, nicht auf den Slot.** Ein Band mit zwei
+  //     Stationen gibt in der Mitte `stationGap` an die Rampe ab; wer weiter
+  //     gegen `unit` packt, schiebt Symbole in genau diese Rampe — und die
+  //     Zusicherung „nichts liegt außerhalb der Kurven" gälte dort nicht mehr.
+  const plateauWidth = (st: Station) =>
+    stationsOf(horizonOfStation(st)).length > 1 ? unit - g.stationGap / 2 : unit;
   const columnsByStation = new Map<Station, Boxed[][]>();
   const proportional = {} as Record<Station, number>;
   const needed = {} as Record<Station, number>;
   let openFactor = 1;
   for (const st of STATIONS) {
-    const columns = columnsInWidth(boxesByStation.get(st) ?? [], unit, g);
+    const columns = columnsInWidth(boxesByStation.get(st) ?? [], plateauWidth(st), g);
     columnsByStation.set(st, columns);
     proportional[st] =
       money[st] <= 0 ? g.minHalf : Math.max(g.minHalf, (money[st] / richest) * g.maxHalf);
@@ -459,10 +483,14 @@ export function layoutFunnel(
     const segs = filled(h) ? stationsOf(h) : [stationsOf(h)[0]!];
     const w = filled(h) ? segs.length * unit : g.stubWidth;
     const segWidth = w / segs.length;
+    // Der Slot bleibt `segWidth` breit; das **Plateau** rückt an jeder inneren
+    // Kante um eine halbe Lücke zurück. Die Bandbreite ändert sich dadurch
+    // nicht — nur die Kurve bekommt Weg, auf dem sie steigen kann.
+    const inset = segs.length > 1 ? g.stationGap / 2 : 0;
     const stations = segs.map((st, zone) => ({
       station: st,
-      x0: x + zone * segWidth,
-      x1: x + (zone + 1) * segWidth,
+      x0: x + zone * segWidth + (zone > 0 ? inset : 0),
+      x1: x + (zone + 1) * segWidth - (zone < segs.length - 1 ? inset : 0),
       money: money[st],
       ...halfOf(st),
     }));
@@ -483,7 +511,9 @@ export function layoutFunnel(
   const width = x + g.padding;
 
   // 7 · Die Silhouette: über jeder Station konstant, bewegt nur in den Lücken —
-  //     und an der H1-Trennung, seit beide Hälften ihr eigenes Geld führen.
+  //     zwischen zwei Horizonten in `transition`, zwischen H1.1 und H1.2 in
+  //     `stationGap`. Beide Male smoothstept `halfAt` zwischen den Plateaus;
+  //     die Rundung ist damit kein Sonderfall, sondern dieselbe Regel.
   const profile: [number, number][] = [];
   for (const b of bands) {
     for (const z of b.stations) {
@@ -520,12 +550,15 @@ export function layoutFunnel(
   //     zentriert, jede Spalte senkrecht auf der Mittellinie.
   const placed: PlacedItem[] = [];
   for (const band of bands) {
-    stationsOf(band.horizon).forEach((st, zone) => {
-      const columns = columnsByStation.get(st) ?? [];
+    band.stations.forEach((zone) => {
+      const columns = columnsByStation.get(zone.station) ?? [];
       if (columns.length === 0) return;
       const widths = columns.map((c) => Math.max(...c.map((b) => b.w)));
       const block = widths.reduce((s, w) => s + w + g.gap, 0) - g.gap;
-      let cx = band.x0 + zone * unit + (unit - block) / 2;
+      // Zentriert im **Plateau** der Station, nicht in einem aus `unit`
+      // nachgerechneten Bereich: die beiden sind seit der Lücke nicht mehr
+      // dasselbe.
+      let cx = zone.x0 + (zone.x1 - zone.x0 - block) / 2;
       columns.forEach((column, ci) => {
         const colWidth = widths[ci]!;
         const used = column.reduce((s, b) => s + b.h + g.gap, 0) - g.gap;
@@ -553,6 +586,9 @@ export function layoutFunnel(
   const stationMoney = (st: Station) =>
     (boxesByStation.get(st) ?? []).reduce((sum, b) => sum + totalOf(b.item), 0);
   const h1Band = bands.find((b) => b.horizon === "h1")!;
+  // `x0 + unit` ist die **Mitte der Lücke**: beide Plateaus rücken um eine
+  // halbe `stationGap` von ihr ab. Die Trennlinie steht damit weiterhin genau
+  // zwischen den Hälften — jetzt dort, wo die Kurve am steilsten läuft.
   const h1 = filled("h1")
     ? {
         splitX: h1Band.x0 + unit,

@@ -279,21 +279,37 @@ describe("Die Packung", () => {
     expect(l.dropped).toEqual([]);
   });
 
-  it("hält jedes Symbol innerhalb der Kurven", () => {
-    const { items, profile } = layoutFunnel(DEMO);
-    for (const i of items) {
-      const half = halfAt(profile, i.cx);
-      expect(i.cy - i.size).toBeGreaterThanOrEqual(DEFAULT_GEOMETRY.mid - half - 1e-6);
-      expect(i.cy + i.size).toBeLessThanOrEqual(DEFAULT_GEOMETRY.mid + half + 1e-6);
+  it("hält jedes Symbol innerhalb der Kurven — an beiden Kanten", () => {
+    // Gemessen wird an **beiden** Kanten des Kastens, nicht nur in seiner
+    // Mitte: seit die Kurve an der Trennung H1.1 | H1.2 rundet, ist die
+    // Öffnung über einem Symbol nicht mehr überall dieselbe, und die Mitte
+    // allein sagt für ein Symbol nahe der Lücke nichts.
+    for (const items of [DEMO, LARGE]) {
+      const layout = layoutFunnel(items);
+      for (const i of layout.items) {
+        const half = Math.min(
+          halfAt(layout.profile, i.box.x),
+          halfAt(layout.profile, i.box.x + i.box.w),
+        );
+        expect(i.cy - i.size).toBeGreaterThanOrEqual(layout.mid - half - 1e-6);
+        expect(i.cy + i.size).toBeLessThanOrEqual(layout.mid + half + 1e-6);
+      }
     }
   });
 
-  it("hält jedes Symbol innerhalb seines Bandes", () => {
-    const { items, bands } = layoutFunnel(DEMO);
-    for (const i of items) {
-      const band = bands.find((b) => b.horizon === i.horizon)!;
-      expect(i.box.x).toBeGreaterThanOrEqual(band.x0 - 1e-6);
-      expect(i.box.x + i.box.w).toBeLessThanOrEqual(band.x1 + 1e-6);
+  it("hält jedes Symbol innerhalb des Plateaus seiner Station", () => {
+    // Schärfer als „innerhalb seines Bandes": die Lücke zwischen H1.1 und
+    // H1.2 gehört keiner der beiden Stationen. Ein Symbol, das in sie
+    // hineinragte, stünde über der Rampe statt über seiner Öffnung.
+    for (const items of [DEMO, LARGE]) {
+      const layout = layoutFunnel(items);
+      const stations = layout.bands.flatMap((b) => b.stations);
+      for (const i of layout.items) {
+        const own = stations.filter(
+          (z) => i.box.x >= z.x0 - 1e-6 && i.box.x + i.box.w <= z.x1 + 1e-6,
+        );
+        expect(own).toHaveLength(1);
+      }
     }
   });
 
@@ -528,6 +544,58 @@ describe("Fünf Stationen statt vier Bänder", () => {
     const links = halfAt(layout.profile, x - 20);
     const rechts = halfAt(layout.profile, x + 20);
     expect(links / rechts).toBeCloseTo(3, 5);
+  });
+
+  it("rundet die Stufe, statt sie im rechten Winkel zu machen", () => {
+    // Der Beleg für die Rundung ist **nicht** „die Kurve sieht weich aus",
+    // sondern: an der Trennung liegt die Öffnung echt *zwischen* den beiden
+    // Plateauwerten. Sprang sie, läge sie exakt auf einem von beiden — genau
+    // das tat sie, solange die Plateaus aneinanderstiessen und `halfAt` zwei
+    // Kontrollpunkte mit demselben `x` fand.
+    const layout = layoutFunnel([
+      sol("c", "h1", 900_000, 0, "investing"),
+      sol("d", "h1", 300_000, 0, "extracting"),
+    ]);
+    const x = layout.h1!.splitX;
+    const links = halfAt(layout.profile, x - 20);
+    const rechts = halfAt(layout.profile, x + 20);
+    const mitte = halfAt(layout.profile, x);
+    expect(mitte).toBeLessThan(links);
+    expect(mitte).toBeGreaterThan(rechts);
+    // Symmetrisch: die Mitte der Lücke liegt auf der Mitte des Sprungs.
+    expect(mitte).toBeCloseTo((links + rechts) / 2, 5);
+  });
+
+  it("lässt die Plateaus selbst flach — gerundet wird nur die Lücke", () => {
+    // Die Gegenprobe. Würde die Rundung ins Plateau hineinlaufen, stünde ein
+    // Symbol nicht mehr unter der Öffnung seiner eigenen Station.
+    const layout = layoutFunnel([
+      sol("c", "h1", 900_000, 0, "investing"),
+      sol("d", "h1", 300_000, 0, "extracting"),
+    ]);
+    const [links, rechts] = layout.bands.find((b) => b.horizon === "h1")!.stations;
+    for (const z of [links!, rechts!]) {
+      expect(halfAt(layout.profile, z.x0)).toBeCloseTo(z.half, 5);
+      expect(halfAt(layout.profile, (z.x0 + z.x1) / 2)).toBeCloseTo(z.half, 5);
+      expect(halfAt(layout.profile, z.x1)).toBeCloseTo(z.half, 5);
+    }
+    // Und die Lücke gehört keiner der beiden: sie liegt genau dazwischen.
+    expect(rechts!.x0 - links!.x1).toBeCloseTo(DEFAULT_GEOMETRY.stationGap, 5);
+  });
+
+  it("rundet die Ziel-Linie mit — sie läuft durch dieselben Lücken", () => {
+    const layout = layoutFunnel(
+      [sol("c", "h1", 900_000, 0, "investing"), sol("d", "h1", 300_000, 0, "extracting")],
+      DEFAULT_GEOMETRY,
+      CODE_STEPS[0],
+      { h3: 0, h2: 0, "h1.1": 70, "h1.2": 30, h0: 0 },
+    );
+    const target = layout.targetProfile!;
+    const x = layout.h1!.splitX;
+    const links = halfAt(target, x - 20);
+    const rechts = halfAt(target, x + 20);
+    expect(links / rechts).toBeCloseTo(70 / 30, 5);
+    expect(halfAt(target, x)).toBeCloseTo((links + rechts) / 2, 5);
   });
 
   it("zählt ein Epic ohne Modus zu H1.1 · Investing", () => {

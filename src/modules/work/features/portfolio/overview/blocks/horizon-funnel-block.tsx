@@ -15,7 +15,6 @@ import { HORIZON_LABEL, type Horizon } from "@/modules/work/domain/portfolio-gua
 import {
   fitFunnel,
   halfAt,
-  stationsOf,
   DEFAULT_GEOMETRY as G,
   type FunnelItem,
   type HorizonTargets,
@@ -323,6 +322,20 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
   );
   const { bands, profile } = layout;
   const split = layout.h1;
+  // Die beiden Beschriftungen hängen an der **schmaleren** der beiden
+  // Öffnungen, nicht an der Kurvenhöhe auf der Trennlinie selbst. Dort steht
+  // die Kurve mitten in ihrer Rampe und damit über dem Plateau der ärmeren
+  // Hälfte — deren Beschriftung landete auf der Kurve und wurde von ihr
+  // durchgestrichen. Das flachere Plateau ist die Höhe, unter der beide frei
+  // liegen, und es hält die beiden Beschriftungen zugleich auf einer Grundlinie.
+  const h1Stations = bands.find((b) => b.horizon === "h1")?.stations ?? [];
+  const splitTopY =
+    split == null
+      ? 0
+      : layout.mid -
+        (h1Stations.length > 0
+          ? Math.min(...h1Stations.map((z) => z.half))
+          : halfAt(profile, split.splitX));
   // Solange die Karte breiter ist als die Untergrenze, ist die Zeichnung genau
   // so breit wie sie — der Faktor ist dann exakt 1 und die `fontSize`-Werte
   // kommen an, wie sie dastehen.
@@ -424,15 +437,14 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
                 {b.minimal ? "kein Geld · Mindestöffnung" : formatScaledEUR(b.money)}
                 {b.enlarged && !b.minimal ? " · dicht belegt" : ""}
               </text>
-              {/* Je Station ein Fuss, mittig unter ihrer Haelfte. Traegt H1
-                  nichts, ist es ein Stummel — dann steht dort **ein** Fuss
-                  statt zweier gequetschter. */}
-              {(b.horizon === "h1" && layout.h1 != null
-                ? stationsOf("h1")
-                : [b.horizon as Station]
-              ).map((st, zone, all) => {
-                const w = (b.x1 - b.x0) / all.length;
-                const cx = b.x0 + zone * w + w / 2;
+              {/* Je Station ein Fuss, mittig unter ihrem **Plateau**. Die
+                  Zeichnung fuehrt die Stationen selbst — nachgerechnet aus der
+                  Bandbreite saessen die Fuesse seit der Stationsluecke um 6 px
+                  versetzt. Traegt H1 nichts, fuehrt das Band nur eine Station:
+                  dann steht dort **ein** Fuss statt zweier gequetschter. */}
+              {b.stations.map((z) => {
+                const st = z.station;
+                const cx = (z.x0 + z.x1) / 2;
                 return (
                   <g key={st}>
                     <text
@@ -544,7 +556,7 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
                 <g key={label}>
                   <text
                     x={split.splitX + dx}
-                    y={layout.mid - halfAt(profile, split.splitX) + 15}
+                    y={splitTopY + 15}
                     textAnchor={anchor}
                     fontSize={10}
                     fontWeight={700}
@@ -554,7 +566,7 @@ function FunnelCard({ items, cycleKey, horizonTargets }: FunnelProps) {
                   </text>
                   <text
                     x={split.splitX + dx}
-                    y={layout.mid - halfAt(profile, split.splitX) + 28}
+                    y={splitTopY + 28}
                     textAnchor={anchor}
                     fontSize={10}
                     className="fill-muted-foreground"
