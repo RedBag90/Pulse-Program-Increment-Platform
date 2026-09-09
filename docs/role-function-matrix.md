@@ -33,7 +33,9 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
   - **Freigabe-Workflow** (`approvalPhase`, `epic.hypothesis.*` / `epic.approval.*`
     / `epic.section.signoff`) — die mehrstufige Mehrparteien-Freigabe (siehe unten).
     Beide sind unabhängig. Die alte Ein-Schritt-Epic-QS (`epic.review.*`) wurde
-    entfernt; nur Features nutzen noch die QS (`feature.review.*`).
+    entfernt, die Feature-QS (`feature.review.*`) 2026-06 ebenfalls — was heute
+    „Acceptance" heisst, ist der Acceptance-Criteria-Editor und läuft über
+    `feature.update`.
 
 ## Rollen
 
@@ -46,7 +48,7 @@ Bei Abweichungen gilt der Code — dieses Dokument ist daran abzugleichen.
 | `value_stream_owner`  | Wertstrom-Verantwortlicher (~Business Owner) — steuert seinen Wertstrom            |
 | `epic_owner`          | Epic-Verantwortlicher — formuliert/pflegt Epics, reicht zur QS ein                 |
 | `vmo`                 | Value Management Office — Epic-QS & Stage-Gate-Governance                          |
-| `rte`                 | Release Train Engineer — ART-Orchestrierung, PI-Planung, Feature-QS                |
+| `rte`                 | Release Train Engineer — ART-Orchestrierung, PI-Planung, Feature-Lieferung         |
 | `feature_owner`       | Feature-Verantwortlicher / Product Manager — Feature-Backlog & WSJF                |
 | `team_editor`         | Scrum Master / Product Owner — Team-Backlog & Sprints                              |
 | `story_owner`         | Tech Lead — Stories end-to-end                                                     |
@@ -105,27 +107,25 @@ Historie geloggt.
 
 ### ART / Programm
 
-| Funktion                                      | Beschreibung                                        |
-| --------------------------------------------- | --------------------------------------------------- |
-| `art.create` / `art.update` / `art.delete`    | ART anlegen / bearbeiten / löschen                  |
-| `pi.create`                                   | Programm-Inkrement anlegen                          |
-| `pi.update`                                   | PI bearbeiten                                       |
-| `pi.start`                                    | PI starten                                          |
-| `pi.complete`                                 | PI abschließen                                      |
-| `pi.delete`                                   | PI löschen                                          |
-| `pi_objective.create` / `pi_objective.update` | PI-Ziel anlegen / bearbeiten                        |
-| `team.create` / `team.update` / `team.delete` | Team anlegen / bearbeiten / löschen                 |
-| `feature.delete`                              | Feature löschen                                     |
-| `feature.review.decide`                       | Feature-QS entscheiden — freigeben oder zurückgeben |
+| Funktion                                      | Beschreibung                        |
+| --------------------------------------------- | ----------------------------------- |
+| `art.create` / `art.update` / `art.delete`    | ART anlegen / bearbeiten / löschen  |
+| `pi.create`                                   | Programm-Inkrement anlegen          |
+| `pi.update`                                   | PI bearbeiten                       |
+| `pi.start`                                    | PI starten                          |
+| `pi.complete`                                 | PI abschließen                      |
+| `pi.delete`                                   | PI löschen                          |
+| `pi_objective.create` / `pi_objective.update` | PI-Ziel anlegen / bearbeiten        |
+| `team.create` / `team.update` / `team.delete` | Team anlegen / bearbeiten / löschen |
+| `feature.delete`                              | Feature löschen                     |
 
 ### Feature
 
-| Funktion                | Beschreibung                    |
-| ----------------------- | ------------------------------- |
-| `feature.create`        | Feature anlegen                 |
-| `feature.update`        | Feature bearbeiten              |
-| `feature.wsjf.set`      | WSJF-Wert eines Features setzen |
-| `feature.review.submit` | Feature zur QS einreichen       |
+| Funktion           | Beschreibung                    |
+| ------------------ | ------------------------------- |
+| `feature.create`   | Feature anlegen                 |
+| `feature.update`   | Feature bearbeiten              |
+| `feature.wsjf.set` | WSJF-Wert eines Features setzen |
 
 ### Story
 
@@ -149,11 +149,10 @@ Historie geloggt.
 
 ### Impediments
 
-| Funktion              | Beschreibung          |
-| --------------------- | --------------------- |
-| `impediment.create`   | Impediment melden     |
-| `impediment.escalate` | Impediment eskalieren |
-| `impediment.resolve`  | Impediment auflösen   |
+Impedimente haben **keine eigenen Funktionen**. Sie sind ins vereinte
+Issue-Register gewandert (`/issues`, ROAM) und laufen dort vollständig über
+`risk.*`. Die früheren `impediment.create/escalate/resolve` waren nie
+implementiert und wurden im September 2026 entfernt.
 
 ### Risks
 
@@ -192,8 +191,9 @@ einen Scope.
 - **Alle** Funktionen innerhalb des eigenen Mandanten (Bypass in `authorize()`).
 - Explizit zugeordnete Governance-Funktionen: `tenant.users.manage`,
   `integration.manage`, `admin.audit-log.read`, `admin.users.read`,
-  `art.create/update/delete`, `team.create/delete`, `epic.delete`,
-  `feature.delete`, `story.delete`.
+  `art.delete`, `team.create/delete`, `epic.delete`, `feature.delete`,
+  `story.delete`. (`art.create`/`art.update` liegen seit September 2026 beim
+  `portfolio_manager`.)
 
 ### Ebene 1 — Portfolio
 
@@ -206,9 +206,9 @@ einen Scope.
   kein Admin-Thema; wer Wertströme anlegt, legt auch die Trains darin an.
   `art.delete` bleibt beim `tenant_admin`.
 - **Feature:** `feature.create`, `feature.update`, `feature.wsjf.set`,
-  `feature.delete`, `feature.review.submit`.
+  `feature.delete`.
 - **Ausführung:** `story.create/update/delete` (art), `task.create/edit` (art),
-  `dependency.link/unlink`, `impediment.create/escalate/resolve`.
+  `dependency.link/unlink`.
 - Scope: Wertströme (leer = ganzer Mandant).
 
 ### Ebene 2 — Wertstrom
@@ -257,9 +257,9 @@ einen Scope.
   `pi_objective.create`, `pi_objective.update`.
 - **ART/Team:** `team.update`.
 - **Feature:** `feature.create`, `feature.update`, `feature.wsjf.set`,
-  `feature.delete`, `feature.review.submit`, `feature.review.decide` (Feature-QS).
+  `feature.delete`.
 - **Ausführung:** `story.create/update/delete` (art), `task.create/edit` (art),
-  `dependency.link/unlink`, `impediment.create/escalate/resolve`.
+  `dependency.link/unlink`.
 - Scope: ARTs.
 - ART-Stammsatz: `art.create`/`art.update` liegen beim `portfolio_manager`
   (seit September 2026), `art.delete` beim `tenant_admin`. Der RTE orchestriert
@@ -269,11 +269,10 @@ einen Scope.
 
 #### `feature_owner` — Feature-Verantwortlicher / Product Manager
 
-- `feature.create`, `feature.update`, `feature.wsjf.set`,
-  `feature.review.submit`.
+- `feature.create`, `feature.update`, `feature.wsjf.set`.
 - **Ausführung:** `story.create/update` (art), `task.create/edit` (art),
-  `dependency.link/unlink`, `impediment.create`.
-- **Nicht** berechtigt: `feature.delete`, `feature.review.decide` (das
+  `dependency.link/unlink`.
+- **Nicht** berechtigt: `feature.delete` (das
   entscheidet der RTE — Funktionstrennung), `story.delete`.
 - Scope: ARTs.
 
@@ -282,24 +281,21 @@ einen Scope.
 #### `team_editor` — Scrum Master / Product Owner
 
 - `story.create/update/delete`, `task.create/edit`,
-  `pi_objective.create/update`, `dependency.link/unlink` (team),
-  `impediment.create/escalate/resolve`.
+  `pi_objective.create/update`, `dependency.link/unlink` (team).
 - Scope: Teams.
 
 ### Ebene 7 — Story
 
 #### `story_owner` — Tech Lead
 
-- `story.create/update/delete`, `task.create/edit`, `impediment.create`.
-- **Nicht** berechtigt: `pi_objective.*`, `dependency.*`,
-  `impediment.escalate/resolve`.
+- `story.create/update/delete`, `task.create/edit`.
+- **Nicht** berechtigt: `pi_objective.*`, `dependency.*`.
 
 ### Ebene 8 — Task
 
 #### `task_owner` — Entwickler
 
 - `task.edit` (own) — nur eigene Tasks.
-- `impediment.create`.
 
 ### Querschnitt — Lesen
 
@@ -320,7 +316,5 @@ Stand des letzten Abgleichs gegen die Portfolio-Verantwortlichkeiten:
 - `epic.approve` (Stage Gates) wurde um `vmo` erweitert — das VMO co-governt den
   Epic-Investment-Funnel. _(Historisch: `epic.approve` ist seit ADR-0018 zurückgezogen; der
   Investment-Funnel läuft über `epic.gate._` plus namentlich benannte Abnehmer.)\*
-- `impediment.create` wurde um `feature_owner` erweitert — die Feature-Ebene
-  konnte zuvor keine Impediments melden.
 - Offene Folge-Aufgabe: strikte `value_stream`-Scope-Durchsetzung für
   `epic.update` auf der Service-Ebene (siehe Ebene 2).

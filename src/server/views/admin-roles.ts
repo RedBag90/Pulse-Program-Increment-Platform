@@ -110,18 +110,11 @@ const DOMAIN_ORDER: CapabilityDomain[] = [
       "feature.update",
       "feature.wsjf.set",
       "feature.delete",
-      "feature.review.submit",
-      "feature.review.decide",
       "feature.delivery.set",
       "feature.owner.assign",
     ],
   },
   { key: "dependencies", label: "Dependencies", actions: ["dependency.link", "dependency.unlink"] },
-  {
-    key: "impediments",
-    label: "Impediments",
-    actions: ["impediment.create", "impediment.escalate", "impediment.resolve"],
-  },
   {
     key: "risks",
     label: "Risiken",

@@ -106,7 +106,9 @@ describe("moduleForAction", () => {
     expect(moduleForAction("feature.wsjf.set")).toBe("work");
     expect(moduleForAction("pi.demo.manage")).toBe("drumbeat");
     expect(moduleForAction("dependency.link")).toBe("drumbeat");
-    expect(moduleForAction("impediment.raise")).toBe("drumbeat");
+    // `impediment.` ist im September 2026 aus der drumbeat-Praefixliste
+    // entfallen — Impedimente leben im Issue-Register und laufen ueber `risk.*`.
+    expect(moduleForAction("impediment.raise")).toBeNull();
     expect(moduleForAction("budget_plan.revision.capture")).toBe("budgeting");
     expect(moduleForAction("art_budget.manage")).toBe("budgeting");
     expect(moduleForAction("risk.suggest")).toBe("risks");

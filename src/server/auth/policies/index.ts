@@ -32,8 +32,6 @@ export type Action =
   | "feature.update"
   | "feature.wsjf.set"
   | "feature.delete"
-  | "feature.review.submit"
-  | "feature.review.decide"
   | "feature.delivery.set"
   | "feature.owner.assign"
   | "pi.create"
@@ -45,9 +43,6 @@ export type Action =
   | "pi_standard.manage"
   | "dependency.link"
   | "dependency.unlink"
-  | "impediment.create"
-  | "impediment.escalate"
-  | "impediment.resolve"
   | "risk.suggest"
   | "risk.document"
   | "risk.review"
@@ -310,8 +305,8 @@ export const POLICIES: Record<Action, Grant[]> = {
   // beim Reifegrad-Rücksprung (`epic.gate.revert`): erzeugen ist Alltag,
   // vernichten ist es nicht.
   //
-  // Der RTE orchestriert den Train (PIs, Objectives, Team-Updates) und macht
-  // Feature-QS — er bearbeitet den ART-Stammsatz nicht.
+  // Der RTE orchestriert den Train (PIs, Objectives, Feature-Lieferung) — er
+  // bearbeitet den ART-Stammsatz nicht.
   "art.create": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
   "art.update": [{ roles: [PORTFOLIO_MANAGER, TENANT_ADMIN] }],
   "art.delete": [{ roles: [TENANT_ADMIN] }],
@@ -375,15 +370,21 @@ export const POLICIES: Record<Action, Grant[]> = {
   ],
 
   "feature.delete": [{ roles: [PORTFOLIO_MANAGER, RTE, TENANT_ADMIN] }],
-  "feature.review.decide": [{ roles: [RTE] }],
 
   // ── Feature ─────────────────────────────────────────────────────────────
-  // The feature owner owns the Feature backlog and WSJF scoring; the RTE and
-  // portfolio manager may also act. Owners submit Features to Feature QS.
+  // Der Feature Owner fuehrt das Feature-Backlog und die WSJF-Bewertung; RTE
+  // und Portfolio Manager duerfen ebenfalls handeln.
+  //
+  // **Eine Feature-QS gibt es nicht mehr.** Der Freigabelauf
+  // (draft → in_review → approved) wurde 2026-06 entfernt — siehe
+  // `modules/work/server/services/feature.ts`. Die Rechte
+  // `feature.review.submit` / `.decide` standen danach noch zwei Monate in der
+  // Union, ohne dass irgendetwas sie las: erteilbar, aber wirkungslos. Was
+  // heute „Acceptance" heisst, ist der Acceptance-Criteria-Editor und laeuft
+  // ueber `feature.update`.
   "feature.create": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
   "feature.update": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
   "feature.wsjf.set": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
-  "feature.review.submit": [{ roles: [FEATURE_OWNER, RTE, PORTFOLIO_MANAGER] }],
   // Delivery-lifecycle transitions on Features (approved → in_progress, pause,
   // resume, complete, cancel). Same audience as "feature.update".
   "feature.delivery.set": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
@@ -403,12 +404,11 @@ export const POLICIES: Record<Action, Grant[]> = {
   "dependency.link": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
   "dependency.unlink": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
 
-  // ── Impediments ─────────────────────────────────────────────────────────
-  // Anyone operating delivery may raise an impediment; escalation and
-  // resolution stay with the coordinating roles.
-  "impediment.create": [{ roles: [PORTFOLIO_MANAGER, RTE, FEATURE_OWNER] }],
-  "impediment.escalate": [{ roles: [PORTFOLIO_MANAGER, RTE] }],
-  "impediment.resolve": [{ roles: [PORTFOLIO_MANAGER, RTE] }],
+  // **Impediments haben keine eigenen Rechte mehr.** Sie sind ins vereinte
+  // Issue-Register gewandert (`/issues`, ROAM) und laufen dort vollstaendig
+  // ueber `risk.*`. Die drei Rechte `impediment.create/escalate/resolve` waren
+  // nie implementiert — kein Dienst, keine Server-Action, keine Flaeche —, und
+  // ein Admin konnte sie erteilen, ohne dass sich etwas aenderte.
   // ── Risks ─────────────────────────────────────────────────────────────────
   // Everyone suggests; the Epic Owner (value-stream-scoped) documents/reviews.
   "risk.suggest": [

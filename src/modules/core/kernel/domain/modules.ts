@@ -105,7 +105,7 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
     // `/structure/timelines` und wird über `PATH_OVERRIDES` gegated — sie ist
     // deshalb kein eigenes Einstiegssegment mehr.
     segments: ["umsetzung", "implementation", "pi", "pi-planning", "dependencies", "roadmap"],
-    actions: ["pi.", "dependency.", "impediment.", "timeline.manage", "pi_standard.manage"],
+    actions: ["pi.", "dependency.", "timeline.manage", "pi_standard.manage"],
     home: "/umsetzung",
   },
   budgeting: {
