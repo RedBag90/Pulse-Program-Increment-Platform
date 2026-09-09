@@ -56,6 +56,13 @@ function latestMeasurement(raw: unknown): number | null {
  * gestapelt auf einer Seite. „Meine Freigaben" ist hier aufgegangen; die alte
  * Route /my-approvals leitet hierher um.
  *
+ * Die zwei Hinweis-Sektionen — „Unterstützung angefragt" und „Budgeting" —
+ * standen bis September 2026 als randlose Streifen **über** dem Seitenkopf.
+ * Damit lagen zwei Aufgaben ausserhalb des Abschnitts, zu dem sie gehören, und
+ * durch die Freigaben von ihm getrennt. Sie gehen jetzt als `notices` in die
+ * Shell; geladen werden sie weiterhin hier, weil Work nicht nach Budgeting
+ * importieren darf (ADR-0013).
+ *
  * Reuse vor Reimplement: Epic-Rows kommen aus `buildEpicsListModel`, Feature-Rows
  * aus `buildFeaturesListModel` — dieselben Funktionen wie auf `/portfolio/epics`
  * und `/art/[artId]/features`. Freigaben rendert `MyApprovalsList` (aus dem
@@ -267,16 +274,23 @@ export default async function MyTasksPage() {
   });
 
   return (
-    <>
-      <HelpRequestsSection tasks={helpRequests} userLabels={userLabels} />
-      <BudgetingTasksSection tasks={budgetingTasks} funding={artFundingTasks} />
-      <Page>
-        <PageHeader title="Meine Tasks" subtitle="Deine Freigaben und Aufgaben an einem Ort." />
-        <MyApprovalsList rows={approvals} />
-        <Suspense fallback={null}>
-          <MyTasksListShell embedded model={model} tenantId={tenantId} showWsjf={practices.wsjf} />
-        </Suspense>
-      </Page>
-    </>
+    <Page>
+      <PageHeader title="Meine Tasks" subtitle="Deine Freigaben und Aufgaben an einem Ort." />
+      <MyApprovalsList rows={approvals} />
+      <Suspense fallback={null}>
+        <MyTasksListShell
+          embedded
+          model={model}
+          tenantId={tenantId}
+          showWsjf={practices.wsjf}
+          notices={
+            <>
+              <HelpRequestsSection tasks={helpRequests} userLabels={userLabels} />
+              <BudgetingTasksSection tasks={budgetingTasks} funding={artFundingTasks} />
+            </>
+          }
+        />
+      </Suspense>
+    </Page>
   );
 }

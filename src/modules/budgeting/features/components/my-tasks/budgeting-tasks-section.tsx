@@ -10,6 +10,9 @@ const EUR = (n: number) => `${Math.round(n).toLocaleString("de-DE")} €`;
  * My-Tasks-Sektion für Gruppenmitglieder mit offener Budget-Verteilung.
  * Verschwindet automatisch, sobald die Gruppe eingereicht hat (der Loader liefert
  * dann nichts mehr). Rein präsentational.
+ *
+ * Trägt die Form ihrer Geschwister im Abschnitt „Meine Tasks" — siehe
+ * `work/features/my-tasks/components/help-requests-section.tsx`.
  */
 export function BudgetingTasksSection({
   tasks,
@@ -22,8 +25,8 @@ export function BudgetingTasksSection({
   if (tasks.length === 0 && funding.length === 0) return null;
 
   return (
-    <section className="border-b bg-surface-frame px-6 py-4">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <section className="space-y-2">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Budgeting
       </h2>
       <ul className="mt-2 space-y-2">

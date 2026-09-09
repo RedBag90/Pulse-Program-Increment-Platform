@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 import { useUrlState } from "@/lib/hooks/use-url-state";
 import { MyTasksFilterBar } from "@/modules/work/features/my-tasks/components/my-tasks-filter-bar";
 import { MyTasksEpicsSection } from "@/modules/work/features/my-tasks/components/my-tasks-epics-section";
@@ -27,6 +27,19 @@ interface Props {
    * genutzt auf der gemergten /my-tasks-Seite (Freigaben + Tasks gestapelt).
    */
   embedded?: boolean;
+  /**
+   * Hinweis-Sektionen, die **oberhalb der Filterleiste** in den Abschnitt
+   * gehören — „Unterstützung angefragt" und „Budgeting". Sie sind Aufgaben, aber
+   * keine Zeilen der gefilterten Liste; stünden sie unter der Leiste, sähe es
+   * aus, als ließen sie sich mitfiltern.
+   *
+   * Ein `ReactNode` statt eines Imports, weil einer davon aus **Budgeting**
+   * kommt und Work nicht dorthin importieren darf (ADR-0013). Die Seite lädt
+   * beide am Kompositionsroot; diese Shell rendert nur, was sie bekommt.
+   *
+   * Nur im `embedded`-Modus wirksam.
+   */
+  notices?: ReactNode;
 }
 
 function parseBucket(raw: string | null): Bucket | null {
@@ -46,7 +59,7 @@ function parseLevel(raw: string | null): TaskLevel | null {
  * tragen `valueStream` direkt, Features tragen `artId` direkt etc.);
  * der Bucket-Filter geht über `model.bucketById` und ist Cross-Shape.
  */
-export function MyTasksListShell({ model, showWsjf, embedded = false }: Props) {
+export function MyTasksListShell({ model, showWsjf, embedded = false, notices }: Props) {
   const { params, push: pushParam } = useUrlState();
 
   const bucket = parseBucket(params.get("bucket"));
@@ -129,6 +142,8 @@ export function MyTasksListShell({ model, showWsjf, embedded = false }: Props) {
           </p>
         </div>
       )}
+
+      {embedded && notices}
 
       <MyTasksFilterBar
         query={query}

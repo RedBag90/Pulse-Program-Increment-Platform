@@ -6,6 +6,11 @@ import type { HelpRequestTask } from "@/modules/work/server/services/my-help-req
  * My-Tasks-Sektion für VMO / Portfolio-Management: Epics, deren Owner um
  * Unterstützung gebeten hat. Verschwindet automatisch, sobald die Bitte
  * zurückgenommen ist (der Loader liefert dann nichts). Rein präsentational.
+ *
+ * Trägt die Form ihrer Geschwister im Abschnitt „Meine Tasks" (Epics,
+ * Features): `space-y-2` und eine kleine Versal-Überschrift. Bis September 2026
+ * war es ein randloser Streifen **über** dem Seitenkopf — damit stand eine
+ * Aufgabe ausserhalb des Abschnitts, zu dem sie gehört.
  */
 export function HelpRequestsSection({
   tasks,
@@ -17,8 +22,8 @@ export function HelpRequestsSection({
   if (tasks.length === 0) return null;
 
   return (
-    <section className="border-b bg-surface-frame px-6 py-4">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <section className="space-y-2">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Unterstützung angefragt
       </h2>
       <ul className="mt-2 space-y-2">
