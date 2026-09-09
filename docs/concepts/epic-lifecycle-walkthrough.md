@@ -5,7 +5,8 @@ vorantreibt, des **Portfolio Managers / VMO**, der ihn steuert und abnimmt, und
 der **Finance**, die das Geld und den Nutzen gegenzeichnet. Mit den Namen, die
 Pulse tatsächlich verwendet: Reifegrad-Schritte, Reiter, Merker, Freigabewege.
 
-Acht Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+Elf Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+[Mandant](tenant-onboarding-walkthrough.md) — wer hereinkommt und was er darf ·
 [Aufbau](portfolio-setup-walkthrough.md) — woraus alles besteht ·
 [Intake](epic-intake-walkthrough.md) — wie eine Idee hereinkommt ·
 [Halbjahr](portfolio-cycle-walkthrough.md) — wie der Takt schlägt ·
@@ -13,6 +14,8 @@ Acht Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
 [Budget](budgeting-walkthrough.md) — womit ·
 [ART-Budget](art-epic-budget-walkthrough.md) — womit, wenn es klein ist ·
 [PI](pi-walkthrough.md) — wann geliefert wird ·
+[Lieferung](delivery-walkthrough.md) — was liefert und was blockiert ·
+[Wirkung](benefit-walkthrough.md) — ob es etwas gebracht hat ·
 [Risiko](risk-walkthrough.md) — was dazwischenkommt. Den Rahmen, in dem sie
 stattfinden, führt [Struktur](structure-walkthrough.md) vor.
 
@@ -248,8 +251,10 @@ links staut, ist unentschieden; was rechts steht, läuft bereits. Die Epic-Liste
 zeigt dieselbe Menge als Funnel, mit dem nächsten notwendigen Schritt je Zeile
 und der Zahl der offenen Abnehmer, wo ein Antrag läuft.
 
-Meine Entscheidungen sammeln sich unter **Meine Freigaben**. Was dort liegt, sind
-beantragte Reifegrad-Wechsel, an denen ich als Abnehmer benannt bin. Zu jedem
+Meine Entscheidungen sammeln sich unter **Meine Tasks** (`/my-tasks`; die alte
+Route `/my-approvals` leitet dorthin um). Was dort liegt, sind beantragte
+Reifegrad-Wechsel, an denen ich als Abnehmer benannt bin — daneben, in eigenen
+Abschnitten, die Unterstützungs-Bitten und die Verteil-Aufgaben. Zu jedem
 sehe ich, worum es geht, und — sobald es eine frühere Freigabe gibt — die
 Gegenüberstellung zur zuletzt freigegebenen Fassung. Ich stimme zu oder lehne
 begründet ab; eine Ablehnung ohne Text nimmt Pulse nicht an. Solange ich nichts

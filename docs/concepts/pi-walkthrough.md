@@ -11,7 +11,8 @@ Die Schwesterdokumente sind
 wird. Dieses hier beantwortet die dritte Frage: **wann geliefert wird.** Alle
 drei treffen sich; siehe [Die Nähte](#die-nähte).
 
-Acht Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+Elf Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+[Mandant](tenant-onboarding-walkthrough.md) — wer hereinkommt und was er darf ·
 [Aufbau](portfolio-setup-walkthrough.md) — woraus alles besteht ·
 [Intake](epic-intake-walkthrough.md) — wie eine Idee hereinkommt ·
 [Halbjahr](portfolio-cycle-walkthrough.md) — wie der Takt schlägt ·
@@ -19,6 +20,8 @@ Acht Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
 [Budget](budgeting-walkthrough.md) — womit ·
 [ART-Budget](art-epic-budget-walkthrough.md) — womit, wenn es klein ist ·
 [PI](pi-walkthrough.md) — wann geliefert wird ·
+[Lieferung](delivery-walkthrough.md) — was liefert und was blockiert ·
+[Wirkung](benefit-walkthrough.md) — ob es etwas gebracht hat ·
 [Risiko](risk-walkthrough.md) — was dazwischenkommt. Den Rahmen, in dem sie
 stattfinden, führt [Struktur](structure-walkthrough.md) vor.
 
@@ -83,9 +86,11 @@ Meine Timeline hat einen PI-Standard, und daraus stehen die nächsten PIs schon
 im Kalender. Ich muss sie nicht anlegen; ich muss entscheiden, wann eines
 **startet**.
 
-Vor dem Start liegt die **PI-Planung**. Auf `/pi-planning` ordne ich Features
-den PIs zu und sehe die Kapazität dagegen: Job Size und €-Budget je PI, beides
-pro PI überschreibbar, wenn die abgeleitete Zahl nicht passt. Was hier
+Vor dem Start liegt die **PI-Planung**. Sie hat keine eigene Fläche mehr — sie
+findet im Cockpit statt (`/umsetzung`); die alte Route `/pi-planning` leitet
+dorthin um. Dort ordne ich Features den PIs zu und sehe die Kapazität dagegen:
+Job Size und €-Budget je PI, beides pro PI überschreibbar, wenn die abgeleitete
+Zahl nicht passt. Was hier
 zugeordnet wird, ist der Inhalt, über den ich gleich sage: das schaffen wir.
 
 Dann **starte** ich das PI. Pulse prüft zweierlei: dass es auf `planned` steht —
@@ -96,8 +101,10 @@ hieße, dass niemand mehr sagen kann, in welchem Takt gearbeitet wird.
 
 Ab jetzt lebe ich im **Cockpit** (`/umsetzung`). Es zeigt die Matrix aus PIs und
 Features, den Delivery-Status jeder Zeile, und wo es klemmt. Von hier aus arbeite
-ich in die Tiefe: `/umsetzung/art/[id]` für einen ART, `/umsetzung/pi/[id]` für
-ein PI, `/umsetzung/feature/[id]` für ein einzelnes Feature.
+ich in die Tiefe: `/umsetzung/feature/[id]` für ein einzelnes Feature. Ein ART
+oder ein PI ist kein eigener Ort, sondern ein **Ausschnitt** derselben Fläche —
+`/umsetzung?art=…` bzw. `?pi=…`; die früheren Routen `/umsetzung/art/[id]`,
+`/umsetzung/pi/[id]` und `/pi/[piId]` leiten genau dorthin um.
 
 Am Ende schreibe ich die Kadenz fort: **„PI abschließen & nächstes öffnen".** Das
 ist eine Transaktion — das laufende PI geht auf `completed`, das nächste öffnet
@@ -129,10 +136,16 @@ etwas beitrage — und die Zahl, aus der alles andere abgeleitet wird: die
 Fortschrittsanzeige meines Epics, die Auslastung meines ARTs, die Frage, ob das
 PI zu ist.
 
-Zum **System Demo** trage ich bei, was ich gebaut habe: die Demo eines PI ist
+Zum **System Demo** trüge ich bei, was ich gebaut habe: die Demo eines PI ist
 eine geordnete Liste von Punkten, jeder darf sich auf ein Feature beziehen — der
-Verantwortliche wird dann daraus abgeleitet. Es ist die eine Gelegenheit, an der
+Verantwortliche wird dann daraus abgeleitet. Es wäre die eine Gelegenheit, an der
 das Ergebnis eines PI nicht als Status, sondern als Sache gezeigt wird.
+
+**Im Konjunktiv, und das ist kein Stil.** Der Dienst dahinter ist vollständig
+gebaut, samt Integrationstest; eine Server-Action und eine Oberfläche gibt es
+nicht. `pi.demo.manage` ist erteilbar, aber nicht auslösbar. Das ist dieselbe
+Lücke, die weiter oben das Abschluss-Tor stumpf macht — hier ist sie die Ursache,
+dort die Wirkung.
 
 Fällt mir dabei etwas auf, das uns aufhält, melde ich es als **Issue**. Wie es
 weitergeht, steht in [risk-walkthrough.md](risk-walkthrough.md) — hier zählt
@@ -183,16 +196,16 @@ Size seiner eingeplanten Features in Geld umgerechnet.
 
 ## Wer welchen Schritt macht
 
-| Schritt                              | Wer                                   | Recht                                   |
-| ------------------------------------ | ------------------------------------- | --------------------------------------- |
-| PI anlegen, ändern, löschen          | RTE                                   | `pi.create` · `pi.update` · `pi.delete` |
-| PI starten                           | RTE, Wertstrom-Owner                  | `pi.start`                              |
-| Kadenz fortschreiben (UI-Abschluss)  | RTE, Wertstrom-Owner                  | `pi.advance`                            |
-| PI abschließen (volles Tor, nur API) | RTE, Wertstrom-Owner                  | `pi.complete`                           |
-| PI-Standard einer Timeline pflegen   | Tenant-Admin, Portfolio Manager       | `pi_standard.manage`                    |
-| Timeline anlegen, ART beitreten      | Tenant-Admin, Portfolio Manager       | `timeline.manage`                       |
-| Delivery-Status eines Features       | Feature Owner, RTE, Portfolio Manager | `feature.delivery.set`                  |
-| System-Demo pflegen                  | RTE, Feature Owner                    | `pi.demo.manage`                        |
+| Schritt                                   | Wer                                   | Recht                                   |
+| ----------------------------------------- | ------------------------------------- | --------------------------------------- |
+| PI anlegen, ändern, löschen               | RTE                                   | `pi.create` · `pi.update` · `pi.delete` |
+| PI starten                                | RTE, Wertstrom-Owner                  | `pi.start`                              |
+| Kadenz fortschreiben (UI-Abschluss)       | RTE, Wertstrom-Owner                  | `pi.advance`                            |
+| PI abschließen (volles Tor, nur API)      | RTE, Wertstrom-Owner                  | `pi.complete`                           |
+| PI-Standard einer Timeline pflegen        | Tenant-Admin, Portfolio Manager       | `pi_standard.manage`                    |
+| Timeline anlegen, ART beitreten           | Tenant-Admin, Portfolio Manager       | `timeline.manage`                       |
+| Delivery-Status eines Features            | Feature Owner, RTE, Portfolio Manager | `feature.delivery.set`                  |
+| System-Demo pflegen — **ohne Oberfläche** | RTE, Feature Owner                    | `pi.demo.manage`                        |
 
 ## Nachschlagepunkte im Code
 

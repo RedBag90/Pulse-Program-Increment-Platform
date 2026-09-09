@@ -9,7 +9,8 @@ Das Schwesterdokument für das Epic ist
 [epic-lifecycle-walkthrough.md](epic-lifecycle-walkthrough.md). Beide treffen
 sich an einer Stelle — siehe [Die Naht zum Epic](#die-naht-zum-epic).
 
-Acht Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+Elf Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+[Mandant](tenant-onboarding-walkthrough.md) — wer hereinkommt und was er darf ·
 [Aufbau](portfolio-setup-walkthrough.md) — woraus alles besteht ·
 [Intake](epic-intake-walkthrough.md) — wie eine Idee hereinkommt ·
 [Halbjahr](portfolio-cycle-walkthrough.md) — wie der Takt schlägt ·
@@ -17,6 +18,8 @@ Acht Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
 [Budget](budgeting-walkthrough.md) — womit ·
 [ART-Budget](art-epic-budget-walkthrough.md) — womit, wenn es klein ist ·
 [PI](pi-walkthrough.md) — wann geliefert wird ·
+[Lieferung](delivery-walkthrough.md) — was liefert und was blockiert ·
+[Wirkung](benefit-walkthrough.md) — ob es etwas gebracht hat ·
 [Risiko](risk-walkthrough.md) — was dazwischenkommt. Den Rahmen, in dem sie
 stattfinden, führt [Struktur](structure-walkthrough.md) vor.
 
@@ -46,10 +49,14 @@ Drei Übergänge tragen eine inhaltliche Aussage:
 
 Die Regeln, die man kennen sollte, um nicht überrascht zu werden:
 
-- **Was auf die PB-Liste darf.** Ein Epic braucht eine freigegebene Benefit-
-  Hypothese **oder** einen freigegebenen Lean Business Case. Der Richtwert kommt
-  aus dem Business Case (Σ der Kostenscheiben); liegt nur die Hypothese vor,
-  gilt der tenant-weite Default-Aufwand. **Ausgenommen sind ART-Epics** — sie
+- **Was auf die PB-Liste darf.** Ein Epic braucht einen **freigegebenen Lean
+  Business Case** — also mindestens L3.1. Der Richtwert ist die Summe seiner
+  Kostenscheiben. Bis September 2026 reichte auch eine freigegebene
+  Benefit-Hypothese, und der Richtwert war dann ein tenant-weiter
+  Default-Aufwand; damit budgetierte das Portfolio die **Erstellung** des
+  Business Case. Dieser Weg ist entfallen: Analyse- und Business-Case-Arbeit
+  läuft aus der laufenden Kapazität von Wertstrom und ART.
+  **Ausgenommen sind ART-Epics** — sie
   werden aus dem ART-Epic-Budget ihres ARTs bedient und stehen deshalb gar
   nicht zur Wahl (siehe [Die Naht zum Epic](#die-naht-zum-epic)).
 - **Run the Business wird mitbudgetiert**, nicht vorweg abgezogen. Der Richtwert
@@ -109,8 +116,9 @@ Die Kachel steht auf **Entwurf**. Im Reiter _Setup_ arbeite ich eine Liste ab.
 ich sie, solange die Runde nicht läuft.
 
 **2 · PB-Liste.** Was zur Wahl steht. Ich wähle Epics aus dem budgeting-reifen
-Pool — das sind die, deren Hypothese oder Business Case freigegeben ist. Zu
-jedem zeigt Pulse den Richtwert, den es aus dem Artefakt ableitet. Die
+Pool — das sind die mit freigegebenem Lean Business Case, und nur die, die den
+Merker „Fürs nächste Budget-Meeting vormerken" tragen. Zu jedem zeigt Pulse den
+Richtwert, den es aus dem Business Case ableitet. Die
 Run-the-Business-Positionen stehen als eigener, eingeklappter Abschnitt darüber:
 ich kann sie hier nicht ändern, sie kommen beim Start automatisch dazu, und ihre
 Summe zählt trotzdem gegen den Topf — sonst täuschte mich die Zahl unten. Wer
@@ -158,9 +166,8 @@ es als Zwischenzeile darüber.
 
 Zwei Spalten: **Anfrage** — was der Kandidat kostet — und **Mein Betrag**, mein
 Feld. Nichts ist vorbelegt: jede Zuteilung ist eine Entscheidung, nichts fließt
-aus Versehen. Zu Epics kann ich die Budget-Info aufklappen; je nachdem, was
-freigegeben ist, speist sie sich aus dem Business Case oder aus der
-Benefit-Hypothese.
+aus Versehen. Zu Epics kann ich die Budget-Info aufklappen; sie speist sich aus
+dem freigegebenen Business Case.
 
 Sortiert wird nach der Anfrage, nicht nach meiner Eingabe. Das ist Absicht: ich
 tippe, und nichts unter meinen Händen springt.
@@ -264,9 +271,10 @@ Ein ART-Epic, für dessen ART kein Rahmen angelegt ist, hat dagegen **keinen**
 Weg: es steht nicht auf der PB-Liste und hat keinen Topf. Pulse weist das an der
 Epic-Seite aus, statt es zu verschweigen.
 
-Die Gegenrichtung gilt auch: Wer auf die PB-Liste will, braucht mindestens eine
-freigegebene Benefit-Hypothese. Die Budget-Runde entscheidet über Geld, nicht
-über Reife.
+Die Gegenrichtung gilt auch: Wer auf die PB-Liste will, braucht einen
+freigegebenen Lean Business Case. Die Budget-Runde entscheidet über Geld, nicht
+über Reife — und das Portfolio finanziert die Umsetzung, nicht die Erarbeitung
+des Business Case.
 
 ---
 

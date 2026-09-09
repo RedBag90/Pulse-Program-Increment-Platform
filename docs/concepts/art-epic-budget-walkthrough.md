@@ -11,7 +11,8 @@ Es erzählt den **anderen** Weg zum selben Geld — den über die Kachel und ihr
 PB-Liste. Welcher gilt, entscheidet allein die Größe des Vorhabens; siehe dort
 [Die Naht zum Epic](budgeting-walkthrough.md#die-naht-zum-epic).
 
-Acht Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+Elf Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+[Mandant](tenant-onboarding-walkthrough.md) — wer hereinkommt und was er darf ·
 [Aufbau](portfolio-setup-walkthrough.md) — woraus alles besteht ·
 [Intake](epic-intake-walkthrough.md) — wie eine Idee hereinkommt ·
 [Halbjahr](portfolio-cycle-walkthrough.md) — wie der Takt schlägt ·
@@ -19,6 +20,8 @@ Acht Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
 [Budget](budgeting-walkthrough.md) — womit ·
 [ART-Budget](art-epic-budget-walkthrough.md) — womit, wenn es klein ist ·
 [PI](pi-walkthrough.md) — wann geliefert wird ·
+[Lieferung](delivery-walkthrough.md) — was liefert und was blockiert ·
+[Wirkung](benefit-walkthrough.md) — ob es etwas gebracht hat ·
 [Risiko](risk-walkthrough.md) — was dazwischenkommt. Den Rahmen, in dem sie
 stattfinden, führt [Struktur](structure-walkthrough.md) vor.
 

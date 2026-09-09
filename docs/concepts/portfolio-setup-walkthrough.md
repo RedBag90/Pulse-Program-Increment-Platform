@@ -10,7 +10,8 @@ Die fünf Schwesterdokumente beschreiben Abläufe **in** einem laufenden
 Portfolio. Dieses hier beschreibt, was vorher passiert — und es ist der einzige
 Ablauf, den man in aller Regel **einmal** durchläuft.
 
-Acht Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+Elf Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
+[Mandant](tenant-onboarding-walkthrough.md) — wer hereinkommt und was er darf ·
 [Aufbau](portfolio-setup-walkthrough.md) — woraus alles besteht ·
 [Intake](epic-intake-walkthrough.md) — wie eine Idee hereinkommt ·
 [Halbjahr](portfolio-cycle-walkthrough.md) — wie der Takt schlägt ·
@@ -18,6 +19,8 @@ Acht Dokumente beschreiben die Abläufe von Pulse und verweisen aufeinander:
 [Budget](budgeting-walkthrough.md) — womit ·
 [ART-Budget](art-epic-budget-walkthrough.md) — womit, wenn es klein ist ·
 [PI](pi-walkthrough.md) — wann geliefert wird ·
+[Lieferung](delivery-walkthrough.md) — was liefert und was blockiert ·
+[Wirkung](benefit-walkthrough.md) — ob es etwas gebracht hat ·
 [Risiko](risk-walkthrough.md) — was dazwischenkommt. Den Rahmen, in dem sie
 stattfinden, führt [Struktur](structure-walkthrough.md) als Flächenführung vor —
 dieses Dokument erzählt, wie er entsteht.
