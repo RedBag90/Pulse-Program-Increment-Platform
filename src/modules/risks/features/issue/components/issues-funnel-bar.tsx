@@ -25,7 +25,7 @@ export function IssuesFunnelBar({
   const total = ROAM_STATUSES.reduce((sum, s) => sum + counts[s], 0);
   const none = activeRoams.length === 0;
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2" data-tour="issues-funnel-bar">
       <button
         type="button"
         onClick={onClear}

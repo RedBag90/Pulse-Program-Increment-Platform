@@ -11,27 +11,28 @@ import {
 } from "../role-tour";
 import { ROLE_PLAYBOOKS, type DataRequirement } from "../role-playbook";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
-import { MODULE_KEYS, applyModulePrerequisites, type ModuleKey } from "@/modules/core/kernel/domain/modules";
-import { DEFAULT_PRACTICES, type PracticeFlags } from "@/modules/core/kernel/domain/operating-model";
+import {
+  MODULE_KEYS,
+  applyModulePrerequisites,
+  type ModuleKey,
+} from "@/modules/core/kernel/domain/modules";
+import {
+  DEFAULT_PRACTICES,
+  type PracticeFlags,
+} from "@/modules/core/kernel/domain/operating-model";
 import { POLICIES, type Action } from "@/server/auth/policies";
 
 /** Alle Capabilities, die eine Rolle laut Registry hat (Admin-Bypass wie authorize()). */
 function capabilitiesOf(role: string): Set<Action> {
   const all = Object.keys(POLICIES) as Action[];
   if (role === ROLES.PLATFORM_ADMIN || role === ROLES.TENANT_ADMIN) return new Set(all);
-  return new Set(all.filter((a) => (POLICIES[a] ?? []).some((g) => g.roles.includes(role as never))));
+  return new Set(
+    all.filter((a) => (POLICIES[a] ?? []).some((g) => g.roles.includes(role as never))),
+  );
 }
 
 /** Standard: alles da — Tests, die den Leerzustand prüfen, überschreiben gezielt. */
-const ALL_DATA: DataRequirement[] = [
-  "valueStream",
-  "art",
-  "epic",
-  "feature",
-  "pi",
-  "risk",
-  "goal",
-];
+const ALL_DATA: DataRequirement[] = ["valueStream", "art", "epic", "feature", "pi", "risk", "goal"];
 
 function ctx(over: Partial<TourContext> = {}): TourContext {
   return {
@@ -44,7 +45,11 @@ function ctx(over: Partial<TourContext> = {}): TourContext {
 }
 
 /** Kontext eines Tenants, der nur die angegebenen Module gebucht hat. */
-function tenantWith(modules: ModuleKey[], role: string, practices: PracticeFlags = DEFAULT_PRACTICES) {
+function tenantWith(
+  modules: ModuleKey[],
+  role: string,
+  practices: PracticeFlags = DEFAULT_PRACTICES,
+) {
   return ctx({
     enabledModules: applyModulePrerequisites(modules),
     practices,
@@ -89,13 +94,16 @@ describe("resolveTour — Filterung", () => {
     expect(withoutDrumbeat.total).toBeLessThan(withDrumbeat.total);
     // Kein verbleibender Schritt zeigt noch auf eine Drumbeat-Fläche.
     for (const s of withoutDrumbeat.steps) {
-      expect(["/timelines", "/umsetzung", "/dependencies", "/impediments"]).not.toContain(s.route);
+      expect(["/timelines", "/umsetzung", "/dependencies"]).not.toContain(s.route);
     }
   });
 
   it("abgeschaltete Practice entfernt ihre Schritte", () => {
     const off: PracticeFlags = { ...DEFAULT_PRACTICES, wsjf: false };
-    const on = resolveTour(ROLE_PLAYBOOKS[FEATURE_OWNER], tenantWith([...MODULE_KEYS], FEATURE_OWNER));
+    const on = resolveTour(
+      ROLE_PLAYBOOKS[FEATURE_OWNER],
+      tenantWith([...MODULE_KEYS], FEATURE_OWNER),
+    );
     const noWsjf = resolveTour(
       ROLE_PLAYBOOKS[FEATURE_OWNER],
       tenantWith([...MODULE_KEYS], FEATURE_OWNER, off),
@@ -109,13 +117,11 @@ describe("resolveTour — Filterung", () => {
     const stripped = resolveTour(
       ROLE_PLAYBOOKS[RTE],
       ctx({
-        allowedCapabilities: new Set(
-          [...capabilitiesOf(RTE)].filter((a) => a !== "impediment.resolve"),
-        ),
+        allowedCapabilities: new Set([...capabilitiesOf(RTE)].filter((a) => a !== "risk.roam")),
       }),
     );
     expect(stripped.total).toBe(full.total - 1);
-    expect(stripped.steps.map((s) => s.key)).not.toContain("rte.impediments");
+    expect(stripped.steps.map((s) => s.key)).not.toContain("rte.issues");
   });
 
   it("auch die Prosa wird gefiltert — nicht nur die Schritte", () => {
@@ -149,7 +155,10 @@ describe("resolveTour — Filterung", () => {
 
 describe("resolveTour — Datenachse", () => {
   it("leerer Workspace: Schritte mit `requires` fallen weg", () => {
-    const full = resolveTour(ROLE_PLAYBOOKS[RTE], ctx({ allowedCapabilities: capabilitiesOf(RTE) }));
+    const full = resolveTour(
+      ROLE_PLAYBOOKS[RTE],
+      ctx({ allowedCapabilities: capabilitiesOf(RTE) }),
+    );
     const empty = resolveTour(
       ROLE_PLAYBOOKS[RTE],
       ctx({ allowedCapabilities: capabilitiesOf(RTE), availableData: new Set() }),
@@ -260,7 +269,11 @@ describe("onboardingNotices — nachträglich freigeschaltete Module", () => {
 
   it("Drumbeat kommt dazu ⇒ new_scope mit genau den neuen Schritten", () => {
     const n = onlyScope(
-      onboardingNotices([RTE], [acked(seenInWorkOnlyTenant())], tenantWith(["work", "drumbeat"], RTE)),
+      onboardingNotices(
+        [RTE],
+        [acked(seenInWorkOnlyTenant())],
+        tenantWith(["work", "drumbeat"], RTE),
+      ),
     );
     expect(n.open.length).toBeGreaterThan(0);
     // Alle neuen Schritte gehören zu Drumbeat …
@@ -271,16 +284,25 @@ describe("onboardingNotices — nachträglich freigeschaltete Module", () => {
   });
 
   it("Modul wieder abgeschaltet ⇒ kein Hinweis (die Schritte verschwinden lautlos)", () => {
-    const notices = onboardingNotices([RTE], [acked(seenInWorkOnlyTenant())], tenantWith(["work"], RTE));
+    const notices = onboardingNotices(
+      [RTE],
+      [acked(seenInWorkOnlyTenant())],
+      tenantWith(["work"], RTE),
+    );
     expect(notices).toEqual([]);
   });
 
   it("Modul erneut eingeschaltet, Schritte längst gesehen ⇒ immer noch kein Hinweis", () => {
-    const seenAll = resolveTour(ROLE_PLAYBOOKS[RTE], tenantWith(["work", "drumbeat"], RTE)).steps.map(
-      (s) => s.key,
-    );
+    const seenAll = resolveTour(
+      ROLE_PLAYBOOKS[RTE],
+      tenantWith(["work", "drumbeat"], RTE),
+    ).steps.map((s) => s.key);
     const off = onboardingNotices([RTE], [acked(seenAll)], tenantWith(["work"], RTE));
-    const onAgain = onboardingNotices([RTE], [acked(seenAll)], tenantWith(["work", "drumbeat"], RTE));
+    const onAgain = onboardingNotices(
+      [RTE],
+      [acked(seenAll)],
+      tenantWith(["work", "drumbeat"], RTE),
+    );
     expect(off).toEqual([]);
     expect(onAgain).toEqual([]);
   });
@@ -304,7 +326,13 @@ describe("onboardingNotices — nachträglich freigeschaltete Module", () => {
     const n = onlyScope(
       onboardingNotices(
         [FEATURE_OWNER],
-        [{ role: FEATURE_OWNER, acknowledgedAt: new Date("2026-08-14T00:00:00Z"), seenStepKeys: seen }],
+        [
+          {
+            role: FEATURE_OWNER,
+            acknowledgedAt: new Date("2026-08-14T00:00:00Z"),
+            seenStepKeys: seen,
+          },
+        ],
         tenantWith([...MODULE_KEYS], FEATURE_OWNER, DEFAULT_PRACTICES),
       ),
     );
@@ -313,10 +341,9 @@ describe("onboardingNotices — nachträglich freigeschaltete Module", () => {
 
   it("eine nachträglich gewährte Capability erzeugt ebenfalls einen Hinweis", () => {
     const reduced = new Set([...capabilitiesOf(RTE)].filter((a) => a !== "dependency.link"));
-    const seen = resolveTour(
-      ROLE_PLAYBOOKS[RTE],
-      ctx({ allowedCapabilities: reduced }),
-    ).steps.map((s) => s.key);
+    const seen = resolveTour(ROLE_PLAYBOOKS[RTE], ctx({ allowedCapabilities: reduced })).steps.map(
+      (s) => s.key,
+    );
 
     const n = onlyScope(
       onboardingNotices(

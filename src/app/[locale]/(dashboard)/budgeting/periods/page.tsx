@@ -50,42 +50,46 @@ export default async function BudgetingPeriodsPage() {
       />
 
       {model.active && (
-        <StatStrip>
-          <Stat
-            label="Laufende Kachel"
-            value={<span className="text-xl">{model.active.label}</span>}
-            delta={{ tone: "flat", text: model.active.phase }}
-          />
-          <Stat
-            label="Topf"
-            value={<span className="text-xl">{formatCompactEUR(model.active.poolTotal)}</span>}
-          />
-          <Stat
-            label="Abgaben"
-            value={
-              <span className="text-xl">
-                {model.active.submittedCount} / {model.active.groupCount}
-              </span>
-            }
-            delta={{
-              tone:
-                model.active.groupCount > 0 &&
-                model.active.submittedCount >= model.active.groupCount
-                  ? "up"
-                  : "flat",
-              text: `${model.active.participantCount} Beteiligte`,
-            }}
-          />
-          <Stat
-            label="Letzter Stand"
-            value={<span className="text-xl">{model.lastCapturedLabel ?? "—"}</span>}
-            delta={
-              model.lastCapturedLabel
-                ? { tone: "flat", text: "eingefroren" }
-                : { tone: "down", text: "noch keiner" }
-            }
-          />
-        </StatStrip>
+        // `data-tour`: Ziel der Rollen-Tour („Den Budget-Topf setzen"). Der
+        // Anker sass vor dem Budgeting-Umbau an der alten Runden-Flaeche.
+        <div data-tour="budget-pool">
+          <StatStrip>
+            <Stat
+              label="Laufende Kachel"
+              value={<span className="text-xl">{model.active.label}</span>}
+              delta={{ tone: "flat", text: model.active.phase }}
+            />
+            <Stat
+              label="Topf"
+              value={<span className="text-xl">{formatCompactEUR(model.active.poolTotal)}</span>}
+            />
+            <Stat
+              label="Abgaben"
+              value={
+                <span className="text-xl">
+                  {model.active.submittedCount} / {model.active.groupCount}
+                </span>
+              }
+              delta={{
+                tone:
+                  model.active.groupCount > 0 &&
+                  model.active.submittedCount >= model.active.groupCount
+                    ? "up"
+                    : "flat",
+                text: `${model.active.participantCount} Beteiligte`,
+              }}
+            />
+            <Stat
+              label="Letzter Stand"
+              value={<span className="text-xl">{model.lastCapturedLabel ?? "—"}</span>}
+              delta={
+                model.lastCapturedLabel
+                  ? { tone: "flat", text: "eingefroren" }
+                  : { tone: "down", text: "noch keiner" }
+              }
+            />
+          </StatStrip>
+        </div>
       )}
 
       {model.focus.length === 0 && model.past.length === 0 ? (
