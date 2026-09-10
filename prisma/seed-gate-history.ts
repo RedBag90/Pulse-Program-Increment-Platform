@@ -47,6 +47,7 @@ import {
   type ResolvedApprover,
 } from "@/modules/work/domain/gate-policy";
 import { withImplementationActual } from "@/modules/work/domain/timeline";
+import type { Horizon } from "@/modules/work/domain/portfolio-guardrails";
 
 // ---------------------------------------------------------------------------
 // Die Züge, aus denen ein Weg besteht
@@ -120,6 +121,10 @@ export interface GateHistoryInput {
    * mitzeichnet (`appliesAtGate` lässt ihn dort nur bei ART-Epics zu).
    */
   epicClass?: "portfolio" | "art" | null;
+  /** Der Horizont der Primär-Solution — `null`, wenn es keine gibt (H3). */
+  solutionHorizon?: Horizon | null;
+  /** Ein am Epic gesetzter Horizont. Er schlägt die Ableitung und friert bei L3.1 ein. */
+  investmentHorizon?: Horizon | null;
   /** Inhalte des Epics — aus ihnen zieht die Abnahme die Baselines. */
   benefitHypothesis: Prisma.InputJsonValue | null;
   businessCase: Prisma.InputJsonValue | null;
@@ -230,11 +235,17 @@ function initialFacts(input: GateHistoryInput): EpicGateFacts {
     hasHypothesisContent: input.benefitHypothesis != null,
     hasBusinessCaseContent: input.businessCase != null,
     businessCaseApprovedAt: null,
-    // Ohne Horizont: die Demo-Epics folgen weiter ihrer Primär-Solution. Der
-    // Freeze gilt „ab jetzt" und wird nicht in den Bestand zurückgeschrieben —
-    // sonst zeigte der Datensatz einen Zustand, den es real nicht gibt.
-    solutionHorizon: null,
-    investmentHorizon: null,
+    /**
+     * **Der Horizont, den L3.1 einfriert.**
+     *
+     * Er stand hier bis ADR-0020 hart auf `null` — mit der Folge, dass der
+     * Freeze im ganzen Datensatz **nie** stattfand: `investmentHorizon` war an
+     * jedem geseedeten Epic leer, auch an denen jenseits von L3.1. Der Aufrufer
+     * reicht ihn jetzt durch; ein Epic ohne Solution trägt seinen eigenen, und
+     * `stampsForAdvance` respektiert ihn (set-once).
+     */
+    solutionHorizon: input.solutionHorizon ?? null,
+    investmentHorizon: input.investmentHorizon ?? null,
     budgetAllocationSum: input.budgetAllocationSum ?? 0,
     childFeatureStats: input.childFeatureStats ?? { total: 0, started: 0, completed: 0 },
     selectedForDetailingAt: null,

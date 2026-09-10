@@ -1,33 +1,42 @@
 /* eslint-disable no-console */
 /**
- * „Large Test Corp" — realistisches, **budget-getriebenes 10-Jahres-Programm**:
- * eine Firma in der Restrukturierung mit Cost-Optimization-Fokus über 3
- * Workstreams (Verwaltung & Overhead · Logistik · Produktion).
+ * „Large Test Corp" — eine Firma in der Restrukturierung mit
+ * Cost-Optimization-Fokus über drei Workstreams (Verwaltung & Overhead ·
+ * Logistik · Produktion), **Halbjahr für Halbjahr durchgespielt**.
  *
- * Engpass ist das **Budget: €4 Mio./Kalenderjahr** (€2 Mio./Halbjahres-Zyklus).
- * Davon geht rund die Hälfte an Run the Business — Betrieb (~300 T€) und die
- * ART-Epic-Budgets der sechs ARTs (~700 T€) —, der Rest steht dem PB-Liste zur
- * Verfügung. Wir stehen im **laufenden Halbjahr von Jahr 5**; welches das ist,
- * sagt die echte Uhr, nicht eine feste Annahme.
+ * Der Seed rechnet die Vergangenheit nicht mehr rückwärts aus einem gewürfelten
+ * Reifegrad. Er **spielt sie**: `seed-large-rounds.ts` läuft sechs Runden durch —
+ * Ideen sammeln, sichten, reifen, budgetieren, umsetzen, wirken lassen — und
+ * liefert je Epic seinen Weg und je Runde ihre Entscheidungen. Alles hier hängt
+ * sich daran.
  *
- * Der Reifegrad + die Zeitleiste jedes Epics folgen der Budget-Verfügbarkeit:
- *   L5 Done / L4 Implementing (in der Vergangenheit bezahlt) · L3 jetzt bezahlt ·
- *   L2 fertig definiert, aber OHNE Budget (wartet, nach hinten geschoben) · L1/L0 früh.
- * Nur bezahlte Epics (L3–L5) tragen eine `BudgetAllocation`.
+ * Engpass ist das **Budget: €2 Mio. je Halbjahres-Zyklus**. Davon gehen Betrieb
+ * und die sechs ART-Epic-Rahmen ab — beide wachsen mit dem Programm —, der Rest
+ * steht der Kandidatenliste zur Verfügung. Daraus folgt, was den Mandanten
+ * ausmacht: **die Summe der Anfragen liegt weit über dem Topf, und wer nicht
+ * finanziert wird, wartet eine Runde.**
  *
- * **Zwei Wege zum Geld, wie im Ablauf beschrieben:** Portfolio-Epics (Kosten über
- * dem Limit ihres Wertstroms) stehen auf dem PB-Liste ihrer Halbjahres-Kachel;
- * ART-Epics stehen dort **nicht**, sondern werden aus dem ART-Epic-Budget
- * ihres ARTs bedient. Je Halbjahr existiert genau **eine** Kachel.
+ * Der Reifegrad ist damit **Ergebnis, nicht Vorgabe**: er sagt, wie viele Runden
+ * ein Epic durchlaufen hat und ob es Geld bekam. Ebenso die Zahl der Epics — sie
+ * folgt aus Zulauf mal Runden.
  *
- * Zusätzlich: Issues je Epic (L2–L5, vom Owner beim LBC aufgenommen), Features im
- * Umsetzungsmodul (L4/L5), Ziele = Top-Ziel + je Wertstrom aufgebrochen, Solutions
- * je Wertstrom mit zugeordneten Epics, 10-Jahres-Budget-Entwurf (alle 20 Zyklen).
+ * **Zwei Wege zum Geld, wie im Ablauf beschrieben:** Portfolio-Epics (Kosten
+ * über dem Limit ihres Wertstroms) stehen auf der Kandidatenliste ihrer
+ * Halbjahres-Kachel; ART-Epics stehen dort **nicht**, sondern werden aus dem
+ * ART-Epic-Budget ihres ARTs bedient. Je Halbjahr existiert genau **eine**
+ * Kachel — zwei würden einander still überschreiben.
+ *
+ * Zusätzlich: Issues je Epic, Features im Umsetzungsmodul, Ziele = Top-Ziel +
+ * je Wertstrom aufgebrochen, Solutions je Wertstrom mit zugeordneten Epics.
  *
  * Eigener Tenant, uid-Namespace `uid("large:…")`, nur Demo-Logins (@pulse.dev,
  * `Test1234!`), Reset-then-insert (`wipeDomainData`).
  *
  * Run: `pnpm db:seed:large`  (lädt `.env.local` selbst; braucht DIRECT_URL + Supabase Service-Role)
+ *
+ * Trockenläufe ohne Schreibzugriff:
+ *   `npx tsx prisma/scripts/dry-rounds.ts`        — die Zahlen je Runde
+ *   `npx tsx prisma/scripts/dry-gate-history.ts`  — die Tor-Historien, geprüft
  */
 
 import type { Prisma } from "@/generated/prisma";
@@ -44,7 +53,6 @@ import {
 } from "./seed-budgeting.js";
 import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 import {
-  mayHoldAllocation,
   allocationRuleViolations,
   formatAllocationViolations,
   type AllocationFacts,
@@ -53,13 +61,17 @@ import {
   assertGateHistory,
   buildGateHistory,
   gateRuleRows,
-  straightPath,
-  stepsUpTo,
   type GateApprovalRow,
   type GateMove,
   type GateTransitionRow,
 } from "./seed-gate-history.js";
-import type { GateStep } from "@/modules/work/domain/stage-gate";
+import { gateOfStep } from "@/modules/work/domain/stage-gate";
+import type { Horizon } from "@/modules/work/domain/portfolio-guardrails";
+import {
+  nextGate as nextGateStep,
+  previousGate as previousGateStep,
+} from "@/modules/work/domain/gate-readiness";
+import { buildRoundPlan, moveAt, PHASE } from "./seed-large-rounds.js";
 import { halfYearKey } from "@/modules/core/kernel/domain/calendar";
 
 // ── Zeit-Anker (Szenario steht in Jahr 5 des Programms) ──────────────────────
@@ -89,39 +101,38 @@ const now = new Date(
 const addDays = (base: Date, d: number): Date => new Date(base.getTime() + d * DAY);
 const beforeNow = (d: Date, margin = 3): Date =>
   new Date(Math.min(d.getTime(), now.getTime() - margin * DAY));
-const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n));
 
-function halfYearCycles(
-  fromYear: number,
-  fromHalf: 1 | 2,
-  toYear: number,
-  toHalf: 1 | 2,
-): string[] {
-  const out: string[] = [];
-  let y = fromYear;
-  let h: 1 | 2 = fromHalf;
-  while (y < toYear || (y === toYear && h <= toHalf)) {
-    out.push(`${y}-H${h}`);
-    if (h === 1) h = 2;
-    else {
-      h = 1;
-      y += 1;
-    }
-  }
-  return out;
-}
 function cycleStart(key: string): Date {
   const [ys, hs] = key.split("-");
   return new Date(Number(ys), hs === "H1" ? 0 : 6, 6);
 }
 const cycleEnd = (key: string): Date => addDays(cycleStart(key), 178);
 
-// 10-Jahres-Fenster: Jahr 1 = YEAR-4 … Jahr 10 = YEAR+5. Jahr 5 = YEAR (jetzt).
-const ALL_CYCLES = halfYearCycles(YEAR - 4, 1, YEAR + 5, 2); // 20 Zyklen
+/**
+ * **Das Fenster: fünf gespielte Halbjahre, das laufende, und eines voraus.**
+ *
+ * Es hängt an der echten Uhr statt an eingetragenen Jahreszahlen — ein festes
+ * `2024-H1` wäre in einem Jahr falsch, und dieser Seed hatte die Falle schon
+ * einmal (siehe `realNow` oben). Gerechnet wird über den Halbjahres-Index, damit
+ * der Jahreswechsel nicht in die Quere kommt.
+ */
+const HALF_IDX = realNow.getFullYear() * 2 + (realNow.getMonth() < 6 ? 0 : 1);
+const keyOfHalf = (h: number): string => `${Math.floor(h / 2)}-H${(h % 2) + 1}`;
+const WINDOW_BACK = 5;
+/**
+ * Zwei Halbjahre voraus, nicht eines: die **laufende** Runde bereitet das
+ * nächste Halbjahr vor, die **Entwurfs**-Runde das übernächste. Mit nur einem
+ * Vorlauf klemmten beide auf denselben Zyklus-Schlüssel — und zwei Kacheln im
+ * selben Halbjahr überschreiben einander still, weil Zuteilungen, ART-Rahmen
+ * und RtB-Awards alle am Schlüssel hängen.
+ */
+const ALL_CYCLES = Array.from({ length: WINDOW_BACK + 3 }, (_, k) =>
+  keyOfHalf(HALF_IDX - WINDOW_BACK + k),
+);
 const CURRENT_CYCLE = halfYearKey(realNow);
 const CURRENT_IDX = ALL_CYCLES.indexOf(CURRENT_CYCLE);
 const MAX_IDX = ALL_CYCLES.length - 1;
-const PROGRAM_TARGET_YEAR = `${YEAR + 5}`; // Programmende Jahr 10
+const PROGRAM_TARGET_YEAR = `${YEAR + 2}`;
 
 // €2 Mio. je Halbjahres-Zyklus (= €4 Mio./Kalenderjahr). Der Topf muss Betrieb,
 // ART-Epic-Budget **und** die Portfolio-Vorhaben tragen — vorher forderten
@@ -129,18 +140,30 @@ const PROGRAM_TARGET_YEAR = `${YEAR + 5}`; // Programmende Jahr 10
 // zweiten Runde im selben Halbjahr aus.
 const CYCLE_POOL = 2_000_000;
 
-const TENANT_NAME = "Large Test Corp";
-const EPIC_COUNT = 200;
+/**
+ * **Betrieb und Rahmen — eine Quelle für den Motor und für die Kachel.**
+ *
+ * Der Motor rechnet damit, wie viel vom Topf überhaupt für Vorhaben übrig
+ * bleibt; die Kachel schreibt daraus die Endbeträge der
+ * Run-the-Business-Positionen. Liefen die beiden auseinander, stünde in der
+ * Datenbank ein ART-Rahmen, gegen den der Motor nie entschieden hat — und
+ * Zuteilungen, die die Anwendung zur Laufzeit ablehnen würde.
+ *
+ * Beide wachsen mit dem Programm. Genau das macht den Engpass sichtbar: der
+ * Topf bleibt, der Betrieb steigt, für Neues bleibt Halbjahr um Halbjahr
+ * weniger.
+ */
+const ART_FRAME = (c: number): number => 110_000 + c * 5_000;
+const RUN_COST = (c: number): number => 300_000 + c * 12_000;
 
-// Reifegrad → Ziel-Zyklus-Band (relativ zum aktuellen Zyklus). Budget/Zeit folgen daraus.
-const BANDS: Record<string, [number, number]> = {
-  L5: [CURRENT_IDX - 8, CURRENT_IDX - 4], // Jahr 1–3: bezahlt & fertig
-  L4: [CURRENT_IDX - 3, CURRENT_IDX - 1], // jüngst bezahlt, in Umsetzung
-  L3: [CURRENT_IDX, CURRENT_IDX], // jetzt bezahlt (Budget alloziert)
-  L2: [CURRENT_IDX + 1, CURRENT_IDX + 3], // fertig definiert, wartet auf Budget
-  L1: [CURRENT_IDX + 4, CURRENT_IDX + 7], // Hypothese
-  L0: [CURRENT_IDX + 8, CURRENT_IDX + 11], // Idee/Funnel (nach hinten geschoben)
-};
+const TENANT_NAME = "Large Test Corp";
+
+/**
+ * Wie viele Ideen je Halbjahr hereinkommen. Aus ihnen und der Zahl der Runden
+ * folgt der Umfang des Mandanten — es gibt kein `EPIC_COUNT` mehr, weil die
+ * Menge das **Ergebnis** des Durchlaufs ist und nicht seine Vorgabe.
+ */
+const INTAKE_PER_CYCLE = 22;
 
 async function ensureLargeTenant(): Promise<string> {
   const existing = await prisma.tenant.findFirst({ where: { name: TENANT_NAME } });
@@ -157,7 +180,7 @@ async function ensureLargeTenant(): Promise<string> {
 
 async function main() {
   console.log(
-    `\n🌱  LARGE-Seed startet (budget-getriebenes 10-Jahres-Programm, laufendes Halbjahr ${CURRENT_CYCLE})\n`,
+    `\n🌱  LARGE-Seed startet (sechs gespielte Runden, laufendes Halbjahr ${CURRENT_CYCLE})\n`,
   );
 
   // ── Phase 1: Auth-User ─────────────────────────────────────────────────────
@@ -393,31 +416,33 @@ async function main() {
   const oldPiB = piIds["pib1"]!;
 
   // ── Phase 4: Solutions (je Wertstrom, mit Horizont) + Gate-Regeln ─────────
+  //
+  // **Zwei Horizonte, nicht drei.** In H3 gibt es keine Solution: dort wird
+  // geforscht, und ob daraus je ein Produkt wird, ist offen (ADR-0020). Die
+  // R&D-Vorhaben dieses Mandanten tragen ihren Horizont deshalb selbst.
+  const SOLUTION_HORIZONS = ["h1", "h2"] as const;
   const solId = (vs: number, h: string) => uid(`large:sol:${vs}:${h}`);
-  const solNameSuffix: Record<string, string> = { h1: "Betrieb", h2: "Programm", h3: "Pilot" };
+  const solNameSuffix: Record<string, string> = { h1: "Betrieb", h2: "Programm" };
   /**
    * Der **Produkt-Manager** je Solution (siehe
    * `docs/concepts/structure-walkthrough.md`): freies Personenfeld, mit
    * Bearbeitungsrecht und einem Sitz in den Reifegrad-Freigaben.
    *
-   * Die drei **Pilot-Solutions (H3) bleiben unbesetzt** — ein Pilot hat noch
-   * kein Produkt, für das jemand geradesteht. Das ist zugleich der Fall, an dem
-   * sich zeigt, dass ein nicht benannter Platzhalter still wegfällt.
+   * **Ein Wertstrom lässt seine Programm-Solution unbesetzt** — der Fall, an
+   * dem sich zeigt, dass ein nicht benannter Platzhalter still wegfällt. Bis
+   * ADR-0020 trugen diesen Beleg die drei H3-Piloten; die gibt es nicht mehr.
    */
   const solutionPm: Record<string, string | null> = {
     "0:h1": U.fo,
     "0:h2": U.owner,
-    "0:h3": null,
     "1:h1": U.vso,
-    "1:h2": U.portfolio,
-    "1:h3": null,
+    "1:h2": null,
     "2:h1": U.owner,
     "2:h2": U.fo,
-    "2:h3": null,
   };
   const solutionRows: Prisma.SolutionCreateManyInput[] = [];
   for (let vs = 0; vs < vsIds.length; vs++) {
-    for (const h of ["h1", "h2", "h3"] as const) {
+    for (const h of SOLUTION_HORIZONS) {
       solutionRows.push({
         id: solId(vs, h),
         tenantId,
@@ -451,19 +476,12 @@ async function main() {
   });
 
   // ── Phase 5: 200 Epics — Reifegrad + Zeit + Budget aus der Verfügbarkeit ──
-  console.log("\n── Delivery (200 Epics + KPIs + Features)");
+  console.log("\n── Delivery (Epics + KPIs + Features aus dem Durchlauf)");
 
-  // Funnel eines Jahr-5-Programms: viel Fertiges/Backlog, wenig gerade Bezahltes.
-  const gateFunnel: [string, number][] = [
-    ["L0", 32],
-    ["L1", 38],
-    ["L2", 42],
-    ["L3", 10],
-    ["L4", 28],
-    ["L5", 50],
-  ];
-  const gates: string[] = [];
-  for (const [g, n] of gateFunnel) for (let i = 0; i < n; i++) gates.push(g);
+  // Der Reifegrad ist in diesem Mandanten **Ergebnis**, nicht Vorgabe: er
+  // entsteht daraus, wie viele Runden ein Epic durchlaufen hat und ob es
+  // finanziert wurde. Der frühere `gateFunnel` — eine feste Verteilung, aus der
+  // rückwärts Zyklus und Datum folgten — ist damit entfallen.
 
   const gateStatus: Record<string, string> = {
     L0: "draft",
@@ -527,7 +545,14 @@ async function main() {
     ],
   ];
   const EPIC_TYPES = ["epic", "epic", "enabler", "epic", "enabler", "epic", "epic", "enabler"];
+  /**
+   * Der Horizont eines **Epics** — vier Werte, H3 eingeschlossen. Nur jedes
+   * dritte Vorhaben ist Discovery, und genau diese haben **keine Solution**:
+   * ihr Horizont steht am Epic selbst, wie es `epic-horizon.ts` vorsieht
+   * („explizit schlägt abgeleitet").
+   */
   const HORIZONS = ["h2", "h1", "h3"];
+  const isResearch = (h: string): boolean => h === "h3";
   /**
    * Das Portfolio-Limit je Wertstrom. **Eine** Quelle: `seedValueStreamGuardrails`
    * am Ende schreibt genau diese Werte, und die Einordnung hier rechnet gegen
@@ -546,88 +571,68 @@ async function main() {
   // leitet Spalten, Anträge und Abnahmen aus dem beschriebenen Weg ab — mit
   // derselben Domänenlogik, die die App benutzt.
 
-  /**
-   * Ziel-Schritt aus dem Haupt-Gate. L3 und L4 tragen je zwei Stufen; wir
-   * verteilen sie, damit beide Zustände im Mandanten vorkommen: L3.1 wartet auf
-   * die Investitionsentscheidung, L3.2 hat sie hinter sich; L4.1 baut noch,
-   * L4.2 ist bestätigt fertig.
-   */
-  const targetStepFor = (gate: string, i: number): GateStep => {
-    if (gate === "L3") return i % 2 === 0 ? "L3.1" : "L3.2";
-    if (gate === "L4") return i % 3 === 0 ? "L4.2" : "L4";
-    return gate as GateStep;
-  };
-
   const gateRules = gateRuleRows(null);
   const gateTransitionRows: GateTransitionRow[] = [];
   const gateApprovalRows: GateApprovalRow[] = [];
 
+  // ── Der Durchlauf ────────────────────────────────────────────────────────
+  //
+  // Hier kippt die Richtung. Der Motor spielt Halbjahr für Halbjahr durch, was
+  // die Anleitungen beschreiben, und liefert je Epic seinen Weg und je Runde
+  // ihre Entscheidungen. Alles Weitere — Titel, Solutions, KPIs, Features —
+  // hängt sich daran, statt es zu bestimmen.
+  const roundPlan = buildRoundPlan({
+    cycles: ALL_CYCLES,
+    currentIdx: CURRENT_IDX,
+    now,
+    cycleStart,
+    thresholds: PORTFOLIO_THRESHOLD,
+    artsPerVs: 2,
+    cyclePool: CYCLE_POOL,
+    // Betrieb und ART-Rahmen wachsen mit dem Programm — sie zehren Halbjahr um
+    // Halbjahr mehr vom Topf, und genau das macht den Engpass sichtbar.
+    rtbCycleCost: (c) => RUN_COST(c) + artIds.length * ART_FRAME(c),
+    artFrame: (_art, c) => ART_FRAME(c),
+    intakePerCycle: INTAKE_PER_CYCLE,
+    valueStreamOf: (i) => VS_WEIGHTS[i % VS_WEIGHTS.length]!,
+  });
+  const EPIC_COUNT = roundPlan.epics.length;
+  console.log(`  ↳ ${EPIC_COUNT} Epics aus ${roundPlan.rounds.length} gespielten Runden`);
+
   const epicIds = Array.from({ length: EPIC_COUNT }, (_, i) => uid(`large:epic:${i}`));
-  const epicVs: number[] = Array.from(
-    { length: EPIC_COUNT },
-    (_, i) => VS_WEIGHTS[i % VS_WEIGHTS.length]!,
-  );
+  const epicVs = roundPlan.epics.map((e) => e.vs);
+  /** Das Haupt-Gate je Epic — abgeleitet aus dem Schritt, auf dem es steht. */
+  const gates = roundPlan.epics.map((e) => gateOfStep(e.finalStep));
 
   // ── Rollout-Bögen ────────────────────────────────────────────────────────
   /**
-   * Ein Kostenhebel wird in einer Restrukturierung nicht einmal gezogen,
-   * sondern **ausgerollt**: erst ein Pilot an einem Standort, dann der Rollout
-   * am nächsten, dann die Konzern-Skalierung, zuletzt die Verstetigung im
-   * Controlling. Jede Stufe setzt die vorige voraus.
+   * Ein Kostenhebel wird nicht einmal gezogen, sondern **ausgerollt**: erst ein
+   * Pilot, dann der Rollout am nächsten Standort, dann die Konzern-Skalierung,
+   * zuletzt die Verstetigung. Jede Stufe setzt die vorige voraus.
    *
-   * Genau das bildet dieser Vorlauf ab. Er verteilt die 200 Epics **nicht**
-   * mehr per Modulo auf `Hebel × Variante` — dabei stand „Phase 2" ohne „Phase
-   * 1" und kein Epic wusste vom anderen —, sondern zieht je Bogen eine Stufe
-   * aus jedem Reifegrad-Band. Weil das Zyklus-Band (`BANDS`) am Reifegrad
-   * hängt, fällt der Rest von selbst richtig: **der Reifegrad sinkt entlang der
-   * Kette, der Finanzierungszyklus steigt.** Das Budget ist der Engpass dieses
-   * Mandanten, und die Kette erzählt genau ihn.
-   *
-   * Die Gate-Verteilung des Funnels bleibt dabei unangetastet — die Bögen
-   * werden **in** sie hineingelegt, nicht daneben.
+   * Vorher wurden die Bögen aus den Reifegrad-Bändern gezogen — die Kette lief
+   * von reif nach unreif, weil das Band am Reifegrad hing. Jetzt läuft sie in
+   * der **Zeit**: die nächste Stufe ist ein Epic, das später geboren wurde.
+   * Damit stimmt die Abhängigkeit auch dann, wenn eine Stufe in ihrer Runde kein
+   * Geld bekommen hat und zurückgefallen ist.
    */
   const STAGES = ["Pilot", "Rollout", "Skalierung", "Verstetigung"] as const;
   const SITES = ["Werk Nord", "Werk Süd", "Region West", "Region Ost", "Standort A", "Zentrale"];
-  /** Von reif nach unreif — die Richtung, in der ein Bogen läuft. */
-  const MATURITY_ORDER = ["L5", "L4", "L3", "L2", "L1", "L0"];
   const epicTitles: string[] = [];
   /** Der Vorgänger je Epic (Index) — daraus entstehen die Abhängigkeiten. */
   const epicPredecessor: (number | null)[] = new Array(EPIC_COUNT).fill(null);
-  /**
-   * Die Einordnung je Epic, wie sie die Freigabe des Business Case ergibt.
-   * Die Budget-Phase liest sie: **Portfolio-Epics stehen auf dem PB-Liste,
-   * ART-Epics nicht** — die werden aus dem ART-Epic-Budget ihres ARTs
-   * bedient (`docs/concepts/budgeting-walkthrough.md`, „Die Naht zum Epic").
-   */
-  const epicClassOf: ("portfolio" | "art" | null)[] = new Array(EPIC_COUNT).fill(null);
   {
-    const pool: Record<string, number[]> = {};
-    for (let i = 0; i < EPIC_COUNT; i++) (pool[`${epicVs[i]}:${gates[i]}`] ??= []).push(i);
     for (let vs = 0; vs < vsIds.length; vs++) {
       const levers = LEVERS[vs]!;
-      // Ein Bogen greift nie alle sechs Bänder — welche, hängt an `startBand`.
-      // Abgebrochen wird deshalb erst, wenn für diesen Wertstrom **kein** Band
-      // mehr etwas hergibt; ein einzelner leerer Bogen ist nur ein Fehlgriff,
-      // kein Ende. (Über drei aufeinanderfolgende `arcNo` sind alle sechs
-      // Bänder abgedeckt, die Schleife kommt also immer voran.)
-      const anyLeft = () => MATURITY_ORDER.some((band) => (pool[`${vs}:${band}`]?.length ?? 0) > 0);
+      // Nach Geburtsjahrgang: der Pilot zuerst, die Skalierung Runden später.
+      const mine = roundPlan.epics
+        .filter((e) => e.vs === vs)
+        .sort((a, b) => a.bornCycle - b.bornCycle || a.idx - b.idx)
+        .map((e) => e.idx);
       let arcNo = 0;
-      while (anyLeft()) {
-        // Wo der Bogen einsetzt, variiert: nicht jeder Hebel hat schon einen
-        // fertigen Piloten, manche stehen erst in der Analyse.
-        const startBand = arcNo % 3;
-        const len = 2 + (arcNo % 3);
-        const chain: number[] = [];
-        for (let k = 0; k < len; k++) {
-          const band = MATURITY_ORDER[startBand + k];
-          if (band == null) break;
-          const idx = pool[`${vs}:${band}`]?.shift();
-          if (idx != null) chain.push(idx);
-        }
-        if (chain.length === 0) {
-          arcNo++;
-          continue;
-        }
+      for (let k = 0; k < mine.length; ) {
+        const len = Math.min(2 + (arcNo % 3), mine.length - k);
+        const chain = mine.slice(k, k + len);
         const lever = levers[arcNo % levers.length]!;
         const siteA = SITES[arcNo % SITES.length]!;
         const siteB = SITES[(arcNo + 1) % SITES.length]!;
@@ -637,91 +642,57 @@ async function main() {
           `${STAGES[2]} Konzern`,
           `${STAGES[3]} & Controlling`,
         ];
-        chain.forEach((idx, k) => {
-          epicTitles[idx] = `${lever} — ${stageLabel[startBand + k] ?? stageLabel[3]!}`;
-          if (k > 0) epicPredecessor[idx] = chain[k - 1]!;
+        chain.forEach((idx, n) => {
+          epicTitles[idx] = `${lever} — ${stageLabel[Math.min(n, 3)]!}`;
+          if (n > 0) epicPredecessor[idx] = chain[n - 1]!;
         });
+        k += len;
         arcNo++;
       }
     }
   }
+
   const epicOwner: (string | null)[] = [];
   const epicCycleIdx: number[] = [];
-  /** L4.1-Datum je Epic (nur Gate ≥ L4) — Anker der KPI-Erfassung. */
+  /** L4.1-Datum je Epic — Anker der KPI-Erfassung. */
   const epicImplStart: (Date | null)[] = [];
   /** L4.2-Datum je Epic — dort friert die Menge, dort endet die Messreihe. */
   const epicImplDone: (Date | null)[] = [];
-  const gateSeen: Record<string, number> = {};
   const epicRows: Prisma.InitiativeCreateManyInput[] = [];
+  /** Die Primär-Solution je Epic — `null` bei R&D. Eine Quelle für Zeile und Join. */
+  const epicSolutionOf: (string | null)[] = new Array(EPIC_COUNT).fill(null);
+
   for (let i = 0; i < EPIC_COUNT; i++) {
+    const pe = roundPlan.epics[i]!;
     const gate = gates[i]!;
-    const vs = epicVs[i]!;
+    const vs = pe.vs;
     const title = epicTitles[i]!;
     const epicType = EPIC_TYPES[i % EPIC_TYPES.length]!;
     const horizon = HORIZONS[i % HORIZONS.length]!;
+    // **Die eine Quelle.** Vorher rechneten die Epic-Zeile und der Join-Satz
+    // dasselbe Modulo getrennt nach — zwei Quellen einer Wahrheit.
+    const solutionOfEpic = isResearch(horizon) ? null : solId(vs, horizon);
+    epicSolutionOf[i] = solutionOfEpic;
     const status = gateStatus[gate]!;
+    const target = pe.finalStep;
+    const overridden = pe.overridden && pe.epicClass === "portfolio";
+    const intendedClass = pe.intendedClass;
+    const epicClass = pe.epicClass;
 
-    // Ziel-Zyklus aus dem Reifegrad-Band (verteilt Epics über 10 Jahre; Budget folgt).
-    const [b0, b1] = BANDS[gate]!;
-    const k = gateSeen[gate] ?? 0;
-    gateSeen[gate] = k + 1;
-    const idx = clamp(b0 + (k % (b1 - b0 + 1)), 0, MAX_IDX);
+    // Der Zyklus, in dem das Geld zuerst floss — für Snapshots und Reports.
+    const firstTranche = pe.tranches[0];
+    const idx = firstTranche ? firstTranche.cycleIdx : Math.min(pe.bornCycle, MAX_IDX);
     epicCycleIdx[i] = idx;
-    const eraStart = cycleStart(ALL_CYCLES[idx]!);
-    const plannedStart = addDays(eraStart, 15 + (i % 60));
-    const plannedEnd = addDays(plannedStart, 150 + (i % 4) * 40);
 
-    const owned = gate !== "L0" || i % 3 !== 0;
-    const ownerId = owned ? owners[i % owners.length]! : null;
+    const owned = pe.ownerSlot != null;
+    const ownerId = owned ? owners[pe.ownerSlot! % owners.length]! : null;
     epicOwner[i] = ownerId;
-    const definedNoBudget = gate === "L2"; // fertig definiert, wartet auf Budget
     const gteL2 = ["L2", "L3", "L4", "L5"].includes(gate);
-    // Σ der Kostenscheiben (siehe `businessCase` unten) gegen das Limit des
-    // Wertstroms — dieselbe Rechnung wie `classifyEpic`.
-    const sliceSum = 30_000 + (i % 20) * 2_000 + (20_000 + (i % 20) * 1_500);
-    const threshold = PORTFOLIO_THRESHOLD[vs]!;
-    const costSaysPortfolio = sliceSum > threshold;
+    // Das Umsetzungsfenster: geplant aus den Kostenscheiben, tatsächlich aus
+    // den Stempeln, die die Faltung setzt.
+    const plannedStart = pe.implStart ?? addDays(cycleStart(ALL_CYCLES[idx]!), 20);
+    const plannedEnd = pe.implDone ?? addDays(plannedStart, 150 + (i % 4) * 40);
 
-    // Ohne Owner gibt es niemanden, der beantragt — solche Epics bleiben im
-    // Funnel liegen, ganz gleich, welches Gate der Funnel ihnen zuweist.
-    const target = owned ? targetStepFor(gate, i) : "L0";
-    /**
-     * Die **Einordnungs-Erwartung** beim Anlegen. Der Regelfall deckt sich mit
-     * dem, was die Kosten später sagen; zwei Streuungen brechen ihn auf, damit
-     * beide Abweichungsrichtungen im Datensatz vorkommen:
-     *   - jedes 5. der *kleinen* Epics erwartet Portfolio (nach unten — darauf
-     *     darf jemand bestehen),
-     *   - jedes 11. der *großen* erwartet ART (nach oben — dort bindet die
-     *     Kostenregel).
-     *
-     * Die beiden Quoten sind bewusst verschieden: nur gut ein Drittel der Epics
-     * liegt unter der Schwelle, eine gleiche Quote ließe die eine Richtung im
-     * Datensatz fast verschwinden.
-     */
-    const intendedClass: "portfolio" | "art" =
-      i % 5 === 3 && !costSaysPortfolio
-        ? "portfolio"
-        : i % 11 === 6 && costSaysPortfolio
-          ? "art"
-          : costSaysPortfolio
-            ? "portfolio"
-            : "art";
-    // Die Ausnahme zur Kostenregel: klein, aber ART-übergreifend heikel. Nur
-    // dort, wo die Erwartung sie überhaupt trägt (Drift nach unten).
-    const overridden = i % 15 === 3 && intendedClass === "portfolio" && !costSaysPortfolio;
-    /**
-     * Die Klasse selbst entsteht **erst mit der Freigabe des Business Case** —
-     * vorher ist sie `null`, und das ist keine Lücke. An L4 entscheidet sie, ob
-     * der Produkt-Manager mitzeichnet.
-     */
-    const epicClass: "portfolio" | "art" | null = !gteL2
-      ? null
-      : !stepsUpTo(target).includes("L3.1")
-        ? null
-        : overridden || costSaysPortfolio
-          ? "portfolio"
-          : "art";
-    epicClassOf[i] = epicClass;
     const benefitHypothesis =
       gate !== "L0"
         ? {
@@ -732,105 +703,81 @@ async function main() {
             risks: ["Umsetzungsaufwand", "Change-/Mitbestimmungsthemen"],
           }
         : null;
-    const businessCase = gteL2
-      ? {
-          costSlices: [
-            { period: ALL_CYCLES[idx]!, amount: 30_000 + (i % 20) * 2_000 },
-            {
-              period: ALL_CYCLES[Math.min(idx + 1, MAX_IDX)]!,
-              amount: 20_000 + (i % 20) * 1_500,
-            },
-          ],
-          assumptions:
-            "Investition zur Realisierung nachhaltiger Einsparungen (Amortisation < 2 Jahre).",
-        }
-      : null;
+    /**
+     * **Der Business Case kommt aus dem Durchlauf**, nicht aus einer Formel.
+     * Seine Kostenscheiben sind der Finanzierungsplan: eine je Halbjahr, und die
+     * Summe ist derselbe Richtwert, gegen den `classifyEpic` die Klasse
+     * entschieden und die Kachel den Endbetrag gesetzt hat.
+     */
+    const businessCase =
+      pe.costSlices.length > 0
+        ? {
+            costSlices: pe.costSlices,
+            assumptions:
+              "Investition zur Realisierung nachhaltiger Einsparungen (Amortisation < 2 Jahre).",
+          }
+        : null;
 
-    // Das Datumsgerüst: der **letzte** Schritt bekommt seinen natürlichen Anker
-    // im Planfenster, die früheren staffeln sich davor. `beforeNow` je Schritt
-    // reichte nicht — Epics, deren Planfenster in der Zukunft liegt (L0–L2
-    // stehen in den Bändern +1…+11 Halbjahre), bekamen sonst mehrere Schritte
-    // auf denselben Tag geklemmt, und die Kette war nicht mehr chronologisch.
-    // Der Mindestabstand von 45 Tagen lässt außerdem Platz für die
-    // Sonderfälle, die sich unten dahinterhängen.
-    const anchorFor = (step: GateStep): Date => {
-      if (step === "L5") return addDays(plannedEnd, 10);
-      if (step === "L4.2") return plannedEnd;
-      if (step === "L4") return plannedStart;
-      if (step === "L3.2") return addDays(plannedStart, -10);
-      if (step === "L3.1") return addDays(plannedStart, -20);
-      if (step === "L2") return addDays(plannedStart, -35);
-      return addDays(plannedStart, -55);
-    };
-    // Jeder Schritt bekommt seinen *eigenen* Anker, nicht einen gleichmässigen
-    // Abstand: zwischen L4 und L4.2 liegt das ganze Umsetzungsfenster, und die
-    // KPI-Messreihe braucht diese Zeit, um überhaupt etwas zu zeigen. Danach
-    // zwei Korrekturen: die Kette muss streng steigen (mindestens eine Woche
-    // Abstand), und sie muss vollständig in der Vergangenheit liegen — dafür
-    // wird sie als Ganzes zurückgeschoben, damit die Abstände erhalten bleiben.
-    const walked = stepsUpTo(target);
-    const raw = walked.map((step) => anchorFor(step).getTime());
-    for (let n = 1; n < raw.length; n++) {
-      raw[n] = Math.max(raw[n]!, raw[n - 1]! + 7 * DAY);
-    }
-    const latest = raw[raw.length - 1] ?? now.getTime();
-    const overflow = Math.max(0, latest - (now.getTime() - (45 + (i % 20)) * DAY));
-    const stepDayFor = (step: GateStep): Date =>
-      new Date((raw[walked.indexOf(step)] ?? now.getTime()) - overflow);
-
-    // Die unbequemen Zustände über den Mandanten streuen — sonst zeigen 200
-    // Epics ausschließlich den glatten Pfad.
-    // Alle Sonderfälle liegen im Fenster der letzten 44 Tage — also hinter dem
-    // glatten Pfad und vor heute.
+    // Die unbequemen Zustände über den Mandanten streuen — sonst zeigt der
+    // Mandant ausschließlich glatte Pfade. Sie hängen sich **hinter** den
+    // gespielten Weg in die letzten Wochen.
     const extras: GateMove[] = [];
-    if (target === "L2" && i % 5 === 0) {
-      // Offener Business-Case-Antrag. Jeder dritte davon liegt lange genug, um
-      // in Guardrail 4 als überfällig zu zählen.
-      const overdue = i % 15 === 0;
-      extras.push({
-        kind: "open",
-        to: "L3.1",
-        requestedAt: addDays(realNow, overdue ? -30 - (i % 7) : -6 - (i % 4)),
-        decidedRoles: ["epic.party.mgmt", "epic.party.finance"],
-        decidedAt: addDays(realNow, overdue ? -24 : -3),
-      });
-    } else if (target === "L2" && i % 7 === 3) {
-      extras.push({
-        kind: "rejected",
-        to: "L3.1",
-        requestedAt: addDays(realNow, -38),
-        decidedAt: addDays(realNow, -34),
-        reason: "Die Einsparung ist nicht belegt — bitte mit Ist-Zahlen erneut vorlegen.",
-      });
-    } else if (target === "L2" && i % 11 === 5) {
-      extras.push({
-        kind: "withdrawn",
-        to: "L3.1",
-        requestedAt: addDays(realNow, -42),
-        decidedAt: addDays(realNow, -40),
-      });
-      // L3.1 liegt in diesem Mandanten nur auf GERADEN Indizes (`targetStepFor`),
-      // deshalb müssen beide folgenden Zweige gerade Reste treffen — mit 1 und 3
-      // wären sie tot.
-    } else if (target === "L3.1" && i % 4 === 0) {
-      // Einmal zurückgestuft und erneut abgenommen — das Epic zeigt den Diff.
-      extras.push(
-        {
-          kind: "revert",
-          to: "L2",
-          at: addDays(realNow, -40),
-          reason: "Nutzenrechnung hält der Prüfung nicht stand.",
-        },
-        {
-          kind: "advance",
-          to: "L3.1",
-          requestedAt: addDays(realNow, -30),
-          decidedAt: addDays(realNow, -24),
-        },
+    const lastMove = pe.moves[pe.moves.length - 1];
+    const after = (d: number): Date =>
+      new Date(
+        Math.max(
+          addDays(realNow, d).getTime(),
+          lastMove ? moveAt(lastMove).getTime() + 2 * DAY : 0,
+        ),
       );
-    } else if (target === "L3.1" && i % 4 === 2) {
-      // Budget ist da, die Investitionsentscheidung läuft.
-      extras.push({ kind: "open", to: "L3.2", requestedAt: addDays(realNow, -5 - (i % 6)) });
+    const nextStep = nextGateStep(target);
+    if (nextStep && owned) {
+      if (i % 6 === 0) {
+        // Offener Antrag. Jeder dritte liegt lange genug, um in Guardrail 4 als
+        // überfällig zu zählen.
+        const overdue = i % 18 === 0;
+        extras.push({
+          kind: "open",
+          to: nextStep,
+          requestedAt: after(overdue ? -30 - (i % 7) : -6 - (i % 4)),
+          decidedRoles: ["epic.party.mgmt", "epic.party.finance"],
+          decidedAt: after(overdue ? -24 : -3),
+        });
+      } else if (i % 7 === 3) {
+        extras.push({
+          kind: "rejected",
+          to: nextStep,
+          requestedAt: after(-38),
+          decidedAt: after(-34),
+          reason: "Die Einsparung ist nicht belegt — bitte mit Ist-Zahlen erneut vorlegen.",
+        });
+      } else if (i % 11 === 5) {
+        extras.push({
+          kind: "withdrawn",
+          to: nextStep,
+          requestedAt: after(-42),
+          decidedAt: after(-40),
+        });
+      }
+    } else if (owned && target !== "L0" && i % 13 === 4) {
+      // Einmal zurückgestuft und erneut abgenommen — das Epic zeigt den Diff.
+      const back = previousGateStep(target);
+      if (back) {
+        extras.push(
+          {
+            kind: "revert",
+            to: back,
+            at: after(-40),
+            reason: "Nutzenrechnung hält der Prüfung nicht stand.",
+          },
+          {
+            kind: "advance",
+            to: target,
+            requestedAt: after(-30),
+            decidedAt: after(-24),
+          },
+        );
+      }
     }
 
     const history = buildGateHistory({
@@ -852,10 +799,15 @@ async function main() {
         businessOwner: i % 3 === 2 ? null : U.vso,
         irtOwner: U.rte,
       },
-      // Der sechste Sitz an L3.1 und der zweite an L4 — nur auflösbar, wenn die
-      // Primär-Solution einen Produkt-Manager trägt, an L4 nur bei ART-Epics.
-      solutionProductManagerId: solutionPm[`${vs}:${horizon}`] ?? null,
+      // Der sechste Sitz an L3.1 und der zweite an L4 — nur auflösbar, wenn es
+      // eine Primär-Solution gibt **und** sie einen Produkt-Manager trägt, an L4
+      // nur bei ART-Epics. Ein R&D-Vorhaben hat keine: der Sitz fällt weg.
+      solutionProductManagerId: solutionOfEpic ? (solutionPm[`${vs}:${horizon}`] ?? null) : null,
       epicClass,
+      // Woher der Horizont kommt: aus der Solution — oder, wenn es keine gibt,
+      // vom Epic selbst. L3.1 friert den auflösten Wert ein.
+      solutionHorizon: solutionOfEpic ? (horizon as Horizon) : null,
+      investmentHorizon: solutionOfEpic ? null : (horizon as Horizon),
       benefitHypothesis,
       businessCase,
       timeline: {
@@ -867,7 +819,10 @@ async function main() {
       },
       childFeatureStats: { total: 2, started: 2, completed: 2 },
       budgetAllocationSum: ["L3", "L4", "L5"].includes(gate) ? 120_000 : 0,
-      moves: [...straightPath(target, stepDayFor), ...extras],
+      // **Der gespielte Weg.** Jeder `advance` trägt das Datum der Runde, in der
+      // er beschlossen wurde — nicht einen Anker, der rückwärts aus dem
+      // Reifegrad gerechnet wurde.
+      moves: [...pe.moves, ...extras],
     });
     assertGateHistory(history, `#${i} ${title}`);
     gateTransitionRows.push(...history.transitions);
@@ -897,7 +852,14 @@ async function main() {
       ...history.stamps,
       status,
       epicType,
-      primarySolutionId: solId(vs, horizon),
+      primarySolutionId: solutionOfEpic,
+      /**
+       * **Der Horizont steht am Epic, wenn keine Solution ihn tragen kann.**
+       * In H3 gibt es keine Solution (ADR-0020) — das Vorhaben trägt seinen
+       * Horizont selbst, und `stampsForAdvance` friert genau diesen Wert bei
+       * L3.1 ein, statt ihn zu überschreiben.
+       */
+      ...(solutionOfEpic ? {} : { investmentHorizon: horizon }),
       // Wie im Demo-Mandanten: der Merker aus der Faltung wird ueberschrieben,
       // weil das Steering ihn im Betrieb abhakt. Uebrig bleiben die offenen.
       needsSteeringAttention: i % 13 === 0,
@@ -912,8 +874,13 @@ async function main() {
               "Greift über mehrere ARTs und die Konzern-Berichtslinie — trotz kleiner Kosten eine Portfolio-Entscheidung.",
           }
         : {}),
-      // L2-Kandidaten stehen auf dem PB-Liste (warten auf Budget); Bezahlte nicht mehr.
-      stagedForBudgeting: definedNoBudget,
+      /**
+       * **Der Merker ist die Anmeldung, nicht die Aufnahme.** Vorgemerkt ist,
+       * wer einen freigegebenen Business Case hat und noch auf Geld wartet —
+       * genau die Menge, die die Kandidatenliste der nächsten Runde anbietet.
+       * Wer schon finanziert ist, hat den Haken nicht mehr nötig.
+       */
+      stagedForBudgeting: target === "L3.1" && pe.tranches.length === 0,
       // „I need help" nur dort, wo es weh tut: definiert, aber noch nicht in
       // der Umsetzung.
       ...(owned && gteL2 && !["L4", "L5"].includes(gate) && i % 15 === 0
@@ -922,11 +889,9 @@ async function main() {
       costToMvp: gteL2 ? 40_000 + (i % 30) * 2_000 : null,
       plannedStartAt: plannedStart,
       plannedEndAt: plannedEnd,
-      // L0 = Funnel-Eintritt, abgeleitet aus `createdAt`. Muss VOR dem
-      // fruehesten Antrag liegen (L1 bei -55), sonst stuende die Anlage der
-      // Zeile hinter den Gates, die sie beschreibt — der Reifegrad-Tab zeigte
-      // dann ein L0-Datum hinter L5.
-      createdAt: beforeNow(addDays(plannedStart, -90), 12),
+      // L0 = Funnel-Eintritt. Das Datum kommt aus der Runde, in der die Idee
+      // eingereicht wurde, und liegt damit von selbst vor dem ersten Antrag.
+      createdAt: pe.createdAt,
       ...(gate === "L5" ? { completedAt: history.stamps.impactRecognizedAt ?? plannedEnd } : {}),
       ...(benefitHypothesis ? { benefitHypothesis } : {}),
       ...(businessCase ? { businessCase } : {}),
@@ -958,26 +923,48 @@ async function main() {
     prisma.dependency.createMany({ data, skipDuplicates: true }),
   );
 
+  // Der Join-Satz — nur für Epics, die überhaupt eine Solution haben.
+  const linkedEpics = epicIds
+    .map((epicId, i) => ({ epicId, solutionId: epicSolutionOf[i] }))
+    .filter((r): r is { epicId: string; solutionId: string } => r.solutionId != null);
   await prisma.epicSolution.createMany({
-    data: epicIds.map((epicId, i) => ({
+    data: linkedEpics.map((r) => ({
       tenantId,
-      epicId,
-      solutionId: solId(epicVs[i]!, HORIZONS[i % HORIZONS.length]!),
+      epicId: r.epicId,
+      solutionId: r.solutionId,
       createdBy: ADMIN,
     })),
   });
 
-  // Szenario-Invariante: JEDES Epic hängt an einer Solution (primär + Join-Satz).
-  const epicsWithoutSolution = await prisma.initiative.count({
+  /**
+   * **Szenario-Invariante, in beide Richtungen.**
+   *
+   * Bis ADR-0020 hiess sie „JEDES Epic hängt an einer Solution". Das ist nicht
+   * mehr wahr und soll es nicht sein: ein R&D-Vorhaben hat keine, weil es in H3
+   * keine gibt. Die Zusicherung prüft deshalb jetzt beides — wer eine haben
+   * muss, hat sie; wer keine haben darf, trägt stattdessen seinen eigenen
+   * Horizont.
+   */
+  const researchCount = roundPlan.epics.filter((_, i) => epicSolutionOf[i] == null).length;
+  const withoutSolution = await prisma.initiative.count({
     where: { tenantId, level: 0, primarySolutionId: null },
   });
+  const researchWithoutHorizon = await prisma.initiative.count({
+    where: { tenantId, level: 0, primarySolutionId: null, investmentHorizon: null },
+  });
   const solutionLinks = await prisma.epicSolution.count({ where: { tenantId } });
-  if (epicsWithoutSolution > 0 || solutionLinks < EPIC_COUNT) {
+  if (
+    withoutSolution !== researchCount ||
+    researchWithoutHorizon > 0 ||
+    solutionLinks !== EPIC_COUNT - researchCount
+  ) {
     throw new Error(
-      `Seed-Invariante verletzt: ${epicsWithoutSolution} Epics ohne primarySolutionId, ` +
-        `${solutionLinks}/${EPIC_COUNT} EpicSolution-Verknüpfungen.`,
+      `Seed-Invariante verletzt: ${withoutSolution} Epics ohne Primär-Solution ` +
+        `(erwartet ${researchCount}), davon ${researchWithoutHorizon} auch ohne eigenen Horizont; ` +
+        `${solutionLinks}/${EPIC_COUNT - researchCount} EpicSolution-Verknüpfungen.`,
     );
   }
+  console.log(`  ✓ ${researchCount} R&D-Epics ohne Solution, Horizont am Epic`);
 
   // KPIs: Primär = Kosteneinsparung (€/Jahr, nach Reifegrad realisiert); Sekundär = operativ.
   const OPS = [
@@ -1082,7 +1069,18 @@ async function main() {
     const epicArtIdx = epicVs[i]! * 2 + (i % 2);
     const onTimelineB = TIMELINE_B_ARTS.has(epicArtIdx);
     const count = 2 + (i % 3);
-    const eStart = cycleStart(ALL_CYCLES[epicCycleIdx[i]!]!);
+    const pe = roundPlan.epics[i]!;
+    /**
+     * **Geschnitten wird im Business Case, nicht am Anlagetag des Mandanten.**
+     * Vorher trugen alle Features denselben `createdAt` — den Zeitpunkt des
+     * Seed-Laufs —, und damit hatte der grösste Bestand des Datensatzes keine
+     * Geschichte. Der Reiter _Deliverables_ füllt sich, während der Business
+     * Case entsteht; das ist der Zug nach L2.
+     */
+    const cutMove = pe.moves.find((m) => m.to === "L2") ?? pe.moves[0];
+    const cutAt = cutMove ? moveAt(cutMove) : pe.createdAt;
+    // Das Umsetzungsfenster: der L4.1-Stempel, solange es einen gibt.
+    const eStart = pe.implStart ?? cycleStart(ALL_CYCLES[epicCycleIdx[i]!]!);
     for (let f = 0; f < count; f++) {
       const fid = uid(`large:feat:${i}:${f}`);
       const bv = 3 + ((i + f) % 8);
@@ -1139,6 +1137,7 @@ async function main() {
         stageGate: "L3",
         status,
         completedAt: status === "completed" ? beforeNow(addDays(fStart, 60), 2) : null,
+        createdAt: beforeNow(addDays(cutAt, 4 + f * 6), 1),
         plannedStartAt: fStart,
         plannedEndAt: addDays(fStart, 60),
         acceptanceCriteria: [
@@ -1374,33 +1373,26 @@ async function main() {
   console.log("\n── Budget (Allocations + Historie + Kacheln)");
   // Wer Budget tragen darf, entscheidet die gemeinsame Regel — nicht eine
   // Liste von Reifegraden, die neben ihr veraltet.
-  const fundedIdx = Array.from({ length: EPIC_COUNT }, (_, i) => i).filter((i) =>
-    mayHoldAllocation(targetStepFor(gates[i]!, i)),
-  );
   /**
-   * Allocation je bezahltem Epic — **in jedem Zyklus, den es durchläuft.**
+   * **Die Zuteilung ist das Ergebnis der Kachel, nicht ihr Parallelwert.**
    *
-   * Vorher bekam jedes Epic genau eine Zeile, in seinem Startzyklus. Für ein
-   * Epic in Umsetzung (`BANDS.L4` liegt ein bis drei Zyklen **vor** dem
-   * laufenden) hiess das: es lief, aber im laufenden Zyklus stand kein Geld —
-   * gemessen 19 von 21. Laufende Epics haben bei der Vergabe aber Vorrang; sie
-   * wurden damals finanziert **und** werden es jetzt wieder.
+   * Vorher entstanden hier eigene Beträge (`80_000 + (i % 6) * 8_000`), während
+   * die Kachel unten mit anderen Zahlen rechnete — dasselbe Epic trug zwei
+   * verschiedene Summen. Jetzt schreibt beides dieselben Raten: die, die der
+   * Durchlauf in seiner Runde beschlossen hat.
    *
-   * Die historische Kostenkurve bleibt damit erhalten, statt in den laufenden
-   * Zyklus zu wandern.
+   * `BudgetAllocation` ist **eine Zeile je Epic** (`epicId` ist unique); die
+   * Halbjahre stehen als Karte darin. Ein Epic in Umsetzung trägt deshalb
+   * mehrere Einträge — es bekommt in jeder Runde seine nächste Rate.
    */
-  /** Betrag je Epic im laufenden Zyklus — Grundlage der Abschluss-Prüfung. */
-  const portfolioInCurrent = new Map<number, number>();
+  const fundedIdx = roundPlan.epics.filter((e) => e.tranches.length > 0).map((e) => e.idx);
   await createManyChunked(
     fundedIdx.map((i, k) => {
-      const startIdx = epicCycleIdx[i]!;
-      const cost = 80_000 + (i % 6) * 8_000; // ~80–120k → ~€1 Mio./Zyklus bei ~10 Epics
-      // Ein Epic in Umsetzung zahlt bis einschliesslich heute; ein fertiges nur
-      // bis zu seinem Startzyklus (es wurde damals bezahlt und ist durch).
-      const lastIdx = gates[i] === "L4" ? Math.max(startIdx, CURRENT_IDX) : startIdx;
+      const pe = roundPlan.epics[i]!;
       const allocations: Record<string, number> = {};
-      for (let c = startIdx; c <= lastIdx; c++) allocations[ALL_CYCLES[c]!] = cost;
-      if (allocations[CURRENT_CYCLE] != null) portfolioInCurrent.set(i, cost);
+      for (const t of pe.tranches) {
+        allocations[t.cycleKey] = (allocations[t.cycleKey] ?? 0) + t.amount;
+      }
       return {
         id: uid(`large:balloc:${i}`),
         tenantId,
@@ -1413,29 +1405,32 @@ async function main() {
     }),
     (data) => prisma.budgetAllocation.createMany({ data }),
   );
-  // Snapshot-Historie je vergangenem Zyklus (der früheste ≈ Controller-Entwurf Jahr 1).
-  for (let c = 0; c <= CURRENT_IDX; c++) {
-    const cycleKey = ALL_CYCLES[c]!;
-    const capturedAt = beforeNow(addDays(cycleStart(cycleKey), 20), 1);
-    const cycleFunded = fundedIdx.filter((i) => epicCycleIdx[i] === c).slice(0, 10);
+
+  /**
+   * Der eingefrorene Stand je Runde. Er zeigt, worüber **in diesem Halbjahr**
+   * entschieden wurde — nicht eine Auswahl, die zufällig in den Zyklus fällt.
+   */
+  for (const round of roundPlan.rounds) {
+    const capturedAt = beforeNow(addDays(cycleStart(round.cycleKey), PHASE.finalize), 1);
+    const funded = round.candidates.filter((c) => c.final > 0);
     await prisma.budgetPlanRevision.create({
       data: {
-        id: uid(`large:bprev:${cycleKey}`),
+        id: uid(`large:bprev:${round.cycleKey}`),
         tenantId,
-        cycleKey,
+        cycleKey: round.cycleKey,
         capturedAt,
         capturedBy: ADMIN,
         payload: buildSnapshotPayload({
-          cycleKey,
+          cycleKey: round.cycleKey,
           capturedAt,
-          pool: budgetPoolByPeriod[cycleKey] ?? CYCLE_POOL,
-          epics: (cycleFunded.length ? cycleFunded : fundedIdx.slice(0, 8)).map((i, k) => ({
-            epicId: epicIds[i]!,
-            title: epicTitles[i]!,
-            valueStreamId: vsIds[epicVs[i]!]!,
-            valueStreamName: vsNames[epicVs[i]!]!,
+          pool: round.pool,
+          epics: funded.map((c, k) => ({
+            epicId: epicIds[c.epicIdx]!,
+            title: epicTitles[c.epicIdx]!,
+            valueStreamId: vsIds[epicVs[c.epicIdx]!]!,
+            valueStreamName: vsNames[epicVs[c.epicIdx]!]!,
             priority: k,
-            alloc: 80_000 + k * 6_000,
+            alloc: c.final,
           })),
           arts: artIds.map((id, i) => ({ id, name: artNames[i]!, amount: 130_000 + i * 12_000 })),
         }),
@@ -1485,6 +1480,10 @@ async function main() {
       ],
     })),
   );
+  /** Die Positionen, die einen ART-Epic-Rahmen tragen — je ART genau eine. */
+  const changeItemIdSet = new Set(
+    rtb.filter((it) => it.kind === "art_change" && it.artId != null).map((it) => it.id),
+  );
   const rtbCands = rtb.map((r) => ({
     rtbItemId: r.id,
     title: r.name,
@@ -1492,49 +1491,34 @@ async function main() {
     valueStreamId: r.valueStreamId,
   }));
   /**
-   * **Kandidaten der laufenden und geplanten Runden.**
-   *
-   * Vorher waren das die L2-Epics — „definiert, warten auf Budget". Genau die
-   * duerfen es nicht mehr sein: die Erstellung des Business Case wird nicht
-   * mehr aus dem Portfolio budgetiert, und `isPbEligible` verlangt den
-   * freigegebenen LBC. Beide kommenden Runden dieses Mandanten bestanden
-   * gemessen zu 22 von 22 aus L2-Epics; die Anwendung haette sie abgewiesen,
-   * der Seed schrieb sie als Rohzeilen daran vorbei.
-   *
-   * Jetzt bitten dieselben Epics um Geld, die es auch tragen duerfen — `L3.1`
-   * aufwaerts, dieselbe Schwelle wie beim Topf.
+   * **Die Kandidaten der kommenden Runden** sind die, die auf Geld warten:
+   * freigegebener Business Case, noch keine Zuteilung. Genau die Menge, die der
+   * Merker `stagedForBudgeting` anmeldet — und genau die, die `isPbEligible`
+   * durchlässt. ART-Epics stehen nicht darunter; sie ziehen aus dem Rahmen
+   * ihres ARTs.
    */
-  const backlogCands = fundedIdx.slice(0, 22).map((i) => ({
+  const waitingIdx = roundPlan.epics
+    .filter((e) => e.finalStep === "L3.1" && e.tranches.length === 0)
+    .filter((e) => e.epicClass === "portfolio")
+    .map((e) => e.idx);
+  const candOf = (i: number, ask: number) => ({
     epicId: epicIds[i]!,
     title: epicTitles[i]!,
-    ask: 60_000 + (i % 12) * 6_000,
+    ask,
     valueStreamId: vsIds[epicVs[i]!]!,
-    artId: artIds[epicVs[i]! * 2 + (i % 2)]!,
-  }));
-  /** Der Betrag, mit dem ein bezahltes Epic in seinem Zyklus geführt wird. */
-  const epicAsk = (i: number): number => 80_000 + (i % 6) * 8_000;
-  const epicCandOf = (i: number) => ({
-    epicId: epicIds[i]!,
-    title: epicTitles[i]!,
-    ask: epicAsk(i),
-    valueStreamId: vsIds[epicVs[i]!]!,
-    artId: artIds[epicVs[i]! * 2 + (i % 2)]!,
+    artId: artIds[epicVs[i]! * 2 + (roundPlan.epics[i]!.artInVs % 2)]!,
   });
+  const backlogCands = waitingIdx.slice(0, 22).map((i) => candOf(i, roundPlan.epics[i]!.cost));
   /**
-   * **Nur Portfolio-Epics stehen auf dem PB-Liste.** ART-Epics werden aus dem
-   * ART-Epic-Budget ihres ARTs bedient und tauchen in der Kandidatenliste
-   * gar nicht auf — vorher standen sie dort, was der Regel widersprach, die
-   * `period-detail.ts` zur Laufzeit anwendet.
-   *
-   * Beide Mengen sind nach ihrem **Förderzyklus** gruppiert: eine Runde zeigt
-   * die Vorhaben, über die in genau diesem Halbjahr entschieden wurde.
+   * Die Zyklen, in denen ein ART-Epic aus dem Rahmen bedient wurde — Grundlage
+   * der `ArtEpicAllocation`-Zeilen weiter unten.
    */
-  const ballotByCycle = new Map<number, number[]>();
   const artFundedByCycle = new Map<number, number[]>();
-  for (const i of fundedIdx) {
-    const target = epicClassOf[i] === "portfolio" ? ballotByCycle : artFundedByCycle;
-    const c = epicCycleIdx[i]!;
-    target.set(c, [...(target.get(c) ?? []), i]);
+  for (const e of roundPlan.epics) {
+    for (const t of e.tranches) {
+      if (t.source !== "art_epic_budget") continue;
+      artFundedByCycle.set(t.cycleIdx, [...(artFundedByCycle.get(t.cycleIdx) ?? []), e.idx]);
+    }
   }
   const buildGroups = (
     submitted: boolean[],
@@ -1572,60 +1556,53 @@ async function main() {
     });
     return out;
   };
-  const finalsFor = (
-    cands: { epicId?: string; rtbItemId?: string; ask: number }[],
-    pool: number,
-  ) => {
-    let acc = 0;
-    const m = new Map<string, number>();
-    for (const c of cands) {
-      const ref = c.epicId ?? c.rtbItemId!;
-      const fund = acc + c.ask <= pool;
-      m.set(ref, fund ? c.ask : 0);
-      if (fund) acc += c.ask;
-    }
-    return m;
-  };
-
   /**
-   * **Eine Kachel je Halbjahr — lückenlos.**
+   * **Eine Kachel je Halbjahr — und ihre Zahlen sind die des Durchlaufs.**
    *
-   * Vorher lagen zwei Runden im laufenden Zyklus: die Wachstumsrunde und eine
-   * separate „Betriebs- und Rahmenrunde", deren Topf die Summe aller
-   * Run-the-Business-Asks war und deren Zeitraum außerhalb ihres eigenen
-   * Halbjahres lag. Sie war eine Umgehung — der Topf trug Betrieb und Wachstum
-   * zusammen nicht, also bekam der Betrieb einen eigenen. In der Liste standen
-   * dadurch zwei Kacheln „H1", zwischen denen nichts unterschied.
-   *
-   * Jetzt trägt eine Runde beides: Betrieb zuerst, dann die Portfolio-Epics um
-   * den Rest. Die Reihenfolge ist die der Praxis — der Betrieb steht fest,
-   * bevor um neue Vorhaben gerungen wird.
+   * Der Betrieb steht zuerst fest, dann wird um den Rest gerungen: genau die
+   * Reihenfolge, die der Motor gespielt hat. Die Endbeträge kommen von dort,
+   * nicht aus einer zweiten, gierigen Rechnung an dieser Stelle — sonst trügen
+   * Kachel und Zuteilung wieder verschiedene Zahlen für dasselbe Epic.
    */
-  for (let c = 0; c <= CURRENT_IDX; c++) {
-    const cycleKey = ALL_CYCLES[c]!;
-    const pool = budgetPoolByPeriod[cycleKey]!;
-    const epicCands = (ballotByCycle.get(c) ?? []).map(epicCandOf);
-    const finals = finalsFor([...rtbCands, ...epicCands], pool);
-    const acc = [...finals.values()].reduce((a, b) => a + b, 0);
+  for (const round of roundPlan.rounds) {
+    const cycleKey = round.cycleKey;
+    const finalByEpic = new Map(round.candidates.map((c) => [c.epicIdx, c.final]));
+    const epicCands = round.candidates.map((c) => candOf(c.epicIdx, c.ask));
+    /**
+     * **Der Rahmen wird exakt festgeschrieben, der Betrieb anteilig gekürzt.**
+     * Der Rahmen ist der Deckel, gegen den der Motor entschieden hat — käme
+     * hier eine andere Zahl heraus, wären die ART-Zuteilungen sofort überzogen.
+     * Der Betrieb dagegen ist verhandelbar und trägt die Kürzung.
+     */
+    const runAskSum = rtbCands
+      .filter((c) => !changeItemIdSet.has(c.rtbItemId))
+      .reduce((sum, c) => sum + c.ask, 0);
+    const runBudget = RUN_COST(round.cycleIdx);
+    const rtbFinalOf = (c: { rtbItemId: string; ask: number }): number =>
+      changeItemIdSet.has(c.rtbItemId)
+        ? ART_FRAME(round.cycleIdx)
+        : runAskSum === 0
+          ? 0
+          : Math.round((c.ask / runAskSum) * runBudget);
     await seedBudgetPeriod(tenantId, ADMIN, {
-      key: `large-closed-${c}`,
+      key: `large-closed-${round.cycleIdx}`,
       cycleKey,
       // Die finalen Beträge entstehen im Übergang `entschieden → abgeschlossen`.
       // Auch das **laufende** Halbjahr ist deshalb abgeschlossen: ohne
       // festgeschriebene `art_change`-Beträge wäre jeder ART-Epic-Budget 0 €,
       // und kein ART könnte verteilen.
       status: "closed",
-      poolTotal: pool,
+      poolTotal: round.pool,
       startDate: cycleStart(cycleKey),
       endDate: cycleEnd(cycleKey),
-      submissionDeadline: addDays(cycleStart(cycleKey), 40),
-      reserveAmount: pool - acc,
+      submissionDeadline: addDays(cycleStart(cycleKey), PHASE.distribute),
+      reserveAmount: round.reserve,
       participantUserIds: parts,
-      epicCandidates: epicCands.map((cd) => ({ ...cd, finalAmount: finals.get(cd.epicId) ?? 0 })),
-      rtbCandidates: rtbCands.map((cd) => ({
+      epicCandidates: epicCands.map((cd, k) => ({
         ...cd,
-        finalAmount: finals.get(cd.rtbItemId) ?? 0,
+        finalAmount: finalByEpic.get(round.candidates[k]!.epicIdx) ?? 0,
       })),
+      rtbCandidates: rtbCands.map((cd) => ({ ...cd, finalAmount: rtbFinalOf(cd) })),
       groups: buildGroups([true, true, true], amountsFor(epicCands)),
     });
   }
@@ -1908,74 +1885,81 @@ async function main() {
   });
 
   /**
-   * Der Rahmen je ART ist der Deckel — in der Anwendung prüft ihn der
-   * Schreibpfad in derselben Transaktion. Ein Seed, der daran vorbeischreibt,
-   * erzeugt Töpfe, die dauerhaft überzogen dastehen: einen Zustand, den das
-   * System gar nicht zulässt.
+   * **Die ART-Zuteilungen — je Halbjahr gegen den Rahmen *dieses* Halbjahres.**
    *
-   * Gelesen wird die **Aufteilung**, nicht der geplante Betrag: seit der PB-Liste
-   * je Wertstrom eine Zeile trägt, ist der Rahmen das, was der Wertstrom seiner
-   * Position zugeteilt hat. Wer hier die Planzahl nähme, schriebe Zuteilungen,
-   * die die App zur Laufzeit ablehnt — der Unterschied fiele erst auf der
-   * Verteilfläche auf.
+   * Vorher las dieser Abschnitt die Rahmen **einmal** für den laufenden Zyklus
+   * und deckelte damit auch alle vergangenen. Für ein Halbjahr, in dem der
+   * Rahmen kleiner war, entstanden so Zuteilungen, die es nie gegeben haben
+   * kann; für eines, in dem er größer war, fielen welche weg. Der Rahmen wächst
+   * mit dem Programm, also muss ihn jede Runde neu lesen.
+   *
+   * Die Beträge selbst kommen aus dem Durchlauf: es sind dieselben Raten, die
+   * auch in `BudgetAllocation` stehen. Zwei Zeilen, ein Betrag.
    */
-  const changeItemIds = rtb
-    .filter((it) => it.kind === "art_change" && it.artId != null)
-    .map((it) => ({ id: it.id, artId: it.artId! }));
-  const awardRows = await prisma.rtbItemAward.findMany({
-    where: { tenantId, cycleKey: CURRENT_CYCLE, rtbItemId: { in: changeItemIds.map((i) => i.id) } },
-    select: { rtbItemId: true, amount: true },
-  });
-  const awardByItem = new Map(awardRows.map((a) => [a.rtbItemId, Number(a.amount)]));
-  const frameByArt = new Map<string, number>();
-  for (const it of changeItemIds) {
-    frameByArt.set(it.artId, (frameByArt.get(it.artId) ?? 0) + (awardByItem.get(it.id) ?? 0));
-  }
-
+  const artOfEpic = (i: number): string =>
+    artIds[epicVs[i]! * 2 + (roundPlan.epics[i]!.artInVs % 2)]!;
   const allocSpecs: ArtAllocationSpec[] = [];
   for (const [c, idxs] of [...artFundedByCycle.entries()].sort((a, b) => a[0] - b[0])) {
     const cycleKey = ALL_CYCLES[c]!;
+    const frame = ART_FRAME(c);
     const usedByArt = new Map<string, number>();
     for (const i of idxs) {
-      const artId = artIds[epicVs[i]! * 2 + (i % 2)]!;
-      const amount = epicAsk(i);
+      const artId = artOfEpic(i);
+      const pe = roundPlan.epics[i]!;
+      const amount = pe.tranches
+        .filter((t) => t.cycleIdx === c && t.source === "art_epic_budget")
+        .reduce((sum, t) => sum + t.amount, 0);
+      if (amount <= 0) continue;
       const used = usedByArt.get(artId) ?? 0;
-      // Der Rahmen ist der einzige Grund, aus dem ein ART-Epic leer ausgeht —
-      // keine künstliche Quote. Was nicht mehr hineinpasst, bleibt sichtbar
-      // ungedeckt, und genau das sagt die Fläche dem RTE auch.
-      if (used + amount > (frameByArt.get(artId) ?? 0)) continue;
       usedByArt.set(artId, used + amount);
-      allocSpecs.push({ artId, epicId: epicIds[i]!, cycleKey, amount, ask: amount });
+      // Der Rahmen ist der einzige Grund, aus dem ein ART-Epic leer ausgeht.
+      // Dass er hier hält, hat der Motor schon entschieden — diese Prüfung ist
+      // die Gegenprobe gegen einen Rahmen, der in der Datenbank anders steht.
+      if (used + amount > frame) {
+        throw new Error(
+          `Seed-Invariante verletzt: ART-Rahmen ${cycleKey}/${artId} überzogen ` +
+            `(${used + amount} > ${frame}).`,
+        );
+      }
+      allocSpecs.push({ artId, epicId: epicIds[i]!, cycleKey, amount, ask: pe.cost });
     }
   }
   await seedArtEpicAllocations(tenantId, ADMIN, allocSpecs);
 
-  // ── Die Budgetierungs-Regel gegenprüfen ───────────────────────────────────
+  // ── Die Budgetierungs-Regel gegenprüfen, Runde für Runde ─────────────────
   //
-  // Beide Töpfe stehen jetzt. Laut scheitern statt still falsche Daten
-  // schreiben — dieselbe Haltung wie `assertGateHistory`. Vorher hielt dieser
-  // Datensatz 19 von 21 Epics in Umsetzung ohne Geld im laufenden Zyklus, weil
-  // `BANDS.L4` ihr Budget ein bis drei Zyklen in die Vergangenheit legte.
+  // Laut scheitern statt still falsche Daten schreiben — dieselbe Haltung wie
+  // `assertGateHistory`. Neu ist der Umfang: geprüft wird **jedes gespielte
+  // Halbjahr**, nicht nur das laufende. Der Datensatz, den dieser Seed ablöst,
+  // hätte diese Prüfung nicht bestanden: er trug Zuteilungen in genau einem
+  // Zyklus, obwohl zehn Runden geschlossen waren.
   {
-    const artInCurrent = new Map<string, number>();
-    for (const a of allocSpecs) {
-      if (a.cycleKey !== CURRENT_CYCLE) continue;
-      artInCurrent.set(a.epicId, (artInCurrent.get(a.epicId) ?? 0) + a.amount);
+    let checked = 0;
+    for (const round of roundPlan.rounds) {
+      const c = round.cycleIdx;
+      const facts: AllocationFacts[] = roundPlan.epics
+        .filter((e) => e.stepAtCycleEnd[c] != null)
+        .map((e) => ({
+          id: epicIds[e.idx]!,
+          title: epicTitles[e.idx] ?? `Epic #${e.idx}`,
+          step: e.stepAtCycleEnd[c]!,
+          amountInCycle: e.tranches
+            .filter((t) => t.cycleIdx === c)
+            .reduce((sum, t) => sum + t.amount, 0),
+        }));
+      const violations = allocationRuleViolations(facts, round.cycleKey);
+      if (violations.length > 0) {
+        throw new Error(
+          `Budgetierungs-Regel verletzt (${round.cycleKey}):\n${formatAllocationViolations(violations.slice(0, 12))}` +
+            (violations.length > 12 ? `\n  … und ${violations.length - 12} weitere` : ""),
+        );
+      }
+      checked += facts.length;
     }
-    const facts: AllocationFacts[] = Array.from({ length: EPIC_COUNT }, (_, i) => ({
-      id: epicIds[i]!,
-      title: epicTitles[i] ?? `Epic #${i}`,
-      step: gates[i] === "L0" && i % 3 === 0 ? "L0" : targetStepFor(gates[i]!, i),
-      amountInCycle: (portfolioInCurrent.get(i) ?? 0) + (artInCurrent.get(epicIds[i]!) ?? 0),
-    }));
-    const violations = allocationRuleViolations(facts, CURRENT_CYCLE);
-    if (violations.length > 0) {
-      throw new Error(
-        `Budgetierungs-Regel verletzt (${CURRENT_CYCLE}):\n${formatAllocationViolations(violations.slice(0, 12))}` +
-          (violations.length > 12 ? `\n  … und ${violations.length - 12} weitere` : ""),
-      );
-    }
-    console.log(`  ✓ Budgetierungs-Regel geprüft — ${EPIC_COUNT} Epics, keine Verstöße`);
+    console.log(
+      `  ✓ Budgetierungs-Regel geprüft — ${roundPlan.rounds.length} Runden, ` +
+        `${checked} Epic-Stände, keine Verstöße`,
+    );
   }
 
   const currentAllocs = allocSpecs.filter((a) => a.cycleKey === CURRENT_CYCLE).length;
@@ -1998,7 +1982,7 @@ async function main() {
   console.log(`  ✓ Guardrail-Ziele für ${vsIds.length} Wertströme`);
 
   console.log(
-    `\n✅ Large-Seed fertig (budget-getriebenes 10-Jahres-Programm, laufendes Halbjahr ${CURRENT_CYCLE}).\n`,
+    `\n✅ Large-Seed fertig (sechs gespielte Runden, laufendes Halbjahr ${CURRENT_CYCLE}).\n`,
   );
 }
 

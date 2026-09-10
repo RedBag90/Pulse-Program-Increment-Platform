@@ -481,10 +481,19 @@ async function main() {
   const epicIds: Record<string, string> = {};
   for (const e of EPICS) epicIds[e.slug] = uid(`offsite:epic:${e.slug}`);
 
-  // Eine Solution im Horizont H3: es wird eine *neue* Außentagung geplant
-  // (explorativ/R&D) — frühere gab es schon. Der Horizont eines Epics kommt aus
-  // seiner Primär-Solution; hier ist das für alle dieselbe H3-Solution, damit die
-  // Horizont-Swimlane des Portfolio-Kanbans die drei Vorhaben in der H3-Zeile zeigt.
+  /**
+   * **Das Format ist ein Produkt im Entstehen — H2.**
+   *
+   * In H3 gibt es keine Solution (ADR-0020): dort wird geforscht, und ob daraus
+   * je ein Produkt wird, ist offen. Die Außentagung als *Format* gibt es schon,
+   * sie ist nur noch nicht etabliert — also ein Anwärter, H2.
+   *
+   * Dieser Mandant führt damit die Regel vor, die sonst nirgends zu sehen ist:
+   * **die Solution steht in H2, die Vorhaben daran sind Discovery (H3).** Die
+   * drei Epics tragen ihren Horizont deshalb selbst — explizit schlägt
+   * abgeleitet, und im Portfolio-Kanban stehen sie in der H3-Zeile, obwohl ihre
+   * Solution eine Zeile darunter liegt.
+   */
   const solutionId = uid("offsite:sol:aussentagung");
   await prisma.solution.create({
     data: {
@@ -493,7 +502,7 @@ async function main() {
       valueStreamId: vsId,
       artId,
       name: "Außentagung (Format)",
-      horizon: "h3",
+      horizon: "h2",
       investmentMode: null,
       createdBy: admin,
       updatedBy: admin,
@@ -519,11 +528,11 @@ async function main() {
     status: "approved",
     epicType: "epic",
     primarySolutionId: solutionId,
-    // Der Horizont steht **am Epic**: eine neue Außentagung ist explorativ (H3).
-    // Er ist damit vom späteren Weg der Solution unabhängig — genau die
-    // Stabilität, die `domain/epic-horizon.ts` herstellt. (Im Datensatz ist die
-    // Solution inzwischen nach H1 befördert; diese Epics behalten H3, weil ihr
-    // Business Case vorher freigegeben wurde.)
+    // Der Horizont steht **am Epic**: eine neue Außentagung zu erproben ist
+    // explorativ (H3), während das Format selbst als Anwärter in H2 steht. Er
+    // ist damit vom Weg der Solution unabhängig — genau die Stabilität, die
+    // `domain/epic-horizon.ts` herstellt: explizit schlägt abgeleitet, und mit
+    // der Business-Case-Freigabe friert der Wert ein.
     investmentHorizon: "h3",
     stagedForBudgeting: true,
     needsSteeringAttention: false,
@@ -631,6 +640,24 @@ async function main() {
     "epic.party.irt_owner": rte,
     "epic.party.lace_vmo": portfolio,
   };
+  /**
+   * **Eine Person, eine Abnahme-Zeile.**
+   *
+   * In einem Vier-Personen-Mandanten fallen mehrere Sitze auf dieselbe Person —
+   * hier MGMT und LACE/VMO. `expandApprovers` entfernt solche Doppelungen und
+   * behält die **erste** Rolle (`gate-policy.ts`); der partielle Unique-Index
+   * `(transition_id, approver_user_id)` erzwingt dasselbe in der Datenbank.
+   * Der Seed schrieb bis dahin fünf Zeilen und scheiterte beim Insert.
+   */
+  const partySeats = (): { role: (typeof PARTY_ROLES)[number]; userId: string }[] => {
+    const seen = new Set<string>();
+    return PARTY_ROLES.flatMap((role) => {
+      const userId = partyApprover[role];
+      if (seen.has(userId)) return [];
+      seen.add(userId);
+      return [{ role, userId }];
+    });
+  };
   for (const e of EPICS) {
     await prisma.stageGateTransition.create({
       data: {
@@ -648,9 +675,9 @@ async function main() {
         resolvedAt: addDays(now, -12),
         resolvedBy: portfolio,
         approvals: {
-          create: PARTY_ROLES.map((role) => ({
+          create: partySeats().map(({ role, userId }) => ({
             tenantId,
-            approverUserId: partyApprover[role],
+            approverUserId: userId,
             role,
             source: "manual",
             status: "approved",

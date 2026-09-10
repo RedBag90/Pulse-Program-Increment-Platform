@@ -44,6 +44,7 @@ import {
   type GateTransitionRow,
 } from "./seed-gate-history.js";
 import { gateOfStep, type GateStep } from "@/modules/work/domain/stage-gate";
+import type { Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import {
   mayHoldAllocation,
   allocationRuleViolations,
@@ -542,33 +543,42 @@ async function main() {
   };
 
   // ── Solutions (je Value Stream über die Horizonte) ───────────────────────
-  // Der Horizont eines Epics wird aus seiner Primär-Solution abgeleitet.
+  //
+  // Der Horizont eines Epics wird aus seiner Primär-Solution abgeleitet — **es
+  // sei denn, es gibt keine.** In H3 gibt es keine Solution: dort wird
+  // geforscht, und ob daraus je ein Produkt wird, ist offen (ADR-0020). Die
+  // R&D-Epics dieses Mandanten tragen ihren Horizont deshalb selbst.
+  const SOLUTION_HORIZONS = ["h1", "h2"] as const;
   const solId = (vs: number, h: string) => uid(`sol:${vs}:${h.toLowerCase()}`);
-  const solNameSuffix: Record<string, string> = { h1: "Core", h2: "MVP", h3: "R&D" };
+  const solNameSuffix: Record<string, string> = { h1: "Core", h2: "MVP" };
+  /**
+   * Die Primär-Solution eines Epics — **eine Quelle** für die Epic-Zeile, den
+   * Produkt-Manager-Sitz und den Join-Satz. `null` bei R&D: dort gibt es keine.
+   */
+  const solutionOf = (def: { vs: number; horizon: string }): string | null =>
+    def.horizon.toLowerCase() === "h3" ? null : solId(def.vs, def.horizon);
   /**
    * Der **Produkt-Manager** je Solution — ein freies Personenfeld ohne
    * Rollenbindung (siehe `docs/concepts/structure-walkthrough.md`). Er darf
    * seine Solution bearbeiten und zeichnet bei den Reifegrad-Freigaben ihrer
    * Epics mit.
    *
-   * Die drei **H3-Piloten bleiben absichtlich unbesetzt**: „ist keiner benannt,
-   * fällt er still weg" ist selbst eine Aussage des Ablaufs, und sie lässt sich
-   * nur an einem Datensatz zeigen, in dem beides vorkommt.
+   * **Ein MVP bleibt absichtlich unbesetzt**: „ist keiner benannt, fällt er
+   * still weg" ist selbst eine Aussage des Ablaufs, und sie lässt sich nur an
+   * einem Datensatz zeigen, in dem beides vorkommt. Bis ADR-0020 trugen diesen
+   * Beleg die drei H3-Piloten; die gibt es nicht mehr.
    */
   const solutionPm: Record<string, string | null> = {
     "0:h1": U.fo,
     "0:h2": U.owner,
-    "0:h3": null,
     "1:h1": U.vso,
-    "1:h2": U.portfolio,
-    "1:h3": null,
+    "1:h2": null,
     "2:h1": U.owner,
     "2:h2": U.fo,
-    "2:h3": null,
   };
   const solutionRows: Prisma.SolutionCreateManyInput[] = [];
   for (let vs = 0; vs < vsIds.length; vs++) {
-    for (const h of ["h1", "h2", "h3"] as const) {
+    for (const h of SOLUTION_HORIZONS) {
       solutionRows.push({
         id: solId(vs, h),
         tenantId,
@@ -802,7 +812,13 @@ async function main() {
       // Der sechste Sitz an L3.1 und der zweite an L4. Er löst sich nur auf,
       // wenn die Primär-Solution einen Produkt-Manager trägt — und an L4 nur
       // bei ART-Epics.
-      solutionProductManagerId: solutionPm[`${def.vs}:${def.horizon.toLowerCase()}`] ?? null,
+      // Nur auflösbar, wenn es eine Primär-Solution gibt und sie einen
+      // Produkt-Manager trägt. Ein R&D-Vorhaben hat keine: der Sitz fällt weg.
+      solutionProductManagerId: solutionOf(def)
+        ? (solutionPm[`${def.vs}:${def.horizon.toLowerCase()}`] ?? null)
+        : null,
+      solutionHorizon: solutionOf(def) ? (def.horizon.toLowerCase() as Horizon) : null,
+      investmentHorizon: solutionOf(def) ? null : (def.horizon.toLowerCase() as Horizon),
       epicClass,
       benefitHypothesis,
       businessCase,
@@ -850,8 +866,10 @@ async function main() {
       ...history.stamps,
       status,
       epicType: def.epicType,
-      // Horizont kommt aus der Primär-Solution (im selben Value Stream).
-      primarySolutionId: solId(def.vs, def.horizon),
+      // Horizont kommt aus der Primär-Solution (im selben Value Stream) — oder,
+      // wenn es keine gibt, vom Epic selbst. In H3 gibt es keine (ADR-0020).
+      primarySolutionId: solutionOf(def),
+      ...(solutionOf(def) ? {} : { investmentHorizon: def.horizon.toLowerCase() }),
       // Jede L1- und L3.1-Abnahme setzt den Steering-Merker — nach einem Jahr
       // Betrieb waeren fast alle Epics markiert. Im echten Ablauf hakt ihn das
       // Steering ab; der Seed sagt deshalb aus, welche noch offen sind, und
@@ -891,13 +909,12 @@ async function main() {
   await prisma.initiative.createMany({ data: epicRows });
 
   // Epic↔Solution-Links (voller Zuordnungssatz; Primär steht am Epic).
+  // Nur Epics mit Solution bekommen einen Join-Satz.
   await prisma.epicSolution.createMany({
-    data: EPIC_DEFS.map((def, i) => ({
-      tenantId,
-      epicId: epicIds[i]!,
-      solutionId: solId(def.vs, def.horizon),
-      createdBy: ADMIN,
-    })),
+    data: EPIC_DEFS.flatMap((def, i) => {
+      const solutionId = solutionOf(def);
+      return solutionId ? [{ tenantId, epicId: epicIds[i]!, solutionId, createdBy: ADMIN }] : [];
+    }),
   });
 
   // Abnehmer je Reifegrad-Wechsel (ADR-0018). Ohne diese Regeln ist ein Wechsel

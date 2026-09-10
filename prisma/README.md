@@ -9,7 +9,7 @@ an — sie brauchen also `.env.local` mit `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_UR
 | -------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm db:seed`             | Pulse Demo Corp  | Nur Konten, Mandant, Rollen — leere Fachdaten                                                                                                                          |
 | `pnpm db:seed:demo`        | Pulse Demo Corp  | Dichter Story-Datensatz: 3 Wertströme, 6 ARTs, 2 Timelines, 20 Epics, 44 Features, Ziele, Budget, Risiken                                                              |
-| `pnpm db:seed:large`       | Large Test Corp  | Zehnjahres-Programm: 3 Wertströme, 6 ARTs, 2 Timelines, 200 Epics in Rollout-Bögen, 390 Features, Budget-Historie                                                      |
+| `pnpm db:seed:large`       | Large Test Corp  | **Sechs durchgespielte Halbjahre**: 3 Wertströme, 6 ARTs, 2 Timelines, 176 Epics in Rollout-Bögen, 384 Features, acht Budget-Kacheln                                   |
 | `pnpm db:seed:large-setup` | Large Setup Corp | Der Aufbau von Large Test Corp **ohne Inhalte**: Ökonomie, Guardrails, Practice `artEpics`, Rollen, dieselben acht Konten — keine Wertströme, ARTs, Epics oder Budgets |
 | `pnpm db:seed:offsite`     | **Test Demo**    | Simulation „Firmen-Offsite": 1 Wertstrom, 1 ART, 1 Kopf-Ziel, 3 Epics, 9 Features                                                                                      |
 
@@ -102,20 +102,26 @@ schief:
   war zu, und in `db:seed:demo` stand **jeder ART-Epic-Budget auf 0 €** — die
   ART-Budgetfläche zeigte nichts.
 
-Der Topf trägt jetzt, was gefordert wird:
+Der Topf trägt jetzt, was gefordert wird — und **beides wächst**, während der
+Topf steht. Genau daraus entsteht der Engpass, den dieser Mandant erzählt:
 
-| `db:seed:large`          | je Halbjahr                 |
-| ------------------------ | --------------------------- |
-| Topf                     | 2.000.000 € (= 4 Mio./Jahr) |
-| Betrieb                  | 306.000 €                   |
-| ART-Epic-Budget (6 ARTs) | 690.000 €                   |
-| Rest für den PB-Liste    | ~1.000.000 €                |
+| `db:seed:large`          | 2024-H1      | 2026-H2     |
+| ------------------------ | ------------ | ----------- |
+| Topf                     | 2.000.000 €  | 2.000.000 € |
+| Betrieb                  | 300.000 €    | 360.000 €   |
+| ART-Epic-Budget (6 ARTs) | 660.000 €    | 810.000 €   |
+| Rest für die Wahl        | ~1.040.000 € | ~830.000 €  |
+
+Die **Reserve wandert weiter**: was eine Runde nicht vergibt, liegt im Topf der
+nächsten (99 T€ → 36,8 T€ → 56,2 T€ → …). Sie ist die einzige Kopplung, die zwei
+Runden ökonomisch verbindet.
 
 **ART-Epics stehen nicht auf dem PB-Liste.** Kandidat einer Runde ist nur, was
 über dem Portfolio-Limit seines Wertstroms liegt; die kleineren Vorhaben werden
 aus dem ART-Epic-Budget ihres ARTs bedient — genau die Regel, die
-`period-detail.ts` zur Laufzeit anwendet. In Large ergibt das 66 Portfolio- und
-26 ART-Epics.
+`period-detail.ts` zur Laufzeit anwendet. In Large ergibt das **65 Portfolio-
+und 37 ART-Epics** — plus **74 ohne Klasse**, und das ist keine Lücke: vor der
+Freigabe des Business Case ist nicht entschieden, wie groß ein Vorhaben ist.
 
 Die Kachel des **laufenden** Halbjahres ist `abgeschlossen`, nicht `läuft`: die
 finalen Beträge entstehen erst im Übergang `entschieden → abgeschlossen`, und
@@ -132,19 +138,20 @@ lässt — dazu tragen sie folgende Zustände:
 
 | Aussage im Dokument                                                 | `db:seed:demo`                       | `db:seed:large`                        |
 | ------------------------------------------------------------------- | ------------------------------------ | -------------------------------------- |
-| **Produkt-Manager** je Solution, mit Sitz an L4.1 und am ART-Rahmen | 7 von 10 besetzt                     | 6 von 9 besetzt                        |
-| … und keiner benannt ⇒ der Sitz fällt still weg                     | die drei H3-Solutions                | die drei Pilot-Solutions               |
+| **Produkt-Manager** je Solution, mit Sitz an L4.1 und am ART-Rahmen | 6 von 7 besetzt                      | 5 von 6 besetzt                        |
+| … und keiner benannt ⇒ der Sitz fällt still weg                     | „Payments Platform MVP"              | „Logistik Programm"                    |
+| … und **gar keine Solution** ⇒ derselbe Sitz fällt ebenso weg       | die 6 R&D-Epics                      | die 58 R&D-Epics                       |
 | **Einordnungs-Erwartung** (`intendedClass`)                         | an jedem Epic                        | an jedem Epic                          |
-| Abweichung **nach oben** (Kostenregel bindet)                       | Open-Banking & PSD2 APIs             | 5 Epics                                |
-| Abweichung **nach unten** (Bestehen möglich)                        | Biometric Auth                       | 3 Epics                                |
+| Abweichung **nach oben** (Kostenregel bindet)                       | Open-Banking & PSD2 APIs             | 57 erwarten ART                        |
+| Abweichung **nach unten** (Bestehen möglich)                        | Biometric Auth                       | 119 erwarten Portfolio                 |
 | Abweichung **aufgelöst** durch den Override                         | Card Tokenization                    | 7 Epics                                |
-| **Prüf-Achse**: `suggested`                                         | 6                                    | 19                                     |
+| **Prüf-Achse**: `suggested`                                         | 6                                    | 16                                     |
 | **Prüf-Achse**: `rejected`, mit Prüfer und Datum                    | 3                                    | 9                                      |
 | Kopf-Issues, unter denen gebündelt wird                             | 4 (bis 3 Ebenen tief)                | 3 (eines je Workstream)                |
 | **Abschluss-Tor** vollständig erfüllt                               | „Payments PI 1"                      | „Werk-PI 1", „Werk-PI 2"               |
-| Budget-Kacheln, eine je Halbjahr                                    | 3                                    | 12                                     |
-| … und die Kadenz, die es verfehlt (Warnung)                         | Konzern-Kadenz, 2 offene ROAM-Issues | Restrukturierungs-Kadenz, 17 offene    |
-| Feature-Status `approved` (geplant, nicht begonnen)                 | 11                                   | 156 (die Deliverables der L2/L3-Epics) |
+| Budget-Kacheln, eine je Halbjahr                                    | 3                                    | 8 (6 geschlossen, 1 läuft, 1 Entwurf)  |
+| … und die Kadenz, die es verfehlt (Warnung)                         | Konzern-Kadenz, 2 offene ROAM-Issues | Restrukturierungs-Kadenz, 27 offene    |
+| Feature-Status `approved` (geplant, nicht begonnen)                 | 11                                   | 199 (die Deliverables der L2/L3-Epics) |
 
 ### Zwei Timelines, nicht eine
 
@@ -159,21 +166,89 @@ Nebenbei üben die beiden zwei Regeln des PI-Ablaufs aus, die mit einer Timeline
 gar nicht vorkommen können: „ein aktives PI je Timeline" und „ein ART tritt
 einer Timeline bei".
 
+### In H3 gibt es keine Solution
+
+Eine Solution ist das langlebige Produkt: sie verursacht Betrieb und hat jemanden,
+der für sie geradesteht. In H3 gibt es davon nichts — dort wird geforscht, und ob
+daraus je ein Produkt wird, ist offen (ADR-0020). Die Erklärtexte des Produkts
+sagten das seit jeher („Evaluating / R&D — **noch keine Solution**"), während der
+Anlege-Dialog H3 widerspruchslos anbot.
+
+Für die Seeds heißt das: **ein R&D-Vorhaben hat keine Primär-Solution und trägt
+seinen Horizont selbst** — `Initiative.investmentHorizon = "h3"`, den
+`stampsForAdvance` bei L3.1 einfriert, statt ihn zu überschreiben.
+
+| Mandant           | Solutions                   | R&D-Epics ohne Solution |
+| ----------------- | --------------------------- | ----------------------- |
+| `db:seed:large`   | 6 (3 × Betrieb/Programm)    | 58                      |
+| `db:seed:demo`    | 7 (3 × Core/MVP + 1 Legacy) | 6                       |
+| `db:seed:offsite` | 1 — **in H2**               | 3, die an ihr hängen    |
+
+**Der Offsite-Mandant führt die Regel vor.** Das Format „Außentagung" ist ein
+Produkt im Entstehen (H2); die drei Vorhaben daran sind Discovery (H3) und tragen
+ihren Horizont am Epic. Im Portfolio-Kanban stehen sie deshalb eine Zeile über
+ihrer eigenen Solution — genau das, was `epic-horizon.ts` mit „explizit schlägt
+abgeleitet" herstellt.
+
+Die Guardrail-Achse bleibt vierwertig: H3 misst weiter, nur eben Epics statt
+Solutions.
+
+### Der Rundenmotor in `db:seed:large`
+
+Dieser Mandant wird **gespielt**, nicht gewürfelt. `prisma/seed-large-rounds.ts`
+läuft sechs Halbjahre durch und hält je Epic seinen Zustand fest: Ideen kommen
+herein, Owner werden benannt, Hypothesen und Business Cases reifen, eine Runde
+verteilt Geld, die Finanzierten setzen um, die anderen warten.
+
+Der Unterschied ist keine Kosmetik. Vorher folgte die Finanzierung aus einem
+gewürfelten Reifegrad — und damit konnte der Satz, der den Halbjahres-Takt
+ausmacht, im Datensatz gar nicht vorkommen:
+
+> „Wird ein Portfolio-Epic in der Runde nicht finanziert, bleibt es auf L3.1
+> stehen — nicht abgelehnt, sondern unbezahlt, und beim nächsten Zeitraum wieder
+> dabei." — `portfolio-cycle-walkthrough.md`
+
+Jetzt gehen in Large **52 Epics** mindestens einmal leer aus und treten später
+wieder an. Der Reifegrad ist dadurch **Ergebnis, nicht Vorgabe**: er sagt, wie
+viele Runden ein Vorhaben überstanden hat. Ebenso die Zahl der Epics — sie folgt
+aus Zulauf mal Runden, es gibt kein `EPIC_COUNT` mehr.
+
+Drei Regeln trägt der Motor selbst, weil er an den Services vorbeischreibt:
+
+- **Wer in Umsetzung ist, hat Geld.** `allocationRuleViolations` läuft am Ende
+  über **jede** Runde, nicht nur über die laufende — 726 Epic-Stände.
+- **Laufende Epics haben Vorrang.** Ein Vorhaben in Umsetzung bekommt seine
+  nächste Rate, bevor um neue gerungen wird. Deshalb ist
+  `BudgetAllocation.allocations` eine Karte über Halbjahre und kein Betrag.
+- **Eine Kachel je Halbjahr.** Zwei würden einander still überschreiben, weil
+  Zuteilungen, ART-Rahmen und RtB-Awards alle am Zyklus-Schlüssel hängen.
+
+Zwei Trockenläufe zeigen das Ergebnis, ohne die Datenbank anzufassen:
+
+```
+npx tsx prisma/scripts/dry-rounds.ts        # Zahlen je Runde
+npx tsx prisma/scripts/dry-gate-history.ts  # alle Tor-Historien, geprüft
+```
+
+Die Regeln selbst stehen als Tests in `prisma/__tests__/seed-large-rounds.test.ts`
+— ohne Datenbank, weil der Motor rein ist.
+
 ### Rollout-Bögen in `db:seed:large`
 
 Ein Kostenhebel wird in einer Restrukturierung nicht einmal gezogen, sondern
-**ausgerollt**. Die 200 Epics stehen deshalb in Bögen von zwei bis vier Stufen:
+**ausgerollt**. Die 176 Epics stehen deshalb in Bögen von zwei bis vier Stufen:
 
 ```
-Predictive Maintenance — Pilot Werk Nord        L5 · bezahlt Jahr 2
-  └─ Predictive Maintenance — Rollout Werk Süd    L4 · bezahlt Jahr 4
-       └─ Predictive Maintenance — Skalierung Konzern   L2 · wartet auf Budget
+Predictive Maintenance — Pilot Werk Nord         2024-H1 eingereicht · L5
+  └─ Predictive Maintenance — Rollout Werk Süd     2024-H2 eingereicht · L4
+       └─ Predictive Maintenance — Skalierung Konzern  2025-H2 · wartet auf Budget
 ```
 
-Je Kante eine `Dependency` (`depends_on`) — 90 im ganzen Datensatz. Weil das
-Zyklus-Band am Reifegrad hängt, fällt der Rest von selbst richtig: **der
-Reifegrad sinkt entlang der Kette, der Finanzierungszyklus steigt.** Das Budget
-ist der Engpass dieses Mandanten, und die Kette erzählt genau ihn.
+Je Kante eine `Dependency` (`depends_on`) — 116 im ganzen Datensatz. Die Kette
+läuft in der **Zeit**: die nächste Stufe ist ein Epic, das später eingereicht
+wurde. Dass der Reifegrad entlang der Kette sinkt, ist die Folge und nicht die
+Vorgabe — und deshalb stimmt sie auch dann, wenn eine Stufe in ihrer Runde kein
+Geld bekommen hat und zurückgefallen ist.
 
 > Ein Befund am Rande, der im Datensatz **nicht** vorkommt: an **L3.1**
 > zeichnet der Produkt-Manager nicht mit, sobald der Antragsteller die fünf
