@@ -27,7 +27,17 @@ export interface GateCriteriaDoc {
   stageFrom: GateStep;
   stageTo: GateStep;
   /** Die Kriterien in Nutzersprache, mit Kennzeichnung „blockierend". */
-  criteria: { label: string; blocking: boolean }[];
+  criteria: {
+    label: string;
+    /**
+     * Ein bis zwei Sätze: was das Kriterium bedeutet und in welchem Reiter man
+     * es erfüllt. Er stand schon immer an jeder {@link CriterionRule}, war aber
+     * nur an einer einzigen Fläche sichtbar — durchgereicht kostet er nichts
+     * und macht aus der Tabelle eine vollständige Tor-Erklärung.
+     */
+    help: string;
+    blocking: boolean;
+  }[];
 }
 
 /** Ableitungsregel fuer eine Sub-Stage. */
@@ -61,6 +71,7 @@ export const GATE_CRITERIA_DOC: readonly GateCriteriaDoc[] = GATE_STEPS.flatMap(
       stageTo: to,
       criteria: rules.map((r) => ({
         label: r.label(DOC_LABEL_CONTEXT),
+        help: r.help,
         blocking: r.blocking,
       })),
     },

@@ -199,6 +199,40 @@ const config = [
       ],
     },
   },
+  // ── Wiki (ADR-0017, dasselbe Muster wie onboarding): ein Blatt über Core. Es
+  //    erklärt die Abläufe aller Module, verweist darauf aber ausschließlich per
+  //    String (Route, data-tour-Anker, Capability-Name) — nie per Import. Die
+  //    Figuren aus Domänen-Konstanten löst der App-Root auf
+  //    (`src/app/[locale]/(dashboard)/wiki/_figures`), nicht das Modul. Geprüft
+  //    von domain/__tests__/guides.test.ts.
+  {
+    files: ["src/modules/wiki/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/modules/work",
+                "@/modules/work/**",
+                "@/modules/drumbeat",
+                "@/modules/drumbeat/**",
+                "@/modules/budgeting",
+                "@/modules/budgeting/**",
+                "@/modules/risks",
+                "@/modules/risks/**",
+                "@/modules/onboarding",
+                "@/modules/onboarding/**",
+              ],
+              message:
+                "wiki liest nur core und verweist auf obere Module per String (ADR-0017); Figuren löst der App-Root auf.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // ── Composition-Root (P7 / ADR-0013): Core-Tier-Infra außerhalb von
   //    src/modules (geteilte Nav/Server/Lib/Components) liegt auf Core-Ebene und
   //    darf die Feature-Module (work/drumbeat/budgeting) NICHT importieren.

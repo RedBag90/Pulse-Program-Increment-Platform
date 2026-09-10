@@ -1,0 +1,95 @@
+import {
+  RISK_LEVELS,
+  BAND_THRESHOLDS,
+  riskExposure,
+  type ExposureBand,
+} from "@/modules/risks/domain/risk-matrix";
+
+const LEVEL_LABEL: Record<(typeof RISK_LEVELS)[number], string> = {
+  very_low: "sehr gering",
+  low: "gering",
+  medium: "mittel",
+  high: "hoch",
+  very_high: "sehr hoch",
+};
+
+// Die warme Heat-Skala — bewusst disjunkt von der kuehlen ROAM-Palette, damit
+// Kritikalitaet und Einordnung nie um dieselbe Farbe streiten.
+const BAND_TINT: Record<ExposureBand, string> = {
+  low: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200",
+  medium: "bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200",
+  high: "bg-orange-100 text-orange-900 dark:bg-orange-950/60 dark:text-orange-200",
+  critical: "bg-red-100 text-red-900 dark:bg-red-950/60 dark:text-red-200",
+};
+
+const BAND_LABEL: Record<ExposureBand, string> = {
+  low: "niedrig",
+  medium: "mittel",
+  high: "hoch",
+  critical: "kritisch",
+};
+
+/**
+ * **Die Exposure als 5×5-Gitter** — jede Zelle fragt `riskExposure`, also
+ * dieselbe Funktion, die auch die Zeile in der Liste und die Zelle in der
+ * Matrix faerbt.
+ *
+ * Deshalb steht hier keine Schwellen-Tabelle daneben, die veralten koennte:
+ * die Baender **entstehen** aus `BAND_THRESHOLDS`, und wer sie im Code
+ * verschiebt, verschiebt sie hier mit.
+ */
+export function ExposureMatrix() {
+  // Wahrscheinlichkeit von oben nach unten absteigend — wie in der Matrix.
+  const rows = [...RISK_LEVELS].reverse();
+  return (
+    <div className="space-y-3">
+      <div className="overflow-x-auto rounded-lg border bg-card p-3">
+        <table className="min-w-[420px] border-separate border-spacing-1 text-center text-[12.5px]">
+          <thead>
+            <tr>
+              <th className="w-28" />
+              {RISK_LEVELS.map((i) => (
+                <th
+                  key={i}
+                  className="px-1 pb-1 font-mono text-[9.5px] font-normal uppercase tracking-wider text-muted-foreground"
+                >
+                  {LEVEL_LABEL[i]}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((p) => (
+              <tr key={p}>
+                <th className="pr-2 text-right font-mono text-[9.5px] font-normal uppercase tracking-wider text-muted-foreground">
+                  {LEVEL_LABEL[p]}
+                </th>
+                {RISK_LEVELS.map((i) => {
+                  const e = riskExposure(p, i);
+                  return (
+                    <td
+                      key={i}
+                      className={`rounded px-2 py-2 font-medium tabular-nums ${BAND_TINT[e.band]}`}
+                      title={BAND_LABEL[e.band]}
+                    >
+                      {e.score}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
+        <span className="font-mono text-[10.5px] uppercase tracking-wider">Bänder</span>
+        {BAND_THRESHOLDS.map((t) => (
+          <span key={t.band} className="inline-flex items-center gap-1.5">
+            <span aria-hidden className={`inline-block size-2.5 rounded-sm ${BAND_TINT[t.band]}`} />
+            {BAND_LABEL[t.band]} <span className="tabular-nums">≤ {t.max}</span>
+          </span>
+        ))}
+      </p>
+    </div>
+  );
+}

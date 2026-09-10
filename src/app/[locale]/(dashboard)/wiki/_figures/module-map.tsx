@@ -1,0 +1,62 @@
+import {
+  MODULE_KEYS,
+  MODULES,
+  MODULE_PREREQUISITES,
+  CORE_SEGMENTS,
+} from "@/modules/core/kernel/domain/modules";
+
+/**
+ * **Die erste der drei Schranken**, gezeichnet aus der Registry selbst: welche
+ * Module es gibt, was jedes mitbringt und welches ein anderes voraussetzt.
+ *
+ * „Fuenf Module gibt es" ist genau der Satz, der in einem Erklaertext veraltet,
+ * sobald ein sechstes dazukommt. Hier zaehlt ihn niemand ab — er entsteht aus
+ * `MODULE_KEYS`.
+ */
+export function ModuleMap() {
+  return (
+    <div className="space-y-3">
+      <div className="divide-y overflow-hidden rounded-lg border bg-card">
+        {MODULE_KEYS.map((k) => {
+          const def = MODULES[k];
+          const needs = MODULE_PREREQUISITES[k];
+          return (
+            <div
+              key={k}
+              className="grid gap-2 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
+            >
+              <div className="space-y-1">
+                <p className="font-heading text-sm font-semibold text-foreground">
+                  {def.label}{" "}
+                  <span className="font-mono text-[11px] font-normal text-muted-foreground">
+                    {k}
+                  </span>
+                </p>
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                  {def.segments.map((s) => `/${s}`).join(" · ")}
+                </p>
+              </div>
+              <p className="font-mono text-[11px] text-muted-foreground sm:text-right">
+                {needs.length === 0 ? (
+                  <span className="text-muted-foreground/60">ohne Voraussetzung</span>
+                ) : (
+                  <>braucht {needs.join(", ")}</>
+                )}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+      <p className="max-w-[var(--reading-max-w)] text-[13px] leading-relaxed text-muted-foreground">
+        Ausserhalb jeder Schranke stehen nur{" "}
+        {CORE_SEGMENTS.map((s) => (
+          <code key={s} className="mr-1 rounded bg-muted px-1 py-0.5 font-mono text-[11.5px]">
+            /{s}
+          </code>
+        ))}
+        — Einstieg, eigene Inbox und die Flächen, die die Anwendung erklären. Sie dürfen nie
+        fail-closed weggeleitet werden.
+      </p>
+    </div>
+  );
+}

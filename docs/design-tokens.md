@@ -18,6 +18,7 @@ these tokens.
 | `--section-inner-gap`  | `1rem`   | Vertical gap between children inside a `<PageSection>` (≈ `space-y-4`). |
 | `--page-header-gap`    | `0.5rem` | Gap between `<PageHeader>` title and subtitle.                          |
 | `--page-header-margin` | `1.5rem` | Gap between `<PageHeader>` and the first section below.                 |
+| `--reading-max-w`      | `68ch`   | Max width of running prose — long-form text only, not layout.           |
 
 ## Tailwind equivalence
 
@@ -63,6 +64,12 @@ have outer padding, use `variant="flush"`:
 
 `variant="flush"` removes `--page-pad-x`/`--page-pad-y` but keeps
 `--page-max-w` centering. Document the reason in a comment when using it.
+
+Running prose — the Wiki guides, long explanatory copy — sets
+`max-w-[var(--reading-max-w)]` on the **text element itself**, never on the
+column around it. Tables, figures and code blocks in the same flow stay full
+width; only the lines a reader's eye tracks are capped, at roughly 68
+characters.
 
 ## Don't
 

@@ -1,0 +1,56 @@
+import {
+  HORIZONS,
+  HORIZON_LABEL,
+  HORIZON_HELP,
+  stationsOf,
+} from "@/modules/work/domain/portfolio-guardrails";
+
+/**
+ * **Vier Horizonte, fuenf Stationen.** Genau das soll die Figur zeigen: nur H1
+ * traegt zwei Plaketten, alle anderen eine.
+ *
+ * Jede Zeile kommt aus `HORIZONS`, jede Plakette aus `stationsOf`. Wuerde
+ * jemand einen sechsten Horizont einfuehren, stuende er hier von selbst — und
+ * genau das ist der Zweck: eine abgeschriebene Leiter faellt zurueck, diese
+ * nicht.
+ */
+export function HorizonLadder() {
+  return (
+    <div className="divide-y overflow-hidden rounded-lg border bg-card">
+      {HORIZONS.map((h) => {
+        const stations = stationsOf(h);
+        const help = HORIZON_HELP[h];
+        return (
+          <div key={h} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+            <div className="space-y-1.5">
+              <p className="font-heading text-sm font-semibold text-foreground">
+                {HORIZON_LABEL[h]}
+              </p>
+              <p className="text-[13.5px] leading-relaxed text-muted-foreground">{help.blurb}</p>
+              <dl className="grid gap-x-3 gap-y-0.5 text-[13px] text-muted-foreground sm:grid-cols-[auto_minmax(0,1fr)]">
+                <dt className="font-mono text-[10.5px] uppercase tracking-wider sm:pt-[3px]">
+                  Epics
+                </dt>
+                <dd>{help.epicArt}</dd>
+                <dt className="font-mono text-[10.5px] uppercase tracking-wider sm:pt-[3px]">
+                  Budget
+                </dt>
+                <dd>{help.budgetFokus}</dd>
+              </dl>
+            </div>
+            <div className="flex gap-1.5 sm:justify-end">
+              {stations.map((st) => (
+                <span
+                  key={st}
+                  className="rounded border bg-muted/60 px-2 py-1 font-mono text-[11px] tabular-nums text-muted-foreground"
+                >
+                  {st}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

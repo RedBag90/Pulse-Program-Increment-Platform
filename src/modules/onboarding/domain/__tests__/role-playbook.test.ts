@@ -1,6 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { NAV_GROUPS } from "@/components/nav/nav-config";
 import { ROLE_PLAYBOOKS, type PlaybookClaim, type TourStep } from "../role-playbook";
 import { ALL_ROLES, type Role } from "@/modules/core/kernel/domain/roles";
@@ -8,6 +6,7 @@ import { moduleForPath, MODULE_KEYS } from "@/modules/core/kernel/domain/modules
 import { routePath } from "../role-tour";
 import { POLICIES, type Action } from "@/server/auth/policies";
 import { ROLES } from "@/modules/core/kernel/domain/roles";
+import { appRoutes, emittedAnchors, anchorEmitted } from "@/test/helpers/app-routes";
 
 /**
  * Das Modul `onboarding` ist ein Blatt (ADR-0017): es erklärt die oberen Module,
@@ -71,24 +70,7 @@ describe("ROLE_PLAYBOOKS — Routen zeigen ins echte Produkt", () => {
   });
 
   it("jede Route hat eine echte page.tsx (fängt Rückbauten wie den Team-Teardown)", () => {
-    const base = join(process.cwd(), "src/app/[locale]/(dashboard)");
-
-    // Routen-Gruppen (`(organisation)`) verändern die Adresse nicht, wohl aber
-    // den Ordnerpfad. Deshalb wird der Baum abgelaufen und je `page.tsx` die
-    // Route rekonstruiert, statt den Pfad direkt zusammenzusetzen.
-    const routes = new Set<string>();
-    const walk = (dir: string, route: string): void => {
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        if (entry.isDirectory()) {
-          const isGroup = entry.name.startsWith("(") && entry.name.endsWith(")");
-          walk(join(dir, entry.name), isGroup ? route : `${route}/${entry.name}`);
-        } else if (entry.name === "page.tsx") {
-          routes.add(route === "" ? "/" : route);
-        }
-      }
-    };
-    walk(base, "");
-
+    const routes = appRoutes();
     const missing = ALL_STEPS.filter((s) => !routes.has(s.route.split("?")[0] ?? "")).map(
       (s) => `${s.key} → ${s.route}`,
     );
@@ -113,38 +95,11 @@ describe("ROLE_PLAYBOOKS — Anker zeigen auf echte Elemente", () => {
    * zu einer Kette zentrierter Karten geworden. Ein fehlender Anker ist kein
    * Absturz, sondern ein Fallback; genau deshalb braucht es eine explizite Prüfung.
    */
-  const SRC = join(process.cwd(), "src");
-
-  /** Alle `data-tour`-Werte, die im Quelltext wirklich ausgegeben werden. */
-  function emittedAnchors(): { literals: Set<string>; prefixes: string[] } {
-    const literals = new Set<string>();
-    const prefixes: string[] = [];
-    const walk = (dir: string) => {
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const p = join(dir, entry.name);
-        if (entry.isDirectory()) {
-          walk(p);
-          continue;
-        }
-        if (!entry.name.endsWith(".tsx")) continue;
-        const src = readFileSync(p, "utf8");
-        for (const m of src.matchAll(/data-tour="([^"]+)"/g)) literals.add(m[1]!);
-        // Template-Anker wie `group:${group.labelKey}` → nur der Präfix ist statisch.
-        for (const m of src.matchAll(/data-tour=\{`([a-z-]+:?[a-z-]*)\$\{/g)) prefixes.push(m[1]!);
-      }
-    };
-    walk(SRC);
-    return { literals, prefixes };
-  }
-
-  const { literals, prefixes } = emittedAnchors();
+  const emitted = emittedAnchors();
 
   it("jeder referenzierte Anker wird im Quelltext auch ausgegeben", () => {
     const missing = ALL_STEPS.filter((s) => s.anchor)
-      .filter((s) => {
-        const a = s.anchor!;
-        return !literals.has(a) && !prefixes.some((p) => a.startsWith(p));
-      })
+      .filter((s) => !anchorEmitted(s.anchor!, emitted))
       .map((s) => `${s.key} → ${s.anchor}`);
     expect(missing).toEqual([]);
   });

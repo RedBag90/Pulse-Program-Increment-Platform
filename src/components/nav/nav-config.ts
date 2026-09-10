@@ -23,6 +23,7 @@ import {
   Hammer,
   Wrench,
   MoreHorizontal,
+  BookOpen,
   ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
@@ -67,6 +68,13 @@ export const NAV_GROUPS: NavGroup[] = [
     labelKey: "myTasks",
     defaultHref: "/my-tasks",
     items: [{ href: "/my-tasks", labelKey: "myTasks", icon: ListTodo }],
+  },
+  {
+    // Das Wiki: die Ablaeufe als Anleitungen. Genau ein Item, also rendert die
+    // Topbar es als direkten Link mit dem Gruppen-Label — kein Aufklappen.
+    labelKey: "wiki",
+    defaultHref: "/wiki",
+    items: [{ href: "/wiki", labelKey: "wiki", icon: BookOpen }],
   },
   {
     labelKey: "goals",

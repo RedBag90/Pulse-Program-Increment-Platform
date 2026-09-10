@@ -118,6 +118,9 @@
   --page-pad-x-sm: 1.5rem;
   --page-pad-y: 2rem;
   --page-max-w: 1400px;
+  /* Lesebreite fuer Fliesstext. `--page-max-w` ist Layout-, nicht Lesebreite;
+     ab ~70 Zeichen faellt das Auge beim Zeilenwechsel in die falsche Zeile. */
+  --reading-max-w: 68ch;
   --page-section-gap: 1.5rem;
   --section-inner-gap: 1rem;
   --page-header-gap: 0.5rem;

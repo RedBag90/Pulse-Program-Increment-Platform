@@ -45,6 +45,11 @@ export const CORE_SEGMENTS: readonly string[] = [
   "my-tasks",
   "my-approvals",
   "meine-rolle",
+  // Das Wiki erklaert **alle** Module und darf deshalb an keinem haengen —
+  // dieselbe Begruendung wie bei `meine-rolle`. Welche Anleitung ein Mandant
+  // sieht, entscheidet `wiki/domain/guide-filter.ts` je Anleitung, nicht die
+  // Route.
+  "wiki",
 ];
 
 /**
