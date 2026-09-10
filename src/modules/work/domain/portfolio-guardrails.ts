@@ -97,11 +97,11 @@ export const HORIZON_HELP: Record<
 /** Kurze Konzept-Erklärungen für die Onboarding-Helfer. */
 export const CONCEPT_HELP = {
   solutionVsEpic:
-    "Eine Solution ist das langlebige Produkt/System (erzeugt laufende Betriebskosten, Run). Ein Epic ist eine große, zeitlich begrenzte Veränderung an einer Solution (Grow). Jedes Epic wird mindestens einer Solution zugeordnet; die Primär-Solution bestimmt seinen Investitionshorizont.",
+    "Eine Solution ist das langlebige Produkt/System (erzeugt laufende Betriebskosten, Run). Ein Epic ist eine große, zeitlich begrenzte Veränderung an einer Solution (Grow). Die Primär-Solution bestimmt den Investitionshorizont des Epics — außer in H3: dort gibt es keine Solution, und das Vorhaben trägt seinen Horizont selbst.",
   grow: "Grow = Σ Umsetzungskosten der laufenden Epics dieser Solution (Investition in Weiterentwicklung).",
   run: "Run = Σ der Run-the-Business-Positionen, die dieser Solution zugerechnet sind, auf ein Jahr gerechnet (Wartung, Support, Infrastruktur). Gepflegt werden sie im Budgeting-Modul — je Position mit eigener Periode; wertstrom-übergreifende Positionen zählen in keine Solution.",
   primarySolution:
-    "Die Primär-Solution eines Epics liefert seinen Investitionshorizont und seine Swimlane im Portfolio-Kanban.",
+    "Die Primär-Solution eines Epics liefert seinen Investitionshorizont und seine Swimlane im Portfolio-Kanban — solange am Epic selbst keiner steht. Ein R&D-Vorhaben hat gar keine Solution und trägt ihn deshalb immer selbst.",
 } as const;
 
 export const isEpicType = makeTypeGuard(EPIC_TYPES);

@@ -69,7 +69,7 @@ Der häufigste Irrtum beim Aufbau, und einer, der sich später rächt. Pulse fü
 | ----------------------- | -------------------------------------------------------------------- |
 | `HORIZONS` (4)          | H3 · R&D — H2 · Emerging — **H1 · Investing** — H0 · Decommissioning |
 | `STATIONS` (5)          | h3 — h2 — **h1.1 · Investing** — **h1.2 · Extracting** — h0          |
-| Solution-**Status** (5) | R&D — Emerging — Investing — Extracting — Decommissioning            |
+| Solution-**Status** (4) | Emerging — Investing — Extracting — Decommissioning                  |
 
 H1 zerfällt wirtschaftlich in zwei verschiedene Phasen: **ausbauen** gegen
 **ernten**. Deshalb hat die Solution fünf wählbare Status, während die
@@ -243,7 +243,6 @@ Horizont die Rede ist. Fünf Werte, alle englisch:
 
 | Status              | Bedeutung                                                                |
 | ------------------- | ------------------------------------------------------------------------ |
-| **R&D**             | Anwärter, noch keine eigene Solution                                     |
 | **Emerging**        | Anwärter, für den gerade ein Pilot oder MVP entsteht                     |
 | **Investing**       | der Pilot hat getragen — ab hier eine echte Solution, kein Anwärter mehr |
 | **Extracting**      | wird nicht mehr groß weiterentwickelt, sondern nur noch gepflegt         |
@@ -457,16 +456,23 @@ Es ist keine Beschriftung: daran hängt unter anderem, dass ich **bei den
 Reifegrad-Abnahmen der Epics meiner Solution mitzeichne**.
 
 Den **Status** ändere ich über die **Lebenszyklus-Leiste** — sie sitzt im
-Unterkopf der Detailseite und ist damit aus jedem Reiter erreichbar. Fünf
+Unterkopf der Detailseite und ist damit aus jedem Reiter erreichbar. Vier
 Stufen, in dieser Beschriftung:
 
 ```
-H3 · R&D → H2 · Emerging → H1.1 · Investing → H1.2 · Extracting → H0 · Decommissioning
+H2 · Emerging → H1.1 · Investing → H1.2 · Extracting → H0 · Decommissioning
 ```
 
 Darunter stehen nur die **erlaubten** Übergänge als Schaltflächen, vorwärts wie
-rückwärts: „Nach H2 (Emerging)", „Auf Ernten umstellen (H1.2)", „Wieder
-investieren (H1.1)", „Stilllegen (H0)", „Zurück zu H2".
+rückwärts: „Auf Ernten umstellen (H1.2)", „Wieder investieren (H1.1)",
+„Stilllegen (H0)", „Zurück zu H2".
+
+**In H3 gibt es keine Solution** (ADR-0020): dort wird geforscht, und ob daraus
+je ein Produkt wird, ist offen. Die Leiter beginnt deshalb bei _Emerging_, und
+ein Anwärter, der sich nicht bewährt, wird geordnet stillgelegt statt in eine
+Forschungsphase zurückgeschoben, die es als Solution-Zustand nicht mehr gibt.
+Ein R&D-**Vorhaben** trägt seinen Horizont am Epic — H3 bleibt eine gültige
+Guardrail-Bahn, nur ohne Produkt darin.
 
 **Eine Kante ist ein Tor.** `Emerging → Investing` heißt **„Nach H1
 befördern"** und öffnet einen Dialog mit vier Kriterien, die zu bestätigen sind:

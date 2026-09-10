@@ -6,12 +6,12 @@ import {
   SOLUTION_STATUSES,
   SOLUTION_STATUS_STEP_LABEL,
   SOLUTION_TRANSITIONS,
+  isSolutionHorizon,
   type SolutionStatus,
 } from "@/modules/work/domain/solution";
 
 describe("Solution-Status ↔ (Horizont, Modus)", () => {
   it("leitet den Status aus Horizont + Modus ab", () => {
-    expect(solutionStatusOf("h3", null)).toBe("rd");
     expect(solutionStatusOf("h2", null)).toBe("emerging");
     expect(solutionStatusOf("h1", "investing")).toBe("investing");
     expect(solutionStatusOf("h1", "extracting")).toBe("extracting");
@@ -28,7 +28,10 @@ describe("Solution-Status ↔ (Horizont, Modus)", () => {
       horizon: "h1",
       investmentMode: "investing",
     });
-    expect(solutionStatusToHorizonMode("rd")).toEqual({ horizon: "h3", investmentMode: null });
+    expect(solutionStatusToHorizonMode("emerging")).toEqual({
+      horizon: "h2",
+      investmentMode: null,
+    });
     expect(solutionStatusToHorizonMode("decommissioning")).toEqual({
       horizon: "h0",
       investmentMode: null,
@@ -48,10 +51,9 @@ describe("Solution-Status ↔ (Horizont, Modus)", () => {
   });
 });
 
-describe("Die Leiter — fünf Stufen, eine vierwertige Achse", () => {
-  it("beschriftet jede der fünf Stufen", () => {
+describe("Die Leiter — vier Stufen, eine dreiwertige Achse", () => {
+  it("beschriftet jede der vier Stufen", () => {
     expect(SOLUTION_STATUSES.map((s) => SOLUTION_STATUS_STEP_LABEL[s])).toEqual([
-      "H3 · R&D",
       "H2 · Emerging",
       "H1.1 · Investing",
       "H1.2 · Extracting",
@@ -68,14 +70,32 @@ describe("Die Leiter — fünf Stufen, eine vierwertige Achse", () => {
   });
 });
 
+describe("In H3 gibt es keine Solution", () => {
+  it("kein Status bildet auf H3 ab", () => {
+    const horizons = SOLUTION_STATUSES.map((s) => solutionStatusToHorizonMode(s).horizon);
+    expect(horizons).not.toContain("h3");
+  });
+
+  it("ein gespeichertes H3 aus dem Altbestand liest sich als Emerging", () => {
+    // Nicht als H1: der Anwärter bleibt ein Anwärter. Ein stiller Fallback auf
+    // „läuft im Kern" wäre die schlechtere Auskunft.
+    expect(solutionStatusOf("h3", null)).toBe("emerging");
+  });
+
+  it("H3 bleibt ein gültiger Horizont — für Epics", () => {
+    // Die Guardrail-Achse ist unberührt; nur das Produkt kann dort nicht stehen.
+    expect(isSolutionHorizon("h3")).toBe(false);
+    expect(isSolutionHorizon("h2")).toBe(true);
+  });
+});
+
 describe("SOLUTION_TRANSITIONS — die erlaubten Kanten", () => {
   it("nennt je Stufe genau die vorgesehenen Nachfolger", () => {
     const edges = Object.fromEntries(
       SOLUTION_STATUSES.map((s) => [s, SOLUTION_TRANSITIONS[s].map((t) => t.to)]),
     );
     expect(edges).toEqual({
-      rd: ["emerging"],
-      emerging: ["investing", "rd"],
+      emerging: ["investing", "decommissioning"],
       investing: ["extracting", "decommissioning", "emerging"],
       extracting: ["investing", "decommissioning", "emerging"],
       decommissioning: ["investing"],
@@ -113,7 +133,9 @@ describe("SOLUTION_TRANSITIONS — die erlaubten Kanten", () => {
       SOLUTION_STATUSES.flatMap((s) => SOLUTION_TRANSITIONS[s].map((t) => t.to)),
     );
     for (const s of SOLUTION_STATUSES) {
-      if (s !== "rd") expect(reachable).toContain(s); // R&D ist der Eintritt
+      // Emerging ist der Eintritt: eine Solution entsteht in H2, und niemand
+      // führt von aussen dorthin (ADR-0020).
+      if (s !== "emerging") expect(reachable).toContain(s);
       expect(SOLUTION_TRANSITIONS[s].length).toBeGreaterThan(0);
     }
   });

@@ -13,11 +13,16 @@ import { createServerAction } from "@/server/http/server-action";
 import { fields } from "@/server/http/form-data";
 import { formatDomainError } from "@/server/http/domain-error-display";
 import type { ActionState } from "@/server/http/server-action";
-import { solutionStatusToHorizonMode } from "@/modules/work/domain/solution";
+import { SOLUTION_STATUSES, solutionStatusToHorizonMode } from "@/modules/work/domain/solution";
 
 export type { ActionState as SolutionActionState };
 
-const status = z.enum(["rd", "emerging", "investing", "extracting", "decommissioning"]);
+/**
+ * **Eine Quelle statt zweier.** Die Liste stand hier bis ADR-0020 abgeschrieben —
+ * und genau deshalb hing der abgeschaffte Status `rd` an allen drei Actions
+ * gleichzeitig, obwohl die Domäne ihn längst nicht mehr kannte.
+ */
+const status = z.enum(SOLUTION_STATUSES);
 const tenantResource = (_i: unknown, p: { tenantId: string }) => ({ tenantId: p.tenantId });
 
 export const createSolutionAction = createServerAction({

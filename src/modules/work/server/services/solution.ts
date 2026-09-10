@@ -19,10 +19,29 @@ import { notDeleted } from "@/server/db/soft-delete";
 import { type Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import {
   investmentModeForHorizon,
+  isSolutionHorizon,
+  solutionStatusOf,
+  SOLUTION_TRANSITIONS,
   type InvestmentMode,
   type PromotionCriterionKey,
   PROMOTION_CRITERIA,
 } from "@/modules/work/domain/solution";
+
+/**
+ * **In H3 gibt es keine Solution** (ADR-0020). Der Guard steht im Service und
+ * nicht nur im Zod-Schema, weil die Regel eine fachliche ist: dort wird
+ * geforscht, und ob daraus je ein Produkt wird, ist offen.
+ */
+function rejectResearchHorizon(horizon: Horizon) {
+  return isSolutionHorizon(horizon)
+    ? null
+    : {
+        kind: "conflict" as const,
+        reason:
+          "In H3 gibt es keine Solution — dort wird geforscht. " +
+          "Ein R&D-Vorhaben trägt seinen Horizont am Epic; eine Solution entsteht frühestens in H2.",
+      };
+}
 import { loadAuthorizedEpic } from "@/modules/work/server/services/epic-access";
 import type { Prisma } from "@/generated/prisma";
 
@@ -171,6 +190,9 @@ export async function createSolution(
     const artCheck = await assertArtInStream(tx, mctx.tenantId, valueStreamId, artId);
     if (isErr(artCheck)) return artCheck;
 
+    const research = rejectResearchHorizon(horizon);
+    if (research) return err(research);
+
     const row = await tx.solution.create({
       data: {
         tenantId: mctx.tenantId,
@@ -225,6 +247,11 @@ export async function updateSolution(
       if (isErr(loaded)) return loaded;
     }
     const existing = row;
+
+    if (horizon !== undefined) {
+      const research = rejectResearchHorizon(horizon);
+      if (research) return err(research);
+    }
 
     const effectiveVs = valueStreamId ?? existing.valueStreamId;
     if (valueStreamId !== undefined) {
@@ -392,7 +419,14 @@ export async function promoteSolution(
   });
 }
 
-/** Freier Lifecycle-Wechsel (vor-/rückwärts), z. B. H3→H2, H1→H0, H0→H1. */
+/**
+ * Ein Schritt auf der Lebenszyklus-Leiter, vorwärts wie rückwärts.
+ *
+ * **Die erlaubten Kanten werden hier geprüft, nicht nur gezeichnet.** Bis
+ * ADR-0020 stand `SOLUTION_TRANSITIONS` allein in der Oberfläche: über diese
+ * Aktion war jeder Sprung möglich, auch `Decommissioning → R&D`. Eine Leiter,
+ * die nur die Fläche kennt, ist keine Regel, sondern eine Zusage.
+ */
 export async function setSolutionLifecycle(
   ctx: RequestContext,
   input: { id: string; horizon: Horizon; investmentMode?: InvestmentMode | null },
@@ -413,11 +447,26 @@ export async function setSolutionLifecycle(
     if (isErr(loaded)) return loaded;
     const existing = loaded.value;
 
+    const research = rejectResearchHorizon(horizon);
+    if (research) return err(research);
+
     // Der Modus: nennt der Aufrufer einen (die Leiter tut das — H1.1 und H1.2
     // sind für sie zwei Stufen), gilt der. Sonst bleibt der bestehende, und beim
     // Eintritt in H1 ohne Modus greift der Default „investing". Ausserhalb H1
     // räumt `investmentModeForHorizon` ihn in jedem Fall ab.
     const currentMode = existing.investmentMode as InvestmentMode | null;
+
+    // Der Weg muss auf der Leiter stehen. Der Ist-Zustand wird dafür aus
+    // `(horizon, investmentMode)` gelesen — derselbe Weg, den die Leiste geht.
+    const from = solutionStatusOf(existing.horizon as Horizon, currentMode);
+    const to = solutionStatusOf(horizon, investmentMode ?? currentMode);
+    if (from !== to && !SOLUTION_TRANSITIONS[from].some((t) => t.to === to)) {
+      return err({
+        kind: "conflict" as const,
+        reason: `Von „${from}" führt kein Schritt nach „${to}".`,
+      });
+    }
+
     const wanted = investmentMode !== undefined ? investmentMode : currentMode;
     const nextMode =
       horizon === "h1" ? (wanted ?? "investing") : investmentModeForHorizon(horizon, wanted);

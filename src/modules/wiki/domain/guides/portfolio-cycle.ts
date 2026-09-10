@@ -277,7 +277,7 @@ export const PORTFOLIO_CYCLE: Guide = {
             },
             {
               kind: "paragraph",
-              text: "**Warum das im Takt zählt und nicht nebenbei:** der Horizont einer Solution speist die Guardrail _Investment by Horizon_. Wird er nicht gepflegt, misst die Guardrail eine Verteilung, die es nicht mehr gibt — und die nächste Budget-Runde entscheidet gegen ein falsches Bild.",
+              text: "**Warum das im Takt zählt und nicht nebenbei:** die Guardrail _Investment by Horizon_ misst die Horizonte der **Epics** — und die erben ihn von ihrer Solution, solange sie keinen eigenen tragen. Wird der Horizont einer Solution nicht gepflegt, misst die Guardrail eine Verteilung, die es nicht mehr gibt, und die nächste Budget-Runde entscheidet gegen ein falsches Bild.",
             },
             {
               kind: "aside",

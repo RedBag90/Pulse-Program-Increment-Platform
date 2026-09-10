@@ -102,7 +102,7 @@ export const EPIC_INTAKE: Guide = {
             },
             {
               kind: "aside",
-              text: "Ein Epic ohne Primär-Solution hat zunächst **keinen Horizont** — der wird aus der Solution abgeleitet. Im Trichter landet es in der Bahn „Ohne“ und zählt in keiner Horizont-Quote mit. Das ist kein Fehler, sondern die Auskunft; aber es lohnt, sie zu kennen.",
+              text: "Ein Epic ohne Primär-Solution erbt **keinen Horizont** — der käme aus der Solution. Setze ich ihn am Epic selbst, zählt es ganz normal in seine Quote; lasse ich beides leer, landet es im Trichter in der Bahn „Ohne“. Das ist kein Fehler, sondern die Auskunft.",
             },
             {
               kind: "paragraph",

@@ -192,7 +192,7 @@ Portfolio-Guardrails ── tenant-weit, jederzeit`,
             },
             {
               kind: "note",
-              text: "**Das Feld heißt „Status“, nicht „Horizont“** — obwohl überall sonst vom Horizont die Rede ist. Fünf Werte, alle englisch, in der Leiter oben.",
+              text: "**Das Feld heißt „Status“, nicht „Horizont“** — obwohl überall sonst vom Horizont die Rede ist. Vier Werte, alle englisch, in der Leiter oben. **H3 steht nicht darunter:** dort wird geforscht, und ob daraus je ein Produkt wird, ist offen. Eine Solution entsteht frühestens in H2.",
             },
             {
               kind: "paragraph",
@@ -383,6 +383,10 @@ Portfolio-Guardrails ── tenant-weit, jederzeit`,
             {
               kind: "aside",
               text: "Das ist die Stelle, an der aus einem Anwärter ein Produkt wird — deshalb die einzige mit Rückfrage. H1.1 → H1.2 dagegen ist ein Klick ohne Dialog.",
+            },
+            {
+              kind: "note",
+              text: "**Die Leiter beginnt bei Emerging.** In H3 gibt es keine Solution — dort wird geforscht, und ob daraus je ein Produkt wird, ist offen. Ein R&D-Vorhaben trägt seinen Horizont deshalb **am Epic**, und die Guardrail zählt es trotzdem in die H3-Quote. Bewährt sich ein Anwärter nicht, wird er stillgelegt statt zurückgestuft.",
             },
             {
               kind: "paragraph",
