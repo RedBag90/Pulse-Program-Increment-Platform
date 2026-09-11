@@ -123,7 +123,7 @@ export function BenefitHypothesisEditor({
           </p>
         )}
         {state.success && (
-          <p role="status" className="text-sm text-emerald-600">
+          <p role="status" className="text-sm text-emerald-600 dark:text-emerald-400">
             Benefit Hypothese gespeichert.
           </p>
         )}

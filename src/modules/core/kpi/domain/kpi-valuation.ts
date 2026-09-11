@@ -94,22 +94,12 @@ export function kpiFulfillmentMean(kpis: KpiPoint[]): number | null {
 }
 
 /**
- * Raw calculatoric € total of a KPI at 100 % target: `|target − baseline| ×
- * valuePerUnit`. Returns `null` when any field is missing. This is the display
- * "≈ € Nutzen" figure — no one-time/recurring annualisation (see {@link kpiPlanned}).
- */
-export function kpiPlannedAtTarget(kpi: {
-  baseline: number | null;
-  target: number | null;
-  valuePerUnit: number | null;
-}): number | null {
-  if (kpi.valuePerUnit == null || kpi.baseline == null || kpi.target == null) return null;
-  return Math.abs(kpi.target - kpi.baseline) * kpi.valuePerUnit;
-}
-
-/**
  * Planned € of a KPI at 100 % target, one-time vs. recurring-annualised — the
- * single source of the formula previously duplicated in `epic-economics.ts`
+ * **die** Bewertungsfunktion des Hauses. Bis September 2026 stand daneben
+ * `kpiPlannedAtTarget`, das dieselbe Basis ohne Annualisierung lieferte; der
+ * KPI-Reiter las daraus, Rechen-Reiter und Overview hier — bei
+ * `recurring`/`monthly` ein Verhaeltnis von 1 : 12 fuer denselben KPI.
+ * Single source of the formula previously duplicated in `epic-economics.ts`
  * (the Portfolio-Review reader that has since been torn down). One-time → the raw base; recurring → base (yearly) or
  * base × 12 (monthly). Any missing field or a zero-width base → 0.
  */

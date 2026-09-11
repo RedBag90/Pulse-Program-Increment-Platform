@@ -10,6 +10,10 @@ import type {
   FeaturesOverviewModel,
 } from "@/modules/work/server/views/features-overview";
 import { FEATURE_TYPES, FEATURE_TYPE_LABEL } from "@/modules/work/domain/portfolio-guardrails";
+import { STATUS_LABELS, STATUS_DOT, STATUS_BADGE } from "@/components/detail/initiative-labels";
+import { STICKY_THEAD } from "@/components/ui/table-chrome";
+import { EmptyState } from "@/components/ui/empty-state";
+import { OctagonX } from "lucide-react";
 
 /**
  * Die geteilte Feature-Darstellung: Zähl-Chips, Filterleiste und Tabelle.
@@ -48,20 +52,14 @@ const TIER_LABEL: Record<WsjfTier, string> = {
   none: "Ungescored",
 };
 
-export const FEATURE_STATUS_LABEL: Record<FeatureStatus, string> = {
-  draft: "Entwurf",
-  approved: "Freigegeben",
-  in_progress: "In Umsetzung",
-  completed: "Abgeschlossen",
-};
-
-/** Achtung: `approved` und `completed` sind beide grün, nur unterschiedlich gesättigt. */
-export const FEATURE_STATUS_DOT: Record<FeatureStatus, string> = {
-  draft: "bg-muted-foreground/40",
-  approved: "bg-emerald-400",
-  in_progress: "bg-primary",
-  completed: "bg-emerald-500",
-};
+/**
+ * Status-Vokabular kommt aus `@/components/detail/initiative-labels` — dort
+ * liegen Label, Punkt **und** der dark-sichere Chip fuer alle Initiative-Level.
+ *
+ * Vorher standen hier eigene Fassungen von Label und Punkt. Das fiel in genau
+ * einer Zeile auf: die Statuszelle beschriftete aus der geteilten Tabelle, die
+ * Filterchips darueber aus der lokalen — zwei Quellen, ein Wert, ein Bildschirm.
+ */
 
 /** Unbekannter Status ⇒ `null`; die Zelle zeigt dann den Rohwert. */
 export function toFeatureStatus(raw: string): FeatureStatus | null {
@@ -71,8 +69,16 @@ export function toFeatureStatus(raw: string): FeatureStatus | null {
 type SortKey = "wsjf:desc" | "createdAt:desc" | "createdAt:asc";
 const SORT_KEYS: SortKey[] = ["wsjf:desc", "createdAt:desc", "createdAt:asc"];
 
-export type FeatureColumn = "valueStream" | "epic" | "pi" | "status" | "wsjf" | "ak";
-const ALL_COLUMNS: readonly FeatureColumn[] = ["valueStream", "epic", "pi", "status", "wsjf", "ak"];
+export type FeatureColumn = "valueStream" | "art" | "epic" | "pi" | "status" | "wsjf" | "ak";
+const ALL_COLUMNS: readonly FeatureColumn[] = [
+  "valueStream",
+  "art",
+  "epic",
+  "pi",
+  "status",
+  "wsjf",
+  "ak",
+];
 
 // ---------------------------------------------------------------------------
 // URL-State + Filterung
@@ -224,6 +230,9 @@ export function FeaturesListView({
   const colCount =
     1 +
     (show.has("valueStream") ? 1 : 0) +
+    // Die ART-Spalte fehlte hier, wurde aber immer gerendert: die Leerzeile
+    // spannte eine Spalte zu wenig.
+    (show.has("art") ? 1 : 0) +
     (show.has("epic") ? 1 : 0) +
     (show.has("pi") ? 1 : 0) +
     (show.has("status") ? 1 : 0) +
@@ -245,8 +254,8 @@ export function FeaturesListView({
                 : "border-input bg-card hover:bg-muted"
             }`}
           >
-            <span className={`size-2 rounded-full ${FEATURE_STATUS_DOT[s]}`} />
-            <span>{FEATURE_STATUS_LABEL[s]}</span>
+            <span className={`size-2 rounded-full ${STATUS_DOT[s]}`} />
+            <span>{STATUS_LABELS[s]}</span>
             <span
               className={`tabular-nums ${state.status === s ? "text-primary-foreground" : "text-muted-foreground"}`}
             >
@@ -363,13 +372,17 @@ export function FeaturesListView({
         </select>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border bg-card">
-        <table className="w-full text-sm">
+      {/* `overflow-hidden` schnitt breite Tabellen ab, statt sie scrollen zu
+          lassen; der Kopf war eine fuenfte Fassung von `STICKY_THEAD` und klebte
+          nicht. Vorbild ist `tree-table-style.tsx` im Issues-Reiter. */}
+      <div className="overflow-x-auto rounded-xl bg-card ring-1 ring-foreground/10">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
-            <tr className="border-b bg-muted/30 text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <tr className={`${STICKY_THEAD} text-left`}>
               <th className="py-2 pl-4 pr-2">Feature</th>
-              {show.has("valueStream") && <th className="py-2 pr-3">Wertstrom · ART</th>}
-              {!show.has("valueStream") && <th className="py-2 pr-3">ART</th>}
+              {show.has("art") && (
+                <th className="py-2 pr-3">{show.has("valueStream") ? "Wertstrom · ART" : "ART"}</th>
+              )}
               {show.has("epic") && <th className="py-2 pr-3">Epic</th>}
               {show.has("pi") && <th className="py-2 pr-3">PI</th>}
               {show.has("status") && <th className="py-2 pr-3">Status</th>}
@@ -381,8 +394,8 @@ export function FeaturesListView({
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={colCount} className="py-12 text-center text-sm text-muted-foreground">
-                  {emptyLabel}
+                <td colSpan={colCount} className="p-0">
+                  <EmptyState title={emptyLabel} />
                 </td>
               </tr>
             ) : (
@@ -444,7 +457,7 @@ function FeatureTableRow({
           <div className="flex items-center gap-2">
             {statusKey != null && (
               <span
-                className={`size-2 shrink-0 rounded-full ${FEATURE_STATUS_DOT[statusKey]}`}
+                className={`size-2 shrink-0 rounded-full ${STATUS_DOT[statusKey]}`}
                 aria-hidden
               />
             )}
@@ -468,22 +481,25 @@ function FeatureTableRow({
             )}
             {row.isBlocked && (
               <span
-                className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700"
+                className={`inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${STATUS_BADGE.blocked}`}
                 title="Ziel einer Blocker-Abhängigkeit"
               >
-                🛑
+                <OctagonX className="size-3" aria-hidden />
+                Blocker
               </span>
             )}
           </div>
         </td>
 
-        <td className="py-2 pr-3 text-xs text-muted-foreground">
-          <span className="block max-w-[180px] truncate">
-            {show.has("valueStream")
-              ? `${row.valueStream?.name ?? "—"} · ${row.art.name}`
-              : row.art.name}
-          </span>
-        </td>
+        {show.has("art") && (
+          <td className="py-2 pr-3 text-xs text-muted-foreground">
+            <span className="block max-w-[180px] truncate">
+              {show.has("valueStream")
+                ? `${row.valueStream?.name ?? "—"} · ${row.art.name}`
+                : row.art.name}
+            </span>
+          </td>
+        )}
 
         {show.has("epic") && (
           <td className="py-2 pr-3 text-xs">
@@ -518,12 +534,18 @@ function FeatureTableRow({
         )}
 
         {show.has("status") && (
-          <td className="py-2 pr-3 text-xs text-muted-foreground">
-            {renderStatus
-              ? renderStatus(row)
-              : statusKey != null
-                ? FEATURE_STATUS_LABEL[statusKey]
-                : row.status}
+          <td className="py-2 pr-3 text-xs">
+            {renderStatus ? (
+              renderStatus(row)
+            ) : statusKey != null ? (
+              <span
+                className={`inline-block rounded px-1.5 py-0.5 font-medium ${STATUS_BADGE[statusKey] ?? "bg-muted text-muted-foreground"}`}
+              >
+                {STATUS_LABELS[statusKey]}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">{row.status}</span>
+            )}
           </td>
         )}
 

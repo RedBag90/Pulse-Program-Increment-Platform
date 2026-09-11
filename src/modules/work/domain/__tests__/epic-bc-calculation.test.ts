@@ -103,3 +103,45 @@ describe("buildEpicBusinessCaseCalc", () => {
     expect(at(rows, "2025-02-01")!.gate).toBe("L4");
   });
 });
+
+/**
+ * Die Monatsebene entstand, damit nicht mehr alle Tageszeilen ins RSC-Payload
+ * reisen (fuer ein laufendes Epic ~1 675 Zeilen, 239 KB, bei zugeklappter
+ * Tabelle). Sie darf deshalb kein zweiter Rechenweg sein: dieselben Zahlen,
+ * nur grober.
+ */
+describe("Monatsebene", () => {
+  it("traegt exakt die Tagessummen — Kosten, Benefit und Kumulierte", () => {
+    const { rows, months } = buildEpicBusinessCaseCalc(base);
+
+    const dayCost = rows.reduce((s, r) => s + r.costPerDay, 0);
+    const monthCost = months.reduce((s, m) => s + m.cost, 0);
+    expect(monthCost).toBeCloseTo(dayCost, 6);
+
+    const dayBenefit = rows.reduce((s, r) => s + r.benefitPerDay, 0);
+    const monthBenefit = months.reduce((s, m) => s + m.benefit, 0);
+    expect(monthBenefit).toBeCloseTo(dayBenefit, 6);
+
+    // Der letzte Monat traegt denselben Endstand wie der letzte Tag.
+    const lastDay = rows[rows.length - 1]!;
+    const lastMonth = months[months.length - 1]!;
+    expect(lastMonth.cumCost).toBeCloseTo(lastDay.cumCost, 6);
+    expect(lastMonth.cumBenefit).toBeCloseTo(lastDay.cumBenefit, 6);
+    expect(lastMonth.net).toBeCloseTo(lastDay.net, 6);
+  });
+
+  it("deckt jeden Monat der Achse genau einmal ab", () => {
+    const { rows, months } = buildEpicBusinessCaseCalc(base);
+    const fromDays = [...new Set(rows.map((r) => r.day.slice(0, 7)))];
+    expect(months.map((m) => m.month)).toEqual(fromDays);
+  });
+
+  it("laesst die Tageszeilen bei granularity 'month' weg, die Monate aber stehen", () => {
+    const monthOnly = buildEpicBusinessCaseCalc({ ...base, granularity: "month" });
+    const full = buildEpicBusinessCaseCalc(base);
+    expect(monthOnly.rows).toHaveLength(0);
+    expect(monthOnly.months).toEqual(full.months);
+    // Die Rechnung selbst bleibt taggenau — die Zusammenfassung ist identisch.
+    expect(monthOnly.summary).toEqual(full.summary);
+  });
+});

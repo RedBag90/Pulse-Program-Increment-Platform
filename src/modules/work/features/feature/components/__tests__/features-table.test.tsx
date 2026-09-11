@@ -70,12 +70,24 @@ describe("FeaturesListView", () => {
     expect(screen.getByText(/Digital Banking · Mobile ART/)).toBeInTheDocument();
   });
 
-  it("blendet Epic und Wertstrom aus und zeigt dann nur den ART", () => {
+  // Im Deliverables-Reiter eines Epics traegt jede Zeile denselben ART — dieselbe
+  // Begruendung, mit der Epic und Wertstrom dort schon ausgeblendet waren. Die
+  // Spalte ist deshalb schaltbar geworden statt unbedingt gerendert zu werden.
+  it("blendet Epic, Wertstrom und ART aus, wenn sie nicht angefordert sind", () => {
     render(<FeaturesListView model={model([row()])} columns={["pi", "status", "wsjf", "ak"]} />);
     expect(screen.queryByText("Epic")).not.toBeInTheDocument();
     expect(screen.queryByText("Wertstrom · ART")).not.toBeInTheDocument();
+    expect(screen.queryByText("ART")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mobile ART")).not.toBeInTheDocument();
+  });
+
+  it("zeigt den ART allein, wenn er ohne Wertstrom angefordert wird", () => {
+    render(
+      <FeaturesListView model={model([row()])} columns={["art", "pi", "status", "wsjf", "ak"]} />,
+    );
     expect(screen.getByText("ART")).toBeInTheDocument();
     expect(screen.getByText("Mobile ART")).toBeInTheDocument();
+    expect(screen.queryByText("Wertstrom · ART")).not.toBeInTheDocument();
   });
 
   it("die Leerzeile spannt über genau die sichtbaren Spalten", () => {

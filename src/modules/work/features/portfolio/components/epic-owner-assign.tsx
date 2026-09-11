@@ -52,8 +52,8 @@ export function EpicOwnerAssign({ epicId, ownerId, canAssignOwner, approvers, us
       )}
 
       {canAssignOwner && (
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="min-w-0 max-w-[18rem] flex-1">
+        <div className="flex flex-col gap-2">
+          <div className="min-w-0">
             <UserPicker
               value={sel}
               onChange={setSel}
@@ -71,7 +71,7 @@ export function EpicOwnerAssign({ epicId, ownerId, canAssignOwner, approvers, us
             type="button"
             onClick={assign}
             disabled={pending || sel === "" || sel === (ownerId ?? "")}
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="self-start rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {pending ? "…" : "Owner zuweisen"}
           </button>

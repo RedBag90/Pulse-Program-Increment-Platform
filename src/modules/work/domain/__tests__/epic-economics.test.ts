@@ -7,6 +7,7 @@ import {
   type EpicEconomicsKpiInput,
   type EpicEconomicsSource,
 } from "@/modules/work/domain/epic-economics";
+import { kpiPlanned } from "@/modules/core/kpi/domain/kpi-valuation";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
@@ -160,5 +161,45 @@ describe("epicBenefitFromKpis", () => {
       fact({ benefitKind: "recurring", target: 5, valuePerUnit: 100 }), // 500 recurring p.a.
     ]);
     expect(b).toEqual({ oneTimeBenefit: 1000, recurringBenefit: 500 });
+  });
+});
+
+/**
+ * Der Reiter „KPI & Nutzenkalkulation" zeigt je KPI eine Zahl, Rechen-Reiter
+ * und Overview zeigen deren Summe. Bis September 2026 kamen die beiden aus
+ * **zwei** Funktionen: `kpiPlannedAtTarget` (ohne Annualisierung) und
+ * `kpiPlanned` (mit). Bei `recurring`/`monthly` standen damit 20.000 € und
+ * 240.000 € fuer dieselbe KPI auf derselben Seite — sichtbar erst, sobald
+ * jemand das Intervall setzen kann.
+ *
+ * Dieser Test haelt die Luecke geschlossen: was die Kachel zeigt, ist genau
+ * das, was in die Epic-Summe eingeht.
+ */
+describe("eine Bewertungsfunktion fuer Kachel und Summe", () => {
+  const monthly = {
+    baseline: 10,
+    target: 6,
+    valuePerUnit: 5000,
+    benefitKind: "recurring",
+    recurringInterval: "monthly",
+  };
+
+  it("annualisiert einen monatlich wiederkehrenden Nutzen — in Kachel und Summe gleich", () => {
+    const proKachel = kpiPlanned(monthly);
+    const summe = epicBenefitFromKpis([monthly]);
+
+    expect(proKachel).toBe(240_000); // |6 − 10| × 5.000 × 12
+    expect(summe.recurringBenefit).toBe(proKachel);
+    expect(summe.oneTimeBenefit).toBe(0);
+  });
+
+  it("laesst einmaligen Nutzen unannualisiert — auch bei monatlichem Intervall", () => {
+    const einmalig = { ...monthly, benefitKind: "one_time" };
+    const proKachel = kpiPlanned(einmalig);
+    const summe = epicBenefitFromKpis([einmalig]);
+
+    expect(proKachel).toBe(20_000);
+    expect(summe.oneTimeBenefit).toBe(proKachel);
+    expect(summe.recurringBenefit).toBe(0);
   });
 });

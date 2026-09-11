@@ -84,8 +84,8 @@ export function EpicSolutionsSection({
           const isLinked = selected.has(s.id);
           const isPrimary = primary === s.id;
           return (
-            <li key={s.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-              <label className="flex flex-1 items-center gap-2">
+            <li key={s.id} className="flex items-start gap-2 px-3 py-2 text-sm">
+              <label className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                 <input
                   type="checkbox"
                   checked={isLinked}
@@ -94,7 +94,7 @@ export function EpicSolutionsSection({
                   className="size-4 accent-primary"
                 />
                 <Link2 className="size-3.5 text-muted-foreground/60" />
-                <span className="font-medium">{s.name}</span>
+                <span className="min-w-0 truncate font-medium">{s.name}</span>
                 <HorizonBadge horizon={s.horizon} />
               </label>
               <button

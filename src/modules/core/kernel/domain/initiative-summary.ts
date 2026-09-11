@@ -15,6 +15,14 @@ export const STALE_AFTER_DAYS = 14;
 
 export interface InitiativeSummaryInput {
   stageGate: StageGate;
+  /**
+   * Beschriftung des **Major-Gates** — z. B. `"L4 Implementierung"` aus
+   * `STAGE_GATE_LABELS`. Wird sie weggelassen, steht der rohe Schlüssel im
+   * Band; das ist der Fall, den es nicht geben soll. Sie wird hereingereicht
+   * statt hier nachgeschlagen, weil dieses Modul im Kern liegt und die
+   * Etikettentabelle in der Darstellungsschicht.
+   */
+  stageLabel?: string;
   status: InitiativeStatus;
   childCount: number;
   completedChildCount: number;
@@ -41,7 +49,10 @@ const STATUS_TEXT: Record<InitiativeStatus, string> = {
  */
 export function buildInitiativeSummary(input: InitiativeSummaryInput): string {
   const now = input.now ?? new Date();
-  const clauses: string[] = [`Stage ${input.stageGate}`, STATUS_TEXT[input.status] ?? input.status];
+  const clauses: string[] = [
+    input.stageLabel ?? input.stageGate,
+    STATUS_TEXT[input.status] ?? input.status,
+  ];
 
   if (input.childCount > 0) {
     clauses.push(

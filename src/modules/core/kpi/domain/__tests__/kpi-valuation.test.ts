@@ -8,7 +8,6 @@ import {
   kpiAttainment,
   kpiFulfillmentMean,
   kpiPlanned,
-  kpiPlannedAtTarget,
 } from "@/modules/core/kpi/domain/kpi-valuation";
 
 describe("direction", () => {
@@ -140,19 +139,6 @@ describe("kpiFulfillmentMean — mean over KPIs that have data", () => {
   it("returns null when none qualify (empty, or all null-current)", () => {
     expect(kpiFulfillmentMean([])).toBeNull();
     expect(kpiFulfillmentMean([{ baseline: 0, target: 10, current: null }])).toBeNull();
-  });
-});
-
-describe("kpiPlannedAtTarget — raw |target−baseline| × €/unit", () => {
-  it("computes the calculatoric total in both directions", () => {
-    expect(kpiPlannedAtTarget({ baseline: 0, target: 10, valuePerUnit: 100 })).toBe(1000);
-    expect(kpiPlannedAtTarget({ baseline: 20, target: 0, valuePerUnit: 50 })).toBe(1000); // |−20|×50
-  });
-
-  it("returns null when any field is missing", () => {
-    expect(kpiPlannedAtTarget({ baseline: null, target: 10, valuePerUnit: 100 })).toBeNull();
-    expect(kpiPlannedAtTarget({ baseline: 0, target: null, valuePerUnit: 100 })).toBeNull();
-    expect(kpiPlannedAtTarget({ baseline: 0, target: 10, valuePerUnit: null })).toBeNull();
   });
 });
 

@@ -7,7 +7,23 @@ import {
 const NOW = new Date("2026-05-17T12:00:00Z");
 
 describe("buildInitiativeSummary", () => {
-  it("always opens with the stage and a humanised status", () => {
+  it("opens with the stage label and a humanised status", () => {
+    const s = buildInitiativeSummary({
+      stageGate: "L3",
+      stageLabel: "L3 Investition",
+      status: "in_progress",
+      childCount: 0,
+      completedChildCount: 0,
+      approvedAt: null,
+      updatedAt: NOW,
+      now: NOW,
+    });
+    expect(s).toBe("L3 Investition — in Umsetzung");
+  });
+
+  // Ohne Etikett bleibt der rohe Schluessel stehen — frueher stand davor noch
+  // ein englisches „Stage" in einer deutschen Oberflaeche.
+  it("falls back to the bare gate key when no label is supplied", () => {
     const s = buildInitiativeSummary({
       stageGate: "L3",
       status: "in_progress",
@@ -17,7 +33,7 @@ describe("buildInitiativeSummary", () => {
       updatedAt: NOW,
       now: NOW,
     });
-    expect(s).toBe("Stage L3 — in Umsetzung");
+    expect(s).toBe("L3 — in Umsetzung");
   });
 
   it("reports child completion when there are children", () => {

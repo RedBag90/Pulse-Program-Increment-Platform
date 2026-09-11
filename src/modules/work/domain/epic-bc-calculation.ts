@@ -64,6 +64,33 @@ export interface BcCalcInput {
   kpis: EpicEconomicsKpiInput[];
   /** „Heute" — Ist/Forecast-Grenze. */
   now: Date;
+  /**
+   * `"month"` laesst die Tageszeilen weg (Default `"day"`, damit vorhandene
+   * Aufrufer unveraendert bleiben). Die Rechnung selbst laeuft immer taggenau —
+   * gekappt wird nur, was den Client erreicht.
+   */
+  granularity?: "day" | "month";
+}
+
+/**
+ * Eine **Monatszeile** — die Ebene, mit der die Fläche startet.
+ *
+ * Bis September 2026 reiste ausschliesslich die Tagesebene ins RSC-Payload:
+ * fuer ein laufendes Epic rund 1 675 Zeilen und 239 KB JSON, obwohl die
+ * Tabelle zugeklappt oeffnet und beim ersten Rendern keine einzige davon
+ * zeigt. Monate sind hoechstens 72 — die Tage kommen beim Aufklappen nach.
+ */
+export interface BcCalcMonth {
+  /** `yyyy-mm`. */
+  month: string;
+  gateFrom: StageGate;
+  gateTo: StageGate;
+  cost: number;
+  benefit: number;
+  cumBenefit: number;
+  cumCost: number;
+  net: number;
+  isForecast: boolean;
 }
 
 /** Eine Tageszeile der Kalkulation. */
@@ -83,11 +110,25 @@ export interface BcCalcSummary {
   costStart: string;
   goLive: string;
   breakEvenDay: string | null;
+  /**
+   * **Zugeteilt** — die Kosten, welche die Kurve tatsaechlich traegt. Liegt eine
+   * `BudgetAllocation` vor, folgt sie ihr; sonst den Kostenscheiben. Das ist
+   * nicht zwingend `estimatedCost`: sobald ein Budget alloziert ist, koennen
+   * die beiden auseinandergehen — deshalb stehen sie nebeneinander statt als
+   * eine Zahl namens „Investition".
+   */
   totalCost: number;
+  /** **Veranschlagt** — Σ der Kostenscheiben aus dem Business Case. */
+  estimatedCost: number;
   recurringAnnualAtTarget: number;
   oneTimeAtTarget: number;
-  /** Jahres-Benefit @Ziel ÷ Gesamt-Investition × 100, oder null. */
-  roiPct: number | null;
+  /**
+   * Jahres-Nutzen @Ziel ÷ zugeteilte Kosten × 100, oder null.
+   *
+   * **Kein ROI**: bei Break-even steht hier 100 %, nicht 0 %. Ein ROI waere
+   * `(Nutzen − Kosten) / Kosten`. Der Name sagt jetzt, was die Zahl ist.
+   */
+  benefitCostRatioPct: number | null;
   firstDay: string;
   lastDay: string;
   /**
@@ -99,7 +140,13 @@ export interface BcCalcSummary {
 }
 
 export interface BcCalcResult {
+  /**
+   * Tageszeilen — **leer**, wenn `granularity: "month"` angefordert wurde.
+   * Dann liefert `loadBcCalcDays` sie fuer genau den aufgeklappten Monat nach.
+   */
   rows: BcCalcDay[];
+  /** Immer gefuellt: die Monatsebene, aus der Tabelle und Kurve entstehen. */
+  months: BcCalcMonth[];
   summary: BcCalcSummary;
 }
 
@@ -223,6 +270,7 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
 
   // ── Tagesschleife: Monatsbetrag ÷ Kalendertage (Kosten veranschlagt: Fenster) ─
   const rows: BcCalcDay[] = [];
+  const months: BcCalcMonth[] = [];
   let cumBenefit = 0;
   let cumCost = 0;
   let breakEvenDay: string | null = null;
@@ -237,9 +285,11 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
     cumBenefit += benefit;
     cumCost += cost;
     if (breakEvenDay === null && cumCost > 0 && cumBenefit >= cumCost) breakEvenDay = isoDay(d);
+    const iso = isoDay(d);
+    const gate = stageAtDay(d);
     rows.push({
-      day: isoDay(d),
-      gate: stageAtDay(d),
+      day: iso,
+      gate,
       costPerDay: cost,
       benefitPerDay: benefit,
       cumBenefit,
@@ -247,6 +297,32 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
       net: cumBenefit - cumCost,
       isForecast,
     });
+
+    // Monatsebene faellt im selben Durchlauf ab; ein zweiter Pass ueber die
+    // Tageszeilen waere reine Arbeit fuer dasselbe Ergebnis.
+    const ym = iso.slice(0, 7);
+    const last = months[months.length - 1];
+    if (last && last.month === ym) {
+      last.gateTo = gate;
+      last.cost += cost;
+      last.benefit += benefit;
+      last.cumBenefit = cumBenefit;
+      last.cumCost = cumCost;
+      last.net = cumBenefit - cumCost;
+      last.isForecast = last.isForecast && isForecast;
+    } else {
+      months.push({
+        month: ym,
+        gateFrom: gate,
+        gateTo: gate,
+        cost,
+        benefit,
+        cumBenefit,
+        cumCost,
+        net: cumBenefit - cumCost,
+        isForecast,
+      });
+    }
   }
 
   const totalCost = cumCost;
@@ -257,12 +333,37 @@ export function buildEpicBusinessCaseCalc(input: BcCalcInput): BcCalcResult {
     goLive: isoDay(eco.goLive),
     breakEvenDay,
     totalCost,
+    estimatedCost: eco.totals.implementationCost,
     recurringAnnualAtTarget: eco.recurringBenefit,
     oneTimeAtTarget: eco.oneTimeBenefit,
-    roiPct: totalCost > 0 ? (eco.recurringBenefit / totalCost) * 100 : null,
+    benefitCostRatioPct: totalCost > 0 ? (eco.recurringBenefit / totalCost) * 100 : null,
     firstDay: rows[0]?.day ?? isoDay(axisStart),
     lastDay: rows[rows.length - 1]?.day ?? isoDay(end),
     hasAllocation,
   };
-  return { rows, summary };
+  // Die Rechnung laeuft immer taggenau — gekappt wird nur, was den Client
+  // erreicht. Sonst waeren Monatssummen und Tagesdetail zwei Rechenwege.
+  return { rows: input.granularity === "month" ? [] : rows, months, summary };
+}
+
+/**
+ * Was der Rechen-Reiter braucht: **alle Monate, aber nur die Tage eines
+ * Monats**.
+ *
+ * Vorher reisten saemtliche Tageszeilen ins RSC-Payload — fuer ein laufendes
+ * Epic rund 1 675 Zeilen und 239 KB —, obwohl die Tabelle zugeklappt oeffnet
+ * und beim ersten Rendern keine einzige davon zeigt. Gerechnet wird weiterhin
+ * taggenau; gekappt wird nur die Uebertragung.
+ *
+ * `dayMonth` ist `yyyy-mm`; ohne Angabe kommen gar keine Tage mit.
+ */
+export function buildEpicBusinessCaseCalcForTab(
+  input: BcCalcInput,
+  dayMonth?: string | undefined,
+): BcCalcResult {
+  const full = buildEpicBusinessCaseCalc({ ...input, granularity: "day" });
+  return {
+    ...full,
+    rows: dayMonth ? full.rows.filter((r) => r.day.startsWith(dayMonth)) : [],
+  };
 }

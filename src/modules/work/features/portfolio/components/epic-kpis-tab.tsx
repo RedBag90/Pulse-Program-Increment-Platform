@@ -19,10 +19,12 @@ import {
   RECURRING_INTERVAL_LABELS,
 } from "@/modules/core/kpi/domain/kpi-recurring-interval";
 import { formatMetricValue } from "@/modules/core/goals/domain/goal-metric";
-import { kpiOutcome } from "@/modules/core/kpi/domain/kpi-outcome";
+import type { KpiOutcome } from "@/modules/core/kpi/domain/kpi-outcome";
 import { formatCompactEUR } from "@/lib/formatting";
 import type { EpicGoalLinkRow } from "@/modules/core/goals/server/views/epic-goal-contributions";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Sparkline } from "@/components/charts/sparkline";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,21 +60,29 @@ export interface KpiRow {
   measurements: { date: string; value: number }[];
   /** Zielerreichung 0..1 (Core `kpiAttainment`), im Read-Model vorberechnet; null = nicht messbar. */
   attainment: number | null;
-  /** |Ziel−Baseline|×€/Einheit (Core `kpiPlannedAtTarget`), vorberechnet; null = unbewertet. */
+  /**
+   * Geplanter €-Nutzen bei 100 % Zielerreichung (Core `kpiPlanned`), im
+   * Read-Model vorberechnet; null = unbewertet. Wiederkehrend + monatlich
+   * ist bereits annualisiert — dieselbe Zahl, die Rechen-Reiter und Overview
+   * zeigen.
+   */
   plannedTotal: number | null;
 }
+
+/**
+ * Eine Ziel-Verknüpfung **mit vorberechnetem Ergebnis**. `kpiOutcome` lief
+ * vorher hier im Browser, je Link — obwohl das Read-Model für dieselben KPIs
+ * ausdrücklich festhält, dass die Fläche rendern und nicht rechnen soll. Die
+ * Rechnung liegt jetzt in der Seite, wo Link und `frozenAt` zusammenkommen.
+ */
+export type EpicGoalLinkWithOutcome = EpicGoalLinkRow & { outcome: KpiOutcome };
 
 interface Props {
   initiativeId: string;
   kpis: KpiRow[];
   canEdit: boolean;
   /** Verknüpfte Ziele dieses Epics (Einheiten-Kaskade); leer = keine. */
-  goalLinks?: EpicGoalLinkRow[];
-  /**
-   * L4.2-Abnahme (`implementationCompletedAt`). Gesetzt ⇒ die gelieferte Menge
-   * steht fest; was danach noch gemessen wird, bewegt das Ergebnis nicht mehr.
-   */
-  frozenAt?: Date | null;
+  goalLinks?: EpicGoalLinkWithOutcome[];
   /** Sign-off state for the KPIs section (omit to hide the banner). */
 }
 
@@ -103,48 +113,24 @@ function TileBar({ ratio }: { ratio: number | null }) {
   );
 }
 
-/** Mini-Trendlinie über die Messwert-Historie (chronologisch, letzter Punkt markiert). */
-function Sparkline({ points }: { points: number[] }) {
-  if (points.length < 2) return null;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const range = max - min || 1;
-  const step = 100 / (points.length - 1);
-  const y = (v: number) => (22 - ((v - min) / range) * 18 + 1).toFixed(1);
-  const coords = points.map((v, i) => `${(i * step).toFixed(1)},${y(v)}`).join(" ");
-  return (
-    <svg
-      viewBox="0 0 100 24"
-      preserveAspectRatio="none"
-      className="h-6 w-20 shrink-0 overflow-visible text-primary"
-      aria-hidden="true"
-    >
-      <polyline
-        points={coords}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-      />
-      <circle cx={100} cy={y(points[points.length - 1]!)} r={1.8} className="fill-primary" />
-    </svg>
-  );
-}
-
-/** Kleiner „Bearbeiten"-Umschalter (kein Collapsible-Primitive im Kit). */
+/**
+ * „Bearbeiten"-Umschalter. Kein Collapsible-Primitive im Kit — die Schaltfläche
+ * selbst kommt aber aus der Bibliothek statt als rohes `<button>` mit
+ * nachgebauten Hover-Klassen.
+ */
 function EditToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="sm"
       onClick={onToggle}
       aria-expanded={open}
-      className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+      className="shrink-0 gap-1 text-xs text-muted-foreground"
     >
       {open ? "Fertig" : "Bearbeiten"}
       <ChevronDown className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
-    </button>
+    </Button>
   );
 }
 
@@ -174,7 +160,7 @@ function KpiItem({
     .map((m) => m.value);
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
       {/* Kopf: Name + Benefit-Badge + Bearbeiten */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -204,7 +190,8 @@ function KpiItem({
         </p>
         {total != null && (
           <p className="ml-auto text-sm text-muted-foreground">
-            ≈ <span className="font-medium text-foreground">{formatCompactEUR(total)}</span> Nutzen
+            ≈ <span className="font-medium text-foreground">{formatCompactEUR(total)}</span>
+            {kind === "recurring" ? " Nutzen p. a." : " Nutzen, einmalig"}
           </p>
         )}
       </div>
@@ -414,27 +401,16 @@ function CreateKpiForm({ initiativeId }: { initiativeId: string }) {
 function LinkOutcome({
   link,
   goalSpec,
-  frozenAt,
 }: {
-  link: EpicGoalLinkRow;
+  link: EpicGoalLinkWithOutcome;
   goalSpec: {
     metricType: string;
     precision: number;
     currencyCode: string | null;
     metricUnit: string | null;
   };
-  frozenAt: Date | null;
 }) {
-  const o = kpiOutcome({
-    baseline: link.kpiBaseline,
-    target: link.kpiTarget,
-    valuePerUnit: link.conversionFactor,
-    benefitKind: link.impactKind,
-    recurringInterval: link.recurringInterval,
-    measurements: link.kpiMeasurements,
-    planSnapshot: link.planSnapshot,
-    frozenAt,
-  });
+  const o = link.outcome;
 
   if (o.planned === 0 && o.realized === 0) return null;
   const unit = link.goalUnit ? ` ${link.goalUnit}` : "";
@@ -514,7 +490,11 @@ function LinkDelta({
   if (Math.abs(value) < 0.5) return <span>—</span>;
   const over = value > 0;
   return (
-    <span className={over ? "text-emerald-700" : "text-amber-700"}>
+    <span
+      className={
+        over ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"
+      }
+    >
       {over ? "+" : "−"}
       {formatMetricValue(Math.abs(value), goalSpec)}
       {suffix}
@@ -528,13 +508,11 @@ function LinkedGoalRow({
   initiativeId,
   kpis,
   canEdit,
-  frozenAt,
 }: {
-  link: EpicGoalLinkRow;
+  link: EpicGoalLinkWithOutcome;
   initiativeId: string;
   kpis: KpiRow[];
   canEdit: boolean;
-  frozenAt: Date | null;
 }) {
   const [state, action, pending] = useActionState(linkEpicToGoalAction, {});
   const chosen = kpis.find((k) => k.id === link.kpiId) ?? null;
@@ -552,13 +530,13 @@ function LinkedGoalRow({
   const kpiUnit = link.kpiUnit || chosen?.unit || "KPI-Einheit";
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
       {/* Kopf: Ziel-Titel + Bearbeiten */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium">{link.goalTitle}</p>
           {link.goalUnit && (
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
               Ziel-Einheit: {link.goalUnit}
             </p>
           )}
@@ -605,7 +583,7 @@ function LinkedGoalRow({
         )}
       </p>
 
-      {isSet && <LinkOutcome link={link} goalSpec={goalSpec} frozenAt={frozenAt} />}
+      {isSet && <LinkOutcome link={link} goalSpec={goalSpec} />}
 
       {canEdit && kpis.length === 0 && (
         <p className="mt-2 text-xs text-muted-foreground">
@@ -686,13 +664,11 @@ function LinkedGoalsSection({
   goalLinks,
   kpis,
   canEdit,
-  frozenAt,
 }: {
   initiativeId: string;
-  goalLinks: EpicGoalLinkRow[];
+  goalLinks: EpicGoalLinkWithOutcome[];
   kpis: KpiRow[];
   canEdit: boolean;
-  frozenAt: Date | null;
 }) {
   return (
     <section className="space-y-3">
@@ -702,10 +678,13 @@ function LinkedGoalsSection({
         bewegt (z. B. 10000 €/Wagon). Verknüpfung erfolgt im Ziele-Modul („Related work").
       </p>
       {goalLinks.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-card/50 px-4 py-8 text-center">
-          <Target className="size-6 text-muted-foreground/60" />
-          <p className="text-sm text-muted-foreground">Noch mit keinem Ziel verknüpft.</p>
-        </div>
+        <EmptyState
+          icon={<Target className="size-6" />}
+          title="Noch kein Ziel verknüpft"
+          body={
+            "Verknüpfe dieses Vorhaben mit einem Portfolio-Ziel, damit sein Nutzen dort erscheint. Die Verknüpfung selbst entsteht im Ziele-Modul unter „Related work“."
+          }
+        />
       ) : (
         <div className="space-y-3">
           {goalLinks.map((link) => (
@@ -715,7 +694,6 @@ function LinkedGoalsSection({
               initiativeId={initiativeId}
               kpis={kpis}
               canEdit={canEdit}
-              frozenAt={frozenAt}
             />
           ))}
         </div>
@@ -725,7 +703,7 @@ function LinkedGoalsSection({
 }
 
 /** KPIs tab — read-first tiles per KPI with edit-on-demand + linked-goal cascade. */
-export function EpicKpisTab({ initiativeId, kpis, canEdit, goalLinks, frozenAt = null }: Props) {
+export function EpicKpisTab({ initiativeId, kpis, canEdit, goalLinks }: Props) {
   return (
     <div className="space-y-6">
       <section className="space-y-3">
@@ -739,10 +717,11 @@ export function EpicKpisTab({ initiativeId, kpis, canEdit, goalLinks, frozenAt =
         </p>
 
         {kpis.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-card/50 px-4 py-8 text-center">
-            <Gauge className="size-6 text-muted-foreground/60" />
-            <p className="text-sm text-muted-foreground">Noch keine KPIs erfasst.</p>
-          </div>
+          <EmptyState
+            icon={<Gauge className="size-6" />}
+            title="Noch keine KPI erfasst"
+            body="KPIs tragen den Nutzen dieses Vorhabens: Baseline, Ziel und der €-Wert je Einheit ergeben den Betrag, mit dem Business Case und Rechnung arbeiten."
+          />
         ) : (
           <div className="space-y-3">
             {kpis.map((kpi) => (
@@ -760,7 +739,6 @@ export function EpicKpisTab({ initiativeId, kpis, canEdit, goalLinks, frozenAt =
             goalLinks={goalLinks}
             kpis={kpis}
             canEdit={canEdit}
-            frozenAt={frozenAt}
           />
         </>
       )}

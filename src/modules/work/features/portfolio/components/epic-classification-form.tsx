@@ -83,7 +83,11 @@ export function EpicClassificationForm({
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-4">
+      {/* Untereinander, nicht nebeneinander: die Karte steht in der schmalen
+          Akten-Spalte, und zwei Selects daneben ergeben zwei enge Streifen.
+          Bisher stand hier `grid-cols-2` ganz ohne Breakpoint — auf dem Handy
+          war es derselbe Fehler, nur früher. */}
+      <div className="grid gap-3">
         <div>
           <label
             htmlFor="epic-type-select"

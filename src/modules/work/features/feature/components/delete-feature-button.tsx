@@ -14,9 +14,9 @@ export function DeleteFeatureButton({ id, artId, title }: DeleteFeatureButtonPro
     <ConfirmMutateForm
       action={deleteFeatureAction}
       fields={{ id, artId }}
-      label="Delete"
-      pendingLabel="Deleting…"
-      confirmPrompt={`Delete feature "${title}"? All child stories will also be deleted.`}
+      label="Löschen"
+      pendingLabel="Wird gelöscht …"
+      confirmPrompt={`Feature „${title}“ löschen? Alle untergeordneten Stories werden mitgelöscht.`}
       variant="ghost"
       destructive
       className="text-xs hover:underline"

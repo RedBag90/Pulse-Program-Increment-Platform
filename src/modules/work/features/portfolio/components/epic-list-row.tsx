@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, startTransition } from "react";
+import { gateStepNumber } from "@/modules/work/domain/stage-gate";
 import { AlertTriangle, ArrowUp, Coins, MoreHorizontal, ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { STAGE_GATE_LABELS, SUB_STAGE_LABELS } from "@/components/detail/initiative-labels";
@@ -317,10 +318,10 @@ function GovernanceBadges({ row }: { row: EpicListRow }) {
       {gateRequest && (
         <span
           className="inline-flex h-5 items-center gap-0.5 rounded bg-primary/10 px-1.5 text-[10px] font-medium tabular-nums text-primary"
-          title={`Wechsel nach ${gateRequest.toGate} beantragt — ${gateRequest.pendingCount} von ${gateRequest.totalCount} Abnahmen offen`}
+          title={`Wechsel nach ${gateStepNumber(gateRequest.toGate)} beantragt — ${gateRequest.pendingCount} von ${gateRequest.totalCount} Abnahmen offen`}
         >
           <ArrowUp className="size-3" />
-          {gateRequest.toGate}
+          {gateStepNumber(gateRequest.toGate)}
           <span className="text-primary/70">
             {gateRequest.totalCount - gateRequest.pendingCount}/{gateRequest.totalCount}
           </span>

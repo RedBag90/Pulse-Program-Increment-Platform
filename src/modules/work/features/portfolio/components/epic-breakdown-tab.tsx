@@ -9,6 +9,8 @@ import {
   FeaturesListView,
   toFeatureStatus,
 } from "@/modules/work/features/feature/components/features-table";
+import { SectionLabel } from "@/components/ui/section-label";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   tierFor,
   type FeatureOverviewRow,
@@ -194,7 +196,7 @@ function FeatureEditForm({ feature }: { feature: BreakdownFeature }) {
         </p>
       )}
       {state.success && (
-        <p role="status" className="text-sm text-emerald-600">
+        <p role="status" className="text-sm text-emerald-600 dark:text-emerald-400">
           Gespeichert.
         </p>
       )}
@@ -308,10 +310,14 @@ export function EpicBreakdownTab({
 
   return (
     <div className="space-y-4">
+      {/* Die h2 wiederholte wortgleich das aktive Element der Reiterleiste
+          links. Ein SectionLabel benennt die Menge, statt den Namen zu doppeln. */}
       <div className="flex items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-medium">
-          {view === "graph" ? "Dependencies" : "Deliverables"}
-        </h2>
+        <SectionLabel>
+          {view === "graph"
+            ? "Abhängigkeiten"
+            : `Deliverables${features.length > 0 ? ` · ${features.length}` : ""}`}
+        </SectionLabel>
         {canEdit && view === "list" && (
           <CreateFeatureDialog
             epics={[{ id: epicId, title: epicTitle, valueStreamId: epicValueStreamId }]}
@@ -362,10 +368,19 @@ export function EpicBreakdownTab({
           savedPositions={breakdownLayoutPositions}
         />
       ) : features.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-card/50 px-4 py-10 text-center">
-          <PackageOpen className="size-6 text-muted-foreground/60" />
-          <p className="text-sm text-muted-foreground">Noch keine Deliverables in diesem Epic.</p>
-        </div>
+        <EmptyState
+          icon={<PackageOpen className="size-6" />}
+          title="Noch keine Deliverables"
+          body="Deliverables sind die Features, mit denen dieses Epic umgesetzt wird. Sie tragen PI, Status und WSJF."
+          action={
+            canEdit ? (
+              <CreateFeatureDialog
+                epics={[{ id: epicId, title: epicTitle, valueStreamId: epicValueStreamId }]}
+                context={{ epicId }}
+              />
+            ) : undefined
+          }
+        />
       ) : (
         <FeaturesListView
           model={listModel}

@@ -221,6 +221,7 @@ function SummaryBand({ model }: { model: FeatureDetailModel }) {
   if (!model.stageGate) return null;
   const summary = buildInitiativeSummary({
     stageGate: model.stageGate as StageGate,
+    stageLabel: STAGE_GATE_LABELS[model.stageGate] ?? model.stageGate,
     status: model.status as InitiativeStatus,
     childCount: 0,
     completedChildCount: 0,

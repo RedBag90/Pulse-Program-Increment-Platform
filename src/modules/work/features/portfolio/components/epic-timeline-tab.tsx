@@ -100,7 +100,8 @@ function VarianceBadge({ estimate, actual }: { estimate: string; actual: string 
 type RowStatus = "done" | "current" | "upcoming";
 
 function StatusIcon({ status }: { status: RowStatus }) {
-  if (status === "done") return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+  if (status === "done")
+    return <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />;
   if (status === "current") return <CircleDot className="h-4 w-4 text-primary" />;
   return <Circle className="h-4 w-4 text-muted-foreground/50" />;
 }
@@ -453,7 +454,9 @@ export function EpicTimelineTab({
             {saving ? "Speichern…" : "Termine speichern"}
           </button>
           {saveState.error && <span className="text-sm text-destructive">{saveState.error}</span>}
-          {saveState.success && <span className="text-sm text-emerald-600">Gespeichert.</span>}
+          {saveState.success && (
+            <span className="text-sm text-emerald-600 dark:text-emerald-400">Gespeichert.</span>
+          )}
         </div>
       ) : (
         <p className="flex items-center gap-2 border-t pt-4 text-xs text-muted-foreground">

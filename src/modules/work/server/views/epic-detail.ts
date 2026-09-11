@@ -5,7 +5,7 @@ import type { Principal } from "@/server/auth/principal";
 import { authorize, hasCapability } from "@/server/auth/authorize";
 import { getEpic } from "@/modules/work/server/services/epic";
 import { loadBreakdownLayout } from "@/modules/work/server/services/breakdown-layout";
-import { listInitiativeHistory } from "@/modules/core/kernel/server/initiative";
+import { listInitiativeHistory, ACTIVITY_PAGE_SIZE } from "@/modules/core/kernel/server/initiative";
 import { listKpis } from "@/modules/core/kpi/server/kpi";
 import { getTenantPractices } from "@/server/services/target-model";
 import { parseKpiMeasurements, latestKpiValue } from "@/modules/core/kpi/domain/kpi";
@@ -28,7 +28,7 @@ import { epicBenefitFromKpis, type EpicBenefit } from "@/modules/work/domain/epi
 import {
   kpiAttainment,
   kpiFulfillmentMean,
-  kpiPlannedAtTarget,
+  kpiPlanned,
 } from "@/modules/core/kpi/domain/kpi-valuation";
 import { subStageFor } from "@/modules/work/domain/stage-gate";
 import { type GateReadiness, nextGate, previousGate } from "@/modules/work/domain/gate-readiness";
@@ -241,6 +241,8 @@ export interface EpicDetailModel {
   risks: RisksSlice;
 
   activityEvents: ActivityItem[];
+  /** `true` ⇒ es gibt aeltere Ereignisse, die diese Seite nicht zeigt. */
+  activityTruncated: boolean;
 
   kpiRows: KpiRow[];
   kpiBenefit: EpicBenefit;
@@ -490,7 +492,8 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
 
   // The right-hand activity feed merges audit events and approval comments into
   // one stream, newest-first (page lines 282-307).
-  const auditItems: ActivityItem[] = historyEvents.map((e) => ({
+  const activityTruncated = historyEvents.length > ACTIVITY_PAGE_SIZE;
+  const auditItems: ActivityItem[] = historyEvents.slice(0, ACTIVITY_PAGE_SIZE).map((e) => ({
     id: e.id,
     action: e.action,
     occurredAt: e.occurredAt.toISOString(),
@@ -526,7 +529,23 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
       // Precomputed in the read-model so the KPIs tab renders instead of
       // recomputing the attainment / €-total math client-side.
       attainment: kpiAttainment({ baseline, target, current: latest }),
-      plannedTotal: kpiPlannedAtTarget({ baseline, target, valuePerUnit }),
+      // `kpiPlanned` statt `kpiPlannedAtTarget`: **eine** Bewertungsfunktion
+      // fuer alle Flaechen. Beide rechnen `|Ziel − Baseline| × €/Einheit`,
+      // aber nur `kpiPlanned` annualisiert einen monatlich wiederkehrenden
+      // Nutzen. Vorher zeigte der KPI-Reiter denselben KPI um Faktor 12
+      // niedriger als Rechen-Reiter und Overview — heute nicht sichtbar, weil
+      // `recurringInterval` ueber keine Oberflaeche setzbar ist, aber die
+      // Luecke schnappt zu, sobald sie es wird.
+      plannedTotal:
+        valuePerUnit == null || baseline == null || target == null
+          ? null
+          : kpiPlanned({
+              baseline,
+              target,
+              valuePerUnit,
+              benefitKind: k.benefitKind,
+              recurringInterval: k.recurringInterval,
+            }),
     };
   });
 
@@ -614,6 +633,7 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
     budgeting: budgetingSlice,
     risks: risksSlice,
     activityEvents,
+    activityTruncated,
     kpiRows,
     kpiBenefit,
     benefitHypothesis,
@@ -707,7 +727,9 @@ export async function loadEpicDetailInputs(
     gateHistory,
     readiness,
   ] = await Promise.all([
-    listInitiativeHistory(db, principal.tenantId, epic.id),
+    // Eins mehr als angezeigt: nur so laesst sich der Deckel exakt melden,
+    // statt ihn zu erraten (genau 50 Ereignisse sind nicht abgeschnitten).
+    listInitiativeHistory(db, principal.tenantId, epic.id, ACTIVITY_PAGE_SIZE + 1),
     listKpis(db, principal.tenantId, epic.id as EpicId),
     getTenantPractices(db, principal.tenantId),
     loadBreakdownLayout(db, principal.tenantId, epic.id as EpicId),

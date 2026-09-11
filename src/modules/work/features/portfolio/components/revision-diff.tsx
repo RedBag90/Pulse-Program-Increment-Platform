@@ -124,7 +124,11 @@ export function RevisionDiff({ rows }: { rows: DiffRow[] }) {
         return (
           <div
             key={r.label}
-            className={`rounded border p-2 ${changed ? "border-amber-200 bg-amber-50" : "bg-muted/20"}`}
+            className={`rounded border p-2 ${
+              changed
+                ? "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
+                : "bg-muted/20"
+            }`}
           >
             <p className="mb-1 text-xs font-medium text-muted-foreground">{r.label}</p>
             <div className="grid grid-cols-2 gap-4 text-sm">

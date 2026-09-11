@@ -25,7 +25,7 @@ interface EpicEditFormProps {
 }
 
 const SELECT_CLASS =
-  "w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50";
+  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
 
 /**
  * Beschreibungs-Formular des Overview-Tabs: Titel, Description sowie die
@@ -62,7 +62,7 @@ export function EpicEditForm({
           name="title"
           defaultValue={currentTitle}
           required
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
 
@@ -91,7 +91,9 @@ export function EpicEditForm({
               </option>
             ))}
           </select>
-          {valueStreams.error && <p className="text-red-600 text-xs mt-1">{valueStreams.error}</p>}
+          {valueStreams.error && (
+            <p className="mt-1 text-xs text-destructive">{valueStreams.error}</p>
+          )}
         </div>
 
         <div>
@@ -120,7 +122,7 @@ export function EpicEditForm({
               </option>
             ))}
           </select>
-          {arts.error && <p className="text-red-600 text-xs mt-1">{arts.error}</p>}
+          {arts.error && <p className="mt-1 text-xs text-destructive">{arts.error}</p>}
         </div>
       </div>
 
@@ -140,17 +142,17 @@ export function EpicEditForm({
           name="description"
           defaultValue={currentDescription}
           rows={5}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
 
       {state.error && (
-        <p role="alert" className="text-red-600 text-sm">
+        <p role="alert" className="text-sm text-destructive">
           {state.error}
         </p>
       )}
       {state.success && (
-        <p role="status" className="text-green-600 text-sm">
+        <p role="status" className="text-sm text-emerald-600 dark:text-emerald-400">
           Saved successfully.
         </p>
       )}
@@ -158,7 +160,7 @@ export function EpicEditForm({
       <button
         type="submit"
         disabled={isPending || !artId}
-        className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
       >
         {isPending ? "Saving…" : "Save changes"}
       </button>

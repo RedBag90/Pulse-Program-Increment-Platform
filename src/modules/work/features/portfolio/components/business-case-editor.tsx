@@ -6,6 +6,7 @@ import { saveBusinessCaseAction } from "@/modules/work/features/portfolio/action
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { SectionLabel } from "@/components/ui/section-label";
 import { Link } from "@/i18n/navigation";
 import {
   costSliceLabel,
@@ -67,12 +68,12 @@ export function BusinessCaseEditor({
   return (
     <div className="space-y-6">
       {readOnly && lockReason && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+        <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
           <Lock className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{lockReason}</span>
         </div>
       )}
-      <form action={action} className="space-y-6">
+      <form action={action} className="@container space-y-6">
         <input type="hidden" name="epicId" value={epicId} />
 
         <fieldset disabled={readOnly} className="space-y-6 border-0 p-0 m-0 min-w-0">
@@ -99,7 +100,7 @@ export function BusinessCaseEditor({
             />
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid gap-4 @md:grid-cols-2">
             <div>
               <label htmlFor="bc-outcome" className="block text-sm font-medium mb-1">
                 Business Outcome Hypothesis
@@ -114,12 +115,12 @@ export function BusinessCaseEditor({
             <div>
               <div className="flex items-baseline justify-between gap-2 mb-1">
                 <label className="block text-sm font-medium">Leading Indicators</label>
-                <a
-                  href="?tab=kpis"
+                <Link
+                  href={`/portfolio/epics/${epicId}?tab=kpis` as never}
                   className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                 >
-                  Im KPI-Tab pflegen <ArrowRight className="size-3" />
-                </a>
+                  In „KPI &amp; Nutzenkalkulation“ pflegen <ArrowRight className="size-3" />
+                </Link>
               </div>
               {/* Bestandswert mitsenden, damit der Full-Replace-Save den
                   alten Freitext nicht ueberschreibt (Migration koennte
@@ -131,7 +132,7 @@ export function BusinessCaseEditor({
               />
               {kpiNames.length === 0 ? (
                 <p className="rounded border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
-                  Noch keine KPI erfasst — pflege sie im KPI-Tab.
+                  Noch keine KPI erfasst — pflege sie im Reiter „KPI &amp; Nutzenkalkulation“.
                 </p>
               ) : (
                 <ul className="flex flex-wrap gap-1.5">
@@ -148,7 +149,7 @@ export function BusinessCaseEditor({
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid gap-4 @lg:grid-cols-3">
             <div>
               <label htmlFor="bc-inscope" className="block text-sm font-medium mb-1">
                 In Scope
@@ -180,11 +181,11 @@ export function BusinessCaseEditor({
           </div>
 
           {/* Implementation cost — 6-month demand calculation */}
-          <section className="rounded-lg border p-4">
+          <section className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
             <div className="grid gap-4 lg:grid-cols-3">
               <div className="space-y-3 lg:col-span-2">
                 <div>
-                  <p className="text-sm font-medium">Implementierungskosten — Bedarfskalkulation</p>
+                  <SectionLabel>Implementierungskosten — Bedarfskalkulation</SectionLabel>
                   <p className="text-xs text-muted-foreground">
                     Geschätzter Kostenbedarf je 6-Monats-Periode.
                   </p>
@@ -195,7 +196,7 @@ export function BusinessCaseEditor({
                 <div className="space-y-2">
                   {slices.map((amount, i) => (
                     <div key={i} className="flex items-center gap-3">
-                      <span className="w-32 shrink-0 text-sm text-muted-foreground">
+                      <span className="w-24 shrink-0 text-sm text-muted-foreground @sm:w-32">
                         {costSliceLabel(i)}
                       </span>
                       <Input
@@ -209,7 +210,7 @@ export function BusinessCaseEditor({
                           setSlices((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
                         }
                         placeholder="0"
-                        className="max-w-[12rem]"
+                        className="max-w-[8rem] @sm:max-w-[12rem]"
                       />
                       <button
                         type="button"
@@ -232,14 +233,14 @@ export function BusinessCaseEditor({
                 </button>
 
                 <div className="flex items-center gap-3 border-t pt-2 text-sm font-medium">
-                  <span className="w-32 shrink-0">Gesamtkosten</span>
+                  <span className="w-24 shrink-0 @sm:w-32">Gesamtkosten</span>
                   <span>{costTotal.toLocaleString("de-DE")}</span>
                 </div>
               </div>
 
-              <aside className="self-start rounded-md border bg-muted/30 p-3 text-sm">
+              <aside className="self-start rounded-xl bg-muted/30 p-3 text-sm ring-1 ring-foreground/10">
                 <div className="flex items-start gap-2">
-                  <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                  <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
                   <div className="space-y-2">
                     <p className="text-xs leading-snug text-muted-foreground">
                       Zur besseren Konkretisierung brich das Epic in Deliverables herunter —
@@ -259,9 +260,9 @@ export function BusinessCaseEditor({
 
           {/* Nutzen: zwei Kacheln (einmalig / wiederkehrend), je Effekt in Top-Ziel-Einheit
               + Explorer-Baum, der die Kaskade Ebene für Ebene bis zu den KPIs aufschlüsselt. */}
-          <section className="space-y-4 rounded-lg border p-4">
+          <section className="space-y-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
             <div>
-              <p className="text-sm font-medium">Nutzen</p>
+              <SectionLabel>Nutzen</SectionLabel>
               <p className="text-xs text-muted-foreground">
                 Was dieses Epic über seine Erfolgs-KPIs beiträgt — in der Einheit des Top-Ziels,
                 über die Ziel-Kaskade hochgerechnet, getrennt nach einmalig und wiederkehrend.
@@ -320,9 +321,17 @@ export function BusinessCaseEditor({
             />
           </div>
 
+          {/* Es gab einmal einen Reiter „Freigaben"; seit dem Umbau laufen sie
+              ueber die Reifegrad-Karte und „Meine Tasks". Der alte Verweis
+              zeigte ins Leere. */}
           <div className="rounded border border-dashed bg-muted/30 p-3 text-sm text-muted-foreground">
-            Business-Case-Freigaben werden im Tab <span className="font-medium">„Freigaben"</span>{" "}
-            verwaltet (Mehrparteien-Workflow mit Status, Genehmiger und Datum).
+            Freigaben laufen über die{" "}
+            <span className="font-medium text-foreground">Reifegrad-Karte</span> oben auf dieser
+            Seite und erscheinen bei den Abnehmern unter{" "}
+            <Link href={"/my-tasks" as never} className="font-medium text-primary hover:underline">
+              Meine Tasks
+            </Link>{" "}
+            (Mehrparteien-Workflow mit Status, Genehmiger und Datum).
           </div>
         </fieldset>
 
@@ -332,7 +341,7 @@ export function BusinessCaseEditor({
           </p>
         )}
         {state.success && (
-          <p role="status" className="text-emerald-600 text-sm">
+          <p role="status" className="text-emerald-600 dark:text-emerald-400 text-sm">
             Business Case gespeichert.
           </p>
         )}
@@ -347,7 +356,7 @@ export function BusinessCaseEditor({
       </form>
 
       {history.length > 0 && (
-        <details className="rounded-lg border bg-muted/50 p-3">
+        <details className="rounded-xl bg-muted/50 p-3 ring-1 ring-foreground/10">
           <summary className="cursor-pointer text-sm font-medium text-foreground/80">
             Versionshistorie ({history.length})
           </summary>
@@ -391,17 +400,16 @@ function EffectTile({
     });
 
   return (
-    <div className="space-y-3 rounded-lg border bg-muted/10 p-3">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        {title}
-      </p>
+    <div className="space-y-3 rounded-xl bg-muted/10 p-3 ring-1 ring-foreground/10">
+      <SectionLabel>{title}</SectionLabel>
       {roots.length === 0 ? (
         <div className="flex items-start gap-2 text-xs text-muted-foreground">
-          <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
           <div className="space-y-2">
             <p className="leading-snug">
-              Kein {title.toLowerCase()} — verknüpfe im Tab „KPIs" ein Ziel (Erfolgs-KPI) und pflege
-              die Einheiten-Umrechnung je Ziel-Ebene, damit die Kaskade bis zum Top-Ziel rechnet.
+              Kein {title.toLowerCase()} — verknüpfe im Reiter „KPI &amp; Nutzenkalkulation“ ein
+              Ziel (Erfolgs-KPI) und pflege die Einheiten-Umrechnung je Ziel-Ebene, damit die
+              Kaskade bis zum Top-Ziel rechnet.
             </p>
             <Link
               href={`/portfolio/epics/${epicId}?tab=kpis` as never}
@@ -417,13 +425,13 @@ function EffectTile({
             <div key={root.goalId} className="space-y-1.5">
               <div>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-semibold tabular-nums">
+                  <span className="font-mono text-2xl font-light leading-none tabular-nums">
                     +{fmtUnit(root.planned)}
                   </span>
                   <span className="text-sm text-muted-foreground">{root.unit ?? ""}</span>
                   {root.brokenHere && (
                     <AlertTriangle
-                      className="size-3.5 text-amber-600"
+                      className="size-3.5 text-amber-600 dark:text-amber-400"
                       aria-label="Einheiten-Umrechnung fehlt."
                     />
                   )}
@@ -496,7 +504,7 @@ function CascadeRows({
               )}
               {node.brokenHere && (
                 <AlertTriangle
-                  className="size-3.5 shrink-0 text-amber-600"
+                  className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400"
                   aria-label="Ab hier keine Einheiten-Umrechnung hinterlegt — Beitrag bricht ab."
                 />
               )}

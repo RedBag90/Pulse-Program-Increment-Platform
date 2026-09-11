@@ -95,6 +95,22 @@ export function gateStepLabel(step: string): string {
   return GATE_STEP_LABELS[step as GateStep] ?? step;
 }
 
+/**
+ * Die **angezeigte Nummer** eines Schritts — `L4` heißt überall `L4.1`.
+ *
+ * Der gespeicherte Wert bleibt `"L4"`; das ist der Schlüssel in
+ * `stage_gate_transitions`, in der v1-API und in jeder Historie. Angezeigt
+ * werden darf er nie: wer ihn roh ausgibt, zeigt eine Nummer, die es am Epic
+ * danach nicht gibt — genau die Verwechslung, die `GATE_STEP_LABELS` oben
+ * beschreibt.
+ *
+ * Abgeleitet aus derselben Etikettenliste, damit keine zweite entsteht.
+ */
+export function gateStepNumber(step: string): string {
+  const label = GATE_STEP_LABELS[step as GateStep];
+  return label ? (label.split(" ")[0] ?? step) : step;
+}
+
 /** Erlaubte Schritt-Wechsel: ein Schritt vor oder zurück. */
 export const GATE_STEP_TRANSITIONS: Record<GateStep, readonly GateStep[]> = {
   L0: ["L1"],

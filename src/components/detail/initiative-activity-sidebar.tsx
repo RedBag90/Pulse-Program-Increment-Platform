@@ -55,10 +55,16 @@ function relativeTime(iso: string, now: number): string {
 export function InitiativeActivitySidebar({
   events,
   userLabels = {},
+  truncated = false,
 }: {
   events: ActivityItem[];
   /** Resolved user-id → display label (email) map for the actor line. */
   userLabels?: Record<string, string>;
+  /**
+   * `true` ⇒ es gibt aeltere Ereignisse, die nicht geladen wurden. Ohne diesen
+   * Hinweis behauptete die Spalte Vollstaendigkeit und schnitt still bei 50 ab.
+   */
+  truncated?: boolean;
 }) {
   const [filter, setFilter] = useState("all");
   const now = Date.now();
@@ -66,8 +72,9 @@ export function InitiativeActivitySidebar({
   const categories = [...new Set(events.map((e) => category(e.action)))].sort();
   const shown = filter === "all" ? events : events.filter((e) => category(e.action) === filter);
 
+  // Unter `lg` rutscht die Spalte unter den Inhalt statt ihn zu verengen.
   return (
-    <aside className="w-72 shrink-0 border-l bg-surface-frame">
+    <aside className="w-full shrink-0 border-t bg-surface-frame lg:w-72 lg:border-l lg:border-t-0">
       <div className="space-y-2 border-b p-3">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Aktivität
@@ -126,6 +133,11 @@ export function InitiativeActivitySidebar({
             );
           })}
         </ul>
+      )}
+      {truncated && (
+        <p className="border-t px-3 py-2 text-xs text-muted-foreground">
+          Nur die letzten 50 Ereignisse — ältere stehen im Reiter „History“.
+        </p>
       )}
     </aside>
   );

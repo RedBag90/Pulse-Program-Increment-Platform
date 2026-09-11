@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Download, Pencil, Plus } from "lucide-react";
+import { Download, Network, Pencil, Plus } from "lucide-react";
 import { toPng } from "html-to-image";
 import {
   ReactFlow,
@@ -59,6 +59,8 @@ import {
   insertFeatureBetweenAction,
 } from "@/modules/work/features/portfolio/actions/breakdown-network";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup } from "@/components/ui/toggle-group";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -127,8 +129,8 @@ interface Props {
 }
 
 const TIER_BADGE: Record<BreakdownGraphNode["wsjfTier"], string> = {
-  high: "bg-emerald-100 text-emerald-700",
-  medium: "bg-amber-100 text-amber-700",
+  high: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  medium: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
   low: "bg-muted text-muted-foreground",
   unscored: "bg-muted text-muted-foreground",
 };
@@ -407,7 +409,7 @@ const FeatureNode = memo(function FeatureNode({ data }: NodeProps) {
         </div>
         <div className="flex items-center gap-1.5 text-[10px]">
           <span
-            className={`rounded-full px-1.5 py-0.5 ${isEnabler ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}
+            className={`rounded-full px-1.5 py-0.5 ${isEnabler ? "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300" : "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"}`}
           >
             {isEnabler ? "Enabler" : "Feature"}
           </span>
@@ -542,7 +544,7 @@ const InsertableEdge = memo(function InsertableEdge(props: EdgeProps) {
                 <button
                   type="button"
                   aria-label="Abhängigkeitstyp ändern"
-                  className="rounded bg-white px-1 text-[10px] transition-colors hover:bg-muted"
+                  className="rounded bg-card px-1 text-[10px] transition-colors hover:bg-muted"
                   style={{ color: EDGE_COLOR[type] }}
                 >
                   {label}
@@ -550,7 +552,7 @@ const InsertableEdge = memo(function InsertableEdge(props: EdgeProps) {
               </EdgeTypePopover>
             ) : (
               <span
-                className="rounded bg-white px-1 text-[10px]"
+                className="rounded bg-card px-1 text-[10px]"
                 style={{ color: EDGE_COLOR[type] }}
               >
                 {label}
@@ -1140,17 +1142,22 @@ export function BreakdownNetworkView({
 
   if (model.nodes.length === 0) {
     return (
-      <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
-        <p>
-          Noch keine Features in diesem Epic — leg das erste an, dann baust du den Netzplan auf.
-        </p>
-        {canCreateFeature && (
-          <CreateFeatureDialog
-            epics={[{ id: epicId, title: epicTitle, valueStreamId: epicValueStreamId }]}
-            context={{ epicId }}
-          />
-        )}
-      </div>
+      // Vorher hiess dasselbe hier „Features" und im Deliverables-Reiter
+      // „Deliverables" — zwei Namen fuer dieselben Objekte, nebeneinander.
+      <EmptyState
+        className="h-64"
+        icon={<Network className="size-6" />}
+        title="Noch keine Deliverables"
+        body="Ohne Deliverables gibt es nichts zu verknüpfen. Lege das erste an, dann baut sich der Netzplan auf."
+        action={
+          canCreateFeature ? (
+            <CreateFeatureDialog
+              epics={[{ id: epicId, title: epicTitle, valueStreamId: epicValueStreamId }]}
+              context={{ epicId }}
+            />
+          ) : undefined
+        }
+      />
     );
   }
 
@@ -1177,28 +1184,17 @@ export function BreakdownNetworkView({
           aria-label="Suche im Netzplan"
           className="h-7 w-48 text-xs"
         />
-        <div
-          role="radiogroup"
-          aria-label="Typ-Filter"
-          className="inline-flex overflow-hidden rounded-md border bg-card"
-        >
-          {(["all", "feature", "enabler"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="radio"
-              aria-checked={urlType === t}
-              onClick={() => setUrlType(t)}
-              className={`px-2 py-0.5 ${
-                urlType === t
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted/50"
-              }`}
-            >
-              {t === "all" ? "Alle Typen" : t === "feature" ? "Feature" : "Enabler"}
-            </button>
-          ))}
-        </div>
+        <ToggleGroup
+          ariaLabel="Typ-Filter"
+          className="bg-card text-xs"
+          value={urlType}
+          onChange={setUrlType}
+          options={[
+            { id: "all", label: "Alle Typen" },
+            { id: "feature", label: "Feature" },
+            { id: "enabler", label: "Enabler" },
+          ]}
+        />
         {hasFilter && (
           <>
             <span className="text-muted-foreground">
@@ -1213,28 +1209,16 @@ export function BreakdownNetworkView({
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="inline-flex items-center gap-1.5">
           <span className="text-muted-foreground">Layout:</span>
-          <div
-            role="radiogroup"
-            aria-label="Layout-Modus"
-            className="inline-flex overflow-hidden rounded-md border bg-card"
-          >
-            {(["topology", "pi"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                role="radio"
-                aria-checked={layoutMode === m}
-                onClick={() => setLayoutMode(m)}
-                className={`px-2 py-0.5 ${
-                  layoutMode === m
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted/50"
-                }`}
-              >
-                {m === "topology" ? "Topologie" : "PI-Bahnen"}
-              </button>
-            ))}
-          </div>
+          <ToggleGroup
+            ariaLabel="Layout-Modus"
+            className="bg-card text-xs"
+            value={layoutMode}
+            onChange={setLayoutMode}
+            options={[
+              { id: "topology", label: "Topologie" },
+              { id: "pi", label: "PI-Bahnen" },
+            ]}
+          />
         </div>
       </div>
       {(canLinkDependency || canCreateFeature) && (
@@ -1251,34 +1235,35 @@ export function BreakdownNetworkView({
           {canLinkDependency && (
             <div className="inline-flex items-center gap-1.5">
               <span className="text-muted-foreground">Neue Edge:</span>
-              <div
-                role="radiogroup"
-                aria-label="Connection-Typ"
-                className="inline-flex overflow-hidden rounded-md border bg-card"
-              >
-                {(["depends_on", "blocks", "relates_to"] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    role="radio"
-                    aria-checked={connectType === t}
-                    onClick={() => setConnectType(t)}
-                    className={`px-2 py-0.5 ${
-                      connectType === t
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted/50"
-                    }`}
-                    style={connectType === t ? undefined : { color: EDGE_COLOR[t] }}
-                  >
-                    {EDGE_LABEL[t]}
-                  </button>
-                ))}
-              </div>
+              {/* Der Farbhinweis sass vorher als `style.color` auf dem Knopf
+                  und war der Grund fuer den Eigenbau. Als Punkt in der
+                  Beschriftung traegt ihn die geteilte Leiste mit. */}
+              <ToggleGroup
+                ariaLabel="Connection-Typ"
+                className="bg-card text-xs"
+                value={connectType}
+                onChange={setConnectType}
+                options={(["depends_on", "blocks", "relates_to"] as const).map((t) => ({
+                  id: t,
+                  label: (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        aria-hidden
+                        className="size-1.5 rounded-full"
+                        style={{ background: EDGE_COLOR[t] }}
+                      />
+                      {EDGE_LABEL[t]}
+                    </span>
+                  ),
+                }))}
+              />
             </div>
           )}
         </div>
       )}
-      <div className="h-[480px] rounded-lg border bg-muted/30">
+      {/* Vorher starr `h-[480px]`: auf schmalem Fenster teilten sich die
+          Werkzeugzeilen und die Leinwand den Schirm etwa haelftig. */}
+      <div className="h-[26rem] rounded-xl bg-muted/30 ring-1 ring-foreground/10 sm:h-[32rem] lg:h-[36rem]">
         <BreakdownInteractionContext.Provider value={interactionCtx}>
           <ReactFlow
             nodes={displayNodes}
@@ -1312,13 +1297,15 @@ export function BreakdownNetworkView({
                 // PI-Header und Ghost-Nodes bekommen ein neutrales grau,
                 // damit die minimap nicht durch headerflaechen "geblockt"
                 // aussieht.
-                if (n.type === "pi-header") return "#e5e7eb";
-                if (n.type === "ghost") return "#cbd5e1";
+                // `var(--…)` statt fester Hex-Werte: die Uebersicht folgt damit
+                // dem Thema, statt in beiden hell zu bleiben.
+                if (n.type === "pi-header") return "var(--muted)";
+                if (n.type === "ghost") return "var(--border)";
                 const d = n.data as unknown as FeatureNodeData | undefined;
-                return d?.featureType === "enabler" ? "#a78bfa" : "#60a5fa";
+                return d?.featureType === "enabler" ? "var(--chart-4)" : "var(--chart-1)";
               }}
               nodeStrokeWidth={0}
-              maskColor="rgba(0,0,0,0.04)"
+              maskColor="color-mix(in oklab, var(--background) 92%, transparent)"
             />
           </ReactFlow>
         </BreakdownInteractionContext.Provider>

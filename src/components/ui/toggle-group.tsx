@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -14,7 +15,12 @@ import { cn } from "@/lib/utils";
  */
 export interface ToggleGroupOption<T extends string> {
   id: T;
-  label: string;
+  /**
+   * Beschriftung. Ein Knoten statt eines Strings, damit ein Aufrufer einen
+   * Farbpunkt o. Ae. mitgeben kann, ohne dafuer die ganze Leiste nachzubauen —
+   * genau der Grund, aus dem der Netzplan drei Eigenbauten hatte.
+   */
+  label: ReactNode;
 }
 
 interface Props<T extends string> {

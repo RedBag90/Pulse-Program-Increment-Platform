@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { Breadcrumbs, type Crumb } from "@/components/nav/breadcrumbs";
 
 export interface DetailTab {
   key: string;
@@ -20,6 +21,19 @@ interface Props {
   /** Optional pill next to the title. A string is wrapped in the default muted
    *  pill; a node (e.g. a colored status pill) is rendered as-is. */
   badge?: ReactNode;
+  /**
+   * Der Pfad hierher. Gesetzt, ersetzt er den einzeiligen Zurück-Link: eine
+   * Detailseite liegt in einer Hierarchie, und ein Pfeil sagt nur „irgendwohin
+   * zurueck". `backHref`/`backLabel` bleiben der Rueckfall fuer Flaechen, die
+   * ihren Pfad (noch) nicht kennen.
+   */
+  breadcrumb?: Crumb[];
+  /**
+   * Die Zeile unter dem Titel: Reifegrad, Klasse, Horizont, Owner — der Stand
+   * auf einen Blick, bevor irgendein Reiter geoeffnet ist. Frueher stand davon
+   * nichts im Kopf, und der Stand war erst im Unterkopf zu finden.
+   */
+  badges?: ReactNode;
   tabs: readonly DetailTab[];
   activeTab: string;
   /** Detail route **without query**, e.g. `/structure/value-stream/<id>`; tab
@@ -56,6 +70,8 @@ export function EntityDetailShell({
   backLabel,
   title,
   badge,
+  breadcrumb,
+  badges,
   tabs,
   activeTab,
   basePath,
@@ -72,42 +88,52 @@ export function EntityDetailShell({
   return (
     <div className="flex flex-col">
       <header className="border-b bg-surface-frame px-6 py-4">
-        {backHref && backLabel && (
-          <Link
-            href={backHref}
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            {backLabel}
-          </Link>
+        {breadcrumb && breadcrumb.length > 0 ? (
+          <Breadcrumbs items={breadcrumb} />
+        ) : (
+          backHref &&
+          backLabel && (
+            <Link
+              href={backHref}
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              {backLabel}
+            </Link>
+          )
         )}
-        <div className="mt-2 flex items-center gap-3">
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">{title}</h1>
+        <div className="mt-2 flex items-start gap-3">
+          <h1 className="min-w-0 font-heading text-2xl font-semibold tracking-tight">{title}</h1>
           {badge &&
             (typeof badge === "string" ? (
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{badge}</span>
             ) : (
               badge
             ))}
-          {headerActions && <div className="ml-auto">{headerActions}</div>}
+          {headerActions && <div className="ml-auto shrink-0">{headerActions}</div>}
         </div>
+        {badges && <div className="mt-2.5 flex flex-wrap items-center gap-1.5">{badges}</div>}
       </header>
 
       {subHeader && <div className="border-b bg-surface-frame px-6 py-4">{subHeader}</div>}
 
-      <div className="flex min-h-[70vh]">
+      {/* Unter `lg` klappt die Hülle auf: die Reiterleiste wird eine waagerechte
+          Leiste, die Aktivitätsspalte rutscht unter den Inhalt. Vorher standen
+          eine feste `w-48` und eine feste `w-72` nebeneinander ohne Umbruch —
+          unterhalb von ~1100 px blieb für die Mitte kaum etwas übrig. */}
+      <div className="flex min-h-[70vh] flex-col lg:flex-row">
         <nav
           aria-label="Bereiche"
           data-tour="entity-tab-rail"
-          className="w-48 shrink-0 border-r bg-surface-frame p-3"
+          className="w-full shrink-0 border-b bg-surface-frame p-2 lg:w-48 lg:border-b-0 lg:border-r lg:p-3"
         >
-          <ul className="space-y-0.5">
+          <ul className="flex gap-1 overflow-x-auto lg:block lg:space-y-0.5">
             {tabs.map((tab) => {
               const active = tab.key === activeTab;
-              const cls = `block w-full text-left border-l-2 rounded-r-md px-3 py-1.5 text-sm transition-colors ${
+              const cls = `block w-full whitespace-nowrap text-left rounded-md px-3 py-1.5 text-sm transition-colors lg:rounded-l-none lg:rounded-r-md lg:border-l-2 ${
                 active
-                  ? "border-primary bg-primary/10 font-medium text-primary"
-                  : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-primary/10 font-medium text-primary lg:border-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground lg:border-transparent"
               }`;
               return (
                 <li key={tab.key}>
@@ -135,7 +161,7 @@ export function EntityDetailShell({
           </ul>
         </nav>
 
-        <main className="min-w-0 flex-1 overflow-auto bg-background p-6">{children}</main>
+        <main className="min-w-0 flex-1 overflow-auto bg-background p-4 sm:p-6">{children}</main>
 
         {aside}
       </div>

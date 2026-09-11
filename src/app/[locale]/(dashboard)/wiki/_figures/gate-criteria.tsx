@@ -1,4 +1,5 @@
 import { GATE_CRITERIA_DOC } from "@/modules/work/domain/epic-lifecycle-doc";
+import { gateStepNumber } from "@/modules/work/domain/stage-gate";
 
 /**
  * **Was Pulse vor jedem Antrag prueft** — blockierend oder beratend, samt dem
@@ -16,8 +17,8 @@ export function GateCriteria() {
       {GATE_CRITERIA_DOC.map((doc) => (
         <div key={doc.stageTo} className="space-y-2.5 p-4">
           <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-            {doc.stageFrom} <span aria-hidden>→</span>{" "}
-            <span className="text-foreground">{doc.stageTo}</span>
+            {gateStepNumber(doc.stageFrom)} <span aria-hidden>→</span>{" "}
+            <span className="text-foreground">{gateStepNumber(doc.stageTo)}</span>
           </p>
           {doc.criteria.length === 0 ? (
             <p className="text-[13.5px] text-muted-foreground">Kein eigenes Kriterium.</p>

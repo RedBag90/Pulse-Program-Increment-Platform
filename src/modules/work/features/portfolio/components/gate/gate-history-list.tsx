@@ -18,8 +18,8 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_CLASS: Record<string, string> = {
-  pending: "text-amber-700",
-  approved: "text-emerald-700",
+  pending: "text-amber-700 dark:text-amber-300",
+  approved: "text-emerald-700 dark:text-emerald-300",
   rejected: "text-destructive",
   withdrawn: "text-muted-foreground",
 };

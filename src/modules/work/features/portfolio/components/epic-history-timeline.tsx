@@ -46,9 +46,15 @@ function eventStyle(action: string): { Icon: LucideIcon; cls: string } {
 export function EpicHistoryTimeline({
   events,
   userLabels,
+  truncated = false,
 }: {
   events: HistoryEvent[];
   userLabels: Record<string, string>;
+  /**
+   * `true` ⇒ aeltere Ereignisse existieren, wurden aber nicht geladen. Ein
+   * Reiter, der „History" heisst, darf nicht still abschneiden.
+   */
+  truncated?: boolean;
 }) {
   if (events.length === 0) {
     return (
@@ -95,6 +101,11 @@ export function EpicHistoryTimeline({
           </li>
         );
       })}
+      {truncated && (
+        <li className="pt-2 text-xs text-muted-foreground">
+          Es gibt ältere Ereignisse als die hier gezeigten 50.
+        </li>
+      )}
     </ol>
   );
 }

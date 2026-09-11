@@ -27,15 +27,22 @@ import { getTenantPractices } from "@/server/services/target-model";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
 import { resolveGuardrailTargets } from "@/modules/work/domain/portfolio-guardrails";
 import { classifyEpic, classificationDrift } from "@/modules/work/domain/pb-submission";
-import { EpicLifecycleStepper } from "@/modules/work/features/portfolio/components/epic-lifecycle-stepper";
 import { EpicGateCard } from "@/modules/work/features/portfolio/components/gate/epic-gate-card";
 import { EpicKpisTab } from "@/modules/work/features/portfolio/components/epic-kpis-tab";
 import { EpicBusinessCaseCalcTab } from "@/modules/work/features/portfolio/components/epic-business-case-calc-tab";
-import { buildEpicBusinessCaseCalc } from "@/modules/work/domain/epic-bc-calculation";
+import { buildEpicBusinessCaseCalcForTab } from "@/modules/work/domain/epic-bc-calculation";
+import { kpiOutcome } from "@/modules/core/kpi/domain/kpi-outcome";
 import { EpicBreakdownTab } from "@/modules/work/features/portfolio/components/epic-breakdown-tab";
 import { BenefitHypothesisEditor } from "@/modules/work/features/portfolio/components/benefit-hypothesis-editor";
 import { BusinessCaseEditor } from "@/modules/work/features/portfolio/components/business-case-editor";
 import { EpicTimelineTab } from "@/modules/work/features/portfolio/components/epic-timeline-tab";
+import { EpicOwnerAssign } from "@/modules/work/features/portfolio/components/epic-owner-assign";
+import { EpicGateLadder } from "@/modules/work/features/portfolio/components/epic-gate-ladder";
+import { HorizonBadge } from "@/modules/work/features/portfolio/components/horizon-badge";
+import { currentGateStep, gateStepLabel } from "@/modules/work/domain/stage-gate";
+import { EPIC_CLASS_LABELS } from "@/modules/work/domain/pb-submission";
+import { EPIC_TYPE_LABEL, isEpicType } from "@/modules/work/domain/portfolio-guardrails";
+import { resolveEpicHorizon } from "@/modules/work/domain/epic-horizon";
 import {
   RevisionDiff,
   RevisionEditLayout,
@@ -43,15 +50,12 @@ import {
   benefitHypothesisDiffRows,
 } from "@/modules/work/features/portfolio/components/revision-diff";
 import { DeleteEpicButton } from "@/modules/work/features/portfolio/components/delete-epic-button";
-import { EpicHeroFacts } from "@/modules/work/features/portfolio/components/epic-hero-facts";
-import { Link } from "@/i18n/navigation";
-import { ArrowRight } from "lucide-react";
 import { redirect } from "next/navigation";
 import type { EpicId } from "@/modules/core/kernel/domain/types";
 
 interface Props {
   params: Promise<{ locale: string; id: string }>;
-  searchParams: Promise<{ tab?: string; featureId?: string }>;
+  searchParams: Promise<{ tab?: string; featureId?: string; bcMonth?: string }>;
 }
 
 /**
@@ -63,7 +67,7 @@ interface Props {
  */
 export default async function EpicDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { tab, featureId } = await searchParams;
+  const { tab, featureId, bcMonth } = await searchParams;
 
   const principal = await requirePrincipal().catch(() => null);
   if (!principal) redirect("/sign-in");
@@ -250,82 +254,127 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       <EntityDetailShell
         backHref="/portfolio/epics"
         backLabel="Zurück zu den Epics"
+        breadcrumb={[
+          { label: "Portfolio", href: "/portfolio" },
+          { label: "Epics", href: "/portfolio/epics" },
+          { label: epic.title },
+        ]}
         title={epic.title}
+        /**
+         * Der Stand auf einen Blick, bevor irgendein Reiter offen ist. Er stand
+         * vorher nur im Unterkopf — verteilt über drei Karten.
+         */
+        badges={
+          <>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+              <span aria-hidden className="size-1.5 rounded-full bg-current" />
+              {gateStepLabel(
+                currentGateStep({
+                  stageGate: epic.stageGate as never,
+                  approvedAt: epic.approvedAt,
+                  implementationCompletedAt: epic.implementationCompletedAt,
+                }),
+              )}
+            </span>
+            {epicClassification ? (
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
+                {epicClassification.classification.epicClass
+                  ? EPIC_CLASS_LABELS[epicClassification.classification.epicClass]
+                  : "Noch nicht eingeordnet"}
+              </span>
+            ) : null}
+            <HorizonBadge
+              horizon={resolveEpicHorizon({
+                investmentHorizon: epic.investmentHorizon,
+                solutionHorizon: epic.primarySolution?.horizon ?? null,
+                businessCaseApprovedAt: epic.businessCaseApprovedAt,
+              })}
+            />
+            {epic.epicType && isEpicType(epic.epicType) && (
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
+                {EPIC_TYPE_LABEL[epic.epicType]}
+              </span>
+            )}
+            {epic.needsSteeringAttention && (
+              <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                Zur Steuerung markiert
+              </span>
+            )}
+          </>
+        }
         tabs={tabs}
         activeTab={activeTab}
         basePath={`/portfolio/epics/${epic.id}`}
         headerActions={
           model.canEdit ? <DeleteEpicButton id={epic.id} title={epic.title} /> : undefined
         }
-        subHeader={(() => {
-          // Ein `gate-request`-CTA bekommt keinen eigenen Button mehr: der
-          // Wechsel wird über die Gate-Karte darunter beantragt, damit es genau
-          // eine Stelle für den Vorgang gibt.
-          const actionSlot: React.ReactNode =
-            model.nextStep?.cta?.kind === "link" ? (
-              <Link
-                href={model.nextStep.cta.href as never}
-                className="inline-flex items-center gap-1.5 rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium shadow-xs transition-colors hover:bg-muted/50"
-              >
-                {model.nextStep.cta.label} <ArrowRight className="size-3.5" />
-              </Link>
-            ) : undefined;
-          return (
-            <div className="space-y-4">
-              <EpicGateCard
-                epicId={epic.id}
-                gate={model.gate}
-                approvers={approvers}
-                userLabels={userLabels}
-                classDrift={classDrift}
-              />
-              <EpicLifecycleStepper
-                steps={model.lifecycleSteps}
-                nextStep={model.nextStep}
-                actionSlot={actionSlot}
-              />
-              <EpicHeroFacts
-                ownerId={epic.ownerId}
-                userLabels={userLabels}
-                budgetStanding={model.budgeting.disabled ? null : model.budgeting.standing}
-                valueStreamName={epic.valueStream?.name ?? null}
-                planStart={
-                  timeline.estimates.implementation_started
-                    ? new Date(timeline.estimates.implementation_started)
-                    : null
-                }
-                planEnd={
-                  timeline.estimates.implementation
-                    ? new Date(timeline.estimates.implementation)
-                    : null
-                }
-                istStart={epic.implementationStartedAt}
-                istEnd={
-                  timeline.actuals.implementation ? new Date(timeline.actuals.implementation) : null
-                }
-                recurringBenefit={model.heroTotals.recurringBenefit}
-                implementationCost={model.heroTotals.implementationCost}
-                kpiCount={kpiRows.length}
-                kpiAvgPct={model.heroKpiAvgPct}
-              />
-            </div>
-          );
-        })()}
-        aside={<InitiativeActivitySidebar events={model.activityEvents} userLabels={userLabels} />}
-      >
-        {activeTab === "overview" && (
-          <div className="space-y-4">
-            <EpicRealizedTile kpis={model.kpis} frozenAt={epic.implementationCompletedAt} />
-            <EpicGoalsBadge goalLinks={goalLinks.links} />
-            <EpicOverviewTab
-              epic={epic}
-              canEdit={model.canEdit}
-              canOverrideHorizon={model.canOverrideHorizon}
-              kpiBenefit={model.kpiBenefit}
-              solutions={availableSolutions}
-              classification={epicClassification}
+        /**
+         * **Ein Band statt dreier Karten.**
+         *
+         * Hier standen Reifegrad-Karte, Lebenszyklus-Stepper und ein
+         * siebenspaltiges Kernfakten-Band übereinander — über *jedem* der neun
+         * Reiter, auch dort, wo sie nichts beitragen. Geblieben sind die Leiter
+         * (eine Zeile statt fünf Kacheln) und die Gate-Karte, die als einzige
+         * eine Handlung anbietet. Die Kernfakten sind in den Overview-Reiter
+         * gewandert, wo sie hingehören: Kosten und Nutzen in die
+         * Wirtschaftlichkeit, Owner und Wertstrom in die Zuordnung, das
+         * PI-Fenster ins Zeitfenster.
+         */
+        subHeader={
+          <div className="space-y-3">
+            <EpicGateLadder
+              current={currentGateStep({
+                stageGate: epic.stageGate as never,
+                approvedAt: epic.approvedAt,
+                implementationCompletedAt: epic.implementationCompletedAt,
+              })}
+            />
+            <EpicGateCard
+              epicId={epic.id}
+              gate={model.gate}
+              approvers={approvers}
+              userLabels={userLabels}
+              classDrift={classDrift}
             />
           </div>
+        }
+        aside={
+          <InitiativeActivitySidebar
+            events={model.activityEvents}
+            userLabels={userLabels}
+            truncated={model.activityTruncated}
+          />
+        }
+      >
+        {activeTab === "overview" && (
+          /**
+           * Der Reiter ordnet selbst; die Seite reicht nur durch, was sie
+           * geladen hat. Der **Owner** gehört ausdrücklich dazu: das
+           * Tor-Kriterium „Epic Owner ist benannt" verlinkt hierher, und bis zur
+           * Überarbeitung gab es hier kein Owner-Feld.
+           */
+          <EpicOverviewTab
+            epic={epic}
+            canEdit={model.canEdit}
+            canOverrideHorizon={model.canOverrideHorizon}
+            totals={model.heroTotals}
+            solutions={availableSolutions}
+            classification={epicClassification}
+            budgetStanding={model.budgeting.disabled ? null : model.budgeting.standing}
+            ownerSlot={
+              <EpicOwnerAssign
+                epicId={epic.id}
+                ownerId={epic.ownerId}
+                canAssignOwner={model.canAssignOwner}
+                approvers={approvers}
+                userLabels={userLabels}
+              />
+            }
+            realizedSlot={
+              <EpicRealizedTile kpis={model.kpis} frozenAt={epic.implementationCompletedAt} />
+            }
+            goalsSlot={<EpicGoalsBadge goalLinks={goalLinks.links} />}
+          />
         )}
 
         {activeTab === "timeline" && (
@@ -398,31 +447,37 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
 
         {activeTab === "business-case-calc" && (
           <EpicBusinessCaseCalcTab
-            {...buildEpicBusinessCaseCalc({
-              createdAt: epic.createdAt,
-              selectedForDetailingAt: epic.selectedForDetailingAt,
-              hypothesisApprovedAt: epic.hypothesisApprovedAt,
-              selectedForAnalyzingAt: epic.selectedForAnalyzingAt,
-              businessCaseApprovedAt: epic.businessCaseApprovedAt,
-              implementationStartedAt: epic.implementationStartedAt,
-              impactRecognizedAt: epic.impactRecognizedAt,
-              plannedEndAt: epic.plannedEndAt,
-              timeline: epic.timeline,
-              businessCase: epic.businessCase,
-              allocatedByPeriod: model.budgeting.disabled ? {} : model.budgeting.allocatedByPeriod,
-              kpis: kpiRows.map((k) => ({
-                id: k.id,
-                name: k.name,
-                baseline: k.baseline,
-                target: k.target,
-                measurements: k.measurements,
-                benefitWeight: k.weight,
-                valuePerUnit: k.valuePerUnit,
-                benefitKind: k.benefitKind,
-                recurringInterval: k.recurringInterval,
-              })),
-              now: new Date(),
-            })}
+            dayMonth={bcMonth}
+            {...buildEpicBusinessCaseCalcForTab(
+              {
+                createdAt: epic.createdAt,
+                selectedForDetailingAt: epic.selectedForDetailingAt,
+                hypothesisApprovedAt: epic.hypothesisApprovedAt,
+                selectedForAnalyzingAt: epic.selectedForAnalyzingAt,
+                businessCaseApprovedAt: epic.businessCaseApprovedAt,
+                implementationStartedAt: epic.implementationStartedAt,
+                impactRecognizedAt: epic.impactRecognizedAt,
+                plannedEndAt: epic.plannedEndAt,
+                timeline: epic.timeline,
+                businessCase: epic.businessCase,
+                allocatedByPeriod: model.budgeting.disabled
+                  ? {}
+                  : model.budgeting.allocatedByPeriod,
+                kpis: kpiRows.map((k) => ({
+                  id: k.id,
+                  name: k.name,
+                  baseline: k.baseline,
+                  target: k.target,
+                  measurements: k.measurements,
+                  benefitWeight: k.weight,
+                  valuePerUnit: k.valuePerUnit,
+                  benefitKind: k.benefitKind,
+                  recurringInterval: k.recurringInterval,
+                })),
+                now: new Date(),
+              },
+              bcMonth,
+            )}
           />
         )}
 
@@ -503,20 +558,41 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
           />
         )}
 
+        {/* `kpiOutcome` lief bisher je Ziel-Verknüpfung im Browser — gegen die
+            Regel, die `epic-detail.ts` für dieselben KPIs ausdrücklich festhält
+            („so the KPIs tab renders instead of recomputing client-side"). Die
+            Ziel-Links waren davon ausgenommen, weil ihr Read-Model mandantenweit
+            lädt und das epic-eigene `frozenAt` nicht kennt. Hier stehen beide
+            zusammen. */}
         {activeTab === "kpis" && (
           <EpicKpisTab
             initiativeId={epic.id}
             kpis={kpiRows}
             canEdit={model.canEdit}
-            goalLinks={goalLinks.links}
-            frozenAt={epic.implementationCompletedAt}
+            goalLinks={goalLinks.links.map((link) => ({
+              ...link,
+              outcome: kpiOutcome({
+                baseline: link.kpiBaseline,
+                target: link.kpiTarget,
+                valuePerUnit: link.conversionFactor,
+                benefitKind: link.impactKind,
+                recurringInterval: link.recurringInterval,
+                measurements: link.kpiMeasurements,
+                planSnapshot: link.planSnapshot,
+                frozenAt: epic.implementationCompletedAt,
+              }),
+            }))}
           />
         )}
 
         {activeTab === "history" && (
           <section>
             <h2 className="mb-3 font-heading text-lg font-medium">History</h2>
-            <EpicHistoryTimeline events={model.activityEvents} userLabels={userLabels} />
+            <EpicHistoryTimeline
+              events={model.activityEvents}
+              userLabels={userLabels}
+              truncated={model.activityTruncated}
+            />
           </section>
         )}
 

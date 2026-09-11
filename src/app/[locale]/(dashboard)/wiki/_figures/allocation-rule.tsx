@@ -1,4 +1,4 @@
-import { GATE_STEPS } from "@/modules/work/domain/stage-gate";
+import { GATE_STEPS, gateStepNumber } from "@/modules/work/domain/stage-gate";
 import {
   mayHoldAllocation,
   requiresCurrentAllocation,
@@ -37,7 +37,7 @@ export function AllocationRule() {
             return (
               <tr key={g}>
                 <td className="border-b border-border/60 px-4 py-2 font-mono text-[12.5px] text-foreground">
-                  {g}
+                  {gateStepNumber(g)}
                 </td>
                 <td className="border-b border-border/60 px-4 py-2 text-muted-foreground">
                   {STAGE_SHORT[g] ?? "—"}

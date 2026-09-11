@@ -3,6 +3,7 @@
 import { Info, ArrowRight } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { GATE_CRITERIA_DOC, SUB_STAGE_RULES } from "@/modules/work/domain/epic-lifecycle-doc";
+import { gateStepNumber } from "@/modules/work/domain/stage-gate";
 
 /**
  * In-App-Hilfe für den Reifegrad-Lebenszyklus auf der Epic-Detail-Page.
@@ -45,9 +46,9 @@ export function StageGateLifecycleHelp({ className }: { className?: string }) {
                 className="flex items-start gap-2 rounded border bg-muted/20 px-2 py-1.5"
               >
                 <span className="mt-0.5 inline-flex shrink-0 items-center gap-0.5 rounded bg-background px-1.5 py-0.5 font-mono text-[10px] font-medium">
-                  {g.stageFrom}
+                  {gateStepNumber(g.stageFrom)}
                   <ArrowRight className="size-2.5" />
-                  {g.stageTo}
+                  {gateStepNumber(g.stageTo)}
                 </span>
                 <span className="flex-1">
                   {g.criteria.length === 0 ? (
@@ -99,7 +100,6 @@ export function StageGateLifecycleHelp({ className }: { className?: string }) {
             </tbody>
           </table>
         </section>
-
       </PopoverContent>
     </Popover>
   );
