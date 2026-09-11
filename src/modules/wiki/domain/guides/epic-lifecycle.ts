@@ -53,7 +53,7 @@ export const EPIC_LIFECYCLE: Guide = {
     },
     {
       kind: "aside",
-      text: "Sieben der acht Stufen werden so beantragt. Eine wird rein **abgeleitet**: _L4.1 Umsetzung läuft_ heißt „L4, aber noch nicht bestätigt fertig“. Dass L3.1 und L3.2 daneben als Unterstufen des Tors L3 erscheinen, ist die Anzeige: die Spalte trägt „L3“, und der Investitions-Stempel entscheidet, welche der beiden zu sehen ist.",
+      text: "Sieben der acht Stufen werden so beantragt. Eine wird rein **abgeleitet**: _L4.1 Umsetzung läuft_ heißt „in Umsetzung, aber noch nicht bestätigt fertig“. Dass L3.1 und L3.2 daneben als Unterstufen des Tors L3 erscheinen, ist die Anzeige: die Spalte trägt „L3“, und der Investitions-Stempel entscheidet, welche der beiden zu sehen ist.",
     },
     { kind: "quote", text: "Wer die drei sind." },
     {
@@ -249,7 +249,7 @@ export const EPIC_LIFECYCLE: Guide = {
             },
             {
               kind: "aside",
-              text: "**Zur Benennung:** gespeichert wird dieser Schritt als `L4`, angezeigt heißt er überall **L4.1**. Das Haupt-Tor L4 umfasst beide Unterstufen, und die Trichter-Leiste nennt es deshalb weiterhin so. Wo dagegen ein **Schritt** benannt wird — Gate-Karte, Antrag, Rückstufung, Historie —, steht L4.1.",
+              text: "**Zur Benennung:** die Leiter kennt **L4.1** und **L4.2** — nirgends ein blosses „L4“. Das Haupt-Tor, das beide Unterstufen umfasst, heisst in der Trichter-Leiste und im Kanban weiterhin L4; dort ist es aber eine **Spalte**, kein Schritt.",
             },
             {
               kind: "paragraph",
@@ -353,7 +353,7 @@ export const EPIC_LIFECYCLE: Guide = {
             { kind: "figure", figure: "lifecycleSteps" },
             {
               kind: "paragraph",
-              text: "**Der Produkt-Manager steht an zwei Schritten, mit unterschiedlicher Reichweite.** An → L3.1 zeichnet er bei **jedem** Epic seiner Solution mit — dort existiert die Einordnung ja noch gar nicht, eine Einschränkung auf ART-Epics wäre nicht entscheidbar. An → L4 ist sie bekannt, und dort zeichnet er nur bei ART-Epics: sein Produkt wird aus dem Rahmen seines ARTs verändert.",
+              text: "**Der Produkt-Manager steht an zwei Schritten, mit unterschiedlicher Reichweite.** An → L3.1 zeichnet er bei **jedem** Epic seiner Solution mit — dort existiert die Einordnung ja noch gar nicht, eine Einschränkung auf ART-Epics wäre nicht entscheidbar. An → L4.1 ist sie bekannt, und dort zeichnet er nur bei ART-Epics: sein Produkt wird aus dem Rahmen seines ARTs verändert.",
             },
             {
               kind: "aside",
@@ -536,8 +536,8 @@ export const EPIC_LIFECYCLE: Guide = {
       why: "Der Override geht nur in eine Richtung: Portfolio-Sache trotz kleiner Kosten. Umgekehrt könnte der Rahmen eines ARTs es ohnehin nicht tragen.",
     },
     {
-      claim: "Der Schritt heißt L4.",
-      why: "Gespeichert als `L4`, angezeigt als **L4.1**. Das Haupt-Tor L4 umfasst beide Unterstufen.",
+      claim: "„L4“ ist ein Schritt.",
+      why: "Es ist eine **Spalte** — das Haupt-Tor, das L4.1 und L4.2 umfasst. Als Schritt heisst der Eintritt in die Umsetzung überall **L4.1**.",
     },
     {
       claim: "Wenn die KPI später doch noch steigt, steigt auch die gelieferte Menge.",

@@ -129,10 +129,10 @@ Feature ist gestartet", aber es blockiert nicht: der Antrag selbst _ist_ der
 bewusste Start. Steht es offen, sieht man die Zahl daneben und die Abnehmer
 entscheiden.
 
-> **Zur Zahl 4.1.** Gespeichert wird dieser Schritt als `L4`; angezeigt heißt er
-> überall `L4.1`. Das **Haupt-Gate** L4 umfasst beide Unterstufen — L4.1 und
-> L4.2 — und heißt in der Trichter-Leiste weiterhin so. Wo ein **Schritt**
-> benannt wird, steht L4.1: dieselbe Zahl, die danach am Epic steht.
+> **Zur Zahl 4.1.** Die Leiter kennt **L4.1** und **L4.2** — nirgends ein
+> blosses „L4“. Das Haupt-Gate L4 umfasst beide Unterstufen und heißt in der
+> Trichter-Leiste weiterhin so; dort ist es eine Spalte, kein Schritt.
+> Gespeichert wird der Schritt als `L4`, angezeigt wird er nie.
 
 ---
 

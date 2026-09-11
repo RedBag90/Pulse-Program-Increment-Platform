@@ -155,12 +155,12 @@ nur: ein gemeldetes, nicht eingeordnetes Issue taucht am PI-Abschluss wieder auf
 
 ## Der Epic Owner: zusehen, wie es Gestalt annimmt
 
-Ich liefere in diesem Ablauf nichts. Mein Epic steht auf **L4 · Umsetzung
+Ich liefere in diesem Ablauf nichts. Mein Epic steht auf **L4.1 · Umsetzung
 läuft**, und was jetzt passiert, passiert an meinen Features.
 
 Was ich sehe, ist Ableitung: Pulse zeigt mir, wie viele meiner Child-Features
 begonnen und wie viele abgeschlossen sind. Das ist zugleich das Kriterium meines
-nächsten Schritts — **L4 → L4.2 · Umsetzung fertig** setzt voraus, dass _alle_
+nächsten Schritts — **L4.1 → L4.2 · Umsetzung fertig** setzt voraus, dass _alle_
 Child-Features abgeschlossen sind. Beratend, nicht blockierend: ich kann den
 Antrag auch früher stellen, dann steht die offene Zahl daneben und die Abnehmer
 entscheiden.
@@ -175,7 +175,7 @@ gearbeitet wurde.
 
 ## Die Nähte
 
-**Zum Epic.** Der Schritt **L4 → L4.2** hängt an den Features des PI: „Alle
+**Zum Epic.** Der Schritt **L4.1 → L4.2** hängt an den Features des PI: „Alle
 Child-Features sind abgeschlossen" ist sein beratendes Kriterium. Der PI liefert
 also die Bewegung, die das Epic weiterschiebt — und umgekehrt füllt das Epic den
 PI mit Inhalt, denn Features sind Kinder von Epics.
@@ -209,14 +209,14 @@ Size seiner eingeplanten Features in Geld umgerechnet.
 
 ## Nachschlagepunkte im Code
 
-| Aussage                                       | Quelle                                                          |
-| --------------------------------------------- | --------------------------------------------------------------- |
-| Zustände, Übergänge, Abschluss-Tor            | `src/modules/drumbeat/domain/pi-rules.ts`                       |
-| Ein aktives PI je Timeline (DB-abhängig)      | `src/modules/drumbeat/server/services/pi.ts` (`startPi`)        |
-| Der weiche UI-Abschluss samt Warnung          | `src/modules/drumbeat/server/services/pi.ts` (`advanceCadence`) |
-| Das harte Tor (nur über die v1-API)           | `src/modules/drumbeat/server/services/pi.ts` (`completePi`)     |
-| Takt aus Ankertag, Kadenz und Anzahl          | `src/modules/drumbeat/domain/pi-standard.ts`                    |
-| Delivery-Status eines Features                | `src/modules/work/domain/feature-status.ts`                     |
-| Was welche Rolle darf                         | `src/server/auth/policies/index.ts`                             |
-| Cockpit-Modell (Matrix, Rechte je Fläche)     | `src/modules/drumbeat/server/views/umsetzung-cockpit-view.ts`   |
-| Kriterien der Epic-Schritte (u. a. L4 → L4.2) | `src/modules/work/domain/gate-readiness.ts`                     |
+| Aussage                                         | Quelle                                                          |
+| ----------------------------------------------- | --------------------------------------------------------------- |
+| Zustände, Übergänge, Abschluss-Tor              | `src/modules/drumbeat/domain/pi-rules.ts`                       |
+| Ein aktives PI je Timeline (DB-abhängig)        | `src/modules/drumbeat/server/services/pi.ts` (`startPi`)        |
+| Der weiche UI-Abschluss samt Warnung            | `src/modules/drumbeat/server/services/pi.ts` (`advanceCadence`) |
+| Das harte Tor (nur über die v1-API)             | `src/modules/drumbeat/server/services/pi.ts` (`completePi`)     |
+| Takt aus Ankertag, Kadenz und Anzahl            | `src/modules/drumbeat/domain/pi-standard.ts`                    |
+| Delivery-Status eines Features                  | `src/modules/work/domain/feature-status.ts`                     |
+| Was welche Rolle darf                           | `src/server/auth/policies/index.ts`                             |
+| Cockpit-Modell (Matrix, Rechte je Fläche)       | `src/modules/drumbeat/server/views/umsetzung-cockpit-view.ts`   |
+| Kriterien der Epic-Schritte (u. a. L4.1 → L4.2) | `src/modules/work/domain/gate-readiness.ts`                     |

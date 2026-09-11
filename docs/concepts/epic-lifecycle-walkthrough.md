@@ -196,11 +196,11 @@ Das ist mein Stichwort. Ich ordne meine Features den PIs zu und beantrage
 „mindestens ein Feature ist gestartet" —, aber es blockiert nicht: der Antrag
 selbst _ist_ der bewusste Start.
 
-Zur Benennung: gespeichert wird dieser Schritt als `L4`, angezeigt heißt er
-überall **L4.1**. Das Haupt-Gate `L4` umfasst beide Unterstufen — L4.1 und L4.2
-—, und die Trichter-Leiste nennt es deshalb weiterhin so. Wo dagegen ein
-**Schritt** benannt wird (Gate-Karte, Antrag, Rückstufung, Historie, meine
-Freigaben), steht L4.1: dieselbe Zahl, die danach am Epic steht.
+Zur Benennung: die Leiter kennt **L4.1** und **L4.2** — nirgends ein blosses
+„L4“. Das **Haupt-Gate** L4 umfasst beide Unterstufen und heißt in der
+Trichter-Leiste und im Kanban weiterhin so; dort ist es aber eine Spalte, kein
+Schritt. Gespeichert wird der Schritt als `L4` — das ist der Schlüssel in der
+Historie und in der API, und er wird nie angezeigt.
 
 Die PI-Zuordnung ist übrigens keine Folge dieser Abnahme, sondern ihre
 Voraussetzung: ein Feature lässt sich erst starten, wenn es in einem PI liegt.
@@ -217,7 +217,7 @@ im Reiter _Issues_ am Epic auf und bewerte sie über Eintritt × Auswirkung, daz
 die ROAM-Einordnung. Damit stehen sie in der Risiko-Matrix und im Register —
 sichtbar, statt in meinem Kopf.
 
-Das Ende der Umsetzung ist erreicht. Ich beantrage **L4 → L4.2 · Umsetzung
+Das Ende der Umsetzung ist erreicht. Ich beantrage **L4.1 → L4.2 · Umsetzung
 fertig**. Ein Kriterium erinnert daran, dass alle Child-Features abgeschlossen
 sein sollten — es hält den Antrag aber nicht auf: dass die Umsetzung fertig ist,
 stellt die Abnahme fest, nicht der Zähler. Die Abnahme kommt, der Stempel steht.
@@ -263,7 +263,7 @@ Reifegrad bewegt sich nur durch eine Unterschrift.
 
 Wo ich zeichne, hängt an der Gate-Policy meines Wertstroms. Nach den
 Code-Defaults bin ich als VMO an **→ L1** (und gebe damit die Benefit-Hypothese
-frei), an **→ L2**, an **→ L4** und an **→ L4.2**; beim Business Case sitze ich
+frei), an **→ L2**, an **→ L4.1** und an **→ L4.2**; beim Business Case sitze ich
 als LACE/VMO neben den vier anderen Parteien an **→ L3.1**; die
 Investitionsentscheidung **→ L3.2** zeichne ich zusammen mit Finance. Wer für
 welchen Schritt eingetragen ist, konfiguriere ich je Wertstrom — die Defaults
@@ -378,7 +378,7 @@ Antrag nicht durch. **Beratend** heißt: Pulse zeigt es an, hält aber nicht auf
 | → L2    | Benefit-Hypothese ist freigegeben                | Epic Owner benannt · Business Case begonnen |
 | → L3.1  | Business Case ist ausgearbeitet                  | Epic Owner ist benannt                      |
 | → L3.2  | Budget alloziert (Σ > 0)                         | —                                           |
-| → L4    | —                                                | Mindestens ein Feature ist gestartet        |
+| → L4.1  | —                                                | Mindestens ein Feature ist gestartet        |
 | → L4.2  | —                                                | Alle Child-Features sind abgeschlossen      |
 | → L5    | Umsetzung ist als abgeschlossen bestätigt (L4.2) | —                                           |
 
@@ -404,7 +404,7 @@ einstimmig — wer eingetragen ist, muss zustimmen.
 Der Produkt-Manager steht an **zwei** Schritten, mit unterschiedlicher
 Reichweite. An → L3.1 zeichnet er bei **jedem** Epic seiner Solution mit — dort
 existiert die Einordnung ja noch gar nicht, eine Einschränkung auf ART-Epics
-wäre nicht entscheidbar. An → L4 ist sie bekannt, und dort zeichnet er nur bei
+wäre nicht entscheidbar. An → L4.1 ist sie bekannt, und dort zeichnet er nur bei
 ART-Epics: sein Produkt wird aus dem Rahmen seines ARTs verändert. Ist kein
 Produkt-Manager benannt, fällt er an beiden Stellen still weg.
 

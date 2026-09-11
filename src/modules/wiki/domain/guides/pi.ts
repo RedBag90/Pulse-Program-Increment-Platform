@@ -198,7 +198,7 @@ export const PI: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Mein Epic steht auf **L4 · Umsetzung läuft**, und was jetzt passiert, passiert an meinen Features. Was ich sehe, ist **Ableitung**: wie viele meiner Child-Features begonnen und wie viele abgeschlossen sind.",
+              text: "Mein Epic steht auf **L4.1 · Umsetzung läuft**, und was jetzt passiert, passiert an meinen Features. Was ich sehe, ist **Ableitung**: wie viele meiner Child-Features begonnen und wie viele abgeschlossen sind.",
             },
             {
               kind: "paragraph",
@@ -211,7 +211,7 @@ export const PI: Guide = {
           body: [
             {
               kind: "paragraph",
-              text: "Etwas, das der Reifegrad allein nicht hätte: einen **Rhythmus**. Zwischen L4 und L4.2 liegen ein oder mehrere PIs, und jedes davon hat ein Ende, an dem gezeigt wird, was entstanden ist.",
+              text: "Etwas, das der Reifegrad allein nicht hätte: einen **Rhythmus**. Zwischen L4.1 und L4.2 liegen ein oder mehrere PIs, und jedes davon hat ein Ende, an dem gezeigt wird, was entstanden ist.",
             },
             {
               kind: "quote",

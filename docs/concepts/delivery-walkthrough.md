@@ -172,7 +172,7 @@ die Frage „wo hängt eigentlich X?", wenn man den Zug nicht kennt.
 
 Ich setze hier selten selbst etwas. Was mich interessiert, ist die Ableitung:
 
-- Der Reifegrad-Schritt **L4 → L4.2** eines Epics hat als **beratendes**
+- Der Reifegrad-Schritt **L4.1 → L4.2** eines Epics hat als **beratendes**
   Kriterium: alle Child-Features sind abgeschlossen. Beratend, nicht
   blockierend — der Antrag geht auch früher, dann steht die offene Zahl daneben
   und die Abnehmer entscheiden.
