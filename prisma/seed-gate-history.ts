@@ -26,6 +26,7 @@ import type { Prisma } from "@/generated/prisma";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { isoDay } from "@/modules/core/kernel/domain/calendar";
 import { currentGateStep, gateOfStep, type GateStep } from "@/modules/work/domain/stage-gate";
+import { contentForGate } from "./seed-gate-content";
 import {
   stampsForAdvance,
   unwindStampsFor,
@@ -496,7 +497,11 @@ export function buildGateHistory(input: GateHistoryInput): GateHistoryResult {
   // die Spalte in der Zeile, und der Aufrufer kann nicht unterscheiden, ob das
   // Epic auf L0 steht oder ob die Faltung geschwiegen hat.
   stamps.stageGate = gateOfStep(finalStep);
-  stamps.timeline = timeline;
+  // Die Timeline nur, wenn der erreichte Schritt sie hergibt. Vorher stand hier
+  // ein bedingungsloses `stamps.timeline = timeline` — daher wussten 28 von 30
+  // Funnel-Ideen bereits ihr Umsetzungsfenster. Die **Actuals** oben bleiben
+  // unberuehrt: sie entstehen ohnehin erst an ihren eigenen Toren.
+  if (contentForGate(finalStep).timeline) stamps.timeline = timeline;
   stamps.updatedBy = input.createdBy;
   return { stamps, transitions, approvals, finalStep };
 }

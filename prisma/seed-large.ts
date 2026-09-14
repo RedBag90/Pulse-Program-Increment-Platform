@@ -65,6 +65,9 @@ import {
   type GateMove,
   type GateTransitionRow,
 } from "./seed-gate-history.js";
+import { contentForGate, assertGateContent } from "./seed-gate-content.js";
+import { currentGateStep } from "@/modules/work/domain/stage-gate";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { gateOfStep } from "@/modules/work/domain/stage-gate";
 import type { Horizon } from "@/modules/work/domain/portfolio-guardrails";
 import {
@@ -687,22 +690,23 @@ async function main() {
     const owned = pe.ownerSlot != null;
     const ownerId = owned ? owners[pe.ownerSlot! % owners.length]! : null;
     epicOwner[i] = ownerId;
-    const gteL2 = ["L2", "L3", "L4", "L5"].includes(gate);
+    // Was dieses Epic auf seinem Schritt tragen darf — eine Quelle statt der
+    // frueheren Ad-hoc-Schwelle `["L2","L3","L4","L5"].includes(gate)`.
+    const allow = contentForGate(target);
     // Das Umsetzungsfenster: geplant aus den Kostenscheiben, tatsächlich aus
     // den Stempeln, die die Faltung setzt.
     const plannedStart = pe.implStart ?? addDays(cycleStart(ALL_CYCLES[idx]!), 20);
     const plannedEnd = pe.implDone ?? addDays(plannedStart, 150 + (i % 4) * 40);
 
-    const benefitHypothesis =
-      gate !== "L0"
-        ? {
-            measuresHypothesis: `„${title}" senkt die Kosten in ${vsNames[vs]} nachhaltig.`,
-            changeFromBaseline: "Dauerhaft geringere Kosten gegenüber dem heutigen Kostenniveau.",
-            businessOutcomes: ["Geringere Kosten", "Höhere Effizienz", "Schlankere Prozesse"],
-            leadingIndicators: ["Kosten je Einheit", "Prozesskosten", "Durchlaufzeit"],
-            risks: ["Umsetzungsaufwand", "Change-/Mitbestimmungsthemen"],
-          }
-        : null;
+    const benefitHypothesis = allow.benefitHypothesis
+      ? {
+          measuresHypothesis: `„${title}" senkt die Kosten in ${vsNames[vs]} nachhaltig.`,
+          changeFromBaseline: "Dauerhaft geringere Kosten gegenüber dem heutigen Kostenniveau.",
+          businessOutcomes: ["Geringere Kosten", "Höhere Effizienz", "Schlankere Prozesse"],
+          leadingIndicators: ["Kosten je Einheit", "Prozesskosten", "Durchlaufzeit"],
+          risks: ["Umsetzungsaufwand", "Change-/Mitbestimmungsthemen"],
+        }
+      : null;
     /**
      * **Der Business Case kommt aus dem Durchlauf**, nicht aus einer Formel.
      * Seine Kostenscheiben sind der Finanzierungsplan: eine je Halbjahr, und die
@@ -851,7 +855,9 @@ async function main() {
       // Freigabe-Stempel, die Baselines und das Timeline-Ist-Datum.
       ...history.stamps,
       status,
-      epicType,
+      // Epic oder Enabler ist eine Einordnung, die das Anlege-Formular nicht
+      // kennt — sie entsteht beim Ausarbeiten des Business Case.
+      ...(allow.epicType ? { epicType } : {}),
       primarySolutionId: solutionOfEpic,
       /**
        * **Der Horizont steht am Epic, wenn keine Solution ihn tragen kann.**
@@ -862,7 +868,9 @@ async function main() {
       ...(solutionOfEpic ? {} : { investmentHorizon: horizon }),
       // Wie im Demo-Mandanten: der Merker aus der Faltung wird ueberschrieben,
       // weil das Steering ihn im Betrieb abhakt. Uebrig bleiben die offenen.
-      needsSteeringAttention: i % 13 === 0,
+      // Nur fuer Epics, die ueberhaupt einen Zug hinter sich haben: den Merker
+      // setzt `stampsForAdvance` bei →L1 und →L3.1, im Funnel gibt es ihn nicht.
+      needsSteeringAttention: target !== "L0" && i % 13 === 0,
       // Womit beim Anlegen gerechnet wurde. Weicht die abgeleitete Klasse ab,
       // meldet Pulse das vor dem L3.1-Antrag.
       intendedClass,
@@ -883,12 +891,13 @@ async function main() {
       stagedForBudgeting: target === "L3.1" && pe.tranches.length === 0,
       // „I need help" nur dort, wo es weh tut: definiert, aber noch nicht in
       // der Umsetzung.
-      ...(owned && gteL2 && !["L4", "L5"].includes(gate) && i % 15 === 0
+      ...(owned && allow.helpRequested && !["L4", "L5"].includes(gate) && i % 15 === 0
         ? { helpRequestedAt: addDays(now, -3 - (i % 5)), helpRequestedBy: ownerId ?? U.owner }
         : {}),
-      costToMvp: gteL2 ? 40_000 + (i % 30) * 2_000 : null,
-      plannedStartAt: plannedStart,
-      plannedEndAt: plannedEnd,
+      costToMvp: allow.costToMvp ? 40_000 + (i % 30) * 2_000 : null,
+      // Das Fenster leitet sich aus den Timeline-Schaetzungen ab — es kann
+      // deshalb nicht frueher dastehen als die Timeline selbst.
+      ...(allow.timeline ? { plannedStartAt: plannedStart, plannedEndAt: plannedEnd } : {}),
       // L0 = Funnel-Eintritt. Das Datum kommt aus der Runde, in der die Idee
       // eingereicht wurde, und liegt damit von selbst vor dem ersten Antrag.
       createdAt: pe.createdAt,
@@ -910,6 +919,11 @@ async function main() {
   for (let i = 0; i < EPIC_COUNT; i++) {
     const pred = epicPredecessor[i];
     if (pred == null) continue;
+    // Eine Kante braucht zwei Endpunkte, die es fachlich schon gibt. Vorher
+    // hingen auch Funnel-Ideen im Rollout-Bogen — eine Abhaengigkeit zwischen
+    // zwei Vermutungen.
+    if (!contentForGate(roundPlan.epics[i]!.finalStep).epicDependency) continue;
+    if (!contentForGate(roundPlan.epics[pred]!.finalStep).epicDependency) continue;
     arcDepRows.push({
       id: uid(`large:dep:${i}`),
       tenantId,
@@ -976,6 +990,9 @@ async function main() {
   const kpiRows: Prisma.KpiCreateManyInput[] = [];
   for (let i = 0; i < EPIC_COUNT; i++) {
     const gate = gates[i]!;
+    // KPIs tragen den Nutzen des Business Case — vor L2 gibt es nichts zu
+    // bewerten. Vorher bekamen 28 von 30 Funnel-Ideen eine KPI-Zeile.
+    if (!contentForGate(roundPlan.epics[i]!.finalStep).kpis) continue;
     const vs = epicVs[i]!;
     const savingsTarget = SAVINGS_BASE[vs]! + (i % 40) * 12_000;
     const savId = uid(`large:kpi:${i}:save`);
@@ -1061,7 +1078,7 @@ async function main() {
   let gf = 0;
   for (let i = 0; i < EPIC_COUNT; i++) {
     const gate = gates[i]!;
-    if (!["L2", "L3", "L4", "L5"].includes(gate)) continue;
+    if (!contentForGate(roundPlan.epics[i]!.finalStep).features) continue;
     const done = gate === "L5";
     const running = gate === "L4" || gate === "L5";
     // Der ART des Epics — nicht ein rotierender: ein Feature liefert im selben
@@ -1695,13 +1712,19 @@ async function main() {
    * die drei Themen von keinem Vorhaben aus erreichbar — ein Kopf ohne Körper.
    */
   await createManyChunked(
-    epicIds.map((epicId, i) => ({
-      id: uid(`large:themelink:${i}`),
-      tenantId,
-      themeId: vsTheme[epicVs[i]!]!,
-      epicId,
-      createdBy: ADMIN,
-    })),
+    epicIds
+      // Die Zuordnung zu einem Thema ist eine Einordnung, die das
+      // Anlege-Formular nicht kennt. Sie entsteht mit der Analyse (L2) — die
+      // Ziel-Verknuepfung dagegen gehoert zu L0 und bleibt fuer alle bestehen.
+      .map((epicId, i) => ({ epicId, i }))
+      .filter(({ i }) => contentForGate(roundPlan.epics[i]!.finalStep).themeLink)
+      .map(({ epicId, i }) => ({
+        id: uid(`large:themelink:${i}`),
+        tenantId,
+        themeId: vsTheme[epicVs[i]!]!,
+        epicId,
+        createdBy: ADMIN,
+      })),
     (data) => prisma.themeEpicLink.createMany({ data, skipDuplicates: true }),
   );
 
@@ -1780,19 +1803,25 @@ async function main() {
   await prisma.objective.createMany({ data: roots });
   await prisma.objective.createMany({ data: children });
 
-  // Epics dem Baum zuordnen: die Einsparungs-KPI JEDES Epics (alle Gates,
-  // auch L0/L1 — ziel-getriebener Prozess) → Wertstrom-Ziel.
+  /**
+   * Epics dem Baum zuordnen — **jedes**, auf allen Gates. Die Verknüpfung
+   * gehört zu L0: der Anlege-Dialog setzt sie in einem zweiten Schritt, und ein
+   * ziel-getriebener Prozess fängt genau damit an.
+   *
+   * Die **treibende KPI** gibt es dagegen erst ab L2. Bis dahin steht der Link
+   * ohne sie da — `kpiId` ist nullable, und das Schema nennt diesen Fall
+   * ausdrücklich. Vorher hing die Verknüpfung an der KPI und fiel mit ihr weg:
+   * 128 von 176 statt 176.
+   */
   const goalLinkRows: Prisma.GoalEpicLinkCreateManyInput[] = [];
   for (let i = 0; i < EPIC_COUNT; i++) {
     const k = epicSavingsKpi[i];
-    if (!k) continue;
     goalLinkRows.push({
       id: uid(`large:gel:${i}`),
       tenantId,
       objectiveId: gVs[epicVs[i]!]!,
       epicId: epicIds[i]!,
-      kpiId: k.id,
-      conversionFactor: 1,
+      ...(k ? { kpiId: k.id, conversionFactor: 1 } : {}),
       impactKind: "recurring",
       recurringInterval: "yearly",
       createdBy: ADMIN,
@@ -1981,9 +2010,86 @@ async function main() {
   );
   console.log(`  ✓ Guardrail-Ziele für ${vsIds.length} Wertströme`);
 
+  /**
+   * **Die Gegenprobe am geschriebenen Bestand.** Nicht an den Absichten des
+   * Seeds, sondern an dem, was in der Datenbank steht — so wie
+   * `allocationRuleViolations` es fuer das Geld tut.
+   *
+   * Vorher hatten 28 von 30 Funnel-Ideen eine Timeline mit Umsetzungsterminen,
+   * KPIs und teils Features. Das fiel niemandem auf, weil niemand danach fragte.
+   */
+  await assertWrittenContentMatchesGates(tenantId);
+
   console.log(
     `\n✅ Large-Seed fertig (sechs gespielte Runden, laufendes Halbjahr ${CURRENT_CYCLE}).\n`,
   );
+}
+
+/**
+ * Liest die geschriebenen Epics samt ihrer Nebenobjekte und haelt sie gegen
+ * `contentForGate`. Der Reifegrad-**Schritt** wird dabei aus denselben Stempeln
+ * abgeleitet, aus denen die Anwendung ihn liest (`currentGateStep`) — nicht aus
+ * der Absicht des Seeds.
+ */
+async function assertWrittenContentMatchesGates(tenantId: string): Promise<void> {
+  const rows = await prisma.initiative.findMany({
+    where: { tenantId, level: 0, deletedAt: null },
+    select: {
+      id: true,
+      title: true,
+      stageGate: true,
+      approvedAt: true,
+      implementationCompletedAt: true,
+      benefitHypothesis: true,
+      businessCase: true,
+      timeline: true,
+      costToMvp: true,
+      epicType: true,
+      helpRequestedAt: true,
+      stagedForBudgeting: true,
+      _count: { select: { children: true, kpis: true, themeLinks: true } },
+    },
+  });
+  const funded = new Set(
+    (await prisma.budgetAllocation.findMany({ where: { tenantId }, select: { epicId: true } })).map(
+      (a) => a.epicId,
+    ),
+  );
+  const linked = new Set(
+    (
+      await prisma.dependency.findMany({
+        where: { tenantId },
+        select: { fromId: true, toId: true },
+      })
+    ).flatMap((d) => [d.fromId, d.toId]),
+  );
+
+  assertGateContent(
+    rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      step: currentGateStep({
+        stageGate: r.stageGate as StageGate,
+        approvedAt: r.approvedAt,
+        implementationCompletedAt: r.implementationCompletedAt,
+      }),
+      has: {
+        benefitHypothesis: r.benefitHypothesis != null,
+        timeline: r.timeline != null,
+        businessCase: r.businessCase != null,
+        costToMvp: r.costToMvp != null,
+        epicType: r.epicType != null,
+        kpis: r._count.kpis > 0,
+        features: r._count.children > 0,
+        budget: funded.has(r.id),
+        themeLink: r._count.themeLinks > 0,
+        epicDependency: linked.has(r.id),
+        helpRequested: r.helpRequestedAt != null,
+        stagedForBudgeting: r.stagedForBudgeting,
+      },
+    })),
+  );
+  console.log(`  ✓ ${rows.length} Epics tragen nur, was ihr Reifegrad hergibt`);
 }
 
 // ── Kleine Helfer ───────────────────────────────────────────────────────────

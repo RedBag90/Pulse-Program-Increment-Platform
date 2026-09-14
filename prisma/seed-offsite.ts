@@ -48,6 +48,9 @@ import {
   uid,
 } from "./seed-helpers.js";
 import { seedRunTheBusiness, seedBudgetPeriod, type GroupSpec } from "./seed-budgeting.js";
+import { assertGateContent } from "./seed-gate-content.js";
+import { currentGateStep } from "@/modules/work/domain/stage-gate";
+import type { StageGate } from "@/modules/core/kernel/domain/types";
 import { rtbCycleAmount } from "@/modules/budgeting/domain/rtb-interval";
 
 const TENANT_NAME = "Test Demo";
@@ -1079,6 +1082,13 @@ async function main() {
   });
   console.log(`  ✓ Operating Model aktiv, ${DONE_CHECKS.length} Setup-Schritte abgehakt`);
 
+  /**
+   * **Die Gegenprobe am geschriebenen Bestand.** Dieses Seed setzt seine
+   * Reifegrad-Spalten von Hand statt ueber `buildGateHistory` — umso wichtiger
+   * ist, dass wenigstens der Inhalt gegen den Reifegrad gehalten wird.
+   */
+  await assertWrittenContentMatchesGates(tenantId);
+
   console.log("\n✅ Fertig. Anmelden als admin@pulse.dev, Mandant „Test Demo“.");
   console.log("   Planungsteam: eo-{transport,agenda,hotel}@pulse.dev · fo-{…}@pulse.dev");
   console.log("   Nächster Schritt in der Simulation: PI-Planning (Features in PI 1 ziehen).\n");
@@ -1136,3 +1146,60 @@ main()
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());
+
+/**
+ * Haelt die geschriebenen Epics gegen `contentForGate`. Der Reifegrad-Schritt
+ * wird aus denselben Stempeln abgeleitet, aus denen die Anwendung ihn liest.
+ */
+async function assertWrittenContentMatchesGates(tenantId: string): Promise<void> {
+  const rows = await prisma.initiative.findMany({
+    where: { tenantId, level: 0, deletedAt: null },
+    select: {
+      id: true,
+      title: true,
+      stageGate: true,
+      approvedAt: true,
+      implementationCompletedAt: true,
+      benefitHypothesis: true,
+      businessCase: true,
+      timeline: true,
+      costToMvp: true,
+      epicType: true,
+      helpRequestedAt: true,
+      stagedForBudgeting: true,
+      _count: { select: { children: true, kpis: true, themeLinks: true, issues: true } },
+    },
+  });
+  const funded = new Set(
+    (await prisma.budgetAllocation.findMany({ where: { tenantId }, select: { epicId: true } })).map(
+      (a) => a.epicId,
+    ),
+  );
+
+  assertGateContent(
+    rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      step: currentGateStep({
+        stageGate: r.stageGate as StageGate,
+        approvedAt: r.approvedAt,
+        implementationCompletedAt: r.implementationCompletedAt,
+      }),
+      has: {
+        benefitHypothesis: r.benefitHypothesis != null,
+        timeline: r.timeline != null,
+        businessCase: r.businessCase != null,
+        costToMvp: r.costToMvp != null,
+        epicType: r.epicType != null,
+        kpis: r._count.kpis > 0,
+        features: r._count.children > 0,
+        budget: funded.has(r.id),
+        themeLink: r._count.themeLinks > 0,
+        issues: r._count.issues > 0,
+        helpRequested: r.helpRequestedAt != null,
+        stagedForBudgeting: r.stagedForBudgeting,
+      },
+    })),
+  );
+  console.log(`  ✓ ${rows.length} Epics tragen nur, was ihr Reifegrad hergibt`);
+}
