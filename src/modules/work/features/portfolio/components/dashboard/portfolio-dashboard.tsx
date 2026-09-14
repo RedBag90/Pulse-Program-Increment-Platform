@@ -18,6 +18,7 @@ import {
 import {
   buildPortfolioSeries,
   groupSeriesByValueStream,
+  foldTopEpicSeries,
   groupSeriesByEstimatedStage,
   type PortfolioSeries,
   type PortfolioEconomicsData,
@@ -31,7 +32,14 @@ import {
 } from "@/modules/work/features/portfolio/components/epic-facet-filter-bar";
 import { matchesQuery } from "@/modules/work/lib/row-filter";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
-import { epicColor, VALUE_COLOR, COST_COLOR, BREAKEVEN_COLOR } from "./epic-colors";
+import {
+  epicColor,
+  NEUTRAL_COLOR,
+  TOP_EPIC_SERIES,
+  VALUE_COLOR,
+  COST_COLOR,
+  BREAKEVEN_COLOR,
+} from "./epic-colors";
 import { GoalBenefitWaterfallSection, type WaterfallEpicInfo } from "./goal-benefit-waterfall";
 import type { GoalWaterfallData } from "@/modules/work/domain/goal-benefit-waterfall";
 import { Card } from "@/components/ui/card";
@@ -270,7 +278,11 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
           confirmedMap,
         ),
       };
-    return series;
+    // Epic-Sicht: die Top 15 nach Benefit einzeln, der Rest gesammelt. Ohne
+    // diesen Deckel wächst die Zahl der Diagramm-Elemente mit Epics × Monaten —
+    // die drei Bucket-Sichten oben sind von Natur aus beschränkt, diese war es
+    // nicht.
+    return { ...series, perEpic: foldTopEpicSeries(series.perEpic, TOP_EPIC_SERIES) };
   }, [series, groupMode, vsByEpicId, artByEpicId, stageTimelineById, confirmedMap]);
   // Stabile Farbe je Bucket-Titel (Value Stream bzw. ART), damit die freigegeben-
   // und die veranschlagt-Sub-Serie desselben Buckets dieselbe Farbe teilen (solid
@@ -374,8 +386,12 @@ export function PortfolioDashboard({ data, canEdit, goalWaterfalls }: Props) {
     return {
       id: e.id,
       title: e.title,
-      color: bucketMode ? vsColorByTitle[e.title]! : colorById[e.id]!,
-      confirmed: bucketMode ? !e.id.endsWith(":est") : (confirmedById[e.id] ?? false),
+      // Der Rest-Sammler der Epic-Sicht hat keine eigene Epic-Id: er bekommt das
+      // Neutralgrau und trägt seine Funding-Konfidenz in der Serie selbst.
+      color: bucketMode ? vsColorByTitle[e.title]! : (colorById[e.id] ?? NEUTRAL_COLOR),
+      confirmed: bucketMode
+        ? !e.id.endsWith(":est")
+        : (confirmedById[e.id] ?? e.hasAllocation ?? false),
     };
   });
   const stackedBy =
@@ -918,7 +934,7 @@ function SettingsEditor({
           {pending ? "Speichert…" : "Speichern"}
         </Button>
         {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-        {state.success && <p className="text-sm text-emerald-600">Gespeichert.</p>}
+        {state.success && <p className="text-sm text-success">Gespeichert.</p>}
       </form>
     </Card>
   );

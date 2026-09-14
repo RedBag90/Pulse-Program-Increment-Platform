@@ -56,6 +56,26 @@ export interface EpicBudgetStanding {
    * `null`, wenn sein Zeitraum bereits läuft und nur die Ausarbeitung fehlt.
    */
   startsAt: Date | null;
+  /**
+   * Die tragenden Zyklen einzeln — aufsteigend nach Halbjahr.
+   *
+   * `totalAmount` beantwortet „wie viel insgesamt", diese Liste beantwortet
+   * „wann wovon". Beides zusammen ist erst die Auskunft, die ein Epic Owner
+   * braucht: eine Summe über drei Halbjahre sagt nicht, ob in *diesem* etwas
+   * liegt.
+   */
+  periods: EpicBudgetPeriod[];
+}
+
+/** Ein tragender Zyklus: Betrag und Geltungsdaten seiner Kachel. */
+export interface EpicBudgetPeriod {
+  cycleKey: string;
+  amount: number;
+  /** Aus der Kachel; `null`, wenn es zum Zyklus keine gibt (Alt-Daten). */
+  start: Date | null;
+  end: Date | null;
+  /** Ist dies der angewandte Rahmen — also das Geld, das jetzt gilt? */
+  applies: boolean;
 }
 
 const EMPTY: EpicBudgetStanding = {
@@ -66,6 +86,7 @@ const EMPTY: EpicBudgetStanding = {
   cycleCount: 0,
   span: null,
   startsAt: null,
+  periods: [],
 };
 
 export function epicBudgetStanding(input: {
@@ -103,6 +124,22 @@ export function epicBudgetStanding(input: {
     ? { cycleKey: appliedRound.cycleKey, start: appliedRound.startDate, end: appliedRound.endDate }
     : null;
 
+  // Die tragenden Zyklen einzeln — aufsteigend, weil „YYYY-H1" lexikografisch
+  // schon chronologisch ist. Zyklen ohne Kachel bleiben drin (der Betrag gilt),
+  // nur ohne Daten: lieber keine Spanne als eine erfundene.
+  const periods: EpicBudgetPeriod[] = funded
+    .map(([cycleKey, amount]) => {
+      const round = byKey.get(cycleKey);
+      return {
+        cycleKey,
+        amount,
+        start: round?.startDate ?? null,
+        end: round?.endDate ?? null,
+        applies: appliedRound != null && cycleKey === appliedRound.cycleKey,
+      };
+    })
+    .sort((a, b) => a.cycleKey.localeCompare(b.cycleKey));
+
   if (currentAmount !== 0) {
     return {
       state: "applies",
@@ -112,6 +149,7 @@ export function epicBudgetStanding(input: {
       cycleCount: funded.length,
       span,
       startsAt: null,
+      periods,
     };
   }
 
@@ -131,5 +169,6 @@ export function epicBudgetStanding(input: {
     cycleCount: funded.length,
     span,
     startsAt,
+    periods,
   };
 }

@@ -16,7 +16,8 @@ import {
  * The Epic's budget-allocation summary. Budgeting owns the `budgetAllocation`
  * table; the Epic route consumes this via a port so Work never reads it directly
  * (ADR-0013). `allocatedSum` is the total of the per-period allocations — the
- * Reifegrad sub-header shows "Budget alloziert" when it is > 0. `allocatedByPeriod`
+ * Budget-Panel des Overview-Reiters zeigt den Zustand, wenn er > 0 ist.
+ * `allocatedByPeriod`
  * carries the per-half-year map (`"YYYY-H1|H2" → €`) for the cost-over-time
  * calculation (Business-case-calculation tab).
  */

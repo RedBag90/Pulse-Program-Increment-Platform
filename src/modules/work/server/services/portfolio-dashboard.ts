@@ -9,6 +9,10 @@
 import { resolveEpicHorizon } from "@/modules/work/domain/epic-horizon";
 import type { PrismaClient } from "@/generated/prisma";
 import type { TenantId } from "@/modules/core/kernel/domain/types";
+import {
+  BUDGET_DECISION_GATE,
+  GATES_AFTER_BUDGET_DECISION,
+} from "@/modules/work/domain/stage-gate";
 import { InitiativeLevel } from "@/modules/core/kernel/domain/types";
 import type { Result } from "@/modules/core/kernel/domain/errors";
 import { ok } from "@/modules/core/kernel/domain/errors";
@@ -63,7 +67,24 @@ export async function getPortfolioEconomics(
 ): Promise<PortfolioEconomicsData> {
   const [rows, tenant, userLabels, allocations] = await Promise.all([
     db.initiative.findMany({
-      where: { tenantId, level: InitiativeLevel.EPIC, deletedAt: null },
+      // **Nur Epics ab L3.2 „Budget alloziert".** Ab der Investitionsentscheidung
+      // steht ein Betrag fest, der ausgegeben wird — davor ist jede Zahl ein
+      // Wunsch. Der Filter sitzt hier und nicht erst in der Reihenbildung, damit
+      // er *alles* erfasst: die Panels, den Epic-Slicer und vor allem die
+      // **Achse**, deren unterer Rand sonst vom Kostenfenster eines
+      // unentschiedenen Epics nach hinten gezogen wird.
+      //
+      // Zwei Zweige, weil die Schwelle mitten in L3 liegt: L3.1 und L3.2 teilen
+      // sich `stage_gate`, erst `approvedAt` trennt sie.
+      where: {
+        tenantId,
+        level: InitiativeLevel.EPIC,
+        deletedAt: null,
+        OR: [
+          { stageGate: { in: [...GATES_AFTER_BUDGET_DECISION] } },
+          { stageGate: BUDGET_DECISION_GATE, approvedAt: { not: null } },
+        ],
+      },
       select: {
         id: true,
         title: true,

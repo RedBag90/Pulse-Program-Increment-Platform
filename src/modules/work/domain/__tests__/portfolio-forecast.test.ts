@@ -27,8 +27,18 @@ describe("epicMonthlyFlows — Forecast-Rest zum Ziel (benefitUplift)", () => {
   it("füllt nur Zukunftsmonate (> heute, ≥ go-live) mit dem Delta zum Plan", () => {
     const todayIndex = 1; // heute = Feb; Forecast ab März
     const { benefit, benefitUplift } = epicMonthlyFlows(input, axis, todayIndex);
-    expect(benefit).toEqual([100, 100, 100, 100]); // gemessene Fortschreibung
+    // Dieses Epic ist **nicht abgenommen** (kein `quantityFrozenAt`). Nutzen
+    // zählt dann nur in der Zukunft — die gemessene Run-Rate in Jan/Feb steht
+    // für Arbeit, die nachweislich nicht abgenommen ist.
+    expect(benefit).toEqual([0, 0, 100, 100]);
     expect(benefitUplift).toEqual([0, 0, 200, 200]); // 300 − 100 ab März
+  });
+
+  it("mit L4.2-Abnahme zählt auch die gemessene Vergangenheit", () => {
+    const abgenommen = { ...input, quantityFrozenAt: m(2026, 1) };
+    const { benefit, benefitUplift } = epicMonthlyFlows(abgenommen, axis, 1);
+    expect(benefit).toEqual([100, 100, 100, 100]); // ab dem Ist-Monat
+    expect(benefitUplift).toEqual([0, 0, 0, 0]); // gebaut ist gebaut
   });
 
   it("liefert keinen Uplift ohne kpiRecurringAtFull (Business-Case-Fallback ist der Plan)", () => {

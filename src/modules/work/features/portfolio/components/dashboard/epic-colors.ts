@@ -26,6 +26,20 @@ export function epicColor(index: number): string {
   return EPIC_COLORS[index % EPIC_COLORS.length]!;
 }
 
+/**
+ * Wie viele Epics die Epic-Sicht **einzeln** zeigt, bevor der Rest zu
+ * „Weitere" zusammenfällt.
+ *
+ * Die Zahl steht hier, weil die Palette ihr Grund ist: 16 Farben, 15 davon für
+ * einzelne Epics, eine neutrale für den Sammler — so wiederholt sich keine
+ * Farbe. Dieselbe Schwelle gilt für die Serien der gestapelten Panels und für
+ * die Spalten des Benefit-Wasserfalls.
+ */
+export const TOP_EPIC_SERIES = 15;
+
+/** Der Rest-Sammler — grau, weil er kein einzelnes Vorhaben bezeichnet. */
+export const NEUTRAL_COLOR = "#94a3b8"; // slate-400
+
 /** Semantic colours shared by the ROI and break-even panels. */
 export const VALUE_COLOR = "#16a34a"; // green-600 — business value
 export const COST_COLOR = "#dc2626"; // red-600 — cost

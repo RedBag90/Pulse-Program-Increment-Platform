@@ -43,8 +43,12 @@ export default async function PortfolioDashboardPage() {
         title="Portfolio-Dashboard"
         subtitle={
           <>
-            Wirtschaftlichkeit über Zeit — Kosten, Business Value, ROI und Break-even je Epic. Pro
-            Theme aufgeschlüsselt:{" "}
+            Wirtschaftlichkeit über Zeit — Kosten, Business Value, ROI und Break-even je Epic.
+            Gerechnet wird mit Epics{" "}
+            <strong className="font-medium">ab L3.2 „Budget alloziert"</strong>: ab der
+            Investitionsentscheidung steht das Geld fest. Der Nutzen zählt davon getrennt erst ab{" "}
+            <strong className="font-medium">L4.2</strong> — geliefert ist geliefert. Pro Theme
+            aufgeschlüsselt:{" "}
             <Link href={"/ziele?tab=money" as never} className="text-primary hover:underline">
               Ziele · Money
             </Link>
@@ -63,8 +67,8 @@ export default async function PortfolioDashboardPage() {
 
       {data.epics.length === 0 ? (
         <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">
-          Noch keine Epics mit Business-Case-Daten. Hinterlege Kosten und Nutzen im Business Case
-          eines Epics, damit das Dashboard rechnet.
+          Noch kein Epic mit alloziertem Budget. Das Dashboard rechnet ab L3.2 — sobald im
+          Budget-Meeting das erste Mal Geld vergeben ist, erscheinen hier Kosten und Nutzen.
         </div>
       ) : (
         <PortfolioDashboard data={data} canEdit={canEdit} goalWaterfalls={goalWaterfalls} />

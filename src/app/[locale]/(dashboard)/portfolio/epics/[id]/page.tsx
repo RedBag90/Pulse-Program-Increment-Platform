@@ -9,6 +9,14 @@ import {
   getEpicBudgetAllocation,
   getEpicBudgetStanding,
 } from "@/modules/budgeting/server/services/epic-allocation";
+import {
+  allocationState,
+  ALLOCATION_STATE_LABELS,
+} from "@/modules/budgeting/domain/allocation-state";
+import {
+  mayHoldAllocation,
+  FIRST_FUNDABLE_STEP,
+} from "@/modules/budgeting/domain/allocation-eligibility";
 import { loadIssues } from "@/modules/risks/server/views/issues";
 import { IssuesListShell } from "@/modules/risks/features/issue/components/issues-list-shell";
 import { loadEpicGoalLinks } from "@/modules/core/goals/server/views/epic-goal-contributions";
@@ -101,7 +109,7 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
       {
         pis: (artIds) => listProgramIncrementsForArts(db, tenantId, artIds),
         dependencies: (featureIds) => listBreakdownDependencies(db, tenantId, featureIds),
-        budget: async () => {
+        budget: async (facts) => {
           // Der Stand liest **beide** Töpfe (Portfolio- und ART-Zuteilung) und
           // wählt nach der Klasse — nie beide zusammen. Die Klasse steht hier
           // im Composition-Root; Work importiert nichts aus Budgeting.
@@ -109,10 +117,24 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             getEpicBudgetAllocation(db, tenantId, epicId),
             getEpicBudgetStanding(db, tenantId, epicId, await epicClassOf(), new Date()),
           ]);
+          const allocatedSum = allocation?.allocatedSum ?? 0;
+          // Zustand und Förderfähigkeit beantwortet Budgeting — hier an der
+          // Naht, wo beide Module sich sehen dürfen. Das Etikett reist als
+          // Wert mit, damit es nicht in Work ein zweites Mal entsteht.
+          const state = allocationState({
+            stageGate: facts.stageGate,
+            implementationCompletedAt: facts.implementationCompletedAt,
+          });
           return {
-            allocatedSum: allocation?.allocatedSum ?? 0,
+            allocatedSum,
             allocatedByPeriod: allocation?.allocatedByPeriod ?? {},
             standing,
+            allocationState:
+              allocatedSum > 0 ? { key: state, label: ALLOCATION_STATE_LABELS[state] } : null,
+            fundable: {
+              may: mayHoldAllocation(facts.step),
+              firstStep: FIRST_FUNDABLE_STEP,
+            },
           };
         },
       },
@@ -361,6 +383,10 @@ export default async function EpicDetailPage({ params, searchParams }: Props) {
             solutions={availableSolutions}
             classification={epicClassification}
             budgetStanding={model.budgeting.disabled ? null : model.budgeting.standing}
+            allocationState={model.budgeting.disabled ? null : model.budgeting.allocationState}
+            fundable={
+              model.budgeting.disabled ? { may: true, firstStep: "" } : model.budgeting.fundable
+            }
             ownerSlot={
               <EpicOwnerAssign
                 epicId={epic.id}

@@ -4,6 +4,8 @@ import {
   epicMonthlyFlows,
   aggregatePortfolio,
   groupSeriesByValueStream,
+  foldTopEpicSeries,
+  OTHERS_SERIES_ID,
   kpiFulfillmentByMonth,
   recurringFactorByMonth,
   kpiRealizedValueByMonth,
@@ -18,6 +20,12 @@ import type { KpiMeasurement } from "@/modules/core/kpi/domain/kpi";
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
+/**
+ * Ein **abgenommenes** Epic: `quantityFrozenAt` ist der L4.2-Stempel und liegt
+ * auf dem Go-Live. Die Voraussetzung stand früher nicht da, weil Nutzen ohne
+ * Rücksicht auf die Abnahme zählte; seit er erst ab L4.2 zählt, ist sie das,
+ * was diese Tests immer gemeint haben — „ein geliefertes Epic".
+ */
 const epic = (over: Partial<EpicEconomicsInput> = {}): EpicEconomicsInput => ({
   id: "e1",
   title: "Epic 1",
@@ -26,6 +34,7 @@ const epic = (over: Partial<EpicEconomicsInput> = {}): EpicEconomicsInput => ({
   recurringBenefit: 1200, // 100/month
   costStart: utc("2024-01-01"),
   goLive: utc("2025-01-01"), // costStart + 12 months → axis index 12
+  quantityFrozenAt: utc("2025-01-01"), // L4.2 abgenommen
   ...over,
 });
 
@@ -244,12 +253,14 @@ describe("epicMonthlyFlows — KPI-realized-value velocity", () => {
       axis,
       axis.monthCount,
     );
-    expect(benefit[3]).toBeCloseTo(20000); // Zuwachs 0 → 20k
-    expect(benefit[4]).toBeCloseTo(0); // kein Zuwachs
-    expect(benefit[6]).toBeCloseTo(20000); // 20k → 40k
-    expect(benefit[9]).toBeCloseTo(20000); // 40k → 60k
-    // one-time-KPI vorhanden ⇒ kein Business-Case-oneTimeBenefit-Spike bei go-live
-    expect(benefit[12]).toBeCloseTo(0);
+    // Alle drei Zuwächse liegen **vor** der L4.2-Abnahme (idx 12). Gezählt wird
+    // erst ab dort — der einmalige Nutzen geht aber nicht verloren, sondern
+    // wird im Abnahmemonat gutgeschrieben. Eine Rate vor der Lieferung gäbe es
+    // nicht; ein einmaliger Wert fällt an, wenn das Vorhaben live geht.
+    expect(benefit[3]).toBe(0);
+    expect(benefit[6]).toBe(0);
+    expect(benefit[9]).toBe(0);
+    expect(benefit[12]).toBeCloseTo(60000);
     // Summe = volle one-time-KPI-Wertung 60k
     expect(benefit.reduce((s, v) => s + v, 0)).toBeCloseTo(60000);
   });
@@ -342,18 +353,77 @@ describe("kpiRecurringByMonth — recurring run-rate", () => {
 describe("epicMonthlyFlows — recurring KPI run-rate + one-time fallback", () => {
   const axis = buildMonthAxis(utc("2024-01-01"), utc("2026-12-01"));
 
-  it("adds the recurring run-rate every month and keeps the one-time spike at go-live", () => {
+  it("zählt die Run-Rate ab der Abnahme und behält den Einmal-Spike am Go-Live", () => {
     const recurring = zerosArr(axis.monthCount);
-    for (let i = 6; i < axis.monthCount; i++) recurring[i] = 300; // run-rate from idx 6
+    for (let i = 6; i < axis.monthCount; i++) recurring[i] = 300; // gemessene Run-Rate ab idx 6
     const { benefit } = epicMonthlyFlows(
       { ...epic(), kpiRecurringByMonth: recurring },
       axis,
       axis.monthCount,
     );
-    expect(benefit[5]).toBeCloseTo(0); // before the run-rate starts
-    expect(benefit[6]).toBeCloseTo(300); // run-rate, no flat fallback added
-    expect(benefit[13]).toBeCloseTo(300); // ongoing run-rate (not recurringBenefit/12=100)
-    expect(benefit[12]).toBeCloseTo(300 + 500); // go-live: run-rate + one-time spike (no one-time KPI)
+    expect(benefit[5]).toBeCloseTo(0); // vor der Messung
+    // Der KPI bewegt sich ab idx 6, abgenommen ist erst idx 12. Eine laufende
+    // Rate vor der Lieferung gibt es nicht — anders als der einmalige Nutzen
+    // wird sie **nicht** nachgetragen: sie ist nie geflossen.
+    expect(benefit[6]).toBe(0);
+    expect(benefit[11]).toBe(0);
+    expect(benefit[12]).toBeCloseTo(300 + 500); // Abnahme: Run-Rate + Einmal-Spike
+    expect(benefit[13]).toBeCloseTo(300); // laufend (nicht recurringBenefit/12 = 100)
+  });
+});
+
+/**
+ * **Nutzen zählt erst ab L4.2** — die Regel, die das Portfolio-Dashboard davor
+ * bewahrt, ungelieferte Arbeit als realisierten Nutzen auszuweisen.
+ */
+describe("epicMonthlyFlows — Nutzen zählt erst ab L4.2", () => {
+  const axis = buildMonthAxis(utc("2024-01-01"), utc("2026-12-01")); // 36 Monate
+  const HEUTE = 20; // Sep 2025
+
+  /** Dasselbe Epic, nur ohne Abnahme. */
+  const ohneAbnahme = () => {
+    const { quantityFrozenAt: _weg, ...rest } = epic();
+    void _weg;
+    return rest;
+  };
+
+  it("ohne Abnahme: in Vergangenheit und laufendem Monat nichts", () => {
+    const { benefit } = epicMonthlyFlows(ohneAbnahme(), axis, HEUTE);
+    for (let i = 0; i <= HEUTE; i++) expect(benefit[i]).toBe(0);
+  });
+
+  it("ohne Abnahme: ab dem geplanten L4.2 in der Zukunft als Prognose", () => {
+    // go-live = idx 12, heute = idx 20 ⇒ gezählt wird ab idx 21. Der geplante
+    // Go-Live liegt in der Vergangenheit; sein Einmal-Nutzen wandert in den
+    // ersten Monat, der zählt — verfällt also nicht, weil der Plan alt ist.
+    const { benefit } = epicMonthlyFlows(ohneAbnahme(), axis, HEUTE);
+    expect(benefit[21]).toBeCloseTo(500 + 100); // Einmal-Nutzen + Run-Rate
+    expect(benefit[22]).toBeCloseTo(100); // danach nur noch die Run-Rate
+    expect(benefit[35]).toBeCloseTo(100);
+  });
+
+  it("ohne Abnahme und mit geplantem L4.2 in fernerer Zukunft: erst ab dort", () => {
+    const spaet = { ...ohneAbnahme(), goLive: utc("2026-06-01") }; // idx 29
+    const { benefit } = epicMonthlyFlows(spaet, axis, HEUTE);
+    expect(benefit[28]).toBe(0);
+    expect(benefit[29]).toBeCloseTo(100 + 500); // Run-Rate + Einmal-Spike
+  });
+
+  it("mit Abnahme: ab dem Ist-Monat, auch wenn er in der Vergangenheit liegt", () => {
+    const { benefit } = epicMonthlyFlows(epic(), axis, HEUTE);
+    expect(benefit[11]).toBe(0); // Monat vor der Abnahme
+    expect(benefit[12]).toBeCloseTo(600); // Abnahme: Run-Rate 100 + Einmal 500
+    expect(benefit[13]).toBeCloseTo(100);
+  });
+
+  it("die Summe des einmaligen Nutzens bleibt erhalten, er verschiebt sich nur", () => {
+    const realized = zerosArr(axis.monthCount);
+    for (let i = 2; i < axis.monthCount; i++) realized[i] = 9000; // realisiert ab idx 2
+    const mitKpi = { ...epic({ recurringBenefit: 0 }), kpiRealizedValueByMonth: realized };
+    const { benefit } = epicMonthlyFlows(mitKpi, axis, HEUTE);
+    expect(benefit[2]).toBe(0); // vor der Abnahme nicht gezählt
+    expect(benefit[12]).toBeCloseTo(9000); // im Abnahmemonat gutgeschrieben
+    expect(benefit.reduce((a, b) => a + b, 0)).toBeCloseTo(9000); // nichts verloren
   });
 });
 
@@ -453,7 +523,9 @@ describe("Die Menge friert mit L4.2 — kein Forecast auf ein fertiges Epic", ()
     },
   ];
 
-  const laufend = epic({
+  // Ausdrücklich **ohne** L4.2-Stempel — der Name sagt es: die Umsetzung läuft
+  // noch. Die geteilte Fixture ist abgenommen, hier muss das weg.
+  const { quantityFrozenAt: _nochNichtAbgenommen, ...laufendBasis } = epic({
     costStart: utc("2026-01-01"),
     goLive: utc("2026-02-01"),
     ...(kpiRecurringByMonth(kpis, axis)
@@ -461,6 +533,8 @@ describe("Die Menge friert mit L4.2 — kein Forecast auf ein fertiges Epic", ()
       : {}),
     kpiRecurringAtFull: 10_000 / 12,
   });
+  void _nochNichtAbgenommen;
+  const laufend = laufendBasis;
 
   it("solange die Umsetzung läuft, rechnet der Forecast den Rest zum Ziel hoch", () => {
     const f = epicMonthlyFlows(laufend, axis, todayIdx);
@@ -499,5 +573,127 @@ describe("kpiFulfillmentByMonth — Messungen nach dem Einfrieren zählen nicht"
     const f = kpiFulfillmentByMonth(ms, 0, 100, axis, utc("2026-05-01"));
     expect(f[11]).toBeCloseTo(0.7);
     expect(f[2]).toBeCloseTo(0.7);
+  });
+});
+
+describe("foldTopEpicSeries", () => {
+  /** Eine Serie, deren Gesamt-Benefit (`accBenefit` zuletzt) gleich `benefit` ist. */
+  const mk = (id: string, benefit: number, hasAllocation = true): EpicSeries => ({
+    id,
+    title: id,
+    cost: [1, 2],
+    benefit: [benefit, 0],
+    benefitUplift: [0, 1],
+    net: [benefit - 1, -1],
+    accCost: [1, 3],
+    accBenefit: [benefit, benefit],
+    accNet: [benefit - 1, benefit - 2],
+    hasAllocation,
+  });
+
+  const KEYS = [
+    "cost",
+    "benefit",
+    "benefitUplift",
+    "net",
+    "accCost",
+    "accBenefit",
+    "accNet",
+  ] as const;
+
+  /** Monatssummen über alle Serien — das, was die Balkenhöhen ergibt. */
+  const totals = (per: readonly EpicSeries[]) =>
+    Object.fromEntries(
+      KEYS.map((k) => [k, [0, 1].map((m) => per.reduce((sum, e) => sum + (e[k][m] ?? 0), 0))]),
+    );
+
+  it("lässt kleine Mengen unangetastet", () => {
+    const per = [mk("a", 3), mk("b", 1)];
+    expect(foldTopEpicSeries(per, 15)).toEqual(per);
+  });
+
+  it("zeigt die Top N nach Benefit einzeln und sammelt den Rest", () => {
+    const per = Array.from({ length: 20 }, (_, i) => mk(`e${i}`, i));
+    const folded = foldTopEpicSeries(per, 15);
+
+    // 15 Einzelserien, absteigend nach Benefit, danach genau ein Sammler
+    // (alle Rest-Epics sind hier freigegeben).
+    expect(folded).toHaveLength(16);
+    expect(folded.slice(0, 15).map((e) => e.id)).toEqual(
+      ["e19", "e18", "e17", "e16", "e15", "e14", "e13", "e12", "e11", "e10"].concat([
+        "e9",
+        "e8",
+        "e7",
+        "e6",
+        "e5",
+      ]),
+    );
+    expect(folded[15]!.id).toBe(OTHERS_SERIES_ID);
+    expect(folded[15]!.title).toBe("5 weitere Epics");
+  });
+
+  it("verliert kein Geld — die Monatssummen bleiben gleich", () => {
+    const per = Array.from({ length: 20 }, (_, i) => mk(`e${i}`, i, i % 2 === 0));
+    expect(totals(foldTopEpicSeries(per, 15))).toEqual(totals(per));
+  });
+
+  it("trennt den Rest nach Funding-Konfidenz — freigegeben vor veranschlagt", () => {
+    // e0..e3 fallen aus den Top 2; zwei davon sind veranschlagt.
+    const per = [
+      mk("e0", 0, true),
+      mk("e1", 1, false),
+      mk("e2", 2, true),
+      mk("e3", 3, false),
+      mk("e4", 4, true),
+      mk("e5", 5, true),
+    ];
+    const others = foldTopEpicSeries(per, 2).slice(2);
+    expect(others.map((e) => e.id)).toEqual([OTHERS_SERIES_ID, `${OTHERS_SERIES_ID}:est`]);
+    expect(others[0]!.hasAllocation).toBe(true);
+    expect(others[1]!.hasAllocation).toBe(false);
+    expect(others.map((e) => e.title)).toEqual(["2 weitere Epics", "2 weitere Epics"]);
+  });
+
+  it("legt kein :est-Band an, wenn alle Rest-Epics freigegeben sind", () => {
+    const per = Array.from({ length: 5 }, (_, i) => mk(`e${i}`, i, true));
+    const folded = foldTopEpicSeries(per, 2);
+    expect(folded.map((e) => e.id)).toEqual(["e4", "e3", OTHERS_SERIES_ID]);
+  });
+
+  it("faltet nicht, wenn es keinen Stack spart", () => {
+    // 3 Epics, topN = 2, Rest = 1 Epic ⇒ 2 + 1 = 3 Serien, also nichts gewonnen.
+    const per = [mk("a", 3, true), mk("b", 2, false), mk("c", 1, true)];
+    expect(foldTopEpicSeries(per, 2)).toEqual(per);
+  });
+
+  it("ist bei Gleichstand deterministisch (Id aufsteigend)", () => {
+    const per = [mk("z", 5), mk("a", 5), mk("m", 5), mk("b", 9)];
+    expect(
+      foldTopEpicSeries(per, 2)
+        .slice(0, 2)
+        .map((e) => e.id),
+    ).toEqual(["b", "a"]);
+  });
+
+  it("nennt ein einzelnes Rest-Epic im Singular", () => {
+    // 6 Epics, topN = 2 ⇒ Rest = 4, davon drei freigegeben und **eines**
+    // veranschlagt. 2 + 2 Bänder < 6, die Faltung greift also.
+    const per = [
+      mk("a", 6, true),
+      mk("b", 5, true),
+      mk("c", 4, true),
+      mk("d", 3, true),
+      mk("e", 2, true),
+      mk("f", 1, false),
+    ];
+    const folded = foldTopEpicSeries(per, 2);
+    expect(folded.map((e) => e.id)).toEqual([
+      "a",
+      "b",
+      OTHERS_SERIES_ID,
+      `${OTHERS_SERIES_ID}:est`,
+    ]);
+    expect(folded[2]!.title).toBe("3 weitere Epics");
+    expect(folded[3]!.title).toBe("1 weiteres Epic");
   });
 });

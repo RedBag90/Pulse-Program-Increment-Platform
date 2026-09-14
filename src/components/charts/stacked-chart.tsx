@@ -126,6 +126,37 @@ export function fillOf(s: Stack): string {
   return s.confirmed ? s.color : `url(#hatch-${s.id})`;
 }
 
+/**
+ * Die Stapel-Reihenfolge der Balken — **eine Serie am Stück**.
+ *
+ * Recharts stapelt in der Reihenfolge, in der die `<Bar>` deklariert sind.
+ * Wird erst über alle Serien die Basis und danach über alle Serien der
+ * Forecast gelegt, erscheint jede Farbe zweimal in derselben Säule, getrennt
+ * durch die Farbe der anderen Serie. Genau so sah die Benefit Velocity aus:
+ * zwei gelbe und zwei grüne Abschnitte übereinander.
+ *
+ * Als eigene Funktion, weil die Reihenfolge eine Aussage ist und kein
+ * Nebeneffekt der Schleifenform — sie lässt sich so prüfen.
+ */
+export function stackedBars(
+  stacks: readonly Stack[],
+  uplift: boolean,
+): { stack: Stack; forecast: boolean }[] {
+  return stacks.flatMap((s) =>
+    uplift
+      ? [
+          { stack: s, forecast: false },
+          { stack: s, forecast: true },
+        ]
+      : [{ stack: s, forecast: false }],
+  );
+}
+
+/** Der Schlüssel eines Segments — `id` für die Basis, `id#up` für den Forecast. */
+export function stackedBarKey(entry: { stack: Stack; forecast: boolean }): string {
+  return entry.forecast ? `${entry.stack.id}#up` : entry.stack.id;
+}
+
 export function HatchDefs({ stacks }: { stacks: Stack[] }) {
   return (
     <svg width="0" height="0" aria-hidden="true" className="absolute">
@@ -161,7 +192,7 @@ export function ChartLegend({
   forecast?: boolean;
 }) {
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-meta text-muted-foreground">
       {hatch && (
         <>
           <span className="flex items-center gap-1.5">
@@ -241,39 +272,46 @@ export function StackedChart({
           />
           <TodayLine months={months} todayIndex={todayIndex} />
           {children}
-          {stacks.map((s) => (
-            <Bar
-              key={s.id}
-              dataKey={s.id}
-              name={stackLabel(s)}
-              stackId="a"
-              fill={fillOf(s)}
-              maxBarSize={14}
-            >
-              {rows.map((_, m) => (
-                <Cell
-                  key={m}
-                  fill={fillOf(s)}
-                  fillOpacity={m > todayIndex ? FORECAST_OPACITY : 1}
-                />
-              ))}
-            </Bar>
-          ))}
-          {uplift &&
-            stacks.map((s) => (
+          {/* Basis- und Forecast-Segment **einer** Serie liegen direkt
+              aufeinander. Recharts stapelt in Deklarationsreihenfolge: zwei
+              getrennte Durchläufe ergaben erst alle Basis-, dann alle
+              Forecast-Balken — im Bild zweimal Braun und zweimal Grün in
+              derselben Säule, als würde jeder Wert doppelt erscheinen. */}
+          {stackedBars(stacks, uplift).map((entry) => {
+            const s = entry.stack;
+            const key = stackedBarKey(entry);
+            // Forecast-Segment: dieselbe Füllung wie die Basis — auf einer
+            // schraffierten Serie wäre ein solides Segment ein Widerspruch.
+            return entry.forecast ? (
               <Bar
-                key={`${s.id}#up`}
-                dataKey={`${s.id}#up`}
+                key={key}
+                dataKey={key}
                 name={`${stackLabel(s)} · Forecast`}
                 stackId="a"
-                // Dieselbe Füllung wie die Basis-Bar — auf einer schraffierten
-                // Serie wäre ein solides Forecast-Segment ein Widerspruch.
                 fill={fillOf(s)}
                 fillOpacity={FORECAST_OPACITY}
                 maxBarSize={14}
                 legendType="none"
               />
-            ))}
+            ) : (
+              <Bar
+                key={key}
+                dataKey={key}
+                name={stackLabel(s)}
+                stackId="a"
+                fill={fillOf(s)}
+                maxBarSize={14}
+              >
+                {rows.map((_, m) => (
+                  <Cell
+                    key={m}
+                    fill={fillOf(s)}
+                    fillOpacity={m > todayIndex ? FORECAST_OPACITY : 1}
+                  />
+                ))}
+              </Bar>
+            );
+          })}
         </BarChart>
       </ResponsiveContainer>
       <ChartLegend hatch forecast />

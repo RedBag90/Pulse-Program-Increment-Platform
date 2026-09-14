@@ -14,7 +14,9 @@
  *    entstehen die Kosten. Monatswert = Σ × Fenstertage-im-Monat ÷ Fenstertage.
  *  - Benefit (gemessen): one-time = Zuwachs der realisierten KPI-Wertung bzw.
  *    Business-Case-Spike am Go-Live; recurring = laufende KPI-Run-Rate bzw.
- *    `recurringBenefit`/12 ab Go-Live.
+ *    `recurringBenefit`/12 ab Go-Live. **Gezählt wird erst ab L4.2** — mit
+ *    Stempel ab dem Ist-Monat, ohne Stempel nur in der Zukunft ab dem
+ *    geplanten L4.2 (Prognose).
  *  - Forecast-„Rest zum Ziel" (`benefitUplift`): nur in Zukunftsmonaten
  *    (> heute, ≥ Go-Live) das Delta `atFull − gemessene Run-Rate`.
  *  - `hasAllocation`: Funding-Konfidenz — freigegeben (true) vs. veranschlagt
@@ -92,28 +94,60 @@ export function epicFlows(
   // Benefit-Velocity je Monat — die beiden Nutzen-Arten getrennt (benefitKind):
   //  one-time: KPI-Realisierungs-Zuwachs, sonst Business-Case-Spike am Go-Live.
   //  recurring: laufende KPI-Run-Rate, sonst Business-Case-`recurringBenefit`/12.
+  const oneTimeFlow = zeros(axis.monthCount);
+  const recurringFlow = zeros(axis.monthCount);
+
   const oneTime = input.kpiRealizedValueByMonth;
   if (oneTime) {
     let prev = 0;
     for (let idx = 0; idx < axis.monthCount; idx++) {
       const cum = oneTime[idx] ?? 0;
-      benefit[idx] = (benefit[idx] ?? 0) + (cum - prev);
+      oneTimeFlow[idx] = cum - prev;
       prev = cum;
     }
   } else if (goLiveIdx >= 0 && goLiveIdx < axis.monthCount) {
-    benefit[goLiveIdx] = (benefit[goLiveIdx] ?? 0) + input.oneTimeBenefit;
+    oneTimeFlow[goLiveIdx] = input.oneTimeBenefit;
   }
 
   const recurring = input.kpiRecurringByMonth;
   if (recurring) {
-    for (let idx = 0; idx < axis.monthCount; idx++) {
-      benefit[idx] = (benefit[idx] ?? 0) + (recurring[idx] ?? 0);
-    }
+    for (let idx = 0; idx < axis.monthCount; idx++) recurringFlow[idx] = recurring[idx] ?? 0;
   } else {
     const recPerMonth = input.recurringBenefit / 12;
     for (let idx = Math.max(0, goLiveIdx); idx < axis.monthCount; idx++) {
-      benefit[idx] = (benefit[idx] ?? 0) + recPerMonth;
+      recurringFlow[idx] = recPerMonth;
     }
+  }
+
+  // ── Ab wann Nutzen überhaupt zählt ──────────────────────────────────────
+  //
+  // **Erst ab L4.2 „Umsetzung fertig".** Vorher ist nichts geliefert, und ein
+  // KPI, der sich schon bewegt, bewegt sich aus anderen Gründen. Die
+  // KPI-Fülle (`kpiFulfillmentByMonth`) kannte den Go-Live bisher gar nicht —
+  // ein Epic in L4.1 mit Messwerten schrieb Nutzen, als wäre es fertig.
+  //
+  // Zwei Fälle, weil das Diagramm auch nach vorn schaut:
+  //  - **Abgenommen** (`quantityFrozenAt` = L4.2-Stempel): ab dem Ist-Monat.
+  //    `goLive` *ist* dann dieser Monat (`actuals.implementation`).
+  //  - **Noch nicht abgenommen**: nur in der Zukunft, ab dem geplanten L4.2 —
+  //    als Prognose. In Vergangenheit und laufendem Monat steht nichts, denn
+  //    dort ist nachweislich nichts geliefert worden.
+  const acceptedAt = input.quantityFrozenAt ?? null;
+  const benefitFrom =
+    acceptedAt != null ? Math.max(0, goLiveIdx) : Math.max(goLiveIdx, todayIndex + 1, 0);
+
+  // Der einmalige Nutzen, der vor der Abnahme schon realisiert war, geht nicht
+  // verloren — er wird im ersten zählenden Monat gutgeschrieben. Die laufende
+  // Run-Rate dagegen fällt weg: eine Rate vor der Lieferung gibt es nicht.
+  let carriedOneTime = 0;
+  for (let idx = 0; idx < axis.monthCount; idx++) {
+    if (idx < benefitFrom) {
+      carriedOneTime += oneTimeFlow[idx] ?? 0;
+      continue;
+    }
+    const carry = idx === benefitFrom ? carriedOneTime : 0;
+    benefit[idx] =
+      (benefit[idx] ?? 0) + (oneTimeFlow[idx] ?? 0) + (recurringFlow[idx] ?? 0) + carry;
   }
 
   // Forecast-„Rest zum Ziel": nur für KPI-getriebene recurring-KPIs, in

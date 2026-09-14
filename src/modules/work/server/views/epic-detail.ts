@@ -114,15 +114,61 @@ export interface EpicBudgetStandingView {
   span: { start: Date; end: Date } | null;
   /** Bei `upcoming`: ab wann der früheste noch nicht geltende Rahmen beginnt. */
   startsAt: Date | null;
+  /** Die tragenden Zyklen einzeln — „wann wovon", nicht nur „wie viel". */
+  periods: EpicBudgetPeriodView[];
 }
 
-/** Port: the Epic's budget allocation (Budgeting), or null when none exists.
- *  `allocatedByPeriod` = per-half-year €-map, consumed by the cost-over-time calc. */
-export type EpicBudgetPort = () => Promise<{
+/** Ein tragender Zyklus: Betrag und Geltungsdaten. */
+export interface EpicBudgetPeriodView {
+  cycleKey: string;
+  amount: number;
+  start: Date | null;
+  end: Date | null;
+  applies: boolean;
+}
+
+/**
+ * Wie weit die Zuteilung dieses Epics gediehen ist.
+ *
+ * Das **Etikett reist mit**, statt in Work zweitgeschrieben zu werden: die
+ * Wörter „Nicht begonnen" · „Gebunden" · „Verbraucht" gehören Budgeting, und
+ * die ART-Budgetseite zeigt sie für dasselbe Epic. Zwei Fassungen desselben
+ * Vokabulars wären zwei Fassungen, die auseinanderlaufen.
+ */
+export interface EpicAllocationStateView {
+  key: string;
+  label: string;
+}
+
+/**
+ * Die Reifegrad-Fakten, die Budgeting über dieses Epic braucht.
+ *
+ * Sie gehen **hinein**, damit die Regeln drüben bleiben: ab wann ein Epic Geld
+ * halten darf (`FIRST_FUNDABLE_STEP`) und ob sein Geld gebunden oder verbraucht
+ * ist, entscheidet Budgeting. Work reicht Fakten und fragt — es baut die Regeln
+ * nicht nach.
+ */
+export interface EpicBudgetFacts {
+  step: GateStep;
+  stageGate: string;
+  implementationCompletedAt: Date | null;
+}
+
+/**
+ * Port: the Epic's budget allocation (Budgeting), or null when none exists.
+ *
+ * `allocatedByPeriod` = per-half-year €-map, consumed by the cost-over-time calc.
+ */
+export interface EpicBudgetPortResult {
   allocatedSum: number;
   allocatedByPeriod: Record<string, number>;
   standing: EpicBudgetStandingView;
-} | null>;
+  allocationState: EpicAllocationStateView | null;
+  /** `may` = darf dieses Epic schon Geld halten; `firstStep` = ab welchem Schritt. */
+  fundable: { may: boolean; firstStep: string };
+}
+
+export type EpicBudgetPort = (facts: EpicBudgetFacts) => Promise<EpicBudgetPortResult | null>;
 
 export interface EpicDetailPorts {
   pis: EpicPisPort;
@@ -151,8 +197,13 @@ export type BudgetingSlice =
       disabled: false;
       allocated: boolean;
       allocatedByPeriod: Record<string, number>;
-      /** Der Stand für das Kernfakten-Band: Betrag, Zeitraum und Zustand. */
+      /** Der Stand für das Budget-Panel im Overview: Betrag, Zeitraum, Zustand. */
       standing: EpicBudgetStandingView;
+      /** „Nicht begonnen" · „Gebunden" · „Verbraucht"; `null` ohne Zuteilung. */
+      allocationState: EpicAllocationStateView | null;
+      /** Vor `firstStep` kann dieses Epic gar kein Geld halten — das erklärt ein
+       *  leeres Budget, statt es nur zu melden. */
+      fundable: { may: boolean; firstStep: string };
     };
 
 /** Risks is composed in the Epic route (composition root) off the full risks
@@ -175,11 +226,7 @@ export interface EpicDetailInputs {
   /** Port result — empty when `enabled.drumbeat` is false. */
   dependencies: BreakdownEdge[];
   /** Port result — null when `enabled.budgeting` is false. */
-  budget: {
-    allocatedSum: number;
-    allocatedByPeriod: Record<string, number>;
-    standing: EpicBudgetStandingView;
-  } | null;
+  budget: EpicBudgetPortResult | null;
   /** Persisted breakdown-network node positions (Work-owned, always loaded). */
   breakdownPositions: Map<string, { x: number; y: number }>;
   enabled: { drumbeat: boolean; budgeting: boolean; risks: boolean };
@@ -454,7 +501,12 @@ export function buildEpicDetailModel(inputs: EpicDetailInputs): EpicDetailModel 
           cycleCount: 0,
           span: null,
           startsAt: null,
+          periods: [],
         },
+        allocationState: budget?.allocationState ?? null,
+        // Ohne Port-Antwort ist „darf Geld halten" unbekannt — dann lieber
+        // nichts behaupten als ein „nein" erfinden.
+        fundable: budget?.fundable ?? { may: true, firstStep: "" },
       }
     : { disabled: true };
   const budgetAllocated = budgetingSlice.disabled ? false : budgetingSlice.allocated;
@@ -735,7 +787,14 @@ export async function loadEpicDetailInputs(
     loadBreakdownLayout(db, principal.tenantId, epic.id as EpicId),
     enabled.drumbeat ? ports.pis(artIds) : Promise.resolve([] as EpicPi[]),
     enabled.drumbeat ? ports.dependencies(featureIds) : Promise.resolve([] as BreakdownEdge[]),
-    enabled.budgeting ? ports.budget() : Promise.resolve(null),
+    // `current` steht oben schon fest; die beiden Stempel liegen am Epic.
+    enabled.budgeting
+      ? ports.budget({
+          step: current,
+          stageGate: epic.stageGate,
+          implementationCompletedAt: epic.implementationCompletedAt,
+        })
+      : Promise.resolve(null),
     getOpenGateTransition(db, principal.tenantId, epic.id),
     listGateTransitions(db, principal.tenantId, epic.id),
     to ? loadGateReadiness(db, principal.tenantId, epic.id, to) : Promise.resolve(null),

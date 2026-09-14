@@ -144,6 +144,42 @@ export function gateOfStep(step: GateStep): StageGate {
  * fertigen Umsetzung, ob das Epic schon auf dem zweiten Schritt steht. Überall
  * dort zu verwenden, wo bisher `epic.stageGate` den nächsten Antrag bestimmt hat.
  */
+/**
+ * **Ab L3.2 ist das Geld vergeben.** „Budget alloziert" ist die
+ * Investitionsentscheidung: ab hier steht ein Betrag fest, der ausgegeben
+ * werden wird — und deshalb gehört das Epic in die Wirtschaftlichkeits-Rechnung
+ * des Portfolios.
+ *
+ * Davor ist jede Zahl ein Wunsch. Das Dashboard rechnete früher mit **allem**,
+ * was einen bewerteten KPI trug, und zeigte damit Kosten und Nutzen von
+ * Vorhaben, über die niemand entschieden hatte.
+ *
+ * Nicht zu verwechseln mit `FIRST_FUNDABLE_STEP` (L3.1) aus Budgeting: dort
+ * geht es darum, ab wann ein Epic Geld **halten darf**, hier darum, ab wann es
+ * welches **bekommen hat**.
+ */
+export const BUDGET_DECIDED_STEP: GateStep = "L3.2";
+
+/** Ist für dieses Epic die Investitionsentscheidung gefallen (L3.2 oder später)? */
+export function hasBudgetDecision(step: GateStep): boolean {
+  return GATE_STEPS.indexOf(step) >= GATE_STEPS.indexOf(BUDGET_DECIDED_STEP);
+}
+
+/**
+ * Die Schwelle für Abfragen, die nur `stage_gate` kennen.
+ *
+ * Sie liegt **mitten in L3**: L3.1 und L3.2 teilen sich die Spalte, getrennt
+ * werden sie erst durch den Stempel `approvedAt`. Eine reine Gate-Liste reicht
+ * deshalb nicht — `gatesFullyAfterBudgetDecision` sind die Gates, die *ganz*
+ * dahinterliegen, `BUDGET_DECISION_GATE` ist das geteilte, in dem zusätzlich
+ * der Stempel zählt.
+ */
+export const BUDGET_DECISION_GATE: StageGate = "L3";
+
+export const GATES_AFTER_BUDGET_DECISION: readonly StageGate[] = STAGE_GATES.filter(
+  (g) => STAGE_GATES.indexOf(g) > STAGE_GATES.indexOf(BUDGET_DECISION_GATE),
+);
+
 export function currentGateStep(epic: {
   stageGate: StageGate;
   approvedAt: Date | null;

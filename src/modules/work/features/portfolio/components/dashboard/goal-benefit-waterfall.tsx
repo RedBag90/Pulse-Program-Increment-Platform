@@ -24,7 +24,7 @@ import {
 } from "@/modules/work/domain/goal-benefit-waterfall";
 import { formatMetricValue } from "@/modules/core/goals/domain/goal-metric";
 import type { StageGate } from "@/modules/core/kernel/domain/types";
-import { epicColor } from "./epic-colors";
+import { epicColor, NEUTRAL_COLOR, TOP_EPIC_SERIES } from "./epic-colors";
 import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 
@@ -32,7 +32,6 @@ import { Card } from "@/components/ui/card";
 const FORECAST_OPACITY = 0.4;
 const GAP_COLOR = "#dc2626";
 const TOTAL_COLOR = "#64748b";
-const NEUTRAL_COLOR = "#94a3b8";
 
 /** Gate → Farbe (Rampe L0 grau → L5 grün), konsistent mit dem Status-Modus. */
 const STAGE_COLORS: Record<StageGate, string> = {
@@ -74,8 +73,6 @@ const GROUP_LABEL: Record<WaterfallGroupMode, string> = {
 
 const NULL_BUCKET_KEY = "__none__";
 const OTHERS_BUCKET_KEY = "__others__";
-/** Epic-Modus: die N größten Beiträge als eigene Spalten, Rest = „Weitere". */
-const TOP_EPIC_BUCKETS = 15;
 
 /** Gesamt-Beitrag eines Epics in Ziel-Einheit (solid + forecast, bandabhängig). */
 function epicContribution(e: GoalWaterfallEpic): number {
@@ -145,7 +142,7 @@ function buildDimension(
   }
   const top = [...contrib.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, TOP_EPIC_BUCKETS)
+    .slice(0, TOP_EPIC_SERIES)
     .map(([id]) => id);
   const topSet = new Set(top);
   const buckets = top.map((id) => ({
@@ -369,9 +366,7 @@ function MiniWaterfall({
         <span className="truncate text-xs font-medium" title={goal.title}>
           {goal.title}
         </span>
-        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-          {attainment}%
-        </span>
+        <span className="shrink-0 text-meta tabular-nums text-muted-foreground">{attainment}%</span>
       </div>
       <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
         <div className="absolute inset-y-0 left-0 flex">
@@ -390,7 +385,7 @@ function MiniWaterfall({
           style={{ left: `calc(${Math.min(pctTarget, 100)}% - 1px)` }}
         />
       </div>
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+      <div className="flex items-center justify-between text-meta text-muted-foreground">
         <span className="tabular-nums">{formatMetricValue(wf.total, goal)}</span>
         <span className="tabular-nums">Ziel {fmtCompact(goal.target, goal)}</span>
       </div>
@@ -505,7 +500,7 @@ export function GoalBenefitWaterfallSection({
       )}
 
       {/* Legende */}
-      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-meta text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block h-3 w-3 rounded-sm"
@@ -536,7 +531,7 @@ export function GoalBenefitWaterfallSection({
       {/* Small Multiples: die Wurzel-Ziele (Unterziele nur im Selektor, sonst Dopplung) */}
       {rootGoals.length > 1 && (
         <div className="mt-4 border-t pt-3">
-          <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+          <p className="mb-2 text-label uppercase tracking-[0.1em] text-muted-foreground">
             Alle Ziele
           </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

@@ -11,7 +11,7 @@ import {
   type HorizonLane,
 } from "@/modules/work/domain/portfolio-guardrails";
 import { listValueStreamGuardrailTargets } from "@/modules/work/server/services/guardrail-targets";
-import { STAGE_GATES } from "@/modules/work/domain/stage-gate";
+import { STAGE_GATES, subStageFor } from "@/modules/work/domain/stage-gate";
 import { processColumn } from "@/modules/work/features/portfolio/lib/epic-lifecycle";
 import {
   computeStructureGap,
@@ -713,12 +713,26 @@ export function buildPortfolioOverviewModel(inputs: PortfolioOverviewInputs): Po
   const signedDays = (ms: number) => Math.round((ms - today) / MS_PER_DAY);
 
   // (A) Epics in L4: geschätzter Umsetzungs-Abschluss (`estimates.implementation`) ≤ 4 Wochen.
+  //
+  // Gefragt ist der **Schritt**, nicht das Haupt-Gate. `stageGate` trägt nur
+  // L0–L5; ein Epic, dessen Umsetzung mit L4.2 abgenommen ist, steht weiter auf
+  // „L4" und stand deshalb bis zum Wechsel auf L5 in dieser Liste — mit einer
+  // Überfälligkeit, die jeden Tag um einen Tag wuchs, obwohl es pünktlich
+  // fertig war. Die Abnahme materialisiert sich in `implementationCompletedAt`
+  // (siehe `stage-gate.ts`), und `subStageFor` ist die eine Stelle, die daraus
+  // L4.1 bzw. L4.2 ableitet.
   const l4Horizon = today + 28 * MS_PER_DAY;
   const l4DueSoon: DueSoonItem[] = epics
     .map((e) => ({ e, iso: parseTimeline(e.timeline).estimates.implementation ?? null }))
     .filter(
       (x): x is { e: (typeof epics)[number]; iso: string } =>
-        x.iso != null && x.e.stageGate === "L4" && Date.parse(x.iso) <= l4Horizon,
+        x.iso != null &&
+        subStageFor({
+          stageGate: x.e.stageGate as StageGate,
+          approvedAt: x.e.approvedAt,
+          implementationCompletedAt: x.e.implementationCompletedAt,
+        }) === "L4.1" &&
+        Date.parse(x.iso) <= l4Horizon,
     )
     .map(({ e, iso }) => ({
       id: e.id,

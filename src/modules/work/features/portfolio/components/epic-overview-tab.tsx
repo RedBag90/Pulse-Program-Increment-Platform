@@ -2,7 +2,10 @@ import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
 import { Stat, StatStrip } from "@/components/ui/stat";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { EpicBudgetStandingView } from "@/modules/work/server/views/epic-detail";
+import type {
+  EpicAllocationStateView,
+  EpicBudgetStandingView,
+} from "@/modules/work/server/views/epic-detail";
 import { EpicClassificationForm } from "./epic-classification-form";
 import { EpicSolutionsSection } from "./solutions/epic-solutions-section";
 import { EpicEditForm } from "./epic-edit-form";
@@ -11,6 +14,7 @@ import { EpicClassBadge } from "./epic-class-badge";
 import type { EpicClassification } from "@/modules/work/domain/pb-submission";
 import type { GuardrailTargetsSource } from "@/modules/work/domain/portfolio-guardrails";
 import { EpicPlannedWindowForm } from "./epic-planned-window-form";
+import { EpicBudgetPanel } from "./epic-budget-panel";
 import { formatCompactEUR } from "@/lib/formatting";
 import { buildInitiativeSummary } from "@/modules/core/kernel/domain/initiative-summary";
 import { STAGE_GATE_LABELS } from "@/components/detail/initiative-labels";
@@ -105,9 +109,15 @@ export interface EpicOverviewTabProps {
   /**
    * Der Budget-Stand. Er stand bis zur Überarbeitung im Kernfakten-Band des
    * Unterkopfs — also über jedem Reiter, statt bei den Zahlen, zu denen er
-   * gehört. `null` = Modul aus oder kein Budget.
+   * gehört. Beim Umzug hierher verlor er seinen **Zeitraum**, weil in die
+   * `Stat`-Kachel nur eine Zeile passt; seit dem Panel „Budget" ist er wieder
+   * vollständig. `null` = Modul aus oder kein Budget.
    */
   budgetStanding?: EpicBudgetStandingView | null;
+  /** „Nicht begonnen" · „Gebunden" · „Verbraucht" — aus dem Budget-Port. */
+  allocationState?: EpicAllocationStateView | null;
+  /** Ab welchem Schritt dieses Epic überhaupt Geld halten darf. */
+  fundable?: { may: boolean; firstStep: string };
 }
 
 /**
@@ -131,7 +141,7 @@ function Panel({
   return (
     <Card size="sm">
       <CardHeader>
-        <CardTitle className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        <CardTitle className="text-label font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {label}
         </CardTitle>
         {action && <CardAction>{action}</CardAction>}
@@ -176,6 +186,8 @@ export function EpicOverviewTab({
   solutions,
   classification,
   budgetStanding,
+  allocationState = null,
+  fundable = { may: true, firstStep: "" },
   ownerSlot,
   realizedSlot,
   goalsSlot,
@@ -377,6 +389,18 @@ export function EpicOverviewTab({
               body="Weder fürs Steering noch fürs Budget vorgemerkt."
             />
           )}
+        </Panel>
+
+        {/* Budget und Zeitfenster stehen absichtlich nebeneinander: beide
+            heissen fast gleich und meinen Verschiedenes — die Geltung des
+            Geldes und das Lieferfenster. Die Frage „reicht mein Budget ueber
+            meine Umsetzung?" laesst sich nur so beantworten. */}
+        <Panel label="Budget">
+          <EpicBudgetPanel
+            standing={budgetStanding ?? null}
+            allocationState={allocationState}
+            fundable={fundable}
+          />
         </Panel>
 
         <Panel label="Zeitfenster">

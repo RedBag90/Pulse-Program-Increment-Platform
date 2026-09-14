@@ -9,6 +9,10 @@ import {
   isValidStepTransition,
   gateOfStep,
   currentGateStep,
+  BUDGET_DECIDED_STEP,
+  hasBudgetDecision,
+  BUDGET_DECISION_GATE,
+  GATES_AFTER_BUDGET_DECISION,
 } from "@/modules/work/domain/stage-gate";
 
 describe("STAGE_GATES", () => {
@@ -143,5 +147,36 @@ describe("Gate-Steps (L3.2 und L4.2 als eigene Schritte)", () => {
       "L3.1",
     );
     expect(currentGateStep({ ...none, stageGate: "L2", approvedAt: at })).toBe("L2");
+  });
+});
+
+/**
+ * **Die Schwelle der Wirtschaftlichkeits-Rechnung: L3.2 „Budget alloziert".**
+ *
+ * Sie ist heikel, weil sie *mitten* in einem Haupt-Gate liegt: L3.1 und L3.2
+ * teilen sich `stage_gate = "L3"`, getrennt werden sie erst durch den Stempel
+ * `approvedAt`. Wer nur die Gate-Liste abfragt, nimmt entweder beide oder
+ * keinen — und rechnet dann mit Vorhaben, über die niemand entschieden hat.
+ */
+describe("hasBudgetDecision — ab wann ein Epic ins Portfolio-Dashboard zählt", () => {
+  it("liegt auf L3.2, nicht auf L3.1", () => {
+    expect(BUDGET_DECIDED_STEP).toBe("L3.2");
+    expect(hasBudgetDecision("L3.1")).toBe(false);
+    expect(hasBudgetDecision("L3.2")).toBe(true);
+  });
+
+  it("gilt für jeden späteren Schritt und für keinen früheren", () => {
+    const schwelle = GATE_STEPS.indexOf(BUDGET_DECIDED_STEP);
+    GATE_STEPS.forEach((step, i) => {
+      expect(hasBudgetDecision(step), `Schritt ${step}`).toBe(i >= schwelle);
+    });
+  });
+
+  it("die Gate-Zerlegung für Abfragen deckt die Schwelle vollständig ab", () => {
+    // Das geteilte Gate ist ausdrücklich **nicht** in der Liste der Gates, die
+    // ganz dahinterliegen — sonst käme L3.1 mit durch.
+    expect(BUDGET_DECISION_GATE).toBe("L3");
+    expect(GATES_AFTER_BUDGET_DECISION).toEqual(["L4", "L5"]);
+    expect(GATES_AFTER_BUDGET_DECISION).not.toContain(BUDGET_DECISION_GATE);
   });
 });

@@ -28,6 +28,8 @@ function epic(p: {
   steering?: boolean;
   /** Sets timeline.estimates.implementation (L4-Abschluss estimate), ISO yyyy-mm-dd. */
   implEstimate?: string;
+  /** Stempel der abgenommenen L4.2-Bestätigung — macht aus L4.1 ein L4.2. */
+  implementationCompletedAt?: Date | null;
   /** Der am Epic gesetzte Horizont — schlägt den der Primär-Solution. */
   ownHorizon?: string | null;
   /** Der Horizont der Primär-Solution, falls es eine gibt. */
@@ -40,6 +42,8 @@ function epic(p: {
     stageGate: p.stageGate ?? "L2",
     ownerId: p.ownerId ?? null,
     businessCaseApprovedAt: p.businessCaseApprovedAt ?? null,
+    approvedAt: null,
+    implementationCompletedAt: p.implementationCompletedAt ?? null,
     valueStream: p.vsName ? { id: `vs-${p.id}`, name: p.vsName } : null,
     updatedAt: p.updatedAt ?? daysAgo(1),
     needsSteeringAttention: p.steering ?? false,
@@ -304,6 +308,43 @@ describe("buildPortfolioOverviewModel", () => {
     expect(over.daysUntil).toBe(-5);
     expect(m.l4DueSoon[1]!.overdue).toBe(false);
     expect(m.l4DueSoon[1]!.daysUntil).toBe(10);
+  });
+
+  /**
+   * Der Fall aus dem Feld: ein Epic, dessen Umsetzung mit **L4.2** abgenommen
+   * ist, steht weiterhin auf `stageGate = "L4"` — das Haupt-Gate wechselt erst
+   * mit L5. Die Fällig-Liste fragte nur das Gate ab und meldete das Epic
+   * deshalb bis zum L5-Wechsel als „überfällig", mit einer Zahl, die täglich
+   * um einen Tag wuchs, obwohl es pünktlich fertig geworden war.
+   */
+  it("l4DueSoon: ein mit L4.2 abgenommenes Epic ist nicht mehr fällig", () => {
+    const inputs = baseInputs();
+    inputs.epics = [
+      epic({
+        id: "fertig",
+        title: "Umsetzung abgenommen",
+        stageGate: "L4",
+        implEstimate: "2026-03-17",
+        implementationCompletedAt: new Date("2026-03-17T00:00:00.000Z"),
+      }),
+      epic({
+        id: "laeuft",
+        title: "Umsetzung läuft noch",
+        stageGate: "L4",
+        implEstimate: "2026-03-17",
+      }),
+    ];
+    const m = buildPortfolioOverviewModel(inputs);
+    expect(m.l4DueSoon.map((x) => x.id)).toEqual(["laeuft"]);
+    expect(m.l4DueSoon[0]!.overdue).toBe(true);
+  });
+
+  it("l4DueSoon: der Stempel wirkt nur in L4 — ein L5-Epic ist ohnehin draußen", () => {
+    const inputs = baseInputs();
+    inputs.epics = [
+      epic({ id: "l5", title: "Impact realisiert", stageGate: "L5", implEstimate: "2026-06-10" }),
+    ];
+    expect(buildPortfolioOverviewModel(inputs).l4DueSoon).toEqual([]);
   });
 
   it("featuresDueSoon: PI-end ≤ 2 weeks, overdue first, parent Epic carried; null PI ignored", () => {

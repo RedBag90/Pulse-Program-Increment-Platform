@@ -209,6 +209,97 @@ function addInto(dst: number[], src: readonly number[]): void {
   for (let i = 0; i < src.length; i++) dst[i] = (dst[i] ?? 0) + (src[i] ?? 0);
 }
 
+/** Id-Präfix des Rest-Sammlers der Epic-Sicht (Suffix `:est` = veranschlagt). */
+export const OTHERS_SERIES_ID = "__others__";
+
+/**
+ * Faltet die Epic-Sicht auf die **Top N nach Benefit** plus einen Rest-Sammler.
+ *
+ * Warum überhaupt: die gestapelten Panels zeichnen ein Element je Serie **und**
+ * Monat. Die Bucket-Sichten (Wertstrom, ART, Status) sind von Natur aus
+ * beschränkt, die Epic-Sicht war es nicht — bei vielen Epics wuchs das Bild auf
+ * sechsstellige Elementzahlen und die Seite starb. Nach der Faltung wächst sie
+ * nur noch mit der Monatszahl.
+ *
+ * **Eine Rangfolge für alle Panels.** Gerankt wird nach `accBenefit` im letzten
+ * Achsenmonat — dem kumulierten Gesamt-Benefit über das sichtbare Fenster, also
+ * genau dem, was das Benefit-Velocity-Panel zeigt. Dieselbe Reihenfolge trägt
+ * auch die Kosten-Panels: so ist ein Epic über alle Panels hinweg dieselbe
+ * Farbe und dieselbe Legendenzeile. Der Preis ist bewusst: ein Epic mit hohen
+ * Kosten und wenig Nutzen steht auch im Kosten-Panel unter „Weitere".
+ *
+ * **Zwei Rest-Bänder**, nach `hasAllocation` getrennt — freigegebenes Geld
+ * solide, veranschlagtes schraffiert, wie in `groupSeriesByValueStream`. Ein
+ * gemeinsamer Balken müsste sich für eine der beiden Aussagen entscheiden und
+ * würde die Funding-Konfidenz verfälschen.
+ *
+ * Die Kumulierten dürfen hier **summiert** werden: die Partition steht fest,
+ * und die Summe von Kumulierten ist die Kumulierte der Summe. (Anders als bei
+ * `groupSeriesByEstimatedStage`, wo Epics über die Zeit den Bucket wechseln und
+ * die Kumulierten deshalb neu gerechnet werden.)
+ */
+export function foldTopEpicSeries(perEpic: readonly EpicSeries[], topN: number): EpicSeries[] {
+  if (perEpic.length <= topN) return [...perEpic];
+
+  const totalBenefit = (e: EpicSeries): number => e.accBenefit[e.accBenefit.length - 1] ?? 0;
+  const ranked = [...perEpic].sort((a, b) => {
+    const d = totalBenefit(b) - totalBenefit(a);
+    // Gleichstand nach Id: eine stabile Legende ist mehr wert als eine
+    // beliebige, und die Tests brauchen sie.
+    return d !== 0 ? d : a.id.localeCompare(b.id);
+  });
+
+  const top = ranked.slice(0, topN);
+  const rest = ranked.slice(topN);
+
+  const buckets = new Map<boolean, { series: EpicSeries; count: number }>();
+  for (const e of rest) {
+    const confirmed = e.hasAllocation ?? false;
+    let b = buckets.get(confirmed);
+    if (!b) {
+      b = {
+        series: {
+          id: confirmed ? OTHERS_SERIES_ID : `${OTHERS_SERIES_ID}:est`,
+          title: "",
+          hasAllocation: confirmed,
+          cost: [],
+          benefit: [],
+          benefitUplift: [],
+          net: [],
+          accCost: [],
+          accBenefit: [],
+          accNet: [],
+        },
+        count: 0,
+      };
+      buckets.set(confirmed, b);
+    }
+    addInto(b.series.cost, e.cost);
+    addInto(b.series.benefit, e.benefit);
+    addInto(b.series.benefitUplift, e.benefitUplift);
+    addInto(b.series.net, e.net);
+    addInto(b.series.accCost, e.accCost);
+    addInto(b.series.accBenefit, e.accBenefit);
+    addInto(b.series.accNet, e.accNet);
+    b.count += 1;
+  }
+
+  // Der Titel trägt die Anzahl — „Weitere" allein lässt offen, wovon.
+  // Das „(veranschlagt)" hängt `stackLabel` selbst an.
+  for (const b of buckets.values()) {
+    b.series.title = b.count === 1 ? "1 weiteres Epic" : `${b.count} weitere Epics`;
+  }
+
+  // Freigegeben vor veranschlagt — dieselbe Ordnung wie in den Bucket-Sichten.
+  const others = [buckets.get(true), buckets.get(false)]
+    .filter((b): b is { series: EpicSeries; count: number } => b != null)
+    .map((b) => b.series);
+
+  // Spart die Faltung nichts, bleibt die Detailtreue wertvoller.
+  if (top.length + others.length >= perEpic.length) return [...perEpic];
+  return [...top, ...others];
+}
+
 /**
  * Fasst die Epic-Serien **nach Reifegrad-Status (Stage-Gate L0–L5)** zusammen —
  * **zeit-variabel**: je Monat zählt der Fluss eines Epics zu dem Status, in dem es

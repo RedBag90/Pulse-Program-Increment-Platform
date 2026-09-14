@@ -13,6 +13,13 @@ const noStanding = {
   cycleCount: 0,
   span: null,
   startsAt: null,
+  periods: [],
+};
+
+/** Was der Budget-Port ohne Zuteilung liefert. */
+const noAllocation = {
+  allocationState: null,
+  fundable: { may: true, firstStep: "L3.1" },
 };
 
 /**
@@ -99,7 +106,7 @@ describe("buildEpicDetailModel — degradation matrix", () => {
   it("drumbeat ON + budgeting ON: both slices enabled with computed data", () => {
     const inputs = makeInputs({
       enabled: { drumbeat: true, budgeting: true, risks: false },
-      budget: { allocatedSum: 500, allocatedByPeriod: {}, standing: noStanding },
+      budget: { allocatedSum: 500, allocatedByPeriod: {}, standing: noStanding, ...noAllocation },
       pis: [
         { id: "pi-2", name: "PI 2", artId: "art-1", startDate: "2026-07-01" },
         { id: "pi-1", name: "PI 1", artId: "art-1", startDate: "2026-01-01" },
@@ -151,7 +158,12 @@ describe("buildEpicDetailModel — degradation matrix", () => {
       makeInputs({
         epic: makeEpic({ stageGate: "L3" }),
         enabled: { drumbeat: true, budgeting: true, risks: false },
-        budget: { allocatedSum: 1000, allocatedByPeriod: {}, standing: noStanding },
+        budget: {
+          allocatedSum: 1000,
+          allocatedByPeriod: {},
+          standing: noStanding,
+          ...noAllocation,
+        },
       }),
     );
     expect(on.nextStep?.hint.startsWith("Budget ist alloziert.")).toBe(true);
@@ -189,10 +201,54 @@ describe("buildEpicDetailModel — degradation matrix", () => {
 
   it("budgeting ON with allocatedSum 0 → allocated=false", () => {
     const m = buildEpicDetailModel(
-      makeInputs({ budget: { allocatedSum: 0, allocatedByPeriod: {}, standing: noStanding } }),
+      makeInputs({
+        budget: { allocatedSum: 0, allocatedByPeriod: {}, standing: noStanding, ...noAllocation },
+      }),
     );
     expect(m.budgeting.disabled).toBe(false);
     if (!m.budgeting.disabled) expect(m.budgeting.allocated).toBe(false);
+  });
+
+  /**
+   * Der Budget-Port beantwortet drei Fragen, die Work nicht selbst beantworten
+   * darf (ADR-0013): den Zeitraum-Aufschluss, den Zustand der Zuteilung und ab
+   * welchem Schritt dieses Epic überhaupt Geld halten darf. Alle drei müssen
+   * unverändert im Modell ankommen — sonst hat das Panel nichts zu zeigen.
+   */
+  it("reicht Zeiträume, Zustand und Förderfähigkeit des Ports ins Modell", () => {
+    const periods = [
+      {
+        cycleKey: "2026-H1",
+        amount: 400,
+        start: new Date("2026-01-01T00:00:00.000Z"),
+        end: new Date("2026-06-30T00:00:00.000Z"),
+        applies: true,
+      },
+      { cycleKey: "2026-H2", amount: 600, start: null, end: null, applies: false },
+    ];
+    const m = buildEpicDetailModel(
+      makeInputs({
+        budget: {
+          allocatedSum: 1000,
+          allocatedByPeriod: { "2026-H1": 400, "2026-H2": 600 },
+          standing: { ...noStanding, state: "applies", currentAmount: 400, periods },
+          allocationState: { key: "committed", label: "Gebunden" },
+          fundable: { may: true, firstStep: "L3.1" },
+        },
+      }),
+    );
+    expect(m.budgeting.disabled).toBe(false);
+    if (m.budgeting.disabled) return;
+    expect(m.budgeting.standing.periods).toEqual(periods);
+    expect(m.budgeting.allocationState).toEqual({ key: "committed", label: "Gebunden" });
+    expect(m.budgeting.fundable).toEqual({ may: true, firstStep: "L3.1" });
+  });
+
+  it("ohne Budgeting bleibt der Slice abgeschaltet — kein leerer Stand", () => {
+    const m = buildEpicDetailModel(
+      makeInputs({ enabled: { drumbeat: false, budgeting: false, risks: false }, budget: null }),
+    );
+    expect(m.budgeting).toEqual({ disabled: true });
   });
 });
 
